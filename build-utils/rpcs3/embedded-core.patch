@@ -65254,18 +65254,19 @@ index f6089ea..9a5f881 100644
  };
  }
 diff --git a/Utilities/JITIOS.cpp b/Utilities/JITIOS.cpp
-index 96fcc13..0b6d008 100644
+index 96fcc13..fba90e7 100644
 --- a/Utilities/JITIOS.cpp
 +++ b/Utilities/JITIOS.cpp
-@@ -7,6 +7,7 @@
+@@ -7,6 +7,8 @@
  #endif
  
  #include <algorithm>
++#include <cstddef>
 +#include <atomic>
  #include <cerrno>
  #include <csignal>
  #include <cstdlib>
-@@ -40,6 +41,7 @@ struct arena_state
+@@ -40,6 +42,7 @@ struct arena_state
  	u8* writable_code = nullptr;
  	u8* data = nullptr;
  	usz capacity = 0;
@@ -65273,7 +65274,7 @@ index 96fcc13..0b6d008 100644
  	u32 preparation_chunks = 0;
  	rpcs3::ios::jit::arena_allocator code_allocator;
  	rpcs3::ios::jit::arena_allocator data_allocator;
-@@ -49,6 +51,7 @@ struct arena_state
+@@ -49,6 +52,7 @@ struct arena_state
  	usz live_data_bytes = 0;
  	usz peak_code_bytes = 0;
  	usz peak_data_bytes = 0;
@@ -65281,7 +65282,7 @@ index 96fcc13..0b6d008 100644
  	rpcs3::ios::jit::arena_backend backend = rpcs3::ios::jit::arena_backend::legacy_debugger;
  	bool expanded = false;
  	bool prepared = false;
-@@ -60,21 +63,204 @@ std::mutex g_arena_mutex;
+@@ -60,21 +64,225 @@ std::mutex g_arena_mutex;
  std::mutex g_error_mutex;
  arena_state g_arena;
  std::string g_last_error;
@@ -65295,12 +65296,33 @@ index 96fcc13..0b6d008 100644
  constexpr int jit_vm_tag = VM_MAKE_TAG(VM_MEMORY_APPLICATION_SPECIFIC_1);
 -constexpr char expanded_jit_arena_environment[] = "RPCS3_IOS_EXPANDED_JIT_ARENA";
 +constexpr vm_address_t arena_address_begin = 0x1'0000'0000;
-+constexpr vm_address_t arena_address_end = 0x10'0000'0000;
++// NEOSTATION_JIT_HIGH_WINDOW_904: the preferred window ends at 64 GiB. The search walks upward from 4 GiB, so a
++// fitting gap below 64 GiB is still always taken first. When the low window is full, the search continues up to the
++// task's maximum address. The system shared region covers almost all of 6-63 GiB on iOS 27 beta (VA census of IPA
++// 674: 538 MiB free below 64 GiB, largest gap 260 MiB, and a free 64 GiB gap at 448 GiB). Code and data stay within
++// the 4 GiB signed ADRP reach of each other. No other constraint ties the arena to low addresses: PPU dispatch
++// entries are full 64-bit pointers, LLVM code is small-model PIC with GOT/stub relocations into the arena, and the
++// asmjit ADRs are local labels.
++constexpr vm_address_t arena_preferred_end = 0x10'0000'0000;
 +constexpr vm_size_t arena_address_step = 64 * 1024 * 1024;
++
++vm_address_t arena_address_end() noexcept
++{
++	vm_address_t end = arena_preferred_end;
++	task_vm_info_data_t info{};
++	mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++	if (::task_info(mach_task_self(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS &&
++		count * sizeof(natural_t) >= offsetof(task_vm_info_data_t, max_address) + sizeof(info.max_address) &&
++		info.max_address > end)
++	{
++		end = static_cast<vm_address_t>(info.max_address);
++	}
++	return end;
++}
  
 -bool process_expanded_jit_arena_requested() noexcept
 +u8* reserve_arena_layout(usz size, vm_address_t begin = arena_address_begin,
-+	vm_address_t end = arena_address_end) noexcept
++	vm_address_t end = arena_address_end()) noexcept
  {
 -	const char* const value = std::getenv(expanded_jit_arena_environment);
 -	return value && value[0] == '1' && value[1] == '\0';
@@ -65309,7 +65331,7 @@ index 96fcc13..0b6d008 100644
 +	// Inspect actual VM boundaries: rounding every candidate to 64 MiB can
 +	// discard the only usable window after ASLR. The fixed allocation remains
 +	// the ownership check if another thread maps into a gap during this scan.
-+	if (!size || begin < arena_address_begin || end > arena_address_end || begin >= end || size > end - begin)
++	if (!size || begin < arena_address_begin || end > arena_address_end() || begin >= end || size > end - begin)
 +	{
 +		return nullptr;
 +	}
@@ -65416,7 +65438,7 @@ index 96fcc13..0b6d008 100644
 +	{
 +		const auto code_address = reinterpret_cast<vm_address_t>(code);
 +		const vm_address_t data_begin = std::max(arena_address_begin, code_address + code_capacity - reach);
-+		const vm_address_t data_end = std::min(arena_address_end, code_address + reach);
++		const vm_address_t data_end = std::min(arena_address_end(), code_address + reach);
 +		data_capacity = code_capacity;
 +		for (;;)
 +		{
@@ -65490,7 +65512,7 @@ index 96fcc13..0b6d008 100644
  	std::lock_guard lock(g_error_mutex);
  	g_last_error = std::move(message);
  }
-@@ -89,6 +275,12 @@ void set_arena_exhaustion_error(bool executable, std::string_view allocation_kin
+@@ -89,6 +297,12 @@ void set_arena_exhaustion_error(bool executable, std::string_view allocation_kin
  	const usz runtime = executable ? g_arena.runtime_code_bytes : g_arena.runtime_data_bytes;
  	const usz peak = executable ? g_arena.peak_code_bytes : g_arena.peak_data_bytes;
  	std::string message = "JIT_ARENA_EXHAUSTED: ";
@@ -65503,7 +65525,7 @@ index 96fcc13..0b6d008 100644
  	message += executable ? "code" : "data";
  	message += " arena could not satisfy ";
  	message += allocation_kind;
-@@ -103,7 +295,7 @@ void set_arena_exhaustion_error(bool executable, std::string_view allocation_kin
+@@ -103,7 +317,7 @@ void set_arena_exhaustion_error(bool executable, std::string_view allocation_kin
  	message += " bytes, live=" + std::to_string(live);
  	message += " bytes, runtime=" + std::to_string(runtime);
  	message += " bytes, peak=" + std::to_string(peak);
@@ -65512,7 +65534,7 @@ index 96fcc13..0b6d008 100644
  	set_error(std::move(message));
  }
  
-@@ -227,15 +419,19 @@ u64 physical_memory_size() noexcept
+@@ -227,15 +441,19 @@ u64 physical_memory_size() noexcept
  	return ::sysctlbyname("hw.memsize", &value, &size, nullptr, 0) == 0 ? value : 0;
  }
  
@@ -65535,7 +65557,7 @@ index 96fcc13..0b6d008 100644
  	}
  }
  
-@@ -275,6 +471,11 @@ bool legacy_debugger_is_ready() noexcept
+@@ -275,6 +493,11 @@ bool legacy_debugger_is_ready() noexcept
  
  namespace rpcs3::ios::jit
  {
@@ -65547,7 +65569,7 @@ index 96fcc13..0b6d008 100644
  bool is_ready() noexcept
  {
  	{
-@@ -310,17 +511,21 @@ bool is_ready() noexcept
+@@ -310,17 +533,21 @@ bool is_ready() noexcept
  	return true;
  }
  
@@ -65576,7 +65598,7 @@ index 96fcc13..0b6d008 100644
  		{
  			set_error("JIT arena capacity policy changed after the arena was prepared; relaunch is required");
  			return false;
-@@ -334,64 +539,74 @@ bool prepare_arena(bool expanded) noexcept
+@@ -334,64 +561,75 @@ bool prepare_arena(bool expanded) noexcept
  		return false;
  	}
  
@@ -65600,8 +65622,9 @@ index 96fcc13..0b6d008 100644
 +	if (!layout)
  	{
 -		set_error("Unable to reserve the JIT arena layout: " + std::string{std::strerror(errno)});
-+		set_error("NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1: Unable to reserve the JIT arena layout in low virtual address space (code=" +
-+			std::to_string(capacity) + ", minimum data=" + std::to_string(arena_min_capacity) + " bytes)");
++		set_error("NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1: Unable to reserve the JIT arena layout in the task's virtual address space (4 GiB to " +
++			std::to_string(arena_address_end()) + ", low window first; code=" + std::to_string(capacity) + ", minimum data=" +
++			std::to_string(arena_min_capacity) + " bytes)");
  		return false;
  	}
  
@@ -65674,7 +65697,7 @@ index 96fcc13..0b6d008 100644
  	vm_address_t alias = 0;
  	vm_prot_t current_protection = VM_PROT_NONE;
  	vm_prot_t maximum_protection = VM_PROT_NONE;
-@@ -407,9 +622,11 @@ bool prepare_arena(bool expanded) noexcept
+@@ -407,9 +645,11 @@ bool prepare_arena(bool expanded) noexcept
  		&current_protection,
  		&maximum_protection,
  		VM_INHERIT_SHARE);
@@ -65687,7 +65710,7 @@ index 96fcc13..0b6d008 100644
  		set_error("mach_vm_remap failed while creating the arena's writable alias");
  		return false;
  	}
-@@ -417,7 +634,7 @@ bool prepare_arena(bool expanded) noexcept
+@@ -417,7 +657,7 @@ bool prepare_arena(bool expanded) noexcept
  	if (::vm_protect(mach_task_self(), alias, static_cast<vm_size_t>(capacity), false,
  		VM_PROT_READ | VM_PROT_WRITE) != KERN_SUCCESS)
  	{
@@ -65696,7 +65719,7 @@ index 96fcc13..0b6d008 100644
  		set_error("mach_vm_protect failed for the arena's writable alias");
  		return false;
  	}
-@@ -429,35 +646,79 @@ bool prepare_arena(bool expanded) noexcept
+@@ -429,35 +669,79 @@ bool prepare_arena(bool expanded) noexcept
  		::mprotect(layout, capacity, PROT_READ | PROT_EXEC) != 0)
  	{
  		const std::string detail = std::strerror(errno);
@@ -65782,7 +65805,7 @@ index 96fcc13..0b6d008 100644
  		if (g_arena.sealed)
  		{
  			return true;
-@@ -473,9 +734,7 @@ bool seal_arena() noexcept
+@@ -473,9 +757,7 @@ bool seal_arena() noexcept
  
  	// StikDebug's built-in Universal script detaches on command 0. The scoped
  	// fallback and Xcode stop hook consume the same command without detaching.
@@ -65793,7 +65816,7 @@ index 96fcc13..0b6d008 100644
  	{
  		std::lock_guard lock(g_arena_mutex);
  		g_arena.sealed = false;
-@@ -486,24 +745,24 @@ bool seal_arena() noexcept
+@@ -486,24 +768,24 @@ bool seal_arena() noexcept
  
  void* runtime_memory(bool executable) noexcept
  {
@@ -65826,7 +65849,7 @@ index 96fcc13..0b6d008 100644
  }
  
  bool claim_runtime(bool executable, usz offset, usz size) noexcept
-@@ -512,12 +771,12 @@ bool claim_runtime(bool executable, usz offset, usz size) noexcept
+@@ -512,12 +794,12 @@ bool claim_runtime(bool executable, usz offset, usz size) noexcept
  	{
  		return true;
  	}
@@ -65842,7 +65865,7 @@ index 96fcc13..0b6d008 100644
  	arena_allocator& allocator = executable ? g_arena.code_allocator : g_arena.data_allocator;
  	arena_range allocation;
  	if (!allocator.allocate_lowest(size, 1, allocation) || allocation.offset != offset)
-@@ -531,11 +790,25 @@ bool claim_runtime(bool executable, usz offset, usz size) noexcept
+@@ -531,11 +813,25 @@ bool claim_runtime(bool executable, usz offset, usz size) noexcept
  	}
  
  	usz& runtime = executable ? g_arena.runtime_code_bytes : g_arena.runtime_data_bytes;
@@ -65868,7 +65891,7 @@ index 96fcc13..0b6d008 100644
  void reset_runtime() noexcept
  {
  	std::lock_guard lock(g_arena_mutex);
-@@ -556,6 +829,7 @@ void reset_runtime() noexcept
+@@ -556,6 +852,7 @@ void reset_runtime() noexcept
  			set_error("Unable to release the runtime data portion of the JIT arena");
  			return;
  		}
@@ -65876,7 +65899,7 @@ index 96fcc13..0b6d008 100644
  		g_arena.live_data_bytes -= g_arena.runtime_data_bytes;
  		g_arena.runtime_data_bytes = 0;
  	}
-@@ -563,12 +837,12 @@ void reset_runtime() noexcept
+@@ -563,12 +860,12 @@ void reset_runtime() noexcept
  
  void* allocate(bool executable, usz size, usz alignment) noexcept
  {
@@ -65892,7 +65915,7 @@ index 96fcc13..0b6d008 100644
  	arena_allocator& allocator = executable ? g_arena.code_allocator : g_arena.data_allocator;
  	arena_range allocation;
  	if (!allocator.allocate_highest(size, alignment, allocation))
-@@ -579,8 +853,11 @@ void* allocate(bool executable, usz size, usz alignment) noexcept
+@@ -579,8 +876,11 @@ void* allocate(bool executable, usz size, usz alignment) noexcept
  
  	u8* const target = (executable ? g_arena.code : g_arena.data) + allocation.offset;
  	u8* const storage = (executable ? g_arena.writable_code : g_arena.data) + allocation.offset;
@@ -65905,7 +65928,7 @@ index 96fcc13..0b6d008 100644
  	return target;
  }
  
-@@ -594,7 +871,7 @@ void release_allocation(bool executable, void* address, usz size) noexcept
+@@ -594,7 +894,7 @@ void release_allocation(bool executable, void* address, usz size) noexcept
  	std::lock_guard lock(g_arena_mutex);
  	usz offset = 0;
  	u8* const base = executable ? g_arena.code : g_arena.data;
@@ -65914,7 +65937,7 @@ index 96fcc13..0b6d008 100644
  	{
  		set_error("Attempted to release an address outside the JIT arena");
  		return;
-@@ -609,6 +886,7 @@ void release_allocation(bool executable, void* address, usz size) noexcept
+@@ -609,6 +909,7 @@ void release_allocation(bool executable, void* address, usz size) noexcept
  
  	usz& live = executable ? g_arena.live_code_bytes : g_arena.live_data_bytes;
  	live = size <= live ? live - size : 0;
@@ -65922,7 +65945,7 @@ index 96fcc13..0b6d008 100644
  }
  
  void* writable(const void* executable, usz size) noexcept
-@@ -632,11 +910,22 @@ void flush(const void* executable, usz size) noexcept
+@@ -632,11 +933,22 @@ void flush(const void* executable, usz size) noexcept
  	::sys_icache_invalidate(const_cast<void*>(executable), size);
  }
  
@@ -65945,7 +65968,7 @@ index 96fcc13..0b6d008 100644
  	result.preparation_chunks = g_arena.preparation_chunks;
  	result.runtime_code_bytes = g_arena.runtime_code_bytes;
  	result.runtime_data_bytes = g_arena.runtime_data_bytes;
-@@ -648,6 +937,8 @@ arena_statistics get_statistics() noexcept
+@@ -648,6 +960,8 @@ arena_statistics get_statistics() noexcept
  	result.largest_free_data_bytes = g_arena.data_allocator.largest_free_bytes();
  	result.peak_code_bytes = g_arena.peak_code_bytes;
  	result.peak_data_bytes = g_arena.peak_data_bytes;
@@ -68989,7 +69012,7 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea1..7e9e459 100644
+index 9bb3ea1..5679131 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
 @@ -25,6 +25,103 @@ if(USE_LTO)
@@ -69125,7 +69148,7 @@ index 9bb3ea1..7e9e459 100644
      endif()
  endif()
  
-@@ -770,6 +877,75 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+@@ -770,6 +877,81 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
          "-framework MetalFX"
          iconv
      )
@@ -69183,6 +69206,12 @@ index 9bb3ea1..7e9e459 100644
 +        RSX/Metal/MTLTypelessCopy.cpp
 +        RSX/Metal/MTLTypelessCopy.h
 +        # M4 end
++        # M5: the program cache on disk and the Metal 4 pipeline archive
++        RSX/Metal/MTLM5Renderer.cpp
++        RSX/Metal/MTLPipelineArchive.cpp
++        RSX/Metal/MTLPipelineArchive.h
++        RSX/Metal/MTLPipelineCache.h
++        # M5 end
 +    )
 +    set_source_files_properties(RSX/Metal/MTLAPIApple.mm PROPERTIES
 +        COMPILE_OPTIONS -fobjc-arc
@@ -85601,10 +85630,10 @@ index aa37fd3..703899d 100644
  
 diff --git a/rpcs3/Emu/RSX/Metal/MTLAPI.h b/rpcs3/Emu/RSX/Metal/MTLAPI.h
 new file mode 100644
-index 0000000..4ea4b7d
+index 0000000..ecd7943
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLAPI.h
-@@ -0,0 +1,627 @@
+@@ -0,0 +1,660 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -85619,6 +85648,7 @@ index 0000000..4ea4b7d
 +#include "util/types.hpp"
 +
 +#include <array>
++#include <atomic>
 +#include <functional>
 +#include <string>
 +#include <string_view>
@@ -86223,6 +86253,38 @@ index 0000000..4ea4b7d
 +	void dispatch_threadgroups(const object& encoder, const size3& threadgroups, const size3& threads_per_threadgroup);
 +	// M4 end
 +
++	// M5: persistent Metal 4 pipeline binaries (MTLPipelineCache.h). A serializer that captures the binary of every
++	// pipeline its compiler builds (MTL4PipelineDataSetSerializer, configuration CaptureBinaries); empty when Metal
++	// does not create one.
++	object new_pipeline_serializer(const object& device);
++	// The compiler, capturing into `serializer` (MTL4CompilerDescriptor.pipelineDataSetSerializer) when not empty;
++	// then also its uncaptured twin, which pipeline creations use while write_pipeline_archive runs.
++	object new_compiler(const object& device, const object& serializer);
++	// The archive file at `path` (MTL4Archive); empty, with error, when Metal cannot open it.
++	object open_pipeline_archive(const object& device, const std::string& path, std::string& error);
++	// Everything `serializer` captured so far, written as an archive file at `path` (never while a pipeline is being
++	// captured into it: such creations end first, and later ones use the twin meanwhile).
++	bool write_pipeline_archive(const object& serializer, const std::string& path, std::string& error);
++	// The archive that every later render and compute pipeline creation looks up first (MTL4CompilerTaskOptions
++	// lookupArchives); empty for none. A pipeline it does not hold is compiled exactly as without it. Set before the
++	// first pipeline of a session and cleared after the last.
++	void set_pipeline_lookup_archive(const object& archive);
++	// The end of a session's capture (after its last archive write): the capturing compiler and its twin are released.
++	void end_pipeline_capture();
++	// Every pipeline created through new_render_pipeline / new_compute_pipeline is a hit (the lookup archive held its
++	// binary) or a miss (compiled: no archive, or not in it). A creation while the archive is being written never waits:
++	// it uses a twin of the capturing compiler without the serializer (uncaptured: missing from that archive only).
++	struct pipeline_archive_counters
++	{
++		std::atomic<u64> hits{0};
++		std::atomic<u64> misses{0};
++		std::atomic<u64> uncaptured{0};
++	};
++	pipeline_archive_counters& get_pipeline_archive_counters();
++	// The running system's version and build ("Version 26.1 (Build 23B85)"), part of an archive's identity.
++	std::string system_version();
++	// M5 end
++
 +	// The CAMetalLayer the host attached, and its drawables (Metal 4 presentation through the queue).
 +	void configure_layer(void* layer, const object& device, pixel_format format, u32 width, u32 height);
 +	object layer_residency_set(void* layer);
@@ -86234,10 +86296,10 @@ index 0000000..4ea4b7d
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
 new file mode 100644
-index 0000000..ec2ecc4
+index 0000000..628eeab
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
-@@ -0,0 +1,1087 @@
+@@ -0,0 +1,1284 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: MTLAPI.h on the Metal 4 and QuartzCore frameworks (iOS 26). Compiled with ARC.
 +//
@@ -86258,6 +86320,8 @@ index 0000000..ec2ecc4
 +#error "MTLAPIApple.mm must be compiled with -fobjc-arc"
 +#endif
 +
++#include <mutex>
++#include <shared_mutex>
 +#include <utility>
 +
 +#define RBX_METAL4 API_AVAILABLE(ios(26.0), macos(26.0))
@@ -86867,13 +86931,181 @@ index 0000000..ec2ecc4
 +
 +	RBX_METAL4 object new_compiler(const object& device)
 +	{
++		return new_compiler(device, object{});
++	}
++
++	// M5: persistent pipeline binaries (MTLPipelineCache.h)
++	namespace
++	{
++		std::mutex g_lookup_lock;
++		object g_lookup_archive;
++		pipeline_archive_counters g_archive_counters;
++
++		// A serializer is never written while a pipeline is being captured into it (MTL4PipelineDataSetSerializer is not
++		// declared thread-safe): pipeline creations share g_capture, the archive writer takes it exclusively. A creation
++		// that finds the writer at work never waits: it uses the capturing compiler's twin, a compiler of the same device
++		// without the serializer (counted as uncaptured; the next session's boot precompile captures that pipeline).
++		std::shared_mutex g_capture;
++		object g_capturing_compiler;  // guarded by g_lookup_lock
++		object g_twin_compiler;       // guarded by g_lookup_lock
++
++		object lookup_archive()
++		{
++			std::lock_guard lock(g_lookup_lock);
++			return g_lookup_archive;
++		}
++
++		// The compiler a pipeline creation uses, holding the shared capture lock when it is the capturing one.
++		struct capture_guard
++		{
++			std::shared_lock<std::shared_mutex> lock{ g_capture, std::try_to_lock };
++			object compiler;
++
++			explicit capture_guard(const object& requested)
++				: compiler(requested)
++			{
++				if (lock.owns_lock())
++				{
++					return;
++				}
++
++				std::unique_lock twins(g_lookup_lock);
++				if (!g_capturing_compiler || requested.get() != g_capturing_compiler.get())
++				{
++					return;  // a compiler without a serializer: nothing to order
++				}
++
++				if (g_twin_compiler)
++				{
++					compiler = g_twin_compiler;
++					g_archive_counters.uncaptured.fetch_add(1, std::memory_order_relaxed);
++					return;
++				}
++
++				// No twin (its creation failed): the creation waits for the writer rather than race it.
++				twins.unlock();
++				lock.lock();
++			}
++		};
++
++		// The lookup of a pipeline creation: whether the archive holds the binary (counted as a hit, or a miss when
++		// the pipeline is compiled), and the task options handing the archive to the compiler.
++		struct archive_lookup
++		{
++			object archive;
++			bool hit = false;
++
++			void count() const
++			{
++				(hit ? g_archive_counters.hits : g_archive_counters.misses).fetch_add(1, std::memory_order_relaxed);
++			}
++		};
++
++		RBX_METAL4 MTL4CompilerTaskOptions* lookup_options(const archive_lookup& lookup)
++		{
++			if (!lookup.archive)
++			{
++				return nil;
++			}
++
++			MTL4CompilerTaskOptions* options = [[MTL4CompilerTaskOptions alloc] init];
++			options.lookupArchives = @[ as<id<MTL4Archive>>(lookup.archive) ];
++			return options;
++		}
++	}
++
++	RBX_METAL4 object new_pipeline_serializer(const object& device)
++	{
++		@autoreleasepool
++		{
++			MTL4PipelineDataSetSerializerDescriptor* desc = [[MTL4PipelineDataSetSerializerDescriptor alloc] init];
++			desc.configuration = MTL4PipelineDataSetSerializerConfigurationCaptureBinaries;
++			return keep([as<id<MTLDevice>>(device) newPipelineDataSetSerializerWithDescriptor:desc]);
++		}
++	}
++
++	RBX_METAL4 object new_compiler(const object& device, const object& serializer)
++	{
 +		@autoreleasepool
 +		{
 +			MTL4CompilerDescriptor* desc = [[MTL4CompilerDescriptor alloc] init];
 +			NSError* failure = nil;
-+			return keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			if (!serializer)
++			{
++				return keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			}
++
++			// The twin first (no serializer), then the capturing compiler.
++			object twin = keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			desc.pipelineDataSetSerializer = as<id<MTL4PipelineDataSetSerializer>>(serializer);
++			object compiler = keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++
++			std::lock_guard lock(g_lookup_lock);
++			g_capturing_compiler = compiler;
++			g_twin_compiler = std::move(twin);
++			return compiler;
 +		}
 +	}
++
++	RBX_METAL4 object open_pipeline_archive(const object& device, const std::string& path, std::string& error)
++	{
++		@autoreleasepool
++		{
++			NSURL* url = [NSURL fileURLWithPath:string(path) isDirectory:NO];
++			NSError* failure = nil;
++			const id<MTL4Archive> archive = [as<id<MTLDevice>>(device) newArchiveWithURL:url error:&failure];
++			if (!archive)
++			{
++				error = describe(failure);
++			}
++			return keep(archive);
++		}
++	}
++
++	RBX_METAL4 bool write_pipeline_archive(const object& serializer, const std::string& path, std::string& error)
++	{
++		@autoreleasepool
++		{
++			NSURL* url = [NSURL fileURLWithPath:string(path) isDirectory:NO];
++			NSError* failure = nil;
++			// Every capturing creation in flight ends first; later ones use the twin compiler meanwhile.
++			std::unique_lock capture(g_capture);
++			if (![as<id<MTL4PipelineDataSetSerializer>>(serializer) serializeAsArchiveAndFlushToURL:url error:&failure])
++			{
++				error = describe(failure);
++				return false;
++			}
++			return true;
++		}
++	}
++
++	void set_pipeline_lookup_archive(const object& archive)
++	{
++		std::lock_guard lock(g_lookup_lock);
++		g_lookup_archive = archive;
++	}
++
++	void end_pipeline_capture()
++	{
++		std::lock_guard lock(g_lookup_lock);
++		g_capturing_compiler.reset();
++		g_twin_compiler.reset();
++	}
++
++	pipeline_archive_counters& get_pipeline_archive_counters()
++	{
++		return g_archive_counters;
++	}
++
++	std::string system_version()
++	{
++		@autoreleasepool
++		{
++			const char* text = NSProcessInfo.processInfo.operatingSystemVersionString.UTF8String;
++			return text ? text : "";
++		}
++	}
++	// M5 end
 +
 +	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, const library_options& options, std::string& error)
 +	{
@@ -86958,12 +87190,26 @@ index 0000000..ec2ecc4
 +				desc.label = string(descriptor.label);
 +			}
 +
++			// M5: the archive is probed for the binary (counted as a hit), then handed to the compiler, which builds
++			// the pipeline from it or compiles it (a miss): either way the compiler's serializer captures it.
++			archive_lookup lookup{ lookup_archive() };
++			if (lookup.archive)
++			{
++				NSError* absent = nil;
++				lookup.hit = [as<id<MTL4Archive>>(lookup.archive) newRenderPipelineStateWithDescriptor:desc error:&absent] != nil;
++			}
++
 +			NSError* failure = nil;
-+			const id<MTLRenderPipelineState> pipeline = [as<id<MTL4Compiler>>(compiler) newRenderPipelineStateWithDescriptor:desc
-+				compilerTaskOptions:nil error:&failure];
++			const capture_guard capture(compiler);
++			const id<MTLRenderPipelineState> pipeline = [as<id<MTL4Compiler>>(capture.compiler) newRenderPipelineStateWithDescriptor:desc
++				compilerTaskOptions:lookup_options(lookup) error:&failure];
 +			if (!pipeline)
 +			{
 +				error = describe(failure);
++			}
++			else
++			{
++				lookup.count();
 +			}
 +			return keep(pipeline);
 +		}
@@ -87222,12 +87468,25 @@ index 0000000..ec2ecc4
 +				desc.label = string(label);
 +			}
 +
++			// M5: as new_render_pipeline (the archive probed, then handed to the compiler)
++			archive_lookup lookup{ lookup_archive() };
++			if (lookup.archive)
++			{
++				NSError* absent = nil;
++				lookup.hit = [as<id<MTL4Archive>>(lookup.archive) newComputePipelineStateWithDescriptor:desc error:&absent] != nil;
++			}
++
 +			NSError* failure = nil;
-+			const id<MTLComputePipelineState> pipeline = [as<id<MTL4Compiler>>(compiler) newComputePipelineStateWithDescriptor:desc
-+				compilerTaskOptions:nil error:&failure];
++			const capture_guard capture(compiler);
++			const id<MTLComputePipelineState> pipeline = [as<id<MTL4Compiler>>(capture.compiler) newComputePipelineStateWithDescriptor:desc
++				compilerTaskOptions:lookup_options(lookup) error:&failure];
 +			if (!pipeline)
 +			{
 +				error = describe(failure);
++			}
++			else
++			{
++				lookup.count();
 +			}
 +			return keep(pipeline);
 +		}
@@ -87327,10 +87586,10 @@ index 0000000..ec2ecc4
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLBlit.cpp b/rpcs3/Emu/RSX/Metal/MTLBlit.cpp
 new file mode 100644
-index 0000000..9f7fdf6
+index 0000000..4154ac2
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLBlit.cpp
-@@ -0,0 +1,682 @@
+@@ -0,0 +1,722 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M3.2): image transfers (VKTexture.cpp copy_image / copy_image_typeless / copy_scaled_image,
 +// vk::blitter::scale_image counterparts). See MTLBlit.h.
@@ -87393,6 +87652,24 @@ index 0000000..9f7fdf6
 +{
 +	return src.sample(blit_linear_sampler, blit_coord(in.position, p));
 +}
++
++// Integer formats (no filtering: the Vulkan blit of an integer format is VK_FILTER_NEAREST): the texel floor(u) of the
++// unnormalized coordinate, clamped to the image (clamp to edge), read as it is.
++inline uint2 blit_nearest_texel(float4 position, constant blit_params& p, uint width, uint height)
++{
++	const float2 texel = clamp(floor(blit_coord(position, p)), float2(0.0), float2(float(width), float(height)) - 1.0);
++	return uint2(texel);
++}
++
++fragment uint4 blit_nearest_uint(blit_vertex_out in [[stage_in]], texture2d<uint, access::read> src [[texture(0)]], constant blit_params& p [[buffer(0)]])
++{
++	return src.read(blit_nearest_texel(in.position, p, src.get_width(), src.get_height()));
++}
++
++fragment int4 blit_nearest_sint(blit_vertex_out in [[stage_in]], texture2d<int, access::read> src [[texture(0)]], constant blit_params& p [[buffer(0)]])
++{
++	return src.read(blit_nearest_texel(in.position, p, src.get_width(), src.get_height()));
++}
 +)";
 +
 +		struct blit_params
@@ -87408,17 +87685,29 @@ index 0000000..9f7fdf6
 +			return *ensure(get_upload_heap(), "Metal: no upload heap for transfers");
 +		}
 +
-+		bool renderable_colour(pixel_format format)
++		// The values a colour format holds, as a blit reads and writes them (Vulkan: a blit converts between float and
++		// normalized formats; integer formats only blit to the same kind of integer format, with VK_FILTER_NEAREST).
++		enum class blit_values : u8
 +		{
-+			// The blit shader writes float4: normalized and float colour formats only.
++			none,      // not a colour format a render pass writes: depth, stencil (copy_scaled_image's carriers), compressed
++			floating,  // normalized and float formats: sampled with the requested filter, written as float4
++			uint_,     // read (nearest) and written as uint4
++			sint_,     // read (nearest) and written as int4
++		};
++
++		blit_values get_blit_values(pixel_format format)
++		{
 +			switch (format)
 +			{
-+			case pixel_format::r8_uint: case pixel_format::r16_uint: case pixel_format::r32_uint: case pixel_format::r32_sint:
-+			case pixel_format::rg32_uint: case pixel_format::rgba8_uint: case pixel_format::rgba16_uint: case pixel_format::rgba32_uint:
++			case pixel_format::r8_uint: case pixel_format::r16_uint: case pixel_format::r32_uint: case pixel_format::rg32_uint:
++			case pixel_format::rgba8_uint: case pixel_format::rgba16_uint: case pixel_format::rgba32_uint:
++				return blit_values::uint_;
++			case pixel_format::r32_sint:
++				return blit_values::sint_;
 +			case pixel_format::stencil8: case pixel_format::x32_stencil8:
-+				return false;
++				return blit_values::none;
 +			default:
-+				return !is_compressed_format(format) && !is_depth_format(format) && get_texel_size(format) != 0;
++				return (!is_compressed_format(format) && !is_depth_format(format) && get_texel_size(format) != 0) ? blit_values::floating : blit_values::none;
 +			}
 +		}
 +
@@ -87507,11 +87796,14 @@ index 0000000..9f7fdf6
 +	{
 +		// M4: the transfer pipeline cache (MTLTransferPass.h)
 +		const u64 key = static_cast<u64>(format) | (static_cast<u64>(filter) << 32);
++		const blit_values values = get_blit_values(format);
 +		return m_pipelines.get(key, [&](render_pipeline_descriptor& desc)
 +		{
 +			desc.library = m_library;
 +			desc.vertex_function = "blit_vertex";
-+			desc.fragment_function = (filter == blit_filter::linear) ? "blit_linear" : "blit_nearest";
++			desc.fragment_function = (values == blit_values::uint_) ? "blit_nearest_uint" :
++				(values == blit_values::sint_) ? "blit_nearest_sint" :
++				(filter == blit_filter::linear) ? "blit_linear" : "blit_nearest";
 +			desc.color[0].format = format;
 +			desc.label = "RSX blit";
 +		}, [&](const render_pipeline_descriptor&, const std::string& error)
@@ -87558,10 +87850,13 @@ index 0000000..9f7fdf6
 +		const auto s = absolute(src_area);
 +		const auto d = absolute(dst_area);
 +
-+		if (&src == &dst || !renderable_colour(dst.format()) || !(dst.usage & usage_render_target) || src.is_depth() || is_compressed_format(src.format()) ||
++		const blit_values values = get_blit_values(dst.format());
++		if (&src == &dst || values == blit_values::none || !(dst.usage & usage_render_target) || src.aspect() != aspect_color ||
++			get_blit_values(src.format()) != values ||  // Vulkan: integer formats blit only to the same kind of integer format
 +			src.samples() > 1 || dst.samples() > 1)  // M4: multisampled images are transferred through their resolve images
 +		{
-+			// (A render pass cannot sample the texture it renders to.)
++			// (A render pass cannot sample the texture it renders to; depth and stencil go through copy_scaled_image's
++			// carriers; a compressed destination cannot be rendered, nor blitted by Vulkan.)
 +			counters.scaled_not_implemented++;
 +			log_once("blit-format", fmt::format("scaled transfer %u -> %u cannot be rendered (format or usage)", static_cast<u32>(src.format()), static_cast<u32>(dst.format())));
 +			return false;
@@ -87573,6 +87868,13 @@ index 0000000..9f7fdf6
 +				src_area.x1, src_area.y1, src_area.x2, src_area.y2, src.width(), src.height(),
 +				dst_area.x1, dst_area.y1, dst_area.x2, dst_area.y2, level_width(dst, dst_level), level_height(dst, dst_level));
 +			return false;
++		}
++
++		if (filter == blit_filter::linear && values != blit_values::floating)
++		{
++			// Integer formats are not filtered (Vulkan requires VK_FILTER_NEAREST for them).
++			filter = blit_filter::nearest;
++			counters.filters_downgraded++;
 +		}
 +
 +		if (filter == blit_filter::linear && is_float32_format(src.format()) && !m_float32_filtering)
@@ -87730,31 +88032,10 @@ index 0000000..9f7fdf6
 +			return false;
 +		}
 +
-+		if (src->aspect() == aspect_color)
++		// VKTexture.cpp copy_scaled_image: the bits of the source region go into a helper of the destination's format
++		// (copy_image_typeless, counted there when refused), which is then scaled into the destination in that format.
++		const auto scale_through_typeless = [&]() -> bool
 +		{
-+			if (dst->aspect() != aspect_color)
-+			{
-+				counters.scaled_not_implemented++;
-+				log_once("blit-aspect", "scaled transfer between colour and depth is not implemented");
-+				return false;
-+			}
-+
-+			// vkCmdBlitImage: sampled and written as values (formats converted).
-+			return engine->blit(ctx, *src, src_area, *dst, dst_level, dst_slice, dst_z, dst_area, filter);
-+		}
-+
-+		// Depth and stencil (VKTexture.cpp copy_scaled_image): a depth float mismatch needs a typeless conversion.
-+		if (src->format() != dst->format())
-+		{
-+			// M4: VK ("can happen because of depth float mismatch; format width should be equal RSX-side"): the bits go
-+			// into a helper of the destination's format (copy_image_typeless, counted there when refused), then scaled.
-+			if (!dst->is_depth())
-+			{
-+				counters.typeless_not_implemented++;
-+				log_once("blit-depth-format", "scaled transfer from a depth image into a colour image is not implemented");
-+				return false;
-+			}
-+
 +			const auto s = absolute(src_area);
 +			image* const typeless = engine->get_typeless_helper(ctx, dst->format(), dst->format_class(), s.w, s.h, 5);
 +			if (!typeless)
@@ -87774,7 +88055,26 @@ index 0000000..9f7fdf6
 +			if (src_area.x1 > src_area.x2) helper_area.flip_horizontal();
 +			if (src_area.y1 > src_area.y2) helper_area.flip_vertical();
 +			return copy_scaled_image(ctx, typeless, dst, helper_area, dst_area, dst_level, dst_slice, dst_z, true, filter);
-+			// M4 end
++		};
++
++		if (src->aspect() == aspect_color)
++		{
++			if (dst->aspect() != aspect_color)
++			{
++				// Colour into depth or stencil: a Vulkan blit needs matching aspects, so the reinterpretation comes first
++				// (VK's order for a format mismatch below), then the scaling in the depth format (bits, never values).
++				return scale_through_typeless();
++			}
++
++			// vkCmdBlitImage: sampled and written as values (formats converted).
++			return engine->blit(ctx, *src, src_area, *dst, dst_level, dst_slice, dst_z, dst_area, filter);
++		}
++
++		// Depth and stencil (VKTexture.cpp copy_scaled_image): a format mismatch (a depth float mismatch, or a colour
++		// destination) needs a typeless conversion first ("format width should be equal RSX-side").
++		if (src->format() != dst->format())
++		{
++			return scale_through_typeless();
 +		}
 +
 +		if (dst_area.is_flipped())
@@ -87813,6 +88113,10 @@ index 0000000..9f7fdf6
 +		case pixel_format::depth32_float_stencil8:
 +			planes[plane_count++] = { blit_depth_from_depth_stencil, pixel_format::bgra8_unorm, 4 };
 +			planes[plane_count++] = { blit_stencil_from_depth_stencil, pixel_format::r8_unorm, 1 };
++			break;
++		case pixel_format::stencil8:
++			// A stencil image: its one plane through the stencil carrier (VK's typeless_stencil, R8_UNORM).
++			planes[plane_count++] = { blit_none, pixel_format::r8_unorm, 1 };
 +			break;
 +		default:
 +			counters.scaled_not_implemented++;
@@ -87990,14 +88294,9 @@ index 0000000..9f7fdf6
 +			src_area.flip_vertical();
 +		}
 +
-+		if (real_src->aspect() != real_dst->aspect())
-+		{
-+			// VK asserts here ("Incompatible source and destination format!").
-+			counters.typeless_not_implemented++;
-+			log_once("blit-aspects", "blit between a colour and a depth image is not implemented");
-+			return false;
-+		}
-+
++		// VK ensures matching aspects here ("Incompatible source and destination format!"): the common code makes the
++		// depth side typeless (reconcile_depth_color_typeless). Should they differ, copy_scaled_image reinterprets the
++		// bits into the destination's format before it scales them (formats are not bitcast compatible across aspects).
 +		if (!copy_scaled_image(cmd, real_src, real_dst, src_area, dst_area, 0, 0, 0,
 +			images_are_bitcast_compatible(real_src->format(), real_src->format_class(), real_dst->format(), real_dst->format_class()),
 +			interpolate ? blit_filter::linear : blit_filter::nearest))
@@ -88015,10 +88314,10 @@ index 0000000..9f7fdf6
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLBlit.h b/rpcs3/Emu/RSX/Metal/MTLBlit.h
 new file mode 100644
-index 0000000..3c6576b
+index 0000000..f4f7bbc
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLBlit.h
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,104 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -88030,9 +88329,13 @@ index 0000000..3c6576b
 +// a render pass over the destination region whose fragments sample the source with the requested filter at
 +//     u = srcX0 + (x + 0.5 - dstX0) * (srcX1 - srcX0) / (dstX1 - dstX0)
 +// in unnormalized texel coordinates with clamp-to-edge addressing (the Vulkan blit definition, mirrored when a source
-+// region is flipped). Depth and stencil are scaled as the Vulkan renderer does on MoltenVK-class drivers: each plane
-+// goes through a buffer into a colour carrier (D16 -> R16Unorm, D32F -> R32Float, the D32F_S8 depth plane -> BGRA8,
-+// its stencil plane -> R8Unorm), the carrier is scaled, and the result goes back into the plane, bit for bit.
++// region is flipped). Integer formats are read at the nearest texel, floor(u) clamped to the image, and written as
++// integers (Vulkan blits them with VK_FILTER_NEAREST, between integer formats of one signedness only). Depth and
++// stencil are scaled as the Vulkan renderer does on MoltenVK-class drivers: each plane goes through a buffer into a
++// colour carrier (D16 -> R16Unorm, D32F -> R32Float, the D32F_S8 depth plane -> BGRA8, its stencil plane and stencil
++// images -> R8Unorm), the carrier is scaled, and the result goes back into the plane, bit for bit. A scaled transfer
++// between formats of different aspects or depth formats reinterprets the bits into the destination's format first
++// (copy_image_typeless into a helper), then scales them in that format, as VK copy_scaled_image does for a mismatch.
 +//
 +// M4: reinterpretations that need a GPU byte shuffle or depth <-> colour packing run on the conversion kernels
 +// (copy_image_typeless, MTLTypelessCopy.cpp: the one typeless copy of the renderer). A multisampled surface is
@@ -88067,7 +88370,8 @@ index 0000000..3c6576b
 +		void destroy();
 +
 +		// Scales src_area of a colour image (level 0, slice 0; flipped when x1 > x2 or y1 > y2) into dst_area of a
-+		// level/slice/plane of a colour image. False (counted) when the destination cannot be rendered to.
++		// level/slice/plane of a colour image. False (counted) when the destination cannot be rendered to, or when
++		// one side is an integer format and the other is not (an invalid Vulkan blit).
 +		bool blit(command_context& ctx, const image& src, const areai& src_area, const image& dst, u32 dst_level, u32 dst_slice, u32 dst_z,
 +			const areai& dst_area, blit_filter filter);
 +
@@ -88631,10 +88935,10 @@ index 0000000..96aa7e8
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp
 new file mode 100644
-index 0000000..ad5fde4
+index 0000000..2c0be18
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp
-@@ -0,0 +1,157 @@
+@@ -0,0 +1,198 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M4): conversion compute tasks of the native Metal 4 renderer (VKCompute.cpp).
 +
@@ -88693,11 +88997,23 @@ index 0000000..ad5fde4
 +			return false;
 +		}
 +
++		// The tile decoder: its own library, so that a failure there leaves the conversion kernels (and the tile decoder's
++		// CPU counterpart, which its callers fall back to) in place.
++		std::string tiling_error;
++		m_tiling_library = compile_library(compiler, m4_shaders::tiling_library_source(), library_options{}, tiling_error);
++		if (!m_tiling_library)
++		{
++			log_failure(m4_failure::tiling_library, fmt::format("the tile decoder does not compile (tiled loads detile on the CPU): %s", tiling_error));
++		}
++
 +		return true;
 +	}
 +
 +	void compute_tasks::destroy()
 +	{
++		m_tile_decode_pipeline.reset();
++		m_tile_decode_failed = false;
++		m_tiling_library.reset();
 +		m_pipelines = {};
 +		m_pipeline_failed = {};
 +		m_table.reset();
@@ -88727,28 +89043,57 @@ index 0000000..ad5fde4
 +
 +	bool compute_tasks::dispatch(command_context& ctx, compute_kernel kernel, const object& data, u64 data_offset, const std::array<u32, 4>& params, u32 workgroups)
 +	{
-+		const object& pipeline = get_pipeline(kernel);
++		// The Vulkan dispatch covers workgroups * 256 invocations; a smaller pipeline limit only regroups them.
++		return dispatch_pipeline(ctx, get_pipeline(kernel), data, data_offset, params.data(), static_cast<u32>(sizeof(params)),
++			workgroups * compute_optimal_group_size);
++	}
++
++	bool compute_tasks::run_tile_decode(command_context& ctx, const object& data, u64 data_offset, const tile_decode_params& params)
++	{
++		if (!m_tile_decode_pipeline && !m_tile_decode_failed && m_tiling_library)
++		{
++			std::string error;
++			m_tile_decode_pipeline = new_compute_pipeline(m_compiler, m_tiling_library, m4_shaders::tile_decode_kernel_name,
++				m4_shaders::tile_decode_kernel_name, error);
++			if (!m_tile_decode_pipeline)
++			{
++				m_tile_decode_failed = true;
++				log_failure(m4_failure::compute_pipeline, fmt::format("compute pipeline %s: %s", m4_shaders::tile_decode_kernel_name, error));
++			}
++		}
++
++		if ((params.tiled_offset % 4) || (params.linear_offset % 4))
++		{
++			m4_count(get_m4_counters().compute_failures);
++			return false;
++		}
++
++		// One invocation per word of the linear output (VK: one per texel group of a row, over the tile-aligned rows).
++		return dispatch_pipeline(ctx, m_tile_decode_pipeline, data, data_offset, &params, static_cast<u32>(sizeof(params)), params.linear_words);
++	}
++
++	bool compute_tasks::dispatch_pipeline(command_context& ctx, const object& pipeline, const object& data, u64 data_offset, const void* params,
++		u32 params_size, u32 invocations)
++	{
 +		if (!pipeline || !data || !m_writer || (data_offset % 4) != 0)
 +		{
 +			m4_count(get_m4_counters().compute_failures);
 +			return false;
 +		}
 +
-+		if (!workgroups)
++		if (!invocations)
 +		{
 +			return true;
 +		}
 +
 +		// Parameters first: the writer may submit to make room, which must not happen with the encoder open.
-+		const auto [param_buffer, param_offset] = m_writer(params.data(), static_cast<u32>(sizeof(params)));
++		const auto [param_buffer, param_offset] = m_writer(params, params_size);
 +		if (!param_buffer)
 +		{
 +			m4_count(get_m4_counters().compute_failures);
 +			return false;
 +		}
 +
-+		// The Vulkan dispatch covers workgroups * 256 invocations; a smaller pipeline limit only regroups them.
-+		const u32 invocations = workgroups * compute_optimal_group_size;
 +		const u32 limit = query_compute_pipeline(pipeline).max_threads_per_threadgroup;
 +		const dispatch_size size = get_dispatch_size(invocations, std::min(compute_optimal_group_size, std::max(limit, 1u)));
 +
@@ -88794,10 +89139,10 @@ index 0000000..ad5fde4
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h
 new file mode 100644
-index 0000000..3736bdd
+index 0000000..5681680
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,228 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -88810,8 +89155,11 @@ index 0000000..3736bdd
 +// keeps them. Each task is its own compute encoder: the next encoder of the command context waits for it, so a task's
 +// results are visible to whatever is encoded after it, and it sees everything encoded before.
 +// The caller keeps the data buffer resident and alive until the work completes (command_context::dispose).
-+// Not ported (no caller in this renderer yet): the GPU deswizzle (GPUDeswizzle.glsl), the RSX tile codec
-+// (RSXMemoryTiling.glsl) and the conditional-render aggregator (no hardware conditional rendering on Metal).
++// The RSX tile decoder (RSXMemoryTiling.glsl, cs_tile_memcpy<decode>) is its own library and task (run_tile_decode),
++// used where the Vulkan renderer detiles on the GPU (detile_memory_block: tiled surface loads, tiled blit sources).
++// Not ported: the tile encoder (readbacks are tiled on the CPU at flush time, MTLTextureCache.cpp), the GPU deswizzle
++// (uploads deswizzle on the CPU while they copy guest memory into the staging ring, MTLTexture.cpp) and the
++// conditional-render aggregator (no hardware conditional rendering on Metal).
 +
 +#include "MTLAPI.h"
 +
@@ -88956,6 +89304,29 @@ index 0000000..3736bdd
 +		return { src_length, src_offset - bound_offset, dst_offset - bound_offset, ssbo_length / 4 };
 +	}
 +
++	// VK cs_tile_memcpy<RSX_detiler_op::decode> parameters (RSX_detiler_config), as the decoder kernel reads them
++	// (MTLM4Shaders.h tiling_kernels, MTLM4Math.h m4_detile_source).
++	struct tile_decode_params
++	{
++		u32 factor;
++		u32 num_tiles_per_row;
++		u32 tile_base_address;
++		u32 tile_size;
++		u32 tile_address_offset;   // the image's first texel, from the tile base
++		u32 tile_rw_offset;        // where the tiled bytes start, from the tile base
++		u32 tile_pitch;
++		u32 tile_bank;
++		u32 image_width;
++		u32 image_height;
++		u32 image_pitch;           // bytes per row of the packed linear output
++		u32 image_bpp;
++		u32 tiled_offset;          // the tiled bytes, from the bound data offset (a multiple of 4)
++		u32 tiled_length;
++		u32 linear_offset;         // the linear output, from the bound data offset (a multiple of 4)
++		u32 linear_words;          // the words of the linear output (aligned_div(image_pitch * image_height, 4))
++	};
++	static_assert(sizeof(tile_decode_params) == 64);
++
 +	class compute_tasks
 +	{
 +	public:
@@ -88974,9 +89345,15 @@ index 0000000..3736bdd
 +		// VK cs_fconvert_task::run(cmd, data, src_offset, src_length, dst_offset)
 +		bool run_fconvert(command_context& ctx, compute_kernel kernel, const object& data, u32 src_offset, u32 src_length, u32 dst_offset);
 +
++		// VK cs_tile_memcpy<decode>::run: the tiled bytes and the linear output both in `data`, bound at data_offset.
++		bool tiling_ready() const { return m_tiling_library && !m_tile_decode_failed; }
++		bool run_tile_decode(command_context& ctx, const object& data, u64 data_offset, const tile_decode_params& params);
++
 +	private:
 +		const object& get_pipeline(compute_kernel kernel);
 +		bool dispatch(command_context& ctx, compute_kernel kernel, const object& data, u64 data_offset, const std::array<u32, 4>& params, u32 workgroups);
++		bool dispatch_pipeline(command_context& ctx, const object& pipeline, const object& data, u64 data_offset, const void* params, u32 params_size,
++			u32 invocations);
 +
 +		object m_device;
 +		object m_compiler;
@@ -88985,6 +89362,9 @@ index 0000000..3736bdd
 +		param_writer m_writer;
 +		std::array<object, static_cast<usz>(compute_kernel::count)> m_pipelines{};
 +		std::array<bool, static_cast<usz>(compute_kernel::count)> m_pipeline_failed{};
++		object m_tiling_library;
++		object m_tile_decode_pipeline;
++		bool m_tile_decode_failed = false;
 +	};
 +
 +	// The tasks the surface and texture paths use (set by the renderer).
@@ -92049,10 +92429,10 @@ index 0000000..438c533
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 new file mode 100644
-index 0000000..5d603ca
+index 0000000..f48934a
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-@@ -0,0 +1,992 @@
+@@ -0,0 +1,1000 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (see MTLGSRender.h): device, frames, rings, presentation.
 +// The draw path is in MTLDraw.cpp, vertex and index uploads in MTLVertexBuffers.cpp.
@@ -92066,6 +92446,7 @@ index 0000000..5d603ca
 +#include "Emu/Memory/vm_locking.h"
 +#include "Emu/RSX/Host/MM.h"
 +#include "Emu/RSX/Program/SPIRVCommon.h"
++#include "Emu/RSX/rsx_cache.h"  // M5: the program cache on disk (MTLM5Renderer.cpp)
 +#include "Emu/RSX/RSXOffload.h"
 +#include "Emu/RSX/gcm_enums.h"
 +#include "Emu/RSX/Utils/rsx_utils.h"
@@ -92178,7 +92559,8 @@ index 0000000..5d603ca
 +	ensure(m_layer, "The display surface has no CAMetalLayer");
 +
 +	m_queue = mtl::new_command_queue(m_device);
-+	m_compiler = mtl::new_compiler(m_device);
++	open_pipeline_archive();  // M5: the title's pipeline binaries, before the compiler that captures into them
++	m_compiler = mtl::new_compiler(m_device, m_pipeline_archive.serializer());
 +	m_event = mtl::new_shared_event(m_device);
 +	m_residency = mtl::new_residency_set(m_device, 256);
 +	ensure(m_queue && m_compiler && m_event && m_residency, "Metal 4 queue, compiler, event or residency set creation failed");
@@ -92307,13 +92689,14 @@ index 0000000..5d603ca
 +	environment.caps.has_native_half_support = true;
 +	environment.fast_math = !g_cfg.video.disable_msl_fast_math;
 +	mtl::set_pipeline_environment(environment);
-+	// The program cache calls this after every link (allow_notification): the Vulkan renderer stores the program in
-+	// its disk shader cache there. The Metal renderer has no disk cache yet (stage M5), so nothing is stored; the
-+	// callback must exist all the same (an empty std::function would abort the RSX thread on the first pipeline).
++	// The program cache calls this after every link (allow_notification): the program is stored in the disk shader
++	// cache there, as in the Vulkan renderer (M5).
 +	m_prog_buffer = std::make_unique<mtl::program_cache>(
-+		[](const mtl::pipeline_props&, const RSXVertexProgram&, const RSXFragmentProgram&)
++		[this](const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
 +		{
++			store_program(props, vp, fp);
 +		});
++	create_program_cache();  // M5
 +
 +	// Texture cache (M3.1)
 +	mtl::set_upload_heap(&m_rings[ring_texture_upload]);
@@ -92339,6 +92722,8 @@ index 0000000..5d603ca
 +		m_device_info.name, m_device_info.apple7, m_device_info.apple8, m_device_info.apple9, m_device_info.bc_texture_compression,
 +		m_device_info.float32_filtering, m_device_info.sampler_lod_bias, m_device_info.unified_memory, m_drawable_width, m_drawable_height, environment.fast_math);
 +	rsx_log.warning("Metal 4 renderer M3.2/M4: scaled transfers into integer formats or between depth formats and guest-memory loads of scaled surfaces are not executed yet (counted in COREPROF METAL)");
++
++	load_program_cache();  // M5: the programs of earlier sessions, built before the first draw (VKGSRender)
 +}
 +
 +void MTLGSRender::on_exit()
@@ -92350,6 +92735,7 @@ index 0000000..5d603ca
 +	m_commands.wait_idle();
 +
 +	GSRender::on_exit();
++	close_pipeline_caches();  // M5: queued program records, the last pipeline archive checkpoint
 +
 +	m_texture_cache.destroy();
 +	mtl::set_blit_engine(nullptr);
@@ -92622,6 +93008,7 @@ index 0000000..5d603ca
 +	m_frame_index++;
 +	fold_queries(false);  // M4: the active query's completed segments (exact, no wait), so its slots are reused
 +	begin_frame();
++	m_pipeline_archive.tick();  // M5: a due archive checkpoint goes to its worker (never written here)
 +}
 +
 +void MTLGSRender::flip(const rsx::display_flip_info_t& info)
@@ -92765,7 +93152,7 @@ index 0000000..5d603ca
 +		"typeless_todo=%llu scaled_todo=%llu clipped=%llu scaled=%llu depth_scaled=%llu blits=%llu blits_cpu=%llu snapshots=%llu readbacks=%llu "
 +		"readback_mb=%llu scaled_readbacks=%llu tiled_readbacks=%llu readbacks_todo=%llu flush_requests=%llu "
 +		"offloader_faults=%llu faults_routed=%llu readbacks_unsubmitted=%llu samplers=%llu border_approx=%llu lod_bias_todo=%llu filter_downgraded=%llu "
-+		"unnormalized_adjusted=%llu surface_loads=%llu",
++		"unnormalized_adjusted=%llu surface_loads=%llu scaled_surface_loads=%llu uploads_not_detiled=%llu",
 +		load(c.textures_bound), load(c.textures_not_bound), load(t.images_created), load(t.image_allocation_failures), load(t.views_created),
 +		load(t.view_failures), load(t.uploads), load(t.upload_bytes) >> 20, load(t.upload_dedicated_buffers), load(t.depth_uploads_converted),
 +		load(t.uploads_unsupported_format), load(t.clears), load(t.copies), load(t.typeless_copies), load(t.buffer_bitcasts),
@@ -92774,9 +93161,10 @@ index 0000000..5d603ca
 +		load(t.readback_bytes) >> 20, load(t.scaled_readbacks), load(t.tiled_readbacks), load(t.readbacks_not_implemented), load(c.flush_requests), load(c.offloader_faults), load(t.faults_routed),
 +		load(t.readbacks_unsubmitted), load(t.samplers_created),
 +		load(t.border_colors_approximated), load(t.lod_bias_not_applied), load(t.filters_downgraded), load(t.unnormalized_samplers_adjusted),
-+		load(s.memory_loads));
++		load(s.memory_loads), load(s.scaled_memory_loads), load(t.uploads_not_detiled));
 +
 +	report_m4_counters();  // M4
++	report_m5_counters();  // M5
 +}
 +
 +bool MTLGSRender::wait_for_offloader_recovery(bool is_writing)
@@ -93047,10 +93435,10 @@ index 0000000..5d603ca
 +
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
 new file mode 100644
-index 0000000..627cced
+index 0000000..5fbbff0
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
-@@ -0,0 +1,379 @@
+@@ -0,0 +1,401 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93085,6 +93473,7 @@ index 0000000..627cced
 +#include "MTLQueries.h"
 +#include "MTLResolve.h"
 +// M4 end
++#include "MTLPipelineArchive.h"  // M5
 +
 +#include "Utilities/mutex.h"
 +
@@ -93138,6 +93527,13 @@ index 0000000..627cced
 +		u32 volatile_window_offset = umax;
 +		std::optional<std::pair<u64, index_type>> index_info;  // offset in the index ring, type
 +	};
++}
++
++// M5: rsx_cache.h (rsx::shaders_cache) is included by the units that use it.
++namespace rsx
++{
++	template <typename pipeline_storage_type, typename backend_storage>
++	class shaders_cache;
 +}
 +
 +class MTLGSRender : public GSRender, public ::rsx::reports::ZCULL_control
@@ -93429,13 +93825,27 @@ index 0000000..627cced
 +	void report_m4_counters();
 +	void prepare_overlays(const areau& image_area);  // before the presentation pass: the views and their images
 +	// M4 end
++
++	// M5: the RSX program cache on disk (rsx::shaders_cache, the Vulkan renderer's) and the Metal 4 pipeline binaries
++	// (MTLPipelineCache.h, MTLM5Renderer.cpp)
++	using shader_cache = rsx::shaders_cache<mtl::pipeline_props, mtl::program_cache>;
++	std::unique_ptr<shader_cache> m_shaders_cache;
++	mtl::pipeline_archive m_pipeline_archive;
++	std::string m_metal_cache_directory;  // empty when the on-disk shader cache is off
++	void open_pipeline_archive();     // before the compiler: it captures into the archive's serializer
++	void create_program_cache();      // after the program cache
++	void store_program(const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp);
++	void load_program_cache();        // the boot precompile, before the first draw
++	void close_pipeline_caches();     // on_exit: the queued records, the last archive checkpoint
++	void report_m5_counters();
++	// M5 end
 +};
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Counters.h b/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
 new file mode 100644
-index 0000000..3223904
+index 0000000..b946890
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,69 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93473,6 +93883,7 @@ index 0000000..3223904
 +		std::atomic<u64> compute_dispatches{0};
 +		std::atomic<u64> compute_failures{0};        // kernel or pipeline unavailable: not executed, counted
 +		std::atomic<u64> typeless_conversions{0};    // VK copy_image_typeless through the kernels (MTLTypelessCopy.cpp)
++		std::atomic<u64> tile_decodes{0};            // tiled guest memory detiled by the tile decoder (VK detile_memory_block)
 +
 +		// Native overlays (MTLOverlays.cpp)
 +		std::atomic<u64> overlay_frames{0};
@@ -93492,6 +93903,7 @@ index 0000000..3223904
 +		compute_library,
 +		compute_pipeline,
 +		overlay_pipeline,
++		tiling_library,
 +		count
 +	};
 +
@@ -93505,10 +93917,10 @@ index 0000000..3223904
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Math.h b/rpcs3/Emu/RSX/Metal/MTLM4Math.h
 new file mode 100644
-index 0000000..3e8b729
+index 0000000..0162fec
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLM4Math.h
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,213 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93520,7 +93932,8 @@ index 0000000..3e8b729
 +// operator:
 +//   - conversion_math: Program/GLSLSnippets/ShuffleBytes.glsl (byte swaps, D24 <-> F32 depth) and the interleave and
 +//     e4m12 conversion kernels of VKCompute.h / VKCompute.cpp;
-+//   - resolve_math: the coordinate and sample-index math of Program/MSAA/*ResolvePass.glsl and *UnresolvePass.glsl.
++//   - resolve_math: the coordinate and sample-index math of Program/MSAA/*ResolvePass.glsl and *UnresolvePass.glsl;
++//   - tiling_math: the RSX tile addressing of Program/GLSLSnippets/RSXMemoryTiling.glsl (the tile decoder).
 +// Only the two bit casts differ by language (std::bit_cast here, as_type<> in MSL). The code must stay a subset that
 +// means the same in C++ and in MSL: 32-bit unsigned/signed integers, float, no vectors, no preprocessor lines.
 +// The stringized text loses its line breaks, so the code holds no // comments.
@@ -93598,6 +94011,85 @@ index 0000000..3e8b729
 +	inline int m4_unresolve_target_y(int pixel_y, int sample_id, int samples_x, int samples_y) { return (pixel_y * samples_y) + (sample_id / samples_x); }
 +)
 +
++// RSXMemoryTiling.glsl do_memory_op and its CPU port Common/tiled_dma_copy.hpp: the offset from the tile base of the
++// texel at (row, col) of a linear region inside an RSX tile, operator for operator. The bank distribution table
++// { 0, 1, 2, 3, 2, 3, 0, 1, 1, 2, 3, 0, 3, 0, 1, 2 } is written as arithmetic (row r of the table adds the 2-bit reversal
++// of r to the column, modulo 4), so that the code holds no array. m4_detile_source is the decoder's gather: for byte
++// linear_byte of the packed linear image (rows image_pitch bytes apart), the byte of the tiled data (which starts
++// tile_rw_offset bytes after the tile base and is tiled_length bytes long) it comes from: the texel's tiled offset plus
++// the byte's place in the texel, as tiled_dma_copy copies a texel's bytes. ~0u for the bytes tiled_dma_copy does not
++// write (outside the image rows, or a texel whose tiled offset is outside the tile): those stay zero.
++MTL_M4_DUAL_SOURCE(tiling_math,
++	inline uint m4_tile_bank_lookup(uint index)
++	{
++		const uint table_row = (index >> 2) & 3;
++		return ((index & 3) + (((table_row & 1) << 1) | (table_row >> 1))) & 3;
++	}
++
++	inline uint m4_tile_offset(uint row, uint col, uint factor, uint num_tiles_per_row, uint tile_base_address, uint tile_address_offset,
++		uint tile_pitch, uint tile_bank, uint image_bpp)
++	{
++		const uint row_offset = (row * tile_pitch) + tile_base_address + tile_address_offset;
++		const uint this_address = row_offset + (col * image_bpp);
++		const uint texel_offset = (this_address - tile_base_address) / 256;
++		const uint tile_x = texel_offset % num_tiles_per_row;
++		const uint tile_y = (texel_offset / num_tiles_per_row) / 64;
++		const uint tile_id = tile_y * num_tiles_per_row + tile_x;
++		const uint tile_selector = (tile_id + (tile_base_address >> 14)) & 0x3ffff;
++		const uint row_address = (tile_selector >> 2) & 0xffff;
++		uint bank_selector = 0;
++		if (factor == 1)
++		{
++			bank_selector = (tile_selector & 3);
++		}
++		else if (factor == 2)
++		{
++			bank_selector = m4_tile_bank_lookup(((tile_selector + ((tile_y & 1) << 1)) & 3) * 4 + (tile_y & 3));
++		}
++		else if (factor >= 4)
++		{
++			bank_selector = m4_tile_bank_lookup((tile_selector & 3) * 4 + (tile_y & 3));
++		}
++		bank_selector = (bank_selector + tile_bank) & 3;
++		uint column_selector = 0;
++		const uint line_offset_in_tile = (texel_offset / num_tiles_per_row) % 64;
++		column_selector |= ((line_offset_in_tile >> 3) & 0x7) << 7;
++		column_selector |= ((this_address >> 5) & 0x7) << 4;
++		column_selector |= ((line_offset_in_tile >> 0) & 0x3) << 2;
++		const uint partition_selector = (((line_offset_in_tile >> 2) & 1) + ((this_address >> 6) & 1)) & 1;
++		uint tile_address = 0;
++		tile_address |= ((row_address >> 0) & 0xFFFF) << 16;
++		tile_address |= ((bank_selector >> 0) & 0x3) << 14;
++		tile_address |= ((column_selector >> 4) & 0x3F) << 8;
++		tile_address |= ((partition_selector >> 0) & 0x1) << 7;
++		tile_address |= ((column_selector >> 2) & 0x3) << 5;
++		tile_address |= ((this_address >> 0) & 0x1F) << 0;
++		tile_address ^= (((tile_address >> 12) ^ ((bank_selector ^ tile_selector) & 1) ^ (tile_address >> 14)) & 1) << 9;
++		tile_address ^= ((tile_address >> 11) & 1) << 10;
++		return tile_address - tile_base_address;
++	}
++
++	inline uint m4_detile_source(uint linear_byte, uint factor, uint num_tiles_per_row, uint tile_base_address, uint tile_size,
++		uint tile_address_offset, uint tile_rw_offset, uint tile_pitch, uint tile_bank, uint image_width, uint image_height,
++		uint image_pitch, uint image_bpp, uint tiled_length)
++	{
++		const uint row = linear_byte / image_pitch;
++		const uint in_row = linear_byte % image_pitch;
++		if (row >= image_height || in_row >= image_width * image_bpp)
++		{
++			return 0xFFFFFFFFu;
++		}
++		const uint tile_base_offset = m4_tile_offset(row, in_row / image_bpp, factor, num_tiles_per_row, tile_base_address, tile_address_offset,
++			tile_pitch, tile_bank, image_bpp);
++		if (tile_base_offset >= tile_size || tile_base_offset < tile_rw_offset)
++		{
++			return 0xFFFFFFFFu;
++		}
++		const uint source = tile_base_offset - tile_rw_offset + (in_row % image_bpp);
++		return (source < tiled_length) ? source : 0xFFFFFFFFu;
++	}
++)
++
 +// MSAA configuration (C++ only).
 +namespace mtl::msaa
 +{
@@ -93644,7 +94136,7 @@ index 0000000..3e8b729
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp b/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp
 new file mode 100644
-index 0000000..b37a551
+index 0000000..94573e6
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp
 @@ -0,0 +1,187 @@
@@ -93826,21 +94318,21 @@ index 0000000..b37a551
 +
 +	rsx_log.notice("COREPROF METAL M4 queries=%llu segments=%llu results=%llu discards=%llu hard_syncs=%llu gpu_waits=%llu hint_flushes=%llu "
 +		"slot_exhaustions=%llu folded=%llu slots_free=%u slots_pending=%u | msaa_surfaces=%llu resolves=%llu unresolves=%llu "
-+		"resolve_failures=%llu msaa_alloc_failures=%llu msaa_feedback_direct=%llu | compute=%llu compute_failures=%llu typeless_conversions=%llu | overlay_frames=%llu overlay_views=%llu "
++		"resolve_failures=%llu msaa_alloc_failures=%llu msaa_feedback_direct=%llu | compute=%llu compute_failures=%llu typeless_conversions=%llu tile_decodes=%llu | overlay_frames=%llu overlay_views=%llu "
 +		"overlay_draws=%llu overlay_failures=%llu",
 +		load(m.queries_begun), load(m.query_segments), load(m.query_results), load(m.query_discards), load(m.query_hard_syncs),
 +		load(m.query_gpu_waits), load(m.query_hint_flushes), load(m.query_slot_exhaustions), load(m.query_folded_segments),
 +		m_query_slots.available(), m_query_slots.pending(),
 +		load(m.msaa_surfaces), load(m.resolves), load(m.unresolves), load(m.resolve_failures), load(m.msaa_allocation_failures), load(m.msaa_feedback_direct),
-+		load(m.compute_dispatches), load(m.compute_failures), load(m.typeless_conversions),
++		load(m.compute_dispatches), load(m.compute_failures), load(m.typeless_conversions), load(m.tile_decodes),
 +		load(m.overlay_frames), load(m.overlay_views), load(m.overlay_draws), load(m.overlay_failures));
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h b/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h
 new file mode 100644
-index 0000000..f523e53
+index 0000000..9ae45eb
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h
-@@ -0,0 +1,328 @@
+@@ -0,0 +1,379 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -94045,6 +94537,57 @@ index 0000000..f523e53
 +	}
 +
 +	// ---------------------------------------------------------------------------------------------------------------
++	// RSX tile decoder (VKCompute.h cs_tile_memcpy<decode>, Program/GLSLSnippets/RSXMemoryTiling.glsl; its CPU port is
++	// Common/tiled_dma_copy.hpp). Its own library, so that the conversion kernels never depend on it. Buffer 0: the data
++	// (uint words, bound at the task's data offset) holding the tiled bytes and the linear output; buffer 1: the 16
++	// parameter words of mtl::tile_decode_params (MTLComputeTasks.h). One invocation per word of the packed linear image:
++	// each of its bytes comes from its texel's tiled address (MTLM4Math.h m4_detile_source), so every texel size and row
++	// length decodes whole (the GLSL kernel decodes 4 / bpp texels per invocation by read-modify-write of shared words,
++	// from its first column), and the bytes tiled_dma_copy does not write are zero, as in the CPU decoder's buffer.
++	// ---------------------------------------------------------------------------------------------------------------
++	constexpr std::string_view tiling_kernels = R"(
++inline uint m4_tiling_invocation_id(uint3 global_id, uint3 grid_size)
++{
++	return (global_id.y * grid_size.x) + global_id.x;
++}
++
++kernel void m4_tile_decode_kernel(device uint* data [[buffer(0)]], constant uint* params [[buffer(1)]],
++	uint3 global_id [[thread_position_in_grid]], uint3 grid_size [[threads_per_grid]])
++{
++	const uint word = m4_tiling_invocation_id(global_id, grid_size);
++	if (word >= params[15])
++	{
++		return;
++	}
++
++	uint value = 0;
++	for (uint byte_index = 0; byte_index < 4; ++byte_index)
++	{
++		const uint source = m4_detile_source((word * 4) + byte_index, params[0], params[1], params[2], params[3], params[4], params[5],
++			params[6], params[7], params[8], params[9], params[10], params[11], params[13]);
++		if (source != 0xFFFFFFFFu)
++		{
++			const uint index = params[12] + source;
++			value |= ((data[index >> 2] >> ((index & 3) * 8)) & 0xFF) << (byte_index * 8);
++		}
++	}
++
++	data[(params[14] >> 2) + word] = value;
++}
++)";
++
++	constexpr std::string_view tile_decode_kernel_name = "m4_tile_decode_kernel";
++
++	inline std::string tiling_library_source()
++	{
++		std::string source(prelude);
++		source += m4_source::tiling_math;
++		source += "\n";
++		source += tiling_kernels;
++		return source;
++	}
++
++	// ---------------------------------------------------------------------------------------------------------------
 +	// MSAA resolve and unresolve passes (VKResolveHelper, Program/MSAA). Every pass draws the 4-vertex strip of
 +	// GenericVSPassthrough.glsl over the whole target; buffer 0 holds the Vulkan push constants (int2 sample_count).
 +	// Resolve: each texel of the single-sampled image takes one sample of the multisampled image. Unresolve: each sample
@@ -94168,6 +94711,121 @@ index 0000000..f523e53
 +		source += resolve_passes;
 +		return source;
 +	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp b/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp
+new file mode 100644
+index 0000000..9e0b043
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp
+@@ -0,0 +1,109 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): the renderer side of the shader and pipeline caches (MTLPipelineCache.h): the RSX
++// program cache on disk (rsx::shaders_cache, as VKGSRender) with its boot precompile, and the Metal 4 pipeline archive.
++
++#include "stdafx.h"
++#include "MTLGSRender.h"
++
++#include "Emu/RSX/rsx_cache.h"
++#include "Emu/RSX/Overlays/Shaders/shader_loading_dialog_native.h"
++#include "Emu/cache_utils.hpp"
++#include "Emu/system_config.h"
++
++namespace
++{
++	// The title's Metal cache directory (trailing separator); empty when the on-disk shader cache is off.
++	std::string metal_cache_directory()
++	{
++		if (g_cfg.video.disable_on_disk_shader_cache)
++		{
++			return {};
++		}
++
++		std::string path = rpcs3::cache::get_ppu_cache();
++		if (path.empty())
++		{
++			return {};
++		}
++		return path + std::string(mtl::pipeline_cache::program_cache_directory);
++	}
++}
++
++void MTLGSRender::open_pipeline_archive()
++{
++	// Before the compiler exists: the compiler captures into the archive's serializer.
++	mtl::pipeline_cache::archive_identity identity;
++	identity.device = m_device_info.name;
++	identity.system = mtl::system_version();
++	m_metal_cache_directory = metal_cache_directory();
++	m_pipeline_archive.open(m_device, m_metal_cache_directory, identity);
++}
++
++void MTLGSRender::create_program_cache()
++{
++	// VKGSRender: rsx::shaders_cache over the program cache, in Metal's own directory with Metal's record version.
++	m_shaders_cache = std::make_unique<shader_cache>(*m_prog_buffer, std::string(mtl::pipeline_cache::program_cache_class),
++		mtl::pipeline_cache::program_cache_version(sizeof(mtl::pipeline_props)), mtl::pipeline_cache::program_cache_directory);
++}
++
++void MTLGSRender::store_program(const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
++{
++	// VKGSRender's program cache callback: the program was linked; the record is written by the cache's writer thread.
++	if (m_shaders_cache)
++	{
++		m_shaders_cache->store(props, vp, fp);
++	}
++}
++
++void MTLGSRender::load_program_cache()
++{
++	// VKGSRender::on_init_thread: every record of earlier sessions is built before the first draw, with the native
++	// interface's progress dialog (or the host's, the frame hidden meanwhile).
++	if (!m_shaders_cache)
++	{
++		return;
++	}
++
++	m_pipeline_archive.begin_boot();
++	mtl::set_pipeline_build_origin(mtl::pipeline_build_origin::boot);
++	if (!m_overlay_manager)
++	{
++		m_frame->hide();
++		m_shaders_cache->load(nullptr);
++		m_frame->show();
++	}
++	else
++	{
++		rsx::shader_loading_dialog_native dlg(this);
++		m_shaders_cache->load(&dlg);
++	}
++	mtl::set_pipeline_build_origin(mtl::pipeline_build_origin::draw);
++
++	// What the boot compiled is checkpointed now, by the worker (the Vulkan renderer's NEOSTATION_BUILD266 checkpoint),
++	// unless the emulation stopped during the precompile.
++	m_pipeline_archive.end_boot(!Emu.IsStopped());
++}
++
++void MTLGSRender::close_pipeline_caches()
++{
++	// VKGSRender::on_exit: every record the draws queued reaches disk; then the last archive checkpoint (no pipeline is
++	// built after this point).
++	if (m_shaders_cache)
++	{
++		m_shaders_cache->flush_pending_writes();
++		m_shaders_cache.reset();
++	}
++	m_pipeline_archive.close();
++}
++
++void MTLGSRender::report_m5_counters()
++{
++	const auto load = [](const std::atomic<u64>& value) { return static_cast<unsigned long long>(value.load(std::memory_order_relaxed)); };
++	const auto& p = mtl::get_pipeline_counters();
++	const auto& a = mtl::get_pipeline_archive_counters();
++	const auto& c = mtl::get_pipeline_cache_counters();
++	rsx_log.notice("COREPROF METAL M5 program_cache=%s boot_pipelines=%llu draw_pipelines=%llu archive=%s archive_hits=%llu archive_misses=%llu "
++		"archive_uncaptured=%llu archive_rejected=%llu checkpoints=%llu checkpoint_bytes=%llu checkpoint_failures=%llu archive_unavailable=%llu",
++		m_metal_cache_directory.empty() ? "off" : "on", load(p.boot_pipelines), load(p.draw_pipelines), m_pipeline_archive.state_name(), load(a.hits), load(a.misses),
++		load(a.uncaptured), load(c.rejections), load(c.checkpoints), load(c.checkpoint_bytes), load(c.checkpoint_failures), load(c.unavailable));
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLOverlayShaders.h b/rpcs3/Emu/RSX/Metal/MTLOverlayShaders.h
 new file mode 100644
@@ -94933,6 +95591,863 @@ index 0000000..499f9af
 +		std::vector<draw_item> m_draws;
 +	};
 +}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp
+new file mode 100644
+index 0000000..bdd1c5d
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp
+@@ -0,0 +1,393 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): the title's Metal 4 pipeline binaries (see MTLPipelineArchive.h, MTLPipelineCache.h).
++
++#include "stdafx.h"
++#include "MTLPipelineArchive.h"
++
++#include "MTLTexture.h"
++
++#include "Utilities/File.h"
++#include "Utilities/Thread.h"
++
++#include <chrono>
++#include <vector>
++
++#include <fcntl.h>
++#include <unistd.h>
++
++namespace mtl
++{
++	namespace
++	{
++		pipeline_cache_counters g_cache_counters{};
++
++		u64 now_us()
++		{
++			return static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++				std::chrono::steady_clock::now().time_since_epoch()).count());
++		}
++
++		// The checkpoint's file operations on disk (the unit test fakes the same interface).
++		struct disk_ops final : pipeline_cache::file_ops
++		{
++			const object& serializer;
++
++			explicit disk_ops(const object& value) : serializer(value) {}
++
++			bool read_text(const std::string& path, std::string& text) override
++			{
++				fs::file file(path);
++				if (!file)
++				{
++					return false;
++				}
++				text = file.to_string();
++				return true;
++			}
++
++			bool write_text(const std::string& path, std::string_view text) override
++			{
++				fs::file file(path, fs::rewrite);
++				return file && file.write(text.data(), text.size()) == text.size();
++			}
++
++			bool serialize(const std::string& path) override
++			{
++				std::string error;
++				if (!write_pipeline_archive(serializer, path, error))
++				{
++					log_once("archive-serialize", fmt::format("Metal 4 pipeline archive serialization failed: %s", error));
++					return false;
++				}
++				return true;
++			}
++
++			bool sync(const std::string& path) override
++			{
++				// POSIX directly: a failed sync is a failed checkpoint (counted), never a fatal error.
++				const int fd = ::open(path.c_str(), O_RDONLY);
++				if (fd < 0)
++				{
++					return false;
++				}
++				const bool ok = ::fsync(fd) == 0;
++				::close(fd);
++				return ok;
++			}
++
++			u64 size(const std::string& path) override
++			{
++				fs::stat_t info{};
++				return (fs::get_stat(path, info) && !info.is_directory) ? info.size : 0;
++			}
++
++			bool rename(const std::string& from, const std::string& to) override
++			{
++				return fs::rename(from, to, true);
++			}
++
++			bool remove(const std::string& path) override
++			{
++				return fs::remove_file(path) || !fs::is_file(path);
++			}
++		};
++
++		void reject(const std::string& path, std::string_view why)
++		{
++			g_cache_counters.rejections++;
++			log_once("archive-rejected", fmt::format("Metal 4 pipeline archive %s rejected (%s): removed, rebuilt from this session's pipelines", path, why));
++			fs::remove_file(path);
++		}
++	}
++
++	pipeline_cache_counters& get_pipeline_cache_counters()
++	{
++		return g_cache_counters;
++	}
++
++	pipeline_archive::~pipeline_archive()
++	{
++		close();
++	}
++
++	const char* pipeline_archive::state_name() const
++	{
++		switch (m_state)
++		{
++		case state::off: return "off";
++		case state::unavailable: return "unavailable";
++		case state::fresh: return "fresh";
++		case state::loaded: return "loaded";
++		}
++		return "unknown";
++	}
++
++	void pipeline_archive::open(const object& device, const std::string& directory, const pipeline_cache::archive_identity& identity)
++	{
++		ensure(!m_worker.joinable());
++		m_state = state::off;
++		if (directory.empty())
++		{
++			rsx_log.notice("Metal 4 pipeline archive: off (the on-disk shader cache is disabled or the title has no cache directory)");
++			return;
++		}
++
++		if (!fs::create_path(directory))
++		{
++			g_cache_counters.unavailable++;
++			log_once("archive-directory", fmt::format("Metal 4 pipeline archive: the directory %s cannot be created", directory));
++			return;
++		}
++
++		m_paths = pipeline_cache::make_archive_paths(directory, identity);
++		m_identity_text = pipeline_cache::identity_text(identity);
++		const std::string base = pipeline_cache::archive_base_name(identity);
++
++		// Every archive file of the directory: another identity's is rejected, an interrupted checkpoint's removed.
++		bool archive_exists = false;
++		bool identity_exists = false;
++		std::vector<std::string> stale;
++		for (const auto& entry : fs::dir(directory))
++		{
++			if (entry.is_directory)
++			{
++				continue;
++			}
++
++			switch (pipeline_cache::classify_file(entry.name, base))
++			{
++			case pipeline_cache::file_role::unrelated: break;
++			case pipeline_cache::file_role::current_archive: archive_exists = true; break;
++			case pipeline_cache::file_role::current_identity: identity_exists = true; break;
++			case pipeline_cache::file_role::other_archive: reject(directory + entry.name, "another GPU, system or archive version"); break;
++			case pipeline_cache::file_role::other_identity:
++			case pipeline_cache::file_role::leftover_temp: stale.push_back(directory + entry.name); break;
++			}
++		}
++
++		for (const auto& path : stale)
++		{
++			fs::remove_file(path);
++		}
++
++		std::string identity_on_disk;
++		if (identity_exists)
++		{
++			fs::file file(m_paths.identity);
++			identity_on_disk = file ? file.to_string() : std::string{};
++		}
++
++		switch (pipeline_cache::check_archive(archive_exists, identity_exists, identity_on_disk, m_identity_text))
++		{
++		case pipeline_cache::archive_state::usable:
++		{
++			std::string error;
++			m_archive = open_pipeline_archive(device, m_paths.archive, error);
++			if (!m_archive)
++			{
++				reject(m_paths.archive, fmt::format("Metal cannot open it: %s", error));
++			}
++			break;
++		}
++		case pipeline_cache::archive_state::absent:
++			break;
++		case pipeline_cache::archive_state::no_identity:
++			reject(m_paths.archive, "no identity sidecar");
++			break;
++		case pipeline_cache::archive_state::identity_mismatch:
++			reject(m_paths.archive, "its identity differs");
++			fs::remove_file(m_paths.identity);
++			break;
++		}
++
++		m_serializer = new_pipeline_serializer(device);
++		if (!m_serializer)
++		{
++			// Pipelines still use the loaded archive; nothing new is captured or written.
++			g_cache_counters.unavailable++;
++			log_once("archive-serializer", "Metal 4 pipeline archive: no pipeline data set serializer, pipeline binaries are not saved");
++			m_state = state::unavailable;
++		}
++		else
++		{
++			m_state = m_archive ? state::loaded : state::fresh;
++		}
++
++		set_pipeline_lookup_archive(m_archive);
++		m_checkpoint_misses = get_pipeline_archive_counters().misses.load();
++		m_last_checkpoint_us = now_us();
++		m_forced_pending = false;
++		m_keep_loaded = false;
++
++		if (m_serializer)
++		{
++			m_stop = false;
++			m_request = false;
++			m_busy = false;
++			m_worker = std::thread([this]() { worker_main(); });
++		}
++
++		rsx_log.notice("Metal 4 pipeline archive: %s (%s)", state_name(), m_paths.archive);
++	}
++
++	u64 pipeline_archive::new_pipelines() const
++	{
++		const u64 misses = get_pipeline_archive_counters().misses.load(std::memory_order_relaxed);
++		const u64 base = m_checkpoint_misses.load(std::memory_order_relaxed);
++		return misses > base ? misses - base : 0;
++	}
++
++	void pipeline_archive::begin_boot()
++	{
++		m_boot = true;
++	}
++
++	void pipeline_archive::end_boot(bool completed)
++	{
++		m_boot = false;
++		if (!completed && m_archive)
++		{
++			// The serializer holds only the records rebuilt before the stop: writing it would replace the complete
++			// archive with a part of it.
++			m_keep_loaded = true;
++			rsx_log.notice("Metal 4 pipeline archive: the boot precompile was interrupted, the loaded archive is kept unchanged");
++			return;
++		}
++
++		m_forced_pending = true;
++		tick();
++	}
++
++	void pipeline_archive::tick()
++	{
++		if (!m_worker.joinable() || m_keep_loaded)
++		{
++			return;
++		}
++
++		bool busy;
++		{
++			// Only flags: the worker never holds the lock while it writes.
++			std::lock_guard lock(m_mutex);
++			busy = m_busy || m_request;
++		}
++
++		pipeline_cache::checkpoint_state status;
++		status.now_us = now_us();
++		status.last_us = m_last_checkpoint_us.load(std::memory_order_relaxed);
++		status.new_pipelines = new_pipelines();
++		status.forced = m_forced_pending;
++		status.boot_in_progress = m_boot.load(std::memory_order_relaxed);
++		status.worker_busy = busy;
++
++		const auto reason = pipeline_cache::decide_checkpoint(m_policy, status);
++		if (reason == pipeline_cache::checkpoint_reason::none)
++		{
++			if (!status.new_pipelines)
++			{
++				m_forced_pending = false;  // nothing to force
++			}
++			return;
++		}
++
++		dispatch(reason == pipeline_cache::checkpoint_reason::forced);
++	}
++
++	void pipeline_archive::dispatch(bool forced)
++	{
++		if (forced)
++		{
++			m_forced_pending = false;
++		}
++
++		// The pipelines compiled from here on belong to the next checkpoint (back to this one's if it fails).
++		m_previous_misses = m_checkpoint_misses.load();
++		m_checkpoint_misses = get_pipeline_archive_counters().misses.load();
++		m_last_checkpoint_us = now_us();
++		{
++			std::lock_guard lock(m_mutex);
++			m_request = true;
++		}
++		m_wake.notify_one();
++	}
++
++	void pipeline_archive::worker_main()
++	{
++		thread_ctrl::set_native_priority(-1);
++
++		std::unique_lock lock(m_mutex);
++		while (true)
++		{
++			m_wake.wait(lock, [this]() { return m_request || m_stop; });
++			if (!m_request)
++			{
++				break;
++			}
++
++			m_request = false;
++			m_busy = true;
++			lock.unlock();
++			write();
++			lock.lock();
++			m_busy = false;
++			m_idle.notify_all();
++		}
++	}
++
++	void pipeline_archive::write()
++	{
++		disk_ops ops(m_serializer);
++		const auto result = pipeline_cache::write_checkpoint(ops, m_paths, m_identity_text);
++		if (result.ok())
++		{
++			g_cache_counters.checkpoints++;
++			g_cache_counters.checkpoint_bytes += result.bytes;
++			return;
++		}
++
++		// The pipelines of the failed checkpoint stay new: a later one (rate-limited from now) writes them again.
++		g_cache_counters.checkpoint_failures++;
++		m_checkpoint_misses = m_previous_misses.load();
++		m_last_checkpoint_us = now_us();
++		log_once("archive-checkpoint", fmt::format("Metal 4 pipeline archive checkpoint failed at its %s step: the previous archive stays",
++			pipeline_cache::checkpoint_step_name(result.failed)));
++	}
++
++	void pipeline_archive::close()
++	{
++		if (!m_worker.joinable())
++		{
++			end_pipeline_capture();
++			set_pipeline_lookup_archive({});
++			m_archive.reset();
++			m_serializer.reset();
++			return;
++		}
++
++		// The last checkpoint: after any running one, with everything compiled since it started.
++		{
++			std::unique_lock lock(m_mutex);
++			m_idle.wait(lock, [this]() { return !m_busy && !m_request; });
++		}
++
++		m_boot = false;
++		if (new_pipelines() && !m_keep_loaded)
++		{
++			dispatch(true);
++		}
++
++		{
++			std::unique_lock lock(m_mutex);
++			m_idle.wait(lock, [this]() { return !m_busy && !m_request; });
++			m_stop = true;
++		}
++		m_wake.notify_one();
++		m_worker.join();
++
++		end_pipeline_capture();
++		set_pipeline_lookup_archive({});
++		m_archive.reset();
++		m_serializer.reset();
++		m_state = state::off;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h
+new file mode 100644
+index 0000000..bb01940
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h
+@@ -0,0 +1,93 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M5): the title's Metal 4 pipeline binaries (the rules are MTLPipelineCache.h).
++//
++// open() validates the title's archive (another identity, a missing sidecar or a file Metal cannot open is rejected:
++// counted, removed, rebuilt), hands it to every pipeline creation as a lookup (mtl::set_pipeline_lookup_archive), and
++// creates the serializer the renderer's compiler captures into. tick(), once per frame on the RSX thread, only reads
++// counters and the clock; a due checkpoint goes to the worker thread, which writes the archive atomically. close()
++// writes the last checkpoint and joins the worker (the end of the session). An archive that Metal cannot capture
++// (no serializer) is counted and logged once, and the session runs without one.
++
++#include "MTLAPI.h"
++#include "MTLPipelineCache.h"
++
++#include <atomic>
++#include <condition_variable>
++#include <mutex>
++#include <string>
++#include <thread>
++
++namespace mtl
++{
++	struct pipeline_cache_counters
++	{
++		std::atomic<u64> rejections{0};          // archives (or their sidecars) of another identity, or unusable
++		std::atomic<u64> checkpoints{0};         // archives written
++		std::atomic<u64> checkpoint_bytes{0};
++		std::atomic<u64> checkpoint_failures{0};
++		std::atomic<u64> unavailable{0};         // sessions without a serializer or a cache directory
++	};
++
++	pipeline_cache_counters& get_pipeline_cache_counters();
++
++	class pipeline_archive
++	{
++	public:
++		enum class state : u8
++		{
++			off,          // the on-disk shader cache is disabled, or no title cache directory
++			unavailable,  // Metal created no serializer: nothing captured, nothing written
++			fresh,        // no usable archive: this session's pipelines build a new one
++			loaded,       // the archive is the lookup of every pipeline creation
++		};
++
++		pipeline_archive() = default;
++		pipeline_archive(const pipeline_archive&) = delete;
++		pipeline_archive& operator=(const pipeline_archive&) = delete;
++		~pipeline_archive();
++
++		// `directory` (the title's Metal cache, with a trailing separator) is empty when the cache is off.
++		void open(const object& device, const std::string& directory, const pipeline_cache::archive_identity& identity);
++		const object& serializer() const { return m_serializer; }
++		state get_state() const { return m_state; }
++		const char* state_name() const;
++
++		void begin_boot();  // the boot precompile starts: no checkpoint until end_boot()
++		// The boot precompile ended: a forced checkpoint of what it compiled. An interrupted one (the emulation stopped)
++		// rebuilt only part of the records: a loaded archive is then kept as it is for the whole session.
++		void end_boot(bool completed);
++		void tick();        // RSX thread, once per frame: never blocks, never writes
++		void close();       // the final checkpoint, then the worker stops (blocking)
++
++	private:
++		u64 new_pipelines() const;
++		void dispatch(bool forced);
++		void worker_main();
++		void write();
++
++		state m_state = state::off;
++		object m_serializer;
++		object m_archive;
++		pipeline_cache::archive_paths m_paths;
++		std::string m_identity_text;
++		pipeline_cache::checkpoint_policy m_policy{};
++
++		// The archive misses (compiled pipelines) counted when the last checkpoint started, and before it.
++		std::atomic<u64> m_checkpoint_misses{0};
++		std::atomic<u64> m_previous_misses{0};
++		std::atomic<u64> m_last_checkpoint_us{0};
++		std::atomic<bool> m_boot{false};
++		bool m_keep_loaded = false;     // an interrupted boot over a loaded archive: no checkpoint this session
++		bool m_forced_pending = false;  // RSX thread only
++
++		std::thread m_worker;
++		std::mutex m_mutex;
++		std::condition_variable m_wake;
++		std::condition_variable m_idle;
++		bool m_request = false;   // guarded by m_mutex
++		bool m_busy = false;      // guarded by m_mutex
++		bool m_stop = false;      // guarded by m_mutex
++	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h b/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h
+new file mode 100644
+index 0000000..a0fd34c
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h
+@@ -0,0 +1,353 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M5): the rules of the Metal renderer's shader and pipeline caches, as pure functions (no
++// Metal, no file system; unit-tested on any host by tests/mtl_m5_unit_test.cpp).
++//
++// Both caches live under the title's cache directory, apart from every Vulkan file:
++//   - the RSX program cache is the Vulkan renderer's model (rsx::shaders_cache): raw RSX vertex and fragment programs
++//     and pipeline_props records, rebuilt into pipelines at boot before the first draw. Metal keeps it in
++//     shaders_cache/metal/ (raw/, pipelines/metal/<version>/). Vulkan uses shaders_cache/raw, shaders_cache/pipelines/
++//     vulkan, shaders_cache/spirv.pack and shaders_cache/vk_pipeline_cache.bin and reads nothing below metal/; Metal
++//     reads and writes nothing outside it. The iOS game library counts and clears shaders_cache/ as a whole.
++//   - the Metal 4 pipeline binaries: an MTL4PipelineDataSetSerializer attached to the compiler captures the binary of
++//     every pipeline it builds; checkpoints write the captured set as an MTL4Archive file, which the next session's
++//     pipeline creations look up first (a pipeline the archive does not hold is compiled as without it). The file name
++//     holds the hash of the archive's identity (format version, GPU, OS version and build) and a sidecar file holds the
++//     identity itself: an archive of another identity, or one without its sidecar, is rejected (counted, removed) and
++//     rebuilt from this session's pipelines.
++// Checkpoints are written by a worker, rate-limited (decide_checkpoint), atomically (write_checkpoint: temporary file,
++// sync, rename), never during the boot precompile (that archive would lack the records not rebuilt yet) and never by
++// the draw path.
++
++#include "util/types.hpp"
++
++#include <string>
++#include <string_view>
++
++namespace mtl::pipeline_cache
++{
++	// -----------------------------------------------------------------------------------------------------------------
++	// The RSX program cache (the rsx::shaders_cache arguments)
++
++	constexpr std::string_view program_cache_directory = "shaders_cache/metal/";  // relative to the title's cache
++	constexpr std::string_view program_cache_class = "metal";                     // pipelines/<class>/<version>/
++	constexpr u32 program_record_version = 1;  // bump when pipeline_props changes meaning without changing size
++
++	// The records' version directory: the record version and the size of pipeline_props (rsx::shaders_cache also
++	// removes records of another size; a new directory never reads old ones at all).
++	inline std::string program_cache_version(usz props_size)
++	{
++		return "v" + std::to_string(program_record_version) + "-p" + std::to_string(props_size);
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Archive identity
++
++	constexpr u32 archive_format_version = 1;  // bump to reject every archive written before
++	constexpr std::string_view archive_prefix = "pipelines-";
++	// A Metal binary archive keeps the metallib extension Metal's archives use; a temporary file keeps the final
++	// extension too (".partial" before it), in case the serializer or the loader goes by the extension.
++	constexpr std::string_view archive_extension = ".metallib";
++	constexpr std::string_view identity_extension = ".identity";
++	constexpr std::string_view partial_infix = ".partial";
++
++	struct archive_identity
++	{
++		u32 version = archive_format_version;
++		std::string device;   // MTLDevice name
++		std::string system;   // operating system version and build
++	};
++
++	// One field per line: a line break inside a field cannot forge another field.
++	inline std::string identity_field(std::string_view value)
++	{
++		std::string result(value);
++		for (char& c : result)
++		{
++			if (c == '\n' || c == '\r')
++			{
++				c = ' ';
++			}
++		}
++		return result;
++	}
++
++	// The sidecar's text, compared byte for byte.
++	inline std::string identity_text(const archive_identity& identity)
++	{
++		std::string text = "RPCS3 Metal 4 pipeline archive\n";
++		text += "version=" + std::to_string(identity.version) + "\n";
++		text += "device=" + identity_field(identity.device) + "\n";
++		text += "system=" + identity_field(identity.system) + "\n";
++		return text;
++	}
++
++	constexpr u64 fnv1a64(std::string_view data)
++	{
++		u64 hash = 0xcbf29ce484222325ull;
++		for (const char c : data)
++		{
++			hash ^= static_cast<u8>(c);
++			hash *= 0x100000001b3ull;
++		}
++		return hash;
++	}
++
++	// "pipelines-<16 hex digits of the identity hash>"
++	inline std::string archive_base_name(const archive_identity& identity)
++	{
++		constexpr char digits[] = "0123456789abcdef";
++		const u64 hash = fnv1a64(identity_text(identity));
++		std::string name(archive_prefix);
++		for (int shift = 60; shift >= 0; shift -= 4)
++		{
++			name += digits[(hash >> shift) & 0xf];
++		}
++		return name;
++	}
++
++	struct archive_paths
++	{
++		std::string archive;         // <directory>pipelines-<hash>.metallib
++		std::string archive_temp;    // <directory>pipelines-<hash>.partial.metallib
++		std::string identity;        // <directory>pipelines-<hash>.identity
++		std::string identity_temp;   // <directory>pipelines-<hash>.partial.identity
++	};
++
++	// `directory` ends with a separator.
++	inline archive_paths make_archive_paths(std::string_view directory, const archive_identity& identity)
++	{
++		const std::string base = std::string(directory) + archive_base_name(identity);
++		archive_paths paths;
++		paths.archive = base + std::string(archive_extension);
++		paths.archive_temp = base + std::string(partial_infix) + std::string(archive_extension);
++		paths.identity = base + std::string(identity_extension);
++		paths.identity_temp = base + std::string(partial_infix) + std::string(identity_extension);
++		return paths;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Validation and rejection
++
++	// What a file of the cache directory is to this session.
++	enum class file_role : u8
++	{
++		unrelated,        // not an archive file (the program cache's raw/ and pipelines/, the SPIR-V pack, anything else)
++		current_archive,  // this identity's archive
++		current_identity, // this identity's sidecar
++		other_archive,    // another identity's archive: rejected (counted) and removed
++		other_identity,   // another identity's sidecar: removed with it
++		leftover_temp,    // an interrupted checkpoint's temporary file: removed
++	};
++
++	constexpr bool ends_with(std::string_view text, std::string_view suffix)
++	{
++		return text.size() >= suffix.size() && text.substr(text.size() - suffix.size()) == suffix;
++	}
++
++	constexpr file_role classify_file(std::string_view name, std::string_view base_name)
++	{
++		if (name.substr(0, archive_prefix.size()) != archive_prefix)
++		{
++			return file_role::unrelated;
++		}
++
++		const bool archive = ends_with(name, archive_extension);
++		const bool identity = ends_with(name, identity_extension);
++		if (!archive && !identity)
++		{
++			return file_role::unrelated;
++		}
++
++		const std::string_view stem = name.substr(0, name.size() - (archive ? archive_extension.size() : identity_extension.size()));
++		if (ends_with(stem, partial_infix))
++		{
++			return file_role::leftover_temp;
++		}
++
++		if (stem == base_name)
++		{
++			return archive ? file_role::current_archive : file_role::current_identity;
++		}
++		return archive ? file_role::other_archive : file_role::other_identity;
++	}
++
++	// Whether this identity's archive may be handed to Metal (which may still fail to open it: a rejection too).
++	enum class archive_state : u8
++	{
++		usable,             // archive and sidecar present, the sidecar holds this identity
++		absent,             // no archive: built from this session's pipelines (not a rejection)
++		no_identity,        // an archive without its sidecar: rejected
++		identity_mismatch,  // a sidecar that does not hold this identity (damaged, or a hash collision): rejected
++	};
++
++	constexpr archive_state check_archive(bool archive_exists, bool identity_exists, std::string_view identity_on_disk, std::string_view expected)
++	{
++		if (!archive_exists)
++		{
++			return archive_state::absent;
++		}
++		if (!identity_exists)
++		{
++			return archive_state::no_identity;
++		}
++		return identity_on_disk == expected ? archive_state::usable : archive_state::identity_mismatch;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Checkpoint rate limit
++
++	struct checkpoint_policy
++	{
++		u64 interval_us = 180'000'000;     // a trickle of new pipelines is written within this time
++		u64 burst = 64;                    // or as soon as this many are new
++		u64 min_spacing_us = 15'000'000;   // never two checkpoints closer than this (a compile storm)
++	};
++
++	enum class checkpoint_reason : u8
++	{
++		none,
++		interval,
++		burst,
++		forced,   // the end of the boot precompile, the end of the session
++	};
++
++	struct checkpoint_state
++	{
++		u64 now_us = 0;
++		u64 last_us = 0;            // the last checkpoint's start, or the session's
++		u64 new_pipelines = 0;      // compiled (not from the archive) since the last checkpoint started
++		bool forced = false;
++		bool boot_in_progress = false;
++		bool worker_busy = false;
++	};
++
++	constexpr checkpoint_reason decide_checkpoint(const checkpoint_policy& policy, const checkpoint_state& state)
++	{
++		// Nothing new: the archive on disk already holds every pipeline of this session (or there are none).
++		if (!state.new_pipelines || state.worker_busy)
++		{
++			return checkpoint_reason::none;
++		}
++
++		if (state.forced)
++		{
++			return checkpoint_reason::forced;
++		}
++
++		if (state.boot_in_progress)
++		{
++			return checkpoint_reason::none;
++		}
++
++		const u64 elapsed = state.now_us >= state.last_us ? state.now_us - state.last_us : 0;
++		if (elapsed < policy.min_spacing_us)
++		{
++			return checkpoint_reason::none;
++		}
++
++		if (state.new_pipelines >= policy.burst)
++		{
++			return checkpoint_reason::burst;
++		}
++
++		return elapsed >= policy.interval_us ? checkpoint_reason::interval : checkpoint_reason::none;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// The atomic checkpoint sequence, through its file operations (the seam the unit test fakes)
++
++	struct file_ops
++	{
++		virtual ~file_ops() = default;
++		virtual bool read_text(const std::string& path, std::string& text) = 0;        // false when absent
++		virtual bool write_text(const std::string& path, std::string_view text) = 0;   // creates or truncates
++		virtual bool serialize(const std::string& path) = 0;                          // the serializer writes the archive
++		virtual bool sync(const std::string& path) = 0;                               // the data on storage
++		virtual u64 size(const std::string& path) = 0;                                // 0 when absent
++		virtual bool rename(const std::string& from, const std::string& to) = 0;      // atomic replace
++		virtual bool remove(const std::string& path) = 0;                             // true when absent afterwards
++	};
++
++	enum class checkpoint_step : u8
++	{
++		done,
++		identity_write,
++		identity_rename,
++		serialize,
++		sync,
++		empty,
++		rename,
++	};
++
++	struct checkpoint_result
++	{
++		checkpoint_step failed = checkpoint_step::done;
++		u64 bytes = 0;
++
++		bool ok() const { return failed == checkpoint_step::done; }
++	};
++
++	// 1. The sidecar, unless it holds this identity already: temporary file, sync, rename.
++	// 2. The archive: a leftover temporary file is removed, the serializer writes a new one, sync, it must not be empty,
++	//    rename over the archive. On any failure the temporary file is removed and the archive on disk stays the
++	//    previous complete one; a crash at any point leaves either the previous or the new archive, never a partial one.
++	inline checkpoint_result write_checkpoint(file_ops& ops, const archive_paths& paths, std::string_view identity)
++	{
++		const auto fail = [&](checkpoint_step step, const std::string& temp)
++		{
++			ops.remove(temp);
++			return checkpoint_result{ step, 0 };
++		};
++
++		std::string current;
++		if (!ops.read_text(paths.identity, current) || current != identity)
++		{
++			if (!ops.write_text(paths.identity_temp, identity) || !ops.sync(paths.identity_temp))
++			{
++				return fail(checkpoint_step::identity_write, paths.identity_temp);
++			}
++			if (!ops.rename(paths.identity_temp, paths.identity))
++			{
++				return fail(checkpoint_step::identity_rename, paths.identity_temp);
++			}
++		}
++
++		ops.remove(paths.archive_temp);
++		if (!ops.serialize(paths.archive_temp))
++		{
++			return fail(checkpoint_step::serialize, paths.archive_temp);
++		}
++		if (!ops.sync(paths.archive_temp))
++		{
++			return fail(checkpoint_step::sync, paths.archive_temp);
++		}
++
++		const u64 bytes = ops.size(paths.archive_temp);
++		if (!bytes)
++		{
++			return fail(checkpoint_step::empty, paths.archive_temp);
++		}
++		if (!ops.rename(paths.archive_temp, paths.archive))
++		{
++			return fail(checkpoint_step::rename, paths.archive_temp);
++		}
++		return { checkpoint_step::done, bytes };
++	}
++
++	constexpr const char* checkpoint_step_name(checkpoint_step step)
++	{
++		switch (step)
++		{
++		case checkpoint_step::done: return "done";
++		case checkpoint_step::identity_write: return "identity write";
++		case checkpoint_step::identity_rename: return "identity rename";
++		case checkpoint_step::serialize: return "serialization";
++		case checkpoint_step::sync: return "sync";
++		case checkpoint_step::empty: return "empty archive";
++		case checkpoint_step::rename: return "rename";
++		}
++		return "unknown";
++	}
++}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp b/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp
 new file mode 100644
 index 0000000..7255ee2
@@ -95528,10 +97043,10 @@ index 0000000..4ff281a
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
 new file mode 100644
-index 0000000..cf2909c
+index 0000000..e0144d4
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,248 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): program cache traits and pipeline builds of the native Metal 4 renderer.
 +
@@ -95544,6 +97059,7 @@ index 0000000..cf2909c
 +	{
 +		pipeline_environment g_environment{};
 +		pipeline_counters g_counters{};
++		std::atomic<pipeline_build_origin> g_build_origin{ pipeline_build_origin::draw };  // M5
 +
 +		u32 find_slot(const std::vector<resource_slot>& slots, u32 location, u32 resource_slot::*member)
 +		{
@@ -95571,6 +97087,11 @@ index 0000000..cf2909c
 +	pipeline_counters& get_pipeline_counters()
 +	{
 +		return g_counters;
++	}
++
++	void set_pipeline_build_origin(pipeline_build_origin origin)
++	{
++		g_build_origin.store(origin, std::memory_order_relaxed);  // M5
 +	}
 +
 +	u32 program::vertex_buffer_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::buffer); }
@@ -95756,6 +97277,8 @@ index 0000000..cf2909c
 +			if (result->pipeline)
 +			{
 +				g_counters.pipelines++;
++				// M5
++				(g_build_origin.load(std::memory_order_relaxed) == pipeline_build_origin::boot ? g_counters.boot_pipelines : g_counters.draw_pipelines)++;
 +			}
 +			else
 +			{
@@ -95774,10 +97297,10 @@ index 0000000..cf2909c
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
 new file mode 100644
-index 0000000..449947b
+index 0000000..6c61986
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,145 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -95826,9 +97349,20 @@ index 0000000..449947b
 +		std::atomic<u64> library_failures{0};
 +		std::atomic<u64> pipelines{0};
 +		std::atomic<u64> pipeline_failures{0};
++		// M5: pipelines built by the boot precompile of the program cache, and by draws (cache misses)
++		std::atomic<u64> boot_pipelines{0};
++		std::atomic<u64> draw_pipelines{0};
 +	};
 +
 +	pipeline_counters& get_pipeline_counters();
++
++	// M5: who builds the pipelines now (the boot precompile runs on the RSX thread before the first draw).
++	enum class pipeline_build_origin : u8
++	{
++		draw,
++		boot,
++	};
++	void set_pipeline_build_origin(pipeline_build_origin origin);
 +
 +	// A linked program: the render pipeline state for one key, with both stages' argument-table slots.
 +	class program
@@ -95896,6 +97430,20 @@ index 0000000..449947b
 +		{
 +			return m_cache_miss_flag;
 +		}
++
++		// M5: the rsx::shaders_cache backend (VKProgramBuffer.h): a record's programs, then its pipeline, built without
++		// a disk notification (the record exists already).
++		void preload_programs(rsx::program_cache_hint_t* cache_hint, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
++		{
++			search_vertex_program(cache_hint, vp);
++			search_fragment_program(cache_hint, fp);
++		}
++
++		void add_pipeline_entry(const RSXVertexProgram& vp, const RSXFragmentProgram& fp, mtl::pipeline_props& props)
++		{
++			get_graphics_pipeline(nullptr, vp, fp, props, false, false);
++		}
++		// M5 end
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLQueries.cpp b/rpcs3/Emu/RSX/Metal/MTLQueries.cpp
@@ -96555,10 +98103,10 @@ index 0000000..813a77e
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
 new file mode 100644
-index 0000000..341b439
+index 0000000..91d0035
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
-@@ -0,0 +1,694 @@
+@@ -0,0 +1,761 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): render targets of the native Metal 4 renderer (VKRenderTargets.cpp counterpart).
 +
@@ -96716,23 +98264,64 @@ index 0000000..341b439
 +
 +	bool render_target::load_memory(command_context& ctx)
 +	{
-+		// VKRenderTargets.cpp load_memory, the unscaled cases: the texture holds the guest pixels 1:1, or (M4) the resolve
-+		// image of a multisampled surface holds its samples 1:1 (written through, then unresolved before rendering).
-+		const bool multisampled = sample_count > 1;  // M4
-+		if (resolution_scaling_config.scale_percent != 100 || (spp != 1 && !multisampled) || !g_upload_heap)
++		// VKRenderTargets.cpp load_memory. The guest pixels (the samples side by side) are uploaded into the texture when
++		// it holds them 1:1 (no resolution scaling, one sample per pixel). Otherwise the destination is the surface, or
++		// the resolve image of a multisampled surface (M4): the upload writes it through when it holds the guest pixels
++		// 1:1, else goes into a typeless helper of the surface's format at the guest size, which copy_scaled_image then
++		// scales into it (linear for colour, nearest for depth), as the Vulkan renderer does.
++		if (!g_upload_heap)
 +		{
++			log_once("surface-load-heap", "guest-memory load without an upload ring");
 +			return false;
 +		}
 +
-+		image* const target = multisampled ? get_resolve_target_safe(ctx) : this;  // M4
 +		const u32 bpp = get_bpp();
 +		const u32 width_px = surface_width * samples_x;
 +		const u32 height_px = surface_height * samples_y;
-+		if (!target || !bpp || !rsx_pitch || width_px != target->width() || height_px != target->height())
++		if (!bpp || !rsx_pitch || !width_px || !height_px)
 +		{
++			log_once("surface-load-format", fmt::format("guest-memory load of a surface without a guest layout (bpp %u, pitch %u)", bpp, rsx_pitch));
 +			return false;
 +		}
 +
++		// The image the guest pixels go into, and the one they end in.
++		image* final_dst = this;
++		image* content = this;
++		if (resolution_scaling_config.scale_percent == 100 && spp == 1) [[likely]]
++		{
++			if (width_px != width() || height_px != height())
++			{
++				log_once("surface-load-size", fmt::format("guest-memory load of a %ux%u surface into a %ux%u texture refused", width_px, height_px, width(), height()));
++				return false;
++			}
++		}
++		else
++		{
++			// M4: a multisampled surface takes its samples through its resolve image ("Trigger unresolve", initialize_memory).
++			final_dst = (sample_count > 1) ? get_resolve_target_safe(ctx) : this;
++			if (!final_dst)
++			{
++				// The resolve image allocation failed (counted there).
++				return false;
++			}
++
++			content = final_dst;
++			if (final_dst->width() != width_px || final_dst->height() != height_px)
++			{
++				// Possible if MSAA is enabled with 100% resolution scale or surface dimensions are less than resolution scale
++				// threshold and no MSAA: written through. Otherwise the guest pixels go into a helper first (index 6: distinct
++				// from the transfer helpers that copy_scaled_image uses).
++				blit_engine* const engine = get_blit_engine();
++				content = engine ? engine->get_typeless_helper(ctx, format(), format_class(), width_px, height_px, 6) : nullptr;
++				if (!content)
++				{
++					log_once("surface-load-helper", "guest-memory load of a scaled surface without a helper image");
++					return false;
++				}
++			}
++		}
++
++		// Load Cell data
 +		const bool is_swizzled = (raster_type == rsx::surface_raster_type::swizzle);
 +		rsx::subresource_layout subres{};
 +		subres.width_in_block = subres.width_in_texel = static_cast<u16>(width_px);
@@ -96742,29 +98331,56 @@ index 0000000..341b439
 +		subres.data = { vm::get_super_ptr<const std::byte>(base_addr), static_cast<std::span<const std::byte>::size_type>(rsx_pitch * height_px) };
 +
 +		std::vector<u8> detiled;
++		bool uploaded = false;
 +		const auto range = get_memory_range();
 +		if (auto tiled_region = rsx::get_current_renderer()->get_tiled_memory_region(range))
 +		{
-+
-+			// The Vulkan renderer detiles on the GPU (cs_tile_memcpy); the common CPU helper is the same layout
-+			// (VKRenderTargets.cpp DEBUG_DMA_TILING path). It writes linear rows at the tile pitch: the buffer holds
-+			// every row of the surface, and the layout uses that pitch.
 +			const u32 tile_pitch = tiled_region.tile->pitch;
 +			if (!tile_pitch || (tile_pitch % bpp) || tile_pitch < width_px * bpp)
 +			{
++				log_once("surface-load-tile-pitch", fmt::format("guest-memory load of a tiled surface with pitch 0x%x refused", tile_pitch));
 +				return false;
 +			}
-+			detiled.resize(usz{tile_pitch} * height_px);
-+			if (!tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, range.start,
-+				detiled.data(), tile_pitch, width_px, height_px, bpp, false))
++
++			// The Vulkan renderer detiles on the GPU (detile_memory_block, then a GPU-resident upload); so does this renderer
++			// with the tile decoder. Swizzled surfaces (whose texels are not rows of the tile pitch) and a missing decoder
++			// take the common CPU helper, the same layout (VKRenderTargets.cpp DEBUG_DMA_TILING path): linear rows at the
++			// tile pitch, which the upload layout then uses.
++			uploaded = !is_swizzled && upload_tiled_image(ctx, *g_upload_heap, content, tiled_region.base_address, tiled_region.tile->size, tile_pitch,
++				tiled_region.tile->bank, range.start, width_px, height_px, bpp, get_gcm_format());
++			if (!uploaded)
 +			{
-+				return false;
++				detiled.resize(usz{tile_pitch} * height_px);
++				if (!tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, range.start,
++					detiled.data(), tile_pitch, width_px, height_px, bpp, false))
++				{
++					log_once("surface-load-tile-pitch", fmt::format("guest-memory load of a tiled surface with pitch 0x%x refused", tile_pitch));
++					return false;
++				}
++				subres.pitch_in_block = tile_pitch / bpp;
++				subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
 +			}
-+			subres.pitch_in_block = tile_pitch / bpp;
-+			subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
 +		}
 +
-+		upload_image(ctx, *g_upload_heap, target, { subres }, get_gcm_format(), is_swizzled, false);
++		if (!uploaded)
++		{
++			upload_image(ctx, *g_upload_heap, content, { subres }, get_gcm_format(), is_swizzled, false);
++		}
++
++		// Write into final image
++		if (content != final_dst)
++		{
++			const areai src_area = { 0, 0, static_cast<s32>(width_px), static_cast<s32>(height_px) };
++			const areai dst_area = { 0, 0, static_cast<s32>(final_dst->width()), static_cast<s32>(final_dst->height()) };
++			if (!copy_scaled_image(ctx, content, final_dst, src_area, dst_area, 0, 0, 0, true,
++				aspect() == aspect_color ? blit_filter::linear : blit_filter::nearest))
++			{
++				// Refused (counted there): nothing of the surface was written.
++				return false;
++			}
++			g_surface_counters.scaled_memory_loads++;
++		}
++
 +		g_surface_counters.memory_loads++;
 +		return true;
 +	}
@@ -96824,9 +98440,8 @@ index 0000000..341b439
 +				return;
 +			}
 +
-+			// Scaled surface: not written yet. Counted, initialised as without loads.
++			// The load failed (logged once by its cause): counted, initialised as without loads.
 +			g_surface_counters.memory_loads_not_implemented++;
-+			log_once("surface-load", "guest-memory load of a scaled surface is not implemented");
 +		}
 +
 +		clear_memory(ctx);
@@ -97255,10 +98870,10 @@ index 0000000..341b439
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
 new file mode 100644
-index 0000000..71bb9d0
+index 0000000..98890ef
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
-@@ -0,0 +1,323 @@
+@@ -0,0 +1,326 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -97270,15 +98885,17 @@ index 0000000..71bb9d0
 +//   - new surfaces are initialised exactly as the Vulkan renderer initialises them when guest-memory loads are off
 +//     (the default): colour (0, 0, 0, 1), depth 1.0, stencil 255;
 +//   - inherited contents are copied on the GPU when source and target have the same format and scale;
-+//   - guest-memory loads ("Read Color/Depth Buffers", force_data_load) go through the texture upload path (M3.1)
-+//     for unscaled surfaces, tiled ones detiled on the CPU with the common tiling helpers;
++//   - guest-memory loads ("Read Color/Depth Buffers", force_data_load) go through the texture upload path (M3.1),
++//     tiled ones detiled on the GPU by the tile decoder as VK detile_memory_block does (the common CPU tiling helper
++//     when it is unavailable); a resolution-scaled surface (or one whose texture does not hold the samples 1:1) is
++//     loaded into a helper at the guest size and scaled into it, as VK load_memory does;
 +//   - surfaces are images (MTLTexture.h), so the texture cache samples and reads them back (MTLTextureCache.h).
 +//   - inherited contents go through the blitter (MTLBlit.h): copies, bit reinterpretations and scaled copies (M3.2).
 +// M4: at the "Auto" MSAA level a surface has its AA mode's sample count, with a resolve image (the samples side by side,
 +// MTLResolve.h) that transfers, readbacks and guest-memory loads use, as the Vulkan renderer's resolve_surface; the
 +// blitter's typeless reinterpretations include byte shuffles and depth <-> colour packing (MTLTypelessCopy.cpp).
-+// Still counted, never faked: guest-memory loads of scaled surfaces, and transfers the blitter refuses (the region is
-+// initialised as above instead).
++// Still counted, never faked: guest-memory loads that fail (no upload ring, unknown tile pitch, a refused transfer) and
++// transfers the blitter refuses (the region is initialised as above instead).
 +
 +#include "Emu/RSX/Common/surface_store.h"
 +#include "MTLCommandContext.h"
@@ -97298,9 +98915,10 @@ index 0000000..71bb9d0
 +		std::atomic<u64> cleared{0};
 +		std::atomic<u64> inherited_copies{0};
 +		std::atomic<u64> transfers_not_implemented{0};
-+		std::atomic<u64> memory_loads_not_implemented{0};
++		std::atomic<u64> memory_loads_not_implemented{0};   // a guest-memory load that failed (cause logged once)
 +		std::atomic<u64> memory_writes_not_implemented{0};
 +		std::atomic<u64> memory_loads{0};
++		std::atomic<u64> scaled_memory_loads{0};            // through a helper scaled into the surface (VK load_memory)
 +	};
 +
 +	surface_counters& get_surface_counters();
@@ -98457,10 +100075,10 @@ index 0000000..d6fb3a1
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTexture.cpp b/rpcs3/Emu/RSX/Metal/MTLTexture.cpp
 new file mode 100644
-index 0000000..847f06d
+index 0000000..abd9090
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLTexture.cpp
-@@ -0,0 +1,592 @@
+@@ -0,0 +1,719 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M3.1): images, views and the CPU upload path of the native Metal 4 renderer
 +// (vkutils/image.cpp and VKTexture.cpp upload_image counterparts).
@@ -98468,6 +100086,9 @@ index 0000000..847f06d
 +#include "stdafx.h"
 +#include "MTLTexture.h"
 +#include "MTLCommandContext.h"
++#include "MTLComputeTasks.h"
++#include "MTLM4Counters.h"
++#include "MTLTypelessCopy.h"
 +
 +#include "Emu/Memory/vm.h"
 +#include "Emu/RSX/Common/io_buffer.h"
@@ -98705,26 +100326,7 @@ index 0000000..847f06d
 +		u32 width, u32 height, u32 bpp, bool encode)
 +	{
 +		// tile_texel_data's prime/factor decomposition of the pitch.
-+		const u32 units = tile_pitch >> 8;
-+		u32 prime = 0, factor = 0;
-+		if (tile_pitch && (tile_pitch & (tile_pitch - 1)) == 0)
-+		{
-+			prime = 1;
-+			factor = units;
-+		}
-+		else
-+		{
-+			for (const u32 p : { 3u, 5u, 7u, 11u, 13u })
-+			{
-+				if (units && (units % p) == 0)
-+				{
-+					prime = p;
-+					factor = units / p;
-+					break;
-+				}
-+			}
-+		}
-+
++		const auto [prime, factor] = get_tile_pitch_factors(tile_pitch);
 +		if (!prime || !factor || origin < tile_base)
 +		{
 +			return false;
@@ -98919,6 +100521,149 @@ index 0000000..847f06d
 +		// these copies.
 +	}
 +
++	bool upload_tiled_image(command_context& ctx, data_heap& heap, image* dst, u32 tile_base, u32 tile_size, u32 tile_pitch, u8 tile_bank,
++		u32 origin, u32 width, u32 height, u32 bpp, u32 gcm_format)
++	{
++		compute_tasks* const tasks = get_compute_tasks();
++		if (!tasks || !tasks->ready() || !tasks->tiling_ready() || !dst || !dst->texture)
++		{
++			return false;
++		}
++
++		// Formats upload_texture_subresource copies word by word, into a 2D image whose texel is the guest texel or one of
++		// copy_buffer_to_image's two depth conversions (D24S8 -> Depth32Float_Stencil8, D16F -> Depth32Float).
++		const u32 word_size = get_gpu_upload_word_size(gcm_format);
++		const pixel_format format = dst->format();
++		const bool depth_stencil = format == pixel_format::depth32_float_stencil8;
++		const bool depth16_float = format == pixel_format::depth32_float;
++		const bool texel_matches = depth_stencil ? (bpp == 4 && word_size == 4) :
++			depth16_float ? (gcm_format == CELL_GCM_TEXTURE_DEPTH16_FLOAT && bpp == 2) : (get_texel_size(format) == bpp);
++		if (!word_size || !texel_matches || !width || !height || dst->type != texture_type::type_2d || dst->samples() > 1 ||
++			width > dst->width() || height > dst->height() || is_compressed_format(format))
++		{
++			return false;
++		}
++
++		const auto factors = get_tile_pitch_factors(tile_pitch);
++		if (!factors.factor || origin < tile_base || u64{tile_pitch} < u64{width} * bpp)
++		{
++			return false;
++		}
++
++		const u32 tiles_per_row = factors.prime * factors.factor;
++		const u32 origin_offset = origin - tile_base;
++		const tile_span span = get_tile_span(tile_base, tile_size, tile_pitch, tiles_per_row, origin_offset, width, height, bpp);
++		if (span.end <= span.start)
++		{
++			return false;
++		}
++
++		// One staging allocation, as VK's scratch buffer: [the tiled bytes | the packed rows | depth plane | stencil plane].
++		const u32 tiled_length = span.end - span.start;
++		const u32 image_pitch = width * bpp;
++		const u64 linear_length = u64{image_pitch} * height;
++		const u64 texels = u64{width} * height;
++		const u64 linear_offset = utils::align<u64>(tiled_length, 256);
++		const u64 z_offset = utils::align<u64>(linear_offset + utils::align<u64>(linear_length, 4) + 8, 256);
++		const u64 s_offset = utils::align<u64>(z_offset + texels * 4 + 8, 256);
++		const u64 total = s_offset + utils::align<u64>(texels, 4) + 16;
++		if (total > (256ull << 20))
++		{
++			// The kernels address their data with 32-bit offsets.
++			return false;
++		}
++
++		// Taken before any encoder opens: the ring may make room by submitting.
++		auto staging = allocate_staging(ctx, heap, total);
++		if (staging.offset + total > 0xffffffffull)
++		{
++			return false;
++		}
++
++		// The tiled bytes as the decoder reads them (VK detile_memory_block: map_dma + load_dma of the tile rows), through
++		// the unprotected mirror.
++		std::memcpy(staging.data, vm::get_super_ptr<const u8>(tile_base + span.start), tiled_length);
++
++		const tile_decode_params params =
++		{
++			.factor = factors.factor,
++			.num_tiles_per_row = tiles_per_row,
++			.tile_base_address = tile_base,
++			.tile_size = tile_size,
++			.tile_address_offset = origin_offset,
++			.tile_rw_offset = span.start,
++			.tile_pitch = tile_pitch,
++			.tile_bank = tile_bank,
++			.image_width = width,
++			.image_height = height,
++			.image_pitch = image_pitch,
++			.image_bpp = bpp,
++			.tiled_offset = 0,
++			.tiled_length = tiled_length,
++			.linear_offset = static_cast<u32>(linear_offset),
++			.linear_words = static_cast<u32>(utils::aligned_div<u64>(linear_length, 4)),
++		};
++
++		// Nothing of dst is written before the last step: a refused step leaves it to the caller's CPU path.
++		if (!tasks->run_tile_decode(ctx, staging.buffer, staging.offset, params))
++		{
++			return false;
++		}
++
++		const u32 base = static_cast<u32>(staging.offset);
++		const u32 linear = base + static_cast<u32>(linear_offset);
++		const u32 linear_words_bytes = static_cast<u32>(utils::align<u64>(linear_length, 4));
++		if (word_size > 1 && !tasks->run_shuffle(ctx, (word_size == 4) ? compute_kernel::bswap_u32 : compute_kernel::bswap_u16, staging.buffer,
++			linear_words_bytes, linear))
++		{
++			return false;
++		}
++
++		transfer_scope scope(ctx, "tiled upload");
++		const size3 size{ width, height, 1 };
++		const auto box = texture_box::make(0, 0, 0, 0, 0, width, height);
++		if (depth_stencil)
++		{
++			// VK copy_buffer_to_image: the stencil block cleared, the D24S8 words scattered (unorm or float depth by
++			// class), then both planes.
++			fill_buffer(scope.encoder(nullptr, {}, nullptr, {}), staging.buffer, base + s_offset, utils::align<u64>(texels, 4), 0);
++			scope.split();
++			const auto kernel = get_depth_scatter_kernel(dst->format_class() == rsx::RSX_FORMAT_CLASS_DEPTH24_FLOAT_X8_PACK32);
++			if (!tasks->run_interleave(ctx, kernel, staging.buffer, linear, static_cast<u32>(texels * 4), base + static_cast<u32>(z_offset),
++				base + static_cast<u32>(s_offset)))
++			{
++				return false;
++			}
++
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + z_offset, width * 4, 0, size, dst->texture, 0, 0, {},
++				blit_depth_from_depth_stencil);
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + s_offset, width, 0, size, dst->texture, 0, 0, {},
++				blit_stencil_from_depth_stencil);
++			g_texture_counters.depth_uploads_converted++;
++		}
++		else if (depth16_float)
++		{
++			// VK copy_buffer_to_image: cs_fconvert_task<f16, f32> (whole words: an odd texel count converts the padding too)
++			if (!tasks->run_fconvert(ctx, compute_kernel::f16_to_f32, staging.buffer, linear, static_cast<u32>(utils::align<u64>(texels * 2, 4)),
++				base + static_cast<u32>(z_offset)))
++			{
++				return false;
++			}
++
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + z_offset, width * 4, 0, size, dst->texture, 0, 0, {});
++			g_texture_counters.depth_uploads_converted++;
++		}
++		else
++		{
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, linear, image_pitch, 0, size, dst->texture, 0, 0, {});
++		}
++
++		g_texture_counters.uploads++;
++		g_texture_counters.upload_bytes += linear_length;
++		m4_count(get_m4_counters().tile_decodes);
++		return true;
++	}
++
 +	void clear_image(command_context& ctx, data_heap& heap, image* dst)
 +	{
 +		ensure(dst && dst->texture);
@@ -99055,10 +100800,10 @@ index 0000000..847f06d
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTexture.h b/rpcs3/Emu/RSX/Metal/MTLTexture.h
 new file mode 100644
-index 0000000..13dc191
+index 0000000..2a1e893
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLTexture.h
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,257 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -99072,7 +100817,8 @@ index 0000000..13dc191
 +// Uploads run on the CPU exactly as the Vulkan renderer's upload_image does when its GPU helpers are not used:
 +// rsx::upload_texture_subresource deswizzles, byteswaps and (without BC support) decompresses into the upload
 +// ring, then the compute encoder copies the ring into the texture. Depth formats are converted on the CPU with
-+// the Vulkan renderer's formulas (MTLTextureFormats.h) and copied per plane.
++// the Vulkan renderer's formulas (MTLTextureFormats.h) and copied per plane. Tiled guest memory is detiled on the GPU
++// first where the Vulkan renderer does (upload_tiled_image), the rest of its processing on the conversion kernels.
 +
 +#include "MTLAPI.h"
 +#include "MTLDataHeap.h"
@@ -99116,6 +100862,7 @@ index 0000000..13dc191
 +		std::atomic<u64> upload_dedicated_buffers{0};
 +		std::atomic<u64> depth_uploads_converted{0};
 +		std::atomic<u64> uploads_unsupported_format{0};     // no Metal format (counted, the section keeps zeros)
++		std::atomic<u64> uploads_not_detiled{0};            // tiled blit source with mipmaps or an unknown tile pitch (as VK: as it is)
 +		std::atomic<u64> clears{0};
 +		std::atomic<u64> copies{0};
 +		std::atomic<u64> typeless_copies{0};                // bit-compatible format views
@@ -99132,7 +100879,7 @@ index 0000000..13dc191
 +		std::atomic<u64> feedback_snapshots{0};             // bound attachments sampled through a copy
 +		std::atomic<u64> readbacks{0};
 +		std::atomic<u64> readback_bytes{0};
-+		std::atomic<u64> readbacks_not_implemented{0};      // compressed, unknown tile pitch, unsynchronized DMA (guest memory kept)
++		std::atomic<u64> readbacks_not_implemented{0};      // unknown tile pitch, refused scaling, DMA-only (guest memory kept)
 +		std::atomic<u64> readbacks_unsubmitted{0};          // a write-back found its copy unsubmitted (must stay 0)
 +		std::atomic<u64> faults_routed{0};                  // guest faults handed whole to the RSX thread (unsubmitted copy)
 +		std::atomic<u64> samplers_created{0};
@@ -99241,6 +100988,16 @@ index 0000000..13dc191
 +	void upload_image(command_context& ctx, data_heap& heap, image* dst, const std::vector<rsx::subresource_layout>& layouts,
 +		u32 gcm_format, bool is_swizzled, bool supports_bc);
 +
++	// VKTexture.cpp detile_memory_block followed by upload_image with source_is_gpu_resident, for level 0 of a 2D image:
++	// the tile bytes holding a width x height region (first texel at guest address `origin` inside the tile at
++	// tile_base) are copied into staging memory as they are, decoded into packed rows by the tile decoder
++	// (MTLComputeTasks.h), byteswapped by the format's word size and, for depth formats, converted into their planes
++	// on the conversion kernels, then copied into dst. The same bytes as tiled_copy + upload_image. False, with nothing
++	// of dst written, when the kernels are unavailable or the format is converted texel by texel (the caller then
++	// detiles on the CPU).
++	bool upload_tiled_image(command_context& ctx, data_heap& heap, image* dst, u32 tile_base, u32 tile_size, u32 tile_pitch, u8 tile_bank,
++		u32 origin, u32 width, u32 height, u32 bpp, u32 gcm_format);
++
 +	// Clears every level and slice: colour images to zero (buffer copy), depth images to depth 1, stencil 0.
 +	void clear_image(command_context& ctx, data_heap& heap, image* dst);
 +
@@ -99306,10 +101063,10 @@ index 0000000..13dc191
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp b/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp
 new file mode 100644
-index 0000000..cbebb10
+index 0000000..1c2d98c
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp
-@@ -0,0 +1,1273 @@
+@@ -0,0 +1,1347 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M3.1): the Metal 4 backend of the common texture cache (VKTextureCache.cpp counterpart).
 +
@@ -99595,12 +101352,23 @@ index 0000000..cbebb10
 +			return;
 +		}
 +
++		// A block-compressed section is read back as its blocks (VK dma_transfer: a same-format copy to a buffer, no
++		// decode): its guest rows are rows of 4x4 blocks, so the confirmed range is worked out in blocks, then given
++		// to dma_transfer in texels. Other sections count in texels (one texel per unit).
++		const u32 block_bytes = get_block_size(target->format());
++		const u32 unit_texels = block_bytes ? 4 : 1;
++		const u32 unit_bytes = block_bytes ? block_bytes : internal_bpp;
++		const u32 full_width = transfer_width;
++		const u32 full_height = transfer_height;
++		transfer_width = utils::aligned_div(transfer_width, unit_texels);
++		transfer_height = utils::aligned_div(transfer_height, unit_texels);
++
 +		if (const auto section_range = get_section_range(); section_range != valid_range)
 +		{
 +			if (const auto offset = (valid_range.start - get_section_base()))
 +			{
 +				transfer_y = offset / rsx_pitch;
-+				transfer_x = (offset % rsx_pitch) / internal_bpp;
++				transfer_x = (offset % rsx_pitch) / unit_bytes;
 +
 +				ensure(transfer_width >= transfer_x);
 +				ensure(transfer_height >= transfer_y);
@@ -99618,10 +101386,10 @@ index 0000000..cbebb10
 +		}
 +
 +		areai src_area;
-+		src_area.x1 = static_cast<s32>(transfer_x);
-+		src_area.y1 = static_cast<s32>(transfer_y);
-+		src_area.x2 = static_cast<s32>(transfer_x + transfer_width);
-+		src_area.y2 = static_cast<s32>(transfer_y + transfer_height);
++		src_area.x1 = static_cast<s32>(transfer_x * unit_texels);
++		src_area.y1 = static_cast<s32>(transfer_y * unit_texels);
++		src_area.x2 = static_cast<s32>(std::min((transfer_x + transfer_width) * unit_texels, full_width));
++		src_area.y2 = static_cast<s32>(std::min((transfer_y + transfer_height) * unit_texels, full_height));
 +		dma_transfer(cmd, target, src_area, valid_range, rsx_pitch);
 +	}
 +
@@ -99646,7 +101414,7 @@ index 0000000..cbebb10
 +		rsx_pitch = pitch;
 +
 +		const pixel_format format = src->format();
-+		const u32 guest_bpp = get_format_texel_width(format);
++		u32 guest_bpp = get_format_texel_width(format);
 +		u32 plane_bpp = get_texel_size(format);
 +		readback_mode mode = readback_mode::copy;
 +		switch (format)
@@ -99657,19 +101425,39 @@ index 0000000..cbebb10
 +		default: break;
 +		}
 +
-+		if (!guest_bpp || !plane_bpp || is_compressed_format(format))
++		// Block-compressed formats: the blocks as they are (VK copies the image to the buffer in its own format; the
++		// guest layout of DXT data is rows of 4x4 blocks), one block per unit of the copy.
++		const u32 block_bytes = get_block_size(format);
++		const u32 unit_texels = block_bytes ? 4 : 1;
++		if (block_bytes)
 +		{
-+			mark_keep_memory("readback-format", "compressed or unknown-format");
++			guest_bpp = plane_bpp = block_bytes;
++		}
++
++		if (!guest_bpp || !plane_bpp)
++		{
++			mark_keep_memory("readback-format", "unknown-format");
 +			return;
 +		}
 +
-+		const u32 transfer_width = static_cast<u32>(src_area.width());
-+		const u32 transfer_height = static_cast<u32>(src_area.height());
++		const u32 area_width = static_cast<u32>(src_area.width());
++		const u32 area_height = static_cast<u32>(src_area.height());
 +		if (u64{static_cast<u32>(src_area.x2)} > src->width() || u64{static_cast<u32>(src_area.y2)} > src->height())
 +		{
 +			mark_keep_memory("readback-bounds", "out-of-bounds");
 +			return;
 +		}
++
++		if (block_bytes && ((src_area.x1 % 4) || (src_area.y1 % 4) || ((area_width % 4) && static_cast<u32>(src_area.x2) != src->width()) ||
++			((area_height % 4) && static_cast<u32>(src_area.y2) != src->height())))
++		{
++			// Metal copies whole blocks only (a region inside the image is block-aligned).
++			mark_keep_memory("readback-blocks", "block-compressed data outside the block grid");
++			return;
++		}
++
++		const u32 transfer_width = utils::aligned_div(area_width, unit_texels);
++		const u32 transfer_height = utils::aligned_div(area_height, unit_texels);
 +
 +		m_mode = mode;
 +		m_depth_float = src->format_class() == rsx::RSX_FORMAT_CLASS_DEPTH24_FLOAT_X8_PACK32;
@@ -99700,11 +101488,11 @@ index 0000000..cbebb10
 +			cmd.make_resident(m_download);
 +		}
 +
-+		const region area{ { static_cast<u32>(src_area.x1), static_cast<u32>(src_area.y1), 0 }, { transfer_width, transfer_height, 1 } };
++		const region area{ { static_cast<u32>(src_area.x1), static_cast<u32>(src_area.y1), 0 }, { area_width, area_height, 1 } };
 +		{
 +			// Reads only (two planes go to distinct buffer regions).
 +			transfer_scope scope(cmd, "texture readback");
-+			const auto box = texture_box::make(0, 0, area.at.x, area.at.y, 0, transfer_width, transfer_height);
++			const auto box = texture_box::make(0, 0, area.at.x, area.at.y, 0, area_width, area_height);
 +			if (mode == readback_mode::depth24)
 +			{
 +				copy_texture_to_buffer(scope.for_read(src->texture, box), src->texture, 0, 0, area, m_download, m_scratch_offset, transfer_width * 4, 0, blit_depth_from_depth_stencil);
@@ -100431,20 +102219,63 @@ index 0000000..cbebb10
 +		image->set_name(fmt::format("Raw Texture @0x%x", rsx_range.start));
 +
 +		bool input_swizzled = swizzled;
++		std::vector<rsx::subresource_layout> tmp;
++		const std::vector<rsx::subresource_layout>* p_subresource_layout = &subresource_layout;
++		std::vector<u8> detiled;
++
++		if (auto tiled_region = rsx::get_current_renderer()->get_tiled_memory_region(rsx_range);
++			context == rsx::texture_upload_context::blit_engine_src && tiled_region)
++		{
++			if (mipmaps > 1)
++			{
++				// This really shouldn't happen on framebuffer tiled memory (VK: uploaded as it is).
++				get_texture_counters().uploads_not_detiled++;
++				log_once("upload-tiled-mipmaps", "Tiled decode of mipmapped textures is not supported.");
++			}
++			else
++			{
++				// VK upload_image_from_cpu: detile_memory_block, then the upload from the decoded rows (GPU resident); here
++				// the tile decoder, or the common CPU decoder (the same bytes) when it is unavailable. Rows at the tile
++				// pitch, as VK detiles them.
++				const u32 bpp = rsx::get_format_block_size_in_bytes(gcm_format);
++				const u32 tile_pitch = tiled_region.tile->pitch;
++				if (upload_tiled_image(cmd, *m_upload_heap, image, tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank,
++					rsx_range.start, width, height, bpp, gcm_format))
++				{
++					section->last_write_tag = rsx::get_shared_tag();
++					return section;
++				}
++
++				if (bpp && tile_pitch && !(tile_pitch % bpp) && tile_pitch >= width * bpp)
++				{
++					detiled.resize(usz{tile_pitch} * height);
++					if (tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, rsx_range.start,
++						detiled.data(), tile_pitch, width, height, bpp, false))
++					{
++						auto subres = subresource_layout.front();
++						subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
++						subres.pitch_in_block = tile_pitch / bpp;
++						tmp.push_back(std::move(subres));
++						p_subresource_layout = &tmp;
++					}
++				}
++
++				if (p_subresource_layout != &tmp)
++				{
++					// A tile pitch the tiling has no prime factor for (VK's decoder cannot either): uploaded as it is.
++					get_texture_counters().uploads_not_detiled++;
++					log_once("upload-tiled-pitch", fmt::format("tiled blit-engine source with pitch 0x%x is not detiled", tile_pitch));
++				}
++			}
++		}
++
 +		if (context == rsx::texture_upload_context::blit_engine_src)
 +		{
 +			// Swizzling is ignored for blit engine copy and emulated using remapping
 +			input_swizzled = false;
-+
-+			if (rsx::get_current_renderer()->get_tiled_memory_region(rsx_range))
-+			{
-+				// VK detiles blit sources on the GPU first (stage M3.2 with the blit engine).
-+				get_texture_counters().typeless_not_implemented++;
-+				log_once("upload-tiled-blit", "tiled blit-engine source upload is not detiled yet");
-+			}
 +		}
 +
-+		upload_image(cmd, *m_upload_heap, image, subresource_layout, gcm_format, input_swizzled, m_supports_bc);
++		upload_image(cmd, *m_upload_heap, image, *p_subresource_layout, gcm_format, input_swizzled, m_supports_bc);
 +
 +		section->last_write_tag = rsx::get_shared_tag();
 +		return section;
@@ -100585,7 +102416,7 @@ index 0000000..cbebb10
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureCache.h b/rpcs3/Emu/RSX/Metal/MTLTextureCache.h
 new file mode 100644
-index 0000000..ad333ab
+index 0000000..d8fea28
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLTextureCache.h
 @@ -0,0 +1,198 @@
@@ -100607,11 +102438,11 @@ index 0000000..ad333ab
 +//     renderer does), so this backend never records from another thread; every copy is submitted before the cache
 +//     lock is released (review R1), so a write-back elsewhere only ever waits for the GPU;
 +//   - scaled sections are read back through a scaled copy (MTLBlit.h), tiled ones are tiled on the CPU with the
-+//     common tiling helper straight into guest memory (M3.2);
++//     common tiling helper straight into guest memory (M3.2); block-compressed ones as their blocks (no decode);
 +//   - the blit engine (upload_scaled_image) runs on the transfers of MTLBlit.h (M3.2).
-+// What is not written yet is counted (COREPROF METAL) and logged once, never faked: byte-shuffling or depth <->
-+// colour reinterpretations (the destination keeps its clear or memory contents) and readbacks of compressed data
-+// (the guest memory keeps its contents).
++// What cannot be done is counted (COREPROF METAL) and logged once, never faked: reinterpretations the typeless copy
++// refuses (the destination keeps its clear or memory contents) and readbacks with a tile pitch the RSX tiling has no
++// prime factor for (VK cannot do them either; the guest memory keeps its contents).
 +
 +#include "MTLRenderTargets.h"
 +#include "MTLTexture.h"
@@ -100789,10 +102620,10 @@ index 0000000..ad333ab
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h b/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h
 new file mode 100644
-index 0000000..8cbdb43
+index 0000000..3732e85
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h
-@@ -0,0 +1,623 @@
+@@ -0,0 +1,719 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -100810,6 +102641,7 @@ index 0000000..8cbdb43
 +
 +#include "Emu/RSX/Utils/color_utils.hpp"
 +
++#include <algorithm>
 +#include <array>
 +#include <bit>
 +#include <cmath>
@@ -101414,6 +103246,101 @@ index 0000000..8cbdb43
 +		if (d.mip_filter != sampler_mip_filter::not_mipmapped) { d.mip_filter = sampler_mip_filter::not_mipmapped; changed++; }
 +		if (d.max_anisotropy != 1) { d.max_anisotropy = 1; changed++; }
 +		return changed;
++	}
++
++	// RSX memory tiling: the prime/factor decomposition of a tile pitch (Common/tiled_dma_copy.hpp tile_texel_data and
++	// VKCompute.h cs_tile_memcpy get_prime_factor): pitch / 256 = prime * factor. {0, 0} for a pitch neither knows.
++	struct tile_pitch_factors
++	{
++		u32 prime = 0;
++		u32 factor = 0;
++	};
++
++	constexpr tile_pitch_factors get_tile_pitch_factors(u32 tile_pitch)
++	{
++		const u32 base = tile_pitch >> 8;
++		if (tile_pitch && (tile_pitch & (tile_pitch - 1)) == 0)
++		{
++			return { 1, base };
++		}
++
++		for (const u32 prime : { 3u, 5u, 7u, 11u, 13u })
++		{
++			if (base && (base % prime) == 0)
++			{
++				return { prime, base / prime };
++			}
++		}
++		return {};
++	}
++
++	// The bytes of a tile the texels of a width x height region (first texel at origin_offset from the tile base, rows
++	// tile_pitch apart) are tiled into, as [start, end) from the tile base: a texel of tile id t lands in the four 16 KiB
++	// tiles of the group of t (its bank selects one), when the tile base is 64 KiB aligned (as cellGcmSetTile requires);
++	// otherwise the whole tile. The tile ids of a 64-row band are band * tiles_per_row and the tiles_per_row after it.
++	// Clamped to the tile size.
++	struct tile_span
++	{
++		u32 start = 0;
++		u32 end = 0;
++	};
++
++	constexpr tile_span get_tile_span(u32 tile_base, u32 tile_size, u32 tile_pitch, u32 tiles_per_row, u32 origin_offset, u32 width, u32 height, u32 bpp)
++	{
++		if (!tile_pitch || !tiles_per_row || !width || !height || !bpp)
++		{
++			return {};
++		}
++
++		if (tile_base & 0xffff)
++		{
++			return { 0, tile_size };
++		}
++
++		// The bands of the first and the last texel (m4_tile_offset: tile_y = offset / 256 / tiles_per_row / 64).
++		const u64 last = u64{origin_offset} + u64{height - 1} * tile_pitch + u64{width - 1} * bpp;
++		const u64 first_tile = u64{origin_offset / 256 / tiles_per_row / 64} * tiles_per_row;
++		const u64 last_tile = (last / 256 / tiles_per_row / 64) * tiles_per_row + tiles_per_row - 1;
++		const u64 start = (first_tile & ~3ull) * 16384;
++		const u64 end = ((last_tile | 3ull) + 1) * 16384;
++		return { static_cast<u32>(std::min<u64>(start, tile_size)), static_cast<u32>(std::min<u64>(end, tile_size)) };
++	}
++
++	// The guest word size rsx::upload_texture_subresource byteswaps a format by when it copies it word by word (its
++	// word_size path on arm64: 1, 2 or 4), the processing a GPU-resident upload replays on the conversion kernels (VK
++	// upload_image with source_is_gpu_resident: cs_shuffle_16 / _32, then the depth conversions of copy_buffer_to_image).
++	// 0 for the formats it converts texel by texel (R6G5B5, the decoded and block-compressed formats).
++	constexpr u32 get_gpu_upload_word_size(u32 gcm_format)
++	{
++		switch (gcm_format)
++		{
++		case CELL_GCM_TEXTURE_B8:
++			return 1;
++		case CELL_GCM_TEXTURE_A1R5G5B5:
++		case CELL_GCM_TEXTURE_D1R5G5B5:
++		case CELL_GCM_TEXTURE_A4R4G4B4:
++		case CELL_GCM_TEXTURE_R5G5B5A1:
++		case CELL_GCM_TEXTURE_R5G6B5:
++		case CELL_GCM_TEXTURE_COMPRESSED_HILO8:
++		case CELL_GCM_TEXTURE_COMPRESSED_HILO_S8:
++		case CELL_GCM_TEXTURE_DEPTH16:
++		case CELL_GCM_TEXTURE_DEPTH16_FLOAT:
++		case CELL_GCM_TEXTURE_G8B8:
++		case CELL_GCM_TEXTURE_X16:
++		case CELL_GCM_TEXTURE_Y16_X16:
++		case CELL_GCM_TEXTURE_Y16_X16_FLOAT:
++		case CELL_GCM_TEXTURE_W16_Z16_Y16_X16_FLOAT:
++			return 2;
++		case CELL_GCM_TEXTURE_A8R8G8B8:
++		case CELL_GCM_TEXTURE_D8R8G8B8:
++		case CELL_GCM_TEXTURE_DEPTH24_D8:
++		case CELL_GCM_TEXTURE_DEPTH24_D8_FLOAT:
++		case CELL_GCM_TEXTURE_X32_FLOAT:
++		case CELL_GCM_TEXTURE_W32_Z32_Y32_X32_FLOAT:
++			return 4;
++		default:
++			return 0;
++		}
 +	}
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLTransferPass.cpp b/rpcs3/Emu/RSX/Metal/MTLTransferPass.cpp
@@ -102704,10 +104631,10 @@ index 0000000..100c9c9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
 new file mode 100644
-index 0000000..3ac9934
+index 0000000..4e80ef3
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
-@@ -0,0 +1,456 @@
+@@ -0,0 +1,644 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M4): host unit test of the pure logic of stage M4 (no Metal device, no emulator):
 +//   - the visibility slot pool, and the Vulkan renderer's occlusion query rules (check, gather) on segments, including
@@ -102716,6 +104643,9 @@ index 0000000..3ac9934
 +//   - the MSAA resolve/unresolve coordinate math (both directions are inverse, and match the Vulkan compute passes);
 +//   - the MSAA configuration (sample counts, grids, sample masks) and the compute dispatch parameters.
 +//   - the typeless copy's kernel selection (VK copy_image_typeless, copy_image_to_buffer / copy_buffer_to_image).
++//   - the tile decoder (MTLM4Math.h tiling_math, run as the MSL kernel runs it, word by word) against the common CPU
++//     tiler (Common/tiled_dma_copy.hpp) for every RSX tile pitch, bank, texel size and odd region, and the tile span
++//     its staging copy holds.
 +// With a directory argument it also writes the MSL libraries (m4_compute.metal, m4_resolve.metal) for Apple's offline
 +// compiler: xcrun -sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror -Wno-unused-variable
 +// -Wno-unused-but-set-variable -Wno-unused-function -c m4_compute.metal. Pure logic: no Metal, g++ or clang++.
@@ -102725,6 +104655,7 @@ index 0000000..3ac9934
 +//       "$S/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp" -o mtl_m4_unit_test
 +//   ./mtl_m4_unit_test [MSL output directory]
 +
++#include "Emu/RSX/Common/tiled_dma_copy.hpp"
 +#include "Emu/RSX/Metal/MTLComputeTasks.h"
 +#include "Emu/RSX/Metal/MTLM4Math.h"
 +#include "Emu/RSX/Metal/MTLM4Shaders.h"
@@ -102732,6 +104663,7 @@ index 0000000..3ac9934
 +#include "Emu/RSX/Metal/MTLTextureFormats.h"
 +#include "Emu/RSX/Metal/MTLTypelessCopy.h"
 +
++#include <algorithm>
 +#include <bit>
 +#include <cstdio>
 +#include <cstring>
@@ -103110,10 +105042,191 @@ index 0000000..3ac9934
 +	}
 +
 +	// ------------------------------------------------------------------------------------------------------------------
++	// One decode as upload_tiled_image runs it: the tile span copied out of the tile memory, then the kernel's loop for
++	// every word of the packed linear image (MTLM4Shaders.h m4_tile_decode_kernel), against rsx::tiled_dma_copy decoding
++	// the same region from the same memory into a zeroed buffer (what the CPU path uploads).
++	struct tile_case
++	{
++		u32 base, size, pitch, bank, origin_offset, width, height, bpp;
++	};
++
++	bool run_tile_case(const tile_case& c, const std::vector<u8>& tile_memory, const char*& failure)
++	{
++		const auto factors = get_tile_pitch_factors(c.pitch);
++		const u32 tiles_per_row = factors.prime * factors.factor;
++		const u32 image_pitch = c.width * c.bpp;
++		const u64 linear_length = u64{image_pitch} * c.height;
++
++		std::vector<u8> expected(linear_length, 0);
++		const rsx::detiler_config conf =
++		{
++			.prime = factors.prime,
++			.factor = factors.factor,
++			.num_tiles_per_row = tiles_per_row,
++			.tile_base_address = c.base,
++			.tile_size = c.size,
++			.tile_address_offset = c.origin_offset,
++			.tile_rw_offset = 0,
++			.tile_pitch = c.pitch,
++			.tile_bank = c.bank,
++			.image_width = c.width,
++			.image_height = c.height,
++			.image_pitch = image_pitch,
++			.image_bpp = c.bpp,
++		};
++		for (u32 row = 0; row < c.height; ++row)
++		{
++			for (u32 col = 0; col < c.width; ++col)
++			{
++				rsx::tiled_dma_copy(row, col, conf, const_cast<char*>(reinterpret_cast<const char*>(tile_memory.data())),
++					reinterpret_cast<char*>(expected.data()), 1 /* RSX_DMA_OP_DECODE_TILE */);
++
++				// The span holds every texel the tiler reads (inside the tile).
++				const u32 offset = m4_tile_offset(row, col, factors.factor, tiles_per_row, c.base, c.origin_offset, c.pitch, c.bank, c.bpp);
++				const tile_span span = get_tile_span(c.base, c.size, c.pitch, tiles_per_row, c.origin_offset, c.width, c.height, c.bpp);
++				if (offset < c.size && (offset < span.start || u64{offset} + c.bpp > span.end))
++				{
++					failure = "a texel's tiled bytes lie outside the staged span";
++					return false;
++				}
++			}
++		}
++
++		const tile_span span = get_tile_span(c.base, c.size, c.pitch, tiles_per_row, c.origin_offset, c.width, c.height, c.bpp);
++		const u32 tiled_length = span.end - span.start;
++		std::vector<u32> data((tiled_length + 3) / 4 + (linear_length + 3) / 4 + 1, 0xDEADBEEFu);
++		std::memcpy(data.data(), tile_memory.data() + span.start, tiled_length);
++		const u32 linear_offset = (tiled_length + 3) & ~3u;
++		const u32 linear_words = static_cast<u32>((linear_length + 3) / 4);
++
++		for (u32 word = 0; word < linear_words; ++word)
++		{
++			u32 value = 0;
++			for (u32 byte_index = 0; byte_index < 4; ++byte_index)
++			{
++				const u32 source = m4_detile_source((word * 4) + byte_index, factors.factor, tiles_per_row, c.base, c.size, c.origin_offset, span.start,
++					c.pitch, c.bank, c.width, c.height, image_pitch, c.bpp, tiled_length);
++				if (source != 0xFFFFFFFFu)
++				{
++					const u32 index = 0 + source;
++					value |= ((data[index >> 2] >> ((index & 3) * 8)) & 0xFF) << (byte_index * 8);
++				}
++			}
++			data[(linear_offset >> 2) + word] = value;
++		}
++
++		if (std::memcmp(reinterpret_cast<const u8*>(data.data()) + linear_offset, expected.data(), linear_length) != 0)
++		{
++			failure = "the decoded rows differ from the CPU tiler";
++			return false;
++		}
++
++		// The padding bytes of the last word are zero.
++		for (u64 i = linear_length; i < u64{linear_words} * 4; ++i)
++		{
++			if (reinterpret_cast<const u8*>(data.data())[linear_offset + i] != 0)
++			{
++				failure = "a padding byte is not zero";
++				return false;
++			}
++		}
++		return true;
++	}
++
++	void test_tiling_math()
++	{
++		// The bank table as arithmetic
++		constexpr u32 table[16] = { 0, 1, 2, 3, 2, 3, 0, 1, 1, 2, 3, 0, 3, 0, 1, 2 };
++		bool lookup_ok = true;
++		for (u32 i = 0; i < 16; ++i)
++		{
++			lookup_ok &= m4_tile_bank_lookup(i) == table[i];
++		}
++		check(lookup_ok, "bank distribution table");
++
++		// Common get_prime_factor
++		check(get_tile_pitch_factors(0x200).prime == 1 && get_tile_pitch_factors(0x200).factor == 2, "pitch 0x200 = 1 x 2");
++		check(get_tile_pitch_factors(0x300).prime == 3 && get_tile_pitch_factors(0x300).factor == 1, "pitch 0x300 = 3 x 1");
++		check(get_tile_pitch_factors(0xD00).prime == 13 && get_tile_pitch_factors(0xD00).factor == 1, "pitch 0xD00 = 13 x 1");
++		check(get_tile_pitch_factors(0x1400).prime == 5 && get_tile_pitch_factors(0x1400).factor == 4, "pitch 0x1400 = 5 x 4");
++		check(get_tile_pitch_factors(0x11 * 256).factor == 0 && get_tile_pitch_factors(0).factor == 0, "unknown pitches");
++
++		// Every RSX tile pitch (rsx::GcmTileInfo: 0x200 .. 0x10000 from the hardware table), banks, texel sizes, origins
++		constexpr u32 pitches[] = { 0x200, 0x300, 0x400, 0x500, 0x600, 0x700, 0x800, 0xA00, 0xC00, 0xD00, 0xE00, 0x1000, 0x1400, 0x1800, 0x1A00,
++			0x1C00, 0x2000, 0x2800, 0x3000, 0x3400, 0x3800, 0x4000, 0x5000, 0x6000, 0x6800, 0x7000, 0x8000, 0xA000, 0xC000, 0xD000, 0xE000, 0x10000 };
++		std::mt19937 rng(20261106);
++		int cases = 0, failed = 0;
++		const char* first_failure = nullptr;
++		for (const u32 pitch : pitches)
++		{
++			for (const u32 bpp : { 1u, 2u, 4u, 8u, 16u })
++			{
++				if (pitch < bpp * 4)
++				{
++					continue;
++				}
++
++				for (int trial = 0; trial < 3; ++trial)
++				{
++					tile_case c{};
++					c.pitch = pitch;
++					c.bpp = bpp;
++					c.base = (trial == 2) ? 0x00012000u : static_cast<u32>((rng() % 64) * 0x10000);  // trial 2: an unaligned base (whole tile)
++					c.bank = rng() % 4;
++					const u32 max_width = std::min<u32>(pitch / bpp, 300);
++					c.width = 1 + rng() % max_width;
++					c.height = 1 + rng() % 150;
++					const u32 x = (max_width > c.width) ? (rng() % (max_width - c.width + 1)) : 0;
++					const u32 y = rng() % 130;
++					c.origin_offset = y * pitch + x * bpp;
++					// A tile that ends inside the region sometimes (texels beyond it stay zero)
++					const u64 needed = u64{c.origin_offset} + u64{c.height} * pitch;
++					c.size = static_cast<u32>((((trial == 1) ? needed / 2 + pitch : needed + 0x20000) + 0xFFFF) & ~0xFFFFull);
++
++					std::vector<u8> memory(c.size);
++					for (auto& b : memory) b = static_cast<u8>(rng());
++
++					const char* failure = nullptr;
++					cases++;
++					if (!run_tile_case(c, memory, failure))
++					{
++						failed++;
++						if (!first_failure)
++						{
++							first_failure = failure;
++							std::fprintf(stderr, "tile case pitch 0x%x bpp %u base 0x%x bank %u origin 0x%x %ux%u size 0x%x: %s\n",
++								c.pitch, c.bpp, c.base, c.bank, c.origin_offset, c.width, c.height, c.size, failure);
++						}
++					}
++				}
++			}
++		}
++		check(failed == 0, "the tile decoder decodes as the CPU tiler", failed, cases);
++
++		// The span of a 64 KiB aligned tile: whole groups of four 16 KiB tiles of the bands the region touches
++		const tile_span span = get_tile_span(0x10000, 0x100000, 0x1000, 16, 0x1000 * 64 + 0x10, 100, 10, 4);
++		check(span.start == 16 * 0x4000 && span.end == 32 * 0x4000, "tile span of one band", span.start, span.end);
++		// Bands 1 and 2 of a 3-tile pitch: tile ids 3 .. 8, so groups 0 .. 11
++		const tile_span odd = get_tile_span(0x10000, 0x100000, 0x300, 3, 0x300 * 64, 10, 70, 4);
++		check(odd.start == 0 && odd.end == 12 * 0x4000, "tile span of a 3-tile pitch rounds to groups of four", odd.start, odd.end);
++		check(get_tile_span(0x12000, 0x40000, 0x1000, 16, 0, 10, 10, 4).end == 0x40000, "an unaligned tile base stages the whole tile");
++
++		check(get_gpu_upload_word_size(CELL_GCM_TEXTURE_A8R8G8B8) == 4 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_R5G6B5) == 2 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_B8) == 1 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_DEPTH24_D8) == 4 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_W16_Z16_Y16_X16_FLOAT) == 2 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_W32_Z32_Y32_X32_FLOAT) == 4 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_R6G5B5) == 0 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_COMPRESSED_DXT1) == 0,
++			"upload_texture_subresource word sizes (arm64)");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
 +	void test_msl_text(const char* directory)
 +	{
 +		const std::string compute = m4_shaders::compute_library_source();
 +		const std::string resolve = m4_shaders::resolve_library_source();
++		const std::string tiling = m4_shaders::tiling_library_source();
++		check(tiling.find(m4_source::tiling_math) != std::string::npos && tiling.find(std::string("kernel void ") + std::string(m4_shaders::tile_decode_kernel_name) + "(") != std::string::npos,
++			"the tile decoder library holds the tested math and its kernel");
++		check(compute.find("m4_tile_decode_kernel") == std::string::npos, "the conversion kernels do not depend on the tile decoder");
 +
 +		check(m4_shaders::compute_kernel_names.size() == static_cast<usz>(compute_kernel::count), "one MSL kernel per compute_kernel");
 +		for (const auto name : m4_shaders::compute_kernel_names)
@@ -103140,6 +105253,7 @@ index 0000000..3ac9934
 +		{
 +			std::ofstream(std::string(directory) + "/m4_compute.metal", std::ios::binary) << compute;
 +			std::ofstream(std::string(directory) + "/m4_resolve.metal", std::ios::binary) << resolve;
++			std::ofstream(std::string(directory) + "/m4_tiling.metal", std::ios::binary) << tiling;
 +		}
 +	}
 +}
@@ -103153,6 +105267,7 @@ index 0000000..3ac9934
 +	test_msaa_config();
 +	test_dispatch_params();
 +	test_typeless_selection();
++	test_tiling_math();
 +	test_msl_text(argc > 1 ? argv[1] : nullptr);
 +
 +	if (g_failures)
@@ -103162,6 +105277,510 @@ index 0000000..3ac9934
 +	}
 +
 +	std::printf("PASS: Metal M4 unit (%d checks)\n", g_checks);
++	return 0;
++}
+diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp
+new file mode 100644
+index 0000000..3383ad1
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp
+@@ -0,0 +1,498 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): host unit test of the Metal renderer's shader and pipeline cache rules
++// (MTLPipelineCache.h):
++//   - cache keys: the program cache's directory and record version, apart from every Vulkan cache file, and the
++//     archive's name from its identity;
++//   - versioning and rejection: the identity sidecar, the classification of the directory's files, check_archive;
++//   - the checkpoint rate limit, rule by rule and over a simulated session;
++//   - the atomic checkpoint sequence through its file-operation seam: an in-memory file system that records every
++//     operation and fails the one it is told to.
++// Pure logic: no Metal, g++ or clang++.
++//
++//   S=<rpcs3 source root>
++//   c++ -std=gnu++20 -Wall -I "$S/rpcs3" -I "$S" -I "$S/rpcs3/Emu" -I "$S/3rdparty"
++//       "$S/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp" -o mtl_m5_unit_test
++//   ./mtl_m5_unit_test
++
++#include "Emu/RSX/Metal/MTLPipelineCache.h"
++#include "Emu/RSX/Metal/MTLPipelineState.h"
++
++#include <cstdio>
++#include <map>
++#include <string>
++#include <vector>
++
++namespace
++{
++	int g_failures = 0;
++	int g_checks = 0;
++
++	void check(bool condition, const char* what)
++	{
++		g_checks++;
++		if (!condition)
++		{
++			g_failures++;
++			std::fprintf(stderr, "FAIL: %s\n", what);
++		}
++	}
++
++	bool starts_with(const std::string& text, const std::string& prefix)
++	{
++		return text.compare(0, prefix.size(), prefix) == 0;
++	}
++
++	using namespace mtl::pipeline_cache;
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_program_cache_keys()
++	{
++		const std::string version = program_cache_version(sizeof(mtl::pipeline_props));
++		check(version == "v1-p52", "record version: v<record version>-p<sizeof(pipeline_props)>");
++		check(program_cache_version(56) != version, "another pipeline_props size is another version directory");
++
++		// The rsx::shaders_cache layout (rsx_cache.h): <root>raw/<hash>.vp|fp, <root>/pipelines/<class>/<version>/,
++		// <root>spirv.pack; the Vulkan device's pipeline cache beside them.
++		const std::string metal_root(program_cache_directory);
++		check(metal_root == "shaders_cache/metal/", "Metal's program cache root");
++		const std::vector<std::string> metal_paths = {
++			metal_root + "raw/0123ABCD.vp",
++			metal_root + "/pipelines/" + std::string(program_cache_class) + "/" + version + "/A+B+C+D.bin",
++			metal_root + "spirv.pack",
++			metal_root + "pipelines-0123456789abcdef.metallib",
++		};
++		const std::vector<std::string> vulkan_paths = {
++			"shaders_cache/raw/0123ABCD.vp",
++			"shaders_cache//pipelines/vulkan/v1.95/A+B+C+D.bin",
++			"shaders_cache//pipelines/opengl/v1.95/A+B+C+D.bin",
++			"shaders_cache/spirv.pack",
++			"shaders_cache/vk_pipeline_cache.bin",
++		};
++
++		for (const auto& vk : vulkan_paths)
++		{
++			check(!starts_with(vk, metal_root), "no Vulkan or OpenGL cache file is below Metal's root");
++			for (const auto& metal : metal_paths)
++			{
++				check(vk != metal, "no Metal cache file is a Vulkan one");
++			}
++		}
++
++		for (const auto& metal : metal_paths)
++		{
++			check(starts_with(metal, metal_root), "every Metal cache file is below Metal's root");
++		}
++
++		// Vulkan's directories under shaders_cache/ (raw, pipelines) cannot be Metal's: Metal's are one level down.
++		check(!starts_with(metal_root + "raw/", "shaders_cache/raw/") && !starts_with(metal_root + "/pipelines/", "shaders_cache//pipelines/"),
++			"Metal's raw and pipelines directories are not Vulkan's");
++		check(std::string(program_cache_class) != "vulkan" && std::string(program_cache_class) != "opengl", "Metal's pipeline class");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_identity()
++	{
++		check(fnv1a64("") == 0xcbf29ce484222325ull && fnv1a64("a") == 0xaf63dc4c8601ec8cull, "FNV-1a 64 reference values");
++
++		archive_identity a;
++		a.device = "Apple A17 Pro GPU";
++		a.system = "Version 26.1 (Build 23B85)";
++		check(a.version == archive_format_version, "the identity carries the archive format version");
++		check(identity_text(a) == "RPCS3 Metal 4 pipeline archive\nversion=1\ndevice=Apple A17 Pro GPU\nsystem=Version 26.1 (Build 23B85)\n",
++			"sidecar text: one field per line");
++
++		const std::string base = archive_base_name(a);
++		bool hex = base.size() == archive_prefix.size() + 16 && starts_with(base, std::string(archive_prefix));
++		for (usz i = archive_prefix.size(); hex && i < base.size(); ++i)
++		{
++			hex = (base[i] >= '0' && base[i] <= '9') || (base[i] >= 'a' && base[i] <= 'f');
++		}
++		check(hex, "archive name: pipelines- and 16 lower-case hex digits");
++		check(archive_base_name(a) == base, "the name is deterministic");
++
++		archive_identity other_gpu = a;
++		other_gpu.device = "Apple A18 Pro GPU";
++		archive_identity other_build = a;
++		other_build.system = "Version 26.1 (Build 23B86)";
++		archive_identity other_version = a;
++		other_version.version = archive_format_version + 1;
++		check(archive_base_name(other_gpu) != base, "another GPU is another archive");
++		check(archive_base_name(other_build) != base, "another OS build is another archive");
++		check(archive_base_name(other_version) != base, "another format version is another archive");
++		check(identity_text(other_gpu) != identity_text(a) && identity_text(other_build) != identity_text(a) &&
++			identity_text(other_version) != identity_text(a), "and another sidecar text");
++
++		// A field cannot forge another one.
++		archive_identity forged = a;
++		forged.device = "X\nsystem=Version 26.1 (Build 23B85)";
++		const std::string forged_text = identity_text(forged);
++		usz lines = 0;
++		for (const char c : forged_text)
++		{
++			lines += c == '\n';
++		}
++		check(lines == 4 && forged_text.find("device=X system=") != std::string::npos, "line breaks inside a field are spaces");
++
++		const auto paths = make_archive_paths("/cache/BLUS00000/shaders_cache/metal/", a);
++		check(paths.archive == "/cache/BLUS00000/shaders_cache/metal/" + base + ".metallib", "archive path");
++		check(paths.archive_temp == "/cache/BLUS00000/shaders_cache/metal/" + base + ".partial.metallib", "archive temporary path (same extension)");
++		check(paths.identity == "/cache/BLUS00000/shaders_cache/metal/" + base + ".identity", "sidecar path");
++		check(paths.identity_temp == "/cache/BLUS00000/shaders_cache/metal/" + base + ".partial.identity", "sidecar temporary path");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_rejection_rules()
++	{
++		archive_identity a;
++		a.device = "Apple M4 GPU";
++		a.system = "Version 26.0 (Build 25A354)";
++		archive_identity b = a;
++		b.system = "Version 26.1 (Build 25B78)";
++		const std::string base = archive_base_name(a);
++		const std::string other = archive_base_name(b);
++
++		check(classify_file(base + ".metallib", base) == file_role::current_archive, "this identity's archive");
++		check(classify_file(base + ".identity", base) == file_role::current_identity, "this identity's sidecar");
++		check(classify_file(other + ".metallib", base) == file_role::other_archive, "another identity's archive is rejected");
++		check(classify_file(other + ".identity", base) == file_role::other_identity, "another identity's sidecar is removed");
++		check(classify_file(base + ".partial.metallib", base) == file_role::leftover_temp, "an interrupted archive write");
++		check(classify_file(other + ".partial.identity", base) == file_role::leftover_temp, "an interrupted sidecar write");
++		check(classify_file(make_archive_paths("", a).archive_temp, base) == file_role::leftover_temp &&
++			classify_file(make_archive_paths("", a).identity_temp, base) == file_role::leftover_temp, "the temporary names are recognised");
++		for (const char* name : { "raw", "pipelines", "spirv.pack", "vk_pipeline_cache.bin", "pipelines-notes.txt", "pipelines-x.tmp",
++			"xpipelines-0123456789abcdef.metallib", "pipelines", "" })
++		{
++			check(classify_file(name, base) == file_role::unrelated, "the program cache's files and anything else are left alone");
++		}
++
++		const std::string expected = identity_text(a);
++		check(check_archive(false, false, "", expected) == archive_state::absent, "no archive: built this session (not a rejection)");
++		check(check_archive(false, true, expected, expected) == archive_state::absent, "a sidecar alone: no archive");
++		check(check_archive(true, false, "", expected) == archive_state::no_identity, "an archive without its sidecar is rejected");
++		check(check_archive(true, true, expected, expected) == archive_state::usable, "matching identity: usable");
++		check(check_archive(true, true, identity_text(b), expected) == archive_state::identity_mismatch, "another identity is rejected");
++		check(check_archive(true, true, expected.substr(0, expected.size() - 1), expected) == archive_state::identity_mismatch,
++			"a truncated sidecar is rejected");
++		check(check_archive(true, true, "", expected) == archive_state::identity_mismatch, "an empty sidecar is rejected");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_rate_limit()
++	{
++		const checkpoint_policy policy{};
++		check(policy.interval_us == 180'000'000 && policy.burst == 64 && policy.min_spacing_us == 15'000'000, "default policy");
++
++		const auto decide = [&](u64 now_s, u64 last_s, u64 fresh, bool forced = false, bool boot = false, bool busy = false)
++		{
++			checkpoint_state state;
++			state.now_us = now_s * 1'000'000;
++			state.last_us = last_s * 1'000'000;
++			state.new_pipelines = fresh;
++			state.forced = forced;
++			state.boot_in_progress = boot;
++			state.worker_busy = busy;
++			return decide_checkpoint(policy, state);
++		};
++
++		check(decide(1000, 0, 0) == checkpoint_reason::none, "nothing new: no checkpoint");
++		check(decide(1000, 0, 0, true) == checkpoint_reason::none, "nothing new: not even forced");
++		check(decide(1000, 999, 1, true) == checkpoint_reason::forced, "forced ignores the spacing");
++		check(decide(1000, 999, 1, true, true) == checkpoint_reason::forced, "forced at the end of the boot");
++		check(decide(1000, 0, 1000, false, true) == checkpoint_reason::none, "never during the boot precompile");
++		check(decide(1000, 0, 1000, true, false, true) == checkpoint_reason::none, "never while the worker writes (kept pending)");
++		check(decide(1000, 0, 1000, false, false, true) == checkpoint_reason::none, "never while the worker writes");
++		check(decide(110, 100, 1000) == checkpoint_reason::none, "a burst waits for the spacing");
++		check(decide(115, 100, 64) == checkpoint_reason::burst, "a burst after the spacing");
++		check(decide(115, 100, 63) == checkpoint_reason::none, "below the burst size");
++		check(decide(279, 100, 1) == checkpoint_reason::none, "a trickle waits for the interval");
++		check(decide(280, 100, 1) == checkpoint_reason::interval, "a trickle after the interval");
++		check(decide(100, 200, 1000) == checkpoint_reason::none, "a clock going back never triggers");
++
++		// A session: 20 minutes of frames (16 ms); compile storms and trickles; the runtime's dispatch resets the count
++		// and the time at each checkpoint (MTLPipelineArchive.cpp).
++		const u64 frame_us = 16'000;
++		const u64 end_us = 20ull * 60 * 1'000'000;
++		std::vector<u64> compiled_at;    // pending pipelines' compile times
++		u64 last_us = 0;
++		u64 checkpoints = 0;
++		u64 closest_us = ~0ull;
++		u64 worst_latency_us = 0;
++		u64 previous_checkpoint_us = 0;
++		bool any_checkpoint = false;
++		for (u64 now = 0; now < end_us; now += frame_us)
++		{
++			// One pipeline a frame for the first 3 s, then one every 7 s, and a storm of 200 at minute 10.
++			if (now < 3'000'000)
++			{
++				compiled_at.push_back(now);
++			}
++			if (now >= 3'000'000 && (now % 7'000'000) < frame_us)
++			{
++				compiled_at.push_back(now);
++			}
++			if (now >= 600'000'000 && now < 600'000'000 + 200 * frame_us)
++			{
++				compiled_at.push_back(now);
++			}
++
++			checkpoint_state state;
++			state.now_us = now;
++			state.last_us = last_us;
++			state.new_pipelines = compiled_at.size();
++			if (decide_checkpoint(policy, state) != checkpoint_reason::none)
++			{
++				for (const u64 at : compiled_at)
++				{
++					worst_latency_us = std::max(worst_latency_us, now - at);
++				}
++				compiled_at.clear();
++				if (any_checkpoint)
++				{
++					closest_us = std::min(closest_us, now - previous_checkpoint_us);
++				}
++				previous_checkpoint_us = now;
++				any_checkpoint = true;
++				last_us = now;
++				checkpoints++;
++			}
++		}
++
++		check(checkpoints >= 6 && checkpoints <= 12, "a 20-minute session writes a handful of checkpoints");
++		check(closest_us >= policy.min_spacing_us, "no two checkpoints closer than the spacing");
++		check(worst_latency_us <= policy.interval_us + frame_us, "every pipeline is written within the interval (and a frame)");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	// An in-memory file system behind the seam: it records every operation and fails the one it is told to.
++	struct fake_files : file_ops
++	{
++		std::map<std::string, std::string> files;
++		std::vector<std::string> log;
++		std::string fail;                 // "<operation> <path>" to fail
++		std::string archive_content = "MTL4ARCHIVE#2";
++
++		bool failing(const std::string& op, const std::string& path)
++		{
++			log.push_back(op + " " + path);
++			return fail == op + " " + path;
++		}
++
++		bool read_text(const std::string& path, std::string& text) override
++		{
++			if (failing("read", path) || !files.count(path))
++			{
++				return false;
++			}
++			text = files[path];
++			return true;
++		}
++
++		bool write_text(const std::string& path, std::string_view text) override
++		{
++			if (failing("write", path))
++			{
++				files[path] = "PARTIAL";  // a failed write may leave a partial file behind
++				return false;
++			}
++			files[path] = std::string(text);
++			return true;
++		}
++
++		bool serialize(const std::string& path) override
++		{
++			if (failing("serialize", path))
++			{
++				files[path] = "PARTIAL";
++				return false;
++			}
++			files[path] = archive_content;
++			return true;
++		}
++
++		bool sync(const std::string& path) override
++		{
++			return !failing("sync", path) && files.count(path);
++		}
++
++		u64 size(const std::string& path) override
++		{
++			log.push_back("size " + path);
++			return files.count(path) ? files[path].size() : 0;
++		}
++
++		bool rename(const std::string& from, const std::string& to) override
++		{
++			if (failing("rename", from) || !files.count(from))
++			{
++				return false;
++			}
++			files[to] = files[from];
++			files.erase(from);
++			return true;
++		}
++
++		bool remove(const std::string& path) override
++		{
++			log.push_back("remove " + path);
++			files.erase(path);
++			return true;
++		}
++	};
++
++	bool no_temporaries(const fake_files& fs)
++	{
++		for (const auto& [path, data] : fs.files)
++		{
++			if (path.find(".partial.") != std::string::npos)
++			{
++				return false;
++			}
++		}
++		return true;
++	}
++
++	void test_checkpoint_sequence()
++	{
++		archive_identity identity;
++		identity.device = "Apple A17 Pro GPU";
++		identity.system = "Version 26.1 (Build 23B85)";
++		const std::string text = identity_text(identity);
++		const auto paths = make_archive_paths("/c/", identity);
++
++		// A first checkpoint: sidecar, then archive, each through a temporary file, sync and rename.
++		{
++			fake_files fs;
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.ok() && result.bytes == fs.archive_content.size(), "first checkpoint written, its size reported");
++			check(fs.files[paths.archive] == fs.archive_content && fs.files[paths.identity] == text, "archive and sidecar in place");
++			check(no_temporaries(fs), "no temporary file left");
++			const std::vector<std::string> expected = {
++				"read " + paths.identity,
++				"write " + paths.identity_temp,
++				"sync " + paths.identity_temp,
++				"rename " + paths.identity_temp,
++				"remove " + paths.archive_temp,
++				"serialize " + paths.archive_temp,
++				"sync " + paths.archive_temp,
++				"size " + paths.archive_temp,
++				"rename " + paths.archive_temp,
++			};
++			check(fs.log == expected, "the exact sequence: sidecar (temp, sync, rename), archive (clear temp, serialize, sync, size, rename)");
++		}
++
++		// A later checkpoint: the sidecar holds the identity already, only the archive is replaced.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.ok() && fs.files[paths.archive] == "MTL4ARCHIVE#2", "the archive is replaced");
++			check(fs.log.size() == 6 && fs.log[0] == "read " + paths.identity && fs.log[1] == "remove " + paths.archive_temp,
++				"no sidecar write when it holds the identity");
++		}
++
++		// A sidecar of another identity (or damaged) is rewritten.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = "damaged";
++			check(write_checkpoint(fs, paths, text).ok() && fs.files[paths.identity] == text, "a damaged sidecar is rewritten");
++		}
++
++		// Every failure leaves the previous archive untouched and no temporary file.
++		struct failure_case
++		{
++			std::string fail;
++			checkpoint_step step;
++			bool sidecar_written;
++		};
++		const std::vector<failure_case> failures = {
++			{ "write " + paths.identity_temp, checkpoint_step::identity_write, false },
++			{ "sync " + paths.identity_temp, checkpoint_step::identity_write, false },
++			{ "rename " + paths.identity_temp, checkpoint_step::identity_rename, false },
++			{ "serialize " + paths.archive_temp, checkpoint_step::serialize, true },
++			{ "sync " + paths.archive_temp, checkpoint_step::sync, true },
++			{ "rename " + paths.archive_temp, checkpoint_step::rename, true },
++		};
++		for (const auto& test : failures)
++		{
++			fake_files fs;
++			fs.files[paths.identity] = "an older sidecar";
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			fs.fail = test.fail;
++			const auto result = write_checkpoint(fs, paths, text);
++			check(!result.ok() && result.failed == test.step && !result.bytes, "the failing step is reported");
++			check(fs.files[paths.archive] == "MTL4ARCHIVE#1", "the previous archive stays");
++			check(no_temporaries(fs), "the temporary file is removed");
++			check((fs.files[paths.identity] == text) == test.sidecar_written, "the sidecar is replaced only by its own complete rename");
++		}
++
++		// An empty archive is never published.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			fs.archive_content.clear();
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.failed == checkpoint_step::empty && fs.files[paths.archive] == "MTL4ARCHIVE#1" && no_temporaries(fs),
++				"an empty serialization is refused");
++		}
++
++		// The temporary file of a checkpoint a crash interrupted is cleared before the serializer writes.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive_temp] = "STALE";
++			check(write_checkpoint(fs, paths, text).ok() && fs.files[paths.archive] == "MTL4ARCHIVE#2" && no_temporaries(fs),
++				"a stale temporary file never becomes the archive");
++		}
++
++		// A crash between any two operations leaves the previous or the new archive, never a partial one.
++		{
++			fake_files reference;
++			reference.files[paths.identity] = text;
++			reference.files[paths.archive] = "MTL4ARCHIVE#1";
++			write_checkpoint(reference, paths, text);
++			for (usz crash_after = 0; crash_after <= reference.log.size(); ++crash_after)
++			{
++				struct crashing final : fake_files
++				{
++					usz budget = 0;
++					bool alive() { return budget ? (budget--, true) : false; }
++					bool read_text(const std::string& p, std::string& t) override { return alive() && fake_files::read_text(p, t); }
++					bool write_text(const std::string& p, std::string_view t) override { return alive() && fake_files::write_text(p, t); }
++					bool serialize(const std::string& p) override { return alive() && fake_files::serialize(p); }
++					bool sync(const std::string& p) override { return alive() && fake_files::sync(p); }
++					u64 size(const std::string& p) override { return alive() ? fake_files::size(p) : 0; }
++					bool rename(const std::string& f, const std::string& t) override { return alive() && fake_files::rename(f, t); }
++					bool remove(const std::string& p) override { return alive() && fake_files::remove(p); }
++				} fs;
++				fs.files[paths.identity] = text;
++				fs.files[paths.archive] = "MTL4ARCHIVE#1";
++				fs.budget = crash_after;
++				write_checkpoint(fs, paths, text);
++				const std::string archive = fs.files.count(paths.archive) ? fs.files[paths.archive] : std::string("(none)");
++				check(archive == "MTL4ARCHIVE#1" || archive == "MTL4ARCHIVE#2", "after a crash: the previous or the new archive");
++			}
++		}
++
++		check(std::string(checkpoint_step_name(checkpoint_step::serialize)) == "serialization", "step names for the log");
++	}
++}
++
++int main()
++{
++	test_program_cache_keys();
++	test_identity();
++	test_rejection_rules();
++	test_rate_limit();
++	test_checkpoint_sequence();
++
++	if (g_failures)
++	{
++		std::fprintf(stderr, "%d of %d checks failed\n", g_failures, g_checks);
++		return 1;
++	}
++
++	std::printf("PASS: Metal M5 cache rules (%d checks)\n", g_checks);
 +	return 0;
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_texture_formats_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_texture_formats_test.cpp
@@ -114829,7 +117448,7 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..42099d9 100644
+index 625311f..23e1fc0 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -11,8 +11,15 @@
@@ -114911,10 +117530,25 @@ index 625311f..42099d9 100644
  
  					auto entry = unpack(pdata);
  
-@@ -220,13 +267,50 @@ namespace rsx
- 					root_path = std::move(cache_path) + "shaders_cache/";
- 				}
- 			}
+@@ -208,7 +255,9 @@ namespace rsx
+ 
+ 	public:
+ 
+-		shaders_cache(backend_storage& storage, std::string pipeline_class, std::string version_prefix_str = "v1")
++		// REWINDBOX_METAL_NATIVE (M5): cache_directory, under the title's cache, lets the Metal renderer keep its raw
++		// programs and pipeline records apart from the Vulkan and OpenGL ones (MTLPipelineCache.h: shaders_cache/metal/).
++		shaders_cache(backend_storage& storage, std::string pipeline_class, std::string version_prefix_str = "v1", std::string_view cache_directory = "shaders_cache/")
+ 			: version_prefix(std::move(version_prefix_str))
+ 			, pipeline_class_name(std::move(pipeline_class))
+ 			, m_storage(storage)
+@@ -217,16 +266,53 @@ namespace rsx
+ 			{
+ 				if (std::string cache_path = rpcs3::cache::get_ppu_cache(); !cache_path.empty())
+ 				{
+-					root_path = std::move(cache_path) + "shaders_cache/";
++					root_path = std::move(cache_path) + std::string(cache_directory);
++				}
++			}
 +
 +			if (!root_path.empty())
 +			{
@@ -114926,9 +117560,9 @@ index 625311f..42099d9 100644
 +				if (rpcs3::ios::get_experimental_policy().spirv_disk_cache)
 +				{
 +					rpcs3::ios::spirv_cache::instance().open(root_path + "spirv.pack");
-+				}
+ 				}
 +#endif
-+			}
+ 			}
  		}
  
 +		// Destroys the writer first: every accepted record reaches disk.
@@ -114962,7 +117596,7 @@ index 625311f..42099d9 100644
  				return;
  			}
  
-@@ -238,6 +322,9 @@ namespace rsx
+@@ -238,6 +324,9 @@ namespace rsx
  			{
  				fs::create_path(directory_path);
  				fs::create_path(root_path + "/raw");
@@ -114972,7 +117606,7 @@ index 625311f..42099d9 100644
  				return;
  			}
  
-@@ -254,7 +341,12 @@ namespace rsx
+@@ -254,7 +343,12 @@ namespace rsx
  			u32 entry_count = ::size32(entries);
  
  			if (!entry_count)
@@ -114985,7 +117619,7 @@ index 625311f..42099d9 100644
  
  			root.rewind();
  
-@@ -275,13 +367,36 @@ namespace rsx
+@@ -275,13 +369,36 @@ namespace rsx
  			// Preload everything needed to compile the shaders
  			unpacked_type unpacked;
  			uint nb_workers = g_cfg.video.renderer == video_renderer::vulkan ? utils::get_thread_count() : 1;
@@ -115022,7 +117656,7 @@ index 625311f..42099d9 100644
  
  			dlg->refresh();
  			dlg->close();
-@@ -300,21 +415,96 @@ namespace rsx
+@@ -300,21 +417,96 @@ namespace rsx
  				return;
  			}
  
@@ -115126,7 +117760,7 @@ index 625311f..42099d9 100644
  			}
  
  			const u32 state_params[] =
-@@ -338,16 +528,38 @@ namespace rsx
+@@ -338,16 +530,38 @@ namespace rsx
  
  			const std::string pipeline_file_name = fmt::format("%llX+%llX+%llX+%llX.bin", data.vertex_program_hash, data.fragment_program_hash, data.pipeline_storage_hash, state_hash);
  			const std::string pipeline_path = root_path + "/pipelines/" + pipeline_class_name + "/" + version_prefix + "/" + pipeline_file_name;
@@ -115170,7 +117804,7 @@ index 625311f..42099d9 100644
  			return vp;
  		}
  
-@@ -357,16 +569,28 @@ namespace rsx
+@@ -357,16 +571,28 @@ namespace rsx
  
  			RSXFragmentProgram fp = {};
  
@@ -115203,7 +117837,7 @@ index 625311f..42099d9 100644
  			fragment_program_data[fragment_program_data.push_begin()] = std::move(buf);
  			return fp;
  		}
-@@ -410,6 +634,25 @@ namespace rsx
+@@ -410,6 +636,25 @@ namespace rsx
  			fp.two_sided_lighting = !!(data.fp_lighting_flags & 0x1);
  			fp.mrt_buffers_count = data.fp_mrt_count;
  
@@ -115229,7 +117863,7 @@ index 625311f..42099d9 100644
  			return result;
  		}
  
-@@ -459,6 +702,11 @@ namespace rsx
+@@ -459,6 +704,11 @@ namespace rsx
  
  			return data_block;
  		}
@@ -115241,7 +117875,7 @@ index 625311f..42099d9 100644
  	};
  
  	namespace vertex_cache
-@@ -498,6 +746,26 @@ namespace rsx
+@@ -498,6 +748,26 @@ namespace rsx
  				return u64(local_addr) | (u64(data_length) << 32);
  			}
  
@@ -115268,7 +117902,7 @@ index 625311f..42099d9 100644
  		public:
  
  			const storage_type* find_vertex_range(u32 local_addr, u32 data_length) override
-@@ -511,8 +779,12 @@ namespace rsx
+@@ -511,8 +781,12 @@ namespace rsx
  				}
  
  				// Check if data in local_address changed vs what was stored in the vertex_cache
@@ -115281,7 +117915,7 @@ index 625311f..42099d9 100644
  				{
  					vertex_ranges.erase(key);
  					return nullptr;
-@@ -528,10 +800,14 @@ namespace rsx
+@@ -528,10 +802,14 @@ namespace rsx
  				v.local_address = local_addr;
  				v.offset_in_heap = offset_in_heap;
  

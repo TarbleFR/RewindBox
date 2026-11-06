@@ -116,6 +116,9 @@ LOT_FILES = {
     'adapt_nan_scrub': [],
     # Core 673: the main pipeline cache checkpoint during play (PipelineState.cs is outside this composition).
     'adapt_main_cache_checkpoint': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_checkpoint_side_cache': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 677: evicted buffers recreated in both host budget settings.
+    'adapt_evicted_buffer_recreate': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
 }
 
 checks = 0

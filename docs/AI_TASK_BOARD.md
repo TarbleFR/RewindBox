@@ -769,6 +769,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - R4: D24 round to nearest, exhaustive test;
       - M3.2: blit engine, scaled copies, scaled and tiled readbacks.
       - Being merged into the M4 tree, with one typeless path (VK selection: kernels for shuffles and packing).
+  - **URGENT, IPA 674 on iOS 27.0 beta (24A5380h): no RPCS3 game starts** (stuck on "Lancement du jeu"; private logs
+    6 Nov, pids 21179-21207).
+    - The early escrow failed with attempts=0. The VA census shows:
+      - the system shared region (tag 32) fills about 57 GiB of [4,64) GiB;
+      - 538 MiB free there, largest gap 260 MiB;
+      - a free 64 GiB gap at 0x7000000000, max 0x8000000000.
+    - The Core reported `RPCS3_CORE_INITIALIZE_FAILED: Unable to reserve the JIT arena layout in low virtual address
+      space` (logged on earlier launches). On 674 the UI also stays on the launch dialog instead of showing the error:
+      a second defect, open.
+    - Fix:
+      - host escrow `5680f926`: policy limit = task max, low first, with an iOS 27 layout unit test;
+      - **Core 904** (`13726aa1`, request `8930989d`): Utilities/JITIOS.cpp searches up to the task maximum, low
+        first (NEOSTATION_JIT_HIGH_WINDOW_904). JITIOS.cpp is not a codegen input, so caches stay valid.
+      - No address-width assumption was found: PPU dispatch entries are 64-bit, LLVM is small-model PIC with
+        GOT/stubs, and the asmjit ADRs are local.
+    - Core 904 also folds M5 part 1 and the M3 gaps (`metal-wip-from-903.patch` = core904-from-903 `3db346b1`).
+      - Candidate iOS CI green: run `42262048824`.
+      - Canonical `f11ab251` (444 postimages).
+      - Local: route, closure, codegen and fast driver parts PASS.
+    - Next, as the maintainer asked (6 Nov evening):
+      - IPA 676 waits for MeloNX Core 675 whatever happens, with no fallback to 673;
+      - it ships the complete Metal engine;
+      - the last parity items go into Core 905 (M4 tree from `b792f55`): iOS ZCULL overrides, multi-worker boot
+        precompile, MSAA math check, remaining VK-executed counted paths.
+      - Metal stays opt-in until a first device run. Vulkan removal still needs measured parity.
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
@@ -1120,6 +1145,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   cache stuck at 301.62 MiB because sessions end in crashes. iPhone binary `9e55859a…`, fingerprint `16fda8bd…`;
   [receipt](evidence/melonx-673-gates/run.json). forced-syncpoint-wait failed on macOS 3 times (168/170/184 ms vs
   150 ms): margin to analyse before the next Core.
+- **IPA 674 on the device (6 Nov, Hogwarts, private journals):**
+  - pid 21216 (first session): 1532 shaders loaded (1199 before). One play-time checkpoint wrote 545 main pipelines
+    but held the main lock 2818 ms, and the render thread waited. Fixed by Core 675.
+  - pid 21727 (second session, `hostMemoryBudget=False`): far fewer stutters, so the checkpoint kept its pipelines.
+    The app aborted after about 7 min on a NullReferenceException in `BufferCache.GetBuffer` <- `GetBufferRangeAligned`
+    <- `BufferManager.CommitGraphicsBindings` (RenderThread, MacroHLE.DrawElements). Fixed by Core 677.
+- **Core 675** (`e1f709d5`, run 42262909012 building): Core 673 + adapt_checkpoint_side_cache. During a checkpoint, a
+  main-cache creation goes to a side cache that is merged under the main lock at the end, so there is no wait and no
+  skipped draw. Gate checkpoint-side-cache: control waits 420 ms, candidate 3 ms. 50 gates;
+  [receipt](evidence/melonx-675-gates/run.json). Pin follows the green run.
+- **Core 677 = Core 675 + adapt_evicted_buffer_recreate** (BufferCache.cs, every title):
+  - Cause, from MeloNX source: on Apple unified memory the buffer cache always has a byte limit (256 MiB for Hogwarts
+    when host budget tracking is off), and `AddBuffer` always evicts above it. Only the binding lookups
+    (`GetOrCreateBuffer`, `GetOrCreateSparseBuffer`) and the multi-range eviction suppression depended on tracking.
+    With tracking off, a buffer evicted after a binding recorded its range came back as null.
+  - Every recent Hogwarts session ran with tracking off.
+  - Fix: the lookups recreate a missing or partly covering buffer in both settings, and eviction is deferred during
+    a multi-range creation. Limit, eviction order, trimming and the setting are unchanged.
+  - New gate evicted-buffer-recreate (22 checks, real BufferCache.cs members):
+    - control, tracking off: `NullReferenceException`, a partly covering buffer is returned, and the sparse lookup
+      returns null;
+    - candidate: recreated in every case;
+    - tracking on: identical in control and candidate.
+  - fragmented-reads, hogwarts-dma-copies, checkpoint-side-cache and main-cache-checkpoint reran green.
+  - Contract `0271ab0d…`: 51 gates, 169 inputs; contract test `--archive` 392 checks.
+    [Receipt](evidence/melonx-677-gates/run.json).
+  - Not tested on a device. Its CI queues behind the Core 675 run (same concurrency group, no cancel).
+  - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
+    the crash fix); otherwise ship 675 and take 677 in the next IPA.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.
