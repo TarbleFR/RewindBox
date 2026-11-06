@@ -2911,7 +2911,7 @@ index 48010d9..438c533 100644
  		auto operator<=>(const fragment_variant_key&) const = default;
  	};
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 76a6370..6530614 100644
+index 76a6370..5d603ca 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -8,12 +8,19 @@
@@ -3213,7 +3213,7 @@ index 76a6370..6530614 100644
  		"surfaces=%llu released=%llu invalidated_live=%llu cleared=%llu inherited=%llu transfers_todo=%llu loads_todo=%llu writes_todo=%llu | vp=%llu fp=%llu "
  		"glsl_fail=%llu msl_fail=%llu lib_fail=%llu pipelines=%llu pipeline_fail=%llu | submits=%llu early=%llu waits=%llu "
  		"slow_waits=%llu rings_full=%llu",
-@@ -609,5 +702,287 @@ void MTLGSRender::report_counters()
+@@ -609,5 +702,291 @@ void MTLGSRender::report_counters()
  		load(s.transfers_not_implemented), load(s.memory_loads_not_implemented),
  		load(s.memory_writes_not_implemented), load(p.vertex_programs), load(p.fragment_programs), load(p.glsl_failures),
  		load(p.translation_failures), load(p.library_failures), load(p.pipelines), load(p.pipeline_failures),
@@ -3267,6 +3267,11 @@ index 76a6370..6530614 100644
 +
 +bool MTLGSRender::post_flush_request(flush_request&& request)
 +{
++	// VKGSRender::on_access_violation order: release this thread's vm lock before taking the queue guard. The RSX thread
++	// holds the guard while it serves the queue (flush_pending_requests), so a guest thread must never wait for it with
++	// its vm lock held (M4 review).
++	vm::temporary_unlock();
++
 +	flush_request* task;
 +	{
 +		std::lock_guard lock(m_flush_queue_guard);
@@ -3282,7 +3287,6 @@ index 76a6370..6530614 100644
 +#ifdef RPCS3_IOS
 +	rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK: this thread waits until the RSX thread serves it
 +#endif
-+	vm::temporary_unlock();
 +
 +	// GLGSRender work_item::producer_wait: until the RSX thread has served it (no timeout: the data is needed).
 +	utils::spin_wait(task->processed, [](auto v) { return v; });
@@ -3407,7 +3411,7 @@ index 76a6370..6530614 100644
 +	}
 +
 +	return true;
-+}
+ }
 +
 +void MTLGSRender::on_invalidate_memory_range(const utils::address_range32& range, rsx::invalidation_cause cause)
 +{
@@ -3422,7 +3426,7 @@ index 76a6370..6530614 100644
 +			m_samplers_dirty.store(true);
 +		}
 +	}
- }
++}
 +
 +void MTLGSRender::on_semaphore_acquire_wait()
 +{
@@ -11249,3 +11253,16 @@ index 0000000..e3c7543
 +	std::printf("PASS: Metal texture formats, component orders and samplers (%d checks)\n", g_checks);
 +	return 0;
 +}
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index e3d62de..93a0987 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -133,7 +133,7 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
+-	GAME_SETTING("experimental.metal_renderer", "Experimental", "Renderer", "Native Metal 4 renderer", "Draws the PlayStation 3 graphics with the native Metal 4 renderer instead of Vulkan on MoltenVK. Stage M2: draws, clears and presentation run on Metal 4; textures (a neutral texture until the texture cache), guest-memory surface loads and writes, MSAA and occlusion queries are not executed yet and are counted. Needs iOS 26 and a Metal 4 GPU, otherwise Vulkan is used. Automatic keeps Vulkan. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.metal_renderer, 0, 0, 0),
++	GAME_SETTING("experimental.metal_renderer", "Experimental", "Renderer", "Native Metal 4 renderer", "Draws the PlayStation 3 graphics with the native Metal 4 renderer instead of Vulkan on MoltenVK: textures, render-to-texture and readback, exact occlusion queries, MSAA and native overlays run on Metal 4; paths still missing are counted in the log. Needs iOS 26 and a Metal 4 GPU, otherwise Vulkan is used. Automatic keeps Vulkan. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.metal_renderer, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
