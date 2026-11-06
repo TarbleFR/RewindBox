@@ -1,3 +1,79 @@
+diff --git a/Utilities/JITIOS.cpp b/Utilities/JITIOS.cpp
+index 0b6d008..fba90e7 100644
+--- a/Utilities/JITIOS.cpp
++++ b/Utilities/JITIOS.cpp
+@@ -7,6 +7,7 @@
+ #endif
+ 
+ #include <algorithm>
++#include <cstddef>
+ #include <atomic>
+ #include <cerrno>
+ #include <csignal>
+@@ -72,18 +73,39 @@ struct sigaction g_previous_trap_action{};
+ // reserves tags 240-255 for application-specific mappings.
+ constexpr int jit_vm_tag = VM_MAKE_TAG(VM_MEMORY_APPLICATION_SPECIFIC_1);
+ constexpr vm_address_t arena_address_begin = 0x1'0000'0000;
+-constexpr vm_address_t arena_address_end = 0x10'0000'0000;
++// NEOSTATION_JIT_HIGH_WINDOW_904: the preferred window ends at 64 GiB. The search walks upward from 4 GiB, so a
++// fitting gap below 64 GiB is still always taken first. When the low window is full, the search continues up to the
++// task's maximum address. The system shared region covers almost all of 6-63 GiB on iOS 27 beta (VA census of IPA
++// 674: 538 MiB free below 64 GiB, largest gap 260 MiB, and a free 64 GiB gap at 448 GiB). Code and data stay within
++// the 4 GiB signed ADRP reach of each other. No other constraint ties the arena to low addresses: PPU dispatch
++// entries are full 64-bit pointers, LLVM code is small-model PIC with GOT/stub relocations into the arena, and the
++// asmjit ADRs are local labels.
++constexpr vm_address_t arena_preferred_end = 0x10'0000'0000;
+ constexpr vm_size_t arena_address_step = 64 * 1024 * 1024;
+ 
++vm_address_t arena_address_end() noexcept
++{
++	vm_address_t end = arena_preferred_end;
++	task_vm_info_data_t info{};
++	mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++	if (::task_info(mach_task_self(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS &&
++		count * sizeof(natural_t) >= offsetof(task_vm_info_data_t, max_address) + sizeof(info.max_address) &&
++		info.max_address > end)
++	{
++		end = static_cast<vm_address_t>(info.max_address);
++	}
++	return end;
++}
++
+ u8* reserve_arena_layout(usz size, vm_address_t begin = arena_address_begin,
+-	vm_address_t end = arena_address_end) noexcept
++	vm_address_t end = arena_address_end()) noexcept
+ {
+ 	// NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1
+ 	// NEOSTATION_PAGE_ALIGNED_JIT_GAPS_V1
+ 	// Inspect actual VM boundaries: rounding every candidate to 64 MiB can
+ 	// discard the only usable window after ASLR. The fixed allocation remains
+ 	// the ownership check if another thread maps into a gap during this scan.
+-	if (!size || begin < arena_address_begin || end > arena_address_end || begin >= end || size > end - begin)
++	if (!size || begin < arena_address_begin || end > arena_address_end() || begin >= end || size > end - begin)
+ 	{
+ 		return nullptr;
+ 	}
+@@ -190,7 +212,7 @@ u8* reserve_code_data_layout(usz code_capacity, u8*& data, usz& data_capacity) n
+ 	{
+ 		const auto code_address = reinterpret_cast<vm_address_t>(code);
+ 		const vm_address_t data_begin = std::max(arena_address_begin, code_address + code_capacity - reach);
+-		const vm_address_t data_end = std::min(arena_address_end, code_address + reach);
++		const vm_address_t data_end = std::min(arena_address_end(), code_address + reach);
+ 		data_capacity = code_capacity;
+ 		for (;;)
+ 		{
+@@ -547,8 +569,9 @@ bool prepare_arena(u32 expanded_capacity_mib) noexcept
+ 	u8* const layout = reserve_capacity_layout(capacity, expanded, data, data_capacity);
+ 	if (!layout)
+ 	{
+-		set_error("NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1: Unable to reserve the JIT arena layout in low virtual address space (code=" +
+-			std::to_string(capacity) + ", minimum data=" + std::to_string(arena_min_capacity) + " bytes)");
++		set_error("NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1: Unable to reserve the JIT arena layout in the task's virtual address space (4 GiB to " +
++			std::to_string(arena_address_end()) + ", low window first; code=" + std::to_string(capacity) + ", minimum data=" +
++			std::to_string(arena_min_capacity) + " bytes)");
+ 		return false;
+ 	}
+ 
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
 index 7e9e459..5679131 100644
 --- a/rpcs3/Emu/CMakeLists.txt
@@ -323,8 +399,407 @@ index ec2ecc4..628eeab 100644
  			return keep(pipeline);
  		}
  	}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLBlit.cpp b/rpcs3/Emu/RSX/Metal/MTLBlit.cpp
+index 9f7fdf6..4154ac2 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLBlit.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLBlit.cpp
+@@ -60,6 +60,24 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ {
+ 	return src.sample(blit_linear_sampler, blit_coord(in.position, p));
+ }
++
++// Integer formats (no filtering: the Vulkan blit of an integer format is VK_FILTER_NEAREST): the texel floor(u) of the
++// unnormalized coordinate, clamped to the image (clamp to edge), read as it is.
++inline uint2 blit_nearest_texel(float4 position, constant blit_params& p, uint width, uint height)
++{
++	const float2 texel = clamp(floor(blit_coord(position, p)), float2(0.0), float2(float(width), float(height)) - 1.0);
++	return uint2(texel);
++}
++
++fragment uint4 blit_nearest_uint(blit_vertex_out in [[stage_in]], texture2d<uint, access::read> src [[texture(0)]], constant blit_params& p [[buffer(0)]])
++{
++	return src.read(blit_nearest_texel(in.position, p, src.get_width(), src.get_height()));
++}
++
++fragment int4 blit_nearest_sint(blit_vertex_out in [[stage_in]], texture2d<int, access::read> src [[texture(0)]], constant blit_params& p [[buffer(0)]])
++{
++	return src.read(blit_nearest_texel(in.position, p, src.get_width(), src.get_height()));
++}
+ )";
+ 
+ 		struct blit_params
+@@ -75,17 +93,29 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			return *ensure(get_upload_heap(), "Metal: no upload heap for transfers");
+ 		}
+ 
+-		bool renderable_colour(pixel_format format)
++		// The values a colour format holds, as a blit reads and writes them (Vulkan: a blit converts between float and
++		// normalized formats; integer formats only blit to the same kind of integer format, with VK_FILTER_NEAREST).
++		enum class blit_values : u8
++		{
++			none,      // not a colour format a render pass writes: depth, stencil (copy_scaled_image's carriers), compressed
++			floating,  // normalized and float formats: sampled with the requested filter, written as float4
++			uint_,     // read (nearest) and written as uint4
++			sint_,     // read (nearest) and written as int4
++		};
++
++		blit_values get_blit_values(pixel_format format)
+ 		{
+-			// The blit shader writes float4: normalized and float colour formats only.
+ 			switch (format)
+ 			{
+-			case pixel_format::r8_uint: case pixel_format::r16_uint: case pixel_format::r32_uint: case pixel_format::r32_sint:
+-			case pixel_format::rg32_uint: case pixel_format::rgba8_uint: case pixel_format::rgba16_uint: case pixel_format::rgba32_uint:
++			case pixel_format::r8_uint: case pixel_format::r16_uint: case pixel_format::r32_uint: case pixel_format::rg32_uint:
++			case pixel_format::rgba8_uint: case pixel_format::rgba16_uint: case pixel_format::rgba32_uint:
++				return blit_values::uint_;
++			case pixel_format::r32_sint:
++				return blit_values::sint_;
+ 			case pixel_format::stencil8: case pixel_format::x32_stencil8:
+-				return false;
++				return blit_values::none;
+ 			default:
+-				return !is_compressed_format(format) && !is_depth_format(format) && get_texel_size(format) != 0;
++				return (!is_compressed_format(format) && !is_depth_format(format) && get_texel_size(format) != 0) ? blit_values::floating : blit_values::none;
+ 			}
+ 		}
+ 
+@@ -174,11 +204,14 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 	{
+ 		// M4: the transfer pipeline cache (MTLTransferPass.h)
+ 		const u64 key = static_cast<u64>(format) | (static_cast<u64>(filter) << 32);
++		const blit_values values = get_blit_values(format);
+ 		return m_pipelines.get(key, [&](render_pipeline_descriptor& desc)
+ 		{
+ 			desc.library = m_library;
+ 			desc.vertex_function = "blit_vertex";
+-			desc.fragment_function = (filter == blit_filter::linear) ? "blit_linear" : "blit_nearest";
++			desc.fragment_function = (values == blit_values::uint_) ? "blit_nearest_uint" :
++				(values == blit_values::sint_) ? "blit_nearest_sint" :
++				(filter == blit_filter::linear) ? "blit_linear" : "blit_nearest";
+ 			desc.color[0].format = format;
+ 			desc.label = "RSX blit";
+ 		}, [&](const render_pipeline_descriptor&, const std::string& error)
+@@ -225,10 +258,13 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 		const auto s = absolute(src_area);
+ 		const auto d = absolute(dst_area);
+ 
+-		if (&src == &dst || !renderable_colour(dst.format()) || !(dst.usage & usage_render_target) || src.is_depth() || is_compressed_format(src.format()) ||
++		const blit_values values = get_blit_values(dst.format());
++		if (&src == &dst || values == blit_values::none || !(dst.usage & usage_render_target) || src.aspect() != aspect_color ||
++			get_blit_values(src.format()) != values ||  // Vulkan: integer formats blit only to the same kind of integer format
+ 			src.samples() > 1 || dst.samples() > 1)  // M4: multisampled images are transferred through their resolve images
+ 		{
+-			// (A render pass cannot sample the texture it renders to.)
++			// (A render pass cannot sample the texture it renders to; depth and stencil go through copy_scaled_image's
++			// carriers; a compressed destination cannot be rendered, nor blitted by Vulkan.)
+ 			counters.scaled_not_implemented++;
+ 			log_once("blit-format", fmt::format("scaled transfer %u -> %u cannot be rendered (format or usage)", static_cast<u32>(src.format()), static_cast<u32>(dst.format())));
+ 			return false;
+@@ -242,6 +278,13 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			return false;
+ 		}
+ 
++		if (filter == blit_filter::linear && values != blit_values::floating)
++		{
++			// Integer formats are not filtered (Vulkan requires VK_FILTER_NEAREST for them).
++			filter = blit_filter::nearest;
++			counters.filters_downgraded++;
++		}
++
+ 		if (filter == blit_filter::linear && is_float32_format(src.format()) && !m_float32_filtering)
+ 		{
+ 			// Metal cannot filter 32-bit floats on this device.
+@@ -397,31 +440,10 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			return false;
+ 		}
+ 
+-		if (src->aspect() == aspect_color)
++		// VKTexture.cpp copy_scaled_image: the bits of the source region go into a helper of the destination's format
++		// (copy_image_typeless, counted there when refused), which is then scaled into the destination in that format.
++		const auto scale_through_typeless = [&]() -> bool
+ 		{
+-			if (dst->aspect() != aspect_color)
+-			{
+-				counters.scaled_not_implemented++;
+-				log_once("blit-aspect", "scaled transfer between colour and depth is not implemented");
+-				return false;
+-			}
+-
+-			// vkCmdBlitImage: sampled and written as values (formats converted).
+-			return engine->blit(ctx, *src, src_area, *dst, dst_level, dst_slice, dst_z, dst_area, filter);
+-		}
+-
+-		// Depth and stencil (VKTexture.cpp copy_scaled_image): a depth float mismatch needs a typeless conversion.
+-		if (src->format() != dst->format())
+-		{
+-			// M4: VK ("can happen because of depth float mismatch; format width should be equal RSX-side"): the bits go
+-			// into a helper of the destination's format (copy_image_typeless, counted there when refused), then scaled.
+-			if (!dst->is_depth())
+-			{
+-				counters.typeless_not_implemented++;
+-				log_once("blit-depth-format", "scaled transfer from a depth image into a colour image is not implemented");
+-				return false;
+-			}
+-
+ 			const auto s = absolute(src_area);
+ 			image* const typeless = engine->get_typeless_helper(ctx, dst->format(), dst->format_class(), s.w, s.h, 5);
+ 			if (!typeless)
+@@ -441,7 +463,26 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			if (src_area.x1 > src_area.x2) helper_area.flip_horizontal();
+ 			if (src_area.y1 > src_area.y2) helper_area.flip_vertical();
+ 			return copy_scaled_image(ctx, typeless, dst, helper_area, dst_area, dst_level, dst_slice, dst_z, true, filter);
+-			// M4 end
++		};
++
++		if (src->aspect() == aspect_color)
++		{
++			if (dst->aspect() != aspect_color)
++			{
++				// Colour into depth or stencil: a Vulkan blit needs matching aspects, so the reinterpretation comes first
++				// (VK's order for a format mismatch below), then the scaling in the depth format (bits, never values).
++				return scale_through_typeless();
++			}
++
++			// vkCmdBlitImage: sampled and written as values (formats converted).
++			return engine->blit(ctx, *src, src_area, *dst, dst_level, dst_slice, dst_z, dst_area, filter);
++		}
++
++		// Depth and stencil (VKTexture.cpp copy_scaled_image): a format mismatch (a depth float mismatch, or a colour
++		// destination) needs a typeless conversion first ("format width should be equal RSX-side").
++		if (src->format() != dst->format())
++		{
++			return scale_through_typeless();
+ 		}
+ 
+ 		if (dst_area.is_flipped())
+@@ -481,6 +522,10 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			planes[plane_count++] = { blit_depth_from_depth_stencil, pixel_format::bgra8_unorm, 4 };
+ 			planes[plane_count++] = { blit_stencil_from_depth_stencil, pixel_format::r8_unorm, 1 };
+ 			break;
++		case pixel_format::stencil8:
++			// A stencil image: its one plane through the stencil carrier (VK's typeless_stencil, R8_UNORM).
++			planes[plane_count++] = { blit_none, pixel_format::r8_unorm, 1 };
++			break;
+ 		default:
+ 			counters.scaled_not_implemented++;
+ 			return false;
+@@ -657,14 +702,9 @@ fragment float4 blit_linear(blit_vertex_out in [[stage_in]], texture2d<float> sr
+ 			src_area.flip_vertical();
+ 		}
+ 
+-		if (real_src->aspect() != real_dst->aspect())
+-		{
+-			// VK asserts here ("Incompatible source and destination format!").
+-			counters.typeless_not_implemented++;
+-			log_once("blit-aspects", "blit between a colour and a depth image is not implemented");
+-			return false;
+-		}
+-
++		// VK ensures matching aspects here ("Incompatible source and destination format!"): the common code makes the
++		// depth side typeless (reconcile_depth_color_typeless). Should they differ, copy_scaled_image reinterprets the
++		// bits into the destination's format before it scales them (formats are not bitcast compatible across aspects).
+ 		if (!copy_scaled_image(cmd, real_src, real_dst, src_area, dst_area, 0, 0, 0,
+ 			images_are_bitcast_compatible(real_src->format(), real_src->format_class(), real_dst->format(), real_dst->format_class()),
+ 			interpolate ? blit_filter::linear : blit_filter::nearest))
+diff --git a/rpcs3/Emu/RSX/Metal/MTLBlit.h b/rpcs3/Emu/RSX/Metal/MTLBlit.h
+index 3c6576b..f4f7bbc 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLBlit.h
++++ b/rpcs3/Emu/RSX/Metal/MTLBlit.h
+@@ -9,9 +9,13 @@
+ // a render pass over the destination region whose fragments sample the source with the requested filter at
+ //     u = srcX0 + (x + 0.5 - dstX0) * (srcX1 - srcX0) / (dstX1 - dstX0)
+ // in unnormalized texel coordinates with clamp-to-edge addressing (the Vulkan blit definition, mirrored when a source
+-// region is flipped). Depth and stencil are scaled as the Vulkan renderer does on MoltenVK-class drivers: each plane
+-// goes through a buffer into a colour carrier (D16 -> R16Unorm, D32F -> R32Float, the D32F_S8 depth plane -> BGRA8,
+-// its stencil plane -> R8Unorm), the carrier is scaled, and the result goes back into the plane, bit for bit.
++// region is flipped). Integer formats are read at the nearest texel, floor(u) clamped to the image, and written as
++// integers (Vulkan blits them with VK_FILTER_NEAREST, between integer formats of one signedness only). Depth and
++// stencil are scaled as the Vulkan renderer does on MoltenVK-class drivers: each plane goes through a buffer into a
++// colour carrier (D16 -> R16Unorm, D32F -> R32Float, the D32F_S8 depth plane -> BGRA8, its stencil plane and stencil
++// images -> R8Unorm), the carrier is scaled, and the result goes back into the plane, bit for bit. A scaled transfer
++// between formats of different aspects or depth formats reinterprets the bits into the destination's format first
++// (copy_image_typeless into a helper), then scales them in that format, as VK copy_scaled_image does for a mismatch.
+ //
+ // M4: reinterpretations that need a GPU byte shuffle or depth <-> colour packing run on the conversion kernels
+ // (copy_image_typeless, MTLTypelessCopy.cpp: the one typeless copy of the renderer). A multisampled surface is
+@@ -46,7 +50,8 @@ namespace mtl
+ 		void destroy();
+ 
+ 		// Scales src_area of a colour image (level 0, slice 0; flipped when x1 > x2 or y1 > y2) into dst_area of a
+-		// level/slice/plane of a colour image. False (counted) when the destination cannot be rendered to.
++		// level/slice/plane of a colour image. False (counted) when the destination cannot be rendered to, or when
++		// one side is an integer format and the other is not (an invalid Vulkan blit).
+ 		bool blit(command_context& ctx, const image& src, const areai& src_area, const image& dst, u32 dst_level, u32 dst_slice, u32 dst_z,
+ 			const areai& dst_area, blit_filter filter);
+ 
+diff --git a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp
+index ad5fde4..2c0be18 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.cpp
+@@ -56,11 +56,23 @@ namespace mtl
+ 			return false;
+ 		}
+ 
++		// The tile decoder: its own library, so that a failure there leaves the conversion kernels (and the tile decoder's
++		// CPU counterpart, which its callers fall back to) in place.
++		std::string tiling_error;
++		m_tiling_library = compile_library(compiler, m4_shaders::tiling_library_source(), library_options{}, tiling_error);
++		if (!m_tiling_library)
++		{
++			log_failure(m4_failure::tiling_library, fmt::format("the tile decoder does not compile (tiled loads detile on the CPU): %s", tiling_error));
++		}
++
+ 		return true;
+ 	}
+ 
+ 	void compute_tasks::destroy()
+ 	{
++		m_tile_decode_pipeline.reset();
++		m_tile_decode_failed = false;
++		m_tiling_library.reset();
+ 		m_pipelines = {};
+ 		m_pipeline_failed = {};
+ 		m_table.reset();
+@@ -90,28 +102,57 @@ namespace mtl
+ 
+ 	bool compute_tasks::dispatch(command_context& ctx, compute_kernel kernel, const object& data, u64 data_offset, const std::array<u32, 4>& params, u32 workgroups)
+ 	{
+-		const object& pipeline = get_pipeline(kernel);
++		// The Vulkan dispatch covers workgroups * 256 invocations; a smaller pipeline limit only regroups them.
++		return dispatch_pipeline(ctx, get_pipeline(kernel), data, data_offset, params.data(), static_cast<u32>(sizeof(params)),
++			workgroups * compute_optimal_group_size);
++	}
++
++	bool compute_tasks::run_tile_decode(command_context& ctx, const object& data, u64 data_offset, const tile_decode_params& params)
++	{
++		if (!m_tile_decode_pipeline && !m_tile_decode_failed && m_tiling_library)
++		{
++			std::string error;
++			m_tile_decode_pipeline = new_compute_pipeline(m_compiler, m_tiling_library, m4_shaders::tile_decode_kernel_name,
++				m4_shaders::tile_decode_kernel_name, error);
++			if (!m_tile_decode_pipeline)
++			{
++				m_tile_decode_failed = true;
++				log_failure(m4_failure::compute_pipeline, fmt::format("compute pipeline %s: %s", m4_shaders::tile_decode_kernel_name, error));
++			}
++		}
++
++		if ((params.tiled_offset % 4) || (params.linear_offset % 4))
++		{
++			m4_count(get_m4_counters().compute_failures);
++			return false;
++		}
++
++		// One invocation per word of the linear output (VK: one per texel group of a row, over the tile-aligned rows).
++		return dispatch_pipeline(ctx, m_tile_decode_pipeline, data, data_offset, &params, static_cast<u32>(sizeof(params)), params.linear_words);
++	}
++
++	bool compute_tasks::dispatch_pipeline(command_context& ctx, const object& pipeline, const object& data, u64 data_offset, const void* params,
++		u32 params_size, u32 invocations)
++	{
+ 		if (!pipeline || !data || !m_writer || (data_offset % 4) != 0)
+ 		{
+ 			m4_count(get_m4_counters().compute_failures);
+ 			return false;
+ 		}
+ 
+-		if (!workgroups)
++		if (!invocations)
+ 		{
+ 			return true;
+ 		}
+ 
+ 		// Parameters first: the writer may submit to make room, which must not happen with the encoder open.
+-		const auto [param_buffer, param_offset] = m_writer(params.data(), static_cast<u32>(sizeof(params)));
++		const auto [param_buffer, param_offset] = m_writer(params, params_size);
+ 		if (!param_buffer)
+ 		{
+ 			m4_count(get_m4_counters().compute_failures);
+ 			return false;
+ 		}
+ 
+-		// The Vulkan dispatch covers workgroups * 256 invocations; a smaller pipeline limit only regroups them.
+-		const u32 invocations = workgroups * compute_optimal_group_size;
+ 		const u32 limit = query_compute_pipeline(pipeline).max_threads_per_threadgroup;
+ 		const dispatch_size size = get_dispatch_size(invocations, std::min(compute_optimal_group_size, std::max(limit, 1u)));
+ 
+diff --git a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h
+index 3736bdd..5681680 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h
++++ b/rpcs3/Emu/RSX/Metal/MTLComputeTasks.h
+@@ -10,8 +10,11 @@
+ // keeps them. Each task is its own compute encoder: the next encoder of the command context waits for it, so a task's
+ // results are visible to whatever is encoded after it, and it sees everything encoded before.
+ // The caller keeps the data buffer resident and alive until the work completes (command_context::dispose).
+-// Not ported (no caller in this renderer yet): the GPU deswizzle (GPUDeswizzle.glsl), the RSX tile codec
+-// (RSXMemoryTiling.glsl) and the conditional-render aggregator (no hardware conditional rendering on Metal).
++// The RSX tile decoder (RSXMemoryTiling.glsl, cs_tile_memcpy<decode>) is its own library and task (run_tile_decode),
++// used where the Vulkan renderer detiles on the GPU (detile_memory_block: tiled surface loads, tiled blit sources).
++// Not ported: the tile encoder (readbacks are tiled on the CPU at flush time, MTLTextureCache.cpp), the GPU deswizzle
++// (uploads deswizzle on the CPU while they copy guest memory into the staging ring, MTLTexture.cpp) and the
++// conditional-render aggregator (no hardware conditional rendering on Metal).
+ 
+ #include "MTLAPI.h"
+ 
+@@ -156,6 +159,29 @@ namespace mtl
+ 		return { src_length, src_offset - bound_offset, dst_offset - bound_offset, ssbo_length / 4 };
+ 	}
+ 
++	// VK cs_tile_memcpy<RSX_detiler_op::decode> parameters (RSX_detiler_config), as the decoder kernel reads them
++	// (MTLM4Shaders.h tiling_kernels, MTLM4Math.h m4_detile_source).
++	struct tile_decode_params
++	{
++		u32 factor;
++		u32 num_tiles_per_row;
++		u32 tile_base_address;
++		u32 tile_size;
++		u32 tile_address_offset;   // the image's first texel, from the tile base
++		u32 tile_rw_offset;        // where the tiled bytes start, from the tile base
++		u32 tile_pitch;
++		u32 tile_bank;
++		u32 image_width;
++		u32 image_height;
++		u32 image_pitch;           // bytes per row of the packed linear output
++		u32 image_bpp;
++		u32 tiled_offset;          // the tiled bytes, from the bound data offset (a multiple of 4)
++		u32 tiled_length;
++		u32 linear_offset;         // the linear output, from the bound data offset (a multiple of 4)
++		u32 linear_words;          // the words of the linear output (aligned_div(image_pitch * image_height, 4))
++	};
++	static_assert(sizeof(tile_decode_params) == 64);
++
+ 	class compute_tasks
+ 	{
+ 	public:
+@@ -174,9 +200,15 @@ namespace mtl
+ 		// VK cs_fconvert_task::run(cmd, data, src_offset, src_length, dst_offset)
+ 		bool run_fconvert(command_context& ctx, compute_kernel kernel, const object& data, u32 src_offset, u32 src_length, u32 dst_offset);
+ 
++		// VK cs_tile_memcpy<decode>::run: the tiled bytes and the linear output both in `data`, bound at data_offset.
++		bool tiling_ready() const { return m_tiling_library && !m_tile_decode_failed; }
++		bool run_tile_decode(command_context& ctx, const object& data, u64 data_offset, const tile_decode_params& params);
++
+ 	private:
+ 		const object& get_pipeline(compute_kernel kernel);
+ 		bool dispatch(command_context& ctx, compute_kernel kernel, const object& data, u64 data_offset, const std::array<u32, 4>& params, u32 workgroups);
++		bool dispatch_pipeline(command_context& ctx, const object& pipeline, const object& data, u64 data_offset, const void* params, u32 params_size,
++			u32 invocations);
+ 
+ 		object m_device;
+ 		object m_compiler;
+@@ -185,6 +217,9 @@ namespace mtl
+ 		param_writer m_writer;
+ 		std::array<object, static_cast<usz>(compute_kernel::count)> m_pipelines{};
+ 		std::array<bool, static_cast<usz>(compute_kernel::count)> m_pipeline_failed{};
++		object m_tiling_library;
++		object m_tile_decode_pipeline;
++		bool m_tile_decode_failed = false;
+ 	};
+ 
+ 	// The tasks the surface and texture paths use (set by the renderer).
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 5d603ca..10a198e 100644
+index 5d603ca..f48934a 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -11,6 +11,7 @@
@@ -389,8 +864,21 @@ index 5d603ca..10a198e 100644
  }
  
  void MTLGSRender::flip(const rsx::display_flip_info_t& info)
-@@ -722,6 +729,7 @@ void MTLGSRender::report_counters()
- 		load(s.memory_loads));
+@@ -710,7 +717,7 @@ void MTLGSRender::report_counters()
+ 		"typeless_todo=%llu scaled_todo=%llu clipped=%llu scaled=%llu depth_scaled=%llu blits=%llu blits_cpu=%llu snapshots=%llu readbacks=%llu "
+ 		"readback_mb=%llu scaled_readbacks=%llu tiled_readbacks=%llu readbacks_todo=%llu flush_requests=%llu "
+ 		"offloader_faults=%llu faults_routed=%llu readbacks_unsubmitted=%llu samplers=%llu border_approx=%llu lod_bias_todo=%llu filter_downgraded=%llu "
+-		"unnormalized_adjusted=%llu surface_loads=%llu",
++		"unnormalized_adjusted=%llu surface_loads=%llu scaled_surface_loads=%llu uploads_not_detiled=%llu",
+ 		load(c.textures_bound), load(c.textures_not_bound), load(t.images_created), load(t.image_allocation_failures), load(t.views_created),
+ 		load(t.view_failures), load(t.uploads), load(t.upload_bytes) >> 20, load(t.upload_dedicated_buffers), load(t.depth_uploads_converted),
+ 		load(t.uploads_unsupported_format), load(t.clears), load(t.copies), load(t.typeless_copies), load(t.buffer_bitcasts),
+@@ -719,9 +726,10 @@ void MTLGSRender::report_counters()
+ 		load(t.readback_bytes) >> 20, load(t.scaled_readbacks), load(t.tiled_readbacks), load(t.readbacks_not_implemented), load(c.flush_requests), load(c.offloader_faults), load(t.faults_routed),
+ 		load(t.readbacks_unsubmitted), load(t.samplers_created),
+ 		load(t.border_colors_approximated), load(t.lod_bias_not_applied), load(t.filters_downgraded), load(t.unnormalized_samplers_adjusted),
+-		load(s.memory_loads));
++		load(s.memory_loads), load(s.scaled_memory_loads), load(t.uploads_not_detiled));
  
  	report_m4_counters();  // M4
 +	report_m5_counters();  // M5
@@ -442,6 +930,207 @@ index 627cced..5fbbff0 100644
 +	void report_m5_counters();
 +	// M5 end
  };
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Counters.h b/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
+index 3223904..b946890 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
++++ b/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
+@@ -35,6 +35,7 @@ namespace mtl
+ 		std::atomic<u64> compute_dispatches{0};
+ 		std::atomic<u64> compute_failures{0};        // kernel or pipeline unavailable: not executed, counted
+ 		std::atomic<u64> typeless_conversions{0};    // VK copy_image_typeless through the kernels (MTLTypelessCopy.cpp)
++		std::atomic<u64> tile_decodes{0};            // tiled guest memory detiled by the tile decoder (VK detile_memory_block)
+ 
+ 		// Native overlays (MTLOverlays.cpp)
+ 		std::atomic<u64> overlay_frames{0};
+@@ -54,6 +55,7 @@ namespace mtl
+ 		compute_library,
+ 		compute_pipeline,
+ 		overlay_pipeline,
++		tiling_library,
+ 		count
+ 	};
+ 
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Math.h b/rpcs3/Emu/RSX/Metal/MTLM4Math.h
+index 3e8b729..0162fec 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLM4Math.h
++++ b/rpcs3/Emu/RSX/Metal/MTLM4Math.h
+@@ -9,7 +9,8 @@
+ // operator:
+ //   - conversion_math: Program/GLSLSnippets/ShuffleBytes.glsl (byte swaps, D24 <-> F32 depth) and the interleave and
+ //     e4m12 conversion kernels of VKCompute.h / VKCompute.cpp;
+-//   - resolve_math: the coordinate and sample-index math of Program/MSAA/*ResolvePass.glsl and *UnresolvePass.glsl.
++//   - resolve_math: the coordinate and sample-index math of Program/MSAA/*ResolvePass.glsl and *UnresolvePass.glsl;
++//   - tiling_math: the RSX tile addressing of Program/GLSLSnippets/RSXMemoryTiling.glsl (the tile decoder).
+ // Only the two bit casts differ by language (std::bit_cast here, as_type<> in MSL). The code must stay a subset that
+ // means the same in C++ and in MSL: 32-bit unsigned/signed integers, float, no vectors, no preprocessor lines.
+ // The stringized text loses its line breaks, so the code holds no // comments.
+@@ -87,6 +88,85 @@ MTL_M4_DUAL_SOURCE(resolve_math,
+ 	inline int m4_unresolve_target_y(int pixel_y, int sample_id, int samples_x, int samples_y) { return (pixel_y * samples_y) + (sample_id / samples_x); }
+ )
+ 
++// RSXMemoryTiling.glsl do_memory_op and its CPU port Common/tiled_dma_copy.hpp: the offset from the tile base of the
++// texel at (row, col) of a linear region inside an RSX tile, operator for operator. The bank distribution table
++// { 0, 1, 2, 3, 2, 3, 0, 1, 1, 2, 3, 0, 3, 0, 1, 2 } is written as arithmetic (row r of the table adds the 2-bit reversal
++// of r to the column, modulo 4), so that the code holds no array. m4_detile_source is the decoder's gather: for byte
++// linear_byte of the packed linear image (rows image_pitch bytes apart), the byte of the tiled data (which starts
++// tile_rw_offset bytes after the tile base and is tiled_length bytes long) it comes from: the texel's tiled offset plus
++// the byte's place in the texel, as tiled_dma_copy copies a texel's bytes. ~0u for the bytes tiled_dma_copy does not
++// write (outside the image rows, or a texel whose tiled offset is outside the tile): those stay zero.
++MTL_M4_DUAL_SOURCE(tiling_math,
++	inline uint m4_tile_bank_lookup(uint index)
++	{
++		const uint table_row = (index >> 2) & 3;
++		return ((index & 3) + (((table_row & 1) << 1) | (table_row >> 1))) & 3;
++	}
++
++	inline uint m4_tile_offset(uint row, uint col, uint factor, uint num_tiles_per_row, uint tile_base_address, uint tile_address_offset,
++		uint tile_pitch, uint tile_bank, uint image_bpp)
++	{
++		const uint row_offset = (row * tile_pitch) + tile_base_address + tile_address_offset;
++		const uint this_address = row_offset + (col * image_bpp);
++		const uint texel_offset = (this_address - tile_base_address) / 256;
++		const uint tile_x = texel_offset % num_tiles_per_row;
++		const uint tile_y = (texel_offset / num_tiles_per_row) / 64;
++		const uint tile_id = tile_y * num_tiles_per_row + tile_x;
++		const uint tile_selector = (tile_id + (tile_base_address >> 14)) & 0x3ffff;
++		const uint row_address = (tile_selector >> 2) & 0xffff;
++		uint bank_selector = 0;
++		if (factor == 1)
++		{
++			bank_selector = (tile_selector & 3);
++		}
++		else if (factor == 2)
++		{
++			bank_selector = m4_tile_bank_lookup(((tile_selector + ((tile_y & 1) << 1)) & 3) * 4 + (tile_y & 3));
++		}
++		else if (factor >= 4)
++		{
++			bank_selector = m4_tile_bank_lookup((tile_selector & 3) * 4 + (tile_y & 3));
++		}
++		bank_selector = (bank_selector + tile_bank) & 3;
++		uint column_selector = 0;
++		const uint line_offset_in_tile = (texel_offset / num_tiles_per_row) % 64;
++		column_selector |= ((line_offset_in_tile >> 3) & 0x7) << 7;
++		column_selector |= ((this_address >> 5) & 0x7) << 4;
++		column_selector |= ((line_offset_in_tile >> 0) & 0x3) << 2;
++		const uint partition_selector = (((line_offset_in_tile >> 2) & 1) + ((this_address >> 6) & 1)) & 1;
++		uint tile_address = 0;
++		tile_address |= ((row_address >> 0) & 0xFFFF) << 16;
++		tile_address |= ((bank_selector >> 0) & 0x3) << 14;
++		tile_address |= ((column_selector >> 4) & 0x3F) << 8;
++		tile_address |= ((partition_selector >> 0) & 0x1) << 7;
++		tile_address |= ((column_selector >> 2) & 0x3) << 5;
++		tile_address |= ((this_address >> 0) & 0x1F) << 0;
++		tile_address ^= (((tile_address >> 12) ^ ((bank_selector ^ tile_selector) & 1) ^ (tile_address >> 14)) & 1) << 9;
++		tile_address ^= ((tile_address >> 11) & 1) << 10;
++		return tile_address - tile_base_address;
++	}
++
++	inline uint m4_detile_source(uint linear_byte, uint factor, uint num_tiles_per_row, uint tile_base_address, uint tile_size,
++		uint tile_address_offset, uint tile_rw_offset, uint tile_pitch, uint tile_bank, uint image_width, uint image_height,
++		uint image_pitch, uint image_bpp, uint tiled_length)
++	{
++		const uint row = linear_byte / image_pitch;
++		const uint in_row = linear_byte % image_pitch;
++		if (row >= image_height || in_row >= image_width * image_bpp)
++		{
++			return 0xFFFFFFFFu;
++		}
++		const uint tile_base_offset = m4_tile_offset(row, in_row / image_bpp, factor, num_tiles_per_row, tile_base_address, tile_address_offset,
++			tile_pitch, tile_bank, image_bpp);
++		if (tile_base_offset >= tile_size || tile_base_offset < tile_rw_offset)
++		{
++			return 0xFFFFFFFFu;
++		}
++		const uint source = tile_base_offset - tile_rw_offset + (in_row % image_bpp);
++		return (source < tiled_length) ? source : 0xFFFFFFFFu;
++	}
++)
++
+ // MSAA configuration (C++ only).
+ namespace mtl::msaa
+ {
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp b/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp
+index b37a551..94573e6 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLM4Renderer.cpp
+@@ -176,12 +176,12 @@ void MTLGSRender::report_m4_counters()
+ 
+ 	rsx_log.notice("COREPROF METAL M4 queries=%llu segments=%llu results=%llu discards=%llu hard_syncs=%llu gpu_waits=%llu hint_flushes=%llu "
+ 		"slot_exhaustions=%llu folded=%llu slots_free=%u slots_pending=%u | msaa_surfaces=%llu resolves=%llu unresolves=%llu "
+-		"resolve_failures=%llu msaa_alloc_failures=%llu msaa_feedback_direct=%llu | compute=%llu compute_failures=%llu typeless_conversions=%llu | overlay_frames=%llu overlay_views=%llu "
++		"resolve_failures=%llu msaa_alloc_failures=%llu msaa_feedback_direct=%llu | compute=%llu compute_failures=%llu typeless_conversions=%llu tile_decodes=%llu | overlay_frames=%llu overlay_views=%llu "
+ 		"overlay_draws=%llu overlay_failures=%llu",
+ 		load(m.queries_begun), load(m.query_segments), load(m.query_results), load(m.query_discards), load(m.query_hard_syncs),
+ 		load(m.query_gpu_waits), load(m.query_hint_flushes), load(m.query_slot_exhaustions), load(m.query_folded_segments),
+ 		m_query_slots.available(), m_query_slots.pending(),
+ 		load(m.msaa_surfaces), load(m.resolves), load(m.unresolves), load(m.resolve_failures), load(m.msaa_allocation_failures), load(m.msaa_feedback_direct),
+-		load(m.compute_dispatches), load(m.compute_failures), load(m.typeless_conversions),
++		load(m.compute_dispatches), load(m.compute_failures), load(m.typeless_conversions), load(m.tile_decodes),
+ 		load(m.overlay_frames), load(m.overlay_views), load(m.overlay_draws), load(m.overlay_failures));
+ }
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h b/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h
+index f523e53..9ae45eb 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h
++++ b/rpcs3/Emu/RSX/Metal/MTLM4Shaders.h
+@@ -201,6 +201,57 @@ M4_EXPAND_KERNEL(m4_f16_to_f32_swap_both_kernel, m4_bswap_u16, m4_bswap_u32)
+ 		return source;
+ 	}
+ 
++	// ---------------------------------------------------------------------------------------------------------------
++	// RSX tile decoder (VKCompute.h cs_tile_memcpy<decode>, Program/GLSLSnippets/RSXMemoryTiling.glsl; its CPU port is
++	// Common/tiled_dma_copy.hpp). Its own library, so that the conversion kernels never depend on it. Buffer 0: the data
++	// (uint words, bound at the task's data offset) holding the tiled bytes and the linear output; buffer 1: the 16
++	// parameter words of mtl::tile_decode_params (MTLComputeTasks.h). One invocation per word of the packed linear image:
++	// each of its bytes comes from its texel's tiled address (MTLM4Math.h m4_detile_source), so every texel size and row
++	// length decodes whole (the GLSL kernel decodes 4 / bpp texels per invocation by read-modify-write of shared words,
++	// from its first column), and the bytes tiled_dma_copy does not write are zero, as in the CPU decoder's buffer.
++	// ---------------------------------------------------------------------------------------------------------------
++	constexpr std::string_view tiling_kernels = R"(
++inline uint m4_tiling_invocation_id(uint3 global_id, uint3 grid_size)
++{
++	return (global_id.y * grid_size.x) + global_id.x;
++}
++
++kernel void m4_tile_decode_kernel(device uint* data [[buffer(0)]], constant uint* params [[buffer(1)]],
++	uint3 global_id [[thread_position_in_grid]], uint3 grid_size [[threads_per_grid]])
++{
++	const uint word = m4_tiling_invocation_id(global_id, grid_size);
++	if (word >= params[15])
++	{
++		return;
++	}
++
++	uint value = 0;
++	for (uint byte_index = 0; byte_index < 4; ++byte_index)
++	{
++		const uint source = m4_detile_source((word * 4) + byte_index, params[0], params[1], params[2], params[3], params[4], params[5],
++			params[6], params[7], params[8], params[9], params[10], params[11], params[13]);
++		if (source != 0xFFFFFFFFu)
++		{
++			const uint index = params[12] + source;
++			value |= ((data[index >> 2] >> ((index & 3) * 8)) & 0xFF) << (byte_index * 8);
++		}
++	}
++
++	data[(params[14] >> 2) + word] = value;
++}
++)";
++
++	constexpr std::string_view tile_decode_kernel_name = "m4_tile_decode_kernel";
++
++	inline std::string tiling_library_source()
++	{
++		std::string source(prelude);
++		source += m4_source::tiling_math;
++		source += "\n";
++		source += tiling_kernels;
++		return source;
++	}
++
+ 	// ---------------------------------------------------------------------------------------------------------------
+ 	// MSAA resolve and unresolve passes (VKResolveHelper, Program/MSAA). Every pass draws the 4-vertex strip of
+ 	// GenericVSPassthrough.glsl over the whole target; buffer 0 holds the Vulkan push constants (int2 sample_count).
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp b/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp
 new file mode 100644
 index 0000000..9e0b043
@@ -1493,6 +2182,992 @@ index 449947b..6c61986 100644
 +		// M5 end
  	};
  }
+diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
+index 341b439..91d0035 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
+@@ -155,23 +155,64 @@ namespace mtl
+ 
+ 	bool render_target::load_memory(command_context& ctx)
+ 	{
+-		// VKRenderTargets.cpp load_memory, the unscaled cases: the texture holds the guest pixels 1:1, or (M4) the resolve
+-		// image of a multisampled surface holds its samples 1:1 (written through, then unresolved before rendering).
+-		const bool multisampled = sample_count > 1;  // M4
+-		if (resolution_scaling_config.scale_percent != 100 || (spp != 1 && !multisampled) || !g_upload_heap)
++		// VKRenderTargets.cpp load_memory. The guest pixels (the samples side by side) are uploaded into the texture when
++		// it holds them 1:1 (no resolution scaling, one sample per pixel). Otherwise the destination is the surface, or
++		// the resolve image of a multisampled surface (M4): the upload writes it through when it holds the guest pixels
++		// 1:1, else goes into a typeless helper of the surface's format at the guest size, which copy_scaled_image then
++		// scales into it (linear for colour, nearest for depth), as the Vulkan renderer does.
++		if (!g_upload_heap)
+ 		{
++			log_once("surface-load-heap", "guest-memory load without an upload ring");
+ 			return false;
+ 		}
+ 
+-		image* const target = multisampled ? get_resolve_target_safe(ctx) : this;  // M4
+ 		const u32 bpp = get_bpp();
+ 		const u32 width_px = surface_width * samples_x;
+ 		const u32 height_px = surface_height * samples_y;
+-		if (!target || !bpp || !rsx_pitch || width_px != target->width() || height_px != target->height())
++		if (!bpp || !rsx_pitch || !width_px || !height_px)
+ 		{
++			log_once("surface-load-format", fmt::format("guest-memory load of a surface without a guest layout (bpp %u, pitch %u)", bpp, rsx_pitch));
+ 			return false;
+ 		}
+ 
++		// The image the guest pixels go into, and the one they end in.
++		image* final_dst = this;
++		image* content = this;
++		if (resolution_scaling_config.scale_percent == 100 && spp == 1) [[likely]]
++		{
++			if (width_px != width() || height_px != height())
++			{
++				log_once("surface-load-size", fmt::format("guest-memory load of a %ux%u surface into a %ux%u texture refused", width_px, height_px, width(), height()));
++				return false;
++			}
++		}
++		else
++		{
++			// M4: a multisampled surface takes its samples through its resolve image ("Trigger unresolve", initialize_memory).
++			final_dst = (sample_count > 1) ? get_resolve_target_safe(ctx) : this;
++			if (!final_dst)
++			{
++				// The resolve image allocation failed (counted there).
++				return false;
++			}
++
++			content = final_dst;
++			if (final_dst->width() != width_px || final_dst->height() != height_px)
++			{
++				// Possible if MSAA is enabled with 100% resolution scale or surface dimensions are less than resolution scale
++				// threshold and no MSAA: written through. Otherwise the guest pixels go into a helper first (index 6: distinct
++				// from the transfer helpers that copy_scaled_image uses).
++				blit_engine* const engine = get_blit_engine();
++				content = engine ? engine->get_typeless_helper(ctx, format(), format_class(), width_px, height_px, 6) : nullptr;
++				if (!content)
++				{
++					log_once("surface-load-helper", "guest-memory load of a scaled surface without a helper image");
++					return false;
++				}
++			}
++		}
++
++		// Load Cell data
+ 		const bool is_swizzled = (raster_type == rsx::surface_raster_type::swizzle);
+ 		rsx::subresource_layout subres{};
+ 		subres.width_in_block = subres.width_in_texel = static_cast<u16>(width_px);
+@@ -181,29 +222,56 @@ namespace mtl
+ 		subres.data = { vm::get_super_ptr<const std::byte>(base_addr), static_cast<std::span<const std::byte>::size_type>(rsx_pitch * height_px) };
+ 
+ 		std::vector<u8> detiled;
++		bool uploaded = false;
+ 		const auto range = get_memory_range();
+ 		if (auto tiled_region = rsx::get_current_renderer()->get_tiled_memory_region(range))
+ 		{
+-
+-			// The Vulkan renderer detiles on the GPU (cs_tile_memcpy); the common CPU helper is the same layout
+-			// (VKRenderTargets.cpp DEBUG_DMA_TILING path). It writes linear rows at the tile pitch: the buffer holds
+-			// every row of the surface, and the layout uses that pitch.
+ 			const u32 tile_pitch = tiled_region.tile->pitch;
+ 			if (!tile_pitch || (tile_pitch % bpp) || tile_pitch < width_px * bpp)
+ 			{
++				log_once("surface-load-tile-pitch", fmt::format("guest-memory load of a tiled surface with pitch 0x%x refused", tile_pitch));
+ 				return false;
+ 			}
+-			detiled.resize(usz{tile_pitch} * height_px);
+-			if (!tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, range.start,
+-				detiled.data(), tile_pitch, width_px, height_px, bpp, false))
++
++			// The Vulkan renderer detiles on the GPU (detile_memory_block, then a GPU-resident upload); so does this renderer
++			// with the tile decoder. Swizzled surfaces (whose texels are not rows of the tile pitch) and a missing decoder
++			// take the common CPU helper, the same layout (VKRenderTargets.cpp DEBUG_DMA_TILING path): linear rows at the
++			// tile pitch, which the upload layout then uses.
++			uploaded = !is_swizzled && upload_tiled_image(ctx, *g_upload_heap, content, tiled_region.base_address, tiled_region.tile->size, tile_pitch,
++				tiled_region.tile->bank, range.start, width_px, height_px, bpp, get_gcm_format());
++			if (!uploaded)
++			{
++				detiled.resize(usz{tile_pitch} * height_px);
++				if (!tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, range.start,
++					detiled.data(), tile_pitch, width_px, height_px, bpp, false))
++				{
++					log_once("surface-load-tile-pitch", fmt::format("guest-memory load of a tiled surface with pitch 0x%x refused", tile_pitch));
++					return false;
++				}
++				subres.pitch_in_block = tile_pitch / bpp;
++				subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
++			}
++		}
++
++		if (!uploaded)
++		{
++			upload_image(ctx, *g_upload_heap, content, { subres }, get_gcm_format(), is_swizzled, false);
++		}
++
++		// Write into final image
++		if (content != final_dst)
++		{
++			const areai src_area = { 0, 0, static_cast<s32>(width_px), static_cast<s32>(height_px) };
++			const areai dst_area = { 0, 0, static_cast<s32>(final_dst->width()), static_cast<s32>(final_dst->height()) };
++			if (!copy_scaled_image(ctx, content, final_dst, src_area, dst_area, 0, 0, 0, true,
++				aspect() == aspect_color ? blit_filter::linear : blit_filter::nearest))
+ 			{
++				// Refused (counted there): nothing of the surface was written.
+ 				return false;
+ 			}
+-			subres.pitch_in_block = tile_pitch / bpp;
+-			subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
++			g_surface_counters.scaled_memory_loads++;
+ 		}
+ 
+-		upload_image(ctx, *g_upload_heap, target, { subres }, get_gcm_format(), is_swizzled, false);
+ 		g_surface_counters.memory_loads++;
+ 		return true;
+ 	}
+@@ -263,9 +331,8 @@ namespace mtl
+ 				return;
+ 			}
+ 
+-			// Scaled surface: not written yet. Counted, initialised as without loads.
++			// The load failed (logged once by its cause): counted, initialised as without loads.
+ 			g_surface_counters.memory_loads_not_implemented++;
+-			log_once("surface-load", "guest-memory load of a scaled surface is not implemented");
+ 		}
+ 
+ 		clear_memory(ctx);
+diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
+index 71bb9d0..98890ef 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
++++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
+@@ -9,15 +9,17 @@
+ //   - new surfaces are initialised exactly as the Vulkan renderer initialises them when guest-memory loads are off
+ //     (the default): colour (0, 0, 0, 1), depth 1.0, stencil 255;
+ //   - inherited contents are copied on the GPU when source and target have the same format and scale;
+-//   - guest-memory loads ("Read Color/Depth Buffers", force_data_load) go through the texture upload path (M3.1)
+-//     for unscaled surfaces, tiled ones detiled on the CPU with the common tiling helpers;
++//   - guest-memory loads ("Read Color/Depth Buffers", force_data_load) go through the texture upload path (M3.1),
++//     tiled ones detiled on the GPU by the tile decoder as VK detile_memory_block does (the common CPU tiling helper
++//     when it is unavailable); a resolution-scaled surface (or one whose texture does not hold the samples 1:1) is
++//     loaded into a helper at the guest size and scaled into it, as VK load_memory does;
+ //   - surfaces are images (MTLTexture.h), so the texture cache samples and reads them back (MTLTextureCache.h).
+ //   - inherited contents go through the blitter (MTLBlit.h): copies, bit reinterpretations and scaled copies (M3.2).
+ // M4: at the "Auto" MSAA level a surface has its AA mode's sample count, with a resolve image (the samples side by side,
+ // MTLResolve.h) that transfers, readbacks and guest-memory loads use, as the Vulkan renderer's resolve_surface; the
+ // blitter's typeless reinterpretations include byte shuffles and depth <-> colour packing (MTLTypelessCopy.cpp).
+-// Still counted, never faked: guest-memory loads of scaled surfaces, and transfers the blitter refuses (the region is
+-// initialised as above instead).
++// Still counted, never faked: guest-memory loads that fail (no upload ring, unknown tile pitch, a refused transfer) and
++// transfers the blitter refuses (the region is initialised as above instead).
+ 
+ #include "Emu/RSX/Common/surface_store.h"
+ #include "MTLCommandContext.h"
+@@ -37,9 +39,10 @@ namespace mtl
+ 		std::atomic<u64> cleared{0};
+ 		std::atomic<u64> inherited_copies{0};
+ 		std::atomic<u64> transfers_not_implemented{0};
+-		std::atomic<u64> memory_loads_not_implemented{0};
++		std::atomic<u64> memory_loads_not_implemented{0};   // a guest-memory load that failed (cause logged once)
+ 		std::atomic<u64> memory_writes_not_implemented{0};
+ 		std::atomic<u64> memory_loads{0};
++		std::atomic<u64> scaled_memory_loads{0};            // through a helper scaled into the surface (VK load_memory)
+ 	};
+ 
+ 	surface_counters& get_surface_counters();
+diff --git a/rpcs3/Emu/RSX/Metal/MTLTexture.cpp b/rpcs3/Emu/RSX/Metal/MTLTexture.cpp
+index 847f06d..abd9090 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLTexture.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLTexture.cpp
+@@ -5,6 +5,9 @@
+ #include "stdafx.h"
+ #include "MTLTexture.h"
+ #include "MTLCommandContext.h"
++#include "MTLComputeTasks.h"
++#include "MTLM4Counters.h"
++#include "MTLTypelessCopy.h"
+ 
+ #include "Emu/Memory/vm.h"
+ #include "Emu/RSX/Common/io_buffer.h"
+@@ -242,26 +245,7 @@ namespace mtl
+ 		u32 width, u32 height, u32 bpp, bool encode)
+ 	{
+ 		// tile_texel_data's prime/factor decomposition of the pitch.
+-		const u32 units = tile_pitch >> 8;
+-		u32 prime = 0, factor = 0;
+-		if (tile_pitch && (tile_pitch & (tile_pitch - 1)) == 0)
+-		{
+-			prime = 1;
+-			factor = units;
+-		}
+-		else
+-		{
+-			for (const u32 p : { 3u, 5u, 7u, 11u, 13u })
+-			{
+-				if (units && (units % p) == 0)
+-				{
+-					prime = p;
+-					factor = units / p;
+-					break;
+-				}
+-			}
+-		}
+-
++		const auto [prime, factor] = get_tile_pitch_factors(tile_pitch);
+ 		if (!prime || !factor || origin < tile_base)
+ 		{
+ 			return false;
+@@ -456,6 +440,149 @@ namespace mtl
+ 		// these copies.
+ 	}
+ 
++	bool upload_tiled_image(command_context& ctx, data_heap& heap, image* dst, u32 tile_base, u32 tile_size, u32 tile_pitch, u8 tile_bank,
++		u32 origin, u32 width, u32 height, u32 bpp, u32 gcm_format)
++	{
++		compute_tasks* const tasks = get_compute_tasks();
++		if (!tasks || !tasks->ready() || !tasks->tiling_ready() || !dst || !dst->texture)
++		{
++			return false;
++		}
++
++		// Formats upload_texture_subresource copies word by word, into a 2D image whose texel is the guest texel or one of
++		// copy_buffer_to_image's two depth conversions (D24S8 -> Depth32Float_Stencil8, D16F -> Depth32Float).
++		const u32 word_size = get_gpu_upload_word_size(gcm_format);
++		const pixel_format format = dst->format();
++		const bool depth_stencil = format == pixel_format::depth32_float_stencil8;
++		const bool depth16_float = format == pixel_format::depth32_float;
++		const bool texel_matches = depth_stencil ? (bpp == 4 && word_size == 4) :
++			depth16_float ? (gcm_format == CELL_GCM_TEXTURE_DEPTH16_FLOAT && bpp == 2) : (get_texel_size(format) == bpp);
++		if (!word_size || !texel_matches || !width || !height || dst->type != texture_type::type_2d || dst->samples() > 1 ||
++			width > dst->width() || height > dst->height() || is_compressed_format(format))
++		{
++			return false;
++		}
++
++		const auto factors = get_tile_pitch_factors(tile_pitch);
++		if (!factors.factor || origin < tile_base || u64{tile_pitch} < u64{width} * bpp)
++		{
++			return false;
++		}
++
++		const u32 tiles_per_row = factors.prime * factors.factor;
++		const u32 origin_offset = origin - tile_base;
++		const tile_span span = get_tile_span(tile_base, tile_size, tile_pitch, tiles_per_row, origin_offset, width, height, bpp);
++		if (span.end <= span.start)
++		{
++			return false;
++		}
++
++		// One staging allocation, as VK's scratch buffer: [the tiled bytes | the packed rows | depth plane | stencil plane].
++		const u32 tiled_length = span.end - span.start;
++		const u32 image_pitch = width * bpp;
++		const u64 linear_length = u64{image_pitch} * height;
++		const u64 texels = u64{width} * height;
++		const u64 linear_offset = utils::align<u64>(tiled_length, 256);
++		const u64 z_offset = utils::align<u64>(linear_offset + utils::align<u64>(linear_length, 4) + 8, 256);
++		const u64 s_offset = utils::align<u64>(z_offset + texels * 4 + 8, 256);
++		const u64 total = s_offset + utils::align<u64>(texels, 4) + 16;
++		if (total > (256ull << 20))
++		{
++			// The kernels address their data with 32-bit offsets.
++			return false;
++		}
++
++		// Taken before any encoder opens: the ring may make room by submitting.
++		auto staging = allocate_staging(ctx, heap, total);
++		if (staging.offset + total > 0xffffffffull)
++		{
++			return false;
++		}
++
++		// The tiled bytes as the decoder reads them (VK detile_memory_block: map_dma + load_dma of the tile rows), through
++		// the unprotected mirror.
++		std::memcpy(staging.data, vm::get_super_ptr<const u8>(tile_base + span.start), tiled_length);
++
++		const tile_decode_params params =
++		{
++			.factor = factors.factor,
++			.num_tiles_per_row = tiles_per_row,
++			.tile_base_address = tile_base,
++			.tile_size = tile_size,
++			.tile_address_offset = origin_offset,
++			.tile_rw_offset = span.start,
++			.tile_pitch = tile_pitch,
++			.tile_bank = tile_bank,
++			.image_width = width,
++			.image_height = height,
++			.image_pitch = image_pitch,
++			.image_bpp = bpp,
++			.tiled_offset = 0,
++			.tiled_length = tiled_length,
++			.linear_offset = static_cast<u32>(linear_offset),
++			.linear_words = static_cast<u32>(utils::aligned_div<u64>(linear_length, 4)),
++		};
++
++		// Nothing of dst is written before the last step: a refused step leaves it to the caller's CPU path.
++		if (!tasks->run_tile_decode(ctx, staging.buffer, staging.offset, params))
++		{
++			return false;
++		}
++
++		const u32 base = static_cast<u32>(staging.offset);
++		const u32 linear = base + static_cast<u32>(linear_offset);
++		const u32 linear_words_bytes = static_cast<u32>(utils::align<u64>(linear_length, 4));
++		if (word_size > 1 && !tasks->run_shuffle(ctx, (word_size == 4) ? compute_kernel::bswap_u32 : compute_kernel::bswap_u16, staging.buffer,
++			linear_words_bytes, linear))
++		{
++			return false;
++		}
++
++		transfer_scope scope(ctx, "tiled upload");
++		const size3 size{ width, height, 1 };
++		const auto box = texture_box::make(0, 0, 0, 0, 0, width, height);
++		if (depth_stencil)
++		{
++			// VK copy_buffer_to_image: the stencil block cleared, the D24S8 words scattered (unorm or float depth by
++			// class), then both planes.
++			fill_buffer(scope.encoder(nullptr, {}, nullptr, {}), staging.buffer, base + s_offset, utils::align<u64>(texels, 4), 0);
++			scope.split();
++			const auto kernel = get_depth_scatter_kernel(dst->format_class() == rsx::RSX_FORMAT_CLASS_DEPTH24_FLOAT_X8_PACK32);
++			if (!tasks->run_interleave(ctx, kernel, staging.buffer, linear, static_cast<u32>(texels * 4), base + static_cast<u32>(z_offset),
++				base + static_cast<u32>(s_offset)))
++			{
++				return false;
++			}
++
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + z_offset, width * 4, 0, size, dst->texture, 0, 0, {},
++				blit_depth_from_depth_stencil);
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + s_offset, width, 0, size, dst->texture, 0, 0, {},
++				blit_stencil_from_depth_stencil);
++			g_texture_counters.depth_uploads_converted++;
++		}
++		else if (depth16_float)
++		{
++			// VK copy_buffer_to_image: cs_fconvert_task<f16, f32> (whole words: an odd texel count converts the padding too)
++			if (!tasks->run_fconvert(ctx, compute_kernel::f16_to_f32, staging.buffer, linear, static_cast<u32>(utils::align<u64>(texels * 2, 4)),
++				base + static_cast<u32>(z_offset)))
++			{
++				return false;
++			}
++
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, base + z_offset, width * 4, 0, size, dst->texture, 0, 0, {});
++			g_texture_counters.depth_uploads_converted++;
++		}
++		else
++		{
++			copy_buffer_to_texture(scope.for_write(dst->texture, box), staging.buffer, linear, image_pitch, 0, size, dst->texture, 0, 0, {});
++		}
++
++		g_texture_counters.uploads++;
++		g_texture_counters.upload_bytes += linear_length;
++		m4_count(get_m4_counters().tile_decodes);
++		return true;
++	}
++
+ 	void clear_image(command_context& ctx, data_heap& heap, image* dst)
+ 	{
+ 		ensure(dst && dst->texture);
+diff --git a/rpcs3/Emu/RSX/Metal/MTLTexture.h b/rpcs3/Emu/RSX/Metal/MTLTexture.h
+index 13dc191..2a1e893 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLTexture.h
++++ b/rpcs3/Emu/RSX/Metal/MTLTexture.h
+@@ -11,7 +11,8 @@
+ // Uploads run on the CPU exactly as the Vulkan renderer's upload_image does when its GPU helpers are not used:
+ // rsx::upload_texture_subresource deswizzles, byteswaps and (without BC support) decompresses into the upload
+ // ring, then the compute encoder copies the ring into the texture. Depth formats are converted on the CPU with
+-// the Vulkan renderer's formulas (MTLTextureFormats.h) and copied per plane.
++// the Vulkan renderer's formulas (MTLTextureFormats.h) and copied per plane. Tiled guest memory is detiled on the GPU
++// first where the Vulkan renderer does (upload_tiled_image), the rest of its processing on the conversion kernels.
+ 
+ #include "MTLAPI.h"
+ #include "MTLDataHeap.h"
+@@ -55,6 +56,7 @@ namespace mtl
+ 		std::atomic<u64> upload_dedicated_buffers{0};
+ 		std::atomic<u64> depth_uploads_converted{0};
+ 		std::atomic<u64> uploads_unsupported_format{0};     // no Metal format (counted, the section keeps zeros)
++		std::atomic<u64> uploads_not_detiled{0};            // tiled blit source with mipmaps or an unknown tile pitch (as VK: as it is)
+ 		std::atomic<u64> clears{0};
+ 		std::atomic<u64> copies{0};
+ 		std::atomic<u64> typeless_copies{0};                // bit-compatible format views
+@@ -71,7 +73,7 @@ namespace mtl
+ 		std::atomic<u64> feedback_snapshots{0};             // bound attachments sampled through a copy
+ 		std::atomic<u64> readbacks{0};
+ 		std::atomic<u64> readback_bytes{0};
+-		std::atomic<u64> readbacks_not_implemented{0};      // compressed, unknown tile pitch, unsynchronized DMA (guest memory kept)
++		std::atomic<u64> readbacks_not_implemented{0};      // unknown tile pitch, refused scaling, DMA-only (guest memory kept)
+ 		std::atomic<u64> readbacks_unsubmitted{0};          // a write-back found its copy unsubmitted (must stay 0)
+ 		std::atomic<u64> faults_routed{0};                  // guest faults handed whole to the RSX thread (unsubmitted copy)
+ 		std::atomic<u64> samplers_created{0};
+@@ -180,6 +182,16 @@ namespace mtl
+ 	void upload_image(command_context& ctx, data_heap& heap, image* dst, const std::vector<rsx::subresource_layout>& layouts,
+ 		u32 gcm_format, bool is_swizzled, bool supports_bc);
+ 
++	// VKTexture.cpp detile_memory_block followed by upload_image with source_is_gpu_resident, for level 0 of a 2D image:
++	// the tile bytes holding a width x height region (first texel at guest address `origin` inside the tile at
++	// tile_base) are copied into staging memory as they are, decoded into packed rows by the tile decoder
++	// (MTLComputeTasks.h), byteswapped by the format's word size and, for depth formats, converted into their planes
++	// on the conversion kernels, then copied into dst. The same bytes as tiled_copy + upload_image. False, with nothing
++	// of dst written, when the kernels are unavailable or the format is converted texel by texel (the caller then
++	// detiles on the CPU).
++	bool upload_tiled_image(command_context& ctx, data_heap& heap, image* dst, u32 tile_base, u32 tile_size, u32 tile_pitch, u8 tile_bank,
++		u32 origin, u32 width, u32 height, u32 bpp, u32 gcm_format);
++
+ 	// Clears every level and slice: colour images to zero (buffer copy), depth images to depth 1, stencil 0.
+ 	void clear_image(command_context& ctx, data_heap& heap, image* dst);
+ 
+diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp b/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp
+index cbebb10..1c2d98c 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLTextureCache.cpp
+@@ -283,12 +283,23 @@ namespace mtl
+ 			return;
+ 		}
+ 
++		// A block-compressed section is read back as its blocks (VK dma_transfer: a same-format copy to a buffer, no
++		// decode): its guest rows are rows of 4x4 blocks, so the confirmed range is worked out in blocks, then given
++		// to dma_transfer in texels. Other sections count in texels (one texel per unit).
++		const u32 block_bytes = get_block_size(target->format());
++		const u32 unit_texels = block_bytes ? 4 : 1;
++		const u32 unit_bytes = block_bytes ? block_bytes : internal_bpp;
++		const u32 full_width = transfer_width;
++		const u32 full_height = transfer_height;
++		transfer_width = utils::aligned_div(transfer_width, unit_texels);
++		transfer_height = utils::aligned_div(transfer_height, unit_texels);
++
+ 		if (const auto section_range = get_section_range(); section_range != valid_range)
+ 		{
+ 			if (const auto offset = (valid_range.start - get_section_base()))
+ 			{
+ 				transfer_y = offset / rsx_pitch;
+-				transfer_x = (offset % rsx_pitch) / internal_bpp;
++				transfer_x = (offset % rsx_pitch) / unit_bytes;
+ 
+ 				ensure(transfer_width >= transfer_x);
+ 				ensure(transfer_height >= transfer_y);
+@@ -306,10 +317,10 @@ namespace mtl
+ 		}
+ 
+ 		areai src_area;
+-		src_area.x1 = static_cast<s32>(transfer_x);
+-		src_area.y1 = static_cast<s32>(transfer_y);
+-		src_area.x2 = static_cast<s32>(transfer_x + transfer_width);
+-		src_area.y2 = static_cast<s32>(transfer_y + transfer_height);
++		src_area.x1 = static_cast<s32>(transfer_x * unit_texels);
++		src_area.y1 = static_cast<s32>(transfer_y * unit_texels);
++		src_area.x2 = static_cast<s32>(std::min((transfer_x + transfer_width) * unit_texels, full_width));
++		src_area.y2 = static_cast<s32>(std::min((transfer_y + transfer_height) * unit_texels, full_height));
+ 		dma_transfer(cmd, target, src_area, valid_range, rsx_pitch);
+ 	}
+ 
+@@ -334,7 +345,7 @@ namespace mtl
+ 		rsx_pitch = pitch;
+ 
+ 		const pixel_format format = src->format();
+-		const u32 guest_bpp = get_format_texel_width(format);
++		u32 guest_bpp = get_format_texel_width(format);
+ 		u32 plane_bpp = get_texel_size(format);
+ 		readback_mode mode = readback_mode::copy;
+ 		switch (format)
+@@ -345,20 +356,40 @@ namespace mtl
+ 		default: break;
+ 		}
+ 
+-		if (!guest_bpp || !plane_bpp || is_compressed_format(format))
++		// Block-compressed formats: the blocks as they are (VK copies the image to the buffer in its own format; the
++		// guest layout of DXT data is rows of 4x4 blocks), one block per unit of the copy.
++		const u32 block_bytes = get_block_size(format);
++		const u32 unit_texels = block_bytes ? 4 : 1;
++		if (block_bytes)
++		{
++			guest_bpp = plane_bpp = block_bytes;
++		}
++
++		if (!guest_bpp || !plane_bpp)
+ 		{
+-			mark_keep_memory("readback-format", "compressed or unknown-format");
++			mark_keep_memory("readback-format", "unknown-format");
+ 			return;
+ 		}
+ 
+-		const u32 transfer_width = static_cast<u32>(src_area.width());
+-		const u32 transfer_height = static_cast<u32>(src_area.height());
++		const u32 area_width = static_cast<u32>(src_area.width());
++		const u32 area_height = static_cast<u32>(src_area.height());
+ 		if (u64{static_cast<u32>(src_area.x2)} > src->width() || u64{static_cast<u32>(src_area.y2)} > src->height())
+ 		{
+ 			mark_keep_memory("readback-bounds", "out-of-bounds");
+ 			return;
+ 		}
+ 
++		if (block_bytes && ((src_area.x1 % 4) || (src_area.y1 % 4) || ((area_width % 4) && static_cast<u32>(src_area.x2) != src->width()) ||
++			((area_height % 4) && static_cast<u32>(src_area.y2) != src->height())))
++		{
++			// Metal copies whole blocks only (a region inside the image is block-aligned).
++			mark_keep_memory("readback-blocks", "block-compressed data outside the block grid");
++			return;
++		}
++
++		const u32 transfer_width = utils::aligned_div(area_width, unit_texels);
++		const u32 transfer_height = utils::aligned_div(area_height, unit_texels);
++
+ 		m_mode = mode;
+ 		m_depth_float = src->format_class() == rsx::RSX_FORMAT_CLASS_DEPTH24_FLOAT_X8_PACK32;
+ 		m_transfer_width = transfer_width;
+@@ -388,11 +419,11 @@ namespace mtl
+ 			cmd.make_resident(m_download);
+ 		}
+ 
+-		const region area{ { static_cast<u32>(src_area.x1), static_cast<u32>(src_area.y1), 0 }, { transfer_width, transfer_height, 1 } };
++		const region area{ { static_cast<u32>(src_area.x1), static_cast<u32>(src_area.y1), 0 }, { area_width, area_height, 1 } };
+ 		{
+ 			// Reads only (two planes go to distinct buffer regions).
+ 			transfer_scope scope(cmd, "texture readback");
+-			const auto box = texture_box::make(0, 0, area.at.x, area.at.y, 0, transfer_width, transfer_height);
++			const auto box = texture_box::make(0, 0, area.at.x, area.at.y, 0, area_width, area_height);
+ 			if (mode == readback_mode::depth24)
+ 			{
+ 				copy_texture_to_buffer(scope.for_read(src->texture, box), src->texture, 0, 0, area, m_download, m_scratch_offset, transfer_width * 4, 0, blit_depth_from_depth_stencil);
+@@ -1119,20 +1150,63 @@ namespace mtl
+ 		image->set_name(fmt::format("Raw Texture @0x%x", rsx_range.start));
+ 
+ 		bool input_swizzled = swizzled;
++		std::vector<rsx::subresource_layout> tmp;
++		const std::vector<rsx::subresource_layout>* p_subresource_layout = &subresource_layout;
++		std::vector<u8> detiled;
++
++		if (auto tiled_region = rsx::get_current_renderer()->get_tiled_memory_region(rsx_range);
++			context == rsx::texture_upload_context::blit_engine_src && tiled_region)
++		{
++			if (mipmaps > 1)
++			{
++				// This really shouldn't happen on framebuffer tiled memory (VK: uploaded as it is).
++				get_texture_counters().uploads_not_detiled++;
++				log_once("upload-tiled-mipmaps", "Tiled decode of mipmapped textures is not supported.");
++			}
++			else
++			{
++				// VK upload_image_from_cpu: detile_memory_block, then the upload from the decoded rows (GPU resident); here
++				// the tile decoder, or the common CPU decoder (the same bytes) when it is unavailable. Rows at the tile
++				// pitch, as VK detiles them.
++				const u32 bpp = rsx::get_format_block_size_in_bytes(gcm_format);
++				const u32 tile_pitch = tiled_region.tile->pitch;
++				if (upload_tiled_image(cmd, *m_upload_heap, image, tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank,
++					rsx_range.start, width, height, bpp, gcm_format))
++				{
++					section->last_write_tag = rsx::get_shared_tag();
++					return section;
++				}
++
++				if (bpp && tile_pitch && !(tile_pitch % bpp) && tile_pitch >= width * bpp)
++				{
++					detiled.resize(usz{tile_pitch} * height);
++					if (tiled_copy(tiled_region.base_address, tiled_region.tile->size, tile_pitch, tiled_region.tile->bank, rsx_range.start,
++						detiled.data(), tile_pitch, width, height, bpp, false))
++					{
++						auto subres = subresource_layout.front();
++						subres.data = std::span<const std::byte>(reinterpret_cast<const std::byte*>(detiled.data()), detiled.size());
++						subres.pitch_in_block = tile_pitch / bpp;
++						tmp.push_back(std::move(subres));
++						p_subresource_layout = &tmp;
++					}
++				}
++
++				if (p_subresource_layout != &tmp)
++				{
++					// A tile pitch the tiling has no prime factor for (VK's decoder cannot either): uploaded as it is.
++					get_texture_counters().uploads_not_detiled++;
++					log_once("upload-tiled-pitch", fmt::format("tiled blit-engine source with pitch 0x%x is not detiled", tile_pitch));
++				}
++			}
++		}
++
+ 		if (context == rsx::texture_upload_context::blit_engine_src)
+ 		{
+ 			// Swizzling is ignored for blit engine copy and emulated using remapping
+ 			input_swizzled = false;
+-
+-			if (rsx::get_current_renderer()->get_tiled_memory_region(rsx_range))
+-			{
+-				// VK detiles blit sources on the GPU first (stage M3.2 with the blit engine).
+-				get_texture_counters().typeless_not_implemented++;
+-				log_once("upload-tiled-blit", "tiled blit-engine source upload is not detiled yet");
+-			}
+ 		}
+ 
+-		upload_image(cmd, *m_upload_heap, image, subresource_layout, gcm_format, input_swizzled, m_supports_bc);
++		upload_image(cmd, *m_upload_heap, image, *p_subresource_layout, gcm_format, input_swizzled, m_supports_bc);
+ 
+ 		section->last_write_tag = rsx::get_shared_tag();
+ 		return section;
+diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureCache.h b/rpcs3/Emu/RSX/Metal/MTLTextureCache.h
+index ad333ab..d8fea28 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLTextureCache.h
++++ b/rpcs3/Emu/RSX/Metal/MTLTextureCache.h
+@@ -16,11 +16,11 @@
+ //     renderer does), so this backend never records from another thread; every copy is submitted before the cache
+ //     lock is released (review R1), so a write-back elsewhere only ever waits for the GPU;
+ //   - scaled sections are read back through a scaled copy (MTLBlit.h), tiled ones are tiled on the CPU with the
+-//     common tiling helper straight into guest memory (M3.2);
++//     common tiling helper straight into guest memory (M3.2); block-compressed ones as their blocks (no decode);
+ //   - the blit engine (upload_scaled_image) runs on the transfers of MTLBlit.h (M3.2).
+-// What is not written yet is counted (COREPROF METAL) and logged once, never faked: byte-shuffling or depth <->
+-// colour reinterpretations (the destination keeps its clear or memory contents) and readbacks of compressed data
+-// (the guest memory keeps its contents).
++// What cannot be done is counted (COREPROF METAL) and logged once, never faked: reinterpretations the typeless copy
++// refuses (the destination keeps its clear or memory contents) and readbacks with a tile pitch the RSX tiling has no
++// prime factor for (VK cannot do them either; the guest memory keeps its contents).
+ 
+ #include "MTLRenderTargets.h"
+ #include "MTLTexture.h"
+diff --git a/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h b/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h
+index 8cbdb43..3732e85 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h
++++ b/rpcs3/Emu/RSX/Metal/MTLTextureFormats.h
+@@ -15,6 +15,7 @@
+ 
+ #include "Emu/RSX/Utils/color_utils.hpp"
+ 
++#include <algorithm>
+ #include <array>
+ #include <bit>
+ #include <cmath>
+@@ -620,4 +621,99 @@ namespace mtl
+ 		if (d.max_anisotropy != 1) { d.max_anisotropy = 1; changed++; }
+ 		return changed;
+ 	}
++
++	// RSX memory tiling: the prime/factor decomposition of a tile pitch (Common/tiled_dma_copy.hpp tile_texel_data and
++	// VKCompute.h cs_tile_memcpy get_prime_factor): pitch / 256 = prime * factor. {0, 0} for a pitch neither knows.
++	struct tile_pitch_factors
++	{
++		u32 prime = 0;
++		u32 factor = 0;
++	};
++
++	constexpr tile_pitch_factors get_tile_pitch_factors(u32 tile_pitch)
++	{
++		const u32 base = tile_pitch >> 8;
++		if (tile_pitch && (tile_pitch & (tile_pitch - 1)) == 0)
++		{
++			return { 1, base };
++		}
++
++		for (const u32 prime : { 3u, 5u, 7u, 11u, 13u })
++		{
++			if (base && (base % prime) == 0)
++			{
++				return { prime, base / prime };
++			}
++		}
++		return {};
++	}
++
++	// The bytes of a tile the texels of a width x height region (first texel at origin_offset from the tile base, rows
++	// tile_pitch apart) are tiled into, as [start, end) from the tile base: a texel of tile id t lands in the four 16 KiB
++	// tiles of the group of t (its bank selects one), when the tile base is 64 KiB aligned (as cellGcmSetTile requires);
++	// otherwise the whole tile. The tile ids of a 64-row band are band * tiles_per_row and the tiles_per_row after it.
++	// Clamped to the tile size.
++	struct tile_span
++	{
++		u32 start = 0;
++		u32 end = 0;
++	};
++
++	constexpr tile_span get_tile_span(u32 tile_base, u32 tile_size, u32 tile_pitch, u32 tiles_per_row, u32 origin_offset, u32 width, u32 height, u32 bpp)
++	{
++		if (!tile_pitch || !tiles_per_row || !width || !height || !bpp)
++		{
++			return {};
++		}
++
++		if (tile_base & 0xffff)
++		{
++			return { 0, tile_size };
++		}
++
++		// The bands of the first and the last texel (m4_tile_offset: tile_y = offset / 256 / tiles_per_row / 64).
++		const u64 last = u64{origin_offset} + u64{height - 1} * tile_pitch + u64{width - 1} * bpp;
++		const u64 first_tile = u64{origin_offset / 256 / tiles_per_row / 64} * tiles_per_row;
++		const u64 last_tile = (last / 256 / tiles_per_row / 64) * tiles_per_row + tiles_per_row - 1;
++		const u64 start = (first_tile & ~3ull) * 16384;
++		const u64 end = ((last_tile | 3ull) + 1) * 16384;
++		return { static_cast<u32>(std::min<u64>(start, tile_size)), static_cast<u32>(std::min<u64>(end, tile_size)) };
++	}
++
++	// The guest word size rsx::upload_texture_subresource byteswaps a format by when it copies it word by word (its
++	// word_size path on arm64: 1, 2 or 4), the processing a GPU-resident upload replays on the conversion kernels (VK
++	// upload_image with source_is_gpu_resident: cs_shuffle_16 / _32, then the depth conversions of copy_buffer_to_image).
++	// 0 for the formats it converts texel by texel (R6G5B5, the decoded and block-compressed formats).
++	constexpr u32 get_gpu_upload_word_size(u32 gcm_format)
++	{
++		switch (gcm_format)
++		{
++		case CELL_GCM_TEXTURE_B8:
++			return 1;
++		case CELL_GCM_TEXTURE_A1R5G5B5:
++		case CELL_GCM_TEXTURE_D1R5G5B5:
++		case CELL_GCM_TEXTURE_A4R4G4B4:
++		case CELL_GCM_TEXTURE_R5G5B5A1:
++		case CELL_GCM_TEXTURE_R5G6B5:
++		case CELL_GCM_TEXTURE_COMPRESSED_HILO8:
++		case CELL_GCM_TEXTURE_COMPRESSED_HILO_S8:
++		case CELL_GCM_TEXTURE_DEPTH16:
++		case CELL_GCM_TEXTURE_DEPTH16_FLOAT:
++		case CELL_GCM_TEXTURE_G8B8:
++		case CELL_GCM_TEXTURE_X16:
++		case CELL_GCM_TEXTURE_Y16_X16:
++		case CELL_GCM_TEXTURE_Y16_X16_FLOAT:
++		case CELL_GCM_TEXTURE_W16_Z16_Y16_X16_FLOAT:
++			return 2;
++		case CELL_GCM_TEXTURE_A8R8G8B8:
++		case CELL_GCM_TEXTURE_D8R8G8B8:
++		case CELL_GCM_TEXTURE_DEPTH24_D8:
++		case CELL_GCM_TEXTURE_DEPTH24_D8_FLOAT:
++		case CELL_GCM_TEXTURE_X32_FLOAT:
++		case CELL_GCM_TEXTURE_W32_Z32_Y32_X32_FLOAT:
++			return 4;
++		default:
++			return 0;
++		}
++	}
+ }
+diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
+index 3ac9934..4e80ef3 100644
+--- a/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
++++ b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
+@@ -6,6 +6,9 @@
+ //   - the MSAA resolve/unresolve coordinate math (both directions are inverse, and match the Vulkan compute passes);
+ //   - the MSAA configuration (sample counts, grids, sample masks) and the compute dispatch parameters.
+ //   - the typeless copy's kernel selection (VK copy_image_typeless, copy_image_to_buffer / copy_buffer_to_image).
++//   - the tile decoder (MTLM4Math.h tiling_math, run as the MSL kernel runs it, word by word) against the common CPU
++//     tiler (Common/tiled_dma_copy.hpp) for every RSX tile pitch, bank, texel size and odd region, and the tile span
++//     its staging copy holds.
+ // With a directory argument it also writes the MSL libraries (m4_compute.metal, m4_resolve.metal) for Apple's offline
+ // compiler: xcrun -sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror -Wno-unused-variable
+ // -Wno-unused-but-set-variable -Wno-unused-function -c m4_compute.metal. Pure logic: no Metal, g++ or clang++.
+@@ -15,6 +18,7 @@
+ //       "$S/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp" -o mtl_m4_unit_test
+ //   ./mtl_m4_unit_test [MSL output directory]
+ 
++#include "Emu/RSX/Common/tiled_dma_copy.hpp"
+ #include "Emu/RSX/Metal/MTLComputeTasks.h"
+ #include "Emu/RSX/Metal/MTLM4Math.h"
+ #include "Emu/RSX/Metal/MTLM4Shaders.h"
+@@ -22,6 +26,7 @@
+ #include "Emu/RSX/Metal/MTLTextureFormats.h"
+ #include "Emu/RSX/Metal/MTLTypelessCopy.h"
+ 
++#include <algorithm>
+ #include <bit>
+ #include <cstdio>
+ #include <cstring>
+@@ -399,11 +404,192 @@ namespace
+ 		check(!typeless_regions_fit(0, 4, 4, 0, 4, 2) && !typeless_regions_fit(10, 4, 0, 20, 4, 2), "empty regions, unknown texel sizes");
+ 	}
+ 
++	// ------------------------------------------------------------------------------------------------------------------
++	// One decode as upload_tiled_image runs it: the tile span copied out of the tile memory, then the kernel's loop for
++	// every word of the packed linear image (MTLM4Shaders.h m4_tile_decode_kernel), against rsx::tiled_dma_copy decoding
++	// the same region from the same memory into a zeroed buffer (what the CPU path uploads).
++	struct tile_case
++	{
++		u32 base, size, pitch, bank, origin_offset, width, height, bpp;
++	};
++
++	bool run_tile_case(const tile_case& c, const std::vector<u8>& tile_memory, const char*& failure)
++	{
++		const auto factors = get_tile_pitch_factors(c.pitch);
++		const u32 tiles_per_row = factors.prime * factors.factor;
++		const u32 image_pitch = c.width * c.bpp;
++		const u64 linear_length = u64{image_pitch} * c.height;
++
++		std::vector<u8> expected(linear_length, 0);
++		const rsx::detiler_config conf =
++		{
++			.prime = factors.prime,
++			.factor = factors.factor,
++			.num_tiles_per_row = tiles_per_row,
++			.tile_base_address = c.base,
++			.tile_size = c.size,
++			.tile_address_offset = c.origin_offset,
++			.tile_rw_offset = 0,
++			.tile_pitch = c.pitch,
++			.tile_bank = c.bank,
++			.image_width = c.width,
++			.image_height = c.height,
++			.image_pitch = image_pitch,
++			.image_bpp = c.bpp,
++		};
++		for (u32 row = 0; row < c.height; ++row)
++		{
++			for (u32 col = 0; col < c.width; ++col)
++			{
++				rsx::tiled_dma_copy(row, col, conf, const_cast<char*>(reinterpret_cast<const char*>(tile_memory.data())),
++					reinterpret_cast<char*>(expected.data()), 1 /* RSX_DMA_OP_DECODE_TILE */);
++
++				// The span holds every texel the tiler reads (inside the tile).
++				const u32 offset = m4_tile_offset(row, col, factors.factor, tiles_per_row, c.base, c.origin_offset, c.pitch, c.bank, c.bpp);
++				const tile_span span = get_tile_span(c.base, c.size, c.pitch, tiles_per_row, c.origin_offset, c.width, c.height, c.bpp);
++				if (offset < c.size && (offset < span.start || u64{offset} + c.bpp > span.end))
++				{
++					failure = "a texel's tiled bytes lie outside the staged span";
++					return false;
++				}
++			}
++		}
++
++		const tile_span span = get_tile_span(c.base, c.size, c.pitch, tiles_per_row, c.origin_offset, c.width, c.height, c.bpp);
++		const u32 tiled_length = span.end - span.start;
++		std::vector<u32> data((tiled_length + 3) / 4 + (linear_length + 3) / 4 + 1, 0xDEADBEEFu);
++		std::memcpy(data.data(), tile_memory.data() + span.start, tiled_length);
++		const u32 linear_offset = (tiled_length + 3) & ~3u;
++		const u32 linear_words = static_cast<u32>((linear_length + 3) / 4);
++
++		for (u32 word = 0; word < linear_words; ++word)
++		{
++			u32 value = 0;
++			for (u32 byte_index = 0; byte_index < 4; ++byte_index)
++			{
++				const u32 source = m4_detile_source((word * 4) + byte_index, factors.factor, tiles_per_row, c.base, c.size, c.origin_offset, span.start,
++					c.pitch, c.bank, c.width, c.height, image_pitch, c.bpp, tiled_length);
++				if (source != 0xFFFFFFFFu)
++				{
++					const u32 index = 0 + source;
++					value |= ((data[index >> 2] >> ((index & 3) * 8)) & 0xFF) << (byte_index * 8);
++				}
++			}
++			data[(linear_offset >> 2) + word] = value;
++		}
++
++		if (std::memcmp(reinterpret_cast<const u8*>(data.data()) + linear_offset, expected.data(), linear_length) != 0)
++		{
++			failure = "the decoded rows differ from the CPU tiler";
++			return false;
++		}
++
++		// The padding bytes of the last word are zero.
++		for (u64 i = linear_length; i < u64{linear_words} * 4; ++i)
++		{
++			if (reinterpret_cast<const u8*>(data.data())[linear_offset + i] != 0)
++			{
++				failure = "a padding byte is not zero";
++				return false;
++			}
++		}
++		return true;
++	}
++
++	void test_tiling_math()
++	{
++		// The bank table as arithmetic
++		constexpr u32 table[16] = { 0, 1, 2, 3, 2, 3, 0, 1, 1, 2, 3, 0, 3, 0, 1, 2 };
++		bool lookup_ok = true;
++		for (u32 i = 0; i < 16; ++i)
++		{
++			lookup_ok &= m4_tile_bank_lookup(i) == table[i];
++		}
++		check(lookup_ok, "bank distribution table");
++
++		// Common get_prime_factor
++		check(get_tile_pitch_factors(0x200).prime == 1 && get_tile_pitch_factors(0x200).factor == 2, "pitch 0x200 = 1 x 2");
++		check(get_tile_pitch_factors(0x300).prime == 3 && get_tile_pitch_factors(0x300).factor == 1, "pitch 0x300 = 3 x 1");
++		check(get_tile_pitch_factors(0xD00).prime == 13 && get_tile_pitch_factors(0xD00).factor == 1, "pitch 0xD00 = 13 x 1");
++		check(get_tile_pitch_factors(0x1400).prime == 5 && get_tile_pitch_factors(0x1400).factor == 4, "pitch 0x1400 = 5 x 4");
++		check(get_tile_pitch_factors(0x11 * 256).factor == 0 && get_tile_pitch_factors(0).factor == 0, "unknown pitches");
++
++		// Every RSX tile pitch (rsx::GcmTileInfo: 0x200 .. 0x10000 from the hardware table), banks, texel sizes, origins
++		constexpr u32 pitches[] = { 0x200, 0x300, 0x400, 0x500, 0x600, 0x700, 0x800, 0xA00, 0xC00, 0xD00, 0xE00, 0x1000, 0x1400, 0x1800, 0x1A00,
++			0x1C00, 0x2000, 0x2800, 0x3000, 0x3400, 0x3800, 0x4000, 0x5000, 0x6000, 0x6800, 0x7000, 0x8000, 0xA000, 0xC000, 0xD000, 0xE000, 0x10000 };
++		std::mt19937 rng(20261106);
++		int cases = 0, failed = 0;
++		const char* first_failure = nullptr;
++		for (const u32 pitch : pitches)
++		{
++			for (const u32 bpp : { 1u, 2u, 4u, 8u, 16u })
++			{
++				if (pitch < bpp * 4)
++				{
++					continue;
++				}
++
++				for (int trial = 0; trial < 3; ++trial)
++				{
++					tile_case c{};
++					c.pitch = pitch;
++					c.bpp = bpp;
++					c.base = (trial == 2) ? 0x00012000u : static_cast<u32>((rng() % 64) * 0x10000);  // trial 2: an unaligned base (whole tile)
++					c.bank = rng() % 4;
++					const u32 max_width = std::min<u32>(pitch / bpp, 300);
++					c.width = 1 + rng() % max_width;
++					c.height = 1 + rng() % 150;
++					const u32 x = (max_width > c.width) ? (rng() % (max_width - c.width + 1)) : 0;
++					const u32 y = rng() % 130;
++					c.origin_offset = y * pitch + x * bpp;
++					// A tile that ends inside the region sometimes (texels beyond it stay zero)
++					const u64 needed = u64{c.origin_offset} + u64{c.height} * pitch;
++					c.size = static_cast<u32>((((trial == 1) ? needed / 2 + pitch : needed + 0x20000) + 0xFFFF) & ~0xFFFFull);
++
++					std::vector<u8> memory(c.size);
++					for (auto& b : memory) b = static_cast<u8>(rng());
++
++					const char* failure = nullptr;
++					cases++;
++					if (!run_tile_case(c, memory, failure))
++					{
++						failed++;
++						if (!first_failure)
++						{
++							first_failure = failure;
++							std::fprintf(stderr, "tile case pitch 0x%x bpp %u base 0x%x bank %u origin 0x%x %ux%u size 0x%x: %s\n",
++								c.pitch, c.bpp, c.base, c.bank, c.origin_offset, c.width, c.height, c.size, failure);
++						}
++					}
++				}
++			}
++		}
++		check(failed == 0, "the tile decoder decodes as the CPU tiler", failed, cases);
++
++		// The span of a 64 KiB aligned tile: whole groups of four 16 KiB tiles of the bands the region touches
++		const tile_span span = get_tile_span(0x10000, 0x100000, 0x1000, 16, 0x1000 * 64 + 0x10, 100, 10, 4);
++		check(span.start == 16 * 0x4000 && span.end == 32 * 0x4000, "tile span of one band", span.start, span.end);
++		// Bands 1 and 2 of a 3-tile pitch: tile ids 3 .. 8, so groups 0 .. 11
++		const tile_span odd = get_tile_span(0x10000, 0x100000, 0x300, 3, 0x300 * 64, 10, 70, 4);
++		check(odd.start == 0 && odd.end == 12 * 0x4000, "tile span of a 3-tile pitch rounds to groups of four", odd.start, odd.end);
++		check(get_tile_span(0x12000, 0x40000, 0x1000, 16, 0, 10, 10, 4).end == 0x40000, "an unaligned tile base stages the whole tile");
++
++		check(get_gpu_upload_word_size(CELL_GCM_TEXTURE_A8R8G8B8) == 4 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_R5G6B5) == 2 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_B8) == 1 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_DEPTH24_D8) == 4 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_W16_Z16_Y16_X16_FLOAT) == 2 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_W32_Z32_Y32_X32_FLOAT) == 4 &&
++			get_gpu_upload_word_size(CELL_GCM_TEXTURE_R6G5B5) == 0 && get_gpu_upload_word_size(CELL_GCM_TEXTURE_COMPRESSED_DXT1) == 0,
++			"upload_texture_subresource word sizes (arm64)");
++	}
++
+ 	// ------------------------------------------------------------------------------------------------------------------
+ 	void test_msl_text(const char* directory)
+ 	{
+ 		const std::string compute = m4_shaders::compute_library_source();
+ 		const std::string resolve = m4_shaders::resolve_library_source();
++		const std::string tiling = m4_shaders::tiling_library_source();
++		check(tiling.find(m4_source::tiling_math) != std::string::npos && tiling.find(std::string("kernel void ") + std::string(m4_shaders::tile_decode_kernel_name) + "(") != std::string::npos,
++			"the tile decoder library holds the tested math and its kernel");
++		check(compute.find("m4_tile_decode_kernel") == std::string::npos, "the conversion kernels do not depend on the tile decoder");
+ 
+ 		check(m4_shaders::compute_kernel_names.size() == static_cast<usz>(compute_kernel::count), "one MSL kernel per compute_kernel");
+ 		for (const auto name : m4_shaders::compute_kernel_names)
+@@ -430,6 +616,7 @@ namespace
+ 		{
+ 			std::ofstream(std::string(directory) + "/m4_compute.metal", std::ios::binary) << compute;
+ 			std::ofstream(std::string(directory) + "/m4_resolve.metal", std::ios::binary) << resolve;
++			std::ofstream(std::string(directory) + "/m4_tiling.metal", std::ios::binary) << tiling;
+ 		}
+ 	}
+ }
+@@ -443,6 +630,7 @@ int main(int argc, char** argv)
+ 	test_msaa_config();
+ 	test_dispatch_params();
+ 	test_typeless_selection();
++	test_tiling_math();
+ 	test_msl_text(argc > 1 ? argv[1] : nullptr);
+ 
+ 	if (g_failures)
 diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp
 new file mode 100644
 index 0000000..3383ad1
