@@ -261,6 +261,35 @@ abstract final class Rpcs3GameProfileService {
     'BLES00158': _assassinsCreed,
     'BLUS30089': _assassinsCreed,
 
+    // Assassin's Creed IV: Black Flag. The official RPCS3 entry stays
+    // underneath (Read and Write Color Buffers on, for the invisible ocean)
+    // except its PPU decoder, Interpreter (static).
+    // - IPA 666 iPhone logs (Core 665, BLES01882, session 5, 6 November 2026):
+    //   the official entry was applied (CONFIG_LAYERS database=1
+    //   ppu_decoder=Interpreter (static) rcb=true wcb=true). The intro ran at
+    //   37-60 fps (660 flips: legal notice, Ubisoft and Abstergo logos), then
+    //   the title-screen load froze: no flip for 85 s until the stop, all 26
+    //   PPU threads waiting (lwcond, event queues, semaphores, short usleep
+    //   polls), the six SPURS kernels idle with no workload ready or
+    //   signalled, the RSX FIFO empty, both audio ports still mixing
+    //   (FREEZE_DUMP). Build 643: no frame in 38 s under the same entry.
+    // - RPCS3's wiki gives the interpreter as its fix for freezes; RPCS3 issue
+    //   #12807 (open) reports Assassin's Creed III and IV freezing near the
+    //   start of a new game under PPU LLVM, a point past the title screen. On
+    //   the iPhone the interpreter stopped earlier than that.
+    // As for Dynasty Warriors 6 (Build 610), only the decoder returns to
+    // RPCS3's default, LLVM, the decoder the iPhone runs for every other
+    // title. CONFIG_LAYERS ppu_decoder, JITPROF_BOOT and FREEZE_EPISODE show
+    // the outcome; no iPhone result yet. Serials: BLES01882 (these logs),
+    // BLES01883 (unified cheat catalogue), BLUS31193, NPEB01396 and NPUB31246
+    // (RPCS3 forum threads of this game). BLES01884 carries the same official
+    // entry, but no source names its game: it keeps the entry unchanged.
+    'BLES01882': _assassinsCreedIV,
+    'BLES01883': _assassinsCreedIV,
+    'BLUS31193': _assassinsCreedIV,
+    'NPEB01396': _assassinsCreedIV,
+    'NPUB31246': _assassinsCreedIV,
+
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
@@ -271,6 +300,10 @@ abstract final class Rpcs3GameProfileService {
     'advanced.accurate_spu_reservations': 'false',
     'gpu.async_texture_uploads': 'false',
     'gpu.zcull_accuracy': 'Approximate',
+  };
+
+  static const Map<String, String> _assassinsCreedIV = {
+    'cpu.ppu_decoder': 'Recompiler (LLVM)',
   };
 
   static const Map<String, String> _godOfWarIII = {

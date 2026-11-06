@@ -292,6 +292,59 @@ void main() {
     );
 
     test(
+      "Assassin's Creed IV returns to PPU LLVM and keeps the official buffers",
+      () async {
+        // IPA 666 logs (BLES01882): under the official entry's static
+        // interpreter the title-screen load froze after the intro; Build 643
+        // logged no frame in 38 s. Only the decoder changes.
+        for (final serial in <String>[
+          'BLES01882',
+          'BLES01883',
+          'BLUS31193',
+          'NPEB01396',
+          'NPUB31246',
+        ]) {
+          expect(
+            Rpcs3GameProfileService.profileForSerial(serial)!.settings,
+            <String, String>{'cpu.ppu_decoder': 'Recompiler (LLVM)'},
+          );
+          final payload =
+              await Rpcs3GameProfileService.databasePayloadForSerials(
+                <String>[serial],
+              );
+          final games =
+              (jsonDecode(payload) as Map<String, dynamic>)['games']
+                  as Map<String, dynamic>;
+          final yaml =
+              (games[serial] as Map<String, dynamic>)['config'] as String;
+          expect(yaml, contains('PPU Decoder: Recompiler (LLVM)'));
+          expect(yaml, isNot(contains('Interpreter (static)')));
+          expect('PPU Decoder:'.allMatches(yaml), hasLength(1));
+          expect(yaml, contains('Read Color Buffers: true'));
+          expect(yaml, contains('Write Color Buffers: true'));
+        }
+        // The same official entry also covers other games (Assassin's Creed
+        // III among them) and BLES01884, which no source names: unchanged.
+        for (final serial in <String>['BLES01884', 'BLUS30991', 'NPEB01099']) {
+          expect(
+            Rpcs3GameProfileService.profileForSerial(serial)!.settings,
+            isEmpty,
+          );
+          final payload =
+              await Rpcs3GameProfileService.databasePayloadForSerials(
+                <String>[serial],
+              );
+          final games =
+              (jsonDecode(payload) as Map<String, dynamic>)['games']
+                  as Map<String, dynamic>;
+          final yaml =
+              (games[serial] as Map<String, dynamic>)['config'] as String;
+          expect(yaml, contains('PPU Decoder: Interpreter (static)'));
+        }
+      },
+    );
+
+    test(
       'ZCULL accuracy expands to the two RPCS3 booleans the Core reads back',
       () {
         // Same table as the Core (RPCS3IOSZcullAccuracy.h): Precise =
