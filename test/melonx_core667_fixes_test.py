@@ -6,7 +6,8 @@
 - adapt_hogwarts_precise_math: MVKInitialization.Initialize() writes FastMathEnabled = !PreciseMath (MeloNX: always true).
 - adapt_shader_save_journal: counters of the shader disk-cache saves, journaled at each 64th write and at disposal.
 - core667_native (native/melonx EmbeddedRuntime.cs, EmbeddedLaunchPreflight.cs): the JIT code arena chosen at the first
-  launch of a process, a larger need refused before the launch; the launch title selects the math mode.
+  launch of a process, a larger need refused before the launch; the launch title selects the math mode (no title gets
+  precise math since Core 670: on IPA 669 it made MoltenVK compile the whole pipeline cache again before the first frame).
 
 Control: the final preparation with these three adapters reversed (melonx_adapter_control) and the two native files
 reversed (core667_native), which must be the Core 663 bytes. Candidate: the final preparation. Both build the production
@@ -151,7 +152,9 @@ check(preflight.index('EmbeddedNoteLaunchTitle(0);') < preflight.index('Embedded
       preflight.index('EmbeddedNoteLaunchTitle(entry.Key);') < preflight.index('programFound = true;'),
       'the preflight resets the title choice before any check and notes the title it opens')
 note = member(runtime, 'private static void EmbeddedNoteLaunchTitle(')
-check('PreciseMath = titleId == 0x0100F7E00C70E000UL;' in note, 'precise math for Hogwarts Legacy only')
+check('PreciseMath = Array.IndexOf(EmbeddedPreciseMathTitles, titleId) >= 0;' in note and
+      'private static readonly ulong[] EmbeddedPreciseMathTitles = Array.Empty<ulong>();' in runtime,
+      'no title gets precise math since Core 670 (IPA 669: the pipeline cache was compiled again before the first frame)')
 save = member(read(FINAL_SOURCE, SHADER_CACHE), 'public void ProcessShaderCacheQueue()')
 check(save.count('_cacheWriter.AddShader(') == 1 and save.count('_programsToSaveQueue.Dequeue();') == 1 and save.count('break;') == 1,
       'the save loop still writes, dequeues and stops at an incomplete head as before')
@@ -229,7 +232,8 @@ check(int.from_bytes(fast[offset:offset + 4], 'little') == 1 and int.from_bytes(
 check(candidate['journal'].count('"mathMode"') == 3 and candidate['journal'].count('MoltenVK math mode precise (Inf and NaN kept)') == 1 and
       '"mathMode"' not in control['journal'], 'one durable math-mode line per configuration, candidate only')
 if platform.system() == 'Darwin':
-    check(candidate['notedPreciseMath'] == {'hogwarts': True, 'smash': False, 'reset': False}, 'the launch title selects precise math for Hogwarts only')
+    check(candidate['notedPreciseMath'] == {'hogwarts': False, 'smash': False, 'reset': False},
+          'every title, Hogwarts Legacy included, keeps fast math (Core 670)')
 else:
     check(candidate['notedPreciseMath'] == {'hogwarts': False, 'smash': False, 'reset': False},
           'off Apple the title note leaves the default (the member is guarded to iOS/macOS); the Apple Core runner executes the choice')

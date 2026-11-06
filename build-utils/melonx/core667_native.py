@@ -7,7 +7,7 @@ and the Core 667 gate checks that the pairs applied to the Core 663 files (sourc
 - EmbeddedRuntime.cs: the code arena the helper maps once per process is chosen at the first launch
   (EmbeddedJitArenaRequest: the largest arena a title needs where the process may use 6 GiB or more; a later title that
   needs more than the mapped arena is refused before it starts, without quarantining the JIT), and the launch title
-  selects MoltenVK's math mode (EmbeddedNoteLaunchTitle: precise for Hogwarts Legacy, adapt_hogwarts_precise_math).
+  selects MoltenVK's math mode (EmbeddedNoteLaunchTitle, adapt_hogwarts_precise_math: no title since Core 670).
 - EmbeddedLaunchPreflight.cs: the preflight resets the title choice and notes the title it opens.
 """
 RUNTIME = 'src/Ryujinx.Library/EmbeddedRuntime.cs'
@@ -35,13 +35,18 @@ ARENA_BLOCK = '''    // The helper maps the code arena once per process, at the 
     }
 
 '''
-NOTE_BLOCK = '''    // Hogwarts Legacy's shaders are compiled by Metal without fast math (adapt_hogwarts_precise_math): its sky showed
-    // black blocks with blue edges, the look of NaN or Inf values that fast math lets Metal assume away. Every other
-    // title keeps MeloNX's fast math; the preflight resets the choice for each launch.
+NOTE_BLOCK = '''    // Titles whose shaders Metal compiles without fast math (adapt_hogwarts_precise_math); the preflight resets the choice
+    // for each launch. Empty since Core 670: Core 667 listed Hogwarts Legacy (sky blocks, a NaN/Inf hypothesis), and on IPA
+    // 669 its launch never reached the first frame in 230 s. MoltenVK 1.4.2 compiles every shader library of the pipeline
+    // cache when it reads it (MVKPipelineCache::readData -> MVKShaderLibrary::compileLibrary), and Metal's compiled-library
+    // cache held only the fast-math variants, so the whole 203 MiB cache was compiled again before the first frame
+    // (0.6 s on IPA 666). A title may be listed again only with that cost measured.
+    private static readonly ulong[] EmbeddedPreciseMathTitles = Array.Empty<ulong>();
+
     private static void EmbeddedNoteLaunchTitle(ulong titleId)
     {
         if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
-            Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = titleId == 0x0100F7E00C70E000UL;
+            Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = Array.IndexOf(EmbeddedPreciseMathTitles, titleId) >= 0;
     }
 
 '''

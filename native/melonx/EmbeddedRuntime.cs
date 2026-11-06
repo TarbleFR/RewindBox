@@ -83,13 +83,18 @@ partial class Library
         return true;
     }
 
-    // Hogwarts Legacy's shaders are compiled by Metal without fast math (adapt_hogwarts_precise_math): its sky showed
-    // black blocks with blue edges, the look of NaN or Inf values that fast math lets Metal assume away. Every other
-    // title keeps MeloNX's fast math; the preflight resets the choice for each launch.
+    // Titles whose shaders Metal compiles without fast math (adapt_hogwarts_precise_math); the preflight resets the choice
+    // for each launch. Empty since Core 670: Core 667 listed Hogwarts Legacy (sky blocks, a NaN/Inf hypothesis), and on IPA
+    // 669 its launch never reached the first frame in 230 s. MoltenVK 1.4.2 compiles every shader library of the pipeline
+    // cache when it reads it (MVKPipelineCache::readData -> MVKShaderLibrary::compileLibrary), and Metal's compiled-library
+    // cache held only the fast-math variants, so the whole 203 MiB cache was compiled again before the first frame
+    // (0.6 s on IPA 666). A title may be listed again only with that cost measured.
+    private static readonly ulong[] EmbeddedPreciseMathTitles = Array.Empty<ulong>();
+
     private static void EmbeddedNoteLaunchTitle(ulong titleId)
     {
         if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
-            Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = titleId == 0x0100F7E00C70E000UL;
+            Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = Array.IndexOf(EmbeddedPreciseMathTitles, titleId) >= 0;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_prepare_jit")]
