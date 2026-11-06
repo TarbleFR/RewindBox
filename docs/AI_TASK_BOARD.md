@@ -758,6 +758,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - R4: D24 round to nearest, exhaustive test;
       - M3.2: blit engine, scaled copies, scaled and tiled readbacks.
       - Being merged into the M4 tree, with one typeless path (VK selection: kernels for shuffles and packing).
+  - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
+    checks run `42250353568`.
+    - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
+      core903-from-902.patch `f5a681da` (44 files) = metal-wip-from-902.patch = M4 tree head `e4874e8`, which holds:
+      - the M3 tree `9806aba`;
+      - M4;
+      - the review fix `e7236ff`: temporary_unlock before the flush-queue guard, VK order; the M4 query review found
+        no defect;
+      - the setting text `e4874e8`.
+    - The host bridge is unchanged, so the MoltenVK dependency run `42213572281` is kept. The Metal checks verify
+      the fold chain (902 WIP reversed, 901 WIP reversed from that state, 902 WIP reapplied); tested locally.
+    - Local checks:
+      - static route PASS; source closure PASS; codegen audit PASS (identities unchanged);
+      - increments revert/rebuild PASS; presentation unit and renderer host tests PASS, plain and ASan/UBSan (g++;
+        the local clang has no ASan runtime);
+      - **full driver run 1 FAILED** in the Core 630 ZCULL fault-protocol TSan harness on the reverted (Core 668)
+        tree: `check failed line 711: take(tally.services) == 1`, after "not picked up in 2000 ms". It ran under
+        parallel load (route, canonical and codegen jobs). The log is in the scratchpad;
+      - run 2 alone is running. The Apple CI job reruns test/rpcs3_core903_test.py with Apple clang.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
