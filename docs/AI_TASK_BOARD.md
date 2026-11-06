@@ -676,8 +676,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         - iOS 26 SDK compile is green (run `42130829257`, and run `42132597213` step 9 for the draw path);
         - self-review fixed an empty program-cache callback (it would have aborted the RSX thread on the first
           pipeline) and an uninitialised scissor;
-        - an independent rb-core-review of the draw path is running.
-      - Next: apply the review, then Core 902 canonical (records, SPIRV-Cross files in the delta) and a test IPA
+        - self-review commit `f62fd724`: run `42133267905` green;
+        - independent rb-core-review of the draw path (6 Nov, source reading): 3 confirmed defects fixed in
+          `e8e6a460`. (1) After a ring exhaustion, a frame slot restored an older GET over in-flight data: no
+          slot restores its saved positions after an exhaustion. (2) The clear reserved its constants after
+          opening the pass, so a full ring ended the encoder and lost the clear: the reservation now precedes
+          the pass. (3) A depth clear inherited the last draw's depth bias: it is reset to zero, with clip mode.
+          Plausible, unchanged: 2-byte uint16 index offsets in multi-range draws (MoltenVK sends the same on the
+          iPhone); to check with Metal validation. Not reviewed: render targets, program cache, most of the
+          pipeline state, formats.
+        - Linux clang compile of both edited files: no new warning; the WIP patch still applies to Core 901.
+      - Next: CI of `e8e6a460`, then Core 902 canonical (records, SPIRV-Cross files in the delta) and a test IPA
         of the Metal branch (Xcode 26.3 Core build, MoltenVK dependency run), then M3 (texture cache, readbacks).
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
