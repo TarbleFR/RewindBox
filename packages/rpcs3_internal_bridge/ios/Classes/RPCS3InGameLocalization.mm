@@ -1733,6 +1733,53 @@ NSString* RPCS3CanonicalLocale(NSString* identifier) {
   return [supported containsObject:language] ? language : @"en";
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* BuildMetalTranslations() {
+  // Metal branch: the native Metal 4 renderer of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testMetalRenderer": @"Native Metal 4 renderer",
+      },
+      @"es": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+      },
+      @"ru": @{
+        @"testMetalRenderer": @"Нативный рендерер Metal 4",
+      },
+      @"zh": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+      },
+      @"zh_Hant": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+      },
+      @"pt": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+      },
+      @"fr": @{
+        @"testMetalRenderer": @"Moteur Metal 4 natif",
+      },
+      @"de": @{
+        @"testMetalRenderer": @"Nativer Metal-4-Renderer",
+      },
+      @"it": @{
+        @"testMetalRenderer": @"Renderer Metal 4 nativo",
+      },
+      @"id": @{
+        @"testMetalRenderer": @"Perender Metal 4 native",
+      },
+      @"ja": @{
+        @"testMetalRenderer": @"ネイティブ Metal 4 レンダラー",
+      },
+      @"ko": @{
+        @"testMetalRenderer": @"네이티브 Metal 4 렌더러",
+      },
+    };
+  });
+  return values;
+}
+
 NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* all = Translations();
   NSDictionary* build256 = Build256Translations();
@@ -1744,8 +1791,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build634 = Build634Translations();
   NSDictionary* build660 = Build660Translations();
   NSDictionary* build664 = Build664Translations();
+  NSDictionary* buildMetal = BuildMetalTranslations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build664[locale][key] ?: build664[@"en"][key] ?:
+  return buildMetal[locale][key] ?: buildMetal[@"en"][key] ?:
+      build664[locale][key] ?: build664[@"en"][key] ?:
       build660[locale][key] ?: build660[@"en"][key] ?:
       build634[locale][key] ?: build634[@"en"][key] ?:
       build630[locale][key] ?: build630[@"en"][key] ?:
