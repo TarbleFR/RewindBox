@@ -779,9 +779,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - **run 2, alone: PASS** (increments, revert/rebuild, presentation unit, renderer host tests, and the Core 668
         driver down to 627). Run 1's failure was the TSan pickup timing of the Core 630 harness under parallel
         load. The harness is unchanged and still strict.
-    - IPA 674 waits for the Core 903 pin. The 902 pin no longer matches the repository canonical (pin_errors:
-      "Canonical Core patch differs from the pin"). MeloNX Core 673 (pin `03ad1c68`) is in its draft. Recipient key
-      674: public half only.
+    - **Core 903 built and pinned** (`a65e5fe7`, pin `a8457e45`):
+      - run `42250353648`: Core job and Apple host harnesses green first try (Apple clang reruns core903 test);
+      - Metal checks on Claude green (run `42250353568`, fold chain);
+      - dylib 80685712 B `e053a16d`, fingerprint `cb0c4f91`, Metal 4 classes weak-imported;
+      - identities unchanged.
+    - **IPA 674 triggered**:
+      - draft `a281f578`, frozen digest `3243f990` (7262 product files), trigger `af5a04bb`;
+      - contents: RPCS3 Core 903 plus MeloNX Core 673 (pin `03ad1c68`);
+      - recipient key 674: public half only.
+    - Next, in two trees from `e4874e8`:
+      - M5 part 1 (M4 agent, m4 tree): boot-time shaders_cache precompile, persistent MTL4 archives via
+        MTL4PipelineDataSetSerializer, checkpoints during play;
+      - remaining counted M3 gaps (M3 agent, m3 tree `metal-m3-gaps`): scaled loads, integer/stencil blits, scaled
+        depth↔colour copies, compressed readbacks, GPU deswizzle/tiling as VK.
+    - Device parity (M5 part 2) needs the maintainer's runs.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
