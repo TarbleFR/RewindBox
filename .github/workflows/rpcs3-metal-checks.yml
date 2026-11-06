@@ -6,7 +6,7 @@ name: RPCS3 Metal renderer checks
 run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
 'on':
   push:
-    branches: [work/rpcs3-metal-native-20261105]
+    branches: [work/rpcs3-metal-native-20261105, Claude]
     paths:
       - 'build-utils/rpcs3/embedded-core.patch'
       - 'build-utils/rpcs3/canonical-source.json'
@@ -46,18 +46,21 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Apply the next stage's work in progress (M2 shader stack)
+      - name: Check the folded Metal M2 sources (Core 902)
         shell: bash
         run: |
           set -euo pipefail
           S="$RPCS3_SOURCE"
-          mkdir -p "$S/3rdparty/rewindbox-spirv-cross"
-          # The SPIRV-Cross files the Core vendors are the ones tracked here (SOURCE.txt lists their SHA-256).
+          # Core 902 folds the M2 work (metal-wip-from-901.patch) and the vendored SPIRV-Cross into the canonical delta:
+          # the materialized source already contains both. The vendored files are the ones packages/neo_shader_kit tracks
+          # (SOURCE.txt lists their SHA-256), byte for byte; CMakeLists.txt is RewindBox's own build of them.
           (cd packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross && shasum -a 256 -c <(sed -n 's/^\([0-9a-f]\{64\}\)  \(.*\)$/\1  \2/p' SOURCE.txt))
-          cp packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/* "$S/3rdparty/rewindbox-spirv-cross/"
-          git -C "$S" apply --check "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
-          git -C "$S" apply "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
-          git -C "$S" status --short | head -40
+          for f in packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/*; do
+            cmp "$f" "$S/3rdparty/rewindbox-spirv-cross/$(basename "$f")"
+          done
+          test -f "$S/3rdparty/rewindbox-spirv-cross/CMakeLists.txt"
+          git -C "$S" apply --reverse --check "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
+          echo "PASS: the M2 work and the vendored SPIRV-Cross are part of the canonical source"
       - name: Toolchain
         shell: bash
         run: |

@@ -101,14 +101,14 @@ jobs:
       - name: Select the retained Core toolchain
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.4'
+          xcode-version: '26.3'
       - name: Restore compiler objects of the same frozen recipe
         id: candidate-objects
         uses: actions/cache/restore@v4
         with:
           path: ~/Library/Caches/ccache
-          key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
-          restore-keys: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          restore-keys: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
       - name: Authenticate the Core ${{ steps.core-build.outputs.build }} source closure and the native dependency
         shell: bash
         env:
@@ -263,7 +263,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ~/Library/Caches/ccache
-          key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
       - name: Preserve real diagnostics including partial failures
         if: always()
         uses: actions/upload-artifact@v4
