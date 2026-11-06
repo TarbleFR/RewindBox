@@ -788,7 +788,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - Candidate iOS CI green: run `42262048824`.
       - Canonical `f11ab251` (444 postimages).
       - Local: route, closure, codegen and fast driver parts PASS.
-    - Next: pin 904; IPA 676 with MeloNX Core 675 when it is handed over (asked).
+    - Next, as the maintainer asked (6 Nov evening):
+      - IPA 676 waits for MeloNX Core 675 whatever happens, with no fallback to 673;
+      - it ships the complete Metal engine;
+      - the last parity items go into Core 905 (M4 tree from `b792f55`): iOS ZCULL overrides, multi-worker boot
+        precompile, MSAA math check, remaining VK-executed counted paths.
+      - Metal stays opt-in until a first device run. Vulkan removal still needs measured parity.
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
