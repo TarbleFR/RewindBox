@@ -602,3 +602,16 @@ Core 667: run `42129498597` (`4a0dffff`, 47 fresh gates, two simulator sessions)
 `13464317590` (`9c44556c…`), iPhone binary `788ec63f…` (38143840 B, official GC, carries the journal strings above),
 fingerprint `ef4c49db…`, contract `36e69afc`; [receipt](evidence/melonx-667-gates/run.json). Handed to main for the next
 common IPA.
+
+## IPA 669 to IPA 674 on the device: Core 670 to Core 677 (6 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Inputs: private journals of IPA 669, 672 and 674 (Hogwarts pids 17770, 18339, 21216, 21727); not in the repository.
+Results on the device so far: no visual bug on 672 and 674 (NaN scrub instead of precise math); first frame 17 s again;
+Hogwarts after SSBU in one process works; the second 674 session stutters far less (checkpointed pipelines).
+
+| Problem | Proof | Cause | Correction | Verification | Result / limit |
+| --- | --- | --- | --- | --- | --- |
+| No first frame in 232 s (IPA 669) | render thread stops before "Vulkan pipeline cache initialized" | MoltenVK 1.4.2 recompiles every pipeline-cache library with the precise-math option | Core 670/671: precise math off for every title; Hogwarts-only NaN scrub of FP32 colour and image writes | nan-scrub gate | first frame 17 s on 672; no sky artifact on 672/674 |
+| Stutter and a hang-detector abort; the main cache stays at 301.62 MiB (IPA 672) | 215 s of render-thread pipeline creation | the main pipeline cache is written only at a clean close, and sessions end in crashes | Core 673 `adapt_main_cache_checkpoint`: written during play from a worker, at most every 180 s | main-cache-checkpoint gate | 1532 shaders loaded on 674; second session far smoother |
+| Freeze during a checkpoint (674, pid 21216) | 2818 ms with the main lock held; 4.4 s of pipeline creation in a 6.6 s window | render-thread creation waits for the checkpoint | Core 675 `adapt_checkpoint_side_cache`: side cache during a checkpoint, merged at its end | control waits 420 ms, candidate 3 ms | device check pending |
+| Abort after 7 min (674, pid 21727) | `NullReferenceException` in `BufferCache.GetBuffer` from `CommitGraphicsBindings`; `hostMemoryBudget=False` | eviction above the 256 MiB limit is active in both settings, but recreation only with tracking on | Core 677 `adapt_evicted_buffer_recreate`: recreation and multi-range eviction deferral in both settings | control reproduces the exception; candidate recreates; tracking on unchanged | device check pending |

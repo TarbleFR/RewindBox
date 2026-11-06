@@ -1145,6 +1145,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   cache stuck at 301.62 MiB because sessions end in crashes. iPhone binary `9e55859a…`, fingerprint `16fda8bd…`;
   [receipt](evidence/melonx-673-gates/run.json). forced-syncpoint-wait failed on macOS 3 times (168/170/184 ms vs
   150 ms): margin to analyse before the next Core.
+- **IPA 674 on the device (6 Nov, Hogwarts, private journals):**
+  - pid 21216 (first session): 1532 shaders loaded (1199 before). One play-time checkpoint wrote 545 main pipelines
+    but held the main lock 2818 ms, and the render thread waited. Fixed by Core 675.
+  - pid 21727 (second session, `hostMemoryBudget=False`): far fewer stutters, so the checkpoint kept its pipelines.
+    The app aborted after about 7 min on a NullReferenceException in `BufferCache.GetBuffer` <- `GetBufferRangeAligned`
+    <- `BufferManager.CommitGraphicsBindings` (RenderThread, MacroHLE.DrawElements). Fixed by Core 677.
+- **Core 675** (`e1f709d5`, run 42262909012 building): Core 673 + adapt_checkpoint_side_cache. During a checkpoint, a
+  main-cache creation goes to a side cache that is merged under the main lock at the end, so there is no wait and no
+  skipped draw. Gate checkpoint-side-cache: control waits 420 ms, candidate 3 ms. 50 gates;
+  [receipt](evidence/melonx-675-gates/run.json). Pin follows the green run.
+- **Core 677 = Core 675 + adapt_evicted_buffer_recreate** (BufferCache.cs, every title):
+  - Cause, from MeloNX source: on Apple unified memory the buffer cache always has a byte limit (256 MiB for Hogwarts
+    when host budget tracking is off), and `AddBuffer` always evicts above it. Only the binding lookups
+    (`GetOrCreateBuffer`, `GetOrCreateSparseBuffer`) and the multi-range eviction suppression depended on tracking.
+    With tracking off, a buffer evicted after a binding recorded its range came back as null.
+  - Every recent Hogwarts session ran with tracking off.
+  - Fix: the lookups recreate a missing or partly covering buffer in both settings, and eviction is deferred during
+    a multi-range creation. Limit, eviction order, trimming and the setting are unchanged.
+  - New gate evicted-buffer-recreate (22 checks, real BufferCache.cs members):
+    - control, tracking off: `NullReferenceException`, a partly covering buffer is returned, and the sparse lookup
+      returns null;
+    - candidate: recreated in every case;
+    - tracking on: identical in control and candidate.
+  - fragmented-reads, hogwarts-dma-copies, checkpoint-side-cache and main-cache-checkpoint reran green.
+  - Contract `0271ab0d…`: 51 gates, 169 inputs; contract test `--archive` 392 checks.
+    [Receipt](evidence/melonx-677-gates/run.json).
+  - Not tested on a device. Its CI queues behind the Core 675 run (same concurrency group, no cancel).
+  - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
+    the crash fix); otherwise ship 675 and take 677 in the next IPA.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.

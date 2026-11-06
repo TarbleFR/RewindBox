@@ -18,6 +18,7 @@
   "build-utils/melonx/adapt_cold_texture_release.py",
   "build-utils/melonx/adapt_descriptor_scratch_all_titles.py",
   "build-utils/melonx/adapt_device_short_trim.py",
+  "build-utils/melonx/adapt_evicted_buffer_recreate.py",
   "build-utils/melonx/adapt_forced_syncpoint_wait.py",
   "build-utils/melonx/adapt_guest_fault_context.py",
   "build-utils/melonx/adapt_hogwarts_dma_copies.py",
@@ -2966,6 +2967,27 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ]
+  },
+  {
+   "name": "evicted-buffer-recreate",
+   "script": "test/melonx_evicted_buffer_recreate_test.py",
+   "report": "evicted-buffer-recreate-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs"
    ]
   }
  ]
