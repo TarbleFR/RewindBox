@@ -39,6 +39,7 @@
 # Core compile request: Core 665 (core-build.json build 665, canonical patch 614ba1b8), request 2 (the orchestrator include of RSXThread.cpp outside the RetroAchievements patch context; request 1 also met an external HTTP 503 on the dependency download).
 # Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 1 (the thread orchestrator v1 of Core 665 removed by the maintainer: every Core file back to Core 664 except the comment-only ios/IOSThreadOrchestrator.h, the host test page row removed, linking the MoltenVK dependency of run 42051417882 again, whose recorded bridge is the current one).
 # Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 2 (the same source, linking the MoltenVK dependency of run 42140012211, which records the current dependency workflow and host bridge).
+# Core compile request: Core 902 (core-build.json build 902, canonical patch fb5dc826), request 1 (Core 668 plus the native Metal 4 renderer, stages M1 and M2, opt-in per title; Core job on Xcode 26.3 for the iOS 26 SDK; linking the MoltenVK dependency of run 42213572281, which records the Metal host bridge).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
