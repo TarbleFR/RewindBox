@@ -1010,6 +1010,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (FP32 colour/image writes: NaN -> 0, Inf -> +/-65504, integer bit tests). iPhone binary `419b484f…`, fingerprint
   `83a94f8a…`, contract `6b9d331f`; [receipt](evidence/melonx-671-gates/run.json). Core 670 built green, not pinned.
   First Hogwarts launch rebuilds its shader translations once. Not tested on a device.
+- **IPA 672 on the device (6 Nov 14:18 UTC, Hogwarts launched first, pid 18339):** first frame 17 s (the IPA 669 hang is
+  gone); "Loading 1198 shaders" (759 before: in-play saves reach the disk); MoltenVK fast math. At t=70 s the render
+  thread stopped logging for 26 s (last window: 6.1 s of 10.5 s creating pipelines; 433 SPIR-V->MSL conversions,
+  2893 MTLLibrary compiles, worker cache checkpoints 16 -> 43 MiB), then the guest's FHeartBeatThread wrote to
+  address 3 (UE hang detector) -> abort. Reading: the NaN-scrub retranslation invalidated the pipeline cache and the
+  first session's recompile froze rendering past the game's hang limit. Next: relaunch test; if it recurs, Core 673
+  (scrub off or warm-up priority).
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.
