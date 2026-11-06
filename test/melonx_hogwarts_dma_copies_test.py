@@ -114,6 +114,7 @@ LOT_FILES = {
     'adapt_hogwarts_precise_math': ['src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'],
     'adapt_shader_save_journal': [],
     'adapt_nan_scrub': [],
+    'adapt_main_cache_checkpoint': [],
 }
 
 checks = 0
