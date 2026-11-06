@@ -287,6 +287,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Hogwarts first frame within about 10 s, from the second launch;
     - the Professor Fig sky;
     - Dark Souls pacing.
+- **Delivered/verified: 674 (6 Nov, run `42254239320`, trigger `af5a04bb`, five jobs green first try):** IPA
+  249636336 B, SHA-256 `6696bc48…d56c`; [receipt](evidence/rewind674/delivery.json) (12 proofs), key deleted.
+  - Contents: RPCS3 Core 903 (pin `a8457e45`: Metal M1-M4, opt-in) and MeloNX Core 673 (pin `08a2cc6b`: main
+    pipeline cache checkpointed during play).
+  - Shared as a private link (port 8674) plus the file. The 8672 link server stopped at its time limit and was
+    not restarted.
+  - Device checks wanted:
+    - Metal 4 on a title (iOS 26): textures, overlays, the COREPROF METAL / textures / M4 lines;
+    - AC IV with NEOSTATION_VA_CENSUS_V1;
+    - Hogwarts journals across 2-3 sessions;
+    - Dark Souls pacing.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
