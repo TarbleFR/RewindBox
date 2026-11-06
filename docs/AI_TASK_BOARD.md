@@ -794,6 +794,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - the last parity items go into Core 905 (M4 tree from `b792f55`): iOS ZCULL overrides, multi-worker boot
         precompile, MSAA math check, remaining VK-executed counted paths.
       - Metal stays opt-in until a first device run. Vulkan removal still needs measured parity.
+  - **IPA 676 delivered and verified (6 Nov)**: trigger `c8bf35d8`, run `42277254272`, five jobs green first try.
+    - Contents: RPCS3 Core 905 (pin `571e3eee`, run `42265781315`: iOS 27 JIT high window, complete Metal 4 engine
+      M1-M5 with the parity items) and MeloNX Core 677 (pin `87948fb5`, run `42269541984`, superset of 675).
+    - IPA 249807829 B, SHA-256 `53359a27…f6c7`; offline verification passed (SHA256SUMS, signer receipt, 6
+      validators exit 0); [receipt](evidence/rewind676/delivery.json) with 12 proofs; key 676 deleted.
+    - Sent privately (local link port 8676 + file). Not run on a device yet.
+    - Open: on a Core init failure the UI stays on "Lancement du jeu" instead of the error (Plugin.mm, MoltenVK
+      dependency input), next host lot.
+    - Next: device feedback on iOS 27 launch, Metal 4 on one title, AC IV census; Metal by default only after a
+      device run, Vulkan removal only after measured parity.
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
