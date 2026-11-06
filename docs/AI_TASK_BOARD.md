@@ -1177,6 +1177,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     the later adapters reproduce it (29 checks). Core 677 run 42265041533 failed first on the hogwarts-dma-copies
     queue-present timing (13.0 ms against 6.0 ms on the runner; the same gate passed in the 675 run; unchanged).
     Rebuild requested on the corrected commit.
+  - **Verified and pinned:** run 42269541984 attempt 1 (`5c76b8e0`, 51 gates, two simulator sessions), job 128070204109,
+    artifact 13532426874 (90669164 B, `f21a9984…`). iPhone binary `6f79304d…` (38160240 B), fingerprint `5e375677…`,
+    contract `61696ac7…`. Markers in the binary: side cache (EnterMainCreation, MergeSideCache) and the play-time
+    checkpoint line; the artifact's adapted BufferCache.cs carries the recreation. Engine evidence passed offline.
+    Handed to main for IPA 676. Core 675 is never pinned. Not tested on a device.
   - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
     the crash fix); otherwise ship 675 and take 677 in the next IPA.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of

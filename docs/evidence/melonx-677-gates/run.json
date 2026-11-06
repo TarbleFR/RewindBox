@@ -78,5 +78,34 @@
  "ciHistory": [
   "Core 675 run 42262909012: main-cache-checkpoint receipt reported the Core 673 tested image as its postimage (Fixture did not compile the final source: PipelineCacheManager.cs); fixed here, the receipt binds the final preparation and checks the later adapters reproduce it",
   "Core 677 run 42265041533 (0efebe75): hogwarts-dma-copies queue-present timing 13.0 ms above its 6.0 ms bound on the macOS runner (the same gate passed in run 42262909012); not changed"
- ]
+ ],
+ "ciRuns": {
+  "42262909012 (e1f709d5, Core 675)": "failed in verify_dma_core: main-cache-checkpoint receipt reported its tested image as postimage; fixed in 5c76b8e0; Core 675 never pinned.",
+  "42265041533 (0efebe75, Core 677)": "failed in hogwarts-dma-copies on the queue-present timing (13.0 ms against 6.0 ms); unchanged gate.",
+  "42269541984 attempt 1 (5c76b8e0, Core 677)": "passed: 51 fresh gates, NativeAOT compile and ABI, binding, native frameworks, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42269541984,
+  "attempt": 1,
+  "job": 128070204109,
+  "source": "5c76b8e03215636b24dce4d37d78a4d415e956e2",
+  "artifact": 13532426874,
+  "artifactBytes": 90669164,
+  "artifactSha256": "f21a9984e6b9bc6cae92f3b0a1d19c446aba8b3ca04bd65675976159740472a4",
+  "expiresAt": "2026-11-20T18:51:27Z",
+  "iphoneBinarySha256": "6f79304dc67f973d20068cf228600d2a941289d3a535bc07073800323a222418",
+  "iphoneBinaryBytes": 38160240,
+  "packagedFingerprint": "5e375677e7c01d406a779e4422bc0c0bbb97a9fd076d798b1b9bddb2003c6d36",
+  "resultSha256": "f53e4596536dbeeb43eaeabb82b50ab9ba1fa9d21e8379a526055f97317c651b",
+  "contractSha256": "61696ac7489d28e53a635149482ff77cbb592a1de29d5260f26042b5e57c848a",
+  "iphoneBinaryMarkers": [
+   "checkpointed during play",
+   "EnterMainCreation",
+   "MergeSideCache",
+   "GetOrCreateSparseBuffer"
+  ],
+  "adaptedSourceInArtifact": "BufferCache.cs carries adapt_evicted_buffer_recreate (2 tracking conditions left: Initialize, Trim); PipelineCacheManager.cs carries adapt_checkpoint_side_cache",
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 673 (9375cd70, pin 03ad1c68, fingerprint 16fda8bd)"
+ }
 }
