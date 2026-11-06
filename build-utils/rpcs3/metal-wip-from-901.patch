@@ -841,10 +841,10 @@ index 0000000..bb306e9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLDraw.cpp b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
 new file mode 100644
-index 0000000..89458dc
+index 0000000..e797b7f
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
-@@ -0,0 +1,1101 @@
+@@ -0,0 +1,1106 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): the draw path of the native Metal 4 renderer (VKDraw.cpp and the draw parts of
 +// VKGSRender.cpp ported to Metal 4 argument tables and render encoders).
@@ -1782,6 +1782,16 @@ index 0000000..89458dc
 +		return;
 +	}
 +
++	struct
++	{
++		f32 color[4];
++		f32 depth[4];
++	} params{ { color[0], color[1], color[2], color[3] }, { depth, 0.f, 0.f, 0.f } };
++
++	// Allocated before the pass is opened, as in emit_geometry: a full ring submits, which ends the encoder.
++	const usz offset = m_rings[ring_push_constants].alloc<32>(sizeof(params));
++	std::memcpy(m_rings[ring_push_constants].map(offset), &params, sizeof(params));
++
 +	open_render_pass();
 +	const auto& encoder = m_commands.encoder();
 +
@@ -1798,19 +1808,14 @@ index 0000000..89458dc
 +		ds.back = ds.front;
 +	}
 +
-+	struct
-+	{
-+		f32 color[4];
-+		f32 depth[4];
-+	} params{ { color[0], color[1], color[2], color[3] }, { depth, 0.f, 0.f, 0.f } };
-+
-+	const usz offset = m_rings[ring_push_constants].alloc<32>(sizeof(params));
-+	std::memcpy(m_rings[ring_push_constants].map(offset), &params, sizeof(params));
-+
 +	mtl::set_render_pipeline(encoder, pipeline);
 +	mtl::set_depth_stencil_state(encoder, get_depth_stencil_state(ds));
 +	mtl::set_stencil_reference(encoder, stencil, stencil);
++	// vkCmdClearAttachments ignores the rasterization state: no culling and no depth bias left by the last draw
++	// (MoltenVK's helper draw resets both the same way).
 +	mtl::set_cull_mode(encoder, mtl::cull_mode::none);
++	mtl::set_depth_bias(encoder, 0.f, 0.f, 0.f);
++	mtl::set_depth_clip_mode(encoder, mtl::depth_clip_mode::clip);
 +	mtl::set_viewport(encoder, { 0., 0., static_cast<f64>(m_render_pass_size.width), static_cast<f64>(m_render_pass_size.height), 0., 1. });
 +
 +	mtl::scissor_rect scissor = m_scissor;
@@ -2935,7 +2940,7 @@ index 0000000..48010d9
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 33538c9..6fbe96f 100644
+index 33538c9..9ff58d3 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -1,5 +1,6 @@
@@ -3172,13 +3177,14 @@ index 33538c9..6fbe96f 100644
  	m_present_pipeline.reset();
  	m_present_table.reset();
  	m_present_sampler.reset();
-@@ -137,22 +278,63 @@ void MTLGSRender::on_exit()
+@@ -137,22 +278,73 @@ void MTLGSRender::on_exit()
  	m_queue.reset();
  }
  
 -void MTLGSRender::begin()
 +void MTLGSRender::begin_frame()
-+{
+ {
+-	rsx::thread::begin();
 +	frame_slot& slot = m_frames[m_frame_index % frames_in_flight];
 +
 +	// The slot's previous frame must be complete before its allocator and ring space are reused.
@@ -3199,11 +3205,15 @@ index 33538c9..6fbe96f 100644
 +	m_current_frame = &slot;
 +	m_render_pass_dirty = true;
 +	invalidate_environment();
-+}
-+
+ }
+ 
+-void MTLGSRender::end()
 +void MTLGSRender::invalidate_environment()
  {
--	rsx::thread::begin();
+-	// Not rendered in M1: the draw's pipeline dependencies run (as for a skipped draw), and it is counted.
+-	execute_nop_draw();
+-	mtl::counters().draws_not_rendered.fetch_add(1, std::memory_order_relaxed);
+-	rsx::thread::end();
 +	m_vertex_env_valid = false;
 +	m_xform_constants_valid = false;
 +	m_fragment_constants_valid = false;
@@ -3212,13 +3222,10 @@ index 33538c9..6fbe96f 100644
 +	m_stipple_valid = false;
  }
  
--void MTLGSRender::end()
+-void MTLGSRender::clear_surface(u32 /*arg*/)
 +void MTLGSRender::flush_command_queue(bool wait)
  {
--	// Not rendered in M1: the draw's pipeline dependencies run (as for a skipped draw), and it is counted.
--	execute_nop_draw();
--	mtl::counters().draws_not_rendered.fetch_add(1, std::memory_order_relaxed);
--	rsx::thread::end();
+-	mtl::counters().clears_not_rendered.fetch_add(1, std::memory_order_relaxed);
 +	// An early submission within the frame (readback, full ring): the frame keeps its allocator.
 +	const u64 value = m_commands.submit(true);
 +	if (wait)
@@ -3229,23 +3236,31 @@ index 33538c9..6fbe96f 100644
 +
 +	m_commands.begin(m_current_frame->allocator, "RSX frame (continued)");
 +	m_render_pass_dirty = true;
- }
- 
--void MTLGSRender::clear_surface(u32 /*arg*/)
++}
++
 +bool MTLGSRender::on_ring_exhausted(usz size)
- {
--	mtl::counters().clears_not_rendered.fetch_add(1, std::memory_order_relaxed);
++{
 +	mtl::counters().ring_exhaustions.fetch_add(1, std::memory_order_relaxed);
 +	rsx_log.warning("Metal: a ring needs %llu bytes: submitting and waiting for the GPU", static_cast<u64>(size));
 +
 +	flush_command_queue(true);
 +	m_commands.wait_idle();
++
++	// grow() then frees the whole exhausted ring from its PUT position, so the rest of this frame may write over
++	// space that a frame slot's saved GET still describes as older data: restoring such a GET at a later
++	// begin_frame() would hand this frame's in-flight data out again. No slot restores its saved positions; each
++	// ring reclaims space again from the next frame end recorded after this point.
++	for (frame_slot& slot : m_frames)
++	{
++		slot.positions_valid = false;
++	}
++
 +	invalidate_environment();
 +	return true;
  }
  
  void MTLGSRender::begin_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
-@@ -211,46 +393,6 @@ void MTLGSRender::update_drawable_size()
+@@ -211,46 +403,6 @@ void MTLGSRender::update_drawable_size()
  	mtl::configure_layer(m_layer, m_device, mtl::pixel_format::bgra8_unorm, width, height);
  }
  
@@ -3292,7 +3307,7 @@ index 33538c9..6fbe96f 100644
  bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch)
  {
  	if (!vm::check_addr(address, vm::page_readable, pitch * (height - 1) + width * 4))
-@@ -262,8 +404,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -262,8 +414,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	{
  		if (slot.upload)
  		{
@@ -3302,7 +3317,7 @@ index 33538c9..6fbe96f 100644
  		}
  
  		mtl::texture_descriptor desc{};
-@@ -276,7 +417,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -276,7 +427,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  		ensure(slot.upload, "Metal display buffer texture");
  		slot.upload_width = width;
  		slot.upload_height = height;
@@ -3311,7 +3326,7 @@ index 33538c9..6fbe96f 100644
  	}
  
  	// As the Vulkan renderer's upload_image_simple: each big-endian A8R8G8B8 word stored as a native u32 (BGRA8).
-@@ -291,59 +432,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -291,59 +442,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	return true;
  }
  
@@ -3414,7 +3429,7 @@ index 33538c9..6fbe96f 100644
  }
  
  void MTLGSRender::flip(const rsx::display_flip_info_t& info)
-@@ -387,27 +527,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -387,27 +537,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
  		pitch = width * 4;
  	}
  

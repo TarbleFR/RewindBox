@@ -171,11 +171,28 @@ Pièces écrites :
   - Initialisation identique à Vulkan sans lecture mémoire : couleur (0, 0, 0, 1), profondeur 1.0, stencil 255.
   - Héritage copié par le GPU quand le format et l'échelle sont identiques.
 
-Reste à écrire pour la première image, c'est-à-dire les dessins d'un jeu exécutés par Metal 4 et présentés :
-- branchement dans `MTLGSRender` : préparation des cibles, passes de rendu (effacements par actions de chargement),
-  envoi des sommets et des index, environnements et constantes, liaisons par tables d'arguments, dessins ;
+Écrit ensuite (`c889bff2`, `f62fd724`), pour la première image, c'est-à-dire les dessins d'un jeu exécutés par Metal 4
+et présentés :
+- branchement dans `MTLGSRender` : préparation des cibles, passes de rendu, envoi des sommets et des index,
+  environnements et constantes, liaisons par tables d'arguments, dessins et effacements ;
 - présentation de la surface qui tient l'adresse du tampon d'écran ;
 - remplacement des tables d'arguments et de la résidence de M1.
+
+Revue indépendante du chemin de dessin (6 novembre, lecture du code, rien exécuté). Trois défauts confirmés sont
+corrigés :
+- Anneau plein : l'attente du GPU libère tout l'anneau épuisé, mais un emplacement de frame gardait une position GET
+  plus ancienne. La restaurer au frame suivant aurait rendu de la place encore lue par le GPU. Désormais, aucun
+  emplacement ne restaure ses positions après un épuisement.
+- Effacement : la place des constantes était réservée après l'ouverture de la passe. Si l'anneau débordait, la
+  soumission fermait l'encodeur et l'effacement était perdu, alors que la surface était marquée écrite. La réservation
+  se fait maintenant avant l'ouverture de la passe, comme pour les dessins.
+- Effacement de la profondeur : le biais de profondeur du dessin précédent s'appliquait. Il est remis à zéro, comme le
+  fait `vkCmdClearAttachments` (et l'aide de dessin de MoltenVK), avec le mode de découpe « clip ».
+
+Un point reste plausible et n'est pas modifié : l'offset d'index `uint16` aligné sur 2 octets dans les dessins
+indexés en plusieurs plages. MoltenVK envoie les mêmes offsets (`ibb.offset + firstIndex * idxSize`) au même iPhone
+avec le moteur Vulkan. On le contrôlera avec la validation Metal sur l'IPA de test. La revue n'a pas couvert les cibles,
+le cache de programmes, tout l'état de pipeline ni les formats.
 
 Limites assumées et comptées de cette étape. Aucune n'est simulée : chacune a un compteur `COREPROF`.
 - Textures : pas encore de cache de textures, une texture neutre est liée par unité ; c'est l'étape M3.
