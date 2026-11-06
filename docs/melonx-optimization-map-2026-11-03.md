@@ -583,3 +583,22 @@ Short iPhone test of IPA 662 (MeloNX part): launch Hogwarts Legacy from a cold s
 Fig" area and cast a few spells (sky, black blobs, cyan block); 10 minutes of play with the left stick on touch and,
 if available, a controller; one pause of a minute in the menu; close the game, relaunch it; send the
 `MeloNX-performance.log`, `MeloNX-core.log`, `MeloNX-launch.log` of that session. Resolution criteria: the table above.
+
+## IPA 662 and IPA 666 on the device: Core 663 and Core 667 (5-6 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Inputs: private journals of IPA 662 and IPA 666 (pids 15155 and 15186, three screenshots); not in the repository.
+Core 663 (Core 661 without the rebuilt NativeAOT GC, official .NET 10.0.0 GC, pin `89e1c361`) removed the silent deaths
+of IPA 662: on IPA 666, SSBU played 4 min and closed cleanly, Hogwarts played 21 min. The remaining IPA 666 defects
+and their Core 667 corrections (host-tested only; no device result yet):
+
+| Problem | Proof | Cause | Correction | Verification | Result / limit |
+| --- | --- | --- | --- | --- | --- |
+| Hogwarts after SSBU in one process: SIGABRT 16 s after its launch (pid 15155) | "JIT Cache exhausted"; arena 512 MiB mapped for SSBU; Hogwarts with its update needs 1 GiB; Hogwarts first 6/6 fine, another title first 3/3 died (658, 662, 666) | the helper maps the code arena once per process, at the first launch's size | `native/melonx/EmbeddedRuntime.cs` `EmbeddedJitArenaRequest`: 1 GiB at the first launch where the process may use 6 GiB or more (maintainer's choice); a larger need on a smaller mapped arena is refused before the launch with a journal message | core667-fixes decision table (11 cases) | device check: SSBU then Hogwarts without restart; about 512 MiB more footprint for other titles |
+| Session ended by itself after 21 min (pid 15186) | render worker `NullReferenceException` in `TextureArray.QueueWriteToReadBarriers` | a buffer texture array (whole-pool TextureBuffer, adapt_bindless_sources) holds no views | `adapt_buffer_array_barriers`: buffer texture and image arrays queue no image barrier, like a buffer texture bound alone | core667-fixes: the control reproduces the exception, the candidate does not | device check: a session past 20 min |
+| Black sky blocks with blue edges, with the Core 661 barrier lever active | screenshots; lever active in the journal, so the barrier reading is refuted | hypothesis: NaN/Inf values under MoltenVK fast math (always `MTLMathModeFast`) | `adapt_hogwarts_precise_math`: safe math for Hogwarts only (set by the launch preflight), journal line `MoltenVK math mode precise` | core667-fixes: the configuration bytes differ only at `FastMathEnabled` | hypothesis test; possible GPU cost for Hogwarts |
+| Stutter in fights and animations | 199 s of 1259 s creating pipelines on the render thread (114.6 s graphics, 84.7 s compute; 40 five-second windows over 2 s); 759 cached programs at every launch, 1238 at the end of the session | undecided: whether programs made in play reach the disk cache | `adapt_shader_save_journal`: counters only (queued, written, dropped, still queued, longest wait at the head) | core667-fixes: real `ProcessShaderCacheQueue` and `Dispose` | the next launch's `Loading N shaders` and the `shaderCache saves` lines decide the next lever |
+
+Core 667: run `42129498597` (`4a0dffff`, 47 fresh gates, two simulator sessions), pin `ffaa2046`: artifact
+`13464317590` (`9c44556c…`), iPhone binary `788ec63f…` (38143840 B, official GC, carries the journal strings above),
+fingerprint `ef4c49db…`, contract `36e69afc`; [receipt](evidence/melonx-667-gates/run.json). Handed to main for the next
+common IPA.
