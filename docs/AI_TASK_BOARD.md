@@ -717,8 +717,38 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Freeze dry-run blockers: only the pending Core 668 pin.
     - Link: the repository is public, so any GitHub link to the plaintext IPA would publish it, and the delivery
       workflow is read-only by contract. No storage connector is connected.
-    - Next: pin Core 668, regenerate, freeze, trigger and verify 669. Then deliver it over a private channel (the
-      session file, plus a download page served from this session for the app's preview pane).
+    - Compile request 1 stopped at the MoltenVK dependency authentication: run `42051417882` recorded the
+      dependency workflow before the Core 665 request lines. Fix:
+      - new dependency run `42140012211`, source `05df4611`;
+      - libMoltenVK.a `d19d3a42`, byte-identical;
+      - its 12 recorded inputs equal the current files;
+      - linked in `9e06c34d`.
+    - Request 2 `66b37c78`, run `42141714434`: Core job and Apple host harnesses green on the first try.
+    - Pinned `3b2fb617`, pin sha `702bf8a0`:
+      - dylib `d1d6c4ca`, fingerprint `ddf83d86`;
+      - codegen unchanged;
+      - every marker present, the four orchestrator markers absent;
+      - pin_errors empty; 15 Apple harnesses passed.
+- **Delivered/verified: IPA 669 (6 Nov):**
+  - Draft regenerated `517e223b`, frozen without blocker (effective digest `d1d96771`), contract (56 tests) and
+    trigger-paths passed.
+  - Trigger `9edd307c`, run `42144057315`: all five jobs green on the first try. The Flutter job includes the new
+    AC IV profile test.
+  - IPA 247202134 B, SHA-256 `1e9df95b…1b21`; [receipt](evidence/rewind669/delivery.json), 12 proof files.
+  - Offline checks passed:
+    - decryption, SHA256SUMS and the signer receipt;
+    - validators 0;
+    - changed images: App, MeloNXCore, libRPCS3Core, both bridges, Runner.
+  - Packaged Cores = pins: RPCS3 Core 668 `ddf83d86…`, MeloNX Core 667 `ef4c49db…`. Recipient key deleted.
+  - Delivered as the session file and as a download page served from this session (port 8669, reported to the
+    app's preview pane; GET only, the page and the file, nothing else reachable).
+  - No public link: the repository is public.
+  - No device run yet. Wanted:
+    - AC IV CONFIG_LAYERS ppu_decoder=Recompiler (LLVM) and the first-boot PPU compile, then the title screen and a
+      new game;
+    - BO2 without the orchestrator (FREEZE_EPISODE, PPUGRACE664);
+    - MeloNX: SSBU then Hogwarts without restarting, Hogwarts over 20 min, the Professor Fig sky, the shader count.
+  - Known MeloNX cost: about 512 MiB more first-launch footprint (1 GiB JIT arena) for titles other than Hogwarts.
 - **Setting applied (Metal M1 turn, 5 Nov):** the same principal model as the Core 664 turn (get_session); effort `max`.
   Delegation: one Explore inventory agent and one rb-research agent, both read-only.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
