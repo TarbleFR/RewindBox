@@ -918,7 +918,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     New hypothesis: NaN/Inf under MoltenVK fast math always (MTLMathModeFast).
   - Stutter: 199 s of 1259 s on the render thread creating pipelines (40 windows over 2 s). The Hogwarts shader cache
     stayed at 759 programs (1238 at the end of a session); every Hogwarts session that day died early.
-- **Core 667 verified and pinned (6 Nov 00:20 UTC, pin `ffaa2046`); handed to main for the next common IPA:**
+- **Core 667 verified and pinned (6 Nov 00:20 UTC, pin `ffaa2046`); delivered in IPA 669 (run 42144057315, IPA
+  `1e9df95b…`, packaged fingerprint `ef4c49db` = pin; [receipt](evidence/rewind669/delivery.json)):**
   - Contents:
     - JIT arena: 1 GiB at the first launch where the process may use 6 GiB or more (maintainer's choice). A larger
       need on a smaller mapped arena is refused before the launch.
@@ -936,7 +937,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       the [evidence](evidence/melonx-667-gates/run.json). The Core workflow now fetches the native frameworks
       through the republication pinned in `build-utils/delivery/666.json`, still authenticated against engine82.
   - Not tested on a device or in a game.
-- **Next device checks (IPA with Core 667):**
+- **Next device checks (IPA 669, Core 667):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
   - The "Professeur Fig" sky: black blocks gone or not, with "MoltenVK math mode precise" in the journal.
