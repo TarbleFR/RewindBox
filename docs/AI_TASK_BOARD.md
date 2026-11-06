@@ -1171,7 +1171,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - fragmented-reads, hogwarts-dma-copies, checkpoint-side-cache and main-cache-checkpoint reran green.
   - Contract `0271ab0d…`: 51 gates, 169 inputs; contract test `--archive` 392 checks.
     [Receipt](evidence/melonx-677-gates/run.json).
-  - Not tested on a device. Its CI queues behind the Core 675 run (same concurrency group, no cancel).
+  - Not tested on a device.
+  - CI: Core 675 run 42262909012 failed in verify_dma_core: the main-cache-checkpoint receipt reported the Core 673
+    image it tests (side cache reversed) as its postimage. The receipt now binds the final preparation and checks that
+    the later adapters reproduce it (29 checks). Core 677 run 42265041533 failed first on the hogwarts-dma-copies
+    queue-present timing (13.0 ms against 6.0 ms on the runner; the same gate passed in the 675 run; unchanged).
+    Rebuild requested on the corrected commit.
   - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
     the crash fix); otherwise ship 675 and take 677 in the next IPA.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of

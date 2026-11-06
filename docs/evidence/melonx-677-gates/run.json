@@ -67,12 +67,16 @@
   "evicted-buffer-recreate-checks.json": "e8788b5e458032f93de3326f94c04bff39666d0854b032a8e051db3f338048f1",
   "fragmented-reads-checks.json": "8082706444e254fa2dd4fe1d95dcb6593abb9d4bd0b82381ce072f810f20613c",
   "hogwarts-dma-copies-checks.json": "13e648fefbe84bdd808c7f23e6d87902f6c7d5d0f41eb2e190d92a2b0e9d63b2",
-  "main-cache-checkpoint-checks.json": "2514becdea869b677957fc2c12458156afd286cd241547af126f4e6c4ab7a60a"
+  "main-cache-checkpoint-checks.json": "85574601cbe8eb25721a7399ae6b3849037793973e427629d20aa6b3016f240a"
  },
  "contract": {
-  "sha256": "0271ab0d3f2a417535e2d89d6e8a7286fce9e1e9001d9b992292c09b85924dd8",
+  "sha256": "61696ac7489d28e53a635149482ff77cbb592a1de29d5260f26042b5e57c848a",
   "freshAppleGates": 51,
   "contractTest": "392 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciHistory": [
+  "Core 675 run 42262909012: main-cache-checkpoint receipt reported the Core 673 tested image as its postimage (Fixture did not compile the final source: PipelineCacheManager.cs); fixed here, the receipt binds the final preparation and checks the later adapters reproduce it",
+  "Core 677 run 42265041533 (0efebe75): hogwarts-dma-copies queue-present timing 13.0 ms above its 6.0 ms bound on the macOS runner (the same gate passed in run 42262909012); not changed"
+ ]
 }
