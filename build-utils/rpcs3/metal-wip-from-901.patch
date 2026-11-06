@@ -2940,7 +2940,7 @@ index 0000000..48010d9
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 33538c9..9ff58d3 100644
+index 33538c9..76a6370 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -1,5 +1,6 @@
@@ -3177,7 +3177,7 @@ index 33538c9..9ff58d3 100644
  	m_present_pipeline.reset();
  	m_present_table.reset();
  	m_present_sampler.reset();
-@@ -137,22 +278,73 @@ void MTLGSRender::on_exit()
+@@ -137,22 +278,80 @@ void MTLGSRender::on_exit()
  	m_queue.reset();
  }
  
@@ -3199,6 +3199,13 @@ index 33538c9..9ff58d3 100644
 +		}
 +		slot.positions_valid = false;
 +	}
++
++	// Frame ids start at 1. The wait above completed this slot's previous frame (id frame_id - frames_in_flight) and
++	// every earlier one: invalidated surfaces older than that, and referenced by nothing, are released (Vulkan trims
++	// at each present). Nothing is recording yet, so their textures go once the work submitted so far has completed.
++	const u64 frame_id = m_frame_index + 1;
++	mtl::set_current_frame_id(frame_id);
++	m_rtts.trim(frame_id > frames_in_flight ? frame_id - frames_in_flight : 0);
 +
 +	mtl::reset_command_allocator(slot.allocator);
 +	m_commands.begin(slot.allocator, "RSX frame");
@@ -3260,7 +3267,7 @@ index 33538c9..9ff58d3 100644
  }
  
  void MTLGSRender::begin_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
-@@ -211,46 +403,6 @@ void MTLGSRender::update_drawable_size()
+@@ -211,46 +410,6 @@ void MTLGSRender::update_drawable_size()
  	mtl::configure_layer(m_layer, m_device, mtl::pixel_format::bgra8_unorm, width, height);
  }
  
@@ -3307,7 +3314,7 @@ index 33538c9..9ff58d3 100644
  bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch)
  {
  	if (!vm::check_addr(address, vm::page_readable, pitch * (height - 1) + width * 4))
-@@ -262,8 +414,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -262,8 +421,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	{
  		if (slot.upload)
  		{
@@ -3317,7 +3324,7 @@ index 33538c9..9ff58d3 100644
  		}
  
  		mtl::texture_descriptor desc{};
-@@ -276,7 +427,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -276,7 +434,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  		ensure(slot.upload, "Metal display buffer texture");
  		slot.upload_width = width;
  		slot.upload_height = height;
@@ -3326,7 +3333,7 @@ index 33538c9..9ff58d3 100644
  	}
  
  	// As the Vulkan renderer's upload_image_simple: each big-endian A8R8G8B8 word stored as a native u32 (BGRA8).
-@@ -291,59 +442,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -291,59 +449,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	return true;
  }
  
@@ -3429,7 +3436,7 @@ index 33538c9..9ff58d3 100644
  }
  
  void MTLGSRender::flip(const rsx::display_flip_info_t& info)
-@@ -387,27 +537,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -387,27 +544,70 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
  		pitch = width * 4;
  	}
  
@@ -3498,13 +3505,14 @@ index 33538c9..9ff58d3 100644
 +
 +	rsx_log.notice("COREPROF METAL frames=%llu surface=%llu memory=%llu none=%llu drawable_misses=%llu | draws=%llu skipped_program=%llu "
 +		"skipped_vertices=%llu cull_both=%llu neutral_textures=%llu clears=%llu logic_ops=%llu queries_unmeasured=%llu | "
-+		"surfaces=%llu cleared=%llu inherited=%llu transfers_todo=%llu loads_todo=%llu writes_todo=%llu | vp=%llu fp=%llu "
++		"surfaces=%llu released=%llu invalidated_live=%llu cleared=%llu inherited=%llu transfers_todo=%llu loads_todo=%llu writes_todo=%llu | vp=%llu fp=%llu "
 +		"glsl_fail=%llu msl_fail=%llu lib_fail=%llu pipelines=%llu pipeline_fail=%llu | submits=%llu early=%llu waits=%llu "
 +		"slow_waits=%llu rings_full=%llu",
 +		load(c.frames_presented), load(c.frames_from_surface), load(c.frames_from_guest_memory), load(c.frames_without_source), load(c.drawable_misses),
 +		load(c.draws_rendered), load(c.draws_skipped_program), load(c.draws_skipped_no_vertices), load(c.draws_cull_both_faces),
 +		load(c.textures_not_bound), load(c.clears), load(c.logic_ops_not_applied), load(c.occlusion_queries_not_measured),
-+		load(s.created), load(s.cleared), load(s.inherited_copies), load(s.transfers_not_implemented), load(s.memory_loads_not_implemented),
++		load(s.created), load(s.released), static_cast<u64>(m_rtts.invalidated_resources.size()), load(s.cleared), load(s.inherited_copies),
++		load(s.transfers_not_implemented), load(s.memory_loads_not_implemented),
 +		load(s.memory_writes_not_implemented), load(p.vertex_programs), load(p.fragment_programs), load(p.glsl_failures),
 +		load(p.translation_failures), load(p.library_failures), load(p.pipelines), load(p.pipeline_failures),
 +		q.submissions, q.early_submissions, q.waits, q.slow_waits, load(c.ring_exhaustions));
@@ -4652,10 +4660,10 @@ index 0000000..449947b
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
 new file mode 100644
-index 0000000..6012d47
+index 0000000..ff2815d
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
-@@ -0,0 +1,462 @@
+@@ -0,0 +1,506 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): render targets of the native Metal 4 renderer (VKRenderTargets.cpp counterpart).
 +
@@ -4671,6 +4679,7 @@ index 0000000..6012d47
 +	{
 +		surface_counters g_surface_counters{};
 +		command_context* g_command_context = nullptr;
++		u64 g_current_frame_id = 1;
 +
 +		// Stage M2.2 renders single-sampled textures, as the Vulkan renderer with the "MSAA: Disabled" setting
 +		// (until M4). As there, the descriptor's sample metrics keep the RSX AA mode: they define the guest-memory
@@ -4692,6 +4701,11 @@ index 0000000..6012d47
 +	command_context* get_command_context()
 +	{
 +		return g_command_context;
++	}
++
++	void set_current_frame_id(u64 frame_id)
++	{
++		g_current_frame_id = std::max<u64>(frame_id, 1);
 +	}
 +
 +	render_target::~render_target()
@@ -4894,6 +4908,9 @@ index 0000000..6012d47
 +				source_region.size = { static_cast<u32>(copy_width), static_cast<u32>(copy_height), 1 };
 +				copy_texture(ctx.compute("surface inheritance"), src_texture->texture, 0, 0, source_region,
 +					texture, 0, 0, { static_cast<u32>(dst_area.x1), static_cast<u32>(dst_area.y1), 0 });
++				// Commands of one Metal 4 encoder may run concurrently: the next copy (this surface's next region,
++				// or a surface inheriting from this one) opens a new encoder, whose queue barrier waits for this one.
++				ctx.end_encoder();
 +				g_surface_counters.inherited_copies++;
 +			}
 +			else
@@ -5067,7 +5084,7 @@ index 0000000..6012d47
 +
 +	void surface_cache_traits::notify_surface_invalidated(const std::unique_ptr<render_target>& surface)
 +	{
-+		surface->frame_tag = 1;
++		surface->frame_tag = g_current_frame_id;
 +
 +		if (!surface->old_contents.empty())
 +		{
@@ -5116,14 +5133,49 @@ index 0000000..6012d47
 +	void surface_cache::destroy()
 +	{
 +		invalidate_all();
++		invalidated_resources.clear();
++	}
++
++	void surface_cache::trim(u64 last_completed_frame)
++	{
++		for (auto& rtt : invalidated_resources)
++		{
++			ensure(rtt->frame_tag != 0);
++
++			if (rtt->has_refs())
++			{
++				// Still read by a pass being recorded.
++				continue;
++			}
++
++			if (rtt->frame_tag >= last_completed_frame)
++			{
++				// The frame that invalidated it may still use it.
++				continue;
++			}
++
++			if (!rtt->old_contents.empty())
++			{
++				rtt->clear_rw_barrier();
++			}
++
++			// Vulkan's threshold at low memory pressure. ~render_target hands the texture to the deferred release.
++			if (rtt->unused_check_count() >= 2)
++			{
++				rtt.reset();
++				g_surface_counters.released++;
++			}
++		}
++
++		invalidated_resources.remove_if([](const auto& rtt) { return !rtt; });
 +	}
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
 new file mode 100644
-index 0000000..03937d1
+index 0000000..dd273dc
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,295 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -5153,6 +5205,7 @@ index 0000000..03937d1
 +	struct surface_counters
 +	{
 +		std::atomic<u64> created{0};
++		std::atomic<u64> released{0};
 +		std::atomic<u64> cleared{0};
 +		std::atomic<u64> inherited_copies{0};
 +		std::atomic<u64> transfers_not_implemented{0};
@@ -5405,10 +5458,17 @@ index 0000000..03937d1
 +		}
 +	};
 +
++	// The frame being recorded (1 for the first frame), stamped on surfaces the cache invalidates.
++	void set_current_frame_id(u64 frame_id);
++
 +	class surface_cache : public rsx::surface_store<surface_cache_traits>
 +	{
 +	public:
 +		void destroy();
++
++		// VKRenderTargets.cpp surface_cache::trim at low memory pressure: releases the invalidated surfaces that
++		// nothing references any more, once the frame that invalidated them is older than the last completed one.
++		void trim(u64 last_completed_frame);
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp
