@@ -53,11 +53,23 @@ def member(text, signature):
 
 temporary = tempfile.TemporaryDirectory(prefix='melonx-pipeline-cache-persist-')
 WORK = Path(temporary.name).resolve()  # resolved: on macOS /var is a link to /private/var
+# The adapter's postimage: later adapters sharing its files (adapt_pipeline_build_journal, Core 685) reversed first; the
+# receipt binds the final preparation, which re-applying them forward must give back.
+PREPARED = FINAL_SOURCE
+POST = WORK / 'post'
+LATER = control_tools.postimage('adapt_pipeline_cache_persist', FINAL_SOURCE, POST)
+replay = WORK / 'replay'
+shutil.copytree(POST, replay)
+for later in LATER:
+    __import__(later).apply(replay)
+for name in adapter.BASELINE:
+    check((replay / name).read_bytes() == (PREPARED / name).read_bytes(), 'the later adapters reproduce the final preparation: ' + name)
+shutil.copyfile(PREPARED / (VULKAN + 'VulkanException.cs'), WORK / 'VulkanException.cs')
+FINAL_SOURCE = POST
 CONTROL = WORK / 'control'
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(FINAL_SOURCE / name, CONTROL / name)
-shutil.copyfile(FINAL_SOURCE / (VULKAN + 'VulkanException.cs'), WORK / 'VulkanException.cs')
 
 # --- Control: the adapter reversed must be the Core 671 bytes; forward reproduces the final preparation ---
 control_tools._reverse('adapt_pipeline_cache_persist', CONTROL)
@@ -142,7 +154,8 @@ inputs = ['build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/mel
           'test/melonx_main_cache_checkpoint/Double.cs', 'test/melonx_pipeline_cache_persist/Program.cs', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
-               postimages={n: sha(FINAL_SOURCE / n) for n in adapter.BASELINE}, reports=reports, sdk=sdk, host=platform.system(),
+               postimages={n: sha(PREPARED / n) for n in adapter.BASELINE},
+               testedPostimages={n: sha(FINAL_SOURCE / n) for n in adapter.BASELINE}, reports=reports, sdk=sdk, host=platform.system(),
                physicalDeviceTested=False, gameTested=False, inputs={n: sha(ROOT / n) for n in inputs},
                limitation='Host fixture of the real cache manager with a Vulkan double. Whether iOS leaves the app the few seconds a '
                           'pause write takes before suspending it is known only from a device run.')

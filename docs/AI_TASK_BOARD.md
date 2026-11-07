@@ -1319,6 +1319,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     fingerprint `181a9994…`, contract `f5d160f6…`. Markers in the binary: pause checkpoint, cache room, audio deferred
     start, side cache. Engine evidence passed offline. Handed to main for the next common IPA, with b1edef18,
     fc515ee7, bd1f963e and 530b18f6. Not tested on a device.
+- **Core 685 = Core 683 + adapt_pipeline_build_journal** (diagnostics only, requested by the maintainer):
+  - Question: are the render-thread compile blocks before a session's checkpoint pipelines that earlier sessions
+    compiled and lost?
+  - ShaderCollection.StableHash and a pipeline key give the same value for the same pipeline in every session.
+  - Compilations of 50 ms or more go to `pipeline-<cache key>.builds`. Summary lines (startup, every 60 s, pause)
+    split render-thread and worker compilations into new and compiled again.
+  - Gate pipeline-build-journal (27 checks). pipeline-cache-persist now undoes the later adapters.
+  - All 13 gates bound to the three files reran green. Contract: 55 gates, 173 inputs, `--archive` 400 checks.
+    [Receipt](evidence/melonx-685-gates/run.json).
+  - Pushed to the work branch only: main is drafting the next IPA on the Core 683 contract and pin.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
