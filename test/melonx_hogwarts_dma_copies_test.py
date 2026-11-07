@@ -129,6 +129,10 @@ LOT_FILES = {
     'adapt_pipeline_build_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
     # Core 687: main pipeline cache growth rule and journal records.
     'adapt_pipeline_cache_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 689: occupied read-backs into a buffer; async skips only into regenerated targets.
+    'adapt_occupied_readback_buffers': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_async_regenerated_targets': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Graphics.Vulkan/TextureStorage.cs',
+                                        'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
 }
 
 checks = 0
