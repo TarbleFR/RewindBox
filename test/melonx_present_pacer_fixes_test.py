@@ -24,7 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, later_sharing, use_authenticated_libhac_feed  # noqa: E402
+import importlib  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_present_pacer_fixes', _HOLD)
@@ -110,8 +111,19 @@ with tempfile.TemporaryDirectory(prefix='melonx-pacer-fixes-') as temporary:
             changed = apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # Later adapters editing these files (Core 689: adapt_async_regenerated_targets, Window.cs) are re-applied forward.
+                forward = Path(temporary).resolve() / 'forward'
                 for name in BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    (forward / name).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(work / name, forward / name)
+                for later in later_sharing('adapt_present_pacer_fixes'):
+                    for name in importlib.import_module(later).BASELINE:
+                        if not (forward / name).exists():
+                            (forward / name).parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copyfile(work / name, forward / name)
+                    importlib.import_module(later).apply(forward)
+                for name in BASELINE:
+                    check((forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in BASELINE}
         check(run([DOTNET, 'build', str(work / (VULKAN + 'Ryujinx.Graphics.Vulkan.csproj')), '-c', 'Release', '-nologo', '-m:1',
                    '-p:NuGetAudit=false'], work).returncode == 0, variant + ' production Vulkan assembly builds')

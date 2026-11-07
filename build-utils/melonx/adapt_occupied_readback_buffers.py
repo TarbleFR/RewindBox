@@ -18,8 +18,12 @@ the buffer over the range, the level is copied on the GPU, the range is marked G
 the source on the GPU, and the forced host sync follows; a guest read of that memory later flushes the buffer. That path
 keeps its own declines (partial copy, a texture of the source's group, an occupant that cannot receive the source,
 non-contiguous, no buffer): each keeps the guest path as before. A fragmented destination with no texture is still
-declined. Counted in the DMA summary ("rerouted into buffers N, copied N"); the decline counters keep their meaning.
-Not measured on an iPhone. Fail closed on drift: DmaClass.cs must be the Core 687 preparation's.
+declined. Counted in the DMA summary ("rerouted into buffers N, copied N"). Once the buffer exists, later read-backs
+there take the buffer branch directly, so "rerouted" counts about once per buffer lifetime; a rerouted read-back that
+TryReadBackIntoBuffer declines counts under its decline (partial, unreceivable, source group, buffer), not as "other
+textures", and is not logged by NoteReadBackOccupant. Review (rb-core-review, 7 Nov): the buffer and a receiver are
+both GPU-modified over the same bytes, as on the build 626 path; a receiver the game renders into before a guest read
+could flush after the buffer (the occupants logged in IPA 688 were all "modified False"). Not measured on an iPhone. Fail closed on drift: DmaClass.cs must be the Core 687 preparation's.
 """
 import hashlib
 from adapt_session import once

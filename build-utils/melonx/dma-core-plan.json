@@ -420,6 +420,7 @@
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
     "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
     "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+    "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs",
     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
@@ -462,9 +463,72 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.GAL/IProgram.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/IProgram.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/ITextureArray.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/ITextureArray.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs"
     },
     {
      "variant": "candidate",
@@ -489,6 +553,15 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs"
@@ -507,6 +580,15 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Gpu/Engine/Threed/DrawManager.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/DrawManager.cs"
@@ -516,9 +598,45 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs"
     },
     {
      "variant": "candidate",
@@ -606,6 +724,24 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs"
@@ -633,6 +769,24 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs"
@@ -642,9 +796,63 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Window.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Window.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs"
     },
     {
      "variant": "candidate",
@@ -663,6 +871,24 @@
       "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
     },
     {
      "variant": "candidate",
@@ -696,6 +922,15 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs"
@@ -708,6 +943,15 @@
       "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
     },
     {
      "variant": "candidate",
@@ -750,135 +994,9 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
-      "src/Ryujinx.Graphics.Vulkan/Window.cs"
+      "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
      ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/Window.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
-     ],
-     "productionPath": "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/GpuContext.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs"
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
     },
     {
      "variant": "candidate",
@@ -894,126 +1012,18 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
-      "src/Ryujinx.Graphics.Gpu/Window.cs"
+      "src/Ryujinx.Graphics.Vulkan/Window.cs"
      ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Window.cs"
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/Window.cs"
     },
     {
      "variant": "candidate",
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
-      "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
+      "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
      ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/IProgram.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/IProgram.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/ITextureArray.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/ITextureArray.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
-    },
-    {
-     "variant": "candidate",
-     "reportPath": [
-      "compiledSourceInputs",
-      "candidate",
-      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
-     ],
-     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
+     "productionPath": "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
     }
    ]
   },

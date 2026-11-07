@@ -22,7 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, later_sharing  # noqa: E402
+import importlib  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_readback_receivers', _HOLD)
@@ -75,7 +76,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-readback-receivers-') as tempora
             changed = apply(work)
             check([str(p.relative_to(work)) for p in changed] == [DMA], 'adapter changed other files')
             if FINAL_PREPARATION:
-                check((work / DMA).read_bytes() == (FINAL_SOURCE / DMA).read_bytes(), 'final preparation is the adapter')
+                # Later adapters editing DmaClass.cs (Core 689: adapt_occupied_readback_buffers) are re-applied forward.
+                forward = Path(temporary).resolve() / 'forward'
+                (forward / DMA).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(work / DMA, forward / DMA)
+                for later in later_sharing('adapt_readback_receivers'):
+                    importlib.import_module(later).apply(forward)
+                check((forward / DMA).read_bytes() == (FINAL_SOURCE / DMA).read_bytes(), 'final preparation is the adapter')
         text = (work / DMA).read_text(encoding='utf-8-sig')
         built[variant] = text
         result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj'), '-c', 'Release',

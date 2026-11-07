@@ -1426,13 +1426,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     GC 110-150 ms per 5 s in one stretch, GPU busy 12-32 ms per frame (not saturated).
   - **Corruption:** 5934 draws skipped while their program compiled; IsCriticalOffscreenTarget held only targets that
     never had a complete pass, so a target drawn once and kept (or a pooled target) keeps the hole.
-  - **Core 689 = Core 687 + two adapters (local, not committed yet):** adapt_occupied_readback_buffers (DmaClass.cs,
-    Hogwarts policy: an occupied contiguous destination with no buffer takes TryReadBackIntoBuffer, counted "rerouted
-    into buffers N, copied N"); adapt_async_regenerated_targets (VulkanRenderer, Window, TextureStorage,
-    FramebufferParams, PipelineBase; every title, only with async shaders on: skip only into a target regenerated each
-    frame or the presented image, otherwise wait for the pipeline; "async draws held for their program N (ms)" ends the
-    render stages line). Gates occupied-readback-buffers (44 checks) and async-regenerated-targets (37 checks) pass
-    locally, both production assemblies build. Plan: 58 fresh gates.
+  - **Later sessions, same build (pids 30431 and 30620, 17:05-17:14 UTC):** maintainer: stutters and a black menu.
+    30620 (284 s): mean 20.0 fps, p95 183 ms, 538 frames over 100 ms. First visit of an area: render-thread compute
+    pipeline waits 0.85-3.4 s per window for 25 s (34 worker compilations in 19.1 s in that minute); 27-28 pipelines
+    "compiled again" in the first minute of each session (2.3 s). Steady heavy area about 20 fps with no thread
+    saturated alone: render thread descriptors 0.9-1.2 s and queue submits 0.4-1.5 s per 5 s, GPU thread bindings
+    about 1 s, compute 0.7 s, array deltas 0.5 s, syncInvoke 1-1.7 s, GPU busy 15-19 ms per frame. A menu background
+    drawn once with skipped draws is the case the async rule now holds (reading, not proven).
+  - **Core 689 = Core 687 + two adapters:** adapt_occupied_readback_buffers (DmaClass.cs, Hogwarts policy: an occupied
+    contiguous destination with no buffer takes TryReadBackIntoBuffer, counted "rerouted into buffers N, copied N");
+    adapt_async_regenerated_targets (VulkanRenderer, Window, TextureStorage, FramebufferParams, PipelineBase; every
+    title, only with async shaders on: skip only into a target regenerated each frame or the presented image,
+    otherwise wait for the pipeline; "async draws held for their program N (ms)" ends the render stages line).
+    New gates occupied-readback-buffers (44 checks) and async-regenerated-targets (37); 22 bound gates rerun locally
+    and green on a fresh preparation (readback-receivers, present-pacer-fixes and hogwarts-dma-copies now re-apply the
+    later adapter; fragmented-reads composes and binds FramebufferParams.cs). Contract refrozen (58 fresh gates, 176
+    inputs, `7726d34e`), contract test 407 checks with the authenticated archive. Review (rb-core-review): no skip
+    added (proven), no proven defect; open hypothesis H1 (a receiver rendered before a guest read could flush after the
+    buffer, as on the build 626 path). [Receipts](evidence/melonx-689-gates/run.json). Not tested on a device.
+  - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
+    the worker cache file mapping checked), the 27 pipelines compiled again each session, and the steady CPU cost
+    (descriptor updates and queue submits on the render thread, bindings on the GPU thread).
   - **Device reading after delivery:** with async on, the DMA summary "rerouted into buffers/copied", texFlushAction and
     read fence waits per window, the held draws line, and whether the staircase corruption is gone; async off must be
     unchanged except the read-back.
