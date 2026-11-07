@@ -123,6 +123,8 @@ LOT_FILES = {
     'adapt_audio_start_deferred': [],
     # Core 681: the pipeline cache room.
     'adapt_pipeline_cache_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 683: pause and play-time persistence of the main pipeline cache.
+    'adapt_pipeline_cache_persist': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs', 'src/Ryujinx.Library/Library.cs'],
 }
 
 checks = 0

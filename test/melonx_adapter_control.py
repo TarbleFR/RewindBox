@@ -28,7 +28,8 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_shader_save_journal',
          'adapt_nan_scrub', 'adapt_main_cache_checkpoint',
          'adapt_checkpoint_side_cache', 'adapt_evicted_buffer_recreate',
-         'adapt_audio_start_deferred', 'adapt_pipeline_cache_room')
+         'adapt_audio_start_deferred', 'adapt_pipeline_cache_room',
+         'adapt_pipeline_cache_persist')
 
 
 def sha(path: Path) -> str:

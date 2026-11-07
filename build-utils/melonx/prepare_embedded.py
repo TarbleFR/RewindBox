@@ -139,6 +139,7 @@ from adapt_checkpoint_side_cache import apply as adapt_checkpoint_side_cache
 from adapt_evicted_buffer_recreate import apply as adapt_evicted_buffer_recreate
 from adapt_audio_start_deferred import apply as adapt_audio_start_deferred
 from adapt_pipeline_cache_room import apply as adapt_pipeline_cache_room
+from adapt_pipeline_cache_persist import apply as adapt_pipeline_cache_persist
 
 
 def replace_once(path, old, new):
@@ -375,6 +376,8 @@ def main():
     adapted += [source / name for name in adapt_audio_start_deferred(source)]
     # Core 681: worker pipeline cache snapshots join main at startup; main budget 1 GiB.
     adapted += [source / name for name in adapt_pipeline_cache_room(source)]
+    # Core 683: the main pipeline cache written on pause (app in the background) and more often during play.
+    adapted += [source / name for name in adapt_pipeline_cache_persist(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -477,7 +480,8 @@ def main():
                  'adapt_checkpoint_side_cache.py',
                  'adapt_evicted_buffer_recreate.py',
                  'adapt_audio_start_deferred.py',
-                 'adapt_pipeline_cache_room.py']:
+                 'adapt_pipeline_cache_room.py',
+                 'adapt_pipeline_cache_persist.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
