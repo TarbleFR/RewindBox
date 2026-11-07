@@ -862,6 +862,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Core 907 built and pinned**: request 2 run `42329242959` (source `3c9cac6c`), Core job and Apple host harnesses green
       (the PPU grace 664 ASan timing check passed unchanged); dylib `2d8e92ba`, fingerprint `b804508a`, identities unchanged.
       Not run on the iPhone; no FPS claim.
+  - **IPA 688 delivered and verified (7 Nov)**: = 684 + MeloNX Core 687 (pin `ab03701f`; main pipeline cache rewritten only
+    for real new content, compute pipelines journaled); RPCS3 Core 907 unchanged. Trigger `2e06c74b`, run `42385618846`, five jobs
+    green first try; IPA 249902590 B, SHA-256 `b30c47f5…24db`; offline checks passed, [receipt](evidence/rewind688/delivery.json),
+    12 proofs; key 688 deleted; sent privately (port 8688 + file). Device feedback on 684/688 still wanted (list below).
   - **IPA 684 delivered and verified (7 Nov)**: trigger `7318c42b`, run `42336502047`, five jobs green first try.
     - Contents: RPCS3 Core 907 (pin `386e14c4`; AC GPU levers, retired overrides, timed Metal report), MeloNX Core 685 (pin
       `813fd1f4`), app fixes b1edef18, fc515ee7, bd1f963e, 530b18f6 (the last two through the MeloNX merge 5ec25b8b).
