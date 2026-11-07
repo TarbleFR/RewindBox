@@ -167,6 +167,16 @@ void main() {
     expect(view.installed, isTrue);
   });
 
+  test('an old absolute key is re-rooted at the MeloNX segment that holds mods', () {
+    final now = Directory('/new/Documents/MeloNX');
+    expect(
+      MelonxEnhancementAdapter.resolveStateKey(now, '/old/Documents/MeloNX/mods/contents/t/RewindBox/MeloNX/x.txt'),
+      '/new/Documents/MeloNX/mods/contents/t/RewindBox/MeloNX/x.txt',
+    );
+    expect(MelonxEnhancementAdapter.resolveStateKey(now, 'mods/contents/t/a.txt'), '/new/Documents/MeloNX/mods/contents/t/a.txt');
+    expect(MelonxEnhancementAdapter.resolveStateKey(now, '/elsewhere/file.txt'), '/elsewhere/file.txt');
+  });
+
   test('after the app container moves, RewindBox still owns its files', () async {
     var view = await service.open(game, 'switch', download: true);
     view = await service.setActive(game, 'switch', view, view.items.first, true);

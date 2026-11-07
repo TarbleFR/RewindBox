@@ -334,12 +334,20 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
   static String stateKey(Directory root, String file) => path.relative(file, from: root.path);
 
   /// The current path of a recorded key; an absolute key written by an older
-  /// version is re-rooted at the current MeloNX root.
+  /// version is re-rooted at the current MeloNX root. Every file RewindBox
+  /// records lies under `<root>/mods/`, so the root is the segment named like
+  /// it that is directly followed by `mods` (a deeper segment of the same name
+  /// cannot be taken for it).
   static String resolveStateKey(Directory root, String key) {
     if (!path.isAbsolute(key)) return path.join(root.path, key);
     final parts = path.split(key);
-    final index = parts.lastIndexOf(path.basename(root.path));
-    return index < 0 ? key : path.joinAll([root.path, ...parts.sublist(index + 1)]);
+    final name = path.basename(root.path);
+    for (var index = 0; index + 1 < parts.length; index++) {
+      if (parts[index] == name && parts[index + 1] == 'mods') {
+        return path.joinAll([root.path, ...parts.sublist(index + 1)]);
+      }
+    }
+    return key;
   }
 
   static void _rebaseStateFiles(Directory root, EnhancementGameState state) {
