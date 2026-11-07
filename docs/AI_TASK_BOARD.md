@@ -1333,7 +1333,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Gate pipeline-build-journal (27 checks). pipeline-cache-persist now undoes the later adapters.
   - All 13 gates bound to the three files reran green. Contract: 55 gates, 173 inputs, `--archive` 400 checks.
     [Receipt](evidence/melonx-685-gates/run.json).
-  - Pushed to the work branch only: main is drafting the next IPA on the Core 683 contract and pin.
+  - CI run 42329481794 attempt 1 failed at the simulator smoke only: Vulkan device creation took 88 s on the runner,
+    before any Core 685 code ran (journal load 1.3 ms), and the guest start was not confirmed in time. Attempt 2 of the
+    same commit passed.
+  - **Verified and pinned:** run 42329481794 attempt 2 (`3b6cfcca`, 55 gates, two simulator sessions). Job
+    128283395781, artifact 13559217301 (90691668 B, `ed6bc05b…`). iPhone binary
+    `f5f90590…` (38176664 B), fingerprint `3b727e0f…`, contract `04dd697e…`. Markers in the
+    binary: build journal, summary lines, pause checkpoint, cache room. Engine evidence passed offline. Handed to main
+    for IPA 684. Not tested on a device.
+  - Device reading: two sessions in the same zones. In session 2, "compiled again" on the render thread is the time
+    lost to pipelines an earlier session compiled and did not keep; "new" is first-visit cost.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

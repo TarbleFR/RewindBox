@@ -51,5 +51,34 @@
   "freshAppleGates": 55,
   "contractTest": "400 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42329481794 attempt 1 (3b6cfcca, Core 685)": "failed at step 13 only (simulator runtime smoke): homebrew-guest-svc-unconfirmed Code=11; the GPU startup scope 'device' (Vulkan device creation) took 88131.698 ms, before mainPipelineCache (1.269 ms, where the journal loads); teardown and session release were clean. Gates, NativeAOT/ABI and binding steps passed. Artifact 13558326374 (32cc3fda...) kept the result; not pinned.",
+  "42329481794 attempt 2 (3b6cfcca, Core 685)": "passed: 55 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown. Same commit, nothing changed between attempts."
+ },
+ "pin": {
+  "run": 42329481794,
+  "attempt": 2,
+  "job": 128283395781,
+  "source": "3b6cfccac4a3ac3e2339a773f02423575854d4fb",
+  "artifact": 13559217301,
+  "artifactBytes": 90691668,
+  "artifactSha256": "ed6bc05b4a5f457701b8b7dda81a34ecb512ed04a9edee29b3df342ebc7c7148",
+  "expiresAt": "2026-11-21T03:40:11Z",
+  "iphoneBinarySha256": "f5f90590eec87df147ab7c8461ed7f57a7f294047190ace9be8e17700ce17884",
+  "iphoneBinaryBytes": 38176664,
+  "packagedFingerprint": "3b727e0f4faa006f6b3d745e32fa7233c47cf356e5cf2da9ccd1fbeaba1e3ddc",
+  "resultSha256": "c35c6c76dc6a81911480c337cfc39bab3f2cda7379f0e3e0b73becc305b07aa8",
+  "contractSha256": "04dd697e66d4f4279070809d66e19d1719d0e95e0fba48a05f491142f360a704",
+  "iphoneBinaryMarkers": [
+   "adapt_pipeline_build_journal",
+   "Pipeline build journal",
+   "of which compiled again",
+   "checkpointed on pause",
+   "adapt_pipeline_cache_room",
+   "adapt_pipeline_cache_persist"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 683 (c41b7a51, pin 3554443c, fingerprint 181a9994)"
+ }
 }
