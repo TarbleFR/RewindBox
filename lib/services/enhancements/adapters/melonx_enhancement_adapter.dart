@@ -471,39 +471,69 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final lines = [...foreign, ...(activeKeys.toList()..sort())];
     await EnhancementFiles.writeText(file, lines.isEmpty ? '' : '${lines.join('\n')}\n');
     data['keys'] = allKeys.toList()..sort();
+    // The codes the player chose here, read back before every launch (disableUnchosenCatalogueCheats).
+    data['activeKeys'] = activeKeys.toList()..sort();
   }
 
-  /// Before a launch: a title whose RewindBox cheat files are on disk without
-  /// an enable list gets one that enables none of them.
+  /// Enable-list keys of the codes the player turned on in RewindBox, from
+  /// the enhancement state of every MeloNX game (recorded by apply).
+  static Set<String> chosenKeys(Iterable<EnhancementGameState> states) => {
+    for (final state in states)
+      if (state.engine == 'melonx' && state.data['programs'] is Map)
+        for (final program in (state.data['programs'] as Map).values)
+          if (program is Map)
+            for (final key in (program['activeKeys'] as List? ?? const [])) key.toString(),
+  };
+
+  /// Before a launch: no RewindBox catalogue code runs unless the player chose
+  /// it in RewindBox ([chosen], from [chosenKeys]).
   ///
-  /// The RewindBox files hold every catalogue program of a version, enabled or
-  /// not, and the engine enables every cheat when `enabled.txt` is absent. A
-  /// lost list (an app container that moved after an update, a restore that
-  /// could not find its files) therefore enabled all of them at once: a Hogwarts
-  /// Legacy player ran 93 graphics codes, ten conflicting resolution codes
-  /// among them, and the game aborted within two minutes. The player's own
-  /// cheat files keep the engine's default (they stay listed).
+  /// A Hogwarts Legacy player ran 93 catalogue codes at once, ten conflicting
+  /// resolution codes among them, and the game aborted within two minutes in
+  /// every session: the RewindBox files held every catalogue program of the
+  /// version, and either their enable list was gone (the engine then enables
+  /// every cheat) or it still listed codes the player could no longer turn off.
+  /// Each title holding RewindBox cheat files gets an enable list without the
+  /// catalogue codes that are not in [chosen]; the player's own cheat files keep
+  /// the engine's default (they stay listed) and other lines of the list stay.
   /// Returns the title IDs whose list was written.
-  static Future<List<String>> disableUnlistedCatalogueCheats(Directory root) async {
+  static Future<List<String>> disableUnchosenCatalogueCheats(Directory root, Set<String> chosen) async {
     final contents = Directory(path.join(root.path, 'mods', 'contents'));
     final repaired = <String>[];
     if (!await contents.exists()) return repaired;
     await for (final title in contents.list(followLinks: false)) {
       if (title is! Directory) continue;
       final ours = Directory(path.join(title.path, modName, 'cheats'));
-      final enabled = File(path.join(title.path, 'cheats', 'enabled.txt'));
-      if (!await ours.exists() || await enabled.exists()) continue;
-      var catalogueFiles = 0;
+      if (!await ours.exists()) continue;
+      final catalogue = <String>{};
       await for (final file in ours.list(followLinks: false)) {
-        if (file is File &&
-            path.extension(file.path).toLowerCase() == '.txt' &&
-            RegExp(r'^[0-9A-Fa-f]{16}$').hasMatch(path.basenameWithoutExtension(file.path))) {
-          catalogueFiles++;
+        final stem = path.basenameWithoutExtension(file.path);
+        if (file is! File || path.extension(file.path).toLowerCase() != '.txt' || !_buildId.hasMatch(stem.toUpperCase())) {
+          continue;
+        }
+        for (final name in parseCheatNames(await file.readAsString())) {
+          catalogue.add(programKey(stem.toUpperCase(), name));
         }
       }
-      if (catalogueFiles == 0) continue;
-      final own = await _existingProgramKeysIn(root, title);
-      await EnhancementFiles.writeText(enabled, own.isEmpty ? '' : '${own.join('\n')}\n');
+      if (catalogue.isEmpty) continue;
+      final enabled = File(path.join(title.path, 'cheats', 'enabled.txt'));
+      final List<String> lines;
+      if (await enabled.exists()) {
+        final current = [
+          for (final line in await enabled.readAsLines())
+            if (line.trim().isNotEmpty) line.trim(),
+        ];
+        lines = [for (final line in current) if (!catalogue.contains(line) || chosen.contains(line)) line];
+        if (lines.length == current.length) continue;
+      } else {
+        // The engine enables every cheat without a list: list the player's own
+        // files (its default for them) and only the chosen catalogue codes.
+        lines = [
+          ...await _existingProgramKeysIn(root, title),
+          ...(catalogue.where(chosen.contains).toList()..sort()),
+        ];
+      }
+      await EnhancementFiles.writeText(enabled, lines.isEmpty ? '' : '${lines.join('\n')}\n');
       repaired.add(path.basename(title.path));
     }
     return repaired;
