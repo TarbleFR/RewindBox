@@ -133,6 +133,9 @@ LOT_FILES = {
     'adapt_occupied_readback_buffers': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
     'adapt_async_regenerated_targets': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Graphics.Vulkan/TextureStorage.cs',
                                         'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 691: released-texture flush guard (no file held here); pipeline failure identity (PipelineBase.cs).
+    'adapt_released_texture_flush': [],
+    'adapt_pipeline_failure_identity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
 }
 
 checks = 0

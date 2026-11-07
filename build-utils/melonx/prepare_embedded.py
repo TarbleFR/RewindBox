@@ -144,6 +144,8 @@ from adapt_pipeline_build_journal import apply as adapt_pipeline_build_journal
 from adapt_pipeline_cache_growth import apply as adapt_pipeline_cache_growth
 from adapt_occupied_readback_buffers import apply as adapt_occupied_readback_buffers
 from adapt_async_regenerated_targets import apply as adapt_async_regenerated_targets
+from adapt_released_texture_flush import apply as adapt_released_texture_flush
+from adapt_pipeline_failure_identity import apply as adapt_pipeline_failure_identity
 
 
 def replace_once(path, old, new):
@@ -390,6 +392,10 @@ def main():
     # buffer on the GPU (Hogwarts policy); async shaders skip a draw only into a target the frame regenerates.
     adapted += [source / name for name in adapt_occupied_readback_buffers(source)]
     adapted += [source / name for name in adapt_async_regenerated_targets(source)]
+    # Core 691 (IPA 688/690 crash at 0x111 in vkCmdCopyImageToBuffer): a texture flush never records a copy from a
+    # destroyed image; a failed pipeline names its program and its dropped draws are counted apart from async skips.
+    adapted += [source / name for name in adapt_released_texture_flush(source)]
+    adapted += [source / name for name in adapt_pipeline_failure_identity(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -497,7 +503,9 @@ def main():
                  'adapt_pipeline_build_journal.py',
                  'adapt_pipeline_cache_growth.py',
                  'adapt_occupied_readback_buffers.py',
-                 'adapt_async_regenerated_targets.py']:
+                 'adapt_async_regenerated_targets.py',
+                 'adapt_released_texture_flush.py',
+                 'adapt_pipeline_failure_identity.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
