@@ -324,8 +324,7 @@ void main() {
   });
 
   test('RewindBox cheat files without an enable list are all disabled before a launch', () async {
-    // Hogwarts Legacy case: the catalogue file is on disk (written while a code
-    // was on), the enable list is gone, so the engine enabled every program.
+    // Hogwarts Legacy case: the catalogue file is on disk, the enable list is gone, so the engine enabled every program.
     var view = await service.open(game, 'switch', download: true);
     view = await service.setActive(game, 'switch', view, view.items.first, true);
     expect(modCheats().listSync().whereType<File>(), isNotEmpty);
@@ -334,12 +333,25 @@ void main() {
     File(path.join(root.path, 'mods', 'contents', _title.toLowerCase(), 'cheats', '0123456789ABCDEF.txt'))
         .writeAsStringSync('[Own Code]\n$_line\n');
 
-    final repaired = await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(root);
+    final repaired = await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, const {});
 
     expect(repaired, [_title.toLowerCase()]);
-    final lines = enabledList().readAsLinesSync();
-    expect(lines, ['0123456789ABCDEF-<Own Code Cheat>']);
-    expect(lines.where((line) => line.contains('Infinite Health') || line.contains('9999 Coins')), isEmpty);
+    expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Own Code Cheat>']);
+  });
+
+  test('catalogue codes listed but not chosen in RewindBox are removed; chosen ones stay', () async {
+    var view = await service.open(game, 'switch', download: true);
+    final coins = view.items.firstWhere((item) => item.name == '9999 Coins Save 1');
+    view = await service.setActive(game, 'switch', view, coins, true);
+    final chosen = MelonxEnhancementAdapter.chosenKeys(await service.store.all());
+    expect(chosen, containsAll(['3CA12DFAAF9C82DA-<9999 Coins Save 1 Cheat>', 'F5DCCDDB37E97724-<9999 Coins Save 1 Cheat>']));
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, chosen), isEmpty, reason: 'nothing to change');
+
+    // The same list with nothing recorded as chosen (an older version, or no way left to turn them off): all removed,
+    // the player's other lines kept.
+    enabledList().writeAsStringSync('${enabledList().readAsStringSync()}0123456789ABCDEF-<Other Cheat>\n');
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, const {}), [_title.toLowerCase()]);
+    expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Other Cheat>']);
   });
 
   test('an existing enable list and titles without RewindBox files are left alone', () async {
@@ -350,9 +362,10 @@ void main() {
       ..createSync(recursive: true);
     File(path.join(other.path, '0123456789ABCDEF.txt')).writeAsStringSync('[Own Code]\n$_line\n');
 
-    expect(await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(root), isEmpty);
+    final chosen = MelonxEnhancementAdapter.chosenKeys(await service.store.all());
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, chosen), isEmpty);
     expect(enabledList().readAsStringSync(), before);
     expect(File(path.join(other.path, 'enabled.txt')).existsSync(), isFalse);
-    expect(await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(Directory(path.join(temp.path, 'none'))), isEmpty);
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(Directory(path.join(temp.path, 'none')), chosen), isEmpty);
   });
 }

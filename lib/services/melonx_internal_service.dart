@@ -11,6 +11,7 @@ import 'config_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
 import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
+import 'package:neostation/services/enhancements/enhancement_service.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -352,13 +353,14 @@ abstract final class MelonxInternalService {
     }
   }
 
-  /// RewindBox cheat files left without an enable list are all enabled by the
-  /// engine; they are disabled before the game starts. Never blocks a launch.
+  /// RewindBox catalogue cheats the player did not choose in RewindBox are
+  /// disabled before the game starts. Never blocks a launch.
   static Future<void> _disableUnlistedCatalogueCheats() async {
     try {
-      final titles = await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(await rootDirectory());
+      final chosen = MelonxEnhancementAdapter.chosenKeys(await EnhancementService.instance.store.all());
+      final titles = await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(await rootDirectory(), chosen);
       if (titles.isNotEmpty) {
-        MelonxLaunchDiagnostics.record('cheats', 'unlistedDisabled', {'titles': titles.join(',')});
+        MelonxLaunchDiagnostics.record('cheats', 'unchosenDisabled', {'titles': titles.join(',')});
       }
     } catch (error) {
       MelonxLaunchDiagnostics.record('cheats', 'unlistedCheckFailed', {'error': error.runtimeType.toString()});
