@@ -48,7 +48,7 @@ CONTROL_PREPARED = {
 # Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor); 47 with Core 661
 # (Hogwarts 658 logs: sixteen gates for its fifteen adapters and the gcEvent fallback flag, and the native display
 # fixture rerun because its receipt declares EmbeddedMemory.cs).
-FRESH_GATES = 54
+FRESH_GATES = 55
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

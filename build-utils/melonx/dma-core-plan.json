@@ -32,6 +32,7 @@
   "build-utils/melonx/adapt_moltenvk_stage_ordering.py",
   "build-utils/melonx/adapt_nan_scrub.py",
   "build-utils/melonx/adapt_pause_guest_threads.py",
+  "build-utils/melonx/adapt_pipeline_build_journal.py",
   "build-utils/melonx/adapt_pipeline_cache_persist.py",
   "build-utils/melonx/adapt_pipeline_cache_room.py",
   "build-utils/melonx/adapt_pipeline_miss_context.py",
@@ -3057,6 +3058,29 @@
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
     "src/Ryujinx.Library/Library.cs"
+   ]
+  },
+  {
+   "name": "pipeline-build-journal",
+   "script": "test/melonx_pipeline_build_journal_test.py",
+   "report": "pipeline-build-journal-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs"
    ]
   }
  ]

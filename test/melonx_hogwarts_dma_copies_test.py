@@ -125,6 +125,8 @@ LOT_FILES = {
     'adapt_pipeline_cache_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Core 683: pause and play-time persistence of the main pipeline cache.
     'adapt_pipeline_cache_persist': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Library/Library.cs'],
+    # Core 685: pipeline build journal.
+    'adapt_pipeline_build_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
 }
 
 checks = 0
