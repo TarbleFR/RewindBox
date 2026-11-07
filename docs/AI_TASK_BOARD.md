@@ -804,6 +804,34 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       dependency input), next host lot.
     - Next: device feedback on iOS 27 launch, Metal 4 on one title, AC IV census; Metal by default only after a
       device run, Vulkan removal only after measured parity.
+  - **IPA 676 device logs (7 Nov, private, pids 25609/25658; not in Git):**
+    - Metal 4 switch "shown disabled" on BO2 (BLES01717): `experimental.metal_renderer=Enabled test=1 refused=21`
+      (RPCS3_IOS_SETTINGS_SAVE_FAILED). Cause: BO2's sparse override file still holds
+      `experimental.thread_orchestrator` (Core 665 test, IPA 666); Core 668 removed the setting, so
+      apply_game_setting_overrides fails for the whole file: every boot drops all BO2 user values
+      ("Failed to apply sparse iOS user overrides", sparse_overrides=0, the msl_fast_math override lost since 669) and
+      every change is refused. Fix REWINDBOX_RETIRED_OVERRIDES_906 (Core 906): retired keys reported and skipped,
+      dropped at the next write; unknown keys/invalid values still fail. test/rpcs3_retired_overrides906_test.py
+      (real extracted bodies, executed) PASS on the fixed tree, FAIL on Core 905.
+    - AC IV (BLES01882) on Metal 4 (the switch worked for AC IV): title screen 30-50 fps for ~20 s, then no flip:
+      FREEZE no_frames_idle, FIFO drained (get=put), guest on lwcond/event queues, vblank still flowing. Cause not proven
+      (rb-research: top hypothesis a ZCULL report whose work is never submitted; VK and Metal sync_hint/do_local_task
+      compared, no difference found). COREPROF METAL never logged: 600-frame trigger, ~555 frames presented. Core 906
+      REWINDBOX_METAL_TIMED_REPORT_906: report every 5 s also without flips + `COREPROF METAL state` line
+      (submitted/completed, ZCULL reports unsubmitted/in flight, flush pending, FIFO get/put).
+    - BO2 on Vulkan: gameplay 20-25 fps with ~1.1 M heavy PUTLLC and ~2.5 s writer-lock wait per 5 s (accurate
+      reservations on ARM: each data-changing PUTLLC parks every PPU, SPUThread.cpp writer_lock; the exact pre-checks
+      BUILD435 and the res lock are already there; relaxed mode is not exact). Then 24 blocking pipeline builds of
+      500-890 ms (MoltenVK persists shader libraries, not render pipeline states) at 8 fps, then the known SPURS storm
+      (5-7 M heavy, 1.3-2.4 M fail per 5 s), freeze no_frames_busy. No exact lever ready; the native Metal 4 archive is
+      the structural answer for the pipeline stalls once Metal runs.
+    - Assassin's Creed (BLES00158): gameplay 25-28 fps, GPU busy 77 % (~29.7 ms GPU per 38 ms frame), RSX 20 ms,
+      1,873 draws/frame, SPUs mostly idle. GPU-bound as measured; unproven hypothesis: full LOAD/STORE on every render
+      pass (VKRenderPass.cpp, no CLEAR/DONT_CARE) inflates tile traffic. Next: per-pass GPU time counters, then the
+      exact CLEAR load-op variant; and an AC run on Metal 4.
+    - Core 906 = Core 905 + the two fixes above; packaged locally (canonical 53220481, delta 17a29218, increment
+      core906-from-905 e615a733), route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold
+      chain simulated PASS; full driver running.
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.

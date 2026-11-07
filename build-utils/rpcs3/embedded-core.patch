@@ -92438,10 +92438,10 @@ index 0000000..438c533
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 new file mode 100644
-index 0000000..6512760
+index 0000000..2bda1d7
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-@@ -0,0 +1,1011 @@
+@@ -0,0 +1,1058 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (see MTLGSRender.h): device, frames, rings, presentation.
 +// The draw path is in MTLDraw.cpp, vertex and index uploads in MTLVertexBuffers.cpp.
@@ -93133,9 +93133,15 @@ index 0000000..6512760
 +		m_snapshot_pool.erase(m_snapshot_pool.begin(), m_snapshot_pool.begin() + (m_snapshot_pool.size() - 16));
 +	}
 +
++	m_last_flip_us = get_system_time();
 +	if ((m_frame_index % 600) == 0)
 +	{
 +		report_counters();
++		m_last_counter_report_us = m_last_flip_us;
++	}
++	else
++	{
++		report_counters_if_due();
 +	}
 +
 +	m_frame->flip(m_context);
@@ -93185,6 +93191,46 @@ index 0000000..6512760
 +
 +	report_m4_counters();  // M4
 +	report_m5_counters();  // M5
++	report_drain_state();  // 906
++}
++
++void MTLGSRender::report_counters_if_due()
++{
++	// REWINDBOX_METAL_TIMED_REPORT_906: AC IV (BLES01882, IPA 676) stopped presenting after about 555 frames, before the
++	// 600-frame report, so its log held no COREPROF METAL line at all. RSX thread only (the counters it reads are its own).
++	const u64 now = get_system_time();
++	if (now - m_last_counter_report_us < 5'000'000)
++	{
++		return;
++	}
++	m_last_counter_report_us = now;
++	report_counters();
++}
++
++void MTLGSRender::report_drain_state()
++{
++	// What a guest waiting on the RSX can be waiting for while the FIFO is empty: submissions not yet made or not yet
++	// completed, ZCULL reports whose segments are in them, a scheduled ZCULL flush, a pending fault flush.
++	u64 unsubmitted_reports = 0;
++	u64 in_flight_reports = 0;
++	const u64 submitted = m_commands.last_submitted();
++	const u64 completed = m_commands.completed();
++	for (const auto& record : m_query_records)
++	{
++		if (!record.has_data)
++		{
++			continue;
++		}
++		unsubmitted_reports += record.last_fence > submitted ? 1 : 0;
++		in_flight_reports += (record.last_fence <= submitted && record.last_fence > completed) ? 1 : 0;
++	}
++	const u64 now = get_system_time();
++	rsx_log.notice("COREPROF METAL state frames=%llu flip_age_ms=%llu recording=%d submitted=%llu completed=%llu query_cb_fence=%llu "
++		"active_query=%d unsubmitted_reports=%llu in_flight_reports=%llu zcull_flush_pending=%d offloader_deadlock=%d in_begin_end=%d "
++		"get=0x%x put=0x%x",
++		m_frame_index, m_last_flip_us ? (now - m_last_flip_us) / 1000 : 0, m_commands.recording() ? 1 : 0, submitted, completed,
++		m_query_cb_fence, m_active_query_info ? 1 : 0, unsubmitted_reports, in_flight_reports, m_zcull_flush_pending ? 1 : 0,
++		m_offloader_deadlock ? 1 : 0, in_begin_end ? 1 : 0, ctrl ? +ctrl->get : 0u, ctrl ? +ctrl->put : 0u);
 +}
 +
 +bool MTLGSRender::wait_for_offloader_recovery(bool is_writing)
@@ -93427,6 +93473,7 @@ index 0000000..6512760
 +	rsx::thread::do_local_task(state);
 +
 +	service_native_ui_flip(state);  // M4: frames for the native interface (VKGSRender::do_local_task)
++	report_counters_if_due();  // 906
 +}
 +
 +bool MTLGSRender::scaled_image_from_memory(const rsx::blit_src_info& src, const rsx::blit_dst_info& dst, bool interpolate)
@@ -93455,10 +93502,10 @@ index 0000000..6512760
 +
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
 new file mode 100644
-index 0000000..4251ea0
+index 0000000..66e9126
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,426 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93652,6 +93699,12 @@ index 0000000..4251ea0
 +	void flush_command_queue(bool wait);
 +	bool on_ring_exhausted(usz size);
 +	void report_counters();
++	// REWINDBOX_METAL_TIMED_REPORT_906: the COREPROF METAL lines every 5 s, from flip() and from do_local_task() (so a
++	// renderer that stopped presenting still reports), plus the drain state line.
++	void report_counters_if_due();
++	void report_drain_state();
++	u64 m_last_counter_report_us = 0;
++	u64 m_last_flip_us = 0;
 +
 +	// Presentation (M1)
 +	bool create_present_pipeline(std::string& error);
@@ -138952,10 +139005,10 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..93a0987 100644
+index b7b0474..2d20835 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
-@@ -1,5 +1,8 @@
+@@ -1,21 +1,45 @@
  #include "RPCS3IOSSettings.h"
  #include "GameLibrary.h"
 +#include "RPCS3IOSZcullAccuracy.h"
@@ -138964,7 +139017,44 @@ index b7b0474..93a0987 100644
  
  #include "Emu/system_config.h"
  #include "Emu/system_utils.hpp"
-@@ -93,13 +96,14 @@ const std::array catalog{
+ #include "Utilities/File.h"
++#include "util/logs.hpp"
+ 
+ #include <algorithm>
+ #include <array>
+ #include <cctype>
+ #include <optional>
+ 
++LOG_CHANNEL(ios_overrides_log, "iOS overrides");
++
+ namespace rpcs3::ios
+ {
+ namespace
+ {
+ using kind = rpcs3_ios_setting_kind;
+ 
++// REWINDBOX_RETIRED_OVERRIDES_906: game settings a former Core wrote into the
++// sparse per-title override file and this Core no longer has. One retired key
++// made apply_game_setting_overrides() fail for the whole file: every user value
++// of the title was dropped at boot and every later change was refused
++// (RPCS3_IOS_SETTINGS_SAVE_FAILED). Black Ops II kept the Core 665 thread
++// orchestrator test value after Core 668 removed the setting, so its Metal 4
++// switch could never be saved. A retired key is reported and skipped; the next
++// write of the file leaves it out. Any other unknown key or invalid value still
++// fails the file, as before.
++constexpr std::array<std::string_view, 1> retired_game_setting_keys{
++	"experimental.thread_orchestrator", // Core 665 orchestrator, removed in Core 668
++};
++
++bool is_retired_game_setting_key(std::string_view key) noexcept
++{
++	return std::ranges::find(retired_game_setting_keys, key) != retired_game_setting_keys.end();
++}
++
+ #define SETTING(KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, ENTRY, MINIMUM, MAXIMUM, STEP) \
+ 	setting_record{KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, &ENTRY, MINIMUM, MAXIMUM, STEP, setting_scope::global_and_game}
+ 
+@@ -93,13 +117,14 @@ const std::array catalog{
  	// Advanced
  	SETTING("advanced.debug_console_mode", "Advanced", "CPU Compatibility", "Debug console mode", "Emulates additional debug-console behavior required by some software.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.debug_console_mode, 0, 1, 1),
  	SETTING("advanced.accurate_spu_dma", "Advanced", "CPU Compatibility", "Accurate SPU DMA", "Uses stricter ordering for SPU DMA operations.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.spu_accurate_dma, 0, 1, 1),
@@ -138980,7 +139070,7 @@ index b7b0474..93a0987 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,69 @@ const std::array catalog{
+@@ -122,21 +147,69 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -139052,7 +139142,7 @@ index b7b0474..93a0987 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +257,89 @@ const std::array catalog{
+@@ -205,6 +278,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -139142,7 +139232,7 @@ index b7b0474..93a0987 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +708,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +729,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
@@ -139192,11 +139282,17 @@ index b7b0474..93a0987 100644
 +	}
 +	for (const auto& [key, value] : values)
 +	{
++		if (is_retired_game_setting_key(key))
++		{
++			ios_overrides_log.warning("Skipped retired user override %s=%s for %s (no longer a setting; removed on the next save)", key, value, title_id);
++			continue;
++		}
 +		if (key == "gpu.zcull_accuracy")
 +		{
 +			const auto state = parse_zcull_accuracy(value);
 +			if (!state)
 +			{
++				ios_overrides_log.error("Invalid user override %s=%s for %s", key, value, title_id);
 +				return false;
 +			}
 +			g_cfg.video.precise_zpass_count.from_string(state->precise ? "true" : "false");
@@ -139206,6 +139302,7 @@ index b7b0474..93a0987 100644
 +		const setting_record* setting = find_setting(key, setting_context::game);
 +		if (!setting || !setting->entry->from_string(value))
 +		{
++			ios_overrides_log.error("%s user override %s=%s for %s", setting ? "Invalid" : "Unknown", key, value, title_id);
 +			return false;
 +		}
 +	}
@@ -139237,6 +139334,11 @@ index b7b0474..93a0987 100644
 +	{
 +		values.emplace_back(key, value);
 +	}
++	// REWINDBOX_RETIRED_OVERRIDES_906: the rewritten file leaves retired keys out.
++	std::erase_if(values, [](const auto& item)
++	{
++		return is_retired_game_setting_key(item.first);
++	});
 +	return write_game_setting_overrides(title_id, values);
 +}
 +
