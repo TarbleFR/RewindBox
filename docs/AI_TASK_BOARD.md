@@ -1455,6 +1455,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Delivery:** IPA 690 (688 + Core 689) is drafted, frozen and requested by session 012mUAShv9k6pSCnpW7oAF63
     (`2c807a36`, standard delivery run 42399940068); this session's duplicate draft was dropped unpushed. Next: the
     device reading above with async shaders on and off.
+- **IPA 690 on the device (Hogwarts pid 32980, session 531F1875, Core 689 `6d41033e`, async shaders on; private
+  journals; read 7 Nov by session 01JA5QgK). Maintainer mission: crash, shaders, textures, compilations, FPS, memory.**
+  - **Crash (also IPA 688 pid 31473):** signal 11 at 0x111 in MoltenVK `MVKCmdBufferImageCopy<1>::setContent`
+    (vkCmdCopyImageToBuffer) on a guest thread under the memory tracking fault handler. setContent's validate() reads
+    `MVKImage::_hasExpectedTexelSize` at offset 0x111 (MoltenVK v1.4.2): the image handle was null. A destroyed
+    `Auto<DisposableImage>` returns a default value; the guest-thread texture flush (TextureGroup.FlushAction runs it on
+    that thread) called PersistentFlushBuffer.GetTextureData on a view the render thread had released.
+  - **Shader:** "SPIR-V to MSL conversion error: nullptr" once per session ~35 s in (688 and 690), then "Graphics
+    pipeline creation failed" on the render thread; its draws are dropped. SPIRV-Cross 6c09849f throws "nullptr" only
+    for an undefined SPIR-V id. Program not identified yet: needs the device's host shader cache
+    (games/0100f7e00c70e000/cache/shader/vulkan_apple.toc/.data) or the Core 691 identity line.
+  - **Compilations:** workers "compiled again 30 in 2736 ms" in the first minute (246 journaled in 8 earlier sessions):
+    a worker compiles in its own cache and never reads the main one (main 727/768 MiB, worker snapshots not merged).
+    One render-thread compile of 3205 ms (18:55:05-45). "Not ready" 113 in the session, "held" 0; the 17 at 18:56:53
+    are the failed pipeline's draws, not async skips.
+  - **Core 691 = Core 689 + adapt_released_texture_flush** (the flush references the image before recording, a destroyed
+    one records nothing; the GPU flush then leaves guest memory unchanged; gate released-texture-flush: the control
+    records a null-handle copy, the candidate none) **+ adapt_pipeline_failure_identity** (program StableHash and thread
+    per failure; "not ready by cause: async skips, unavailable pipelines") **+ adapt_worker_main_cache_lookup** (a worker
+    first tries the main cache try-only with FAIL_ON_PIPELINE_COMPILE_REQUIRED). 26 gates rerun locally and green
+    (four older gates now re-apply later adapters forward); contract refrozen (61 fresh gates, 179 inputs, `89e0fe9d`),
+    contract test 416 checks; commit `b9443acf` requests the Core CI. [Receipts](evidence/melonx-691-gates/run.json).
+    Not tested on a device.
+  - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
+    rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
     the worker cache file mapping checked), the 27 pipelines compiled again each session, and the steady CPU cost
     (descriptor updates and queue submits on the render thread, bindings on the GPU thread).
