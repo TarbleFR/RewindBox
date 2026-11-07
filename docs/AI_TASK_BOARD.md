@@ -858,7 +858,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         Apple; treated as runner timing, rerun with request 2 and examined if it fails again. Not masked: the guard is unchanged.
       - Repackaged: canonical 654680ea (445), delta 448b942b, increment core907-from-906 2c391db8. Local: route PASS, codegen
         identities unchanged, transition-phases, feedback-census, position-invariance, graphics-tests-612 (plain, ASan/UBSan)
-        PASS; full driver running. No FPS claim before a device run.
+        PASS; full driver PASS.
+    - **Core 907 built and pinned**: request 2 run `42329242959` (source `3c9cac6c`), Core job and Apple host harnesses green
+      (the PPU grace 664 ASan timing check passed unchanged); dylib `2d8e92ba`, fingerprint `b804508a`, identities unchanged.
+      Not run on the iPhone; no FPS claim.
+  - **IPA 684 (common)** waits for MeloNX Core 685 (pushed 3b6cfcca, pin ~03:10 UTC, else 683 pin 3554443c), with RPCS3
+    Core 907, app fixes b1edef18, fc515ee7, bd1f963e, 530b18f6; recipient key b09fdc7e (private half out of Git).
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.

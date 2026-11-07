@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 906,
- "note": "RPCS3 Core 906: Core 905 plus REWINDBOX_RETIRED_OVERRIDES_906 (a game setting removed from the Core but left in a title's sparse override file is reported and skipped, and dropped at the next write: Black Ops II kept experimental.thread_orchestrator and lost all its user values, its Metal 4 switch refused) and REWINDBOX_METAL_TIMED_REPORT_906 (COREPROF METAL every 5 s, also without flips, plus a state line). Core 905: the complete native Metal 4 renderer and the iOS 27 JIT high window. Metal stays opt-in per title. No codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42). Built by the RPCS3 Core route (run 42324483147, attempt 1, source ca2d5d98; Apple host harnesses run 42324483147 on ca2d5d98). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
+ "build": 907,
+ "note": "RPCS3 Core 907: Core 906 plus the Assassin's Creed GPU levers: REWINDBOX_LOAD_OP_CLEAR_907 (a full-framebuffer fast clear that begins a render pass is its load-op CLEAR instead of a full load plus a clear draw; same image) and REWINDBOX_NATIVE_HALF_907 (the RSX half-precision H registers as native float16, every other High-precision rule kept); per-title settings, Automatic on for Assassin's Creed only. Core 906: retired game-setting overrides skipped and pruned, timed COREPROF METAL report. Request 1 (run 42326285167) failed in the Apple host harnesses (feedback census guard, fixed; PPU grace ASan timing on the reverted 668 tree, passed on request 2). No codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42). Built by the RPCS3 Core route (run 42329242959, attempt 1, source 3c9cac6c; Apple host harnesses run 42329242959 on 3c9cac6c). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 906 source closure and the native dependency",
+    "Authenticate the Core 907 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 906",
-    "Verify the actual binary and write its Core 906 identity",
+    "Compile and link the actual iPhone Core 907",
+    "Verify the actual binary and write its Core 907 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 906 without an application delivery",
+    "Upload the verified Core 907 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "ca2d5d98b1978cc526e4bc182114434f5960df07",
-   "run": 42324483147,
+   "source": "3c9cac6cf873d75a3455d7eb01525b2cd87a131d",
+   "run": 42329242959,
    "attempt": 1,
-   "job": 128256481323,
-   "artifact": 13554928998,
-   "name": "RPCS3Core-906-ca2d5d98b1978cc526e4bc182114434f5960df07",
-   "bytes": 30455908,
-   "sha256": "3fd54d5f99fc2e92d68dc99bf73c0199584c73256febb36c9497a9df7eae6f14",
-   "expiresAt": "2026-12-07T01:47:53Z"
+   "job": 128271699285,
+   "artifact": 13557576216,
+   "name": "RPCS3Core-907-3c9cac6cf873d75a3455d7eb01525b2cd87a131d",
+   "bytes": 30456240,
+   "sha256": "0a472ae02318f41df58703bd31ec03133b304c128b6755c46bef25c0b96e6ed1",
+   "expiresAt": "2026-12-07T02:43:30Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 906 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 907 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 906 harnesses with Apple clang",
+    "Run the affected and new Core 907 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core906",
+    "core907",
     "lr-full-queue"
    ],
-   "source": "ca2d5d98b1978cc526e4bc182114434f5960df07",
-   "run": 42324483147,
+   "source": "3c9cac6cf873d75a3455d7eb01525b2cd87a131d",
+   "run": 42329242959,
    "attempt": 1,
-   "job": 128256481104,
-   "artifact": 13555097293,
-   "name": "RPCS3Core-906-apple-host-tests-ca2d5d98b1978cc526e4bc182114434f5960df07",
-   "bytes": 60094,
-   "sha256": "c5092dcaeb19284ead06104bab611bbdd64ed6f9fb0784800cd68f320d978608",
-   "expiresAt": "2026-12-07T01:47:40Z",
+   "job": 128271698584,
+   "artifact": 13556668955,
+   "name": "RPCS3Core-907-apple-host-tests-3c9cac6cf873d75a3455d7eb01525b2cd87a131d",
+   "bytes": 60142,
+   "sha256": "b7bb26a211734f8420ad4f06ab3aba4bdafb91d99015ff788be15711693de24f",
+   "expiresAt": "2026-12-07T02:41:14Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core906",
-  "dylibBytes": 80795712,
-  "dylibSha256": "978805066df9a81b3da1f16585c1f1bfe2845dc52d3e82ae81aa054d4a207254",
-  "identitySha256": "f240607c229b5ce34b008472a5aeef5c3ea65364a4685d3f53177524ee3c7413",
+  "type": "rpcs3-ios-core907",
+  "dylibBytes": 80796264,
+  "dylibSha256": "2d8e92ba7a6cc1081e5e1f603fa6742289badf4b6479856a458ae09154d461da",
+  "identitySha256": "946f233e7a8403515be67646b26c9e83030f3a4fba7c3cbb4125ac3920de4bb4",
   "proofMember": "core610-proof.json",
-  "proofSha256": "61f617426ab48ec2658148774d0c66dee1b4c7676dd93ea160151838754c8c33",
-  "payloadFingerprint": "4d4b1ef313091ec215037b50fc7ad0fae9043b69b152fd476e9d811523a4d239"
+  "proofSha256": "c52e612729ec594f67b9af1a9f14d7cd11ade04dc0a0638e4a4dcab847555cb0",
+  "payloadFingerprint": "b804508a2814e028b0fe39eaa72c38bd236154cb0f010734ca1994b63b0bdf9f"
  },
  "canonical": {
-  "patchSha256": "53220481717cdfaa4c1e483958b3b885f2555215ce291870f27d90f289f0bf10",
-  "postimages": 444,
+  "patchSha256": "654680eabb663b7a0e0f74e16c1c9218a84e553671564e4531762496ee58e313",
+  "postimages": 445,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -273,13 +273,15 @@
   "COREPROF METAL textures bound=",
   "COREPROF METAL M4 queries=",
   "COREPROF METAL M5 program_cache=",
-  "COREPROF METAL state frames="
+  "COREPROF METAL state frames=",
+  "COREPROF LOADCLEAR907",
+  "Resolved title policy 907"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "dc967e1f3e3a4e0273f5198715f0ee91c3ed9568",
-  "run": 42265781315,
-  "artifact": 13529025295,
-  "payloadFingerprint": "173c2f36bf13e5e56aa4bd9914523e84217622c0c93b932b6f472f5ad949eb1f"
+  "source": "ca2d5d98b1978cc526e4bc182114434f5960df07",
+  "run": 42324483147,
+  "artifact": 13554928998,
+  "payloadFingerprint": "4d4b1ef313091ec215037b50fc7ad0fae9043b69b152fd476e9d811523a4d239"
  }
 }
