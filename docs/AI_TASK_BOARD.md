@@ -807,6 +807,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.
+    - MeloNX Core 679 (= 677 + adapt_audio_start_deferred, Hogwarts "AVAudioEngine failed to start" abort during iOS
+      memory warnings) requested in `8c3e5723`; main waits for its verified pin, then packs the next IPA with Core 679
+      + `b1edef18` + RPCS3 Core 905 (unchanged).
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
