@@ -862,8 +862,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Core 907 built and pinned**: request 2 run `42329242959` (source `3c9cac6c`), Core job and Apple host harnesses green
       (the PPU grace 664 ASan timing check passed unchanged); dylib `2d8e92ba`, fingerprint `b804508a`, identities unchanged.
       Not run on the iPhone; no FPS claim.
-  - **IPA 684 (common)** waits for MeloNX Core 685 (pushed 3b6cfcca, pin ~03:10 UTC, else 683 pin 3554443c), with RPCS3
-    Core 907, app fixes b1edef18, fc515ee7, bd1f963e, 530b18f6; recipient key b09fdc7e (private half out of Git).
+  - **IPA 684 delivered and verified (7 Nov)**: trigger `7318c42b`, run `42336502047`, five jobs green first try.
+    - Contents: RPCS3 Core 907 (pin `386e14c4`; AC GPU levers, retired overrides, timed Metal report), MeloNX Core 685 (pin
+      `813fd1f4`), app fixes b1edef18, fc515ee7, bd1f963e, 530b18f6 (the last two through the MeloNX merge 5ec25b8b).
+    - IPA 249900227 B, SHA-256 `d710970d…2e90`; offline checks passed (SHA256SUMS, signer receipt, 6 validators 0);
+      [receipt](evidence/rewind684/delivery.json), 12 proofs; key 684 deleted. Sent privately (port 8684 + file).
+    - Wanted from the device: AC (BLES00158) gameplay GPUTIME621 busy_ms and LOADCLEAR907 against IPA 676 (~30 ms/frame),
+      and the Disabled A/B of each lever; BO2 Metal 4 switch saved (no refused=21), BO2 on Metal twice; AC IV on Metal
+      (COREPROF METAL state lines at the hang); Hogwarts cheats and pipeline journal (MeloNX).
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.
