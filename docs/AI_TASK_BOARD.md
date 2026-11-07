@@ -1201,9 +1201,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
   50/66/75/85/90/100 %, Docked RRS 70/71/83 %, Enable DRS; 92 cheats installed for build F1AE192C465BD920). The sessions
   without these cheats did not crash this way (79477, 79931, 80907). Reading: conflicting writes to the game's
-  resolution state, not an engine defect. Advice: disable those cheats, keep one at most. Possible product lever:
-  refuse or warn when several enabled cheats write the same address (Ryujinx enables every cheat when enabled.txt is
-  absent). The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
+  resolution state, not an engine defect.
+  - The player reports that no cheat is enabled in the menu. Consistent with the journal: the files are the player's
+    own, in `Documents/MeloNX/mods/contents/0100f7e00c70e000/cheats/` ("Found enabled mod '' [CCC]", no RewindBox
+    mod). The running build's file holds 93 programs; 173 (550F…) and 97 (F1AE…) are skipped for other versions.
+    Without an enabled.txt, ModLoader.EnableCheats calls EnableAllCheats, so all 93 programs run, mutually exclusive
+    variants included. The menu lists only catalog cheats.
+  - Advice: move that cheats folder out. Product lever, pending the maintainer's choice: with no enabled.txt, do not
+    enable programs that write the same address, or list the player's own cheats in the menu. The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
   21 s unscheduled, which matches the pipeline-creation freezes that Core 673/675 address.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
