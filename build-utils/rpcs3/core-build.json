@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 905,
- "identity_type": "rpcs3-ios-core905",
- "summary": "RPCS3 Core 905 = Core 904 plus the last native Metal 4 parity items (iOS ZCULL hooks of VKGSRender, multi-worker boot precompile, MSAA resolve-before-read). Core 904 = Core 903 (the native Metal 4 renderer M1-M4) plus the JIT arena high window (Utilities/JITIOS.cpp, not a codegen input: the arena search walks from 4 GiB up to the task maximum address instead of stopping at 64 GiB, low window first; on iOS 27 beta the system shared region fills [4,64) GiB and no RPCS3 game could start on IPA 674), Metal M5 part 1 (boot program precompile in shaders_cache/metal/, the persistent Metal 4 pipeline archive with checkpoints during play; rsx_cache.h gains a defaulted cache directory argument, Vulkan unchanged) and the M3 gaps (scaled loads, integer/stencil blits, scaled depth<->colour copies, BC readback, GPU tile decode). Metal stays opt-in per title. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 907,
+ "identity_type": "rpcs3-ios-core907",
+ "summary": "RPCS3 Core 907 = Core 906 plus two GPU levers for Assassin's Creed (IPA 676: 25-28 fps in play, ~30 ms of GPU work per frame, 44-48 render passes per frame all LOAD/STORE). (1) REWINDBOX_LOAD_OP_CLEAR_907: a full-framebuffer fast clear that begins a render pass now begins it with load-op CLEAR for exactly the cleared attachments, instead of loading the old image from memory and then drawing the clear over it (MoltenVK executes vkCmdClearAttachments as a draw); same result. (2) REWINDBOX_NATIVE_HALF_907: the fragment decompilers give the RSX half-precision H registers native float16 types, as the RSX computes them, keeping every other High-precision rule. Both are per-title settings, Automatic on for Assassin's Creed only. Core 906 = retired overrides skipped, timed Metal report. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "f9b33b8152d9b99a9a24035c929a3caf114b604565310fbe4a720dfc08763330",
-  "postimages": 444,
+  "patch_sha256": "654680eabb663b7a0e0f74e16c1c9218a84e553671564e4531762496ee58e313",
+  "postimages": 445,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -52,7 +52,9 @@
    "core902_20261106",
    "core903_20261106",
    "core904_20261106",
-   "core905_20261106"
+   "core905_20261106",
+   "core906_20261107",
+   "core907_20261107"
   ]
  },
  "reference": {
@@ -92,10 +94,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core905_20261106",
-  "manifest": "build-utils/rpcs3/core905-delta.json",
-  "patch": "build-utils/rpcs3/core905-delta.patch",
-  "patch_sha256": "5f9ecc8538e5710873f82115cf1fcfdfb2a6d3951624b827c59b153fca623ec1"
+  "record": "core907_20261107",
+  "manifest": "build-utils/rpcs3/core907-delta.json",
+  "patch": "build-utils/rpcs3/core907-delta.patch",
+  "patch_sha256": "448b942b186a41277bf2cb074a77a24fd8576fb9d6232fbb126dec1a867dc321"
  },
  "exports": 92,
  "core_inputs": {
@@ -196,7 +198,10 @@
   "Native Metal 4 renderer",
   "COREPROF METAL textures bound=",
   "COREPROF METAL M4 queries=",
-  "COREPROF METAL M5 program_cache="
+  "COREPROF METAL M5 program_cache=",
+  "COREPROF METAL state frames=",
+  "COREPROF LOADCLEAR907",
+  "Resolved title policy 907"
  ],
  "moltenvk_dependency": {
   "run": 42213572281,
@@ -403,28 +408,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core905_codegen_test.py",
+     "test/rpcs3_core907_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 905 touch no codegen input (Utilities/JITIOS.cpp and rsx_cache.h are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 907 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h and rpcs3/ios/RPCS3IOSSettings.cpp and the VK/Metal renderer files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core905",
+    "name": "core907",
     "argv": [
      "python3",
-     "test/rpcs3_core905_test.py",
+     "test/rpcs3_core907_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core905.json"
+     "{out}/core907.json"
     ],
-    "reason": "Core 901 to 905 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 907 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",

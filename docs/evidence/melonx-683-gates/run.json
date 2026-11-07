@@ -84,5 +84,34 @@
   "freshAppleGates": 54,
   "contractTest": "398 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42320919401 (8c3e5723, Core 679)": "passed",
+  "42322682655 (8bb0f3b9, Core 681)": "passed",
+  "42324442423 attempt 1 (c41b7a51, Core 683)": "passed: 54 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42324442423,
+  "attempt": 1,
+  "job": 128262080204,
+  "source": "c41b7a517033a9d0c516b04661550216c23014be",
+  "artifact": 13556034535,
+  "artifactBytes": 90678200,
+  "artifactSha256": "4de8b806d0aef02208b692fbbb6ee6d44e66680a924f9b489634b0f12ec26b8c",
+  "expiresAt": "2026-11-21T02:17:46Z",
+  "iphoneBinarySha256": "794888c495b471d8a9580d03c31806e181d6eae50b79bc4472ab9b72829f9515",
+  "iphoneBinaryBytes": 38160256,
+  "packagedFingerprint": "181a9994b4fe0d3de8166baca427ce50ee41ae6f6467472367a4ed7fdacbe8c5",
+  "resultSha256": "f6beda16c4f425650b1b68e32912252fe2441858c47a70184fe1c96cd3b1f40e",
+  "contractSha256": "f5d160f6f89aed3a018406632475112002f067eef6e328044e6232832dc76029",
+  "iphoneBinaryMarkers": [
+   "checkpointed on pause",
+   "adapt_pipeline_cache_room",
+   "adapt_pipeline_cache_persist",
+   "startDeferred",
+   "EnterMainCreation"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 677 (5c76b8e0, pin 87948fb5, fingerprint 5e375677)"
+ }
 }

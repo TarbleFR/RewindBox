@@ -91647,10 +91647,10 @@ index 0000000..01da0b9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
 new file mode 100644
-index 0000000..9a6a6bc
+index 0000000..f810155
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
-@@ -0,0 +1,658 @@
+@@ -0,0 +1,665 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2): RSX fragment program decompiler for the native Metal 4 renderer.
 +// The generated GLSL follows VKFragmentProgram.cpp line for line; only the device queries differ.
@@ -91661,6 +91661,9 @@ index 0000000..9a6a6bc
 +#include "Emu/RSX/Program/GLSLCommon.h"
 +#include "Emu/RSX/Program/SPIRVCommon.h"
 +#include "Emu/system_config.h"
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
 +
 +std::string MTLFragmentDecompilerThread::getFloatTypeName(usz elementCount)
 +{
@@ -92251,7 +92254,11 @@ index 0000000..9a6a6bc
 +		MTLFragmentDecompilerThread decompiler(source, prog, size, *this, caps);
 +
 +		// The same choices as VKFragmentProgram::Decompile for this device.
-+		if (g_cfg.video.shader_precision == gpu_preset_level::low)
++		if (g_cfg.video.shader_precision == gpu_preset_level::low
++#ifdef RPCS3_IOS
++			|| rpcs3::ios::get_experimental_policy().native_half_registers  // REWINDBOX_NATIVE_HALF_907
++#endif
++			)
 +		{
 +			decompiler.device_props.has_native_half_support = caps.has_native_half_support;
 +		}
@@ -92438,10 +92445,10 @@ index 0000000..438c533
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 new file mode 100644
-index 0000000..6512760
+index 0000000..2bda1d7
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-@@ -0,0 +1,1011 @@
+@@ -0,0 +1,1058 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (see MTLGSRender.h): device, frames, rings, presentation.
 +// The draw path is in MTLDraw.cpp, vertex and index uploads in MTLVertexBuffers.cpp.
@@ -93133,9 +93140,15 @@ index 0000000..6512760
 +		m_snapshot_pool.erase(m_snapshot_pool.begin(), m_snapshot_pool.begin() + (m_snapshot_pool.size() - 16));
 +	}
 +
++	m_last_flip_us = get_system_time();
 +	if ((m_frame_index % 600) == 0)
 +	{
 +		report_counters();
++		m_last_counter_report_us = m_last_flip_us;
++	}
++	else
++	{
++		report_counters_if_due();
 +	}
 +
 +	m_frame->flip(m_context);
@@ -93185,6 +93198,46 @@ index 0000000..6512760
 +
 +	report_m4_counters();  // M4
 +	report_m5_counters();  // M5
++	report_drain_state();  // 906
++}
++
++void MTLGSRender::report_counters_if_due()
++{
++	// REWINDBOX_METAL_TIMED_REPORT_906: AC IV (BLES01882, IPA 676) stopped presenting after about 555 frames, before the
++	// 600-frame report, so its log held no COREPROF METAL line at all. RSX thread only (the counters it reads are its own).
++	const u64 now = get_system_time();
++	if (now - m_last_counter_report_us < 5'000'000)
++	{
++		return;
++	}
++	m_last_counter_report_us = now;
++	report_counters();
++}
++
++void MTLGSRender::report_drain_state()
++{
++	// What a guest waiting on the RSX can be waiting for while the FIFO is empty: submissions not yet made or not yet
++	// completed, ZCULL reports whose segments are in them, a scheduled ZCULL flush, a pending fault flush.
++	u64 unsubmitted_reports = 0;
++	u64 in_flight_reports = 0;
++	const u64 submitted = m_commands.last_submitted();
++	const u64 completed = m_commands.completed();
++	for (const auto& record : m_query_records)
++	{
++		if (!record.has_data)
++		{
++			continue;
++		}
++		unsubmitted_reports += record.last_fence > submitted ? 1 : 0;
++		in_flight_reports += (record.last_fence <= submitted && record.last_fence > completed) ? 1 : 0;
++	}
++	const u64 now = get_system_time();
++	rsx_log.notice("COREPROF METAL state frames=%llu flip_age_ms=%llu recording=%d submitted=%llu completed=%llu query_cb_fence=%llu "
++		"active_query=%d unsubmitted_reports=%llu in_flight_reports=%llu zcull_flush_pending=%d offloader_deadlock=%d in_begin_end=%d "
++		"get=0x%x put=0x%x",
++		m_frame_index, m_last_flip_us ? (now - m_last_flip_us) / 1000 : 0, m_commands.recording() ? 1 : 0, submitted, completed,
++		m_query_cb_fence, m_active_query_info ? 1 : 0, unsubmitted_reports, in_flight_reports, m_zcull_flush_pending ? 1 : 0,
++		m_offloader_deadlock ? 1 : 0, in_begin_end ? 1 : 0, ctrl ? +ctrl->get : 0u, ctrl ? +ctrl->put : 0u);
 +}
 +
 +bool MTLGSRender::wait_for_offloader_recovery(bool is_writing)
@@ -93427,6 +93480,7 @@ index 0000000..6512760
 +	rsx::thread::do_local_task(state);
 +
 +	service_native_ui_flip(state);  // M4: frames for the native interface (VKGSRender::do_local_task)
++	report_counters_if_due();  // 906
 +}
 +
 +bool MTLGSRender::scaled_image_from_memory(const rsx::blit_src_info& src, const rsx::blit_dst_info& dst, bool interpolate)
@@ -93455,10 +93509,10 @@ index 0000000..6512760
 +
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
 new file mode 100644
-index 0000000..4251ea0
+index 0000000..66e9126
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,426 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93652,6 +93706,12 @@ index 0000000..4251ea0
 +	void flush_command_queue(bool wait);
 +	bool on_ring_exhausted(usz size);
 +	void report_counters();
++	// REWINDBOX_METAL_TIMED_REPORT_906: the COREPROF METAL lines every 5 s, from flip() and from do_local_task() (so a
++	// renderer that stopped presenting still reports), plus the drain state line.
++	void report_counters_if_due();
++	void report_drain_state();
++	u64 m_last_counter_report_us = 0;
++	u64 m_last_flip_us = 0;
 +
 +	// Presentation (M1)
 +	bool create_present_pipeline(std::string& error);
@@ -111146,10 +111206,20 @@ index 77927e2..7ded007 100644
  	rsx::thread::end();
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
-index af6a25a..68145ed 100644
+index af6a25a..1fe638f 100644
 --- a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
-@@ -406,6 +406,7 @@ void VKFragmentDecompilerThread::insertGlobalFunctions(std::stringstream &OS)
+@@ -5,6 +5,9 @@
+ #include "vkutils/device.h"
+ #include "Emu/system_config.h"
+ #include "../Program/GLSLCommon.h"
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
+ 
+ std::string VKFragmentDecompilerThread::getFloatTypeName(usz elementCount)
+ {
+@@ -406,6 +409,7 @@ void VKFragmentDecompilerThread::insertGlobalFunctions(std::stringstream &OS)
  	m_shader_props.ROP_sRGB_packing = !!(m_prog.ctrl & RSX_SHADER_CONTROL_SRGB_FRAMEBUFFER);
  	m_shader_props.ROP_alpha_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TEST);
  	m_shader_props.ROP_alpha_to_coverage_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE);
@@ -111157,6 +111227,20 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_polygon_stipple_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_POLYGON_STIPPLE);
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
+@@ -617,7 +621,12 @@ void VKFragmentProgram::Decompile(const RSXFragmentProgram& prog)
+ 	VKFragmentDecompilerThread decompiler(source, parr, prog, size, *this);
+ 
+ 	const auto pdev = vk::get_current_renderer();
+-	if (g_cfg.video.shader_precision == gpu_preset_level::low)
++	if (g_cfg.video.shader_precision == gpu_preset_level::low
++#ifdef RPCS3_IOS
++		// REWINDBOX_NATIVE_HALF_907: the RSX H registers as native float16, the other high-precision rules kept
++		|| rpcs3::ios::get_experimental_policy().native_half_registers
++#endif
++		)
+ 	{
+ 		decompiler.device_props.has_native_half_support = pdev->get_shader_types_support().allow_float16;
+ 	}
 diff --git a/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp b/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp
 index 572935e..eaff79b 100644
 --- a/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp
@@ -111176,10 +111260,10 @@ index 572935e..eaff79b 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..5f91d29 100644
+index 63cab28..9e8262a 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,24 @@
+@@ -16,10 +16,25 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -111192,6 +111276,7 @@ index 63cab28..5f91d29 100644
 +#include "ios/RPCS3IOSPerformance.h"
 +#include "ios/IOSShaderTiming.h"
 +#include "ios/IOSReadbackProfile.h"
++#include "ios/IOSLoadOpClear907.h"
 +#include "ios/IOSDeferredCommit.h"
 +#include "ios/IOSEarlySubmit.h"
 +#include "ios/IOSRsxIdlePark.h"
@@ -111204,7 +111289,7 @@ index 63cab28..5f91d29 100644
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +489,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +490,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -111235,7 +111320,7 @@ index 63cab28..5f91d29 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -486,6 +524,10 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -486,6 +525,10 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	// create command buffer...
  	m_command_buffer_pool.create((*m_device), m_device->get_graphics_queue_family());
  	m_primary_cb_list.create(m_command_buffer_pool, vk::command_buffer::access_type_hint::flush_only);
@@ -111246,7 +111331,7 @@ index 63cab28..5f91d29 100644
  	m_current_command_buffer = m_primary_cb_list.get();
  	m_current_command_buffer->begin();
  
-@@ -537,7 +579,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +580,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -111255,7 +111340,7 @@ index 63cab28..5f91d29 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +838,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +839,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -111267,7 +111352,7 @@ index 63cab28..5f91d29 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -875,6 +922,10 @@ VKGSRender::~VKGSRender()
+@@ -875,6 +923,10 @@ VKGSRender::~VKGSRender()
  	m_stencil_mirror_sampler.reset();
  
  	// Queries
@@ -111278,7 +111363,7 @@ index 63cab28..5f91d29 100644
  	m_occlusion_query_manager.reset();
  	m_cond_render_buffer.reset();
  
-@@ -935,6 +986,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -935,6 +987,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
  			m_queue_status |= flush_queue_state::deadlock;
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
@@ -111288,7 +111373,7 @@ index 63cab28..5f91d29 100644
  
  			// Wait for deadlock to clear
  			while (m_queue_status & flush_queue_state::deadlock)
-@@ -959,6 +1013,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -959,6 +1014,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			m_flush_requests.post(false);
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
  			has_queue_ref = true;
@@ -111299,7 +111384,7 @@ index 63cab28..5f91d29 100644
  		}
  		else
  		{
-@@ -983,6 +1041,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -983,6 +1042,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -111311,7 +111396,7 @@ index 63cab28..5f91d29 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1082,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1083,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -111351,7 +111436,7 @@ index 63cab28..5f91d29 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1138,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1139,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -111365,7 +111450,7 @@ index 63cab28..5f91d29 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1193,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1194,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -111380,15 +111465,7 @@ index 63cab28..5f91d29 100644
 -			{
 -				return;
 -			}
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -111400,7 +111477,15 @@ index 63cab28..5f91d29 100644
 -				}
 -			}
 -		};
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
 -
@@ -111409,7 +111494,7 @@ index 63cab28..5f91d29 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1234,8 +1316,13 @@ void VKGSRender::bind_viewport()
+@@ -1234,8 +1317,13 @@ void VKGSRender::bind_viewport()
  		m_graphics_state.clear(rsx::pipeline_state::zclip_config_state_dirty);
  	}
  
@@ -111423,7 +111508,7 @@ index 63cab28..5f91d29 100644
  }
  
  void VKGSRender::on_init_thread()
-@@ -1250,8 +1337,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1338,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -111434,7 +111519,7 @@ index 63cab28..5f91d29 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1347,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1348,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -111443,7 +111528,7 @@ index 63cab28..5f91d29 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1363,34 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1364,34 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -111478,7 +111563,146 @@ index 63cab28..5f91d29 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1650,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1326,6 +1436,7 @@ void VKGSRender::clear_surface(u32 mask)
+ 
+ 	const bool full_frame = (scissor_w == fb_width && scissor_h == fb_height);
+ 	bool update_color = false, update_z = false;
++	[[maybe_unused]] bool partial_stencil_cleared = false;  // REWINDBOX_LOAD_OP_CLEAR_907: the stencil went through an overlay pass
+ 	auto surface_depth_format = rsx::method_registers.surface_depth_fmt();
+ 
+ 	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK)
+@@ -1513,6 +1624,7 @@ void VKGSRender::clear_surface(u32 mask)
+ 				rsx::method_registers.stencil_mask(), renderpass);
+ 
+ 			depth_stencil_mask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
++			partial_stencil_cleared = true;
+ 		}
+ 
+ 		if (depth_stencil_mask)
+@@ -1530,17 +1642,132 @@ void VKGSRender::clear_surface(u32 mask)
+ 
+ 	if (!clear_descriptors.empty())
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_LOAD_OP_CLEAR_907 (ios/IOSLoadOpClear907.h): a full clear that begins the pass is its load-op.
++		if (begin_render_pass_with_clear(clear_descriptors, full_frame && !partial_stencil_cleared))
++		{
++			return;
++		}
++#endif
+ 		begin_render_pass();
+ 		vkCmdClearAttachments(*m_current_command_buffer, ::size32(clear_descriptors), clear_descriptors.data(), 1, &region);
+ 	}
+ }
+ 
++#ifdef RPCS3_IOS
++bool VKGSRender::begin_render_pass_with_clear(const std::vector<VkClearAttachment>& clears, bool full_frame)
++{
++	namespace lc = rpcs3::ios::load_op_clear;
++	if (!lc::enabled.load(std::memory_order_relaxed))
++	{
++		lc::add(lc::counters.kept_disabled);
++		return false;
++	}
++	if (vk::is_renderpass_open_on(*m_current_command_buffer, m_draw_fbo->value))
++	{
++		// The clear lands in the middle of an open pass: its load-op is past.
++		lc::add(lc::counters.kept_open_pass);
++		return false;
++	}
++
++	// The framebuffer's attachments: the color views first, then the depth/stencil view (vk::framebuffer_holder).
++	// (prepare_rtts: m_fbo_images holds the m_draw_buffers surfaces, then the depth surface when one is bound.)
++	const auto& views = m_draw_fbo->attachments;
++	const bool has_depth = std::get<0>(m_rtts.m_bound_depth_stencil) != 0;
++	const usz color_count = m_draw_buffers.size();
++	if (views.size() != color_count + (has_depth ? 1 : 0))
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++	bool clear_color = false;
++	VkImageAspectFlags depth_aspects = 0;
++	VkClearValue color_value{}, depth_value{};
++	usz color_descriptors = 0;
++	for (const auto& clear : clears)
++	{
++		if (clear.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT)
++		{
++			clear_color = true;
++			color_value = clear.clearValue;
++			color_descriptors++;
++		}
++		else
++		{
++			depth_aspects |= clear.aspectMask;
++			depth_value = clear.clearValue;
++		}
++	}
++
++	const bool single_sample = !views.empty() && views.front()->image()->samples() == 1;
++	// Every color attachment cleared (one fast-clear descriptor each, one value for all), whole depth/stencil aspects
++	// of the bound depth buffer, a full-framebuffer rectangle, single sample.
++	const bool color_ok = !clear_color || color_descriptors == color_count;
++	const bool depth_ok = !depth_aspects || has_depth;
++	if (!full_frame || !single_sample || !color_ok || !depth_ok || views.empty())
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++
++	std::array<VkClearValue, 8> values{};
++	if (views.size() > values.size())
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++	for (usz index = 0; index < color_count; ++index)
++	{
++		values[index] = color_value;
++	}
++	if (has_depth)
++	{
++		values[views.size() - 1] = depth_value;
++	}
++
++	const bool clear_depth = !!(depth_aspects & VK_IMAGE_ASPECT_DEPTH_BIT);
++	const bool clear_stencil = !!(depth_aspects & VK_IMAGE_ASPECT_STENCIL_BIT);
++	const VkRenderPass pass = get_render_pass();
++	const VkRenderPass cleared_pass = vk::get_renderpass(*m_device,
++		vk::get_renderpass_key_with_load_clear(m_current_renderpass_key, clear_color, clear_depth, clear_stencil));
++	vk::begin_renderpass_cleared(*m_current_command_buffer, pass, cleared_pass, m_draw_fbo->value,
++		{ positionu{0u, 0u}, sizeu{m_draw_fbo->width(), m_draw_fbo->height()} }, values.data(), ::size32(views));
++	// FEEDBACK610 counts only the passes the draw path begins (its reviewed census): the passes begun
++	// here are counted by COREPROF LOADCLEAR907 passes, and by RPASS652 like every other begin.
++	{
++		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo, as
++		// VKGSRender::begin_render_pass notes them (its reviewed form is unchanged).
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++		for (const auto& view : views)
++		{
++			if (count == images.size())
++			{
++				count = 0;
++				break;
++			}
++			images[count++] = view->image()->value;
++		}
++		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
++	}
++
++	lc::add(lc::counters.passes);
++	if (clear_color) lc::add(lc::counters.color);
++	if (clear_depth) lc::add(lc::counters.depth);
++	if (clear_stencil) lc::add(lc::counters.stencil);
++	return true;
++}
++#endif
++
+ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+ {
+ 	close_and_submit_command_buffer();
  
  	if (hard_sync)
  	{
@@ -111488,7 +111712,7 @@ index 63cab28..5f91d29 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1718,6 +1830,12 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
+@@ -1718,6 +1945,12 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
  		// This heavyweight hint should be used with caution
  		std::lock_guard lock(m_flush_queue_mutex);
  		flush_command_queue();
@@ -111501,7 +111725,7 @@ index 63cab28..5f91d29 100644
  
  		if (m_flush_requests.pending())
  		{
-@@ -1801,12 +1919,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,12 +2034,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -111519,7 +111743,7 @@ index 63cab28..5f91d29 100644
  	{
  		get_current_fragment_program(fs_sampler_state);
  		ensure(current_fragment_program.valid);
-@@ -1862,8 +1983,13 @@ bool VKGSRender::load_program()
+@@ -1862,8 +2098,13 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -111533,7 +111757,7 @@ index 63cab28..5f91d29 100644
  			m_pipeline_properties == properties)
  		{
  			// Nothing changed
-@@ -1872,7 +1998,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +2113,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -111541,7 +111765,7 @@ index 63cab28..5f91d29 100644
  	}
  	else
  	{
-@@ -1912,7 +2037,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2152,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -111554,7 +111778,7 @@ index 63cab28..5f91d29 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2409,6 +2538,10 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2409,6 +2653,10 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  
  			vk::queue_submit_t submit_info{ m_device->get_graphics_queue(), nullptr };
  			secondary_command_buffer->submit(submit_info, force_flush);
@@ -111565,7 +111789,7 @@ index 63cab28..5f91d29 100644
  		}
  
  		vk::clear_status_interrupt(vk::heap_dirty);
-@@ -2467,13 +2600,23 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2467,13 +2715,23 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  		{
  			const VkSemaphore async_sema = *async_scheduler->get_sema();
  			secondary_submit_info.queue_signal(async_sema);
@@ -111589,7 +111813,7 @@ index 63cab28..5f91d29 100644
  	}
  
  	if (signal_semaphore)
-@@ -2482,10 +2625,413 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2482,10 +2740,413 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -112003,7 +112227,7 @@ index 63cab28..5f91d29 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +3148,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +3263,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -112024,7 +112248,7 @@ index 63cab28..5f91d29 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +3196,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +3311,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -112034,7 +112258,7 @@ index 63cab28..5f91d29 100644
  				continue;
  			}
  
-@@ -2663,6 +3226,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +3341,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -112044,7 +112268,7 @@ index 63cab28..5f91d29 100644
  		}
  	}
  
-@@ -2679,6 +3245,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +3360,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -112054,7 +112278,7 @@ index 63cab28..5f91d29 100644
  		}
  	}
  
-@@ -2720,7 +3289,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+@@ -2720,7 +3404,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
  	{
  		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
  		vk::queue_submit(packet);
@@ -112063,7 +112287,7 @@ index 63cab28..5f91d29 100644
  		break;
  	}
  	default:
-@@ -2801,8 +3370,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
+@@ -2801,8 +3485,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
  	if (data.is_current(m_current_command_buffer))
  		return false;
  
@@ -112105,7 +112329,7 @@ index 63cab28..5f91d29 100644
  }
  
  void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info* query)
-@@ -2811,10 +3413,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
+@@ -2811,10 +3528,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
  	if (data.indices.empty())
  		return;
  
@@ -112133,7 +112357,7 @@ index 63cab28..5f91d29 100644
  			flush_command_queue();
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index e3817d8..3e149a2 100644
+index e3817d8..cd2fd43 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
 @@ -104,6 +104,7 @@ private:
@@ -112193,7 +112417,17 @@ index e3817d8..3e149a2 100644
  	void queue_swap_request(bool wait_on_acquire = true);
  	void frame_context_cleanup(vk::frame_context_t *ctx);
  	void advance_queued_frames();
-@@ -255,6 +291,7 @@ private:
+@@ -239,6 +275,9 @@ private:
+ 	vk::viewable_image* get_present_source(vk::present_surface_info* info, const rsx::avconf& avconfig);
+ 
+ 	void begin_render_pass();
++#ifdef RPCS3_IOS
++	bool begin_render_pass_with_clear(const std::vector<VkClearAttachment>& clears, bool full_frame);  // REWINDBOX_LOAD_OP_CLEAR_907
++#endif
+ 	void close_render_pass();
+ 	VkRenderPass get_render_pass();
+ 	void invalidate_render_pass();
+@@ -255,6 +294,7 @@ private:
  	void upload_transform_constants(const rsx::io_buffer& buffer);
  
  	void load_texture_env();
@@ -112201,7 +112435,7 @@ index e3817d8..3e149a2 100644
  	bool bind_texture_env();
  	bool bind_interpreter_texture_env();
  
-@@ -274,6 +311,11 @@ public:
+@@ -274,6 +314,11 @@ public:
  	bool check_occlusion_query_status(rsx::reports::occlusion_query_info* query) override;
  	void get_occlusion_query_result(rsx::reports::occlusion_query_info* query) override;
  	void discard_occlusion_query(rsx::reports::occlusion_query_info* query) override;
@@ -113772,7 +114006,7 @@ index 3427f2c..ee91ba1 100644
  		}
  	};
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
-index 5e74d64..936b456 100644
+index 5e74d64..94fd63a 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
 @@ -1,11 +1,17 @@
@@ -113811,7 +114045,62 @@ index 5e74d64..936b456 100644
  
  	shared_mutex g_renderpass_cache_mutex;
  	rsx::unordered_map<u64, VkRenderPass> g_renderpass_cache;
-@@ -383,6 +400,10 @@ namespace vk
+@@ -28,6 +45,8 @@ namespace vk
+ 	// 16-21 sample_counts
+ 	// 22-36 current layouts
+ 	// 37-41 input attachments
++	// 42-44 REWINDBOX_LOAD_OP_CLEAR_907: load-op CLEAR for the color attachments (bit 0), depth (bit 1), stencil (bit 2)
++	//       of a pass begun by a full-surface clear; never part of the keys pipelines or framebuffers are made with
+ 	union renderpass_key_blob
+ 	{
+ 	private:
+@@ -75,6 +94,7 @@ namespace vk
+ 			u64 sample_count  : 6;
+ 			u64 layout_blob   : 15;
+ 			u64 input_attachments_mask : 5;
++			u64 load_clear_mask : 3; // REWINDBOX_LOAD_OP_CLEAR_907
+ 		};
+ 
+ 		renderpass_key_blob(u64 encoded_) : encoded(encoded_)
+@@ -257,6 +277,16 @@ namespace vk
+ 		return key.encoded;
+ 	}
+ 
++	u64 get_renderpass_key_with_load_clear(u64 renderpass_key, bool color, bool depth, bool stencil)
++	{
++		// REWINDBOX_LOAD_OP_CLEAR_907: the same pass (same formats, layouts, samples, input attachments: compatible
++		// with every pipeline and framebuffer of renderpass_key, as Vulkan ignores load operations for compatibility)
++		// whose listed attachments start cleared instead of loaded.
++		renderpass_key_blob key(renderpass_key);
++		key.load_clear_mask = (color ? 1u : 0u) | (depth ? 2u : 0u) | (stencil ? 4u : 0u);
++		return key.encoded;
++	}
++
+ 	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key)
+ 	{
+ 		// 99.999% of checks will go through this block once on-disk shader cache has loaded
+@@ -304,7 +334,7 @@ namespace vk
+ 			VkAttachmentDescription color_attachment_description = {};
+ 			color_attachment_description.format = color_format;
+ 			color_attachment_description.samples = samples;
+-			color_attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			color_attachment_description.loadOp = (key.load_clear_mask & 1) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			color_attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+ 			color_attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+ 			color_attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+@@ -320,9 +350,9 @@ namespace vk
+ 			VkAttachmentDescription depth_attachment_description = {};
+ 			depth_attachment_description.format = depth_format;
+ 			depth_attachment_description.samples = samples;
+-			depth_attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			depth_attachment_description.loadOp = (key.load_clear_mask & 2) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			depth_attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+-			depth_attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			depth_attachment_description.stencilLoadOp = (key.load_clear_mask & 4) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			depth_attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+ 			depth_attachment_description.initialLayout = dsv_layout;
+ 			depth_attachment_description.finalLayout = dsv_layout;
+@@ -383,6 +413,10 @@ namespace vk
  		g_cached_renderpass_key = 0;
  		g_cached_renderpass = VK_NULL_HANDLE;
  		g_current_renderpass.clear();
@@ -113822,7 +114111,7 @@ index 5e74d64..936b456 100644
  
  		// Destroy cache
  		for (const auto &renderpass : g_renderpass_cache)
-@@ -393,12 +414,12 @@ namespace vk
+@@ -393,12 +427,12 @@ namespace vk
  		g_renderpass_cache.clear();
  	}
  
@@ -113837,7 +114126,7 @@ index 5e74d64..936b456 100644
  		}
  		else if (renderpass_info.pass != VK_NULL_HANDLE)
  		{
-@@ -416,9 +437,14 @@ namespace vk
+@@ -416,9 +450,49 @@ namespace vk
  
  		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
  		renderpass_info = { pass, target };
@@ -113849,11 +114138,46 @@ index 5e74d64..936b456 100644
  	}
  
 -	void begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region)
++	void begin_renderpass_cleared(const vk::command_buffer& cmd, VkRenderPass pass, VkRenderPass cleared_pass, VkFramebuffer target,
++		const coordu& framebuffer_region, const VkClearValue* clear_values, u32 clear_value_count)
++	{
++		// REWINDBOX_LOAD_OP_CLEAR_907: begun with the CLEAR variant of pass; recorded as pass, so the draws that follow on
++		// this framebuffer continue in it instead of beginning it again.
++		auto& renderpass_info = g_current_renderpass[cmd];
++		if (renderpass_info.pass != VK_NULL_HANDLE)
++		{
++			end_renderpass(cmd);
++		}
++
++		VkRenderPassBeginInfo rp_begin = {};
++		rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
++		rp_begin.renderPass = cleared_pass;
++		rp_begin.framebuffer = target;
++		rp_begin.renderArea.offset.x = static_cast<s32>(framebuffer_region.x);
++		rp_begin.renderArea.offset.y = static_cast<s32>(framebuffer_region.y);
++		rp_begin.renderArea.extent.width = framebuffer_region.width;
++		rp_begin.renderArea.extent.height = framebuffer_region.height;
++		rp_begin.clearValueCount = clear_value_count;
++		rp_begin.pClearValues = clear_values;
++
++		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
++		renderpass_info = { pass, target };
++#ifdef RPCS3_IOS
++		rpcs3::ios::renderpass_census::on_begin(g_rewindbox_last_end[cmd], target); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655: unknown until the draw path notes them
++#endif
++	}
++
++	bool is_renderpass_open_on(const vk::command_buffer& cmd, VkFramebuffer target)
++	{
++		return g_current_renderpass[cmd].pass != VK_NULL_HANDLE && g_current_renderpass[cmd].fbo == target;
++	}
++
 +	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region)
  	{
  		if (renderpass_key != g_cached_renderpass_key)
  		{
-@@ -426,12 +452,21 @@ namespace vk
+@@ -426,12 +500,21 @@ namespace vk
  			g_cached_renderpass_key = renderpass_key;
  		}
  
@@ -113876,7 +114200,7 @@ index 5e74d64..936b456 100644
  		g_current_renderpass[cmd] = {};
  	}
  
-@@ -440,6 +475,43 @@ namespace vk
+@@ -440,6 +523,43 @@ namespace vk
  		return g_current_renderpass[cmd].pass != VK_NULL_HANDLE;
  	}
  
@@ -113921,25 +114245,67 @@ index 5e74d64..936b456 100644
  	{
  		const auto& active = g_current_renderpass[cmd];
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
-index 7b9494c..1f25e54 100644
+index 7b9494c..4ef8f2b 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
-@@ -2,6 +2,9 @@
- 
- #include "VulkanAPI.h"
- #include "Utilities/geometry.h"
+@@ -1,30 +1,52 @@
+-#pragma once
+-
+-#include "VulkanAPI.h"
+-#include "Utilities/geometry.h"
+-
+-namespace vk
+-{
+-	class image;
+-	class command_buffer;
+-
+-	u64 get_renderpass_key(const std::vector<vk::image*>& images, const std::vector<u8>& input_attachment_ids = {});
+-	u64 get_renderpass_key(const std::vector<vk::image*>& images, u64 previous_key, const std::vector<u8>& input_attachment_ids = {});
+-	u64 get_renderpass_key(VkFormat surface_format, u8 sample_count = 1);
+-	u64 get_renderpass_key(VkFormat color_format, VkFormat depth_format, u8 sample_count = 1);
+-	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key);
+-
+-	bool renderpass_has_input_attachments(u64 renderpass_key);
+-
+-	void clear_renderpass_cache(VkDevice dev);
+-
+-	// Renderpass scope management helpers.
+-	// NOTE: These are not thread safe by design.
+-	void begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
+-	void begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
+-	void end_renderpass(const vk::command_buffer& cmd);
+-	bool is_renderpass_open(const vk::command_buffer& cmd);
+-
+-	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
+-	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
+-}
++#pragma once
++
++#include "VulkanAPI.h"
++#include "Utilities/geometry.h"
 +#ifdef RPCS3_IOS
 +#include <source_location> // REWINDBOX_RENDERPASS_CENSUS_652
 +#endif
- 
- namespace vk
- {
-@@ -20,10 +23,23 @@ namespace vk
- 
- 	// Renderpass scope management helpers.
- 	// NOTE: These are not thread safe by design.
--	void begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
--	void begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
++
++namespace vk
++{
++	class image;
++	class command_buffer;
++
++	u64 get_renderpass_key(const std::vector<vk::image*>& images, const std::vector<u8>& input_attachment_ids = {});
++	u64 get_renderpass_key(const std::vector<vk::image*>& images, u64 previous_key, const std::vector<u8>& input_attachment_ids = {});
++	u64 get_renderpass_key(VkFormat surface_format, u8 sample_count = 1);
++	u64 get_renderpass_key(VkFormat color_format, VkFormat depth_format, u8 sample_count = 1);
++	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key);
++	// REWINDBOX_LOAD_OP_CLEAR_907: renderpass_key with load-op CLEAR on the listed attachments (compatible pass).
++	u64 get_renderpass_key_with_load_clear(u64 renderpass_key, bool color, bool depth, bool stencil);
++
++	bool renderpass_has_input_attachments(u64 renderpass_key);
++
++	void clear_renderpass_cache(VkDevice dev);
++
++	// Renderpass scope management helpers.
++	// NOTE: These are not thread safe by design.
 +	// Returns true when a render pass was actually begun (false when the same pass and framebuffer were already open).
 +	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
 +	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
@@ -113947,9 +114313,13 @@ index 7b9494c..1f25e54 100644
 +	// REWINDBOX_RENDERPASS_CENSUS_652: each caller's file and line, for the census of render pass ends.
 +	void end_renderpass(const vk::command_buffer& cmd, std::source_location where = std::source_location::current());
 +#else
- 	void end_renderpass(const vk::command_buffer& cmd);
++	void end_renderpass(const vk::command_buffer& cmd);
 +#endif
- 	bool is_renderpass_open(const vk::command_buffer& cmd);
++	bool is_renderpass_open(const vk::command_buffer& cmd);
++	// REWINDBOX_LOAD_OP_CLEAR_907: begins cleared_pass (the load-op CLEAR variant of pass) and records pass as open.
++	void begin_renderpass_cleared(const vk::command_buffer& cmd, VkRenderPass pass, VkRenderPass cleared_pass, VkFramebuffer target,
++		const coordu& framebuffer_region, const VkClearValue* clear_values, u32 clear_value_count);
++	bool is_renderpass_open_on(const vk::command_buffer& cmd, VkFramebuffer target);
 +#ifdef RPCS3_IOS
 +	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass open on this command buffer, as the draw path
 +	// that began it knows them (count 0 or above capacity: unknown). Not thread safe, like the helpers above.
@@ -113957,9 +114327,10 @@ index 7b9494c..1f25e54 100644
 +	enum class open_pass_image { no_pass, unknown, attachment, not_attachment };
 +	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image);
 +#endif
- 
- 	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
- 	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
++
++	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
++	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
++}
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
 index 4762f5e..458403e 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
@@ -119159,7 +119530,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..77203b3 100644
+index 7072922..0c9e137 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -119220,7 +119591,7 @@ index 7072922..77203b3 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +169,62 @@ struct cfg_root : cfg::node
+@@ -134,6 +169,65 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -119232,6 +119603,9 @@ index 7072922..77203b3 100644
 +		// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h); Enabled and
 +		// Disabled let a per-game override test the other value on the device.
 +		cfg::_enum<ios_experimental_mode> position_invariance{ this, "Position Invariance", ios_experimental_mode::automatic };
++		// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: Automatic is the title list (Assassin's Creed).
++		cfg::_enum<ios_experimental_mode> native_half_registers{ this, "Native Half-Precision Registers", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> load_op_clear{ this, "Clear As Render Pass Load", ios_experimental_mode::automatic };
 +		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): Automatic and Enabled time the
 +		// RSX primary command buffers on the GPU; Disabled measures the probe's cost.
 +		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
@@ -122469,6 +122843,60 @@ index 0000000..5344bda
 +	return static_cast<std::size_t>(std::clamp<std::uint64_t>(headroom_bytes / 8, minimum_window_bytes, maximum_window_bytes));
 +}
 +}
+diff --git a/rpcs3/ios/IOSLoadOpClear907.h b/rpcs3/ios/IOSLoadOpClear907.h
+new file mode 100644
+index 0000000..d0f45ef
+--- /dev/null
++++ b/rpcs3/ios/IOSLoadOpClear907.h
+@@ -0,0 +1,48 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_LOAD_OP_CLEAR_907: Assassin's Creed (BLES00158), IPA 676 device log, gameplay at 25-28 FPS with the GPU
++// busy 77-84 % (about 30 ms of GPU work per frame): 44-48 render passes begin per frame (COREPROF RPASS652), every one
++// created with load-op LOAD for every attachment (VKRenderPass.cpp). A guest clear that is the first command on its
++// framebuffer begins such a pass and then records vkCmdClearAttachments, which MoltenVK executes as a triangle draw
++// (MVKCmdClearAttachments::encode): the Apple GPU first loads the whole attachment from memory into tile memory, then
++// overwrites every pixel of it.
++//
++// When the clear covers the whole framebuffer (render area = framebuffer), every bound color buffer with the full
++// write mask (fast clear) and/or whole depth/stencil aspects, on single-sample targets, and no pass is open on this
++// framebuffer, the pass now begins with load-op CLEAR for exactly those attachments and the same clear values. The
++// result in every pixel is the clear value in both cases, written before any draw of the pass, so the image the game
++// sees is identical; only the load from memory and the clear draw are gone. The other attachments keep LOAD. Anything
++// else (scissored or partial clears, masked channels, MSAA, a pass already open on the framebuffer) records vkCmdClearAttachments exactly as before. Counted per window
++// (COREPROF LOADCLEAR907).
++namespace rpcs3::ios::load_op_clear
++{
++// Resolved once per boot (title policy); read by the RSX thread.
++inline std::atomic<bool> enabled{false};
++
++struct window_counters
++{
++	std::atomic<std::uint64_t> passes{0};          // passes begun with load-op CLEAR
++	std::atomic<std::uint64_t> color{0};           // ... clearing the color attachments
++	std::atomic<std::uint64_t> depth{0};           // ... clearing depth
++	std::atomic<std::uint64_t> stencil{0};         // ... clearing stencil
++	std::atomic<std::uint64_t> kept_open_pass{0};  // vkCmdClearAttachments kept: a pass is open on this framebuffer
++	std::atomic<std::uint64_t> kept_partial{0};    // ... the clear is scissored, masked or MSAA
++	std::atomic<std::uint64_t> kept_disabled{0};   // ... the title policy has the lever off
++};
++
++inline window_counters counters;
++
++inline void add(std::atomic<std::uint64_t>& counter) noexcept
++{
++	counter.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::load_op_clear
 diff --git a/rpcs3/ios/IOSMemoryPressurePolicy.h b/rpcs3/ios/IOSMemoryPressurePolicy.h
 index 6dc9a20..ae705ec 100644
 --- a/rpcs3/ios/IOSMemoryPressurePolicy.h
@@ -128149,10 +128577,10 @@ index 0000000..b1d21f2
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..019b80e
+index 0000000..16d3ffb
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,243 @@
+@@ -0,0 +1,249 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -128232,6 +128660,12 @@ index 0000000..019b80e
 +constexpr bool is_assassins_creed_title(std::string_view title_id) noexcept
 +{
 +	return title_id == "BLES00158" || title_id == "BLUS30089";
++}
++
++// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: GPU-bound in play (IPA 676).
++constexpr bool wants_gpu_work_reduction_907(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
 +}
 +
 +// REWINDBOX_POSITION_INVARIANCE_610
@@ -133909,10 +134343,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..dac928f 100644
+index 7c3389b..ccc7e4e 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,37 @@
+@@ -1,10 +1,38 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -133932,6 +134366,7 @@ index 7c3389b..dac928f 100644
 +#include "IOSReservationLockPolicy.h"
 +#include "IOSTextureResidency.h"
 +#include "IOSTitleLevers.h"
++#include "IOSLoadOpClear907.h"
 +#include "IOSThreadQoS.h"
 +#include "IOSMoltenVKAsyncCanary.h"
 +#include "IOSInPassReadTransition.h"
@@ -133950,7 +134385,7 @@ index 7c3389b..dac928f 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +40,122 @@ namespace
+@@ -13,6 +41,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -134073,7 +134508,7 @@ index 7c3389b..dac928f 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +170,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +171,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -134150,7 +134585,7 @@ index 7c3389b..dac928f 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +260,112 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +261,112 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -134263,7 +134698,7 @@ index 7c3389b..dac928f 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +377,241 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +378,250 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -134339,6 +134774,13 @@ index 7c3389b..dac928f 100644
 +	resolved.in_pass_read_transitions = resolved.moltenvk_in_pass_waits &&
 +		rpcs3::ios::title_levers::is_assassins_creed_title(title_id);
 +	rpcs3::ios::in_pass_read::enabled.store(resolved.in_pass_read_transitions, std::memory_order_relaxed);
++	// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: Automatic is Assassin's Creed (IPA 676: GPU 77-84 % busy,
++	// about 30 ms of GPU work per frame at 25-28 FPS in play).
++	resolved.native_half_registers = resolve_mode(g_cfg.ios_experimental.native_half_registers,
++		rpcs3::ios::title_levers::wants_gpu_work_reduction_907(title_id));
++	resolved.load_op_clear = resolve_mode(g_cfg.ios_experimental.load_op_clear,
++		rpcs3::ios::title_levers::wants_gpu_work_reduction_907(title_id));
++	rpcs3::ios::load_op_clear::enabled.store(resolved.load_op_clear, std::memory_order_relaxed);
 +	// REWINDBOX_SPU_QOS_627: Automatic is the three reference titles.
 +	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
 +		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
@@ -134426,6 +134868,8 @@ index 7c3389b..dac928f 100644
 +		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
 +	ios_experimental_log.notice("Resolved title policy 655: in_pass_read_transitions=%d mvk_in_pass_waits=%d",
 +		resolved.in_pass_read_transitions, resolved.moltenvk_in_pass_waits);
++	ios_experimental_log.notice("Resolved title policy 907: native_half_registers=%d load_op_clear=%d",
++		resolved.native_half_registers, resolved.load_op_clear);
 +	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
 +	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
 +		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
@@ -134516,7 +134960,7 @@ index 7c3389b..dac928f 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..dbbb03d 100644
+index 8fba197..b5a6024 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -134560,7 +135004,7 @@ index 8fba197..dbbb03d 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +47,135 @@ struct experimental_policy
+@@ -20,14 +47,140 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -134627,6 +135071,11 @@ index 8fba197..dbbb03d 100644
 +	// and only when the linked MoltenVK waits for such barriers inside a pass.
 +	bool in_pass_read_transitions = false;
 +	bool moltenvk_in_pass_waits = false;
++	// REWINDBOX_NATIVE_HALF_907: the fragment decompilers give the RSX half-precision registers (H) native float16
++	// types, as the RSX computes them, keeping every other high-precision rule. Read when a fragment program decompiles.
++	bool native_half_registers = false;
++	// REWINDBOX_LOAD_OP_CLEAR_907 (ios/IOSLoadOpClear907.h): a full clear that begins a render pass is its load-op.
++	bool load_op_clear = false;
 +	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: early submissions wait for a point without an open render pass.
 +	bool early_submit_at_pass_boundary = false;
 +	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a sampler slot reuses the result of an
@@ -135838,10 +136287,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..bcbd24b 100644
+index d800542..2daa1da 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,206 @@
+@@ -1,26 +1,207 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -135881,6 +136330,7 @@ index d800542..bcbd24b 100644
 +#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
 +#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
 +#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
++#include "IOSLoadOpClear907.h"
 +#include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
 +#include "IOSRendererCausality.h"
 +#include "IOSSignalTrace.h"
@@ -136048,7 +136498,7 @@ index d800542..bcbd24b 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +218,534 @@ u64 process_memory_footprint()
+@@ -38,31 +219,534 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -136593,7 +137043,7 @@ index d800542..bcbd24b 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +755,10 @@ public:
+@@ -72,10 +756,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -136606,7 +137056,7 @@ index d800542..bcbd24b 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +791,1419 @@ public:
+@@ -108,12 +792,1431 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -137590,6 +138040,18 @@ index d800542..bcbd24b 100644
 +                profile_session, profile_window, in_pass::enabled.load(std::memory_order_relaxed) ? 1 : 0, kept_color, kept_depth,
 +                kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other);
 +        }
++        // REWINDBOX_LOAD_OP_CLEAR_907: passes begun by a full clear with load-op CLEAR, and the clears kept as draws.
++        {
++            namespace lc = rpcs3::ios::load_op_clear;
++            auto& c = lc::counters;
++            const u64 passes = lc::take(c.passes), color = lc::take(c.color), depth = lc::take(c.depth), stencil = lc::take(c.stencil),
++                kept_open_pass = lc::take(c.kept_open_pass), kept_partial = lc::take(c.kept_partial), kept_disabled = lc::take(c.kept_disabled);
++            ios_core_profiler.notice(
++                "COREPROF LOADCLEAR907 session=%llu window=%llu enabled=%d passes=%llu color=%llu depth=%llu stencil=%llu "
++                "kept_open_pass=%llu kept_partial=%llu kept_disabled=%llu scope=process_window_counters",
++                profile_session, profile_window, lc::enabled.load(std::memory_order_relaxed) ? 1 : 0, passes, color, depth, stencil,
++                kept_open_pass, kept_partial, kept_disabled);
++        }
 +        // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
 +        // the SPU threads (deltas of monotonic per-thread totals).
 +        {
@@ -138028,7 +138490,7 @@ index d800542..bcbd24b 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2211,93 @@ private:
+@@ -121,6 +2224,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -138122,7 +138584,7 @@ index d800542..bcbd24b 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2305,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2318,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -138216,7 +138678,7 @@ index d800542..bcbd24b 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2402,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2415,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -138345,7 +138807,7 @@ index d800542..bcbd24b 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2533,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2546,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -138952,10 +139414,10 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..93a0987 100644
+index b7b0474..96cba0d 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
-@@ -1,5 +1,8 @@
+@@ -1,21 +1,45 @@
  #include "RPCS3IOSSettings.h"
  #include "GameLibrary.h"
 +#include "RPCS3IOSZcullAccuracy.h"
@@ -138964,7 +139426,44 @@ index b7b0474..93a0987 100644
  
  #include "Emu/system_config.h"
  #include "Emu/system_utils.hpp"
-@@ -93,13 +96,14 @@ const std::array catalog{
+ #include "Utilities/File.h"
++#include "util/logs.hpp"
+ 
+ #include <algorithm>
+ #include <array>
+ #include <cctype>
+ #include <optional>
+ 
++LOG_CHANNEL(ios_overrides_log, "iOS overrides");
++
+ namespace rpcs3::ios
+ {
+ namespace
+ {
+ using kind = rpcs3_ios_setting_kind;
+ 
++// REWINDBOX_RETIRED_OVERRIDES_906: game settings a former Core wrote into the
++// sparse per-title override file and this Core no longer has. One retired key
++// made apply_game_setting_overrides() fail for the whole file: every user value
++// of the title was dropped at boot and every later change was refused
++// (RPCS3_IOS_SETTINGS_SAVE_FAILED). Black Ops II kept the Core 665 thread
++// orchestrator test value after Core 668 removed the setting, so its Metal 4
++// switch could never be saved. A retired key is reported and skipped; the next
++// write of the file leaves it out. Any other unknown key or invalid value still
++// fails the file, as before.
++constexpr std::array<std::string_view, 1> retired_game_setting_keys{
++	"experimental.thread_orchestrator", // Core 665 orchestrator, removed in Core 668
++};
++
++bool is_retired_game_setting_key(std::string_view key) noexcept
++{
++	return std::ranges::find(retired_game_setting_keys, key) != retired_game_setting_keys.end();
++}
++
+ #define SETTING(KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, ENTRY, MINIMUM, MAXIMUM, STEP) \
+ 	setting_record{KEY, CATEGORY, SECTION, NAME, DESCRIPTION, KIND, &ENTRY, MINIMUM, MAXIMUM, STEP, setting_scope::global_and_game}
+ 
+@@ -93,13 +117,14 @@ const std::array catalog{
  	// Advanced
  	SETTING("advanced.debug_console_mode", "Advanced", "CPU Compatibility", "Debug console mode", "Emulates additional debug-console behavior required by some software.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.debug_console_mode, 0, 1, 1),
  	SETTING("advanced.accurate_spu_dma", "Advanced", "CPU Compatibility", "Accurate SPU DMA", "Uses stricter ordering for SPU DMA operations.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.spu_accurate_dma, 0, 1, 1),
@@ -138980,7 +139479,7 @@ index b7b0474..93a0987 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,69 @@ const std::array catalog{
+@@ -122,21 +147,71 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -139014,6 +139513,8 @@ index b7b0474..93a0987 100644
 +	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
 +	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
 +	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
++	GAME_SETTING("experimental.native_half_registers", "Experimental", "GPU", "Native half-precision registers", "Computes the half-precision registers of PlayStation 3 pixel shaders (the RSX H registers) in native 16-bit floats, as the RSX does, instead of 32-bit floats clamped to the half range; every other precision rule stays as with High precision. The Apple GPU executes 16-bit float math at twice the rate. Automatic enables it for Assassin's Creed; Disabled restores 32-bit registers. Shaders are compiled again on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.native_half_registers, 0, 0, 0),
++	GAME_SETTING("experimental.load_op_clear", "Experimental", "GPU", "Clear as render pass load", "When a render pass starts with a clear of its whole framebuffer, the GPU starts the pass cleared instead of loading the old image from memory and then drawing the clear over it. The image is the same. Automatic enables it for Assassin's Creed; Disabled restores the previous clears. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.load_op_clear, 0, 0, 0),
 +	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
 +	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
 +	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
@@ -139052,7 +139553,7 @@ index b7b0474..93a0987 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +257,89 @@ const std::array catalog{
+@@ -205,6 +280,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -139142,7 +139643,7 @@ index b7b0474..93a0987 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +708,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +731,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
@@ -139192,11 +139693,17 @@ index b7b0474..93a0987 100644
 +	}
 +	for (const auto& [key, value] : values)
 +	{
++		if (is_retired_game_setting_key(key))
++		{
++			ios_overrides_log.warning("Skipped retired user override %s=%s for %s (no longer a setting; removed on the next save)", key, value, title_id);
++			continue;
++		}
 +		if (key == "gpu.zcull_accuracy")
 +		{
 +			const auto state = parse_zcull_accuracy(value);
 +			if (!state)
 +			{
++				ios_overrides_log.error("Invalid user override %s=%s for %s", key, value, title_id);
 +				return false;
 +			}
 +			g_cfg.video.precise_zpass_count.from_string(state->precise ? "true" : "false");
@@ -139206,6 +139713,7 @@ index b7b0474..93a0987 100644
 +		const setting_record* setting = find_setting(key, setting_context::game);
 +		if (!setting || !setting->entry->from_string(value))
 +		{
++			ios_overrides_log.error("%s user override %s=%s for %s", setting ? "Invalid" : "Unknown", key, value, title_id);
 +			return false;
 +		}
 +	}
@@ -139237,6 +139745,11 @@ index b7b0474..93a0987 100644
 +	{
 +		values.emplace_back(key, value);
 +	}
++	// REWINDBOX_RETIRED_OVERRIDES_906: the rewritten file leaves retired keys out.
++	std::erase_if(values, [](const auto& item)
++	{
++		return is_retired_game_setting_key(item.first);
++	});
 +	return write_game_setting_overrides(title_id, values);
 +}
 +

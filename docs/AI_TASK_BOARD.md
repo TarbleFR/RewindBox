@@ -804,6 +804,61 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       dependency input), next host lot.
     - Next: device feedback on iOS 27 launch, Metal 4 on one title, AC IV census; Metal by default only after a
       device run, Vulkan removal only after measured parity.
+  - **IPA 676 device logs (7 Nov, private, pids 25609/25658; not in Git):**
+    - Metal 4 switch "shown disabled" on BO2 (BLES01717): `experimental.metal_renderer=Enabled test=1 refused=21`
+      (RPCS3_IOS_SETTINGS_SAVE_FAILED). Cause: BO2's sparse override file still holds
+      `experimental.thread_orchestrator` (Core 665 test, IPA 666); Core 668 removed the setting, so
+      apply_game_setting_overrides fails for the whole file: every boot drops all BO2 user values
+      ("Failed to apply sparse iOS user overrides", sparse_overrides=0, the msl_fast_math override lost since 669) and
+      every change is refused. Fix REWINDBOX_RETIRED_OVERRIDES_906 (Core 906): retired keys reported and skipped,
+      dropped at the next write; unknown keys/invalid values still fail. test/rpcs3_retired_overrides906_test.py
+      (real extracted bodies, executed) PASS on the fixed tree, FAIL on Core 905.
+    - AC IV (BLES01882) on Metal 4 (the switch worked for AC IV): title screen 30-50 fps for ~20 s, then no flip:
+      FREEZE no_frames_idle, FIFO drained (get=put), guest on lwcond/event queues, vblank still flowing. Cause not proven
+      (rb-research: top hypothesis a ZCULL report whose work is never submitted; VK and Metal sync_hint/do_local_task
+      compared, no difference found). COREPROF METAL never logged: 600-frame trigger, ~555 frames presented. Core 906
+      REWINDBOX_METAL_TIMED_REPORT_906: report every 5 s also without flips + `COREPROF METAL state` line
+      (submitted/completed, ZCULL reports unsubmitted/in flight, flush pending, FIFO get/put).
+    - BO2 on Vulkan: gameplay 20-25 fps with ~1.1 M heavy PUTLLC and ~2.5 s writer-lock wait per 5 s (accurate
+      reservations on ARM: each data-changing PUTLLC parks every PPU, SPUThread.cpp writer_lock; the exact pre-checks
+      BUILD435 and the res lock are already there; relaxed mode is not exact). Then 24 blocking pipeline builds of
+      500-890 ms (MoltenVK persists shader libraries, not render pipeline states) at 8 fps, then the known SPURS storm
+      (5-7 M heavy, 1.3-2.4 M fail per 5 s), freeze no_frames_busy. No exact lever ready; the native Metal 4 archive is
+      the structural answer for the pipeline stalls once Metal runs.
+    - Assassin's Creed (BLES00158): gameplay 25-28 fps, GPU busy 77 % (~29.7 ms GPU per 38 ms frame), RSX 20 ms,
+      1,873 draws/frame, SPUs mostly idle. GPU-bound as measured; unproven hypothesis: full LOAD/STORE on every render
+      pass (VKRenderPass.cpp, no CLEAR/DONT_CARE) inflates tile traffic. Next: per-pass GPU time counters, then the
+      exact CLEAR load-op variant; and an AC run on Metal 4.
+    - Core 906 = Core 905 + the two fixes above; packaged locally (canonical 53220481, delta 17a29218, increment
+      core906-from-905 e615a733), route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold
+      chain simulated PASS; full driver running.
+  - **Core 906 built and pinned** (run `42324483147`, source `ca2d5d98`, pin `1a79dadc`, dylib `97880506`, fingerprint
+    `4d4b1ef3`, identities unchanged); Apple host harnesses and Core job green first try; Metal checks green; local driver PASS.
+  - **Core 907 = Core 906 + Assassin's Creed GPU levers** (maintainer, 7 Nov: "Apporte un vrai levier à AC 1 ... baisser sous
+    20 ms"). Measured input (IPA 676, BLES00158 windows 20/30/40): 44-48 render passes per frame, all LOAD/STORE; GPU busy
+    77-84 % (29.7-32.5 ms per frame); MoltenVK executes vkCmdClearAttachments as a triangle draw after a full attachment
+    load (MVKCmdClearAttachments::encode, read in MoltenVK source).
+    - REWINDBOX_LOAD_OP_CLEAR_907: a full-framebuffer fast clear that begins a pass begins it with load-op CLEAR for exactly
+      the cleared attachments (VKRenderPass key bits 42-44, begin_renderpass_cleared records the base pass); kept as before
+      for scissored/masked/MSAA clears or a pass already open. COREPROF LOADCLEAR907 per window.
+    - REWINDBOX_NATIVE_HALF_907: RSX H registers as native float16 at High precision (VK and Metal decompilers); SPIR-V
+      disk cache keyed by GLSL text, so no cross-serving.
+    - Both per-title settings (experimental.native_half_registers, experimental.load_op_clear), Automatic = AC only.
+    - rb-core-review (source reading): no actionable defect in either change; open: on-device glslang compile of High +
+      native half + 8-bit rounding, and a capture confirming MoltenVK keeps the load-op clear.
+    - Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS;
+      first packaging canonical e4d82eb4 (445), delta b686d5ba, increment 83d7544c.
+    - **Request 1 (run `42326285167`, commit `979c3133`) FAILED in the Apple host harnesses**; the iPhone Core job itself built.
+      - feedback-census: the reviewed form of VKGSRender::begin_render_pass changed (attachment note extracted into a
+        member) and VKGSRender.cpp counted draw_renderpasses. Fixed without touching the guard: begin_render_pass is back
+        byte for byte, the load-op CLEAR begin notes its attachments itself and leaves FEEDBACK610 to the draw path
+        (its passes are counted by LOADCLEAR907 and RPASS652).
+      - core907 driver: the Core 664 PPU grace host model under ASan/UBSan on the reverted Core 668 tree, timing checks at
+        lines 266/283 (sleepers >= 1; writer_deferral + 400 ms). That tree has no 907 change and 906 passed the same test on
+        Apple; treated as runner timing, rerun with request 2 and examined if it fails again. Not masked: the guard is unchanged.
+      - Repackaged: canonical 654680ea (445), delta 448b942b, increment core907-from-906 2c391db8. Local: route PASS, codegen
+        identities unchanged, transition-phases, feedback-census, position-invariance, graphics-tests-612 (plain, ASan/UBSan)
+        PASS; full driver running. No FPS claim before a device run.
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.
@@ -1259,6 +1314,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     [Receipt](evidence/melonx-683-gates/run.json).
   - Whether iOS leaves the few seconds a pause write takes is known only from a device run. An interrupted write
     leaves the previous file intact.
+  - **Verified and pinned:** run 42324442423 attempt 1 (`c41b7a51`, 54 gates, two simulator sessions; 679 and 681 also
+    green). Job 128262080204, artifact 13556034535 (90678200 B, `4de8b806…`). iPhone binary `794888c4…` (38160256 B),
+    fingerprint `181a9994…`, contract `f5d160f6…`. Markers in the binary: pause checkpoint, cache room, audio deferred
+    start, side cache. Engine evidence passed offline. Handed to main for the next common IPA, with b1edef18,
+    fc515ee7, bd1f963e and 530b18f6. Not tested on a device.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
