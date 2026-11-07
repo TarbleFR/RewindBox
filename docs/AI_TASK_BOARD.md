@@ -1214,8 +1214,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     the session, plays nothing while refused, then all 960 frames in order once allowed; a normal start is unchanged.
     fragmented-reads, hogwarts-dma-copies and evicted-buffer-recreate reran green. Contract: 52 gates, 170 inputs,
     `--archive` 394 checks. [Receipt](evidence/melonx-679-gates/run.json). Not tested on a device.
-  - Next levers (not done): memory pressure (5.3 GB footprint), and the main pipeline cache nearing its 768 MiB budget
-    (persistence stops there, and worker caches over the remaining room are recycled without being merged).
+  - **Core 681 = Core 679 + adapt_pipeline_cache_room** (the two levers above):
+    - Startup: beside a loaded main snapshot, the worker snapshots that fit join main, and the workers start empty.
+      On 674, three merges of about 130 MiB grew main by 4.7 MiB, so the worker content duplicates main and up to
+      256 MiB is released at launch.
+    - Main budget goes from 768 MiB to 1 GiB (a full Hogwarts set held 747.90 MiB). Workers stay at 128 MiB each.
+    - A worker does not overwrite its snapshot until main has been written with the merged content.
+    - Gate pipeline-cache-room (22 checks; the double's merges add sizes):
+      - startup: control 580/120/100 MiB, candidate main 800 and workers empty;
+      - a 900 MiB main snapshot is ignored by control and loaded by the candidate;
+      - the hold rule is checked, and with no main snapshot nothing changes.
+    - checkpoint-side-cache now undoes the later adapters, like main-cache-checkpoint.
+    - Reran green: pipeline-checkpoint, teardown-cache, main-cache-checkpoint, fragmented-reads, hogwarts-dma-copies,
+      performance-diagnostics, pipeline-warmup-parity, evicted-buffer-recreate, audio-start-deferred.
+    - Contract: 53 gates, 171 inputs, `--archive` 396 checks. [Receipt](evidence/melonx-681-gates/run.json).
+    - The memory actually released on the device is not measured.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

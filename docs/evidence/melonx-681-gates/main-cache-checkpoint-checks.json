@@ -1,0 +1,104 @@
+{
+  "result": "passed",
+  "checks": 29,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "0a4d0890895e13073f7d72a2303008243cd2b2028c0daeaa85503646d52a8930",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "49e8b44c517bbfd21f6a2c3931084d601582a89ac7c83eb88f8e0911d93490f0"
+  },
+  "testedPostimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "af18caa6dc8c8c2863013b6a33af408a949ba098696cb82f3c5ece3875823668",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "34d06f12c5b4be454be06cf6e9e075bfe54f2a68db475231cce7168065c1eac2"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "played": {
+        "mainFile": false,
+        "mainFileBytes": 0,
+        "mainBytes": 6553632,
+        "mainReads": [],
+        "workerMs": 0,
+        "infoLines": 0
+      },
+      "withinInterval": {
+        "mainReads": []
+      },
+      "renderHoldsLock": {
+        "workerMs": 0,
+        "mainReads": [],
+        "mainFile": false,
+        "flagLeftRaised": false
+      },
+      "afterRenderReleased": {
+        "mainReads": [],
+        "mainFile": false
+      },
+      "fewPipelines": {
+        "mainReads": [],
+        "mainFile": false
+      },
+      "slowCheckpoint": {
+        "flagSeen": false,
+        "renderTryEnterFailedWhileRaised": false,
+        "flagAfter": false,
+        "mainFile": false
+      },
+      "warnings": 0
+    },
+    "candidate": {
+      "variant": "candidate",
+      "played": {
+        "mainFile": true,
+        "mainFileBytes": 6553632,
+        "mainBytes": 6553632,
+        "mainReads": [
+          "worker0 data main begin lockHeld=True"
+        ],
+        "workerMs": 18,
+        "infoLines": 1
+      },
+      "withinInterval": {
+        "mainReads": []
+      },
+      "renderHoldsLock": {
+        "workerMs": 0,
+        "mainReads": [],
+        "mainFile": false,
+        "flagLeftRaised": false
+      },
+      "afterRenderReleased": {
+        "mainReads": [
+          "worker1 data main begin lockHeld=True"
+        ],
+        "mainFile": true
+      },
+      "fewPipelines": {
+        "mainReads": [],
+        "mainFile": false
+      },
+      "slowCheckpoint": {
+        "flagSeen": true,
+        "renderTryEnterFailedWhileRaised": true,
+        "flagAfter": false,
+        "mainFile": true
+      },
+      "warnings": 0
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_main_cache_checkpoint.py": "d7fe35407df90b017419057692b64e4915c18832c91fcf7d59cfe3d725e37678",
+    "build-utils/melonx/adapt_checkpoint_side_cache.py": "18f067bcf91b4f0828600c84d5e581b85cb46f57fc321c485342a052b4dcca06",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_main_cache_checkpoint_test.py": "2836e037f8fa712a8066e767a8b06f784b6eb923abdeb5e1de7dcc61a009bcc2",
+    "test/melonx_main_cache_checkpoint/Double.cs": "67c84f00443a26a6d62d00aeca3f68978ed467b58083e70e2a83dfd416cd9f59",
+    "test/melonx_main_cache_checkpoint/Program.cs": "ef99075965d1581d9614bd5c4630099e95dd3f464f66c40a7673a0c387c2a834",
+    "test/melonx_adapter_control.py": "816807e009a9e6dce14b49c597b2a745c50312f4b1f5f433c0d111d91c7e1610"
+  },
+  "limitation": "Host fixture of the real cache manager with a Vulkan double. The checkpoint duration on an iPhone, the pipelines kept across crashed sessions and the stutter reduction are known only from a device run."
+}

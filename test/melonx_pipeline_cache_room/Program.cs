@@ -72,6 +72,17 @@ double M(long bytes) => Math.Round(bytes / (double)MiB, 2);
     manager.Dispose();
 }
 
+// D: no main snapshot (a first session): the worker keeps its snapshot.
+{
+    var (manager, vk, _) = Session(0, 5 * MiB, 0);
+    report["noMainSnapshot"] = new Dictionary<string, object>
+    {
+        ["worker0MiB"] = M(vk.Size(manager.GetWorkerCache(0))),
+        ["merged"] = Ryujinx.Common.Logging.Logger.Info.Messages.Any(m => m.StartsWith("Merged ")),
+    };
+    manager.Dispose();
+}
+
 // C: main 10 MiB and worker 0 5 MiB. Worker 0 compiles 64 pipelines (a due save), then main is checkpointed, then
 // worker 0 compiles 64 more. The worker file must keep the merged snapshot until main holds it.
 {

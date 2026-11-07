@@ -131,6 +131,8 @@ check(kh['workerAtStartMiB'] < 0.01 and kh['workerFileAfterDueSaveMiB'] == 5,
       'candidate: the merged worker snapshot is not overwritten before main holds it: %s' % kh)
 check(kh['mainFileAfterCheckpointMiB'] >= 15, 'candidate: the next main checkpoint writes the merged content: %s' % kh)
 check(kh['workerFileAfterMainSavedMiB'] < 5, 'candidate: once main holds it, the worker saves its new content again: %s' % kh)
+check(c['noMainSnapshot'] == k['noMainSnapshot'] == {'worker0MiB': 5, 'merged': False},
+      'with no main snapshot the worker keeps its snapshot in both variants')
 check(c['errors'] == 0 and k['errors'] == 0, 'no error line')
 
 inputs = ['build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_pipeline_cache_room_test.py',

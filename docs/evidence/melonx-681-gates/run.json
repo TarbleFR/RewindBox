@@ -1,0 +1,83 @@
+{
+ "schema": 1,
+ "date": "2026-11-07",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 681,
+ "base": "Core 679 (8c3e5723, run 42320919401 building)",
+ "finding": {
+  "input": "IPA 674 private journals, Hogwarts player 1 (pids 21216, 21727, 23571, 23682); not in the repository",
+  "result": "main cache 301 -> 575 -> 580 MiB; both worker snapshots (up to 128 MiB) load every launch and worker 0 is recycled within 10-30 s at 128-208 MiB; three merges of about 130 MiB grew main by 4.7 MiB (the worker content duplicates main); footprint up to 5.3 GB with iOS memory warnings",
+  "defect": "the worker snapshots are loaded beside main only to be recycled; a recycled worker joins main only within the 768 MiB main budget (a 208 MiB worker beside 580 MiB was dropped), and past that budget main is never written again (a full Hogwarts set held 747.90 MiB)"
+ },
+ "change": "adapt_pipeline_cache_room (PipelineCacheManager.cs, every title): beside a loaded main snapshot, worker snapshots that fit join main at startup and the workers start empty; main budget 1 GiB (workers 128 MiB each); a worker does not overwrite its snapshot before main has been written with the merged content",
+ "probe": {
+  "control": {
+   "variant": "control",
+   "startup": {
+    "mainMiB": 580,
+    "worker0MiB": 120,
+    "worker1MiB": 100,
+    "mergedLine": null,
+    "budgetLine": "Vulkan pipeline cache initialized: 580.00 MiB main data, 2/2 worker snapshots recovered. Budget 768.00 MiB main, 128.00 MiB per worker."
+   },
+   "largeMain": {
+    "mainMiB": 0,
+    "ignored": true
+   },
+   "noMainSnapshot": {
+    "worker0MiB": 5,
+    "merged": false
+   },
+   "hold": {
+    "workerAtStartMiB": 5,
+    "workerFileAfterDueSaveMiB": 6,
+    "mainFileAfterCheckpointMiB": 10,
+    "workerFileAfterMainSavedMiB": 6
+   },
+   "errors": 0
+  },
+  "candidate": {
+   "variant": "candidate",
+   "startup": {
+    "mainMiB": 800,
+    "worker0MiB": 0,
+    "worker1MiB": 0,
+    "mergedLine": "Merged 2 Vulkan worker pipeline cache snapshots (220.00 MiB) into the main cache at startup; the workers start empty (adapt_pipeline_cache_room).",
+    "budgetLine": "Vulkan pipeline cache initialized: 580.00 MiB main data, 2/2 worker snapshots recovered. Budget 1024.00 MiB main, 128.00 MiB per worker."
+   },
+   "largeMain": {
+    "mainMiB": 900,
+    "ignored": false
+   },
+   "noMainSnapshot": {
+    "worker0MiB": 5,
+    "merged": false
+   },
+   "hold": {
+    "workerAtStartMiB": 0,
+    "workerFileAfterDueSaveMiB": 5,
+    "mainFileAfterCheckpointMiB": 15,
+    "workerFileAfterMainSavedMiB": 1
+   },
+   "errors": 0
+  }
+ },
+ "sharedGateAdjustments": "checkpoint-side-cache now tests its own postimage with the later adapters reversed and checks that they reproduce the final preparation (as main-cache-checkpoint since Core 677)",
+ "gatesRun": {
+  "checkpoint-side-cache-checks.json": "40e7ce4c3cf34d8ad130fa866df74091ad08eff450b3dfae2f24e9faf68bc75b",
+  "fragmented-reads-checks.json": "521e62c8bd5ed2e103358cbf17a93c272c15222a7e0509dd604586594bb44df4",
+  "hogwarts-dma-copies-checks.json": "5dd9ab1d6ffbec9a411c3102537c167b99c77423eca54713f42aaa0ca6e83c74",
+  "main-cache-checkpoint-checks.json": "364a11ec6d3fe1532fdcbb68105c9e296e27c93078790286d382d6f85f801297",
+  "performance-diagnostics-checks.json": "7cf61ed882e9433061cd3b2de8f387bf67f99a73bf6d1b477f424e21eb479616",
+  "pipeline-cache-room-checks.json": "f50df53877234d60d59fb83808f15941f48c947462987d9724c87a7bc69686e3",
+  "pipeline-checkpoint-checks.json": "3d4f540b969cf4fe6433ec2189e9d1b4e64324862280fa13193f1086f622189e",
+  "pipeline-warmup-parity-checks.json": "39d60aa91501b6c6ffbd80b4dba30473982925fedf904d822be957fc297c3ef6",
+  "teardown-cache-checks.json": "a3ac4a4a124829a57a6a394b075fa5c36642ba6a5c6bc3025334e377b95632cc"
+ },
+ "contract": {
+  "sha256": "65c8c21e6992b41f6d28e4081f62974b34358b397bd1eff34757279597b0250b",
+  "freshAppleGates": 53,
+  "contractTest": "396 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false
+}

@@ -52,6 +52,26 @@ def member(text, signature):
 
 temporary = tempfile.TemporaryDirectory(prefix='melonx-checkpoint-side-cache-')
 WORK = Path(temporary.name).resolve()  # resolved: on macOS /var is a link to /private/var
+# The adapter's postimage: later adapters that edit its files (adapt_pipeline_cache_room, Core 681) reversed first.
+POST = WORK / 'post'
+for name in adapter.BASELINE:
+    (POST / name).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(FINAL_SOURCE / name, POST / name)
+for later in reversed(control_tools.later_sharing('adapt_checkpoint_side_cache')):
+    control_tools._reverse(later, POST)
+shutil.copyfile(FINAL_SOURCE / (VULKAN + 'VulkanException.cs'), POST / (VULKAN + 'VulkanException.cs'))
+# The receipt binds the final preparation (verify_dma_core compares its postimages with the candidate tree); the tested
+# postimage must reproduce it when the later adapters are applied forward again.
+PREPARED = FINAL_SOURCE
+replay = WORK / 'replay'
+for name in adapter.BASELINE:
+    (replay / name).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(POST / name, replay / name)
+for later in control_tools.later_sharing('adapt_checkpoint_side_cache'):
+    __import__(later).apply(replay)
+for name in adapter.BASELINE:
+    check((replay / name).read_bytes() == (PREPARED / name).read_bytes(), 'the later adapters reproduce the final preparation: ' + name)
+FINAL_SOURCE = POST
 CONTROL = WORK / 'control'
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +155,8 @@ inputs = ['build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melo
           'test/melonx_main_cache_checkpoint/Double.cs', 'test/melonx_checkpoint_side_cache/Program.cs', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
-               postimages={n: sha(FINAL_SOURCE / n) for n in adapter.BASELINE}, reports=reports, sdk=sdk, host=platform.system(),
+               postimages={n: sha(PREPARED / n) for n in adapter.BASELINE},
+               testedPostimages={n: sha(FINAL_SOURCE / n) for n in adapter.BASELINE}, reports=reports, sdk=sdk, host=platform.system(),
                physicalDeviceTested=False, gameTested=False, inputs={n: sha(ROOT / n) for n in inputs},
                limitation='Host fixture of the real cache manager with a Vulkan double. The stutter at checkpoints on an iPhone is '
                           'known only from a device run.')

@@ -10,7 +10,7 @@ IPA 674, private journals, not in the repository (Hogwarts Legacy, player 1, 6-7
   Hogwarts cache held 3574 shaders in 747.90 MiB, at the edge of that budget.
 
 Change (PipelineCacheManager.cs, every title):
-- at startup each worker snapshot that fits is merged into main and the worker restarts empty (the existing recycle path),
+- at startup, beside a loaded main snapshot, each worker snapshot that fits is merged into main and the worker restarts empty (the existing recycle path),
   so its content is kept once, in main, and the worker's own copy is released;
 - the main budget becomes 1 GiB (worker budgets unchanged, 128 MiB each with two workers): the whole Hogwarts shader set
   keeps being persisted, and a recycled worker finds room in main;
@@ -57,7 +57,8 @@ STARTUP_NEW = '''            // RewindBox (adapt_pipeline_cache_room): a worker 
             {
                 CacheState worker = _workerStates[index];
 
-                if (!worker.HasUsableSnapshot)
+                // Only beside a loaded main snapshot (the duplicate being removed); with no main snapshot the worker keeps it.
+                if (!worker.HasUsableSnapshot || !_mainState.HasUsableSnapshot)
                 {
                     continue;
                 }
