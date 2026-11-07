@@ -1196,6 +1196,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     Next device check: Hogwarts past 20 min with hostMemoryBudget off; journals for checkpoint stalls and the abort.
   - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
     the crash fix); otherwise ship 675 and take 677 in the next IPA.
+- **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
+  the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
+  relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
+  50/66/75/85/90/100 %, Docked RRS 70/71/83 %, Enable DRS; 92 cheats installed for build F1AE192C465BD920). The sessions
+  without these cheats did not crash this way (79477, 79931, 80907). Reading: conflicting writes to the game's
+  resolution state, not an engine defect. Advice: disable those cheats, keep one at most. Possible product lever:
+  refuse or warn when several enabled cheats write the same address (Ryujinx enables every cheat when enabled.txt is
+  absent). The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
+  21 s unscheduled, which matches the pipeline-creation freezes that Core 673/675 address.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.
