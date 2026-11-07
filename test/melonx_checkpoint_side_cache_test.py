@@ -54,20 +54,14 @@ temporary = tempfile.TemporaryDirectory(prefix='melonx-checkpoint-side-cache-')
 WORK = Path(temporary.name).resolve()  # resolved: on macOS /var is a link to /private/var
 # The adapter's postimage: later adapters that edit its files (adapt_pipeline_cache_room, Core 681) reversed first.
 POST = WORK / 'post'
-for name in adapter.BASELINE:
-    (POST / name).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(FINAL_SOURCE / name, POST / name)
-for later in reversed(control_tools.later_sharing('adapt_checkpoint_side_cache')):
-    control_tools._reverse(later, POST)
+LATER = control_tools.postimage('adapt_checkpoint_side_cache', FINAL_SOURCE, POST)
 shutil.copyfile(FINAL_SOURCE / (VULKAN + 'VulkanException.cs'), POST / (VULKAN + 'VulkanException.cs'))
 # The receipt binds the final preparation (verify_dma_core compares its postimages with the candidate tree); the tested
 # postimage must reproduce it when the later adapters are applied forward again.
 PREPARED = FINAL_SOURCE
 replay = WORK / 'replay'
-for name in adapter.BASELINE:
-    (replay / name).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(POST / name, replay / name)
-for later in control_tools.later_sharing('adapt_checkpoint_side_cache'):
+shutil.copytree(POST, replay)
+for later in LATER:
     __import__(later).apply(replay)
 for name in adapter.BASELINE:
     check((replay / name).read_bytes() == (PREPARED / name).read_bytes(), 'the later adapters reproduce the final preparation: ' + name)

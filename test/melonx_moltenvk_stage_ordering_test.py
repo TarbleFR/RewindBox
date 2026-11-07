@@ -95,8 +95,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-stage-ordering-') as temporary:
         adapt_moltenvk_stage_ordering.once = original_once
     check(sorted(p.relative_to(work).as_posix() for p in changed) == sorted(BASELINE), 'adapter changed other files')
     if FINAL_PREPARATION:
+        # Later adapters sharing these files (adapt_pipeline_cache_persist: Library.cs, Core 683) are reversed first.
+        from melonx_adapter_control import postimage  # noqa: E402
+        own = Path(temporary).resolve() / 'own-postimage'
+        postimage('adapt_moltenvk_stage_ordering', FINAL_SOURCE, own)
         for name in BASELINE:
-            check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            check((work / name).read_bytes() == (own / name).read_bytes(), 'final preparation is the adapter: ' + name)
     for name in BASELINE:
         undone = (work / name).read_text(encoding='utf-8-sig')
         for path, old, new in reversed(replacements):

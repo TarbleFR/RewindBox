@@ -80,6 +80,22 @@ def later_sharing(module_name: str) -> list:
     return found
 
 
+def postimage(module_name: str, final_source: Path, tree: Path) -> list:
+    """Copy into `tree` the files of `module_name` and of every later adapter sharing them, taken from the final
+    preparation, then reverse those later adapters (latest first): `tree` holds this adapter's own postimage. Returns
+    the later adapters, in preparation order (re-applying them forward must give the final preparation back)."""
+    later = later_sharing(module_name)
+    files = set(importlib.import_module(module_name).BASELINE)
+    for name in later:
+        files |= set(importlib.import_module(name).BASELINE)
+    for file in sorted(files):
+        (tree / file).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(final_source / file, tree / file)
+    for name in reversed(later):
+        _reverse(name, tree)
+    return later
+
+
 def control_source(source: Path, module_name: str, holder: list) -> tuple[Path, bool]:
     """Return (tree as prepared before this adapter (its BASELINE), whether `source` already contained the adapter).
 

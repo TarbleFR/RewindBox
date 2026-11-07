@@ -1252,6 +1252,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     them; render-thread pipelines checkpoint at the 8th, off the creating thread; nothing within the interval; Dispose
     waits 412 ms for a pause write in flight.
   - The Vulkan and Library projects compile.
+  - Shared gates now use `melonx_adapter_control.postimage`: they undo the later adapters sharing their files and
+    check that re-applying them gives the final preparation. This applies to moltenvk-stage-ordering,
+    main-cache-checkpoint, checkpoint-side-cache and pipeline-cache-room.
+  - All 19 gates bound to the three files reran green. Contract: 54 gates, 172 inputs, `--archive` 398 checks.
+    [Receipt](evidence/melonx-683-gates/run.json).
+  - Whether iOS leaves the few seconds a pause write takes is known only from a device run. An interrupted write
+    leaves the previous file intact.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
