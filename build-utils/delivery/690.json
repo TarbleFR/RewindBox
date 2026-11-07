@@ -252,6 +252,10 @@
     "note": "MeloNX Core 689 adapters (occupied read-backs into a buffer, async skips only into regenerated targets) folded into the pinned Core 689"
    },
    {
+    "commit": "9d662ff04f134efb0525be8526b5018aa7a9e287",
+    "note": "MeloNX Core 689 lot table of the hogwarts-dma-copies test"
+   },
+   {
     "commit": "8c3a535310914ef9c445b2ef0eda002812ed069b",
     "note": "MeloNX Core 689: occupied read-backs into a buffer on the GPU; async shaders skip only into regenerated targets"
    }
