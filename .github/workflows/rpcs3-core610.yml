@@ -43,6 +43,7 @@
 # Core compile request: Core 903 (core-build.json build 903, canonical patch f90bafb1), request 1 (Core 902 plus the native Metal 4 renderer stages M3 and M4: texture cache, blit engine and readback, exact occlusion queries, MSAA, conversion kernels, native overlays; opt-in per title; Xcode 26.3; MoltenVK dependency of run 42213572281, the host bridge unchanged).
 # Core compile request: Core 904 (core-build.json build 904, canonical patch f11ab251), request 1 (Core 903 plus the JIT arena high window for iOS 27 beta, Metal M5 part 1 and the M3 gaps; MoltenVK dependency of run 42213572281, host bridge unchanged).
 # Core compile request: Core 905 (core-build.json build 905, canonical patch f9b33b81), request 1 (Core 904 plus the last Metal parity items: iOS ZCULL hooks, multi-worker boot precompile, MSAA resolve-before-read).
+# Core compile request: Core 906 (core-build.json build 906, canonical patch 53220481), request 1 (Core 905 plus retired game-setting overrides skipped and pruned, and the timed COREPROF METAL report with its drain state line; MoltenVK dependency of run 42213572281, host bridge unchanged).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
