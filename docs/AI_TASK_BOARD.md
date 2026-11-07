@@ -1373,6 +1373,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Gate pipeline-cache-growth (37 checks, control Core 685: rewrites for 2 MiB and on an unchanged pause; candidate:
     skips 2 MiB, writes 9 MiB, stale rule, pause rules, records). pipeline-build-journal now tests its own postimage.
     [Receipt](evidence/melonx-687-gates/run.json).
+  - **Verified and pinned:** run 42381823611 attempt 1 (`b85df163`, 56 gates, two simulator sessions). Job
+    128430878145, artifact 13578588706 (90700804 B, `f66df9ad…`). iPhone binary `3ef51948…`
+    (38176672 B), fingerprint `56e192fa…`, contract `dc4e77bf…`. Engine evidence passed
+    offline. Handed to main for the next common IPA. Not tested on a device.
+  - Device reading: engine journal lines "pipelineCache checkpointSkipped/checkpoint/written" (how often the 625 MiB
+    file is rewritten and how long it takes), memoryWarning timing against them, and "pipelineBuilds summary" with
+    compute included.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

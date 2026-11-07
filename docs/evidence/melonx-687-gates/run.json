@@ -118,5 +118,31 @@
   "contractTest": "402 checks with the authenticated archive",
   "localGateValidation": "15 receipts validated against the frozen contract"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42381823611 attempt 1 (b85df163, Core 687)": "passed: 56 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42381823611,
+  "attempt": 1,
+  "job": 128430878145,
+  "source": "b85df163f75c7ab6490a08761480f52db1fb3867",
+  "artifact": 13578588706,
+  "artifactBytes": 90700804,
+  "artifactSha256": "f66df9ad24138827da764d78d785e979b311fa606d03612dba91dfe6d7f7a103",
+  "expiresAt": "2026-11-21T15:00:46Z",
+  "iphoneBinarySha256": "3ef51948a6a74f3aa93ebfd157ab78593ba93b87fcdde902233a354655682d52",
+  "iphoneBinaryBytes": 38176672,
+  "packagedFingerprint": "56e192fa53166bb4e9bed33b5d907074c3ffd5b69e7d442be41555d953f756af",
+  "resultSha256": "150a14b378256e967aba0181081b09351354e7223e0e208d0b8ff37d40ce1706",
+  "contractSha256": "dc4e77bf66de3b86bb5cc85a1bc4b93b86cea39d636b5c48ce232d7224946d6c",
+  "iphoneBinaryMarkers": [
+   "adapt_pipeline_cache_growth",
+   "since the file was written",
+   "adapt_pipeline_build_journal",
+   "checkpointed on pause"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 685 (3b6cfcca, pin 813fd1f4, fingerprint 3b727e0f)"
+ }
 }
