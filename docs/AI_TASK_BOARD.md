@@ -1444,6 +1444,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     inputs, `7726d34e`), contract test 407 checks with the authenticated archive. Review (rb-core-review): no skip
     added (proven), no proven defect; open hypothesis H1 (a receiver rendered before a guest read could flush after the
     buffer, as on the build 626 path). [Receipts](evidence/melonx-689-gates/run.json). Not tested on a device.
+  - **Verified and pinned:** run 42397176037 attempt 1 (`8c3a5353`, 58 gates, two simulator sessions). Job
+    128476942271, artifact 13585285918 (90711607 B, `8eab999a…`). iPhone binary `6d41033e…` (38193056 B), fingerprint
+    `58f117b8…`, contract `7726d34e…`. Engine evidence passed offline. Not tested on a device.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
     the worker cache file mapping checked), the 27 pipelines compiled again each session, and the steady CPU cost
     (descriptor updates and queue submits on the render thread, bindings on the GPU thread).

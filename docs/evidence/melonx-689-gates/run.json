@@ -42,5 +42,30 @@
   "preparationInputs": 176,
   "contractTest": "407 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42397176037 attempt 1 (8c3a5353, Core 689)": "passed: 58 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42397176037,
+  "attempt": 1,
+  "job": 128476942271,
+  "source": "8c3a535310914ef9c445b2ef0eda002812ed069b",
+  "artifact": 13585285918,
+  "artifactBytes": 90711607,
+  "artifactSha256": "8eab999af51f3c83f2242b751e17346f25d15f8bb5b3b0719ae8f3a1c0159869",
+  "expiresAt": "2026-11-21T18:06:51Z",
+  "iphoneBinarySha256": "6d41033e1ef9dae7d9c59f2aff6313151d47c6784e814bdde94f2a7725e84360",
+  "iphoneBinaryBytes": 38193056,
+  "packagedFingerprint": "58f117b8a3259f3336082ad0ec1c0baddc03575eabe6e85fe433e38c608a32ff",
+  "resultSha256": "14a3d0e2c16ac9ca025562add8b3ed69616685063f2d59b4b03379f024d3ee04",
+  "contractSha256": "7726d34edcd0ee1e112f6ccf8e7e75961a5b7c8c90b1ce0e37cf7f40fc64bd00",
+  "iphoneBinaryMarkers": [
+   "rerouted into buffers",
+   "async draws held for their program",
+   "over an occupied destination into a buffer"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 687 (b85df163, pin ab03701f, fingerprint 56e192fa)"
+ }
 }
