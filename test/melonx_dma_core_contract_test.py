@@ -58,6 +58,7 @@ from adapt_audio_start_deferred import BASELINE as C679_AUDIO_START_DEFERRED
 from adapt_pipeline_cache_room import BASELINE as C681_PIPELINE_CACHE_ROOM
 from adapt_pipeline_cache_persist import BASELINE as C683_PIPELINE_CACHE_PERSIST
 from adapt_pipeline_build_journal import BASELINE as C685_PIPELINE_BUILD_JOURNAL
+from adapt_pipeline_cache_growth import BASELINE as C687_PIPELINE_CACHE_GROWTH
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -117,6 +118,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'pipeline-cache-room': 'delivered',
             'pipeline-cache-persist': 'delivered',
             'pipeline-build-journal': 'delivered',
+            'pipeline-cache-growth': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -140,7 +142,7 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C673_MAIN_CACHE_CHECKPOINT) | set(C675_CHECKPOINT_SIDE_CACHE) |
            set(C677_EVICTED_BUFFER_RECREATE) | set(C679_AUDIO_START_DEFERRED) |
            set(C681_PIPELINE_CACHE_ROOM) | set(C683_PIPELINE_CACHE_PERSIST) |
-           set(C685_PIPELINE_BUILD_JOURNAL))
+           set(C685_PIPELINE_BUILD_JOURNAL) | set(C687_PIPELINE_CACHE_GROWTH))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -402,7 +404,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_audio_start_deferred.py',
                                                      'build-utils/melonx/adapt_pipeline_cache_room.py',
                                                      'build-utils/melonx/adapt_pipeline_cache_persist.py',
-                                                     'build-utils/melonx/adapt_pipeline_build_journal.py'} and
+                                                     'build-utils/melonx/adapt_pipeline_build_journal.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_growth.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -427,7 +430,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 173 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 174 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

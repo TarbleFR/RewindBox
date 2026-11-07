@@ -75,7 +75,9 @@ CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_
            # Core 683: the pipeline cache manager and renderer.
            'adapt_pipeline_cache_persist',
            # Core 685: the pipeline build journal.
-           'adapt_pipeline_build_journal')
+           'adapt_pipeline_build_journal',
+           # Core 687: the pipeline cache growth rule.
+           'adapt_pipeline_cache_growth')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
@@ -108,7 +110,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_bindless_retention.py',
           'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
           'build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
-          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py',
+          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

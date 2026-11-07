@@ -127,6 +127,8 @@ LOT_FILES = {
     'adapt_pipeline_cache_persist': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Library/Library.cs'],
     # Core 685: pipeline build journal.
     'adapt_pipeline_build_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # Core 687: main pipeline cache growth rule and journal records.
+    'adapt_pipeline_cache_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0
