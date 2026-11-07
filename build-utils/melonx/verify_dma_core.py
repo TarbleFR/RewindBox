@@ -87,8 +87,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor); 47 with Core 661
 # (Hogwarts 658 logs: sixteen gates for its fifteen adapters and the gcEvent fallback flag, and the native display
 # fixture rerun because its receipt declares EmbeddedMemory.cs); 58 with Core 689 (IPA 688 async-shaders logs: occupied
-# read-backs into a buffer, async skips only into regenerated targets).
-FRESH_GATES = 58
+# read-backs into a buffer, async skips only into regenerated targets); 61 with Core 691 (IPA 688/690 crash at 0x111: no copy from a
+# destroyed image; failed pipelines named; worker compiles look in the main cache first).
+FRESH_GATES = 61
 HISTORICAL_RECEIPTS = 61
 
 

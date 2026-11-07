@@ -136,6 +136,7 @@ LOT_FILES = {
     # Core 691: released-texture flush guard (no file held here); pipeline failure identity (PipelineBase.cs).
     'adapt_released_texture_flush': [],
     'adapt_pipeline_failure_identity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_worker_main_cache_lookup': [],
 }
 
 checks = 0

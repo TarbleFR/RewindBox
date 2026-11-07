@@ -61,6 +61,9 @@ from adapt_pipeline_build_journal import BASELINE as C685_PIPELINE_BUILD_JOURNAL
 from adapt_pipeline_cache_growth import BASELINE as C687_PIPELINE_CACHE_GROWTH
 from adapt_occupied_readback_buffers import BASELINE as C689_OCCUPIED_READBACK_BUFFERS  # noqa: E402
 from adapt_async_regenerated_targets import BASELINE as C689_ASYNC_REGENERATED_TARGETS  # noqa: E402
+from adapt_released_texture_flush import BASELINE as C691_RELEASED_TEXTURE_FLUSH  # noqa: E402
+from adapt_pipeline_failure_identity import BASELINE as C691_PIPELINE_FAILURE_IDENTITY  # noqa: E402
+from adapt_worker_main_cache_lookup import BASELINE as C691_WORKER_MAIN_CACHE_LOOKUP  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -123,6 +126,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'pipeline-cache-growth': 'delivered',
             # Core 689: occupied read-backs into a buffer; async skips only into regenerated targets.
             'occupied-readback-buffers': 'delivered', 'async-regenerated-targets': 'delivered',
+            # Core 691: released-texture flush, pipeline failure identity, worker main-cache lookup.
+            'released-texture-flush': 'delivered', 'pipeline-failure-identity': 'delivered', 'worker-main-cache-lookup': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -148,7 +153,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C681_PIPELINE_CACHE_ROOM) | set(C683_PIPELINE_CACHE_PERSIST) |
            set(C685_PIPELINE_BUILD_JOURNAL) | set(C687_PIPELINE_CACHE_GROWTH) |
            # Core 689: DmaClass.cs (already changed) and the Vulkan files of the async rule (FramebufferParams.cs new).
-           set(C689_OCCUPIED_READBACK_BUFFERS) | set(C689_ASYNC_REGENERATED_TARGETS))
+           set(C689_OCCUPIED_READBACK_BUFFERS) | set(C689_ASYNC_REGENERATED_TARGETS) |
+           # Core 691: the flush guard (ITexture.cs, PersistentFlushBuffer.cs and TextureView.cs new), PipelineState/Base.
+           set(C691_RELEASED_TEXTURE_FLUSH) | set(C691_PIPELINE_FAILURE_IDENTITY) | set(C691_WORKER_MAIN_CACHE_LOOKUP))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -366,7 +373,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 75 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 78 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -413,7 +420,10 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_pipeline_build_journal.py',
                                                      'build-utils/melonx/adapt_pipeline_cache_growth.py',
                                                      'build-utils/melonx/adapt_occupied_readback_buffers.py',
-                                                     'build-utils/melonx/adapt_async_regenerated_targets.py'} and
+                                                     'build-utils/melonx/adapt_async_regenerated_targets.py',
+                                                     'build-utils/melonx/adapt_released_texture_flush.py',
+                                                     'build-utils/melonx/adapt_pipeline_failure_identity.py',
+                                                     'build-utils/melonx/adapt_worker_main_cache_lookup.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -438,7 +448,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 176 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 179 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
