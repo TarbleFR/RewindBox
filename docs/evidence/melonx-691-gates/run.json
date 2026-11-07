@@ -52,5 +52,30 @@
   "preparationInputs": 179,
   "contractTest": "416 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42419673065 attempt 1 (b9443acf, Core 691)": "passed: 61 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42419673065,
+  "attempt": 1,
+  "job": 128545189044,
+  "source": "b9443acf2fe89bb0ee5b8b19faff431776160799",
+  "artifact": 13593867270,
+  "artifactBytes": 90728786,
+  "artifactSha256": "830d9f5dec76e514a6b1e841c0ad3ea7faff7c4d6f842c259bad16054da49043",
+  "expiresAt": "2026-11-21T22:49:58Z",
+  "iphoneBinarySha256": "5ac0d85540331f0a4cc6d7b5ff1c1e1247f347b8c328f8f817a295c5ace55fd6",
+  "iphoneBinaryBytes": 38193088,
+  "packagedFingerprint": "dba5e614d3ab3ba14a4306583c5eae3170fa8de6a9eb1e37ee346580b7c4761e",
+  "contractSha256": "89e0fe9d90b497416d7a3401a86b59542fbe370e76c40fd65fa2be99a141e2a2",
+  "iphoneBinaryMarkers": [
+   "host texture was released",
+   "adapt_pipeline_failure_identity",
+   "adapt_worker_main_cache_lookup",
+   "not ready by cause"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 689 (8c3a5353, pin 0fe471f1, fingerprint 58f117b8)"
+ }
 }

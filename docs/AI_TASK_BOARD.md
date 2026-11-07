@@ -1478,6 +1478,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     (four older gates now re-apply later adapters forward); contract refrozen (61 fresh gates, 179 inputs, `89e0fe9d`),
     contract test 416 checks; commit `b9443acf` requests the Core CI. [Receipts](evidence/melonx-691-gates/run.json).
     Not tested on a device.
+  - **Verified and pinned:** run 42419673065 attempt 1 (`b9443acf`, 61 gates, two simulator sessions). Job
+    128545189044, artifact 13593867270 (90728786 B, `830d9f5d…`). iPhone binary `5ac0d855…` (38193088 B), fingerprint
+    `dba5e614…`, contract `89e0fe9d…`. Engine evidence passed offline. Handed to main for the next common IPA (no
+    manifest drafted here). Not tested on a device.
+  - **Shader file received 7 Nov:** `pipeline-…-010038b015560000.worker0.vkpc` is a MoltenVK pipeline cache of another
+    title (010038b015560000, not Hogwarts 0100f7e00c70e000) holding converted MSL only; a shader whose conversion fails
+    is never stored in any .vkpc. Still needed: Hogwarts' games/0100f7e00c70e000/cache/shader/vulkan_apple.toc and
+    vulkan_apple.data (SPIR-V of each program), or a Core 691 session log with the identity line.
   - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
     rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs

@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "8c3a535310914ef9c445b2ef0eda002812ed069b",
-  "run": 42397176037,
-  "job": 128476942271,
+  "source": "b9443acf2fe89bb0ee5b8b19faff431776160799",
+  "run": 42419673065,
+  "job": 128545189044,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13585285918,
-  "name": "MeloNX-engine-8c3a535310914ef9c445b2ef0eda002812ed069b",
-  "bytes": 90711607,
-  "sha256": "8eab999af51f3c83f2242b751e17346f25d15f8bb5b3b0719ae8f3a1c0159869",
-  "expiresAt": "2026-11-21T18:06:51Z",
+  "artifact": 13593867270,
+  "name": "MeloNX-engine-b9443acf2fe89bb0ee5b8b19faff431776160799",
+  "bytes": 90728786,
+  "sha256": "830d9f5dec76e514a6b1e841c0ad3ea7faff7c4d6f842c259bad16054da49043",
+  "expiresAt": "2026-11-21T22:49:58Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "6d41033e1ef9dae7d9c59f2aff6313151d47c6784e814bdde94f2a7725e84360",
-      "bytes": 38193056
+      "sha256": "5ac0d85540331f0a4cc6d7b5ff1c1e1247f347b8c328f8f817a295c5ace55fd6",
+      "bytes": 38193088
     },
     "iossimulator-arm64": {
-      "sha256": "cd363fd131efd66e16f7297fdeeb01552d75f0074c392d7a46f3c8a81162fdd1",
-      "bytes": 38491560
+      "sha256": "252cb18986872942baf98be5ae899230e2b3d8befa1c8fab2b10333c94ce6c61",
+      "bytes": 38508104
     }
   },
   "identities": {
-    "ios-arm64": "ce1dd231b49447fff3512f260d9ccd15038b374a66e523d8ccec192ed4b691fa",
-    "iossimulator-arm64": "68e8d2fd80c939f0c5aeb2fda277af8cc0963488cc9f344b55c6fc10805d2e6b"
+    "ios-arm64": "16d15d2e74d8e88980e38c3ecfd2016c9554beda918303e75c79aa89eeb290c2",
+    "iossimulator-arm64": "7fa3c843e017bbcdfddedf84f1f13e2169d15af626cce9719c1f5a7937810c15"
   },
-  "contractSha256": "7726d34edcd0ee1e112f6ccf8e7e75961a5b7c8c90b1ce0e37cf7f40fc64bd00",
-  "resultSha256": "14a3d0e2c16ac9ca025562add8b3ed69616685063f2d59b4b03379f024d3ee04",
-  "packagedFingerprint": "58f117b8a3259f3336082ad0ec1c0baddc03575eabe6e85fe433e38c608a32ff",
+  "contractSha256": "89e0fe9d90b497416d7a3401a86b59542fbe370e76c40fd65fa2be99a141e2a2",
+  "resultSha256": "67a933ca6dd5962315ab3d7e9d30affca07d3efa30fa3e9f9354e2cd499beea9",
+  "packagedFingerprint": "dba5e614d3ab3ba14a4306583c5eae3170fa8de6a9eb1e37ee346580b7c4761e",
   "replaces": {
-    "source": "b85df163f75c7ab6490a08761480f52db1fb3867",
-    "run": 42381823611,
-    "artifact": 13578588706,
-    "packagedFingerprint": "56e192fa53166bb4e9bed33b5d907074c3ffd5b69e7d442be41555d953f756af",
-    "reason": "Hogwarts Legacy: a read-back over an occupied destination with no buffer goes into a buffer on the GPU (IPA 688 async: 4391 occupied declines, a texture flush of 5-15 ms about once per frame); async shaders skip a draw only into a target regenerated each frame (texture corruption, black menu)"
+    "source": "8c3a535310914ef9c445b2ef0eda002812ed069b",
+    "run": 42397176037,
+    "artifact": 13585285918,
+    "packagedFingerprint": "58f117b8a3259f3336082ad0ec1c0baddc03575eabe6e85fe433e38c608a32ff",
+    "reason": "Every title: a texture flush never records a copy from a destroyed image (IPA 688/690 crash at 0x111 in vkCmdCopyImageToBuffer); failed pipelines named, not ready split by cause; background pipeline compiles try the main cache first (IPA 690: 30 compiled again)"
   }
 }
