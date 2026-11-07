@@ -1447,6 +1447,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Verified and pinned:** run 42397176037 attempt 1 (`8c3a5353`, 58 gates, two simulator sessions). Job
     128476942271, artifact 13585285918 (90711607 B, `8eab999a…`). iPhone binary `6d41033e…` (38193056 B), fingerprint
     `58f117b8…`, contract `7726d34e…`. Engine evidence passed offline. Not tested on a device.
+  - **Delivery:** IPA 690 (688 + Core 689) is drafted, frozen and requested by session 012mUAShv9k6pSCnpW7oAF63
+    (`2c807a36`, standard delivery run 42399940068); this session's duplicate draft was dropped unpushed. Next: the
+    device reading above with async shaders on and off.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
     the worker cache file mapping checked), the 27 pipelines compiled again each session, and the steady CPU cost
     (descriptor updates and queue submits on the render thread, bindings on the GPU thread).
