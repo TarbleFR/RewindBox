@@ -847,8 +847,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - rb-core-review (source reading): no actionable defect in either change; open: on-device glslang compile of High +
       native half + 8-bit rounding, and a capture confirming MoltenVK keeps the load-op clear.
     - Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS;
-      canonical e4d82eb4 (445), delta b686d5ba, increment core907-from-906 83d7544c. Driver running. No FPS claim before a
-      device run.
+      first packaging canonical e4d82eb4 (445), delta b686d5ba, increment 83d7544c.
+    - **Request 1 (run `42326285167`, commit `979c3133`) FAILED in the Apple host harnesses**; the iPhone Core job itself built.
+      - feedback-census: the reviewed form of VKGSRender::begin_render_pass changed (attachment note extracted into a
+        member) and VKGSRender.cpp counted draw_renderpasses. Fixed without touching the guard: begin_render_pass is back
+        byte for byte, the load-op CLEAR begin notes its attachments itself and leaves FEEDBACK610 to the draw path
+        (its passes are counted by LOADCLEAR907 and RPASS652).
+      - core907 driver: the Core 664 PPU grace host model under ASan/UBSan on the reverted Core 668 tree, timing checks at
+        lines 266/283 (sleepers >= 1; writer_deferral + 400 ms). That tree has no 907 change and 906 passed the same test on
+        Apple; treated as runner timing, rerun with request 2 and examined if it fails again. Not masked: the guard is unchanged.
+      - Repackaged: canonical 654680ea (445), delta 448b942b, increment core907-from-906 2c391db8. Local: route PASS, codegen
+        identities unchanged, transition-phases, feedback-census, position-invariance, graphics-tests-612 (plain, ASan/UBSan)
+        PASS; full driver running. No FPS claim before a device run.
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.

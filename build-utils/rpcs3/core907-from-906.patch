@@ -25,34 +25,6 @@ index 9a6a6bc..f810155 100644
  		{
  			decompiler.device_props.has_native_half_support = caps.has_native_half_support;
  		}
-diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 7ded007..c35006f 100644
---- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
-+++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-@@ -207,6 +207,13 @@ void VKGSRender::begin_render_pass()
- 	{
- 		rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
- 	}
-+	note_open_pass_attachments();
-+#endif
-+}
-+
-+#ifdef RPCS3_IOS
-+void VKGSRender::note_open_pass_attachments()
-+{
- 	{
- 		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo (images of its views).
- 		std::array<VkImage, 8> images{};
-@@ -222,8 +229,8 @@ void VKGSRender::begin_render_pass()
- 		}
- 		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
- 	}
--#endif
- }
-+#endif
- 
- void VKGSRender::close_render_pass()
- {
 diff --git a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
 index 68145ed..1fe638f 100644
 --- a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
@@ -82,19 +54,18 @@ index 68145ed..1fe638f 100644
  		decompiler.device_props.has_native_half_support = pdev->get_shader_types_support().allow_float16;
  	}
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 5f91d29..1b87e62 100644
+index 5f91d29..9e8262a 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -25,6 +25,8 @@
+@@ -25,6 +25,7 @@
  #include "ios/RPCS3IOSPerformance.h"
  #include "ios/IOSShaderTiming.h"
  #include "ios/IOSReadbackProfile.h"
 +#include "ios/IOSLoadOpClear907.h"
-+#include "ios/IOSFeedbackCensus.h"
  #include "ios/IOSDeferredCommit.h"
  #include "ios/IOSEarlySubmit.h"
  #include "ios/IOSRsxIdlePark.h"
-@@ -1435,6 +1437,7 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1435,6 +1436,7 @@ void VKGSRender::clear_surface(u32 mask)
  
  	const bool full_frame = (scissor_w == fb_width && scissor_h == fb_height);
  	bool update_color = false, update_z = false;
@@ -102,7 +73,7 @@ index 5f91d29..1b87e62 100644
  	auto surface_depth_format = rsx::method_registers.surface_depth_fmt();
  
  	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK)
-@@ -1622,6 +1625,7 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1622,6 +1624,7 @@ void VKGSRender::clear_surface(u32 mask)
  				rsx::method_registers.stencil_mask(), renderpass);
  
  			depth_stencil_mask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -110,7 +81,7 @@ index 5f91d29..1b87e62 100644
  		}
  
  		if (depth_stencil_mask)
-@@ -1639,11 +1643,107 @@ void VKGSRender::clear_surface(u32 mask)
+@@ -1639,11 +1642,123 @@ void VKGSRender::clear_surface(u32 mask)
  
  	if (!clear_descriptors.empty())
  	{
@@ -204,8 +175,24 @@ index 5f91d29..1b87e62 100644
 +		vk::get_renderpass_key_with_load_clear(m_current_renderpass_key, clear_color, clear_depth, clear_stencil));
 +	vk::begin_renderpass_cleared(*m_current_command_buffer, pass, cleared_pass, m_draw_fbo->value,
 +		{ positionu{0u, 0u}, sizeu{m_draw_fbo->width(), m_draw_fbo->height()} }, values.data(), ::size32(views));
-+	rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
-+	note_open_pass_attachments();
++	// FEEDBACK610 counts only the passes the draw path begins (its reviewed census): the passes begun
++	// here are counted by COREPROF LOADCLEAR907 passes, and by RPASS652 like every other begin.
++	{
++		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo, as
++		// VKGSRender::begin_render_pass notes them (its reviewed form is unchanged).
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++		for (const auto& view : views)
++		{
++			if (count == images.size())
++			{
++				count = 0;
++				break;
++			}
++			images[count++] = view->image()->value;
++		}
++		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
++	}
 +
 +	lc::add(lc::counters.passes);
 +	if (clear_color) lc::add(lc::counters.color);
@@ -219,15 +206,14 @@ index 5f91d29..1b87e62 100644
  {
  	close_and_submit_command_buffer();
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index 3e149a2..914fa37 100644
+index 3e149a2..cd2fd43 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
-@@ -275,6 +275,10 @@ private:
+@@ -275,6 +275,9 @@ private:
  	vk::viewable_image* get_present_source(vk::present_surface_info* info, const rsx::avconf& avconfig);
  
  	void begin_render_pass();
 +#ifdef RPCS3_IOS
-+	void note_open_pass_attachments();  // REWINDBOX_IN_PASS_READ_TRANSITION_655 (also after a REWINDBOX_LOAD_OP_CLEAR_907 begin)
 +	bool begin_render_pass_with_clear(const std::vector<VkClearAttachment>& clears, bool full_frame);  // REWINDBOX_LOAD_OP_CLEAR_907
 +#endif
  	void close_render_pass();
