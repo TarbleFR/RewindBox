@@ -1,0 +1,56 @@
+{
+ "schema": 1,
+ "date": "2026-11-07",
+ "session": "https://claude.ai/code/session_01JA5QgKeoGVH5oVjNyhcj3D",
+ "core": 691,
+ "base": "Core 689 (8c3a5353, pin 0fe471f1)",
+ "finding": {
+  "input": "IPA 690 private journals (Hogwarts pid 32980, session 531F1875, Core 8c3a5353 / 6d41033e) and IPA 688 crash pid 31473; not in the repository",
+  "crash": "signal 11 at 0x111 in MVKCmdBufferImageCopy<1>::setContent (vkCmdCopyImageToBuffer) on a guest thread under the memory tracking fault handler, in 688 and 690: validate() reads MVKImage::_hasExpectedTexelSize at offset 0x111 of a null image; a destroyed Auto<DisposableImage> returns a default (null) handle and the guest-thread texture flush (TextureGroup.FlushAction via BackgroundContextAction) read it",
+  "shader": "SPIR-V to MSL conversion error: nullptr once per session about 35 s in (688 and 690), then Graphics pipeline creation failed (render thread); SPIRV-Cross 6c09849f throws nullptr only from Variant::get() for an undefined id; program not identified by the Core",
+  "compiles": "workers compiled again 30 in 2736 ms in the first minute (246 pipelines journaled in 8 earlier sessions); render thread 1 in 3205 ms; worker caches never consult the main cache, main 727 of 768 MiB so worker snapshots were not merged",
+  "notReady": "113 not ready over the 690 session, held 0; the 17 at 18:56:53 coincide with the failed pipeline"
+ },
+ "change": "adapt_released_texture_flush (ITexture.cs, PersistentFlushBuffer.cs, TextureView.cs, Gpu Texture.cs), adapt_pipeline_failure_identity (PipelineState.cs, PipelineBase.cs; diagnostics), adapt_worker_main_cache_lookup (PipelineState.cs)",
+ "gatesRun": {
+  "array-rebuild-allocations-checks.json": "56e8eff86742e77fabd95566b254d47532646cf0af4036f3433c39d49d9e1580",
+  "artifact-counters-checks.json": "a9aee1813dd73f9c66e9957e3e35a1dc3ce3a1bea193a005fbee5e4dd1ff4475",
+  "async-regenerated-targets-checks.json": "501d94da195fb79719c4767273c6196a258d8db611a00cc945a40bcdf3b7fbad",
+  "barrier-compaction-checks.json": "27b91f8bdd5e45e35cede6ee66f198f2728589a75a99aa98def70e5f1edcbca2",
+  "bindless-array-delta-checks.json": "2dbb14824914fceb264471a9917b1a06c4e1a2368367f78b45e9f220483fa524",
+  "bindless-retention-checks.json": "ecb769ec57a5820841216b577bf13f32e12339c9b9187f3f7de1f59fbeed11ef",
+  "checkpoint-side-cache-checks.json": "ccb314b85fd317cc2cc7dd0c264ee8a212fbb581c0e2d7c739a62c79f2db1d29",
+  "cold-texture-release-checks.json": "6cc44e08db51333669708fdeed201921ec33a2f74f98b545afdb5bb55f48023f",
+  "fallback-descriptor-scratch-checks.json": "fca842127f000ac4562acc7a378803e370a3c25f815f6a94feed7e5570745874",
+  "fragmented-reads-checks.json": "48676e1eeafffb96ce09445fa1ebaa092c3944bdfa6565a7a1cdff88915e1602",
+  "hogwarts-dma-copies-checks.json": "5890c7e24b66fbb6f6ea36fb2cbd1ad09aaedd68be1745a1aeab0d1e968bb25b",
+  "main-cache-checkpoint-checks.json": "fa0f768bab965f6e4028943c2a60d88792c6de1ebc50758729bfd41728864ab1",
+  "moltenvk-barrier-ordering-checks.json": "e102588ff5c782bb31eddb52ff0f6581a607d1555bae49d888569c94f6827954",
+  "moltenvk-stage-ordering-checks.json": "6d05828259eb52c2315b85957b1ffc55d61bcd0f787fc3fe66409291a6c8df2f",
+  "performance-diagnostics-checks.json": "adafdd6709c399436384ca7dc0de16bd4313032d2a1e668b2cea1c793bd16b6c",
+  "pipeline-build-journal-checks.json": "957f586aacc153a39b64e6cfdac50dd613925684fff3e400e905252a3887c897",
+  "pipeline-cache-growth-checks.json": "e9c3e67bb20cae0765c956495854059eb59a4d85c4370b6441c1cf2b24d879ca",
+  "pipeline-cache-persist-checks.json": "7afc1d6de3d846dbce8a33de87357984d16451a7692e39cca2b203c590bfb50c",
+  "pipeline-failure-identity-checks.json": "edcea4c69a6f89c89d172cf023cdbf4dd61beea93c71205c73279ac1d9ca34af",
+  "pipeline-warmup-parity-checks.json": "76c44dc376a4fe89ba39638e59957918ac160bfad5b5a65d4423b95d17804851",
+  "present-pacer-fixes-checks.json": "5ef753b15d5ab3f79f40c1830ddb8d4c4a9b3415714f9ccdabc982b3d64839b1",
+  "released-texture-flush-checks.json": "e7385ecb94cd00ab71ac07fc56b5b662a8857dff67842b3736955c5036ba9b12",
+  "scalar-texture-descriptor-checks.json": "becfb66937f419e1b42863037cc7c539d44a0128dd7b23201a48a42f8ad4d69d",
+  "setprogram-warmup-checks.json": "bf9d2fbf197c2c368dd70122c85a3c8558a6e88310815b38301fd867db8bf7fc",
+  "warmup-key-parity-checks.json": "510e23f65c3cf7bca540df4f23808020ee84d7419e27bbbaff727622e3a45ffb",
+  "worker-main-cache-lookup-checks.json": "e2e87ee1bac5c5e5a126aa673645fcfd24a11b1d263cb7db803aab843d1662e1"
+ },
+ "alsoRerun": [
+  "barrier-compaction",
+  "array-rebuild-allocations",
+  "present-pacer-fixes",
+  "pipeline-cache-persist"
+ ],
+ "contract": {
+  "sha256": "89e0fe9d90b497416d7a3401a86b59542fbe370e76c40fd65fa2be99a141e2a2",
+  "freshAppleGates": 61,
+  "preparationInputs": 179,
+  "contractTest": "416 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false
+}

@@ -204,6 +204,8 @@ JOINED = JOINED | C661_JOINED
 # like the Core 661 GPU joiners they are read from a control only by fragmented-reads (delivered609).
 C671_JOINED = {'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs', 'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs'}
 JOINED = JOINED | C671_JOINED
+# Core 691 (adapt_released_texture_flush): ITexture.cs (GAL) and PersistentFlushBuffer.cs join the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/ITexture.cs', 'src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs'}
 REUSED_FRESH = set()
 
 
@@ -448,7 +450,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 179 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 179 and len(frozen['preparedMembers']) == 203, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

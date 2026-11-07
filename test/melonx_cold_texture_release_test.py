@@ -35,6 +35,20 @@ _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_cold_texture_release', _HOLD)
 import adapt_cold_texture_release  # noqa: E402
+
+def _forward_matches(module_name, work, final_source, names, tmp):
+    """The candidate plus the later adapters sharing its files (re-applied forward) is the final preparation."""
+    import importlib as _importlib
+    from melonx_adapter_control import later_sharing as _later_sharing
+    forward = Path(tmp) / ('forward-' + module_name)
+    later = _later_sharing(module_name)
+    files = set(names).union(*(set(_importlib.import_module(n).BASELINE) for n in later)) if later else set(names)
+    for name in files:
+        (forward / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(work / name, forward / name)
+    for n in later:
+        _importlib.import_module(n).apply(forward)
+    return {name: (forward / name).read_bytes() == (final_source / name).read_bytes() for name in names}
 from adapt_cold_texture_release import apply, BASELINE  # noqa: E402
 
 GPU = 'src/Ryujinx.Graphics.Gpu/'
@@ -211,8 +225,10 @@ try:
         adapt_cold_texture_release.once = original_once
     check(sorted(p.relative_to(work).as_posix() for p in changed) == sorted(BASELINE), 'adapter changed other files')
     if FINAL_PREPARATION:
+        # Later adapters editing these files (Core 691: adapt_released_texture_flush, Texture.cs) are re-applied forward.
+        forward_ok = _forward_matches('adapt_cold_texture_release', work, FINAL_SOURCE, BASELINE, tempfile.mkdtemp(prefix='melonx-forward-'))
         for name in BASELINE:
-            check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            check(forward_ok[name], 'final preparation is the adapter: ' + name)
     for name in BASELINE:
         undone = read(work, name)
         for old, new in reversed(replacements[name]):

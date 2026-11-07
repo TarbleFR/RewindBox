@@ -28,6 +28,20 @@ FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_async_regenerated_targets', _HOLD)
 import adapt_async_regenerated_targets as adapter  # noqa: E402
 
+def _forward_matches(module_name, work, final_source, names, tmp):
+    """The candidate plus the later adapters sharing its files (re-applied forward) is the final preparation."""
+    import importlib as _importlib
+    from melonx_adapter_control import later_sharing as _later_sharing
+    forward = Path(tmp) / ('forward-' + module_name)
+    later = _later_sharing(module_name)
+    files = set(names).union(*(set(_importlib.import_module(n).BASELINE) for n in later)) if later else set(names)
+    for name in files:
+        (forward / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(work / name, forward / name)
+    for n in later:
+        _importlib.import_module(n).apply(forward)
+    return {name: (forward / name).read_bytes() == (final_source / name).read_bytes() for name in names}
+
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 checks = 0
 
@@ -80,8 +94,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-async-regenerated-targets-') as 
             changed = adapter.apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # Later adapters editing these files (Core 691: adapt_pipeline_failure_identity, PipelineBase.cs) are re-applied forward.
+                forward_ok = _forward_matches('adapt_async_regenerated_targets', work, FINAL_SOURCE, adapter.BASELINE, temporary)
                 for name in adapter.BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    check(forward_ok[name], 'final preparation is the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in adapter.BASELINE}
         result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj'), '-c', 'Release',
                                  '-nologo', '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=1800,

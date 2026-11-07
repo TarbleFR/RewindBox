@@ -385,6 +385,7 @@
     "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
     "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs",
     "src/Ryujinx.Graphics.GAL/IProgram.cs",
+    "src/Ryujinx.Graphics.GAL/ITexture.cs",
     "src/Ryujinx.Graphics.GAL/ITextureArray.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs",
     "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs",
@@ -432,6 +433,7 @@
     "src/Ryujinx.Graphics.Vulkan/FramebufferParams.cs",
     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
+    "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs",
@@ -442,6 +444,7 @@
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs",
     "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs",
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
     "src/Ryujinx.Graphics.Vulkan/Window.cs",
@@ -475,6 +478,15 @@
       "src/Ryujinx.Graphics.GAL/IProgram.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.GAL/IProgram.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.GAL/ITexture.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.GAL/ITexture.cs"
     },
     {
      "variant": "candidate",
@@ -913,6 +925,15 @@
      "reportPath": [
       "compiledSourceInputs",
       "candidate",
+      "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
       "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs"
@@ -997,6 +1018,15 @@
       "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/TextureView.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/TextureView.cs"
     },
     {
      "variant": "candidate",
