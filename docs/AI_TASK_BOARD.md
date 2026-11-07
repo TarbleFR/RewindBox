@@ -1412,6 +1412,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     freeze came from 42 new MoltenVK conversions, mostly compute. Draws are never skipped (adapt_setprogram_warmup keeps
     "async compile skip" off). Second device A/B asked, separate from the first: per-game "Async shaders" on, then off,
     same new area; watch stalls and missing or popping objects. Async skips draws, not compute dispatches.
+- **IPA 688 with "Async shaders" on (Hogwarts pid 29464, 16:48:43-16:55:42 UTC, Core 687, private journals and a
+  screenshot; read 7 Nov by session 01JA5QgK):** maintainer: fewer stutters, texture corruption (magenta and yellow
+  areas on the castle staircase), performance drops too frequent.
+  - **Measured against pid 28747 (async off):** game fps mean 25.2 against 20.7, frame time p50 33/p95 67/p99 150 ms
+    against 33/83/133; 1855 of 9661 frames at 50 ms or more (mostly one missed vsync, 33 -> 50 ms), 250 over 100 ms.
+  - **Drops = the GPU thread, 60-95 % busy per 5.1 s window in the drop stretches.** Its largest item is the DMA
+    texture flush action, about one per frame, 5-15 ms each (texFlushAction 0.4-2.3 s per window; render-thread read
+    fence waits 48.5 s over 9647 frames). Cause: 4391 read-backs declined as "occupied" (other textures 4391) and 4390
+    slow guest-path reads; the logged occupants are two R32Float TextureBuffers and the game's 1x1 R32G32B32A32Float
+    block-linear texture, all of which TryReadBackIntoBuffer handles. Without async the same flushes were cheap (the GPU
+    had finished). Secondary: render-thread compute pipeline waits of 0.86-1.16 s five times (compute is never async),
+    GC 110-150 ms per 5 s in one stretch, GPU busy 12-32 ms per frame (not saturated).
+  - **Corruption:** 5934 draws skipped while their program compiled; IsCriticalOffscreenTarget held only targets that
+    never had a complete pass, so a target drawn once and kept (or a pooled target) keeps the hole.
+  - **Core 689 = Core 687 + two adapters (local, not committed yet):** adapt_occupied_readback_buffers (DmaClass.cs,
+    Hogwarts policy: an occupied contiguous destination with no buffer takes TryReadBackIntoBuffer, counted "rerouted
+    into buffers N, copied N"); adapt_async_regenerated_targets (VulkanRenderer, Window, TextureStorage,
+    FramebufferParams, PipelineBase; every title, only with async shaders on: skip only into a target regenerated each
+    frame or the presented image, otherwise wait for the pipeline; "async draws held for their program N (ms)" ends the
+    render stages line). Gates occupied-readback-buffers (44 checks) and async-regenerated-targets (37 checks) pass
+    locally, both production assemblies build. Plan: 58 fresh gates.
+  - **Device reading after delivery:** with async on, the DMA summary "rerouted into buffers/copied", texFlushAction and
+    read fence waits per window, the held draws line, and whether the staircase corruption is gone; async off must be
+    unchanged except the read-back.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
