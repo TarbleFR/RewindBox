@@ -281,20 +281,12 @@
     "note": "MeloNX Core 683 board entry and composition files"
    },
    {
-    "commit": "bd1f963e7333eb57f43f74d892650eb554c91eca",
-    "note": "MeloNX: an old absolute cheat state key is re-rooted only at the MeloNX segment followed by mods"
-   },
-   {
     "commit": "70fb79e0a1213ce91bd318224548fc8f1acfceed",
-    "note": "MeloNX work branch merge of Claude (no new product content beyond the listed commits)"
-   },
-   {
-    "commit": "530b18f6cf726a07ed05f49a1ca3b42fadf4fd1f",
-    "note": "MeloNX: before each Switch launch a catalogue code stays on only if the player chose it in RewindBox (no Switch cheat menu)"
+    "note": "MeloNX work branch merge of Claude"
    },
    {
     "commit": "5ec25b8bd50a078e623dc46910098bea1a1ec70d",
-    "note": "MeloNX work branch merge of Claude (no new product content beyond the listed commits)"
+    "note": "MeloNX work branch merge of Claude: brings the app fixes bd1f963e (cheat state key re-rooted only at the MeloNX segment followed by mods) and 530b18f6 (a catalogue code stays on only if the player chose it in RewindBox)"
    },
    {
     "commit": "c41b7a517033a9d0c516b04661550216c23014be",
@@ -306,7 +298,7 @@
    },
    {
     "commit": "1d05e96efb7c7d6de38f27d9e599e006f39b2ad4",
-    "note": "MeloNX work branch merge of Claude (no new product content beyond the listed commits)"
+    "note": "MeloNX work branch merge of Claude"
    },
    {
     "commit": "3b6cfccac4a3ac3e2339a773f02423575854d4fb",
