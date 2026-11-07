@@ -1207,8 +1207,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     mod). The running build's file holds 93 programs; 173 (550F…) and 97 (F1AE…) are skipped for other versions.
     Without an enabled.txt, ModLoader.EnableCheats calls EnableAllCheats, so all 93 programs run, mutually exclusive
     variants included. The menu lists only catalog cheats.
-  - Advice: move that cheats folder out. Product lever, pending the maintainer's choice: with no enabled.txt, do not
-    enable programs that write the same address, or list the player's own cheats in the menu. The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
+  - Correction (the player had turned codes on, then off, in the RewindBox menu): the files are RewindBox's catalogue
+    files (`…/RewindBox/cheats/`, every program of a version, "RewindBox master code" inside), and the enable list
+    was gone. The container moved between IPA 658 (`32FE3371…`) and 672 (`7A160ADE…`), and the enhancement state keeps
+    absolute paths, so a restore deletes enabled.txt but not files it can no longer find.
+  - Fix (app, next IPA): `MelonxEnhancementAdapter.disableUnlistedCatalogueCheats`, called before every Switch
+    launch. A title with RewindBox cheat files and no enabled.txt gets a list that enables none of them; the player's
+    own cheat files stay listed. Journal line `cheats/unlistedDisabled`. Tests: enhancement_melonx_adapter_test 12/12
+    (2 new), melonx_launch_flow_test 11/11, the other MeloNX Flutter tests unchanged. melonx_display,
+    melonx_library and melonx_presentation_widgets fail the same way without the change.
+  - Still open: state paths relative to the MeloNX root (menu toggles after a container move). The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
   21 s unscheduled, which matches the pipeline-creation freezes that Core 673/675 address.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms

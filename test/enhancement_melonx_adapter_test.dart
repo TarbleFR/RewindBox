@@ -287,4 +287,37 @@ void main() {
     await service.restore(view.identity.storeKey);
     expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Other Cheat>']);
   });
+
+  test('RewindBox cheat files without an enable list are all disabled before a launch', () async {
+    // Hogwarts Legacy case: the catalogue file is on disk (written while a code
+    // was on), the enable list is gone, so the engine enabled every program.
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    expect(modCheats().listSync().whereType<File>(), isNotEmpty);
+    enabledList().deleteSync();
+    // A cheat file of the player's own keeps the engine default: still enabled.
+    File(path.join(root.path, 'mods', 'contents', _title.toLowerCase(), 'cheats', '0123456789ABCDEF.txt'))
+        .writeAsStringSync('[Own Code]\n$_line\n');
+
+    final repaired = await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(root);
+
+    expect(repaired, [_title.toLowerCase()]);
+    final lines = enabledList().readAsLinesSync();
+    expect(lines, ['0123456789ABCDEF-<Own Code Cheat>']);
+    expect(lines.where((line) => line.contains('Infinite Health') || line.contains('9999 Coins')), isEmpty);
+  });
+
+  test('an existing enable list and titles without RewindBox files are left alone', () async {
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    final before = enabledList().readAsStringSync();
+    final other = Directory(path.join(root.path, 'mods', 'contents', '0100f7e00c70e000', 'cheats'))
+      ..createSync(recursive: true);
+    File(path.join(other.path, '0123456789ABCDEF.txt')).writeAsStringSync('[Own Code]\n$_line\n');
+
+    expect(await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(root), isEmpty);
+    expect(enabledList().readAsStringSync(), before);
+    expect(File(path.join(other.path, 'enabled.txt')).existsSync(), isFalse);
+    expect(await MelonxEnhancementAdapter.disableUnlistedCatalogueCheats(Directory(path.join(temp.path, 'none'))), isEmpty);
+  });
 }

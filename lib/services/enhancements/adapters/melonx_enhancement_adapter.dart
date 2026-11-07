@@ -432,9 +432,47 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     data['keys'] = allKeys.toList()..sort();
   }
 
+  /// Before a launch: a title whose RewindBox cheat files are on disk without
+  /// an enable list gets one that enables none of them.
+  ///
+  /// The RewindBox files hold every catalogue program of a version, enabled or
+  /// not, and the engine enables every cheat when `enabled.txt` is absent. A
+  /// lost list (an app container that moved after an update, a restore that
+  /// could not find its files) therefore enabled all of them at once: a Hogwarts
+  /// Legacy player ran 93 graphics codes, ten conflicting resolution codes
+  /// among them, and the game aborted within two minutes. The player's own
+  /// cheat files keep the engine's default (they stay listed).
+  /// Returns the title IDs whose list was written.
+  static Future<List<String>> disableUnlistedCatalogueCheats(Directory root) async {
+    final contents = Directory(path.join(root.path, 'mods', 'contents'));
+    final repaired = <String>[];
+    if (!await contents.exists()) return repaired;
+    await for (final title in contents.list(followLinks: false)) {
+      if (title is! Directory) continue;
+      final ours = Directory(path.join(title.path, modName, 'cheats'));
+      final enabled = File(path.join(title.path, 'cheats', 'enabled.txt'));
+      if (!await ours.exists() || await enabled.exists()) continue;
+      var catalogueFiles = 0;
+      await for (final file in ours.list(followLinks: false)) {
+        if (file is File &&
+            path.extension(file.path).toLowerCase() == '.txt' &&
+            RegExp(r'^[0-9A-Fa-f]{16}$').hasMatch(path.basenameWithoutExtension(file.path))) {
+          catalogueFiles++;
+        }
+      }
+      if (catalogueFiles == 0) continue;
+      final own = await _existingProgramKeysIn(root, title);
+      await EnhancementFiles.writeText(enabled, own.isEmpty ? '' : '${own.join('\n')}\n');
+      repaired.add(path.basename(title.path));
+    }
+    return repaired;
+  }
+
   /// Programs of the player's own cheat files, parsed like Ryujinx does.
-  Future<List<String>> _existingProgramKeys(Directory titleDirectory) async {
-    final root = await _root();
+  Future<List<String>> _existingProgramKeys(Directory titleDirectory) async =>
+      _existingProgramKeysIn(await _root(), titleDirectory);
+
+  static Future<List<String>> _existingProgramKeysIn(Directory root, Directory titleDirectory) async {
     final title = path.basename(titleDirectory.path);
     final directories = [
       titleDirectory,
