@@ -810,6 +810,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - MeloNX Core 679 (= 677 + adapt_audio_start_deferred, Hogwarts "AVAudioEngine failed to start" abort during iOS
       memory warnings) requested in `8c3e5723`; main waits for its verified pin, then packs the next IPA with Core 679
       + `b1edef18` + RPCS3 Core 905 (unchanged).
+    - Added (7 Nov): app root fix `fc515ee7` (RewindBox cheat files carry only enabled programs; state keys relative
+      to the MeloNX root, old absolute keys re-rooted), diff reviewed by main. MeloNX Core 681 (= 679 + worker pipeline
+      cache snapshots joined at startup, main budget 1 GiB) requested in `8bb0f3b9`. The IPA takes 681 if pinned
+      green, else 679; main waits for MeloNX's verified pin.
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
