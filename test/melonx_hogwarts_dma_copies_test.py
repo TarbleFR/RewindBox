@@ -119,6 +119,8 @@ LOT_FILES = {
     'adapt_checkpoint_side_cache': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Core 677: evicted buffers recreated in both host budget settings.
     'adapt_evicted_buffer_recreate': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # Core 679: Apple audio session start failure (outside this composition).
+    'adapt_audio_start_deferred': [],
 }
 
 checks = 0

@@ -1199,6 +1199,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     Next device check: Hogwarts past 20 min with hostMemoryBudget off; journals for checkpoint stalls and the abort.
   - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
     the crash fix); otherwise ship 675 and take 677 in the next IPA.
+- **Player 1, 7 Nov journals (private), still on IPA 674 (build 674, core 9e55859a), not 676:**
+  - pid 23682: about 3 min of play, then an abort on `AVAudioEngine failed to start` thrown by
+    `AppleHardwareDeviceSession.SetupAudioEngine` from `OpenDeviceSession`, during a run of iOS memory warnings
+    (footprint about 5.3 GB, 4-8 % of the device available).
+  - Stutter: 37 % of seconds below 15 fps. The worst window is the 4170 ms play-time checkpoint (6.1 s of
+    pipeline creation, 21 frames), which Core 675/677 (IPA 676) removes. Main cache 579.9 MiB of 768 MiB.
+  - **Core 679 = Core 677 + adapt_audio_start_deferred:** an engine that iOS refuses at session creation stays
+    prepared, `audio/startDeferred` is recorded, and the existing deferred restart starts it from playback.
+    New gate audio-start-deferred (16 checks): control throws (and leaves its completion block); candidate creates
+    the session, plays nothing while refused, then all 960 frames in order once allowed; a normal start is unchanged.
+    fragmented-reads, hogwarts-dma-copies and evicted-buffer-recreate reran green. Contract: 52 gates, 170 inputs,
+    `--archive` 394 checks. [Receipt](evidence/melonx-679-gates/run.json). Not tested on a device.
+  - Next levers (not done): memory pressure (5.3 GB footprint), and the main pipeline cache nearing its 768 MiB budget
+    (persistence stops there, and worker caches over the remaining room are recycled without being merged).
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

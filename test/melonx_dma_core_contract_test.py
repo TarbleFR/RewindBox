@@ -54,6 +54,7 @@ from adapt_nan_scrub import BASELINE as C671_NAN_SCRUB
 from adapt_main_cache_checkpoint import BASELINE as C673_MAIN_CACHE_CHECKPOINT
 from adapt_checkpoint_side_cache import BASELINE as C675_CHECKPOINT_SIDE_CACHE
 from adapt_evicted_buffer_recreate import BASELINE as C677_EVICTED_BUFFER_RECREATE
+from adapt_audio_start_deferred import BASELINE as C679_AUDIO_START_DEFERRED
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -109,6 +110,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'main-cache-checkpoint': 'delivered',
             'checkpoint-side-cache': 'delivered',
             'evicted-buffer-recreate': 'delivered',
+            'audio-start-deferred': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -130,7 +132,7 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C671_NAN_SCRUB) |
            # Core 673: the pipeline cache manager and pipeline state (already changed files).
            set(C673_MAIN_CACHE_CHECKPOINT) | set(C675_CHECKPOINT_SIDE_CACHE) |
-           set(C677_EVICTED_BUFFER_RECREATE))
+           set(C677_EVICTED_BUFFER_RECREATE) | set(C679_AUDIO_START_DEFERRED))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -348,7 +350,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 73 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 74 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -388,7 +390,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_nan_scrub.py',
                                                      'build-utils/melonx/adapt_main_cache_checkpoint.py',
                                                      'build-utils/melonx/adapt_checkpoint_side_cache.py',
-                                                     'build-utils/melonx/adapt_evicted_buffer_recreate.py'} and
+                                                     'build-utils/melonx/adapt_evicted_buffer_recreate.py',
+                                                     'build-utils/melonx/adapt_audio_start_deferred.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -413,7 +416,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 169 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 170 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -431,6 +434,8 @@ if not args.helpers_only:
     OUTSIDE_GPU |= {'src/Ryujinx.HLE/HOS/Horizon.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs', 'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs', 'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs', 'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs', 'src/Ryujinx.HLE/PerformanceStatistics.cs', 'src/Ryujinx.HLE/Switch.cs', 'src/Ryujinx.Library/EmbeddedMemory.cs', 'src/Ryujinx.Library/EmbeddedRuntime.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Library/Ryujinx.Library.csproj', 'src/Ryujinx.Library/Window/WindowBase.cs'}
     # Core 667: the native launch preflight (Library assembly) is bound by the Core 667 gate.
     OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'}
+    # Core 679: the Apple audio session (Ryujinx.Audio.Backends.Apple assembly) is bound by the audio-start-deferred gate.
+    OUTSIDE_GPU |= set(C679_AUDIO_START_DEFERRED)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},

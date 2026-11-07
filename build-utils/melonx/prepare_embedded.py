@@ -137,6 +137,7 @@ from adapt_nan_scrub import apply as adapt_nan_scrub
 from adapt_main_cache_checkpoint import apply as adapt_main_cache_checkpoint
 from adapt_checkpoint_side_cache import apply as adapt_checkpoint_side_cache
 from adapt_evicted_buffer_recreate import apply as adapt_evicted_buffer_recreate
+from adapt_audio_start_deferred import apply as adapt_audio_start_deferred
 
 
 def replace_once(path, old, new):
@@ -369,6 +370,8 @@ def main():
     adapted += [source / name for name in adapt_checkpoint_side_cache(source)]
     # Core 677: an evicted GPU buffer is recreated when used again, whatever the host memory budget setting.
     adapted += [source / name for name in adapt_evicted_buffer_recreate(source)]
+    # Core 679: an audio output whose engine iOS refuses to start is retried from playback instead of aborting.
+    adapted += [source / name for name in adapt_audio_start_deferred(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -469,7 +472,8 @@ def main():
                  'adapt_nan_scrub.py',
                  'adapt_main_cache_checkpoint.py',
                  'adapt_checkpoint_side_cache.py',
-                 'adapt_evicted_buffer_recreate.py']:
+                 'adapt_evicted_buffer_recreate.py',
+                 'adapt_audio_start_deferred.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
