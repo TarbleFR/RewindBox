@@ -143,15 +143,15 @@ void main() {
     expect(view.items.firstWhere((item) => item.id == coins.id).status, EnhancementStatus.active);
     expect(view.items.where((item) => item.status == EnhancementStatus.installed), isNotEmpty);
 
+    // Only the chosen program is on disk: a lost enable list cannot run the others.
     final files = modCheats().listSync().whereType<File>().toList();
     expect(
-      files.map((file) => path.basenameWithoutExtension(file.path)),
-      containsAll(['3CA12DFAAF9C82DA', 'B424BE150A8E7D78', 'F5DCCDDB37E97724']),
+      files.map((file) => path.basenameWithoutExtension(file.path)).toSet(),
+      {'3CA12DFAAF9C82DA', 'F5DCCDDB37E97724'},
     );
     for (final file in files) {
       final names = MelonxEnhancementAdapter.parseCheatNames(file.readAsStringSync());
-      expect(names, isNotEmpty, reason: 'Ryujinx must not skip ${file.path}');
-      expect(names, isNot(contains('<default>')), reason: 'every program is named');
+      expect(names, ['9999 Coins Save 1'], reason: 'Ryujinx must read exactly the chosen program in ${file.path}');
     }
     final enabled = enabledList().readAsLinesSync();
     expect(
@@ -160,10 +160,35 @@ void main() {
     );
     expect(enabled.where((line) => line.contains('Infinite Health')), isEmpty);
 
-    // Off again: the files stay installed, the enable list is emptied.
+    // Off again: no RewindBox code stays on disk and the enable list is emptied.
     view = await service.setActive(game, 'switch', view, view.items.firstWhere((i) => i.id == coins.id), false);
     expect(enabledList().readAsStringSync().trim(), isEmpty);
+    expect(modCheats().existsSync() ? modCheats().listSync().whereType<File>() : const <File>[], isEmpty);
     expect(view.installed, isTrue);
+  });
+
+  test('after the app container moves, RewindBox still owns its files', () async {
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    // Keys written by an older version were absolute, in a container iOS has since moved.
+    final store = EnhancementStore(root: () async => Directory(path.join(temp.path, 'store')));
+    await store.transaction((games) async {
+      final state = games.values.single;
+      final moved = {
+        for (final entry in state.files.entries)
+          path.join('/var/mobile/Containers/Data/Application/OLD-CONTAINER/Documents/MeloNX', entry.key): entry.value,
+      };
+      state.files
+        ..clear()
+        ..addAll(moved);
+    });
+
+    // Turning the code off rewrites RewindBox's own file instead of refusing it as the player's.
+    view = await service.setActive(game, 'switch', view, view.items.first, false);
+    expect(enabledList().readAsStringSync().trim(), isEmpty);
+    await service.restore(view.identity.storeKey);
+    expect(modCheats().existsSync(), isFalse, reason: 'restore finds and removes the files after the move');
+    expect(enabledList().existsSync(), isFalse);
   });
 
   test('existing cheats of the player stay enabled and restore removes only ours', () async {

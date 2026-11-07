@@ -1236,7 +1236,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     own cheat files stay listed. Journal line `cheats/unlistedDisabled`. Tests: enhancement_melonx_adapter_test 12/12
     (2 new), melonx_launch_flow_test 11/11, the other MeloNX Flutter tests unchanged. melonx_display,
     melonx_library and melonx_presentation_widgets fail the same way without the change.
-  - Still open: state paths relative to the MeloNX root (menu toggles after a container move). The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
+  - Root cause fixed (app, next IPA): the RewindBox cheat files now hold only the enabled programs (every catalogue
+    program keeps its enable-list key), so a lost list can no longer run an unchosen code, and turning everything off
+    leaves no RewindBox code on disk. The recorded files are keyed relative to the MeloNX root, and older absolute keys
+    are re-rooted, so toggles and restore still find RewindBox's files after a container move. Tests:
+    enhancement_melonx_adapter_test 13/13 (container move added), every enhancement adapter test green, analyzer clean. The 658 session 79315 is a different abort, the UE hang detector writing address 3 after RenderThread 1 sat
   21 s unscheduled, which matches the pipeline-creation freezes that Core 673/675 address.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms

@@ -291,11 +291,14 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       );
     }
 
+    final root = await _root();
+    _rebaseStateFiles(root, state);
+
     // A file of the player's at one of these paths is never overwritten.
     for (final plan in plans.values) {
       for (final file in plan.files.keys) {
         final current = await EnhancementFiles.digestOf(File(file));
-        if (current != null && current != state.files[file]) {
+        if (current != null && current != state.files[stateKey(root, file)]) {
           throw EnhancementException('user_file_present', file);
         }
       }
@@ -310,16 +313,41 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final written = <String>{};
     for (final plan in plans.values) {
       for (final file in plan.files.entries) {
-        state.files[file.key] = await EnhancementFiles.writeText(File(file.key), file.value);
-        written.add(file.key);
+        final key = stateKey(root, file.key);
+        state.files[key] = await EnhancementFiles.writeText(File(file.key), file.value);
+        written.add(key);
       }
     }
     for (final stale in state.files.keys.where((p) => !written.contains(p)).toList()) {
-      if (await EnhancementFiles.deleteIfOwned(File(stale), state.files[stale]!)) {
+      if (await EnhancementFiles.deleteIfOwned(File(resolveStateKey(root, stale)), state.files[stale]!)) {
         state.files.remove(stale);
       }
     }
     state.installed = true;
+  }
+
+  /// The recorded files are keyed relative to the MeloNX root. iOS can move
+  /// the app container between installs (a Hogwarts Legacy player's moved
+  /// between IPA 658 and 672), and absolute keys then named files RewindBox
+  /// could no longer find: its own files were refused as the player's and a
+  /// restore left them on disk without their enable list.
+  static String stateKey(Directory root, String file) => path.relative(file, from: root.path);
+
+  /// The current path of a recorded key; an absolute key written by an older
+  /// version is re-rooted at the current MeloNX root.
+  static String resolveStateKey(Directory root, String key) {
+    if (!path.isAbsolute(key)) return path.join(root.path, key);
+    final parts = path.split(key);
+    final index = parts.lastIndexOf(path.basename(root.path));
+    return index < 0 ? key : path.joinAll([root.path, ...parts.sublist(index + 1)]);
+  }
+
+  static void _rebaseStateFiles(Directory root, EnhancementGameState state) {
+    final entries = state.files.entries.toList();
+    state.files.clear();
+    for (final entry in entries) {
+      state.files[stateKey(root, resolveStateKey(root, entry.key))] = entry.value;
+    }
   }
 
   /// Files and enable-list keys of one program's directory.
@@ -346,9 +374,14 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
     }
 
-    // One Atmosphere file per Build ID with every listed program.
+    // One Atmosphere file per Build ID with only the enabled programs: the
+    // engine enables every cheat of a file when enabled.txt is absent, so a
+    // lost list must never run a code the player did not choose (a Hogwarts
+    // Legacy player ran 93 catalogue codes at once). Every catalogue program
+    // still has its enable-list key, so the list stays RewindBox's to manage.
     final perBuild = <String, StringBuffer>{};
     final allKeys = <String>{};
+    final allBuilds = <String>{};
     final activeKeys = <String>{};
     final activeBuilds = <String>{};
     for (final entry in entries) {
@@ -366,6 +399,12 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
       if (!_safeName(name)) continue;
       for (final build in _builds(entry).entries) {
+        final key = programKey(build.key, name);
+        allKeys.add(key);
+        allBuilds.add(build.key);
+        if (!active.contains(id)) continue;
+        activeKeys.add(key);
+        activeBuilds.add(build.key);
         final buffer = perBuild.putIfAbsent(build.key, () {
           final header = StringBuffer();
           final master = masters[build.key];
@@ -379,16 +418,10 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         buffer.writeln('[$name]');
         build.value.forEach(buffer.writeln);
         buffer.writeln();
-        final key = programKey(build.key, name);
-        allKeys.add(key);
-        if (active.contains(id)) {
-          activeKeys.add(key);
-          activeBuilds.add(build.key);
-        }
       }
     }
     for (final build in masters.keys) {
-      if (perBuild.containsKey(build)) allKeys.add(programKey(build, masterName));
+      if (allBuilds.contains(build)) allKeys.add(programKey(build, masterName));
     }
     for (final build in activeBuilds) {
       if (masters.containsKey(build)) activeKeys.add(programKey(build, masterName));
@@ -533,8 +566,10 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
 
   @override
   Future<void> remove(EnhancementGameState state) async {
+    final root = await _root();
+    _rebaseStateFiles(root, state);
     for (final entry in state.files.entries.toList()) {
-      if (!await EnhancementFiles.deleteIfOwned(File(entry.key), entry.value)) {
+      if (!await EnhancementFiles.deleteIfOwned(File(resolveStateKey(root, entry.key)), entry.value)) {
         _log.w('Enhancements: ${entry.key} changed since RewindBox wrote it; kept');
       }
       state.files.remove(entry.key);
