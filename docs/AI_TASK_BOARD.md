@@ -1486,6 +1486,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     title (010038b015560000, not Hogwarts 0100f7e00c70e000) holding converted MSL only; a shader whose conversion fails
     is never stored in any .vkpc. Still needed: Hogwarts' games/0100f7e00c70e000/cache/shader/vulkan_apple.toc and
     vulkan_apple.data (SPIR-V of each program), or a Core 691 session log with the identity line.
+  - **Host shader cache received 7 Nov (split LZMA zip, CRC-verified; vulkan_apple.toc identical to the first upload,
+    sha256 `0d2e9283…`; vulkan_apple.data `5e3c3244…`, 75308817 B):** 1877 programs, 3199 SPIR-V stages (1322 fragment,
+    1390 vertex, 487 compute), all decoded. Local checks (own tools, no SPIRV-Cross build: the permission classifier
+    refused building external code): no id referenced without a definition, no value used before its definition in
+    module order; every fragment shader declares FragmentShaderPixelInterlockEXT. So the "nullptr" is not a missing id
+    in the stored SPIR-V: it depends on what MoltenVK passes SPIRV-Cross for that pipeline. Next: run SPIRV-Cross
+    6c09849f's MSL conversion with MoltenVK's options over the 1322 fragment shaders (needs permission to build it), or
+    the Core 691 identity line to select the program.
   - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
     rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
