@@ -1349,6 +1349,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     for IPA 684. Not tested on a device.
   - Device reading: two sessions in the same zones. In session 2, "compiled again" on the render thread is the time
     lost to pipelines an earlier session compiled and did not keep; "new" is first-visit cost.
+- **IPA 684 on the device (Hogwarts pid 26658, one session 13:38:47-13:51:36 UTC, private journals):**
+  - Shader cache: main loaded 605.06 MiB under its 1024 MiB budget, never refused (the budget is not the limit). Build
+    journal: 0 earlier sessions (its first run); graphics compilations of 50 ms or more on the render thread: 2 in 1.9 s
+    in the first 4 min, none in its visible lines after.
+  - Six play-time checkpoints rewrote the whole 625 MiB file (4.2-5.2 s, plus a 1.0-1.5 s size probe) for +1.56 and
+    +0.55 MiB: about 3.7 GB written in 13 min. iOS memory warnings x9 from 13:50:18 (footprint 5334 MiB, 1321 MiB
+    headroom, device 6 %), starting in the window of the sixth checkpoint.
+  - The 15 s freeze at 13:49:09-30 is render-thread pipeline time, mostly compute (921 calls 3530 ms, 634 calls
+    3721 ms per 5 s window), with 42 new MoltenVK shader conversions (13.5 s of MSL compilation). The Core 685 journal
+    times graphics only.
+  - The stderr capture copies 500 engine lines per session: the 5 s Gpu warnings spent it by 6:23, so journal
+    summaries and checkpoint lines were lost after that (the engine journal keeps warnings only).
+  - FPS per 5 s window after boot: p10 16.4, p50 23.6, p90 29.4. Windows under 22 fps: syncInvoke 999 ms and render
+    thread 2723 ms per 5 s, against 475 and 2129 ms in windows of 28 fps or more (render-thread bound; next lever).
+    LOH 530-680 MiB with 236-318 MiB free all session; no trim or compaction line visible (stderr cap).
+- **Core 687 = Core 685 + adapt_pipeline_cache_growth** (PipelineCacheManager.cs, PipelineState.cs):
+  - Play-time checkpoint (same cadence) writes the main file only for 8 MiB of new content, or any 10 min after the
+    last write; pause writes only new content; close, workers, side cache and budgets unchanged.
+  - Compute compilations (50 ms or more) join the build journal (key: StableHash + specialization data).
+  - Engine journal records: pipelineCache checkpoint/checkpointSkipped/written/saved/recycled, pipelineBuilds
+    journal/summary (not bounded by the stderr cap).
+  - Gate pipeline-cache-growth (37 checks, control Core 685: rewrites for 2 MiB and on an unchanged pause; candidate:
+    skips 2 MiB, writes 9 MiB, stale rule, pause rules, records). pipeline-build-journal now tests its own postimage.
+    [Receipt](evidence/melonx-687-gates/run.json).
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

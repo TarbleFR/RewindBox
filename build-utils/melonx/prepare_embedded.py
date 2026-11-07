@@ -141,6 +141,7 @@ from adapt_audio_start_deferred import apply as adapt_audio_start_deferred
 from adapt_pipeline_cache_room import apply as adapt_pipeline_cache_room
 from adapt_pipeline_cache_persist import apply as adapt_pipeline_cache_persist
 from adapt_pipeline_build_journal import apply as adapt_pipeline_build_journal
+from adapt_pipeline_cache_growth import apply as adapt_pipeline_cache_growth
 
 
 def replace_once(path, old, new):
@@ -381,6 +382,8 @@ def main():
     adapted += [source / name for name in adapt_pipeline_cache_persist(source)]
     # Core 685: journal of the pipelines compiled per title (compiled again versus new), diagnostics only.
     adapted += [source / name for name in adapt_pipeline_build_journal(source)]
+    # Core 687: the main pipeline cache rewritten only for real new content; compute pipelines journaled.
+    adapted += [source / name for name in adapt_pipeline_cache_growth(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -485,7 +488,8 @@ def main():
                  'adapt_audio_start_deferred.py',
                  'adapt_pipeline_cache_room.py',
                  'adapt_pipeline_cache_persist.py',
-                 'adapt_pipeline_build_journal.py']:
+                 'adapt_pipeline_build_journal.py',
+                 'adapt_pipeline_cache_growth.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
