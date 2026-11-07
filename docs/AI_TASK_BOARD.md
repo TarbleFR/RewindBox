@@ -1407,6 +1407,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     graphics options, next launch), then on; compare fps, frame gaps, and occlusion artefacts (black or popping
     objects). Next code step depends on it: off fixes it → a cheaper ordering for the reports; no change → the GPU
     thread's own work (bindings, compute) and a sub-30 pacing cadence.
+  - **Maintainer, 7 Nov:** the shader loads during play spoil the experience and cause the in-game stutters. In 688:
+    render-thread compilations 2 in 1275 ms and workers 34 in 2938 ms in the first minute, none after; on 684 a 15 s
+    freeze came from 42 new MoltenVK conversions, mostly compute. Draws are never skipped (adapt_setprogram_warmup keeps
+    "async compile skip" off). Second device A/B asked, separate from the first: per-game "Async shaders" on, then off,
+    same new area; watch stalls and missing or popping objects. Async skips draws, not compute dispatches.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
