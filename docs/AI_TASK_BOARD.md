@@ -832,6 +832,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Core 906 = Core 905 + the two fixes above; packaged locally (canonical 53220481, delta 17a29218, increment
       core906-from-905 e615a733), route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold
       chain simulated PASS; full driver running.
+  - **Core 906 built and pinned** (run `42324483147`, source `ca2d5d98`, pin `1a79dadc`, dylib `97880506`, fingerprint
+    `4d4b1ef3`, identities unchanged); Apple host harnesses and Core job green first try; Metal checks green; local driver PASS.
+  - **Core 907 = Core 906 + Assassin's Creed GPU levers** (maintainer, 7 Nov: "Apporte un vrai levier à AC 1 ... baisser sous
+    20 ms"). Measured input (IPA 676, BLES00158 windows 20/30/40): 44-48 render passes per frame, all LOAD/STORE; GPU busy
+    77-84 % (29.7-32.5 ms per frame); MoltenVK executes vkCmdClearAttachments as a triangle draw after a full attachment
+    load (MVKCmdClearAttachments::encode, read in MoltenVK source).
+    - REWINDBOX_LOAD_OP_CLEAR_907: a full-framebuffer fast clear that begins a pass begins it with load-op CLEAR for exactly
+      the cleared attachments (VKRenderPass key bits 42-44, begin_renderpass_cleared records the base pass); kept as before
+      for scissored/masked/MSAA clears or a pass already open. COREPROF LOADCLEAR907 per window.
+    - REWINDBOX_NATIVE_HALF_907: RSX H registers as native float16 at High precision (VK and Metal decompilers); SPIR-V
+      disk cache keyed by GLSL text, so no cross-serving.
+    - Both per-title settings (experimental.native_half_registers, experimental.load_op_clear), Automatic = AC only.
+    - rb-core-review (source reading): no actionable defect in either change; open: on-device glslang compile of High +
+      native half + 8-bit rounding, and a capture confirming MoltenVK keeps the load-op clear.
+    - Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS;
+      canonical e4d82eb4 (445), delta b686d5ba, increment core907-from-906 83d7544c. Driver running. No FPS claim before a
+      device run.
   - **Queued for the next common IPA**: MeloNX app fix `b1edef18` (Flutter only, no Core change): RewindBox cheat
     files left without `cheats/enabled.txt` are disabled before each Switch launch (Hogwarts 93-cheat abort). Diff
     reviewed by main; Flutter tests run by MeloNX, rerun by the delivery CI (no local Flutter here). No IPA built yet.

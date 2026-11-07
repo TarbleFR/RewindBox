@@ -1,0 +1,619 @@
+diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
+index 9a6a6bc..f810155 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
+@@ -8,6 +8,9 @@
+ #include "Emu/RSX/Program/GLSLCommon.h"
+ #include "Emu/RSX/Program/SPIRVCommon.h"
+ #include "Emu/system_config.h"
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
+ 
+ std::string MTLFragmentDecompilerThread::getFloatTypeName(usz elementCount)
+ {
+@@ -598,7 +601,11 @@ namespace mtl
+ 		MTLFragmentDecompilerThread decompiler(source, prog, size, *this, caps);
+ 
+ 		// The same choices as VKFragmentProgram::Decompile for this device.
+-		if (g_cfg.video.shader_precision == gpu_preset_level::low)
++		if (g_cfg.video.shader_precision == gpu_preset_level::low
++#ifdef RPCS3_IOS
++			|| rpcs3::ios::get_experimental_policy().native_half_registers  // REWINDBOX_NATIVE_HALF_907
++#endif
++			)
+ 		{
+ 			decompiler.device_props.has_native_half_support = caps.has_native_half_support;
+ 		}
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 7ded007..c35006f 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -207,6 +207,13 @@ void VKGSRender::begin_render_pass()
+ 	{
+ 		rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
+ 	}
++	note_open_pass_attachments();
++#endif
++}
++
++#ifdef RPCS3_IOS
++void VKGSRender::note_open_pass_attachments()
++{
+ 	{
+ 		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo (images of its views).
+ 		std::array<VkImage, 8> images{};
+@@ -222,8 +229,8 @@ void VKGSRender::begin_render_pass()
+ 		}
+ 		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
+ 	}
+-#endif
+ }
++#endif
+ 
+ void VKGSRender::close_render_pass()
+ {
+diff --git a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
+index 68145ed..1fe638f 100644
+--- a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
++++ b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
+@@ -5,6 +5,9 @@
+ #include "vkutils/device.h"
+ #include "Emu/system_config.h"
+ #include "../Program/GLSLCommon.h"
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
+ 
+ std::string VKFragmentDecompilerThread::getFloatTypeName(usz elementCount)
+ {
+@@ -618,7 +621,12 @@ void VKFragmentProgram::Decompile(const RSXFragmentProgram& prog)
+ 	VKFragmentDecompilerThread decompiler(source, parr, prog, size, *this);
+ 
+ 	const auto pdev = vk::get_current_renderer();
+-	if (g_cfg.video.shader_precision == gpu_preset_level::low)
++	if (g_cfg.video.shader_precision == gpu_preset_level::low
++#ifdef RPCS3_IOS
++		// REWINDBOX_NATIVE_HALF_907: the RSX H registers as native float16, the other high-precision rules kept
++		|| rpcs3::ios::get_experimental_policy().native_half_registers
++#endif
++		)
+ 	{
+ 		decompiler.device_props.has_native_half_support = pdev->get_shader_types_support().allow_float16;
+ 	}
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 5f91d29..1b87e62 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -25,6 +25,8 @@
+ #include "ios/RPCS3IOSPerformance.h"
+ #include "ios/IOSShaderTiming.h"
+ #include "ios/IOSReadbackProfile.h"
++#include "ios/IOSLoadOpClear907.h"
++#include "ios/IOSFeedbackCensus.h"
+ #include "ios/IOSDeferredCommit.h"
+ #include "ios/IOSEarlySubmit.h"
+ #include "ios/IOSRsxIdlePark.h"
+@@ -1435,6 +1437,7 @@ void VKGSRender::clear_surface(u32 mask)
+ 
+ 	const bool full_frame = (scissor_w == fb_width && scissor_h == fb_height);
+ 	bool update_color = false, update_z = false;
++	[[maybe_unused]] bool partial_stencil_cleared = false;  // REWINDBOX_LOAD_OP_CLEAR_907: the stencil went through an overlay pass
+ 	auto surface_depth_format = rsx::method_registers.surface_depth_fmt();
+ 
+ 	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK)
+@@ -1622,6 +1625,7 @@ void VKGSRender::clear_surface(u32 mask)
+ 				rsx::method_registers.stencil_mask(), renderpass);
+ 
+ 			depth_stencil_mask &= ~VK_IMAGE_ASPECT_STENCIL_BIT;
++			partial_stencil_cleared = true;
+ 		}
+ 
+ 		if (depth_stencil_mask)
+@@ -1639,11 +1643,107 @@ void VKGSRender::clear_surface(u32 mask)
+ 
+ 	if (!clear_descriptors.empty())
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_LOAD_OP_CLEAR_907 (ios/IOSLoadOpClear907.h): a full clear that begins the pass is its load-op.
++		if (begin_render_pass_with_clear(clear_descriptors, full_frame && !partial_stencil_cleared))
++		{
++			return;
++		}
++#endif
+ 		begin_render_pass();
+ 		vkCmdClearAttachments(*m_current_command_buffer, ::size32(clear_descriptors), clear_descriptors.data(), 1, &region);
+ 	}
+ }
+ 
++#ifdef RPCS3_IOS
++bool VKGSRender::begin_render_pass_with_clear(const std::vector<VkClearAttachment>& clears, bool full_frame)
++{
++	namespace lc = rpcs3::ios::load_op_clear;
++	if (!lc::enabled.load(std::memory_order_relaxed))
++	{
++		lc::add(lc::counters.kept_disabled);
++		return false;
++	}
++	if (vk::is_renderpass_open_on(*m_current_command_buffer, m_draw_fbo->value))
++	{
++		// The clear lands in the middle of an open pass: its load-op is past.
++		lc::add(lc::counters.kept_open_pass);
++		return false;
++	}
++
++	// The framebuffer's attachments: the color views first, then the depth/stencil view (vk::framebuffer_holder).
++	// (prepare_rtts: m_fbo_images holds the m_draw_buffers surfaces, then the depth surface when one is bound.)
++	const auto& views = m_draw_fbo->attachments;
++	const bool has_depth = std::get<0>(m_rtts.m_bound_depth_stencil) != 0;
++	const usz color_count = m_draw_buffers.size();
++	if (views.size() != color_count + (has_depth ? 1 : 0))
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++	bool clear_color = false;
++	VkImageAspectFlags depth_aspects = 0;
++	VkClearValue color_value{}, depth_value{};
++	usz color_descriptors = 0;
++	for (const auto& clear : clears)
++	{
++		if (clear.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT)
++		{
++			clear_color = true;
++			color_value = clear.clearValue;
++			color_descriptors++;
++		}
++		else
++		{
++			depth_aspects |= clear.aspectMask;
++			depth_value = clear.clearValue;
++		}
++	}
++
++	const bool single_sample = !views.empty() && views.front()->image()->samples() == 1;
++	// Every color attachment cleared (one fast-clear descriptor each, one value for all), whole depth/stencil aspects
++	// of the bound depth buffer, a full-framebuffer rectangle, single sample.
++	const bool color_ok = !clear_color || color_descriptors == color_count;
++	const bool depth_ok = !depth_aspects || has_depth;
++	if (!full_frame || !single_sample || !color_ok || !depth_ok || views.empty())
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++
++	std::array<VkClearValue, 8> values{};
++	if (views.size() > values.size())
++	{
++		lc::add(lc::counters.kept_partial);
++		return false;
++	}
++	for (usz index = 0; index < color_count; ++index)
++	{
++		values[index] = color_value;
++	}
++	if (has_depth)
++	{
++		values[views.size() - 1] = depth_value;
++	}
++
++	const bool clear_depth = !!(depth_aspects & VK_IMAGE_ASPECT_DEPTH_BIT);
++	const bool clear_stencil = !!(depth_aspects & VK_IMAGE_ASPECT_STENCIL_BIT);
++	const VkRenderPass pass = get_render_pass();
++	const VkRenderPass cleared_pass = vk::get_renderpass(*m_device,
++		vk::get_renderpass_key_with_load_clear(m_current_renderpass_key, clear_color, clear_depth, clear_stencil));
++	vk::begin_renderpass_cleared(*m_current_command_buffer, pass, cleared_pass, m_draw_fbo->value,
++		{ positionu{0u, 0u}, sizeu{m_draw_fbo->width(), m_draw_fbo->height()} }, values.data(), ::size32(views));
++	rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
++	note_open_pass_attachments();
++
++	lc::add(lc::counters.passes);
++	if (clear_color) lc::add(lc::counters.color);
++	if (clear_depth) lc::add(lc::counters.depth);
++	if (clear_stencil) lc::add(lc::counters.stencil);
++	return true;
++}
++#endif
++
+ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+ {
+ 	close_and_submit_command_buffer();
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index 3e149a2..914fa37 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -275,6 +275,10 @@ private:
+ 	vk::viewable_image* get_present_source(vk::present_surface_info* info, const rsx::avconf& avconfig);
+ 
+ 	void begin_render_pass();
++#ifdef RPCS3_IOS
++	void note_open_pass_attachments();  // REWINDBOX_IN_PASS_READ_TRANSITION_655 (also after a REWINDBOX_LOAD_OP_CLEAR_907 begin)
++	bool begin_render_pass_with_clear(const std::vector<VkClearAttachment>& clears, bool full_frame);  // REWINDBOX_LOAD_OP_CLEAR_907
++#endif
+ 	void close_render_pass();
+ 	VkRenderPass get_render_pass();
+ 	void invalidate_render_pass();
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+index 936b456..94fd63a 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+@@ -45,6 +45,8 @@ namespace vk
+ 	// 16-21 sample_counts
+ 	// 22-36 current layouts
+ 	// 37-41 input attachments
++	// 42-44 REWINDBOX_LOAD_OP_CLEAR_907: load-op CLEAR for the color attachments (bit 0), depth (bit 1), stencil (bit 2)
++	//       of a pass begun by a full-surface clear; never part of the keys pipelines or framebuffers are made with
+ 	union renderpass_key_blob
+ 	{
+ 	private:
+@@ -92,6 +94,7 @@ namespace vk
+ 			u64 sample_count  : 6;
+ 			u64 layout_blob   : 15;
+ 			u64 input_attachments_mask : 5;
++			u64 load_clear_mask : 3; // REWINDBOX_LOAD_OP_CLEAR_907
+ 		};
+ 
+ 		renderpass_key_blob(u64 encoded_) : encoded(encoded_)
+@@ -274,6 +277,16 @@ namespace vk
+ 		return key.encoded;
+ 	}
+ 
++	u64 get_renderpass_key_with_load_clear(u64 renderpass_key, bool color, bool depth, bool stencil)
++	{
++		// REWINDBOX_LOAD_OP_CLEAR_907: the same pass (same formats, layouts, samples, input attachments: compatible
++		// with every pipeline and framebuffer of renderpass_key, as Vulkan ignores load operations for compatibility)
++		// whose listed attachments start cleared instead of loaded.
++		renderpass_key_blob key(renderpass_key);
++		key.load_clear_mask = (color ? 1u : 0u) | (depth ? 2u : 0u) | (stencil ? 4u : 0u);
++		return key.encoded;
++	}
++
+ 	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key)
+ 	{
+ 		// 99.999% of checks will go through this block once on-disk shader cache has loaded
+@@ -321,7 +334,7 @@ namespace vk
+ 			VkAttachmentDescription color_attachment_description = {};
+ 			color_attachment_description.format = color_format;
+ 			color_attachment_description.samples = samples;
+-			color_attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			color_attachment_description.loadOp = (key.load_clear_mask & 1) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			color_attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+ 			color_attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+ 			color_attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+@@ -337,9 +350,9 @@ namespace vk
+ 			VkAttachmentDescription depth_attachment_description = {};
+ 			depth_attachment_description.format = depth_format;
+ 			depth_attachment_description.samples = samples;
+-			depth_attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			depth_attachment_description.loadOp = (key.load_clear_mask & 2) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			depth_attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+-			depth_attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
++			depth_attachment_description.stencilLoadOp = (key.load_clear_mask & 4) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+ 			depth_attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+ 			depth_attachment_description.initialLayout = dsv_layout;
+ 			depth_attachment_description.finalLayout = dsv_layout;
+@@ -444,6 +457,41 @@ namespace vk
+ 		return true;
+ 	}
+ 
++	void begin_renderpass_cleared(const vk::command_buffer& cmd, VkRenderPass pass, VkRenderPass cleared_pass, VkFramebuffer target,
++		const coordu& framebuffer_region, const VkClearValue* clear_values, u32 clear_value_count)
++	{
++		// REWINDBOX_LOAD_OP_CLEAR_907: begun with the CLEAR variant of pass; recorded as pass, so the draws that follow on
++		// this framebuffer continue in it instead of beginning it again.
++		auto& renderpass_info = g_current_renderpass[cmd];
++		if (renderpass_info.pass != VK_NULL_HANDLE)
++		{
++			end_renderpass(cmd);
++		}
++
++		VkRenderPassBeginInfo rp_begin = {};
++		rp_begin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
++		rp_begin.renderPass = cleared_pass;
++		rp_begin.framebuffer = target;
++		rp_begin.renderArea.offset.x = static_cast<s32>(framebuffer_region.x);
++		rp_begin.renderArea.offset.y = static_cast<s32>(framebuffer_region.y);
++		rp_begin.renderArea.extent.width = framebuffer_region.width;
++		rp_begin.renderArea.extent.height = framebuffer_region.height;
++		rp_begin.clearValueCount = clear_value_count;
++		rp_begin.pClearValues = clear_values;
++
++		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
++		renderpass_info = { pass, target };
++#ifdef RPCS3_IOS
++		rpcs3::ios::renderpass_census::on_begin(g_rewindbox_last_end[cmd], target); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655: unknown until the draw path notes them
++#endif
++	}
++
++	bool is_renderpass_open_on(const vk::command_buffer& cmd, VkFramebuffer target)
++	{
++		return g_current_renderpass[cmd].pass != VK_NULL_HANDLE && g_current_renderpass[cmd].fbo == target;
++	}
++
+ 	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region)
+ 	{
+ 		if (renderpass_key != g_cached_renderpass_key)
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+index 1f25e54..4ef8f2b 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+@@ -1,46 +1,52 @@
+-#pragma once
+-
+-#include "VulkanAPI.h"
+-#include "Utilities/geometry.h"
+-#ifdef RPCS3_IOS
+-#include <source_location> // REWINDBOX_RENDERPASS_CENSUS_652
+-#endif
+-
+-namespace vk
+-{
+-	class image;
+-	class command_buffer;
+-
+-	u64 get_renderpass_key(const std::vector<vk::image*>& images, const std::vector<u8>& input_attachment_ids = {});
+-	u64 get_renderpass_key(const std::vector<vk::image*>& images, u64 previous_key, const std::vector<u8>& input_attachment_ids = {});
+-	u64 get_renderpass_key(VkFormat surface_format, u8 sample_count = 1);
+-	u64 get_renderpass_key(VkFormat color_format, VkFormat depth_format, u8 sample_count = 1);
+-	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key);
+-
+-	bool renderpass_has_input_attachments(u64 renderpass_key);
+-
+-	void clear_renderpass_cache(VkDevice dev);
+-
+-	// Renderpass scope management helpers.
+-	// NOTE: These are not thread safe by design.
+-	// Returns true when a render pass was actually begun (false when the same pass and framebuffer were already open).
+-	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
+-	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
+-#ifdef RPCS3_IOS
+-	// REWINDBOX_RENDERPASS_CENSUS_652: each caller's file and line, for the census of render pass ends.
+-	void end_renderpass(const vk::command_buffer& cmd, std::source_location where = std::source_location::current());
+-#else
+-	void end_renderpass(const vk::command_buffer& cmd);
+-#endif
+-	bool is_renderpass_open(const vk::command_buffer& cmd);
+-#ifdef RPCS3_IOS
+-	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass open on this command buffer, as the draw path
+-	// that began it knows them (count 0 or above capacity: unknown). Not thread safe, like the helpers above.
+-	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count);
+-	enum class open_pass_image { no_pass, unknown, attachment, not_attachment };
+-	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image);
+-#endif
+-
+-	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
+-	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
+-}
++#pragma once
++
++#include "VulkanAPI.h"
++#include "Utilities/geometry.h"
++#ifdef RPCS3_IOS
++#include <source_location> // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
++
++namespace vk
++{
++	class image;
++	class command_buffer;
++
++	u64 get_renderpass_key(const std::vector<vk::image*>& images, const std::vector<u8>& input_attachment_ids = {});
++	u64 get_renderpass_key(const std::vector<vk::image*>& images, u64 previous_key, const std::vector<u8>& input_attachment_ids = {});
++	u64 get_renderpass_key(VkFormat surface_format, u8 sample_count = 1);
++	u64 get_renderpass_key(VkFormat color_format, VkFormat depth_format, u8 sample_count = 1);
++	VkRenderPass get_renderpass(VkDevice dev, u64 renderpass_key);
++	// REWINDBOX_LOAD_OP_CLEAR_907: renderpass_key with load-op CLEAR on the listed attachments (compatible pass).
++	u64 get_renderpass_key_with_load_clear(u64 renderpass_key, bool color, bool depth, bool stencil);
++
++	bool renderpass_has_input_attachments(u64 renderpass_key);
++
++	void clear_renderpass_cache(VkDevice dev);
++
++	// Renderpass scope management helpers.
++	// NOTE: These are not thread safe by design.
++	// Returns true when a render pass was actually begun (false when the same pass and framebuffer were already open).
++	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
++	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
++#ifdef RPCS3_IOS
++	// REWINDBOX_RENDERPASS_CENSUS_652: each caller's file and line, for the census of render pass ends.
++	void end_renderpass(const vk::command_buffer& cmd, std::source_location where = std::source_location::current());
++#else
++	void end_renderpass(const vk::command_buffer& cmd);
++#endif
++	bool is_renderpass_open(const vk::command_buffer& cmd);
++	// REWINDBOX_LOAD_OP_CLEAR_907: begins cleared_pass (the load-op CLEAR variant of pass) and records pass as open.
++	void begin_renderpass_cleared(const vk::command_buffer& cmd, VkRenderPass pass, VkRenderPass cleared_pass, VkFramebuffer target,
++		const coordu& framebuffer_region, const VkClearValue* clear_values, u32 clear_value_count);
++	bool is_renderpass_open_on(const vk::command_buffer& cmd, VkFramebuffer target);
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass open on this command buffer, as the draw path
++	// that began it knows them (count 0 or above capacity: unknown). Not thread safe, like the helpers above.
++	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count);
++	enum class open_pass_image { no_pass, unknown, attachment, not_attachment };
++	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image);
++#endif
++
++	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
++	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
++}
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 77203b3..0c9e137 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -177,6 +177,9 @@ struct cfg_root : cfg::node
+ 		// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h); Enabled and
+ 		// Disabled let a per-game override test the other value on the device.
+ 		cfg::_enum<ios_experimental_mode> position_invariance{ this, "Position Invariance", ios_experimental_mode::automatic };
++		// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: Automatic is the title list (Assassin's Creed).
++		cfg::_enum<ios_experimental_mode> native_half_registers{ this, "Native Half-Precision Registers", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> load_op_clear{ this, "Clear As Render Pass Load", ios_experimental_mode::automatic };
+ 		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): Automatic and Enabled time the
+ 		// RSX primary command buffers on the GPU; Disabled measures the probe's cost.
+ 		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSLoadOpClear907.h b/rpcs3/ios/IOSLoadOpClear907.h
+new file mode 100644
+index 0000000..d0f45ef
+--- /dev/null
++++ b/rpcs3/ios/IOSLoadOpClear907.h
+@@ -0,0 +1,48 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_LOAD_OP_CLEAR_907: Assassin's Creed (BLES00158), IPA 676 device log, gameplay at 25-28 FPS with the GPU
++// busy 77-84 % (about 30 ms of GPU work per frame): 44-48 render passes begin per frame (COREPROF RPASS652), every one
++// created with load-op LOAD for every attachment (VKRenderPass.cpp). A guest clear that is the first command on its
++// framebuffer begins such a pass and then records vkCmdClearAttachments, which MoltenVK executes as a triangle draw
++// (MVKCmdClearAttachments::encode): the Apple GPU first loads the whole attachment from memory into tile memory, then
++// overwrites every pixel of it.
++//
++// When the clear covers the whole framebuffer (render area = framebuffer), every bound color buffer with the full
++// write mask (fast clear) and/or whole depth/stencil aspects, on single-sample targets, and no pass is open on this
++// framebuffer, the pass now begins with load-op CLEAR for exactly those attachments and the same clear values. The
++// result in every pixel is the clear value in both cases, written before any draw of the pass, so the image the game
++// sees is identical; only the load from memory and the clear draw are gone. The other attachments keep LOAD. Anything
++// else (scissored or partial clears, masked channels, MSAA, a pass already open on the framebuffer) records vkCmdClearAttachments exactly as before. Counted per window
++// (COREPROF LOADCLEAR907).
++namespace rpcs3::ios::load_op_clear
++{
++// Resolved once per boot (title policy); read by the RSX thread.
++inline std::atomic<bool> enabled{false};
++
++struct window_counters
++{
++	std::atomic<std::uint64_t> passes{0};          // passes begun with load-op CLEAR
++	std::atomic<std::uint64_t> color{0};           // ... clearing the color attachments
++	std::atomic<std::uint64_t> depth{0};           // ... clearing depth
++	std::atomic<std::uint64_t> stencil{0};         // ... clearing stencil
++	std::atomic<std::uint64_t> kept_open_pass{0};  // vkCmdClearAttachments kept: a pass is open on this framebuffer
++	std::atomic<std::uint64_t> kept_partial{0};    // ... the clear is scissored, masked or MSAA
++	std::atomic<std::uint64_t> kept_disabled{0};   // ... the title policy has the lever off
++};
++
++inline window_counters counters;
++
++inline void add(std::atomic<std::uint64_t>& counter) noexcept
++{
++	counter.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::load_op_clear
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 019b80e..16d3ffb 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -79,6 +79,12 @@ constexpr bool is_assassins_creed_title(std::string_view title_id) noexcept
+ 	return title_id == "BLES00158" || title_id == "BLUS30089";
+ }
+ 
++// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: GPU-bound in play (IPA 676).
++constexpr bool wants_gpu_work_reduction_907(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
+ // REWINDBOX_POSITION_INVARIANCE_610
+ constexpr bool requires_position_invariance(std::string_view title_id) noexcept
+ {
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index dac928f..ccc7e4e 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -17,6 +17,7 @@
+ #include "IOSReservationLockPolicy.h"
+ #include "IOSTextureResidency.h"
+ #include "IOSTitleLevers.h"
++#include "IOSLoadOpClear907.h"
+ #include "IOSThreadQoS.h"
+ #include "IOSMoltenVKAsyncCanary.h"
+ #include "IOSInPassReadTransition.h"
+@@ -449,6 +450,13 @@ void resolve_experimental_policy() noexcept
+ 	resolved.in_pass_read_transitions = resolved.moltenvk_in_pass_waits &&
+ 		rpcs3::ios::title_levers::is_assassins_creed_title(title_id);
+ 	rpcs3::ios::in_pass_read::enabled.store(resolved.in_pass_read_transitions, std::memory_order_relaxed);
++	// REWINDBOX_NATIVE_HALF_907 / REWINDBOX_LOAD_OP_CLEAR_907: Automatic is Assassin's Creed (IPA 676: GPU 77-84 % busy,
++	// about 30 ms of GPU work per frame at 25-28 FPS in play).
++	resolved.native_half_registers = resolve_mode(g_cfg.ios_experimental.native_half_registers,
++		rpcs3::ios::title_levers::wants_gpu_work_reduction_907(title_id));
++	resolved.load_op_clear = resolve_mode(g_cfg.ios_experimental.load_op_clear,
++		rpcs3::ios::title_levers::wants_gpu_work_reduction_907(title_id));
++	rpcs3::ios::load_op_clear::enabled.store(resolved.load_op_clear, std::memory_order_relaxed);
+ 	// REWINDBOX_SPU_QOS_627: Automatic is the three reference titles.
+ 	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
+ 		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
+@@ -526,6 +534,8 @@ void resolve_experimental_policy() noexcept
+ 		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
+ 	ios_experimental_log.notice("Resolved title policy 655: in_pass_read_transitions=%d mvk_in_pass_waits=%d",
+ 		resolved.in_pass_read_transitions, resolved.moltenvk_in_pass_waits);
++	ios_experimental_log.notice("Resolved title policy 907: native_half_registers=%d load_op_clear=%d",
++		resolved.native_half_registers, resolved.load_op_clear);
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
+ 		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index dbbb03d..b5a6024 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -110,6 +110,11 @@ struct experimental_policy
+ 	// and only when the linked MoltenVK waits for such barriers inside a pass.
+ 	bool in_pass_read_transitions = false;
+ 	bool moltenvk_in_pass_waits = false;
++	// REWINDBOX_NATIVE_HALF_907: the fragment decompilers give the RSX half-precision registers (H) native float16
++	// types, as the RSX computes them, keeping every other high-precision rule. Read when a fragment program decompiles.
++	bool native_half_registers = false;
++	// REWINDBOX_LOAD_OP_CLEAR_907 (ios/IOSLoadOpClear907.h): a full clear that begins a render pass is its load-op.
++	bool load_op_clear = false;
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: early submissions wait for a point without an open render pass.
+ 	bool early_submit_at_pass_boundary = false;
+ 	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a sampler slot reuses the result of an
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index bcbd24b..2daa1da 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -37,6 +37,7 @@
+ #include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
+ #include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
++#include "IOSLoadOpClear907.h"
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+ #include "IOSRendererCausality.h"
+ #include "IOSSignalTrace.h"
+@@ -1769,6 +1770,18 @@ private:
+                 profile_session, profile_window, in_pass::enabled.load(std::memory_order_relaxed) ? 1 : 0, kept_color, kept_depth,
+                 kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other);
+         }
++        // REWINDBOX_LOAD_OP_CLEAR_907: passes begun by a full clear with load-op CLEAR, and the clears kept as draws.
++        {
++            namespace lc = rpcs3::ios::load_op_clear;
++            auto& c = lc::counters;
++            const u64 passes = lc::take(c.passes), color = lc::take(c.color), depth = lc::take(c.depth), stencil = lc::take(c.stencil),
++                kept_open_pass = lc::take(c.kept_open_pass), kept_partial = lc::take(c.kept_partial), kept_disabled = lc::take(c.kept_disabled);
++            ios_core_profiler.notice(
++                "COREPROF LOADCLEAR907 session=%llu window=%llu enabled=%d passes=%llu color=%llu depth=%llu stencil=%llu "
++                "kept_open_pass=%llu kept_partial=%llu kept_disabled=%llu scope=process_window_counters",
++                profile_session, profile_window, lc::enabled.load(std::memory_order_relaxed) ? 1 : 0, passes, color, depth, stencil,
++                kept_open_pass, kept_partial, kept_disabled);
++        }
+         // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
+         // the SPU threads (deltas of monotonic per-thread totals).
+         {
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 2d20835..96cba0d 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -175,6 +175,8 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
+ 	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
+ 	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
++	GAME_SETTING("experimental.native_half_registers", "Experimental", "GPU", "Native half-precision registers", "Computes the half-precision registers of PlayStation 3 pixel shaders (the RSX H registers) in native 16-bit floats, as the RSX does, instead of 32-bit floats clamped to the half range; every other precision rule stays as with High precision. The Apple GPU executes 16-bit float math at twice the rate. Automatic enables it for Assassin's Creed; Disabled restores 32-bit registers. Shaders are compiled again on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.native_half_registers, 0, 0, 0),
++	GAME_SETTING("experimental.load_op_clear", "Experimental", "GPU", "Clear as render pass load", "When a render pass starts with a clear of its whole framebuffer, the GPU starts the pass cleared instead of loading the old image from memory and then drawing the clear over it. The image is the same. Automatic enables it for Assassin's Creed; Disabled restores the previous clears. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.load_op_clear, 0, 0, 0),
+ 	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
+ 	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
+ 	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
