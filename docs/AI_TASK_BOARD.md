@@ -1384,6 +1384,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Device reading: engine journal lines "pipelineCache checkpointSkipped/checkpoint/written" (how often the 625 MiB
     file is rewritten and how long it takes), memoryWarning timing against them, and "pipelineBuilds summary" with
     compute included.
+- **IPA 688 on the device (Hogwarts pid 28747, 16:13:14-16:16:02 UTC, Core 687, private journals; read 7 Nov by
+  session 01JA5QgK):**
+  - **Gone:** the read-back wait (render-thread fence waits 0.1 ms per frame) and the compute descriptor cost (2.5 ms
+    per frame, against 28-30 ms on 626). No render-thread pipeline compilation after the first minute (2 in 1275 ms).
+  - **In play (16:14:48-16:15:57), 17-19 fps, frame gaps 33-217 ms (p50 50, p95 100), 83 over 100 ms in 70 s.** No
+    resource is saturated. GPU busy (MetalGpuTimer) 17-20 ms per frame, 27-40 % of the time. Render thread 22-25 ms
+    per frame (45-53 %). GPU thread busy about 55 % (bindings 150-190, compute 85-132 ms per second), waiting for the
+    guest about 45 %. Guest GameThread 23-39 % of a core, RenderThread_1 and RHIThread 10-14 %. Process CPU 184-280 %
+    in the slow seconds, 350-400 % in the 30 fps seconds: in slow seconds every thread waits.
+  - **Long frames are not GC hitches:** windows without GC pause hold as many frames over 100 ms. GC still adds 20-100 ms
+    every 5 s (gen0/gen1 on a 0.9-1.0 GB heap, 270-400 MiB of LOH fragmentation), and one fullBlocking collection of
+    131.6 ms fell back from background at 16:14:19 (memory load 7.51 of 7.91 GB, the high-load threshold).
+  - **Present pacing stands down below 30 fps** (`cadence 0`, 0 frames paced): the slow windows show gaps 17/33/50/other
+    of 3/21/25/36 frames and adjacent 17/50 pairs (judder).
+  - **Leading hypothesis, to test before any change:** the guest and the GPU thread wait together on host-GPU
+    completion. Under the Hogwarts policy `occlusionQuerySync`, each increment with pending occlusion reports becomes
+    visible only once the host GPU produced them (adapt_occlusion_reports, adapt_queued_syncpoints), so the next frame
+    cannot overlap the host chain (render thread, MoltenVK encoding 10 ms, GPU, completion). syncInvoke is still about
+    100 ms per second. The queued-syncpoint statistics are logged at Info level and do not reach the stderr capture.
+  - **Device A/B asked (no build):** the same save and route with "Synchronize occlusion results" off (Hogwarts
+    graphics options, next launch), then on; compare fps, frame gaps, and occlusion artefacts (black or popping
+    objects). Next code step depends on it: off fixes it → a cheaper ordering for the reports; no change → the GPU
+    thread's own work (bindings, compute) and a sub-30 pacing cadence.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
