@@ -121,6 +121,8 @@ LOT_FILES = {
     'adapt_evicted_buffer_recreate': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
     # Core 679: Apple audio session start failure (outside this composition).
     'adapt_audio_start_deferred': [],
+    # Core 681: the pipeline cache room.
+    'adapt_pipeline_cache_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0
