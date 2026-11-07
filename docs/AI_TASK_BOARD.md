@@ -1314,6 +1314,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     [Receipt](evidence/melonx-683-gates/run.json).
   - Whether iOS leaves the few seconds a pause write takes is known only from a device run. An interrupted write
     leaves the previous file intact.
+  - **Verified and pinned:** run 42324442423 attempt 1 (`c41b7a51`, 54 gates, two simulator sessions; 679 and 681 also
+    green). Job 128262080204, artifact 13556034535 (90678200 B, `4de8b806…`). iPhone binary `794888c4…` (38160256 B),
+    fingerprint `181a9994…`, contract `f5d160f6…`. Markers in the binary: pause checkpoint, cache room, audio deferred
+    start, side cache. Engine evidence passed offline. Handed to main for the next common IPA, with b1edef18,
+    fc515ee7, bd1f963e and 530b18f6. Not tested on a device.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
