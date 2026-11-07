@@ -1229,6 +1229,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       performance-diagnostics, pipeline-warmup-parity, evicted-buffer-recreate, audio-start-deferred.
     - Contract: 53 gates, 171 inputs, `--archive` 396 checks. [Receipt](evidence/melonx-681-gates/run.json).
     - The memory actually released on the device is not measured.
+- **IPA 676 on the device (7 Nov, Hogwarts, pid 24714, Core 677, private journals):**
+  - 25 % of seconds below 15 fps (674: 37 %). The 6134 ms play-time checkpoint no longer stops the image (side cache).
+  - The remaining stutters are render-thread builds of new pipelines at 0.5-1 s each: 12 in 6.9 s, 8 in 5.0 s, 2 in
+    1.9 s, between 01:00:58 and 01:02:29. A cached pipeline costs about 9 ms.
+  - Hogwarts sessions 21216, 21727, 23682 and 24714 never write the main cache at close (they end in the background
+    or a crash). Each has exactly one checkpoint, about 3 min in. 24714 built those pipelines after its only checkpoint
+    (01:00:32) and left the foreground at 01:02:30, so they are compiled again next session.
+  - Cause: CheckpointMainIfDue runs only after a worker pipeline, at most every 180 s and after 64 main pipelines.
+    Render-thread builds never trigger it, and nothing writes the cache when the guest is paused.
+- **Core 683 = Core 681 + adapt_pipeline_cache_persist** (PipelineCacheManager.cs, VulkanRenderer.cs, Library.cs):
+  - The host pause callback queues `VulkanRenderer.CheckpointPipelineCacheOnPause` on the thread pool. It writes the
+    main cache if it gained content; render-thread creations meanwhile go to the side cache.
+  - Play-time checkpoints run every 90 s after 8 main pipelines, and a render-thread pipeline that makes one due queues
+    it on the thread pool.
+  - Dispose takes the main cache lock.
+  - Gate pipeline-cache-persist (27 checks): control loses the 3 post-checkpoint pipelines on pause, candidate writes
+    them; render-thread pipelines checkpoint at the 8th, off the creating thread; nothing within the interval; Dispose
+    waits 412 ms for a pause write in flight.
+  - The Vulkan and Library projects compile.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
