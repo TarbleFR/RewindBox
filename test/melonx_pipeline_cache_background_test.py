@@ -65,14 +65,15 @@ def text(tree, name):
 
 manager_k, manager_c = text(CANDIDATE, VULKAN + 'PipelineCacheManager.cs'), text(CONTROL_SOURCE, VULKAN + 'PipelineCacheManager.cs')
 check(manager_k.replace(adapter.FIELDS_NEW, adapter.FIELDS_OLD).replace(adapter.LOAD_NEW, adapter.LOAD_OLD)
-      .replace(adapter.END_NEW, adapter.END_OLD).replace(adapter.WORKERS_NEW, adapter.WORKERS_OLD) == manager_c,
+      .replace(adapter.END_NEW, adapter.END_OLD).replace(adapter.WORKERS_NEW, adapter.WORKERS_OLD)
+      .replace(adapter.CONTENT_NEW, adapter.CONTENT_OLD) == manager_c,
       'PipelineCacheManager differs only by the background load')
 check(manager_k.count('CreateCache(snapshot, "main", out accepted)') == 1 and 'CreateCache(mainSnapshot' not in manager_k,
       'the snapshot is created only by the loader')
 load = manager_k[manager_k.index('private unsafe void LoadMainSnapshot('):]
 load = load[:load.index('\n        }\n') + 10]
 check(load.index('_mainCheckpointInProgress = true;') < load.index('_mainCacheLock.Enter();') < load.index('MergeInto(_mainState.Cache, source)')
-      < load.index('_mainState.Frozen = false;') < load.index('MergeSideCache();') < load.index('_mainCacheLock.Exit();')
+      < load.index('_mainState.Frozen = failed;') < load.index('MergeSideCache();') < load.index('_mainCacheLock.Exit();')
       < load.index('_mainCheckpointInProgress = false;'), 'merged under the main lock with the checkpoint protocol')
 check('if (!_disposed)' in load and load.index('if (!_disposed)') < load.index('MergeInto(') and
       load.index('MergeSideCache();') > load.index('if (!_disposed)'), 'nothing is merged into a disposed manager')
@@ -142,6 +143,13 @@ check(ke['mergesAfterDispose'] == 0 and ke['stagingDestroyed'] and ke['fileUncha
 check(not k['noSnapshot']['pending'] and not k['noSnapshot']['deferred'] and k['noSnapshot']['ctorMs'] < 500, 'candidate: no snapshot, nothing pending')
 check(k['rejected']['loaded'] and not k['rejected']['mainMerged'] and k['rejected']['fileAfter'] == c['rejected']['fileAfter'] and
       k['rejected']['fileAfter'] < SNAPSHOT, 'a rejected snapshot is written over as before')
+
+kt = k['loadEndsDuringTeardown']
+check(kt['loaded'] and kt['moved'] and kt['fileAfter'] >= SNAPSHOT + 512 * 1024,
+      'candidate: a load merged after a teardown save moves the content generation; the second save writes it all: %s' % json.dumps(kt))
+kf = k['failedLoad']
+check(kf['loaded'] and kf['fileKept'] and kf['workerFilesKept'] and kf['lines'] >= 1,
+      'candidate: a failed load keeps main Frozen: the main and worker files are kept: %s' % json.dumps(kf))
 
 inputs = ['build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_pipeline_cache_background_test.py', 'test/melonx_pipeline_cache_background/Program.cs',

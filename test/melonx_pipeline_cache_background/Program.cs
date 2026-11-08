@@ -198,4 +198,38 @@ string FileState(string path) { var info = new FileInfo(path); return info.Lengt
     report["rejected"] = new { loaded, fileAfter, mainMerged = Events.Snapshot().Any(e => e.Text.StartsWith("merge into main")) };
 }
 
+// E: the load ends after a teardown save made while main was Frozen: the teardown's content generation moves, so its
+// second save runs and writes the snapshot with the session's pipelines.
+{
+    var (manager, vk, mainLock, path, ctorMs) = NewManager(true, 600);
+    manager.NotifyMainPipelineCreated();
+    vk.Grow(manager.MainCache, 512 * 1024);
+    manager.MergeAndSave();
+    long savedGeneration = manager.ContentGeneration;
+    bool loaded = WaitLoaded(manager, 10_000);
+    bool moved = manager.ContentGeneration != savedGeneration;
+    if (moved) manager.MergeAndSave();
+    long fileAfter = new FileInfo(path).Length;
+    manager.Dispose();
+    report["loadEndsDuringTeardown"] = new { loaded, moved, fileAfter };
+}
+
+// F: the snapshot cannot be loaded for another reason than the driver rejecting it (here the fallback creation fails):
+// main stays Frozen for the session, so neither a pause checkpoint nor the teardown replaces the file.
+{
+    var (manager, vk, mainLock, path, ctorMs) = NewManager(true, 300, reject: true);
+    vk.FailNextEmptyCreates = 1;
+    string fileBefore = FileState(path);
+    bool loaded = WaitLoaded(manager, 10_000);
+    manager.NotifyMainPipelineCreated();
+    vk.Grow(manager.MainCache, 64 * 1024);
+    manager.CheckpointMainOnPause();
+    manager.MergeAndSave();
+    bool fileKept = fileBefore == FileState(path);
+    bool workerFilesKept = new FileInfo(WorkerPath(path, 0)).Length == WorkerBytes && new FileInfo(WorkerPath(path, 1)).Length == WorkerBytes;
+    manager.Dispose();
+    report["failedLoad"] = new { loaded, fileKept, workerFilesKept,
+        lines = Ryujinx.Common.Logging.Logger.Info.Messages.Where(m => m.Contains("its file is kept")).Count() };
+}
+
 Console.WriteLine(JsonSerializer.Serialize(report));

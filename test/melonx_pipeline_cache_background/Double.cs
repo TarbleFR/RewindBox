@@ -50,6 +50,7 @@ namespace Silk.NET.Vulkan {
         public int SnapshotLoadMs;
         public bool RejectSnapshot;
         public int Destroyed;
+        public int FailNextEmptyCreates;
         public Result CreatePipelineCache(Device device, in PipelineCacheCreateInfo info, AllocationCallbacks* allocator, out PipelineCache cache) {
             if (info.InitialDataSize > 0) {
                 FixtureSupport.Events.Add($"snapshot begin {info.InitialDataSize}");
@@ -57,6 +58,7 @@ namespace Silk.NET.Vulkan {
                 FixtureSupport.Events.Add("snapshot end");
                 if (RejectSnapshot) { cache = default; return Result.ErrorInitializationFailed; }
             }
+            if (info.InitialDataSize == 0 && FailNextEmptyCreates > 0) { FailNextEmptyCreates--; cache = default; return Result.ErrorOutOfHostMemory; }
             lock (_sizes) { cache = new PipelineCache { Handle = ++_next }; _sizes[cache.Handle] = Math.Max(Header, (long)info.InitialDataSize); }
             if (MainHandle == 0) MainHandle = cache.Handle; // PipelineCacheManager creates main first
             return Result.Success;

@@ -48,6 +48,8 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
         private bool _mainLoadRunning;
         private Action _deferredDeviceRelease;
         private long _mainLoadWaitDeadline;
+        // Moves when a load is merged: a teardown that saved while main was Frozen sees it and saves again.
+        private long _mainLoadCompletions;
 
         // Whether main still lacks its snapshot (the background load has not merged it yet).
         public bool MainLoadPending => !_mainLoaded.IsSet;
@@ -129,6 +131,9 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
             {
                 PipelineCache staging = default;
                 bool accepted = false;
+                // A failure other than the driver rejecting the snapshot leaves main Frozen for the session: the file is
+                // not replaced by less than it holds.
+                bool failed = false;
 
                 try
                 {
@@ -136,6 +141,7 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                 }
                 catch (Exception exception)
                 {
+                    failed = true;
                     Logger.Warning?.PrintMsg(LogClass.Gpu, $"Vulkan main pipeline cache snapshot not loaded: {exception.Message}");
                 }
                 finally
@@ -185,7 +191,12 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                         if (accepted && staging.Handle != 0)
                         {
                             ReadOnlySpan<PipelineCache> source = stackalloc PipelineCache[] { staging };
-                            accepted = MergeInto(_mainState.Cache, source);
+
+                            if (!MergeInto(_mainState.Cache, source))
+                            {
+                                accepted = false;
+                                failed = true;
+                            }
                         }
 
                         if (accepted)
@@ -193,7 +204,7 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                             // The file holds this content already: no new generation.
                             _mainState.HasUsableSnapshot = true;
                         }
-                        else
+                        else if (!failed)
                         {
                             // As a rejected snapshot at startup: main is not the file's state.
                             Interlocked.Exchange(ref _mainWrittenBytes, 0);
@@ -203,7 +214,7 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                         // As adapt_pipeline_cache_room at startup: each worker snapshot that fits joins main. Main then holds
                         // content its file does not; the workers keep their files until main is written at or past it,
                         // and for this session if a worker snapshot could not join main.
-                        long room = _mainState.Budget - (accepted ? length : 0);
+                        long room = failed ? 0 : _mainState.Budget - _mainState.EstimatedBytes;
                         int pendingWorkers = 0;
                         int mergedWorkers = 0;
                         long mergedBytes = 0;
@@ -217,7 +228,7 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
 
                             pendingWorkers++;
 
-                            if (workerStaging[index].Handle != 0 && workerLengths[index] <= room &&
+                            if (!failed && workerStaging[index].Handle != 0 && workerLengths[index] <= room &&
                                 MergeInto(_mainState.Cache, workerStaging.AsSpan(index, 1)))
                             {
                                 mergedWorkers++;
@@ -240,12 +251,13 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                             Interlocked.Exchange(ref _workerSnapshotsHeldUntil, 0);
                         }
 
-                        _mainState.Frozen = false;
+                        _mainState.Frozen = failed;
                         MergeSideCache();
+                        Interlocked.Increment(ref _mainLoadCompletions);
 
                         Logger.Info?.PrintMsg(
                             LogClass.Gpu,
-                            $"Vulkan main pipeline cache {(accepted ? "loaded" : "not loaded")} in the background: " +
+                            $"Vulkan main pipeline cache {(accepted ? "loaded" : failed ? "not loaded (its file is kept)" : "rejected")} in the background: " +
                             $"{FormatSize(length)}, {mergedWorkers}/{pendingWorkers} worker snapshots ({FormatSize(mergedBytes)}) joined, " +
                             $"in {Environment.TickCount64 - start} ms (adapt_pipeline_cache_background).");
                     }
@@ -285,7 +297,15 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                 }
 
                 _mainLoaded.Set();
-                release?.Invoke();
+
+                try
+                {
+                    release?.Invoke();
+                }
+                catch (Exception exception)
+                {
+                    Logger.Warning?.PrintMsg(LogClass.Gpu, $"Vulkan device release after the background load failed: {exception.Message}");
+                }
             }
         }
 '''
@@ -468,6 +488,25 @@ WORKERS_NEW = '''            int loadedWorkerCaches = 0;
                 }
             }
 '''
+CONTENT_OLD = '''                long generation = Interlocked.Read(ref _mainState.Generation);
+
+                foreach (CacheState state in _workerStates)
+                {
+                    generation += Interlocked.Read(ref state.Generation);
+                }
+
+                return generation;
+'''
+CONTENT_NEW = '''                long generation = Interlocked.Read(ref _mainState.Generation);
+
+                foreach (CacheState state in _workerStates)
+                {
+                    generation += Interlocked.Read(ref state.Generation);
+                }
+
+                // RewindBox (adapt_pipeline_cache_background): a load merged after a save seen as complete.
+                return generation + Interlocked.Read(ref _mainLoadCompletions);
+'''
 
 
 def apply(source):
@@ -478,6 +517,7 @@ def apply(source):
     once(paths[MANAGER], LOAD_OLD, LOAD_NEW)
     once(paths[MANAGER], END_OLD, END_NEW)
     once(paths[MANAGER], WORKERS_OLD, WORKERS_NEW)
+    once(paths[MANAGER], CONTENT_OLD, CONTENT_NEW)
     once(paths[STATE], GRAPHICS_OLD, GRAPHICS_NEW)
     once(paths[STATE], COMPUTE_OLD, COMPUTE_NEW)
     once(paths[RENDERER], RELEASE_OLD, RELEASE_NEW)
