@@ -1605,7 +1605,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `4bee6cea3ca47aa0559491f6207dce3049fc0159f4d001134cca094a4e9e9f45`. Key deleted; receipt
     docs/evidence/rewind693/delivery.json (12 proofs). Not tested on a device. Device reading: the "Pipeline failure
     state for program 890A188FB55B5D5D" Error line(s) (emulator log and Core journal engineError), the Core journal
-    lines stage arrayDelta status causes, and no change in FPS or behaviour against 692. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    lines stage arrayDelta status causes, and no change in FPS or behaviour against 692.
+  - **IPA 693 on the device (8 Nov, pids 38333/38363/38386, Hogwarts and SSBU):** every launch stopped in
+    gpuStartup mainPipelineCache (scopeBegin, no scopeEnd for 10-47 s; 692: 2.2-3.0 s, every build before: 2.2-2.9 s,
+    first launch after each update included); process CPU about 3 % throughout (perf lines), so the engine thread was
+    waiting; the maintainer reports the game started after about 15 minutes. MoltenVK 1.4.2 (db660224)
+    MVKPipelineCache::readData builds an MVKShaderLibrary per cache entry, and that constructor calls compileLibrary
+    (newLibraryWithSource) synchronously: loading the 780 MiB Hogwarts cache recompiles every Metal library, which is
+    quick only while the system Metal compiler cache is warm. Checked: the packaged MoltenVK binary is identical in
+    692 and 693 (normalized fingerprint 6c3b11dd), same runner image, Xcode 26.3, SDK 26.2 and .NET 10.0.100 for both
+    Cores, same math mode and configuration lines; the only source difference (PipelineState.cs,
+    TextureBindingsArrayCache.cs) runs no code before mainPipelineCache. Reading: a cold system Metal cache (cause
+    outside the app not identified), not a hang. Risk kept: a cold Metal cache makes the first launch take minutes
+    with this MoltenVK. Maintainer request: next IPA = the 692 Core plus real performance and glitch fixes only, no
+    diagnostics; IPA 692 re-sent. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
