@@ -1635,7 +1635,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and are merged into main under the main lock (checkpoint protocol); main Frozen until then; workers wait at most
     15 s; worker files kept until main is written with their content; a session ending during the load leaves the
     device release to the loader thread. Gate pipeline-cache-background 34 checks (constructor 27 ms instead of 4.5 s
-    with 1.5 s per snapshot). All 24 gates binding the edited files rerun on the final preparation. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    with 1.5 s per snapshot). Independent review: bindless change exact; background load D1 (a load merged after the
+    teardown's first save was not written), H1 (a failed load could let a checkpoint replace the file), H2 (worker room)
+    and the deferred release guard fixed; gate pipeline-cache-background 36 checks. The 24 other gates binding the
+    edited files rerun on the final preparation, all passed. Frozen: 64 fresh gates, contract `aaa85804`; contract test
+    423 checks. Evidence docs/evidence/melonx-697-gates (25 receipts, run.json). Next: Core CI, pin, IPA 694. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
