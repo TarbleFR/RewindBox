@@ -1704,6 +1704,50 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Device reading after delivery:** with async on, the DMA summary "rerouted into buffers/copied", texFlushAction and
     read fence waits per window, the held draws line, and whether the staircase corruption is gone; async off must be
     unchanged except the read-back.
+- **MeloNX sync lot 1 (Claude Code, 8 Nov; owner: Claude Code, integration and Core build; no IPA yet):** input IPA 694 /
+  Core 699, Hogwarts pid 40200 session 902CF1BC (stderr `5f6a88ce`, stderr.previous `1badbec4`, core `00fe839f`,
+  performance `badae74a`).
+  - Producers. Action (17 263 ms of 20 785.9 ms, own 111.1 ms): about one per 5 s window per counterReports flush (79-133
+    Actions vs 51-147 FlushPendingReports per window, own about 0): GpuContext.FlushCounterReports, from
+    ThreedClass.IncrementSyncpoint with pending occlusion reports (occlusionQuerySync=true; the queued path covers GPFifo
+    increments only). Its empty Action follows its own CreateSync(Force): the wait is the render-thread backlog ahead of
+    that submission, then counterReports/queryReadback wait the GPU (200-350 ms per window). Not texture flush actions
+    (texFlushAction 2-10 ms per window). Removing the Action only moves the wait to the query flush (same dependency);
+    not changed. GPU.MainThread idles 1.0-4.3 s per 5 s (gpuFifoWait median 2 025 ms) and the Metal GPU is busy about 15 %:
+    neither saturates, so a GPU-thread wait removed is a gain only where the guest has queued work.
+  - Session figures (35 windows, 18:44:13-18:47:19 UTC): sync waits 20 785.9 ms; Action 2 364 calls 17 263.0 ms (83.1 %,
+    7.30 ms per call, per-window median 4.82), BufferGetData 11 628 calls 3 349.7 ms (16.1 %, 0.288 ms per call, per-window
+    median 0.267; the earlier 0.65 ms was one window, 706 calls / 460.7 ms at 18:45:06), ProgramCheckLink 172.8 ms.
+  - First avoidable sync, fixed (sub-lot validated locally, lot 1 open): BufferGetData. Buffer.FlushImpl only runs after
+    WaitForAndFlushRanges' WaitSync: that wait takes the highest sync strictly before the current one among the overlapping
+    ranges, and RemoveRangesAndFlush flushes only ranges whose sync is at most it, clamped to the requested range; a later
+    write re-signals its range with a newer sync, so it is not flushed now. ThreadedRenderer.WaitSync returns once the render
+    thread ran the CreateSync (SyncMap) and the fence signalled. Replacement (ChangeBacking) is a self-migration:
+    RangeActionWithMigration reads the old handle (snapshot action, reference held) until the copy's sync is covered.
+    Core 701 adapt_synced_buffer_reads: IRenderer.GetBufferDataAfterSync (default GetBufferData); ThreadedRenderer reads on
+    the calling thread as its non-GPU-thread branch does for guest threads (MapBufferBlocking waits for a buffer being
+    created, throws once the renderer failed); FlushImpl uses it. Lifetime: the PinnedSpan is disposed inside FlushImpl;
+    mapped reads hold the BufferHolder reference until then; unmapped reads use the GPU thread's own background flush
+    buffer and pool (queue submissions under the renderer's queue lock), no longer the render thread's flush buffer
+    returned across threads. Gate synced-buffer-reads 60 checks (production GAL, backend double): behind 300 ms of work
+    300.2 -> 0.07 ms; 20 reads behind 20 ms each 403.6 -> 0.33 ms, render-thread round trips 20 -> 0; whole path from the
+    necessary WaitSync to usable bytes with 300 ms queued after the sync 300.2 -> 0.05 ms, time to the next sync unchanged
+    (300 ms both: that work is needed by it); read after write, later unsynced write (synced state, never mixed), buffer
+    being created (waited 300 ms, never read missing), renderer failure (throws at once), 400 concurrent reads from a guest
+    thread and the GPU thread all correct, teardown normal. Share of the 694 BufferGetData taking the new path: by code,
+    the GPU thread invokes BufferGetData only from Buffer.FlushImpl (new path) and MultiRangeBuffer.GetData (unchanged);
+    the 694 line does not split them, the 701 line will (the remaining BufferGetData waits are the unchanged part).
+  - Long frames: per 5 s window, intervals over 100 ms do not follow Action wait (r = -0.03), weakly BufferGetData
+    (0.31) and render-thread busy time (0.28); per-frame attribution is not in the 694 logs.
+  - Action, examined: about 0.7 per presented frame (2 364 in 35 windows), placed at ThreedClass.IncrementSyncpoint
+    with pending reports; the work ahead is the render-thread backlog up to its own CreateSync. Candidate redundancies,
+    equivalence provable but frequency unknown from 694: a second drain right after DrainQueuedSyncpoints' drain in the
+    same increment (one drain can cover both if the report CreateSync is queued first), and a drain when every pending
+    report is already complete. Next: split the Action waits by producer on the existing line, then fix those that occur.
+  - Next: the 3D-increment report sync (defer to the first consumer only with publication checked while the GPU thread is
+    busy; device A/B needed), the strict-sync submit rate (about 2 250 submits per 5 s), render-thread draw cost.
+  - Device: not measured. To compare on the same 1x route: the BufferGetData part of "GPU thread sync waits" (expected
+    near 0), gpuFifoWait, present gaps p95/p99 and intervals over 100 ms.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

@@ -1,0 +1,130 @@
+{
+  "result": "passed",
+  "checks": 60,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.GAL/IRenderer.cs": "d6c1355eeae0cd421788957ff298f4f9f1e31ce8d82cf61f30bb26905256192d",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "8314fca1df4327f995460e0fab596bac58d75b3b6d5abc18facbdc7804cf5927",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "2c6ab94389b5ef10dad8bac6f89f24d1ab0f32786ccd56de50f6b3772e5fe43d"
+  },
+  "comparison": {
+    "roundTripsControl": 20,
+    "roundTripsCandidate": 0,
+    "behindWorkMs": [
+      300.705,
+      0.053
+    ],
+    "repeatedMs": [
+      404.456,
+      0.399
+    ],
+    "toUsableBytesMs": [
+      300.226,
+      0.126
+    ],
+    "toNextSyncMs": [
+      300.377,
+      300.185
+    ]
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "calls": {
+        "necessaryWaitMs": 0.053,
+        "toUsableBytesMs": 300.226,
+        "toNextSyncMs": 300.377,
+        "usableValue": "4",
+        "concurrentReads": 400,
+        "concurrentBad": 0,
+        "noWorkMs": 2.297,
+        "noWorkValue": "1",
+        "behindWorkMs": 300.705,
+        "behindWorkValue": "1",
+        "repeatedMs": 404.456,
+        "repeatedLongestMs": 20.386,
+        "repeatedValues": [
+          "1"
+        ],
+        "repeatedReads": 20,
+        "repeatedReadsOffRenderThread": 0,
+        "afterWriteMs": 0.431,
+        "afterWriteValue": "2",
+        "unsyncedLaterMs": 200.157,
+        "unsyncedLaterValue": "3",
+        "afterLaterSyncValue": "3",
+        "inFlightMs": 300.215,
+        "inFlightValue": "0",
+        "readsOfMissingBuffers": 0
+      },
+      "loopError": null,
+      "failure": {
+        "readOutcome": "InvalidOperationException: backend failure (fixture)",
+        "readMs": 0.301,
+        "scenarioError": null,
+        "loopError": "backend failure (fixture)"
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "calls": {
+        "necessaryWaitMs": 0.119,
+        "toUsableBytesMs": 0.126,
+        "toNextSyncMs": 300.185,
+        "usableValue": "4",
+        "concurrentReads": 400,
+        "concurrentBad": 0,
+        "noWorkMs": 0.825,
+        "noWorkValue": "1",
+        "behindWorkMs": 0.053,
+        "behindWorkValue": "1",
+        "repeatedMs": 0.399,
+        "repeatedLongestMs": 0.255,
+        "repeatedValues": [
+          "1"
+        ],
+        "repeatedReads": 20,
+        "repeatedReadsOffRenderThread": 20,
+        "afterWriteMs": 0.231,
+        "afterWriteValue": "2",
+        "unsyncedLaterMs": 0.061,
+        "unsyncedLaterValue": "2",
+        "afterLaterSyncValue": "3",
+        "inFlightMs": 300.282,
+        "inFlightValue": "0",
+        "readsOfMissingBuffers": 0
+      },
+      "loopError": null,
+      "failure": {
+        "readOutcome": "InvalidOperationException: backend failure (fixture)",
+        "readMs": 0.314,
+        "scenarioError": null,
+        "loopError": "backend failure (fixture)"
+      }
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Graphics.GAL",
+    "Ryujinx.Graphics.Gpu",
+    "Ryujinx.Graphics.Vulkan"
+  ],
+  "productionGalExecuted": true,
+  "nativeBackendDouble": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.GAL/IRenderer.cs": "7435fb2578c74f645a5d44c269b55afa70ba267dd6c50ce40eb9ad4fe613898a",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "04e29d2d861ef4da902f0b10d9176dbd3c6f9b1d814ee4f73486a7e83d142b39",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "388f3a7ca9e412ea5bd55d2551911ce316078b5d63adf6adb7d2984ca16dc50f"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_synced_buffer_reads.py": "be72e2d4c91ad3aa9a3b50e1a0e913c1a36fb3b94c7d1dd6000ca4ede5eaad62",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_synced_buffer_reads_test.py": "50def96ef371bd6fa97785ed9d0060d1a78af3059c6213d3d4d84194af389acc",
+    "test/melonx_adapter_control.py": "2ce7aa20fe1e3bbb6fe03a2d0b1e13e43526023ec5f5afdf113d28b16c790bfd",
+    "test/melonx_synced_buffer_reads/Program.cs": "95117f925ead97ddffbf686977ccf4434dac5966b383afda31ffbe5fe22bf878",
+    "test/melonx_synced_buffer_reads/Backend.cs": "3ad1a6a260d5ad0d0366249499f69c2fde26f02a5e00b98252a98d05ec2b8807"
+  },
+  "limitation": "Host threads with a native backend double; the Vulkan BufferHolder read off the render thread is the path guest threads already use and is not executed here. The GPU thread time saved in Hogwarts Legacy and any frame-time change are known only from a device run."
+}
