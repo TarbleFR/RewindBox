@@ -150,6 +150,7 @@ from adapt_worker_main_cache_lookup import apply as adapt_worker_main_cache_look
 from adapt_compute_switch_bindings import apply as adapt_compute_switch_bindings
 from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
 from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
+from adapt_pipeline_cache_background import apply as adapt_pipeline_cache_background
 
 
 def replace_once(path, old, new):
@@ -409,6 +410,9 @@ def main():
     # Core 697 (IPA 693 counters: 293 of 297 whole delta scans for an invalidated texture, 40 whole re-checks, 24
     # rebuilds): bindless delta passes visit the elements of invalidated textures and repair in place.
     adapted += [source / name for name in adapt_array_delta_invalidated(source)]
+    # Core 697 (IPA 693: the 780 MiB main pipeline cache took 536 s to load with a cold Metal cache): it loads in the
+    # background and is merged into main; the game no longer waits for it.
+    adapted += [source / name for name in adapt_pipeline_cache_background(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -522,7 +526,8 @@ def main():
                  'adapt_worker_main_cache_lookup.py',
                  'adapt_compute_switch_bindings.py',
                  'adapt_bgc_keepalive.py',
-                 'adapt_array_delta_invalidated.py']:
+                 'adapt_array_delta_invalidated.py',
+                 'adapt_pipeline_cache_background.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
