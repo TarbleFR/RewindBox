@@ -35,7 +35,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_pipeline_failure_identity', 'adapt_worker_main_cache_lookup',
          'adapt_compute_switch_bindings', 'adapt_bgc_keepalive',
          'adapt_array_delta_invalidated', 'adapt_pipeline_cache_background',
-         'adapt_sync_wait_attribution')
+         'adapt_sync_wait_attribution', 'adapt_synced_buffer_reads')
 
 
 def sha(path: Path) -> str:

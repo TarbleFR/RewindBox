@@ -91,8 +91,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # destroyed image; failed pipelines named; worker compiles look in the main cache first); 63 with Core 693 (IPA 691 in play: a
 # compute/graphics switch re-sends the resolved bindings; the background GC thread is kept alive); 64 with Core 697 (IPA 693:
 # bindless delta repairs in place; the main pipeline cache loads in the background); 65 with Core 699 (IPA 692: the GPU
-# thread's synchronous waits attributed per invoked command on the existing render work line).
-FRESH_GATES = 65
+# thread's synchronous waits attributed per invoked command on the existing render work line); 66 with Core 701 (IPA 694:
+# a buffer flush after its sync reads without a render-thread round trip).
+FRESH_GATES = 66
 HISTORICAL_RECEIPTS = 61
 
 

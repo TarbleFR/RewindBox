@@ -145,6 +145,8 @@ LOT_FILES = {
     'adapt_pipeline_cache_background': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Core 699: the GPU thread's synchronous waits attributed per invoked command.
     'adapt_sync_wait_attribution': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Core 701: buffer flushes read after their sync.
+    'adapt_synced_buffer_reads': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
 }
 
 checks = 0

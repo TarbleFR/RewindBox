@@ -152,6 +152,7 @@ from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
 from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
 from adapt_pipeline_cache_background import apply as adapt_pipeline_cache_background
 from adapt_sync_wait_attribution import apply as adapt_sync_wait_attribution
+from adapt_synced_buffer_reads import apply as adapt_synced_buffer_reads
 
 
 def replace_once(path, old, new):
@@ -418,6 +419,9 @@ def main():
     # each synchronous wait is attributed to its invoked command (queue drained ahead, the command itself) on the
     # existing render work line; no log line added.
     adapted += [source / name for name in adapt_sync_wait_attribution(source)]
+    # Core 701 (IPA 694: BufferGetData waited 3 349.7 ms in 35 windows for 7.5 ms of reads): a buffer flush, which follows
+    # the wait for its sync, reads without draining the render thread's queue.
+    adapted += [source / name for name in adapt_synced_buffer_reads(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -533,7 +537,8 @@ def main():
                  'adapt_bgc_keepalive.py',
                  'adapt_array_delta_invalidated.py',
                  'adapt_pipeline_cache_background.py',
-                 'adapt_sync_wait_attribution.py']:
+                 'adapt_sync_wait_attribution.py',
+                 'adapt_synced_buffer_reads.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
