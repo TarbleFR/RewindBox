@@ -65,7 +65,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-worker-main-cache-lookup-') as t
             changed = adapter.apply(work)
             check([str(p.relative_to(work)) for p in changed] == [adapter.STATE], 'adapter changed other files')
             if FINAL_PREPARATION:
-                check((work / adapter.STATE).read_bytes() == (FINAL_SOURCE / adapter.STATE).read_bytes(), 'final preparation is the adapter')
+                # Later adapters editing PipelineState.cs (Core 695: adapt_pipeline_failure_state) are re-applied forward.
+                from melonx_adapter_control import later_sharing
+                import importlib
+                forward = Path(temporary).resolve() / 'forward'
+                (forward / adapter.STATE).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(work / adapter.STATE, forward / adapter.STATE)
+                for later in later_sharing('adapt_worker_main_cache_lookup'):
+                    importlib.import_module(later).apply(forward)
+                check((forward / adapter.STATE).read_bytes() == (FINAL_SOURCE / adapter.STATE).read_bytes(), 'final preparation is the adapter')
         text = (work / adapter.STATE).read_text(encoding='utf-8-sig')
         texts[variant] = text
         result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj'), '-c', 'Release',
