@@ -32,5 +32,17 @@
  "preparationInputs": 183,
  "preparedMembers": 204,
  "contractTest": "423 checks passed with the authenticated 614 archive",
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ci": {
+  "run": 42474580788,
+  "attempt": 2,
+  "job": 128716532351,
+  "artifact": 13616601214,
+  "bytes": 90767605,
+  "sha256": "b66f344a262bb89129fc330394ae6a1d7f0d768b6c58f707573415d13c6fd2ef",
+  "iphoneBinary": "75bcd61ad6cbd5f365182292f574f8fe2fde3257143d4591f6e25503f2ebd5d7",
+  "packagedFingerprint": "def8d714271b9fc68d662bc7f3137594cb976c724fd2dedce85bb16130cc442c",
+  "attempt1": "forced-syncpoint-wait timing check 159.8 ms for a 150 ms bound on the runner (files unchanged in Core 695); failed job rerun",
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)"
+ }
 }

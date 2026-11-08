@@ -1592,8 +1592,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `c0524dd9`; contract test 423 checks with the authenticated archive. Evidence docs/evidence/melonx-695-gates/
     (15 receipts, run.json). Core CI run 42474580788 on `f4223aa5`, attempt 1 red: forced-syncpoint-wait "candidate
     returns promptly at guest termination", TerminationToReturnMs 159.8 for a 150 ms bound on the runner (none of its
-    seven bound files changed in Core 695; threshold kept); failed job rerun (attempt 2). Next: pin, IPA 693 = 692 +
-    Core 695 (draft and recipient key `809a9690` ready). Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    seven bound files changed in Core 695; threshold kept); failed job rerun (attempt 2).
+  - **Core 695 pinned (8 Nov):** run 42474580788 attempt 2 green on `f4223aa5` (64 fresh gates on Apple ARM64, NativeAOT,
+    simulator sessions); artifact 13616601214 (90767605 B, `b66f344a…`), iPhone binary `75bcd61a…` (38225952 B),
+    packaged fingerprint `def8d714…`; engine_evidence passed offline. Replaces Core 693 (`366fde42`). Next: IPA 693 =
+    692 + Core 695. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
