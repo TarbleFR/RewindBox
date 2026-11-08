@@ -153,6 +153,7 @@ from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
 from adapt_pipeline_cache_background import apply as adapt_pipeline_cache_background
 from adapt_sync_wait_attribution import apply as adapt_sync_wait_attribution
 from adapt_synced_buffer_reads import apply as adapt_synced_buffer_reads
+from adapt_layout_used_types import apply as adapt_layout_used_types
 
 
 def replace_once(path, old, new):
@@ -422,6 +423,9 @@ def main():
     # Core 701 (IPA 694: BufferGetData waited 3 349.7 ms in 35 windows for 7.5 ms of reads): a buffer flush, which follows
     # the wait for its sync, reads without draining the render thread's queue.
     adapted += [source / name for name in adapt_synced_buffer_reads(source)]
+    # Core 703 (IPAs 688-694: Hogwarts Legacy program 890A188FB55B5D5D, "SPIR-V to MSL conversion error: nullptr", its
+    # draws unavailable): a stage's layout declares each binding it uses with the type it uses it as.
+    adapted += [source / name for name in adapt_layout_used_types(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -538,7 +542,8 @@ def main():
                  'adapt_array_delta_invalidated.py',
                  'adapt_pipeline_cache_background.py',
                  'adapt_sync_wait_attribution.py',
-                 'adapt_synced_buffer_reads.py']:
+                 'adapt_synced_buffer_reads.py',
+                 'adapt_layout_used_types.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -92,8 +92,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # compute/graphics switch re-sends the resolved bindings; the background GC thread is kept alive); 64 with Core 697 (IPA 693:
 # bindless delta repairs in place; the main pipeline cache loads in the background); 65 with Core 699 (IPA 692: the GPU
 # thread's synchronous waits attributed per invoked command on the existing render work line); 66 with Core 701 (IPA 694:
-# a buffer flush after its sync reads without a render-thread round trip).
-FRESH_GATES = 66
+# a buffer flush after its sync reads without a render-thread round trip); 67 with Core 703 (IPAs 688-694: a stage's
+# layout declares each used binding with its used type, Hogwarts Legacy program 890A188FB55B5D5D).
+FRESH_GATES = 67
 HISTORICAL_RECEIPTS = 61
 
 

@@ -147,6 +147,8 @@ LOT_FILES = {
     'adapt_sync_wait_attribution': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
     # Core 701: buffer flushes read after their sync.
     'adapt_synced_buffer_reads': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Core 703: a stage's layout declares each used binding with its used type (no file of this lot).
+    'adapt_layout_used_types': [],
 }
 
 checks = 0
