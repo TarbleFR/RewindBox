@@ -66,8 +66,8 @@ from adapt_pipeline_failure_identity import BASELINE as C691_PIPELINE_FAILURE_ID
 from adapt_worker_main_cache_lookup import BASELINE as C691_WORKER_MAIN_CACHE_LOOKUP  # noqa: E402
 from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDINGS  # noqa: E402
 from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
-from adapt_pipeline_failure_state import BASELINE as C695_PIPELINE_FAILURE_STATE  # noqa: E402
-from adapt_array_delta_causes import BASELINE as C695_ARRAY_DELTA_CAUSES  # noqa: E402
+from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
+from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -134,8 +134,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'released-texture-flush': 'delivered', 'pipeline-failure-identity': 'delivered', 'worker-main-cache-lookup': 'delivered',
             # Core 693: compute/graphics switch bindings; background GC keep-alive.
             'compute-switch-bindings': 'delivered', 'bgc-keepalive': 'delivered',
-            # Core 695: diagnostics (failed pipeline state, delta pass causes).
-            'core695-diagnostics': 'delivered',
+            # Core 697: background main pipeline cache load.
+            'pipeline-cache-background': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -166,8 +166,8 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C691_RELEASED_TEXTURE_FLUSH) | set(C691_PIPELINE_FAILURE_IDENTITY) | set(C691_WORKER_MAIN_CACHE_LOOKUP) |
            # Core 693: TextureManager.cs and TextureBindingsManager.cs (GPU), EmbeddedSession.cs (Library).
            set(C693_COMPUTE_SWITCH_BINDINGS) | set(C693_BGC_KEEPALIVE) |
-           # Core 695: PipelineState.cs and TextureBindingsArrayCache.cs (already changed).
-           set(C695_PIPELINE_FAILURE_STATE) | set(C695_ARRAY_DELTA_CAUSES))
+           # Core 697: TextureBindingsArrayCache.cs, PipelineCacheManager.cs, PipelineState.cs, VulkanRenderer.cs (already changed).
+           set(C697_ARRAY_DELTA_INVALIDATED) | set(C697_PIPELINE_CACHE_BACKGROUND))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -442,8 +442,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_worker_main_cache_lookup.py',
                                                      'build-utils/melonx/adapt_compute_switch_bindings.py',
                                                      'build-utils/melonx/adapt_bgc_keepalive.py',
-                                                     'build-utils/melonx/adapt_pipeline_failure_state.py',
-                                                     'build-utils/melonx/adapt_array_delta_causes.py'} and
+                                                     'build-utils/melonx/adapt_array_delta_invalidated.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_background.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',

@@ -140,9 +140,9 @@ LOT_FILES = {
     # Core 693: compute/graphics switch bindings and the GC keep-alive (no file held here).
     'adapt_compute_switch_bindings': [],
     'adapt_bgc_keepalive': [],
-    # Core 695: diagnostics (no file held here).
-    'adapt_pipeline_failure_state': [],
-    'adapt_array_delta_causes': [],
+    # Core 697: bindless delta repairs (no file held here); the main pipeline cache loads in the background.
+    'adapt_array_delta_invalidated': [],
+    'adapt_pipeline_cache_background': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0

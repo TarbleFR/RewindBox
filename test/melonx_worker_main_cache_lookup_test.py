@@ -69,9 +69,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-worker-main-cache-lookup-') as t
                 from melonx_adapter_control import later_sharing
                 import importlib
                 forward = Path(temporary).resolve() / 'forward'
+                laters = later_sharing('adapt_worker_main_cache_lookup')
+                # The later adapters' other files come from the final preparation with them reversed (postimage).
+                from melonx_adapter_control import postimage
+                if laters:
+                    postimage('adapt_worker_main_cache_lookup', FINAL_SOURCE, forward)
                 (forward / adapter.STATE).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(work / adapter.STATE, forward / adapter.STATE)
-                for later in later_sharing('adapt_worker_main_cache_lookup'):
+                for later in laters:
                     importlib.import_module(later).apply(forward)
                 check((forward / adapter.STATE).read_bytes() == (FINAL_SOURCE / adapter.STATE).read_bytes(), 'final preparation is the adapter')
         text = (work / adapter.STATE).read_text(encoding='utf-8-sig')

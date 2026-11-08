@@ -20,14 +20,23 @@ const long SnapshotBytes = 10L * 1024 * 1024;
 const int LoadMs = 1500;
 int sessions = 0;
 
+const long WorkerBytes = 1L * 1024 * 1024;
+
 string WriteSnapshot(string directory)
 {
     string cacheDirectory = Path.Combine(directory, "cache", "vulkan");
     Directory.CreateDirectory(cacheDirectory);
     string path = Path.Combine(cacheDirectory, "pipeline-00000000-00000000-00000000.vkpc");
     using (var stream = new FileStream(path, FileMode.Create)) { stream.SetLength(SnapshotBytes); }
+    for (int index = 0; index < 2; index++)
+    {
+        using var worker = new FileStream(Path.Combine(cacheDirectory, $"pipeline-00000000-00000000-00000000.worker{index}.vkpc"), FileMode.Create);
+        worker.SetLength(WorkerBytes);
+    }
     return path;
 }
+
+string WorkerPath(string mainPath, int index) => Path.ChangeExtension(mainPath, null) + $".worker{index}.vkpc";
 
 (PipelineCacheManager Manager, Vk Vk, Lock MainLock, string Snapshot, double CtorMs) NewManager(bool snapshot, int loadMs, bool reject = false)
 {
@@ -66,7 +75,9 @@ string FileState(string path) { var info = new FileInfo(path); return info.Lengt
     Events.Clear();
     var (manager, vk, mainLock, path, ctorMs) = NewManager(true, LoadMs);
     long mainAtStart = vk.Size(manager.MainCache);
+    long workersAtStart = vk.Size(manager.GetWorkerCache(0)) + vk.Size(manager.GetWorkerCache(1));
     bool pendingAtStart = Pending(manager);
+    string workerFilesBefore = FileState(WorkerPath(path, 0)) + "|" + FileState(WorkerPath(path, 1));
     string fileBefore = FileState(path);
     // While loading: a pause checkpoint and the teardown save must not replace the file.
     manager.NotifyMainPipelineCreated();
@@ -90,6 +101,15 @@ string FileState(string path) { var info = new FileInfo(path); return info.Lengt
 #endif
     bool loaded = WaitLoaded(manager, 10_000);
     long mainAfterLoad = vk.Size(manager.MainCache);
+    // A worker that compiled pipelines does not overwrite its file before main is written with its snapshot.
+    var workerCache = manager.GetWorkerCache(0);
+    vk.Grow(workerCache, 256 * 1024);
+    for (int i = 0; i < 200; i++) manager.NotifyWorkerPipelineCreated(0);
+    bool workerFilesKeptBeforeMainWrite = workerFilesBefore == FileState(WorkerPath(path, 0)) + "|" + FileState(WorkerPath(path, 1));
+    string mainFileBeforeSave = FileState(path);
+    manager.MergeAndSave();
+    long mainFileAfterSave = new FileInfo(path).Length;
+    bool workerFileAfterMain = FileState(WorkerPath(path, 0)) != workerFilesBefore.Split('|')[0];
     var events = Events.Snapshot();
     var merge = events.FirstOrDefault(e => e.Text.StartsWith("merge into main"));
     var snapshotBegin = events.FirstOrDefault(e => e.Text.StartsWith("snapshot begin"));
@@ -103,7 +123,13 @@ string FileState(string path) { var info = new FileInfo(path); return info.Lengt
     {
         ctorMs,
         mainAtStart,
+        workersAtStart,
         pendingAtStart,
+        workerFilesKeptBeforeMainWrite,
+        mainFileUnchangedBeforeSave = mainFileBeforeSave == fileBefore,
+        mainFileAfterSave,
+        workerFileAfterMain,
+        loaderMerges = events.Count(e => e.Text.StartsWith("merge into main") && e.Thread == "RewindBox.PipelineCacheLoad"),
         fileUnchangedDuringLoad = fileBefore == fileDuringLoad,
         workerWaitMs,
         workerSawLoaded,

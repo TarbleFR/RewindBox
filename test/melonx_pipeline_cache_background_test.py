@@ -65,7 +65,8 @@ def text(tree, name):
 
 manager_k, manager_c = text(CANDIDATE, VULKAN + 'PipelineCacheManager.cs'), text(CONTROL_SOURCE, VULKAN + 'PipelineCacheManager.cs')
 check(manager_k.replace(adapter.FIELDS_NEW, adapter.FIELDS_OLD).replace(adapter.LOAD_NEW, adapter.LOAD_OLD)
-      .replace(adapter.END_NEW, adapter.END_OLD) == manager_c, 'PipelineCacheManager differs only by the background load')
+      .replace(adapter.END_NEW, adapter.END_OLD).replace(adapter.WORKERS_NEW, adapter.WORKERS_OLD) == manager_c,
+      'PipelineCacheManager differs only by the background load')
 check(manager_k.count('CreateCache(snapshot, "main", out accepted)') == 1 and 'CreateCache(mainSnapshot' not in manager_k,
       'the snapshot is created only by the loader')
 load = manager_k[manager_k.index('private unsafe void LoadMainSnapshot('):]
@@ -120,7 +121,14 @@ check(ks['ctorMs'] < 500 and ks['pendingAtStart'] and ks['mainAtStart'] < 1024 *
       'candidate: the constructor returns at once with main empty: %.0f ms' % ks['ctorMs'])
 check(ks['snapshotThread'] == 'RewindBox.PipelineCacheLoad' and ks['mergeThread'] == 'RewindBox.PipelineCacheLoad' and
       ks['mergeText'] == 'merge into main 1 lockHeld=True', 'candidate: created and merged on the loader thread, under the main lock')
-check(ks['loaded'] and ks['mainAfterLoad'] >= SNAPSHOT, 'candidate: main holds the snapshot once loaded')
+WORKER = 1024 * 1024
+check(cs['mainAtStart'] >= SNAPSHOT + 2 * WORKER - 64, 'control: the worker snapshots joined main at startup (adapt_pipeline_cache_room)')
+check(ks['workersAtStart'] <= 64, 'candidate: the workers start empty')
+check(ks['loaded'] and ks['mainAfterLoad'] >= SNAPSHOT + 2 * WORKER - 64 and ks['loaderMerges'] == 3,
+      'candidate: main holds the snapshot and both worker snapshots once loaded, merged on the loader thread')
+check(ks['workerFilesKeptBeforeMainWrite'] and ks['mainFileUnchangedBeforeSave'],
+      'candidate: no worker overwrites its file before main is written with its content')
+check(ks['mainFileAfterSave'] >= SNAPSHOT + 2 * WORKER, 'candidate: main is then written with the snapshot and both worker snapshots (%d)' % ks['mainFileAfterSave'])
 check(ks['fileUnchangedDuringLoad'], 'candidate: no checkpoint or teardown save replaces the file while it loads')
 check(ks['workerSawLoaded'] and ks['workerWaitMs'] >= 500, 'candidate: a worker waits for the load: %.0f ms' % ks['workerWaitMs'])
 check(ks['fileAfter'] >= SNAPSHOT + 9 * 1024 * 1024 and cs['fileAfter'] >= SNAPSHOT + 9 * 1024 * 1024,

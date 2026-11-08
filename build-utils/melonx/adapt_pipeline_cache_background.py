@@ -8,7 +8,9 @@ from the 780 MiB Hogwarts snapshot recompiles every Metal library ever cached, f
 compiler cache is warm. Startup also merged the worker snapshots into main (1.4 s, adapt_pipeline_cache_room).
 
 Change:
-- PipelineCacheManager starts main empty and loads its snapshot on the thread RewindBox.PipelineCacheLoad; MoltenVK's
+- PipelineCacheManager starts main (and, beside it, the workers) empty and loads the snapshots on the thread
+  RewindBox.PipelineCacheLoad (the worker snapshots join main there, as adapt_pipeline_cache_room did at startup, and
+  the workers keep their files until main is written with them); MoltenVK's
   result is merged into main under the main lock with the checkpoint protocol (render-thread creations go to the side
   cache meanwhile, merged before the lock is released). Until then main is Frozen (no checkpoint, pause or final write
   can replace the file with less than it holds) and the worker snapshots stay as loaded (the startup merge requires a
@@ -42,6 +44,7 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
         private readonly object _mainLoadLock = new();
         private readonly ManualResetEventSlim _mainLoaded = new(true);
         private MappedSnapshot _pendingMainSnapshot;
+        private MappedSnapshot[] _pendingWorkerSnapshots;
         private bool _mainLoadRunning;
         private Action _deferredDeviceRelease;
         private long _mainLoadWaitDeadline;
@@ -117,6 +120,10 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
         {
             long start = Environment.TickCount64;
             long length = snapshot.Length;
+            MappedSnapshot[] workerSnapshots = _pendingWorkerSnapshots ?? Array.Empty<MappedSnapshot>();
+            _pendingWorkerSnapshots = null;
+            PipelineCache[] workerStaging = new PipelineCache[workerSnapshots.Length];
+            long[] workerLengths = new long[workerSnapshots.Length];
 
             try
             {
@@ -134,6 +141,37 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                 finally
                 {
                     snapshot.Dispose();
+                }
+
+                // The worker snapshots load here too, outside the main lock.
+                for (int index = 0; index < workerSnapshots.Length; index++)
+                {
+                    MappedSnapshot workerSnapshot = workerSnapshots[index];
+
+                    if (workerSnapshot == null)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        workerLengths[index] = workerSnapshot.Length;
+                        workerStaging[index] = CreateCache(workerSnapshot, $"worker {index}", out bool workerAccepted);
+
+                        if (!workerAccepted)
+                        {
+                            _api.DestroyPipelineCache(_device, workerStaging[index], null);
+                            workerStaging[index] = default;
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        Logger.Warning?.PrintMsg(LogClass.Gpu, $"Vulkan worker {index} pipeline cache snapshot not loaded: {exception.Message}");
+                    }
+                    finally
+                    {
+                        workerSnapshot.Dispose();
+                    }
                 }
 
                 // The checkpoint protocol: render-thread creations go to the side cache while the main lock is held.
@@ -162,18 +200,67 @@ FIELDS_NEW = '''        private long _workerSnapshotsHeldUntil;
                             Interlocked.Increment(ref _mainState.Generation);
                         }
 
+                        // As adapt_pipeline_cache_room at startup: each worker snapshot that fits joins main. Main then holds
+                        // content its file does not; the workers keep their files until main is written at or past it,
+                        // and for this session if a worker snapshot could not join main.
+                        long room = _mainState.Budget - (accepted ? length : 0);
+                        int pendingWorkers = 0;
+                        int mergedWorkers = 0;
+                        long mergedBytes = 0;
+
+                        for (int index = 0; index < workerSnapshots.Length; index++)
+                        {
+                            if (workerSnapshots[index] == null)
+                            {
+                                continue;
+                            }
+
+                            pendingWorkers++;
+
+                            if (workerStaging[index].Handle != 0 && workerLengths[index] <= room &&
+                                MergeInto(_mainState.Cache, workerStaging.AsSpan(index, 1)))
+                            {
+                                mergedWorkers++;
+                                mergedBytes += workerLengths[index];
+                                room -= workerLengths[index];
+                            }
+                        }
+
+                        if (mergedWorkers != 0)
+                        {
+                            long held = Interlocked.Increment(ref _mainState.Generation);
+
+                            if (mergedWorkers == pendingWorkers)
+                            {
+                                Interlocked.Exchange(ref _workerSnapshotsHeldUntil, held);
+                            }
+                        }
+                        else if (pendingWorkers == 0)
+                        {
+                            Interlocked.Exchange(ref _workerSnapshotsHeldUntil, 0);
+                        }
+
                         _mainState.Frozen = false;
                         MergeSideCache();
 
                         Logger.Info?.PrintMsg(
                             LogClass.Gpu,
                             $"Vulkan main pipeline cache {(accepted ? "loaded" : "not loaded")} in the background: " +
-                            $"{FormatSize(length)} in {Environment.TickCount64 - start} ms (adapt_pipeline_cache_background).");
+                            $"{FormatSize(length)}, {mergedWorkers}/{pendingWorkers} worker snapshots ({FormatSize(mergedBytes)}) joined, " +
+                            $"in {Environment.TickCount64 - start} ms (adapt_pipeline_cache_background).");
                     }
 
                     if (staging.Handle != 0)
                     {
                         _api.DestroyPipelineCache(_device, staging, null);
+                    }
+
+                    foreach (PipelineCache workerCache in workerStaging)
+                    {
+                        if (workerCache.Handle != 0)
+                        {
+                            _api.DestroyPipelineCache(_device, workerCache, null);
+                        }
                     }
                 }
                 finally
@@ -320,6 +407,67 @@ RELEASE_NEW = '''            SurfaceApi.DestroySurface(_instance.Instance, _surf
             }
         }
 '''
+WORKERS_OLD = '''            int loadedWorkerCaches = 0;
+            
+            for (int index = 0; index < workerCount; index++)
+            {
+                using var startup = new Ryujinx.Common.EmbeddedStartupTrace("workerPipelineCache" + index);
+                using MappedSnapshot workerSnapshot = OpenSnapshot(workerCachePaths[index], workerBudget);
+
+                if (workerSnapshot != null)
+                {
+                    loadedWorkerCaches++;
+                }
+
+                string description = $"worker {index}";
+
+                _workerStates[index] = new(
+                    CreateCache(workerSnapshot, description, out bool workerSnapshotAccepted),
+                    workerCachePaths[index],
+                    description,
+                    workerBudget,
+                    workerSnapshot?.Length ?? 0,
+                    snapshotRejected: workerSnapshot != null && !workerSnapshotAccepted);
+            }
+'''
+WORKERS_NEW = '''            int loadedWorkerCaches = 0;
+            // RewindBox (adapt_pipeline_cache_background): beside a main snapshot loading in the background, the worker
+            // snapshots load with it and join main there (as adapt_pipeline_cache_room does at startup): the workers start
+            // empty and do not overwrite their files until main is written with their content.
+            _pendingWorkerSnapshots = new MappedSnapshot[workerCount];
+            
+            for (int index = 0; index < workerCount; index++)
+            {
+                using var startup = new Ryujinx.Common.EmbeddedStartupTrace("workerPipelineCache" + index);
+                MappedSnapshot workerSnapshot = OpenSnapshot(workerCachePaths[index], workerBudget);
+
+                if (workerSnapshot != null)
+                {
+                    loadedWorkerCaches++;
+                }
+
+                string description = $"worker {index}";
+
+                if (workerSnapshot != null && _pendingMainSnapshot != null)
+                {
+                    _pendingWorkerSnapshots[index] = workerSnapshot;
+                    _workerSnapshotsHeldUntil = long.MaxValue;
+                    _workerStates[index] = new(CreateCache(null, description), workerCachePaths[index], description, workerBudget, 0);
+                    continue;
+                }
+
+                using (workerSnapshot)
+                {
+                    _workerStates[index] = new(
+                        CreateCache(workerSnapshot, description, out bool workerSnapshotAccepted),
+                        workerCachePaths[index],
+                        description,
+                        workerBudget,
+                        workerSnapshot?.Length ?? 0,
+                        snapshotRejected: workerSnapshot != null && !workerSnapshotAccepted);
+                }
+            }
+'''
 
 
 def apply(source):
@@ -329,6 +477,7 @@ def apply(source):
     once(paths[MANAGER], FIELDS_OLD, FIELDS_NEW)
     once(paths[MANAGER], LOAD_OLD, LOAD_NEW)
     once(paths[MANAGER], END_OLD, END_NEW)
+    once(paths[MANAGER], WORKERS_OLD, WORKERS_NEW)
     once(paths[STATE], GRAPHICS_OLD, GRAPHICS_NEW)
     once(paths[STATE], COMPUTE_OLD, COMPUTE_NEW)
     once(paths[RENDERER], RELEASE_OLD, RELEASE_NEW)

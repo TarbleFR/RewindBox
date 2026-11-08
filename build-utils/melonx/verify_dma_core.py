@@ -89,8 +89,8 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # fixture rerun because its receipt declares EmbeddedMemory.cs); 58 with Core 689 (IPA 688 async-shaders logs: occupied
 # read-backs into a buffer, async skips only into regenerated targets); 61 with Core 691 (IPA 688/690 crash at 0x111: no copy from a
 # destroyed image; failed pipelines named; worker compiles look in the main cache first); 63 with Core 693 (IPA 691 in play: a
-# compute/graphics switch re-sends the resolved bindings; the background GC thread is kept alive); 64 with Core 695 (IPA 692
-# diagnostics: the failed pipeline's state, the bindless delta passes' whole-scan causes).
+# compute/graphics switch re-sends the resolved bindings; the background GC thread is kept alive); 64 with Core 697 (IPA 693:
+# bindless delta repairs in place; the main pipeline cache loads in the background).
 FRESH_GATES = 64
 HISTORICAL_RECEIPTS = 61
 
