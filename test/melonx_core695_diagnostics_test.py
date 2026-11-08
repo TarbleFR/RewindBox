@@ -8,7 +8,7 @@ delta passes scan whole 524 288-element arrays for an unknown reason. Both adapt
 and candidate the production Ryujinx.Graphics.Vulkan and Ryujinx.Graphics.Gpu assemblies are built (no compiler warning
 in the edited files). A probe compiled against the candidate's assemblies (test-only InternalsVisibleTo) runs the real
 NotePipelineFailureState on a PipelineState with two color attachments, depth and two vertex attributes, and the real
-NoteDeltaPass on 1024 passes of known causes, with a capturing log target (test/melonx_core695_diagnostics/Program.cs):
+NoteDeltaPass on 1024 passes of known causes, with a capturing log target and a temporary Core journal (test/melonx_core695_diagnostics/Program.cs):
 the state line's fields, once per (program, state), at most 64 lines; one cause line every 512 passes with each cause
 counted. Source: the state line is emitted only on a creation error, after the existing identity line; the delta pass
 takes the same branches as the control (the added lines are counters only). Writes
@@ -129,8 +129,9 @@ check('; vertex attributes 2: 0:R32G32B32Sfloat:0:0 1:R16G16Sfloat:1:12; vertex 
 check('topology TriangleStrip' in report['third'] and '890A188FB55B5D5D' in report['third'], 'another state of the program is logged')
 
 lines = report['deltaLines']
-check(len(lines) == 2 and all(line.startswith('Gpu NoteDeltaPass: ') for line in lines), 'one Gpu cause line every 512 passes')
-lines = [line[len('Gpu NoteDeltaPass: '):] for line in lines]
+check(len(lines) == 2 and all(line.startswith('causes: ') for line in lines) and report['loggerDeltaLines'] == 0,
+      'one Core journal line (stage arrayDelta) every 512 passes, none in the emulator log')
+lines = [line[len('causes: '):] for line in lines]
 check(lines[0] == 'Bindless delta passes: 512 (logged 192; whole scans: samplers 64, aliases moved 64, other pool 64, log overflow 64, '
       'invalidated texture 64); elements visited 167774080, changed 0; epoch rescans 0; full rebuilds 0; textures synchronised '
       'per pass 2000 (adapt_array_delta_causes)', 'each cause counted: ' + lines[0])
@@ -159,7 +160,8 @@ added = [line.strip() for line in ck.splitlines() if line not in set(cc.splitlin
 body = ck[ck.index('private void NoteDeltaPass('):ck.index('/// Updates the elements of a pool array whose pool objects changed')]
 check(all(not line.startswith(('return', 'continue', 'break', 'goto', 'throw')) for line in added), 'no control flow added to the pass')
 check('entry.' not in body and 'texturePool' not in body and 'Synchronize' not in body, 'the counters touch no pass state')
-check('_deltaPasses % 512 == 0' in body and body.count('Logger.Warning?.Print(') == 1, 'one line every 512 passes')
+check('_deltaPasses % 512 == 0' in body and body.count('EmbeddedLaunchDiagnostics.Record("arrayDelta", "causes"') == 1 and
+      'Logger' not in body, 'one journal line every 512 passes')
 check(ck.index('bool otherPool =') < ck.index('CollectLoggedChanges(entry, texturePool, logPosition, out candidates)', ck.index('bool otherPool =')),
       'causes measured before CollectLoggedChanges updates the entry')
 

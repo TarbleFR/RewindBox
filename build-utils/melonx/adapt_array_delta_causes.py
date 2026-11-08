@@ -8,7 +8,8 @@ another pool, when more than DeltaLogCapacity (4096) ids were logged since its l
 invalidated (ValidateTextures); it rescans everything again if a texture was invalidated during the pass, and it
 synchronises every texture the array holds on each pass. Which of these causes the scans is not measured.
 
-Change, diagnostics only (the pass itself is unchanged): counters on the GPU thread and one Warning line every 512
+Change, diagnostics only (the pass itself is unchanged): counters on the GPU thread and one private Core journal line
+(EmbeddedLaunchDiagnostics, stage arrayDelta, status causes; the file already compiles against the collector) every 512
 passes: passes, logged passes, whole scans by cause (samplers, aliases moved, other pool, log overflow, invalidated
 texture), elements visited and changed, epoch rescans, passes that fall back to the full rebuild, and the textures
 synchronised per pass. Not measured on an iPhone. Fail closed on drift: the file must be the Core 693 preparation's.
@@ -62,7 +63,7 @@ METHOD_OLD = '''        /// <summary>
         /// Updates the elements of a pool array whose pool objects changed since its last update.
         /// </summary>
 '''
-METHOD_NEW = '''        // RewindBox (adapt_array_delta_causes): delta pass causes, GPU thread only; one line every 512 passes.
+METHOD_NEW = '''        // RewindBox (adapt_array_delta_causes): delta pass causes, GPU thread only; one Core journal line every 512 passes.
         private long _deltaPasses, _deltaLogged, _deltaSamplerScans, _deltaAliasScans, _deltaOtherPoolScans, _deltaOverflowScans,
             _deltaInvalidScans, _deltaVisits, _deltaChanged, _deltaEpochRescans, _deltaRebuilds, _deltaSynchronised;
 
@@ -99,7 +100,7 @@ METHOD_NEW = '''        // RewindBox (adapt_array_delta_causes): delta pass caus
 
             if (_deltaPasses % 512 == 0)
             {
-                Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Gpu,
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("arrayDelta", "causes", detail:
                     $"Bindless delta passes: {_deltaPasses} (logged {_deltaLogged}; whole scans: samplers {_deltaSamplerScans}, " +
                     $"aliases moved {_deltaAliasScans}, other pool {_deltaOtherPoolScans}, log overflow {_deltaOverflowScans}, " +
                     $"invalidated texture {_deltaInvalidScans}); elements visited {_deltaVisits}, changed {_deltaChanged}; " +

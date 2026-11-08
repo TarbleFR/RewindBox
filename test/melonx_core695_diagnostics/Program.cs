@@ -1,3 +1,4 @@
+using Ryujinx.Common;
 using Ryujinx.Common.Logging;
 using Ryujinx.Common.Logging.Targets;
 using Ryujinx.Graphics.Gpu.Image;
@@ -5,6 +6,7 @@ using Ryujinx.Graphics.Vulkan;
 using Silk.NET.Vulkan;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -12,7 +14,7 @@ using System.Text.Json;
 // Runs the candidate's compiled diagnostics (adapt_pipeline_failure_state in PipelineState, adapt_array_delta_causes in
 // TextureBindingsArrayCache) with a capturing log target: the failure state line of a pipeline with two color
 // attachments, depth and two vertex attributes; once per (program, state); at most 64 lines; and the delta-pass cause
-// line every 512 passes with each cause counted.
+// line (private Core journal) every 512 passes with each cause counted.
 static class Program
 {
     private sealed class Capture : ILogTarget
@@ -66,6 +68,10 @@ static class Program
         List<string> stateLines;
         lock (capture.Lines) stateLines = capture.Lines.FindAll(l => l.Contains("(adapt_pipeline_failure_state)"));
 
+        string journal = Path.Combine(Path.GetTempPath(), "melonx-core695-" + Environment.ProcessId, "MeloNX-core.log");
+        Directory.CreateDirectory(Path.GetDirectoryName(journal)!);
+        File.Delete(journal);
+        EmbeddedLaunchDiagnostics.ConfigureJournal(journal);
         var cache = RuntimeHelpers.GetUninitializedObject(typeof(TextureBindingsArrayCache));
         MethodInfo pass = typeof(TextureBindingsArrayCache).GetMethod("NoteDeltaPass", BindingFlags.Instance | BindingFlags.NonPublic)!;
         for (int i = 0; i < 1024; i++)
@@ -75,8 +81,15 @@ static class Program
             bool logged = kind < 3, sampler = kind == 3, alias = kind == 4, otherPool = kind == 5, overflow = kind == 6;
             pass.Invoke(cache, new object[] { logged, sampler, alias, otherPool, overflow, logged ? 10 : 524288, 2000 });
         }
-        List<string> deltaLines;
-        lock (capture.Lines) deltaLines = capture.Lines.FindAll(l => l.Contains("(adapt_array_delta_causes)"));
+        List<string> deltaLines = new();
+        foreach (string line in File.ReadAllLines(journal))
+        {
+            using JsonDocument record = JsonDocument.Parse(line.Substring(line.IndexOf('{')));
+            if (record.RootElement.GetProperty("stage").GetString() == "arrayDelta")
+                deltaLines.Add(record.RootElement.GetProperty("status").GetString() + ": " + record.RootElement.GetProperty("diagnostic").GetString());
+        }
+        int loggerDeltaLines;
+        lock (capture.Lines) loggerDeltaLines = capture.Lines.FindAll(l => l.Contains("(adapt_array_delta_causes)")).Count;
 
         Console.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
         {
@@ -84,6 +97,7 @@ static class Program
             ["first"] = stateLines.Count > 0 ? stateLines[0] : "",
             ["third"] = stateLines.Count > 1 ? stateLines[1] : "",
             ["deltaLines"] = deltaLines,
+            ["loggerDeltaLines"] = loggerDeltaLines,
         }));
         return 0;
     }

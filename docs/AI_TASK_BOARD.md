@@ -1582,11 +1582,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     samples, color attachments with blend/mask/format, depth format, integer mask, vertex attributes and bindings).
     adapt_array_delta_causes counts why each bindless delta pass scans the whole array (sampler, aliases moved, other
     pool, log overflow, invalidated texture), plus epoch rescans, full rebuilds and textures synchronised per pass: one
-    Warning line every 512 passes. Gate core695-diagnostics (35 checks: real compiled methods, capturing log target,
+    private Core journal line (stage arrayDelta, status causes) every 512 passes; a Logger line failed to compile in the
+    standalone fixtures of bindless-array-deltas and binding-data-snapshots (no Ryujinx.Common.Logging there), the
+    collector is already compiled by them. Gate core695-diagnostics (35 checks: real compiled methods, capturing log target,
     exact line content, bound, source: no control flow or state write). Commit `40fc0203` (not frozen). Plan 64 gates;
     reruns of the 14 gates that bind PipelineState.cs or TextureBindingsArrayCache.cs plus hogwarts-dma-copies in
     progress. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
-    "Bindless delta passes" lines.
+    "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
