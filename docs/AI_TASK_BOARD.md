@@ -1674,6 +1674,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     mainPipelineCache no longer waits for the snapshot; the background load lines of adapt_pipeline_cache_background),
     the Bindless delta work (gpuWork.arrayDelta, bindings) and the "GPU thread sync waits" part of the "Render thread
     commands" lines.
+- **IPA 694 device/cache review (Codex, 8 Nov; maintainer's six-log batch, no product edit):**
+  - Latest Hogwarts session `902CF1BC`, pid 40200, 18:44-18:47 UTC, 1x; Core source `ccd575b0`,
+    binary `bd2a2dbd`. Excluded the subsequent Zelda session in the same PID. Input identities:
+    performance.log `badae74a`, stderr.log `5f6a88ce`, stderr.previous `1badbec4`, core.log `00fe839f` (SHA-256 prefixes).
+  - Logger summary: 18.7 FPS, 2681 presents, 313 gaps >100 ms. Retained unpaused t60-140 gaps
+    (1462): p50/p95/p99 33/117/217 ms; not a controlled build comparison. Latest teardown clean.
+  - Cache reuse works: 2048 shaders/2.155 s; 780.86 MiB main + 167.09 MiB worker snapshots hydrated
+    in background/7.188 s (overlapping stages); worker lookup 1984 cumulative hits/1 miss.
+    The >=50 ms build journal measures costly method scopes, including cache-load waits, not proven shader compiles.
+  - Across 35 stderr command windows: sync waits 20785.9 ms, own commands 119.8 ms; Action
+    17263/111.1 ms. Outside-own time includes queued work and scheduling/GC; not proof of costly readback execution.
+    28 whole in-play pre-pause windows: GC deltas 5664.923/148388.545 ms. Footprint reaches 5523 MiB.
+  - Program `890A188FB55B5D5D` still fails SPIR-V-to-MSL (nullptr); unavailable draws persist.
+    Next: capture its exact runtime conversion inputs; attribute Action producers and oldest blocking work.
+  - Upstream cache review: Lichii `ad477ef1`, Fritchii `f66ea633`, Eglantine `78743f30`.
+    Useful extensions: semantic variant replay/compatibility and bounded prebuild; existing MeloNX
+    warm-up, compute demand promotion and background cache loading are already present. Legacy async
+    draw skipping is not a full-rendering fix. Native Metal binary archives need a separate MoltenVK
+    design; no measured gain or stable-30-FPS claim. No Core change, build or IPA dispatch in this review.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
