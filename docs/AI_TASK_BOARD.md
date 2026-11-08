@@ -1644,7 +1644,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     red on the pinned fixture counters of that gate (ArrayDeltaElements 4 037 064 -> 3 163 932 with the repair, program
     checks): plan updated from the local receipt (same values as CI for Core 695: deterministic), refrozen `b14c06db`. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
-  - **Core 699 (8 Nov, local; Core CI pending) = Core 697 + adapt_sync_wait_attribution.** Maintainer choice (asked: no
+  - **Core 699 (8 Nov; frozen `51ae818c`, Core CI run 42503560134 green at attempt 1, 65 gates on macOS, iOS ARM64 app
+    exercised; pinned: artifact 13628080203, iPhone binary `bd2a2dbd`, packaged fingerprint `070e10b6`) = Core 697 +
+    adapt_sync_wait_attribution.** Maintainer choice (asked: no
     safe GPU read-back fix is provable from the logs): IPA 694 now with the two Core 697 fixes and a silent tally of the
     GPU thread's waits per source. IPA 692 windows (pid 36711): GPU.MainThread waited in InvokeCommand 107-2844 ms per
     5 s (often 300-600 ms, up to 1 017 calls) while counterReports (30-300 ms), texFlushAction (1-38 ms, once 197 ms)
@@ -1661,6 +1663,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     fragmented-reads, shader-save-poll; plan 65 fresh gates. Device reading for IPA 694: the "GPU thread sync waits" part
     of those lines names the command that costs the GPU thread its time and whether it is the render thread behind
     (queued ahead) or a read-back (own): it decides the next fix.
+  - **IPA 694 delivered and verified (8 Nov):** base 693 (run 42478467233 attempt 3), MeloNX Core 699 replaces Core 695,
+    RPCS3 Core 907 unchanged. Draft and pin `09bdeb75`, frozen and requested `43899cee` (`[ipa-delivery:694]`), standard
+    delivery run 42506743712 green at attempt 1 (five jobs). Parts match the API digests; offline verification passed
+    (six validators); packaged MeloNXCore fingerprint `070e10b6` = pin. Images changed from 693: MeloNXCore, Runner, and
+    the two bridges (melonx_internal_bridge as in 693; rpcs3_internal_bridge only in its __stubs/__objc_stubs GOT slot
+    order, LC_UUID and signature: linker layout, no source change). IPA `RewindBox-694.ipa` 249924385 B, SHA-256
+    `42f1717ad4c8cbd227a58635f31b658a012217d670f23b17cdc6fcc7f496792a`. Key deleted; receipt
+    docs/evidence/rewind694/delivery.json (12 proofs). Not tested on a device. Device reading: launch time (gpuStartup
+    mainPipelineCache no longer waits for the snapshot; the background load lines of adapt_pipeline_cache_background),
+    the Bindless delta work (gpuWork.arrayDelta, bindings) and the "GPU thread sync waits" part of the "Render thread
+    commands" lines.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
