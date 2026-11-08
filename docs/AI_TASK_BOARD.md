@@ -1572,6 +1572,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     deleted; receipt docs/evidence/rewind692/delivery.json (12 proofs). Not tested on a device. Device reading: no in-play
     fullBlocking with fellBackFromBackground, gcKeepAlive lines, gpuWork.bindings per window against 691, FPS at the same
     spot, SSBU non-regression.
+  - **Core 695 (diagnostics only, 8 Nov, in progress) = Core 693 + adapt_pipeline_failure_state + adapt_array_delta_causes.**
+    IPA 692 video: black triangular holes on the ground and grey/white frames from 1:07 to 1:52 of play, the window
+    where "unavailable pipelines" counts 31-88 per 5 s: the dropped draw of program 890A188FB55B5D5D (host cache program
+    1837, fragment 1837-5, MoltenVK "SPIR-V to MSL conversion error: nullptr"). Offline, SPIRV-Cross 6c09849f converts it
+    under every option set tried (1 000+ random MSL option combinations, with and without argument buffers), so the
+    failing input is per-pipeline state. adapt_pipeline_failure_state logs, on a creation error only, the failed
+    pipeline's full state once per (program, state), at most 64 lines (PipelineUid words, rasterization, topology,
+    samples, color attachments with blend/mask/format, depth format, integer mask, vertex attributes and bindings).
+    adapt_array_delta_causes counts why each bindless delta pass scans the whole array (sampler, aliases moved, other
+    pool, log overflow, invalidated texture), plus epoch rescans, full rebuilds and textures synchronised per pass: one
+    Warning line every 512 passes. Gate core695-diagnostics (35 checks: real compiled methods, capturing log target,
+    exact line content, bound, source: no control flow or state write). Commit `40fc0203` (not frozen). Plan 64 gates;
+    reruns of the 14 gates that bind PipelineState.cs or TextureBindingsArrayCache.cs plus hogwarts-dma-copies in
+    progress. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    "Bindless delta passes" lines.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
