@@ -1585,9 +1585,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     private Core journal line (stage arrayDelta, status causes) every 512 passes; a Logger line failed to compile in the
     standalone fixtures of bindless-array-deltas and binding-data-snapshots (no Ryujinx.Common.Logging there), the
     collector is already compiled by them. Gate core695-diagnostics (35 checks: real compiled methods, capturing log target,
-    exact line content, bound, source: no control flow or state write). Commit `40fc0203` (not frozen). Plan 64 gates;
-    reruns of the 14 gates that bind PipelineState.cs or TextureBindingsArrayCache.cs plus hogwarts-dma-copies in
-    progress. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    exact line content, bound, source: no control flow or state write). Rerun locally on a fresh preparation of the
+    pristine upstream: the 13 other gates binding PipelineState.cs or TextureBindingsArrayCache.cs plus
+    hogwarts-dma-copies, all passed (worker-main-cache-lookup now re-applies the later PipelineState.cs adapters forward;
+    the bindless-array-deltas fixture stubs the Core journal). Frozen: 64 fresh gates, 183 inputs, 204 members, contract
+    `c0524dd9`; contract test 423 checks with the authenticated archive. Evidence docs/evidence/melonx-695-gates/
+    (15 receipts, run.json). Next: Core CI, pin, IPA 693 = 692 + Core 695. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
