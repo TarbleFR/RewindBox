@@ -25,5 +25,15 @@
  "preparationInputs": 181,
  "preparedMembers": 204,
  "contractTest": "421 checks passed with the authenticated 614 archive",
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ci": {
+  "run": 42445562147,
+  "job": 128623630366,
+  "artifact": 13603708454,
+  "bytes": 90755056,
+  "sha256": "7b5b6051a363b60581b0638a6c87d7432acd823f6ecfec0f7705c4d514eedc0a",
+  "iphoneBinary": "2a1e15e0c39ae940d87458df3a33ed8d115ae5efd29744f694e06df957077aca",
+  "packagedFingerprint": "86fb7e33c8f97f9c4e4b080bb75be00e6057cdc46ad4747df70d13506810e63c",
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)"
+ }
 }

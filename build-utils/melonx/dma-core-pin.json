@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "b9443acf2fe89bb0ee5b8b19faff431776160799",
-  "run": 42419673065,
-  "job": 128545189044,
+  "source": "366fde428878a6e7e7f6fdaa7feb42bd04bf40a0",
+  "run": 42445562147,
+  "job": 128623630366,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13593867270,
-  "name": "MeloNX-engine-b9443acf2fe89bb0ee5b8b19faff431776160799",
-  "bytes": 90728786,
-  "sha256": "830d9f5dec76e514a6b1e841c0ad3ea7faff7c4d6f842c259bad16054da49043",
-  "expiresAt": "2026-11-21T22:49:58Z",
+  "artifact": 13603708454,
+  "name": "MeloNX-engine-366fde428878a6e7e7f6fdaa7feb42bd04bf40a0",
+  "bytes": 90755056,
+  "sha256": "7b5b6051a363b60581b0638a6c87d7432acd823f6ecfec0f7705c4d514eedc0a",
+  "expiresAt": "2026-11-22T04:39:51Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "5ac0d85540331f0a4cc6d7b5ff1c1e1247f347b8c328f8f817a295c5ace55fd6",
-      "bytes": 38193088
+      "sha256": "2a1e15e0c39ae940d87458df3a33ed8d115ae5efd29744f694e06df957077aca",
+      "bytes": 38193104
     },
     "iossimulator-arm64": {
-      "sha256": "252cb18986872942baf98be5ae899230e2b3d8befa1c8fab2b10333c94ce6c61",
-      "bytes": 38508104
+      "sha256": "a02e862474023c1606e0840e3e53f983b24021a4fcc704f2c8316091af15841b",
+      "bytes": 38524632
     }
   },
   "identities": {
-    "ios-arm64": "16d15d2e74d8e88980e38c3ecfd2016c9554beda918303e75c79aa89eeb290c2",
-    "iossimulator-arm64": "7fa3c843e017bbcdfddedf84f1f13e2169d15af626cce9719c1f5a7937810c15"
+    "ios-arm64": "01df76e73f32349719a085fddfc9db7289d94c8eada7953f020db35fc2648403",
+    "iossimulator-arm64": "7b86a86b911b65d30d946dc5934ad01f6c6f5b964f14240067c59e99e2c20263"
   },
-  "contractSha256": "89e0fe9d90b497416d7a3401a86b59542fbe370e76c40fd65fa2be99a141e2a2",
-  "resultSha256": "67a933ca6dd5962315ab3d7e9d30affca07d3efa30fa3e9f9354e2cd499beea9",
-  "packagedFingerprint": "dba5e614d3ab3ba14a4306583c5eae3170fa8de6a9eb1e37ee346580b7c4761e",
+  "contractSha256": "1c5ed441580c97d183ea0c500ac05e9a59967ec599bd6a1a63e60a06675fb5a3",
+  "resultSha256": "20e5074c28862c77084a2498cf889e21bda6e66957bdc2235aad10333afe545f",
+  "packagedFingerprint": "86fb7e33c8f97f9c4e4b080bb75be00e6057cdc46ad4747df70d13506810e63c",
   "replaces": {
-    "source": "8c3a535310914ef9c445b2ef0eda002812ed069b",
-    "run": 42397176037,
-    "artifact": 13585285918,
-    "packagedFingerprint": "58f117b8a3259f3336082ad0ec1c0baddc03575eabe6e85fe433e38c608a32ff",
-    "reason": "Every title: a texture flush never records a copy from a destroyed image (IPA 688/690 crash at 0x111 in vkCmdCopyImageToBuffer); failed pipelines named, not ready split by cause; background pipeline compiles try the main cache first (IPA 690: 30 compiled again)"
+    "source": "b9443acf2fe89bb0ee5b8b19faff431776160799",
+    "run": 42419673065,
+    "artifact": 13593867270,
+    "packagedFingerprint": "dba5e614d3ab3ba14a4306583c5eae3170fa8de6a9eb1e37ee346580b7c4761e",
+    "reason": "Every title: a compute/graphics switch re-sends the resolved texture bindings instead of resolving them again (IPA 691: GPU-thread bindings 0.9-1.5 s per 5 s); the background GC thread is kept alive so gen2 collections do not fall back to blocking ones (IPA 690/691: 148-718 ms)"
   }
 }

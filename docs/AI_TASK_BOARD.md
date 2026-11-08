@@ -1562,6 +1562,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     Gate bgc-keepalive: policy table, real loop on fake seams (one request per window, none when missed or small, journal
     lines), real loop on the host .NET 10 runtime (448 MiB live heap, 45 s: 3 requests, all background, 0 blocking added).
     Cost: about one background mark every 13 s (IPA 691: 0.8-1.0 s of .NET_BGC CPU each).
+  - **Core 693 pinned (8 Nov):** CI run 42445562147 on `366fde42`, green (63 fresh gates on Apple ARM64, NativeAOT, two
+    simulator sessions); artifact 13603708454 (90755056 B, `7b5b6051…`), iPhone binary `2a1e15e0…` (38193104 B), packaged
+    fingerprint `86fb7e33…`; engine_evidence passed offline. Replaces Core 691 (`b9443acf`). Next: IPA 692 = 691 + Core 693.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
