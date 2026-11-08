@@ -1,0 +1,57 @@
+{
+ "schema": 1,
+ "date": "2026-11-08",
+ "session": "https://claude.ai/code/session_01JA5QgKeoGVH5oVjNyhcj3D",
+ "core": 703,
+ "base": "Core 701 (14aaac11, contract 1e11b188, Core CI run 42524009493 green; not pinned)",
+ "input": "IPAs 688-694 (Hogwarts Legacy program 890A188FB55B5D5D, \"SPIR-V to MSL conversion error: nullptr\"); private host shader cache (program 1837), kept outside the repository",
+ "change": "adapt_layout_used_types (ShaderInfoBuilder.cs)",
+ "gatesRun": {
+  "fragmented-reads-checks.json": "ba0f9c280dbd8d5c5f6313137bbfce9b09392cbcb98d677952ad246183f91fce",
+  "hogwarts-dma-copies-checks.json": "44137c636d4487642fbf5f9a76730c34f1ee4a2e22ac60485683d45fc5fba595",
+  "layout-used-types-checks.json": "a350c4fda761cc3f0311bbd6bb888a61d2a1ace75382c4b1447e853ee3839a55",
+  "pipeline-failure-identity-checks.json": "55087441270f9afff80d1407960e91b41f0774f61179cd1a27ecca0d9e989023",
+  "pipeline-warmup-parity-checks.json": "a478c3500ccfd7d1e5d646301ef2ea2fafc157a7873299af8293e18df357e0ea",
+  "setprogram-warmup-checks.json": "be1524a0788b97423fe80e2709286ced0cd32a06108fa4a15cc754c6cf5be231",
+  "warmup-key-parity-checks.json": "d05dbefdf5260fcca4f99ce9c8d4d1897968000750db23c5a80ffd6cb2a3d24e"
+ },
+ "mslConversion": {
+  "spirvCross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+  "moltenVk": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "results": {
+   "msl-36": {
+    "control": "FAIL nullptr",
+    "candidate": "OK 9542 bindings 263"
+   },
+   "msl-32": {
+    "control": "OK 8918 bindings 263",
+    "candidate": "OK 8918 bindings 263"
+   },
+   "msl-33-3d": {
+    "control": "OK 9092 bindings 263",
+    "candidate": "OK 9092 bindings 263"
+   }
+  },
+  "note": "local run with --spirv-cross/--moltenvk; the Core CI reruns the gate without the conversion step"
+ },
+ "privateSweep": {
+  "programs": 1394,
+  "control": {
+   "converted": 1393,
+   "failedNullptr": 1
+  },
+  "candidate": {
+   "converted": 1394,
+   "failed": 0
+  },
+  "layoutsChanged": 3,
+  "layoutsUnchanged": 1391,
+  "note": "aggregate of a local run over the private host shader cache (production ShaderInfoBuilder of the prepared tree, then the conversion driver); inputs not published"
+ },
+ "contractSha256": "a79ea96fa6514592061584c54c70d4f4b342a92e8a1cebf58adbc58fadcc6560",
+ "freshGates": 67,
+ "preparationInputs": 186,
+ "preparedMembers": 206,
+ "contractTest": "431 checks passed with the authenticated 614 archive",
+ "physicalDeviceTested": false
+}

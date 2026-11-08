@@ -1749,6 +1749,64 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     busy; device A/B needed), the strict-sync submit rate (about 2 250 submits per 5 s), render-thread draw cost.
   - Device: not measured. To compare on the same 1x route: the BufferGetData part of "GPU thread sync waits" (expected
     near 0), gpuFifoWait, present gaps p95/p99 and intervals over 100 ms.
+- **MeloNX lot 2: program 890A188FB55B5D5D (Claude Code, 8 Nov; owner: Claude Code, integration and Core build; open
+  until a device run; Core 703 = Core 701 + adapt_layout_used_types, frozen `a79ea96f`, commits `20e4968b`/`b06fbae9`
+  and the `[melonx-dma-core]` commit requesting the Core CI; not pinned, no IPA yet):** input IPAs 688-694 / Core 699
+  (pid 40200: "SPIR-V to MSL conversion error: nullptr", ErrorInitializationFailed, fragment stage, 2 stages, 1 sample,
+  TriangleList, draws unavailable); private host shader cache (program 1837; 1 394 vertex+fragment programs used
+  below; kept outside the repository).
+  - Runtime vs reproducer: the earlier offline reproducers built the descriptor set layouts from the SPIR-V's own
+    resource types, so they converted. At runtime MoltenVK receives the layouts ShaderInfoBuilder declares: per stage
+    fixed blocks, set 2 bindings 64-95 TextureAndSampler and 96-127 BufferTexture for the fragment stage. The translator
+    gives textures and buffer textures one counter (GpuAccessorBase.CreateTextureBinding: + 32 for a buffer texture,
+    limit 64), so this fragment's 33rd-36th combined samplers (cube, 2D, 2D, 3D) have bindings 96-99: declared uniform
+    texel buffers, sampled as combined image samplers. MoltenVK 1.4.2 (argument buffers, Apple GPU) then gives
+    SPIRV-Cross 6c09849f an Image binding with no sampler slot for a sampled image: "nullptr" (2D or cube); a 3D one
+    converts with its sampler in the next binding's slot. The usages (written bindings) already had the used types.
+    Images have the same shared counter (Image/BufferImage).
+  - Reproducer (no game data, committed): test/melonx_layout_used_types/synthetic_spirv.py (vertex + fragment sampling
+    N combined samplers at set 2) and MslConversion.cpp (MoltenVK 1.4.2's fragment conversion configuration with its
+    SPIRV-Cross revision, from the layout file). With the production ShaderInfoBuilder's layout: 36 textures fail
+    "nullptr" before, convert after; 32 convert identically (same MSL); 33 with a 3D one convert both, the control
+    sampler at the slot the host layout gives binding 97 (aliasing), the candidate's in its own slot.
+  - Fix, in the layer that declares the layout (Core 703 adapt_layout_used_types, ShaderInfoBuilder.cs): after the
+    stage's blocks, each single texture or image the stage uses is declared with the type it is used as (combined or
+    buffer texture, image or buffer image). Bindings the stage does not use keep the block type; a binding used with
+    both types (two counter values a block apart, invalid either way) is left as before. Binding numbers, counts,
+    stages, arrays and usages are unchanged; nothing persisted (the layout is rebuilt from ShaderProgramInfo at
+    creation or cache load). No shader replaced, no draw skipped, no effect disabled.
+  - Private sweep (the 1 394 programs of the host cache; production ShaderInfoBuilder compiled from the prepared tree,
+    then the conversion driver): control 1 393 convert + 1837 "nullptr"; candidate 1 394 convert. Layouts change for 3
+    programs only: 1837 (bindings 96-99 texel buffer -> combined sampler), 1844 and 1845 (binding 96, a 3D texture: it
+    converted before, with its sampler in binding 97's slot and a layout type unlike its write, so undefined contents);
+    the other 1 391 layouts are byte-identical.
+  - Failed-pipeline handling (unchanged, checked): a creation error caches a null pipeline for that PipelineUid
+    (AddGraphicsPipeline null; a background failure is recorded, then the render thread tries once and caches null), so
+    the state is never presented as ready, each draw of it is skipped and counted as unavailable, and it is not
+    retried; the failure is logged once per program (at most 32).
+  - Caches: no format or version change. The host shader cache holds ShaderProgramInfo, not layouts. MoltenVK's shader
+    cache key includes the used resource bindings (SPIRVToMSLConversionConfiguration::matches), so 1844/1845 convert once
+    with the new layout instead of reusing their old MSL; 1837 never had an entry.
+  - Gate layout-used-types (604 checks): production ShaderInfoBuilder compiled from each variant, synthetic
+    programs derived with the counter rule (Hogwarts shape, at limit, image overflow, vertex overflow, both types,
+    small): candidate changes exactly the used bindings outside their block type (4, 0, 2, 2, 0, 0) and nothing else;
+    the conversion step above runs when given SPIRV-Cross 6c09849f and MoltenVK db660224 (local receipt; the Core CI
+    reruns the gate without it). Other gates rerun on the final preparation and green: fragmented-reads,
+    hogwarts-dma-copies, setprogram-warmup, warmup-key-parity, pipeline-failure-identity, pipeline-warmup-parity; 67
+    fresh gates, 186 preparation inputs, 206 prepared members; contract test 431 checks with the authenticated 614
+    archive.
+    [Receipts](evidence/melonx-703-gates/run.json).
+  - Independent review (rb-core-review, source only): no correctness or Vulkan backend defect (writes use the usages,
+    pool sizes per type keep their total, ClearSegments only sets 0-1, the layout cache key compares types); the method
+    was inserted under AddArrayDescriptors' documentation: fixed in `b06fbae9`. Persisted verdicts checked here: the build
+    journal records created pipelines only, failures stay in memory.
+  - Limits: no device, no Metal compilation; the conversion step replays MoltenVK's configuration, not MoltenVK itself.
+    Whether the pipeline is created, its draws executed and the ground image correct (the black holes of the IPA 692
+    video, 1:07-1:52 of play) is known only from a device run; likewise 1844/1845's image.
+  - Device check (next IPA with Core 703, same save and route): no "conversion error: nullptr" and no "Pipeline
+    creation failed for program 890A188FB55B5D5D"; "unavailable pipelines" 0 in play; the ground without black holes
+    where the IPA 692 video shows them; no new pipeline failure; FPS and frame times like IPA 694; SSBU unchanged; second
+    launch: same, with 1844/1845 not failing.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
