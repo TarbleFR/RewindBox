@@ -1625,8 +1625,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     off, mask F), depth D32S8, TriangleList, 16 vertex attributes (15 R32 on a stride-0 binding), fragment set 4 =
     array of 512 combined samplers. Offline SPIRV-Cross with this state and layout counts 512-524 288 still converts:
     the 1837 failure is not reproduced; no fix for it in Core 697.
-  - **Core 697 (8 Nov, in progress) = Core 693 + adapt_array_delta_invalidated + adapt_pipeline_cache_background; the
-    Core 695 diagnostics are removed (maintainer).** (1) Bindless delta passes: the elements recorded with a moved
+  - **Core 697 (8 Nov; Core CI run 42498418027 green, attempt 1, 34 min, iOS ARM64 app exercised) = Core 693 +
+    adapt_array_delta_invalidated + adapt_pipeline_cache_background; the Core 695 diagnostics are removed (maintainer).** (1) Bindless delta passes: the elements recorded with a moved
     texture sequence join the logged ids (one pointer pass instead of the whole scan), and invalidations or replacing
     synchronisations during the pass are repaired in place (up to 4 rounds) instead of a whole re-check and a full
     rebuild; exact (former path as fallback). Gate bindless-array-deltas 303 checks, new scenario: 334 peeks for the 167
@@ -1644,6 +1644,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     red on the pinned fixture counters of that gate (ArrayDeltaElements 4 037 064 -> 3 163 932 with the repair, program
     checks): plan updated from the local receipt (same values as CI for Core 695: deterministic), refrozen `b14c06db`. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
+  - **Core 699 (8 Nov, local; Core CI pending) = Core 697 + adapt_sync_wait_attribution.** Maintainer choice (asked: no
+    safe GPU read-back fix is provable from the logs): IPA 694 now with the two Core 697 fixes and a silent tally of the
+    GPU thread's waits per source. IPA 692 windows (pid 36711): GPU.MainThread waited in InvokeCommand 107-2844 ms per
+    5 s (often 300-600 ms, up to 1 017 calls) while counterReports (30-300 ms), texFlushAction (1-38 ms, once 197 ms)
+    and bufFlush (3-795 ms) explain only part of it. Eight GAL commands are synchronous: Action (the GPU thread's
+    BackgroundContextAction: texture flush actions, the occlusion-report syncs FlushCounterReports and
+    AwaitQueuedSubmissions), BufferGetData, TextureGetData, TextureGetDataSlice, TryHostConditionalRendering,
+    ProgramCheckLink, ProgramGetBinary, GetCapabilities. Per invoked type: calls, the wait from queueing to wake-up and the
+    command's own render-thread time (the rest = queue drained ahead), appended to the existing "Render thread commands"
+    line (Gpu LogRenderWork, every 5 s of render work); no log line, command, wait or order change; one timestamp before
+    queueing and three atomic adds per synchronous call; never throws. Gate sync-wait-attribution 58 checks (production
+    GAL, backend double: a 200 ms read-back behind 300 ms of work reported "BufferGetData 1 502.0 200.4", two actions
+    "Action 2 400.2 150.5", windows counted apart, the GPU thread's waits the same in both variants, the same two lines).
+    Rerun on the final preparation and passed: performance-diagnostics, hogwarts-dma-copies, forced-syncpoint-wait,
+    fragmented-reads, shader-save-poll; plan 65 fresh gates. Device reading for IPA 694: the "GPU thread sync waits" part
+    of those lines names the command that costs the GPU thread its time and whether it is the render thread behind
+    (queued ahead) or a read-back (own): it decides the next fix.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
