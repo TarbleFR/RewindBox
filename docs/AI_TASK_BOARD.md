@@ -1618,7 +1618,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     TextureBindingsArrayCache.cs) runs no code before mainPipelineCache. Reading: a cold system Metal cache (cause
     outside the app not identified), not a hang. Risk kept: a cold Metal cache makes the first launch take minutes
     with this MoltenVK. Maintainer request: next IPA = the 692 Core plus real performance and glitch fixes only, no
-    diagnostics; IPA 692 re-sent. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    diagnostics; IPA 692 re-sent.
+  - **IPA 693 device results (pid 38401, 3 min of Hogwarts after the 536 s start):** arrayDelta causes: 3 584 passes, 297
+    whole scans (293 invalidated bound texture, 3 log overflow, 1 sampler), 40 epoch rescans, 24 full rebuilds, about
+    17 500 textures synchronised per pass; failed pipeline 890A188FB55B5D5D state: 1 color attachment B10G11R11 (blend
+    off, mask F), depth D32S8, TriangleList, 16 vertex attributes (15 R32 on a stride-0 binding), fragment set 4 =
+    array of 512 combined samplers. Offline SPIRV-Cross with this state and layout counts 512-524 288 still converts:
+    the 1837 failure is not reproduced; no fix for it in Core 697.
+  - **Core 697 (8 Nov, in progress) = Core 693 + adapt_array_delta_invalidated + adapt_pipeline_cache_background; the
+    Core 695 diagnostics are removed (maintainer).** (1) Bindless delta passes: the elements recorded with a moved
+    texture sequence join the logged ids (one pointer pass instead of the whole scan), and invalidations or replacing
+    synchronisations during the pass are repaired in place (up to 4 rounds) instead of a whole re-check and a full
+    rebuild; exact (former path as fallback). Gate bindless-array-deltas 303 checks, new scenario: 334 peeks for the 167
+    elements of an invalidated texture instead of a 5 000-element scan, no rebuild for a removal during the pass,
+    correct at once. (2) The main pipeline cache snapshot and the worker snapshots load on RewindBox.PipelineCacheLoad
+    and are merged into main under the main lock (checkpoint protocol); main Frozen until then; workers wait at most
+    15 s; worker files kept until main is written with their content; a session ending during the load leaves the
+    device release to the loader thread. Gate pipeline-cache-background 34 checks (constructor 27 ms instead of 4.5 s
+    with 1.5 s per snapshot). All 24 gates binding the edited files rerun on the final preparation. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
