@@ -128,10 +128,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # Accepted-run ownership and finally are unchanged except observer calls.
     session_before = (SOURCE / native['native/melonx/EmbeddedSession.cs']).read_text()
     session_after = (expected / native['native/melonx/EmbeddedSession.cs']).read_text()
-    normalized = session_after.replace('                EmbeddedPerformanceDiagnostics.Start(generation);\n', '').replace('                    EmbeddedPerformanceDiagnostics.Stop(generation);\n', '')
+    # Core 693: adapt_bgc_keepalive's own replacements in the session file (keep-alive start/stop and its class) are
+    # undone before the comparison; its gate (bgc-keepalive) binds them.
+    import adapt_bgc_keepalive as _bgc
+    session_core = session_after
+    for _new, _old in ((_bgc.TAIL_NEW, _bgc.TAIL_OLD), (_bgc.START_NEW, _bgc.START_OLD), (_bgc.STOP_NEW, _bgc.STOP_OLD)):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
+    normalized = session_core.replace('                EmbeddedPerformanceDiagnostics.Start(generation);\n', '').replace('                    EmbeddedPerformanceDiagnostics.Stop(generation);\n', '')
     assert normalized == session_before, 'Unexpected session policy change'
-    assert session_after.index('return EmbeddedSessions.Run(generation') < session_after.index('EmbeddedPerformanceDiagnostics.Start(generation)') < session_after.index('try { Load(options)')
-    assert session_after.index('finally\n                {\n                    EmbeddedPerformanceDiagnostics.Stop(generation);') > session_after.index('try { Load(options)')
+    assert session_core.index('return EmbeddedSessions.Run(generation') < session_core.index('EmbeddedPerformanceDiagnostics.Start(generation)') < session_core.index('try { Load(options)')
+    assert session_core.index('finally\n                {\n                    EmbeddedPerformanceDiagnostics.Stop(generation);') > session_core.index('try { Load(options)')
     source_checks += 3
     assert (expected / unchanged).read_bytes() == (SOURCE / unchanged).read_bytes(), 'UIKit sampler changed'
     source_checks += 1
@@ -167,6 +174,7 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
                'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
                'build-utils/melonx/adapt_teardown_phase_marks.py',
+               'build-utils/melonx/adapt_bgc_keepalive.py',
                'test/melonx_adapter_control.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}

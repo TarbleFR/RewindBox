@@ -10,7 +10,7 @@ background gen2 recreates it; NativeAOT's CreateThread returns before the new th
 (dotnet/runtime#119383) is in no 10.0.x package, and the spliced rebuilt GC of Core 659-661 was withdrawn in Core 663.
 
 Change, official runtime, managed only (class BackgroundGcKeepAlive appended to src/Ryujinx.Library/EmbeddedSession.cs,
-started after and stopped before the session's EmbeddedPerformanceDiagnostics epoch):
+started and stopped right after the session's EmbeddedPerformanceDiagnostics epoch):
 - a background thread (below-normal priority) polls GC.GetGCMemoryInfo(GCKind.Background).Index every 250 ms; the
   index changes when a background gen2 starts and when one falls back (the runtime stamps the background record
   then), so its change marks a moment after which the BGC thread exists and waits at most 20 s;
@@ -174,8 +174,8 @@ START_NEW = '''                EmbeddedPerformanceDiagnostics.Start(generation);
 '''
 STOP_OLD = '''                    EmbeddedPerformanceDiagnostics.Stop(generation);
 '''
-STOP_NEW = '''                    BackgroundGcKeepAlive.Stop(generation); // RewindBox (adapt_bgc_keepalive)
-                    EmbeddedPerformanceDiagnostics.Stop(generation);
+STOP_NEW = '''                    EmbeddedPerformanceDiagnostics.Stop(generation);
+                    BackgroundGcKeepAlive.Stop(generation); // RewindBox (adapt_bgc_keepalive)
 '''
 
 

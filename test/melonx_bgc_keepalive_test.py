@@ -12,7 +12,7 @@ nothing before 12 s, a request from 12 to 16 s, nothing after 16 s, nothing unde
 fake seams (virtual clock, background record, heap): one request per window, none after a missed window, none after
 Stop, the journal lines; (3) its real loop on the host .NET 10.0.0 runtime with a 448 MiB live heap for 45 s: its
 requests are background collections (the background record advances, no blocking gen2 is added). Source: the session
-start (after the diagnostics epoch, before the game loads) and stop (in the finally) wiring, the official GC call (blocking false, compacting false), no other collection, no lock or wait on
+start (after the diagnostics epoch, before the game loads) and stop (in the finally, after the epoch) wiring, the official GC call (blocking false, compacting false), no other collection, no lock or wait on
 an emulator thread. Writes dist/melonx/bgc-keepalive-checks.json. No device; the device race itself is not reproduced.
 """
 from pathlib import Path
@@ -76,8 +76,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-bgc-keepalive-') as temporary:
     check(candidate.index('BackgroundGcKeepAlive.Start(generation);') == start + len('EmbeddedPerformanceDiagnostics.Start(generation);\n                ')
           and candidate.index('BackgroundGcKeepAlive.Start(generation);') < candidate.index('try { Load(options);'), 'started with the session, before the game loads')
     stop = candidate.index('EmbeddedPerformanceDiagnostics.Stop(generation);')
-    check(candidate.index('BackgroundGcKeepAlive.Stop(generation);') < stop and candidate.count('BackgroundGcKeepAlive.Stop(generation);') == 1,
-          'stopped in the finally, before the epoch')
+    check(candidate.index('BackgroundGcKeepAlive.Stop(generation);') == stop + len('EmbeddedPerformanceDiagnostics.Stop(generation);\n                    ')
+          and candidate.count('BackgroundGcKeepAlive.Stop(generation);') == 1, 'stopped in the finally, right after the epoch')
 
     fixture = Path(temporary).resolve() / 'fixture'
     fixture.mkdir()
