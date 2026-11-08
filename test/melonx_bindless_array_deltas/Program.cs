@@ -591,6 +591,14 @@ namespace Ryujinx.Common
         public static WorkScope Track(Work work) { Calls[(int)work]++; return default; }
         public static void Count(Counter counter, long amount = 1) => Totals[(int)counter] += amount;
     }
+
+    // Core 695 (adapt_array_delta_causes): the cache journals its delta pass causes every 512 passes.
+    public static class EmbeddedLaunchDiagnostics
+    {
+        public static readonly System.Collections.Generic.List<string> Lines = new();
+        public static void Record(string stage, string status, int code = 0, string detail = "", long performanceGeneration = 0) =>
+            Lines.Add(stage + "/" + status + ": " + detail);
+    }
 }
 
 namespace Ryujinx.Graphics.GAL
