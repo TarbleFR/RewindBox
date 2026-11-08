@@ -1494,6 +1494,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     in the stored SPIR-V: it depends on what MoltenVK passes SPIRV-Cross for that pipeline. Next: run SPIRV-Cross
     6c09849f's MSL conversion with MoltenVK's options over the 1322 fragment shaders (needs permission to build it), or
     the Core 691 identity line to select the program.
+  - **SPIRV-Cross 6c09849f built (user consent 7 Nov) and run over the cache (8 Nov, local tools outside the repo:
+    /home/user/work/shadertool, /home/user/work/mvkdrv):** 0 failures in every configuration tried. (1) CLI, each of the
+    1322 fragment shaders: base iOS MSL 3.1, argument buffers tier 1, output mask 0/1, no depth, sample mask, pad and
+    swizzle and discard check, framebuffer fetch, rich descriptors. (2) Per program, vertex outputs given as fragment
+    inputs (location, vecsize, any32/any16). (3) A C++ driver built on MoltenVK v1.4.2's own SPIRVReflection.h
+    getShaderOutputs and SPIRVToMSLConverter::convert sequence. It rebuilds the inputs exactly (builtins and components,
+    isUsed), the pipeline layout from the union of both stages' descriptors with MoltenVK's argument-buffer index
+    assignment (size buffer, TexSampSoA, BufferAuxSize, TexBufSoA without native atomics), and the options
+    pad_argument_buffer_resources, tier 1/2, set 0 pushed or argument, MSL 3.1/3.2, frag output mask
+    0/1/3/all, depth and stencil builtins, point size, sample_dref_lod_array_as_grad, sample-rate shading, fixed sample
+    mask, arrayed subpass input, texture_1D_as_2D, replace_recursive_inputs. 1322/1322 convert in each run. Graphics
+    pipelines take no specialization constants in the Core (compute only), and MoltenVK's convert() keeps no state
+    shared between threads. Conclusion: the failing program is not reproducible from this cache with a static config.
+    Either it is not in this cache (cache from another session or game state), or the failure depends on runtime
+    state not modelled here. Without the program's identity, no Core change can be justified. Next: one Hogwarts
+    session on an IPA with Core 691 (line "Pipeline creation failed for program XXXXXXXXXXXXXXXX ... background
+    worker/render thread"), then that program's toc/data from the same session; the driver then converts it directly.
   - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
     rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
