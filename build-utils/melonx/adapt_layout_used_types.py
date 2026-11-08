@@ -39,7 +39,9 @@ CALL_NEW = '''            AddDualDescriptor(stages, ResourceType.Image, Resource
             DeclareUsedTypes(info.Images, stages, isImage: true);
 '''
 
-METHOD_OLD = '''        private void AddArrayDescriptors(IEnumerable<TextureDescriptor> textures, ResourceStages stages, bool isImage)
+METHOD_OLD = '''        /// <summary>
+        /// Adds all array descriptors (those with an array length greater than one).
+        /// </summary>
 '''
 METHOD_NEW = '''        /// <summary>
         /// RewindBox (adapt_layout_used_types): declares each single texture or image of a stage with the type it is used
@@ -97,7 +99,9 @@ METHOD_NEW = '''        /// <summary>
             }
         }
 
-        private void AddArrayDescriptors(IEnumerable<TextureDescriptor> textures, ResourceStages stages, bool isImage)
+        /// <summary>
+        /// Adds all array descriptors (those with an array length greater than one).
+        /// </summary>
 '''
 
 
