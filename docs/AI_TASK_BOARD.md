@@ -1595,8 +1595,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     seven bound files changed in Core 695; threshold kept); failed job rerun (attempt 2).
   - **Core 695 pinned (8 Nov):** run 42474580788 attempt 2 green on `f4223aa5` (64 fresh gates on Apple ARM64, NativeAOT,
     simulator sessions); artifact 13616601214 (90767605 B, `b66f344a…`), iPhone binary `75bcd61a…` (38225952 B),
-    packaged fingerprint `def8d714…`; engine_evidence passed offline. Replaces Core 693 (`366fde42`). Next: IPA 693 =
-    692 + Core 695. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    packaged fingerprint `def8d714…`; engine_evidence passed offline. Replaces Core 693 (`366fde42`).
+  - **IPA 693 delivered and verified (8 Nov):** 692 + MeloNX Core 695, RPCS3 Core 907 unchanged; manifest frozen at
+    `e4458735` (`[ipa-delivery:693]`), standard delivery run 42478467233. Attempt 1: flutter red on a failed PDFium
+    download from GitHub releases (pdfium_dart native-asset hook), application stopped on it; attempt 2 (failed jobs
+    only) refused by the application job because the native test evidence was from attempt 1; attempt 3 (whole run)
+    green, all five jobs. Parts match the API digests; offline verification passed; packaged MeloNXCore fingerprint
+    `def8d714…` = pin. IPA `RewindBox-693.ipa` 249921705 B, SHA-256
+    `4bee6cea3ca47aa0559491f6207dce3049fc0159f4d001134cca094a4e9e9f45`. Key deleted; receipt
+    docs/evidence/rewind693/delivery.json (12 proofs). Not tested on a device. Device reading: the "Pipeline failure
+    state for program 890A188FB55B5D5D" Error line(s) (emulator log and Core journal engineError), the Core journal
+    lines stage arrayDelta status causes, and no change in FPS or behaviour against 692. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
