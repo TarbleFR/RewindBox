@@ -143,6 +143,8 @@ LOT_FILES = {
     # Core 697: bindless delta repairs (no file held here); the main pipeline cache loads in the background.
     'adapt_array_delta_invalidated': [],
     'adapt_pipeline_cache_background': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 699: the GPU thread's synchronous waits attributed per invoked command.
+    'adapt_sync_wait_attribution': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
 }
 
 checks = 0

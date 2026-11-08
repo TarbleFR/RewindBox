@@ -68,6 +68,7 @@ from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDIN
 from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
+from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -136,6 +137,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'compute-switch-bindings': 'delivered', 'bgc-keepalive': 'delivered',
             # Core 697: background main pipeline cache load.
             'pipeline-cache-background': 'delivered',
+            # Core 699: the GPU thread's synchronous waits attributed per invoked command.
+            'sync-wait-attribution': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -167,7 +170,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 693: TextureManager.cs and TextureBindingsManager.cs (GPU), EmbeddedSession.cs (Library).
            set(C693_COMPUTE_SWITCH_BINDINGS) | set(C693_BGC_KEEPALIVE) |
            # Core 697: TextureBindingsArrayCache.cs, PipelineCacheManager.cs, PipelineState.cs, VulkanRenderer.cs (already changed).
-           set(C697_ARRAY_DELTA_INVALIDATED) | set(C697_PIPELINE_CACHE_BACKGROUND))
+           set(C697_ARRAY_DELTA_INVALIDATED) | set(C697_PIPELINE_CACHE_BACKGROUND) |
+           # Core 699: ThreadedRenderer.cs (already changed).
+           set(C699_SYNC_WAIT_ATTRIBUTION))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -443,7 +448,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_compute_switch_bindings.py',
                                                      'build-utils/melonx/adapt_bgc_keepalive.py',
                                                      'build-utils/melonx/adapt_array_delta_invalidated.py',
-                                                     'build-utils/melonx/adapt_pipeline_cache_background.py'} and
+                                                     'build-utils/melonx/adapt_pipeline_cache_background.py',
+                                                     'build-utils/melonx/adapt_sync_wait_attribution.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -468,7 +474,8 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 183 and len(frozen['preparedMembers']) == 204, 'Wrong final composition')
+    # Core 699: 184 preparation inputs (adapt_sync_wait_attribution.py added), the same 204 prepared members.
+    check(len(frozen['preparationInputs']) == 184 and len(frozen['preparedMembers']) == 204, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

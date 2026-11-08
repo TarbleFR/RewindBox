@@ -151,6 +151,7 @@ from adapt_compute_switch_bindings import apply as adapt_compute_switch_bindings
 from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
 from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
 from adapt_pipeline_cache_background import apply as adapt_pipeline_cache_background
+from adapt_sync_wait_attribution import apply as adapt_sync_wait_attribution
 
 
 def replace_once(path, old, new):
@@ -413,6 +414,10 @@ def main():
     # Core 697 (IPA 693: the 780 MiB main pipeline cache took 536 s to load with a cold Metal cache): it loads in the
     # background and is merged into main; the game no longer waits for it.
     adapted += [source / name for name in adapt_pipeline_cache_background(source)]
+    # Core 699 (IPA 692: GPU.MainThread waited 107-2844 ms per 5 s window for the render thread, mostly unexplained):
+    # each synchronous wait is attributed to its invoked command (queue drained ahead, the command itself) on the
+    # existing render work line; no log line added.
+    adapted += [source / name for name in adapt_sync_wait_attribution(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -527,7 +532,8 @@ def main():
                  'adapt_compute_switch_bindings.py',
                  'adapt_bgc_keepalive.py',
                  'adapt_array_delta_invalidated.py',
-                 'adapt_pipeline_cache_background.py']:
+                 'adapt_pipeline_cache_background.py',
+                 'adapt_sync_wait_attribution.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
