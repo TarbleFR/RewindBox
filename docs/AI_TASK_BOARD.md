@@ -1511,6 +1511,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     state not modelled here. Without the program's identity, no Core change can be justified. Next: one Hogwarts
     session on an IPA with Core 691 (line "Pipeline creation failed for program XXXXXXXXXXXXXXXX ... background
     worker/render thread"), then that program's toc/data from the same session; the driver then converts it directly.
+  - **IPA 691 delivered and verified (8 Nov, session 01JA5QgK):** 690 + MeloNX Core 691 (pin run 42419673065, iPhone
+    binary 5ac0d855), RPCS3 Core 907 unchanged. Manifest frozen at `f79dcae3` (`[ipa-delivery:691]`), standard delivery
+    run 42439579607 green (preflight, republish, flutter, native, application; tests fresh). Downloaded parts match the
+    API digests; offline verification passed (decryption, SHA256SUMS, signer receipt, images vs pins, validators 0).
+    IPA `RewindBox-691.ipa` 249907889 B, SHA-256 `c39975ac287d68f3bd1b594fb4c3f2834185de2beaef3870da3e902554ae8c8d`.
+    Private key deleted. Receipt docs/evidence/rewind691/delivery.json (12 proofs). Not tested on a device. Lot 4 (GC,
+    memory, main-cache rewrite) goes in the next IPA.
   - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
     rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs
