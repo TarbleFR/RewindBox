@@ -348,7 +348,7 @@
     "fpsGainProven": false,
     "poolsTexturesAndTransportDoubled": true,
     "productionCacheAndCommandsCompiled": true,
-    "checks": 302,
+    "checks": 303,
     "programChecks.control": 12689570,
     "programChecks.candidate": 17775134,
     "candidateCounters.ArrayFullElements": 745223,

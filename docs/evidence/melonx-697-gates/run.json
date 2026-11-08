@@ -38,10 +38,11 @@
   "teardown-phase-marks-checks.json": "c9be98174cab9ef122ee586c76fb8dc796f66a3a0cee34c75ecd5e9dccf18e96",
   "worker-main-cache-lookup-checks.json": "e19395fbecd458d5edb5cf080285c059f0a62ada840a93567fb235bbdc476fbb"
  },
- "contractSha256": "aaa858041d75c9b5b35bc29171ad27ea468deb2aac81a8baec1b9a8396d44af8",
+ "contractSha256": "9b53224f21c89e85dfe9e6fcb37dcb235d9c20810788add12b23f278fedb4e86",
  "freshGates": 64,
  "preparationInputs": 183,
  "preparedMembers": 204,
  "contractTest": "423 checks passed with the authenticated 614 archive",
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciAttempt1": "run 42497827631 red at the gate validation: the plan still asserted 302 checks for bindless-array-deltas (303 with the invalidated-texture scenario); plan corrected, refrozen"
 }

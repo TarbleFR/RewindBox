@@ -1639,7 +1639,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     teardown's first save was not written), H1 (a failed load could let a checkpoint replace the file), H2 (worker room)
     and the deferred release guard fixed; gate pipeline-cache-background 36 checks. The 24 other gates binding the
     edited files rerun on the final preparation, all passed. Frozen: 64 fresh gates, contract `aaa85804`; contract test
-    423 checks. Evidence docs/evidence/melonx-697-gates (25 receipts, run.json). Next: Core CI, pin, IPA 694. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    423 checks. Evidence docs/evidence/melonx-697-gates (25 receipts, run.json). Core CI run 42497827631 red at the gate
+    validation (plan asserted 302 checks for bindless-array-deltas, 303 now): plan corrected, refrozen `9b53224f`. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
