@@ -1518,6 +1518,47 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     IPA `RewindBox-691.ipa` 249907889 B, SHA-256 `c39975ac287d68f3bd1b594fb4c3f2834185de2beaef3870da3e902554ae8c8d`.
     Private key deleted. Receipt docs/evidence/rewind691/delivery.json (12 proofs). Not tested on a device. Lot 4 (GC,
     memory, main-cache rewrite) goes in the next IPA.
+- **IPA 691 on the device (8 Nov, Hogwarts pid 34380, session 7A46E130, Core 691 `5ac0d855`, async shaders on, occlusion
+  sync on; private journals; read by session 01JA5QgK). Maintainer goal: steady FPS above 25.**
+  - **Crash:** none (crash journal: no fatal entry for 34380). The 0x111 copy crash of 688/690 did not recur.
+  - **Shader:** "Pipeline creation failed for program 890A188FB55B5D5D ... background worker". StableHash recomputed offline
+    (XXH3-128 of each stage's SPIR-V and stage kind): program 1837 of both host caches (7 Nov and the 8 Nov upload, same
+    bytes; 220 KB fragment). It converts with SPIRV-Cross 6c09849f under every MoltenVK configuration emulated (see the
+    driver above). The failure depends on per-pipeline state not modelled yet. Draws of that one state are dropped.
+  - **FPS:** menus 30; play (t=64-300 s) 15-25, unstable. No thread saturated: render thread 43-60 %, GPU.MainThread
+    39-54 %, guest 27-47 %, process 2.1-3.3 of 6 cores; GPU busy 13-18 ms per frame (30-40 %).
+  - **GPU thread (core-performance windows, 5.1 s, in play):** gpuDispatch 2.2-3.7 s, gpuFifoWait 1.2-2.9 s;
+    gpuWork.bindings 0.9-1.5 s (~100 000 commits) is its largest item, then compute 0.7-1.2 s (includes the compute
+    bindings: scopes nest), arrayDelta 0.4-0.9 s (~400 passes, 6-21 M elements visited for 25-50 k changed: about 30
+    full 524 288-element scans per window), counterReports 0.12-0.45 s, syncInvoke 0.26-0.8 s.
+  - **Cause found (bindings):** TextureManager.CommitComputeBindings calls Rebind() on the compute and graphics managers
+    around every dispatch (upstream: "compute work happens less often"); Hogwarts dispatches 1 500-2 500 grids per
+    second between draws, so every switch resolved every bound texture again only because the Vulkan slots are shared.
+  - **GC:** blocking gen2 of 151, 439 and 718 ms in play, all fellBackFromBackground, each 36-56 s after the previous
+    background gen2 (690: 148 and 557 ms). The .NET 10.0.0 BGC thread leaves after 20 s idle and its re-creation races
+    the start check (docs/melonx-bgc-fallback-2026-11-05.md); the rebuilt GC route was withdrawn in Core 663.
+  - **Memory:** footprint 5.2-5.7 GB, 1.1-1.5 GB available, Warning/Critical pressure every 5-10 s; TrimCaches frees 3-93
+    MiB each; cold release frees nothing (no texture unused 60 s). Main pipeline cache 729 MiB written in 3.9 s at pause
+    and close (not in play).
+  - **Render thread:** per 5 s, draw descriptors 570-750 ms, compute descriptors 310-375 ms, ~2 400 submits (~25 per
+    frame, 0.1 ms each), CreateSync 1 800-2 500 (each a strict flush). Not saturated.
+- **Core 693 = Core 691 + adapt_compute_switch_bindings + adapt_bgc_keepalive (local, not frozen yet):**
+  - compute switch: CommitComputeBindings calls RebindHost(): the next commit re-sends every binding; a still-valid
+    cached binding (pool sequence, handles, format, InvalidatedSequence, undisposed sampler: the existing fast path) is
+    re-sent without resolution, any other is resolved and always sent; pool changes, channel switches and all other
+    callers keep the full Rebind. Gate compute-switch-bindings (24 checks): real TextureManager/TextureBindingsManager/
+    pools/BufferManager of control and candidate, GAL slots shared by compute and graphics per binding; every committed
+    slot holds the named texture through handle changes, a pool rewrite and repeated draws; same slot sequence and same
+    backend calls as the control; steady compute/graphics pairs 250 -> 206 ms per 50 000 on the host.
+  - GC keep-alive (all titles, heap >= 384 MiB): a below-normal thread watches the background GC record every 250 ms and
+    asks GC.Collect(2, Forced, blocking false, compacting false) 12-16 s after the last background gen2, never after 16 s,
+    never before the first one; started after and stopped before the session's diagnostics epoch (EmbeddedSession.cs).
+    Gate bgc-keepalive: policy table, real loop on fake seams (one request per window, none when missed or small, journal
+    lines), real loop on the host .NET 10 runtime (448 MiB live heap, 45 s: 3 requests, all background, 0 blocking added).
+    Cost: about one background mark every 13 s (IPA 691: 0.8-1.0 s of .NET_BGC CPU each).
+  - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
+    strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
+    results" off on IPA 691).
   - **Open (not in 691):** the SPIR-V defect itself, GC fullBlocking 75/148/557 ms with 5-8 % device memory, the 3.9 s
     rewrite of the 728 MiB main cache, the steady CPU cost (descriptors, submits, bindings), compute first-visit waits.
   - **Next levers (not in 689):** compute first-visit waits (no async for compute; a second background worker needs

@@ -137,6 +137,9 @@ LOT_FILES = {
     'adapt_released_texture_flush': [],
     'adapt_pipeline_failure_identity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     'adapt_worker_main_cache_lookup': [],
+    # Core 693: compute/graphics switch bindings and the GC keep-alive (no file held here).
+    'adapt_compute_switch_bindings': [],
+    'adapt_bgc_keepalive': [],
 }
 
 checks = 0

@@ -147,6 +147,8 @@ from adapt_async_regenerated_targets import apply as adapt_async_regenerated_tar
 from adapt_released_texture_flush import apply as adapt_released_texture_flush
 from adapt_pipeline_failure_identity import apply as adapt_pipeline_failure_identity
 from adapt_worker_main_cache_lookup import apply as adapt_worker_main_cache_lookup
+from adapt_compute_switch_bindings import apply as adapt_compute_switch_bindings
+from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
 
 
 def replace_once(path, old, new):
@@ -399,6 +401,10 @@ def main():
     adapted += [source / name for name in adapt_pipeline_failure_identity(source)]
     # Core 691: a background pipeline compile first looks in the main cache without waiting (IPA 690: ~30 compiled again).
     adapted += [source / name for name in adapt_worker_main_cache_lookup(source)]
+    # Core 693 (IPA 691 in play: GPU-thread bindings 0.9-1.5 s per 5 s; blocking gen2 fallbacks of 151-718 ms): a
+    # compute/graphics switch re-sends the resolved texture bindings; the background GC thread is kept alive.
+    adapted += [source / name for name in adapt_compute_switch_bindings(source)]
+    adapted += [source / name for name in adapt_bgc_keepalive(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -509,7 +515,9 @@ def main():
                  'adapt_async_regenerated_targets.py',
                  'adapt_released_texture_flush.py',
                  'adapt_pipeline_failure_identity.py',
-                 'adapt_worker_main_cache_lookup.py']:
+                 'adapt_worker_main_cache_lookup.py',
+                 'adapt_compute_switch_bindings.py',
+                 'adapt_bgc_keepalive.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
