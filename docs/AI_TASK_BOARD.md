@@ -1704,7 +1704,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Device reading after delivery:** with async on, the DMA summary "rerouted into buffers/copied", texFlushAction and
     read fence waits per window, the held draws line, and whether the staircase corruption is gone; async off must be
     unchanged except the read-back.
-- **MeloNX sync lot 1 (Claude Code, 8 Nov; owner: Claude Code, integration and Core build; no IPA yet):** input IPA 694 /
+- **MeloNX sync lot 1 (Claude Code, 8 Nov; owner: Claude Code, integration and Core build; open; Core 701 frozen `1e11b188`,
+  commits `9bf4b6e5`/`14aaac11`, Core CI run 42524009493 green; not pinned, no IPA yet):** input IPA 694 /
   Core 699, Hogwarts pid 40200 session 902CF1BC (stderr `5f6a88ce`, stderr.previous `1badbec4`, core `00fe839f`,
   performance `badae74a`).
   - Producers. Action (17 263 ms of 20 785.9 ms, own 111.1 ms): about one per 5 s window per counterReports flush (79-133
