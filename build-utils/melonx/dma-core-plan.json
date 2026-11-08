@@ -349,11 +349,11 @@
     "poolsTexturesAndTransportDoubled": true,
     "productionCacheAndCommandsCompiled": true,
     "checks": 303,
-    "programChecks.control": 12689570,
-    "programChecks.candidate": 17775134,
-    "candidateCounters.ArrayFullElements": 745223,
-    "candidateCounters.ArrayDeltaElements": 4037064,
-    "candidateCounters.ArrayDeltaChanged": 355616,
+    "programChecks.control": 12773697,
+    "programChecks.candidate": 17887151,
+    "candidateCounters.ArrayFullElements": 754583,
+    "candidateCounters.ArrayDeltaElements": 3163932,
+    "candidateCounters.ArrayDeltaChanged": 356642,
     "candidateCounters.ArrayBufferElements": 0
    },
    "requiredPostimages": [
