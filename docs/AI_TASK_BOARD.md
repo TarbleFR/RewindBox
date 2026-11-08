@@ -1590,7 +1590,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     hogwarts-dma-copies, all passed (worker-main-cache-lookup now re-applies the later PipelineState.cs adapters forward;
     the bindless-array-deltas fixture stubs the Core journal). Frozen: 64 fresh gates, 183 inputs, 204 members, contract
     `c0524dd9`; contract test 423 checks with the authenticated archive. Evidence docs/evidence/melonx-695-gates/
-    (15 receipts, run.json). Next: Core CI, pin, IPA 693 = 692 + Core 695. Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
+    (15 receipts, run.json). Core CI run 42474580788 on `f4223aa5`, attempt 1 red: forced-syncpoint-wait "candidate
+    returns promptly at guest termination", TerminationToReturnMs 159.8 for a 150 ms bound on the runner (none of its
+    seven bound files changed in Core 695; threshold kept); failed job rerun (attempt 2). Next: pin, IPA 693 = 692 +
+    Core 695 (draft and recipient key `809a9690` ready). Device reading for IPA 693: the "Pipeline failure state for program 890A188FB55B5D5D" line(s) and the
     "Bindless delta passes" lines (Core journal, stage arrayDelta).
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
