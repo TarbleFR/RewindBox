@@ -212,6 +212,8 @@ C671_JOINED = {'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs', 'src
 JOINED = JOINED | C671_JOINED
 # Core 691 (adapt_released_texture_flush): ITexture.cs (GAL) and PersistentFlushBuffer.cs join the prepared source.
 JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/ITexture.cs', 'src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs'}
+# Core 693 (adapt_compute_switch_bindings): TextureBindingsManager.cs joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs'}
 REUSED_FRESH = set()
 
 
@@ -458,7 +460,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 181 and len(frozen['preparedMembers']) == 203, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 181 and len(frozen['preparedMembers']) == 204, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -478,6 +480,8 @@ if not args.helpers_only:
     OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'}
     # Core 679: the Apple audio session (Ryujinx.Audio.Backends.Apple assembly) is bound by the audio-start-deferred gate.
     OUTSIDE_GPU |= set(C679_AUDIO_START_DEFERRED)
+    # Core 693: the session file (Library assembly) is bound by the bgc-keepalive gate.
+    OUTSIDE_GPU |= set(C693_BGC_KEEPALIVE)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},

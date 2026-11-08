@@ -1,0 +1,63 @@
+{
+  "result": "passed",
+  "checks": 24,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs": "ad928cf3f4da86d89f39c76c829b03d716b049a50b47b59a11b743c3e2151f38",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs": "1dda6c3dc770bff14443371c82c9d18e2c0a47deb7b843d691fb9926a5c6e6de"
+  },
+  "control": {
+    "steadyCalls": 28,
+    "timedMs": 245.2343,
+    "timedBackendCalls": 350000,
+    "timedPairs": 50000
+  },
+  "candidate": {
+    "steadyCalls": 28,
+    "timedMs": 201.0858,
+    "timedBackendCalls": 350000,
+    "timedPairs": 50000
+  },
+  "sequence": [
+    "steady0 compute t0=8/1 t1=16 i0=24",
+    "steady0 graphics t0=32/2 t1=40 t2=48 i0=56",
+    "steady1 compute t0=8/1 t1=16 i0=24",
+    "steady1 graphics t0=32/2 t1=40 t2=48 i0=56",
+    "steady2 compute t0=8/1 t1=16 i0=24",
+    "steady2 graphics t0=32/2 t1=40 t2=48 i0=56",
+    "steady3 compute t0=8/1 t1=16 i0=24",
+    "steady3 graphics t0=32/2 t1=40 t2=48 i0=56",
+    "drawAgain graphics t0=32/2 t1=40 t2=48 i0=56",
+    "handle compute t0=8/1 t1=16 i0=24",
+    "handle graphics t0=16/2 t1=40 t2=48 i0=56",
+    "computeHandle compute t0=8/1 t1=48 i0=24",
+    "computeHandle graphics t0=16/2 t1=40 t2=48 i0=56",
+    "pool compute t0=8/1 t1=48 i0=24",
+    "pool graphics t0=16/2 t1=72 t2=48 i0=56",
+    "imageNoDispatch graphics t0=16/2 t1=72 t2=48 i0=64",
+    "image compute t0=8/1 t1=48 i0=24",
+    "image graphics t0=16/2 t1=72 t2=48 i0=64",
+    "after0 compute t0=8/1 t1=48 i0=24",
+    "after0 graphics t0=16/2 t1=72 t2=48 i0=64",
+    "after1 compute t0=8/1 t1=48 i0=24",
+    "after1 graphics t0=16/2 t1=72 t2=48 i0=64",
+    "after2 compute t0=8/1 t1=48 i0=24",
+    "after2 graphics t0=16/2 t1=72 t2=48 i0=64"
+  ],
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionGpuAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs": "f8c92175d86d9685937e6be5de65a5de609ced0eae7b1cc119bc2beccd6c3de0",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs": "450aedf92e0d8ca4d5699ab370d40d9589b7f58f2326c77490879b258bce24c2"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_compute_switch_bindings.py": "2f613cae6d4464c97711f4b5144d7887532a426e17571dde46bf33cfced88217",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_compute_switch_bindings_test.py": "da1ade9f6b554306b9644c4c7916f1e15394f1d73cc28e1383505e1149dcabca",
+    "test/melonx_compute_switch_bindings/Program.cs": "c6865661cf0b939d7c87d1d86c3a3672b13c78c40036f837035e11ae70c01f24",
+    "test/melonx_gpu_teardown/Fakes.cs": "03cd63fdfbae9f8745f8a58fed05ecbb6434acfc48d737261a45a8be1d06519a",
+    "test/melonx_adapter_control.py": "113277dcde3d4d9cbaf432f18f139ac0c600232a3909c6e3580c98425a7b5dd4"
+  }
+}

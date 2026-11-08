@@ -1542,7 +1542,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and close (not in play).
   - **Render thread:** per 5 s, draw descriptors 570-750 ms, compute descriptors 310-375 ms, ~2 400 submits (~25 per
     frame, 0.1 ms each), CreateSync 1 800-2 500 (each a strict flush). Not saturated.
-- **Core 693 = Core 691 + adapt_compute_switch_bindings + adapt_bgc_keepalive (local, not frozen yet):**
+- **Occlusion A/B (IPA 691, pid 35880, "Synchronize occlusion results" off; maintainer, 8 Nov):** play median 12.8 fps
+  (4 % of seconds at 25+) against 17.4 (21 %) with it on (pid 34380, not the same route). The occlusion sync is not the
+  main limiter: kept on. Same session: a 441 ms blocking gen2 fallback 37 s after a background gen2.
+- **Core 693 = Core 691 + adapt_compute_switch_bindings + adapt_bgc_keepalive (frozen 8 Nov, contract `1c5ed441`, 63
+  fresh gates, 181 inputs, 204 members; contract test 421 checks; local reruns: the two new gates, fragmented-reads,
+  performance-diagnostics, hogwarts-dma-copies, cold-texture-release, shader-save-poll, receipts
+  [evidence/melonx-693-gates](evidence/melonx-693-gates/run.json)):**
   - compute switch: CommitComputeBindings calls RebindHost(): the next commit re-sends every binding; a still-valid
     cached binding (pool sequence, handles, format, InvalidatedSequence, undisposed sampler: the existing fast path) is
     re-sent without resolution, any other is resolved and always sent; pool changes, channel switches and all other

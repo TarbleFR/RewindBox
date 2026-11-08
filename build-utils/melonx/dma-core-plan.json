@@ -415,6 +415,7 @@
     "src/Ryujinx.Graphics.Gpu/Image/Pool.cs",
     "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs",
@@ -692,6 +693,15 @@
       "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs"
     },
     {
      "variant": "candidate",
