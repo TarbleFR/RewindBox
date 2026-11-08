@@ -1565,6 +1565,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Core 693 pinned (8 Nov):** CI run 42445562147 on `366fde42`, green (63 fresh gates on Apple ARM64, NativeAOT, two
     simulator sessions); artifact 13603708454 (90755056 B, `7b5b6051…`), iPhone binary `2a1e15e0…` (38193104 B), packaged
     fingerprint `86fb7e33…`; engine_evidence passed offline. Replaces Core 691 (`b9443acf`). Next: IPA 692 = 691 + Core 693.
+  - **IPA 692 delivered and verified (8 Nov):** 691 + MeloNX Core 693, RPCS3 Core 907 unchanged; manifest frozen at
+    `cd944788` (`[ipa-delivery:692]`), standard delivery run 42448009750 green (all five jobs, tests fresh); parts match
+    the API digests; offline verification passed; packaged MeloNXCore fingerprint `86fb7e33…` = pin. IPA
+    `RewindBox-692.ipa` 249913432 B, SHA-256 `5f00a4705d1abbe0cfc234008c52463f264bbde0676179f0e5c313f0fad90849`. Key
+    deleted; receipt docs/evidence/rewind692/delivery.json (12 proofs). Not tested on a device. Device reading: no in-play
+    fullBlocking with fellBackFromBackground, gcKeepAlive lines, gpuWork.bindings per window against 691, FPS at the same
+    spot, SSBU non-regression.
   - Next levers, measured but not changed: arrayDelta full scans (alias generation or delta-log overflow: counters first);
     strict-sync submits on the render thread; the occlusion-sync chain (device A/B asked: "Synchronize occlusion
     results" off on IPA 691).
