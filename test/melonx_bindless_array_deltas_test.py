@@ -168,6 +168,11 @@ check(len(candidate['syncs']) == 4 and all(r['correctAtOnce'] for r in candidate
 check([r['correctAtOnce'] for r in control['syncs']] == [False, False, True, True],
       'delivered: released host bound on the cache hit only')
 check(len(candidate['overflows']) == 2, 'log overflow scenarios ran')
+# Core 697 (adapt_array_delta_invalidated): an invalidated bound texture re-resolves its elements only, in place.
+check(len(candidate['invalidations']) == 2 and all(r['invalidated'] and r['correctAtOnce'] and not r['rebuilt'] and
+      r['remapPeeks'] < r['length'] // 4 and r['removePeeks'] < r['length'] // 4 and r['duringPeeks'] < r['length'] // 4
+      for r in candidate['invalidations']),
+      'invalidated bound textures: no whole scan, no rebuild: ' + json.dumps(candidate['invalidations']))
 check(len(candidate['quiet']) == 4 and all(q['refreshes'] <= 1 for q in candidate['quiet']),
       'quiet updates come back to cache hits after the blacklisting rebuild')
 rows = []
@@ -194,6 +199,7 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
 inputs = ['build-utils/melonx/adapt_bindless_array_deltas.py', 'test/melonx_bindless_array_deltas_test.py',
           'test/melonx_bindless_array_deltas/Program.cs', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
+               invalidations=candidate['invalidations'],
                deliveredDefects=dict(removals=control['removals'], failures=control['failures'], syncs=control['syncs']),
                measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False, fpsGainProven=False,
                poolsTexturesAndTransportDoubled=True, productionCacheAndCommandsCompiled=True,

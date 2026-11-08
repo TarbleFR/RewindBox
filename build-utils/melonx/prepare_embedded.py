@@ -149,8 +149,7 @@ from adapt_pipeline_failure_identity import apply as adapt_pipeline_failure_iden
 from adapt_worker_main_cache_lookup import apply as adapt_worker_main_cache_lookup
 from adapt_compute_switch_bindings import apply as adapt_compute_switch_bindings
 from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
-from adapt_pipeline_failure_state import apply as adapt_pipeline_failure_state
-from adapt_array_delta_causes import apply as adapt_array_delta_causes
+from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
 
 
 def replace_once(path, old, new):
@@ -407,9 +406,9 @@ def main():
     # compute/graphics switch re-sends the resolved texture bindings; the background GC thread is kept alive.
     adapted += [source / name for name in adapt_compute_switch_bindings(source)]
     adapted += [source / name for name in adapt_bgc_keepalive(source)]
-    # Core 695 (IPA 692: shader 1837's dropped draw = black ground holes; arrayDelta whole scans): diagnostics only.
-    adapted += [source / name for name in adapt_pipeline_failure_state(source)]
-    adapted += [source / name for name in adapt_array_delta_causes(source)]
+    # Core 697 (IPA 693 counters: 293 of 297 whole delta scans for an invalidated texture, 40 whole re-checks, 24
+    # rebuilds): bindless delta passes visit the elements of invalidated textures and repair in place.
+    adapted += [source / name for name in adapt_array_delta_invalidated(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -523,8 +522,7 @@ def main():
                  'adapt_worker_main_cache_lookup.py',
                  'adapt_compute_switch_bindings.py',
                  'adapt_bgc_keepalive.py',
-                 'adapt_pipeline_failure_state.py',
-                 'adapt_array_delta_causes.py']:
+                 'adapt_array_delta_invalidated.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -233,6 +233,9 @@ static class Program
 #else
     const bool Adapted = false;
 #endif
+    // Core 697 (adapt_array_delta_invalidated) in the compiled cache.
+    static readonly bool Invalidated = typeof(TextureBindingsArrayCache).GetMethod("AppendStaleElements",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static) != null;
 
     // Every element must hold what a full rebuild resolves from the current pools: no texture for an
     // empty descriptor, the pool texture's current host, or for another format a live view of that
@@ -389,6 +392,79 @@ static class Program
         if (Adapted) Check.That(correctAtOnce, "the candidate rebinds in the same update");
         w.Threaded?.Dispose();
         return new { threaded, format, correctAtOnce };
+    }
+
+    // Core 697 (adapt_array_delta_invalidated), IPA 693: 293 of 297 whole scans came from one invalidated bound
+    // texture. A bound texture remapped in place (its sequence moves, its pool entry does not), one removed by the
+    // texture cache between two updates, and one removed during a pass by another element's lookup: the array must
+    // match the pools at once, never bind a released host, and the candidate re-resolves only their elements (no
+    // whole scan, no full rebuild).
+    static object InvalidatedBound(bool threaded)
+    {
+        const int Length = 5000;
+        World w = new(Length, threaded, 29);
+        TextureBindingInfo binding = World.Binding(Length, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        Texture Bound(int from, Texture except)
+        {
+            for (int i = from; i < Length; i++)
+            {
+                Texture t = w.Textures.Items[i];
+                if (t != null && t != except && !t.Disposed) return t;
+            }
+            return null;
+        }
+        long full = PD.Totals[(int)PD.Counter.ArrayFullElements];
+        int Elements(Texture texture)
+        {
+            int count = 0;
+            for (int i = 0; i < Length; i++) if (w.Textures.Items[i] == texture) count++;
+            return count;
+        }
+        Texture remapped = Bound(0, null);
+        Check.That(remapped != null, "fixture: a bound texture");
+        int remapElements = Elements(remapped);
+        remapped.Invalidate();
+        long peeks0 = w.Textures.Peeks;
+        w.Update(binding, Kind.Texture);
+        long remapPeeks = w.Textures.Peeks - peeks0;
+        VerifyAgainstPools(w, Kind.Texture, 0, "after a bound texture was remapped in place");
+        Texture removed = Bound(10, remapped);
+        int removeElements = Elements(removed);
+        w.Remove(removed);
+        peeks0 = w.Textures.Peeks;
+        w.Update(binding, Kind.Texture);
+        long removePeeks = w.Textures.Peeks - peeks0;
+        VerifyAgainstPools(w, Kind.Texture, 0, "after a bound texture was removed");
+        Texture victim = Bound(20, removed);
+        int victimElements = Elements(victim);
+        const int Written = 4000;
+        w.Textures.Write(Written, 1 + (w.Textures.Keys[Written] + 3) % w.LibrarySize);
+        w.Textures.OnResolve = id => { if (id == Written) { w.Textures.OnResolve = null; w.Remove(victim); } };
+        peeks0 = w.Textures.Peeks;
+        w.Update(binding, Kind.Texture);
+        long duringPeeks = w.Textures.Peeks - peeks0;
+        Check.That(w.Textures.OnResolve == null && victim.Disposed, "fixture: the victim was removed during the pass");
+        bool correctAtOnce = true;
+        try { VerifyAgainstPools(w, Kind.Texture, 0, "after a removal during the pass"); } catch (InvalidOperationException) { correctAtOnce = false; }
+        bool rebuilt = PD.Totals[(int)PD.Counter.ArrayFullElements] != full;
+        w.Update(binding, Kind.Texture);
+        VerifyAgainstPools(w, Kind.Texture, 0, "next update");
+        Check.That(w.Violations == 0, "a call reached a disposed texture");
+        if (Adapted) Check.That(correctAtOnce, "the candidate rebinds in the same update");
+        if (Invalidated)
+        {
+            // Each visited element is peeked once by the check and once when recorded; a removal also logs the
+            // texture's own pool ids (the same elements).
+            Check.That(remapPeeks <= 2 * remapElements + 8 && removePeeks <= 4 * removeElements + 8 && remapPeeks < Length / 4,
+                $"an invalidated bound texture re-resolves its elements only ({remapPeeks} peeks for {remapElements} elements, " +
+                $"{removePeeks} for {removeElements}, of {Length})");
+            Check.That(duringPeeks <= 4 * victimElements + 16 && duringPeeks < Length / 4 && !rebuilt,
+                $"an invalidation during the pass repairs in place ({duringPeeks} peeks for {victimElements} elements, rebuilt {rebuilt})");
+        }
+        w.Threaded?.Dispose();
+        return new { threaded, length = Length, remapElements, remapPeeks, removeElements, removePeeks, victimElements, duringPeeks, rebuilt, correctAtOnce, invalidated = Invalidated };
     }
 
     // More descriptor writes between two updates than the pool log holds: the pass scans the whole array.
@@ -555,6 +631,7 @@ static class Program
         List<object> removals = new() { RemovalDuringPass(true, 0), RemovalDuringPass(false, 0), RemovalDuringPass(true, 3), RemovalDuringPass(false, 3) };
         List<object> failures = new() { FailureScenario(true, false), FailureScenario(false, false), FailureScenario(true, true), FailureScenario(false, true) };
         List<object> overflows = new() { LogOverflow(true), LogOverflow(false) };
+        List<object> invalidations = new() { InvalidatedBound(true), InvalidatedBound(false) };
         List<object> syncs = new() { SyncReplacesHost(true, false), SyncReplacesHost(false, false), SyncReplacesHost(true, true), SyncReplacesHost(false, true) };
         List<object> quiet = new() { QuietAfterBlacklist(true, 0), QuietAfterBlacklist(false, 0), QuietAfterBlacklist(true, 2), QuietAfterBlacklist(false, 2) };
         List<object> measures = new();
@@ -570,7 +647,7 @@ static class Program
         }
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, overflows, quiet, measures,
+            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, overflows, invalidations, quiet, measures,
             counters = Enum.GetNames<PD.Counter>().Zip(PD.Totals).ToDictionary(p => p.First, p => p.Second),
             deltaPasses = PD.Calls[(int)PD.Work.ArrayDelta],
         }));
@@ -590,14 +667,6 @@ namespace Ryujinx.Common
         public readonly struct WorkScope : IDisposable { public void Dispose() { } }
         public static WorkScope Track(Work work) { Calls[(int)work]++; return default; }
         public static void Count(Counter counter, long amount = 1) => Totals[(int)counter] += amount;
-    }
-
-    // Core 695 (adapt_array_delta_causes): the cache journals its delta pass causes every 512 passes.
-    public static class EmbeddedLaunchDiagnostics
-    {
-        public static readonly System.Collections.Generic.List<string> Lines = new();
-        public static void Record(string stage, string status, int code = 0, string detail = "", long performanceGeneration = 0) =>
-            Lines.Add(stage + "/" + status + ": " + detail);
     }
 }
 
