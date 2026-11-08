@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "f4223aa55c93a6650dc265b3b3bab65f9a1a0d10",
-  "run": 42474580788,
-  "job": 128716532351,
-  "attempt": 2,
+  "source": "ccd575b0645b9acb3b29e577d4e8b00106777dad",
+  "run": 42503560134,
+  "job": 128801264095,
+  "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13616601214,
-  "name": "MeloNX-engine-f4223aa55c93a6650dc265b3b3bab65f9a1a0d10",
-  "bytes": 90767605,
-  "sha256": "b66f344a262bb89129fc330394ae6a1d7f0d768b6c58f707573415d13c6fd2ef",
-  "expiresAt": "2026-11-22T11:59:15Z",
+  "artifact": 13628080203,
+  "name": "MeloNX-engine-ccd575b0645b9acb3b29e577d4e8b00106777dad",
+  "bytes": 90779449,
+  "sha256": "236a718f4cfb3b5730e03407fc6d2650553ad93b35b94677c84a6ace60e924f9",
+  "expiresAt": "2026-11-22T17:45:30Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "75bcd61ad6cbd5f365182292f574f8fe2fde3257143d4591f6e25503f2ebd5d7",
-      "bytes": 38225952
+      "sha256": "bd2a2dbdbdec9ef8aa39ea606d171ef6645f7b10b43d625faaee489730fb3c67",
+      "bytes": 38209520
     },
     "iossimulator-arm64": {
-      "sha256": "2971870f3b474ed3c95776afab429746fd241c1e8a97512191515fd7b5cbf714",
-      "bytes": 38541224
+      "sha256": "349b23cda1a8e6c714ebec25191adc3e55dba163723c9cddfce54532fdf61b1e",
+      "bytes": 38541176
     }
   },
   "identities": {
-    "ios-arm64": "7b42039d1261bd4e4c3e82dbfe3c2b5ce498829caccfaffb2174834189fed1e0",
-    "iossimulator-arm64": "d6b82c190fb1da983666fd5378cb7a2ced6de923d2e0a889ca836a76f2d2499b"
+    "ios-arm64": "c2ac5fd079a8cc90960b2a891f7216cca1214716c604526bc95627a45e1dac3a",
+    "iossimulator-arm64": "862038b704dd264a723c8ac68d09735889aaefa968cbf4d93e71f76b3f146f31"
   },
-  "contractSha256": "c0524dd9002c4cfcee4718c7a70258ef85bb2e54e3a75f1f91cbb88d56088940",
-  "resultSha256": "af4a0f9932e1dbceea165449d86529f72a5bc2640cadef024d577d8a0bea3cbd",
-  "packagedFingerprint": "def8d714271b9fc68d662bc7f3137594cb976c724fd2dedce85bb16130cc442c",
+  "contractSha256": "51ae818c8916483ef3f91459db68c34c89d251695dd6a0960f51036ca8f71606",
+  "resultSha256": "1b155d7d7e1b223273add950c3200c223fe1c084b4a97a453f7d7a031bb0a24a",
+  "packagedFingerprint": "070e10b647013c95930ddf4c3f6825a98f8853c625e235628c2a2a880e6e2759",
   "replaces": {
-    "source": "366fde428878a6e7e7f6fdaa7feb42bd04bf40a0",
-    "run": 42445562147,
-    "artifact": 13603708454,
-    "packagedFingerprint": "86fb7e33c8f97f9c4e4b080bb75be00e6057cdc46ad4747df70d13506810e63c",
-    "reason": "Diagnostics only, every title: a failed graphics pipeline logs its full state once per program and state (IPA 692: program 890A188FB55B5D5D, black ground holes in Hogwarts Legacy); bindless delta passes journal their whole-scan causes every 512 passes"
+    "source": "f4223aa55c93a6650dc265b3b3bab65f9a1a0d10",
+    "run": 42474580788,
+    "artifact": 13616601214,
+    "packagedFingerprint": "def8d714271b9fc68d662bc7f3137594cb976c724fd2dedce85bb16130cc442c",
+    "reason": "The Core 693 of IPA 692 without the Core 695 diagnostics, plus: bindless delta passes repair invalidated elements in place (IPA 693: 293 of 297 whole scans, 40 re-checks, 24 rebuilds); the main and worker Vulkan pipeline cache snapshots load in the background (IPA 693: 536 s at launch with a cold Metal cache); the GPU thread synchronous waits attributed per invoked command on the existing render work line"
   }
 }
