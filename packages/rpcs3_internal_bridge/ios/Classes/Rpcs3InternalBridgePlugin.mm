@@ -17,6 +17,7 @@
 #import "RPCS3TouchControls.h"
 #import <neo_touch_layout/NeoTouchLayout.h>
 #import "RPCS3PerformanceOverlay.h"
+#include "RPCS3OverlayButtonLayout.h"
 #include "RPCS3PerformanceSnapshot.h"
 #include "RPCS3FrameRateHold.h"
 #include <atomic>
@@ -329,21 +330,48 @@ static UIViewController* RPCS3RootViewController(void) {
   self.performanceOverlay.hidden = YES;
   [view addSubview:self.performanceOverlay];
 
-  [NSLayoutConstraint activateConstraints:@[
-    [menu.leadingAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.leadingAnchor constant:12],
-    // Keep RPCS3 actions in their own rail below the virtual shoulder row.
-    [menu.topAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.topAnchor constant:70],
-    [menu.widthAnchor constraintEqualToConstant:44],
-    [menu.heightAnchor constraintEqualToConstant:44],
-    [performance.centerXAnchor constraintEqualToAnchor:menu.centerXAnchor],
-    [performance.topAnchor constraintEqualToAnchor:menu.bottomAnchor constant:8],
-    [performance.widthAnchor constraintEqualToConstant:44],
-    [performance.heightAnchor constraintEqualToConstant:44],
-    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:menu.trailingAnchor constant:8],
-    [self.performanceOverlay.topAnchor constraintEqualToAnchor:menu.topAnchor],
-    [self.performanceOverlay.widthAnchor constraintEqualToConstant:320],
-    [self.performanceOverlay.heightAnchor constraintEqualToConstant:250],
-  ]];
+  // Frames come from rpcs3_overlay::compute (see layoutOverlayButtons).
+  menu.translatesAutoresizingMaskIntoConstraints = YES;
+  performance.translatesAutoresizingMaskIntoConstraints = YES;
+  self.performanceOverlay.translatesAutoresizingMaskIntoConstraints = YES;
+  [self layoutOverlayButtons];
+}
+static CGRect RPCS3ToCG(const rpcs3_overlay::Rect& r) { return CGRectMake(r.x, r.y, r.w, r.h); }
+- (void)layoutOverlayButtons {
+  UIView* root = self.view;
+  if (!root || root.bounds.size.width <= 0) return;
+  // Real control frames: the live views of the touch overlay (after its own
+  // layout and stored/custom layout), in this view's coordinates. Hidden
+  // overlay (controller connected / switch off) contributes nothing.
+  std::vector<rpcs3_overlay::Rect> occupied;
+  RPCS3TouchControlsView* touch = self.inputController.touchControls;
+  if (touch && !touch.hidden && touch.alpha > 0.01) {
+    [touch layoutIfNeeded];
+    for (NSString* identifier in @[@"dpad.up", @"dpad.down", @"dpad.left", @"dpad.right", @"square", @"cross",
+                                   @"circle", @"triangle", @"l1", @"l2", @"r1", @"r2", @"select", @"start",
+                                   @"stick.left", @"stick.right"]) {
+      UIView* control = [touch controlForIdentifier:identifier];
+      if (!control || control.hidden || control.alpha <= 0.01 || !control.superview) continue;
+      CGRect f = [control.superview convertRect:control.frame toView:root];
+      if (f.size.width > 0 && f.size.height > 0)
+        occupied.push_back({f.origin.x, f.origin.y, f.size.width, f.size.height});
+    }
+  }
+  // The Core letterboxes inside the Metal view; its image rect is not exposed
+  // natively, so the whole Metal view is treated as the image (never altered).
+  CGRect image = self.metalView.superview == root ? self.metalView.frame : root.bounds;
+  UIEdgeInsets safe = root.safeAreaInsets;
+  rpcs3_overlay::Layout layout = rpcs3_overlay::compute(
+      {root.bounds.origin.x, root.bounds.origin.y, root.bounds.size.width, root.bounds.size.height},
+      {safe.top, safe.left, safe.bottom, safe.right}, {image.origin.x, image.origin.y, image.size.width, image.size.height},
+      occupied);
+  self.menuButton.frame = RPCS3ToCG(layout.menu);
+  self.performanceButton.frame = RPCS3ToCG(layout.performanceButton);
+  self.performanceOverlay.frame = RPCS3ToCG(layout.panel);
+}
+- (void)viewSafeAreaInsetsDidChange {
+  [super viewSafeAreaInsetsDidChange];
+  [self.view setNeedsLayout];
 }
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
@@ -352,6 +380,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   [self.inputController layoutControlsInBounds:self.view.bounds safeAreaInsets:self.view.safeAreaInsets];
+  [self layoutOverlayButtons];
   // The virtual pad is installed after loadView; preserve the independent
   // action rail's hit testing above it without sharing any pad geometry.
   [self.view bringSubviewToFront:self.performanceOverlay];
@@ -369,6 +398,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)menuPressed { if (self.menuHandler) self.menuHandler(); }
 - (void)performancePressed {
   self.showingPerformance = !self.showingPerformance;
+  [self layoutOverlayButtons];  // controller visibility may have changed since the last layout
   [self.performanceOverlay reset];
   self.performanceOverlay.hidden = !self.showingPerformance;
   self.performanceButton.tintColor = self.showingPerformance ? UIColor.systemGreenColor : UIColor.whiteColor;
