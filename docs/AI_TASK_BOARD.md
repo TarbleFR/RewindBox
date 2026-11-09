@@ -889,7 +889,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS,
       reuse-audit, transition-phases, feedback-census, position-invariance, lr-full-queue, RA hooks, exitspawn,
       graphics-tests-612, spu-613 PASS; full driver running.
-    - Next: dependency run -> link -> [rpcs3-core-build] request -> pin. iPhone protocol in the French report.
+    - **Core 908 built and pinned**: request 1 run `42670844398` (source `d73e25a1`), Core job and Apple host harnesses green
+      first try (15 commands); dylib `26ca81ad` (80 813 848 B), fingerprint `47d0324c`, identities unchanged; markers
+      wl_putllc_phases=, miss_evicted=, FREEZE_DUMP ppu_poller/lwcond present. Verified offline (pin_errors, bundle).
+      Not run on the iPhone; no FPS claim. No IPA (maintainer).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
