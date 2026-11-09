@@ -337,6 +337,20 @@ def main():
     rep = capped.get('archiveReport', {})
     expect(created_all(capped) and rep.get('collected') == 10 and rep.get('collectCapped') == PIPELINES - 10, 'session bound: 10 collected, 58 not queued', capped)
 
+    # --- Memory of a collecting session: the archive reopened from its file after each save, or kept in memory ---------------
+    memory = {}
+    for label, reopen in (('reopened after each save', 1), ('kept in memory', 0)):
+        directory = work / f'archive-memory-reopen-{reopen}'
+        collecting = session(f'collection, saves every 8 additions, archive {label}', directory, SAVE_EVERY=8, REOPEN=reopen)
+        rep = collecting.get('archiveReport', {})
+        expect(created_all(collecting) and same_result(collecting, reference) and rep.get('collected') == PIPELINES and rep.get('saves', 0) >= 8 and
+               rep.get('saveErrors') == 0 and rep.get('reopenErrors') == 0 and len(segments(directory)) == 1,
+               f'collection with saves every 8 additions ({label}): 68 collected, one segment file', collecting)
+        served = session(f'after it ({label}), strict', directory, STRICT=1)
+        expect(created_all(served) and same_result(served, reference) and served.get('archiveReport', {}).get('hits') == PIPELINES,
+               f'after saves every 8 additions ({label}): the segment serves the 68 pipelines', served)
+        memory[label] = {'peakFootprintMiB': collecting.get('peakFootprintMiB'), 'saves': rep.get('saves'), 'saveMs': rep.get('saveMs'), 'savedBytes': rep.get('savedBytes')}
+
     # --- Concurrency: four creating threads, pipeline cache reads, saves every 4 additions, device destroyed at once ---------
     for round_index in range(3):
         directory = work / f'archive-threads-{round_index}'
@@ -358,6 +372,8 @@ def main():
                 # MoltenVK's "Compile MTLFunctions into a pipeline": every pipeline state creation, from an archive or compiled.
                 'pipelineCreationMs': test.get('mvkPipelineCompile', {}).get('totalMs'), 'pipelineCreationMaxMs': test.get('mvkPipelineCompile', {}).get('maxMs'),
                 'pipelineCreations': test.get('mvkPipelineCompile', {}).get('count'), 'archiveHits': rep.get('hits'), 'archiveHitMs': rep.get('hitMs'),
+                'archiveRenderHitMs': (rep.get('hitMs') - rep.get('computeHitMs', 0)) if rep.get('hitMs') is not None else None,
+                'archiveComputeHitMs': rep.get('computeHitMs'),
                 'archiveMisses': rep.get('misses'), 'archiveMissMs': rep.get('missMs'), 'graphicsCreateMs': test.get('graphics', {}).get('time', {}).get('totalMs'),
                 'graphicsCreateMaxMs': test.get('graphics', {}).get('time', {}).get('maxMs'), 'computeCreateMs': test.get('compute', {}).get('time', {}).get('totalMs'),
                 'collectMs': rep.get('addMs'), 'saveMs': rep.get('saveMs'), 'savedBytes': rep.get('savedBytes'), 'verifyMs': rep.get('verifyMs'), 'loadMs': rep.get('loadMs'),
@@ -365,11 +381,12 @@ def main():
 
     comparison = {entry['label']: figures(entry) for entry in (reference, warm, cold2, collect, reuse_warm, reuse_cold, reuse_cold2, normal_absent, damaged)}
     summary = {'device': reference.get('test', {}).get('device'), 'identity': identity, 'salt': salt, 'systemMetalCaches': caches['grown'],
-               'comparison': comparison, 'failures': failures, 'sessions': sessions}
+               'comparison': comparison, 'collectingSessionMemory': memory, 'referencePeakFootprintMiB': reference.get('peakFootprintMiB'),
+               'failures': failures, 'sessions': sessions}
     (OUT / 'report.json').write_text(json.dumps(summary, indent=1) + '\n')
     shutil.rmtree(work, ignore_errors=True)
     binary.unlink(missing_ok=True)
-    print('\n' + json.dumps({'comparison': comparison, 'failures': failures}, indent=1), flush=True)
+    print('\n' + json.dumps({'comparison': comparison, 'collectingSessionMemory': memory, 'failures': failures}, indent=1), flush=True)
     if failures:
         raise SystemExit(f'{len(failures)} expectation(s) failed')
 
