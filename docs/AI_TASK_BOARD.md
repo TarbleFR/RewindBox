@@ -1023,6 +1023,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Own tooling slip, repaired: two earlier fold simulations committed in the worktree store shared by the canonical
       trees and moved its HEAD; HEAD and index were reset to the upstream commit (working files untouched), the route
       test passes again and the delta was verified against a pristine upstream clone.
+    - **Core 910 built and pinned**: request 1 run `42699665173` (source `a9c3ef3d`), Core job and Apple host harnesses
+      green first try (15 commands; the `core910` command ran the real-cache scoped harness, the PUT horizon model and
+      the memo counterexamples with Apple clang); Core artifact 13712376451 (zip = API digest 7a1aadc2), dylib `0abdf717`
+      (80 832 968 B), fingerprint `4e944972`, identities unchanged (PPU a987639e, SPU 477a3fa4); markers put_deferred=,
+      put_patched=, same_target_after_empty=, to_transfer_dst=, lookahead=, Resolved title policy 910 present; pin_errors
+      and bundle clean, pin `e53e8d55`. Not run on the iPhone; no FPS claim; no IPA (maintainer).
     - iPhone protocol for Core 910 (one IPA with Core 910, cool device, same scenes as 694): GOW3 savestate scene 75 %,
       5 windows: EPOCH909 (put, put_deferred, put_patched, acquire), OPT559 epoch_advances, OPT583 lookahead, OPT581
       worker bytes, JITMEM texture_hash_bytes, RSXFRAME551 texture_ms, COREPROF frames (ppu/spu/rsx cores), image
