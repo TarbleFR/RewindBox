@@ -35,6 +35,7 @@ def require(condition, message):
 DRIVER = r'''
 #include "IOSTextureValidationProfile.h"
 #include "IOSGow3MlaaReport.h"
+#include "IOSTexturePrehash.h"
 #include <cstdio>
 #include <string>
 #define CHECK(c) do { if (!(c)) { std::printf("FAIL line %d: %s\n", __LINE__, #c); return 1; } } while (0)
@@ -64,6 +65,23 @@ int main()
 	mlaa::record_unmatched_spu("SPU-0");
 	CHECK(mlaa::unmatched_count == mlaa::hash_slots);
 	CHECK(mlaa::unmatched_list() == "SPU-0,SPU-1,SPU-2,SPU-3,SPU-4,SPU-5");
+	// REWINDBOX_PREHASH_BUDGET_910: the look-ahead depth follows the share of worker hashes the last frame used.
+	namespace prehash = rpcs3::ios::texture_prehash;
+	static_assert(prehash::next_lookahead(64, 7, 0) == 64);      // too little to judge
+	static_assert(prehash::next_lookahead(64, 100, 45) == 32);   // 45 % used (window 29: 4,623 of 10,135): halve
+	static_assert(prehash::next_lookahead(32, 100, 49) == 16);
+	static_assert(prehash::next_lookahead(4, 100, 0) == 4);      // floor
+	static_assert(prehash::next_lookahead(6, 100, 10) == 4);
+	static_assert(prehash::next_lookahead(16, 100, 50) == 16);   // between the thresholds: keep
+	static_assert(prehash::next_lookahead(16, 100, 84) == 16);
+	static_assert(prehash::next_lookahead(16, 100, 85) == 32);   // well used: double
+	static_assert(prehash::next_lookahead(64, 100, 100) == 64);  // ceiling
+	static_assert(prehash::next_lookahead(48, 100, 90) == 64);
+	std::size_t depth = prehash::lookahead;
+	for (int frame = 0; frame < 6; ++frame) depth = prehash::next_lookahead(depth, 140, 64); // the measured ratio, frame after frame
+	CHECK(depth == prehash::min_lookahead);
+	for (int frame = 0; frame < 6; ++frame) depth = prehash::next_lookahead(depth, 40, 38);
+	CHECK(depth == prehash::lookahead);
 	std::printf("{\"epoch_sources\": \"counted\", \"mlaa_report\": \"%s\"}\n", mlaa::unmatched_list().c_str());
 	return 0;
 }
@@ -127,6 +145,11 @@ def static_checks(source: Path) -> dict:
     require('rpcs3::ios::gow3_mlaa::record_executable(hash,' in ppu and 'ppu_state::savestate' in ppu, 'PPU decision recorded')
     require('hash == "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" &&' in ppu, 'the PPU bypass gate is unchanged')
     require('rpcs3::ios::gow3_mlaa::record_unmatched_spu(hash);' in spu and 'spu_words_patched.fetch_add' in spu, 'SPU decision recorded')
+    cache_cpp = (source / 'rpcs3/Emu/RSX/Common/texture_cache.cpp').read_text()
+    for needle in ('batch.size() < g_lookahead &&', 'g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);',
+                   'total_worker_hashes.fetch_add(1, std::memory_order_relaxed);', 'rpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed);'):
+        require(needle in cache_cpp, 'prehash budget: ' + needle)
+    require('lookahead=%u' in perf, 'OPT583 reports the look-ahead depth')
     freeze = (source / 'rpcs3/ios/RPCS3IOSFreezeDump.cpp').read_text()
     require('REWINDBOX_FREEZE_LABELS_909' in freeze and 'signal_trace::watched_address.load' in freeze, 'freeze label lines')
     return report

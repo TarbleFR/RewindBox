@@ -351,7 +351,13 @@ static CGRect RPCS3ToCG(const rpcs3_overlay::Rect& r) { return CGRectMake(r.x, r
                                    @"circle", @"triangle", @"l1", @"l2", @"r1", @"r2", @"select", @"start",
                                    @"stick.left", @"stick.right"]) {
       UIView* control = [touch controlForIdentifier:identifier];
-      if (!control || control.hidden || control.alpha <= 0.01 || !control.superview) continue;
+      if (!control || !control.superview) continue;
+      // A control is on screen only if it and every ancestor below this view are shown.
+      BOOL shown = YES;
+      for (UIView* v = control; v && v != root; v = v.superview) {
+        if (v.hidden || v.alpha <= 0.01) { shown = NO; break; }
+      }
+      if (!shown) continue;
       CGRect f = [control.superview convertRect:control.frame toView:root];
       if (f.size.width > 0 && f.size.height > 0)
         occupied.push_back({f.origin.x, f.origin.y, f.size.width, f.size.height});

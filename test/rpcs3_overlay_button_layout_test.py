@@ -80,6 +80,38 @@ int main() {
   l = compute(sb, in3, sb, {});
   common(sb, in3, l, {});
   CHECK(l.panel.w <= 300 - 20 - 2 * kMargin + 1e-9);
+  // Both edges of a corner fully occupied (custom layout): the fallback is the least covered
+  // candidate, not the corner under the controls.
+  std::vector<Rect> wall{{0, 0, 874, 60}, {0, 0, 60, 300}, {814, 0, 60, 300}};
+  l = compute(b, in0, img, wall);
+  CHECK(detail::covered(l.menu, wall, nullptr) <= 0 && detail::covered(l.performanceButton, wall, nullptr) <= 0);
+  CHECK(l.menu.y > 300 && l.performanceButton.y > 300);
+  std::vector<Rect> full{{0, 0, 874, 402}};
+  l = compute(b, in0, img, full);  // nothing free anywhere: still a 44 pt target inside the safe area
+  CHECK(l.menu.w == 44 && inside(l.menu, b) && inside(l.performanceButton, b));
+  std::vector<Rect> partial{{0, 0, 874, 30}, {0, 0, 30, 402}, {844, 0, 30, 402}};
+  l = compute(b, in0, img, partial);  // every candidate is partly covered: the least covered one, not the corner under both bars
+  CHECK(detail::covered(l.menu, partial, nullptr) < detail::covered({kMargin, kMargin, kTarget, kTarget}, partial, nullptr));
+  CHECK(detail::covered(l.menu, partial, nullptr) <= 44.0 * 24.0 + 1e-6);
+  // The panel avoids the controls: face buttons under the Performances button shorten it.
+  std::vector<Rect> face{{700, 200, 150, 150}};
+  l = compute(b, in0, img, face);
+  CHECK(l.panel.maxX() == l.performanceButton.maxX() && l.panel.y == l.performanceButton.maxY() + kGap);
+  CHECK(l.panel.h >= kPanelMin && l.panel.maxY() <= 200 - kClearance + 1e-9);
+  CHECK(detail::covered(l.panel, face, nullptr) <= 0);
+  common(b, in0, l, face);
+  // Controls right under the button: no room below, the panel opens beside the button.
+  std::vector<Rect> close{{640, 70, 220, 300}};
+  l = compute(b, in0, img, close);
+  CHECK(detail::covered(l.panel, close, nullptr) <= 0);
+  CHECK(l.panel.maxX() <= l.performanceButton.x && l.panel.w >= kPanelMin && l.panel.h >= kPanelMin);
+  common(b, in0, l, close);
+  // Portrait: the panel stays in the safe area and off the controls at the bottom.
+  Rect pv{0, 0, 402, 874}; Insets inp{62, 0, 34, 0};
+  std::vector<Rect> pad{{20, 560, 160, 160}, {230, 560, 160, 160}};
+  l = compute(pv, inp, pv, pad);
+  CHECK(detail::covered(l.panel, pad, nullptr) <= 0 && detail::covered(l.menu, pad, nullptr) <= 0);
+  common(pv, inp, l, pad);
   std::printf(fails ? "FAILED\n" : "OK\n");
   return fails ? 1 : 0;
 }
@@ -90,7 +122,8 @@ def main() -> int:
     plugin = (CLASSES / "Rpcs3InternalBridgePlugin.mm").read_text()
     assert "constant:70" not in plugin, "old +70 constraint still present"
     for needle in ("rpcs3_overlay::compute", "viewSafeAreaInsetsDidChange",
-                   "[self layoutOverlayButtons];", "controlForIdentifier:identifier"):
+                   "[self layoutOverlayButtons];", "controlForIdentifier:identifier",
+                   "for (UIView* v = control; v && v != root; v = v.superview)"):
         assert needle in plugin, needle
     vdl = plugin[plugin.index("- (void)viewDidLayoutSubviews"):]
     assert "layoutOverlayButtons" in vdl[:700], "layout not called from viewDidLayoutSubviews"

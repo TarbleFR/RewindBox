@@ -45,6 +45,19 @@ inline bool blocked(const Rect& r, const std::vector<Rect>& occupied, const Rect
   return avoid && intersects(r, *avoid, kGap);
 }
 
+// Area of r covered by the occupied controls (with their clearance) and by `avoid`.
+inline double covered(const Rect& r, const std::vector<Rect>& occupied, const Rect* avoid) {
+  const auto area = [&r](const Rect& o, double pad) {
+    const double w = std::min(r.maxX(), o.maxX() + pad) - std::max(r.x, o.x - pad);
+    const double h = std::min(r.maxY(), o.maxY() + pad) - std::max(r.y, o.y - pad);
+    return (o.empty() || w <= 0 || h <= 0) ? 0.0 : w * h;
+  };
+  double total = 0;
+  for (const Rect& o : occupied) total += area(o, kClearance);
+  if (avoid) total += area(*avoid, kGap);
+  return total;
+}
+
 // Candidates, nearest first: the corner, then along the top edge toward the
 // centre, then down the side edge. `fromLeft` picks the corner.
 inline Rect place(const Rect& safe, const Rect& image, const std::vector<Rect>& occupied,
@@ -65,7 +78,27 @@ inline Rect place(const Rect& safe, const Rect& image, const std::vector<Rect>& 
       if (pass == 0 && intersects(c, image)) continue;
       return c;
     }
-  return corner;
+  // Nothing free along the two edges: the candidate the controls cover least (the nearest of
+  // equals), never the corner merely because the search ended.
+  Rect best = corner;
+  double least = covered(corner, occupied, avoid);
+  for (const Rect& c : cands) {
+    const double area = covered(c, occupied, avoid);
+    if (area < least) { least = area; best = c; }
+  }
+  return best;
+}
+
+// The panel in the column [x, x + w) from `top`: as tall as wanted, stopped above the first
+// control it would cover. Returns the height (may be under kPanelMin).
+inline double freeHeight(double x, double w, double top, double wanted, const std::vector<Rect>& occupied) {
+  double bottom = top + wanted;
+  for (const Rect& o : occupied) {
+    if (o.empty() || o.maxX() + kClearance <= x || o.x - kClearance >= x + w) continue;
+    if (o.maxY() + kClearance <= top) continue;  // above the panel
+    bottom = std::min(bottom, o.y - kClearance);
+  }
+  return std::max(0.0, bottom - top);
 }
 }  // namespace detail
 
@@ -94,6 +127,34 @@ inline Layout compute(const Rect& bounds, const Insets& insets, const Rect& imag
     x = right - w;
   }
   out.panel = {x, top, w, std::max(0.0, h)};
+  if (occupied.empty() || detail::covered(out.panel, occupied, nullptr) <= 0) return out;
+
+  // The panel would cover a touch control. In order: the same place, shorter; beside the button
+  // (towards the centre), full or shorter; else the candidate the controls cover least.
+  const double wantedBelow = out.panel.h;
+  const double sideH = std::min(kPanelHeight, std::max(0.0, safe.h - 2 * kMargin));
+  const double sideTop = std::max(safe.y + kMargin, std::min(pb.y, safe.maxY() - kMargin - sideH));
+  const double sideRight = std::max(safe.x + kMargin, pb.x - kGap);
+  const double sideW = std::min(std::min(kPanelWidth, std::max(0.0, safe.w - 2 * kMargin)), std::max(0.0, sideRight - (safe.x + kMargin)));
+  const Rect below{out.panel.x, out.panel.y, out.panel.w, detail::freeHeight(out.panel.x, out.panel.w, out.panel.y, wantedBelow, occupied)};
+  const Rect side{sideRight - sideW, sideTop, sideW, detail::freeHeight(sideRight - sideW, sideW, sideTop, sideH, occupied)};
+  // Beside the button but clear of the controls that reach into its first rows: further towards the centre.
+  double clearRight = sideRight;
+  for (const Rect& o : occupied) {
+    if (o.empty() || o.y - kClearance >= sideTop + kPanelMin || o.maxY() + kClearance <= sideTop) continue;
+    if (o.x - kClearance < clearRight && o.maxX() + kClearance > safe.x + kMargin) clearRight = std::min(clearRight, o.x - kClearance);
+  }
+  const double clearW = std::min(sideW, std::max(0.0, clearRight - (safe.x + kMargin)));
+  const Rect sideClear{clearRight - clearW, sideTop, clearW, detail::freeHeight(clearRight - clearW, clearW, sideTop, sideH, occupied)};
+  Rect best = out.panel;
+  double least = detail::covered(out.panel, occupied, nullptr);
+  for (const Rect& c : {below, side, sideClear}) {
+    if (c.w < kPanelMin || c.h < kPanelMin) continue;
+    const double area = detail::covered(c, occupied, nullptr);
+    if (area < least) { least = area; best = c; }
+    if (area <= 0) break;
+  }
+  out.panel = best;
   return out;
 }
 

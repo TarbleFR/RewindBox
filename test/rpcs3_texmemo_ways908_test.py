@@ -13,8 +13,12 @@ Executed against the real rpcs3/ios/IOSTextureLookupMemo.h of the tree (and a co
   2. every invalidation still drops the entries exactly as before: epoch, sampler revision, scoped range (only the
      overlapping entry), section generation, sampler refresh (context), bound render target;
   3. slots are independent: a slot cycling 17 keys leaves the entries of another slot hitting.
-Static: ways = 16, the TEXMEMO660 line reports ways= and miss_evicted=, and every check of a hit in find() is the
-Core 907 one.
+  4. REWINDBOX_TEXMEMO_GHOST_910 (review counterexample: 17 textures in a 16-entry slot, next epoch, the first one looked
+     up again was counted as a capacity miss): an evicted key is a capacity miss only while its entry would still serve
+     it: not after an epoch, a sampler revision, a section or context generation change, a scoped write over its range,
+     clear(), with its target bound, or when the evicted entry was already invalid; a disjoint scoped write keeps it.
+Static: ways = 16, the TEXMEMO660 line reports ways= and miss_evicted=, and the checks of a hit (validity(), called by
+find()) are the Core 907 ones, in their order.
 
     python3 test/rpcs3_texmemo_ways908_test.py --source CORE [--baseline CORE907] [--cxx g++] [--no-sanitizers] [--report OUT.json]
 """
@@ -149,6 +153,52 @@ int main()
 	cycle(7, 700, W + 1, 3);
 	CHECK(lookup(6, 600) == memo::miss::none);
 
+	// 4. REWINDBOX_TEXMEMO_GHOST_910: an evicted key is a capacity miss only while its entry would still serve it.
+	const auto fill_over = [&](std::size_t slot, std::uint32_t first, std::uint32_t extra)
+	{
+		tv::advance_epoch();
+		evicted();
+		for (std::uint32_t i = 0; i < W + extra; ++i) lookup(slot, first + i);
+		CHECK(evicted() == 0);
+	};
+	// The reviewed counterexample: 17 keys at epoch N, epoch N + 1, the first key again.
+	fill_over(9, 1000, 1);
+	tv::advance_epoch();
+	CHECK(lookup(9, 1000) == memo::miss::empty && evicted() == 0);
+	// Control: without the epoch it is a capacity miss.
+	fill_over(9, 1100, 1);
+	CHECK(lookup(9, 1100) == memo::miss::empty && evicted() == 1);
+	// A sampler revision, a section change, a sampler refresh.
+	fill_over(10, 1200, 1);
+	tv::sampler_revision.fetch_add(1);
+	CHECK(lookup(10, 1200) == memo::miss::empty && evicted() == 0);
+	fill_over(10, 1300, 1);
+	memo::section_changed(false);
+	CHECK(lookup(10, 1300) == memo::miss::empty && evicted() == 0);
+	fill_over(10, 1400, 1);
+	memo::sampler_refresh();
+	CHECK(lookup(10, 1400) == memo::miss::empty && evicted() == 0);
+	// A scoped write over the evicted entry's range drops it; a disjoint one keeps the other evicted key.
+	fill_over(11, 1500, 2);
+	T->invalidate(key_of(1500).address + 0x40, 0x10);
+	CHECK(lookup(11, 1501) == memo::miss::empty && evicted() == 1);
+	fill_over(11, 1600, 2);
+	T->invalidate(key_of(1600).address + 0x40, 0x10);
+	CHECK(lookup(11, 1600) == memo::miss::empty && evicted() == 0);
+	// clear(), a bound target, and an entry that was already invalid when it was evicted.
+	fill_over(12, 1700, 1);
+	T->clear();
+	CHECK(lookup(12, 1700) == memo::miss::empty && evicted() == 0);
+	fill_over(12, 1800, 1);
+	CHECK(lookup(12, 1800, true) == memo::miss::empty && evicted() == 0);
+	tv::advance_epoch();
+	evicted();
+	for (std::uint32_t i = 0; i < W; ++i) lookup(13, 1900 + i);
+	tv::advance_epoch();
+	for (std::uint32_t i = 0; i < W; ++i) lookup(13, 2000 + i); // evicts the stale entries of the last epoch
+	CHECK(lookup(13, 1900) == memo::miss::empty && evicted() == 0);
+	std::printf(", \"ghost_910\": \"checked\"");
+
 	std::printf(", \"failures\": %d}\n", failures);
 	return failures ? 1 : 0;
 }
@@ -169,9 +219,11 @@ def build_and_run(cxx: str, header_dir: Path, work: Path, name: str, sanitize: b
     return json.loads(result.stdout.strip().splitlines()[-1])
 
 
-def find_body(text: str) -> str:
-    begin = text.index('\tfound find(std::size_t slot, const key& k, bool compressed, bool bound) noexcept')
-    return text[begin:text.index('\t\treturn { nullptr, miss::empty };', begin)]
+def hit_checks(text: str, end: str) -> list:
+    """The checks of a hit, in their order: the lines from the generations snapshot to `end`, indentation removed."""
+    begin = text.index('const auto now = generations::now();\n\t\t\tmiss reason = miss::none;' if 'found find(' in end else
+                       'const auto now = generations::now();\n\t\tmiss reason = miss::none;')
+    return [line.strip() for line in text[begin:text.index(end if 'found find(' not in end else 'if (reason != miss::none)', begin)].splitlines() if line.strip()]
 
 
 def main() -> int:
@@ -185,16 +237,23 @@ def main() -> int:
 
     header = (args.source / MEMO_H).read_text()
     perf = (args.source / PERF).read_text()
-    require('REWINDBOX_TEXMEMO_WAYS_908' in header, 'marker missing in ' + MEMO_H)
+    require('REWINDBOX_TEXMEMO_WAYS_908' in header and 'REWINDBOX_TEXMEMO_GHOST_910' in header, 'marker missing in ' + MEMO_H)
     require(re.search(r'^constexpr std::size_t ways = 16;$', header, re.M), 'ways = 16')
     require('"ways=%zu miss_evicted=%llu "' in perf and 'memo::ways, m_evicted);' in perf, 'TEXMEMO660 reports ways and miss_evicted')
     report: dict = {'compiler': args.cxx, 'header_sha256': hashlib.sha256(header.encode()).hexdigest()}
     if args.baseline:
         base = (args.baseline / MEMO_H).read_text()
         require('constexpr std::size_t ways = 4;' in base, 'baseline ways = 4')
-        ours = find_body(header).replace('\t\tif (evicted_recently(slot, k))\n\t\t{\n\t\t\tcount(counters.miss_evicted);\n\t\t}\n', '')
-        require(ours == find_body(base), 'find() hit checks changed against Core 907')
-        report['find_unchanged'] = True
+        base_find = base[base.index('\tfound find(std::size_t slot, const key& k, bool compressed, bool bound) noexcept'):]
+        base_checks = hit_checks(base_find, 'found find(')
+        ours_validity = header[header.index('\tmiss validity(std::size_t index, const entry& e, bool compressed, bool bound) const noexcept'):]
+        ours_checks = hit_checks(ours_validity, 'return reason;')
+        require(len(base_checks) > 20 and ours_checks == base_checks, 'the checks of a hit changed against Core 907')
+        ours_find = header[header.index('\tfound find(std::size_t slot, const key& k, bool compressed, bool bound) noexcept'):]
+        ours_find = ours_find[:ours_find.index('\t\treturn { nullptr, miss::empty };')]
+        require('const miss reason = validity(index, e, compressed, bound);' in ours_find and
+                'if (!e.valid || !(e.k == k) || e.compressed != compressed)' in ours_find, 'find() serves through validity()')
+        report['hit_checks_unchanged'] = len(base_checks)
 
     with tempfile.TemporaryDirectory(prefix='texmemo908-') as temporary:
         work = Path(temporary)
@@ -209,7 +268,8 @@ def main() -> int:
             'six textures on one slot: hits with 16 ways, none with 4')
     report['result'] = 'passed'
     print('PASS: 16 ways hit a 6- and 16-texture cycle on one slot (4 ways: none), 17 overflows by LRU and is counted as '
-          'capacity misses; every invalidation drops as before; slots independent')
+          'capacity misses; every invalidation drops as before; slots independent; an evicted key is a capacity miss only '
+          'while its entry would still serve it (epoch, revision, generations, scoped write, clear, bound)')
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + '\n')
     return 0

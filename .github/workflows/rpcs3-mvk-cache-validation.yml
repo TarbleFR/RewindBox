@@ -16,6 +16,8 @@
 # gains the Metal 4 renderer test page key experimental.metal_renderer), 6 November 2026; no IPA or release.
 # Run request: the dependency of RPCS3 Core 908 (same MoltenVK source and patch; the host bridge
 # places the in-game Menu and Performances buttons with a collision-aware layout), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 910 (same MoltenVK source and patch; the host bridge
+# counts only touch controls whose ancestors are shown when it places the overlay buttons), 9 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':

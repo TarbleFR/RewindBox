@@ -937,6 +937,98 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       epoch_advances, JITMEM texture_hash_bytes, OPT581, RSXFRAME551 texture_ms, FRAMEPROF527 wall_guest_fps/p95/p99,
       COREPROF frames (PPU main core), GOW3MLAA909, thermal; check image, cutscene A/V sync; on a stall send causes +
       milestones (FREEZE_DUMP ppu_poller, lwcond, label lines).
+  - **Core 910 mission (maintainer prompt 9 Nov, "performance and compatibility through engine changes", no IPA; owner:
+    Claude Code; open)**. Base verified: HEAD `81685cd0`, Core 909 pinned (run `42683183053`, source `d5a89192`, dylib
+    `5f3281dc`, fingerprint `28700e74`). Reconciliation: the `summary` of core-build.json at `d5a89192` and the `status` of
+    core909-delta.json end with "not built" because they are written before the compile request and are part of the built
+    source identity; the build status of a Core is the pin (core-pin.json) and this board. The Core 910 summary carries no
+    build status. No new device log in this mission: every figure below is from the build 694 logs (Core 907) already cited.
+    - **3A TEXMEMO `miss_evicted` (Corrected in code, verified by execution).** Reproduced the maintainer's counterexample
+      on the Core 909 header (17 textures in a 16-way slot at epoch N, epoch N+1, lookup: counted `miss_evicted` although the
+      entry would have missed on the epoch anyway). REWINDBOX_TEXMEMO_GHOST_910 (ios/IOSTextureLookupMemo.h): a ghost keeps
+      the generations of its entry; `evicted_recently` counts only while that entry would still serve (same epoch, sampler
+      revision, context/local generations, range not rewritten, not cleared, not bound); eviction of an already invalid
+      victim records no ghost. Lookup results unchanged (`validity()` = the Core 907 hit chain, compared textually).
+      test/rpcs3_texmemo_ways908_test.py: 8 counterexamples; the Core 909 header fails 7 of them (negative control).
+    - **3B Core 909 scoped revalidation executed (Verified by execution).** test/rpcs3_scoped_rsx_writes910_test.py runs
+      the real `VKGSRender::ios_rsx_wrote_guest_memory` body on the real texture cache (660 harness) against the real
+      default (`rsx::thread`: one global epoch per write) as witness: disjoint, range limits (first/last byte, byte before,
+      bytes after, straddle), repeated writes per epoch, prehash published after the write, destroy/recreate, two shapes on
+      one range, fallbacks; memo off and active. Every draw serves the current guest bytes, both runs serve the same
+      contents, scoped never hashes more (6/8, 12/19, 13/17, 7/8, 7/10) and a write next to a texture hashes nothing.
+      Negative controls (section reset, prehash bypass, binding invalidation removed) serve stale data. ASan/UBSan (g++), clang.
+    - **4 God of War III (Corrected in code, verified by execution on a model; gain not measured, expected small in the
+      694 scene).** Symptom (694 window 21): 380 texture epochs/frame (25,820 per window), 2,046 draws/frame, 15.96 GB
+      hashed per 5 s. Responsible function: `FIFO_control::read_put()` runs at every command word and every PUT change it
+      read started an epoch. Invariant: a command is never served a texture validation older than its own publication.
+      REWINDBOX_PUT_HORIZON_910 (ios/IOSTextureValidationProfile.h `put_horizon`, Emu/RSX/RSXFIFO.cpp/.h, RSXThread.cpp):
+      a PUT change read while the FIFO is inside the linear segment below the PUT that opened the last PUT epoch starts
+      no epoch; the epoch starts when the FIFO reaches that horizon or leaves the segment, with the PUT read then; an
+      epoch of another source moves the horizon up to the last PUT read before it. Setting `put_epoch_horizon`
+      (Automatic: GOW3 only; off = Core 909 behaviour exactly).
+      - Independent rb-core-review of the first version: three defects, all fixed before the build (M4 `5b943fa`):
+        (1) `read_unsafe` reads PUT from the word before the argument it consumes, so the word at the horizon could run
+        before its epoch (fix: one word of margin, `horizon - get_now > 4`); (2) the FIFO cache of the non-Fast accuracy
+        modes reads PUT once per refill and crossed the horizon unseen (fix: deferral with the Fast FIFO only); (3) a
+        guest FIFO reset (sys_rsx attribute 0x001) or a FIFO recovery kept the old horizon (fix: `reset_epoch_horizon()`
+        at both `set_get` sites in RSXThread.cpp). Its coverage gap is closed too: a jump to itself that the guest
+        patches starts an epoch whether or not the memory watch was armed (`m_spin_addr`, horizon on only; counted
+        `put_patched=`). No defect found in the promotion rule, the prehash budget or FIFO/semaphore/flip ordering.
+      - test/rpcs3_put_horizon910_test.py executes the real `observe()` in a FIFO model that reads arguments as the FIFO
+        does (PUT may stop inside a method), with ring wrap, display lists, acquires, frame ends, FIFO resets and patched
+        jumps, synced and racy guests: 0 illegal version in the 8 runs (400 seeds each), never more epochs than the
+        witness apart from the patched-jump epochs. Five negative controls serve illegal versions (no bound 53,533; no
+        word margin 74; publication ignored 60,149; horizon kept across a reset 77; no patched-jump epoch 943). The
+        witness itself serves 336 illegal versions with patched jumps: one epoch per PUT change never covered them.
+      - Expected effect, stated before the device run: the saving exists only while the RSX lags behind PUT. Model: 45 %
+        fewer epochs with a lagging RSX, 4.5 % with an RSX that keeps up. On 694 the GOW3 FIFO was busy 43 % of the time
+        (rsx_fifo_busy=43.0, RSX thread 0.33 core) and the frame is bound by PPU main (0.912 core) with 3.04 SPU cores:
+        the RSX thread is not the bottleneck, so no FPS gain is claimed. Decision counters: EPOCH909 `put`, `put_deferred`,
+        `put_patched`. If `put_deferred` is under ~20 % of `put`, the horizon is not the lever and stays only as a
+        correct no-op; the next lever is then on the PPU/SPU side (MLAA load, hot guest functions).
+      REWINDBOX_PREHASH_BUDGET_910 (ios/IOSTexturePrehash.h, Common/texture_cache.cpp): 4,623 of 10,135 worker hashes were
+      used (10.48 GB hashed by the worker per window while the CPU is near saturation: 4.83 of 6 cores); the look-ahead
+      follows the used share of the last frame (halved under 50 %, doubled from 85 %, 4..64). Results stay keyed by range
+      + epoch, so a bounded look-ahead cannot validate anything. Decision counter: OPT583 `lookahead=`, OPT581 worker bytes.
+      TEXMEMO for GOW3: still off; decision after the device run (it can only serve if the epochs per frame fall to a
+      few). PPU main hot functions: not identified (no PPU sampler output in the 694 logs); open.
+    - **5 Black Ops II (Still open; no protocol change, on purpose).** The 694 gameplay window (21.7 fps) is GPU-bound:
+      gpu_execution 35.8 ms/frame, busy_share 0.784, RSX waits ~0, PPU 0.40 core, heavy PUTLLC ~8k/s (the 240k/s figure was
+      the IPA 666 multiplayer session). Chain read in the code: `do_putllc` -> `vm::reservation` -> `vm::writer_lock` ->
+      `cpu_flag::memory` on every PPU -> stop/resume. Counterexample that rejects a relaxed store without parking: a PPU
+      plain store into the 128-byte line between the SPU compare and its copy is overwritten by the SPU's stale bytes
+      (lost update); the lock is what makes compare+copy atomic against non-reserving writers. No orchestrator (Core 668).
+      Demonstrated cost followed instead: 49 render passes/frame, 15 same-target restarts. REWINDBOX_PASS_SHAPE_910 adds the
+      missing discriminant (one question each): RPASS652 `ended_empty/ended_short/same_target_after_empty`, RPASS655
+      `to_color/to_depth/to_transfer_dst/to_transfer_src/to_general`. Decision table: `same_target_after_empty` a large
+      share of same-target restarts -> defer the pass begin to the first draw; `to_transfer_*` dominant -> record uploads
+      and copies before the pass; `to_color/to_depth` -> target switches (guest order, no lever); `to_general` -> feedback
+      loops (kept: TBDR cross-tile hazard, no elision without proof). Counters only: not a fix.
+    - **6 AC1 (Still open, device).** 4 against 16 ways needs the same scene on Core >= 910 (`miss_evicted` now exact);
+      mvk_async canary `failed_before` not bypassed.
+    - **7 Stalls (Still open, device).** GOW3 acquire 0x60300510 and Black Flag need one capture on Core >= 909 (FREEZE_DUMP
+      ppu_poller, lwcond, label lines; GOW3MLAA909). No forced label, syscall replacement or timeout. MLAA 01.00: official
+      patch text unreachable from here; no 01.03 address transposed.
+    - **8 UI (Corrected in code, verified by execution on the layout model; device check missing)** (`b0d8f602`): a control
+      counts only if it and every ancestor below the game view are shown; with no free candidate the button takes the
+      least covered one, not the corner; the performance panel is shortened above a control or opens beside its button,
+      further towards the centre if needed. test/rpcs3_overlay_button_layout_test.py (landscape, portrait, custom walls,
+      controller = no controls). Not checked: a real device with a custom layout.
+    - Packaging (Core 910 = Core 909 + M4 commits 2417850, 2949d7d, 72c7f8b, 4f08d3e, 5b943fa): canonical 5714df92 (447),
+      delta 3ed9e312, increment core910-from-909 a38d95bd (= metal-wip-from-909). Host bridge c1494c46: MoltenVK dependency
+      request `cbbe8612`, run `42695255551` green (3 jobs); iOS artifact 13708968169 zip = API digest 66195a15,
+      libMoltenVK.a d19d3a42 byte-identical, host receipt verified (12 recorded inputs = current files); linked in
+      core-build.json. Local: route PASS, dependency artifact test PASS, codegen identities unchanged (PPU a987639e, SPU
+      477a3fa4), Metal fold chain simulated PASS (private repository copy), lever tests PASS (g++ ASan/UBSan, clang).
+      Own tooling slip, repaired: two earlier fold simulations committed in the worktree store shared by the canonical
+      trees and moved its HEAD; HEAD and index were reset to the upstream commit (working files untouched), the route
+      test passes again and the delta was verified against a pristine upstream clone.
+    - iPhone protocol for Core 910 (one IPA with Core 910, cool device, same scenes as 694): GOW3 savestate scene 75 %,
+      5 windows: EPOCH909 (put, put_deferred, put_patched, acquire), OPT559 epoch_advances, OPT583 lookahead, OPT581
+      worker bytes, JITMEM texture_hash_bytes, RSXFRAME551 texture_ms, COREPROF frames (ppu/spu/rsx cores), image
+      correctness of textures that change (HUD, streamed textures, video); A/B with "Texture Epoch At The PUT Horizon"
+      off. BO2 gameplay scene: RPASS652 (ended_empty, ended_short, same_target_after_empty), RPASS655 (to_*). AC1 same
+      scene 100 %: TEXMEMO660 with 16 then 4 ways (miss_evicted, hits), FPS. On any stall: causes + milestones.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -2280,6 +2372,40 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     requested by the next `[melonx-dma-core]` commit; its result decides the Core 713 identity to pin.
   - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
     comparison with IPA 694 on the device is the cumulative result of lots 1-6.
+- **MeloNX lot 7: persistent Metal binary archives in MoltenVK (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov;
+  owner: this session; prototype kept isolated, NOT integrated, not enabled; no IPA (maintainer)):**
+  - Goal: fewer repeated native compilations, pipeline waits and stutter in Hogwarts at full 1x rendering, by serving
+    Metal pipeline states from MTLBinaryArchive files kept between sessions.
+  - State: MeloNX's MoltenVK (Khronos v1.4.2 `db660224`, no patch, pinned binary `41cb207d…`), its pin, every Core and
+    every IPA are unchanged. The prototype is a patch for that revision
+    ([patch](../build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch) `69e7e861…`, off unless
+    RBX_MVK_BINARY_ARCHIVE_DIR is set; [notice](../build-utils/melonx/metal-archive/README.md)), its tests
+    (`test/melonx_metal_binary_archive/`) and the macOS workflow `melonx-metal-archive.yml` (starts only for its own
+    files; not a Core gate, no IPA). Nothing was built or run for iOS; nothing ran in the simulator.
+  - Evidence ([record](evidence/melonx-lot7-metal-archive/README.md),
+    [identities](evidence/melonx-lot7-metal-archive/run.json)):
+    - iPhone journals (MoltenVK's own statistics, aggregates): in play, library creation from MSL is 81.1-83.5 % of the
+      native shader time and pipeline state creation 16.5-18.9 % (ten sessions), all first encounters; 26 of 35
+      launches have a warm system Metal cache (at most 2.1 s of libraries, 1.0 s of pipelines), the 9 others compile
+      libraries for 13.5-65.8 s and pipelines for 2.4-12.6 s. A binary archive serves pipeline states only
+      (MVKPipeline.mm:3101, :3135), not `newLibraryWithSource` (MVKShaderModule.mm:582).
+    - macOS runner, its real Metal device, patched MoltenVK through Vulkan (run 42699272657, commit `bb49a541`: 32
+      sessions, every expectation met; run 42695873585, before the review: 28 sessions, every expectation met): 68/68
+      pipelines served by the archive in a new process under MTLPipelineOptionFailOnBinaryArchiveMiss; a variant left
+      out fails strict and is compiled normally; same draw and compute hashes. System Metal cache removed: 62 graphics
+      creations 0.95-1.01 s against 1.35-1.39 s, libraries (1.66-1.77 s) remain, compute pipelines gain nothing. Warm
+      system cache: no gain (0.18 against 0.20 s). Save failure, damaged, cut, refused, other-identity, bound, memory
+      floor and four-thread sessions as expected; +6 to +8 MiB of peak footprint while collecting 68 pipelines.
+    - Independent review (rb-core-review, source only): five defects in the first version (a compiler object leaked on
+      every hit), all fixed before run 42699272657.
+  - Open or limit: no iPhone measure of the prototype, so no FPS or stutter gain is claimed. The archive cannot touch
+    the library stage (most of the device's native shader time, and the reading of the IPA 693 cold start) nor first
+    encounters; an OS update or a change of MSL or options invalidates it. Not judged without a device: descriptor
+    kinds the test set lacks, eviction by Metal, iOS storage cost.
+  - Next: nothing scheduled. Reopen only on the maintainer's request, with main (patched MoltenVK pin, IPA) and the
+    three-launch protocol of the record (collection, reuse, reuse after removing the app's com.apple.metal cache).
+    The lever the evidence points to is the library stage (creation deferred to first use at pipeline cache load, fewer
+    MSL variants): another lot, not started.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

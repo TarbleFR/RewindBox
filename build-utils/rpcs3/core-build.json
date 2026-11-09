@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 909,
- "identity_type": "rpcs3-ios-core909",
- "summary": "RPCS3 Core 909 = Core 908 plus the God of War III levers (build 694 device logs, Core 907, BCES00510 app 01.00). (1) REWINDBOX_SCOPED_RSX_UPLOADS_909: NV308A inline data and NV0039 copies (the RSX methods that write one exact range of guest memory; NV3089 CPU blits keep the epoch) revalidate only the texture sections over the written range (Core 573 path) when the scope is on (Automatic: God of War III) instead of starting a new texture epoch that re-hashes every texture (about 358 epochs per frame and 15.96 GB hashed per 5 s window on build 694). (2) REWINDBOX_EPOCH_SOURCES_909: epoch advances counted per source (COREPROF EPOCH909). (3) REWINDBOX_GOW3_MLAA_REPORT_909: what the MLAA bypass applied (COREPROF GOW3MLAA909; the 01.00 executable is outside the PPU half). (4) REWINDBOX_FREEZE_LABELS_909: the label lines around a stalled RSX acquire in the freeze dump. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 910,
+ "identity_type": "rpcs3-ios-core910",
+ "summary": "RPCS3 Core 910 = Core 909 plus four levers. (1) REWINDBOX_PUT_HORIZON_910 (God of War III, Automatic): the FIFO read PUT at every command and every change started a texture epoch (about 358 per frame on build 694 while the FIFO ran dry about 55 times per frame); a PUT change read while the FIFO is still below the PUT that opened the last PUT epoch now starts no epoch, the epoch starts when the FIFO reaches that horizon or leaves the segment, and a jump to itself that the guest patches starts one (Fast FIFO only; a FIFO reset forgets the horizon; independent review, three defects fixed before the build). (2) REWINDBOX_PREHASH_BUDGET_910: the prehash worker look-ahead follows the share of its hashes that was used (4,623 of 10,135 on build 694). (3) REWINDBOX_TEXMEMO_GHOST_910: miss_evicted counts an evicted key only while its entry would still serve it (counter only). (4) REWINDBOX_PASS_SHAPE_910: render passes ended empty or short, same-target restarts after an empty pass and the destination layout of the transitions that end a pass (counters). ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "7932b1125a40e7e73b86e2fc79dca21b784b015f6002f3170257ba9358fd9c6e",
+  "patch_sha256": "5714df92ec37f964be718ab1c43e3a8c88357fbf7b6af47b53e91eea05c85e16",
   "postimages": 447,
   "records": [
    "core610_20261101",
@@ -56,7 +56,8 @@
    "core906_20261107",
    "core907_20261107",
    "core908_20261109",
-   "core909_20261109"
+   "core909_20261109",
+   "core910_20261109"
   ]
  },
  "reference": {
@@ -96,16 +97,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core909_20261109",
-  "manifest": "build-utils/rpcs3/core909-delta.json",
-  "patch": "build-utils/rpcs3/core909-delta.patch",
-  "patch_sha256": "aacaa7d9dbabbb4afa7e4df00fa65a993cc113855e808ec5d1eeaf5685d3b15a"
+  "record": "core910_20261109",
+  "manifest": "build-utils/rpcs3/core910-delta.json",
+  "patch": "build-utils/rpcs3/core910-delta.patch",
+  "patch_sha256": "3ed9e312079992796f8ea1e620543e0a0d9856c225ec54f162a49981cbf8b9e2"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "bdcd0ac7605e866209238f438fd987189bd1df5a27e492e492a8fbd994d02be6",
+  "host_sha256": "c1494c46737f8add017917a8ef31595a6f5c5220d1350eb6a308b6d170c4911b",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -207,18 +208,22 @@
   "wl_putllc_phases=",
   "miss_evicted=",
   "COREPROF EPOCH909",
-  "COREPROF GOW3MLAA909"
+  "COREPROF GOW3MLAA909",
+  "put_deferred=",
+  "same_target_after_empty=",
+  "Resolved title policy 910",
+  "put_patched="
  ],
  "moltenvk_dependency": {
-  "run": 42668189251,
-  "source": "f1b5befd29c341d4bf8293bc858ea23d55f02bdf",
+  "run": 42695255551,
+  "source": "cbbe8612a083ab7ada9f2215ba1e251bd72acdc1",
   "library_sha256": "d19d3a424df950e0f339e9ef4704f634849e8a545339bac1faafdee0ebc3805e",
   "reviewed_host_delta": false,
   "replaces": {
    "run": 41239096061,
    "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
    "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
-   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196, then by runs 41993591512 (Core 660) and 42051417882 (Core 664); Core 668 linked run 42140012211 (the Core 664 bridge again, dd4c525a); Core 902 to 907 linked run 42213572281 (host bridge 92fad91d, the Metal 4 renderer test page key); Core 908 links run 42668189251, the same source and patch (libMoltenVK.a d19d3a42 byte-identical), whose recorded inputs include the current dependency workflow and the current host bridge (bdcd0ac7, the collision-aware Menu/Performances layout), so the reviewed bridge pair of the replaced run no longer applies"
+   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196, then by runs 41993591512 (Core 660) and 42051417882 (Core 664); Core 668 linked run 42140012211 (the Core 664 bridge again, dd4c525a); Core 902 to 907 linked run 42213572281 (host bridge 92fad91d, the Metal 4 renderer test page key); Core 908 and 909 linked run 42668189251 (host bridge bdcd0ac7, the collision-aware Menu/Performances layout); Core 910 links run 42695255551, the same source and patch (libMoltenVK.a d19d3a42 byte-identical), whose recorded inputs include the current dependency workflow and the current host bridge (c1494c46: overlay buttons count only the touch controls whose ancestors are shown), so the reviewed bridge pair of the replaced run no longer applies"
   }
  },
  "native_modes": {
@@ -414,28 +419,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core909_codegen_test.py",
+     "test/rpcs3_core910_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 909 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp and the iOS profiler, memo and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 910 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp, RSXFIFO, the texture cache and the iOS profiler, memo, prehash, policy and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core909",
+    "name": "core910",
     "argv": [
      "python3",
-     "test/rpcs3_core909_test.py",
+     "test/rpcs3_core910_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core909.json"
+     "{out}/core910.json"
     ],
-    "reason": "Core 901 to 909 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 910 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); the Core 910 levers (memo capacity-miss counterexamples, the scoped revalidation executed on the real texture cache against a global-epoch witness, the PUT horizon model on the real decision, the prehash budget); then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",
