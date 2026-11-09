@@ -421,65 +421,160 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
 }
 
 {
-    // Failure: a state whose creation fails is marked failed, not replayed at the next launch; a draw creating it late
-    // afterwards counts as "failed before". Device memory at 5 %: nothing is scheduled; at 60 %: replays resume.
+    // Failures. Deterministic (the creation returns nothing, memory not short): one strike, retried at the next launch; a
+    // second failure in a later launch suppresses it; a draw that then creates the state successfully clears the marker.
+    // Temporary (the creation fails while device memory is at 8 % or less, or the renderer throws): no strike.
     var scheduler = NewScheduler();
     string name = "failure";
     var s1 = Open(name);
-    s1.NoteLate(0xDDDD, Variant(900), 70, false);
-    s1.NoteLate(0xDDDD, Variant(901), 70, false);
-    WaitFile(JournalPath(name), 16 + 2 * 40);
-    ulong failing = PipelineVariantJournal.Checksum64(Variant(900));
-    var target = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = r => (10, r.Id == failing) };
-    var s2 = Open(name);
-    s2.Offer(0xDDDD, target);
-    WaitUntil(() => s2.Replayed + s2.ReplayFailed == 2, 3000);
-    s2.NoteLate(0xDDDD, Variant(900), 70, false);
-    Thread.Sleep(100);
-    var s3 = Open(name);
-    int device = 5;
-    var s4 = Open(name, () => device);
-    var target4 = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
-    s4.Offer(0xDDDD, target4);
-    Thread.Sleep(150);
-    int whileShort = target4.Executions.Values.Sum();
-    device = 60;
-    s4.Pump();
-    WaitUntil(() => s4.Replayed == 1, 2000);
-    // The failure marker survives compaction: a draw creating the state late again is not recorded, and two launches later
-    // it is still not planned.
-    s4.NoteLate(0xDDDD, Variant(900), 70, false);
+    s1.NoteLate(0xDDDD, Variant(900), 70, false); // fails deterministically
+    s1.NoteLate(0xDDDD, Variant(901), 70, false); // fails under memory pressure
+    s1.NoteLate(0xDDDD, Variant(902), 70, false); // the renderer throws while creating it
+    s1.NoteLate(0xDDDD, Variant(903), 70, false); // builds
     WaitFile(JournalPath(name), 16);
-    var s5 = Open(name);
-    var s6 = Open(name);
+    ulong v900 = PipelineVariantJournal.Checksum64(Variant(900)), v901 = PipelineVariantJournal.Checksum64(Variant(901));
+    ulong v902 = PipelineVariantJournal.Checksum64(Variant(902));
+    int device = 60;
+    PipelineVariantJournal Launch()
+    {
+        device = 60;
+        var journal = Open(name, () => device);
+        var local = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+        // 901 fails, and memory is short when it does.
+        local.Cost = r => (10, r.Id == v900 || r.Id == v901);
+        local.Throw = r => r.Id == v902;
+        local.OnStart = r => { if (r.Id == v901) device = 5; };
+        local.OnEnd = _ => { };
+        journal.Offer(0xDDDD, local);
+        WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded, 1500);
+        device = 60;
+        journal.Pump(); // the minute summary does this on the device
+        WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded, 3000);
+        Thread.Sleep(50);
+        WaitFile(JournalPath(name), 16);
+        return journal;
+    }
+    var l2 = Launch();
+    var l3 = Launch();
+    var l4 = Launch();
+    l4.NoteLate(0xDDDD, Variant(900), 70, false); // a draw creates it successfully
+    WaitFile(JournalPath(name), 16);
+    var l5 = Open(name);
     report["failure"] = new Dictionary<string, object>
     {
-        ["session2Replayed"] = s2.Replayed, ["session2Failed"] = s2.ReplayFailed, ["lateAfterFailed"] = s2.LateAfterFailed,
-        ["session3Planned"] = s3.Loaded, ["deviceShortExecuted"] = whileShort, ["deviceBackReplayed"] = s4.Replayed,
-        ["session4LateAfterFailed"] = s4.LateAfterFailed, ["session4New"] = s4.LateNew, ["laterPlanned"] = s6.Loaded,
+        ["launch2"] = new[] { l2.Loaded, l2.Replayed, l2.ReplayFailed, l2.ReplayTemporary },
+        ["launch3"] = new[] { l3.Loaded, l3.Replayed, l3.ReplayFailed, l3.ReplayTemporary },
+        ["launch4"] = new[] { l4.Loaded, l4.Replayed, l4.ReplayFailed, l4.ReplayTemporary },
+        ["launch4LateAfterFailed"] = l4.LateAfterFailed, ["launch5Planned"] = l5.Loaded,
+    };
+
+    // Device memory at 5 %: nothing speculative starts (held), and a queued replay a draw demands still completes.
+    device = 5;
+    var s6 = Open(name, () => device);
+    var target6 = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+    s6.Offer(0xDDDD, target6);
+    Thread.Sleep(150);
+    int whileShort = target6.Executions.Values.Sum();
+    int holds = s6.MemoryHolds;
+    var gate = new ManualResetEventSlim();
+    var blockers = Enumerable.Range(0, 4).Select(_ => scheduler.SchedulePipelineCompile(_ => gate.Wait(2000))).ToArray();
+    device = 60;
+    s6.Pump();
+    WaitUntil(() => !target6.Queued.IsEmpty, 1000);
+    device = 5;
+    Task demanded = target6.Queued.Values.First();
+    scheduler.PromotePipelineCompile(demanded);
+    bool served = demanded.Wait(1500);
+    gate.Set();
+    Task.WaitAll(blockers);
+    report["memory"] = new Dictionary<string, object>
+    {
+        ["executedWhileShort"] = whileShort, ["holds"] = holds, ["demandedServedWhileShort"] = served && demanded.Status == TaskStatus.RanToCompletion,
+    };
+    device = 60;
+    scheduler.Dispose();
+}
+
+{
+    // Promotion, taking and cancellation from several threads at once (200 rounds on the real scheduler): each queued compile
+    // either runs once (promoted, or taken before the cancel) or is cancelled; its waiter always returns; a running compile
+    // cannot be cancelled and keeps its resources to the end.
+    var scheduler = NewScheduler();
+    int ran = 0, cancelled = 0, inconsistent = 0, hung = 0, refusedWhileRunning = 0, completedWithResource = 0;
+    for (int round = 0; round < 200; round++)
+    {
+        var gate = new ManualResetEventSlim();
+        var blockers = Enumerable.Range(0, 4).Select(_ => scheduler.SchedulePipelineCompile(_ => gate.Wait(500))).ToArray();
+        int runs = 0;
+        Task item = scheduler.SchedulePipelineCompile(_ => Interlocked.Increment(ref runs));
+        using var start = new Barrier(3);
+        bool cancelResult = false;
+        var promoter = Task.Run(() => { start.SignalAndWait(); scheduler.PromotePipelineCompile(item); });
+        var canceller = Task.Run(() => { start.SignalAndWait(); cancelResult = scheduler.TryCancelPipelineCompile(item); });
+        var waiter = Task.Run(() => { start.SignalAndWait(); try { item.Wait(3000); } catch (AggregateException) { } });
+        bool joined = Task.WaitAll(new[] { promoter, canceller, waiter }, 5000);
+        gate.Set();
+        Task.WaitAll(blockers);
+        try { item.Wait(3000); } catch (AggregateException) { }
+        if (!joined || !item.IsCompleted) hung++;
+        bool wasCancelled = item.IsFaulted && item.Exception.InnerException is ObjectDisposedException;
+        if (runs == 1 && !wasCancelled) ran++;
+        if (wasCancelled && runs == 0) cancelled++;
+        if ((runs > 0 && wasCancelled) || runs > 1 || cancelResult != wasCancelled) inconsistent++;
+    }
+    for (int round = 0; round < 20; round++)
+    {
+        var started = new ManualResetEventSlim();
+        byte[] resource = new byte[1024];
+        bool alive = false;
+        Task running = scheduler.SchedulePipelineCompile(_ => { started.Set(); Thread.Sleep(30); alive = resource.Length == 1024; }, highPriority: true);
+        started.Wait(2000);
+        if (!scheduler.TryCancelPipelineCompile(running)) refusedWhileRunning++;
+        running.Wait(2000);
+        if (alive && running.Status == TaskStatus.RanToCompletion) completedWithResource++;
+    }
+    report["race"] = new Dictionary<string, object>
+    {
+        ["rounds"] = 200, ["ranOnce"] = ran, ["cancelled"] = cancelled, ["inconsistent"] = inconsistent, ["hung"] = hung,
+        ["runningRefusedCancel"] = refusedWhileRunning, ["runningCompleted"] = completedWithResource,
     };
     scheduler.Dispose();
 }
 
 {
-    // A state replayed in every session and never late again stays planned past 8 sessions (each replay refreshes it).
+    // Ageing: U is replayed and bound by a draw in every launch (NoteReplayUsed), N is replayed but never used; something
+    // else is met late in each launch, so launches count. After 10 launches U is still planned, N has aged out.
     var scheduler = NewScheduler();
     string name = "refresh";
     var s1 = Open(name);
     s1.NoteLate(0x7777, Variant(1200), 90, false);
+    s1.NoteLate(0x7777, Variant(1201), 90, false);
     WaitFile(JournalPath(name), 16);
-    int replayedSessions = 0;
+    ulong used = PipelineVariantJournal.Checksum64(Variant(1200));
+    int readyBeforeUse = 0;
     for (int s = 0; s < 10; s++)
     {
         var journal = Open(name);
         var target = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
         journal.Offer(0x7777, target);
-        WaitUntil(() => journal.Replayed == 1, 2000);
-        replayedSessions += journal.Replayed;
+        int expected = journal.Session <= 1 + PipelineVariantJournal.RecentSessions ? 2 : 1; // N ages out from session 10
+        WaitUntil(() => journal.Replayed >= expected, 2000);
+        Thread.Sleep(30);
+        if (target.Seen.TryGetValue(used, out PipelineVariantJournal.Record record)) journal.NoteReplayUsed(record);
+        readyBeforeUse += journal.ReadyBeforeUse;
+        journal.NoteLate(0x7778, Variant(1300 + s), 20, false);
         WaitFile(JournalPath(name), 16);
     }
     var last = Open(name);
-    report["refresh"] = new Dictionary<string, object> { ["replayedSessions"] = replayedSessions, ["session"] = last.Session, ["planned"] = last.Loaded };
+    var planned = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+    last.Offer(0x7777, planned);
+    WaitUntil(() => last.Replayed >= 1, 2000);
+    Thread.Sleep(100);
+    report["refresh"] = new Dictionary<string, object>
+    {
+        ["readyBeforeUse"] = readyBeforeUse, ["session"] = last.Session,
+        ["usedStillPlanned"] = planned.Seen.ContainsKey(used), ["unusedStillPlanned"] = planned.Seen.ContainsKey(PipelineVariantJournal.Checksum64(Variant(1201))),
+    };
     scheduler.Dispose();
 }
 
@@ -500,7 +595,7 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     s2.NoteLate(0xEEEF, Variant(961), 25, joined: false);
     report["costly"] = new Dictionary<string, object>
     {
-        ["replayed"] = s2.Replayed, ["maxInFlightOnceCostly"] = target.MaxInFlight, ["joined"] = s2.Joined, ["joinedMs"] = s2.JoinedMs,
+        ["replayed"] = s2.Replayed, ["maxInFlightOnceCostly"] = target.MaxInFlight, ["joinedOther"] = s2.JoinedOther, ["joinedOtherMs"] = s2.JoinedOtherMs,
         ["new"] = s2.LateNew, ["summary"] = s2.Summary("test"),
     };
     scheduler.Dispose();
@@ -529,6 +624,9 @@ Console.WriteLine(JsonSerializer.Serialize(report));
 sealed class Target : PipelineVariantJournal.ITarget
 {
     public Func<PipelineVariantJournal.Record, (int Ms, bool Fail)> Cost = _ => (20, false);
+    public Func<PipelineVariantJournal.Record, bool> Throw = _ => false;
+    public Action<PipelineVariantJournal.Record> OnStart = _ => { }, OnEnd = _ => { };
+    public ConcurrentDictionary<ulong, PipelineVariantJournal.Record> Seen = new();
     public BackgroundCompilationScheduler Scheduler;
     public ConcurrentQueue<string> Order;
     public ConcurrentDictionary<string, int> Executions;
@@ -539,6 +637,7 @@ sealed class Target : PipelineVariantJournal.ITarget
     public Task<long> Schedule(PipelineVariantJournal.Record record)
     {
         if (Closing) return null;
+        Seen[record.Id] = record;
         (int ms, bool fail) = Cost(record);
         long compileMs = -1;
         string name = $"{record.Program:X}/{record.Id:X}";
@@ -548,8 +647,11 @@ sealed class Target : PipelineVariantJournal.ITarget
             lock (this) MaxInFlight = Math.Max(MaxInFlight, now);
             Executions.AddOrUpdate(name, 1, (_, c) => c + 1);
             Order.Enqueue(name);
+            OnStart(record);
             Thread.Sleep(ms);
+            OnEnd(record);
             Interlocked.Decrement(ref InFlight);
+            if (Throw(record)) throw new InvalidOperationException("renderer failure while creating it");
             if (!fail) compileMs = ms;
         }, highPriority: false);
         Queued[record.Id] = compile;

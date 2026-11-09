@@ -112,7 +112,7 @@ pairs = {
                       (adapter.PROGRAM_CTOR_OLD, adapter.PROGRAM_CTOR_NEW), (adapter.PROGRAM_JOIN_OLD, adapter.PROGRAM_JOIN_NEW),
                       (adapter.PROGRAM_QUEUED_OLD, adapter.PROGRAM_QUEUED_NEW), (adapter.PROGRAM_METHODS_OLD, adapter.PROGRAM_METHODS_NEW)],
     adapter.DRAWS: [(adapter.DRAW_START_OLD, adapter.DRAW_START_NEW), (adapter.DRAW_JOIN_OLD, adapter.DRAW_JOIN_NEW),
-                    (adapter.DRAW_END_OLD, adapter.DRAW_END_NEW)],
+                    (adapter.DRAW_END_OLD, adapter.DRAW_END_NEW), (adapter.DRAW_BIND_OLD, adapter.DRAW_BIND_NEW)],
     adapter.MANAGER: [(adapter.MANAGER_USINGS_OLD, adapter.MANAGER_USINGS_NEW), (adapter.MANAGER_PROPERTY_OLD, adapter.MANAGER_PROPERTY_NEW),
                       (adapter.MANAGER_CTOR_OLD, adapter.MANAGER_CTOR_NEW), (adapter.MANAGER_SUMMARY_OLD, adapter.MANAGER_SUMMARY_NEW),
                       (adapter.MANAGER_PAUSE_OLD, adapter.MANAGER_PAUSE_NEW), (adapter.MANAGER_CLOSE_OLD, adapter.MANAGER_CLOSE_NEW),
@@ -159,6 +159,15 @@ cancel = member(program, 'public void CancelPendingWarmUp()')
 check(cancel.index('CancelVariantReplays();') < cancel.index('if (!_detachedWarmUp'), 'disposal and close cancel undemanded replays first')
 end = draws[draws.index(adapter.DRAW_END_NEW):][:len(adapter.DRAW_END_NEW)]
 check('if (pipeline != null)' in end and 'NoteLateVariant' in end, 'only a state the draw obtained is recorded')
+bind = draws[draws.index(adapter.DRAW_BIND_NEW):][:len(adapter.DRAW_BIND_NEW)]
+check('if (pbp == PipelineBindPoint.Graphics)' in bind and '_program.NotePipelineBound(pipelineHandle);' in bind,
+      'the first bind of a replayed pipeline is counted (ready before its first demand)')
+bound = member(program, 'internal void NotePipelineBound(ulong pipelineHandle)')
+check(bound.index('Volatile.Read(ref _replayedUnusedCount) == 0') < bound.index('TakeReplayed('), 'a count check when nothing is replayed-unused')
+check('compileMs = -2; // a draw created it while this waited in the queue' in schedule, 'a state a draw created meanwhile is not built twice')
+pump = member(manager, 'internal void Pump()')
+check(pump.index('MemoryHolds++') > pump.index('_replayMs >= ReplayWorkBudgetMs') and 'Promote' not in pump,
+      'the memory hold stops speculative scheduling only')
 check(draws.count('_renderPassHadSkippedDraw = true;') == control_draws.count('_renderPassHadSkippedDraw = true;') and
       draws.count('return false;') == control_draws.count('return false;'), 'no draw skip and no early return added')
 journal = manager[manager.index('sealed class PipelineVariantJournal'):]
@@ -246,17 +255,23 @@ cl = r['close']
 check(cl['executed'] < cl['planned'] and cl['executedAfterClose'] == 0 and cl['failedMarked'] == 0 and cl['nextPlanned'] == 40,
       'close during compilation: running ones finish, queued ones cancelled, nothing marked failed: %s' % cl)
 fa = r['failure']
-check(fa['session2Replayed'] == 1 and fa['session2Failed'] == 1 and fa['lateAfterFailed'] == 1, 'a failed state is marked: %s' % fa)
-check(fa['session3Planned'] == 1, 'a failed state is not replayed at the next launch')
-check(fa['deviceShortExecuted'] == 0 and fa['deviceBackReplayed'] == 1, 'no replay while device memory is short: %s' % fa)
-check(fa['session4LateAfterFailed'] == 1 and fa['session4New'] == 0 and fa['laterPlanned'] == 1,
-      'the failure marker survives compaction: not recorded again, still not planned two launches later: %s' % fa)
+check(fa['launch2'] == [4, 1, 1, 2], 'launch 2: one deterministic failure (a strike), two temporary (memory short, renderer throw), one built: %s' % fa)
+check(fa['launch3'] == [4, 1, 1, 2], 'launch 3: one strike is retried, fails again; temporary ones retried: %s' % fa)
+check(fa['launch4'] == [3, 1, 0, 2], 'launch 4: two strikes suppress it; temporary failures never exclude a state: %s' % fa)
+check(fa['launch4LateAfterFailed'] == 1 and fa['launch5Planned'] == 4, 'a draw creating the state clears its marker: replayed again: %s' % fa)
+m = r['memory']
+check(m['executedWhileShort'] == 0 and m['holds'] >= 1, 'no speculative replay starts at 8 %% device memory or less: %s' % m)
+check(m['demandedServedWhileShort'], 'a demanded queued replay completes while memory is short')
+ra = r['race']
+check(ra['hung'] == 0 and ra['inconsistent'] == 0 and ra['ranOnce'] + ra['cancelled'] == ra['rounds'],
+      'promote / take / cancel from three threads: each compile runs once or is cancelled, never both, waiters return: %s' % ra)
+check(ra['runningRefusedCancel'] == 20 and ra['runningCompleted'] == 20, 'a running compile cannot be cancelled and completes with its resources')
 rf = r['refresh']
-check(rf['replayedSessions'] == 10 and rf['session'] == 12 and rf['planned'] == 1,
-      'a state replayed every session stays planned past 8 sessions: %s' % rf)
+check(rf['readyBeforeUse'] == 10 and rf['usedStillPlanned'] and not rf['unusedStillPlanned'] and rf['session'] == 12,
+      'a state used each launch stays planned; one replayed but never used ages out: %s' % rf)
 co = r['costly']
 check(co['replayed'] == 5 and co['maxInFlightOnceCostly'] == 1, 'one in flight once replays are costly: %s' % co)
-check(co['joined'] == 1 and co['joinedMs'] == 12 and co['new'] == 1, 'joined draws and new late states counted apart: %s' % co)
+check(co['joinedOther'] == 1 and co['joinedOtherMs'] == 12 and co['new'] == 1, 'joined draws and new late states counted apart: %s' % co)
 check(r['cap']['replayed'] == 512 and r['cap']['executed'] == 512, 'at most 512 replays per session: %s' % r['cap'])
 
 inputs = ['build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_session.py',
