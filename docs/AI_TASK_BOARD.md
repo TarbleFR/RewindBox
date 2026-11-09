@@ -1808,6 +1808,58 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     creation failed for program 890A188FB55B5D5D"; "unavailable pipelines" 0 in play; the ground without black holes
     where the IPA 692 video shows them; no new pipeline failure; FPS and frame times like IPA 694; SSBU unchanged; second
     launch: same, with 1844/1845 not failing.
+- **MeloNX lot 3: descriptor CPU cost (Claude Code, 9 Nov; owner: Claude Code, integration and Core build; open; Core 705 =
+  Core 703 + adapt_same_program_descriptors, frozen `406c415a`, commits on `Claude` up to the `[melonx-dma-core]` one
+  requesting the Core CI; no IPA (maintainer)):** input IPA 694 / Core 699, Hogwarts 1x pid 40200 (stderr.previous
+  `1badbec4`, window of 108 frames at 5 005 ms: draw prepare 1 775.1 ms for 131 351 draws, of which descriptors 1 121.1 ms;
+  compute prepare 497.2 ms for 10 662 dispatches, of which descriptors 394.2 ms, 10 446 compute descriptor updates of at
+  most 32 descriptors 392.2 ms; texture arrays inside them: reference passes 33 268 / 2 094 605 references 241.1 ms, writes
+  105.1 ms; fallbacks 0/0/0/0, so every update takes the template path). Descriptor times are part of the prepare times.
+  - Map (code paths, MoltenVK 1.4.2 read): MoltenVK binds argument-buffer resources only when it encodes; on the render thread
+    an update costs a set from the layout's per-command-buffer list, vkUpdateDescriptorSetWithTemplate of every binding of the
+    program, the bind, then BindExtraSets (array set lookup, references, bind). Already in place and checked: setters compare
+    their records (buffers: identity, offset, range, write; textures/images: view, sampler, stage), compute/graphics switches
+    re-send resolved bindings (Core 693), array deltas repaired by range (Core 697), array references once per command
+    buffer and change. Repeated work found:
+    (1) SetProgram marks the four sets dirty on every call, and ComputeClass sets the program before every dispatch,
+    StateUpdater on each shader state update, also with the program already set: identical sets rewritten. Fixed (Core 705).
+    (2) BindExtraSets runs on any dirty set: an update of the uniform set alone also looks up and rebinds the array set
+    (fixture: 2 000 lookups, 4 000 binds for 2 000 uniform-only dispatches). Next lever, not changed.
+    (3) AddReferences walks every distinct view of an array again after any element change in the same command buffer
+    (33 268 passes per window for about 3 490 submissions): the unchanged views are already referenced. Candidate.
+    (4) Inherent, kept: a new command buffer rewrites all sets (3 490 submissions per window); compute and the vertex stage
+    share binding slots 0-31, so a compute/graphics switch rewrites the texture set when they differ; a constant-buffer
+    offset change rewrites the whole uniform set (no dynamic offsets).
+    Invalidations: resource (setter compare), pool (TextureBindingsManager.Rebind on a new pool, full), pipeline/program
+    (was all four sets, now only another program), format (a new view object, setter), offset/range (buffer setters),
+    generation (texture array change sequence, buffer Rebind by overlap). Too broad was the program one.
+  - Fix (Core 705, DescriptorSetUpdater.SetProgram): the program already set keeps the dirty flags it has, nothing is
+    cleared; another program, a helper shader restore and a new command buffer (SignalCommandBufferChange), CopyFrom and
+    every setter still mark their sets; sets holding buffer textures or buffer images stay dirty (a TextureBuffer view can
+    change without a setter: SetStorage, its buffer's release). A resource referenced by the command buffer cannot be
+    destroyed before it completes (Auto), so the skipped rewrite would have produced the same descriptors. No submission
+    or render pass change: the descriptor path records none.
+  - Gate same-program-descriptors (79 driver checks, 1 370 fixture checks per variant): production updater members with
+    doubled Vulkan calls that keep each set's bytes and the set bound per (bind point, set index) in the current command
+    buffer; after each of 72 draws/dispatches the descriptors read are decoded and checked against the bound resources:
+    compute/graphics alternation, texture, sampler, format and image changes, a slot reused with another texture, offsets
+    and ranges, an unbound texture, a texture array element change, overlapping and disjoint buffer invalidations, a buffer
+    replacement, new command buffers, another program of the same layout, buffer texture and image views changed without a
+    setter. Same decoded sequence in both variants (trace `135f74a5…`); a variant without the buffer view guard fails on the
+    silent view change. Counts: an unchanged repeated dispatch writes 4 sets (control) vs 0; 2 000 dispatches of one program
+    with a new uniform offset each: set writes 8 000 -> 2 000, allocations 8 000 -> 2 000, descriptors 22 000 -> 4 000,
+    binds 10 000 -> 4 000; unchanged: 8 000 -> 0 writes. Double timings are not iPhone times.
+  - Other gates rerun on the final preparation and green: hogwarts-dma-copies, scalar-texture-descriptors and
+    fallback-descriptor-scratch (their final-source comparison now removes the Core 705 replacements, which the new gate
+    executes), fragmented-reads, performance-diagnostics, moltenvk-barrier-ordering, artifact-counters, warmup-key-parity,
+    setprogram-warmup, bindless-retention, moltenvk-stage-ordering, async-regenerated-targets, pipeline-failure-identity;
+    68 fresh gates, 187 preparation inputs, 206 prepared members; contract test 433 checks.
+    [Receipts](evidence/melonx-705-gates/run.json).
+  - Device measurement (the pass detail line now ends with "descriptor sets written U/S/T/I (uniform/storage/texture/image,
+    N descriptors), programs set P (already set A, sets kept bound)"): the share of program sets that repeat the current
+    program in Hogwarts is not known from the 694 logs, so no gain is claimed. To read on the next device run at 1x on the
+    same route: descriptors in draw and compute prepare vs 1 121 / 394 ms per 108 frames, sets written per frame, A/P, FPS
+    and present gaps, and that the image is unchanged.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
