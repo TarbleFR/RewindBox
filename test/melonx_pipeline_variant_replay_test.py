@@ -167,7 +167,7 @@ for bound in ('MaxRecords = 2048', 'MaxFileBytes = 2L * 1024 * 1024', 'RecentSes
     check(bound in journal, 'bound: ' + bound)
 check('File.Move(temporary, _path, overwrite: true)' in journal and 'Checksum(body) != checksum' in journal, 'atomic compaction, checked lines')
 check('ThreadPool.UnsafeQueueUserWorkItem(_ => Load(), null)' in journal and
-      'ThreadPool.UnsafeQueueUserWorkItem(_ => Append(copy, KindVariant), null)' in journal, 'file work off the startup and render threads')
+      'ThreadPool.UnsafeQueueUserWorkItem(_ => Append(line), null)' in journal, 'file work off the startup and render threads')
 added = ''.join(new for replacements in pairs.values() for _, new in replacements)
 check(re.search(r'\b(IntPtr|nint|Handle)\b', state[state.index('internal readonly byte[] WriteVariant('):state.index('internal bool TryReadVariant(')]) is None,
       'the variant writes no handle or pointer')
@@ -243,12 +243,17 @@ p = r['priority']
 check(p['compilesOfIt'] == 1 and p['waiters'] == 8, 'eight simultaneous waits share one compile: %s' % p)
 check(p['warmUpsBeforeIt'] <= 3 and p['waitedMs'] < 600, 'a demanded state is created before the queued warm-ups (20 x 60 ms): %s' % p)
 cl = r['close']
-check(cl['executed'] < cl['planned'] and cl['executedAfterClose'] == 0 and cl['failedMarked'] == 0 and not cl['fileGrew'],
+check(cl['executed'] < cl['planned'] and cl['executedAfterClose'] == 0 and cl['failedMarked'] == 0 and cl['nextPlanned'] == 40,
       'close during compilation: running ones finish, queued ones cancelled, nothing marked failed: %s' % cl)
 fa = r['failure']
 check(fa['session2Replayed'] == 1 and fa['session2Failed'] == 1 and fa['lateAfterFailed'] == 1, 'a failed state is marked: %s' % fa)
 check(fa['session3Planned'] == 1, 'a failed state is not replayed at the next launch')
 check(fa['deviceShortExecuted'] == 0 and fa['deviceBackReplayed'] == 1, 'no replay while device memory is short: %s' % fa)
+check(fa['session4LateAfterFailed'] == 1 and fa['session4New'] == 0 and fa['laterPlanned'] == 1,
+      'the failure marker survives compaction: not recorded again, still not planned two launches later: %s' % fa)
+rf = r['refresh']
+check(rf['replayedSessions'] == 10 and rf['session'] == 12 and rf['planned'] == 1,
+      'a state replayed every session stays planned past 8 sessions: %s' % rf)
 co = r['costly']
 check(co['replayed'] == 5 and co['maxInFlightOnceCostly'] == 1, 'one in flight once replays are costly: %s' % co)
 check(co['joined'] == 1 and co['joinedMs'] == 12 and co['new'] == 1, 'joined draws and new late states counted apart: %s' % co)
