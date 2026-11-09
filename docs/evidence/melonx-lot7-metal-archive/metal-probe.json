@@ -1296,6 +1296,740 @@
      }
     }
    ]
+  },
+  {
+   "run": 42699272657,
+   "commit": "bb49a541",
+   "artifact": 13711690336,
+   "artifactSha256": "5988b29b8551ee592515b90899a63208e37bbf8acb09d9dbab33578d5e4146e5",
+   "device": "Apple Paravirtual device",
+   "osVersion": "Version 26.7.2 (Build 25G332)",
+   "osBuild": "25G332",
+   "xcode": [
+    "Xcode 26.6",
+    "Build version 17F113"
+   ],
+   "set": {
+    "computeShaders": 6,
+    "fragmentShaders": 12,
+    "salt": 699272363,
+    "weight": 24
+   },
+   "systemMetalCacheDirectories": [
+    "com.apple.metal",
+    "com.apple.metalfe"
+   ],
+   "sessions": [
+    {
+     "label": "baseline cold 1",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 243.27,
+      "totalMs": 1595.14
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 31.78,
+      "totalMs": 384.8
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 414.03,
+      "totalMs": 1847.78
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.3
+    },
+    {
+     "label": "baseline cold 2",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 93.5,
+      "totalMs": 1057.44
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 17.53,
+      "totalMs": 291.58
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 373.32,
+      "totalMs": 1838.93
+     },
+     "result": {
+      "computeFirst": 3570,
+      "computeHash": "2f49ac9777bd2173",
+      "drawHash": "ebc5108f77088a7b",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.27
+    },
+    {
+     "label": "baseline cold 3",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 97.23,
+      "totalMs": 1112.82
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 19.08,
+      "totalMs": 318.65
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 325.44,
+      "totalMs": 1799.08
+     },
+     "result": {
+      "computeFirst": 345,
+      "computeHash": "b9b83e5a259064da",
+      "drawHash": "e9c047a33a35b90d",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.38
+    },
+    {
+     "label": "baseline warm (same process name, same salt as cold 1)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 0.63,
+      "totalMs": 2.54
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 1.69,
+      "totalMs": 5.95
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 406,
+      "totalMs": 2170.48
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.16
+    },
+    {
+     "label": "baseline, system cache removed (same salt as cold 1)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 87.6,
+      "totalMs": 1311.37
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 28.38,
+      "totalMs": 381.47
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 444.71,
+      "totalMs": 2130.95
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.3
+    },
+    {
+     "label": "collect (create, then add, then save)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 0.6,
+      "totalMs": 1.96
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 0.96,
+      "totalMs": 3.89
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 463.21,
+      "totalMs": 2274.14
+     },
+     "addAfterCreateRender": {
+      "count": 48,
+      "maxMs": 1.29,
+      "totalMs": 19.53
+     },
+     "addAfterCreateCompute": {
+      "count": 6,
+      "maxMs": 0.44,
+      "totalMs": 1.6
+     },
+     "save": {
+      "bytes": 1758143,
+      "ms": 10.75
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 10.45,
+     "saveToMissingDirectory": {
+      "error": "Output URL is invalid.",
+      "succeeded": false
+     }
+    },
+    {
+     "label": "reuse 1 (system cache warm)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 0.73,
+      "totalMs": 3.78
+     },
+     "archiveLoad": {
+      "error": "",
+      "footprintDeltaMiB": 0.02,
+      "loaded": true,
+      "ms": 0.28
+     },
+     "strictRender": {
+      "hits": 48,
+      "misses": 0,
+      "time": {
+       "count": 48,
+       "maxMs": 1.49,
+       "totalMs": 5.8
+      }
+     },
+     "strictCompute": {
+      "hits": 6,
+      "misses": 0,
+      "time": {
+       "count": 6,
+       "maxMs": 469.68,
+       "totalMs": 2373.54
+      }
+     },
+     "absentVariant": {
+      "normalMs": 70.74,
+      "normalSucceeded": true,
+      "strictError": "MTLPipelineOptionFailOnBinaryArchiveMiss was set and failed to find compiled pipeline functions in binary archive.",
+      "strictErrorCode": 1,
+      "strictErrorDomain": "CompilerError",
+      "strictMs": 0.075,
+      "strictSucceeded": false
+     },
+     "normalWithArchiveOfferedRender": {
+      "count": 48,
+      "maxMs": 0.98,
+      "totalMs": 3.7
+     },
+     "twoArchivesStrictHits": 48,
+     "addMissedAndSave": {
+      "added": true,
+      "addMs": 0.24,
+      "bytes": 1816006,
+      "firstFileBytes": 1758143,
+      "saved": true,
+      "saveMs": 4.91
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.38
+    },
+    {
+     "label": "reuse 2 (system cache removed, archive kept)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 75.21,
+      "totalMs": 1147.18
+     },
+     "archiveLoad": {
+      "error": "",
+      "footprintDeltaMiB": 0.02,
+      "loaded": true,
+      "ms": 0.26
+     },
+     "strictRender": {
+      "hits": 48,
+      "misses": 0,
+      "time": {
+       "count": 48,
+       "maxMs": 4.49,
+       "totalMs": 31.17
+      }
+     },
+     "strictCompute": {
+      "hits": 6,
+      "misses": 0,
+      "time": {
+       "count": 6,
+       "maxMs": 446.97,
+       "totalMs": 2351.52
+      }
+     },
+     "absentVariant": {
+      "normalMs": 29.07,
+      "normalSucceeded": true,
+      "strictError": "MTLPipelineOptionFailOnBinaryArchiveMiss was set and failed to find compiled pipeline functions in binary archive.",
+      "strictErrorCode": 1,
+      "strictErrorDomain": "CompilerError",
+      "strictMs": 0.097,
+      "strictSucceeded": false
+     },
+     "normalWithArchiveOfferedRender": {
+      "count": 48,
+      "maxMs": 0.4,
+      "totalMs": 3.14
+     },
+     "twoArchivesStrictHits": 48,
+     "addMissedAndSave": {
+      "added": true,
+      "addMs": 3.03,
+      "bytes": 1815574,
+      "firstFileBytes": 1758143,
+      "saved": true,
+      "saveMs": 23.62
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.7
+    },
+    {
+     "label": "reuse 3 (system cache removed again, archive kept)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 222.18,
+      "totalMs": 2544.19
+     },
+     "archiveLoad": {
+      "error": "",
+      "footprintDeltaMiB": 0.02,
+      "loaded": true,
+      "ms": 0.57
+     },
+     "strictRender": {
+      "hits": 48,
+      "misses": 0,
+      "time": {
+       "count": 48,
+       "maxMs": 9.97,
+       "totalMs": 43.69
+      }
+     },
+     "strictCompute": {
+      "hits": 6,
+      "misses": 0,
+      "time": {
+       "count": 6,
+       "maxMs": 406.85,
+       "totalMs": 1942.82
+      }
+     },
+     "absentVariant": {
+      "normalMs": 18.37,
+      "normalSucceeded": true,
+      "strictError": "MTLPipelineOptionFailOnBinaryArchiveMiss was set and failed to find compiled pipeline functions in binary archive.",
+      "strictErrorCode": 1,
+      "strictErrorDomain": "CompilerError",
+      "strictMs": 0.077,
+      "strictSucceeded": false
+     },
+     "normalWithArchiveOfferedRender": {
+      "count": 48,
+      "maxMs": 0.06,
+      "totalMs": 1.76
+     },
+     "twoArchivesStrictHits": 48,
+     "addMissedAndSave": {
+      "added": true,
+      "addMs": 1.28,
+      "bytes": 1815574,
+      "firstFileBytes": 1758143,
+      "saved": true,
+      "saveMs": 6.17
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.7
+    },
+    {
+     "label": "reuse 4 (system cache warm)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 1.2,
+      "totalMs": 3.67
+     },
+     "archiveLoad": {
+      "error": "",
+      "footprintDeltaMiB": 0.02,
+      "loaded": true,
+      "ms": 0.42
+     },
+     "strictRender": {
+      "hits": 48,
+      "misses": 0,
+      "time": {
+       "count": 48,
+       "maxMs": 1,
+       "totalMs": 4.17
+      }
+     },
+     "strictCompute": {
+      "hits": 6,
+      "misses": 0,
+      "time": {
+       "count": 6,
+       "maxMs": 424.7,
+       "totalMs": 2030.33
+      }
+     },
+     "absentVariant": {
+      "normalMs": 0.16,
+      "normalSucceeded": true,
+      "strictError": "MTLPipelineOptionFailOnBinaryArchiveMiss was set and failed to find compiled pipeline functions in binary archive.",
+      "strictErrorCode": 1,
+      "strictErrorDomain": "CompilerError",
+      "strictMs": 0.064,
+      "strictSucceeded": false
+     },
+     "normalWithArchiveOfferedRender": {
+      "count": 48,
+      "maxMs": 0.04,
+      "totalMs": 1.47
+     },
+     "twoArchivesStrictHits": 48,
+     "addMissedAndSave": {
+      "added": true,
+      "addMs": 31.53,
+      "bytes": 1815574,
+      "firstFileBytes": 1758143,
+      "saved": true,
+      "saveMs": 5.27
+     },
+     "result": {
+      "computeFirst": 105,
+      "computeHash": "6666ff6319ac3d94",
+      "drawHash": "7b629fdf63f98a5c",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.55
+    },
+    {
+     "label": "damaged copies",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 0.43,
+      "totalMs": 1.61
+     },
+     "servedByNormalCompilation": 48,
+     "errors": [],
+     "footprintDeltaMiB": 15.75,
+     "damaged": {
+      "bitFlips": {
+       "bytes": 1758143,
+       "drawn": 4,
+       "errorCode": 0,
+       "loaded": true,
+       "loadMs": 0.12,
+       "strictHits": 6,
+       "strictMisses": 42,
+       "wrongDraws": 0
+      },
+      "cut": {
+       "bytes": 879071,
+       "drawn": 0,
+       "errorCode": 1,
+       "loaded": false,
+       "loadMs": 0.24,
+       "strictHits": 0,
+       "strictMisses": 0,
+       "wrongDraws": 0
+      },
+      "empty": {
+       "bytes": 0,
+       "drawn": 0,
+       "errorCode": 1,
+       "loaded": false,
+       "loadMs": 0.13,
+       "strictHits": 0,
+       "strictMisses": 0,
+       "wrongDraws": 0
+      },
+      "garbled": {
+       "bytes": 1758143,
+       "drawn": 24,
+       "errorCode": 0,
+       "loaded": true,
+       "loadMs": 0.13,
+       "strictHits": 48,
+       "strictMisses": 0,
+       "wrongDraws": 0
+      },
+      "sparse": {
+       "bytes": 1758143,
+       "drawn": 0,
+       "errorCode": 0,
+       "loaded": true,
+       "loadMs": 0.24,
+       "strictHits": 0,
+       "strictMisses": 48,
+       "wrongDraws": 0
+      },
+      "text": {
+       "bytes": 14,
+       "drawn": 0,
+       "errorCode": 1,
+       "loaded": false,
+       "loadMs": 0.2,
+       "strictHits": 0,
+       "strictMisses": 0,
+       "wrongDraws": 0
+      }
+     }
+    },
+    {
+     "label": "threads",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 0.63,
+      "totalMs": 2.91
+     },
+     "threads": {
+      "same": {
+       "added": 7,
+       "addErrors": 0,
+       "saves": 1,
+       "strictHits": 1920,
+       "strictMisses": 0
+      },
+      "separate": {
+       "added": 4,
+       "addErrors": 0,
+       "saves": 1,
+       "strictHits": 1920,
+       "strictMisses": 0
+      }
+     },
+     "errors": [],
+     "footprintDeltaMiB": 5.63
+    },
+    {
+     "label": "collect, add first (cold)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 188.76,
+      "totalMs": 1551.72
+     },
+     "addFirstRender": {
+      "count": 48,
+      "maxMs": 31.59,
+      "totalMs": 924.45
+     },
+     "createFromFreshArchiveRender": {
+      "count": 48,
+      "maxMs": 6.12,
+      "totalMs": 52.45
+     },
+     "strictFailures": 0,
+     "result": {
+      "computeFirst": 0,
+      "computeHash": "b43a063055adc383",
+      "drawHash": "a958a7c5d6d8d8d6",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 7.48
+    },
+    {
+     "label": "collect, create first (cold, for comparison)",
+     "returncode": 0,
+     "libraries": {
+      "count": 19,
+      "maxMs": 138.3,
+      "totalMs": 1514.22
+     },
+     "createRender": {
+      "count": 48,
+      "maxMs": 27.16,
+      "totalMs": 397.9
+     },
+     "createCompute": {
+      "count": 6,
+      "maxMs": 509.94,
+      "totalMs": 2583.57
+     },
+     "addAfterCreateRender": {
+      "count": 48,
+      "maxMs": 1.23,
+      "totalMs": 19.55
+     },
+     "addAfterCreateCompute": {
+      "count": 6,
+      "maxMs": 0.62,
+      "totalMs": 2.67
+     },
+     "save": {
+      "bytes": 1757983,
+      "ms": 8.96
+     },
+     "result": {
+      "computeFirst": 3137,
+      "computeHash": "35980d3e61c9e1ff",
+      "drawHash": "8b15b856f557f6be",
+      "drawNonBlackPixels": 4096,
+      "status": true
+     },
+     "errors": [],
+     "footprintDeltaMiB": 10.67,
+     "saveToMissingDirectory": {
+      "error": "Output URL is invalid.",
+      "succeeded": false
+     }
+    }
+   ]
   }
- ]
+ ],
+ "rangesMs": {
+  "librariesCold": {
+   "min": 1057.44,
+   "max": 1746.11,
+   "samples": 18
+  },
+  "renderCompiledCold": {
+   "min": 291.58,
+   "max": 480.04,
+   "samples": 15
+  },
+  "computeCold": {
+   "min": 1799.08,
+   "max": 2894.28,
+   "samples": 15
+  },
+  "librariesWarm": {
+   "min": 2.54,
+   "max": 4.08,
+   "samples": 3
+  },
+  "renderCompiledWarm": {
+   "min": 5.41,
+   "max": 9.52,
+   "samples": 3
+  },
+  "computeWarm": {
+   "min": 2170.48,
+   "max": 2583.19,
+   "samples": 3
+  },
+  "addAfterCreate48": {
+   "min": 8.45,
+   "max": 19.55,
+   "samples": 6
+  },
+  "saveMs": {
+   "min": 5.22,
+   "max": 18.7,
+   "samples": 6
+  },
+  "archiveBytes": {
+   "min": 1757919,
+   "max": 1758223,
+   "samples": 6
+  },
+  "renderFromArchiveWarm": {
+   "min": 4.17,
+   "max": 10.46,
+   "samples": 6
+  },
+  "computeFromArchive": {
+   "min": 1942.82,
+   "max": 3191.13,
+   "samples": 12
+  },
+  "strictMissMs": {
+   "min": 0.064,
+   "max": 0.3,
+   "samples": 12
+  },
+  "archiveLoadMs": {
+   "min": 0.2,
+   "max": 0.48,
+   "samples": 6
+  },
+  "librariesWithArchiveSystemCacheRemoved": {
+   "min": 1147.18,
+   "max": 2544.19,
+   "samples": 6
+  },
+  "renderFromArchiveSystemCacheRemoved": {
+   "min": 31.17,
+   "max": 49.1,
+   "samples": 6
+  },
+  "addFirst48": {
+   "min": 728.48,
+   "max": 924.45,
+   "samples": 3
+  },
+  "createAfterAddFirst48": {
+   "min": 37.68,
+   "max": 52.45,
+   "samples": 3
+  }
+ }
 }

@@ -1,0 +1,171 @@
+{
+ "schema": 1,
+ "lot": "MeloNX lot 7: persistent Metal binary archives in MoltenVK",
+ "date": "2026-11-09",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "status": "prototype kept isolated: not integrated, not enabled; MeloNX's MoltenVK recipe, its pin, every Core and every IPA unchanged; nothing built or run for iOS; no figure from an iPhone or from the simulator for the prototype",
+ "embeddedMoltenVK": {
+  "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+  "tag": "v1.4.2",
+  "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "recipe": "build-utils/melonx/moltenvk-rebuild.json (patch: null, patchSha256: null)",
+  "pin": "build-utils/melonx/moltenvk-rebuild-pin.json (run 41653781749, binary sha256 41cb207d5a6fc0a9e66498953832a6de14995de5653ef4273be19a85c403a68d, 4822128 bytes, iOS arm64, minimum 15.0)",
+  "changedByThisLot": false
+ },
+ "prototype": {
+  "patch": "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+  "patchSha256": "69e7e86110f6455ce11c6279614f2a4d5c0949631289a7e694e125e39c9b3391",
+  "patchGitBlob": "589b044b6b05713e4b4c60570d01f459f0734134",
+  "appliesTo": "MoltenVK db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "filesChanged": [
+   "MoltenVK/MoltenVK/GPUObjects/MVKDevice.h (+5)",
+   "MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm (+9)",
+   "MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h (+122)",
+   "MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm (+574)"
+  ],
+  "enabledBy": "environment variable RBX_MVK_BINARY_ARCHIVE_DIR read when the VkDevice is created; unset = upstream behaviour",
+  "notice": "build-utils/melonx/metal-archive/README.md",
+  "patchBeforeReviewSha256": "9ad7b2c63197a71c3c715d1516d9575a1de36a292366912cd5051ab258e785bb"
+ },
+ "sources": {
+  "branch": "work/melonx-lot7-metal-archive",
+  "commits": {
+   "73bed99f53f9403154e4677a5ba9089b66ebb5a0": "stand-alone Metal probe and the macOS workflow",
+   "39af6cc2c46aee0a346c2b91be2f579c5fbbcb1e": "probe: real cold system Metal cache, more damaged copies",
+   "dd35ce19bec0406b9b76e6a1ee9bd5f443c3dfa0": "prototype patch and its Vulkan test (before the review)",
+   "f32bc99fc8168e0ec0d34277a56cc3cb4605912e": "review fixes",
+   "bb49a541f57ea8bd800edfd86cb0e14b1214d4b7": "session archive reopened after each save; hits timed per kind (final sources of the runs)",
+   "aa28e2cc1913bf9638e37d026593dfa8472872fb": "notice and first run summary (documents only)"
+  },
+  "gitObjectsAtTheFinalRun": {
+   "test/melonx_metal_binary_archive (tree)": "284034c33016622219ecddce13d056c5d60d64bd",
+   ".github/workflows/melonx-metal-archive.yml (blob)": "132900725151544f5e61d1ecbc505c204ce29c48",
+   "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch (blob)": "589b044b6b05713e4b4c60570d01f459f0734134"
+  },
+  "delivery": "the same files are delivered on branch Claude by cherry-pick; the three git objects above are identical there"
+ },
+ "workflow": {
+  "path": ".github/workflows/melonx-metal-archive.yml",
+  "trigger": "push to Claude or work/melonx-lot7-** that touches the workflow, test/melonx_metal_binary_archive/** or build-utils/melonx/metal-archive/**",
+  "runner": "macos-26, Metal device \"Apple Paravirtual device\", macOS 26.7.2 (25G332), Xcode 26.6 (17F113)",
+  "isCoreGate": false,
+  "buildsAnIpa": false
+ },
+ "runs": [
+  {
+   "run": 42693416166,
+   "commit": "39af6cc2c46aee0a346c2b91be2f579c5fbbcb1e",
+   "conclusion": "success",
+   "jobs": {
+    "probe": 129418855046
+   },
+   "artifacts": {
+    "probe": {
+     "id": 13706954520,
+     "sha256": "d8c5e013087448bda3ac1d9279b65fd194f47738531a9d7eee744945290b5be8"
+    }
+   }
+  },
+  {
+   "run": 42695873585,
+   "commit": "dd35ce19bec0406b9b76e6a1ee9bd5f443c3dfa0",
+   "conclusion": "success",
+   "jobs": {
+    "probe": 129427454732,
+    "moltenvk": 129427457368
+   },
+   "artifacts": {
+    "probe": {
+     "id": 13709202059,
+     "sha256": "d7eb50f83fd0b363f98543a063faf12be2dc83cd607ba46a80fecd6532e0bb11"
+    },
+    "moltenvk": {
+     "id": 13709584814,
+     "sha256": "aa30f8949c9d873ed026437f07f5b9ca0d939479d63fd960f7fd1b5468b485c7"
+    }
+   },
+   "patchSha256": "9ad7b2c63197a71c3c715d1516d9575a1de36a292366912cd5051ab258e785bb",
+   "macOSLibrary": {
+    "sha256": "75de39cfb858c25406b9796a232088f52553ab8d959ddcb61a0b763a311c5828",
+    "bytes": 10980688
+   },
+   "sessions": 28,
+   "failedExpectations": 0,
+   "note": "patch before the independent review"
+  },
+  {
+   "run": 42699272657,
+   "commit": "bb49a541f57ea8bd800edfd86cb0e14b1214d4b7",
+   "conclusion": "success",
+   "jobs": {
+    "probe": 129439353218,
+    "moltenvk": 129439352997
+   },
+   "artifacts": {
+    "probe": {
+     "id": 13711690336,
+     "sha256": "5988b29b8551ee592515b90899a63208e37bbf8acb09d9dbab33578d5e4146e5"
+    },
+    "moltenvk": {
+     "id": 13711103187,
+     "sha256": "6139cc67638af390073e01b1245191a01808d45385e148c53c1fe1d37ee92528"
+    }
+   },
+   "patchSha256": "69e7e86110f6455ce11c6279614f2a4d5c0949631289a7e694e125e39c9b3391",
+   "macOSLibrary": {
+    "sha256": "a47777f31301709954d75ffb9bf644bd51e062f71cddcecc3728060240584bf3",
+    "bytes": 10981168,
+    "markers": [
+     "RBX_MVK_BINARY_ARCHIVE_DIR",
+     "RewindBox Metal binary archives"
+    ]
+   },
+   "sessions": 32,
+   "failedExpectations": 0,
+   "note": "reviewed patch: the result this lot stands on"
+  }
+ ],
+ "evidence": {
+  "device-moltenvk-statistics.json": "iPhone: MoltenVK's own statistics in the private journals, aggregates per session (IPA 624-684)",
+  "metal-probe.json": "macOS runner: stand-alone Metal probe, three runs, ranges",
+  "moltenvk-run-1-before-review.json": "macOS runner: patched MoltenVK through Vulkan, run 42695873585",
+  "moltenvk-run-2-reviewed.json": "macOS runner: patched MoltenVK through Vulkan, run 42699272657"
+ },
+ "review": {
+  "agent": "rb-core-review (source only), on the patch 9ad7b2c6",
+  "findings": [
+   "proven: the MoltenVK compiler object leaked on every archive hit and strict miss (compile() never ran, so destroy() waited forever)",
+   "medium: the archive lookup ran outside upstream's device lock and compile timeout",
+   "low: two devices of one identity could write the same segment name",
+   "low: the session bounds could be overshot by concurrent creations",
+   "hardening: the archives were destroyed before the queues that may still compile"
+  ],
+  "fixedIn": "69e7e86110f6455ce11c6279614f2a4d5c0949631289a7e694e125e39c9b3391 (run 42699272657)",
+  "notJudgedWithoutADevice": [
+   "archive hits for descriptor kinds the test set lacks (depth or stencil attachments, several color attachments, multisampling, tessellation, multiview)",
+   "whether an addition recompiles when Metal has evicted the binary it just compiled",
+   "the cost of saves and of the checksum pass on iOS storage",
+   "pipelines compiled again when their segment ages out (hits are not collected again)",
+   "any gain on the iPhone"
+  ]
+ },
+ "decision": {
+  "integrated": false,
+  "enabledByDefault": false,
+  "why": [
+   "a binary archive serves pipeline state creation only: 16.5-18.9 % of the native shader time in play in the iPhone journals (ten sessions with 20 s or more); library creation from MSL, 81.1-83.5 %, is not covered",
+   "the in-play work is first encounters (new libraries = new SPIR-V conversions): in no cache",
+   "26 of 35 launch reports in the journals have a warm system Metal cache, where nothing is left to save; the 9 others compile libraries for 13.5-65.8 s and pipelines for 2.4-12.6 s (14.7-18.3 %)",
+   "on the macOS runner the gain appears only with the system Metal cache removed: 62 graphics creations 0.95-1.01 s against 1.35-1.39 s (run 2), 1.34-1.51 s against 2.03-2.18 s (run 1); libraries remain; compute pipelines gain nothing",
+   "no measure on an iPhone exists for the prototype"
+  ],
+  "reopenWhen": "an iPhone measure after a cold system Metal cache shows pipeline state creation worth removing, or the library stage has been dealt with first"
+ },
+ "deviceProtocolIfRequested": [
+  "needs the integration owner: patched MoltenVK built for iOS with melonx-moltenvk-rebuild.yml (patch and patchSha256 in moltenvk-rebuild.json), pinned, in an IPA",
+  "RBX_MVK_BINARY_ARCHIVE_DIR set per title before the Vulkan device is created",
+  "same route three times: launch 1 (collection), launch 2 (reuse, system cache warm), launch 3 after removing the app's com.apple.metal cache directory",
+  "read: the 'RewindBox Metal binary archives' line (hits, misses, collected, saves), MoltenVK's 'Compile MSL into a MTLLibrary' and 'Compile MTLFunctions into a pipeline' totals, peak footprint, render-thread pipeline waits",
+  "expected from the journals: an effect only in launch 3, bounded by the pipeline share"
+ ]
+}
