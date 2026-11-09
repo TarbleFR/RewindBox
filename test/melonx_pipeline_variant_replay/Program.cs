@@ -407,16 +407,16 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     var s2 = Open(name);
     s2.Offer(0xCCCC, target);
     WaitUntil(() => s2.Replayed >= 2, 3000);
-    long before = new FileInfo(JournalPath(name)).Length;
     scheduler.Dispose();
     WaitUntil(() => target.InFlight == 0, 3000);
     Thread.Sleep(200);
     int executed = target.Executions.Values.Sum();
     Thread.Sleep(200);
+    WaitFile(JournalPath(name), 16);
     report["close"] = new Dictionary<string, object>
     {
         ["planned"] = 40, ["executed"] = executed, ["executedAfterClose"] = target.Executions.Values.Sum() - executed,
-        ["failedMarked"] = s2.ReplayFailed, ["fileGrew"] = new FileInfo(JournalPath(name)).Length != before,
+        ["failedMarked"] = s2.ReplayFailed, ["nextPlanned"] = Open(name).Loaded,
     };
 }
 
@@ -446,11 +446,40 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     device = 60;
     s4.Pump();
     WaitUntil(() => s4.Replayed == 1, 2000);
+    // The failure marker survives compaction: a draw creating the state late again is not recorded, and two launches later
+    // it is still not planned.
+    s4.NoteLate(0xDDDD, Variant(900), 70, false);
+    WaitFile(JournalPath(name), 16);
+    var s5 = Open(name);
+    var s6 = Open(name);
     report["failure"] = new Dictionary<string, object>
     {
         ["session2Replayed"] = s2.Replayed, ["session2Failed"] = s2.ReplayFailed, ["lateAfterFailed"] = s2.LateAfterFailed,
         ["session3Planned"] = s3.Loaded, ["deviceShortExecuted"] = whileShort, ["deviceBackReplayed"] = s4.Replayed,
+        ["session4LateAfterFailed"] = s4.LateAfterFailed, ["session4New"] = s4.LateNew, ["laterPlanned"] = s6.Loaded,
     };
+    scheduler.Dispose();
+}
+
+{
+    // A state replayed in every session and never late again stays planned past 8 sessions (each replay refreshes it).
+    var scheduler = NewScheduler();
+    string name = "refresh";
+    var s1 = Open(name);
+    s1.NoteLate(0x7777, Variant(1200), 90, false);
+    WaitFile(JournalPath(name), 16);
+    int replayedSessions = 0;
+    for (int s = 0; s < 10; s++)
+    {
+        var journal = Open(name);
+        var target = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+        journal.Offer(0x7777, target);
+        WaitUntil(() => journal.Replayed == 1, 2000);
+        replayedSessions += journal.Replayed;
+        WaitFile(JournalPath(name), 16);
+    }
+    var last = Open(name);
+    report["refresh"] = new Dictionary<string, object> { ["replayedSessions"] = replayedSessions, ["session"] = last.Session, ["planned"] = last.Loaded };
     scheduler.Dispose();
 }
 

@@ -597,6 +597,12 @@ PROGRAM_METHODS_NEW = '''        // RewindBox (adapt_pipeline_variant_replay): a
                     return -2; // cancelled with this program's warm-up (disposal): not the variant's failure
                 }
 
+                if (task.IsFaulted && task.Exception?.InnerException is VulkanException failure &&
+                    failure.ResultCode is Result.ErrorDeviceLost or Result.ErrorOutOfHostMemory or Result.ErrorOutOfDeviceMemory)
+                {
+                    _gd.RecordBackgroundPipelineFailure(failure); // the renderer's own failure, reported as the warm-up does
+                }
+
                 task.GetAwaiter().GetResult(); // a close's cancellation or a renderer failure reaches the journal as such
 
                 if (compileMs == -1)
@@ -741,6 +747,8 @@ MANAGER_SUMMARY_NEW = '''            if (summary != null)
                 Logger.Info?.PrintMsg(LogClass.Gpu, summary);
                 Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("pipelineBuilds", "summary", detail: summary); // adapt_pipeline_cache_growth
                 Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("pipelineVariants", "summary", detail: Variants?.Summary("session")); // adapt_pipeline_variant_replay
+                // Resumes replays a memory-short moment or the in-flight bound held back (nothing else would call it).
+                ThreadPool.UnsafeQueueUserWorkItem(_ => Variants?.Pump(), null);
             }
 '''
 
@@ -853,6 +861,9 @@ MANAGER_CLASS_NEW = '''    }
         private readonly List<(ulong Program, ITarget Target)> _pendingOffers = new();
         private readonly List<(Record Record, ITarget Target)> _ready = new();
         private readonly HashSet<(ulong, ulong)> _notedThisSession = new();
+        // Failure markers (program, variant) with the session they were written in: a failed variant is neither replayed nor
+        // recorded again for RecentSessions sessions; compaction keeps the markers.
+        private readonly Dictionary<(ulong, ulong), uint> _failed = new();
         private uint _session = 1;
         private bool _loaded;
         private bool _stopped;
@@ -948,12 +959,8 @@ MANAGER_CLASS_NEW = '''    }
 
                             if (failure)
                             {
-                                if (_records.TryGetValue(key, out Record known))
-                                {
-                                    known.Status = State.Failed;
-                                }
-
-                                rewrite = true;
+                                _failed[key] = Math.Max(record.LastSession, _failed.TryGetValue(key, out uint earlier) ? earlier : 0);
+                                _session = Math.Max(_session, record.LastSession + 1);
                                 continue;
                             }
 
@@ -986,11 +993,21 @@ MANAGER_CLASS_NEW = '''    }
 
             List<Record> kept = new();
 
+            foreach (var marker in new List<(ulong, ulong)>(_failed.Keys))
+            {
+                if (_failed[marker] + RecentSessions < _session)
+                {
+                    _failed.Remove(marker); // a failure 8 sessions old may be retried (the state may build now)
+                    rewrite = true;
+                }
+            }
+
             foreach (Record record in _records.Values)
             {
-                if (record.Status == State.Failed)
+                if (_failed.ContainsKey((record.Program, record.Id)))
                 {
                     failed++;
+                    rewrite = true;
                 }
                 else if (record.LastSession + RecentSessions < _session)
                 {
@@ -1011,6 +1028,12 @@ MANAGER_CLASS_NEW = '''    }
             }
 
             rewrite |= failed != 0 || stale != 0;
+
+            if (rewrite)
+            {
+                // Before the journal is published: no line can be appended to the file being replaced.
+                Rewrite(kept);
+            }
 
             List<(ulong Program, ITarget Target)> offers;
 
@@ -1034,15 +1057,9 @@ MANAGER_CLASS_NEW = '''    }
                 Loaded = kept.Count;
                 Planned = kept.Count;
                 Dropped = failed + stale + invalid;
-                _rewriteHeader = rewrite;
                 _loaded = true;
                 offers = new(_pendingOffers);
                 _pendingOffers.Clear();
-            }
-
-            if (rewrite)
-            {
-                Rewrite(kept);
             }
 
             Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("pipelineVariants", "loaded", detail:
@@ -1145,6 +1162,7 @@ MANAGER_CLASS_NEW = '''    }
             bool cancelled = error is ObjectDisposedException || task.IsCanceled;
             long compileMs = task.Status == TaskStatus.RanToCompletion ? task.Result : -2;
             bool failed = compileMs == -1;
+            byte[] line = null;
 
             lock (_lock)
             {
@@ -1161,11 +1179,20 @@ MANAGER_CLASS_NEW = '''    }
                     _replayMs += compileMs;
                     QueueWaitMs += Math.Max(0, Environment.TickCount64 - start - compileMs);
                     record.Status = State.Built;
+
+                    // Prepared this session: it stays among the recent ones (a draw that finds it built never notes it).
+                    if (record.LastSession != _session)
+                    {
+                        record.LastSession = _session;
+                        line = Encode(record, KindVariant);
+                    }
                 }
                 else if (failed)
                 {
                     ReplayFailed++;
                     record.Status = State.Failed;
+                    _failed[(record.Program, record.Id)] = _session;
+                    line = EncodeFailure(record.Program, record.Id, _session);
                 }
                 else
                 {
@@ -1174,9 +1201,9 @@ MANAGER_CLASS_NEW = '''    }
                 }
             }
 
-            if (failed)
+            if (line != null)
             {
-                Append(record, KindFailed);
+                Append(line);
             }
 
             Pump();
@@ -1189,6 +1216,7 @@ MANAGER_CLASS_NEW = '''    }
             ulong id = Checksum64(variant);
             var key = (program, id);
             Record record;
+            byte[] line;
 
             lock (_lock)
             {
@@ -1199,6 +1227,17 @@ MANAGER_CLASS_NEW = '''    }
                 }
 
                 bool known = _records.TryGetValue(key, out record);
+
+                if (_failed.ContainsKey(key))
+                {
+                    if (!joined)
+                    {
+                        LateMs += elapsedMs;
+                        LateAfterFailed++;
+                    }
+
+                    return; // marked failed: neither replayed nor recorded again while the marker lasts
+                }
 
                 if (joined)
                 {
@@ -1219,17 +1258,10 @@ MANAGER_CLASS_NEW = '''    }
                     }
                     else if (record.Status == State.Built)
                     {
-                        LateAfterBuilt++; // built this session, yet the draw missed it: a key that differs (must stay 0)
+                        // Built this session, yet the draw missed it: a key that differs, or the rare draw whose own creation
+                        // found the replay's pipeline just finished (it creates nothing then).
+                        LateAfterBuilt++;
                     }
-                    else
-                    {
-                        LateAfterFailed++;
-                    }
-                }
-
-                if (known && record.Status == State.Failed)
-                {
-                    return; // failed once: kept failed (dropped at the next launch), not recorded again this session
                 }
 
                 uint seenMs = (uint)Math.Min(uint.MaxValue, Environment.TickCount64 - _startTicks);
@@ -1266,10 +1298,11 @@ MANAGER_CLASS_NEW = '''    }
                     };
                     _records[key] = record;
                 }
+
+                line = Encode(record, KindVariant);
             }
 
-            Record copy = record;
-            ThreadPool.UnsafeQueueUserWorkItem(_ => Append(copy, KindVariant), null);
+            ThreadPool.UnsafeQueueUserWorkItem(_ => Append(line), null);
         }
 
         // Stops scheduling (close): queued compiles are cancelled by the scheduler itself.
@@ -1318,15 +1351,13 @@ MANAGER_CLASS_NEW = '''    }
             return order != 0 ? order : a.Id.CompareTo(b.Id);
         }
 
-        private void Append(Record record, byte kind)
+        private void Append(byte[] line)
         {
-            byte[] line = Encode(record, kind);
-
             lock (_fileLock)
             {
                 try
                 {
-                    bool header = _rewriteHeader || !File.Exists(_path);
+                    bool header = _rewriteHeader || !File.Exists(_path) || new FileInfo(_path).Length < HeaderBytes;
 
                     if (!header && new FileInfo(_path).Length + line.Length > MaxFileBytes)
                     {
@@ -1368,6 +1399,11 @@ MANAGER_CLASS_NEW = '''    }
                         {
                             stream.Write(Encode(record, KindVariant));
                         }
+
+                        foreach (var marker in _failed)
+                        {
+                            stream.Write(EncodeFailure(marker.Key.Item1, marker.Key.Item2, marker.Value));
+                        }
                     }
 
                     File.Move(temporary, _path, overwrite: true);
@@ -1392,7 +1428,9 @@ MANAGER_CLASS_NEW = '''    }
 
         private static byte[] Encode(Record record, byte kind)
         {
-            int bodyLength = kind == KindVariant ? 1 + 8 + 8 + 4 + 2 + 4 + 4 + 2 + record.Variant.Length : 1 + 8 + 8;
+            System.Diagnostics.Debug.Assert(kind == KindVariant);
+
+            int bodyLength = 1 + 8 + 8 + 4 + 2 + 4 + 4 + 2 + record.Variant.Length;
             byte[] line = new byte[2 + bodyLength + 4];
             Span<byte> body = line.AsSpan(2, bodyLength);
 
@@ -1401,17 +1439,30 @@ MANAGER_CLASS_NEW = '''    }
             BitConverter.TryWriteBytes(body.Slice(1, 8), record.Program);
             BitConverter.TryWriteBytes(body.Slice(9, 8), record.Id);
 
-            if (kind == KindVariant)
-            {
-                BitConverter.TryWriteBytes(body.Slice(17, 4), record.LastSession);
-                BitConverter.TryWriteBytes(body.Slice(21, 2), record.Sessions);
-                BitConverter.TryWriteBytes(body.Slice(23, 4), record.FirstSeenMs);
-                BitConverter.TryWriteBytes(body.Slice(27, 4), record.CostMs);
-                BitConverter.TryWriteBytes(body.Slice(31, 2), (ushort)record.Variant.Length);
-                record.Variant.CopyTo(body[33..]);
-            }
-
+            BitConverter.TryWriteBytes(body.Slice(17, 4), record.LastSession);
+            BitConverter.TryWriteBytes(body.Slice(21, 2), record.Sessions);
+            BitConverter.TryWriteBytes(body.Slice(23, 4), record.FirstSeenMs);
+            BitConverter.TryWriteBytes(body.Slice(27, 4), record.CostMs);
+            BitConverter.TryWriteBytes(body.Slice(31, 2), (ushort)record.Variant.Length);
+            record.Variant.CopyTo(body[33..]);
             BitConverter.TryWriteBytes(line.AsSpan(2 + bodyLength, 4), Checksum(body));
+
+            return line;
+        }
+
+        // A failure marker: kind, program, variant id and the session it was written in.
+        private static byte[] EncodeFailure(ulong program, ulong id, uint session)
+        {
+            const int BodyLength = 1 + 8 + 8 + 4;
+            byte[] line = new byte[2 + BodyLength + 4];
+            Span<byte> body = line.AsSpan(2, BodyLength);
+
+            BitConverter.TryWriteBytes(line.AsSpan(0, 2), (ushort)BodyLength);
+            body[0] = KindFailed;
+            BitConverter.TryWriteBytes(body.Slice(1, 8), program);
+            BitConverter.TryWriteBytes(body.Slice(9, 8), id);
+            BitConverter.TryWriteBytes(body.Slice(17, 4), session);
+            BitConverter.TryWriteBytes(line.AsSpan(2 + BodyLength, 4), Checksum(body));
 
             return line;
         }
@@ -1421,10 +1472,15 @@ MANAGER_CLASS_NEW = '''    }
             record = null;
             failure = false;
 
-            if (body.Length == 17 && body[0] == KindFailed)
+            if (body.Length == 21 && body[0] == KindFailed)
             {
                 failure = true;
-                record = new Record { Program = BitConverter.ToUInt64(body.Slice(1, 8)), Id = BitConverter.ToUInt64(body.Slice(9, 8)) };
+                record = new Record
+                {
+                    Program = BitConverter.ToUInt64(body.Slice(1, 8)),
+                    Id = BitConverter.ToUInt64(body.Slice(9, 8)),
+                    LastSession = BitConverter.ToUInt32(body.Slice(17, 4)),
+                };
 
                 return true;
             }
