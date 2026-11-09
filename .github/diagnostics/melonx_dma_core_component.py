@@ -57,8 +57,9 @@ CONTROL_PREPARED = {
 # layout declares each used binding with its used type, Hogwarts Legacy program 890A188FB55B5D5D); 68 with Core 705
 # (IPA 694: setting the program already set keeps its bound descriptor sets); 69 with Core 707 (IPAs 691-694: the
 # deepest part of a closed session still reachable, journal only); 70 with Core 709 (lot 4: valid textures kept past the
-# short texture cache, bounded); 71 with Core 711 (lot 5: graphics pipeline states replayed at launch).
-FRESH_GATES = 71
+# short texture cache, bounded); 71 with Core 711 (lot 5: graphics pipeline states replayed at launch); 72 with Core 713
+# (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again).
+FRESH_GATES = 72
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

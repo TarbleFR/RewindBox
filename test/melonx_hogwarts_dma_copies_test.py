@@ -157,6 +157,8 @@ LOT_FILES = {
     'adapt_short_cache_reuse': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
     # Core 711: graphics pipeline states replayed at launch.
     'adapt_pipeline_variant_replay': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 713: worker snapshots main's file holds removed at the close; an ignored main snapshot written again.
+    'adapt_pipeline_snapshot_retire': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0

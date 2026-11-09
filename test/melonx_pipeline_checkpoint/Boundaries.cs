@@ -20,7 +20,8 @@ namespace Silk.NET.Vulkan {
     enum StructureType { PipelineCacheCreateInfo }
     record struct PipelineCache(ulong Handle);
     struct Device { }
-    struct PhysicalDeviceProperties { public uint VendorID, DeviceID, DriverVersion; }
+    // PipelineCacheUuid as in Silk.NET (the final manager reads it since Core 713, adapt_pipeline_snapshot_retire).
+    unsafe struct PhysicalDeviceProperties { public uint VendorID, DeviceID, DriverVersion; public fixed byte PipelineCacheUuid[16]; }
     unsafe struct PipelineCacheCreateInfo {
         public StructureType SType;
         public PipelineCacheCreateFlags Flags;

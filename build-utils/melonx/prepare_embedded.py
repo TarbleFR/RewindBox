@@ -158,6 +158,7 @@ from adapt_same_program_descriptors import apply as adapt_same_program_descripto
 from adapt_retention_chain import apply as adapt_retention_chain
 from adapt_short_cache_reuse import apply as adapt_short_cache_reuse
 from adapt_pipeline_variant_replay import apply as adapt_pipeline_variant_replay
+from adapt_pipeline_snapshot_retire import apply as adapt_pipeline_snapshot_retire
 
 
 def replace_once(path, old, new):
@@ -442,6 +443,9 @@ def main():
     # Core 711 (lot 5: a cached program warms up one graphics state; its other states were created on the render thread
     # every session): states drawn late recorded semantically, replayed in the background at the next launch, bounded.
     adapted += [source / name for name in adapt_pipeline_variant_replay(source)]
+    # Core 713 (lot 6: worker snapshots main's file holds were read, hydrated and merged at every launch; a main snapshot
+    # the driver ignores blocked every checkpoint): such copies removed at the close; an ignored snapshot written again.
+    adapted += [source / name for name in adapt_pipeline_snapshot_retire(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -563,7 +567,8 @@ def main():
                  'adapt_same_program_descriptors.py',
                  'adapt_retention_chain.py',
                  'adapt_short_cache_reuse.py',
-                 'adapt_pipeline_variant_replay.py']:
+                 'adapt_pipeline_variant_replay.py',
+                 'adapt_pipeline_snapshot_retire.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

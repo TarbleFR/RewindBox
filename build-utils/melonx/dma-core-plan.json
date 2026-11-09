@@ -69,7 +69,8 @@
   "build-utils/melonx/adapt_same_program_descriptors.py",
   "build-utils/melonx/adapt_retention_chain.py",
   "build-utils/melonx/adapt_short_cache_reuse.py",
-  "build-utils/melonx/adapt_pipeline_variant_replay.py"
+  "build-utils/melonx/adapt_pipeline_variant_replay.py",
+  "build-utils/melonx/adapt_pipeline_snapshot_retire.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -3587,6 +3588,28 @@
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ]
+  },
+  {
+   "name": "pipeline-snapshot-retire",
+   "script": "test/melonx_pipeline_snapshot_retire_test.py",
+   "report": "pipeline-snapshot-retire-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanSourceExecuted": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
    ]
   }
  ]
