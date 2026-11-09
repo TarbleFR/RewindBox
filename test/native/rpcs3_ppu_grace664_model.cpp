@@ -230,9 +230,17 @@ int main()
 
 	// 2b. Writers asleep behind a starving waiter of another thread keep deferring until the
 	// window it opens on leaving ends, then all leave, within the bound.
+	// A writer sleeps for at most its own bound (500 us): an observer descheduled longer than that after starting
+	// the writers finds them all gone (Apple runner, Core 907 request 1 and Core 911 request 1). Such an attempt
+	// proves nothing either way and is run again; every check below applies to the attempt that saw a sleeper,
+	// and no attempt seeing one is a failure.
+	bool observed_sleeper = false;
+	for (int attempt = 0; attempt < 8 && !observed_sleeper; attempt++)
+	{
 	reset_gate(true, true);
 	{
 		std::atomic<bool> marked{false}, release{false};
+		std::atomic<int> writers_left{0};
 		std::thread waiter([&] {
 			gate::waiter_mark mark;
 			mark.on_timed_wait(gate::starving_after);
@@ -251,7 +259,7 @@ int main()
 		const auto t0 = clock_type::now();
 		for (int w = 0; w < 3; w++)
 		{
-			writers.emplace_back([&, w] { began[w] = gate::steady_now_ns(); deferred[w] = gate::defer_writer(); left[w] = gate::steady_now_ns(); });
+			writers.emplace_back([&, w] { began[w] = gate::steady_now_ns(); deferred[w] = gate::defer_writer(); left[w] = gate::steady_now_ns(); writers_left++; });
 		}
 		// Released once at least one writer sleeps behind the starving waiter. Each writer's
 		// deferral is bounded (500 us from its start) and thread start-up under sanitizers on a
@@ -259,14 +267,19 @@ int main()
 		// checked below holds for each writer on its own (it leaves at the window's end or at
 		// its own bound, never before both).
 		const auto wait_until = clock_type::now() + std::chrono::milliseconds(2000);
-		while (gate::sleepers.load() < 1 && clock_type::now() < wait_until)
+		bool saw_sleeper = false;
+		while (!(saw_sleeper = gate::sleepers.load() >= 1) && writers_left.load() < 3 && clock_type::now() < wait_until)
 		{
 			std::this_thread::yield();
 		}
-		CHECK(gate::sleepers.load() >= 1);
 		release = true;
 		waiter.join();
 		for (auto& t : writers) t.join();
+		if (!saw_sleeper)
+		{
+			continue; // every writer reached its bound before this thread looked: not an observation
+		}
+		observed_sleeper = true;
 		const auto end = gate::grace_until.load();
 		CHECK(gate::grace_opened.load() == 1 && end > 0);
 		const auto bound_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(gate::writer_deferral).count();
@@ -283,6 +296,8 @@ int main()
 		CHECK(clock_type::now() - t0 < gate::writer_deferral + std::chrono::milliseconds(400));
 		CHECK(gate::sleepers.load() == 0 && gate::starving.load() == 0);
 	}
+	}
+	CHECK(observed_sleeper);
 
 	// 3. The bound holds with a starving mark that never leaves and a window open.
 	reset_gate(true, true);
