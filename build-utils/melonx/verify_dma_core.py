@@ -94,8 +94,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # thread's synchronous waits attributed per invoked command on the existing render work line); 66 with Core 701 (IPA 694:
 # a buffer flush after its sync reads without a render-thread round trip); 67 with Core 703 (IPAs 688-694: a stage's
 # layout declares each used binding with its used type, Hogwarts Legacy program 890A188FB55B5D5D); 68 with Core 705
-# (IPA 694: setting the program already set keeps its bound descriptor sets).
-FRESH_GATES = 68
+# (IPA 694: setting the program already set keeps its bound descriptor sets); 69 with Core 707 (IPAs 691-694: the
+# deepest part of a closed session still reachable, journal only).
+FRESH_GATES = 69
 HISTORICAL_RECEIPTS = 61
 
 

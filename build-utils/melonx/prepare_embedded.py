@@ -155,6 +155,7 @@ from adapt_sync_wait_attribution import apply as adapt_sync_wait_attribution
 from adapt_synced_buffer_reads import apply as adapt_synced_buffer_reads
 from adapt_layout_used_types import apply as adapt_layout_used_types
 from adapt_same_program_descriptors import apply as adapt_same_program_descriptors
+from adapt_retention_chain import apply as adapt_retention_chain
 
 
 def replace_once(path, old, new):
@@ -430,6 +431,9 @@ def main():
     # Core 705 (IPA 694: descriptors 1 121 ms in draw prepare and 394 ms in compute prepare per 108 frames): setting the
     # program already set keeps its bound descriptor sets instead of rewriting all four.
     adapted += [source / name for name in adapt_same_program_descriptors(source)]
+    # Core 707 (IPAs 691-694: every session closed in play keeps its Switch reachable, 500-563 MB after the final
+    # collection): journal the deepest part of the closed session still reachable, at the close and at the next first frame.
+    adapted += [source / name for name in adapt_retention_chain(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -548,7 +552,8 @@ def main():
                  'adapt_sync_wait_attribution.py',
                  'adapt_synced_buffer_reads.py',
                  'adapt_layout_used_types.py',
-                 'adapt_same_program_descriptors.py']:
+                 'adapt_same_program_descriptors.py',
+                 'adapt_retention_chain.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -72,6 +72,7 @@ from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  
 from adapt_synced_buffer_reads import BASELINE as C701_SYNCED_BUFFER_READS  # noqa: E402
 from adapt_layout_used_types import BASELINE as C703_LAYOUT_USED_TYPES  # noqa: E402
 from adapt_same_program_descriptors import BASELINE as C705_SAME_PROGRAM_DESCRIPTORS  # noqa: E402
+from adapt_retention_chain import BASELINE as C707_RETENTION_CHAIN  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -148,6 +149,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'layout-used-types': 'delivered',
             # Core 705: the program already set keeps its bound descriptor sets.
             'same-program-descriptors': 'delivered',
+            # Core 707: the retention chain journal of a closed session.
+            'retention-chain': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -187,7 +190,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 703: ShaderInfoBuilder.cs (new).
            set(C703_LAYOUT_USED_TYPES) |
            # Core 705: DescriptorSetUpdater.cs, PipelineBase.cs (already changed).
-           set(C705_SAME_PROGRAM_DESCRIPTORS))
+           set(C705_SAME_PROGRAM_DESCRIPTORS) |
+           # Core 707: Library.cs, EmbeddedMemory.cs, WindowBase.cs, Horizon.cs, KProcess.cs (already changed).
+           set(C707_RETENTION_CHAIN))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -472,7 +477,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_sync_wait_attribution.py',
                                                      'build-utils/melonx/adapt_synced_buffer_reads.py',
                                                      'build-utils/melonx/adapt_layout_used_types.py',
-                                                     'build-utils/melonx/adapt_same_program_descriptors.py'} and
+                                                     'build-utils/melonx/adapt_same_program_descriptors.py',
+                                                     'build-utils/melonx/adapt_retention_chain.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -497,8 +503,8 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    # Core 705: 187 preparation inputs (adapt_same_program_descriptors.py added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 187 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    # Core 707: 188 preparation inputs (adapt_retention_chain.py added), the same 206 prepared members.
+    check(len(frozen['preparationInputs']) == 188 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

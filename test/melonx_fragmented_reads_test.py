@@ -94,7 +94,9 @@ CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_
            # Core 703: a stage's layout declares each used binding with its used type (ShaderInfoBuilder.cs).
            'adapt_layout_used_types',
            # Core 705: the program already set keeps its bound descriptor sets (DescriptorSetUpdater.cs, PipelineBase.cs).
-           'adapt_same_program_descriptors')
+           'adapt_same_program_descriptors',
+           # Core 707: the retention chain journal (Library.cs, EmbeddedMemory.cs, WindowBase.cs, Horizon.cs, KProcess.cs).
+           'adapt_retention_chain')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
@@ -127,7 +129,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_bindless_retention.py',
           'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
           'build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
-          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py', 'build-utils/melonx/adapt_occupied_readback_buffers.py', 'build-utils/melonx/adapt_async_regenerated_targets.py', 'build-utils/melonx/adapt_released_texture_flush.py', 'build-utils/melonx/adapt_pipeline_failure_identity.py', 'build-utils/melonx/adapt_worker_main_cache_lookup.py', 'build-utils/melonx/adapt_compute_switch_bindings.py', 'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_array_delta_invalidated.py', 'build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_layout_used_types.py', 'build-utils/melonx/adapt_same_program_descriptors.py',
+          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py', 'build-utils/melonx/adapt_occupied_readback_buffers.py', 'build-utils/melonx/adapt_async_regenerated_targets.py', 'build-utils/melonx/adapt_released_texture_flush.py', 'build-utils/melonx/adapt_pipeline_failure_identity.py', 'build-utils/melonx/adapt_worker_main_cache_lookup.py', 'build-utils/melonx/adapt_compute_switch_bindings.py', 'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_array_delta_invalidated.py', 'build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_layout_used_types.py', 'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_retention_chain.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

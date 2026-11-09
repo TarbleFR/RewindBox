@@ -151,6 +151,8 @@ LOT_FILES = {
     'adapt_layout_used_types': [],
     # Core 705: the program already set keeps its bound descriptor sets.
     'adapt_same_program_descriptors': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 707: the retention chain journal.
+    'adapt_retention_chain': ['src/Ryujinx.Library/Library.cs'],
 }
 
 checks = 0
