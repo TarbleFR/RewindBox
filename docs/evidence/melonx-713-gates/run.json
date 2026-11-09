@@ -246,6 +246,38 @@
     "pipelineVariantReplay": "passed 107 with the racy harness (the race did not occur in this run; it did in Core 711 run 42671662153)"
    },
    "note": "first freeze; superseded by the refrozen 01e2f624 (deterministic pipeline-variant-replay harness), requested next"
+  },
+  {
+   "commit": "96701c8d",
+   "contract": "01e2f624",
+   "run": 42689230667,
+   "attempt": 1,
+   "job": 129404254595,
+   "event": "workflow_dispatch (the [melonx-dma-core] commit 5c42dc97 touched documents only, so the path filter did not start the workflow)",
+   "conclusion": "failure",
+   "failedStep": "8: Run five affected final-source gates",
+   "classification": "harness timing, not this lot: gate forced-syncpoint-wait (lot 4, Core 709; no file of lots 5-7): \"candidate sees the termination within one 50 ms poll and the host's timed-wait lateness of the same window\": FlagToDetectionMs 210.2 against 50 + HostLateMs 83.4; DetectionToReturnMs 0.0095. The same product sources passed this gate in run 42681937497 (87763290).",
+   "action": "failed job re-run once (attempt 2)"
+  },
+  {
+   "commit": "96701c8d",
+   "contract": "01e2f624",
+   "run": 42689230667,
+   "attempt": 2,
+   "job": 129427720835,
+   "event": "re-run of the failed job",
+   "conclusion": "failure",
+   "passedSteps": "7 (Apple ARM64, exact SDK, reviewed inputs), 8 (all final-source gates, 41 min: forced-syncpoint-wait and the deterministic pipeline-variant-replay harness included), 9 (NativeAOT library compiled, exported ABI verified), 10 (both libraries bound to reviewed sources and gate receipts)",
+   "failedStep": "11: Fetch the unchanged native frameworks through their pinned republication",
+   "classification": "GitHub service error, not the Core: `gh api repos/TarbleFR/RewindBox/actions/artifacts/13411123524/zip` answered HTTP 503 (the 404 just before it is the expired original artifact of run 39854858591, expected). The republished artifact 13411123524 was available again minutes later (checked 21:40 UTC).",
+   "skippedSteps": "12 (authenticate the native frameworks), 13 (exercise the rebuilt engine in an ARM64 iOS app), 15 (fresh guest execution, teardown, backing release)",
+   "artifact": {
+    "id": 13712057829,
+    "bytes": 90994477,
+    "sha256": "523b3e20ed54e913123045afc78c9b6751d1d73e1471576d521f99a4124c023f",
+    "note": "uploaded by a failed job: no simulator validation; NOT a Core 713 identity"
+   },
+   "action": "failed job re-run (attempt 3, queued 21:40 UTC): a different failure from attempt 1, outside the repository; if forced-syncpoint-wait fails again, no further run and both measures go to the gate's owner"
   }
  ]
 }

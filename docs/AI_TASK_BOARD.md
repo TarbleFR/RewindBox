@@ -2374,8 +2374,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Core CI: first freeze `87763290` (`2bebf779`) run 42681937497 green (job 129379065609; artifact 13705617126,
     91 011 107 B, sha256 `4784bfe9…`; iPhone binary `db033fa7…`, simulator `bbc5012c…`; 72 fresh Apple gates, compiled and
     simulator-validated, not gameplay tested; pipeline-snapshot-retire 106 checks on macOS; pipeline-variant-replay passed
-    there with the racy harness, the race not occurring in that run). The refrozen `01e2f624` (deterministic harness) is
-    requested by the next `[melonx-dma-core]` commit; its result decides the Core 713 identity to pin.
+    there with the racy harness, the race not occurring in that run). Refrozen `01e2f624` (deterministic harness): run
+    42689230667 on `96701c8d` (dispatched: the `[melonx-dma-core]` commit `5c42dc97` held documents only). Attempt 1
+    red at step 8: gate forced-syncpoint-wait (lot 4, no file of lots 5-7), harness timing (termination seen after
+    210.2 ms against 50 ms + 83.4 ms of host lateness). Attempt 2: every gate green (that one and the deterministic
+    pipeline-variant-replay included), library compiled, ABI verified, libraries bound; then red at step 11 on a GitHub
+    HTTP 503 while fetching the pinned native frameworks (artifact 13411123524, available again minutes later); the
+    simulator steps did not run, its artifact 13712057829 is not a Core identity. Attempt 3 queued 21:40 UTC. Until a
+    complete green run, the only validated Core 713 binary is the first freeze's; nothing is pinned by this lot.
   - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
     comparison with IPA 694 on the device is the cumulative result of lots 1-6.
 - **MeloNX lot 7: persistent Metal binary archives in MoltenVK (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov;
