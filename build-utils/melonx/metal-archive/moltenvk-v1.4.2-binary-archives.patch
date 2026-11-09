@@ -56,7 +56,7 @@ index 9772757..7b680c2 100644
  
  #if MVK_XCODE_16
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
-index e385e9b..044037e 100644
+index e385e9b..d842d79 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 @@ -32,6 +32,9 @@
@@ -69,7 +69,7 @@ index e385e9b..044037e 100644
  
  #import <Metal/Metal.h>
  
-@@ -527,6 +530,122 @@ protected:
+@@ -527,6 +530,125 @@ protected:
  };
  
  
@@ -93,7 +93,8 @@ index e385e9b..044037e 100644
 + * Collection: a pipeline that was compiled normally has a copy of its descriptor queued on one utility-priority serial
 + * queue, where its functions are added to this session's archive (Metal reuses the binary it just compiled). The
 + * creating thread never waits for it. A pipeline compiled while the archives were still loading is first looked up
-+ * there, on the queue, so that nothing is added twice. The session's archive is written when 64 pipelines were added, when the
++ * there, on the queue, so that nothing is added twice. After each save the session's archive is reopened from its
++ * file, so the binaries collected so far are no longer held in memory. The session's archive is written when 64 pipelines were added, when the
 + * application reads its Vulkan pipeline cache data (its own persistence points), and when the device is destroyed.
 + *
 + * Files: <directory>/id-<identity>/seg-<number>-<session token>-<bytes>-<sha256 prefix>.mtlarchive. The identity covers what makes Metal
@@ -146,7 +147,7 @@ index e385e9b..044037e 100644
 +	MVKMetalBinaryArchives(MVKDevice* device, const char* directory);
 +	NSArray<id<MTLBinaryArchive>>* copyLoadedArchives();
 +	bool canCollect();
-+	void noteLookup(bool isHit, uint64_t nanoseconds);
++	void noteLookup(bool isHit, bool isCompute, uint64_t nanoseconds);
 +	void loadOnQueue();
 +	void addOnQueue(MTLRenderPipelineDescriptor* renderDesc, MTLComputePipelineDescriptor* computeDesc, bool wasCompiledBeforeLoad);
 +	void saveOnQueue();
@@ -174,6 +175,7 @@ index e385e9b..044037e 100644
 +	uint64_t _addsSinceSave = 0;								// Used on _queue only.
 +	bool _isStrict = false;
 +	bool _verifiesContent = true;
++	bool _reopensAfterSave = true;
 +	std::atomic<bool> _isLoaded{false};
 +	std::atomic<bool> _isCollecting{true};
 +	std::atomic<bool> _isClosing{false};
@@ -182,6 +184,7 @@ index e385e9b..044037e 100644
 +	std::atomic<uint64_t> _removedDamaged{0}, _refusedSegments{0}, _removedRefused{0}, _prunedSegments{0}, _prunedIdentities{0};
 +	std::atomic<uint64_t> _lookupsBeforeLoad{0}, _lookupsWithoutArchive{0};
 +	std::atomic<uint64_t> _hits{0}, _hitNanos{0}, _hitMaxNanos{0}, _misses{0}, _missNanos{0}, _missMaxNanos{0};
++	std::atomic<uint64_t> _computeHits{0}, _computeHitNanos{0}, _reopenErrors{0};
 +	std::atomic<uint64_t> _collectQueued{0}, _collected{0}, _addNanos{0}, _addMaxNanos{0}, _addErrors{0};
 +	std::atomic<uint64_t> _collectAlreadyArchived{0}, _collectDroppedQueueFull{0}, _collectDroppedAtClose{0};
 +	std::atomic<uint64_t> _collectHeldForMemory{0}, _collectCapped{0};
@@ -193,7 +196,7 @@ index e385e9b..044037e 100644
  #pragma mark MVKRenderPipelineCompiler
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..9504b25 100644
+index 7eae64c..c9939b4 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 @@ -26,7 +26,13 @@
@@ -219,7 +222,7 @@ index 7eae64c..9504b25 100644
  				return VK_SUCCESS;
  			} else {
  				*pDataSize = 0;
-@@ -3089,15 +3097,542 @@ MVKPipelineCache::~MVKPipelineCache() {
+@@ -3089,15 +3097,562 @@ MVKPipelineCache::~MVKPipelineCache() {
  }
  
  
@@ -284,6 +287,7 @@ index 7eae64c..9504b25 100644
 +	_isStrict = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_STRICT", 0) != 0;
 +	_isCollecting = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_COLLECT", 1) != 0;
 +	_verifiesContent = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_VERIFY", 1) != 0;
++	_reopensAfterSave = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_REOPEN", 1) != 0;
 +	_maxSegments = (uint32_t)max<uint64_t>(2, rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_MAX_SEGMENTS", 8));
 +	_maxBytes = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_MAX_MB", 192) << 20;
 +	_maxSessionBytes = rbxEnvNumber("RBX_MVK_BINARY_ARCHIVE_SESSION_MAX_MB", 64) << 20;
@@ -345,11 +349,12 @@ index 7eae64c..9504b25 100644
 +	return [_loadedArchives retain];	// retained
 +}
 +
-+void MVKMetalBinaryArchives::noteLookup(bool isHit, uint64_t nanoseconds) {
++void MVKMetalBinaryArchives::noteLookup(bool isHit, bool isCompute, uint64_t nanoseconds) {
 +	if (isHit) {
 +		_hits++;
 +		_hitNanos += nanoseconds;
 +		rbxAtomicMax(_hitMaxNanos, nanoseconds);
++		if (isCompute) { _computeHits++; _computeHitNanos += nanoseconds; }
 +	} else {
 +		_misses++;
 +		_missNanos += nanoseconds;
@@ -381,7 +386,7 @@ index 7eae64c..9504b25 100644
 +		plDesc.binaryArchives = priorArchives;
 +		[priorArchives release];															// temp release
 +	}
-+	noteLookup(plState != nil, mvkGetElapsedNanoseconds(startTime));
++	noteLookup(plState != nil, false, mvkGetElapsedNanoseconds(startTime));
 +	[archives release];																		// temp release
 +	return plState;
 +}
@@ -403,7 +408,7 @@ index 7eae64c..9504b25 100644
 +		plDesc.binaryArchives = priorArchives;
 +		[priorArchives release];															// temp release
 +	}
-+	noteLookup(plState != nil, mvkGetElapsedNanoseconds(startTime));
++	noteLookup(plState != nil, true, mvkGetElapsedNanoseconds(startTime));
 +	[archives release];																		// temp release
 +	return plState;
 +}
@@ -539,6 +544,23 @@ index 7eae64c..9504b25 100644
 +	if ( !_segmentPath.empty() && _segmentPath != finalPath ) { unlink(_segmentPath.c_str()); }
 +	_segmentPath = finalPath;
 +	_addsSinceSave = 0;
++
++	// The file now holds everything this session collected: the archive is reopened from it, so the binaries it held in
++	// memory are released and later additions join the file's content at the next save. If it cannot be reopened, the
++	// published file stays as it is and later additions start another segment.
++	if (_reopensAfterSave && !_isClosing) {
++		MTLBinaryArchiveDescriptor* archDesc = [MTLBinaryArchiveDescriptor new];	// temp retain
++		archDesc.url = [NSURL fileURLWithPath: @(finalPath.c_str())];
++		id<MTLBinaryArchive> reopened = [_mtlDevice newBinaryArchiveWithDescriptor: archDesc error: &err];	// retained
++		[archDesc release];															// temp release
++		[_collectingArchive release];
++		_collectingArchive = reopened;
++		if ( !reopened ) {
++			_reopenErrors++;
++			_segmentNumber++;
++			_segmentPath.clear();
++		}
++	}
 +
 +	uint64_t nanoseconds = mvkGetElapsedNanoseconds(startTime);
 +	_saves++;
@@ -689,12 +711,12 @@ index 7eae64c..9504b25 100644
 +void MVKMetalBinaryArchives::logSummary(const char* when) {
 +	reportMessage(MVK_CONFIG_LOG_LEVEL_INFO,
 +				  "RewindBox Metal binary archives (%s): %llu segments loaded (%.2f MB, verify %.1f ms, load %.1f ms), removed damaged %llu, refused %llu, pruned %llu. "
-+				  "Pipelines from an archive %llu (%.1f ms, max %.2f ms), misses %llu (%.1f ms, max %.2f ms), lookups before the load %llu, with no archive %llu. "
++				  "Pipelines from an archive %llu (%.1f ms, max %.2f ms; compute %llu, %.1f ms), misses %llu (%.1f ms, max %.2f ms), lookups before the load %llu, with no archive %llu. "
 +				  "Collected %llu of %llu queued (%.1f ms, max %.2f ms), errors %llu, already archived %llu, dropped %llu (queue) %llu (close), held for memory %llu, capped %llu. "
 +				  "Saves %llu (%.1f ms, max %.1f ms, %llu bytes), save errors %llu. %s",
 +				  when, _loadedSegments.load(), (double)_loadedBytes.load() / 1048576.0, rbxMs(_verifyNanos), rbxMs(_loadNanos),
 +				  _removedDamaged.load(), _refusedSegments.load(), _prunedSegments.load(),
-+				  _hits.load(), rbxMs(_hitNanos), rbxMs(_hitMaxNanos), _misses.load(), rbxMs(_missNanos), rbxMs(_missMaxNanos),
++				  _hits.load(), rbxMs(_hitNanos), rbxMs(_hitMaxNanos), _computeHits.load(), rbxMs(_computeHitNanos), _misses.load(), rbxMs(_missNanos), rbxMs(_missMaxNanos),
 +				  _lookupsBeforeLoad.load(), _lookupsWithoutArchive.load(),
 +				  _collected.load(), _collectQueued.load(), rbxMs(_addNanos), rbxMs(_addMaxNanos), _addErrors.load(), _collectAlreadyArchived.load(),
 +				  _collectDroppedQueueFull.load(), _collectDroppedAtClose.load(), _collectHeldForMemory.load(), _collectCapped.load(),
@@ -714,6 +736,7 @@ index 7eae64c..9504b25 100644
 +		 << ", \"removedRefused\": " << _removedRefused.load() << ", \"prunedSegments\": " << _prunedSegments.load()
 +		 << ", \"prunedIdentities\": " << _prunedIdentities.load()
 +		 << ", \"hits\": " << _hits.load() << ", \"hitMs\": " << rbxMs(_hitNanos) << ", \"hitMaxMs\": " << rbxMs(_hitMaxNanos)
++		 << ", \"computeHits\": " << _computeHits.load() << ", \"computeHitMs\": " << rbxMs(_computeHitNanos)
 +		 << ", \"misses\": " << _misses.load() << ", \"missMs\": " << rbxMs(_missNanos) << ", \"missMaxMs\": " << rbxMs(_missMaxNanos)
 +		 << ", \"lookupsBeforeLoad\": " << _lookupsBeforeLoad.load() << ", \"lookupsWithoutArchive\": " << _lookupsWithoutArchive.load()
 +		 << ", \"collectQueued\": " << _collectQueued.load() << ", \"collected\": " << _collected.load()
@@ -722,7 +745,7 @@ index 7eae64c..9504b25 100644
 +		 << ", \"collectDroppedQueueFull\": " << _collectDroppedQueueFull.load() << ", \"collectDroppedAtClose\": " << _collectDroppedAtClose.load()
 +		 << ", \"collectHeldForMemory\": " << _collectHeldForMemory.load() << ", \"collectCapped\": " << _collectCapped.load()
 +		 << ", \"saves\": " << _saves.load() << ", \"saveMs\": " << rbxMs(_saveNanos) << ", \"saveMaxMs\": " << rbxMs(_saveMaxNanos)
-+		 << ", \"savedBytes\": " << _savedBytes.load() << ", \"saveErrors\": " << _saveErrors.load()
++		 << ", \"savedBytes\": " << _savedBytes.load() << ", \"saveErrors\": " << _saveErrors.load() << ", \"reopenErrors\": " << _reopenErrors.load()
 +		 << ", \"directoryErrors\": " << _directoryErrors.load() << "}\n";
 +	std::string tmpPath = _reportPath + ".tmp";
 +	FILE* file = fopen(tmpPath.c_str(), "w");
@@ -762,7 +785,7 @@ index 7eae64c..9504b25 100644
  			[mtlDev newRenderPipelineStateWithDescriptor: mtlRPLDesc
  									   completionHandler: ^(id<MTLRenderPipelineState> ps, NSError* error) {
  										   bool isLate = compileComplete(ps, error);
-@@ -3106,6 +3641,9 @@ id<MTLRenderPipelineState> MVKRenderPipelineCompiler::newMTLRenderPipelineState(
+@@ -3106,6 +3661,9 @@ id<MTLRenderPipelineState> MVKRenderPipelineCompiler::newMTLRenderPipelineState(
  		}
  	});
  
@@ -772,7 +795,7 @@ index 7eae64c..9504b25 100644
  	return [_mtlRenderPipelineState retain];
  }
  
-@@ -3127,11 +3665,25 @@ MVKRenderPipelineCompiler::~MVKRenderPipelineCompiler() {
+@@ -3127,11 +3685,25 @@ MVKRenderPipelineCompiler::~MVKRenderPipelineCompiler() {
  #pragma mark MVKComputePipelineCompiler
  
  id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineState(MTLComputePipelineDescriptor* plDesc) {
@@ -798,7 +821,7 @@ index 7eae64c..9504b25 100644
  			[mtlDev newComputePipelineStateWithDescriptor: plDesc
  												  options: MTLPipelineOptionNone
  										completionHandler: ^(id<MTLComputePipelineState> ps, MTLComputePipelineReflection*, NSError* error) {
-@@ -3141,6 +3693,8 @@ id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineSta
+@@ -3141,6 +3713,8 @@ id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineSta
  		}
  	});
  
