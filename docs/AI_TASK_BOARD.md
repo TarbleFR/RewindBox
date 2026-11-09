@@ -2372,6 +2372,40 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     requested by the next `[melonx-dma-core]` commit; its result decides the Core 713 identity to pin.
   - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
     comparison with IPA 694 on the device is the cumulative result of lots 1-6.
+- **MeloNX lot 7: persistent Metal binary archives in MoltenVK (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov;
+  owner: this session; prototype kept isolated, NOT integrated, not enabled; no IPA (maintainer)):**
+  - Goal: fewer repeated native compilations, pipeline waits and stutter in Hogwarts at full 1x rendering, by serving
+    Metal pipeline states from MTLBinaryArchive files kept between sessions.
+  - State: MeloNX's MoltenVK (Khronos v1.4.2 `db660224`, no patch, pinned binary `41cb207d…`), its pin, every Core and
+    every IPA are unchanged. The prototype is a patch for that revision
+    ([patch](../build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch) `69e7e861…`, off unless
+    RBX_MVK_BINARY_ARCHIVE_DIR is set; [notice](../build-utils/melonx/metal-archive/README.md)), its tests
+    (`test/melonx_metal_binary_archive/`) and the macOS workflow `melonx-metal-archive.yml` (starts only for its own
+    files; not a Core gate, no IPA). Nothing was built or run for iOS; nothing ran in the simulator.
+  - Evidence ([record](evidence/melonx-lot7-metal-archive/README.md),
+    [identities](evidence/melonx-lot7-metal-archive/run.json)):
+    - iPhone journals (MoltenVK's own statistics, aggregates): in play, library creation from MSL is 81.1-83.5 % of the
+      native shader time and pipeline state creation 16.5-18.9 % (ten sessions), all first encounters; 26 of 35
+      launches have a warm system Metal cache (at most 2.1 s of libraries, 1.0 s of pipelines), the 9 others compile
+      libraries for 13.5-65.8 s and pipelines for 2.4-12.6 s. A binary archive serves pipeline states only
+      (MVKPipeline.mm:3101, :3135), not `newLibraryWithSource` (MVKShaderModule.mm:582).
+    - macOS runner, its real Metal device, patched MoltenVK through Vulkan (run 42699272657, commit `bb49a541`: 32
+      sessions, every expectation met; run 42695873585, before the review: 28 sessions, every expectation met): 68/68
+      pipelines served by the archive in a new process under MTLPipelineOptionFailOnBinaryArchiveMiss; a variant left
+      out fails strict and is compiled normally; same draw and compute hashes. System Metal cache removed: 62 graphics
+      creations 0.95-1.01 s against 1.35-1.39 s, libraries (1.66-1.77 s) remain, compute pipelines gain nothing. Warm
+      system cache: no gain (0.18 against 0.20 s). Save failure, damaged, cut, refused, other-identity, bound, memory
+      floor and four-thread sessions as expected; +6 to +8 MiB of peak footprint while collecting 68 pipelines.
+    - Independent review (rb-core-review, source only): five defects in the first version (a compiler object leaked on
+      every hit), all fixed before run 42699272657.
+  - Open or limit: no iPhone measure of the prototype, so no FPS or stutter gain is claimed. The archive cannot touch
+    the library stage (most of the device's native shader time, and the reading of the IPA 693 cold start) nor first
+    encounters; an OS update or a change of MSL or options invalidates it. Not judged without a device: descriptor
+    kinds the test set lacks, eviction by Metal, iOS storage cost.
+  - Next: nothing scheduled. Reopen only on the maintainer's request, with main (patched MoltenVK pin, IPA) and the
+    three-launch protocol of the record (collection, reuse, reuse after removing the app's com.apple.metal cache).
+    The lever the evidence points to is the library stage (creation deferred to first use at pipeline cache load, fewer
+    MSL variants): another lot, not started.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
