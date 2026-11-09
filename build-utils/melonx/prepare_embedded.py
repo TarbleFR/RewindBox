@@ -156,6 +156,7 @@ from adapt_synced_buffer_reads import apply as adapt_synced_buffer_reads
 from adapt_layout_used_types import apply as adapt_layout_used_types
 from adapt_same_program_descriptors import apply as adapt_same_program_descriptors
 from adapt_retention_chain import apply as adapt_retention_chain
+from adapt_short_cache_reuse import apply as adapt_short_cache_reuse
 
 
 def replace_once(path, old, new):
@@ -434,6 +435,9 @@ def main():
     # Core 707 (IPAs 691-694: every session closed in play keeps its Switch reachable, 500-563 MB after the final
     # collection): journal the deepest part of the closed session still reachable, at the close and at the next first frame.
     adapted += [source / name for name in adapt_retention_chain(source)]
+    # Core 709 (lot 4: a texture back in a pool after the short cache's two presents was created and uploaded again):
+    # valid textures kept past the short cache, bounded (1 024 textures, 32 MiB, 60 presents), released under pressure.
+    adapted += [source / name for name in adapt_short_cache_reuse(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -553,7 +557,8 @@ def main():
                  'adapt_synced_buffer_reads.py',
                  'adapt_layout_used_types.py',
                  'adapt_same_program_descriptors.py',
-                 'adapt_retention_chain.py']:
+                 'adapt_retention_chain.py',
+                 'adapt_short_cache_reuse.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

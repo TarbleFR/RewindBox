@@ -153,6 +153,8 @@ LOT_FILES = {
     'adapt_same_program_descriptors': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     # Core 707: the retention chain journal.
     'adapt_retention_chain': ['src/Ryujinx.Library/Library.cs'],
+    # Core 709: valid textures kept past the short texture cache.
+    'adapt_short_cache_reuse': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
 }
 
 checks = 0
