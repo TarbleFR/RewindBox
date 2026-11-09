@@ -42,12 +42,19 @@ jobs:
       with:
         persist-credentials: false
     - name: Reuse the external libraries of an earlier build of the same MoltenVK revision
-      uses: actions/cache@v4
+      id: external
+      uses: actions/cache/restore@v4
       with:
         path: .metal-archive/MoltenVK/External
         key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
     - name: Build patched MoltenVK for macOS and exercise the prototype through Vulkan
       run: python3 test/melonx_metal_binary_archive/run_mvk.py
+    - name: Keep the external libraries for the next run (also when an expectation failed)
+      if: always() && steps.external.outputs.cache-hit != 'true' && hashFiles('.metal-archive/MoltenVK/External/build/**') != ''
+      uses: actions/cache/save@v4
+      with:
+        path: .metal-archive/MoltenVK/External
+        key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
     - uses: actions/upload-artifact@v4
       if: always()
       with:
