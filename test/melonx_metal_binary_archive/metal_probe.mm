@@ -227,31 +227,6 @@ static NSDictionary* drawAndCompute(id<MTLDevice> device, id<MTLRenderPipelineSt
              @"computeFirst": @(((float*)output.contents)[1])};
 }
 
-// --- Metal's own cache directories ---------------------------------------------------------------------------------------
-
-static NSArray<NSDictionary*>* metalCacheDirectories(BOOL removeOwn, NSString* processName, NSMutableArray* removed) {
-    char buffer[1024];
-    NSMutableArray* found = [NSMutableArray array];
-    if (confstr(_CS_DARWIN_USER_CACHE_DIR, buffer, sizeof(buffer)) == 0) return found;
-    NSString* root = [NSString stringWithUTF8String: buffer];
-    NSFileManager* files = NSFileManager.defaultManager;
-    for (NSString* first in [files contentsOfDirectoryAtPath: root error: nil] ?: @[]) {
-        NSString* parent = [root stringByAppendingPathComponent: first];
-        for (NSString* second in [files contentsOfDirectoryAtPath: parent error: nil] ?: @[]) {
-            if (![second hasPrefix: @"com.apple.metal"]) continue;
-            NSString* path = [parent stringByAppendingPathComponent: second];
-            unsigned long long bytes = 0;
-            for (NSString* item in [files subpathsOfDirectoryAtPath: path error: nil] ?: @[]) {
-                bytes += [[files attributesOfItemAtPath: [path stringByAppendingPathComponent: item] error: nil] fileSize];
-            }
-            BOOL own = [first isEqualToString: processName];
-            if (own && removeOwn && [files removeItemAtPath: path error: nil]) [removed addObject: first];
-            [found addObject: @{@"owner": first, @"name": second, @"bytes": @(bytes), @"own": @(own)}];
-        }
-    }
-    return found;
-}
-
 // --- Modes ---------------------------------------------------------------------------------------------------------------
 
 int main(int argc, const char* argv[]) {
@@ -268,8 +243,7 @@ int main(int argc, const char* argv[]) {
         NSMutableArray* removed = [NSMutableArray array];
         report[@"mode"] = mode;
         report[@"process"] = processName;
-        report[@"systemCacheBefore"] = metalCacheDirectories(clearSystemCache, processName, removed);
-        report[@"systemCacheRemoved"] = removed;
+        (void)clearSystemCache; (void)removed;
 
         id<MTLDevice> device = MTLCreateSystemDefaultDevice();
         if (!device) { printf("{\"error\": \"no Metal device\"}\n"); return 3; }
@@ -374,8 +348,19 @@ int main(int argc, const char* argv[]) {
                 NSMutableDictionary* damaged = [NSMutableDictionary dictionary];
                 NSMutableData* garbled = [whole mutableCopy];
                 if (garbled.length > 4096) memset((uint8_t*)garbled.mutableBytes + garbled.length / 2 - 1024, 0xA5, 2048);
-                NSDictionary* copies = @{@"cut": [whole subdataWithRange: NSMakeRange(0, whole.length / 2)], @"garbled": garbled,
+                // Sixteen bytes overwritten every 32 KiB, and one bit flipped every 64 KiB (past the first 4 KiB).
+                NSMutableData* sparse = [whole mutableCopy];
+                for (NSUInteger at = 4096; at + 16 < sparse.length; at += 32768) memset((uint8_t*)sparse.mutableBytes + at, 0xA5, 16);
+                NSMutableData* bits = [whole mutableCopy];
+                for (NSUInteger at = 4096 + 777; at < bits.length; at += 65536) ((uint8_t*)bits.mutableBytes)[at] ^= 0x10;
+                NSDictionary* copies = @{@"cut": [whole subdataWithRange: NSMakeRange(0, whole.length / 2)], @"garbled": garbled, @"sparse": sparse, @"bitFlips": bits,
                                          @"empty": [NSData data], @"text": [@"not an archive" dataUsingEncoding: NSUTF8StringEncoding]};
+                // What each pipeline draws when compiled normally.
+                NSMutableArray<NSString*>* expected = [NSMutableArray array];
+                for (MTLRenderPipelineDescriptor* d in renders) {
+                    id<MTLRenderPipelineState> state = d.colorAttachments[0].pixelFormat == MTLPixelFormatRGBA8Unorm ? [device newRenderPipelineStateWithDescriptor: d error: nil] : nil;
+                    [expected addObject: state ? drawAndCompute(device, state, nil)[@"drawHash"] : @""];
+                }
                 for (NSString* name in copies) {
                     NSString* copy = [work stringByAppendingPathComponent: [name stringByAppendingString: @".metalarchive"]];
                     [copies[name] writeToFile: copy atomically: YES];
@@ -385,17 +370,24 @@ int main(int argc, const char* argv[]) {
                     double start = nowMs();
                     id<MTLBinaryArchive> archive = [device newBinaryArchiveWithDescriptor: ad error: &loadError];
                     double loadMs = nowMs() - start;
-                    int hits = 0, misses = 0;
+                    int hits = 0, misses = 0, drawn = 0, wrongDraws = 0;
                     if (archive) {
+                        NSUInteger index = 0;
                         for (MTLRenderPipelineDescriptor* d in renders) {
                             d.binaryArchives = @[archive];
                             id<MTLRenderPipelineState> state = [device newRenderPipelineStateWithDescriptor: d options: MTLPipelineOptionFailOnBinaryArchiveMiss reflection: nil error: nil];
                             if (state) hits++; else misses++;
                             d.binaryArchives = nil;
+                            if (state && expected[index].length) {
+                                drawn++;
+                                if (![drawAndCompute(device, state, nil)[@"drawHash"] isEqualToString: expected[index]]) wrongDraws++;
+                            }
+                            index++;
                         }
                     }
                     damaged[name] = @{@"loaded": @(archive != nil), @"loadMs": @(round(loadMs * 100) / 100), @"error": loadError.localizedDescription ?: @"",
-                                      @"errorCode": @(loadError.code), @"strictHits": @(hits), @"strictMisses": @(misses), @"bytes": @([copies[name] length])};
+                                      @"errorCode": @(loadError.code), @"strictHits": @(hits), @"strictMisses": @(misses), @"bytes": @([copies[name] length]),
+                                      @"drawn": @(drawn), @"wrongDraws": @(wrongDraws)};
                 }
                 report[@"damaged"] = damaged;
                 // After the damaged copies, the normal compilation still serves every pipeline.
@@ -492,7 +484,7 @@ int main(int argc, const char* argv[]) {
                 for (int t = 0; t < 4; t++) {
                     workers.emplace_back([&, t] {
                         @autoreleasepool {
-                            for (int round = 0; round < 6; round++) {
+                            for (int round = 0; round < 40; round++) {
                                 for (NSUInteger i = t; i < renders.count; i += 4) {
                                     MTLRenderPipelineDescriptor* d = [renders[i] copy];
                                     d.binaryArchives = loaded ? @[loaded] : nil;
@@ -510,11 +502,10 @@ int main(int argc, const char* argv[]) {
                             MTLRenderPipelineDescriptor* d = renderDescriptor(shaders, n % (int)shaders.fragments.count, MTLPixelFormatBGRA8Unorm, (n / (int)shaders.fragments.count) % 2);
                             NSError* e = nil;
                             if ([destination addRenderPipelineFunctionsWithDescriptor: d error: &e]) added++; else addErrors++;
-                            if (++n % 8 == 0) {
+                            if (++n % 4 == 0) {
                                 NSURL* out = [NSURL fileURLWithPath: [work stringByAppendingPathComponent: [NSString stringWithFormat: @"threads-%@.metalarchive.tmp", target]]];
                                 if ([destination serializeToURL: out error: &e]) saves++;
                             }
-                            if (n >= 2 * (int)shaders.fragments.count) break;
                         }
                     }
                 });
@@ -532,7 +523,6 @@ int main(int argc, const char* argv[]) {
         if (firstRender || firstCompute) report[@"result"] = drawAndCompute(device, firstRender, firstCompute);
         report[@"errors"] = errors;
         report[@"footprintDeltaMiB"] = @(round((footprintMiB() - footprintStart) * 100) / 100);
-        report[@"systemCacheAfter"] = metalCacheDirectories(NO, processName, removed);
         NSData* data = [NSJSONSerialization dataWithJSONObject: report options: NSJSONWritingSortedKeys error: nil];
         printf("%s\n", [[NSString alloc] initWithData: data encoding: NSUTF8StringEncoding].UTF8String);
     }
