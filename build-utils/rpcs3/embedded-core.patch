@@ -81781,21 +81781,22 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..80ecf35 100644
+index e7f55d7..a69beb0 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
-@@ -12,7 +12,10 @@
+@@ -12,7 +12,11 @@
  #include "Emu/Cell/SPURecompiler.h"
  #include "Emu/perf_meter.hpp"
  #ifdef RPCS3_IOS
 +#include "ios/IOSPassiveLockGate.h"
  #include "ios/IOSReservationLockPolicy.h"
++#include "ios/IOSWriterLockPhases.h"
 +#include "ios/RPCS3IOSPerformance.h"
 +// NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
  #endif
  #include <deque>
  #include <span>
-@@ -100,7 +103,18 @@ namespace vm
+@@ -100,7 +104,18 @@ namespace vm
  #ifdef RPCS3_IOS
  		if (rpcs3::ios::reservation_lock_should_yield(wait_iteration)) [[unlikely]]
  		{
@@ -81815,7 +81816,7 @@ index e7f55d7..80ecf35 100644
  			return;
  		}
  #endif
-@@ -111,6 +125,11 @@ namespace vm
+@@ -111,6 +126,11 @@ namespace vm
  	// Memory range lock slots (sparse atomics)
  	atomic_t<u64, 128> g_range_lock_set[64]{};
  
@@ -81827,7 +81828,7 @@ index e7f55d7..80ecf35 100644
  	// Memory pages
  	std::array<memory_page, 0x100000000 / 4096> g_pages;
  
-@@ -241,7 +260,10 @@ namespace vm
+@@ -241,7 +261,10 @@ namespace vm
  
  			if (!busy) [[likely]]
  			{
@@ -81839,7 +81840,7 @@ index e7f55d7..80ecf35 100644
  				{
  					break;
  				}
-@@ -416,6 +438,21 @@ namespace vm
+@@ -416,6 +439,21 @@ namespace vm
  
  		if (!ok || cpu.state & cpu_flag::memory)
  		{
@@ -81861,7 +81862,7 @@ index e7f55d7..80ecf35 100644
  			for (u64 i = 0;; i++)
  			{
  				if (cpu.is_paused())
-@@ -429,10 +466,29 @@ namespace vm
+@@ -429,10 +467,29 @@ namespace vm
  					return;
  				}
  
@@ -81893,7 +81894,7 @@ index e7f55d7..80ecf35 100644
  
  				if (cpu_flag::wait - cpu.state)
  				{
-@@ -470,6 +526,28 @@ namespace vm
+@@ -470,6 +527,28 @@ namespace vm
  		}
  	}
  
@@ -81922,7 +81923,7 @@ index e7f55d7..80ecf35 100644
  	writer_lock::writer_lock() noexcept
  		: writer_lock(0, nullptr, 1)
  	{
-@@ -478,6 +556,12 @@ namespace vm
+@@ -478,6 +557,12 @@ namespace vm
  	writer_lock::writer_lock(u32 const addr, atomic_t<u64, 128>* range_lock, u32 const size, u64 const flags) noexcept
  		: range_lock(range_lock)
  	{
@@ -81935,7 +81936,7 @@ index e7f55d7..80ecf35 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +578,15 @@ namespace vm
+@@ -494,6 +579,15 @@ namespace vm
  			}
  		}
  
@@ -81951,18 +81952,52 @@ index e7f55d7..80ecf35 100644
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,7 +632,7 @@ namespace vm
+@@ -539,13 +633,21 @@ namespace vm
  
  		if (range_lock)
  		{
 -			perf_meter<"SUSPEND"_u64> perf0;
 +			perf_meter<"SUSPEND"_u64> perf0{nullptr};
++#ifdef RPCS3_IOS
++			// REWINDBOX_WRITER_LOCK_PHASES_908: bits | ranges | park (ios/IOSWriterLockPhases.h).
++			const u64 phase_bits_end = utils::get_tsc();
++			u64 phase_flagged = 0;
++#endif
  
  			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
  			{
-@@ -601,6 +694,10 @@ namespace vm
+ 				if (auto ptr = +*lock; ptr && ptr->state.none_of(cpu_flag::wait + cpu_flag::memory))
+ 				{
+ 					ptr->state.test_and_set(cpu_flag::memory);
++#ifdef RPCS3_IOS
++					phase_flagged++;
++#endif
  				}
  			}
+ 
+@@ -589,6 +691,9 @@ namespace vm
+ 
+ 				reservation_lock_wait(wait_iteration);
+ 			}
++#ifdef RPCS3_IOS
++			const u64 phase_ranges_end = utils::get_tsc();
++#endif
+ 
+ 			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
+ 			{
+@@ -600,7 +705,20 @@ namespace vm
+ 					}
+ 				}
+ 			}
++#ifdef RPCS3_IOS
++			if (source == static_cast<u8>(writer_lock_source::spu_putllc))
++			{
++				const u64 phase_park_end = utils::get_tsc();
++				static const u64 slow_threshold = utils::get_tsc_freq() / 20000; // 50 us
++				rpcs3::ios::writer_lock_phases::record(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,
++					phase_park_end - phase_ranges_end, phase_flagged, slow_threshold);
++			}
++#endif
  		}
 +#ifdef RPCS3_IOS
 +		acquired_tsc = utils::get_tsc();
@@ -81971,7 +82006,7 @@ index e7f55d7..80ecf35 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1141,7 @@ namespace vm
+@@ -1044,7 +1162,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -81980,7 +82015,7 @@ index e7f55d7..80ecf35 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1418,7 @@ namespace vm
+@@ -1321,7 +1439,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -81989,7 +82024,7 @@ index e7f55d7..80ecf35 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1458,7 @@ namespace vm
+@@ -1361,7 +1479,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -81998,7 +82033,7 @@ index e7f55d7..80ecf35 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1512,7 @@ namespace vm
+@@ -1415,7 +1533,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82007,7 +82042,7 @@ index e7f55d7..80ecf35 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1532,101 @@ namespace vm
+@@ -1435,6 +1553,101 @@ namespace vm
  			return 0;
  		}
  
@@ -82109,7 +82144,7 @@ index e7f55d7..80ecf35 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1686,7 @@ namespace vm
+@@ -1494,7 +1707,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82118,7 +82153,7 @@ index e7f55d7..80ecf35 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1917,52 @@ namespace vm
+@@ -1725,6 +1938,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -82171,7 +82206,7 @@ index e7f55d7..80ecf35 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +1995,7 @@ namespace vm
+@@ -1757,6 +2016,7 @@ namespace vm
  			}
  		}
  
@@ -82179,7 +82214,7 @@ index e7f55d7..80ecf35 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2047,7 @@ namespace vm
+@@ -1808,7 +2068,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -82188,7 +82223,7 @@ index e7f55d7..80ecf35 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2088,13 @@ namespace vm
+@@ -1849,6 +2109,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -82202,7 +82237,7 @@ index e7f55d7..80ecf35 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2649,7 @@ namespace vm
+@@ -2403,7 +2670,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -127601,10 +127636,10 @@ index ccb4aae..c25fd6f 100644
  }
 diff --git a/rpcs3/ios/IOSTextureLookupMemo.h b/rpcs3/ios/IOSTextureLookupMemo.h
 new file mode 100644
-index 0000000..20660f4
+index 0000000..b70d2ed
 --- /dev/null
 +++ b/rpcs3/ios/IOSTextureLookupMemo.h
-@@ -0,0 +1,467 @@
+@@ -0,0 +1,522 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -127666,7 +127701,17 @@ index 0000000..20660f4
 +	verify_all = 2, // One cache lock per lookup; every hit runs the full lookup (counters only).
 +};
 +
-+constexpr std::size_t ways = 4;
++// REWINDBOX_TEXMEMO_WAYS_908: Assassin's Creed (BLES00158), IPA 694 device log, gameplay window 40: 99,674 lookups,
++// 29,617 hits, 64,461 miss_empty, 5,126 miss_epoch, lookup_ms 785 (about 11 us per miss, 0.15 us per hit). Entries
++// are rarely invalidated (miss_epoch, miss_section, miss_range small): the keys are absent. With 4 ways per slot,
++// a slot that samples more than 4 textures within an epoch evicts by LRU the entry it needs next, so a cycle of 5 or
++// more textures never hits. 16 ways keep up to 16 textures per slot; every check of a hit is unchanged (the same
++// key, epoch, revision, range, context, section and bound tests, the same verification sampling). Memory: 20 slots
++// x 16 entries. miss_evicted counts the miss_empty whose key this slot evicted by LRU, current in its epoch and not
++// stored again since, among its last 16 evictions: a capacity miss, against a key never seen or dropped by an
++// invalidation (COREPROF TEXMEMO660).
++constexpr std::size_t ways = 16;
++constexpr std::size_t ghosts = 16;
 +constexpr std::uint64_t verify_first = 256;
 +constexpr std::uint64_t verify_period = 64;
 +
@@ -127691,6 +127736,8 @@ index 0000000..20660f4
 +	std::atomic<std::uint64_t> lookups{0}, hits{0}, verified{0}, mismatches{0}, stores{0};
 +	std::atomic<std::uint64_t> miss_empty{0}, miss_epoch{0}, miss_revision{0}, miss_range{0}, miss_context{0},
 +		miss_section{0}, miss_bound{0}, miss_disabled{0};
++	// REWINDBOX_TEXMEMO_WAYS_908: the miss_empty whose key was among the slot's last evictions (capacity misses).
++	std::atomic<std::uint64_t> miss_evicted{0};
 +	std::atomic<std::uint64_t> unstored_kind{0}, unstored_changed{0}, unstored_bound{0};
 +	std::atomic<std::uint64_t> locks_avoided{0}, cpu_uploads{0};
 +	// First reuses of a (slot, key) verified; reuses not checked that way because the key table was full.
@@ -127877,6 +127924,49 @@ index 0000000..20660f4
 +	static constexpr std::size_t seen_capacity = 4096;
 +	std::array<std::uint64_t, seen_capacity> m_seen{};
 +	std::size_t m_seen_count = 0;
++	// REWINDBOX_TEXMEMO_WAYS_908: hashes of the last keys each slot evicted by LRU (0: free), a ring per slot.
++	std::array<std::uint64_t, Slots * ghosts> m_ghosts{};
++	std::array<std::uint32_t, Slots> m_ghost_next{};
++
++	static std::uint64_t key_hash(std::size_t slot, const key& k) noexcept
++	{
++		std::uint64_t h = 1469598103934665603ull;
++		const auto mix = [&h](std::uint64_t value) { h = (h ^ value) * 1099511628211ull; };
++		mix(slot);
++		mix(k.address);
++		for (const std::uint32_t word : k.words)
++		{
++			mix(word);
++		}
++		mix(k.flags);
++		return h ? h : 1;
++	}
++
++	bool evicted_recently(std::size_t slot, const key& k) const noexcept
++	{
++		const std::uint64_t h = key_hash(slot, k);
++		for (std::size_t g = 0; g < ghosts; ++g)
++		{
++			if (m_ghosts[slot * ghosts + g] == h)
++			{
++				return true;
++			}
++		}
++		return false;
++	}
++
++	// A key stored again is no longer an evicted one: a later miss_empty of it is not a capacity miss.
++	void forget_ghost(std::size_t slot, const key& k) noexcept
++	{
++		const std::uint64_t h = key_hash(slot, k);
++		for (std::size_t g = 0; g < ghosts; ++g)
++		{
++			if (m_ghosts[slot * ghosts + g] == h)
++			{
++				m_ghosts[slot * ghosts + g] = 0;
++			}
++		}
++	}
 +
 +public:
 +	struct found
@@ -127940,6 +128030,10 @@ index 0000000..20660f4
 +			return { &e.value, miss::none };
 +		}
 +
++		if (evicted_recently(slot, k))
++		{
++			count(counters.miss_evicted);
++		}
 +		return { nullptr, miss::empty };
 +	}
 +
@@ -127948,20 +128042,7 @@ index 0000000..20660f4
 +	// sampled verification remains) and counted.
 +	bool first_reuse(std::size_t slot, const key& k) noexcept
 +	{
-+		std::uint64_t h = 1469598103934665603ull;
-+		const auto mix = [&h](std::uint64_t value) { h = (h ^ value) * 1099511628211ull; };
-+		mix(slot);
-+		mix(k.address);
-+		for (const std::uint32_t word : k.words)
-+		{
-+			mix(word);
-+		}
-+		mix(k.flags);
-+		if (!h)
-+		{
-+			h = 1;
-+		}
-+
++		const std::uint64_t h = key_hash(slot, k);
 +		for (std::size_t probe = 0, at = h % seen_capacity; probe < seen_capacity; ++probe, at = (at + 1) % seen_capacity)
 +		{
 +			if (m_seen[at] == h)
@@ -128009,6 +128090,14 @@ index 0000000..20660f4
 +			}
 +		}
 +
++		if (best == 1 && m_entries[victim].gen.epoch == generations::now().epoch)
++		{
++			// A valid entry of another key, current in this epoch, goes by LRU: remember its key (capacity misses).
++			// An entry of an older epoch would miss anyway (miss_epoch), so it is not a capacity miss.
++			auto& next = m_ghost_next[slot];
++			m_ghosts[slot * ghosts + next] = key_hash(slot, m_entries[victim].k);
++			next = (next + 1) % ghosts;
++		}
 +		m_entries[victim].valid = false;
 +		const auto gen = generations::now();
 +		return { victim, m_ranges.prepare(victim), gen };
@@ -128052,6 +128141,7 @@ index 0000000..20660f4
 +		e.compressed = compressed;
 +		e.valid = true;
 +		e.used = ++m_clock;
++		forget_ghost(t.index / ways, k);
 +		return store_result::stored;
 +	}
 +
@@ -128859,6 +128949,57 @@ index 0000000..ecf9024
 +	return then_us && now_us >= then_us ? static_cast<double>(now_us - then_us) / 1000.0 : -1.0;
 +}
 +}
+diff --git a/rpcs3/ios/IOSWriterLockPhases.h b/rpcs3/ios/IOSWriterLockPhases.h
+new file mode 100644
+index 0000000..9206aec
+--- /dev/null
++++ b/rpcs3/ios/IOSWriterLockPhases.h
+@@ -0,0 +1,45 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_WRITER_LOCK_PHASES_908: Black Ops II (BLES01717), IPA 694 device log, RANGELOCKPROF
++// wl_putllc=38814:229.833:0.956 (count:acquire_ms:hold_ms): an SPU PUTLLC that takes the heavyweight writer
++// lock waits about 5.9 us to acquire it and holds it 0.025 us. The acquisition has three phases (vm.cpp,
++// vm::writer_lock): the range-lock bit of the writer (bits), the range locks of other threads over the line
++// (ranges), and every running PPU thread reaching cpu_flag::wait after cpu_flag::memory (park). Counted for the
++// SPU PUTLLC source only, reported in RANGELOCKPROF as wl_putllc_phases=bits_ms:ranges_ms:park_ms,
++// wl_putllc_flagged (PPU threads asked to park), wl_putllc_slow_parks (parks over 50 us) and
++// wl_putllc_park_max_us. Measurement only: the lock protocol is unchanged.
++namespace rpcs3::ios::writer_lock_phases
++{
++struct counters_t
++{
++	std::atomic<std::uint64_t> bits_ticks{0}, ranges_ticks{0}, park_ticks{0};
++	std::atomic<std::uint64_t> flagged{0}, slow_parks{0}, park_max_ticks{0};
++};
++
++inline counters_t counters;
++
++inline void record(std::uint64_t bits, std::uint64_t ranges, std::uint64_t park, std::uint64_t flagged, std::uint64_t slow_threshold) noexcept
++{
++	counters.bits_ticks.fetch_add(bits, std::memory_order_relaxed);
++	counters.ranges_ticks.fetch_add(ranges, std::memory_order_relaxed);
++	counters.park_ticks.fetch_add(park, std::memory_order_relaxed);
++	counters.flagged.fetch_add(flagged, std::memory_order_relaxed);
++	if (park > slow_threshold)
++	{
++		counters.slow_parks.fetch_add(1, std::memory_order_relaxed);
++	}
++	std::uint64_t seen = counters.park_max_ticks.load(std::memory_order_relaxed);
++	while (park > seen && !counters.park_max_ticks.compare_exchange_weak(seen, park, std::memory_order_relaxed))
++	{
++	}
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::writer_lock_phases
 diff --git a/rpcs3/ios/IOSZcullLabelPage.h b/rpcs3/ios/IOSZcullLabelPage.h
 new file mode 100644
 index 0000000..0d8ecea
@@ -135147,10 +135288,10 @@ index 8fba197..b5a6024 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..21676b1
+index 0000000..9ee7a6f
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,471 @@
+@@ -0,0 +1,586 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -135162,6 +135303,8 @@ index 0000000..21676b1
 +#include "Emu/Cell/SPUThread.h"
 +#include "Emu/Cell/lv2/sys_spu.h"
 +#include "Emu/Cell/lv2/sys_semaphore.h" // REWINDBOX_FREEZE_DEEP_621
++#include "Emu/Cell/lv2/sys_lwcond.h" // REWINDBOX_FREEZE_POLLER_908
++#include <cstring>
 +#include "Emu/Memory/vm_reservation.h"
 +#include "Emu/Cell/timers.hpp"
 +#include "Emu/RSX/RSXThread.h"
@@ -135268,6 +135411,74 @@ index 0000000..21676b1
 +	return bound_line(line);
 +}
 +
++// REWINDBOX_FREEZE_POLLER_908: a PPU thread that polls with a timed sleep or a yield
++// (Black Flag, builds 676 and 694: TaskThread1 in sys_timer_usleep(30) at 0x5e33f8 while
++// every other thread waits). The waiting-state filter of ppu_code_line skipped it, so the
++// loop it runs and the words it tests were never seen. Its loop around lr (the call
++// returns there), r13-r31 and, for each that is a readable guest address, 16 bytes there.
++bool is_polling_call(const char* function)
++{
++	return function && (std::strcmp(function, "sys_timer_usleep") == 0 || std::strcmp(function, "sys_timer_sleep") == 0 ||
++		std::strcmp(function, "sys_ppu_thread_yield") == 0);
++}
++
++std::string ppu_poller_line(const ppu_thread& ppu)
++{
++	const u32 lr = static_cast<u32>(ppu.lr);
++	const u32 code = lr >= 0x80 ? lr - 0x80 : 0;
++	std::string regs, words;
++	u32 shown = 0;
++	std::vector<u32> seen;
++	for (u32 r = 13; r < 32; r++)
++	{
++		const u64 value = ppu.gpr[r];
++		fmt::append(regs, "%s%llx", r == 13 ? "" : ":", value);
++		const u32 addr = static_cast<u32>(value) & ~15u;
++		if (value >> 32 || addr < 0x10000 || shown >= 10 || std::find(seen.begin(), seen.end(), addr) != seen.end() ||
++			!vm::check_addr(addr, vm::page_readable, 16))
++		{
++			continue;
++		}
++		seen.push_back(addr);
++		fmt::append(words, "%sr%u@%x=%s", shown ? "," : "", r, addr, guest_hex(addr, 16));
++		shown++;
++	}
++	std::string line = fmt::format("FREEZE_DUMP ppu_poller id=0x%x func=%s pc=0x%x lr=0x%x code_at=0x%x code=%s r13_31=%s words=%s",
++		ppu.id, sanitize_token(ppu.current_function ? ppu.current_function : ""), ppu.cia, lr, code, guest_hex(code, 256), regs,
++		words.empty() ? std::string("-") : words);
++	return bound_line(line);
++}
++
++// REWINDBOX_FREEZE_POLLER_908: a lightweight condition the PPU threads wait on, its
++// lightweight mutex (guest sys_lwmutex_t: owner, waiter, attribute, recursion,
++// sleep queue) and the waiting threads, so the thread that must signal it is named.
++struct lwcond_state
++{
++	u32 id = 0;
++	u64 name = 0;
++	u32 lwid = 0;
++	u32 control = 0;
++	std::vector<u32> waiters;
++};
++
++std::string lwcond_line(const lwcond_state& cond)
++{
++	std::string ids;
++	for (const u32 waiter : cond.waiters)
++	{
++		fmt::append(ids, "%s0x%x", ids.empty() ? "" : ":", waiter);
++	}
++	u32 lwmutex = 0;
++	if (cond.control && vm::check_addr(cond.control, vm::page_readable, 8))
++	{
++		lwmutex = *vm::get_super_ptr<be_t<u32>>(cond.control);
++	}
++	std::string line = fmt::format("FREEZE_DUMP lwcond id=0x%x name=%s lwmutex_id=0x%x control=0x%x control_data=%s lwmutex=0x%x lwmutex_data=%s waiters=%s",
++		cond.id, sanitize_token(lv2_obj::name64(cond.name)), cond.lwid, cond.control, guest_hex(cond.control, 8), lwmutex,
++		guest_hex(lwmutex, 24), ids.empty() ? std::string("-") : ids);
++	return bound_line(line);
++}
++
 +// One 128-byte guest line the SPUs poll (raddr, last GETLLAR, the SPURS block).
 +std::string guest_line(u32 addr)
 +{
@@ -135366,6 +135577,7 @@ index 0000000..21676b1
 +	std::vector<stx::shared_ptr<lv2_spu_group>> groups;
 +	std::vector<stx::shared_ptr<named_thread<spu_thread>>> raw_spus;
 +	std::vector<sema_state> semaphores; // REWINDBOX_FREEZE_DEEP_621
++	std::vector<lwcond_state> lwconds;  // REWINDBOX_FREEZE_POLLER_908
 +
 +	{
 +		// Same try-locked reader pattern as the exit-request observer in System.cpp.
@@ -135423,6 +135635,36 @@ index 0000000..21676b1
 +					sema.mutex.unlock_shared();
 +				}
 +				semaphores.push_back(std::move(state));
++			}, idm::unlocked);
++		}
++
++		// REWINDBOX_FREEZE_POLLER_908: the lwconds the PPU threads wait on (r3 of
++		// _sys_lwcond_queue_wait is the lwcond id), at most 6; their identity is const.
++		if (g_fxo->is_init<id_manager::id_map<lv2_obj>>())
++		{
++			std::vector<std::pair<u32, u32>> waited; // lwcond id, waiting ppu id
++			for (const auto& ppu : ppus)
++			{
++				const char* function = ppu->current_function;
++				if (function && std::strcmp(function, "_sys_lwcond_queue_wait") == 0)
++				{
++					waited.emplace_back(static_cast<u32>(ppu->gpr[3]), ppu->id);
++				}
++			}
++			idm::select<lv2_obj, lv2_lwcond>([&](u32 id, lv2_lwcond& cond)
++			{
++				lwcond_state state{id, cond.name, cond.lwid, cond.control.addr()};
++				for (const auto& [cond_id, ppu_id] : waited)
++				{
++					if (cond_id == id && state.waiters.size() < 8)
++					{
++						state.waiters.push_back(ppu_id);
++					}
++				}
++				if (!state.waiters.empty() && lwconds.size() < 6)
++				{
++					lwconds.push_back(std::move(state));
++				}
 +			}, idm::unlocked);
 +		}
 +
@@ -135495,6 +135737,20 @@ index 0000000..21676b1
 +				deep.push_back(ppu_code_line(*ppu));
 +				running++;
 +			}
++		}
++
++		u32 pollers = 0;
++		for (const auto& ppu : ppus)
++		{
++			if (pollers < 2 && is_polling_call(ppu->current_function))
++			{
++				deep.push_back(ppu_poller_line(*ppu));
++				pollers++;
++			}
++		}
++		for (const auto& cond : lwconds)
++		{
++			deep.push_back(lwcond_line(cond));
 +		}
 +
 +		for (const auto& sema : semaphores)
@@ -136287,10 +136543,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..2daa1da 100644
+index d800542..48701fa 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,207 @@
+@@ -1,26 +1,208 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -136331,6 +136587,7 @@ index d800542..2daa1da 100644
 +#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
 +#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
 +#include "IOSLoadOpClear907.h"
++#include "IOSWriterLockPhases.h" // REWINDBOX_WRITER_LOCK_PHASES_908
 +#include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
 +#include "IOSRendererCausality.h"
 +#include "IOSSignalTrace.h"
@@ -136498,7 +136755,7 @@ index d800542..2daa1da 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +219,534 @@ u64 process_memory_footprint()
+@@ -38,31 +220,534 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -137043,7 +137300,7 @@ index d800542..2daa1da 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +756,10 @@ public:
+@@ -72,10 +757,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -137056,7 +137313,7 @@ index d800542..2daa1da 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +792,1431 @@ public:
+@@ -108,12 +793,1439 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -137960,7 +138217,7 @@ index d800542..2daa1da 100644
 +            const u64 mismatches = memo::take(c.mismatches), stores = memo::take(c.stores);
 +            const u64 m_empty = memo::take(c.miss_empty), m_epoch = memo::take(c.miss_epoch), m_revision = memo::take(c.miss_revision);
 +            const u64 m_range = memo::take(c.miss_range), m_context = memo::take(c.miss_context), m_section = memo::take(c.miss_section);
-+            const u64 m_bound = memo::take(c.miss_bound), m_disabled = memo::take(c.miss_disabled);
++            const u64 m_bound = memo::take(c.miss_bound), m_disabled = memo::take(c.miss_disabled), m_evicted = memo::take(c.miss_evicted);
 +            const u64 u_kind = memo::take(c.unstored_kind), u_changed = memo::take(c.unstored_changed), u_bound = memo::take(c.unstored_bound);
 +            const u64 locks = memo::take(c.locks_avoided), uploads = memo::take(c.cpu_uploads);
 +            const u64 first_reuses = memo::take(c.first_reuses), seen_full = memo::take(c.seen_full);
@@ -137970,11 +138227,12 @@ index d800542..2daa1da 100644
 +                "stores=%llu miss_empty=%llu miss_epoch=%llu miss_revision=%llu miss_range=%llu miss_context=%llu miss_section=%llu "
 +                "miss_bound=%llu miss_disabled=%llu unstored_kind=%llu unstored_changed=%llu unstored_bound=%llu local_bumps=%llu "
 +                "fb_bumps=%llu context_bumps=%llu cpu_uploads=%llu locks_avoided=%llu first_reuses=%llu seen_full=%llu hit_ms=%.3f lookup_ms=%.3f "
++                "ways=%zu miss_evicted=%llu "
 +                "scope=process_window_counters window_boundary_approximate=1",
 +                profile_session, profile_window, static_cast<u32>(memo::current_mode()), memo::disabled.load(std::memory_order_relaxed) ? 1u : 0u,
 +                lookups, hits, verified, mismatches, stores, m_empty, m_epoch, m_revision, m_range, m_context, m_section, m_bound, m_disabled,
 +                u_kind, u_changed, u_bound, local_bumps, all_bumps >= local_bumps ? all_bumps - local_bumps : 0, context_bumps, uploads, locks,
-+                first_reuses, seen_full, milliseconds(hit_ticks), milliseconds(lookup_ticks));
++                first_reuses, seen_full, milliseconds(hit_ticks), milliseconds(lookup_ticks), memo::ways, m_evicted);
 +        }
 +        // REWINDBOX_RENDERPASS_CENSUS_652: why render passes ended in the window. begins= passes really begun;
 +        // fresh= the first on their command buffer; same_target/other_target= begun after an end on the same or another
@@ -138235,11 +138493,17 @@ index d800542..2daa1da 100644
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D7): wl_<source>_max_hold_us is the
 +		// longest single hold of the window next to the sums, in microseconds.
 +		const auto microseconds = [frequency](u64 ticks) { return rpcs3::ios::profiler::ticks_to_us(ticks, frequency); };
++		// REWINDBOX_WRITER_LOCK_PHASES_908 (ios/IOSWriterLockPhases.h).
++		namespace wl_phases = rpcs3::ios::writer_lock_phases;
++		const u64 wl_phase_bits = wl_phases::take(wl_phases::counters.bits_ticks), wl_phase_ranges = wl_phases::take(wl_phases::counters.ranges_ticks);
++		const u64 wl_phase_park = wl_phases::take(wl_phases::counters.park_ticks), wl_phase_flagged = wl_phases::take(wl_phases::counters.flagged);
++		const u64 wl_phase_slow = wl_phases::take(wl_phases::counters.slow_parks), wl_phase_park_max = wl_phases::take(wl_phases::counters.park_max_ticks);
 +		ios_core_profiler.notice(
 +			"RANGELOCKPROF session=%llu episodes=%llu total_ms=%.3f max_ms=%.3f iterations_max=%llu blocker_samples=%llu blocker_max=%llu "
 +			"wl_other=%llu:%.3f:%.3f wl_putllc=%llu:%.3f:%.3f wl_store128=%llu:%.3f:%.3f wl_ppu_stcx=%llu:%.3f:%.3f wl_resop=%llu:%.3f:%.3f "
 +			"wl_putllc_avoided=%llu wl_ppu_stcx_avoided=%llu "
-+			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f writer_shards=%u",
++			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f writer_shards=%u "
++			"wl_putllc_phases=%.3f:%.3f:%.3f wl_putllc_flagged=%llu wl_putllc_slow_parks=%llu wl_putllc_park_max_us=%.3f",
 +			profile_session, range.count, milliseconds(range.ticks), milliseconds(range.maximum_ticks),
 +			range_iterations_max, range_blocker_sum, range_blocker_max,
 +			writer_count[0], milliseconds(writer_acquire[0]), milliseconds(writer_hold[0]),
@@ -138249,7 +138513,8 @@ index d800542..2daa1da 100644
 +			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
 +			writer_avoided[1], writer_avoided[3],
 +			microseconds(writer_hold_max[0]), microseconds(writer_hold_max[1]), microseconds(writer_hold_max[2]),
-+			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]), rpcs3::ios::diagnostics::WriterCounters::shard_count);
++			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]), rpcs3::ios::diagnostics::WriterCounters::shard_count,
++			milliseconds(wl_phase_bits), milliseconds(wl_phase_ranges), milliseconds(wl_phase_park), wl_phase_flagged, wl_phase_slow, microseconds(wl_phase_park_max));
 +
 +		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
 +		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
@@ -138490,7 +138755,7 @@ index d800542..2daa1da 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2224,93 @@ private:
+@@ -121,6 +2233,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -138584,7 +138849,7 @@ index d800542..2daa1da 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2318,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2327,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -138678,7 +138943,7 @@ index d800542..2daa1da 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2415,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2424,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -138807,7 +139072,7 @@ index d800542..2daa1da 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2546,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2555,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

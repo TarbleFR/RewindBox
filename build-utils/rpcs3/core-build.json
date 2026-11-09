@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 907,
- "identity_type": "rpcs3-ios-core907",
- "summary": "RPCS3 Core 907 = Core 906 plus two GPU levers for Assassin's Creed (IPA 676: 25-28 fps in play, ~30 ms of GPU work per frame, 44-48 render passes per frame all LOAD/STORE). (1) REWINDBOX_LOAD_OP_CLEAR_907: a full-framebuffer fast clear that begins a render pass now begins it with load-op CLEAR for exactly the cleared attachments, instead of loading the old image from memory and then drawing the clear over it (MoltenVK executes vkCmdClearAttachments as a draw); same result. (2) REWINDBOX_NATIVE_HALF_907: the fragment decompilers give the RSX half-precision H registers native float16 types, as the RSX computes them, keeping every other High-precision rule. Both are per-title settings, Automatic on for Assassin's Creed only. Core 906 = retired overrides skipped, timed Metal report. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 908,
+ "identity_type": "rpcs3-ios-core908",
+ "summary": "RPCS3 Core 908 = Core 907 plus the 9 Nov mission levers. (1) REWINDBOX_TEXMEMO_WAYS_908: the texture lookup memo keeps 16 entries per sampler slot (was 4): Assassin's Creed IPA 694 window 40 had 64,461 absent-key misses of 99,674 lookups (about 11 us each, 0.15 us per hit) and rare invalidations; every hit check and the verification sampling unchanged; TEXMEMO660 reports ways= and miss_evicted= (capacity misses). (2) REWINDBOX_WRITER_LOCK_PHASES_908: RANGELOCKPROF splits the SPU PUTLLC writer lock acquisition (Black Ops II: about 5.9 us per acquisition, 0.025 us held) into range bits, range locks and PPU park; measurement only. (3) REWINDBOX_FREEZE_POLLER_908: the freeze dump shows the loop of a polling PPU thread and the waited lwconds (Black Flag). Host: the Menu and Performances buttons at the top corners of the safe area, collision-aware. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "654680eabb663b7a0e0f74e16c1c9218a84e553671564e4531762496ee58e313",
-  "postimages": 445,
+  "patch_sha256": "324305dd897ca833770733410bf23214c2a16204fa2ce5da06db971dd13dd83d",
+  "postimages": 446,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -54,7 +54,8 @@
    "core904_20261106",
    "core905_20261106",
    "core906_20261107",
-   "core907_20261107"
+   "core907_20261107",
+   "core908_20261109"
   ]
  },
  "reference": {
@@ -94,16 +95,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core907_20261107",
-  "manifest": "build-utils/rpcs3/core907-delta.json",
-  "patch": "build-utils/rpcs3/core907-delta.patch",
-  "patch_sha256": "448b942b186a41277bf2cb074a77a24fd8576fb9d6232fbb126dec1a867dc321"
+  "record": "core908_20261109",
+  "manifest": "build-utils/rpcs3/core908-delta.json",
+  "patch": "build-utils/rpcs3/core908-delta.patch",
+  "patch_sha256": "c6fdd7ca2699070031362011b5b6e2aa8db51633e5a0eac3c9cf2e12d788df47"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "92fad91da08c9bbbfbbef367d173e6194fe22b6582e35fb908bbe52346abfd63",
+  "host_sha256": "bdcd0ac7605e866209238f438fd987189bd1df5a27e492e492a8fbd994d02be6",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -201,7 +202,9 @@
   "COREPROF METAL M5 program_cache=",
   "COREPROF METAL state frames=",
   "COREPROF LOADCLEAR907",
-  "Resolved title policy 907"
+  "Resolved title policy 907",
+  "wl_putllc_phases=",
+  "miss_evicted="
  ],
  "moltenvk_dependency": {
   "run": 42213572281,
@@ -408,28 +411,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core907_codegen_test.py",
+     "test/rpcs3_core908_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 907 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h and rpcs3/ios/RPCS3IOSSettings.cpp and the VK/Metal renderer files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 908 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, Emu/Memory/vm.cpp and the iOS profiler, memo and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core907",
+    "name": "core908",
     "argv": [
      "python3",
-     "test/rpcs3_core907_test.py",
+     "test/rpcs3_core908_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core907.json"
+     "{out}/core908.json"
     ],
-    "reason": "Core 901 to 907 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 908 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",

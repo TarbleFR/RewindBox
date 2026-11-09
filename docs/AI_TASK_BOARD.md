@@ -862,6 +862,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Core 907 built and pinned**: request 2 run `42329242959` (source `3c9cac6c`), Core job and Apple host harnesses green
       (the PPU grace 664 ASan timing check passed unchanged); dylib `2d8e92ba`, fingerprint `b804508a`, identities unchanged.
       Not run on the iPhone; no FPS claim.
+  - **Mission 9 Nov (maintainer prompt "RPCS3 AC1 BO2 BlackFlag Interface", no IPA) -> Core 908** (owner: Claude Code; open).
+    Input: IPA 694 private logs (diagnostic6/.16, performance6/.15, milestones5; not in Git).
+    - AC1 (BLES00158), TEXMEMO660 window 40: 99,674 lookups, 29,617 hits, miss_empty 64,461, miss_epoch 5,126, lookup_ms 785
+      (~11 us per miss, 0.15 us per hit): absent keys, invalidations rare. 4 ways per slot + LRU: a slot cycling > 4 textures
+      in an epoch never hits. REWINDBOX_TEXMEMO_WAYS_908: 16 ways, every hit check unchanged; miss_evicted counts capacity
+      misses (ghost ring of the last 16 LRU evictions of current-epoch entries per slot, cleared when the key is stored again;
+      independent rb-core-review: no defect, served results exact, indexes in bounds, no new race). Proof: test/rpcs3_texmemo_ways908_test.py (real header,
+      ASan/UBSan): 6-texture cycle 18/18 hits at 16 ways, 0 at 4; 17 overflows (counted); every invalidation drops as before.
+      The Core 660 memo harness with the 908 header: all 21 scenarios equal the control, negative controls still diverge.
+      LOADCLEAR907 and native half were already active on 694 (passes 1143/1261/991 per window): not new.
+    - BO2 (BLES01717): RANGELOCKPROF wl_putllc=38814:229.8:0.96 (count:acquire_ms:hold_ms): ~5.9 us to acquire, 0.025 us held;
+      the cost is parking every running PPU. Exact pre-checks (BUILD435) already in place; the single-lane CAS without the
+      lock is upstream's relaxed mode (inexact for a concurrent PPU store to another lane): rejected.
+      REWINDBOX_WRITER_LOCK_PHASES_908 (measurement only): wl_putllc_phases=bits:ranges:park ms, flagged PPUs, slow parks
+      (> 50 us), park_max_us, to decide between PPU check latency and OS preemption.
+    - Black Flag (BLES01882): deterministic freeze (same PCs on 676 and 694, Vulkan interpreter and Metal LLVM), upstream #12807
+      (open) / #5831; no syscall, timeout or register workaround. REWINDBOX_FREEZE_POLLER_908: FREEZE_DUMP ppu_poller (code
+      around lr, r13-r31, guest words) and lwcond lines (lwmutex, waiters) to name the thread that must signal.
+    - UI (host, `bdd4ac95`): Menu top-left, Performances top-right of the safe area (10 pt, 44x44, collision-aware from the live
+      touch-control frames, panel under its button); test/rpcs3_overlay_button_layout_test.py.
+    - Host bridge changed (bdcd0ac7): MoltenVK dependency request `f1b5befd` (run `42668189251`, same source and patch).
+    - Packaging (local): canonical 324305dd (446), delta c6fdd7ca, increment core908-from-907 b4bcb697 (= metal-wip-from-907).
+      Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS,
+      reuse-audit, transition-phases, feedback-census, position-invariance, lr-full-queue, RA hooks, exitspawn,
+      graphics-tests-612, spu-613 PASS; full driver running.
+    - Next: dependency run -> link -> [rpcs3-core-build] request -> pin. iPhone protocol in the French report.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
