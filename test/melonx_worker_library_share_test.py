@@ -106,10 +106,11 @@ check('_mainCheckpointInProgress' not in manager_k and manager_k.count('Interloc
       'every holder counts: four announcements (load, play-time and pause checkpoints, share), six withdrawals (one per path)')
 check('main.Frozen' in share and 'PipelineVariantJournal.LowDevicePercent' in share and
       share.count('main.EstimatedBytes + ') == 2 and share.index('main.EstimatedBytes + growth > main.Budget') > share.index('if (!_mainCacheLock.TryEnter())') and
-      'main.OnMerged(growth);' in share and 'state.SharedBytes = state.EstimatedBytes;' in share and
+      'main.OnMerged(growth);' in share and 'state.SharedPipelineCount = state.PipelineCount;' in share and
       'state.MergedGeneration = Interlocked.Read(ref state.Generation);' in share and 'state.FileOutsideMain = false;' in share,
       'budget checked before and again under the lock, main\'s estimate credited; not into a Frozen main or under low memory; the merge bookkeeping of PreserveBeforeRecycle')
-check('SharedBytes = 0;' in manager_k[manager_k.index('public void OnRecreated(PipelineCache cache)'):][:400],
+check('SharedPipelineCount = 0;' in manager_k[manager_k.index('public void OnRecreated(PipelineCache cache)'):][:400] and
+      'if (added > 0 && bytes > _measuredBytes && _mergedCredit == 0)' in manager_k and '_mergedCredit = 0;' in manager_k,
       'a recycled worker cache starts its share accounting again')
 notify = manager_k[manager_k.index('        public void NotifyWorkerPipelineCreated(int workerIndex)'):]
 notify = notify[:notify.index('\n        }\n') + 10]
@@ -169,6 +170,9 @@ for name, r in (('control', c), ('candidate', k)):
           o['announcementWithdrawnAfter'], name + ': with another holder announced, a render-thread creation goes to the side cache at once: ' + str(o))
 check(not s['overlap']['announcementKept'] and not s['overlap']['renderReturnedWhileHeld'],
       'sensitivity: a share that clears every announcement leaves the render thread waiting for the lock: ' + str(s['overlap']))
+e = k['estimate']
+check(e['perPipelineAfter'] == e['perPipelineBefore'] and e['creditedEstimate'] >= (74 << 20) and e['laterEstimate'] >= e['actual'] + 16 * e['perPipelineAfter'],
+      'a merge\'s credit does not lower the bytes per pipeline; after the measure the estimate never falls below the measured size: ' + str(e))
 b = k['budget']
 check(b['refusedKeptOut'] and b['overBudget'] == 1 and b['sharedAfterRoom'] and b['credited'] > 0,
       'over main\'s estimated budget: refused and counted; with room: shared and main\'s estimate credited: ' + str(b))

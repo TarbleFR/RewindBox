@@ -334,6 +334,37 @@ if (candidate)
     l.Manager.Dispose();
 }
 
+// S9 (review of Core 717): a merge's credit, then a real measure, then render-thread pipelines: the bytes per pipeline are
+// not learnt from the span that held the merge, and the estimate never falls below the measured size.
+if (candidate)
+{
+    string dir = Path.Combine(root, "estimate");
+    var l = Open(dir);
+    var mainState = typeof(PipelineCacheManager).GetField("_mainState", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(l.Manager);
+    var type = mainState.GetType();
+    long Estimate() => (long)type.GetProperty("EstimatedBytes").GetValue(mainState);
+    long PerPipeline() => (long)type.GetProperty("BytesPerPipeline").GetValue(mainState);
+    void Measure(long bytes) => type.GetMethod("OnMeasured").Invoke(mainState, new object[] { bytes });
+    void Merged(long bytes) => type.GetMethod("OnMerged").Invoke(mainState, new object[] { bytes });
+    Measure(10L << 20);
+    long perBefore = PerPipeline();
+    Merged(64L << 20);                                   // credited upper bound of a share
+    for (int i = 0; i < 4; i++) l.Manager.NotifyMainPipelineCreated();
+    long creditedEstimate = Estimate();
+    long actual = (10L << 20) + (2L << 20);              // the share added less than its bound
+    Measure(actual);
+    long perAfter = PerPipeline();
+    for (int i = 0; i < 16; i++) l.Manager.NotifyMainPipelineCreated();
+    long laterEstimate = Estimate();
+    report["estimate"] = new Dictionary<string, object>
+    {
+        ["perPipelineBefore"] = perBefore, ["perPipelineAfter"] = perAfter, ["creditedEstimate"] = creditedEstimate,
+        ["actual"] = actual, ["laterEstimate"] = laterEstimate,
+    };
+    l.Manager.MergeAndSave();
+    l.Manager.Dispose();
+}
+
 report["warnings"] = Ryujinx.Common.Logging.Logger.Warning.Messages.Select(m => m.Length > 160 ? m[..160] : m).Distinct().Take(20).ToList();
 report["shareLines"] = Ryujinx.Common.Logging.Logger.Info.Messages.Where(m => m.Contains("adapt_worker_library_share")).Take(10).ToList();
 try { Directory.Delete(root, true); } catch (IOException) { }

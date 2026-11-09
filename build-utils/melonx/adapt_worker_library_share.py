@@ -15,8 +15,10 @@ lock and with the checkpoint protocol (render-thread creations go to the side ca
 announcement of that protocol becomes a count of holders for every holder of the file (background load, play-time and
 pause checkpoints, shares): a holder that fails to take the lock, or releases it, withdraws only its own announcement (a
 flag cleared by one holder could hide another's, and a render-thread creation would then wait for the lock). Main's
-budget is checked against an estimate (measured bytes plus each merge's credit, the worker's estimated growth since its
-last share), before taking the lock and again under it; it is not the native memory. Not done
+budget is checked against an estimate (main's measured bytes, plus the credit of merges since its last measure, plus the
+worker's pipelines since its last share at its bytes per pipeline), before taking the lock and again under it; the
+measure replaces the credit, and the bytes per pipeline are learnt only from spans without merges. It is not the native
+memory. Not done
 when the main lock is held (the next own compilation tries again), when main is Frozen or disposed, when main's estimate
 plus the worker's would pass main's budget, or when device memory is low (PipelineVariantJournal.LowDevicePercent).
 The merge is counted as PreserveBeforeRecycle's: main's generation moves, the worker's merged generation is its current
@@ -145,7 +147,7 @@ NOTIFY_NEW = '''            state.PipelineCount++;
                     Interlocked.Increment(ref main.Generation);
                     state.MergedGeneration = Interlocked.Read(ref state.Generation);
                     main.OnMerged(growth);
-                    state.SharedBytes = state.EstimatedBytes;
+                    state.SharedPipelineCount = state.PipelineCount;
 
                     // As PreserveBeforeRecycle: main holds this cache, so its file's content if the file is of it.
                     if (state.FileInCache)
@@ -177,8 +179,8 @@ NOTIFY_NEW = '''            state.PipelineCount++;
         }
 
         // RewindBox (adapt_worker_library_share): an upper bound of what this worker's cache can add to main since its last
-        // share (its estimated growth; the merge copies only what main lacks).
-        private static long SharedGrowth(CacheState state) => Math.Max(0, state.EstimatedBytes - state.SharedBytes);
+        // share: its pipelines since then at its bytes per pipeline (the merge copies only what main lacks).
+        private static long SharedGrowth(CacheState state) => Math.Max(0, state.PipelineCount - state.SharedPipelineCount) * state.BytesPerPipeline;
 
         private string ShareSummaryLocked(string window)
         {
@@ -280,23 +282,63 @@ STATE_FIELDS_OLD = '''            public bool FileInCache = true;
 '''
 STATE_FIELDS_NEW = '''            public bool FileInCache = true;
             public bool FileOutsideMain;
-            // RewindBox (adapt_worker_library_share): this worker's estimated bytes at its last share into main.
-            public long SharedBytes;
+            // RewindBox (adapt_worker_library_share): this worker's pipeline count at its last share into main.
+            public int SharedPipelineCount;
 '''
-ON_MERGED_OLD = '''            public void OnRecreated(PipelineCache cache)
+ON_MERGED_OLD = '''            public long EstimatedBytes => _measuredBytes + Math.Max(0, PipelineCount - _measuredPipelineCount) * _bytesPerPipeline;
+
+            public void OnMeasured(long bytes)
             {
-                Cache = cache;
+                int added = PipelineCount - _measuredPipelineCount;
+
+                if (added > 0 && bytes > _measuredBytes)
+                {
+                    _bytesPerPipeline = Math.Max(1, (bytes - _measuredBytes) / added);
+                }
+
+                _measuredBytes = bytes;
+                _measuredPipelineCount = PipelineCount;
+            }
 '''
-ON_MERGED_NEW = '''            // RewindBox (adapt_worker_library_share): content merged into this cache, an upper bound until the next measure.
-            public void OnMerged(long bytes)
+ON_MERGED_NEW = '''            // RewindBox (adapt_worker_library_share): plus the credit of merges since the last measure (an upper bound of what
+            // they added; the measure replaces it).
+            public long EstimatedBytes => _measuredBytes + _mergedCredit + Math.Max(0, PipelineCount - _measuredPipelineCount) * _bytesPerPipeline;
+
+            public long BytesPerPipeline => _bytesPerPipeline; // RewindBox (adapt_worker_library_share)
+
+            public void OnMeasured(long bytes)
             {
-                _measuredBytes += bytes;
+                int added = PipelineCount - _measuredPipelineCount;
+
+                // RewindBox (adapt_worker_library_share): the bytes per pipeline are learnt only from a span without merges (the
+                // growth of a span with merges is not this cache's own pipelines').
+                if (added > 0 && bytes > _measuredBytes && _mergedCredit == 0)
+                {
+                    _bytesPerPipeline = Math.Max(1, (bytes - _measuredBytes) / added);
+                }
+
+                _measuredBytes = bytes;
+                _measuredPipelineCount = PipelineCount;
+                _mergedCredit = 0;
             }
 
-            public void OnRecreated(PipelineCache cache)
+            // RewindBox (adapt_worker_library_share): content merged into this cache, credited until the next measure.
+            private long _mergedCredit;
+
+            public void OnMerged(long bytes)
+            {
+                _mergedCredit += bytes;
+            }
+'''
+RECREATED_OLD = '''            public void OnRecreated(PipelineCache cache)
             {
                 Cache = cache;
-                SharedBytes = 0; // RewindBox (adapt_worker_library_share): a new, empty cache
+'''
+RECREATED_NEW = '''            public void OnRecreated(PipelineCache cache)
+            {
+                Cache = cache;
+                SharedPipelineCount = 0; // RewindBox (adapt_worker_library_share): a new, empty cache
+                _mergedCredit = 0;
 '''
 
 CLOSE_OLD = '''            bool mainFileHoldsWorkers = false; // RewindBox (adapt_pipeline_snapshot_retire)
@@ -312,7 +354,7 @@ CLOSE_NEW = '''            bool mainFileHoldsWorkers = false; // RewindBox (adap
 '''
 
 
-PROTOCOL = [(STATE_FIELDS_OLD, STATE_FIELDS_NEW), (ON_MERGED_OLD, ON_MERGED_NEW), (FLAG_OLD, FLAG_NEW), (ENTER_OLD, ENTER_NEW),
+PROTOCOL = [(STATE_FIELDS_OLD, STATE_FIELDS_NEW), (ON_MERGED_OLD, ON_MERGED_NEW), (RECREATED_OLD, RECREATED_NEW), (FLAG_OLD, FLAG_NEW), (ENTER_OLD, ENTER_NEW),
             (LOAD_START_OLD, LOAD_START_NEW), (LOAD_END_OLD, LOAD_END_NEW), (CHECKPOINT_START_OLD, CHECKPOINT_START_NEW),
             (CHECKPOINT_END_OLD, CHECKPOINT_END_NEW), (PAUSE_START_OLD, PAUSE_START_NEW), (PAUSE_END_OLD, PAUSE_END_NEW),
             (QUEUE_OLD, QUEUE_NEW)]
@@ -328,5 +370,4 @@ def apply(source):
         once(paths[MANAGER], old, new)
     once(paths[MANAGER], NOTIFY_OLD, NOTIFY_NEW)
     once(paths[MANAGER], CLOSE_OLD, CLOSE_NEW)
-    assert '_mainCheckpointInProgress' not in paths[MANAGER].read_text(encoding='utf-8'), 'every holder counts'
     return list(paths.values())

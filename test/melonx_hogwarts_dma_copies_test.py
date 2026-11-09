@@ -163,7 +163,7 @@ LOT_FILES = {
     'adapt_extra_set_binds': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
     'adapt_array_reference_deltas': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
     # Core 717: a worker's libraries published to main during play.
-    'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineState.cs'],
+    'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0
