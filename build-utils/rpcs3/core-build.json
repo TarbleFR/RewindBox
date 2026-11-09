@@ -207,15 +207,15 @@
   "miss_evicted="
  ],
  "moltenvk_dependency": {
-  "run": 42213572281,
-  "source": "0a1ec67213015b54ae1edf3417e2e51b6cc0fe60",
+  "run": 42668189251,
+  "source": "f1b5befd29c341d4bf8293bc858ea23d55f02bdf",
   "library_sha256": "d19d3a424df950e0f339e9ef4704f634849e8a545339bac1faafdee0ebc3805e",
   "reviewed_host_delta": false,
   "replaces": {
    "run": 41239096061,
    "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
    "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
-   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196, then by runs 41993591512 (Core 660) and 42051417882 (Core 664); Core 668 linked run 42140012211 (the Core 664 bridge again, dd4c525a); Core 902 links run 42213572281, the same source and patch, whose recorded inputs include the current dependency workflow and the current host bridge (92fad91d, with the Metal 4 renderer test page key experimental.metal_renderer), so the reviewed bridge pair of the replaced run no longer applies"
+   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196, then by runs 41993591512 (Core 660) and 42051417882 (Core 664); Core 668 linked run 42140012211 (the Core 664 bridge again, dd4c525a); Core 902 to 907 linked run 42213572281 (host bridge 92fad91d, the Metal 4 renderer test page key); Core 908 links run 42668189251, the same source and patch (libMoltenVK.a d19d3a42 byte-identical), whose recorded inputs include the current dependency workflow and the current host bridge (bdcd0ac7, the collision-aware Menu/Performances layout), so the reviewed bridge pair of the replaced run no longer applies"
   }
  },
  "native_modes": {

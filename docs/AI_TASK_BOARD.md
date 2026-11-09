@@ -882,7 +882,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       around lr, r13-r31, guest words) and lwcond lines (lwmutex, waiters) to name the thread that must signal.
     - UI (host, `bdd4ac95`): Menu top-left, Performances top-right of the safe area (10 pt, 44x44, collision-aware from the live
       touch-control frames, panel under its button); test/rpcs3_overlay_button_layout_test.py.
-    - Host bridge changed (bdcd0ac7): MoltenVK dependency request `f1b5befd` (run `42668189251`, same source and patch).
+    - Host bridge changed (bdcd0ac7): MoltenVK dependency request `f1b5befd`, run `42668189251` green (3 jobs); artifact
+      13698805593 zip = API digest a54e733f, libMoltenVK.a d19d3a42 byte-identical, host receipt verified (12 recorded inputs =
+      current files); linked in core-build.json; route and dependency artifact tests PASS. Full 908 driver PASS locally.
     - Packaging (local): canonical 324305dd (446), delta c6fdd7ca, increment core908-from-907 b4bcb697 (= metal-wip-from-907).
       Local: route PASS, codegen identities unchanged (PPU a987639e, SPU 477a3fa4), Metal fold chain simulated PASS,
       reuse-audit, transition-phases, feedback-census, position-invariance, lr-full-queue, RA hooks, exitspawn,
