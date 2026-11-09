@@ -1965,6 +1965,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Display-native (Core 707 failure): the final EmbeddedMemory.cs is compared to the native file plus the compaction
     class after undoing exactly the one retention-chain line (once, by its adapter text), and compiled as final with a no-op
     Library.RecordRetentionChain stub; the comparison is otherwise unchanged.
+  - Core CI (9 Nov): run 42634615592 on `b73459da` (contract `e527ffe7`) green, every step run (final-source gates,
+    NativeAOT build and exported ABI, binding to the reviewed sources and receipts, native frameworks, the rebuilt engine
+    in an ARM64 iOS app, guest execution, teardown and backing release); artifact 13685196805
+    (`MeloNX-engine-b73459da…`, sha256 `2089a96f…`). On the macOS runner: forced-syncpoint-wait termination seen 4.4 ms
+    after the flag, returned 0.007 ms after, while an identical 50 ms timed wait woke 100.7 ms late in the same window;
+    texture-pool-allocations 95 checks, same digest `f6fbcfb1`, back after expiry 1 920 -> 0 creations. Earlier run
+    42625064149 (contract `31f9ecf2`) failed as described above. No pin, no IPA (maintainer).
   - Status before an iPhone measurement: kept and frozen; fewer creations, uploads and allocations shown on the production
     path with doubled host textures; bounds and releases (age, pressure, close) checked; equivalence of the first texel,
     size, swizzle and format checked. No device data yet: which textures Hogwarts names again after leaving a pool, and when,
