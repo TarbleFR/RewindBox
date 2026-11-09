@@ -2185,7 +2185,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     rewritten to drop bad ones; tmp + rename, the previous file kept on failure (Eglantine and Fritchii delete it on a
     failed write, not copied); a driver rejection detected and the blob started empty (Lichii). No per-record repair of an
     opaque blob anywhere.
-  - Change (Core 713, adapt_pipeline_snapshot_retire, PipelineCacheManager.cs only, every title):
+  - Change (Core 713, adapt_pipeline_snapshot_retire, PipelineCacheManager.cs only, every title), three distinct mechanisms:
+    1. Worker copies retired: a worker file is removed only at a close where main's file has just been written with
+       that worker's content (or already held it), and only if nothing in the file is outside main; otherwise the file
+       stays as it is, and every other close writes the workers as before.
+    2. Protection against a first, possibly transient refusal: a refused snapshot of this device's header is kept;
+       only its second refusal at a later launch is handled as before.
+    3. Caches ignored for an identity mismatch: a main snapshot of another driver identity, of which the driver kept
+       nothing, is handled as rejected, so pause and play checkpoints write the session again.
+    Details:
     - each worker records whether its file may hold content main's cache does not (loaded into the worker, pending
       beside main's load, written, merged into main at load, recycle or close, recycled, refused by the driver);
     - at the close, once main's file is written with every worker's content (merge succeeded, main not Frozen, main's
@@ -2226,17 +2234,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     worker copies back on disk after an incident: merged as duplicates, removed again; kill during main's write: the
     previous file loads in both; no room in main for the worker copies: kept untouched in both, joined next launch;
     main cut short: replaced at once / kept at its first refusal (that session not written), replaced at the second.
+  - Limits, explicit: (a) during a session protected by a first refusal, the pipelines it compiles are not persisted
+    (main Frozen, workers held); (b) two transient refusals in a row of an intact file replace it, as before this lot;
+    (c) the retired copies no longer provide redundancy: if main's own file is later damaged, the last session's worker
+    pipelines are not recovered from them (see the trade-off below); (d) inherited exception: when main's file is
+    missing or cannot be loaded (over budget, unreadable), a worker snapshot is loaded into its worker and handled at its
+    first refusal, as before this lot.
   - Trade-off, measured: when main's own file is damaged (refused), the control gets the last session's worker pipelines
     back from their copies (60/60 in the fixture), the candidate does not and rebuilds them from the guest shader cache
     (the reconstructible source, kept). Main is written by tmp, msync and rename, so a refused main is either a transient
     refusal (now kept by the record) or storage damage, not an interrupted write; after an identity change the copies
     are ignored as well.
   - Proof scope. Verified without Vulkan: the real manager's decisions, files and content on a content double; no Metal
-    compilation, no MoltenVK. To measure on the device (next IPA with Core 713, two comparable launches after one clean
-    close): "Vulkan main pipeline cache loaded in the background: ..., 0/0 worker snapshots" and its time against 694's
-    7.188 s (read, hydration and merge are not separated by MoltenVK; the worker share of 694's 7.188 s is not known);
-    "pipelineCache workerRetired" bytes at the close and the teardown "pipelineCacheSaved" time (a close, not a pause in
-    play); peak memory during the load; after an iOS update, "mainIgnored" and a pause checkpoint written.
+    compilation, no MoltenVK, no device. The fixture's bytes are exact; its times are host times and vary between runs
+    (CI run 42681937497 versus local), so no time is claimed from it.
+  - Device measure of lot 6 (next IPA with Core 713, same Hogwarts route, two comparable launches): at the first close,
+    "pipelineCache workerRetired" (bytes per worker) and any "workerKept"; at the next launch, main reloaded correctly
+    ("Vulkan main pipeline cache loaded in the background", its size, no "rejected", "ignored" or "mainRefusedKept"), the
+    worker copies still present ("N/M worker snapshots (X MiB) joined"), the load duration, peak memory during the load,
+    and late pipeline creations in play (pipelineBuilds and pipelineVariants summaries). "0/0 worker snapshots" is
+    expected only when the previous close could retire them safely (main written with their content); a crash, a kill
+    or a close during the load leaves them, and they join main as before. IPA 694's journals give 7.188 s and also 6.559 s
+    of background load and integration with the same volumes: neither duration, nor the 167.09 MiB of copies, is a gain
+    obtained on the iPhone; only the two-launch comparison can show one.
   - Independent review (rb-core-review, source only): first pass, one defect (a refused worker file was removed at the
     close although a refusal can be transient) and an amplification (a transient main refusal replaced the file, already
     so before this lot): both fixed by the refusal record. Second pass: no actionable defect; low, by design: a
@@ -2252,8 +2272,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     freeze `2bebf779`, commit `87763290`, CI run 42681937497 started with the racy harness)
     (72 fresh gates, 191 preparation inputs, 206 prepared members); contract test 441 checks with the authenticated
     archive; the 15 fresh receipts validated against it; the freeze read the other 57 receipts (14 Core 711, 43 Core 709
-    CI) for their control files only. [Receipts](evidence/melonx-713-gates/run.json). Core CI: requested by the
-    `[melonx-dma-core]` commit (result below).
+    CI) for their control files only. [Receipts](evidence/melonx-713-gates/run.json).
+  - Core CI: first freeze `87763290` (`2bebf779`) run 42681937497 green (job 129379065609; artifact 13705617126,
+    91 011 107 B, sha256 `4784bfe9…`; iPhone binary `db033fa7…`, simulator `bbc5012c…`; 72 fresh Apple gates, compiled and
+    simulator-validated, not gameplay tested; pipeline-snapshot-retire 106 checks on macOS; pipeline-variant-replay passed
+    there with the racy harness, the race not occurring in that run). The refrozen `01e2f624` (deterministic harness) is
+    requested by the next `[melonx-dma-core]` commit; its result decides the Core 713 identity to pin.
   - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
     comparison with IPA 694 on the device is the cumulative result of lots 1-6.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are

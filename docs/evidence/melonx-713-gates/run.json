@@ -222,5 +222,30 @@
  "revisions": [
   "first freeze 2bebf779 (commit 87763290, Core CI run 42681937497 started with the racy pipeline-variant-replay harness)",
   "refrozen 01e2f624: test/melonx_pipeline_variant_replay/Program.cs failure scenario made deterministic (Core 711 revision CI run 42671662153 failed on it); pipeline-variant-replay rerun 107 checks, also with every core busy"
+ ],
+ "ciRuns": [
+  {
+   "commit": "87763290",
+   "contract": "2bebf779",
+   "run": 42681937497,
+   "job": 129379065609,
+   "conclusion": "success",
+   "artifact": {
+    "id": 13705617126,
+    "bytes": 91011107,
+    "sha256": "4784bfe952167a9befb8711c4cb4178517ea4f0cf512b5c3ec4dc6798729cc6d"
+   },
+   "binaries": {
+    "ios-arm64": "db033fa70e0fe84157171b20954cde57a8964d8c74ed9048ebbf8178c3fff139",
+    "iossimulator-arm64": "bbc5012c04d28c039e2e36d11143993918fc4603da46e974ee7bc4c0e112564f"
+   },
+   "freshAppleGates": 72,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "gates": {
+    "pipelineSnapshotRetire": "passed 106 on macOS (same scenario results as locally)",
+    "pipelineVariantReplay": "passed 107 with the racy harness (the race did not occur in this run; it did in Core 711 run 42671662153)"
+   },
+   "note": "first freeze; superseded by the refrozen 01e2f624 (deterministic pipeline-variant-replay harness), requested next"
+  }
  ]
 }
