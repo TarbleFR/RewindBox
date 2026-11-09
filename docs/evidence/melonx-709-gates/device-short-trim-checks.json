@@ -5,7 +5,7 @@
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "0a480f36de42cfda0a750fd93aafc17229b23e5de9ed58aa7a8517aefdf51253",
-    "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "3578958c91468b0c049c7f012c01e479dbec4ccaa41b66a9560e74b29e4cb30c",
+    "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "5174d523fcd420db9a8cd50275f4ed7feb94115f5cffff80af08f0f42fcf1caa",
     "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs": "aab7df8766375daeebc17cfad2e9253a4cc97c9c5490dae767ce074d3968a897"
   },
   "fixtureChecks": {

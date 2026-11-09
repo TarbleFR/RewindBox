@@ -317,8 +317,8 @@
       "textures": 2000,
       "poolOnly": 2000,
       "released": 0,
-      "measureMs": 1.237,
-      "passMs": 1.27
+      "measureMs": 1.21,
+      "passMs": 1.288
     },
     "byteBound": {
       "textures": 100,

@@ -129,7 +129,7 @@ retain = cache[cache.index('private bool TryRetain(ShortTextureCacheEntry entry)
 retain = retain[:retain.index('\n        }\n') + 10]
 for condition in ('entry.IsAutoDelete', '!texture.HasOneReference()', 'entry.InvalidatedSequence != texture.InvalidatedSequence',
                   'texture.ChangedMapping', 'texture.Target == Target.TextureBuffer', 'size > MaxRetainedTextureBytes',
-                  '_reuse.Retained >= MaxRetainedEntries || _reuse.RetainedBytes + size > MaxRetainedBytes'):
+                  '_reuse.Retained >= MaxRetainedEntries || _reuse.RetainedBytes + size > MaxRetainedBytes', '!entry.InLookup'):
     check(condition in retain, 'retention condition: ' + condition)
 find = cache[cache.index('public Texture FindShortCache(in TextureDescriptor descriptor)'):]
 find = find[:find.index('\n        }\n') + 10]

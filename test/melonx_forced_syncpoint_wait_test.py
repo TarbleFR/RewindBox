@@ -17,7 +17,9 @@ policy on):
 - GPU idle with nothing queued: both give up after one slice (1 s), the candidate journals it once in a session;
 - progress for 2 s, then the GPU drains short of the fence: candidate gives up one or two slices after the drain;
 - busy without any progress: candidate gives up after the 10 s deadlock guard, journaled once;
-- guest termination 300 ms into a wait while the GPU works: candidate returns within 150 ms of it, control after 1 s;
+- guest termination 300 ms into a wait while the GPU works: candidate ends it by the termination poll within the first
+  slice, sees the flag within one 50 ms poll plus the host's timed-wait lateness measured over the same window, and
+  returns within 10 ms of seeing it; control after 1 s;
 - progress that never reaches the threshold ends at the absolute 30 s cap (short cap in the fixture), counted and
   journaled once; a value reached without the callback is Reached at the slice end with its true value;
 - already reached: no wait; policy off: the control's behaviour; a GPU-side WaitOnSyncpoint keeps the 1 s cap and its
@@ -176,8 +178,18 @@ check(9900 <= ks['Ms'] <= 11500 and not ks['TrueCompletion'] and 900 <= c['stuck
 check(sum('no GPU progress for 10000 ms' in line and line.startswith('Warning') for line in ks['Lines']) == 1 and
       any('1 without progress' in line for line in ks['Lines']), 'wedged fallback journaled once and counted: ' + str(ks['Lines']))
 kt, ct = k['termination'], c['termination']
-check(0 <= kt['TerminationToReturnMs'] <= 150 and kt['Ms'] < 600 and any('1 ended by termination' in line for line in kt['Lines']),
-      'candidate returns promptly at guest termination: ' + json.dumps(kt))
+# The production wait checks the termination flag before each poll of at most ProgressWaitPollMs (50 ms) and returns
+# right after it sees it. On the macOS Core runner timed waits wake late (Core CI runs 42397176037-42625064149: the
+# fixture's own 300 ms wait 3-59 ms late, the control's 1 000 ms waits 8-154 ms late, the candidate back 27-195 ms after
+# the flag; locally <= 44 ms with every core busy), so a fixed 150 ms bound measured the host's wake-ups. Checked instead:
+# the wait ended by the termination poll within its first slice, returned right after it saw the flag, and saw it within
+# one 50 ms poll of the write plus how late this host woke an identical 50 ms timed wait over the same window.
+check(any('1 ended by termination' in line and ', 0 slices,' in line for line in kt['Lines']) and kt['Ms'] < 600 and
+      not kt['TrueCompletion'], 'candidate: the wait ended by the termination poll within its first slice: ' + json.dumps(kt))
+check(0 <= kt['DetectionToReturnMs'] <= 10, 'candidate returns right after it sees the termination: ' + json.dumps(kt))
+check(0 <= kt['TerminationToReturnMs'] and 0 <= kt['FlagToDetectionMs'] <= 50 + max(kt['HostLateMs'], 0) + 25,
+      'candidate sees the termination within one 50 ms poll and the host\'s timed-wait lateness of the same window: ' +
+      json.dumps(kt))
 check(900 <= ct['Ms'] <= 1300, 'control ignores termination for its 1 s: ' + json.dumps(ct))
 check(c['alreadyReached']['Ms'] < 100 and k['alreadyReached']['Ms'] < 100 and k['alreadyReached']['TrueCompletion'], 'already reached: no wait')
 off = k['policyOff']

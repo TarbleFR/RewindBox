@@ -20,8 +20,9 @@ retained texture is released 60 presents after its retention, as soon as it is f
 invalidated or with a changed mapping, when a texture of the same descriptor supersedes it, at every TextureCache.Trim
 (host memory pressure: all of them, before the auto delete cache) and at TextureCache.Dispose (close). Released entries
 are reused (at most 256 kept), instead of one ShortTextureCacheEntry per leaving texture. An entry leaving the short cache
-removes its descriptor lookup only if the lookup still finds it (upstream removed the key whatever entry it found, which
-would leave a later entry of the same descriptor, retained, unfindable until its age limit). Bounds (IPA 694 Hogwarts 1x,
+removes its descriptor lookup only if the lookup still holds it (upstream removed the key whatever entry it held, which
+would leave a later entry of the same descriptor, retained, unfindable until its age limit); an InLookup flag on the
+entry tracks this, so an entry costs as many lookups as before (the 32-byte descriptor hash is not computed again). Bounds (IPA 694 Hogwarts 1x,
 pid 40200): texture budget 768 MiB, pool-only textures 165-213 MiB for 5 836-8 164 textures (about 28 KiB each);
 32 MiB is 4 % of the budget, about 1 100 such textures, below the smallest TrimCaches release logged (29 MiB) and
 released by each; 1 024 entries bound the list and lookup work; 60 presents is 2 s at 30 FPS, so an abandoned set of
@@ -56,6 +57,10 @@ ENTRY_FIELDS_NEW = '''        public bool IsAutoDelete;
         // RewindBox (adapt_short_cache_reuse): set while the entry is kept past its two ticks, on the retained list (oldest
         // first); RetainedNext also links the reusable entries.
         public bool IsRetained;
+        // RewindBox (adapt_short_cache_reuse): the descriptor lookup holds this entry. A key is only removed by its own entry
+        // (RemoveLookup, or FindShortCache when it finds the entry invalid), so this is true exactly while the lookup maps
+        // the descriptor to this entry: checked without hashing the 32-byte descriptor again.
+        public bool InLookup;
         public ulong RetainedSize;
         public long RetainedTick;
         public ShortTextureCacheEntry RetainedPrevious;
@@ -335,6 +340,7 @@ SHORT_NEW = '''        public Texture FindShortCache(in TextureDescriptor descri
                 else
                 {
                     _shortCacheLookup.Remove(descriptor);
+                    entry.InLookup = false;
                 }
             }
 
@@ -382,17 +388,23 @@ SHORT_NEW = '''        public Texture FindShortCache(in TextureDescriptor descri
         /// <param name="descriptor">Last used texture descriptor</param>
         public void AddShortCache(Texture texture, ref TextureDescriptor descriptor)
         {
-            // RewindBox (adapt_short_cache_reuse): a retained texture listed under the same descriptor is superseded.
-            if (_shortCacheLookup.TryGetValue(descriptor, out ShortTextureCacheEntry previous) && previous.IsRetained)
-            {
-                _reuse.ReleasedInvalid++;
-                ReleaseRetainedEntry(previous);
-            }
-
             ShortTextureCacheEntry entry = RentEntry(texture, descriptor, isAutoDelete: false);
 
+            // RewindBox (adapt_short_cache_reuse): one lookup as before; only when the descriptor is already listed, a retained
+            // texture listed under it is superseded (released), and anything else still makes Add throw as before.
+            if (!_shortCacheLookup.TryAdd(entry.Descriptor, entry))
+            {
+                if (_shortCacheLookup[entry.Descriptor] is { IsRetained: true } previous)
+                {
+                    _reuse.ReleasedInvalid++;
+                    ReleaseRetainedEntry(previous);
+                }
+
+                _shortCacheLookup.Add(entry.Descriptor, entry);
+            }
+
+            entry.InLookup = true;
             _shortCacheBuilder.Add(entry);
-            _shortCacheLookup.Add(entry.Descriptor, entry);
 
             texture.ShortCacheEntry = entry;
 
@@ -482,8 +494,7 @@ SHORT_NEW = '''        public Texture FindShortCache(in TextureDescriptor descri
                 entry.InvalidatedSequence != texture.InvalidatedSequence ||
                 texture.ChangedMapping ||
                 texture.Target == Target.TextureBuffer ||
-                !_shortCacheLookup.TryGetValue(entry.Descriptor, out ShortTextureCacheEntry listed) ||
-                !ReferenceEquals(listed, entry))
+                !entry.InLookup)
             {
                 return false;
             }
@@ -604,14 +615,15 @@ SHORT_NEW = '''        public Texture FindShortCache(in TextureDescriptor descri
         }
 
         /// <summary>
-        /// RewindBox (adapt_short_cache_reuse): removes the entry's descriptor lookup only if it still finds this entry (the
-        /// key may have been removed and taken by a later entry of the same descriptor, which must stay findable).
+        /// RewindBox (adapt_short_cache_reuse): removes the entry's descriptor lookup only if it still holds this entry (its key
+        /// may have been removed and taken by a later entry of the same descriptor, which must stay findable). One lookup.
         /// </summary>
         private void RemoveLookup(ShortTextureCacheEntry entry)
         {
-            if (_shortCacheLookup.TryGetValue(entry.Descriptor, out ShortTextureCacheEntry listed) && ReferenceEquals(listed, entry))
+            if (entry.InLookup)
             {
                 _shortCacheLookup.Remove(entry.Descriptor);
+                entry.InLookup = false;
             }
         }
 
@@ -651,6 +663,7 @@ SHORT_NEW = '''        public Texture FindShortCache(in TextureDescriptor descri
             entry.Descriptor = default;
             entry.IsAutoDelete = false;
             entry.IsRetained = false;
+            entry.InLookup = false;
             entry.RetainedPrevious = null;
             entry.RetainedNext = null;
 

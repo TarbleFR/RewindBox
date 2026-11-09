@@ -28,6 +28,8 @@ static class Program
     static readonly Type KernelStaticType = Hle.GetType("Ryujinx.HLE.HOS.Kernel.KernelStatic", true);
     static readonly List<(string Level, string Message)> Lines = new();
     static readonly object LinesGate = new();
+    // When each line was logged (Stopwatch ticks), on the thread that logged it: the {Nv} thread for NoteForcedWait.
+    static readonly List<long> LineStamps = new();
 
     static void SetField(object target, string name, object value)
     {
@@ -97,6 +99,13 @@ static class Program
         public uint ValueAtReturn { get; set; }
         public bool TrueCompletion { get; set; }
         public double TerminationToReturnMs { get; set; } = -1;
+        // Termination only, from the moment the flag is written: until the production line of the ended wait (logged on the
+        // {Nv} thread right after it saw the flag), and from that line to the return. HostLateMs: the largest lateness of a
+        // 50 ms timed wait (Monitor.Wait, the production poll's primitive) on a sibling thread over the same window, i.e.
+        // how late this host wakes a timed wait while the {Nv} thread waits.
+        public double FlagToDetectionMs { get; set; } = -1;
+        public double DetectionToReturnMs { get; set; } = -1;
+        public double HostLateMs { get; set; } = -1;
         public List<string> Lines { get; set; } = new();
     }
 
@@ -116,14 +125,16 @@ static class Program
         Outcome outcome = new() { Threshold = threshold };
         using CancellationTokenSource stop = new();
         Thread gpuThread = new(() => driver(gpu, stop.Token, kthread)) { IsBackground = true, Name = "GPU double" };
-        long terminated = 0;
-        Thread terminator = null;
+        long terminated = 0, returned = 0;
+        Thread terminator = null, timer = null;
+        double hostLate = 0;
         Thread server = new(() =>
         {
             KernelStaticType.GetMethod("SetKernelContext", Any).Invoke(null, new object[] { null, kthread });
             long start = Stopwatch.GetTimestamp();
             outcome.WaitReturned = (bool)HostEventType.GetMethod("Wait", Any).Invoke(hostEvent, new object[] { gpu.Context, fence });
             long end = Stopwatch.GetTimestamp();
+            Interlocked.Exchange(ref returned, end);
             outcome.Ms = Stopwatch.GetElapsedTime(start, end).TotalMilliseconds;
             outcome.ValueAtReturn = gpu.Value;
             outcome.TrueCompletion = outcome.ValueAtReturn >= threshold;
@@ -137,16 +148,46 @@ static class Program
             terminator = new(() =>
             {
                 After(300);
-                Interlocked.Exchange(ref terminated, Stopwatch.GetTimestamp());
                 // Production KThread.PrepareForTermination sets this flag first (Horizon.Dispose terminating the HLE services).
+                // Termination is timed from the moment the flag is written (before: from just before the write).
                 SetField(kthread, "_shallBeTerminated", 1);
+                Interlocked.Exchange(ref terminated, Stopwatch.GetTimestamp());
             }) { IsBackground = true };
             terminator.Start();
+            timer = new(() =>
+            {
+                object gate = new();
+                while (Interlocked.Read(ref returned) == 0)
+                {
+                    long before = Stopwatch.GetTimestamp();
+                    lock (gate) Monitor.Wait(gate, 50);
+                    long after = Stopwatch.GetTimestamp();
+                    long flag = Interlocked.Read(ref terminated);
+                    // Waits that end after the flag was written, up to the return.
+                    if (flag != 0 && after >= flag)
+                        hostLate = Math.Max(hostLate, Stopwatch.GetElapsedTime(before, after).TotalMilliseconds - 50);
+                }
+            }) { IsBackground = true, Name = "timer probe" };
+            timer.Start();
         }
         if (!server.Join(TimeSpan.FromSeconds(40))) throw new TimeoutException("the {Nv} wait never returned");
         stop.Cancel();
         gpuThread.Join();
         terminator?.Join();
+        if (timer != null)
+        {
+            timer.Join();
+            long line = 0;
+            lock (LinesGate)
+                for (int i = linesBefore; i < Lines.Count; i++)
+                    if (Lines[i].Message.Contains("ended by termination")) { line = LineStamps[i]; break; }
+            if (line != 0 && terminated != 0)
+            {
+                outcome.FlagToDetectionMs = Stopwatch.GetElapsedTime(terminated, line).TotalMilliseconds;
+                outcome.DetectionToReturnMs = Stopwatch.GetElapsedTime(line, returned).TotalMilliseconds;
+            }
+            outcome.HostLateMs = hostLate;
+        }
         lock (LinesGate) outcome.Lines = Lines.Skip(linesBefore).Where(l => !l.Message.Contains("too slow")).Select(l => l.Level + " " + l.Message).ToList();
         return outcome;
     }
@@ -175,7 +216,7 @@ static class Program
     {
         string variant = args[0];
         Logger.RemoveTarget("console");
-        Logger.Updated += (_, e) => { lock (LinesGate) Lines.Add((e.Level.ToString(), e.Message)); };
+        Logger.Updated += (_, e) => { long now = Stopwatch.GetTimestamp(); lock (LinesGate) { Lines.Add((e.Level.ToString(), e.Message)); LineStamps.Add(now); } };
         PropertyInfo gate = typeof(GraphicsConfig).GetProperty("ProgressAwareForcedSyncpointWait");
         bool candidate = gate != null;
         if (candidate != (variant == "candidate")) throw new InvalidOperationException("variant and assemblies disagree");
