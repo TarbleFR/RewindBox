@@ -277,7 +277,44 @@
     "sha256": "523b3e20ed54e913123045afc78c9b6751d1d73e1471576d521f99a4124c023f",
     "note": "uploaded by a failed job: no simulator validation; NOT a Core 713 identity"
    },
-   "action": "failed job re-run (attempt 3, queued 21:40 UTC): a different failure from attempt 1, outside the repository; if forced-syncpoint-wait fails again, no further run and both measures go to the gate's owner"
+   "action": "failed job re-run (attempt 3): a different failure from attempt 1, outside the repository"
+  },
+  {
+   "commit": "96701c8d",
+   "commitFull": "96701c8de8218cf2cc4a63b3df733f74358ff9c4",
+   "contract": "01e2f624",
+   "contractSha256": "01e2f624d773e250a2ffb7994b1f9841779bfadb71514d19fdd970a51cc8e3b5",
+   "run": 42689230667,
+   "attempt": 3,
+   "job": 129458458332,
+   "event": "re-run of the failed job",
+   "conclusion": "success",
+   "completedAt": "2026-11-09T22:15:45Z",
+   "artifact": {
+    "id": 13716280201,
+    "name": "MeloNX-engine-96701c8de8218cf2cc4a63b3df733f74358ff9c4",
+    "bytes": 91011117,
+    "sha256": "272530933188e318a0b5ce9582769abdd9b720365770cbe087129d8e8fa16102",
+    "expires": "2026-11-23T22:15:33Z"
+   },
+   "binaries": {
+    "ios-arm64": {
+     "sha256": "ff3f2333ed950bfbd9f3691b653ffbefdd19a48e627e0749e92e2f57631d918f",
+     "bytes": 38407032
+    },
+    "iossimulator-arm64": {
+     "sha256": "6b0fa988b807c6b90630d48b7276bc0bc5efa2c1e7b3d1e44d0c8690aa4cf52d",
+     "bytes": 38723704
+    }
+   },
+   "freshAppleGates": 72,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "gates": {
+    "pipelineVariantReplay": "passed 107 (deterministic harness)",
+    "forcedSyncpointWait": "passed 84",
+    "pipelineSnapshotRetire": "passed 106"
+   },
+   "note": "the Core 713 identity to pin: every step green, the ARM64 iOS app exercised in the simulator (runtime smoke), not tested on a device"
   }
  ]
 }

@@ -2462,8 +2462,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     210.2 ms against 50 ms + 83.4 ms of host lateness). Attempt 2: every gate green (that one and the deterministic
     pipeline-variant-replay included), library compiled, ABI verified, libraries bound; then red at step 11 on a GitHub
     HTTP 503 while fetching the pinned native frameworks (artifact 13411123524, available again minutes later); the
-    simulator steps did not run, its artifact 13712057829 is not a Core identity. Attempt 3 queued 21:40 UTC. Until a
-    complete green run, the only validated Core 713 binary is the first freeze's; nothing is pinned by this lot.
+    simulator steps did not run, its artifact 13712057829 is not a Core identity. **Attempt 3 green (job 129458458332,
+    22:15 UTC): the Core 713 identity to pin** = contract `01e2f624`, commit `96701c8d`, run 42689230667 attempt 3,
+    artifact 13716280201 (91 011 117 B, sha256 `27253093…`), iPhone binary `ff3f2333…` (38 407 032 B), simulator
+    `6b0fa988…`; 72 fresh Apple gates (pipeline-variant-replay 107 with the deterministic harness, forced-syncpoint-wait
+    84, pipeline-snapshot-retire 106), compiled and simulator-validated, not gameplay tested. Pin and IPA: main.
   - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
     comparison with IPA 694 on the device is the cumulative result of lots 1-6.
 - **MeloNX lot 7: persistent Metal binary archives in MoltenVK (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov;
