@@ -41,6 +41,7 @@ CPP = 'rpcs3/Emu/Cell/SPUThread.cpp'
 BASELINE_SHA = '84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309'
 CANDIDATE_SHA = '97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d'
 CORE627_SHA = 'd03e51eef50cb89fdb0c5d32484e40e400f7f6baf6d8e2155c7be1b472a309a5'
+CORE911_SHA = 'c59a24dd44e7fee377a56f32d1e3114658649f33c04d54fe09f737ac3cb94da4'
 WAIT_FLAG = '*utils::bless<atomic_t<u32>>(&wait_var->raw().wait_flag)'
 TAIL_MARK = '\n++accepted;switch(ch_mfc_cmd.cmd){'
 
@@ -90,8 +91,27 @@ def without_core627(raw: bytes) -> bytes:
         return target.read_bytes()
 
 
+def without_core911(raw: bytes) -> bytes:
+    """Core 911 changes SPUThread.cpp again inside do_putllc only (REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911). The reviewed
+    increment is taken out first and must give back the exact Core 627 file."""
+    if sha(raw) != CORE911_SHA:
+        return raw
+    increment = json.loads((ROOT / 'build-utils/rpcs3/core911-delta.json').read_text())['increment_from_core910']
+    with tempfile.TemporaryDirectory(prefix='lr-core911-') as temporary:
+        folder = Path(temporary)
+        target = folder / CPP
+        target.parent.mkdir(parents=True)
+        target.write_bytes(raw)
+        subprocess.run(['git', 'init', '-q'], cwd=folder, check=True)
+        subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', '--include=' + CPP, str(ROOT / increment['patch'])], cwd=folder, check=True)
+        result = target.read_bytes()
+    if sha(result) != CORE627_SHA:
+        raise AssertionError('SPUThread.cpp without the Core 911 increment is not the Core 627 file')
+    return result
+
+
 def contract(source: Path, baseline: Path) -> dict:
-    old_raw, new_raw = (baseline / CPP).read_bytes(), without_core627((source / CPP).read_bytes())
+    old_raw, new_raw = (baseline / CPP).read_bytes(), without_core627(without_core911((source / CPP).read_bytes()))
     if sha(old_raw) != BASELINE_SHA or sha(new_raw) != CANDIDATE_SHA:
         raise AssertionError('SPUThread.cpp is not the delivered/reviewed pair covered by the exact cache alias')
     old, new = old_raw.decode(), new_raw.decode()
