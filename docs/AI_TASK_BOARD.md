@@ -2022,46 +2022,53 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Lichii `ad477ef1` read (rb-research): record only after a successful build, dedupe by key, replay the used list
     first, bounded background prebuild taken on demand, tmp+rename, magic+version header. Not copied: PC worker counts and
     budgets, draw skipping while compiling.
-  - Change (ShaderCollection, PipelineBase, PipelineState, PipelineCacheManager; every title; no draw skipped): after a
-    draw obtained a pipeline its program had not built (created or joined; not the warm-up's own state), the state is
-    written once per session to pipeline-<cache key>.variants with explicit semantics (program StableHash; 49 named key
+  - Change (ShaderCollection, PipelineBase, PipelineState, PipelineCacheManager; every title; no draw or dispatch skipped
+    or dropped): after a draw obtained a pipeline its program had not built (created, or joined; not the warm-up's own
+    state), the state is written once per session to pipeline-<cache key>.variants (program StableHash; the 49 named key
     fields; used vertex attributes/bindings, blend states, attachment formats; integer-format mask, logic-op support,
-    tessellation flag, colour attachment slots; first-seen time, cost, sessions) under a magic/version/field-schema header,
-    checked length+checksum lines, torn tail ignored, compaction by tmp+rename. At launch a cached graphics program offers
-    itself once its modules are compiled; its states join one ranked list (more sessions, earlier, costlier) and are
-    scheduled at low priority on the existing background queue with session objects rebuilt (layout, stages, compatible
-    render pass), registered in the program's queued-compile table: a draw needing one joins and promotes it (both the
-    synchronous and async paths now promote the queued compile itself). Bounds: 2048 states / 2 MiB, last 8 sessions, 512
-    replays and 120 s of compile per session, two in flight (one once they average 300 ms), none at 8 % device memory or
-    less. A failed state is marked failed, not replayed again; the draw creates it as before. Disposal/close cancel
-    undemanded replays. Journal read off the startup path; the game never waits for replays.
-  - Engine journal: "pipelineVariants loaded"; "pipelineVariants summary" each minute with the build summary, on pause and
-    at close: replayed (compile ms, queue wait ms), failed, skipped, joined draws (wait ms), late creations new / planned not
-    built yet / built but missed (key mismatch, expected 0) / failed before. Translation (SPIR-V to MSL) and Metal compile
-    costs stay in MoltenVK's own stderr statistics.
-  - Independent review (rb-core-review, source only): no deadlock (lock order _pipelineCacheLock -> scheduler queue lock
-    only; the journal lock is a leaf), no queued-table race or endless join, lifetimes correct, no draw lost. Its five
-    defects are fixed: a replay that builds a state refreshes it (no ageing out once draws stop needing it late);
-    compaction at load runs before the journal is published; failure markers keep their session through compaction (a
-    failed state is neither replayed nor recorded again for 8 sessions); the minute summary re-pumps replays held back
-    by memory; a DeviceLost/out-of-memory replay failure is reported to the renderer. Checked: the rebuilt render pass
-    mirrors RenderPassHolder (compact descriptions, slot references, depth last, same dependency; per-attachment sample
-    counts taken from the key's, equal when the attachments agree). "Built but missed" also counts the rare draw whose own
-    creation found the replay just finished.
-  - Gate pipeline-variant-replay (96 checks, production Ryujinx.Graphics.Vulkan built, no warning in the edited files):
-    codec on the real PipelineState, 3 000 random states: same key, hash, slots and tessellation read back, malformed
-    variants refused (truncated, extra byte, bool 2, field too wide, counts, slot order); journal: first encounter once
-    per session (18 of 19 notes), torn tail, other schema not read, stale after 8 sessions, 2048 kept of 2100 (596 KB),
-    load 2 ms, background constructor 0 ms; real BackgroundCompilationScheduler: relaunch replays 9/9 ranked (two-session
-    states first), each once; a demanded state behind 20 queued 60 ms warm-ups waited 40 ms (1 warm-up before it), 8
-    simultaneous waiters, 1 compile; close during compilation: 3 of 40 executed, none after, none marked failed; a failed
-    state marked, not replayed and not recorded again through compaction; a state replayed in each of 10 sessions still
-    planned at session 12; device at 5 %: none, back at 60 %: resumes; costly replays: one in flight; 512 per session.
-    Host times, no Vulkan creation.
-    [Receipts](evidence/melonx-711-gates/run.json).
-  - Device reading (next IPA with Core 711, same 1x route twice): second launch "pipelineVariants loaded N"; summary
-    "replayed" and "planned not built yet" (order/bounds), "built but missed" 0, "failed" and "new"; render-thread draw
-    prepare "pipelines" time and present gaps on the known route against IPA 694; launch to first frame unchanged; footprint.
+    tessellation flag, colour attachment slots; first-seen time, cost, sessions) under a magic/version/field-schema
+    header, with length+checksum lines (torn tail ignored) and compaction by tmp+rename before the journal is used. At
+    launch a cached graphics program offers itself once its modules are compiled; its states join one ranked list (more
+    sessions, earlier, costlier) scheduled at low priority on the existing background queue, with layout, stages and a
+    render pass rebuilt in the session (the pass mirrors RenderPassHolder), registered in the program's queued-compile
+    table. A draw needing a queued state joins and promotes that single compile and waits for its result (synchronous
+    path); with async shaders on, the existing skip-or-wait rule (regenerated targets only) is unchanged, now promoting the
+    joined compile. Launch never waits for replays (journal read and offer off the startup path).
+  - Bounds: 2048 states and 2 MiB of file (not the native memory of created pipelines, bounded only by the 512 replays
+    per session), last 8 sessions, 120 s of replay compile per session, two in flight (one once they average 300 ms).
+    Memory: at 8 % device memory or less (last GC's memory load) no replay starts ("held for memory"); demanded compiles
+    and draws are not affected.
+  - Failures: driver refusal with memory not short = a strike, retried next launch; strikes in two launches suppress the
+    state for 8 sessions; refusal under memory pressure, renderer failure or exception = temporary (no strike); close or
+    disposal = cancellation (counted apart); a draw that creates the state, or a replay that builds it, clears the marker.
+  - Engine journal: "pipelineVariants loaded"; "pipelineVariants summary" each minute (with the build summary, which also
+    resumes held replays), on pause and at close, in this order: ready before their first draw (first bind of a replayed
+    pipeline), draws that joined a replay (wait ms), joined another queued compile (ms), late creations left (ms: new,
+    planned not built yet, built but missed = key mismatch, after a failed replay), then replays built (compile and queue
+    wait ms), refused, temporary, cancelled, skipped, held for memory, planned. A state is refreshed when used, so a state
+    replayed but never bound ages out. Translation and Metal compile costs stay in MoltenVK's stderr statistics.
+  - Independent review (rb-core-review, source only): no deadlock (_pipelineCacheLock -> scheduler queue lock only; the
+    journal lock is a leaf), no queued-table race or endless join, lifetimes correct, no draw lost; its five defects fixed
+    (ageing, compaction race, failure markers through compaction, resume after a memory hold, renderer failure report).
+  - Verified without Vulkan (gate pipeline-variant-replay, production Ryujinx.Graphics.Vulkan built, no warning in the
+    edited files, test-only InternalsVisibleTo): the codec on the real PipelineState over 3 000 random states (same
+    PipelineUid by its own Equals and GetHashCode, slots, tessellation flag; deterministic bytes; malformed variants
+    refused), the 49 properties being the only writers of the key words (source); the journal (first encounter once per
+    session, torn tail, other schema, staleness, 2048 of 2100 kept, load 2 ms, background constructor 0 ms); the real
+    BackgroundCompilationScheduler: relaunch replays ranked, each once; a demanded state behind 20 queued warm-ups served
+    in 40 ms with 8 simultaneous waiters sharing 1 compile; close during compilation (3 of 40 run, none after, none marked
+    failed); strikes, temporary failures and marker clearing over five launches; memory hold with a demanded replay still
+    served; promote/take/cancel from three threads over 200 rounds (0 inconsistent, 0 hung); running compiles not
+    cancellable and completed with their resources; used vs unused ageing; one in flight when costly; 512 per session.
+    Host times; nothing is created in Vulkan.
+  - To validate on the real backend (device): MoltenVK accepting the rebuilt render pass and creating the pipeline; the
+    replayed key equal to the draw's for real Hogwarts states ("built but missed" 0, "ready before their first draw" > 0);
+    Metal compile cost and native memory of replayed pipelines; launch to first frame unchanged; whether replays run at all
+    with Hogwarts's usual 4-10 % device memory ("held for memory").
+  - Gate and bound reruns: see the CI line below. [Receipts](evidence/melonx-711-gates/run.json).
+  - Device reading (next IPA with Core 711, two comparable launches on the same 1x route): second launch's summary lines as
+    above; render-thread draw prepare "pipelines" time and present gaps on the known route. A comparison with IPA 694 is
+    the cumulative result of lots 1-5, not of this lot alone.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
