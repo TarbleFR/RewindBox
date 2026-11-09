@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 CONTROL_SOURCE, FINAL_PREPARATION = control_source(FINAL_SOURCE, 'adapt_pipeline_cache_background', _HOLD)
 import adapt_pipeline_cache_background as adapter  # noqa: E402
@@ -55,8 +55,12 @@ for name in adapter.BASELINE:
 changed = sorted(str(p.relative_to(CANDIDATE)) for p in adapter.apply(CANDIDATE))
 check(changed == sorted(adapter.BASELINE), 'the adapter changes only its files')
 if FINAL_PREPARATION:
+    # A file a later adapter also edits (PipelineCacheManager.cs: adapt_pipeline_variant_replay, Core 711) is not this
+    # adapter's bytes in the final preparation; control_source proved control + this adapter + the later ones reproduce it.
+    later = files_edited_later('adapt_pipeline_cache_background')
     for name in adapter.BASELINE:
-        check((CANDIDATE / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+        if name not in later:
+            check((CANDIDATE / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
 
 # --- Static: the exact scope ---
 def text(tree, name):
