@@ -159,6 +159,9 @@ LOT_FILES = {
     'adapt_pipeline_variant_replay': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     # Core 713: worker snapshots main's file holds removed at the close; an ignored main snapshot written again.
     'adapt_pipeline_snapshot_retire': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 715: extra array sets kept bound; texture array references by delta.
+    'adapt_extra_set_binds': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
+    'adapt_array_reference_deltas': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
 }
 
 checks = 0

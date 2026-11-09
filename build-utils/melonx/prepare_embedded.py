@@ -159,6 +159,8 @@ from adapt_retention_chain import apply as adapt_retention_chain
 from adapt_short_cache_reuse import apply as adapt_short_cache_reuse
 from adapt_pipeline_variant_replay import apply as adapt_pipeline_variant_replay
 from adapt_pipeline_snapshot_retire import apply as adapt_pipeline_snapshot_retire
+from adapt_extra_set_binds import apply as adapt_extra_set_binds
+from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
 
 
 def replace_once(path, old, new):
@@ -446,6 +448,10 @@ def main():
     # Core 713 (lot 6: worker snapshots main's file holds were read, hydrated and merged at every launch; a main snapshot
     # the driver ignores blocked every checkpoint): such copies removed at the close; an ignored snapshot written again.
     adapted += [source / name for name in adapt_pipeline_snapshot_retire(source)]
+    # Core 715 (lot 8: an update of the main sets alone looked the bindless array sets up and bound them again; a texture
+    # array changed again in the same command buffer referenced all its views again): kept bound; new references only.
+    adapted += [source / name for name in adapt_extra_set_binds(source)]
+    adapted += [source / name for name in adapt_array_reference_deltas(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -568,7 +574,9 @@ def main():
                  'adapt_retention_chain.py',
                  'adapt_short_cache_reuse.py',
                  'adapt_pipeline_variant_replay.py',
-                 'adapt_pipeline_snapshot_retire.py']:
+                 'adapt_pipeline_snapshot_retire.py',
+                 'adapt_extra_set_binds.py',
+                 'adapt_array_reference_deltas.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

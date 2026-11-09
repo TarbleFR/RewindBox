@@ -58,8 +58,9 @@ CONTROL_PREPARED = {
 # (IPA 694: setting the program already set keeps its bound descriptor sets); 69 with Core 707 (IPAs 691-694: the
 # deepest part of a closed session still reachable, journal only); 70 with Core 709 (lot 4: valid textures kept past the
 # short texture cache, bounded); 71 with Core 711 (lot 5: graphics pipeline states replayed at launch); 72 with Core 713
-# (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again).
-FRESH_GATES = 72
+# (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again); 74 with Core
+# 715 (lot 8: extra array sets kept bound on main-set-only updates; texture array references by delta).
+FRESH_GATES = 74
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
