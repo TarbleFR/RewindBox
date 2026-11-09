@@ -29,7 +29,7 @@ index 534a414..19a196d 100644
  	MVKSmallVector<MVKResource*> _resources;
  	MVKSmallVector<MVKBuffer*> _gpuAddressableBuffers;
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
-index 9772757..88a38a0 100644
+index 9772757..7b680c2 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
 @@ -5210,6 +5210,9 @@ MVKDevice::MVKDevice(MVKPhysicalDevice* physicalDevice, const VkDeviceCreateInfo
@@ -42,21 +42,21 @@ index 9772757..88a38a0 100644
  }
  
  // Perf stats that last the duration of the app process.
-@@ -5532,6 +5535,12 @@ void MVKDevice::reservePrivateData(const VkDeviceCreateInfo* pCreateInfo) {
- }
+@@ -5550,6 +5553,12 @@ MVKDevice::~MVKDevice() {
  
- MVKDevice::~MVKDevice() {
-+	// RewindBox prototype (lot 7): written and released while the device is whole.
+ 	if (_commandResourceFactory) { _commandResourceFactory->destroy(); }
+ 
++	// RewindBox prototype (lot 7): written and released once nothing can create a pipeline any more.
 +	if (_metalBinaryArchives) {
 +		_metalBinaryArchives->destroy();
 +		_metalBinaryArchives = nullptr;
 +	}
 +
- 	if (_isPerformanceTracking) {
- 		auto perfLogStyle = getMVKConfig().activityPerformanceLoggingStyle;
- 		if (perfLogStyle == MVK_CONFIG_ACTIVITY_PERFORMANCE_LOGGING_STYLE_DEVICE_LIFETIME) {
+ 	for (auto &fences: _barrierFences) for (auto fence: fences) [fence release];
+ 
+ #if MVK_XCODE_16
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
-index e385e9b..03bcd5f 100644
+index e385e9b..044037e 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
 @@ -32,6 +32,9 @@
@@ -69,7 +69,7 @@ index e385e9b..03bcd5f 100644
  
  #import <Metal/Metal.h>
  
-@@ -527,6 +530,113 @@ protected:
+@@ -527,6 +530,122 @@ protected:
  };
  
  
@@ -83,7 +83,8 @@ index e385e9b..03bcd5f 100644
 + * MVKDevice::getMetalBinaryArchives() then returns null and every pipeline is created exactly as upstream.
 + *
 + * Lookup: before a render or compute pipeline is compiled (MVKRenderPipelineCompiler, MVKComputePipelineCompiler: every
-+ * pipeline MoltenVK creates, with the very MTL descriptor it compiles), the archives loaded at device creation are
++ * pipeline MoltenVK creates, with the very MTL descriptor it compiles; inside the compiler's own block, so under the
++ * same device lock and compile timeout), the archives loaded at device creation are
 + * offered through the descriptor's binaryArchives and the pipeline is requested with
 + * MTLPipelineOptionFailOnBinaryArchiveMiss: Metal either returns the pipeline from an archive (a proven reuse) or fails
 + * at once (a miss), and the normal compilation then runs unchanged. With RBX_MVK_BINARY_ARCHIVE_STRICT=1 (tests only) a
@@ -91,10 +92,11 @@ index e385e9b..03bcd5f 100644
 + *
 + * Collection: a pipeline that was compiled normally has a copy of its descriptor queued on one utility-priority serial
 + * queue, where its functions are added to this session's archive (Metal reuses the binary it just compiled). The
-+ * creating thread never waits for it. The session's archive is written when 64 pipelines were added, when the
++ * creating thread never waits for it. A pipeline compiled while the archives were still loading is first looked up
++ * there, on the queue, so that nothing is added twice. The session's archive is written when 64 pipelines were added, when the
 + * application reads its Vulkan pipeline cache data (its own persistence points), and when the device is destroyed.
 + *
-+ * Files: <directory>/id-<identity>/seg-<number>-<bytes>-<sha256 prefix>.mtlarchive. The identity covers what makes Metal
++ * Files: <directory>/id-<identity>/seg-<number>-<session token>-<bytes>-<sha256 prefix>.mtlarchive. The identity covers what makes Metal
 + * binaries unusable (this schema, the Vulkan pipelineCacheUUID: MoltenVK revision, OS version, GPU family, argument
 + * buffers; the OS build; the GPU name). Each session writes its own segment: a temporary file, then one rename to a name
 + * that carries its size and checksum, then the removal of the segment's previous generation. Earlier segments are never
@@ -116,10 +118,16 @@ index e385e9b..03bcd5f 100644
 +	/** Whether a lookup miss fails the pipeline (tests only). */
 +	bool isStrict() { return _isStrict; }
 +
-+	/** Returns a new (retained) pipeline state served by a loaded archive, or nil (a miss, or no archive loaded). */
++	/** The (autoreleased) error of a pipeline no loaded archive holds, in the strict test mode. */
++	NSError* strictMissError();
++
++	/**
++	 * Returns a new (retained) pipeline state served by a loaded archive, or nil (a miss, or no archive loaded).
++	 * Called by the pipeline compiler inside its compile block: under the device lock, bounded by the compile timeout.
++	 */
 +	id<MTLRenderPipelineState> newRenderPipelineState(MTLRenderPipelineDescriptor* plDesc);
 +
-+	/** Returns a new (retained) pipeline state served by a loaded archive, or nil (a miss, or no archive loaded). */
++	/** As newRenderPipelineState(), for a compute pipeline. */
 +	id<MTLComputePipelineState> newComputePipelineState(MTLComputePipelineDescriptor* plDesc);
 +
 +	/** Queues the functions of a pipeline that was just compiled for this session's archive. Never waits. */
@@ -140,7 +148,7 @@ index e385e9b..03bcd5f 100644
 +	bool canCollect();
 +	void noteLookup(bool isHit, uint64_t nanoseconds);
 +	void loadOnQueue();
-+	void addOnQueue(MTLRenderPipelineDescriptor* renderDesc, MTLComputePipelineDescriptor* computeDesc);
++	void addOnQueue(MTLRenderPipelineDescriptor* renderDesc, MTLComputePipelineDescriptor* computeDesc, bool wasCompiledBeforeLoad);
 +	void saveOnQueue();
 +	void writeReport();
 +	void logSummary(const char* when);
@@ -156,6 +164,7 @@ index e385e9b..03bcd5f 100644
 +	std::string _segmentPath;									// This session's current file. Used on _queue only.
 +	std::string _reportPath;
 +	uint32_t _segmentNumber = 1;
++	uint32_t _sessionToken = 0;
 +	uint32_t _maxSegments = 8;
 +	uint64_t _maxBytes = 0;
 +	uint64_t _maxSessionBytes = 0;
@@ -174,7 +183,7 @@ index e385e9b..03bcd5f 100644
 +	std::atomic<uint64_t> _lookupsBeforeLoad{0}, _lookupsWithoutArchive{0};
 +	std::atomic<uint64_t> _hits{0}, _hitNanos{0}, _hitMaxNanos{0}, _misses{0}, _missNanos{0}, _missMaxNanos{0};
 +	std::atomic<uint64_t> _collectQueued{0}, _collected{0}, _addNanos{0}, _addMaxNanos{0}, _addErrors{0};
-+	std::atomic<uint64_t> _collectSkippedBeforeLoad{0}, _collectDroppedQueueFull{0}, _collectDroppedAtClose{0};
++	std::atomic<uint64_t> _collectAlreadyArchived{0}, _collectDroppedQueueFull{0}, _collectDroppedAtClose{0};
 +	std::atomic<uint64_t> _collectHeldForMemory{0}, _collectCapped{0};
 +	std::atomic<uint64_t> _saves{0}, _saveNanos{0}, _saveMaxNanos{0}, _savedBytes{0}, _saveErrors{0}, _directoryErrors{0};
 +};
@@ -184,10 +193,10 @@ index e385e9b..03bcd5f 100644
  #pragma mark MVKRenderPipelineCompiler
  
 diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-index 7eae64c..6edfb15 100644
+index 7eae64c..9504b25 100644
 --- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
 +++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
-@@ -26,7 +26,12 @@
+@@ -26,7 +26,13 @@
  #include "MTLRenderPipelineDescriptor+MoltenVK.h"
  #include "mvk_datatypes.hpp"
  #include <sys/stat.h>
@@ -195,12 +204,13 @@ index 7eae64c..6edfb15 100644
 +#include <unistd.h>
 +#include <CommonCrypto/CommonDigest.h>
 +#include <algorithm>
++#include <ctime>
  #include <sstream>
 +#include <vector>
  
  #ifndef MVK_USE_CEREAL
  #define MVK_USE_CEREAL (1)
-@@ -2662,6 +2667,8 @@ VkResult MVKPipelineCache::writeDataImpl(size_t* pDataSize, void* pData) {
+@@ -2662,6 +2668,8 @@ VkResult MVKPipelineCache::writeDataImpl(size_t* pDataSize, void* pData) {
  				ostream outStream(&mb);
  				writeData(outStream);
  				*pDataSize = _dataSize;
@@ -209,7 +219,7 @@ index 7eae64c..6edfb15 100644
  				return VK_SUCCESS;
  			} else {
  				*pDataSize = 0;
-@@ -3089,10 +3096,502 @@ MVKPipelineCache::~MVKPipelineCache() {
+@@ -3089,15 +3097,542 @@ MVKPipelineCache::~MVKPipelineCache() {
  }
  
  
@@ -299,6 +309,10 @@ index 7eae64c..6edfb15 100644
 +	_identity = identity;
 +	_directory = _rootDirectory + "/" + _identity;
 +
++	// Tells this device's files from those of another device of the same identity alive at the same time.
++	uint64_t tokenSeed = mvkGetTimestamp() ^ (uint64_t)(uintptr_t)this ^ ((uint64_t)getpid() << 32);
++	_sessionToken = (uint32_t)rbxHash64(hash, &tokenSeed, sizeof(tokenSeed));
++
 +	_queue = dispatch_queue_create("RewindBox.MetalBinaryArchives",
 +								   dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));	// retained
 +
@@ -343,7 +357,13 @@ index 7eae64c..6edfb15 100644
 +	}
 +}
 +
++NSError* MVKMetalBinaryArchives::strictMissError() {
++	return [NSError errorWithDomain: @"RewindBox.MetalBinaryArchives" code: 1
++						   userInfo: @{NSLocalizedDescriptionKey: @"not in a loaded Metal binary archive (RBX_MVK_BINARY_ARCHIVE_STRICT)"}];
++}
++
 +// Only a loaded archive may serve: Metal returns the pipeline from its binaries or fails at once.
++// Called inside the compiler's block, which holds the device lock and is bounded by the compile timeout.
 +id<MTLRenderPipelineState> MVKMetalBinaryArchives::newRenderPipelineState(MTLRenderPipelineDescriptor* plDesc) {
 +	if ( !_isLoaded ) { _lookupsBeforeLoad++; return nil; }
 +	NSArray<id<MTLBinaryArchive>>* archives = copyLoadedArchives();		// temp retain
@@ -354,12 +374,10 @@ index 7eae64c..6edfb15 100644
 +	@autoreleasepool {
 +		NSArray<id<MTLBinaryArchive>>* priorArchives = [plDesc.binaryArchives retain];		// temp retain
 +		plDesc.binaryArchives = archives;
-+		@synchronized (_mtlDevice) {
-+			plState = [_mtlDevice newRenderPipelineStateWithDescriptor: plDesc
-+															   options: MTLPipelineOptionFailOnBinaryArchiveMiss
-+															reflection: nil
-+																 error: nil];	// retained
-+		}
++		plState = [_mtlDevice newRenderPipelineStateWithDescriptor: plDesc
++														   options: MTLPipelineOptionFailOnBinaryArchiveMiss
++														reflection: nil
++															 error: nil];	// retained
 +		plDesc.binaryArchives = priorArchives;
 +		[priorArchives release];															// temp release
 +	}
@@ -378,12 +396,10 @@ index 7eae64c..6edfb15 100644
 +	@autoreleasepool {
 +		NSArray<id<MTLBinaryArchive>>* priorArchives = [plDesc.binaryArchives retain];		// temp retain
 +		plDesc.binaryArchives = archives;
-+		@synchronized (_mtlDevice) {
-+			plState = [_mtlDevice newComputePipelineStateWithDescriptor: plDesc
-+																options: MTLPipelineOptionFailOnBinaryArchiveMiss
-+															 reflection: nil
-+																  error: nil];	// retained
-+		}
++		plState = [_mtlDevice newComputePipelineStateWithDescriptor: plDesc
++															options: MTLPipelineOptionFailOnBinaryArchiveMiss
++														 reflection: nil
++															  error: nil];	// retained
 +		plDesc.binaryArchives = priorArchives;
 +		[priorArchives release];															// temp release
 +	}
@@ -395,9 +411,8 @@ index 7eae64c..6edfb15 100644
 +// Whether a collection may be queued now. Bounded: the queue, the session's additions, and nothing once closing.
 +bool MVKMetalBinaryArchives::canCollect() {
 +	if ( !_isCollecting || _isClosing ) { return false; }
-+	if ( !_isLoaded ) { _collectSkippedBeforeLoad++; return false; }
-+	if (_collectQueued >= _maxSessionAdds) { _collectCapped++; return false; }
-+	if (_pendingAdds >= kRBXArchiveMaxPendingAdds) { _collectDroppedQueueFull++; return false; }
++	if (_collectQueued.fetch_add(1) >= _maxSessionAdds) { _collectQueued--; _collectCapped++; return false; }
++	if (_pendingAdds.fetch_add(1) >= kRBXArchiveMaxPendingAdds) { _pendingAdds--; _collectQueued--; _collectDroppedQueueFull++; return false; }
 +	return true;
 +}
 +
@@ -405,11 +420,10 @@ index 7eae64c..6edfb15 100644
 +	if ( !canCollect() ) { return; }
 +	MTLRenderPipelineDescriptor* plDescCopy = [plDesc copy];	// retained, released by the queued block
 +	plDescCopy.binaryArchives = nil;
-+	_pendingAdds++;
-+	_collectQueued++;
++	bool wasCompiledBeforeLoad = !_isLoaded;
 +	dispatch_async(_queue, ^{
 +		@autoreleasepool {
-+			addOnQueue(plDescCopy, nil);
++			addOnQueue(plDescCopy, nil, wasCompiledBeforeLoad);
 +			[plDescCopy release];
 +		}
 +	});
@@ -419,11 +433,10 @@ index 7eae64c..6edfb15 100644
 +	if ( !canCollect() ) { return; }
 +	MTLComputePipelineDescriptor* plDescCopy = [plDesc copy];	// retained, released by the queued block
 +	plDescCopy.binaryArchives = nil;
-+	_pendingAdds++;
-+	_collectQueued++;
++	bool wasCompiledBeforeLoad = !_isLoaded;
 +	dispatch_async(_queue, ^{
 +		@autoreleasepool {
-+			addOnQueue(nil, plDescCopy);
++			addOnQueue(nil, plDescCopy, wasCompiledBeforeLoad);
 +			[plDescCopy release];
 +		}
 +	});
@@ -435,11 +448,35 @@ index 7eae64c..6edfb15 100644
 +}
 +
 +// On the queue. Adds the functions of one pipeline to this session's archive.
-+void MVKMetalBinaryArchives::addOnQueue(MTLRenderPipelineDescriptor* renderDesc, MTLComputePipelineDescriptor* computeDesc) {
++void MVKMetalBinaryArchives::addOnQueue(MTLRenderPipelineDescriptor* renderDesc, MTLComputePipelineDescriptor* computeDesc, bool wasCompiledBeforeLoad) {
 +	_pendingAdds--;
 +	if (_isClosing) { _collectDroppedAtClose++; return; }
 +	if ( !_isCollecting ) { _collectCapped++; return; }
 +	if (_minFreeBytes && mvkGetAvailableMemorySize() < _minFreeBytes) { _collectHeldForMemory++; return; }
++
++	// Compiled while the archives were still loading (the load runs first on this queue, so it is done now): it may be
++	// in a loaded archive already. Asked here, off the creating thread, so that nothing is added twice.
++	if (wasCompiledBeforeLoad) {
++		NSArray<id<MTLBinaryArchive>>* archives = copyLoadedArchives();		// temp retain
++		if (archives) {
++			id<NSObject> archivedState = nil;
++			if (renderDesc) {
++				renderDesc.binaryArchives = archives;
++				archivedState = [_mtlDevice newRenderPipelineStateWithDescriptor: renderDesc options: MTLPipelineOptionFailOnBinaryArchiveMiss reflection: nil error: nil];	// temp retain
++				renderDesc.binaryArchives = nil;
++			} else {
++				computeDesc.binaryArchives = archives;
++				archivedState = [_mtlDevice newComputePipelineStateWithDescriptor: computeDesc options: MTLPipelineOptionFailOnBinaryArchiveMiss reflection: nil error: nil];	// temp retain
++				computeDesc.binaryArchives = nil;
++			}
++			[archives release];												// temp release
++			if (archivedState) {
++				[archivedState release];									// temp release
++				_collectAlreadyArchived++;
++				return;
++			}
++		}
++	}
 +
 +	NSError* err = nil;
 +	if ( !_collectingArchive ) {
@@ -477,8 +514,8 @@ index 7eae64c..6edfb15 100644
 +	if ( !_collectingArchive || _addsSinceSave == 0 ) { return; }
 +
 +	uint64_t startTime = mvkGetTimestamp();
-+	char name[96];
-+	snprintf(name, sizeof(name), "/seg-%06u.tmp", _segmentNumber);
++	char name[128];
++	snprintf(name, sizeof(name), "/seg-%06u-%08x.tmp", _segmentNumber, _sessionToken);
 +	std::string tmpPath = _directory + name;
 +	NSError* err = nil;
 +	NSURL* tmpURL = [NSURL fileURLWithPath: @(tmpPath.c_str())];
@@ -492,7 +529,7 @@ index 7eae64c..6edfb15 100644
 +
 +	uint64_t fileSize = 0;
 +	std::string digest = rbxFileDigest(tmpPath, fileSize);
-+	snprintf(name, sizeof(name), "/seg-%06u-%llu-%s.mtlarchive", _segmentNumber, (unsigned long long)fileSize, digest.c_str());
++	snprintf(name, sizeof(name), "/seg-%06u-%08x-%llu-%s.mtlarchive", _segmentNumber, _sessionToken, (unsigned long long)fileSize, digest.c_str());
 +	std::string finalPath = _directory + name;
 +	if (digest.empty() || fileSize == 0 || rename(tmpPath.c_str(), finalPath.c_str()) != 0) {
 +		_saveErrors++;
@@ -545,37 +582,43 @@ index 7eae64c..6edfb15 100644
 +	// The directory's date is its last use.
 +	[fileMgr setAttributes: @{NSFileModificationDate: [NSDate date]} ofItemAtPath: directory error: nil];
 +
-+	struct Segment { uint32_t number; uint64_t bytes; std::string digest; std::string path; };
++	struct Segment { uint32_t number; uint32_t token; uint64_t bytes; std::string digest; std::string path; };
 +	std::vector<Segment> segments;
 +	uint32_t highestNumber = 0;
 +	for (NSString* name in [fileMgr contentsOfDirectoryAtPath: directory error: nil]) {
 +		std::string path = _directory + "/" + name.UTF8String;
-+		if ([name hasSuffix: @".tmp"]) { unlink(path.c_str()); continue; }		// A save that never completed.
-+		unsigned number = 0;
++		struct stat fileStat;
++		if ([name hasSuffix: @".tmp"]) {
++			// A save that never completed; one less than ten minutes old may be another live device's.
++			if (stat(path.c_str(), &fileStat) == 0 && time(nullptr) - fileStat.st_mtime > 600) { unlink(path.c_str()); }
++			continue;
++		}
++		unsigned number = 0, token = 0;
 +		unsigned long long bytes = 0;
 +		char digest[17] = {};
 +		int consumed = 0;
-+		if (sscanf(name.UTF8String, "seg-%u-%llu-%16[0-9a-f].mtlarchive%n", &number, &bytes, digest, &consumed) != 3 ||
++		if (sscanf(name.UTF8String, "seg-%u-%8x-%llu-%16[0-9a-f].mtlarchive%n", &number, &token, &bytes, digest, &consumed) != 4 ||
 +			consumed != (int)strlen(name.UTF8String) || strlen(digest) != 16) { continue; }
 +		highestNumber = max<uint32_t>(highestNumber, number);
-+		struct stat fileStat;
 +		if (stat(path.c_str(), &fileStat) != 0 || (uint64_t)fileStat.st_size != bytes) {
 +			unlink(path.c_str());
 +			unlink((path + ".refused").c_str());
 +			_removedDamaged++;
 +			continue;
 +		}
-+		segments.push_back({number, bytes, digest, path});
++		segments.push_back({number, token, bytes, digest, path});
 +	}
 +	_segmentNumber = highestNumber + 1;
 +
-+	// One generation per segment (the largest: a session's archive only grows), then the bounds, oldest first.
++	// One generation per session's segment (the largest: a session's archive only grows), then the bounds, oldest first.
 +	std::sort(segments.begin(), segments.end(), [](const Segment& a, const Segment& b) {
-+		return a.number != b.number ? a.number < b.number : a.bytes > b.bytes;
++		if (a.number != b.number) { return a.number < b.number; }
++		if (a.token != b.token) { return a.token < b.token; }
++		return a.bytes > b.bytes;
 +	});
 +	std::vector<Segment> kept;
 +	for (auto& segment : segments) {
-+		if ( !kept.empty() && kept.back().number == segment.number ) { unlink(segment.path.c_str()); continue; }
++		if ( !kept.empty() && kept.back().number == segment.number && kept.back().token == segment.token ) { unlink(segment.path.c_str()); continue; }
 +		kept.push_back(segment);
 +	}
 +	uint64_t totalBytes = 0;
@@ -647,13 +690,13 @@ index 7eae64c..6edfb15 100644
 +	reportMessage(MVK_CONFIG_LOG_LEVEL_INFO,
 +				  "RewindBox Metal binary archives (%s): %llu segments loaded (%.2f MB, verify %.1f ms, load %.1f ms), removed damaged %llu, refused %llu, pruned %llu. "
 +				  "Pipelines from an archive %llu (%.1f ms, max %.2f ms), misses %llu (%.1f ms, max %.2f ms), lookups before the load %llu, with no archive %llu. "
-+				  "Collected %llu of %llu queued (%.1f ms, max %.2f ms), errors %llu, skipped before the load %llu, dropped %llu (queue) %llu (close), held for memory %llu, capped %llu. "
++				  "Collected %llu of %llu queued (%.1f ms, max %.2f ms), errors %llu, already archived %llu, dropped %llu (queue) %llu (close), held for memory %llu, capped %llu. "
 +				  "Saves %llu (%.1f ms, max %.1f ms, %llu bytes), save errors %llu. %s",
 +				  when, _loadedSegments.load(), (double)_loadedBytes.load() / 1048576.0, rbxMs(_verifyNanos), rbxMs(_loadNanos),
 +				  _removedDamaged.load(), _refusedSegments.load(), _prunedSegments.load(),
 +				  _hits.load(), rbxMs(_hitNanos), rbxMs(_hitMaxNanos), _misses.load(), rbxMs(_missNanos), rbxMs(_missMaxNanos),
 +				  _lookupsBeforeLoad.load(), _lookupsWithoutArchive.load(),
-+				  _collected.load(), _collectQueued.load(), rbxMs(_addNanos), rbxMs(_addMaxNanos), _addErrors.load(), _collectSkippedBeforeLoad.load(),
++				  _collected.load(), _collectQueued.load(), rbxMs(_addNanos), rbxMs(_addMaxNanos), _addErrors.load(), _collectAlreadyArchived.load(),
 +				  _collectDroppedQueueFull.load(), _collectDroppedAtClose.load(), _collectHeldForMemory.load(), _collectCapped.load(),
 +				  _saves.load(), rbxMs(_saveNanos), rbxMs(_saveMaxNanos), _savedBytes.load(), _saveErrors.load(), _identity.c_str());
 +}
@@ -675,7 +718,7 @@ index 7eae64c..6edfb15 100644
 +		 << ", \"lookupsBeforeLoad\": " << _lookupsBeforeLoad.load() << ", \"lookupsWithoutArchive\": " << _lookupsWithoutArchive.load()
 +		 << ", \"collectQueued\": " << _collectQueued.load() << ", \"collected\": " << _collected.load()
 +		 << ", \"addMs\": " << rbxMs(_addNanos) << ", \"addMaxMs\": " << rbxMs(_addMaxNanos) << ", \"addErrors\": " << _addErrors.load()
-+		 << ", \"collectSkippedBeforeLoad\": " << _collectSkippedBeforeLoad.load()
++		 << ", \"collectAlreadyArchived\": " << _collectAlreadyArchived.load()
 +		 << ", \"collectDroppedQueueFull\": " << _collectDroppedQueueFull.load() << ", \"collectDroppedAtClose\": " << _collectDroppedAtClose.load()
 +		 << ", \"collectHeldForMemory\": " << _collectHeldForMemory.load() << ", \"collectCapped\": " << _collectCapped.load()
 +		 << ", \"saves\": " << _saves.load() << ", \"saveMs\": " << rbxMs(_saveNanos) << ", \"saveMaxMs\": " << rbxMs(_saveMaxNanos)
@@ -695,57 +738,71 @@ index 7eae64c..6edfb15 100644
  #pragma mark MVKRenderPipelineCompiler
  
  id<MTLRenderPipelineState> MVKRenderPipelineCompiler::newMTLRenderPipelineState(MTLRenderPipelineDescriptor* mtlRPLDesc) {
-+	// RewindBox prototype (lot 7): a loaded Metal binary archive serves this very descriptor, or the compilation below
-+	// runs as before and the descriptor is then queued for this session's archive.
++	// RewindBox prototype (lot 7): null unless enabled.
 +	MVKMetalBinaryArchives* archives = getDevice()->getMetalBinaryArchives();
-+	if (archives) {
-+		id<MTLRenderPipelineState> archivedState = archives->newRenderPipelineState(mtlRPLDesc);	// retained
-+		if (archivedState) { return archivedState; }
-+		if (archives->isStrict()) {
-+			_owner->setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED,
-+													   "%s is not in a loaded Metal binary archive (RBX_MVK_BINARY_ARCHIVE_STRICT).",
-+													   _compilerType.c_str()));
-+			return nil;
-+		}
-+	}
++	__block bool isFromArchive = false;
 +
  	unique_lock<mutex> lock(_completionLock);
  
  	compile(lock, ^{
-@@ -3106,6 +3605,8 @@ id<MTLRenderPipelineState> MVKRenderPipelineCompiler::newMTLRenderPipelineState(
+ 		auto mtlDev = getMTLDevice();
+ 		@synchronized (mtlDev) {
++			// RewindBox prototype (lot 7): a loaded Metal binary archive serves this very descriptor, under the same
++			// device lock and compile timeout as the compilation; on a miss the compilation below runs as before.
++			if (archives) {
++				id<MTLRenderPipelineState> archivedState = archives->newRenderPipelineState(mtlRPLDesc);	// temp retain
++				if (archivedState || archives->isStrict()) {
++					isFromArchive = (archivedState != nil);
++					bool isLate = compileComplete(archivedState, archivedState ? nil : archives->strictMissError());
++					[archivedState release];																// temp release
++					if (isLate) { destroy(); }
++					return;
++				}
++			}
+ 			[mtlDev newRenderPipelineStateWithDescriptor: mtlRPLDesc
+ 									   completionHandler: ^(id<MTLRenderPipelineState> ps, NSError* error) {
+ 										   bool isLate = compileComplete(ps, error);
+@@ -3106,6 +3641,9 @@ id<MTLRenderPipelineState> MVKRenderPipelineCompiler::newMTLRenderPipelineState(
  		}
  	});
  
-+	if (archives && _mtlRenderPipelineState) { archives->collect(mtlRPLDesc); }
++	// A pipeline that was compiled is queued for this session's archive.
++	if (archives && _mtlRenderPipelineState && !isFromArchive) { archives->collect(mtlRPLDesc); }
 +
  	return [_mtlRenderPipelineState retain];
  }
  
-@@ -3127,6 +3628,19 @@ MVKRenderPipelineCompiler::~MVKRenderPipelineCompiler() {
+@@ -3127,11 +3665,25 @@ MVKRenderPipelineCompiler::~MVKRenderPipelineCompiler() {
  #pragma mark MVKComputePipelineCompiler
  
  id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineState(MTLComputePipelineDescriptor* plDesc) {
 +	// RewindBox prototype (lot 7): as MVKRenderPipelineCompiler::newMTLRenderPipelineState().
 +	MVKMetalBinaryArchives* archives = getDevice()->getMetalBinaryArchives();
-+	if (archives) {
-+		id<MTLComputePipelineState> archivedState = archives->newComputePipelineState(plDesc);	// retained
-+		if (archivedState) { return archivedState; }
-+		if (archives->isStrict()) {
-+			_owner->setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED,
-+													   "%s is not in a loaded Metal binary archive (RBX_MVK_BINARY_ARCHIVE_STRICT).",
-+													   _compilerType.c_str()));
-+			return nil;
-+		}
-+	}
++	__block bool isFromArchive = false;
 +
  	unique_lock<mutex> lock(_completionLock);
  
  	compile(lock, ^{
-@@ -3141,6 +3655,8 @@ id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineSta
+ 		auto mtlDev = getMTLDevice();
+ 		@synchronized (mtlDev) {
++			if (archives) {
++				id<MTLComputePipelineState> archivedState = archives->newComputePipelineState(plDesc);	// temp retain
++				if (archivedState || archives->isStrict()) {
++					isFromArchive = (archivedState != nil);
++					bool isLate = compileComplete(archivedState, archivedState ? nil : archives->strictMissError());
++					[archivedState release];															// temp release
++					if (isLate) { destroy(); }
++					return;
++				}
++			}
+ 			[mtlDev newComputePipelineStateWithDescriptor: plDesc
+ 												  options: MTLPipelineOptionNone
+ 										completionHandler: ^(id<MTLComputePipelineState> ps, MTLComputePipelineReflection*, NSError* error) {
+@@ -3141,6 +3693,8 @@ id<MTLComputePipelineState> MVKComputePipelineCompiler::newMTLComputePipelineSta
  		}
  	});
  
-+	if (archives && _mtlComputePipelineState) { archives->collect(plDesc); }
++	if (archives && _mtlComputePipelineState && !isFromArchive) { archives->collect(plDesc); }
 +
  	return [_mtlComputePipelineState retain];
  }

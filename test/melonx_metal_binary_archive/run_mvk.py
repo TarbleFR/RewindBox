@@ -216,14 +216,13 @@ def main():
     reuse_warm = session('reuse, system cache warm', archive)
     rep = reuse_warm.get('archiveReport', {})
     expect(created_all(reuse_warm) and same_result(reuse_warm, reference), 'reuse warm: same result', reuse_warm)
-    expect(rep.get('loadedSegments') == 1 and rep.get('hits') == PIPELINES and rep.get('misses') == 0 and rep.get('collected') == 0 and
-           reuse_warm['test'].get('mvkPipelineCompile', {}).get('count') == 0,
-           'reuse warm: the 68 pipelines come from the archive, none compiled', reuse_warm)
+    expect(rep.get('loadedSegments') == 1 and rep.get('hits') == PIPELINES and rep.get('misses') == 0 and rep.get('collected') == 0 and rep.get('collectQueued') == 0,
+           'reuse warm: the 68 pipelines come from the archive, none compiled (none queued for collection)', reuse_warm)
     remove_system_cache()
     reuse_cold = session('reuse, system cache removed, strict', archive, STRICT=1)
     rep = reuse_cold.get('archiveReport', {})
     expect(created_all(reuse_cold) and same_result(reuse_cold, reference), 'reuse strict, cold system cache: every pipeline served by the archive, same result', reuse_cold)
-    expect(rep.get('hits') == PIPELINES and rep.get('misses') == 0 and reuse_cold['test'].get('mvkPipelineCompile', {}).get('count') == 0,
+    expect(rep.get('hits') == PIPELINES and rep.get('misses') == 0 and rep.get('collectQueued') == 0,
            'reuse strict: 68 archive hits, no compilation of a pipeline', reuse_cold)
     remove_system_cache()
     reuse_cold2 = session('reuse, system cache removed again, not strict', archive)
@@ -238,7 +237,7 @@ def main():
     normal_absent = session('variant left out, normal operation (system cache removed)', archive, ('--absent',))
     absent, rep = normal_absent.get('test', {}).get('absent', {}), normal_absent.get('archiveReport', {})
     expect(created_all(normal_absent) and absent.get('created') is True and absent.get('result') == 0 and rep.get('hits') == PIPELINES and rep.get('misses') == 1 and
-           normal_absent['test'].get('mvkPipelineCompile', {}).get('count') == 1 and rep.get('collected') == 1 and rep.get('saves') == 1,
+           rep.get('collectQueued') == 1 and rep.get('collected') == 1 and rep.get('saves') == 1,
            'normal: the variant left out is compiled as before (one compilation), collected and saved', normal_absent)
     expect(len(segments(archive)) == 2, 'a second segment is published, the first untouched: %s' % segments(archive), normal_absent)
     expect(sha(next(archive.rglob('seg-000001-*'))) == sha(next(before.rglob('seg-000001-*'))), 'the first segment is byte-identical after the second session', normal_absent)
@@ -303,7 +302,7 @@ def main():
     refused_directory = work / 'archive-refused' / identity_name
     refused_directory.mkdir(parents=True)
     text = b'not a Metal binary archive\n' * 64
-    refused_file = refused_directory / f'seg-000001-{len(text)}-{hashlib.sha256(text).hexdigest()[:16]}.mtlarchive'
+    refused_file = refused_directory / f'seg-000001-00000000-{len(text)}-{hashlib.sha256(text).hexdigest()[:16]}.mtlarchive'
     refused_file.write_bytes(text)
     refused1 = session('intact file Metal refuses, first launch', work / 'archive-refused', SESSION_MAX_ADDS=0)
     rep = refused1.get('archiveReport', {})
@@ -317,7 +316,7 @@ def main():
     identities = work / 'archive-identities'
     for name, age in (('id-00000000000000aa', 7200), ('id-00000000000000bb', 3600)):
         (identities / name).mkdir(parents=True)
-        (identities / name / 'seg-000001-3-0000000000000000.mtlarchive').write_bytes(b'old')
+        (identities / name / 'seg-000001-00000000-3-0000000000000000.mtlarchive').write_bytes(b'old')
         stamp = time.time() - age
         os.utime(identities / name, (stamp, stamp))
     other = session('archives of two other identities', identities, SESSION_MAX_ADDS=0)
@@ -355,8 +354,10 @@ def main():
     def figures(entry):
         test, rep = entry.get('test', {}), entry.get('archiveReport', {})
         return {'spirvToMslMs': test.get('mvkSpirvToMsl', {}).get('totalMs'), 'mslLibraryMs': test.get('mvkMslCompile', {}).get('totalMs'),
-                'mslLibraries': test.get('mvkMslCompile', {}).get('count'), 'pipelineCompileMs': test.get('mvkPipelineCompile', {}).get('totalMs'),
-                'pipelinesCompiled': test.get('mvkPipelineCompile', {}).get('count'), 'archiveHits': rep.get('hits'), 'archiveHitMs': rep.get('hitMs'),
+                'mslLibraries': test.get('mvkMslCompile', {}).get('count'),
+                # MoltenVK's "Compile MTLFunctions into a pipeline": every pipeline state creation, from an archive or compiled.
+                'pipelineCreationMs': test.get('mvkPipelineCompile', {}).get('totalMs'), 'pipelineCreationMaxMs': test.get('mvkPipelineCompile', {}).get('maxMs'),
+                'pipelineCreations': test.get('mvkPipelineCompile', {}).get('count'), 'archiveHits': rep.get('hits'), 'archiveHitMs': rep.get('hitMs'),
                 'archiveMisses': rep.get('misses'), 'archiveMissMs': rep.get('missMs'), 'graphicsCreateMs': test.get('graphics', {}).get('time', {}).get('totalMs'),
                 'graphicsCreateMaxMs': test.get('graphics', {}).get('time', {}).get('maxMs'), 'computeCreateMs': test.get('compute', {}).get('time', {}).get('totalMs'),
                 'collectMs': rep.get('addMs'), 'saveMs': rep.get('saveMs'), 'savedBytes': rep.get('savedBytes'), 'verifyMs': rep.get('verifyMs'), 'loadMs': rep.get('loadMs'),
