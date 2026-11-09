@@ -68,7 +68,7 @@ int main()
 	// REWINDBOX_PREHASH_BUDGET_910: the look-ahead depth follows the share of worker hashes the last frame used.
 	namespace prehash = rpcs3::ios::texture_prehash;
 	static_assert(prehash::next_lookahead(64, 7, 0) == 64);      // too little to judge
-	static_assert(prehash::next_lookahead(64, 100, 45) == 32);   // 45 % used (window 29: 4,623 of 10,135): halve
+	static_assert(prehash::next_lookahead(64, 100, 45) == 32);   // under half of the worker's hashes used: halve
 	static_assert(prehash::next_lookahead(32, 100, 49) == 16);
 	static_assert(prehash::next_lookahead(4, 100, 0) == 4);      // floor
 	static_assert(prehash::next_lookahead(6, 100, 10) == 4);
@@ -82,6 +82,22 @@ int main()
 	CHECK(depth == prehash::min_lookahead);
 	for (int frame = 0; frame < 6; ++frame) depth = prehash::next_lookahead(depth, 40, 38);
 	CHECK(depth == prehash::lookahead);
+	// REWINDBOX_PREHASH_USED_911: a worker result counts once, when a validation first takes it; a hash the validating
+	// thread published itself, a result of another epoch or range, and a second section served by it do not count.
+	{
+		std::uint64_t out = 0;
+		prehash::publish(0x100000, 0x20000, 7, 0xabc, prehash::origin_worker);
+		CHECK(prehash::lookup(0x100000, 0x20000, 7, out) && out == 0xabc);
+		CHECK(prehash::claim_worker_result(0x100000, 0x20000, 7));
+		CHECK(prehash::lookup(0x100000, 0x20000, 7, out) && !prehash::claim_worker_result(0x100000, 0x20000, 7));
+		CHECK(!prehash::claim_worker_result(0x100000, 0x20000, 8) && !prehash::claim_worker_result(0x100000, 0x10000, 7));
+		prehash::publish(0x300000, 0x20000, 7, 0xdef); // the validating thread's own hash
+		CHECK(prehash::lookup(0x300000, 0x20000, 7, out) && out == 0xdef && !prehash::claim_worker_result(0x300000, 0x20000, 7));
+		prehash::publish(0x100000, 0x20000, 8, 0x123, prehash::origin_worker); // the next epoch: a new result, counted again
+		CHECK(!prehash::lookup(0x100000, 0x20000, 7, out) && prehash::claim_worker_result(0x100000, 0x20000, 8));
+		prehash::publish(0x100000, 0x20000, 9, 0x456); // replaced by a validator's hash: not a worker result any more
+		CHECK(!prehash::claim_worker_result(0x100000, 0x20000, 9));
+	}
 	std::printf("{\"epoch_sources\": \"counted\", \"mlaa_report\": \"%s\"}\n", mlaa::unmatched_list().c_str());
 	return 0;
 }
@@ -149,7 +165,11 @@ def static_checks(source: Path) -> dict:
     for needle in ('batch.size() < g_lookahead &&', 'g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);',
                    'total_worker_hashes.fetch_add(1, std::memory_order_relaxed);', 'rpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed);'):
         require(needle in cache_cpp, 'prehash budget: ' + needle)
-    require('lookahead=%u' in perf, 'OPT583 reports the look-ahead depth')
+    require('lookahead=%u worker_used=%llu' in perf, 'OPT583 reports the look-ahead depth and the worker results used')
+    for needle in ('publish(range.start, range.length, epoch, hash, origin_worker);',
+                   'if (rpcs3::ios::texture_prehash::claim_worker_result(range.start, range.length(), epoch))\n\t\t\t\t\t{\n'
+                   '\t\t\t\t\t\trpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed);'):
+        require(needle in cache_cpp, 'prehash used share: ' + needle)
     freeze = (source / 'rpcs3/ios/RPCS3IOSFreezeDump.cpp').read_text()
     require('REWINDBOX_FREEZE_LABELS_909' in freeze and 'signal_trace::watched_address.load' in freeze, 'freeze label lines')
     return report

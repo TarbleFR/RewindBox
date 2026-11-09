@@ -872,8 +872,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       ASan/UBSan): 6-texture cycle 18/18 hits at 16 ways, 0 at 4; 17 overflows (counted); every invalidation drops as before.
       The Core 660 memo harness with the 908 header: all 21 scenarios equal the control, negative controls still diverge.
       LOADCLEAR907 and native half were already active on 694 (passes 1143/1261/991 per window): not new.
-    - BO2 (BLES01717): RANGELOCKPROF wl_putllc=38814:229.8:0.96 (count:acquire_ms:hold_ms): ~5.9 us to acquire, 0.025 us held;
-      the cost is parking every running PPU. Exact pre-checks (BUILD435) already in place; the single-lane CAS without the
+    - BO2 (BLES01717): **attribution corrected 9 Nov (post-910 entry below)**: the figure first written here, RANGELOCKPROF
+      wl_putllc=38814:229.8:0.96 (~5.9 us to acquire, 0.025 us held), is AC1's (BLES00158, PID 41776, session 1, window 41),
+      not BO2's. BO2's window is PID 41395, session 1, window 11: wl_putllc=1798399:2253.727:16.469 (~1.25 us, 9 ns held).
+      Unchanged by the correction: exact pre-checks (BUILD435) already in place; the single-lane CAS without the
       lock is upstream's relaxed mode (inexact for a concurrent PPU store to another lane): rejected.
       REWINDBOX_WRITER_LOCK_PHASES_908 (measurement only): wl_putllc_phases=bits:ranges:park ms, flagged PPUs, slow parks
       (> 50 us), park_max_us, to decide between PPU check latency and OS preemption.
@@ -986,24 +988,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         the RSX thread is not the bottleneck, so no FPS gain is claimed. Decision counters: EPOCH909 `put`, `put_deferred`,
         `put_patched`. If `put_deferred` is under ~20 % of `put`, the horizon is not the lever and stays only as a
         correct no-op; the next lever is then on the PPU/SPU side (MLAA load, hot guest functions).
-      REWINDBOX_PREHASH_BUDGET_910 (ios/IOSTexturePrehash.h, Common/texture_cache.cpp): 4,623 of 10,135 worker hashes were
-      used (10.48 GB hashed by the worker per window while the CPU is near saturation: 4.83 of 6 cores); the look-ahead
+      REWINDBOX_PREHASH_BUDGET_910 (ios/IOSTexturePrehash.h, Common/texture_cache.cpp): the worker completed 10,135 hashes
+      (10.48 GB) in the window while 4,623 lookups were served by a published result. Corrected 9 Nov: that is not "4,623
+      of 10,135 used" (the RSX thread publishes its own hashes and one result serves several sections; Core 911 counts
+      worker results used once each). CPU near saturation in that window: 4.83 of 6 cores. The look-ahead
       follows the used share of the last frame (halved under 50 %, doubled from 85 %, 4..64). Results stay keyed by range
       + epoch, so a bounded look-ahead cannot validate anything. Decision counter: OPT583 `lookahead=`, OPT581 worker bytes.
       TEXMEMO for GOW3: still off; decision after the device run (it can only serve if the epochs per frame fall to a
       few). PPU main hot functions: not identified (no PPU sampler output in the 694 logs); open.
-    - **5 Black Ops II (Still open; no protocol change, on purpose).** The 694 gameplay window (21.7 fps) is GPU-bound:
-      gpu_execution 35.8 ms/frame, busy_share 0.784, RSX waits ~0, PPU 0.40 core, heavy PUTLLC ~8k/s (the 240k/s figure was
-      the IPA 666 multiplayer session). Chain read in the code: `do_putllc` -> `vm::reservation` -> `vm::writer_lock` ->
-      `cpu_flag::memory` on every PPU -> stop/resume. Counterexample that rejects a relaxed store without parking: a PPU
-      plain store into the 128-byte line between the SPU compare and its copy is overwritten by the SPU's stale bytes
-      (lost update); the lock is what makes compare+copy atomic against non-reserving writers. No orchestrator (Core 668).
-      Demonstrated cost followed instead: 49 render passes/frame, 15 same-target restarts. REWINDBOX_PASS_SHAPE_910 adds the
-      missing discriminant (one question each): RPASS652 `ended_empty/ended_short/same_target_after_empty`, RPASS655
-      `to_color/to_depth/to_transfer_dst/to_transfer_src/to_general`. Decision table: `same_target_after_empty` a large
-      share of same-target restarts -> defer the pass begin to the first draw; `to_transfer_*` dominant -> record uploads
-      and copies before the pass; `to_color/to_depth` -> target switches (guest order, no lever); `to_general` -> feedback
-      loops (kept: TBDR cross-tile hazard, no elision without proof). Counters only: not a fix.
+    - **5 Black Ops II: this paragraph was wrong and is withdrawn (corrected 9 Nov, post-910 entry below).** It read the
+      AC1 window (BLES00158, PID 41776, session 1, window 41: 21.7 fps, gpu busy_share 0.784, PPU 0.402 core, 49.4 passes
+      and 15.2 same-target restarts per frame, 38,833 heavy PUTLLC) as Black Ops II and concluded "GPU-bound". None of those
+      figures is BO2's; the conclusion is withdrawn. Still valid: no relaxed PUTLLC (a PPU plain store into the 128-byte
+      line between the SPU compare and its copy would be lost), no orchestrator. REWINDBOX_PASS_SHAPE_910 (RPASS652
+      `ended_empty/ended_short/same_target_after_empty`, RPASS655 `to_*`) is a measurement for the title whose windows
+      show the pass cost, AC1; decision table: `same_target_after_empty` a large share of the same-target restarts ->
+      defer the pass begin to the first draw; `to_transfer_*` dominant -> record uploads and copies before the pass;
+      `to_color/to_depth` -> target switches (guest order); `to_general` -> feedback loops (kept). Counters only.
     - **6 AC1 (Still open, device).** 4 against 16 ways needs the same scene on Core >= 910 (`miss_evicted` now exact);
       mvk_async canary `failed_before` not bypassed.
     - **7 Stalls (Still open, device).** GOW3 acquire 0x60300510 and Black Flag need one capture on Core >= 909 (FREEZE_DUMP
@@ -1033,8 +1034,89 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       5 windows: EPOCH909 (put, put_deferred, put_patched, acquire), OPT559 epoch_advances, OPT583 lookahead, OPT581
       worker bytes, JITMEM texture_hash_bytes, RSXFRAME551 texture_ms, COREPROF frames (ppu/spu/rsx cores), image
       correctness of textures that change (HUD, streamed textures, video); A/B with "Texture Epoch At The PUT Horizon"
-      off. BO2 gameplay scene: RPASS652 (ended_empty, ended_short, same_target_after_empty), RPASS655 (to_*). AC1 same
-      scene 100 %: TEXMEMO660 with 16 then 4 ways (miss_evicted, hits), FPS. On any stall: causes + milestones.
+      off. AC1 same scene 100 %: RPASS652 (ended_empty, ended_short, same_target_after_empty), RPASS655 (to_*), TEXMEMO660
+      (miss_evicted, hits), FPS (the pass figures are AC1's, corrected 9 Nov). On any stall: causes + milestones.
+  - **Post-910 mission (maintainer prompt 9 Nov 21:31 UTC, "continue with sources, dumps and tests", no IPA; owner: Claude
+    Code; open)**. Base re-verified: branch `Claude` at `a9c3ef3d`, run `42699665173` green on both jobs, Core 910 pinned
+    by `6cad9397` (rebased over the MeloNX lot 7 commits, none of whose files it touches).
+    - **Attribution corrected (the build 694 figures used since the Core 908 entry).** In-session copies of the private
+      logs (uploads; not in Git), identity read in the content:
+      | measure | AC1 BLES00158 | BO2 BLES01717 |
+      |---|---|---|
+      | build / PID / session / window | 694 / 41776 / 1 / 41 | 694 / 41395 / 1 / 11 |
+      | source in this session | performance.15 log: lines 2756 (FRAMEPROF), 2766 (GPUTIME), 2797 (RPASS652), 2800 (SPUWAIT), 2812 (RANGELOCK), 2816 (frames) | causes log (FRAMEPROF527, GPUTIME621, FRAMECAUSE of PID 41395) + the maintainer's quotation of timeline.1(2) line 376 for PUTLLC/writer lock |
+      | window, wall FPS | 5,060.058 ms, 21.739 | 5,038.483 ms, 29.374 |
+      | GPU busy_share | 0.784 (36 ms per frame) | 0.390 (13.3 ms per frame) |
+      | heavy PUTLLC, wl_putllc | 38,833; 38814:229.833:0.956 | 1,799,118; 1798399:2253.727:16.469 |
+      | CPU | PPU 0.402, SPU 1.423, rsx thread 0.453 core | no thread CPU line for this PID in the session |
+      | render passes | 49.4 per frame, 15.2 same-target | not in the session (no RPASS line for this PID) |
+      Access limit, named: the BO2 694 timeline/performance files are not among this session's uploads (only causes and
+      milestones carry PID 41395/41435); the BO2 PUTLLC figures above are the maintainer's quotation. Scenes: neither
+      window is established as gameplay by the traces (phase=guest_unclassified); BO2 session 1 runs 60 FPS in windows
+      4-9, 37.7 in 10, 29.4 in 11, window 12 is preparation; session 2 of the same PID is the blocked one (FREEZE
+      episodes) and is kept apart. Consequence: "BO2 is GPU-bound" is withdrawn; the pass-structure lead belongs to AC1.
+    - **BO2, what the existing BO2 data establishes.** Configuration (CONFIG_LAYERS, builds 676 and 694):
+      accurate_res=true, max_spurs=6, spu_block=Safe. Window 11: ~3,900 draws and 7-9 submits per frame, sampled RSX
+      stages ~10 ms of a 34-39 ms frame (submit_encode 3-5 ms the largest wait), GPU 10-28 ms on the retained slow
+      frames, cause=rsx_or_guest_cpu (inferred by the producer). Per frame: ~12,150 writer locks, 15.2 ms of
+      cumulated SPU acquisition (1.25 us each, spread over six SPU threads) and 9 ns held: the lock protocol itself is
+      not 2.25 s of recoverable frame time. Build 676 (Core 905), PID 25658, session 3, with thread CPU lines: menus at
+      60 FPS (windows 4-8) complete 53-102 million PUTLLC per window, 35,692-371,177 heavy, on 4.0-5.0 SPU cores,
+      getllar_sleep=0; slower windows 9-17 (20-25 FPS, not established as gameplay): 1.7-3.8 million completed, ~1.1
+      million heavy, six SPU threads at ~0.55 core each (3.2-3.4 cores), PPU 0.9-1.1, rsx thread 0.52-0.59: no single
+      thread saturated, about 5 of 6 cores busy (2 performance cores). Dependency read from the 694 stall dumps (PID
+      41395 session 2): main_thread in sys_semaphore_wait ~3 s; PPU Secondary running in the job-system loop (lwarx/
+      stwcx on 0x2e20c00, 0x2e208d8, 0x2dfc5dc); the six CellSpursKernel threads at pc 0x2584-0x27d4 in GETLLAR/PUTLLC
+      on the same lines; RSX inside a begin/end with GET in a called buffer. Hypothesis, not proven: the SPU threads
+      spend most of their time polling those lines, some polls changing data.
+    - **Fix 1 (implemented, tested on the real block, in Core 911): REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911**
+      (Emu/Cell/SPUThread.cpp `do_putllc`). Cause: the bounded wait of REWINDBOX_SPU_NOOP_SPIN_WAIT_627 sits in the
+      relaxed-only branch (`unchanged = !accurate && ...`); since the title's database configuration uses Accurate SPU
+      Reservations, its no-op PUTLLC complete in the CELL565 block and never wait (getllar_sleep=0 above). Change: a
+      PUTLLC that completed as the write-back of unchanged data feeds the same tracker and takes the same bounded wait
+      (20-160 us, rearm 8 rounds) after the comparison completed and the RSX reservation lock of its scope is released;
+      such a PUTLLC no longer restarts the polling streak. Invariant: nothing stored, result already decided, the sleep
+      is a host preemption; data-changing PUTLLC, the writer lock and PPU parking are untouched. Scope: titles with
+      both `spu_noop_spin_wait` and `noop_putllc_keeps_reservations` (Automatic: BO2). A/B: the existing "SPU No-op
+      Spin Wait" row. test/rpcs3_spu_noop_spin_accurate911_test.py: the real block in the Core 627 harness, 13
+      scenarios, plain/TSan/ASan-UBSan; two negative controls fail (no reservation-time condition: 2 checks; flag
+      false: 17). Expected effect, not measured: SPU CPU in the polling phases (menus first); no FPS claim.
+    - **Fix 2 (implemented, tested, in Core 911): REWINDBOX_PREHASH_USED_911** (ios/IOSTexturePrehash.h,
+      Common/texture_cache.cpp): the Core 910 budget read `hits`, which also counts lookups served by hashes the RSX
+      thread published itself and several sections served by one result; results now carry their origin and the
+      budget follows worker results used at least once (OPT583 `worker_used=`). test/rpcs3_gow3_levers909_test.py
+      executes the claim rules; the real-cache harness (scoped910) passes again.
+    - **Codegen identity, Core 911.** SPUThread.cpp is an input of the SPU identity. The route's procedure for a host-body
+      change (Core 627 precedent) is one exact alias in Emu/CPU/JITCacheCompatibility.cmake for the new file hash
+      (c59a24dd) to the effective hash already delivered, with an audit: test/rpcs3_core911_codegen_test.py requires
+      SPUThread.cpp to differ from the Core 910 file only inside `do_putllc()`, `process_mfc_cmd`/`get_ch_value`/
+      `set_ch_value` and SPUThread.h unchanged, exactly one alias added, identities PPU a987639e / SPU 477a3fa4. PASS.
+    - **Not changed, with the reason.** The PPU park path (check_state -> passive_lock) spins without a system call
+      and returns on the first check when the writer has released (13,526 real wait episodes for 1.8 million writer
+      locks in window 11): no redundant operation found to remove exactly. Heavy polling: to decide between (A) the
+      heavy PUTLLC are job-queue work and (B) they are reversible polling writes that a bounded wait may follow, it
+      lacks, per SPU thread, the changed 16-byte lane and its old/new values for a few hundred consecutive heavy
+      PUTLLC on 0x2e20880/0x2e20c00 (not in any existing log; a 64-entry ring in the freeze dump would give it).
+    - **Stalls, limit of the evidence.** BO2 (694 PID 41395 session 2; 676 session 3): chain above; first missing
+      information: which job the semaphore of main_thread stands for and who must complete it (the dump shows no
+      waiter list for that semaphore id and no RSX wait reason). GOW3 (acquire 0x60300510) and Black Flag: no dump on
+      Core >= 908 exists in the session; unchanged from the Core 909 entry. Upstream check (GitHub, 9 Nov): rpcs3 #12807
+      "Game freezes in Assassin's Creed series" open (AC3/AC4/ACB, threads in sys_event_queue_receive and
+      sys_timer_usleep, accuracy settings reported to avoid it at a large cost, no merged fix); #5831 open; no merged
+      PR claims a Black Flag fix (#19606 FIFO GET fix is only cross-referenced; a tester reports AC3 still freezing).
+      MLAA 01.00: rpcs3.net blocked here, no entry for PPU-4d5c5150 found on GitHub mirrors; the repository's
+      tools/cheats/snapshots/gow3-0100.yml holds cheats only. Open; no 01.03 address transposed.
+    - Packaging (Core 911 = Core 910 + M4 commits a235d02, c6518c0, 135dc0c): canonical 5b116293 (447), delta bc955a1c,
+      increment core911-from-910 e4240592 (= metal-wip-from-910). Host bridge unchanged (c1494c46): MoltenVK dependency
+      run 42695255551 kept. Local: route PASS, codegen audit PASS (one exact alias), Metal fold chain simulated PASS
+      (private repository), lever tests PASS; host guards and the full driver running at this commit.
+    - **AC1 (figures now correctly attributed).** Window 41 is its GPU-bound case: 49.4 passes per frame; ends by site
+      per frame: image_helpers.cpp:96 26.2 (4.0 same-target), barriers.cpp:95 6.8 (all same-target), VKRenderPass.cpp:468
+      5.0, VKDraw.cpp:230 4.8 (0.9 same), barriers.cpp:21 2.8 (all same), VKDraw.cpp:1411 2.0, VKTexture.cpp:647 1.0,
+      :581 0.8. RPASS655 ended_other=2,887 is exactly the image_helpers site: Core 910 splits it by destination layout,
+      which is the missing discriminant before any deferral or reordering. 4/16 ways: the capacity is the compile-time
+      constant `ways` of IOSTextureLookupMemo.h; there is no runtime selector, so a 4-way witness is another Core build,
+      not a setting. `miss_evicted` reads a ring of the last 16 evictions per slot: a lower bound on capacity misses.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
