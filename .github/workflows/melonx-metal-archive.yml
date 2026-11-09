@@ -34,3 +34,24 @@ jobs:
         path: dist/melonx-metal-archive-probe
         retention-days: 14
         if-no-files-found: error
+  moltenvk:
+    runs-on: macos-26
+    timeout-minutes: 100
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Reuse the external libraries of an earlier build of the same MoltenVK revision
+      uses: actions/cache@v4
+      with:
+        path: .metal-archive/MoltenVK/External
+        key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
+    - name: Build patched MoltenVK for macOS and exercise the prototype through Vulkan
+      run: python3 test/melonx_metal_binary_archive/run_mvk.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-metal-archive-mvk-${{ github.sha }}
+        path: dist/melonx-metal-archive-mvk
+        retention-days: 14
+        if-no-files-found: error
