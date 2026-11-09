@@ -19,7 +19,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 18.4713
+          "nsPerIteration": 21.1393
         },
         {
           "kind": "identity",
@@ -33,7 +33,7 @@
           "clears": 0,
           "barriers": 100000,
           "allocatedBytes": 0,
-          "nsPerIteration": 16.03957
+          "nsPerIteration": 16.55346
         },
         {
           "kind": "image",
@@ -47,7 +47,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 13.91599
+          "nsPerIteration": 14.372
         },
         {
           "kind": "direct",
@@ -61,7 +61,7 @@
           "clears": 0,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 6.89883
+          "nsPerIteration": 7.25301
         }
       ],
       "beyondStage": {
@@ -100,7 +100,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 19.06422
+          "nsPerIteration": 17.45657
         },
         {
           "kind": "identity",
@@ -114,7 +114,7 @@
           "clears": 0,
           "barriers": 100000,
           "allocatedBytes": 0,
-          "nsPerIteration": 16.42026
+          "nsPerIteration": 15.18916
         },
         {
           "kind": "image",
@@ -128,7 +128,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 14.40729
+          "nsPerIteration": 13.71477
         },
         {
           "kind": "direct",
@@ -142,7 +142,7 @@
           "clears": 0,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 6.43967
+          "nsPerIteration": 5.97049
         }
       ],
       "beyondStage": {
@@ -181,7 +181,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 19.2792
+          "nsPerIteration": 18.39265
         },
         {
           "kind": "identity",
@@ -195,7 +195,7 @@
           "clears": 0,
           "barriers": 100000,
           "allocatedBytes": 0,
-          "nsPerIteration": 16.92658
+          "nsPerIteration": 15.65224
         },
         {
           "kind": "image",
@@ -209,7 +209,7 @@
           "clears": 100000,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 13.95979
+          "nsPerIteration": 13.97761
         },
         {
           "kind": "direct",
@@ -223,7 +223,7 @@
           "clears": 0,
           "barriers": 0,
           "allocatedBytes": 0,
-          "nsPerIteration": 6.56984
+          "nsPerIteration": 6.38671
         }
       ],
       "beyondStage": {

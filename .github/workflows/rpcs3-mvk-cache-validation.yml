@@ -18,6 +18,8 @@
 # places the in-game Menu and Performances buttons with a collision-aware layout), 9 November 2026; no IPA or release.
 # Run request: the dependency of RPCS3 Core 910 (same MoltenVK source and patch; the host bridge
 # counts only touch controls whose ancestors are shown when it places the overlay buttons), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 912 (same MoltenVK source and patch; the host bridge
+# accepts three more test page keys: PUT horizon, heavy PUTLLC trace, PPU region profile), 10 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':

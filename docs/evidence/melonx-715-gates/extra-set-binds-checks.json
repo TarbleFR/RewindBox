@@ -20,7 +20,7 @@
           "allocations": 2000,
           "descriptors": 4000,
           "arraySetLookups": 2000,
-          "ms": 1.16
+          "ms": 1.1
         },
         "unchanged": {
           "writes": 0,
@@ -28,7 +28,7 @@
           "allocations": 0,
           "descriptors": 0,
           "arraySetLookups": 0,
-          "ms": 0.25
+          "ms": 0.21
         },
         "storageEachDispatch": {
           "writes": 2000,
@@ -36,7 +36,7 @@
           "allocations": 2000,
           "descriptors": 6000,
           "arraySetLookups": 2000,
-          "ms": 1.16
+          "ms": 1.13
         },
         "arrayChangeEvery8": {
           "writes": 2250,
@@ -44,7 +44,7 @@
           "allocations": 2250,
           "descriptors": 5000,
           "arraySetLookups": 2000,
-          "ms": 4.6
+          "ms": 4.45
         }
       },
       "candidate": {
@@ -54,7 +54,7 @@
           "allocations": 2000,
           "descriptors": 4000,
           "arraySetLookups": 0,
-          "ms": 0.85
+          "ms": 0.82
         },
         "unchanged": {
           "writes": 0,
@@ -62,7 +62,7 @@
           "allocations": 0,
           "descriptors": 0,
           "arraySetLookups": 0,
-          "ms": 0.22
+          "ms": 0.26
         },
         "storageEachDispatch": {
           "writes": 2000,
@@ -70,7 +70,7 @@
           "allocations": 2000,
           "descriptors": 6000,
           "arraySetLookups": 0,
-          "ms": 0.85
+          "ms": 0.87
         },
         "arrayChangeEvery8": {
           "writes": 2250,
@@ -78,7 +78,7 @@
           "allocations": 2250,
           "descriptors": 5000,
           "arraySetLookups": 250,
-          "ms": 4.12
+          "ms": 4.26
         }
       }
     },

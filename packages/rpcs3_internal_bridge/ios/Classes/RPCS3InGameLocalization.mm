@@ -1741,39 +1741,87 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* BuildMetalTranslat
     values = @{
       @"en": @{
         @"testMetalRenderer": @"Native Metal 4 renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texture recheck at the PUT horizon",
+        @"testHeavyPutllcTrace": @"Capture: heavy PUTLLC (after closing the menu)",
+        @"testPpuRegionProfile": @"Capture: PPU regions (after closing the menu)",
       },
       @"es": @{
         @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revisión de texturas en el horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (al cerrar el menú)",
+        @"testPpuRegionProfile": @"Captura: regiones PPU (al cerrar el menú)",
       },
       @"ru": @{
         @"testMetalRenderer": @"Нативный рендерер Metal 4",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Проверка текстур на горизонте PUT",
+        @"testHeavyPutllcTrace": @"Захват: тяжёлые PUTLLC (после закрытия меню)",
+        @"testPpuRegionProfile": @"Захват: области PPU (после закрытия меню)",
       },
       @"zh": @{
         @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 边界重新检查纹理",
+        @"testHeavyPutllcTrace": @"采集:重型 PUTLLC(关闭菜单后)",
+        @"testPpuRegionProfile": @"采集:PPU 区域(关闭菜单后)",
       },
       @"zh_Hant": @{
         @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 邊界重新檢查紋理",
+        @"testHeavyPutllcTrace": @"擷取:重型 PUTLLC(關閉選單後)",
+        @"testPpuRegionProfile": @"擷取:PPU 區域(關閉選單後)",
       },
       @"pt": @{
         @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Reverificação de texturas no horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (ao fechar o menu)",
+        @"testPpuRegionProfile": @"Captura: regiões PPU (ao fechar o menu)",
       },
       @"fr": @{
         @"testMetalRenderer": @"Moteur Metal 4 natif",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revérification des textures à l’horizon PUT",
+        @"testHeavyPutllcTrace": @"Capture : PUTLLC lourds (à la fermeture du menu)",
+        @"testPpuRegionProfile": @"Capture : régions PPU (à la fermeture du menu)",
       },
       @"de": @{
         @"testMetalRenderer": @"Nativer Metal-4-Renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texturprüfung am PUT-Horizont",
+        @"testHeavyPutllcTrace": @"Aufzeichnung: schwere PUTLLC (nach Schließen des Menüs)",
+        @"testPpuRegionProfile": @"Aufzeichnung: PPU-Bereiche (nach Schließen des Menüs)",
       },
       @"it": @{
         @"testMetalRenderer": @"Renderer Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Riverifica delle texture all’orizzonte PUT",
+        @"testHeavyPutllcTrace": @"Cattura: PUTLLC pesanti (alla chiusura del menu)",
+        @"testPpuRegionProfile": @"Cattura: regioni PPU (alla chiusura del menu)",
       },
       @"id": @{
         @"testMetalRenderer": @"Perender Metal 4 native",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Pemeriksaan ulang tekstur di batas PUT",
+        @"testHeavyPutllcTrace": @"Rekam: PUTLLC berat (setelah menu ditutup)",
+        @"testPpuRegionProfile": @"Rekam: wilayah PPU (setelah menu ditutup)",
       },
       @"ja": @{
         @"testMetalRenderer": @"ネイティブ Metal 4 レンダラー",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 境界でのテクスチャ再検査",
+        @"testHeavyPutllcTrace": @"記録:重い PUTLLC(メニューを閉じた後)",
+        @"testPpuRegionProfile": @"記録:PPU 領域(メニューを閉じた後)",
       },
       @"ko": @{
         @"testMetalRenderer": @"네이티브 Metal 4 렌더러",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 경계에서 텍스처 재검사",
+        @"testHeavyPutllcTrace": @"캡처: 무거운 PUTLLC(메뉴를 닫은 후)",
+        @"testPpuRegionProfile": @"캡처: PPU 영역(메뉴를 닫은 후)",
       },
     };
   });

@@ -100,6 +100,14 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // Metal branch: digit 18 of levers627= (the native Metal 4 renderer).
       @{@"key": @"experimental.metal_renderer", @"title": @"testMetalRenderer", @"field": @"levers627", @"bit": @17,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 912: digits 19 to 21 of levers627=. A/B of the PUT horizon (Automatic: God of War III) and two bounded
+      // captures that start when the in-game menu is closed (off unless enabled).
+      @{@"key": @"experimental.put_epoch_horizon", @"title": @"testPutEpochHorizon", @"field": @"levers627", @"bit": @18,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.heavy_putllc_trace", @"title": @"testHeavyPutllcTrace", @"field": @"levers627", @"bit": @19,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.ppu_region_profile", @"title": @"testPpuRegionProfile", @"field": @"levers627", @"bit": @20,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;

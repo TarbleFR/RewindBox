@@ -888,6 +888,10 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.zcull_depth_guard": @[@"Enabled", @"Disabled"],
       @"experimental.ppu_grace": @[@"Enabled", @"Disabled"],
       @"experimental.metal_renderer": @[@"Enabled", @"Disabled"],
+      // Core 912: PUT horizon A/B and the two captures started by closing the menu.
+      @"experimental.put_epoch_horizon": @[@"Enabled", @"Disabled"],
+      @"experimental.heavy_putllc_trace": @[@"Enabled", @"Disabled"],
+      @"experimental.ppu_region_profile": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

@@ -21,7 +21,7 @@
           "allocations": 8000,
           "descriptors": 22000,
           "arraySetLookups": 2000,
-          "ms": 1.66
+          "ms": 1.61
         },
         "unchanged": {
           "writes": 8000,
@@ -29,7 +29,7 @@
           "allocations": 8000,
           "descriptors": 22000,
           "arraySetLookups": 2000,
-          "ms": 1.48
+          "ms": 1.51
         }
       },
       "candidate": {
@@ -39,7 +39,7 @@
           "allocations": 2000,
           "descriptors": 4000,
           "arraySetLookups": 2000,
-          "ms": 0.7
+          "ms": 0.65
         },
         "unchanged": {
           "writes": 0,
@@ -47,7 +47,7 @@
           "allocations": 0,
           "descriptors": 0,
           "arraySetLookups": 0,
-          "ms": 0.21
+          "ms": 0.26
         }
       }
     },
