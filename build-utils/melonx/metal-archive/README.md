@@ -1,6 +1,7 @@
 # Metal binary archives in MoltenVK: prototype (lot 7)
 
-Status: **prototype, not integrated**. MeloNX's MoltenVK (`../moltenvk-rebuild.json`, `patch: null`), its pin and every
+Status: **prototype, not integrated**; closure validated by the maintainer on 9 November 2026 (kept out of production).
+MeloNX's MoltenVK (`../moltenvk-rebuild.json`, `patch: null`), its pin and every
 Core are unchanged. Nothing here is packaged in an IPA. The decision and the measures are in
 `docs/AI_TASK_BOARD.md` (MeloNX lot 7) and `docs/evidence/melonx-lot7-metal-archive/`.
 
@@ -22,7 +23,8 @@ library behaves as upstream.
   written to a temporary file then renamed; earlier segments are never rewritten. Identity: the Vulkan
   `pipelineCacheUUID` (MoltenVK revision, OS version, GPU family, argument buffers), the OS build and the GPU name.
 - **What it cannot do**: a binary archive holds pipeline functions. It does not avoid creating the `MTLLibrary` from MSL
-  (`newLibraryWithSource`), which is most of the native shader time measured on the iPhone.
+  (`newLibraryWithSource`), which is most of the library + pipeline creation time in the historical iPhone journals
+  (IPA 624-684).
 
 ## Environment (read when the VkDevice is created)
 

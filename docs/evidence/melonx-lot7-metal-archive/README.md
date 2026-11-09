@@ -2,11 +2,12 @@
 
 9 November 2026, Claude Code session 012mUASkkFGHaPcEUx9dsp8q. Board entry: `docs/AI_TASK_BOARD.md`, "MeloNX lot 7".
 
-**Status: prototype kept isolated, NOT integrated, not enabled.** MeloNX's MoltenVK, its pin, every Core and every IPA
-are unchanged. No IPA (maintainer). Nothing was built or run for iOS. Three kinds of figures, never mixed: iPhone
-(MoltenVK's own statistics in journals already received), macOS runner with its real Metal device ("Apple Paravirtual
-device", macOS 26.7.2 25G332, Xcode 26.6), and nothing from the simulator. No iPhone figure exists for the prototype:
-nothing here is an FPS or stutter gain.
+**Status: prototype kept isolated, NOT integrated, not enabled.** Closure validated by the maintainer (9 November):
+functional prototype on Metal/macOS, kept out of production; no MoltenVK integration, no IPA, macOS test campaign
+closed. MeloNX's MoltenVK, its pin, every Core and every IPA are unchanged. Nothing was built or run for iOS. Three
+kinds of figures, never mixed: iPhone (MoltenVK's own statistics in journals already received), macOS runner with its
+real Metal device ("Apple Paravirtual device", macOS 26.7.2 25G332, Xcode 26.6), and nothing from the simulator. No
+iPhone figure exists for the prototype: nothing here is an FPS or stutter gain.
 
 ## 1. Embedded MoltenVK
 
@@ -30,11 +31,15 @@ minimum 15.0). RPCS3 links another MoltenVK build: untouched.
 [device-moltenvk-statistics.json](device-moltenvk-statistics.json): MoltenVK's own statistics lines in the private
 journals (Hogwarts Legacy, IPA 624-684), aggregates per session; the journals are not in the repository.
 
-- In play, the ten sessions with at least 20 s of native shader work: library creation from MSL 81.1-83.5 %, pipeline
-  state creation 16.5-18.9 % (IPA 684 pid 26658: 359 libraries 33.9 s, 878 pipelines 7.9 s; IPA 672 pid 18409: 1407
-  libraries 314.6 s, 1313 pipelines 71.3 s).
-- New libraries in play equal new SPIR-V conversions (359/353, 1407/1398): first encounters, which no cache filled on
-  this device can serve.
+- The journals are historical (IPA 624-684): none comes from the current baseline (IPA 694).
+- In play, the ten sessions with at least 20 s of library + pipeline creation: of that time (SPIR-V to MSL conversion
+  not counted), library creation from MSL is 81.1-83.5 % and pipeline state creation 16.5-18.9 % (IPA 684 pid 26658:
+  359 libraries 33.9 s, 878 pipelines 7.9 s; IPA 672 pid 18409: 1407 libraries 314.6 s, 1313 pipelines 71.3 s). With
+  the conversion counted (2.9-6.2 %): libraries 76.4-80.8 %, pipelines 16.0-18.0 %.
+- New libraries in play track new SPIR-V conversions (359/353, 1407/1398). Each is a pair of shader module and
+  conversion settings that the pipeline cache in use did not hold. The counts do not prove that the shaders were met
+  for the first time: a known shader converted again under other settings, or through another cache object, counts
+  the same. Whether part of this work is redundant is the question of the next lot.
 - At launch, 26 of the 35 reports show a warm system Metal cache: at most 2.1 s of libraries and 1.0 s of pipelines
   (IPA 684: 6995 libraries in 1.0 s, 1792 pipelines in 0.8 s), IPA updates included (first sessions of 674, 676, 684).
 - The 9 other launch reports (IPA 640, 658, 672: fresh or growing caches, or a cold system cache) compile libraries
@@ -52,7 +57,7 @@ and removed for the "system cache removed" sessions. Three runs: 42693416166, 42
 | --- | --- |
 | Libraries from MSL (19) | cold 1057-1746 ms (18 samples); warm 3-4 ms; with the archive kept and Metal's cache removed 1147-2544 ms (what remains) |
 | Render pipelines (48) | compiled cold 292-480 ms; warm 5-10 ms; from the archive 31-49 ms with Metal's cache removed, 4-10 ms warm; 48/48 under MTLPipelineOptionFailOnBinaryArchiveMiss in each of the 12 reuse sessions |
-| Compute pipelines (6) | 1.8-3.2 s in every case on this device, also when served by the archive: no gain |
+| Compute pipelines (6) | 1.8-3.2 s in every case on this device, also when served by the archive: no gain measured |
 | Variant left out | strict: miss in 0.06-0.30 ms ("failed to find compiled pipeline functions in binary archive"); then compiled by the normal call |
 | Collection order | adding after creation does not recompile (8-20 ms for 48); adding first is slower (728-924 ms, then 38-52 ms) |
 | File | 1.76 MB for 54 pipelines, saved in 5-19 ms, loaded in under 1 ms, no footprint change at load |
@@ -109,9 +114,12 @@ one sample), 33 MSL libraries, 38 draws and 6 dispatches hashed; isolated direct
 | Reuse, system cache warm (68/68 from the archive) | 6 ms | 0.18 s; run 1: 0.20 s (the 62 hits: 12 ms) | 1.89 s |
 | Reuse, system cache removed (3 per run, 68/68 from the archive) | 1.66-1.77 s; run 1: 2.32-2.56 s | 0.95-1.01 s; run 1: 1.34-1.51 s (the 62 hits: 34-40 ms) | 2.06-2.29 s |
 
-- **Gain, where there is one**: system cache removed, 62 graphics creations cost 0.34-0.44 s less than the cold
-  reference (run 1: 0.53-0.83 s). Libraries remain. Compute pipelines gain nothing (1.6-1.9 s for the six hits, as when
-  compiled). With a warm system cache: no gain.
+- **Gain, where one is measured**: system cache removed, 62 graphics creations cost 0.34-0.44 s less than the cold
+  reference (run 1: 0.53-0.83 s). Libraries remain. No gain is measured for compute pipelines (1.6-1.9 s for the six
+  hits, as when compiled).
+- **Warm system cache: no reproducible benefit established.** 0.18 s against 0.20 s for 62 creations (run 1: 0.20
+  against 0.21 s), one session of each kind per run: the difference is within what separates two sessions. The
+  measures do not prove a zero gain either.
 - **Stage 4 alone, seen by accident**: a session without archive that followed sessions served by the archive compiled
   the 62 graphics pipelines in 0.52 s (run 1: 0.61 s) with warm libraries, against 0.20 s when Metal's cache had them.
   Pipelines served by an archive do not seem to enter Metal's own cache: a lost segment costs their compilation again.
@@ -140,12 +148,14 @@ one sample), 33 MSL libraries, 38 draws and 6 dispatches hashed; isolated direct
 
 Not integrated, not enabled.
 
-- The gain exists only for stage 4, and only when Metal's own cache is cold.
-- Stage 3, which is 81.1-83.5 % of the iPhone's native shader time in play and the reading of the IPA 693 cold start,
-  is untouched.
-- The in-play work is first encounters: in no cache.
-- With a warm system cache (26 of 35 launch reports, IPA updates included) there is nothing left to save.
-- Compute pipelines gained nothing on the runner.
+- A gain is measured only for stage 4, and only when Metal's own cache is cold.
+- Stage 3, which is 81.1-83.5 % of the library + pipeline time in play in the historical iPhone journals and the
+  reading of the IPA 693 cold start, is untouched.
+- An archive holds only pipelines collected in an earlier session. How much of the in-play work that covers is not
+  known: the counts do not tell first encounters from repeated work.
+- With a warm system cache (26 of the 35 historical launch reports, IPA updates included) no reproducible benefit is
+  established; the measures do not prove a zero gain.
+- No gain was measured for compute pipelines on the runner.
 - An OS update invalidates the archive with the system cache; a change of MSL or compile options changes the
   functions, so the archive misses too.
 - No iPhone measure of the prototype exists.
@@ -184,7 +194,8 @@ Needs the integration owner for the MoltenVK pin and an IPA.
 
 Expected from the journals: a visible effect only in launch 3, bounded by the pipeline share.
 
-## 11. Lever the evidence points to instead (another lot, not started)
+## 11. Lever the evidence points to instead (the next lot)
 
-Stage 3: library creation deferred to first use when the pipeline cache loads (the 693 stall and part of the 7 s
-load), and fewer distinct MSL variants per shader.
+Stage 3, the creation of Metal libraries: redundant creations first, then libraries prepared needlessly at load, then
+a selective preparation coordinated with the variant replay. Deferring a creation to first use is not a gain by
+itself: it has to be shown to remove work, not to move it.

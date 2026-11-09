@@ -3,7 +3,7 @@
  "lot": "MeloNX lot 7: persistent Metal binary archives in MoltenVK",
  "date": "2026-11-09",
  "session": "012mUASkkFGHaPcEUx9dsp8q",
- "status": "prototype kept isolated: not integrated, not enabled; MeloNX's MoltenVK recipe, its pin, every Core and every IPA unchanged; nothing built or run for iOS; no figure from an iPhone or from the simulator for the prototype",
+ "status": "prototype kept isolated: not integrated, not enabled; MeloNX's MoltenVK recipe, its pin, every Core and every IPA unchanged; nothing built or run for iOS; no figure from an iPhone or from the simulator for the prototype; closure validated by the maintainer on 2026-11-09 (functional on Metal/macOS, kept out of production, macOS test campaign closed)",
  "embeddedMoltenVK": {
   "repository": "https://github.com/KhronosGroup/MoltenVK.git",
   "tag": "v1.4.2",
@@ -154,13 +154,15 @@
   "integrated": false,
   "enabledByDefault": false,
   "why": [
-   "a binary archive serves pipeline state creation only: 16.5-18.9 % of the native shader time in play in the iPhone journals (ten sessions with 20 s or more); library creation from MSL, 81.1-83.5 %, is not covered",
-   "the in-play work is first encounters (new libraries = new SPIR-V conversions): in no cache",
-   "26 of 35 launch reports in the journals have a warm system Metal cache, where nothing is left to save; the 9 others compile libraries for 13.5-65.8 s and pipelines for 2.4-12.6 s (14.7-18.3 %)",
-   "on the macOS runner the gain appears only with the system Metal cache removed: 62 graphics creations 0.95-1.01 s against 1.35-1.39 s (run 2), 1.34-1.51 s against 2.03-2.18 s (run 1); libraries remain; compute pipelines gain nothing",
+   "a gain is measured only for pipeline state creation, and only with the system Metal cache removed: 62 graphics creations 0.95-1.01 s against 1.35-1.39 s (run 2), 1.34-1.51 s against 2.03-2.18 s (run 1), on the macOS runner; libraries remain; no gain measured for compute pipelines",
+   "with a warm system Metal cache no reproducible benefit is established (0.18 against 0.20 s in run 2, 0.20 against 0.21 s in run 1, one session of each kind per run); the measures do not prove a zero gain",
+   "historical iPhone journals (IPA 624-684): in play, of the library + pipeline creation time (SPIR-V to MSL conversion not counted), pipeline state creation is 16.5-18.9 % and library creation from MSL 81.1-83.5 % (ten sessions with 20 s or more); with the conversion counted: pipelines 16.0-18.0 %, libraries 76.4-80.8 %, conversion 2.9-6.2 %",
+   "new libraries in play track new SPIR-V conversions (pairs of module and conversion settings the pipeline cache did not hold); this does not prove the shaders were met for the first time",
+   "26 of the 35 historical launch reports have a warm system Metal cache (at most 2.1 s of libraries and 1.0 s of pipelines); the 9 others compile libraries for 13.5-65.8 s and pipelines for 2.4-12.6 s (14.7-18.3 %)",
    "no measure on an iPhone exists for the prototype"
   ],
-  "reopenWhen": "an iPhone measure after a cold system Metal cache shows pipeline state creation worth removing, or the library stage has been dealt with first"
+  "reopenWhen": "an iPhone measure after a cold system Metal cache shows pipeline state creation worth removing, or the library stage has been dealt with first",
+  "maintainer": "closure validated on 2026-11-09: no MoltenVK integration, no IPA, no further macOS tests for this lot"
  },
  "deviceProtocolIfRequested": [
   "needs the integration owner: patched MoltenVK built for iOS with melonx-moltenvk-rebuild.yml (patch and patchSha256 in moltenvk-rebuild.json), pinned, in an IPA",
