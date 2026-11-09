@@ -2132,6 +2132,116 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Device reading (next IPA with Core 711, two comparable launches on the same 1x route): second launch's summary lines as
     above; render-thread draw prepare "pipelines" time and present gaps on the known route. A comparison with IPA 694 is
     the cumulative result of lots 1-5, not of this lot alone.
+- **MeloNX lot 6: cache durability, compatibility and loading (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov; owner:
+  this session, integration and Core build; open until a device run; no IPA (maintainer); Core 713 = Core 711 +
+  adapt_pipeline_snapshot_retire):** device baseline IPA 694 (the maintainer's measures of one session: 2048 shaders in
+  2.155 s; main cache 780.86 MiB; worker snapshots 167.09 MiB; background load and integration 7.188 s; 1984 lookup hits
+  for 1 miss; overlapping phases, file sizes not RAM).
+  - Cache levels and their identity (Core 711 preparation; MoltenVK v1.4.2):
+    - Guest shader cache (Ryujinx DiskCache): guest.toc/data (guest code), shared.toc/data (TOCS header: format 1.2,
+      CodeGenVersion, timestamp), host vulkan toc/data (TOCH, newer than shared). A format version change is handled as
+      corruption (shared and host rebuilt from the programs loaded before the error; with none loaded the guest cache is
+      deleted). A CodeGenVersion change (7353 + 0x5242_0002, +0x10000 with NaN scrub: a Core update or the NaN scrub
+      setting) is a translation change: every program translated again from guest code, then shared and host rewritten.
+    - Vulkan pipeline cache (opaque MoltenVK data): pipeline-<vendor>-<device>-<MVK_VERSION>-<title>.vkpc and
+      .worker0/1.vkpc. Its header's pipelineCacheUUID holds the MoltenVK revision, the OS major and minor version, the GPU
+      family and the argument-buffer flag (compile options); the file name holds none of them. MoltenVK ignores data of
+      another header (empty cache, success) and refuses the whole data when a record is damaged. Written by tmp, msync and
+      rename; loaded in the background (Core 697); worker files held until main holds them; growth rule (Core 687).
+    - .builds (12-byte records) and .variants (lot 5: schema header, checked lines, tmp+rename): keyed by program and
+      named fields, independent of the pipeline cache files. This lot changes neither format.
+    - PTC: not used (LightningJit).
+  - Findings:
+    - Every launch maps, hydrates (MoltenVK decompresses and compiles the MSL of each entry it reads) and merges the
+      worker snapshots, and every close writes them again, although main's file holds their content: IPA 684 (pid
+      26658) merged 155.37 MiB of them into a 605.06 MiB main; the next checkpoint measured 624.69 MiB with 501 new
+      pipelines, so at least 87 % was main's already. IPA 694: 167.09 MiB of them.
+    - A worker snapshot the driver refuses (a cut file) or that has no room in main keeps the workers' hold for the
+      session, and the refused file is never replaced: refused again at every launch.
+    - After an identity change (an iOS minor update), main's file loads as nothing but counts as loaded: the growth
+      rule compares the session with the old file's length, so no play or pause checkpoint writes main (nor the workers,
+      held until main is written) until a clean close; a session ended by a kill loses its pipelines, launch after launch.
+    - Verified sound, unchanged: every pipeline cache write is tmp + msync + rename, a failure removes the tmp and keeps
+      the previous file, a kill leaves the previous file and a partial .tmp replaced at the next write; a close during the
+      background load writes nothing; a pause writes main only.
+    - Shader cache, not changed here (next candidates, from source and the 684-era journals): a rebuild clears shared
+      and host, then rewrites them (not atomic: a stop or a kill during "Rebuilding N shaders", 1.2-1.8 s for 1198-2174
+      shaders, loses the programs not yet rewritten); alternating the NaN scrub setting re-translates the whole cache each
+      time (pid 57222: 2189 shaders, 14 s); a format version change deletes the guest cache when nothing loaded.
+  - References (rb-research, principles only, no cache file used): Lichii `ad477ef1`, Eglantine `78743f30`, Fritchii
+    `f66ea633` (ZuanCrisp/Fritchii). The driver blob is disposable, the recipes are not; records are appended and only
+    rewritten to drop bad ones; tmp + rename, the previous file kept on failure (Eglantine and Fritchii delete it on a
+    failed write, not copied); a driver rejection detected and the blob started empty (Lichii). No per-record repair of an
+    opaque blob anywhere.
+  - Change (Core 713, adapt_pipeline_snapshot_retire, PipelineCacheManager.cs only, every title):
+    - each worker records whether its file may hold content main's cache does not (loaded into the worker, pending
+      beside main's load, written, merged into main at load, recycle or close, recycled, refused by the driver);
+    - at the close, once main's file is written with every worker's content (merge succeeded, main not Frozen, main's
+      generation saved), a worker with nothing new since that merge has its file removed when nothing in it is outside
+      main, and left untouched otherwise; in every other case (main over budget, write failure, load still running or
+      failed) the workers are written as before; engine journal "pipelineCache workerRetired/workerKept";
+    - a snapshot of this device's header the driver refuses is kept at its first refusal (MoltenVK refuses the whole data
+      when one Metal library fails to compile, so a refusal may be transient): main stays Frozen that session, a worker
+      file is kept; only a second refusal of the same file (length and write time in <file>.refused) at the next launch
+      handles it as before; an accepted load clears the record ("pipelineCache mainRefusedKept");
+    - the background load compares the main snapshot's first 32 bytes with this device's header (as MoltenVK writes it);
+      only when they differ it asks the driver the size of the cache it created, and only when the driver kept nothing
+      (64 bytes or less) the snapshot is handled as a rejected one, so the next pause or play checkpoint writes the
+      session ("pipelineCache mainIgnored"). A matching header costs no size query.
+    - Unchanged: the background load, the protection against replacing a file with less than it holds (the workers'
+      hold, Frozen main), the play, pause and recycle checkpoints, the worker lookup in main, budgets, pipelines, draws.
+  - Gate pipeline-snapshot-retire (106 checks; the real PipelineCacheManager.cs of control (Core 711) and candidate, a
+    Vulkan double holding cache content with MoltenVK v1.4.2's readData rules; isolated directories, never a player's
+    cache; content checked entry by entry). Separate measures, four launches in a row (fixture, 32 KiB entries; bytes are
+    exact, times are host times):
+
+    | Launch | mapped main | mapped worker copies (control / candidate) | hydrated (control / candidate) | duplicate entries merged (control / candidate) | close: worker bytes written (control / candidate) |
+    | --- | --- | --- | --- | --- | --- |
+    | 1 | 0.0 MB | 0.0 MB / 0.0 MB | 0.0 MB / 0.0 MB | 0 / 0 | 7.9 MB / 0.0 MB |
+    | 2 | 17.7 MB | 7.9 MB / 0.0 MB | 25.6 MB / 17.7 MB | 240 / 0 | 3.9 MB / 0.0 MB |
+    | 3 | 24.9 MB | 3.9 MB / 0.0 MB | 28.8 MB / 24.9 MB | 120 / 0 | 3.9 MB / 0.0 MB |
+    | 4 | 32.1 MB | 3.9 MB / 0.0 MB | 36.0 MB / 32.1 MB | 120 / 0 | 3.9 MB / 0.0 MB |
+
+    Scenarios, control / candidate: kill after worker checkpoints, 128/128 entries back in both, then the files removed
+    once main holds them; main not written at the close (write failure, over budget): main's previous file stands in
+    both, the session's 80 worker pipelines lost / kept (the control's hold from the duplicate copies blocked them);
+    close during the background load: no file changed in both; worker file cut short: refused at launches 1-3 / at
+    launches 1-2 (kept at its first refusal, removed at the close after its second); an intact main refused once (a
+    transient refusal): 60/210 earlier pipelines back (file replaced at the pause) / 210/210 (file kept, main Frozen, the
+    session's 20 pipelines not written); an intact worker file refused once: kept and loaded next in both; two driver
+    versions alternating: each comes back whole in both; another cache
+    UUID under the same name, pause then kill: pause writes nothing, 0/100 pipelines back / pause writes, 100/100 back;
+    worker copies back on disk after an incident: merged as duplicates, removed again; kill during main's write: the
+    previous file loads in both; no room in main for the worker copies: kept untouched in both, joined next launch;
+    main cut short: replaced at once / kept at its first refusal (that session not written), replaced at the second.
+  - Trade-off, measured: when main's own file is damaged (refused), the control gets the last session's worker pipelines
+    back from their copies (60/60 in the fixture), the candidate does not and rebuilds them from the guest shader cache
+    (the reconstructible source, kept). Main is written by tmp, msync and rename, so a refused main is either a transient
+    refusal (now kept by the record) or storage damage, not an interrupted write; after an identity change the copies
+    are ignored as well.
+  - Proof scope. Verified without Vulkan: the real manager's decisions, files and content on a content double; no Metal
+    compilation, no MoltenVK. To measure on the device (next IPA with Core 713, two comparable launches after one clean
+    close): "Vulkan main pipeline cache loaded in the background: ..., 0/0 worker snapshots" and its time against 694's
+    7.188 s (read, hydration and merge are not separated by MoltenVK; the worker share of 694's 7.188 s is not known);
+    "pipelineCache workerRetired" bytes at the close and the teardown "pipelineCacheSaved" time (a close, not a pause in
+    play); peak memory during the load; after an iOS update, "mainIgnored" and a pause checkpoint written.
+  - Independent review (rb-core-review, source only): first pass, one defect (a refused worker file was removed at the
+    close although a refusal can be transient) and an amplification (a transient main refusal replaced the file, already
+    so before this lot): both fixed by the refusal record. Second pass: no actionable defect; low, by design: a
+    first-refusal session saves nothing of itself; low residual, as before this lot: a worker snapshot loaded while main's
+    file is missing or over budget is handled at its first refusal. Not exercised: two transient refusals in a row, a
+    kill during a first-refusal session, the Dispose-time second save.
+  - Bound reruns on the final preparation, all green: fragmented-reads, performance-diagnostics, hogwarts-dma-copies,
+    pipeline-checkpoint (its boundary gains PipelineCacheUuid as in Silk.NET; a subinterval worker's content must be on
+    disk at the close, in its own file or in main's file once that file is removed), teardown-cache, main-cache-checkpoint,
+    checkpoint-side-cache, pipeline-cache-room, pipeline-cache-persist, pipeline-build-journal, pipeline-cache-growth,
+    pipeline-cache-background, pipeline-variant-replay (107), moltenvk-stage-ordering (75). Contract frozen `2bebf779`
+    (72 fresh gates, 191 preparation inputs, 206 prepared members); contract test 441 checks with the authenticated
+    archive; the 15 fresh receipts validated against it; the freeze read the other 57 receipts (14 Core 711, 43 Core 709
+    CI) for their control files only. [Receipts](evidence/melonx-713-gates/run.json). Core CI: requested by the
+    `[melonx-dma-core]` commit (result below).
+  - Coordination: the .variants (lot 5) and .builds formats are unchanged; Core 713 = Core 711 + this adapter only; a
+    comparison with IPA 694 on the device is the cumulative result of lots 1-6.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
