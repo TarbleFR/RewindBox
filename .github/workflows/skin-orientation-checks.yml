@@ -1,6 +1,6 @@
 name: Skin orientation checks
-# Orientation lock and PS2/GameCube/Wii Pocket skins (libretro, Dolphin and ARMSX2
-# bridges). Runs on a push of the skins branch that touches these files, or by
+# Orientation lock and PS2/GameCube/Wii/Switch Pocket skins (libretro, Dolphin, ARMSX2
+# and MeloNX bridges). Runs on a push of the skins branch that touches these files, or by
 # hand: compiles the orientation and overlay sources for iPhone, runs the
 # portable libretro frontend tests (real store files, real skins), the Dolphin
 # and ARMSX2 tests in the iOS Simulator (real touches on the shipped archive)
@@ -17,11 +17,15 @@ name: Skin orientation checks
     - work/skins-ps2-original-20261104
     - work/skins-stick-top-20261104
     - work/skins-stick-circle-20261105
+    - work/skins-switch-pocket-20261109
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
     - packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm
     - packages/armsx2_internal_bridge/ci/**
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXSkin*
+    - packages/melonx_internal_bridge/ci/**
+    - docs/design/pocket/**
     - packages/dolphin_internal_bridge/ios/Classes/DOL*
     - packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm
     - packages/dolphin_internal_bridge/ci/**
@@ -100,6 +104,54 @@ jobs:
         "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
         "$RUNNER_TEMP/pocket-venv/bin/python" test/dolphin_session_chrome_test.py
         "$RUNNER_TEMP/pocket-venv/bin/python" test/armsx2_skin_menu_button_test.py
+        if [ ! -f assets/skins/pocket/switch-pocket.manicskin ]; then
+          # Switch Pocket waits for its original board: the same checks on a provisional pack
+          # built from the board copy received in the chat, in a scratch copy of the assets
+          # (never shipped; --allow-provisional / POCKET_ASSETS_DIR).
+          scratch="$RUNNER_TEMP/pocket-switch"
+          mkdir -p "$scratch/build"
+          (cd tools/skins && "$RUNNER_TEMP/pocket-venv/bin/python" build_switch_pocket.py --provisional --output "$scratch/build")
+          cp -R assets/skins/pocket "$scratch/assets"
+          cp "$scratch"/build/switch-pocket* "$scratch/assets/"
+          "$RUNNER_TEMP/pocket-venv/bin/python" - "$scratch/assets" <<'PY'
+        import hashlib, json, sys
+        assets = sys.argv[1]
+        catalog = json.load(open(f'{assets}/catalog.json'))
+        data = open(f'{assets}/switch-pocket.manicskin', 'rb').read()
+        entry = {'id': 'switch-pocket', 'name': 'Switch Pocket', 'console': 'switch',
+                 'archiveAsset': 'assets/skins/pocket/switch-pocket.manicskin',
+                 'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data),
+                 'previewAssets': {o: f'assets/skins/pocket/switch-pocket-{o}.png' for o in ('portrait', 'landscape')},
+                 'author': 'RewindBox', 'license': 'RewindBox approved board; console names and marks belong to their owners'}
+        catalog['skins'] = [s for s in catalog['skins'] if s['id'] != 'switch-pocket'] + [entry]
+        json.dump(catalog, open(f'{assets}/catalog.json', 'w'), indent=2, ensure_ascii=False)
+        PY
+          "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py --assets-dir "$scratch/assets" --allow-provisional > /dev/null
+          POCKET_ASSETS_DIR="$scratch/assets" "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
+        fi
+    - name: Compile the MeloNX skin overlay for iPhone
+      if: ${{ !cancelled() && steps.areas.outputs.melonx == 'true' }}
+      run: |
+        set -euo pipefail
+        SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+        CLASSES=packages/melonx_internal_bridge/ios/Classes
+        xcrun clang++ -fsyntax-only -fobjc-arc -std=gnu++20 -Wall -Werror -Wno-deprecated-declarations \
+          -target arm64-apple-ios18.0 -isysroot "$SDK" -I "$CLASSES" "$CLASSES/MeloNXSkinOverlay.mm"
+    - name: MeloNX skin overlay on Switch Pocket in the iOS Simulator (real touches, the Core's button indices)
+      if: ${{ !cancelled() && steps.areas.outputs.melonx == 'true' }}
+      run: |
+        set -euo pipefail
+        gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
+        if [ ! -f assets/skins/pocket/switch-pocket.manicskin ]; then
+          # Provisional pack from the board copy received in the chat (see the pocket step).
+          python3 -m venv "$RUNNER_TEMP/melonx-venv"
+          "$RUNNER_TEMP/melonx-venv/bin/pip" install --quiet pillow==12.3.0 "numpy>=2.3.5"
+          mkdir -p build/melonx-ci/provisional
+          (cd tools/skins && "$RUNNER_TEMP/melonx-venv/bin/python" build_switch_pocket.py --provisional \
+             --output "$GITHUB_WORKSPACE/build/melonx-ci/provisional")
+          export MELONX_SKIN_ARCHIVE="$GITHUB_WORKSPACE/build/melonx-ci/provisional/switch-pocket.manicskin"
+        fi
+        ruby packages/melonx_internal_bridge/ci/test_skin_overlay_ui.rb
     - name: Compile the Dolphin orientation and skin sources for iPhone
       if: ${{ !cancelled() && steps.areas.outputs.dolphin_compile == 'true' }}
       run: |
@@ -155,5 +207,7 @@ jobs:
           build/armsx2-ci/skin-overlay/SkinOverlay.xcresult
           build/armsx2-ci/skin-overlay/renders
           build/dolphin-ci/skin-overlay/SkinOverlay.xcresult
+          build/melonx-ci/skin-overlay/SkinOverlay.xcresult
+          build/melonx-ci/skin-overlay/renders
         if-no-files-found: ignore
         retention-days: 7

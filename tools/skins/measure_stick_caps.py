@@ -30,13 +30,31 @@ STICKS = [
     ('approved-gamecube.png', 'gamecube landscape cstick', 1322, 606, 39, 'yellow'),
     ('approved-wii.png', 'wii portrait main', 254, 577, 43, 'grey'),
     ('approved-wii.png', 'wii landscape main', 702, 480, 41, 'grey'),
+    # Switch Pocket: dark caps in a light socket ring (the edge is a rise outward).
+    ('approved-switch.png', 'switch portrait lstick', 254, 584.5, 45, 'dark'),
+    ('approved-switch.png', 'switch portrait rstick', 435.5, 718, 45, 'dark'),
+    ('approved-switch.png', 'switch landscape lstick', 740, 470.5, 48, 'dark'),
+    ('approved-switch.png', 'switch landscape rstick', 1423.5, 622, 48.5, 'dark'),
 ]
+# Until the maintainer's original Switch Pocket PNG is in the repository, its geometry is
+# read on the copy received in the chat (a recompressed WEBP of the same 1672 x 941 board).
+SWITCH_ORIGINAL = 'approved-switch.png'
+SWITCH_RECEIVED = 'switch-pocket-received.webp'
+
+
+def board_file(name: str) -> Path:
+    path = DESIGN / name
+    if name == SWITCH_ORIGINAL and not path.exists():
+        return DESIGN / SWITCH_RECEIVED
+    return path
 
 
 def channel(img: Image.Image, kind: str) -> np.ndarray:
     a = np.asarray(img.convert('RGB')).astype(np.float64)
     if kind == 'yellow':
         return np.clip(a[..., 0] - a[..., 2], 0, None)
+    if kind == 'dark':
+        return -a.mean(axis=2)
     return a.mean(axis=2)
 
 
@@ -87,11 +105,11 @@ def fit_ellipse(pts):
 def measure():
     out = {}
     for board, label, hx, hy, hr, kind in STICKS:
-        img = Image.open(DESIGN / board)
+        img = Image.open(board_file(board))
         pts = edge_points(channel(img, kind), hx, hy, hr)
         cx, cy, a, b, res, keep = fit_ellipse(pts)
         out[label] = {
-            'board': board, 'channel': kind, 'hand': [hx, hy, hr],
+            'board': board_file(board).name, 'channel': kind, 'hand': [hx, hy, hr],
             'centre': [round(cx, 2), round(cy, 2)], 'semiAxes': [round(a, 2), round(b, 2)],
             'extents': [round(cx - a, 1), round(cy - b, 1), round(cx + a, 1), round(cy + b, 1)],
             'rays': len(pts), 'raysKept': int(keep.sum()),
@@ -106,7 +124,7 @@ def sheet(m, path: Path):
     font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 20)
     cells, Z = [], 6
     for label, v in m.items():
-        img = Image.open(DESIGN / v['board']).convert('RGB')
+        img = Image.open(board_file(v['board'])).convert('RGB')
         (cx, cy), (a, b) = v['centre'], v['semiAxes']
         R = int(max(a, b) * 1.35)
         x0, y0 = int(cx) - R, int(cy) - R

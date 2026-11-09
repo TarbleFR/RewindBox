@@ -30,7 +30,8 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS = ROOT / 'assets/skins/pocket'
+# POCKET_ASSETS_DIR: a scratch copy with the provisional Switch Pocket (never shipped).
+ASSETS = Path(__import__('os').environ.get('POCKET_ASSETS_DIR', ROOT / 'assets/skins/pocket'))
 DOL = (ROOT / 'packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.mm').read_text(encoding='utf-8')
 A2 = (ROOT / 'packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinOverlay.mm').read_text(encoding='utf-8')
 MLX = (ROOT / 'packages/melonx_internal_bridge/ios/Classes/MeloNXSkinOverlay.mm').read_text(encoding='utf-8')
@@ -182,12 +183,15 @@ def engine_command(console, name):
 
 # --- the shipped archives ------------------------------------------------------------------
 def load_pack(row):
-    data = (ROOT / row['archiveAsset']).read_bytes()
+    data = (ASSETS / Path(row['archiveAsset']).name).read_bytes()
     require(len(data) == row['size'] and hashlib.sha256(data).hexdigest() == row['sha256'],
             row['id'] + ': archive differs from the catalog')
     z = zipfile.ZipFile(io.BytesIO(data))
     sprites = {n: z.read(n) for n in z.namelist() if n.endswith('.png')}
     CURRENT['all_sprites'] = sprites
+    # Alpha maps are cached by sprite name, and two packs can share a name (PS2 Original
+    # and Switch Pocket both ship controls/portrait-l3.png): one cache per pack.
+    _ALPHA.clear()
     return json.loads(z.read('info.json')), set(z.namelist())
 
 
@@ -378,7 +382,10 @@ def press(items, console, x, y):
 def main():
     catalog = json.loads((ASSETS / 'catalog.json').read_text())
     rows = {row['id']: row for row in catalog['skins']}
-    require({i: r['console'] for i, r in rows.items()} == EXPECTED, 'the catalog must carry exactly %s' % EXPECTED)
+    found = {i: r['console'] for i, r in rows.items()}
+    require({i: c for i, c in found.items() if i in EXPECTED} == EXPECTED and
+            all(VERIFY.OPTIONAL_PACKS.get(i) == c for i, c in found.items() if i not in EXPECTED),
+            'the catalog must carry exactly %s (and Switch Pocket once built from its board)' % EXPECTED)
     require(UPSTREAM_PS2 == [n for n, _ in sorted(PS2_IDS.items(), key=lambda kv: kv[1])],
             'ARMSX2 pad indices differ from ARMSX2Bridge.h: %s' % PS2_IDS)
     check_hit_headers()
@@ -387,11 +394,13 @@ def main():
         console = row['console']
         CURRENT['engine'] = {'ps2': 'armsx2', 'switch': 'melonx'}.get(console, 'dolphin')
         info, names = load_pack(row)
-        require(info['gameTypeIdentifier'].split('.')[-1] in {'gc': {'ngc'}, 'wii': {'wii'}, 'ps2': {'ps2'}}[console],
+        require(info['gameTypeIdentifier'].split('.')[-1] in {'gc': {'ngc'}, 'wii': {'wii'}, 'ps2': {'ps2'},
+                                                              'switch': {'switch'}}[console],
                 console + ': game type')
+        board = pack_id in VERIFY.BOARD_PACKS
         reps = info['representations']['iphone']
         # Board Originals ship edge-to-edge only (the native layout lookup falls back to it).
-        displays = ('edgeToEdge',) if pack_id.endswith('-original') else ('edgeToEdge', 'standard')
+        displays = ('edgeToEdge',) if board else ('edgeToEdge', 'standard')
         require(set(reps) == set(displays), pack_id + ': iPhone representations')
         for display in displays:
             for orientation in ('portrait', 'landscape'):
@@ -400,8 +409,8 @@ def main():
                 items = layout['items']
                 CURRENT.update(layout=layout, sprites=CURRENT['all_sprites'])
                 CURRENT['grid'] = CURRENT.get('grid', 0) + check_mirror(items, layout, CURRENT['all_sprites'], tag,
-                                                                  1.0 if pack_id.endswith('-original') else 2.0)
-                if not pack_id.endswith('-original'):
+                                                                  1.0 if board else 2.0)
+                if not board:
                     CURRENT['unchanged'] = CURRENT.get('unchanged', 0) + check_rectangle_equivalence(items, layout, tag)
                 menu_items = []
                 seen = set()
@@ -498,7 +507,7 @@ def main():
                             if raw in inputs_of(it):
                                 f = it['frame']; return f['x'] + f['width'] / 2, f['y'] + f['height'] / 2
                         fail('%s: no control for %s' % (tag, raw))
-                    shoulder = 'l' if console == 'gc' else 'c'
+                    shoulder = 'l' if console in ('gc', 'switch') else 'c'
                     fingers = [centre_of('leftThumbstickUp'), centre_of('a'), centre_of(shoulder)]
                     sets = [press(items, console, *p)[1] for p in fingers]
                     require(len(set(sets)) == 3 and -1 not in sets, tag + ': simultaneous fingers collide')
@@ -507,7 +516,14 @@ def main():
                             f = item['frame']
                             for dx in (0.1, 0.5, 0.9):
                                 for dy in (0.1, 0.5, 0.9):
-                                    p = press(items, console, f['x'] + dx * f['width'], f['y'] + dy * f['height'])[0]
+                                    px, py = f['x'] + dx * f['width'], f['y'] + dy * f['height']
+                                    # Switch L3/R3 pills sit on the socket ring: inside their
+                                    # frame the drawn shape decides (checked on every drawn point).
+                                    if console == 'switch' and any(
+                                            o is not item and rect(o['frame'])[0] <= px < rect(o['frame'])[2]
+                                            and rect(o['frame'])[1] <= py < rect(o['frame'])[3] for o in items):
+                                        continue
+                                    p = press(items, console, px, py)[0]
                                     require(all(c[0] == 'stick' for c in p), tag + ': a stick finger pressed ' + str(p))
                     # release / cancel: a point on no control and outside the screen presses nothing
                     W, H = layout['mappingSize']['width'], layout['mappingSize']['height']

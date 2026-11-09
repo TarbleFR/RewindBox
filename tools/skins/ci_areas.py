@@ -28,7 +28,12 @@ AREAS = {
               r'|DolphinInternalBridgePlugin\.mm)$'
               r'|^packages/armsx2_internal_bridge/ios/Classes/(ARMSX2SkinOverlay\.(mm|h)|ARMSX2SkinHitTest\.h'
               r'|Armsx2InternalBridgePlugin\.mm)$|^test/armsx2_skin_menu_button_test\.py$'
+              r'|^packages/melonx_internal_bridge/ios/Classes/MeloNXSkin(Overlay\.(mm|h)|HitTest\.h)$'
               r'|^\.github/workflows/skin-orientation-checks\.yml$|^tools/skins/ci_areas\.py$',
+    # MeloNX skin overlay: iPhone compile and ci/test_skin_overlay_ui.rb on Switch Pocket
+    # (shipped, or provisional from the received board copy until its original is in)
+    'melonx': r'^packages/melonx_internal_bridge/(ios/Classes/MeloNXSkin|ci/)|^assets/skins/pocket/switch-'
+              r'|^tools/skins/build_switch_pocket\.py$|^docs/design/pocket/(approved-switch|switch-pocket)',
     'dolphin_compile': r'^' + DOLPHIN + r'ios/Classes/(DOL|TouchController/TCManagerInterface\.h)',
     # ARMSX2 iPhone compile and ci/test_skin_overlay_ui.rb (both shipped PS2 archives)
     'armsx2': r'^packages/armsx2_internal_bridge/(ios/Classes/ARMSX2|ci/)|^assets/skins/pocket/ps2-',

@@ -1,0 +1,210 @@
+{
+ "request": "Switch Pocket pour MeloNX (mainteneur, 9 novembre) : reproduire exactement RewindBox-Switch-Pocket-reference-exacte.png en portrait et paysage, un seul nouveau skin, accessible par Skins dans le menu de la playlist Switch, commandes réellement pressables et alignées, Home/Capture non présentés comme fonctionnels, règle de visibilité avec manette, orientation, zones sûres, retour au menu.",
+ "reference": {
+  "expected": {
+   "name": "RewindBox-Switch-Pocket-reference-exacte.png",
+   "bytes": 1939331,
+   "sha256": "b89f7cce2180b92ca3ef65adccb862c06c086345af0e7a2469d96809136ae108"
+  },
+  "received": {
+   "what": "inline chat image re-encoded by the client",
+   "format": "WEBP 1672 x 941",
+   "bytes": 103444,
+   "sha256": "fa0bc3d807c58fc455acff125ce2cbfce69432119b2ab0174a3e0e962a3f028f",
+   "committedAs": "docs/design/pocket/switch-pocket-received.webp"
+  },
+  "status": "original PNG NOT received: SHA-256 and size differ; the shipped pack is built only from the original (build_switch_pocket.py refuses anything else). Everything here is a provisional build from the received copy (same geometry, lossy pixels), for checks, never shipped."
+ },
+ "pack": {
+  "id": "switch-pocket",
+  "name": "Switch Pocket",
+  "console": "switch",
+  "gameType": "public.aoshuang.game.switch",
+  "provisionalArchive": {
+   "archiveSha256": "e5e6245700f32b6da1b0b5bbd25b4813a6bec74347baa34789ae9418b9d7f2e0",
+   "archiveBytes": 7642621,
+   "board": "switch-pocket-received.webp",
+   "boardSha256": "fa0bc3d807c58fc455acff125ce2cbfce69432119b2ab0174a3e0e962a3f028f",
+   "status": "provisional-received-copy",
+   "portraitTopBandRowsAdded": 81,
+   "pillOutlines": {
+    "portrait": {
+     "minus": [
+      282,
+      274,
+      314,
+      306
+     ],
+     "menu": [
+      329,
+      274,
+      368,
+      306
+     ],
+     "plus": [
+      382,
+      274,
+      413,
+      306
+     ],
+     "home": [
+      292,
+      315,
+      339,
+      347
+     ],
+     "capture": [
+      358,
+      315,
+      405,
+      347
+     ],
+     "l3": [
+      293,
+      693,
+      330,
+      721
+     ],
+     "r3": [
+      460,
+      841,
+      498,
+      869
+     ]
+    },
+    "landscape": {
+     "minus": [
+      927,
+      337,
+      965,
+      374
+     ],
+     "menu": [
+      1003,
+      336,
+      1046,
+      374
+     ],
+     "plus": [
+      1231,
+      337,
+      1268,
+      374
+     ],
+     "home": [
+      1085,
+      336,
+      1129,
+      374
+     ],
+     "capture": [
+      1151,
+      336,
+      1196,
+      374
+     ],
+     "l3": [
+      773,
+      510,
+      810,
+      539
+     ],
+     "r3": [
+      1342,
+      655,
+      1382,
+      685
+     ]
+    }
+   }
+  }
+ },
+ "commands": {
+  "Core button indices (native/melonx/EmbeddedInput.cs, test/melonx_input_test.py)": "A 0, B 1, X 2, Y 3, minus 4, plus 6, L3 7, R3 8, L 9, R 10, D-pad 11-14, ZL 15, ZR 16; sticks 1 and 2",
+  "menu": "the board's ≡ opens the RewindBox session menu (the floating menu button hides over it)",
+  "home/capture": "drawn as on the board, no Core index: never drawn pressed, nothing sent, the session shows a twelve-language notice (MeloNXSkinSession)"
+ },
+ "adaptations": [
+  "portrait: the board's phone screen is 352 x 682 px (0.516) against 393 x 852 pt (0.461): 81 rows of its plain top band (between the drawn Dynamic Island and the shoulder row) are added, so the skin fills the iPhone; every control keeps its drawing and its place relative to the bottom (the board's home indicator falls on the iPhone's)",
+  "landscape: the board's ratio 2.26 against 2.17: letterboxed by about 8 pt above and below, as the other Originals",
+  "the game is 16:9 inside the board's navy window (portrait: navy bands above and below; landscape: the window is 16:9 already)",
+  "drawn Dynamic Islands, home indicators and 'Zone de jeu' removed; phone frames, titles and captions not in the skin"
+ ],
+ "measuredSticks": {
+  "switch portrait lstick": {
+   "board": "switch-pocket-received.webp",
+   "centre": [
+    253.4,
+    583.89
+   ],
+   "semiAxes": [
+    44.56,
+    44.25
+   ],
+   "residualP90": 0.16,
+   "raysKept": 180
+  },
+  "switch portrait rstick": {
+   "board": "switch-pocket-received.webp",
+   "centre": [
+    434.68,
+    717.09
+   ],
+   "semiAxes": [
+    44.41,
+    44.33
+   ],
+   "residualP90": 0.2,
+   "raysKept": 180
+  },
+  "switch landscape lstick": {
+   "board": "switch-pocket-received.webp",
+   "centre": [
+    739.79,
+    470.07
+   ],
+   "semiAxes": [
+    47.65,
+    47.43
+   ],
+   "residualP90": 0.19,
+   "raysKept": 180
+  },
+  "switch landscape rstick": {
+   "board": "switch-pocket-received.webp",
+   "centre": [
+    1423.17,
+    621.41
+   ],
+   "semiAxes": [
+    48.51,
+    48.39
+   ],
+   "residualP90": 0.17,
+   "raysKept": 180
+  }
+ },
+ "knownLimits": {
+  "targets under 44 pt (board-bound, measured)": {
+   "portrait": "L3 37, R3 37; HOME, Capture and X reach 45 mapping pt (44 pt on 393 pt iPhones, ~43 pt on 375 pt ones)",
+   "landscape": "L3 36.5, R3 37, R 39, ZR 43 (ZR and R touch on the board)"
+  },
+  "sensor housing (landscape, iPhone 15/16 Pro geometry)": "the real Dynamic Island (11-48 pt from the edge) reaches the outer corner of the left stick's and the D-pad's touch squares (their drawn cap and arms stay clear) and, rotated the other way, the right stick's square and the outer edge of A"
+ },
+ "checks": {
+  "verifier": "verify_pocket_skins.py --allow-provisional on a scratch copy of the assets: passed for the 7 packs (the 6 shipped + provisional Switch Pocket); the shipped 6 pass unchanged without it",
+  "inputChain": "POCKET_ASSETS_DIR=scratch pocket_skin_input_chain_test.py: ok, 20 layouts, 7 packs, 3 498 894 grid points with the compiled hit test, 4 880 176 drawn sprite points reach their own control; shipped 6 packs unchanged (18 layouts)",
+  "dart": "test/melonx_playlist_skins_test.dart 4/4 with SWITCH_POCKET_ARCHIVE = the provisional archive (playlist menu -> Skins -> Switch manager -> chosen for portrait and landscape -> stored for switch -> read back -> the paths MeloNXSkinOverlay reads); melonx_skins_test and skin suites 127/127",
+  "originals": "build_pocket_board_originals.py output byte-identical (GameCube, Wii, PS2 Originals)",
+  "simulator": "MeloNX overlay compile for iPhone and MeloNXSkinOverlayTests in the iOS Simulator: CI (skin-orientation-checks.yml) on the provisional pack"
+ },
+ "renders": [
+  "portrait-board-vs-skin.png",
+  "landscape-board-vs-skin.png",
+  "portrait-rest-and-pressed.png",
+  "landscape-rest-and-pressed.png",
+  "touch-zones-portrait.png",
+  "touch-zones-landscape.png"
+ ],
+ "notObserved": "any iPhone, any MeloNX game run with the skin"
+}

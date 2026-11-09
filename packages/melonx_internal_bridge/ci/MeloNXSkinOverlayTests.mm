@@ -608,7 +608,13 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
     XCTAssertGreaterThan(outside, 0);
     XCTAssertGreaterThan(inside, 0);
     XCTAssertLessThanOrEqual(outsideChange, 6.0, @"%@: the press changed pixels outside the control", item[@"inputs"]);
-    XCTAssertLessThan(insidePressed, insideRest * 0.9, @"%@: a press is clearly visible", item[@"inputs"]);
+    if ([@[ @"home", @"capture" ] containsObject:[item[@"inputs"] firstObject]]) {
+      // No input in the embedded Core: never drawn as pressed (the session says so).
+      XCTAssertEqualWithAccuracy(insidePressed, insideRest, insideRest * 0.002, @"%@: an inert control looks pressed",
+                                 item[@"inputs"]);
+    } else {
+      XCTAssertLessThan(insidePressed, insideRest * 0.9, @"%@: a press is clearly visible", item[@"inputs"]);
+    }
   }
 }
 
