@@ -2508,6 +2508,40 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     three-launch protocol of the record (collection, reuse, reuse after removing the app's com.apple.metal cache).
     The library stage is the next lot (lot 8): redundant creations first; a creation deferred to first use counts as
     a gain only where it removes work instead of moving it.
+- **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov; owner: this
+  session, integration and Core build; open; Core 715 = Core 713 + adapt_extra_set_binds + adapt_array_reference_deltas,
+  frozen `28c53540`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
+  - Goal: less render-thread work per frame and fewer repeated native compilations, every title, same draws and results.
+  - Base: Core 713 validated (contract `01e2f624`, run 42689230667 attempt 3, binary `ff3f2333…`).
+  - Fix 1 (DescriptorSetUpdater.cs): an update of the uniform or storage set alone looked the bindless array set up
+    again and bound it again (lot 3 lever 2). Every event that can change or disturb an extra set raises the texture or
+    image flag (another program, CopyFrom, a new command buffer and the helper shaders' restore: all four; the separate
+    array setters and bound arrays' element changes: their set); lower sets are bound with the same layout. Without
+    either flag, texture, sampler and image array sets stay bound; buffer arrays keep the delivered path.
+  - Fix 2 (TextureArray.cs): after an element change in the same command buffer, AddReferences called Get again on every
+    distinct view and sampler (IPA 694: 33 268 passes, 2 094 605 references, 241.1 ms per 108 frames; lot 3 lever 3).
+    Auto.Get adds one reference per command buffer and a referenced resource lives until that command buffer completes:
+    only the views and samplers counted since the last pass are referenced (bounded 1 024; beyond, or a recount, whole).
+  - Gates (production code, Vulkan doubled; not MoltenVK, not a device): extra-set-binds, 380 observations identical in
+    control and candidate (trace `c53d8f40…`, texture, buffer texture and image arrays, layout disturbance rule); 2 000
+    uniform-only dispatches: array set lookups 2 000 -> 0, binds 4 000 -> 2 000; a variant ignoring the texture flag
+    reads a stale array. array-reference-deltas, whole production TextureArray, 2 044 binds in the Hogwarts pattern:
+    same descriptors (trace `92c76272…`), sets, binds, barriers, invalidations, ownership of every referenced view;
+    references added 1 303 291 -> 154 752, Gets 1 307 565 -> 156 226; policy off identical; a variant that does not
+    reference new views fails. Ten bound gates rerun green (two harnesses taught the new replacements, as for Core 705).
+    [Receipts](evidence/melonx-715-gates/run.json).
+  - Independent review (rb-core-review, source only): no actionable defect; every path that can disturb or stale an
+    extra set raises the texture or image flag, and every delta pass follows a whole pass of the same command buffer
+    and submission. Checked after it: CommandBufferPool.SubmissionCount grows at every submission of an index; array
+    setters run on the render thread (threaded commands). Not judged: MoltenVK re-encoding bound sets in a new encoder
+    (the delivered early return already depends on it).
+  - Not claimed: render-thread milliseconds on the iPhone, FPS. To read on the next device run (same route, 1x): the
+    pass detail line's array reference passes and references added, array current binds, descriptors in draw and compute
+    prepare against 1 121 / 394 ms per 108 frames.
+  - Next (Metal libraries): MoltenVK v1.4.2 keeps libraries per VkPipelineCache; MeloNX's workers take any work item and
+    compile into their own cache, merged into main only before a recycle, so variants of one new program on two workers
+    convert and compile the same MSL twice in a session. Candidate fix: a bounded play-time merge of the worker's cache
+    into main by the owning worker under the main lock, so the next worker's main lookup finds the library.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
