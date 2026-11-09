@@ -90,6 +90,12 @@ CONTROL = WORK / 'control'
 shutil.copytree(FINAL_SOURCE, CONTROL, ignore=ignore_tree(FINAL_SOURCE), symlinks=True)
 
 # --- Control: the adapters reversed (latest first), the native files reversed; both must be the Core 663 bytes ---
+# Core 715: a later adapter that edits these adapters' files (adapt_array_reference_deltas: TextureArray.cs) is reversed
+# first, latest first, as melonx_adapter_control does; its own gate executes it.
+LATER = [later for later in control_tools.ORDER[control_tools.ORDER.index(NAMES[-1]) + 1:]
+         if set(__import__(later).BASELINE) & set().union(*(set(module.BASELINE) for module in ADAPTERS))]
+for name in reversed(LATER):
+    control_tools._reverse(name, CONTROL)
 for name in reversed(NAMES):
     control_tools._reverse(name, CONTROL)
 for module in ADAPTERS:
@@ -114,6 +120,14 @@ for module in ADAPTERS:
 for module in ADAPTERS:
     changed = sorted(str(p.relative_to(forward)) for p in module.apply(forward))
     check(changed == sorted(module.BASELINE), module.__name__ + ' changes only its files')
+# Core 715: then the later adapters sharing these files, in preparation order.
+for later in LATER:
+    module = __import__(later)
+    for name in module.BASELINE:
+        if not (forward / name).exists():
+            (forward / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(CONTROL / name, forward / name)
+    module.apply(forward)
 for module in ADAPTERS:
     for name in module.BASELINE:
         check((forward / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapters: ' + name)

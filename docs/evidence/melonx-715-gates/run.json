@@ -1,0 +1,195 @@
+{
+ "schema": 1,
+ "date": "2026-11-09",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": 715,
+ "lot": "MeloNX lot 8: render CPU (descriptor sets and array references)",
+ "base": {
+  "core": 713,
+  "contract": "01e2f624",
+  "validatedRun": 42689230667,
+  "attempt": 3,
+  "iphoneBinary": "ff3f2333ed950bfbd9f3691b653ffbefdd19a48e627e0749e92e2f57631d918f"
+ },
+ "deviceBaseline": "IPA 694 (Core 699), Hogwarts Legacy 1x, pid 40200, 108 frames at 5 005 ms: descriptors 1 121.1 ms in draw prepare (131 351 draws) and 394.2 ms in compute prepare (10 662 dispatches); texture array reference passes 33 268 for about 3 490 submissions, 2 094 605 references, 241.1 ms (lot 3, board)",
+ "change": {
+  "adapt_extra_set_binds": {
+   "file": "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+   "what": "an update of the main sets alone (uniform/storage) keeps the texture, sampler and image array sets of extra set indices bound: no TextureArray/ImageArray.GetDescriptorSets lookup, no vkCmdBindDescriptorSets; buffer arrays keep the delivered path",
+   "why": "every event that can change or disturb an extra set raises the texture or image flag; the extra sets and the lower sets are bound with the program's own layout"
+  },
+  "adapt_array_reference_deltas": {
+   "file": "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
+   "what": "AddReferences in the command buffer and submission of its last pass references only the views and samplers counted since (bounded 1 024 per array; beyond, or a recount, the whole pass)",
+   "why": "Auto.Get adds one reference per command buffer; a referenced resource lives until its command buffer completes"
+  }
+ },
+ "measures": {
+  "kind": "production members (updater) and the whole production TextureArray, Vulkan doubled; not MoltenVK, not a device",
+  "extraSetBinds": {
+   "observations": 380,
+   "traceSha256": "c53d8f4036bce1089a04f0ff89b1f8f3509375e1640104d92884a33f8f5b29b1",
+   "loops": {
+    "control": {
+     "uniformEachDispatch": {
+      "writes": 2000,
+      "binds": 4000,
+      "allocations": 2000,
+      "descriptors": 4000,
+      "arraySetLookups": 2000,
+      "ms": 1.16
+     },
+     "unchanged": {
+      "writes": 0,
+      "binds": 0,
+      "allocations": 0,
+      "descriptors": 0,
+      "arraySetLookups": 0,
+      "ms": 0.25
+     },
+     "storageEachDispatch": {
+      "writes": 2000,
+      "binds": 4000,
+      "allocations": 2000,
+      "descriptors": 6000,
+      "arraySetLookups": 2000,
+      "ms": 1.16
+     },
+     "arrayChangeEvery8": {
+      "writes": 2250,
+      "binds": 4250,
+      "allocations": 2250,
+      "descriptors": 5000,
+      "arraySetLookups": 2000,
+      "ms": 4.6
+     }
+    },
+    "candidate": {
+     "uniformEachDispatch": {
+      "writes": 2000,
+      "binds": 2000,
+      "allocations": 2000,
+      "descriptors": 4000,
+      "arraySetLookups": 0,
+      "ms": 0.85
+     },
+     "unchanged": {
+      "writes": 0,
+      "binds": 0,
+      "allocations": 0,
+      "descriptors": 0,
+      "arraySetLookups": 0,
+      "ms": 0.22
+     },
+     "storageEachDispatch": {
+      "writes": 2000,
+      "binds": 2000,
+      "allocations": 2000,
+      "descriptors": 6000,
+      "arraySetLookups": 0,
+      "ms": 0.85
+     },
+     "arrayChangeEvery8": {
+      "writes": 2250,
+      "binds": 2500,
+      "allocations": 2250,
+      "descriptors": 5000,
+      "arraySetLookups": 250,
+      "ms": 4.12
+     }
+    }
+   }
+  },
+  "arrayReferenceDeltas": {
+   "sameDescriptorsWritten": true,
+   "trace": "92c76272a6586c2b",
+   "binds": 2044,
+   "violations": 0,
+   "referencePasses": 1582,
+   "referencesAddedControl": 1303291,
+   "referencesAddedCandidate": 154752,
+   "getsControl": 1307565,
+   "getsCandidate": 156226,
+   "policyOffIdentical": true,
+   "sensitivityVariantFailed": true
+  }
+ },
+ "gatesRun": {
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "d3b0ea958ed0ae2c10922e06b1707a9806309fc14bbc3df49ca7b3870003501b",
+   "checks": 66
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "9a59e3533ed82c21e28b4d3284646b29f682791bed8596493ca2213694c03373",
+   "checks": 172
+  },
+  "scalar-texture-descriptors": {
+   "report": "scalar-texture-descriptor-checks.json",
+   "sha256": "59bbce9ccb591a2a04df046140fc3ac56570a60d828e691586699a5e2f88a2ba",
+   "checks": null
+  },
+  "fallback-descriptor-scratch": {
+   "report": "fallback-descriptor-scratch-checks.json",
+   "sha256": "e9e4a5cafbdf4bb24dd1b0d37dc024cd320a3f27936d7457939b00e77d88bfde",
+   "checks": null
+  },
+  "single-resource-bindings": {
+   "report": "single-resource-binding-checks.json",
+   "sha256": "fb9c0a1f795b316a8fef3614ebe234ca409a78d7679c4d19dc6fdd1dbab2d528",
+   "checks": null
+  },
+  "bounded-binding-snapshots": {
+   "report": "bounded-binding-snapshot-checks.json",
+   "sha256": "e4f32d0d8d6be63618c8a75b1ed1b8b543757542d9864ca23221dd97a3977b77",
+   "checks": null
+  },
+  "artifact-counters": {
+   "report": "artifact-counters-checks.json",
+   "sha256": "8c1607992ce0336cce1e6c2b6e1e0adca9a06195dfca7a79c5ec5e212450b2e4",
+   "checks": 118
+  },
+  "bindless-retention": {
+   "report": "bindless-retention-checks.json",
+   "sha256": "1a749ea167250a4186c505a2ae0eeb32a47d0507405b9f33eb5324136563dcab",
+   "checks": 312
+  },
+  "core667-fixes": {
+   "report": "core667-fixes-checks.json",
+   "sha256": "fbf00eb644fa316566068192d7ffbe905f03dcdfa96f1044781203ba859514b1",
+   "checks": 55
+  },
+  "same-program-descriptors": {
+   "report": "same-program-descriptors-checks.json",
+   "sha256": "d7b895ee2d4f85b5eb4cf41f8b74b57ede0bd8a98de0f93059e9f35e70e4b2bc",
+   "checks": 79
+  },
+  "extra-set-binds": {
+   "report": "extra-set-binds-checks.json",
+   "sha256": "cfd1faf8ca9294664fee37ea4f7b937c800aa050d3e8eebbba4c654ed04b35fb",
+   "checks": 154
+  },
+  "array-reference-deltas": {
+   "report": "array-reference-deltas-checks.json",
+   "sha256": "b116bb9feabb59e139533f48cd8a300a44871d2831607d0abc9d0de1486cee69",
+   "checks": 46
+  }
+ },
+ "otherReceiptsForFreeze": "62 receipts of the Core 713 freeze (control files only), unchanged gates",
+ "gateHarnessChanges": {
+  "test/melonx_descriptor_encoding_final.py": "the final DescriptorSetUpdater compared without adapt_extra_set_binds' three replacements too (as Core 705's); its own gate executes them",
+  "test/melonx_core667_fixes_test.py": "later adapters sharing its files (adapt_array_reference_deltas: TextureArray.cs) reversed first for the control and re-applied in the forward check",
+  "test/melonx_adapter_control.py": "ORDER gains the two adapters"
+ },
+ "contract": {
+  "sha256": "28c535401eb20789157a968a64cbe9392538c903b825eaed48e44e2fb814984f",
+  "preparationInputs": 193,
+  "preparedMembers": 206,
+  "freshAppleGates": 74,
+  "contractTestChecks": 445
+ },
+ "physicalDeviceTested": false,
+ "ipa": "none (maintainer)",
+ "ciRuns": []
+}

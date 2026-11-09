@@ -70,7 +70,9 @@
   "build-utils/melonx/adapt_retention_chain.py",
   "build-utils/melonx/adapt_short_cache_reuse.py",
   "build-utils/melonx/adapt_pipeline_variant_replay.py",
-  "build-utils/melonx/adapt_pipeline_snapshot_retire.py"
+  "build-utils/melonx/adapt_pipeline_snapshot_retire.py",
+  "build-utils/melonx/adapt_extra_set_binds.py",
+  "build-utils/melonx/adapt_array_reference_deltas.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -3610,6 +3612,58 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+   ]
+  },
+  {
+   "name": "extra-set-binds",
+   "script": "test/melonx_extra_set_binds_test.py",
+   "report": "extra-set-binds-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionUpdaterMembersExecuted": true,
+    "comparison.sameDescriptorsRead": true,
+    "comparison.sensitivityVariantFailed": true,
+    "comparison.uniformOnlyLookupsControl": 2000,
+    "comparison.uniformOnlyLookupsCandidate": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs"
+   ]
+  },
+  {
+   "name": "array-reference-deltas",
+   "script": "test/melonx_array_reference_deltas_test.py",
+   "report": "array-reference-deltas-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionTextureArrayExecuted": true,
+    "comparison.sameDescriptorsWritten": true,
+    "comparison.policyOffIdentical": true,
+    "comparison.sensitivityVariantFailed": true,
+    "comparison.violations": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs"
    ]
   }
  ]
