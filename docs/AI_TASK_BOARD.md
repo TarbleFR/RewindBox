@@ -2065,7 +2065,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     replayed key equal to the draw's for real Hogwarts states ("built but missed" 0, "ready before their first draw" > 0);
     Metal compile cost and native memory of replayed pipelines; launch to first frame unchanged; whether replays run at all
     with Hogwarts's usual 4-10 % device memory ("held for memory").
-  - Gate and bound reruns: see the CI line below. [Receipts](evidence/melonx-711-gates/run.json).
+  - Gate and bound reruns: pipeline-variant-replay 105 checks; the 27 gates bound to the four files rerun locally and
+    green on the final preparation (pipeline-cache-background now compares only the files no later adapter edits, the
+    files_edited_later rule). Contract frozen `ea2ba417` (71 fresh gates, 190 preparation inputs, 206 prepared members);
+    contract test 439 checks with the authenticated archive; the 28 fresh receipts validated against it; the freeze read
+    the other 43 gates' Core 709 CI receipts (run 42634615592) for their control files only.
+    [Receipts](evidence/melonx-711-gates/run.json). Core CI: requested by the `[melonx-dma-core]` commit (result below).
   - Device reading (next IPA with Core 711, two comparable launches on the same 1x route): second launch's summary lines as
     above; render-thread draw prepare "pipelines" time and present gaps on the known route. A comparison with IPA 694 is
     the cumulative result of lots 1-5, not of this lot alone.

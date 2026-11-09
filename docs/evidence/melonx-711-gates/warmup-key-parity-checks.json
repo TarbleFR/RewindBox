@@ -1,0 +1,174 @@
+{
+  "result": "passed",
+  "checks": 1371,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "472c8bff47be41e236e2b05dde07d83222c5b45cbab61f53dbeac443aebf1e21",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs": "4e3c7f9c28186c0870c2a08e2c10d50ea377c51c86f3463e5fada717e00f271b",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
+    "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "7bbef29deaed820aaa81b220557677c93130a8c3ede0ef04fb87b1453ada9c97"
+  },
+  "summary": {
+    "controlGeometryAsComputeMisses": 195,
+    "mergedRestartPairs": [
+      [
+        "moltenVkShipped",
+        "Points"
+      ],
+      [
+        "moltenVkShipped",
+        "Lines"
+      ],
+      [
+        "moltenVkShipped",
+        "LineStrip"
+      ],
+      [
+        "moltenVkShipped",
+        "Triangles"
+      ],
+      [
+        "moltenVkShipped",
+        "TriangleStrip"
+      ],
+      [
+        "moltenVkShipped",
+        "Quads"
+      ],
+      [
+        "moltenVkShipped",
+        "QuadStrip"
+      ],
+      [
+        "moltenVkShipped",
+        "LinesAdjacency"
+      ],
+      [
+        "moltenVkShipped",
+        "TrianglesAdjacency"
+      ],
+      [
+        "moltenVkShipped",
+        "Patches"
+      ],
+      [
+        "moltenVkPrivateApi",
+        "Patches"
+      ],
+      [
+        "vulkanNoListRestart",
+        "Points"
+      ],
+      [
+        "vulkanNoListRestart",
+        "Lines"
+      ],
+      [
+        "vulkanNoListRestart",
+        "Triangles"
+      ],
+      [
+        "vulkanNoListRestart",
+        "Quads"
+      ],
+      [
+        "vulkanNoListRestart",
+        "LinesAdjacency"
+      ],
+      [
+        "vulkanNoListRestart",
+        "TrianglesAdjacency"
+      ],
+      [
+        "vulkanNoListRestart",
+        "Patches"
+      ],
+      [
+        "vulkanListRestart",
+        "Patches"
+      ]
+    ],
+    "createdChanges": [
+      [
+        "moltenVkShipped",
+        "LineStrip",
+        false
+      ],
+      [
+        "moltenVkShipped",
+        "TriangleStrip",
+        false
+      ],
+      [
+        "moltenVkShipped",
+        "QuadStrip",
+        false
+      ]
+    ],
+    "loggedTopologyMiss": " Differs from warm-up: Topology warm-up=TriangleList draw=TriangleStrip; PrimitiveRestartEnable warm-up=False draw=True",
+    "loggedRestartMiss": " Differs from warm-up: PrimitiveRestartEnable warm-up=False draw=True"
+  },
+  "gpuReports": {
+    "control": {
+      "variant": "control",
+      "checks": 2,
+      "cases": 42,
+      "outputTopology": {
+        "0": "Points",
+        "1": "Points",
+        "2": "LineStrip",
+        "3": "TriangleStrip",
+        "4": "Points",
+        "6": "Points"
+      },
+      "structSize": 1460
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 128,
+      "cases": 42,
+      "outputTopology": {
+        "0": "Points",
+        "1": "Points",
+        "2": "LineStrip",
+        "3": "TriangleStrip",
+        "4": "Points",
+        "6": "Points"
+      },
+      "structSize": 1460
+    }
+  },
+  "moltenVkSourceChecked": true,
+  "moltenVkSources": {
+    "GPUObjects/MVKPipeline.mm": "ed60a03a3e6d79220303e3b470da837909973d4f80686fec33e9f5e5cef6964f",
+    "GPUObjects/MVKDevice.mm": "e93c8fe096d9c9f8c0b02da6443bc820dc42ca4340b122cc8dd11721ad7e9b8d",
+    "Commands/MVKCmdDraw.mm": "26471c8a9a2bb572f58b479caf1710b89a5b10fb47cd582066bdb09d71189706",
+    "Commands/MVKCommandEncoderState.mm": "94b679b9e3e65077ca6283b4b9fed586c0fc05d6bcfc14e2cc33b0f1505ee548",
+    "Commands/MVKCommandEncoderState.h": "198d81e4f3f87486168b284c994687d195d5db2ca52f247201d0f16da484d007"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": [
+    "src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj",
+    "src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj"
+  ],
+  "nativeCallsUsed": false,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "1a11f59afef17d15c2985e85331c154b868d02c368586534b475c1b5f7ecc20f",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs": "e6a66e1a7189dfaeccbaab1039470e3c5d7c4f090594adf362af78f53f368d5c",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "794d71969e13edf5088df6d748be10725d9db0bc71f0bc0dc4ca9e059ee75fd2",
+    "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "35bbc463990a1922d47b96fdc98a04dc56d6b68723fbc13567605eb529362551"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_warmup_key_parity.py": "fc3ee4f8f4957fe1d5953af0563ea7cbb9a3f904188f302855e287dd4549ba5b",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_adapter_control.py": "523576a3b8171fdf0eb35e7e789bc6177e0addedb621f4695fc9e6f55b9a4672",
+    "test/melonx_warmup_key_parity_test.py": "bafcd2a89c13e68d6f132024e900660cec349f87857c50c6a37aa099bea151ab",
+    "test/melonx_warmup_key_parity/gpu/Program.cs": "ddcf8372d4eb82d3ff4aaecdcbee91a796a446b854d3ee4c5ab0442963721679",
+    "test/melonx_warmup_key_parity/vulkan/Program.cs": "0f387cda83ac0cb016fa86d67a0975dfb5d82891342834c0a11ff6ca80060c7e",
+    "build-utils/melonx/build_moltenvk_rebuild.py": "3a627445b1d2d470ea5386c23e7e8b70cf75e5a1e71d4964393648c3d7633f4f",
+    "build-utils/melonx/moltenvk-rebuild.json": "8dae0b99cd2811981cec16c5bbe791f220552221d0ebda6278ff408c23fb7d70"
+  },
+  "limitation": "Host fixture of the keys, the created restart value and the warm-up state; the number of render-thread pipeline builds and stalls in Hogwarts Legacy is known only from a device run."
+}
