@@ -422,6 +422,10 @@ PROGRAM_FIELDS_NEW = '''        private bool _playTimeWarmUp;
         // RewindBox (adapt_pipeline_variant_replay): a guest graphics program records its late states; its queued replays.
         private bool _recordsVariants;
         private List<Task> _variantTasks;
+        // Pipelines a replay built that no draw has bound yet (by handle): the first bind proves the state was ready first.
+        private readonly object _replayedLock = new();
+        private Dictionary<ulong, PipelineVariantJournal.Record> _replayedUnused;
+        private int _replayedUnusedCount;
 '''
 
 PROGRAM_CTOR_OLD = '''            _state = state;
@@ -554,6 +558,15 @@ PROGRAM_METHODS_NEW = '''        // RewindBox (adapt_pipeline_variant_replay): a
 
                     _gd.ThrowIfBackgroundPipelineFailed();
 
+                    lock (_pipelineCacheLock)
+                    {
+                        if (_graphicsPipelineCache != null && _graphicsPipelineCache.TryGetValue(ref key, out _))
+                        {
+                            compileMs = -2; // a draw created it while this waited in the queue
+                            return;
+                        }
+                    }
+
                     using DisposableRenderPass renderPass = state.CreateVariantRenderPass(_gd, _device, colorSlots);
                     long start = System.Diagnostics.Stopwatch.GetTimestamp();
 
@@ -569,6 +582,12 @@ PROGRAM_METHODS_NEW = '''        // RewindBox (adapt_pipeline_variant_replay): a
                     if (pipeline != null)
                     {
                         compileMs = (long)System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+
+                        lock (_replayedLock)
+                        {
+                            (_replayedUnused ??= new())[pipeline.GetUnsafe().Value.Handle] = record;
+                            Volatile.Write(ref _replayedUnusedCount, _replayedUnused.Count);
+                        }
                     }
                 }, highPriority: false);
 
@@ -616,7 +635,7 @@ PROGRAM_METHODS_NEW = '''        // RewindBox (adapt_pipeline_variant_replay): a
 
         // Called by a draw that obtained a pipeline this program had not built for its state (created on the render thread,
         // or joined from a queued compile): recorded for the next launch, except the warm-up's own state.
-        internal void NoteLateVariant(ref PipelineState state, FramebufferParams framebuffer, TimeSpan elapsed, bool joined)
+        internal void NoteLateVariant(ref PipelineState state, FramebufferParams framebuffer, TimeSpan elapsed, bool joined, ulong pipelineHandle)
         {
             PipelineVariantJournal journal = _gd.PipelineCacheManager?.Variants;
 
@@ -636,7 +655,44 @@ PROGRAM_METHODS_NEW = '''        // RewindBox (adapt_pipeline_variant_replay): a
                 StableHash,
                 state.WriteVariant(framebuffer.AttachmentIndices.AsSpan(0, framebuffer.ColorAttachmentsCount)),
                 (long)elapsed.TotalMilliseconds,
-                joined);
+                joined,
+                replayJoined: TakeReplayed(pipelineHandle, out _));
+        }
+
+        // A draw bound this pipeline: the first bind of one a replay built counts it as ready before its first demand.
+        internal void NotePipelineBound(ulong pipelineHandle)
+        {
+            if (Volatile.Read(ref _replayedUnusedCount) == 0)
+            {
+                return;
+            }
+
+            if (TakeReplayed(pipelineHandle, out PipelineVariantJournal.Record record))
+            {
+                _gd.PipelineCacheManager?.Variants?.NoteReplayUsed(record);
+            }
+        }
+
+        private bool TakeReplayed(ulong pipelineHandle, out PipelineVariantJournal.Record record)
+        {
+            record = null;
+
+            if (Volatile.Read(ref _replayedUnusedCount) == 0)
+            {
+                return false;
+            }
+
+            lock (_replayedLock)
+            {
+                if (_replayedUnused == null || !_replayedUnused.Remove(pipelineHandle, out record))
+                {
+                    return false;
+                }
+
+                Volatile.Write(ref _replayedUnusedCount, _replayedUnused.Count);
+
+                return true;
+            }
         }
 
         // Replay compiles no draw has demanded are cancelled with the warm-up (disposal and close).
@@ -699,6 +755,23 @@ DRAW_END_OLD = '''                        else if (pipeline == null)
                     }
                 }
 '''
+DRAW_BIND_OLD = '''                if (_currentPipelineHandle != pipelineHandle)
+                {
+                    _currentPipelineHandle = pipelineHandle;
+                    Pipeline = pipeline;
+'''
+DRAW_BIND_NEW = '''                if (_currentPipelineHandle != pipelineHandle)
+                {
+                    _currentPipelineHandle = pipelineHandle;
+                    Pipeline = pipeline;
+
+                    // RewindBox (adapt_pipeline_variant_replay): the first bind of a replayed pipeline (a count check otherwise).
+                    if (pbp == PipelineBindPoint.Graphics)
+                    {
+                        _program.NotePipelineBound(pipelineHandle);
+                    }
+'''
+
 DRAW_END_NEW = '''                        else if (pipeline == null)
                         {
                             pipeline = _newState.CreateGraphicsPipeline(Gd, Device, _program, PipelineCache, renderPass.Get(Cbs).Value);
@@ -707,7 +780,9 @@ DRAW_END_NEW = '''                        else if (pipeline == null)
                         // RewindBox (adapt_pipeline_variant_replay): a state this program had not built: recorded for the next launch.
                         if (pipeline != null)
                         {
-                            _program.NoteLateVariant(ref _newState, FramebufferParams, System.Diagnostics.Stopwatch.GetElapsedTime(lateStart), lateJoined);
+                            _program.NoteLateVariant(
+                                ref _newState, FramebufferParams, System.Diagnostics.Stopwatch.GetElapsedTime(lateStart), lateJoined,
+                                pipeline.GetUnsafe().Value.Handle);
                         }
                     }
                 }
@@ -861,9 +936,12 @@ MANAGER_CLASS_NEW = '''    }
         private readonly List<(ulong Program, ITarget Target)> _pendingOffers = new();
         private readonly List<(Record Record, ITarget Target)> _ready = new();
         private readonly HashSet<(ulong, ulong)> _notedThisSession = new();
-        // Failure markers (program, variant) with the session they were written in: a failed variant is neither replayed nor
-        // recorded again for RecentSessions sessions; compaction keeps the markers.
-        private readonly Dictionary<(ulong, ulong), uint> _failed = new();
+        // Failure markers (program, variant): the session of the last failure and the number of sessions in which its replay
+        // failed (strikes). One strike: retried at the next launch. Two: not replayed for RecentSessions sessions. A creation
+        // that fails while device memory is short, a renderer failure or a cancellation is temporary and leaves no strike; a
+        // draw that creates the state successfully clears the marker (the state is valid). Compaction keeps the markers.
+        internal const int SuppressingStrikes = 2;
+        private readonly Dictionary<(ulong, ulong), (uint Session, byte Strikes)> _failed = new();
         private uint _session = 1;
         private bool _loaded;
         private bool _stopped;
@@ -873,8 +951,9 @@ MANAGER_CLASS_NEW = '''    }
         private long _replayTicksStarted;
 
         // Counters of this session (summary lines).
-        internal int Loaded, Dropped, Planned, Replayed, ReplayFailed, ReplaySkipped, Joined, LateNew, LatePlanned, LateAfterBuilt, LateAfterFailed;
-        internal long JoinedMs, LateMs, QueueWaitMs;
+        internal int Loaded, Dropped, Planned, Replayed, ReplayFailed, ReplayTemporary, ReplayCancelled, ReplaySkipped, MemoryHolds;
+        internal int ReadyBeforeUse, JoinedReplay, JoinedOther, LateNew, LatePlanned, LateAfterBuilt, LateAfterFailed;
+        internal long JoinedReplayMs, JoinedOtherMs, LateMs, QueueWaitMs;
 
         public PipelineVariantJournal(string path, ulong schema, Func<int> devicePercent, bool loadInBackground = true)
         {
@@ -959,10 +1038,14 @@ MANAGER_CLASS_NEW = '''    }
 
                             if (failure)
                             {
-                                _failed[key] = Math.Max(record.LastSession, _failed.TryGetValue(key, out uint earlier) ? earlier : 0);
+                                _failed[key] = (record.LastSession, (byte)record.Sessions);
                                 _session = Math.Max(_session, record.LastSession + 1);
                                 continue;
                             }
+
+                            // A variant line after a failure marker: a draw created it successfully since (or its strike was
+                            // written before the variant was refreshed): the state is valid, the marker is cleared.
+                            _failed.Remove(key);
 
                             if (_records.TryGetValue(key, out Record previous))
                             {
@@ -995,7 +1078,7 @@ MANAGER_CLASS_NEW = '''    }
 
             foreach (var marker in new List<(ulong, ulong)>(_failed.Keys))
             {
-                if (_failed[marker] + RecentSessions < _session)
+                if (_failed[marker].Session + RecentSessions < _session)
                 {
                     _failed.Remove(marker); // a failure 8 sessions old may be retried (the state may build now)
                     rewrite = true;
@@ -1004,10 +1087,9 @@ MANAGER_CLASS_NEW = '''    }
 
             foreach (Record record in _records.Values)
             {
-                if (_failed.ContainsKey((record.Program, record.Id)))
+                if (_failed.TryGetValue((record.Program, record.Id), out var marker) && marker.Strikes >= SuppressingStrikes)
                 {
-                    failed++;
-                    rewrite = true;
+                    failed++; // failed in two sessions: not replayed while the marker lasts (its line is kept)
                 }
                 else if (record.LastSession + RecentSessions < _session)
                 {
@@ -1117,8 +1199,16 @@ MANAGER_CLASS_NEW = '''    }
                     int limit = _replayMs > 0 && Replayed > 0 && _replayMs / Math.Max(1, Replayed) >= CostlyReplayMs ? 1 : MaxInFlight;
 
                     if (_stopped || _ready.Count == 0 || _inFlight >= limit || Replayed + ReplayFailed + _inFlight >= MaxReplaysPerSession ||
-                        _replayMs >= ReplayWorkBudgetMs || _devicePercent() <= LowDevicePercent)
+                        _replayMs >= ReplayWorkBudgetMs)
                     {
+                        return;
+                    }
+
+                    // Speculative work only: a draw that needs a state creates it (or joins a replay already queued) whatever
+                    // the memory; replays wait for the device to have more than LowDevicePercent available.
+                    if (_devicePercent() <= LowDevicePercent)
+                    {
+                        MemoryHolds++;
                         return;
                     }
 
@@ -1161,7 +1251,10 @@ MANAGER_CLASS_NEW = '''    }
             Exception error = task.IsFaulted ? task.Exception?.InnerException : null;
             bool cancelled = error is ObjectDisposedException || task.IsCanceled;
             long compileMs = task.Status == TaskStatus.RanToCompletion ? task.Result : -2;
-            bool failed = compileMs == -1;
+            // The driver refused this state (creation returned no pipeline) while memory was not short: a strike. A refusal
+            // under memory pressure, a renderer failure or an exception is temporary (no strike).
+            bool refused = compileMs == -1;
+            bool failed = refused && _devicePercent() > LowDevicePercent;
             byte[] line = null;
 
             lock (_lock)
@@ -1170,6 +1263,7 @@ MANAGER_CLASS_NEW = '''    }
 
                 if (cancelled)
                 {
+                    ReplayCancelled++;
                     _stopped = true; // the closing renderer cancelled it: no more replays this session
                     record.Status = State.Planned;
                 }
@@ -1178,25 +1272,30 @@ MANAGER_CLASS_NEW = '''    }
                     Replayed++;
                     _replayMs += compileMs;
                     QueueWaitMs += Math.Max(0, Environment.TickCount64 - start - compileMs);
-                    record.Status = State.Built;
+                    record.Status = State.Built; // refreshed when a draw uses it (NoteReplayUsed), not for being built
 
-                    // Prepared this session: it stays among the recent ones (a draw that finds it built never notes it).
-                    if (record.LastSession != _session)
+                    if (_failed.Remove((record.Program, record.Id)))
                     {
-                        record.LastSession = _session;
-                        line = Encode(record, KindVariant);
+                        line = Encode(record, KindVariant); // built after a strike: the marker is cleared (the line follows it)
                     }
                 }
                 else if (failed)
                 {
                     ReplayFailed++;
                     record.Status = State.Failed;
-                    _failed[(record.Program, record.Id)] = _session;
-                    line = EncodeFailure(record.Program, record.Id, _session);
+                    var key = (record.Program, record.Id);
+                    byte strikes = (byte)(_failed.TryGetValue(key, out var marker) ? (marker.Session == _session ? marker.Strikes : marker.Strikes + 1) : 1);
+                    _failed[key] = (_session, strikes);
+                    line = EncodeFailure(record.Program, record.Id, _session, strikes);
+                }
+                else if (refused || error != null)
+                {
+                    ReplayTemporary++; // under memory pressure, or the renderer's failure: retried at the next launch
+                    record.Status = State.Failed; // not again this session
                 }
                 else
                 {
-                    ReplaySkipped++; // the renderer's own failure, or a program that went away: not the variant's fault
+                    ReplaySkipped++; // the program went away or was closing
                     record.Status = State.Planned;
                 }
             }
@@ -1211,7 +1310,8 @@ MANAGER_CLASS_NEW = '''    }
 
         // After a draw obtained a pipeline its program had not built for this state (created on the render thread, or
         // joined from a queued compile). Once per variant per session; the line is written off the render thread.
-        public void NoteLate(ulong program, byte[] variant, long elapsedMs, bool joined)
+        // replayJoined: the pipeline the draw obtained is one a replay built (it waited for it, or found it just finished).
+        public void NoteLate(ulong program, byte[] variant, long elapsedMs, bool joined, bool replayJoined = false)
         {
             ulong id = Checksum64(variant);
             var key = (program, id);
@@ -1227,22 +1327,22 @@ MANAGER_CLASS_NEW = '''    }
                 }
 
                 bool known = _records.TryGetValue(key, out record);
+                bool markedFailed = _failed.Remove(key); // the draw obtained it: a valid state, its marker is cleared
 
-                if (_failed.ContainsKey(key))
+                if (replayJoined)
                 {
-                    if (!joined)
-                    {
-                        LateMs += elapsedMs;
-                        LateAfterFailed++;
-                    }
-
-                    return; // marked failed: neither replayed nor recorded again while the marker lasts
+                    JoinedReplay++;
+                    JoinedReplayMs += elapsedMs;
                 }
-
-                if (joined)
+                else if (joined)
                 {
-                    Joined++;
-                    JoinedMs += elapsedMs;
+                    JoinedOther++;
+                    JoinedOtherMs += elapsedMs;
+                }
+                else if (markedFailed)
+                {
+                    LateMs += elapsedMs;
+                    LateAfterFailed++;
                 }
                 else
                 {
@@ -1258,9 +1358,11 @@ MANAGER_CLASS_NEW = '''    }
                     }
                     else if (record.Status == State.Built)
                     {
-                        // Built this session, yet the draw missed it: a key that differs, or the rare draw whose own creation
-                        // found the replay's pipeline just finished (it creates nothing then).
-                        LateAfterBuilt++;
+                        LateAfterBuilt++; // built this session, yet the draw missed it: a key that differs (expected 0)
+                    }
+                    else if (record.Status == State.Failed)
+                    {
+                        LateAfterFailed++; // its replay failed this session
                     }
                 }
 
@@ -1305,6 +1407,30 @@ MANAGER_CLASS_NEW = '''    }
             ThreadPool.UnsafeQueueUserWorkItem(_ => Append(line), null);
         }
 
+        // A draw bound a pipeline a replay built before any draw asked for it: the state was ready before its first demand.
+        // It stays among the recent ones (a draw that finds it built never notes it late).
+        public void NoteReplayUsed(Record record)
+        {
+            byte[] line = null;
+
+            lock (_lock)
+            {
+                ReadyBeforeUse++;
+
+                if (record.LastSession != _session)
+                {
+                    record.Sessions = (ushort)Math.Min(ushort.MaxValue, record.Sessions + 1);
+                    record.LastSession = _session;
+                    line = Encode(record, KindVariant);
+                }
+            }
+
+            if (line != null)
+            {
+                ThreadPool.UnsafeQueueUserWorkItem(_ => Append(line), null);
+            }
+        }
+
         // Stops scheduling (close): queued compiles are cancelled by the scheduler itself.
         public void Stop()
         {
@@ -1326,11 +1452,13 @@ MANAGER_CLASS_NEW = '''    }
                     planned += list.Count;
                 }
 
-                return $"Pipeline variants ({window}): replayed {Replayed} (compile {_replayMs} ms, queue wait {QueueWaitMs} ms), failed " +
-                    $"{ReplayFailed}, skipped {ReplaySkipped}, in flight {_inFlight}, still planned {planned}; draws joined a queued compile " +
-                    $"{Joined} ({JoinedMs} ms); late creations {LateNew + LatePlanned + LateAfterBuilt + LateAfterFailed} ({LateMs} ms): new " +
-                    $"{LateNew}, planned not built yet {LatePlanned}, built but missed {LateAfterBuilt}, failed before {LateAfterFailed} " +
-                    "(adapt_pipeline_variant_replay).";
+                return $"Pipeline variants ({window}): ready before their first draw {ReadyBeforeUse}; draws that joined a replay " +
+                    $"{JoinedReplay} (waited {JoinedReplayMs} ms), joined another queued compile {JoinedOther} ({JoinedOtherMs} ms); late " +
+                    $"creations left {LateNew + LatePlanned + LateAfterBuilt + LateAfterFailed} ({LateMs} ms): new {LateNew}, planned not " +
+                    $"built yet {LatePlanned}, built but missed {LateAfterBuilt}, after a failed replay {LateAfterFailed}. Replays: built " +
+                    $"{Replayed} (compile {_replayMs} ms, queue wait {QueueWaitMs} ms), refused {ReplayFailed}, temporary failures " +
+                    $"{ReplayTemporary}, cancelled {ReplayCancelled}, skipped {ReplaySkipped}, held for memory {MemoryHolds}, in flight " +
+                    $"{_inFlight}, still planned {planned} of {Planned} (adapt_pipeline_variant_replay).";
             }
         }
 
@@ -1402,7 +1530,7 @@ MANAGER_CLASS_NEW = '''    }
 
                         foreach (var marker in _failed)
                         {
-                            stream.Write(EncodeFailure(marker.Key.Item1, marker.Key.Item2, marker.Value));
+                            stream.Write(EncodeFailure(marker.Key.Item1, marker.Key.Item2, marker.Value.Session, marker.Value.Strikes));
                         }
                     }
 
@@ -1451,9 +1579,9 @@ MANAGER_CLASS_NEW = '''    }
         }
 
         // A failure marker: kind, program, variant id and the session it was written in.
-        private static byte[] EncodeFailure(ulong program, ulong id, uint session)
+        private static byte[] EncodeFailure(ulong program, ulong id, uint session, byte strikes)
         {
-            const int BodyLength = 1 + 8 + 8 + 4;
+            const int BodyLength = 1 + 8 + 8 + 4 + 1;
             byte[] line = new byte[2 + BodyLength + 4];
             Span<byte> body = line.AsSpan(2, BodyLength);
 
@@ -1462,6 +1590,7 @@ MANAGER_CLASS_NEW = '''    }
             BitConverter.TryWriteBytes(body.Slice(1, 8), program);
             BitConverter.TryWriteBytes(body.Slice(9, 8), id);
             BitConverter.TryWriteBytes(body.Slice(17, 4), session);
+            body[21] = strikes;
             BitConverter.TryWriteBytes(line.AsSpan(2 + BodyLength, 4), Checksum(body));
 
             return line;
@@ -1472,7 +1601,7 @@ MANAGER_CLASS_NEW = '''    }
             record = null;
             failure = false;
 
-            if (body.Length == 21 && body[0] == KindFailed)
+            if (body.Length == 22 && body[0] == KindFailed && body[21] != 0)
             {
                 failure = true;
                 record = new Record
@@ -1480,6 +1609,7 @@ MANAGER_CLASS_NEW = '''    }
                     Program = BitConverter.ToUInt64(body.Slice(1, 8)),
                     Id = BitConverter.ToUInt64(body.Slice(9, 8)),
                     LastSession = BitConverter.ToUInt32(body.Slice(17, 4)),
+                    Sessions = body[21], // strikes
                 };
 
                 return true;
@@ -1558,6 +1688,7 @@ def apply(source):
     once(paths[DRAWS], DRAW_START_OLD, DRAW_START_NEW)
     once(paths[DRAWS], DRAW_JOIN_OLD, DRAW_JOIN_NEW)
     once(paths[DRAWS], DRAW_END_OLD, DRAW_END_NEW)
+    once(paths[DRAWS], DRAW_BIND_OLD, DRAW_BIND_NEW)
     once(paths[MANAGER], MANAGER_USINGS_OLD, MANAGER_USINGS_NEW)
     once(paths[MANAGER], MANAGER_PROPERTY_OLD, MANAGER_PROPERTY_NEW)
     once(paths[MANAGER], MANAGER_CTOR_OLD, MANAGER_CTOR_NEW)
