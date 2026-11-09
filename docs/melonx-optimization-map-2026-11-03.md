@@ -627,3 +627,12 @@ Inputs: private journals of IPA 684 (Hogwarts pid 26658, one 13 min session); no
 | Freeze not attributed | compute prepare 3530-3721 ms per 5 s on the render thread | the Core 685 journal times graphics only | compute compilations journaled | same gate (static) | next logs tell new from compiled again for compute |
 | Lines lost after 6:23 | 500-line stderr cap spent by the 5 s Gpu warnings | Info lines are not in the engine journal | cache and journal lines recorded in the engine journal | same gate | trims and other Info lines still go to stderr only |
 | 20-30 fps | per 5 s window p10 16.4, p50 23.6, p90 29.4; slow windows: syncInvoke 999 ms, render thread 2723 ms (fast: 475, 2129) | render-thread bound (CreateSync 368-528 ms and descriptors 233-552 ms per 5 s) | not changed in Core 687 | log reading | next lever, with a gate proving no skipped draw |
+
+## Lot 5: pipeline preparation coverage and order, Core 711 (9 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Device baseline: IPA 694 (Core 699). No IPA for this lot.
+
+| Problem | Proof | Cause | Correction | Verification | Result / limit |
+| --- | --- | --- | --- | --- | --- |
+| A cached program's second graphics state is created on the render thread in every session | source (Core 709 preparation): one warm-up per program, the translation state; nothing records other states; IPA 688/690: 27-28 pipelines compiled again in each first minute | the shader disk cache persists one ProgramPipelineState per program | Core 711 `adapt_pipeline_variant_replay`: late states recorded semantically per title, replayed ranked at low priority at the next launch, joined and promoted by a draw that needs one, bounded | gate pipeline-variant-replay (96 checks: real codec, journal and scheduler); review fixes | no device run yet: replayed vs late counts in "pipelineVariants summary" |
+| Compute variants | source: guest compute key is always SpecData.Empty | not a missing variant: first visits and warm-up order | none needed for coverage | static | compute first visits remain (a program translated in play) |
