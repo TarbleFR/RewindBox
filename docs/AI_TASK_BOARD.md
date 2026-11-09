@@ -2039,15 +2039,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     at close: replayed (compile ms, queue wait ms), failed, skipped, joined draws (wait ms), late creations new / planned not
     built yet / built but missed (key mismatch, expected 0) / failed before. Translation (SPIR-V to MSL) and Metal compile
     costs stay in MoltenVK's own stderr statistics.
-  - Gate pipeline-variant-replay (94 checks, production Ryujinx.Graphics.Vulkan built, no warning in the edited files):
+  - Independent review (rb-core-review, source only): no deadlock (lock order _pipelineCacheLock -> scheduler queue lock
+    only; the journal lock is a leaf), no queued-table race or endless join, lifetimes correct, no draw lost. Its five
+    defects are fixed: a replay that builds a state refreshes it (no ageing out once draws stop needing it late);
+    compaction at load runs before the journal is published; failure markers keep their session through compaction (a
+    failed state is neither replayed nor recorded again for 8 sessions); the minute summary re-pumps replays held back
+    by memory; a DeviceLost/out-of-memory replay failure is reported to the renderer. Checked: the rebuilt render pass
+    mirrors RenderPassHolder (compact descriptions, slot references, depth last, same dependency; per-attachment sample
+    counts taken from the key's, equal when the attachments agree). "Built but missed" also counts the rare draw whose own
+    creation found the replay just finished.
+  - Gate pipeline-variant-replay (96 checks, production Ryujinx.Graphics.Vulkan built, no warning in the edited files):
     codec on the real PipelineState, 3 000 random states: same key, hash, slots and tessellation read back, malformed
     variants refused (truncated, extra byte, bool 2, field too wide, counts, slot order); journal: first encounter once
     per session (18 of 19 notes), torn tail, other schema not read, stale after 8 sessions, 2048 kept of 2100 (596 KB),
     load 2 ms, background constructor 0 ms; real BackgroundCompilationScheduler: relaunch replays 9/9 ranked (two-session
     states first), each once; a demanded state behind 20 queued 60 ms warm-ups waited 40 ms (1 warm-up before it), 8
     simultaneous waiters, 1 compile; close during compilation: 3 of 40 executed, none after, none marked failed; a failed
-    state marked and not replayed next launch; device at 5 %: none, back at 60 %: resumes; costly replays: one in flight;
-    512 per session. Host times, no Vulkan creation.
+    state marked, not replayed and not recorded again through compaction; a state replayed in each of 10 sessions still
+    planned at session 12; device at 5 %: none, back at 60 %: resumes; costly replays: one in flight; 512 per session.
+    Host times, no Vulkan creation.
     [Receipts](evidence/melonx-711-gates/run.json).
   - Device reading (next IPA with Core 711, same 1x route twice): second launch "pipelineVariants loaded N"; summary
     "replayed" and "planned not built yet" (order/bounds), "built but missed" 0, "failed" and "new"; render-thread draw
