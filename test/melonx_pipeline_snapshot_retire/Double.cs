@@ -104,6 +104,9 @@ namespace Silk.NET.Vulkan {
         public int SnapshotLoadMs;
         public bool FailMainData;      // vkGetPipelineCacheData of main fails (a write that cannot complete)
         public long InflateMainSize;   // main's size query reports this much more (over its budget)
+        // A transient refusal of intact data (one Metal library failing to compile makes MoltenVK refuse the whole data):
+        // the next SkipSnapshots creations with data are left alone, then the next RefuseIntact ones are refused.
+        public int SkipSnapshots, RefuseIntact;
         public long HydratedBytes, HydratedEntries, IgnoredSnapshots, RefusedSnapshots, MergedSourceEntries, MergeAddedEntries;
         public readonly Dictionary<string, long> WrittenBytes = new();
         public readonly List<string> Snapshots = new();
@@ -121,6 +124,12 @@ namespace Silk.NET.Vulkan {
             var entries = new Dictionary<ulong, int>();
             if (info.InitialDataSize > 0) {
                 if (SnapshotLoadMs > 0) Thread.Sleep(SnapshotLoadMs);
+                bool refuse = false;
+                lock (_caches) {
+                    if (SkipSnapshots > 0) SkipSnapshots--;
+                    else if (RefuseIntact > 0) { RefuseIntact--; refuse = true; RefusedSnapshots++; Snapshots.Add($"{info.InitialDataSize}:refusedOnce"); }
+                }
+                if (refuse) { cache = default; return Result.ErrorInitializationFailed; }
                 var read = FixtureSupport.CacheFormat.Read(new ReadOnlySpan<byte>(info.PInitialData, (int)info.InitialDataSize),
                                                             Vendor, DeviceId, Uuid, out bool ignored, out long verified);
                 lock (_caches) {

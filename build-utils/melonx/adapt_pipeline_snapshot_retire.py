@@ -32,6 +32,11 @@ Change (PipelineCacheManager.cs only, every title):
   and left untouched otherwise (it is not overwritten with content main's file holds); in every other case (main not
   written: over budget, write failure, load still running or failed) the workers are written as before;
 - each removal and each kept file is recorded in the engine journal ("pipelineCache workerRetired/workerKept");
+- a snapshot of this device's header the driver refuses is kept at its first refusal (MoltenVK refuses the whole data
+  when one Metal library fails to compile, MVKShaderModule.mm, so a refusal may be transient): main stays Frozen for that
+  session (nothing written over its file), a worker file is kept; only a second refusal of the same file (length and
+  write time, recorded in <file>.refused) at the next launch handles it as before (main replaced by the next checkpoint,
+  the worker file removable at the close); "pipelineCache mainRefusedKept";
 - the background load compares the main snapshot's first 32 bytes with this device's header (VkPipelineCacheHeaderVersionOne
   as vkGetPipelineCacheData writes it); only when they differ, it asks the driver the size of the cache it created, and
   only when the driver kept nothing (64 bytes or less) the snapshot is handled as a rejected one: main's file counts as
@@ -89,16 +94,29 @@ ARRAYS_NEW = '''            long[] workerLengths = new long[workerSnapshots.Leng
             bool[] workerRefused = new bool[workerSnapshots.Length]; // RewindBox (adapt_pipeline_snapshot_retire)
 '''
 
-REFUSED_OLD = '''                        if (!workerAccepted)
+REFUSED_OLD = '''                        workerStaging[index] = CreateCache(workerSnapshot, $"worker {index}", out bool workerAccepted);
+
+                        if (!workerAccepted)
                         {
                             _api.DestroyPipelineCache(_device, workerStaging[index], null);
                             workerStaging[index] = default;
 '''
-REFUSED_NEW = '''                        if (!workerAccepted)
+REFUSED_NEW = '''                        bool workerForeign = !IsDeviceCacheHeader(workerSnapshot); // RewindBox (adapt_pipeline_snapshot_retire)
+                        workerStaging[index] = CreateCache(workerSnapshot, $"worker {index}", out bool workerAccepted);
+
+                        if (workerAccepted)
+                        {
+                            ClearRefusal(_workerStates[index].Path); // RewindBox (adapt_pipeline_snapshot_retire)
+                        }
+
+                        if (!workerAccepted)
                         {
                             _api.DestroyPipelineCache(_device, workerStaging[index], null);
                             workerStaging[index] = default;
-                            workerRefused[index] = true;
+                            // RewindBox (adapt_pipeline_snapshot_retire): a refusal may be transient (MoltenVK refuses the whole
+                            // data when one Metal library fails to compile): the file is kept at its first refusal, and only a
+                            // second refusal of that same file in a row lets the close remove it.
+                            workerRefused[index] = workerForeign || !FirstRefusal(_workerStates[index].Path, workerLengths[index]);
 '''
 
 JOINED_OLD = '''                                mergedWorkers++;
@@ -113,7 +131,7 @@ JOINED_NEW = '''                                mergedWorkers++;
                             }
                             else if (workerRefused[index])
                             {
-                                // RewindBox (adapt_pipeline_snapshot_retire): the driver refused that file; nothing in it to keep.
+                                // RewindBox (adapt_pipeline_snapshot_retire): refused at two launches in a row; nothing in it to keep.
                                 _workerStates[index].FileOutsideMain = false;
                             }
 '''
@@ -288,6 +306,20 @@ IGNORED_NEW = '''                bool failed = false;
                             "revision, OS version or GPU family): the driver kept nothing; written again from this session " +
                             "(adapt_pipeline_snapshot_retire)");
                     }
+                    else if (accepted)
+                    {
+                        ClearRefusal(_mainState.Path);
+                    }
+                    else if (!foreign && FirstRefusal(_mainState.Path, length))
+                    {
+                        // MoltenVK refuses the whole data when one Metal library fails to compile, so a refusal may be
+                        // transient: the first one keeps the file and leaves main Frozen this session (nothing written over
+                        // it); a second refusal of that same file in a row replaces it, as before.
+                        failed = true;
+                        Ryujinx.Common.EmbeddedLaunchDiagnostics.Record(
+                            "pipelineCache", "mainRefusedKept", detail: $"{FormatSize(length)} file refused by the driver for the first " +
+                            "time: kept, not written over this session (adapt_pipeline_snapshot_retire)");
+                    }
                 }
 '''
 
@@ -368,6 +400,52 @@ RETIRE_NEW = '''        // RewindBox (adapt_pipeline_snapshot_retire): at the cl
         {
             return snapshot.Length >= _deviceCacheHeader.Length &&
                 new ReadOnlySpan<byte>(snapshot.Pointer, _deviceCacheHeader.Length).SequenceEqual(_deviceCacheHeader);
+        }
+
+        // RewindBox (adapt_pipeline_snapshot_retire): true at the first refusal of this file (path, length, write time),
+        // recorded in <file>.refused; false when the previous launch refused the same file, or when the record cannot be
+        // written (then the refusal is handled as before).
+        private static bool FirstRefusal(string path, long length)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return false;
+            }
+
+            try
+            {
+                string marker = path + ".refused";
+                string identity = $"{length}:{File.GetLastWriteTimeUtc(path).Ticks}";
+
+                if (File.Exists(marker) && File.ReadAllText(marker) == identity)
+                {
+                    return false;
+                }
+
+                File.WriteAllText(marker, identity);
+
+                return true;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private static void ClearRefusal(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(path + ".refused");
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+            }
         }
 
         private unsafe bool IsEmptyCache(PipelineCache cache)

@@ -125,7 +125,11 @@ static class Program
             for(int n=0;n<64;n++)f.Manager.NotifyWorkerPipelineCreated(0);
             Check(Exports(f.Api,f.Manager.GetWorkerCache(0))==1&&Exports(f.Api,f.Manager.GetWorkerCache(1))==0,"workers keep independent pacing");
             f.Api.Set(f.Manager.GetWorkerCache(1),4);f.Manager.NotifyWorkerPipelineCreated(1);f.Manager.MergeAndSave();
-            Bytes(Disk(State(f.Manager,1)),f.Api.Data[f.Manager.GetWorkerCache(1)],"final flush saves subinterval worker");
+            // Core 713 (adapt_pipeline_snapshot_retire): once main's file holds a worker's content, the close removes that
+            // worker's own file instead of writing it; the content must then be in main's file (this double merges by OR).
+            string workerFile=Disk(State(f.Manager,1));byte[] workerData=f.Api.Data[f.Manager.GetWorkerCache(1)];
+            if(File.Exists(workerFile))Bytes(workerFile,workerData,"final flush saves subinterval worker");
+            else{byte[] mainFile=File.ReadAllBytes(Disk(State(f.Manager,-1)));Check(mainFile.SequenceEqual(f.Api.Data[f.Manager.MainCache])&&mainFile.Length>=workerData.Length&&workerData.Select((b,i)=>(mainFile[i]|b)==mainFile[i]).All(x=>x),"final flush saves subinterval worker (in main's file, its own file removed)");}
         }
         scenarios++;using(var f=new Fixture(pathless:true))
         {

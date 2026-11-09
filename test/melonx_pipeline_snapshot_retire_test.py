@@ -86,8 +86,9 @@ check(close.index('MergeInto(_mainState.Cache, workerCaches') < close.index('sta
 check('Interlocked.Read(ref _mainState.Generation) == Interlocked.Read(ref _mainState.SavedGeneration)' in close and
       '!_mainState.Frozen' in close and 'Maintain(state, force: true, allowRecycle: false);' in close,
       'a worker is removed only once main\'s file holds main\'s content; every other case writes the workers as before')
-check(manager_k.count('RetireWorkerFile(') == 2 and manager_k.count('File.Delete(') == manager_c.count('File.Delete(') + 1,
-      'one new removal, called only from the close')
+check(manager_k.count('RetireWorkerFile(') == 2 and manager_k.count('File.Delete(') == manager_c.count('File.Delete(') + 2 and
+      manager_k.count('File.Delete(state.Path);') == 1 and manager_k.count('File.Delete(path + ".refused");') == 1,
+      'two new removals: a worker snapshot (called only from the close) and a refusal record')
 check(manager_k.count('_workerSnapshotsHeldUntil') == manager_c.count('_workerSnapshotsHeldUntil') and
       'Interlocked.Read(ref _mainState.SavedGeneration) < Interlocked.Read(ref _workerSnapshotsHeldUntil)' in manager_k,
       'the workers\' hold (no worker file replaced before main holds it) is unchanged')
@@ -96,7 +97,8 @@ load = load[:load.index('\n        }\n') + 10]
 check(load.index('bool foreign = !IsDeviceCacheHeader(snapshot);') < load.index('staging = CreateCache(snapshot, "main", out accepted);')
       < load.index('if (accepted && foreign && staging.Handle != 0 && IsEmptyCache(staging))'),
       'the size query runs only for a foreign header, after the driver created the cache')
-check(manager_k.count('IsEmptyCache(') == 2 and manager_k.count('IsDeviceCacheHeader(') == 2, 'the header check is used only by the load')
+check(manager_k.count('IsEmptyCache(') == 2 and manager_k.count('IsDeviceCacheHeader(') == 3 and manager_k.count('FirstRefusal(') == 3,
+      'the header check and the refusal record are used only by the load (main and worker snapshots)')
 
 # --- Executed: control and candidate fixtures ---
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1')
@@ -181,18 +183,21 @@ for name, r in (('control', c['closeDuringLoad']), ('candidate', k['closeDuringL
 check(k['closeDuringLoad']['nextClose']['workerFilesPresent'] == 0, 'candidate: the worker files go at the next complete close')
 
 # S6: a worker file cut short.
-check(k['cutWorker']['refusedPerLaunch'] == [1, 0, 0] and k['cutWorker']['workerFilesAfterEachClose'] == [0, 0, 0],
-      'candidate: the refused file is removed at the first close; it is not read again')
+check(k['cutWorker']['refusedPerLaunch'] == [1, 1, 0] and k['cutWorker']['workerFilesAfterEachClose'] == [1, 0, 0],
+      'candidate: the refused file is kept at its first refusal, removed at the close after its second; not read again')
 check(c['cutWorker']['refusedPerLaunch'] == [1, 1, 1], 'control: the refused file is read and refused at every launch')
 for name, r in (('control', c['cutWorker']), ('candidate', k['cutWorker'])):
     check(r['missingLastLoop'] == 0 and r['missingAfter'] == 0, name + ': everything outside the cut file is kept')
 
 # S7: the main file cut short (what the worker copies gave back).
 for name, r in (('control', c['cutMain']), ('candidate', k['cutMain'])):
-    check(r['refused'] == 1 and r['mainEntriesBack'] == 0 and r['sessionAfterKept'] == r['sessionAfter'],
-          name + ': main refused; the next session is kept')
-check(c['cutMain']['workerEntriesBack'] == c['cutMain']['workerEntries'] and k['cutMain']['workerEntriesBack'] == 0,
-      'cut main file: the control gets the last session\'s worker pipelines back from their copies, the candidate does not')
+    check(r['mainEntriesBack'] == 0 and r['thirdRefused'] == 0 and r['sessionsKept'][1] == r['sessionSize'],
+          name + ': the cut main file is replaced; the session after it is kept')
+check(c['cutMain']['refusedPerLaunch'] == [1, 0] and c['cutMain']['sessionsKept'][0] == 10 and
+      c['cutMain']['workerEntriesBack'] == c['cutMain']['workerEntries'],
+      'control: the cut file is replaced at once; the last session\'s worker pipelines come back from their copies')
+check(k['cutMain']['refusedPerLaunch'] == [1, 1] and k['cutMain']['sessionsKept'][0] == 0 and k['cutMain']['workerEntriesBack'] == 0,
+      'candidate: kept at its first refusal (that session not written over it), replaced at the second; no worker copy to give back')
 
 # S8: two driver versions alternating.
 for name, r in (('control', c['alternating']), ('candidate', k['alternating'])):
@@ -225,8 +230,21 @@ for name, r in (('control', c['killDuringWrite']), ('candidate', k['killDuringWr
 for name, r in (('control', c['room']), ('candidate', k['room'])):
     check(r['workersUntouched'] and r['missingNextLaunch'] == 0 and r['missingLaunchAfter'] == 0 and r['load']['mergedEntries'] < r['load']['hydratedEntries'],
           name + ': worker snapshots that do not fit stay as they are and join at the next launch')
+# S13: an intact main file refused once.
+kt, ct = k['transientMain'], c['transientMain']
+check(kt['load']['refused'] == 1 and ct['load']['refused'] == 1, 'the intact main file is refused once in both')
+check(kt['fileAfterPause'] == kt['fileBefore'] and kt['earlierKept'] == kt['earlier'] and kt['thirdLoad']['refused'] == 0 and not kt['marker'],
+      'candidate: the file is kept (not written over at the pause or the close); the next launch loads all of it; record cleared')
+check(ct['earlierKept'] < ct['earlier'], 'control: a transient refusal replaces the file; earlier pipelines lost (%d of %d kept)' % (ct['earlierKept'], ct['earlier']))
+# S14: an intact worker file refused once.
+for name, r in (('control', c['transientWorker']), ('candidate', k['transientWorker'])):
+    check(r['load']['refused'] == 1 and r['worker0Kept'] == r['worker0'] == 64 and r['missingNextLaunch'] == 0,
+          name + ': an intact worker file refused once survives the close and loads at the next launch')
+check(k['transientWorker']['close']['workerFilesPresent'] == 1 and k['transientWorker']['nextClose']['workerFilesPresent'] == 0,
+      'candidate: kept at that close (the merged one removed), removed once main holds it')
 check(any('workerKept' in line for line in k['journal']) and any('workerRetired' in line for line in k['journal']) and
-      any('mainIgnored' in line for line in k['journal']), 'candidate: removals, kept files and ignored snapshots are in the engine journal')
+      any('mainIgnored' in line for line in k['journal']) and any('mainRefusedKept' in line for line in k['journal']),
+      'candidate: removals, kept files, ignored and kept refused snapshots are in the engine journal')
 check(not any('Could not remove' in line for line in k['warnings']), 'candidate: every removal succeeded')
 
 inputs = ['build-utils/melonx/adapt_pipeline_snapshot_retire.py', 'build-utils/melonx/adapt_session.py',

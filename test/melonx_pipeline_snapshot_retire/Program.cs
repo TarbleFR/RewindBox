@@ -28,10 +28,10 @@ string WorkerPath(string dir, int index, uint driver = DriverA) => Path.ChangeEx
 long Length(string path) => File.Exists(path) ? new FileInfo(path).Length : 0;
 string Hash(string path) => File.Exists(path) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))[..16] : "absent";
 
-Launch Open(string dir, uint driver = DriverA, int loadMs = 0, byte[] uuid = null)
+Launch Open(string dir, uint driver = DriverA, int loadMs = 0, byte[] uuid = null, int skip = 0, int refuseIntact = 0)
 {
     Ryujinx.Common.Configuration.AppDataManager.BaseDirPath = dir;
-    var vk = new Vk { SnapshotLoadMs = loadMs };
+    var vk = new Vk { SnapshotLoadMs = loadMs, SkipSnapshots = skip, RefuseIntact = refuseIntact };
     if (uuid != null) vk.Uuid = uuid;
     var mainLock = new Lock();
     vk.MainLock = mainLock;
@@ -316,7 +316,7 @@ foreach (string mode in new[] { "writeFailure", "overBudget" })
     };
 }
 
-// S7. The main file cut short: what the worker files still give back.
+// S7. The main file cut short: what the worker files still give back, and when the file is replaced.
 {
     string dir = NewDir("cutMain");
     var mainOnly = new HashSet<ulong>();
@@ -328,21 +328,30 @@ foreach (string mode in new[] { "writeFailure", "overBudget" })
     CompileWorker(first, 1, 30, workerContent);
     Close(first);
     using (var stream = new FileStream(MainPath(dir), FileMode.Open)) stream.SetLength(stream.Length / 2 + 3);
-    var second = Open(dir);
-    WaitLoaded(second);
-    var memory = InMemory(second);
-    var after = new HashSet<ulong>();
-    CompileMain(second, 10, after);
-    Close(second);
+    var refused = new List<object>();
+    var sessions = new List<HashSet<ulong>>();
+    int workerBack = 0;
+    for (int round = 0; round < 2; round++)
+    {
+        var launch = Open(dir);
+        WaitLoaded(launch);
+        refused.Add(launch.Load["refused"]);
+        if (round == 0) workerBack = workerContent.Count(id => InMemory(launch).Contains(id));
+        var session = new HashSet<ulong>();
+        CompileMain(launch, 10, session);
+        sessions.Add(session);
+        Close(launch);
+    }
     var third = Open(dir);
     WaitLoaded(third);
     var memoryThird = InMemory(third);
     Kill(third);
     report["cutMain"] = new Dictionary<string, object>
     {
-        ["refused"] = second.Load["refused"], ["workerEntriesBack"] = workerContent.Count(id => memory.Contains(id)),
-        ["workerEntries"] = workerContent.Count, ["mainEntriesBack"] = mainOnly.Count(id => memory.Contains(id)),
-        ["sessionAfterKept"] = after.Count(id => memoryThird.Contains(id)), ["sessionAfter"] = after.Count,
+        ["refusedPerLaunch"] = refused, ["workerEntriesBack"] = workerBack, ["workerEntries"] = workerContent.Count,
+        ["mainEntriesBack"] = mainOnly.Count(id => memoryThird.Contains(id)),
+        ["sessionsKept"] = sessions.Select(s => s.Count(id => memoryThird.Contains(id))).ToList(), ["sessionSize"] = 10,
+        ["thirdRefused"] = third.Load["refused"],
     };
 }
 
@@ -490,8 +499,65 @@ foreach (string mode in new[] { "writeFailure", "overBudget" })
     };
 }
 
+// S13. An intact main file refused once (transient: one Metal library failed to compile), then loaded again.
+{
+    string dir = NewDir("transientMain");
+    var earlier = new HashSet<ulong>();
+    var first = Open(dir); WaitLoaded(first);
+    CompileMain(first, 150, earlier); CompileWorker(first, 0, 30, earlier); CompileWorker(first, 1, 30, earlier);
+    Close(first);
+    long fileBefore = Length(MainPath(dir));
+    var second = Open(dir, refuseIntact: 1);         // main's snapshot is the first one created
+    WaitLoaded(second);
+    var secondLoad = new Dictionary<string, object>(second.Load);
+    var session = new HashSet<ulong>();
+    CompileMain(second, 20, session);
+    second.Manager.CheckpointMainOnPause();
+    long afterPause = Length(MainPath(dir));
+    var close = Close(second);
+    var third = Open(dir); WaitLoaded(third);
+    var memory = InMemory(third);
+    var thirdLoad = new Dictionary<string, object>(third.Load);
+    Kill(third);
+    report["transientMain"] = new Dictionary<string, object>
+    {
+        ["fileBefore"] = fileBefore, ["load"] = secondLoad, ["fileAfterPause"] = afterPause, ["close"] = close,
+        ["earlierKept"] = earlier.Count(id => memory.Contains(id)), ["earlier"] = earlier.Count,
+        ["sessionKept"] = session.Count(id => memory.Contains(id)), ["session"] = session.Count, ["thirdLoad"] = thirdLoad,
+        ["marker"] = File.Exists(MainPath(dir) + ".refused"),
+    };
+}
+
+// S14. An intact worker file refused once while main loads: it must survive the close.
+{
+    string dir = NewDir("transientWorker");
+    var expected = new HashSet<ulong>();
+    var first = Open(dir); WaitLoaded(first);
+    CompileMain(first, 50, expected);
+    Close(first);
+    var second = Open(dir); WaitLoaded(second);
+    var unique0 = CompileWorker(second, 0, 70, null).Take(64).ToHashSet();
+    expected.UnionWith(unique0);
+    expected.UnionWith(CompileWorker(second, 1, 70, null).Take(64));
+    Kill(second);
+    var third = Open(dir, skip: 1, refuseIntact: 1); // main loads; worker 0 is refused once
+    WaitLoaded(third);
+    var thirdLoad = new Dictionary<string, object>(third.Load);
+    CompileMain(third, 10, expected);
+    var close = Close(third);
+    var fourth = Open(dir); WaitLoaded(fourth);
+    var memory = InMemory(fourth);
+    var fourthClose = Close(fourth);
+    report["transientWorker"] = new Dictionary<string, object>
+    {
+        ["load"] = thirdLoad, ["close"] = close, ["worker0Kept"] = unique0.Count(id => memory.Contains(id)), ["worker0"] = unique0.Count,
+        ["missingNextLaunch"] = Missing(expected, memory).Count, ["nextClose"] = fourthClose,
+        ["markerAfterLoad"] = File.Exists(WorkerPath(dir, 0) + ".refused"),
+    };
+}
+
 report["warnings"] = Ryujinx.Common.Logging.Logger.Warning.Messages.Select(m => m.Length > 160 ? m[..160] : m).Distinct().Take(20).ToList();
-report["journal"] = Ryujinx.Common.EmbeddedLaunchDiagnostics.Records.Where(r => r.Contains("workerRetired") || r.Contains("workerKept") || r.Contains("mainIgnored")).Select(r => r.Length > 200 ? r[..200] : r).Distinct().Take(40).ToList();
+report["journal"] = Ryujinx.Common.EmbeddedLaunchDiagnostics.Records.Where(r => r.Contains("workerRetired") || r.Contains("workerKept") || r.Contains("mainIgnored") || r.Contains("mainRefusedKept")).Select(r => r.Length > 200 ? r[..200] : r).Distinct().Take(40).ToList();
 try { Directory.Delete(root, true); } catch (IOException) { }
 Console.WriteLine(JsonSerializer.Serialize(report));
 
