@@ -647,7 +647,8 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     # No invisible extension into the home-indicator band of the smallest edge-to-edge
     # iPhone (34 pt portrait = 36 mapping pt; 21 pt landscape, 7 pt of it letterbox).
     extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15),
-                   spill=spec.get('spill', False), margin=spec.get('extend_margin', 0))
+                   spill=spec.get('spill', False), margin=spec.get('extend_margin', 0),
+                   fine=spec.get('spill_fine', False))
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
             'screens': [{'outputFrame': screen_rect}], 'items': items, 'translucent': False}
 
@@ -710,7 +711,7 @@ def _shape_raster(item, shape, W, H):
     return g
 
 
-def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, spill=False, margin=0):
+def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, spill=False, margin=0, fine=False):
     """Invisible extended edges until each touch area reaches `target` mapping pt (44 pt fitted
     on the smallest edge-to-edge iPhone, 375 x 812). An extension never covers another
     control's frame or touch area (frames may overlap where the board's shapes interlock;
@@ -760,6 +761,9 @@ def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, 
                     else:
                         grown = True
                         break
+                if not grown and fine and step > need / 160:
+                    step /= 2  # `fine` (Switch Pocket): the last free fraction of a step too
+                    continue
                 if not grown: break
 
 

@@ -93,7 +93,7 @@ jobs:
     - name: Compile every libretro bridge source for iPhone
       if: ${{ !cancelled() && steps.areas.outputs.libretro == 'true' }}
       run: python3 test/libretro_ios_syntax_test.py
-    - name: Pocket skins - host verifier of the six shipped archives, the input chain and the session buttons
+    - name: Pocket skins - host verifier of the seven shipped archives, the input chain and the session buttons
       if: ${{ !cancelled() && steps.areas.outputs.pocket == 'true' }}
       run: |
         set -euo pipefail
@@ -104,31 +104,6 @@ jobs:
         "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
         "$RUNNER_TEMP/pocket-venv/bin/python" test/dolphin_session_chrome_test.py
         "$RUNNER_TEMP/pocket-venv/bin/python" test/armsx2_skin_menu_button_test.py
-        if [ ! -f assets/skins/pocket/switch-pocket.manicskin ]; then
-          # Switch Pocket waits for its original board: the same checks on a provisional pack
-          # built from the board copy received in the chat, in a scratch copy of the assets
-          # (never shipped; --allow-provisional / POCKET_ASSETS_DIR).
-          scratch="$RUNNER_TEMP/pocket-switch"
-          mkdir -p "$scratch/build"
-          (cd tools/skins && "$RUNNER_TEMP/pocket-venv/bin/python" build_switch_pocket.py --provisional --output "$scratch/build")
-          cp -R assets/skins/pocket "$scratch/assets"
-          cp "$scratch"/build/switch-pocket* "$scratch/assets/"
-          "$RUNNER_TEMP/pocket-venv/bin/python" - "$scratch/assets" <<'PY'
-        import hashlib, json, sys
-        assets = sys.argv[1]
-        catalog = json.load(open(f'{assets}/catalog.json'))
-        data = open(f'{assets}/switch-pocket.manicskin', 'rb').read()
-        entry = {'id': 'switch-pocket', 'name': 'Switch Pocket', 'console': 'switch',
-                 'archiveAsset': 'assets/skins/pocket/switch-pocket.manicskin',
-                 'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data),
-                 'previewAssets': {o: f'assets/skins/pocket/switch-pocket-{o}.png' for o in ('portrait', 'landscape')},
-                 'author': 'RewindBox', 'license': 'RewindBox approved board; console names and marks belong to their owners'}
-        catalog['skins'] = [s for s in catalog['skins'] if s['id'] != 'switch-pocket'] + [entry]
-        json.dump(catalog, open(f'{assets}/catalog.json', 'w'), indent=2, ensure_ascii=False)
-        PY
-          "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py --assets-dir "$scratch/assets" --allow-provisional > /dev/null
-          POCKET_ASSETS_DIR="$scratch/assets" "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
-        fi
     - name: Compile the MeloNX skin overlay for iPhone
       if: ${{ !cancelled() && steps.areas.outputs.melonx == 'true' }}
       run: |
@@ -142,15 +117,6 @@ jobs:
       run: |
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
-        if [ ! -f assets/skins/pocket/switch-pocket.manicskin ]; then
-          # Provisional pack from the board copy received in the chat (see the pocket step).
-          python3 -m venv "$RUNNER_TEMP/melonx-venv"
-          "$RUNNER_TEMP/melonx-venv/bin/pip" install --quiet pillow==12.3.0 "numpy>=2.3.5"
-          mkdir -p build/melonx-ci/provisional
-          (cd tools/skins && "$RUNNER_TEMP/melonx-venv/bin/python" build_switch_pocket.py --provisional \
-             --output "$GITHUB_WORKSPACE/build/melonx-ci/provisional")
-          export MELONX_SKIN_ARCHIVE="$GITHUB_WORKSPACE/build/melonx-ci/provisional/switch-pocket.manicskin"
-        fi
         ruby packages/melonx_internal_bridge/ci/test_skin_overlay_ui.rb
     - name: Compile the Dolphin orientation and skin sources for iPhone
       if: ${{ !cancelled() && steps.areas.outputs.dolphin_compile == 'true' }}

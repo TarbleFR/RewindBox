@@ -53,6 +53,8 @@ const _shippedPacks = <String, String>{
   'gamecube-pocket-original': 'gc',
   'wii-pocket-original': 'wii',
   'ps2-pocket-original': 'ps2',
+  // Switch Pocket (MeloNX), added 9 Nov from the maintainer's original board.
+  'switch-pocket': 'switch',
 };
 
 void main() {
@@ -216,7 +218,7 @@ void main() {
   );
 
   test(
-    'shipped catalog contains the Wii, GameCube, PS2 Pocket packs and the three board Originals with intact archives and PNG previews',
+    'shipped catalog contains the Wii, GameCube, PS2 Pocket packs, the three board Originals and Switch Pocket with intact archives and PNG previews',
     () async {
       final entries = await BundledControllerSkin.load(loadAsset: _fileAsset);
       expect({
@@ -232,12 +234,15 @@ void main() {
       expect({
         for (final entry in entries) entry.id: entry.name,
       }, containsPair('ps2-pocket-original', 'PS2 Pocket — Original'));
+      expect({
+        for (final entry in entries) entry.id: entry.name,
+      }, containsPair('switch-pocket', 'Switch Pocket'));
       // New archives and previews of their own: nothing of an earlier pack is reused.
-      expect(entries.map((entry) => entry.archiveAsset).toSet(), hasLength(6));
-      expect(entries.map((entry) => entry.sha256).toSet(), hasLength(6));
+      expect(entries.map((entry) => entry.archiveAsset).toSet(), hasLength(7));
+      expect(entries.map((entry) => entry.sha256).toSet(), hasLength(7));
       expect(
         entries.expand((entry) => entry.previewAssets.values).toSet(),
-        hasLength(12),
+        hasLength(14),
       );
       // The earlier PS2 Pocket keeps its id, archive and previews unchanged.
       final ps2 = entries.singleWhere((entry) => entry.id == 'ps2-pocket');
@@ -310,7 +315,12 @@ void main() {
           hasLength(installedPerConsole[console]),
         );
       }
-      expect(installedPerConsole, <String, int>{'wii': 2, 'gc': 2, 'ps2': 2});
+      expect(installedPerConsole, <String, int>{
+        'wii': 2,
+        'gc': 2,
+        'ps2': 2,
+        'switch': 1,
+      });
       expect(
         requests,
         isEmpty,
@@ -331,7 +341,15 @@ void main() {
       expect(entries, isNotNull);
       expect(
         entries!.map((entry) => entry.consoles.single),
-        unorderedEquals(<String>['wii', 'gc', 'ps2', 'gc', 'wii', 'ps2']),
+        unorderedEquals(<String>[
+          'wii',
+          'gc',
+          'ps2',
+          'gc',
+          'wii',
+          'ps2',
+          'switch',
+        ]),
       );
       expect(entries.every((entry) => entry.bundled != null), isTrue);
       expect(requests, isNotEmpty, reason: 'remote failures were exercised');
@@ -459,7 +477,7 @@ void main() {
       expect(installed.keys.toSet(), _shippedPacks.keys.toSet());
       expect(
         installed.values.map((skin) => skin.id).toSet(),
-        hasLength(6),
+        hasLength(7),
         reason: 'distinct installed ids',
       );
       expect(

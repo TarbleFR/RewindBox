@@ -36,17 +36,8 @@ STICKS = [
     ('approved-switch.png', 'switch landscape lstick', 740, 470.5, 48, 'dark'),
     ('approved-switch.png', 'switch landscape rstick', 1423.5, 622, 48.5, 'dark'),
 ]
-# Until the maintainer's original Switch Pocket PNG is in the repository, its geometry is
-# read on the copy received in the chat (a recompressed WEBP of the same 1672 x 941 board).
-SWITCH_ORIGINAL = 'approved-switch.png'
-SWITCH_RECEIVED = 'switch-pocket-received.webp'
-
-
 def board_file(name: str) -> Path:
-    path = DESIGN / name
-    if name == SWITCH_ORIGINAL and not path.exists():
-        return DESIGN / SWITCH_RECEIVED
-    return path
+    return DESIGN / name
 
 
 def channel(img: Image.Image, kind: str) -> np.ndarray:

@@ -29,14 +29,10 @@ Necessary adaptations (documented, the drawing itself unchanged):
   and below, as the other Originals;
 * touch areas get invisible extended edges up to 46.4 mapping pt where free.
 
-Only the original PNG is a source for the shipped pack (its SHA-256 is checked). Until it
-is in the repository, `--provisional` builds the same pack from the copy received in the
-chat (switch-pocket-received.webp, a recompressed WEBP of the same board) into another
-directory, for the host and simulator checks only; it is never written to assets/ nor
-listed in the catalog.
+The pack is built from the original PNG only (its size and SHA-256 are checked; the
+maintainer sent it in a ZIP on 9 November, after a chat copy had arrived re-encoded as WEBP).
 
-    python3 tools/skins/build_switch_pocket.py                 # shipped pack (original PNG)
-    python3 tools/skins/build_switch_pocket.py --provisional --output build/switch-provisional
+    python3 tools/skins/build_switch_pocket.py
 """
 from __future__ import annotations
 
@@ -54,8 +50,6 @@ BOARDS = ROOT / 'docs/design/pocket'
 ORIGINAL = BOARDS / 'approved-switch.png'
 ORIGINAL_SHA256 = 'b89f7cce2180b92ca3ef65adccb862c06c086345af0e7a2469d96809136ae108'
 ORIGINAL_BYTES = 1939331
-RECEIVED = BOARDS / 'switch-pocket-received.webp'
-RECEIVED_SHA256 = 'fa0bc3d807c58fc455acff125ce2cbfce69432119b2ab0174a3e0e962a3f028f'
 ASSETS = ROOT / 'assets/skins/pocket'
 
 PACK_ID = 'switch-pocket'
@@ -87,6 +81,10 @@ SPEC = {
         'crop': PORTRAIT_SCREEN,
         'window': (176, 259, 521, 513), 'window_text': (280, 372, 418, 410), 'aspect': 16 / 9,
         'inert': ('home', 'capture'), 'extend_margin': 1, 'socket_cuts': {'lstick': ('l3',), 'rstick': ('r3',)},
+        # A side blocked by a neighbour's frame gives its share to the free side (L3/R3:
+        # their stick's square above, free body below), so the touch area can reach 44 pt
+        # without moving the drawing or covering another control.
+        'spill': True, 'spill_fine': True,
         # L/ZL and ZR/R touch on the board: the seam between them (board x) splits them.
         'cuts': [(224, 186, 224, 233), (471, 185, 471, 232)],
         'items': [
@@ -95,11 +93,11 @@ SPEC = {
             ('plus', 'button', (381, 195, 33, 29)),
             ('zr', 'button', (426, 190, 45, 38)), ('r', 'button', (472, 190, 44, 38)),
             ('home', 'button', (292, 235, 47, 32)), ('capture', 'button', (357, 235, 47, 32)),
-            ('lstick', 'stick:left', (200, 530, 108, 108), (254, 584.5, 45), (253.4, 583.89, 44.41)),
+            ('lstick', 'stick:left', (200, 530, 108, 108), (254, 584.5, 45), (253.39, 583.89, 44.41)),
             ('dpad', 'dpad', (205, 654, 121, 120)),
             ('x', 'button', (412, 530, 46, 47)), ('y', 'button', (372, 570, 46, 44)),
             ('a', 'button', (452, 569, 46, 45)), ('b', 'button', (412, 607, 46, 46)),
-            ('rstick', 'stick:right', (381, 663, 109, 110), (435.5, 718, 45), (434.68, 717.09, 44.37)),
+            ('rstick', 'stick:right', (381, 663, 109, 110), (435.5, 718, 45), (434.68, 717.09, 44.38)),
             # The L3/R3 pills, drawn after their stick (they sit on its socket ring).
             ('l3', 'button', (294, 615, 36, 25)), ('r3', 'button', (460, 762, 38, 25)),
         ],
@@ -108,6 +106,7 @@ SPEC = {
         'crop': (643, 326, 1526, 716),
         'window': (820, 394, 1327, 691), 'window_text': (1000, 512, 1152, 561), 'aspect': 16 / 9,
         'inert': ('home', 'capture'), 'extend_margin': 1, 'socket_cuts': {'lstick': ('l3',), 'rstick': ('r3',)},
+        'spill': True, 'spill_fine': True,
         'cuts': [(770, 333, 770, 379), (1416, 333, 1416, 379)],
         'items': [
             ('l', 'button', (692, 337, 76, 38)), ('zl', 'button', (771, 338, 78, 37)),
@@ -115,11 +114,11 @@ SPEC = {
             ('home', 'button', (1085, 337, 44, 37)), ('capture', 'button', (1151, 337, 44, 37)),
             ('plus', 'button', (1231, 337, 37, 37)),
             ('zr', 'button', (1336, 338, 79, 37)), ('r', 'button', (1417, 338, 76, 37)),
-            ('lstick', 'stick:left', (684, 414, 112, 112), (740, 470.5, 48), (739.79, 470.07, 47.54)),
+            ('lstick', 'stick:left', (684, 414, 112, 112), (740, 470.5, 48), (739.79, 470.06, 47.55)),
             ('dpad', 'dpad', (681, 563, 120, 119)),
             ('x', 'button', (1398, 411, 51, 50)), ('y', 'button', (1354, 452, 51, 51)),
             ('a', 'button', (1442, 452, 51, 50)), ('b', 'button', (1398, 494, 52, 52)),
-            ('rstick', 'stick:right', (1367, 565, 113, 114), (1423.5, 622, 48.5), (1423.17, 621.41, 48.45)),
+            ('rstick', 'stick:right', (1367, 565, 113, 114), (1423.5, 622, 48.5), (1423.17, 621.42, 48.45)),
             ('l3', 'button', (772, 512, 38, 27)), ('r3', 'button', (1342, 657, 39, 27)),
         ],
     },
@@ -224,26 +223,19 @@ def with_shapes(spec: dict, board: Image.Image) -> dict:
     return spec | {'shapes': {name: pill_extent(board, boxes[name]) for name in PILLS}}
 
 
-def source_board(provisional: bool) -> tuple[Path, Image.Image, str]:
-    if not provisional:
-        if not ORIGINAL.is_file():
-            sys.exit(f'{ORIGINAL} is missing: the shipped pack is built from the original PNG only '
-                     f'({ORIGINAL_BYTES} bytes, SHA-256 {ORIGINAL_SHA256}); use --provisional for checks')
-        data = ORIGINAL.read_bytes()
-        digest = hashlib.sha256(data).hexdigest()
-        if digest != ORIGINAL_SHA256 or len(data) != ORIGINAL_BYTES:
-            sys.exit(f'{ORIGINAL} is not the maintainer\'s reference ({len(data)} bytes, {digest})')
-        return ORIGINAL, Image.open(io.BytesIO(data)), 'approved-board'
-    data = RECEIVED.read_bytes()
-    if hashlib.sha256(data).hexdigest() != RECEIVED_SHA256:
-        sys.exit(f'{RECEIVED} changed')
-    return RECEIVED, Image.open(io.BytesIO(data)), 'provisional-received-copy'
+def source_board() -> tuple[Path, Image.Image, str]:
+    if not ORIGINAL.is_file():
+        sys.exit(f'{ORIGINAL} is missing: the pack is built from the original PNG only '
+                 f'({ORIGINAL_BYTES} bytes, SHA-256 {ORIGINAL_SHA256})')
+    data = ORIGINAL.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
+    if digest != ORIGINAL_SHA256 or len(data) != ORIGINAL_BYTES:
+        sys.exit(f'{ORIGINAL} is not the maintainer\'s reference ({len(data)} bytes, {digest})')
+    return ORIGINAL, Image.open(io.BytesIO(data)), 'approved-board'
 
 
-def build(out: Path, provisional: bool) -> dict:
-    if provisional and out.resolve() == ASSETS.resolve():
-        sys.exit('a provisional pack is never written to assets/skins/pocket')
-    path, source, status = source_board(provisional)
+def build(out: Path) -> dict:
+    path, source, status = source_board()
     if source.size != (1672, 941):
         sys.exit(f'unexpected board size {source.size}')
     clean = cleaned(source)
@@ -287,20 +279,16 @@ def build(out: Path, provisional: bool) -> dict:
     receipt = {'archiveSha256': entry['sha256'], 'archiveBytes': entry['size'], 'board': path.name,
                'boardSha256': board_sha, 'status': status, 'portraitTopBandRowsAdded': STRETCH,
                'pillOutlines': {o: specs[o]['shapes'] for o in specs}}
-    if not provisional:
-        catalog_path = out / 'catalog.json'
-        catalog = json.loads(catalog_path.read_text()) if catalog_path.exists() else {'schemaVersion': 1, 'skins': []}
-        catalog['skins'] = [s for s in catalog['skins'] if s['id'] != PACK_ID] + [entry]
-        catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n')
+    catalog_path = out / 'catalog.json'
+    catalog = json.loads(catalog_path.read_text()) if catalog_path.exists() else {'schemaVersion': 1, 'skins': []}
+    catalog['skins'] = [s for s in catalog['skins'] if s['id'] != PACK_ID] + [entry]
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + '\n')
     (out / f'validation-{PACK_ID}.json').write_text(json.dumps(receipt, indent=2) + '\n')
-    print(json.dumps(entry | {'status': status}, ensure_ascii=False))
+    print(json.dumps(entry, ensure_ascii=False))
     return entry
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--output', type=Path, default=ASSETS)
-    parser.add_argument('--provisional', action='store_true',
-                        help='build from the received chat copy (checks only; never into assets/)')
-    args = parser.parse_args()
-    build(args.output, args.provisional)
+    build(parser.parse_args().output)

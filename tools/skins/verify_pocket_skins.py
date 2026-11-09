@@ -64,30 +64,26 @@ KNOWN_HOUSING_DEVIATIONS = {("gamecube-pocket-original", "landscape"): {"x", "cU
 # home-indicator band). Closed list keyed like the housing deviations, each with the
 # smallest mapping size allowed; measured in the report, never presented as 44 pt.
 KNOWN_SMALL_TARGETS = {("ps2-pocket-original", "landscape"): {"l3": 25.0, "r3": 25.0, "select": 38.0, "start": 38.0},
-                       # Switch Pocket: the L3/R3 pills sit on their stick's socket ring and
-                       # landscape ZR and R touch on the board; their touch areas cannot grow
-                       # over those frames (37-40 pt), measured, not claimed as 44 pt.
-                       # Portrait HOME/Capture (between the shoulder row and the window)
-                       # and X (just under the window) reach 45 mapping pt: 44 pt on a
-                       # 393 pt iPhone, about 43 pt on a 375 pt one.
-                       ("switch-pocket", "portrait"): {"l3": 37.0, "r3": 37.0, "home": 45.0, "capture": 45.0,
-                                                       "x": 44.5},
-                       ("switch-pocket", "landscape"): {"l3": 36.5, "r3": 37.0, "r": 39.0, "zr": 43.0}}
+                       # Switch Pocket, touch areas grown into the free body (a side blocked by
+                       # a neighbour gives its share to the other): portrait R3 sits on its
+                       # stick's ring 7.7 pt above the home-indicator band, so it stops at
+                       # 37.8 pt (growing more would cover the stick's square or enter the
+                       # system gesture band); landscape L3 45.5 and R3 44.0 mapping pt
+                       # (44 pt on a 393 pt iPhone, ~42-43 pt on a 375 pt one).
+                       ("switch-pocket", "portrait"): {"r3": 37.5},
+                       ("switch-pocket", "landscape"): {"l3": 45.0, "r3": 43.9}}
 # Board placements drawn deeper than 3 pt into the home-indicator band (the PS2 board
 # puts SELECT/START level with its own home bar, in the bottom corners, away from the
 # centred indicator): closed list with the depth allowed, measured in the report.
 KNOWN_BAND_DEPTHS = {("ps2-pocket-original", "landscape"): {"select": 5.5, "start": 5.5}}
 EXPECTED_PACKS = {"wii-pocket": "wii", "gamecube-pocket": "gc", "ps2-pocket": "ps2",
                   "gamecube-pocket-original": "gc", "wii-pocket-original": "wii", "ps2-pocket-original": "ps2"}
-# Switch Pocket (MeloNX), built from the maintainer's reference board like the Originals.
-# It ships once its original PNG is in the repository (build_switch_pocket.py checks the
-# PNG's SHA-256); until then only a provisional pack built from the copy received in the
-# chat exists, outside assets/, checked with --allow-provisional and never shipped.
-OPTIONAL_PACKS = {"switch-pocket": "switch"}
+# Switch Pocket (MeloNX), built from the maintainer's original reference board like the
+# Originals (build_switch_pocket.py checks the PNG's SHA-256).
+EXPECTED_PACKS["switch-pocket"] = "switch"
 BOARD_PACKS = {"gamecube-pocket-original", "wii-pocket-original", "ps2-pocket-original", "switch-pocket"}
 # The game's own picture ratio in the skin's screen (the host fits the game into it).
 SCREEN_RATIO = {"switch": 16/9}
-ALLOW_PROVISIONAL = False
 # Drawn console buttons with no input in the embedded Core (MeloNX has no HOME/Capture
 # index): they never look pressed, the session says so (MeloNXSkinSession).
 INERT_CONTROLS = {"switch-pocket": {"home", "capture"}}
@@ -346,13 +342,10 @@ def validate_pack(assets, body_sources, row):
     require(info["gameTypeIdentifier"].split(".")[-1] in GAME_TYPES[console], "wrong game type")
     images = {name: bitmap(content, name) for name, content in files.items() if name.endswith(".png")}
     require(images, "no raster artwork")
-    require((EXPECTED_PACKS | OPTIONAL_PACKS).get(row["id"]) == console, f"{row['id']}: unexpected pack or console")
+    require(EXPECTED_PACKS.get(row["id"]) == console, f"{row['id']}: unexpected pack or console")
     require(info.get("identifier") == f"org.rewindbox.{row['id']}" or row["id"] in ("wii-pocket", "gamecube-pocket", "ps2-pocket"),
             f"{row['id']}: identifier does not match the catalog id")
-    status = info.get("provenance", {}).get("status")
-    require(status != "provisional-received-copy" or ALLOW_PROVISIONAL,
-            f"{row['id']}: a provisional pack (received chat copy) is never shipped")
-    board = status in ("approved-board", "provisional-received-copy")
+    board = info.get("provenance", {}).get("status") == "approved-board"
     require(board == (row["id"] in BOARD_PACKS), f"{row['id']}: approved-board provenance mismatch")
     board_binding = None
     if board:
@@ -517,20 +510,13 @@ def main():
     parser.add_argument("--assets-dir", type=Path, default=Path(__file__).resolve().parents[2]/"assets/skins/pocket")
     parser.add_argument("--body-textures-dir", type=Path, default=Path(__file__).resolve().with_name("body-textures"))
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--allow-provisional", action="store_true",
-                        help="accept a provisional Switch Pocket (received chat copy) in a scratch assets dir")
     args = parser.parse_args()
-    global ALLOW_PROVISIONAL
-    ALLOW_PROVISIONAL = args.allow_provisional
     try:
         catalog = json.loads((args.assets_dir/"catalog.json").read_text())
         require(catalog.get("schemaVersion") == 1, "unsupported catalog schema")
         rows = catalog["skins"]
-        found = {row["id"]: row["console"] for row in rows}
-        require(len(rows) == len(found) and {i: c for i, c in found.items() if i in EXPECTED_PACKS} == EXPECTED_PACKS
-                and all(OPTIONAL_PACKS.get(i) == c for i, c in found.items() if i not in EXPECTED_PACKS),
-                "expected exactly the Wii, GameCube, PS2 Pocket packs, the three board Originals and, once built "
-                "from its original board, Switch Pocket")
+        require(len(rows) == len(EXPECTED_PACKS) and {row["id"]: row["console"] for row in rows} == EXPECTED_PACKS,
+                "expected exactly the Wii, GameCube, PS2 Pocket packs, the three board Originals and Switch Pocket")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
                   "all PNG decodes", "every iPhone layout", "4:3 game windows (16:9 for the Switch) for native background masking", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256 (Pocket packs)",

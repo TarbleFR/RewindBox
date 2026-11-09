@@ -6,22 +6,22 @@ portrait and landscape. It is reached from the Switch playlist menu (**Skins**),
 other consoles. This record covers the reference received, the path, the pack and the
 checks. Evidence: [docs/evidence/switch-pocket/](evidence/switch-pocket/).
 
-## Reference: original not received yet
+## Reference: the original PNG
 
-| | Expected (maintainer) | Received in the chat |
+The first inline image arrived re-encoded as WEBP (1672 × 941, 103 444 B, `fa0bc3d8…`). The
+maintainer then sent the original in a ZIP:
+
+| | Stated | Received |
 | --- | --- | --- |
-| File | RewindBox-Switch-Pocket-reference-exacte.png | inline image re-encoded by the client |
-| Format | PNG | WEBP 1672 × 941 |
-| Bytes | 1 939 331 | 103 444 |
-| SHA-256 | `b89f7cce…6ae108` | `fa0bc3d8…a3f028f` |
+| ZIP | 1 797 253 B, `ea785d7f…1323944` | identical |
+| RewindBox-Switch-Pocket-reference-exacte.png | 1 939 331 B, `b89f7cce…6ae108` | identical (PNG 1672 × 941) |
+| SHA256.txt | its line for the PNG | identical |
 
-The received copy has the board's geometry, but its pixels are lossy, so it is not the
-source of fidelity. `tools/skins/build_switch_pocket.py` builds the shipped pack only from
-`docs/design/pocket/approved-switch.png` with the expected size and SHA-256. Until that
-file is in the repository, `--provisional` builds the same pack from the received copy
-(`docs/design/pocket/switch-pocket-received.webp`) into another directory. That pack is
-for the host and simulator checks only: it is never written to `assets/` nor listed in the
-catalog. The verifier refuses it unless `--allow-provisional` is given on a scratch copy.
+The PNG is `docs/design/pocket/approved-switch.png`. The WEBP copy and the provisional mode
+that used it are removed. `tools/skins/build_switch_pocket.py` builds only from the PNG with
+this size and SHA-256. The copy had the same geometry (stick circles within 0.02 px, same
+control boxes); the earlier checks run on it validated the code path, not this pack.
+[Receipt](evidence/switch-pocket/reference-receipt.json).
 
 ## Path: playlist → choice → stored → read back → MeloNX → drawn
 
@@ -62,68 +62,99 @@ by `test/melonx_input_test.py`. No Core or bridge ABI change was needed. HOME an
 would need a Core input for main and the MeloNX owner to decide; they are not presented as
 working.
 
-## The pack (provisional build until the original arrives)
+## The pack
 
-The pack is built like the GameCube/Wii/PS2 Originals: the board's own pixels, each
-control cut from its place, and the pressed state derived inside its outline.
+`switch-pocket.manicskin` (id `switch-pocket`, game type `public.aoshuang.game.switch`) and
+its two previews are listed in the bundled catalog beside the six earlier packs, which are
+unchanged. The second build is byte-identical.
+
+It is built like the GameCube/Wii/PS2 Originals: the board's own pixels, each control cut
+from its place at its size, the pressed state derived inside its outline.
 
 - **Light pills** (− ≡ + HOME Capture L3 R3): their outline is measured on the board.
 - **Touching buttons** (L/ZL, ZR/R): split at their seam.
-- **Sticks**: the whole caps are measured as circles (`measure_stick_caps.py`: 180/180
-  rays, p90 ≤ 0.2 px). The socket under each cap is refilled from its ring. The socket
-  leaves out the L3/R3 pill drawn on its ring.
+- **Sticks**: the whole dark caps are measured as circles (180/180 rays, p90 ≤ 0.2 px).
+  The socket under each cap is refilled from its ring. The socket leaves out the L3/R3
+  pill drawn on its ring.
 
-### Necessary adaptations
+### Fidelity and necessary adaptations
 
-The drawing itself is unchanged.
+No button or stick is resized, redrawn or deformed.
 
 - **Portrait.** The board's phone is shorter than an iPhone: 352 × 682 px (ratio 0.516)
   against 393 × 852 pt (0.461). 81 rows of its plain top band are added, between the drawn
-  Dynamic Island and the shoulder row. Every control keeps its drawing and its place
-  relative to the bottom of the screen: the board's home indicator falls where the
-  iPhone's is.
-- **Landscape.** The board's ratio is 2.26 against the iPhone's 2.17, so the skin is
-  letterboxed by about 8 pt above and below, like the other Originals.
-- **Game window.** The game is 16:9 in the board's navy window. In portrait, navy bands
-  remain above and below it.
-- **Removed.** The drawn Dynamic Islands, the home indicators and "Zone de jeu" are
-  removed. The phone frames, titles and captions are not part of the skin.
+  island and the shoulder row. Every control keeps its place relative to the bottom of the
+  screen: the board's home indicator falls where the iPhone's is.
+- **Landscape.** The board's ratio is 2.26 against 2.17, so the skin is letterboxed by
+  about 8 pt above and below, without stretching.
+- **Game window.** The game is 16:9 in the board's navy window.
+- **Removed.** The drawn islands, the home indicators and "Zone de jeu" are removed.
 
-### Known limits, measured
+### Touch areas (measured on the shipped pack)
 
-- **Targets under 44 pt** (bound to the board's placement):
-  - portrait: L3 and R3 ≈ 37 pt. HOME, Capture and X reach 45 mapping pt, which is 44 pt
-    on a 393 pt iPhone and about 43 pt on a 375 pt one;
-  - landscape: L3 36.5, R3 37, R 39 and ZR 43 pt (ZR and R touch on the board).
-- **Sensor housing in landscape.** The iPhone's Dynamic Island, 11–48 pt from the edge,
-  reaches the outer corner of the touch squares of the left stick and the D-pad. Their
-  drawn cap and arms stay clear. Rotated the other way, it reaches the right stick's
-  square and the outer edge of A.
-- **Sharpness.** The art is bounded by the board's resolution (about 0.9–1.0 px per point,
-  upscaled 3×).
+Invisible extensions reach up to 46.4 mapping pt. They never cover another control's frame,
+the game screen or the home-indicator band. A side blocked by a neighbour gives its share
+to the free side.
 
-## Checks
+| Control | Portrait | Landscape |
+| --- | --- | --- |
+| L3 | 46.0 × 46.4 (≥ 44) | 45.5 × 46.4: 44 pt on 393 pt iPhones, 43.4 on 375 pt ones |
+| R3 | 46.5 × **37.8** | 46.4 × 44.0: 44 pt on 393 pt iPhones, 41.9 on 375 pt ones |
+| every other | ≥ 46.3 (≥ 44 pt everywhere) | ≥ 46.3 |
 
-- **Host verifier.** `verify_pocket_skins.py --allow-provisional`, run on a scratch copy of
-  the assets, passes for all seven packs. The six shipped packs pass unchanged without it.
-- **Input chain.** `POCKET_ASSETS_DIR=… test/pocket_skin_input_chain_test.py`: 20 layouts.
-  The compiled hit test (`MeloNXSkinHitTest.h` = `DOLSkinHitTest.h`) matches on 3.5 M grid
-  points, and every drawn point of every control reaches that control. One harness bug was
-  fixed: the alpha cache was shared between packs that have the same sprite name.
-- **Dart.** `test/melonx_playlist_skins_test.dart` passes 4/4 when `SWITCH_POCKET_ARCHIVE`
-  points to the provisional archive. It covers the menu, the Switch manager, the choice for
-  both orientations, the console scope, the read-back and the native paths. The third test
-  requires the shipped archive and fails until the original board is in.
-  `test/melonx_skins_test.dart` and the skin suites also pass.
-- **Originals.** The GameCube, Wii and PS2 Originals rebuild byte-identically with the
-  generator changes.
-- **CI** (`skin-orientation-checks.yml`): MeloNX overlay compile for iPhone, then
-  `MeloNXSkinOverlayTests` in the iOS Simulator. These cover:
-  - real touches, each command's Core index and release;
-  - HOME and Capture reported and never sent or drawn pressed;
-  - both sticks, rotation, and the phone-size letterbox;
-  - overlay renders.
+**Compromise, portrait R3.** The pill is drawn on the right stick's ring, 7.7 pt above
+the home-indicator band. Growing it upward would cover the stick's touch square, so a
+touch would reach the wrong control. Growing it downward would enter the system gesture
+band. It stays at 37.8 pt unless the drawing moves.
 
-  Until the original is in, CI runs on a provisional pack it builds itself.
+### Island and safe areas in landscape
 
-Not observed on an iPhone, and no MeloNX game was run with the skin.
+The measurements use the iPhone housing model (126 × 37 pt, 11 pt from the edge).
+
+- **D-pad: respected.** Its drawn arms stay at least 25 pt clear of the island. Only the
+  empty top-left corner of its touch square is under it; that corner is unreachable and
+  holds no other control.
+- **Left stick: compromise.**
+  - At rest, the cap's left edge is at 46.96 pt on a 393 × 852 iPhone, while the island
+    ends at 48 pt: about 1 pt under it. On a 430 × 932 iPhone it is 3.4 pt clear.
+  - Pushed fully left, the cap slides up to 11.3 pt under the island (7.9 pt on
+    430 × 932). The outer strip of its touch square is also under it.
+  - Respecting the island fully would mean moving the drawn left column (stick, L3,
+    D-pad) about 12 pt to the right, or cutting the stick's travel below the board's
+    socket. Both change the maquette, so neither is done: it is the maintainer's decision.
+- **Opposite rotation (island on the right).**
+  - The outer ~15 pt of A are under the island (12 pt on 430 × 932).
+  - Pushed fully right, ~6.5 pt of the right stick's cap go under it. At rest the stick is
+    3.8 pt clear.
+
+## Checks on the final pack (from the PNG)
+
+- **Host verifier.** `verify_pocket_skins.py` passes for the seven shipped packs.
+- **Input chain.** `test/pocket_skin_input_chain_test.py` passes:
+  - 20 layouts; the compiled hit test (`MeloNXSkinHitTest.h` = `DOLSkinHitTest.h`) matches
+    the Python mirror on 3 498 894 grid points;
+  - 4 880 014 drawn points reach their own control;
+  - stick + A + L are three distinct simultaneous fingers;
+  - a stick finger never presses L3/R3.
+- **Host contracts.** The ARMSX2 menu button, portrait lock and Dolphin session chrome tests
+  pass. The GameCube/Wii/PS2 Originals rebuild byte-identically.
+- **Dart.** `test/melonx_playlist_skins_test.dart` passes 4/4 on the shipped archive. It
+  covers the real Switch playlist menu, Skins, the `switch` manager, the choice for both
+  orientations, the console scope, the read-back and the paths MeloNXSkinOverlay reads.
+  `test/bundled_controller_skins_test.dart` now expects seven packs; Switch Pocket is
+  offered and playable in both orientations, and installs without changing any choice.
+- **CI** (`skin-orientation-checks.yml`, final pack):
+  - MeloNX overlay compile for iPhone;
+  - `MeloNXSkinOverlayTests` in the iOS Simulator: real touches, each command's Core index
+    and its release, HOME and Capture reported, never sent and never drawn pressed, both
+    sticks and their vectors, rotation, several fingers, the phone-size letterbox, renders.
+
+  The simulator is not an iPhone.
+- **Earlier provisional run** `42717148612` (WEBP-built pack): host steps and compile
+  passed; the simulator passed 16 of 17 tests. The failure was a 1e-15 vector at the exact
+  centre of the right stick, caused by floating-point skin fitting. It is fixed in
+  MeloNXSkinOverlay: stick components below 1e-9 are rounded to 0.
+
+The session-level launch (MeloNX creating MeloNXSkinSession for the launched game) is
+checked in source and on the overlay in the simulator. No MeloNX game was run with the
+skin, and nothing was observed on an iPhone.

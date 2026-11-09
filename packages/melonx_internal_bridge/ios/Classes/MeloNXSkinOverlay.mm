@@ -804,6 +804,11 @@ static CGRect MLXSkinAspectFit(CGRect bounds, CGFloat aspect) {
       case MLXSkinItemKindStick: {
         CGFloat x = (track.location.x - CGRectGetMidX(frame)) / MAX(frame.size.width / 2, 1);
         CGFloat y = (track.location.y - CGRectGetMidY(frame)) / MAX(frame.size.height / 2, 1);
+        // The skin rectangle is fitted in floating point (a scale of 0.9999999999999999):
+        // the exact centre of a stick far from the origin gave a 1e-15 vector and sent a
+        // change. Rounding noise only, not a dead zone (1e-9 of the travel).
+        if (std::fabs(x) < 1e-9) x = 0;
+        if (std::fabs(y) < 1e-9) y = 0;
         const CGFloat length = std::hypot(x, y);
         if (length > 1) {
           x /= length;

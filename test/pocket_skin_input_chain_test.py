@@ -30,8 +30,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-# POCKET_ASSETS_DIR: a scratch copy with the provisional Switch Pocket (never shipped).
-ASSETS = Path(__import__('os').environ.get('POCKET_ASSETS_DIR', ROOT / 'assets/skins/pocket'))
+ASSETS = ROOT / 'assets/skins/pocket'
 DOL = (ROOT / 'packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.mm').read_text(encoding='utf-8')
 A2 = (ROOT / 'packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinOverlay.mm').read_text(encoding='utf-8')
 MLX = (ROOT / 'packages/melonx_internal_bridge/ios/Classes/MeloNXSkinOverlay.mm').read_text(encoding='utf-8')
@@ -144,7 +143,8 @@ SWITCH_CORE = {'a': 'A', 'b': 'B', 'x': 'X', 'y': 'Y', 'minus': 'Back', 'plus': 
                'left': 'DpadLeft', 'right': 'DpadRight', 'zl': 'LeftTrigger', 'zr': 'RightTrigger'}
 # ARMSX2Bridge.h (upstream 9d989ca9, platforms/ios/app/src/main/cpp/ARMSX2Bridge.h) order of ARMSX2PadButton.
 EXPECTED = {'wii-pocket': 'wii', 'gamecube-pocket': 'gc', 'ps2-pocket': 'ps2',
-            'gamecube-pocket-original': 'gc', 'wii-pocket-original': 'wii', 'ps2-pocket-original': 'ps2'}
+            'gamecube-pocket-original': 'gc', 'wii-pocket-original': 'wii', 'ps2-pocket-original': 'ps2',
+            'switch-pocket': 'switch'}
 UPSTREAM_PS2 = ['up', 'down', 'left', 'right', 'cross', 'circle', 'square', 'triangle', 'l1', 'r1', 'l2', 'r2', 'start',
                 'select', 'l3', 'r3']
 
@@ -382,10 +382,7 @@ def press(items, console, x, y):
 def main():
     catalog = json.loads((ASSETS / 'catalog.json').read_text())
     rows = {row['id']: row for row in catalog['skins']}
-    found = {i: r['console'] for i, r in rows.items()}
-    require({i: c for i, c in found.items() if i in EXPECTED} == EXPECTED and
-            all(VERIFY.OPTIONAL_PACKS.get(i) == c for i, c in found.items() if i not in EXPECTED),
-            'the catalog must carry exactly %s (and Switch Pocket once built from its board)' % EXPECTED)
+    require({i: r['console'] for i, r in rows.items()} == EXPECTED, 'the catalog must carry exactly %s' % EXPECTED)
     require(UPSTREAM_PS2 == [n for n, _ in sorted(PS2_IDS.items(), key=lambda kv: kv[1])],
             'ARMSX2 pad indices differ from ARMSX2Bridge.h: %s' % PS2_IDS)
     check_hit_headers()

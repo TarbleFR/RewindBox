@@ -30,11 +30,8 @@ const _bridge = MethodChannel('neostation/libretro_internal');
 const _gamepads = MethodChannel('xyz.luan/gamepads');
 const _paths = MethodChannel('plugins.flutter.io/path_provider');
 
-/// The shipped Switch Pocket archive (or, before its original board is in the
-/// repository, a provisional build named by SWITCH_POCKET_ARCHIVE for local checks).
-String get _switchPocket =>
-    Platform.environment['SWITCH_POCKET_ARCHIVE'] ??
-    'assets/skins/pocket/switch-pocket.manicskin';
+/// The shipped Switch Pocket archive (built from the maintainer's original board).
+const _switchPocket = 'assets/skins/pocket/switch-pocket.manicskin';
 
 /// The frontend store as the skin screens use it, per console.
 class _Store {
@@ -208,8 +205,8 @@ void main() {
         File(_switchPocket).existsSync(),
         isTrue,
         reason:
-            'Switch Pocket ships with its original board (docs/design/pocket/approved-switch.png, '
-            'tools/skins/build_switch_pocket.py); SWITCH_POCKET_ARCHIVE names a provisional build',
+            'Switch Pocket ships, built from its original board '
+            '(docs/design/pocket/approved-switch.png, tools/skins/build_switch_pocket.py)',
       );
       final skins = LibretroSkinService(
         skinsDirectory: path.join(root.path, 'Libretro', 'Skins'),

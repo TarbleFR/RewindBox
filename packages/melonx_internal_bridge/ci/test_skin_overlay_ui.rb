@@ -15,9 +15,7 @@ FileUtils.mkdir_p(output)
 fixture = File.join(output, 'fixture')
 %w[switch-pocket].each do |id|
   FileUtils.mkdir_p(File.join(fixture, id))
-  # MELONX_SKIN_ARCHIVE: a provisional Switch Pocket (built by the workflow from the copy
-  # received in the chat) while the shipped one waits for its original board.
-  archive = ENV['MELONX_SKIN_ARCHIVE'] || File.join(root, "assets/skins/pocket/#{id}.manicskin")
+  archive = File.join(root, "assets/skins/pocket/#{id}.manicskin")
   abort "missing #{archive}" unless File.file?(archive)
   system('unzip', '-q', '-o', archive, '-d', File.join(fixture, id)) or abort 'unzip failed'
 end
