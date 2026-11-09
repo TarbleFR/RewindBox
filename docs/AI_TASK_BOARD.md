@@ -2040,9 +2040,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     per session), last 8 sessions, 120 s of replay compile per session, two in flight (one once they average 300 ms).
     Memory: at 8 % device memory or less (last GC's memory load) no replay starts ("held for memory"); demanded compiles
     and draws are not affected.
-  - Failures: driver refusal with memory not short = a strike, retried next launch; strikes in two launches suppress the
-    state for 8 sessions; refusal under memory pressure, renderer failure or exception = temporary (no strike); close or
-    disposal = cancellation (counted apart); a draw that creates the state, or a replay that builds it, clears the marker.
+  - Failures: driver refusal with memory not short = a strike, retried next launch. Strikes in two launches = eviction:
+    the next load removes the recipe from the file; it is never replayed automatically again and returns only when a
+    draw creates that state successfully (re-recorded, marker cleared). The marker lasts 8 sessions to classify such a
+    draw; a suspended recipe is never refreshed, so its marker's expiry replays nothing. Refusal under memory pressure,
+    renderer failure or exception = temporary (no strike); close or disposal = cancellation (counted apart). (First
+    freeze `ea2ba417`: same rule, but the removal waited for another compaction; now deterministic.)
   - Engine journal: "pipelineVariants loaded"; "pipelineVariants summary" each minute (with the build summary, which also
     resumes held replays), on pause and at close, in this order: ready before their first draw (first bind of a replayed
     pipeline), draws that joined a replay (wait ms), joined another queued compile (ms), late creations left (ms: new,
@@ -2052,6 +2055,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Independent review (rb-core-review, source only): no deadlock (_pipelineCacheLock -> scheduler queue lock only; the
     journal lock is a leaf), no queued-table race or endless join, lifetimes correct, no draw lost; its five defects fixed
     (ageing, compaction race, failure markers through compaction, resume after a memory hold, renderer failure report).
+  - Proof scope. The rebuilt earlier gates verify their own historical behaviours and the composition of the sources;
+    the new gate's checks create no real Vulkan pipeline. Neither is a validation of the final manager during load,
+    replay and close on a real backend: no existing scenario covers that path. Proposed single targeted test (not run):
+    in the existing iOS simulator runtime smoke (real MoltenVK, final manager, two sessions), read session 2's
+    "pipelineVariants loaded/summary" lines and require "built but missed" 0 and no refused replay whenever one is
+    replayed, reporting "not exercised" when the test title records none.
   - Verified without Vulkan (gate pipeline-variant-replay, production Ryujinx.Graphics.Vulkan built, no warning in the
     edited files, test-only InternalsVisibleTo): the codec on the real PipelineState over 3 000 random states (same
     PipelineUid by its own Equals and GetHashCode, slots, tessellation flag; deterministic bytes; malformed variants
@@ -2059,7 +2068,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     session, torn tail, other schema, staleness, 2048 of 2100 kept, load 2 ms, background constructor 0 ms); the real
     BackgroundCompilationScheduler: relaunch replays ranked, each once; a demanded state behind 20 queued warm-ups served
     in 40 ms with 8 simultaneous waiters sharing 1 compile; close during compilation (3 of 40 run, none after, none marked
-    failed); strikes, temporary failures and marker clearing over five launches; memory hold with a demanded replay still
+    failed); strikes, temporary failures and marker clearing over five launches; eviction after two strikes (recipe gone
+    from the file, nothing replayed when the marker expires, back after a successful draw); memory hold with a demanded replay still
     served; promote/take/cancel from three threads over 200 rounds (0 inconsistent, 0 hung); running compiles not
     cancellable and completed with their resources; used vs unused ageing; one in flight when costly; 512 per session.
     Host times; nothing is created in Vulkan.

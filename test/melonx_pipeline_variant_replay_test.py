@@ -262,6 +262,11 @@ check(fa['launch4LateAfterFailed'] == 1 and fa['launch5Planned'] == 4, 'a draw c
 m = r['memory']
 check(m['executedWhileShort'] == 0 and m['holds'] >= 1, 'no speculative replay starts at 8 %% device memory or less: %s' % m)
 check(m['demandedServedWhileShort'], 'a demanded queued replay completes while memory is short')
+ev = r['evicted']
+check(ev['inFileBeforeEviction'] and not ev['inFileAfterEviction'] and ev['launchesPlannedWhileMarked'] == 0,
+      'two strikes evict the recipe at the next load (removed from the file): %s' % ev)
+check(not ev['replayedAfterMarkerExpiry'] and ev['plannedAfterADraw'],
+      'the marker expiry replays nothing; a draw creating the state records it again: %s' % ev)
 ra = r['race']
 check(ra['hung'] == 0 and ra['inconsistent'] == 0 and ra['ranOnce'] + ra['cancelled'] == ra['rounds'],
       'promote / take / cancel from three threads: each compile runs once or is cancelled, never both, waiters return: %s' % ra)

@@ -496,6 +496,61 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
 }
 
 {
+    // Eviction after two strikes: the load after the second failed launch removes the recipe from the file (its marker line
+    // stays); the marker's expiry, 8 launches later, replays nothing; only a draw that creates the state records it again.
+    var scheduler = NewScheduler();
+    string name = "evicted";
+    byte[] payload = Variant(1500);
+    ulong failing = PipelineVariantJournal.Checksum64(payload);
+    bool InFile() { byte[] data = File.ReadAllBytes(JournalPath(name)); return data.AsSpan().IndexOf(payload) >= 0; }
+    var s1 = Open(name);
+    s1.NoteLate(0x9999, payload, 60, false);
+    WaitFile(JournalPath(name), 16);
+    for (int launch = 0; launch < 2; launch++)
+    {
+        var journal = Open(name);
+        var target = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = r => (5, r.Id == failing) };
+        journal.Offer(0x9999, target);
+        WaitUntil(() => journal.ReplayFailed == 1, 2000);
+        journal.NoteLate(0x999A, Variant(1600 + launch), 10, false); // something else met late: launches count
+        WaitFile(JournalPath(name), 16);
+    }
+    bool inFileBefore = InFile();
+    var evicting = Open(name);
+    bool inFileAfter = InFile();
+    int plannedAtEviction = evicting.Loaded;
+    int launchesPlanned = 0;
+    for (int launch = 0; launch < 9; launch++)
+    {
+        var journal = Open(name);
+        var target = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+        journal.Offer(0x9999, target);
+        Thread.Sleep(30);
+        launchesPlanned += target.Seen.ContainsKey(failing) ? 1 : 0;
+        journal.NoteLate(0x999B, Variant(1700 + launch), 10, false);
+        WaitFile(JournalPath(name), 16);
+    }
+    var afterExpiry = Open(name);
+    var probe = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+    afterExpiry.Offer(0x9999, probe);
+    Thread.Sleep(50);
+    bool replayedAfterExpiry = probe.Seen.ContainsKey(failing);
+    afterExpiry.NoteLate(0x9999, payload, 60, false); // a draw creates the state successfully
+    WaitFile(JournalPath(name), 16);
+    var back = Open(name);
+    var again = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
+    back.Offer(0x9999, again);
+    WaitUntil(() => again.Seen.ContainsKey(failing), 2000);
+    report["evicted"] = new Dictionary<string, object>
+    {
+        ["inFileBeforeEviction"] = inFileBefore, ["inFileAfterEviction"] = inFileAfter, ["plannedAtEviction"] = plannedAtEviction,
+        ["launchesPlannedWhileMarked"] = launchesPlanned, ["replayedAfterMarkerExpiry"] = replayedAfterExpiry,
+        ["plannedAfterADraw"] = again.Seen.ContainsKey(failing),
+    };
+    scheduler.Dispose();
+}
+
+{
     // Promotion, taking and cancellation from several threads at once (200 rounds on the real scheduler): each queued compile
     // either runs once (promoted, or taken before the cancel) or is cancelled; its waiter always returns; a running compile
     // cannot be cancelled and keeps its resources to the end.

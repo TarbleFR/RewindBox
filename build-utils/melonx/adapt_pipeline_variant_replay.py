@@ -32,8 +32,12 @@ Change (ShaderCollection.cs, PipelineBase.cs, PipelineState.cs, PipelineCacheMan
   (TryWaitForBackgroundGraphicsPipeline and QueueBackgroundGraphicsPipeline now promote the queued compile itself), with
   no second creation. Bounds: 2048 states and 2 MiB, the last 8 sessions, 512 replays and 120 s of compile time per
   session, two in flight (one once they average 300 ms), none while the device has 8 % of its memory or less (memory load
-  of the last garbage collection). A failed creation is marked failed and not replayed again; the draw creates it as
-  before. Disposal and close cancel undemanded replays with the warm-up. The journal is read off the startup path.
+  of the last garbage collection). Failures: a driver refusal while memory is not short is a strike (retried at the next
+  launch); strikes in two launches evict the recipe at the next load, and only a draw that creates that state
+  successfully records it again (its failure marker, kept 8 sessions, is then cleared); a refusal under memory pressure,
+  a renderer failure or an exception is temporary (no strike); a cancellation is counted apart. A draw always creates a
+  state it needs as before. Disposal and close cancel undemanded replays with the warm-up. The journal is read off the
+  startup path.
 - Engine journal: "pipelineVariants loaded" at startup; "pipelineVariants summary" every minute with build summaries, on
   pause and at close: replayed (compile and queue wait ms), failed, skipped, joined draws (wait ms), late creations
   split new / planned not built yet / built but missed (a key mismatch, expected 0) / failed before.
@@ -863,7 +867,7 @@ MANAGER_CLASS_NEW = '''    }
     // (ShaderCollection.TryWaitForBackgroundGraphicsPipeline) instead of creating a second one. Bounded: 2048 variants
     // and 2 MiB on disk, variants of the last 8 sessions only, 512 replays and 120 s of compile time per session, two in
     // flight (one when they are costly), none while the device has 8 % of its memory or less. A variant whose creation
-    // fails is marked failed and not replayed again; the draw then creates it as before (and fails as before).
+    // fails in two launches is evicted (see _failed); a draw then creates it as before (and fails as before).
     sealed class PipelineVariantJournal
     {
         internal const uint Magic = 0x56504252; // "RBPV"
@@ -937,7 +941,10 @@ MANAGER_CLASS_NEW = '''    }
         private readonly List<(Record Record, ITarget Target)> _ready = new();
         private readonly HashSet<(ulong, ulong)> _notedThisSession = new();
         // Failure markers (program, variant): the session of the last failure and the number of sessions in which its replay
-        // failed (strikes). One strike: retried at the next launch. Two: not replayed for RecentSessions sessions. A creation
+        // failed (strikes). One strike: retried at the next launch. Two: the recipe is evicted at the next load (removed from
+        // the file); it is never replayed automatically again, and returns only when a draw creates that state successfully
+        // (re-recorded, marker cleared). The marker itself lasts RecentSessions sessions; a suspended recipe is never
+        // refreshed, so it is stale no later than its marker expires: the marker's expiry replays nothing. A creation
         // that fails while device memory is short, a renderer failure or a cancellation is temporary and leaves no strike; a
         // draw that creates the state successfully clears the marker (the state is valid). Compaction keeps the markers.
         internal const int SuppressingStrikes = 2;
@@ -1089,7 +1096,8 @@ MANAGER_CLASS_NEW = '''    }
             {
                 if (_failed.TryGetValue((record.Program, record.Id), out var marker) && marker.Strikes >= SuppressingStrikes)
                 {
-                    failed++; // failed in two sessions: not replayed while the marker lasts (its line is kept)
+                    failed++; // failed in two launches: evicted now (the compaction below removes it; its marker line stays)
+                    rewrite = true;
                 }
                 else if (record.LastSession + RecentSessions < _session)
                 {
