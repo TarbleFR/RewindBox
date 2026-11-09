@@ -1860,6 +1860,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     program in Hogwarts is not known from the 694 logs, so no gain is claimed. To read on the next device run at 1x on the
     same route: descriptors in draw and compute prepare vs 1 121 / 394 ms per 108 frames, sets written per frame, A/P, FPS
     and present gaps, and that the image is unchanged.
+  - Core CI (9 Nov): run 42549631227 on `012fe2cf` green, artifact 13645644597 (`MeloNX-engine-012fe2cf…`, sha256
+    `7ac1ff99…`). No pin, no IPA (maintainer). Lot 3 stays open: levers (2) and (3) not changed yet.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
