@@ -68,7 +68,8 @@
   "build-utils/melonx/adapt_layout_used_types.py",
   "build-utils/melonx/adapt_same_program_descriptors.py",
   "build-utils/melonx/adapt_retention_chain.py",
-  "build-utils/melonx/adapt_short_cache_reuse.py"
+  "build-utils/melonx/adapt_short_cache_reuse.py",
+  "build-utils/melonx/adapt_pipeline_variant_replay.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -3561,6 +3562,31 @@
     "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
     "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs"
+   ]
+  },
+  {
+   "name": "pipeline-variant-replay",
+   "script": "test/melonx_pipeline_variant_replay_test.py",
+   "report": "pipeline-variant-replay-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
    ]
   }
  ]

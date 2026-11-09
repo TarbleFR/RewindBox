@@ -155,6 +155,8 @@ LOT_FILES = {
     'adapt_retention_chain': ['src/Ryujinx.Library/Library.cs'],
     # Core 709: valid textures kept past the short texture cache.
     'adapt_short_cache_reuse': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
+    # Core 711: graphics pipeline states replayed at launch.
+    'adapt_pipeline_variant_replay': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
 }
 
 checks = 0
