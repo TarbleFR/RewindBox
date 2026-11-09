@@ -235,12 +235,12 @@ void main() {
       findsNWidgets(2),
     );
 
-    // The switch toggles the tab labels of the draft.
-    await tester.tap(
+    // The main menu draws no tab names any more (maintainer, 9 Nov): the
+    // preview offers no labels switch.
+    expect(
       find.byKey(const ValueKey('interface-style-preview-labels')),
+      findsNothing,
     );
-    await tester.pumpAndSettle();
-    expect(previewGlass(tester).settings.tabLabels, TabLabelMode.always);
 
     // Apply from the preview persists the draft.
     await tester.tap(
@@ -248,7 +248,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(provider.interfaceStyle.style, InterfaceStyle.neoStation);
-    expect(provider.interfaceStyle.tabLabels, TabLabelMode.always);
     expect(tester.takeException(), isNull);
   });
 
