@@ -11,7 +11,9 @@ looked up first (all the libraries the pipeline needs), else the pipeline is cre
 library that cache lacks is compiled (counted). Scenarios (test/melonx_worker_library_share/Program.cs): variants of 12 new
 programs alternating between two workers, then the close and a second launch; two workers compiling the same new program
 at the same moment; the main lock held when a worker would publish; a main snapshot refused once (main Frozen); a worker
-cache recycled past its budget; render-thread creations (main or side cache) while both workers publish. Isolated
+cache recycled past its budget; render-thread creations (main or side cache) while both workers publish; another holder
+announced while a worker fails to take the lock (the render thread must go to the side cache at once; a variant clearing
+every announcement must fail); main's estimate near its budget (refused, then credited). Isolated
 directories, never a player's cache. Static: the publication runs on the worker thread after its own compilation, under the
 main lock with the checkpoint protocol, and keeps the merge bookkeeping of PreserveBeforeRecycle. Writes
 dist/melonx/worker-library-share-checks.json.
@@ -82,7 +84,8 @@ if FINAL_PREPARATION:
 manager_k, manager_c = text(CANDIDATE, MANAGER), text(CONTROL_SOURCE, MANAGER)
 state_k, state_c = text(CANDIDATE, STATE), text(CONTROL_SOURCE, STATE)
 for tree_text, control_text, pairs, name in (
-        (manager_k, manager_c, [(adapter.NOTIFY_NEW, adapter.NOTIFY_OLD), (adapter.CLOSE_NEW, adapter.CLOSE_OLD)], MANAGER),
+        (manager_k, manager_c, [(adapter.NOTIFY_NEW, adapter.NOTIFY_OLD), (adapter.CLOSE_NEW, adapter.CLOSE_OLD)] +
+         [(new, old) for old, new in reversed(adapter.PROTOCOL)], MANAGER),
         (state_k, state_c, [(adapter.COMPUTE_NEW, adapter.COMPUTE_OLD), (adapter.GRAPHICS_NEW, adapter.GRAPHICS_OLD)], STATE)):
     reverted = tree_text
     for new, old in pairs:
@@ -92,13 +95,22 @@ for tree_text, control_text, pairs, name in (
     check(tree_text.count(TAG) >= 2, 'commented: ' + name)
 share = manager_k[manager_k.index('        private void ShareWithMain(CacheState state)'):]
 share = share[:share.index('\n        }\n') + 10]
-check(share.index('WorkerCompiledOwn = false;') < share.index('if (!compiled ||') < share.index('_mainCheckpointInProgress = true;') <
-      share.index('if (!_mainCacheLock.TryEnter())') < share.index('MergeInto(main.Cache, source)') < share.index('MergeSideCache();') <
-      share.index('_mainCacheLock.Exit();') < share.index('_mainCheckpointInProgress = false;', share.index('_mainCacheLock.Exit();')),
-      'published after an own compilation only, never waiting for the main lock, as a checkpoint (render thread to the side cache)')
-check('main.Frozen' in share and 'PipelineVariantJournal.LowDevicePercent' in share and 'main.EstimatedBytes + state.EstimatedBytes > main.Budget' in share and
+check(share.index('WorkerCompiledOwn = false;') < share.index('if (!compiled ||') < share.index('Interlocked.Increment(ref _mainCheckpointHolders);') <
+      share.index('if (!_mainCacheLock.TryEnter())') < share.index('Interlocked.Decrement(ref _mainCheckpointHolders);') <
+      share.index('MergeInto(main.Cache, source)') < share.index('MergeSideCache();') < share.index('_mainCacheLock.Exit();') <
+      share.rindex('Interlocked.Decrement(ref _mainCheckpointHolders);'),
+      'published after an own compilation only, never waiting for the main lock, announced as a holder (render thread to the side cache)')
+check('_mainCheckpointInProgress' not in manager_k and manager_k.count('Interlocked.Increment(ref _mainCheckpointHolders);') == 4 and
+      manager_k.count('Interlocked.Decrement(ref _mainCheckpointHolders);') == 6 and
+      'public bool MainCheckpointInProgress => Volatile.Read(ref _mainCheckpointHolders) != 0;' in manager_k,
+      'every holder counts: four announcements (load, play-time and pause checkpoints, share), six withdrawals (one per path)')
+check('main.Frozen' in share and 'PipelineVariantJournal.LowDevicePercent' in share and
+      share.count('main.EstimatedBytes + ') == 2 and share.index('main.EstimatedBytes + growth > main.Budget') > share.index('if (!_mainCacheLock.TryEnter())') and
+      'main.OnMerged(growth);' in share and 'state.SharedBytes = state.EstimatedBytes;' in share and
       'state.MergedGeneration = Interlocked.Read(ref state.Generation);' in share and 'state.FileOutsideMain = false;' in share,
-      'not into a Frozen main, under low memory or past main\'s budget; the merge bookkeeping of PreserveBeforeRecycle')
+      'budget checked before and again under the lock, main\'s estimate credited; not into a Frozen main or under low memory; the merge bookkeeping of PreserveBeforeRecycle')
+check('SharedBytes = 0;' in manager_k[manager_k.index('public void OnRecreated(PipelineCache cache)'):][:400],
+      'a recycled worker cache starts its share accounting again')
 notify = manager_k[manager_k.index('        public void NotifyWorkerPipelineCreated(int workerIndex)'):]
 notify = notify[:notify.index('\n        }\n') + 10]
 check(notify.index('Maintain(state, force: false);') < notify.index('ShareWithMain(state);') < notify.index('CheckpointMainIfDue();'),
@@ -119,11 +131,17 @@ check(result.returncode == 0, 'production Ryujinx.Graphics.Vulkan builds with th
 
 # --- Executed: control and candidate fixtures ---
 reports = {}
-for variant in ('control', 'candidate'):
+BUSY_WITHDRAW = '''                Interlocked.Decrement(ref _mainCheckpointHolders);
+                Interlocked.Increment(ref _sharesBusy);'''
+check(manager_k.count(BUSY_WITHDRAW) == 1, 'the busy path withdraws its own announcement (replaceable for the sensitivity variant)')
+for variant in ('control', 'candidate', 'clearsOthers'):
     tree = CONTROL_SOURCE if variant == 'control' else CANDIDATE
     fixture = WORK / ('fixture-' + variant)
     fixture.mkdir()
     shutil.copyfile(tree / MANAGER, fixture / 'PipelineCacheManager.cs')
+    if variant == 'clearsOthers':
+        (fixture / 'PipelineCacheManager.cs').write_text(manager_k.replace(BUSY_WITHDRAW, BUSY_WITHDRAW.replace(
+            'Interlocked.Decrement(ref _mainCheckpointHolders);', 'Volatile.Write(ref _mainCheckpointHolders, 0);')))
     shutil.copyfile(tree / (VULKAN + 'VulkanException.cs'), fixture / 'VulkanException.cs')
     shutil.copyfile(HARNESS / 'Double.cs', fixture / 'Double.cs')
     shutil.copyfile(HARNESS / 'Program.cs', fixture / 'Program.cs')
@@ -136,7 +154,7 @@ for variant in ('control', 'candidate'):
     if build.returncode:
         print('\n'.join(line for line in build.stdout.splitlines() if ': error ' in line)[:6000], flush=True)
     check(build.returncode == 0, variant + ' fixture builds with the real PipelineCacheManager.cs')
-    run = subprocess.run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), variant],
+    run = subprocess.run([DOTNET, str(fixture / 'bin/Release/net10.0/Fixture.dll'), 'candidate' if variant == 'clearsOthers' else variant],
                          capture_output=True, text=True, timeout=900, env=environment, cwd=fixture)
     if run.returncode:
         print(run.stdout[-4000:], run.stderr[-4000:], flush=True)
@@ -144,7 +162,16 @@ for variant in ('control', 'candidate'):
     reports[variant] = json.loads(run.stdout.strip().splitlines()[-1])
     print(variant, json.dumps({k: v for k, v in reports[variant].items() if k not in ('warnings', 'shareLines')}), flush=True)
 
-c, k = reports['control'], reports['candidate']
+c, k, s = reports['control'], reports['candidate'], reports['clearsOthers']
+for name, r in (('control', c), ('candidate', k)):
+    o = r['overlap']
+    check(o['announcementKept'] and o['renderReturnedWhileHeld'] and o['renderToSideCache'] and o['renderRouteMs'] < 250 and
+          o['announcementWithdrawnAfter'], name + ': with another holder announced, a render-thread creation goes to the side cache at once: ' + str(o))
+check(not s['overlap']['announcementKept'] and not s['overlap']['renderReturnedWhileHeld'],
+      'sensitivity: a share that clears every announcement leaves the render thread waiting for the lock: ' + str(s['overlap']))
+b = k['budget']
+check(b['refusedKeptOut'] and b['overBudget'] == 1 and b['sharedAfterRoom'] and b['credited'] > 0,
+      'over main\'s estimated budget: refused and counted; with room: shared and main\'s estimate credited: ' + str(b))
 ca, ka = c['alternating'], k['alternating']
 check(ca['librariesCompiled'] > ka['librariesCompiled'] >= ka['distinctLibraries'] == 14 and ca['mainHits'] == 0 and ka['mainHits'] > 0,
       'alternating variants: the candidate compiles fewer libraries (each published one is found by the other worker)')
@@ -179,7 +206,8 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                comparison=dict(librariesCompiledControl=ca['librariesCompiled'], librariesCompiledCandidate=ka['librariesCompiled'],
                                distinctLibraries=14, mainHitsCandidate=ka['mainHits'], shares=ka['shares'],
                                entriesIteratedByMerges=ka['entriesIteratedByMerges'], simultaneousStillDuplicated=True,
-                               sameContentOnDisk=True),
+                               sameContentOnDisk=True, renderRoutedToSideCacheDuringOverlap=True, sensitivityVariantFailed=True,
+                               budgetRecheckedUnderLock=True, budgetIsEstimate=True),
                reports=reports, sdk=sdk, physicalDeviceTested=False, productionVulkanSourceExecuted=True,
                driverModel='MoltenVK v1.4.2 per-cache library and merge rules on a content double; the real-backend counts are in '
                            'the melonx-library-share run; no device',

@@ -257,6 +257,83 @@ List<(int Worker, ulong[] Libraries)> Program12(ulong baseId)
     };
 }
 
+// S7: another holder (a checkpoint) announces and holds the main lock while a worker fails to take it for a share: the
+// announcement stays, and a render-thread creation goes to the side cache at once instead of waiting for the lock.
+{
+    string dir = Path.Combine(root, "overlap");
+    var l = Open(dir);
+    var counter = typeof(PipelineCacheManager).GetField("_mainCheckpointHolders", BindingFlags.NonPublic | BindingFlags.Instance);
+    var flag = typeof(PipelineCacheManager).GetField("_mainCheckpointInProgress", BindingFlags.NonPublic | BindingFlags.Instance);
+    void Announce(int delta)
+    {
+        if (counter != null) counter.SetValue(l.Manager, (int)counter.GetValue(l.Manager) + delta);
+        else flag.SetValue(l.Manager, delta > 0);
+    }
+    using var held = new ManualResetEventSlim();
+    using var release = new ManualResetEventSlim();
+    var holder = new Thread(() => { Announce(1); lock (l.MainLock) { held.Set(); release.Wait(); } Announce(-1); }) { Name = "checkpoint" };
+    holder.Start();
+    held.Wait();
+    int hits = 0;
+    int compiled = Request(l, 0, new ulong[] { 9000 }, ref hits);   // its share finds the lock held
+    bool announcedAfter = l.Manager.MainCheckpointInProgress;
+    PipelineCache target = default;
+    double routeMs = -1;
+    using var routed = new ManualResetEventSlim();
+    var render = new Thread(() =>
+    {
+        var watch = Stopwatch.StartNew();
+        l.Manager.EnterMainCreation(l.MainLock, false, out target);
+        routeMs = watch.Elapsed.TotalMilliseconds;
+        routed.Set();
+        l.Manager.ExitMainCreation(l.MainLock, target);
+    }) { Name = "render" };
+    render.Start();
+    bool returnedWhileHeld = routed.Wait(500);
+    bool toSide = returnedWhileHeld && target.Handle != 0 && target.Handle != l.Manager.MainCache.Handle;
+    release.Set();
+    holder.Join();
+    render.Join();
+    bool withdrawnAfter = !l.Manager.MainCheckpointInProgress;
+    l.Manager.MergeAndSave();
+    l.Manager.Dispose();
+    report["overlap"] = new Dictionary<string, object>
+    {
+        ["compiled"] = compiled, ["announcementKept"] = announcedAfter, ["renderReturnedWhileHeld"] = returnedWhileHeld,
+        ["renderToSideCache"] = toSide, ["renderRouteMs"] = Math.Round(routeMs, 2), ["announcementWithdrawnAfter"] = withdrawnAfter,
+    };
+}
+
+// S8: main's estimate near its budget: the share is refused (counted), the worker keeps its library; then room again:
+// shared, and main's estimate credited with the worker's growth (an estimate, not native memory).
+if (candidate)
+{
+    string dir = Path.Combine(root, "budget");
+    var l = Open(dir);
+    var mainState = typeof(PipelineCacheManager).GetField("_mainState", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(l.Manager);
+    var stateType = mainState.GetType();
+    long Estimate() => (long)stateType.GetProperty("EstimatedBytes").GetValue(mainState);
+    long budget = (long)stateType.GetField("Budget").GetValue(mainState);
+    void Measure(long bytes) => stateType.GetMethod("OnMeasured").Invoke(mainState, new object[] { bytes });
+    int hits = 0;
+    Measure(budget - 1024);
+    Request(l, 0, new ulong[] { 9100 }, ref hits);
+    bool refusedKeptOut = !l.Vk.Entries(l.Manager.MainCache).ContainsKey(9100);
+    long overBudget = Counter(l.Manager, "_sharesBudget");
+    Measure(1024 * 1024);
+    long before = Estimate();
+    Request(l, 0, new ulong[] { 9101 }, ref hits);
+    long after = Estimate();
+    var main = l.Vk.Entries(l.Manager.MainCache);
+    report["budget"] = new Dictionary<string, object>
+    {
+        ["refusedKeptOut"] = refusedKeptOut, ["overBudget"] = overBudget, ["sharedAfterRoom"] = main.ContainsKey(9100) && main.ContainsKey(9101),
+        ["estimateBefore"] = before, ["estimateAfter"] = after, ["credited"] = after - before,
+    };
+    l.Manager.MergeAndSave();
+    l.Manager.Dispose();
+}
+
 report["warnings"] = Ryujinx.Common.Logging.Logger.Warning.Messages.Select(m => m.Length > 160 ? m[..160] : m).Distinct().Take(20).ToList();
 report["shareLines"] = Ryujinx.Common.Logging.Logger.Info.Messages.Where(m => m.Contains("adapt_worker_library_share")).Take(10).ToList();
 try { Directory.Delete(root, true); } catch (IOException) { }

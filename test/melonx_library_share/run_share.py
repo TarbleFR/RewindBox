@@ -67,6 +67,8 @@ def main():
             result['peakFootprintMiB'] = round(int(peak[0].split()[0]) / 1048576, 1) if peak else None
             result['round'], result['salt'] = round_index, salt
             assert 'mvkMslCompile' in result, 'MoltenVK statistics missing'
+            if strategy == 'concurrent':
+                assert result['overlappingOwnPairs'] >= 12, 'the concurrent scenario did not overlap its own compilations'
             runs.append(result)
             print(strategy, round_index, json.dumps({k: result.get(k) for k in ('mainHits', 'ownCompiles', 'merges', 'peakFootprintMiB')}),
                   'msl', result['mvkMslCompile'], 'spirv', result['mvkSpirvToMsl']['count'], flush=True)

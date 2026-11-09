@@ -30,7 +30,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <algorithm>
 #include <mutex>
+#include <condition_variable>
 #ifdef __APPLE__
 #include <mach/mach.h>
 #endif
@@ -283,9 +285,26 @@ static size_t cacheSize(VkDevice device, VkPipelineCache cache) {
     return size;
 }
 
+// Statistics of one worker, written only by the thread making that worker's requests (aggregated after every join).
 struct Worker {
     VkPipelineCache cache = VK_NULL_HANDLE;
-    int ownCompiles = 0, mainHits = 0, sinceMerge = 0;
+    int ownCompiles = 0, mainHits = 0, sinceMerge = 0, mainRefusals = 0;
+    Timing ownTime, mainTime;
+    std::vector<std::pair<double, double>> ownIntervals;   // [start, end] of each own-cache creation, ms from the run start
+};
+
+// Two threads meet here before their own-cache creations (concurrent strategy): both lookups in main have failed, so both
+// compile at once; neither can find the other's libraries.
+struct Rendezvous {
+    std::mutex lock;
+    std::condition_variable wake;
+    int arrived = 0, generation = 0;
+    void meet() {
+        std::unique_lock<std::mutex> guard(lock);
+        int mine = generation;
+        if (++arrived == 2) { arrived = 0; generation++; wake.notify_all(); return; }
+        wake.wait(guard, [&] { return generation != mine; });
+    }
 };
 
 int main(int argc, char** argv) {
@@ -402,9 +421,10 @@ int main(int argc, char** argv) {
     std::mutex mainLock;   // MeloNX's PipelineCreationLock: main cache creations and merges hold it
     std::vector<VkPipeline> created;
     std::mutex createdLock;
-    Timing mergeTime, ownTime, mainTime;
+    Timing mergeTime;   // written under mainLock
     long librariesMerged = 0;
-    int mainRefusals = 0;
+    double runStart = nowMs();
+    Rendezvous rendezvous;
 
     auto publish = [&](Worker& w) {
         if (!merge || ++w.sinceMerge < mergeEvery) return;
@@ -420,22 +440,25 @@ int main(int argc, char** argv) {
         }
     };
     // A worker creation as MeloNX makes it: the main cache first (never compiling there), else its own cache.
-    auto request = [&](Worker& w, const GraphicsVariant& v) {
+    auto request = [&](Worker& w, const GraphicsVariant& v, bool meet) {
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkResult result;
         {
             std::lock_guard<std::mutex> lock(mainLock);
             double t = nowMs();
             result = createGraphics(c, mainCache, VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT, v, &pipeline);
-            mainTime.add(nowMs() - t);
+            w.mainTime.add(nowMs() - t);
         }
         if (result == VK_SUCCESS) {
             w.mainHits++;
         } else {
-            if (result != VK_PIPELINE_COMPILE_REQUIRED) mainRefusals++;
+            if (result != VK_PIPELINE_COMPILE_REQUIRED) w.mainRefusals++;
+            if (meet) rendezvous.meet();
             double t = nowMs();
             check(createGraphics(c, w.cache, 0, v, &pipeline), "vkCreateGraphicsPipelines worker");
-            ownTime.add(nowMs() - t);
+            double end = nowMs();
+            w.ownTime.add(end - t);
+            w.ownIntervals.push_back({t - runStart, end - runStart});
             w.ownCompiles++;
             publish(w);
         }
@@ -454,24 +477,39 @@ int main(int argc, char** argv) {
         int first = 0;
         if (concurrent) {
             // A and B start the first two variants of this program together: neither can find the other's library.
-            std::thread a([&] { request(workers[0], variants[0]); });
-            std::thread b([&] { request(workers[1], variants[1]); });
+            std::thread a([&] { request(workers[0], variants[0], true); });
+            std::thread b([&] { request(workers[1], variants[1], true); });
             a.join();
             b.join();
             first = 2;
             requests += 2;
         }
-        for (int i = first; i < 5; i++) { request(workers[owner[i]], variants[i]); requests++; }
+        for (int i = first; i < 5; i++) { request(workers[owner[i]], variants[i], false); requests++; }
     }
     double wallMs = nowMs() - start;
     double footprintEnd = footprintMiB();
 
+    // Aggregated after every thread joined. Overlap: the time both workers spent in own-cache creations at once.
+    Timing ownTime, mainTime;
+    int mainRefusals = 0;
+    for (auto& w : workers) {
+        ownTime.total += w.ownTime.total; ownTime.count += w.ownTime.count; ownTime.max = std::max(ownTime.max, w.ownTime.max);
+        mainTime.total += w.mainTime.total; mainTime.count += w.mainTime.count; mainTime.max = std::max(mainTime.max, w.mainTime.max);
+        mainRefusals += w.mainRefusals;
+    }
+    double overlapMs = 0;
+    int overlapping = 0;
+    for (auto& a : workers[0].ownIntervals)
+        for (auto& b : workers[1].ownIntervals) {
+            double both = std::min(a.second, b.second) - std::max(a.first, b.first);
+            if (both > 0) { overlapMs += both; overlapping++; }
+        }
     std::ostringstream json;
     json << "{\"strategy\": \"" << strategy << "\", \"device\": \"" << properties.deviceName << "\", \"requests\": " << requests
          << ", \"wallMs\": " << wallMs << ", \"mainHits\": " << workers[0].mainHits + workers[1].mainHits
          << ", \"ownCompiles\": " << workers[0].ownCompiles + workers[1].ownCompiles << ", \"mainRefusals\": " << mainRefusals
          << ", \"mainLookup\": " << mainTime.json() << ", \"ownCreate\": " << ownTime.json() << ", \"merges\": " << mergeTime.json()
-         << ", \"pipelinesMerged\": " << librariesMerged
+         << ", \"pipelinesMerged\": " << librariesMerged << ", \"ownOverlapMs\": " << overlapMs << ", \"overlappingOwnPairs\": " << overlapping
          << ", \"mainCacheBytes\": " << cacheSize(c.device, mainCache) << ", \"workerCacheBytes\": [" << cacheSize(c.device, workers[0].cache)
          << ", " << cacheSize(c.device, workers[1].cache) << "], \"footprintStartMiB\": " << footprintStart << ", \"footprintEndMiB\": " << footprintEnd;
 #ifdef __APPLE__
