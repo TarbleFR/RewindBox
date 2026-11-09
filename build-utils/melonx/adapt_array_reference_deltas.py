@@ -124,8 +124,12 @@ END_NEW = '''            _newViewReferences?.Clear(); // RewindBox (adapt_array_
 
                 if (_viewReferences.ContainsKey(view))
                 {
-                    destroyed |= view.Get(cbs).Value.Handle == 0;
                     added++;
+
+                    if (view.Get(cbs).Value.Handle == 0)
+                    {
+                        destroyed = true;
+                    }
                 }
             }
 
@@ -135,8 +139,12 @@ END_NEW = '''            _newViewReferences?.Clear(); // RewindBox (adapt_array_
 
                 if (_samplerReferences.ContainsKey(sampler))
                 {
-                    destroyed |= sampler.Get(cbs).Value.Handle == 0;
                     added++;
+
+                    if (sampler.Get(cbs).Value.Handle == 0)
+                    {
+                        destroyed = true;
+                    }
                 }
             }
 

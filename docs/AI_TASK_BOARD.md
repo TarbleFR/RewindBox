@@ -2530,7 +2530,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     a gain only where it removes work instead of moving it.
 - **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov; owner: this
   session, integration and Core build; open; Core 715 = Core 713 + adapt_extra_set_binds + adapt_array_reference_deltas,
-  frozen `28c53540`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
+  refrozen `ab0df1a5`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
   - Goal: less render-thread work per frame and fewer repeated native compilations, every title, same draws and results.
   - Base: Core 713 validated (contract `01e2f624`, run 42689230667 attempt 3, binary `ff3f2333…`).
   - Fix 1 (DescriptorSetUpdater.cs): an update of the uniform or storage set alone looked the bindless array set up
@@ -2555,6 +2555,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and submission. Checked after it: CommandBufferPool.SubmissionCount grows at every submission of an index; array
     setters run on the render thread (threaded commands). Not judged: MoltenVK re-encoding bound sets in a new encoder
     (the delivered early return already depends on it).
+  - Core CI: first freeze `28c53540` run 42714314353 on `9f90df80` red at step 8, gate cold-texture-release: the new
+    AddNewReferences held the statement that gate binds its proof to (one line of TextureArray.cs, required once); the
+    local reruns had covered only the gates declaring the two files. Revised (same behaviour), all 74 gates run locally
+    and green, refrozen `ab0df1a5`, contract test 445 checks; requested by the commit carrying this line.
   - Not claimed: render-thread milliseconds on the iPhone, FPS. To read on the next device run (same route, 1x): the
     pass detail line's array reference passes and references added, array current binds, descriptors in draw and compute
     prepare against 1 121 / 394 ms per 108 frames.

@@ -34,7 +34,7 @@
           "ITexture": 8388608,
           "ISampler": 8388608
         },
-        "creationAllocatedBytes": 89091248,
+        "creationAllocatedBytes": 89091696,
         "wholeRebuildAllocatedBytes": 96
       },
       "candidate": {
@@ -105,7 +105,7 @@
   "postimages": {
     "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "c64415fc5128087b8c4371b16a9aa0d51b4367a51844961abd0a30438b1aaf04",
     "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "bebf4ac56fcd76c09f64318900bf2cf5c08f2e1b50fdbf28db0946e393e3008b",
-    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "772f78906cc98fd41a48214adbdda852927ba5d800c72447ae8bc43651718a78",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "be0e5a59a2cd8c7715648b3ab6e8d09ec5c571ed8ebee71446e46b769f6475bd",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304"
   },
   "sdk": "10.0.100",

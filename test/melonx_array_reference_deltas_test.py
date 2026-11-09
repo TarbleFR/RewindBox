@@ -42,8 +42,7 @@ PROJECT = '''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 <Nullable>disable</Nullable><ImplicitUsings>disable</ImplicitUsings><EnableNETAnalyzers>false</EnableNETAnalyzers>
 <NuGetAudit>false</NuGetAudit><NoWarn>0649;0169;0414</NoWarn></PropertyGroup></Project>'''
-NEW_VIEW_GET = '''                    destroyed |= view.Get(cbs).Value.Handle == 0;
-                    added++;'''
+NEW_VIEW_GET = '''                    if (view.Get(cbs).Value.Handle == 0)'''
 checks = 0
 
 

@@ -6,7 +6,7 @@
   "postimages": {
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "1a49881c24b4f7c8794885aae8ffb39fff11eaac063f5ac40024230ecc69907c",
-    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "772f78906cc98fd41a48214adbdda852927ba5d800c72447ae8bc43651718a78"
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "be0e5a59a2cd8c7715648b3ab6e8d09ec5c571ed8ebee71446e46b769f6475bd"
   },
   "reports": {
     "control": {

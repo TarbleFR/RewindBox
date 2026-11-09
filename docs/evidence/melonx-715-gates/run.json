@@ -117,17 +117,17 @@
  "gatesRun": {
   "fragmented-reads": {
    "report": "fragmented-reads-checks.json",
-   "sha256": "d3b0ea958ed0ae2c10922e06b1707a9806309fc14bbc3df49ca7b3870003501b",
+   "sha256": "b5b66c3817d071dd1829744489a79a08315cbb6993deb7fad4f787b4d67d13f9",
    "checks": 66
   },
   "hogwarts-dma-copies": {
    "report": "hogwarts-dma-copies-checks.json",
-   "sha256": "9a59e3533ed82c21e28b4d3284646b29f682791bed8596493ca2213694c03373",
+   "sha256": "1d645d6317011f158f590f3f5d8b17c1a5bcb570ba4c3588d2b07f0cdeac0555",
    "checks": 172
   },
   "scalar-texture-descriptors": {
    "report": "scalar-texture-descriptor-checks.json",
-   "sha256": "59bbce9ccb591a2a04df046140fc3ac56570a60d828e691586699a5e2f88a2ba",
+   "sha256": "3aee163c7d619909711526d4390da59f633d75b66958bfdbdcb3e3b4244594eb",
    "checks": null
   },
   "fallback-descriptor-scratch": {
@@ -137,59 +137,80 @@
   },
   "single-resource-bindings": {
    "report": "single-resource-binding-checks.json",
-   "sha256": "fb9c0a1f795b316a8fef3614ebe234ca409a78d7679c4d19dc6fdd1dbab2d528",
+   "sha256": "97ad8a90960fdd58aa67f1cae0ab5c78b5c984d341aca7e2479963183e16c5a2",
    "checks": null
   },
   "bounded-binding-snapshots": {
    "report": "bounded-binding-snapshot-checks.json",
-   "sha256": "e4f32d0d8d6be63618c8a75b1ed1b8b543757542d9864ca23221dd97a3977b77",
+   "sha256": "42ebe9f04d9b5e75dc0455e7552ec75e9db41bb98fd1a5278caa58420aae9561",
    "checks": null
   },
   "artifact-counters": {
    "report": "artifact-counters-checks.json",
-   "sha256": "8c1607992ce0336cce1e6c2b6e1e0adca9a06195dfca7a79c5ec5e212450b2e4",
+   "sha256": "8f0bd39eb243de8d07691f4e3f99e04f8e409133d122ba68f2cb7f3cbc841d47",
    "checks": 118
   },
   "bindless-retention": {
    "report": "bindless-retention-checks.json",
-   "sha256": "1a749ea167250a4186c505a2ae0eeb32a47d0507405b9f33eb5324136563dcab",
+   "sha256": "6ec81538f254a9e9196555bbd327f08de4b3463d1b43e41ba033d1fd2be6e34f",
    "checks": 312
   },
   "core667-fixes": {
    "report": "core667-fixes-checks.json",
-   "sha256": "fbf00eb644fa316566068192d7ffbe905f03dcdfa96f1044781203ba859514b1",
+   "sha256": "804fb7cfc5f6792964beebdacd4fcdc2194eee83bd211e087b3c5221845f7edf",
    "checks": 55
   },
   "same-program-descriptors": {
    "report": "same-program-descriptors-checks.json",
-   "sha256": "d7b895ee2d4f85b5eb4cf41f8b74b57ede0bd8a98de0f93059e9f35e70e4b2bc",
+   "sha256": "8ff234e6f25ac5b9916c73aeeeba8f24f58227774231e0ce6cf5e6b653a28110",
    "checks": 79
   },
   "extra-set-binds": {
    "report": "extra-set-binds-checks.json",
-   "sha256": "cfd1faf8ca9294664fee37ea4f7b937c800aa050d3e8eebbba4c654ed04b35fb",
+   "sha256": "04df556c35c818617de857943f698c0ce0164b6ad5ae8306e45604a3a1a8cefe",
    "checks": 154
   },
   "array-reference-deltas": {
    "report": "array-reference-deltas-checks.json",
-   "sha256": "b116bb9feabb59e139533f48cd8a300a44871d2831607d0abc9d0de1486cee69",
+   "sha256": "6ffa6cd68e5fe406d2a4159a4cc29f1f807b93bbc8d04254e94b47304ecb17e3",
    "checks": 46
   }
  },
- "otherReceiptsForFreeze": "62 receipts of the Core 713 freeze (control files only), unchanged gates",
+ "otherReceiptsForFreeze": "all 74 gates run locally on the revised final preparation (all green, 9 Nov 23:45 UTC); the freeze read every receipt",
  "gateHarnessChanges": {
   "test/melonx_descriptor_encoding_final.py": "the final DescriptorSetUpdater compared without adapt_extra_set_binds' three replacements too (as Core 705's); its own gate executes them",
   "test/melonx_core667_fixes_test.py": "later adapters sharing its files (adapt_array_reference_deltas: TextureArray.cs) reversed first for the control and re-applied in the forward check",
   "test/melonx_adapter_control.py": "ORDER gains the two adapters"
  },
  "contract": {
-  "sha256": "28c535401eb20789157a968a64cbe9392538c903b825eaed48e44e2fb814984f",
+  "sha256": "ab0df1a5b6e7896cdcece2e45b5ad7ff05f45c9e7b095fea441b78bfd60c9092",
   "preparationInputs": 193,
   "preparedMembers": 206,
   "freshAppleGates": 74,
-  "contractTestChecks": 445
+  "contractTestChecks": 445,
+  "firstFreeze": "28c535401eb20789157a968a64cbe9392538c903b825eaed48e44e2fb814984f (run 42714314353 red: cold-texture-release)"
  },
  "physicalDeviceTested": false,
  "ipa": "none (maintainer)",
- "ciRuns": []
+ "ciRuns": [
+  {
+   "commit": "9f90df80",
+   "commitFull": "9f90df800a4d305e09962511a03851d738873dc6",
+   "contract": "28c53540",
+   "run": 42714314353,
+   "attempt": 1,
+   "job": 129491739062,
+   "conclusion": "failure",
+   "failedStep": "8: final-source gates",
+   "failedGate": "cold-texture-release",
+   "classification": "defect of adapt_array_reference_deltas, not of the harness: the gate binds its proof to the line 'destroyed |= view.Get(cbs).Value.Handle == 0;' of TextureArray.cs appearing once; the new AddNewReferences held the same statement (more indented), so the line appeared twice. Not run locally before the freeze: the local reruns covered the gates declaring the two changed files, CI runs all 74.",
+   "artifact": {
+    "id": 13719066343,
+    "bytes": 5750438,
+    "note": "receipts only (failed at the gates); not a Core identity"
+   },
+   "action": "AddNewReferences rewritten without that statement (same behaviour), preparation redone, all 74 gates run locally, refrozen"
+  }
+ ],
+ "revision": "AddNewReferences without the statement cold-texture-release binds its proof to (same behaviour)"
 }
