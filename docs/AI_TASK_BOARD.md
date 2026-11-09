@@ -1862,6 +1862,89 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and present gaps, and that the image is unchanged.
   - Core CI (9 Nov): run 42549631227 on `012fe2cf` green, artifact 13645644597 (`MeloNX-engine-012fe2cf…`, sha256
     `7ac1ff99…`). No pin, no IPA (maintainer). Lot 3 stays open: levers (2) and (3) not changed yet.
+- **MeloNX lot 4: repeated allocations, memory pressure, retentions (Claude Code, 9 Nov; owner: Claude Code, integration and
+  Core build; open; Core 709 = Core 705 + adapt_retention_chain (Core 707, journal only) + adapt_short_cache_reuse, frozen
+  `31f9ecf2`, commits on `Claude` up to the `[melonx-dma-core]` one requesting the Core CI; no IPA (maintainer)):** input
+  IPA 694 / Core 699, Hogwarts 1x pid 40200 (private journals): footprint 3.7-5.3 GB, device 4-10 % available; GPU caches
+  textures 141-198/768 MiB, buffers 24-105/554 MiB; pool-only textures 2 369-8 164 (69-213 MiB, in no budget); a
+  "device short only" TrimCaches every 2-12 s releasing 29-89 MiB; managed heap 665-744 MiB.
+  - Map: managed heap (GPU thread allocations, GC), native (host textures and buffers, pipeline caches), the auto delete
+    texture cache (render targets, copies; budget 768 MiB), pool-only textures (sampled, no budget, cold release after
+    60 s unused), the short texture cache (textures a pool stopped naming: two presents), the buffer cache (LRU, 554 MiB),
+    session retention after a close.
+  - Retention after a close: discarded leads (read in the 705 preparation, each releases or overwrites its root):
+    KernelStatic thread statics (KThread host threads only), Switch.Shared, the Library's _window/_emulationContext, the
+    session coordinator's delegates, NpadManager/TouchScreenManager/NativeGamepadDriver input subscriptions, the host1x
+    registry, the tamper machine thread, the Apple audio GCHandle, the audio managers, the kernel preemption thread,
+    SurfaceFlinger, ModLoader, EmbeddedSession statics. Noted, not changed: the BSD context registry is never cleared (a
+    stale context is reused when a pid recurs; it holds host sockets, not the session). The chain is not demonstrated:
+    Core 707 only journals it (weak references; "retentionChain close" and "nextFirstFrame" lines). Pending a device run.
+  - TrimCaches (694 lines): right after a device-short trim the texture cache equals the "kept" bytes (02:42.9 162 = 162
+    MiB, 03:14.4 155 = 155 MiB), so those trims released almost no texture; the 65-67 MiB came from the buffer cache (77 and
+    73 MiB left, about 140 before). The texture cycle below is not attributed to TrimCaches. Buffer trims evict LRU buffers
+    whatever their last use; whether evicted buffers are recreated is not known from the logs (the line does not split
+    textures from buffers). Not changed.
+  - Cause (test/melonx_texture_pool_allocations, production TexturePool/TextureCache/AutoDeleteCache/Texture on guest memory,
+    doubled renderer): a texture a pool entry stops naming, held by nothing else, goes to the short cache
+    (TexturePool -> AddShortCache) and is destroyed when ProcessShortCache drops it two presents later (Window.Present ->
+    TextureCache.Tick). A descriptor naming it again after that creates a new texture and uploads all of its data. 64
+    bindless elements named for one present then left for three, 120 presents: 1 920 creations, 1 920 full uploads (160 MB),
+    45 312 B allocated per pass (about 700 B per changed element, the clue of the 694 analysis); the same swap within two
+    presents creates nothing (66 B per element: the new ShortTextureCacheEntry).
+  - Fix (Core 709, adapt_short_cache_reuse: AutoDeleteCache, TextureCache, GpuContext): at expiry a still valid texture
+    only the entry holds (InvalidatedSequence unchanged, mapping never changed, not a buffer texture, at most 8 MiB) stays
+    on a retained list with its reference and descriptor lookup; FindShortCache returns it like an entry of the two
+    presents, the pool synchronizes its memory (CPU writes uploaded) and references it. Bounds: 1 024 textures and 32 MiB
+    (estimated host size, a view counts its storage); 694: budget 768 MiB, pool-only textures about 28 KiB each, so 32 MiB
+    is 4 % of the budget, about 1 100 such textures, below the smallest trim release logged (29 MiB). A full list keeps
+    what it holds and the expiring texture is destroyed as before (measured: evicting the oldest instead reused nothing on
+    a cyclic return larger than the bounds while holding 32 MiB). Released 60 presents after retention (2 s at 30 FPS),
+    when found invalidated or remapped, when superseded, at every TextureCache.Trim (all of them, before the auto delete
+    cache) and at TextureCache.Dispose. Released entries reused (at most 256). An entry leaving removes its descriptor
+    lookup only if the lookup still finds it (upstream removed the key whatever entry it held, which could leave a later
+    retained entry of the same descriptor unfindable until its age limit; found by the independent review, which found no
+    reference-count, reuse, invalidation, threading or teardown defect). Same render-loop thread as Tick, the pool lookups
+    and TrimCaches. Journal (30 s CheckHostMemory): "Short texture cache: kept past two presents N (MiB, peak; at
+    most 1024, 32 MiB, 60 presents), reused R, released by age, not kept (list full), by memory pressure or close,
+    invalidated or superseded; destroyed at expiry D".
+  - Gate texture-pool-allocations (94 checks; control = the final preparation without the adapter; same scenarios after
+    warm-up on both engines, tiered compilation off, then default; the final allocation figures run without any
+    EventListener). Every element checked after every pass: a live host texture of the descriptor's size, swizzle and
+    format whose data (first texel marker, through uploads and GPU copies) equals guest memory read through the GPU address
+    now. Same observation digest on both engines (`f6fbcfb1…`), no error. Guest layout from the production textures:
+    largest 161 312 B in 256 KiB slots, enlarged ones at most 238 KiB, no overlap. Results control -> candidate
+    (tiered compilation off; default runtime in parentheses):
+    - back after expiry (3 presents): creations 1 920 -> 0, uploads 160.2 -> 0 MB, 45 312 -> 46 B per pass (46 944 -> 142),
+      Tick + commit 0.282 -> 0.088 ms per pass (0.655 -> 0.206), scenario 36.0 -> 12.0 ms (86.2 -> 31.5); live host texture
+      peak 49.7 -> 55.5 MB.
+    - back within two presents: 0 -> 0 creations; 4 096 -> 46 B per pass (entry reuse).
+    - back after 70 presents: 48 -> 48 creations (released by age).
+    - CPU writes while away: creations 1 920 -> 0, uploads 1 920 -> 1 920 (the new data), 45 312 -> 512 B per pass.
+    - descriptor changes (RRRA swizzle, Snorm format, 4 rows shorter, then as before): creations 3 072 -> 0 (data by GPU
+      copy from the retained texture), 268.3 -> 0 MB uploaded; live peak 49.6 -> 66.1 MB.
+    - unmapped and remapped while away: 320 -> 320 creations, 0 reused (remapped textures never returned).
+    - referenced elsewhere (two entries; one lifted into the auto delete cache as a render target): 30 -> 0 creations.
+    - list full by count (1 300 textures in turn): 12 800 -> 2 403 creations, at most 1 024 entries; by bytes (500 textures
+      24 rows taller): 6 400 -> 2 765 creations, peak 33 474 912 B (<= 32 MiB), live peak 55.3 -> 88.3 MB.
+    - device-short trim (Warning, freeOnly, as TrimCaches calls it) every 12 passes: 1 920 -> 640 creations; 11 trims
+      released 94 048 864 B of host textures (control 0); bytes reported by Trim = bytes freed.
+    - close (PhysicalMemory.Dispose -> TextureCache.Dispose): every host texture released once, 46.5 / 51.9 MB -> 0,
+      retained 64 -> 0. Totals: creations 48 897 -> 9 007, uploads 2.14 GB -> 0.80 GB.
+    Times are of the doubled renderer, not iPhone times. Limit found: a two-level pitch texture overlapped by one of
+    another height throws in TextureGroup.GenerateHandles in the control engine too (hardware pitch textures have one
+    level; the bench uses one-level pitch textures).
+  - Other gates rerun on the final preparation and green: on the Core 709 preparation hogwarts-dma-copies, device-short-trim, host-warning-trim, cold-texture-release, memory-inventory,
+    forced-syncpoint-wait, fragmented-reads, display-native, retention-chain; on the Core 707 preparation (files unchanged since)
+    binder-teardown, descriptor-scratch-all-titles, moltenvk-stage-ordering, pause-guest-threads, pipeline-cache-persist,
+    present-pacing, safe-point-compaction, session-retention, setprogram-warmup, teardown-cache, teardown-phase-marks; 70 fresh
+    gates, 189 preparation inputs, 206 prepared members; contract test 437 checks. [Receipts](evidence/melonx-709-gates/run.json).
+  - Display-native (Core 707 failure): the final EmbeddedMemory.cs is compared to the native file plus the compaction
+    class after undoing exactly the one retention-chain line (once, by its adapter text), and compiled as final with a no-op
+    Library.RecordRetentionChain stub; the comparison is otherwise unchanged.
+  - To measure on iPhone (Hogwarts 1x, same route, then a long session with the thermal state recorded): the "Short
+    texture cache" line (reused vs destroyed at expiry, not kept, released by pressure), CreateTexture counts and time on
+    the render thread, GPU thread allocations and GC windows, footprint and trim frequency (every trim releases the list),
+    FPS and present gaps, the image unchanged; the retentionChain lines after a close and at the next first frame.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
