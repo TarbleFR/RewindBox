@@ -47,7 +47,7 @@
       "session1Bytes": 5254,
       "session2Loaded": 18,
       "session2Session": 2,
-      "loadedLine": "[MeloNX:core] {\"timestamp\":\"2026-11-09T19:14:36.7734227Z\",\"pid\":10702,\"sequence\":2,\"stage\":\"pipelineVariants\",\"status\":\"loaded\",\"nativeStatus\":0,\"diagnostic\":\"18 variants of 6 programs planned for session 2 (dropped: 0 failed, 0 older than 8 sessions, 0 unreadable; 18 lines read) (adapt_pipeline_variant_replay)\"}"
+      "loadedLine": "[MeloNX:core] {\"timestamp\":\"2026-11-09T19:24:46.8861154Z\",\"pid\":12330,\"sequence\":2,\"stage\":\"pipelineVariants\",\"status\":\"loaded\",\"nativeStatus\":0,\"diagnostic\":\"18 variants of 6 programs planned for session 2 (dropped: 0 failed, 0 older than 8 sessions, 0 unreadable; 18 lines read) (adapt_pipeline_variant_replay)\"}"
     },
     "otherSchemaLoaded": 0,
     "stale": {
@@ -65,18 +65,18 @@
     "relaunch": {
       "planned": 9,
       "replayed": 9,
-      "offerMs": 4,
+      "offerMs": 7,
       "maxInFlight": 1,
       "firstThreeAreTwoSessionStates": true,
       "executedOnce": true,
-      "summary": "Pipeline variants (test): ready before their first draw 0; draws that joined a replay 0 (waited 0 ms), joined another queued compile 0 (0 ms); late creations left 0 (0 ms): new 0, planned not built yet 0, built but missed 0, after a failed replay 0. Replays: built 9 (compile 180 ms, queue wait 168 ms), refused 0, temporary failures 0, cancelled 0, skipped 0, held for memory 0, in flight 0, still planned 0 of 9 (adapt_pipeline_variant_replay)."
+      "summary": "Pipeline variants (test): ready before their first draw 0; draws that joined a replay 0 (waited 0 ms), joined another queued compile 0 (0 ms); late creations left 0 (0 ms): new 0, planned not built yet 0, built but missed 0, after a failed replay 0. Replays: built 9 (compile 180 ms, queue wait 180 ms), refused 0, temporary failures 0, cancelled 0, skipped 0, held for memory 0, in flight 0, still planned 0 of 9 (adapt_pipeline_variant_replay)."
     },
     "afterReplayLate": {
       "builtButMissed": 1,
       "new": 0
     },
     "priority": {
-      "waitedMs": 40,
+      "waitedMs": 52,
       "warmUpsQueued": 20,
       "warmUpsBeforeIt": 1,
       "compilesOfIt": 1,
@@ -126,8 +126,8 @@
     },
     "race": {
       "rounds": 200,
-      "ranOnce": 12,
-      "cancelled": 188,
+      "ranOnce": 78,
+      "cancelled": 122,
       "inconsistent": 0,
       "hung": 0,
       "runningRefusedCancel": 20,
@@ -145,7 +145,7 @@
       "joinedOther": 1,
       "joinedOtherMs": 12,
       "new": 1,
-      "summary": "Pipeline variants (test): ready before their first draw 0; draws that joined a replay 0 (waited 0 ms), joined another queued compile 1 (12 ms); late creations left 1 (25 ms): new 1, planned not built yet 0, built but missed 0, after a failed replay 0. Replays: built 5 (compile 2000 ms, queue wait 408 ms), refused 0, temporary failures 0, cancelled 0, skipped 0, held for memory 0, in flight 0, still planned 0 of 5 (adapt_pipeline_variant_replay)."
+      "summary": "Pipeline variants (test): ready before their first draw 0; draws that joined a replay 0 (waited 0 ms), joined another queued compile 1 (12 ms); late creations left 1 (25 ms): new 1, planned not built yet 0, built but missed 0, after a failed replay 0. Replays: built 5 (compile 2000 ms, queue wait 400 ms), refused 0, temporary failures 0, cancelled 0, skipped 0, held for memory 0, in flight 0, still planned 0 of 5 (adapt_pipeline_variant_replay)."
     },
     "cap": {
       "planned": 600,
@@ -162,7 +162,7 @@
     "build-utils/melonx/adapt_pipeline_variant_replay.py": "a9189f534906358eb06cd47b9d5dd6ed309dd079eb58de4bf6b1b6c42e3b403d",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "test/melonx_pipeline_variant_replay_test.py": "2381b960bb295f5dd7006cce0a1cbc9bb14d3335a0ce28b208436270f5e181f7",
-    "test/melonx_pipeline_variant_replay/Program.cs": "9f0da3e397e6437bd46e0c8e30b820c31b4ac0de78d95c0054037942d4f9d6d0",
+    "test/melonx_pipeline_variant_replay/Program.cs": "c7df04879db5203e22697ae751168eb49cbd618a9f6a7400299bf3520aa4f22c",
     "test/melonx_adapter_control.py": "a422efc864d7c2b1e9cd573631bdd5dc2c826c56b922eea6ad4c0efac017666c"
   },
   "limitation": "Host run of the production codec, journal and scheduler; no Vulkan device, so a replay creates nothing and its cost is simulated. Whether replayed states are the ones a later draw asks for (built but missed stays 0), the late creations saved, and launch time and memory on an iPhone are shown only by a device run."

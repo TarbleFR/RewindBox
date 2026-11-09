@@ -2129,6 +2129,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     contract test 439 checks with the authenticated archive; the 28 fresh receipts validated against it; the freeze read
     the other 43 gates' Core 709 CI receipts (run 42634615592) for their control files only.
     [Receipts](evidence/melonx-711-gates/run.json). Core CI: requested by the `[melonx-dma-core]` commit (result below).
+  - Core CI: first freeze `914ea9d2` (`ea2ba417`) run 42669419054 green (job 129341657099; artifact 13700246784, 90 994 066 B,
+    sha256 `ef110c96…`; iPhone binary `59425ce5…`, 71 fresh Apple gates, compiled and simulator-validated, not gameplay
+    tested). Revision `b60d0c0e` (`e3cc304a`) run 42671662153 red at step 8 (artifact 13703016859, receipts only): gate
+    pipeline-variant-replay, failure scenario launch 2 `[4, 1, 0, 3]` instead of `[4, 1, 1, 2]`. Harness, not product: the
+    memory-short replay lowered a device-memory value shared by both replays in flight, so the deterministic failure was
+    classified while memory read short (temporary, as the journal rightly does). Fixed in Core 713's harness (memory goes
+    short once every other replay has its outcome; green locally, also with every core busy). The revision's code ships in
+    Core 713; no Core 711 binary carries the deterministic eviction.
   - Device reading (next IPA with Core 711, two comparable launches on the same 1x route): second launch's summary lines as
     above; render-thread draw prepare "pipelines" time and present gaps on the known route. A comparison with IPA 694 is
     the cumulative result of lots 1-5, not of this lot alone.
@@ -2235,7 +2243,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     pipeline-checkpoint (its boundary gains PipelineCacheUuid as in Silk.NET; a subinterval worker's content must be on
     disk at the close, in its own file or in main's file once that file is removed), teardown-cache, main-cache-checkpoint,
     checkpoint-side-cache, pipeline-cache-room, pipeline-cache-persist, pipeline-build-journal, pipeline-cache-growth,
-    pipeline-cache-background, pipeline-variant-replay (107), moltenvk-stage-ordering (75). Contract frozen `2bebf779`
+    pipeline-cache-background, pipeline-variant-replay (107; its failure scenario made deterministic after the Core 711
+    revision CI, green again also with every core busy), moltenvk-stage-ordering (75). Contract frozen `01e2f624` (first
+    freeze `2bebf779`, commit `87763290`, CI run 42681937497 started with the racy harness)
     (72 fresh gates, 191 preparation inputs, 206 prepared members); contract test 441 checks with the authenticated
     archive; the 15 fresh receipts validated against it; the freeze read the other 57 receipts (14 Core 711, 43 Core 709
     CI) for their control files only. [Receipts](evidence/melonx-713-gates/run.json). Core CI: requested by the

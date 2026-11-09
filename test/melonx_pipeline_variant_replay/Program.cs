@@ -440,11 +440,20 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
         device = 60;
         var journal = Open(name, () => device);
         var local = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
-        // 901 fails, and memory is short when it does.
+        // 901 fails, and memory is short when it does. Memory goes short only once every other replay of this launch has
+        // its outcome (two run at once: set earlier, the deterministic failure of 900 could be classified while memory
+        // reads short, which the journal rightly counts as temporary; Core 711 CI run 42671662153 on macOS).
         local.Cost = r => (10, r.Id == v900 || r.Id == v901);
         local.Throw = r => r.Id == v902;
-        local.OnStart = r => { if (r.Id == v901) device = 5; };
-        local.OnEnd = _ => { };
+        local.OnStart = _ => { };
+        local.OnEnd = r =>
+        {
+            if (r.Id == v901)
+            {
+                WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded - 1, 3000);
+                device = 5;
+            }
+        };
         journal.Offer(0xDDDD, local);
         WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded, 1500);
         device = 60;

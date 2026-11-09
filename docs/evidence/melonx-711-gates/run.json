@@ -176,5 +176,42 @@
  ],
  "policy": "two strikes evict the recipe at the next load (removed from the file); never replayed automatically again; back only when a draw creates the state successfully (re-recorded, marker cleared); the marker lasts 8 sessions and its expiry replays nothing",
  "proofScope": "rebuilt earlier gates verify their historical behaviours and source composition; the new gate creates no real Vulkan pipeline; no scenario validates the final manager during load, replay and close on a real backend",
- "proposedTargetedTest": "in the existing iOS simulator runtime smoke (real MoltenVK, final manager, two sessions): read session 2 pipelineVariants lines; require built but missed 0 and no refused replay when one is replayed; report not exercised otherwise"
+ "proposedTargetedTest": "in the existing iOS simulator runtime smoke (real MoltenVK, final manager, two sessions): read session 2 pipelineVariants lines; require built but missed 0 and no refused replay when one is replayed; report not exercised otherwise",
+ "ciRuns": [
+  {
+   "commit": "914ea9d2",
+   "contract": "ea2ba417",
+   "run": 42669419054,
+   "job": 129341657099,
+   "conclusion": "success",
+   "artifact": {
+    "id": 13700246784,
+    "bytes": 90994066,
+    "sha256": "ef110c96212acf71a270353274b700c508b56feef09717245d37ddde0f0c030c"
+   },
+   "binaries": {
+    "ios-arm64": "59425ce53d32a88dcae703275328e56e5d1a24888e3ccd0b901546903e6184cd",
+    "iossimulator-arm64": "7714fe6d17e791fd1945eb230395d85a52765ac426cf40ed7d56130b9dc2958e"
+   },
+   "freshAppleGates": 71,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "note": "first freeze (eviction waited for another compaction)"
+  },
+  {
+   "commit": "b60d0c0e",
+   "contract": "e3cc304a",
+   "run": 42671662153,
+   "job": 129356932199,
+   "conclusion": "failure",
+   "failedStep": "8: Run five affected final-source gates",
+   "artifact": {
+    "id": 13703016859,
+    "bytes": 5797273,
+    "sha256": "d7ddd0bef8fc60e551fe9542c6475e2f14be4b0df55980cbfebd46217a29cd9f",
+    "content": "gate receipts and logs only, no engine binary"
+   },
+   "classification": "harness: gate pipeline-variant-replay, failure scenario, launch 2 [4, 1, 0, 3] instead of [4, 1, 1, 2]; the memory-short replay lowered a device-memory value shared by both replays in flight, so the deterministic failure was classified while memory read short (temporary, as the journal rightly does); not a product defect",
+   "fix": "Core 713: the harness lowers memory only once every other replay of the launch has its outcome (green locally, also with every core busy)"
+  }
+ ]
 }

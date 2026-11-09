@@ -186,7 +186,7 @@
   "pipeline-variant-replay": {
    "result": "passed",
    "checks": 107,
-   "receiptSha256": "7af12a3aac6b06b4ebd13af246c1f58b897239ccb422668cb8c5a91c79661f33"
+   "receiptSha256": "ccc6d4d425b1f0ec99de4603c882f2279e249a57bf3c994c49d0f4c4bee432f5"
   },
   "moltenvk-stage-ordering": {
    "result": "passed",
@@ -202,7 +202,7 @@
  "boundaryChange": "test/melonx_pipeline_checkpoint: Boundaries.cs gains PipelineCacheUuid (Silk.NET); Program.cs: a subinterval worker's content must be on disk at the close, in its own file or in main's file once that file is removed",
  "otherReceiptsForFreeze": "57 receipts reused for their control files: 14 fresh Core 711 receipts (docs/evidence/melonx-711-gates) and 43 Core 709 CI receipts (run 42634615592)",
  "contract": {
-  "sha256": "2bebf779eef2af8c384916a4fb155f17c83aed45ef1835e81c87f0ac38767d7f",
+  "sha256": "01e2f624d773e250a2ffb7994b1f9841779bfadb71514d19fdd970a51cc8e3b5",
   "preparationInputs": 191,
   "preparedMembers": 206,
   "freshAppleGates": 72,
@@ -218,5 +218,9 @@
   "\"mainRefusedKept\" if a refusal occurs"
  ],
  "physicalDeviceTested": false,
- "ipa": null
+ "ipa": null,
+ "revisions": [
+  "first freeze 2bebf779 (commit 87763290, Core CI run 42681937497 started with the racy pipeline-variant-replay harness)",
+  "refrozen 01e2f624: test/melonx_pipeline_variant_replay/Program.cs failure scenario made deterministic (Core 711 revision CI run 42671662153 failed on it); pipeline-variant-replay rerun 107 checks, also with every core busy"
+ ]
 }
