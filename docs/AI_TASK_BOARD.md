@@ -913,7 +913,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       per-epoch validation rarely reuses; TEXMEMO mode 0 (Automatic = AC only; would miss_epoch every epoch anyway).
       iOS hashes every texture section (page locks disabled). nv308a inline, nv0039 copies and nv3089 CPU blits still
       advance the global epoch although the RSX knows the range (CELL573 scoped path covers flushes/FBO commits only).
-    - **Core 909 (local, not built yet)** = Core 908 + REWINDBOX_SCOPED_RSX_UPLOADS_909 (NV308A inline data and NV0039
+    - **Core 909 built and pinned**: request 1 run `42683183053` (source `d5a89192`), Core job and Apple host harnesses
+      green first try (15 commands); dylib `5f3281dc` (80 831 376 B), fingerprint `28700e74`, identities unchanged;
+      markers COREPROF EPOCH909, COREPROF GOW3MLAA909, scoped_rsx_writes= present; pin_errors and bundle clean. Not run
+      on the iPhone; no FPS claim; no IPA (maintainer).
+    - Core 909 = Core 908 + REWINDBOX_SCOPED_RSX_UPLOADS_909 (NV308A inline data and NV0039
       copies with a non-negative pitch go through rsx::thread::ios_rsx_wrote_guest_memory; Vulkan + scope on =
       revalidate_overlapping under the cache lock, else the same epoch advance), REWINDBOX_EPOCH_SOURCES_909 (COREPROF
       EPOCH909), REWINDBOX_GOW3_MLAA_REPORT_909 (COREPROF GOW3MLAA909: ppu decision, SPU images/matched/patched, unmatched
