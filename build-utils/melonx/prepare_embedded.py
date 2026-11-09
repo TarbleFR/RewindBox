@@ -161,6 +161,7 @@ from adapt_pipeline_variant_replay import apply as adapt_pipeline_variant_replay
 from adapt_pipeline_snapshot_retire import apply as adapt_pipeline_snapshot_retire
 from adapt_extra_set_binds import apply as adapt_extra_set_binds
 from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
+from adapt_worker_library_share import apply as adapt_worker_library_share
 
 
 def replace_once(path, old, new):
@@ -452,6 +453,9 @@ def main():
     # array changed again in the same command buffer referenced all its views again): kept bound; new references only.
     adapted += [source / name for name in adapt_extra_set_binds(source)]
     adapted += [source / name for name in adapt_array_reference_deltas(source)]
+    # Core 717 (lot 8: a worker's Metal libraries reached the main cache only before a recycle or at the close, so another
+    # worker compiled the same MSL again): published to main after each own compilation, bounded, never waiting.
+    adapted += [source / name for name in adapt_worker_library_share(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -576,7 +580,8 @@ def main():
                  'adapt_pipeline_variant_replay.py',
                  'adapt_pipeline_snapshot_retire.py',
                  'adapt_extra_set_binds.py',
-                 'adapt_array_reference_deltas.py']:
+                 'adapt_array_reference_deltas.py',
+                 'adapt_worker_library_share.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

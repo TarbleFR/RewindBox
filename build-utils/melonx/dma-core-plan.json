@@ -72,7 +72,8 @@
   "build-utils/melonx/adapt_pipeline_variant_replay.py",
   "build-utils/melonx/adapt_pipeline_snapshot_retire.py",
   "build-utils/melonx/adapt_extra_set_binds.py",
-  "build-utils/melonx/adapt_array_reference_deltas.py"
+  "build-utils/melonx/adapt_array_reference_deltas.py",
+  "build-utils/melonx/adapt_worker_library_share.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -3664,6 +3665,34 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs"
+   ]
+  },
+  {
+   "name": "worker-library-share",
+   "script": "test/melonx_worker_library_share_test.py",
+   "report": "worker-library-share-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanSourceExecuted": true,
+    "comparison.renderRoutedToSideCacheDuringOverlap": true,
+    "comparison.sensitivityVariantFailed": true,
+    "comparison.sameContentOnDisk": true,
+    "comparison.librariesCompiledControl": 27,
+    "comparison.librariesCompiledCandidate": 15
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
    ]
   }
  ]

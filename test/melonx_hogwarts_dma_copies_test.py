@@ -162,6 +162,8 @@ LOT_FILES = {
     # Core 715: extra array sets kept bound; texture array references by delta.
     'adapt_extra_set_binds': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
     'adapt_array_reference_deltas': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Core 717: a worker's libraries published to main during play.
+    'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineState.cs'],
 }
 
 checks = 0
