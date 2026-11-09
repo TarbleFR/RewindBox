@@ -13,7 +13,12 @@ FINAL_MEMORY='src/Ryujinx.Library/EmbeddedMemory.cs'
 if CANDIDATE:
  sys.path.insert(0,str(ROOT/'build-utils/melonx'))
  from adapt_safe_point_compaction import COMPACTION_CLASS
+ # Core 707 (adapt_retention_chain) appends one journal call to the compaction class's first-frame step: it is
+ # compared without it (once, exactly), and compiled against a no-op Library.RecordRetentionChain stub.
+ from adapt_retention_chain import FIRST_FRAME_OLD,FIRST_FRAME_NEW
  final=(CANDIDATE/FINAL_MEMORY).read_text(encoding='utf-8-sig');native=(ROOT/'native/melonx/EmbeddedMemory.cs').read_text(encoding='utf-8-sig')
+ RETENTION_CHAIN=final.count(FIRST_FRAME_NEW)==1
+ if RETENTION_CHAIN:final=final.replace(FIRST_FRAME_NEW,FIRST_FRAME_OLD,1)
  assert final.count(COMPACTION_CLASS)==1 and final.replace(COMPACTION_CLASS,'',1).rstrip()==native.rstrip(),'final EmbeddedMemory is the native file plus the compaction class only'
 with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
  w=Path(d)
@@ -45,7 +50,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
 namespace Ryujinx.Memory {static class MemoryBlock {public static ulong GetPageSize()=>16384;}'''+('''static class HostMemoryBudget {public static bool IsConstrained=>false;public static ulong FootprintBytes=>0;public static int DeviceAvailablePercent=>100;}''' if CANDIDATE else '')+'''}
 namespace Ryujinx.Common.Logging {enum LogClass {Cpu} class Log {public void Print(LogClass c,string s){}} static class Logger {public static Log Warning=new();}}
 namespace Ryujinx.Common.Configuration {'''+''.join(enums)+'''}
-namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static void Fail(string a,string b,Exception e){}'''+('''public static void Record(string stage,string status,int code=0,string detail="",long performanceGeneration=0){}''' if CANDIDATE else '')+'''}}
+namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static void Fail(string a,string b,Exception e){}'''+('''public static void Record(string stage,string status,int code=0,string detail="",long performanceGeneration=0){}''' if CANDIDATE else '')+'''}}'''+('''
+namespace Ryujinx.Library {static partial class Library {public static void RecordRetentionChain(string when){}}}''' if CANDIDATE and RETENTION_CHAIN else '')+'''
 namespace Ryujinx.Library {
 public class Options {'''+''.join(fields)+'''}
 class Configuration {public AspectRatio AspectRatio {get;set;}}
