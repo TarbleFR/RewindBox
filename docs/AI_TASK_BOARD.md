@@ -1110,6 +1110,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       increment core911-from-910 e4240592 (= metal-wip-from-910). Host bridge unchanged (c1494c46): MoltenVK dependency
       run 42695255551 kept. Local: route PASS, codegen audit PASS (one exact alias), Metal fold chain simulated PASS
       (private repository), lever tests PASS; host guards and the full driver running at this commit.
+    - **Core 911 built and pinned**: request `65c7ffa4`, run `42709542308`: Core job green (source closure and MoltenVK
+      dependency authenticated, compiled, binary verified; artifact 13716227563, zip = API digest 84822eb0), Apple host
+      job red in the Core 664 PPU grace host model, scenario 2b, on the reverted Core 668 tree ("sleepers >= 1" and the
+      400 ms bound; same signature as Core 907 request 1). Classified as a race of the test: writers sleep at most
+      their 500 us bound, an observer descheduled longer finds them gone and waits its 2 s limit. Reproduced under CPU
+      load (old model 2 failures in 8 runs, new 0 in 8); test/native/rpcs3_ppu_grace664_model.cpp now runs a missed
+      observation again (every check kept; 8 attempts without a sleeper still fail). Apple-only rerun `56cca266`, run
+      `42713366820`: green (15 commands, `core911` included). Dylib `43509d9f` (80 849 488 B), fingerprint `19a1f4a0`,
+      identities PPU a987639e / SPU 477a3fa4 in the built identity; marker worker_used= present; pin_errors and bundle
+      clean, pin `4f665359`. Not run on the iPhone; no FPS claim; no IPA (maintainer).
+    - iPhone questions that block a decision (Core 911, one IPA; each with its counters):
+      1. BO2 (BLES01717 01.xx as installed), menus 60 s then the slow scene of 694 window 11, "SPU No-op Spin Wait" on
+         then off: SPUWAIT551 (putllc_ok/heavy, getllar_sleep), COREPROF frames (spu_cores, ppu_cores, top), FRAMEPROF527.
+         Decides: keep the accurate wait (SPU cores fall, FPS not lower) or restrict it.
+      2. BO2 same run: RANGELOCKPROF wl_putllc + wl_putllc_phases (Core 908) and thread CPU in the 30 FPS scene:
+         decides whether parking or CPU capacity limits the frame (no BO2 thread CPU line exists on 694).
+      3. GOW3 savestate scene: EPOCH909 put/put_deferred/put_patched, OPT583 lookahead/worker_used, OPT581: decides
+         whether the horizon stays (put_deferred >= ~20 % of put) and what the prehash budget does.
+      4. GOW3 or Black Flag stall on Core >= 909: causes + milestones with FREEZE_DUMP ppu_poller/lwcond/label lines.
+      5. AC1 100 %, the 21 FPS scene: RPASS652 + RPASS655 to_*: decides deferral of the pass begin or transfers first.
     - **AC1 (figures now correctly attributed).** Window 41 is its GPU-bound case: 49.4 passes per frame; ends by site
       per frame: image_helpers.cpp:96 26.2 (4.0 same-target), barriers.cpp:95 6.8 (all same-target), VKRenderPass.cpp:468
       5.0, VKDraw.cpp:230 4.8 (0.9 same), barriers.cpp:21 2.8 (all same), VKDraw.cpp:1411 2.0, VKTexture.cpp:647 1.0,
