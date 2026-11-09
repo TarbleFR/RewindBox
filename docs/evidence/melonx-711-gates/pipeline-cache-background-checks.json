@@ -4,7 +4,7 @@
   "finalPreparationBound": true,
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6",
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "fb84d717296319a20c398329a0a9b1259c9cc31103928ff40f41ae78a65d7054"
   },
@@ -12,7 +12,7 @@
     "control": {
       "variant": "control",
       "startup": {
-        "ctorMs": 4527.7022,
+        "ctorMs": 4520.0886,
         "mainAtStart": 12582848,
         "workersAtStart": 64,
         "pendingAtStart": false,
@@ -33,7 +33,7 @@
         "lines": []
       },
       "endDuringLoad": {
-        "teardownMs": 25.6777,
+        "teardownMs": 15.5789,
         "deferred": false,
         "releasedInTime": true,
         "releaseThread": null,
@@ -42,7 +42,7 @@
         "fileUnchanged": false
       },
       "noSnapshot": {
-        "ctorMs": 0.0936,
+        "ctorMs": 0.2696,
         "pending": false,
         "deferred": false
       },
@@ -66,7 +66,7 @@
     "candidate": {
       "variant": "candidate",
       "startup": {
-        "ctorMs": 14.0145,
+        "ctorMs": 14.1034,
         "mainAtStart": 32,
         "workersAtStart": 64,
         "pendingAtStart": true,
@@ -76,7 +76,7 @@
         "workerFileAfterMain": true,
         "loaderMerges": 3,
         "fileUnchangedDuringLoad": true,
-        "workerWaitMs": 4506.8515,
+        "workerWaitMs": 4505.8402,
         "workerSawLoaded": true,
         "loaded": true,
         "mainAfterLoad": 12648384,
@@ -89,7 +89,7 @@
         ]
       },
       "endDuringLoad": {
-        "teardownMs": 0.1767,
+        "teardownMs": 0.1403,
         "deferred": true,
         "releasedInTime": true,
         "releaseThread": "RewindBox.PipelineCacheLoad",
@@ -98,7 +98,7 @@
         "fileUnchanged": true
       },
       "noSnapshot": {
-        "ctorMs": 0.1984,
+        "ctorMs": 0.3231,
         "pending": false,
         "deferred": false
       },

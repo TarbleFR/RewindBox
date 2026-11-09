@@ -4,7 +4,7 @@
   "finalPreparationBound": true,
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6"
   },
   "testedPostimages": {
@@ -56,7 +56,7 @@
         "mainReads": [
           "worker0 data main begin lockHeld=True"
         ],
-        "workerMs": 24,
+        "workerMs": 34,
         "infoLines": 1
       },
       "withinInterval": {

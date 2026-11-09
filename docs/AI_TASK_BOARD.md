@@ -2077,7 +2077,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     replayed key equal to the draw's for real Hogwarts states ("built but missed" 0, "ready before their first draw" > 0);
     Metal compile cost and native memory of replayed pipelines; launch to first frame unchanged; whether replays run at all
     with Hogwarts's usual 4-10 % device memory ("held for memory").
-  - Gate and bound reruns: pipeline-variant-replay 105 checks; the 27 gates bound to the four files rerun locally and
+  - Revision (frozen `e3cc304a`): eviction made deterministic and documented; gate 107 checks; the 12 gates bound to
+    PipelineCacheManager.cs rerun locally and green; contract test 439 checks; 28 fresh receipts valid. First freeze
+    `ea2ba417` (commit `914ea9d2`): its Core CI result is recorded below with this revision's.
+  - Gate and bound reruns (first freeze): pipeline-variant-replay 105 checks; the 27 gates bound to the four files rerun locally and
     green on the final preparation (pipeline-cache-background now compares only the files no later adapter edits, the
     files_edited_later rule). Contract frozen `ea2ba417` (71 fresh gates, 190 preparation inputs, 206 prepared members);
     contract test 439 checks with the authenticated archive; the 28 fresh receipts validated against it; the freeze read

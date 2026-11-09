@@ -4,7 +4,7 @@
   "finalPreparationBound": true,
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6"
   },
   "testedPostimages": {
@@ -15,7 +15,7 @@
     "control": {
       "variant": "control",
       "duringCheckpoint": {
-        "blockingWaitMs": 412.1,
+        "blockingWaitMs": 413.6,
         "blockingIntoMain": true,
         "blockingCreated": true,
         "tryOnlyWaitMs": 0,
@@ -28,7 +28,7 @@
       },
       "noCheckpoint": {
         "tryOnlyCreated": false,
-        "blockingWaitMs": 199.9,
+        "blockingWaitMs": 200,
         "blockingIntoMain": true
       },
       "warnings": 0
@@ -36,7 +36,7 @@
     "candidate": {
       "variant": "candidate",
       "duringCheckpoint": {
-        "blockingWaitMs": 2.7,
+        "blockingWaitMs": 3.1,
         "blockingIntoMain": false,
         "blockingCreated": true,
         "tryOnlyWaitMs": 0,
@@ -49,7 +49,7 @@
       },
       "noCheckpoint": {
         "tryOnlyCreated": false,
-        "blockingWaitMs": 199.8,
+        "blockingWaitMs": 199.7,
         "blockingIntoMain": true
       },
       "warnings": 0

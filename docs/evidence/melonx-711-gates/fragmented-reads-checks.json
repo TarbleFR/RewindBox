@@ -148,7 +148,7 @@
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs": "087fa705f78aec3ae5b2b3ef463d2bb97e96a5feeeb30f611f226eecc5608f95",
     "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1012eb3c77c5d3e471d2527e3b3ebc804f01c7f61b52f7e6dc37f9bb403b3200",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
     "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "7bbef29deaed820aaa81b220557677c93130a8c3ede0ef04fb87b1453ada9c97",
     "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "359e31758ce45482abd64688b74e38bb65a4f2997086f8d6b995247580381a83",
     "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "bd8711d8fe405b87940c920b3f9ded8ab7f67610d1056e0704ff9ebd69a98413",
@@ -296,7 +296,7 @@
       "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs": "087fa705f78aec3ae5b2b3ef463d2bb97e96a5feeeb30f611f226eecc5608f95",
       "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1012eb3c77c5d3e471d2527e3b3ebc804f01c7f61b52f7e6dc37f9bb403b3200",
       "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
-      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
       "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "7bbef29deaed820aaa81b220557677c93130a8c3ede0ef04fb87b1453ada9c97",
       "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "359e31758ce45482abd64688b74e38bb65a4f2997086f8d6b995247580381a83",
       "src/Ryujinx.Graphics.Vulkan/PipelineLayoutCacheEntry.cs": "bd8711d8fe405b87940c920b3f9ded8ab7f67610d1056e0704ff9ebd69a98413",
@@ -357,7 +357,7 @@
       "shuffledHash": "20e784a0e31d1403",
       "orderedGetSpanAllocated": 1048600,
       "prefetchHash": "391927207aa84203",
-      "prefetchAllocated": 98884
+      "prefetchAllocated": 98464
     },
     "privatePartitions": {
       "supported": true,
@@ -525,7 +525,7 @@
     "build-utils/melonx/adapt_same_program_descriptors.py": "c86a8e5c4bea4d46d369896f35422a99376f677fd9a0bc158d8fc9cf5fab9a96",
     "build-utils/melonx/adapt_retention_chain.py": "7842aa3f37e121b5150f85821e4a6a8b0b9a8047a28f231198f413cdd9bb5bbf",
     "build-utils/melonx/adapt_short_cache_reuse.py": "52c2d34dc10e486b4c90aaae585c4e0181be843a3334a6a61f501caaf9d49923",
-    "build-utils/melonx/adapt_pipeline_variant_replay.py": "d0e1b50cf8f7b627c6218678b8db7e116ac10982ed9a29a2adff23003d9dd139",
+    "build-utils/melonx/adapt_pipeline_variant_replay.py": "a9189f534906358eb06cd47b9d5dd6ed309dd079eb58de4bf6b1b6c42e3b403d",
     "test/melonx_adapter_control.py": "523576a3b8171fdf0eb35e7e789bc6177e0addedb621f4695fc9e6f55b9a4672",
     "native/melonx/EmbeddedPerformanceDiagnostics.cs": "da619d6fa8ff59fd3452ea73ee0aafa40a32148e289ace3f5931ea7a7a16dcdf"
   },

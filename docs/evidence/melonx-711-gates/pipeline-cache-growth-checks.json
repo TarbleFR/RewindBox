@@ -4,7 +4,7 @@
   "finalPreparationBound": true,
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6"
   },
   "testedPostimages": {
@@ -69,9 +69,9 @@
       "playRecords": [
         "pipelineCache checkpointSkipped play: main 102.00 MiB, +2.00 MiB since the file was written 0 s ago (adapt_pipeline_cache_growth)",
         "pipelineCache checkpoint play: main 109.00 MiB, +9.00 MiB since the file was written 0 s ago (adapt_pipeline_cache_growth)",
-        "pipelineCache written main 109.00 MiB in 125 ms (adapt_pipeline_cache_growth)",
+        "pipelineCache written main 109.00 MiB in 127 ms (adapt_pipeline_cache_growth)",
         "pipelineCache checkpoint play: main 110.00 MiB, +1.00 MiB since the file was written 700 s ago (adapt_pipeline_cache_growth)",
-        "pipelineCache written main 110.00 MiB in 163 ms (adapt_pipeline_cache_growth)"
+        "pipelineCache written main 110.00 MiB in 166 ms (adapt_pipeline_cache_growth)"
       ],
       "pause": {
         "firstWrites": 1,
@@ -80,7 +80,7 @@
         "mainFileMiB": 50.19,
         "records": [
           "pipelineCache checkpoint pause: main 50.19 MiB, +192.00 KiB since the file was written 0 s ago (adapt_pipeline_cache_growth)",
-          "pipelineCache written main 50.19 MiB in 54 ms (adapt_pipeline_cache_growth)",
+          "pipelineCache written main 50.19 MiB in 63 ms (adapt_pipeline_cache_growth)",
           "pipelineCache checkpointSkipped pause: main 50.19 MiB, +0.00 KiB since the file was written 0 s ago (adapt_pipeline_cache_growth)"
         ]
       },
@@ -92,8 +92,8 @@
         ]
       },
       "closeRecords": [
-        "pipelineCache saved main 154.28 MiB in 159 ms (adapt_pipeline_cache_growth)",
-        "pipelineCache saved worker 0 0.03 KiB in 2 ms (adapt_pipeline_cache_growth)"
+        "pipelineCache saved main 154.28 MiB in 167 ms (adapt_pipeline_cache_growth)",
+        "pipelineCache saved worker 0 0.03 KiB in 1 ms (adapt_pipeline_cache_growth)"
       ],
       "errors": 0,
       "warnings": 0

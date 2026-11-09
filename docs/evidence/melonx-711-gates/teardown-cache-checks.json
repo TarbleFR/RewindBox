@@ -7,12 +7,12 @@
     "src/Ryujinx.Library/Window/WindowBase.cs": "41a467934c4eb022af756c7e303260d3ffec0face359780cd47b4efe94a0169d",
     "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "fb84d717296319a20c398329a0a9b1259c9cc31103928ff40f41ae78a65d7054",
     "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "c721da2bbaa47c6b37d0dcfd46dc3fab890f7e5cc41f4d0cd935ab464a67b1de",
-    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb2bd170329c43afd62da797f362e76676e3f40c90a4e77fd786db80d4d75824"
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4"
   },
   "reports": {
     "control": {
       "variant": "control",
-      "closeMs": 2820,
+      "closeMs": 2783,
       "workers": 1,
       "compiledDuringClose": 220,
       "releasedWhileWorkerRan": false,
@@ -27,8 +27,8 @@
       "journal": [
         "teardown gpuRelease render loop drained; releasing the GPU",
         "gpuTeardown deviceIdleWait programs 0; cancelled shader modules 0, pipelines 0; cancel and join 0 ms, program waits 0 ms",
-        "gpuTeardown compiles programs 0; cancelled before a worker took them: shader modules 0, pipelines 0; cancel and join 0 ms, program waits 0 ms, device idle 0 ms, pipeline cache save 85 ms",
-        "teardown gpuReleased 2819 ms"
+        "gpuTeardown compiles programs 0; cancelled before a worker took them: shader modules 0, pipelines 0; cancel and join 0 ms, program waits 0 ms, device idle 0 ms, pipeline cache save 11 ms",
+        "teardown gpuReleased 2782 ms"
       ],
       "order": [
         "journal teardown gpuRelease",
@@ -49,7 +49,7 @@
     },
     "candidate": {
       "variant": "candidate",
-      "closeMs": 314,
+      "closeMs": 312,
       "workers": 1,
       "compiledDuringClose": 0,
       "releasedWhileWorkerRan": false,
@@ -64,10 +64,10 @@
       "journal": [
         "teardown gpuRelease render loop drained; releasing the GPU",
         "teardown compilesCancelled programs 220; cancelled before a worker took them: shader modules 0, pipelines 200; cancel and join 300 ms; saving the pipeline cache before program disposal",
-        "teardown pipelineCacheSaved 11 ms; disposing the programs",
+        "teardown pipelineCacheSaved 9 ms; disposing the programs",
         "gpuTeardown deviceIdleWait programs 0; cancelled shader modules 0, pipelines 200; cancel and join 0 ms, program waits 0 ms",
         "gpuTeardown compiles programs 0; cancelled before a worker took them: shader modules 0, pipelines 200; cancel and join 0 ms, program waits 0 ms, device idle 0 ms, pipeline cache save 0 ms",
-        "teardown gpuReleased 313 ms"
+        "teardown gpuReleased 311 ms"
       ],
       "order": [
         "journal teardown gpuRelease",
