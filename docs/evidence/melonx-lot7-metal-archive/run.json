@@ -126,6 +126,7 @@
   }
  ],
  "evidence": {
+  "README.md": "the full record of the lot (stages, measures, decision, limits, protocol)",
   "device-moltenvk-statistics.json": "iPhone: MoltenVK's own statistics in the private journals, aggregates per session (IPA 624-684)",
   "metal-probe.json": "macOS runner: stand-alone Metal probe, three runs, ranges",
   "moltenvk-run-1-before-review.json": "macOS runner: patched MoltenVK through Vulkan, run 42695873585",
