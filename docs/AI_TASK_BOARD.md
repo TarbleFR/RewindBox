@@ -893,6 +893,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       first try (15 commands); dylib `26ca81ad` (80 813 848 B), fingerprint `47d0324c`, identities unchanged; markers
       wl_putllc_phases=, miss_evicted=, FREEZE_DUMP ppu_poller/lwcond present. Verified offline (pin_errors, bundle).
       Not run on the iPhone; no FPS claim. No IPA (maintainer).
+  - **God of War III BCES00510 (maintainer prompt 9 Nov, no IPA; owner: Claude Code; open)**. Input: build 694 private logs
+    (diagnostic, performance, milestones, causes; PID 43103; not in Git). Binary: IPA 694 (sha 42f1717a, trigger 43899cee)
+    = RPCS3 Core 907 unchanged (dylib 2d8e92ba, fingerprint b804508a), from the frozen 694 manifest and pin, not from markers.
+    Executable: cache dir ppu-HQfb9JM3... = PPU-4d5c51503a81... = app 01.00 (tools/cheats/snapshots/gow3-0100.yml).
+    - MLAA: gow3_mlaa_bypass policy=1, but the PPU half is gated to PPU-19724fde (01.03) and skipped on savestates (!ar):
+      not applicable here; only the SPU half (SPU-530c2559 / 2239af48, applied at sys_spu image load) can apply. Evidence
+      MLAA still runs: every frame one fault_read of 3 686 400 B (= 1280x720x4) and five SPU PUTs (pc 0x5950, next to the
+      SPU patch site 0x5948) to label 0x60300510. Official 01.00 patch text not reachable (rpcs3.net blocked).
+    - Session 1 stall (fresh boot, frame ~11796, t+210 s): RSX acquire 0x60300510 expects 0x2b24, value 0x2b23. Per-frame
+      chain in the 64-event trace: RSX acquire 0x4f0==0, RSX TEXTURE_READ_SEMAPHORE_RELEASE 0x4f0=1 (cpu_commit), acquire
+      0x60000030==1, acquire 0x510==N, then ~12.6 ms later five SPU DMA PUTs (cmd 0x20, 4 B, pc 0x5950) resolve it. At the
+      stall the RSX wrote 0x4f0=1, no SPU PUT followed; both SPURS instances idle with no ready work (wklReadyCount 0,
+      contention 0); PPU main in sys_timer_usleep(30) loop (lr 0x2622ec). So the PPU never submitted the frame's MLAA jobs.
+      Not a pause/background (paused 0, suspended 0); ended by the user loading a savestate. PPU writes (0x4f0 reset, job
+      kick) are the excluded trace kind. Core 908 ppu_poller line (code at lr, r13-r31, words) is the missing observation.
+    - Session 2 (savestate): 11-26 fps, PPU main 0.91 core (bottleneck), RSX thread 0.33. Texture hash: 15.96 GB/5 s
+      (JITMEM counts RSX + worker; OPT581 worker 10.48 GB of it), epoch_advances 25 807 per window = ~358 epochs/frame, so
+      per-epoch validation rarely reuses; TEXMEMO mode 0 (Automatic = AC only; would miss_epoch every epoch anyway).
+      iOS hashes every texture section (page locks disabled). nv308a inline, nv0039 copies and nv3089 CPU blits still
+      advance the global epoch although the RSX knows the range (CELL573 scoped path covers flushes/FBO commits only).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
