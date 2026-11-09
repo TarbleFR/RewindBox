@@ -149,6 +149,8 @@ LOT_FILES = {
     'adapt_synced_buffer_reads': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
     # Core 703: a stage's layout declares each used binding with its used type (no file of this lot).
     'adapt_layout_used_types': [],
+    # Core 705: the program already set keeps its bound descriptor sets.
+    'adapt_same_program_descriptors': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
 }
 
 checks = 0

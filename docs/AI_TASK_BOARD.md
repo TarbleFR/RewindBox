@@ -1751,7 +1751,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     near 0), gpuFifoWait, present gaps p95/p99 and intervals over 100 ms.
 - **MeloNX lot 2: program 890A188FB55B5D5D (Claude Code, 8 Nov; owner: Claude Code, integration and Core build; open
   until a device run; Core 703 = Core 701 + adapt_layout_used_types, frozen `a79ea96f`, commits `20e4968b`/`b06fbae9`
-  and the `[melonx-dma-core]` commit requesting the Core CI; not pinned, no IPA yet):** input IPAs 688-694 / Core 699
+  and `273f3df5` (`[melonx-dma-core]`); Core CI run 42530701061 attempt 1 green (67 gates rerun on macOS, iOS ARM64 app
+  exercised; artifact 13637264913, 90 799 667 B, `8798c542…`); not pinned, no IPA (maintainer, 9 Nov)):** input IPAs 688-694 / Core 699
   (pid 40200: "SPIR-V to MSL conversion error: nullptr", ErrorInitializationFailed, fragment stage, 2 stages, 1 sample,
   TriangleList, draws unavailable); private host shader cache (program 1837; 1 394 vertex+fragment programs used
   below; kept outside the repository).
