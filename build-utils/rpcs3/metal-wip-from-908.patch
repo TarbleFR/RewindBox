@@ -1,0 +1,514 @@
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index 9b7a528..55793ab 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -15,6 +15,7 @@
+ #include "Emu/system_config.h"
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "ios/IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
+ #endif
+ #include "Emu/VFS.h"
+ 
+@@ -2390,6 +2391,17 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 	// the first place. Pair it with the exact-hash SPU fallback in sys_spu.cpp;
+ 	// neither half can affect another title or executable revision.
+ 	const std::string_view title_id = Emu.GetTitleID();
++	// REWINDBOX_GOW3_MLAA_REPORT_909: what the bypass does for this executable (ios/IOSGow3MlaaReport.h).
++	if (title_id == "BCES00510" || title_id == "BCES00799" || title_id == "BCUS98111" ||
++		title_id == "BCJS37001" || title_id == "BCAS25003" || title_id == "BCKS15003")
++	{
++		using rpcs3::ios::gow3_mlaa::ppu_state;
++		rpcs3::ios::gow3_mlaa::record_executable(hash,
++			!rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass ? ppu_state::policy_off :
++			ar ? ppu_state::savestate :
++			hash != "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" ? ppu_state::other_executable : ppu_state::applied);
++	}
++
+ 	if (!ar && rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass &&
+ 		hash == "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" &&
+ 		(title_id == "BCES00510" || title_id == "BCES00799" || title_id == "BCUS98111" ||
+diff --git a/rpcs3/Emu/Cell/lv2/sys_spu.cpp b/rpcs3/Emu/Cell/lv2/sys_spu.cpp
+index 5de917b..4ba4fe0 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_spu.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_spu.cpp
+@@ -15,6 +15,7 @@
+ #include "Emu/Memory/vm_reservation.h"
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "ios/IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
+ #endif
+ #include "sys_interrupt.h"
+ #include "sys_process.h"
+@@ -47,11 +48,14 @@ bool apply_gow3_mlaa_spu_bypass(u8* loc, std::string_view hash, std::vector<u32>
+ 	// RPCS3's official patch repository identifies these exact MLAA modules
+ 	// for God of War III 01.00 and 01.03 respectively. Never patch a merely
+ 	// similar program or another title.
++	rpcs3::ios::gow3_mlaa::spu_images.fetch_add(1, std::memory_order_relaxed); // REWINDBOX_GOW3_MLAA_REPORT_909
+ 	if (hash != "SPU-530c255936b07b25467a58e24ceff5fd4e2960b7" &&
+ 		hash != "SPU-2239af4827b17317522bd6323c646b45b34ebf14")
+ 	{
++		rpcs3::ios::gow3_mlaa::record_unmatched_spu(hash);
+ 		return false;
+ 	}
++	rpcs3::ios::gow3_mlaa::spu_matched.fetch_add(1, std::memory_order_relaxed);
+ 
+ 	constexpr std::array<std::pair<u32, u32>, 2> patches{{
+ 		{0x00005948, 0x40800094}, // il r20, 1
+@@ -65,6 +69,7 @@ bool apply_gow3_mlaa_spu_bypass(u8* loc, std::string_view hash, std::vector<u32>
+ 		{
+ 			target = instruction;
+ 			applied.push_back(offset);
++			rpcs3::ios::gow3_mlaa::spu_words_patched.fetch_add(1, std::memory_order_relaxed);
+ 		}
+ 	}
+ 
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index 758976a..381291b 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -829,6 +829,17 @@ namespace rsx
+ 		using lookup_memo_type = rpcs3::ios::texture_lookup_memo::table<sampled_image_descriptor, rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count>;
+ 		lookup_memo_type m_lookup_memo;
+ 
++	public:
++		// REWINDBOX_SCOPED_RSX_UPLOADS_909: an RSX method wrote guest memory over `range` (NV308A inline data, NV0039
++		// memory copy, NV3089 CPU blit) after its bytes are in place: the sections over it, their prehash results,
++		// bound samplers and memo entries are revalidated, exactly as a flushed or committed surface (CELL573).
++		void ios_revalidate_rsx_write(const address_range32& range)
++		{
++			std::lock_guard lock(m_cache_mutex);
++			revalidate_overlapping(range);
++		}
++
++	protected:
+ 		// CELL573_SCOPED_RSX_WRITES: the next validation of every section over `range` hashes again.
+ 		void revalidate_overlapping(const address_range32& range)
+ 		{
+@@ -862,7 +873,7 @@ namespace rsx
+ 			}
+ 			else
+ 			{
+-				rpcs3::ios::texture_validation::advance_epoch();
++				rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::flush);
+ 			}
+ #endif
+ 
+@@ -1235,7 +1246,7 @@ namespace rsx
+ 				rpcs3::ios::texture_validation_scope::enabled.load(std::memory_order_relaxed);
+ 			if (!cause.is_read() && !ios_scoped_commit)
+ 			{
+-				rpcs3::ios::texture_validation::advance_epoch();
++				rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::invalidate);
+ 			}
+ #endif
+ 			address_range32 fault_range = fault_range_in.to_page_range();
+@@ -2028,7 +2039,7 @@ namespace rsx
+ 		{
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: at most one frame between full revalidations.
+-			rpcs3::ios::texture_validation::advance_epoch();
++			rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::frame_end);
+ 			// CELL581_TEXTURE_PREHASH: this frame's validations predict the next frame's.
+ 			rpcs3::ios::texture_prehash::end_frame();
+ 			rpcs3::ios::texture_residency::advance_frame();
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp b/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
+index b8fd946..f7c3de8 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
+@@ -123,7 +123,10 @@ namespace rsx
+ 				RSX(ctx)->write_barrier(write_address, write_length);
+ #ifdef RPCS3_IOS
+ 				// Complete CPU copies before invalidating both texture validation and prehash results.
+-				rpcs3::ios::texture_validation::advance_epoch();
++				// REWINDBOX_SCOPED_RSX_UPLOADS_909: over the destination range only (the copy is complete here). A negative
++				// output pitch writes below write_address (write_length wraps): length 0 keeps the global epoch then.
++				RSX(ctx)->ios_rsx_wrote_guest_memory(write_address, (out_pitch < 0 && line_count > 1) ? 0u : write_length,
++					static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::memory_copy));
+ #endif
+ 				// res->release(0);
+ 			});
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+index 148a1ee..fd1af11 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+@@ -686,7 +686,10 @@ namespace rsx
+ 			}
+ #ifdef RPCS3_IOS
+ 			// The CPU fallback wrote guest bytes; GPU blits above retain their cache-managed path.
+-			rpcs3::ios::texture_validation::advance_epoch();
++			// REWINDBOX_EPOCH_SOURCES_909: kept global (counted as blit_cpu). The bytes written are not one exact known
++			// range here (destination offset, swizzled power-of-two surfaces, scaled rows beyond the clip), so a scoped
++			// revalidation could leave a section in the untracked tail validated (independent review, Core 909).
++			rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::blit_cpu);
+ #endif
+ 		}
+ 	}
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp b/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
+index 75a552f..de501e3 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
+@@ -98,7 +98,8 @@ namespace rsx
+ 					RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, 4);
+ #ifdef RPCS3_IOS
+ 					// Inline RSX uploads can rewrite a validated texture within one FIFO batch.
+-					rpcs3::ios::texture_validation::advance_epoch();
++					// REWINDBOX_SCOPED_RSX_UPLOADS_909: revalidated over the bytes written.
++					RSX(ctx)->ios_rsx_wrote_guest_memory(dst_address, 4, static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::inline_upload));
+ #endif
+ 					return;
+ 				}
+@@ -116,7 +117,7 @@ namespace rsx
+ 
+ 				RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, count * 4);
+ #ifdef RPCS3_IOS
+-				rpcs3::ios::texture_validation::advance_epoch();
++				RSX(ctx)->ios_rsx_wrote_guest_memory(dst_address, data_length, static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::inline_upload));
+ #endif
+ 				break;
+ 			}
+@@ -155,7 +156,7 @@ namespace rsx
+ 					dst[0] = convert(src[count - 1]);
+ 					RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, 2);
+ #ifdef RPCS3_IOS
+-					rpcs3::ios::texture_validation::advance_epoch();
++					RSX(ctx)->ios_rsx_wrote_guest_memory(dst_address, 2, static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::inline_upload));
+ #endif
+ 					break;
+ 				}
+@@ -167,7 +168,7 @@ namespace rsx
+ 
+ 				RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, count * 2);
+ #ifdef RPCS3_IOS
+-				rpcs3::ios::texture_validation::advance_epoch();
++				RSX(ctx)->ios_rsx_wrote_guest_memory(dst_address, data_length, static_cast<u8>(rpcs3::ios::texture_validation::epoch_source::inline_upload));
+ #endif
+ 				break;
+ 			}
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+index 3138983..43f8ccc 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+@@ -61,7 +61,7 @@ namespace rsx
+ 			{
+ #ifdef RPCS3_IOS
+ 				// CELL559_TEXTURE_EPOCH: data released before this semaphore is visible now.
+-				rpcs3::ios::texture_validation::advance_epoch();
++				rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::acquire);
+ #endif
+ 				// Flip semaphore doesnt need wake-up delay
+ 				if (addr != RSX(ctx)->label_addr + 0x10)
+@@ -187,7 +187,7 @@ namespace rsx
+ 
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: the producer released the semaphore after its writes.
+-			rpcs3::ios::texture_validation::advance_epoch();
++			rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::acquire);
+ #endif
+ 			const u64 waited = get_system_time() - wait_started;
+ #ifdef RPCS3_IOS
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index ed3ab34..29ae33f 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -169,7 +169,7 @@ namespace rsx
+ 			if (put != m_epoch_put) [[unlikely]]
+ 			{
+ 				m_epoch_put = put;
+-				rpcs3::ios::texture_validation::advance_epoch();
++				rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::put);
+ 			}
+ 
+ 			return put;
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index d6f4b9e..2fb5531 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -1,3 +1,4 @@
++#include "ios/IOSTextureValidationProfile.h" // REWINDBOX_SCOPED_RSX_UPLOADS_909
+ #include "stdafx.h"
+ #include "RSXThread.h"
+ 
+@@ -3238,6 +3239,13 @@ namespace rsx
+ 		}
+ 	}
+ 
++#ifdef RPCS3_IOS
++	void thread::ios_rsx_wrote_guest_memory(u32 /*address*/, u32 /*length*/, u8 epoch_source)
++	{
++		rpcs3::ios::texture_validation::advance_epoch(static_cast<rpcs3::ios::texture_validation::epoch_source>(epoch_source));
++	}
++#endif
++
+ 	flags32_t thread::read_barrier(u32 memory_address, u32 memory_range, bool unconditional)
+ 	{
+ 		flags32_t zcull_flags = (unconditional)? reports::sync_none : reports::sync_defer_copy;
+diff --git a/rpcs3/Emu/RSX/RSXThread.h b/rpcs3/Emu/RSX/RSXThread.h
+index b13decc..2fe0711 100644
+--- a/rpcs3/Emu/RSX/RSXThread.h
++++ b/rpcs3/Emu/RSX/RSXThread.h
+@@ -443,6 +443,11 @@ namespace rsx
+ 		void sync();
+ 		flags32_t read_barrier(u32 memory_address, u32 memory_range, bool unconditional);
+ 		virtual void write_barrier(u32 /*memory_address*/, u32 /*memory_range*/) {}
++#ifdef RPCS3_IOS
++		// REWINDBOX_SCOPED_RSX_UPLOADS_909: an RSX method wrote [address, address + length) of guest memory itself.
++		// Default (renderers without the scoped texture cache path, or the scope off): a new texture epoch.
++		virtual void ios_rsx_wrote_guest_memory(u32 address, u32 length, u8 epoch_source);
++#endif
+ 		virtual void sync_hint(FIFO::interrupt_hint hint, reports::sync_hint_payload_t payload);
+ 		virtual bool release_GCM_label(u32 /*type*/, u32 /*address*/, u32 /*value*/) { return false; }
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 9e8262a..48c8eac 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -1886,6 +1886,29 @@ void VKGSRender::write_barrier(u32 address, u32 range)
+ 	m_rtts.invalidate_range(utils::address_range32::start_length(address, range));
+ }
+ 
++#ifdef RPCS3_IOS
++// REWINDBOX_SCOPED_RSX_UPLOADS_909: God of War III (CELL573 scope, Automatic for it) went through ~358 texture epochs
++// per frame on build 694 (Core 907), each one re-hashing every texture it samples next. An RSX method that writes guest
++// memory knows the range it wrote: only the sections over it are revalidated (revalidate_overlapping: section
++// validation, prehash bypass, bound sampler ranges, memo entries), as CELL573 does for flushed and committed surfaces.
++// The write is complete when this runs (the caller wrote the bytes first). Scope off, or an empty or wrapping range:
++// a new epoch, as before.
++void VKGSRender::ios_rsx_wrote_guest_memory(u32 address, u32 length, u8 epoch_source)
++{
++	if (length && u64{address} + length <= (1ull << 32) &&
++		rpcs3::ios::texture_validation_scope::enabled.load(std::memory_order_relaxed) &&
++		rpcs3::ios::texture_validation::current_epoch())
++	{
++		m_texture_cache.ios_revalidate_rsx_write(utils::address_range32::start_length(address, length));
++		rpcs3::ios::texture_validation::scoped_rsx_writes.fetch_add(1, std::memory_order_relaxed);
++		rpcs3::ios::texture_validation::scoped_rsx_write_bytes.fetch_add(length, std::memory_order_relaxed);
++		return;
++	}
++
++	rsx::thread::ios_rsx_wrote_guest_memory(address, length, epoch_source);
++}
++#endif
++
+ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hint_payload_t payload)
+ {
+ 	rsx::thread::sync_hint(hint, payload);
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index cd2fd43..d28c5bd 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -306,6 +306,9 @@ public:
+ 
+ 	// Sync
+ 	void write_barrier(u32 address, u32 range) override;
++#ifdef RPCS3_IOS
++	void ios_rsx_wrote_guest_memory(u32 address, u32 length, u8 epoch_source) override; // REWINDBOX_SCOPED_RSX_UPLOADS_909
++#endif
+ 	void sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hint_payload_t payload) override;
+ 	bool release_GCM_label(u32 type, u32 address, u32 data) override;
+ 
+diff --git a/rpcs3/ios/IOSGow3MlaaReport.h b/rpcs3/ios/IOSGow3MlaaReport.h
+new file mode 100644
+index 0000000..b671562
+--- /dev/null
++++ b/rpcs3/ios/IOSGow3MlaaReport.h
+@@ -0,0 +1,90 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <cstdint>
++#include <cstring>
++#include <mutex>
++#include <string>
++#include <string_view>
++
++// REWINDBOX_GOW3_MLAA_REPORT_909: God of War III, build 694 device log: CONFIG_LAYERS mlaa_bypass=1 is the policy, not
++// the patch. The executable was PPU-4d5c51503a81... (app 01.00, the BCES00510 cache directory), while the PPU half of the
++// bypass is gated to PPU-19724fde... (01.03) and skipped on a savestate boot; only the SPU half (exact SPU image hashes)
++// can apply, and every frame still read back one 1280x720x4 surface and received five SPU writes of the label the RSX
++// waits on. This records what was actually applied (COREPROF GOW3MLAA909): the PPU decision, the SPU images of the title
++// checked, the ones patched, and the first distinct SPU image hashes that matched no patch.
++namespace rpcs3::ios::gow3_mlaa
++{
++enum class ppu_state : std::uint32_t
++{
++	unset = 0, applied, other_executable, savestate, policy_off
++};
++
++inline std::atomic<std::uint32_t> ppu{0};
++inline std::atomic<std::uint64_t> spu_images{0}, spu_matched{0}, spu_words_patched{0};
++
++constexpr std::size_t hash_slots = 6;
++inline std::mutex hashes_mutex;
++inline std::array<std::array<char, 48>, hash_slots> unmatched{};
++inline std::size_t unmatched_count = 0;
++inline std::array<char, 48> executable{};
++
++inline void store(std::array<char, 48>& slot, std::string_view text) noexcept
++{
++	const std::size_t n = text.size() < slot.size() - 1 ? text.size() : slot.size() - 1;
++	std::memcpy(slot.data(), text.data(), n);
++	slot[n] = '\0';
++}
++
++inline void record_executable(std::string_view hash, ppu_state state) noexcept
++{
++	{
++		std::lock_guard lock(hashes_mutex);
++		store(executable, hash);
++	}
++	ppu.store(static_cast<std::uint32_t>(state), std::memory_order_relaxed);
++}
++
++inline void record_unmatched_spu(std::string_view hash) noexcept
++{
++	std::lock_guard lock(hashes_mutex);
++	for (std::size_t i = 0; i < unmatched_count; ++i)
++	{
++		if (std::string_view(unmatched[i].data()) == hash) return;
++	}
++	if (unmatched_count < hash_slots) store(unmatched[unmatched_count++], hash);
++}
++
++inline const char* ppu_name(std::uint32_t state) noexcept
++{
++	switch (static_cast<ppu_state>(state))
++	{
++	case ppu_state::applied: return "applied";
++	case ppu_state::other_executable: return "other_executable";
++	case ppu_state::savestate: return "savestate_memory";
++	case ppu_state::policy_off: return "policy_off";
++	default: return "unset";
++	}
++}
++
++// Comma-separated list of the unmatched SPU image hashes, and the executable hash.
++inline std::string unmatched_list()
++{
++	std::lock_guard lock(hashes_mutex);
++	std::string out;
++	for (std::size_t i = 0; i < unmatched_count; ++i)
++	{
++		if (i) out += ',';
++		out += unmatched[i].data();
++	}
++	return out.empty() ? std::string("-") : out;
++}
++
++inline std::string executable_hash()
++{
++	std::lock_guard lock(hashes_mutex);
++	return executable[0] ? std::string(executable.data()) : std::string("-");
++}
++} // namespace rpcs3::ios::gow3_mlaa
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+index abea47a..af6cd5d 100644
+--- a/rpcs3/ios/IOSTextureValidationProfile.h
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -115,13 +115,26 @@ inline std::uint64_t current_epoch() noexcept
+ // (ios/IOSTexturePrehash.h); called after the epoch has advanced.
+ inline std::atomic<void (*)() noexcept> epoch_listener{nullptr};
+ 
+-inline void advance_epoch() noexcept
++// REWINDBOX_EPOCH_SOURCES_909: God of War III, build 694 device log (Core 907), session 2 window 29:
++// epoch_advances=25807 for 72 frames (~358 epochs per frame) and texture_hash_bytes=15.96 GB per 5 s; every
++// epoch invalidates every texture validation. Which synchronization points advance it, counted per source
++// (COREPROF OPT559 epoch_sources=).
++enum class epoch_source : std::uint8_t
++{
++	other = 0, put, acquire, inline_upload, memory_copy, blit_cpu, flush, invalidate, frame_end, count
++};
++inline std::array<std::atomic<std::uint64_t>, static_cast<std::size_t>(epoch_source::count)> epoch_source_counts{};
++// REWINDBOX_SCOPED_RSX_UPLOADS_909: RSX writes of a known range revalidated in scope instead of a new epoch.
++inline std::atomic<std::uint64_t> scoped_rsx_writes{0}, scoped_rsx_write_bytes{0};
++
++inline void advance_epoch(epoch_source source = epoch_source::other) noexcept
+ {
+ 	const bool enabled = epoch_enabled.load(std::memory_order_relaxed);
+ 	if (enabled)
+ 	{
+ 		validation_epoch.fetch_add(1, std::memory_order_acq_rel);
+ 		epoch_bumps.fetch_add(1, std::memory_order_relaxed);
++		epoch_source_counts[static_cast<std::size_t>(source)].fetch_add(1, std::memory_order_relaxed);
+ 	}
+ 	// Observing this revision also observes the preceding hash epoch and writes.
+ 	sampler_revision.fetch_add(1, std::memory_order_acq_rel);
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+index 9ee7a6f..e48e1c8 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+@@ -10,6 +10,7 @@
+ #include "Emu/Cell/lv2/sys_spu.h"
+ #include "Emu/Cell/lv2/sys_semaphore.h" // REWINDBOX_FREEZE_DEEP_621
+ #include "Emu/Cell/lv2/sys_lwcond.h" // REWINDBOX_FREEZE_POLLER_908
++#include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
+ #include <cstring>
+ #include "Emu/Memory/vm_reservation.h"
+ #include "Emu/Cell/timers.hpp"
+@@ -498,6 +499,19 @@ bool neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 		{
+ 			deep.push_back(guest_line(addr));
+ 		}
++
++		// REWINDBOX_FREEZE_LABELS_909: God of War III, build 694: the RSX waited on label 0x60300510 while the label it
++		// had released just before (0x603004f0, the PPU's go signal) lies in the previous 128-byte line. Both lines
++		// show which side last wrote them: the value the PPU consumed (reset) or not.
++		if (const u32 watched = rpcs3::ios::signal_trace::watched_address.load(std::memory_order_relaxed))
++		{
++			const u32 base = watched & -128;
++			deep.push_back(guest_line(base));
++			if (base >= 128)
++			{
++				deep.push_back(guest_line(base - 128));
++			}
++		}
+ 	}
+ 
+ 	// begin + waits + rsx + end and the lines above are always emitted; the thread lines share the rest.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 48701fa..bfb6aa3 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -39,6 +39,7 @@
+ #include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #include "IOSLoadOpClear907.h"
+ #include "IOSWriterLockPhases.h" // REWINDBOX_WRITER_LOCK_PHASES_908
++#include "IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+ #include "IOSRendererCausality.h"
+ #include "IOSSignalTrace.h"
+@@ -1842,6 +1843,32 @@ private:
+                 validation::epoch_enabled.load(std::memory_order_relaxed) ? 1u : 0u,
+                 validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
+                 validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
++            // REWINDBOX_EPOCH_SOURCES_909 / REWINDBOX_SCOPED_RSX_UPLOADS_909: which synchronization points advanced the
++            // texture epoch in this window, and the RSX writes revalidated over their own range instead.
++            const auto source = [&](validation::epoch_source kind) {
++                return validation::epoch_source_counts[static_cast<usz>(kind)].exchange(0, std::memory_order_relaxed);
++            };
++            const u64 e_put = source(validation::epoch_source::put), e_acquire = source(validation::epoch_source::acquire);
++            const u64 e_inline = source(validation::epoch_source::inline_upload), e_copy = source(validation::epoch_source::memory_copy);
++            const u64 e_blit = source(validation::epoch_source::blit_cpu), e_flush = source(validation::epoch_source::flush);
++            const u64 e_invalidate = source(validation::epoch_source::invalidate), e_frame = source(validation::epoch_source::frame_end);
++            const u64 e_other = source(validation::epoch_source::other);
++            ios_core_profiler.notice("COREPROF EPOCH909 session=%llu window=%llu put=%llu acquire=%llu inline_upload=%llu memory_copy=%llu "
++                "blit_cpu=%llu flush=%llu invalidate=%llu frame_end=%llu other=%llu scoped_rsx_writes=%llu scoped_rsx_write_bytes=%llu "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, e_put, e_acquire, e_inline, e_copy, e_blit, e_flush, e_invalidate, e_frame, e_other,
++                validation::scoped_rsx_writes.exchange(0, std::memory_order_relaxed),
++                validation::scoped_rsx_write_bytes.exchange(0, std::memory_order_relaxed));
++        }
++        // REWINDBOX_GOW3_MLAA_REPORT_909: what the God of War III MLAA bypass actually applied (only for that title).
++        if (const u32 mlaa_ppu = rpcs3::ios::gow3_mlaa::ppu.load(std::memory_order_relaxed))
++        {
++            namespace mlaa = rpcs3::ios::gow3_mlaa;
++            ios_core_profiler.notice("COREPROF GOW3MLAA909 session=%llu window=%llu executable=%s ppu=%s spu_images=%llu spu_matched=%llu "
++                "spu_words_patched=%llu unmatched_spu=%s scope=process_since_boot",
++                profile_session, profile_window, mlaa::executable_hash(), mlaa::ppu_name(mlaa_ppu),
++                mlaa::spu_images.load(std::memory_order_relaxed), mlaa::spu_matched.load(std::memory_order_relaxed),
++                mlaa::spu_words_patched.load(std::memory_order_relaxed), mlaa::unmatched_list());
+         }
+         // CELL581_TEXTURE_PREHASH: RSX validations served by the worker and its work, one bounded line.
+         {

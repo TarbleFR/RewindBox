@@ -913,6 +913,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       per-epoch validation rarely reuses; TEXMEMO mode 0 (Automatic = AC only; would miss_epoch every epoch anyway).
       iOS hashes every texture section (page locks disabled). nv308a inline, nv0039 copies and nv3089 CPU blits still
       advance the global epoch although the RSX knows the range (CELL573 scoped path covers flushes/FBO commits only).
+    - **Core 909 (local, not built yet)** = Core 908 + REWINDBOX_SCOPED_RSX_UPLOADS_909 (NV308A inline data and NV0039
+      copies with a non-negative pitch go through rsx::thread::ios_rsx_wrote_guest_memory; Vulkan + scope on =
+      revalidate_overlapping under the cache lock, else the same epoch advance), REWINDBOX_EPOCH_SOURCES_909 (COREPROF
+      EPOCH909), REWINDBOX_GOW3_MLAA_REPORT_909 (COREPROF GOW3MLAA909: ppu decision, SPU images/matched/patched, unmatched
+      hashes; no patch changed), REWINDBOX_FREEZE_LABELS_909 (lines around the stalled label). M4 commits 9e1471d + 5477d79.
+      - Independent rb-core-review: one defect, fixed in 5477d79: the NV3089 CPU blit writes beyond [dst, dst+pitch*clip_h)
+        (destination offset, swizzled pow2 surface, scaled rows), so it keeps the global epoch (counted blit_cpu); NV0039
+        with a negative pitch writes below its address, so it falls back to the epoch too. Otherwise safe as CELL573 (stale
+        or torn prehash cannot match changed bytes; sampler/memo range-based), no lock-order change, NV308A ranges exact.
+      - Canonical 7932b112 (447), delta aacaa7d9, increment 2d4bdb07 (= metal-wip-from-908). Local:
+        test/rpcs3_gow3_levers909_test.py PASS (g++ ASan/UBSan, clang), route PASS, codegen identities unchanged, fold chain
+        simulated PASS, host guards PASS; full driver running. Host bridge unchanged (bdcd0ac7), MoltenVK run 42668189251.
+    - Not changed on purpose: TEXMEMO stays off for GOW3 (every entry would miss_epoch at ~358 epochs/frame); PUT and
+      semaphore epochs kept (guest writes are untracked); WCB kept; no MLAA patch added for 01.00 (official text not
+      reachable); mvk_async canary not bypassed; no shader-mode change (0 blocking pipeline builds in the windows).
+    - iPhone protocol (same savestate scene, 75 %, Vulkan, same IPA, cool device): 1) fresh boot, 60 s warm-up, 5 windows;
+      2) savestate scene, 5 windows; compare EPOCH909 (put/acquire/inline/copy/blit, scoped_rsx_writes), OPT559
+      epoch_advances, JITMEM texture_hash_bytes, OPT581, RSXFRAME551 texture_ms, FRAMEPROF527 wall_guest_fps/p95/p99,
+      COREPROF frames (PPU main core), GOW3MLAA909, thermal; check image, cutscene A/V sync; on a stall send causes +
+      milestones (FREEZE_DUMP ppu_poller, lwcond, label lines).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

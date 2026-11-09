@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 908,
- "identity_type": "rpcs3-ios-core908",
- "summary": "RPCS3 Core 908 = Core 907 plus the 9 Nov mission levers. (1) REWINDBOX_TEXMEMO_WAYS_908: the texture lookup memo keeps 16 entries per sampler slot (was 4): Assassin's Creed IPA 694 window 40 had 64,461 absent-key misses of 99,674 lookups (about 11 us each, 0.15 us per hit) and rare invalidations; every hit check and the verification sampling unchanged; TEXMEMO660 reports ways= and miss_evicted= (capacity misses). (2) REWINDBOX_WRITER_LOCK_PHASES_908: RANGELOCKPROF splits the SPU PUTLLC writer lock acquisition (Black Ops II: about 5.9 us per acquisition, 0.025 us held) into range bits, range locks and PPU park; measurement only. (3) REWINDBOX_FREEZE_POLLER_908: the freeze dump shows the loop of a polling PPU thread and the waited lwconds (Black Flag). Host: the Menu and Performances buttons at the top corners of the safe area, collision-aware. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 909,
+ "identity_type": "rpcs3-ios-core909",
+ "summary": "RPCS3 Core 909 = Core 908 plus the God of War III levers (build 694 device logs, Core 907, BCES00510 app 01.00). (1) REWINDBOX_SCOPED_RSX_UPLOADS_909: NV308A inline data and NV0039 copies (the RSX methods that write one exact range of guest memory; NV3089 CPU blits keep the epoch) revalidate only the texture sections over the written range (Core 573 path) when the scope is on (Automatic: God of War III) instead of starting a new texture epoch that re-hashes every texture (about 358 epochs per frame and 15.96 GB hashed per 5 s window on build 694). (2) REWINDBOX_EPOCH_SOURCES_909: epoch advances counted per source (COREPROF EPOCH909). (3) REWINDBOX_GOW3_MLAA_REPORT_909: what the MLAA bypass applied (COREPROF GOW3MLAA909; the 01.00 executable is outside the PPU half). (4) REWINDBOX_FREEZE_LABELS_909: the label lines around a stalled RSX acquire in the freeze dump. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "324305dd897ca833770733410bf23214c2a16204fa2ce5da06db971dd13dd83d",
-  "postimages": 446,
+  "patch_sha256": "7932b1125a40e7e73b86e2fc79dca21b784b015f6002f3170257ba9358fd9c6e",
+  "postimages": 447,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -55,7 +55,8 @@
    "core905_20261106",
    "core906_20261107",
    "core907_20261107",
-   "core908_20261109"
+   "core908_20261109",
+   "core909_20261109"
   ]
  },
  "reference": {
@@ -95,10 +96,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core908_20261109",
-  "manifest": "build-utils/rpcs3/core908-delta.json",
-  "patch": "build-utils/rpcs3/core908-delta.patch",
-  "patch_sha256": "c6fdd7ca2699070031362011b5b6e2aa8db51633e5a0eac3c9cf2e12d788df47"
+  "record": "core909_20261109",
+  "manifest": "build-utils/rpcs3/core909-delta.json",
+  "patch": "build-utils/rpcs3/core909-delta.patch",
+  "patch_sha256": "aacaa7d9dbabbb4afa7e4df00fa65a993cc113855e808ec5d1eeaf5685d3b15a"
  },
  "exports": 92,
  "core_inputs": {
@@ -204,7 +205,9 @@
   "COREPROF LOADCLEAR907",
   "Resolved title policy 907",
   "wl_putllc_phases=",
-  "miss_evicted="
+  "miss_evicted=",
+  "COREPROF EPOCH909",
+  "COREPROF GOW3MLAA909"
  ],
  "moltenvk_dependency": {
   "run": 42668189251,
@@ -411,28 +414,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core908_codegen_test.py",
+     "test/rpcs3_core909_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 908 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, Emu/Memory/vm.cpp and the iOS profiler, memo and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 909 touch no codegen input (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp and the iOS profiler, memo and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core908",
+    "name": "core909",
     "argv": [
      "python3",
-     "test/rpcs3_core908_test.py",
+     "test/rpcs3_core909_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core908.json"
+     "{out}/core909.json"
     ],
-    "reason": "Core 901 to 908 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 909 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",
