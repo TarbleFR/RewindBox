@@ -191,5 +191,24 @@
  },
  "physicalDeviceTested": false,
  "ipa": "none (maintainer)",
- "ciRuns": []
+ "ciRuns": [
+  {
+   "commit": "9f90df80",
+   "commitFull": "9f90df800a4d305e09962511a03851d738873dc6",
+   "contract": "28c53540",
+   "run": 42714314353,
+   "attempt": 1,
+   "job": 129491739062,
+   "conclusion": "failure",
+   "failedStep": "8: final-source gates",
+   "failedGate": "cold-texture-release",
+   "classification": "defect of adapt_array_reference_deltas, not of the harness: the gate binds its proof to the line 'destroyed |= view.Get(cbs).Value.Handle == 0;' of TextureArray.cs appearing once; the new AddNewReferences held the same statement (more indented), so the line appeared twice. Not run locally before the freeze: the local reruns covered the gates declaring the two changed files, CI runs all 74.",
+   "artifact": {
+    "id": 13719066343,
+    "bytes": 5750438,
+    "note": "receipts only (failed at the gates); not a Core identity"
+   },
+   "action": "AddNewReferences rewritten without that statement (same behaviour), preparation redone, all 74 gates run locally, refrozen"
+  }
+ ]
 }
