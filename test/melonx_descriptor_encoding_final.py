@@ -33,6 +33,7 @@ FINAL_SIZES = ('_textures = new DescriptorImageInfo[Constants.MaxTextureBindings
                '_bufferTextures = new BufferView[Constants.MaxTextureBindings * 2];',
                '_bufferImages = new BufferView[Constants.MaxImageBindings * 2];')
 INPUTS = ['test/melonx_descriptor_encoding_final.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+          'build-utils/melonx/adapt_same_program_descriptors.py',
           'test/melonx_scalar_texture_descriptors/Encoding.cs']
 
 
@@ -47,10 +48,20 @@ def restore(body):
     return body
 
 
+def without_later(text):
+    """The final DescriptorSetUpdater without the replacements of later adapters that edit other members (Core 705
+    adapt_same_program_descriptors: SetProgram and the template commit; its own gate executes them)."""
+    import adapt_same_program_descriptors as later
+    for old, new in ((later.SET_PROGRAM_OLD, later.SET_PROGRAM_NEW), (later.COMMIT_OLD, later.COMMIT_NEW)):
+        assert text.count(new) <= 1, new[:80]
+        text = text.replace(new, old)
+    return text
+
+
 def check_sources(control_root, candidate_root, signatures):
     """The delivered and final DescriptorSetUpdater: members, encoding hunks, scratch sizes and policy declaration."""
     control = (Path(control_root) / RELATIVE).read_text(encoding='utf-8-sig')
-    candidate = (Path(candidate_root) / RELATIVE).read_text(encoding='utf-8-sig')
+    candidate = without_later((Path(candidate_root) / RELATIVE).read_text(encoding='utf-8-sig'))
     for old, new in host.DESCRIPTOR_UPDATER_HUNKS:
         assert control.count(old) == 1 and candidate.count(new) == 1 and candidate.count(old) == (old in new), old[:80]
     assert restore(candidate) == control, 'the final DescriptorSetUpdater differs from the delivered one beyond the encoding hunks'
