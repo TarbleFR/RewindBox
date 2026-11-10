@@ -226,6 +226,16 @@ The verifier now requires the exact ratio (1e-4) and the body unchanged away fro
 window; the MeloNX simulator harness requires 90 % of each test-pattern edge upright too
 (the tab exception is gone).
 
+Archives (SHA-256 prefix, bytes): wii-pocket `487137d5` 8276918; gamecube-pocket
+`9127f7b8` 8573159; wii-pocket-original `31506cda` 5282357; gamecube-pocket-original
+`e769c708` 6352280; ps2-pocket-original `18712f79` 7366935; switch-pocket `c56f9a37`
+9934222; ps2-pocket `2106e5f7` unchanged. The wii/gamecube Pocket archives are larger
+(two more bodies). Host checks: verifier (7 packs), input chain (20 layouts), ARMSX2 menu,
+portrait lock and Dolphin chrome contracts, Flutter skin suites 156/156, second build
+byte-identical. Before / after sheets against IPA 720 (`render_screen_framing.py --before
+ca6fd891`): [docs/evidence/skins-native-ratio/](evidence/skins-native-ratio/). Host
+compositions, not captures; not observed on an iPhone.
+
 ## Limits and compromises
 
 - **Dolphin, both orientations chosen.** The Core bridge has no call to resize the

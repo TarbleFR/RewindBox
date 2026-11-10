@@ -3290,6 +3290,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Not observed on an iPhone: framing, pressed controls and controls after the in-game
     menu are for the maintainer to check on IPA 720. Next action: none until the
     maintainer's device result or decisions.
+- **Second framing pass, windows at the game's ratio (10 Nov afternoon, high selector):**
+  maintainer: framing only; proportions wrong on the other skins too, Switch the same.
+  Branch `work/skins-native-ratio-20261110` from `ca6fd891`: tools `55923d18`, packs
+  `255d2af3`, docs `318e0f68`. Finding: the drawn openings (IPA 720 containers) were not
+  4:3 / 16:9, so a native picture kept bands (Switch upright 32.9 pt top/bottom, wii/gc
+  Pocket home-button layouts 31 pt per side, Originals 6–10 pt). Change:
+  `screen_opening.reframe` redraws each window at the game's ratio from the body's own rim
+  and surroundings; `outputFrame` exact ratio (`native_frame`); wii/gc Pocket one body per
+  layout. Archives: wii-pocket `487137d5` 8276918, gamecube-pocket `9127f7b8` 8573159,
+  wii-pocket-original `31506cda` 5282357, gamecube-pocket-original `e769c708` 6352280,
+  ps2-pocket-original `18712f79` 7366935, switch-pocket `c56f9a37` 9934222; ps2-pocket
+  unchanged. Proof (host): verifier 7 packs (exact ratio, body = approved image away from
+  its window), input chain 20 layouts, contracts, Flutter skins 156/156, rebuild
+  byte-identical. Simulator: pending (this branch added to the workflow). Controls and
+  touch areas unchanged; the windows are smaller where the drawn opening was wider/taller
+  (appearance change, maintainer's request). Not observed on an iPhone.
+  [Record](skins-screen-framing-2026-11-10.md), [sheets](evidence/skins-native-ratio/).
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.

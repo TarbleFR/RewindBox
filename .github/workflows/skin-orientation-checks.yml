@@ -21,6 +21,7 @@ name: Skin orientation checks
     - work/skins-screen-framing-20261110
     - work/skins-realistic-press-20261110
     - work/skins-harness-menu-wait-20261110
+    - work/skins-native-ratio-20261110
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
