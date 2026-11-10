@@ -1709,6 +1709,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
       `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
       decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
+    - **Finding (10 Nov, IPA 722 journals: BO2 build 721 = Core 919, PID 47085, session 2 = `t6mp_ps3f.self`
+      multiplayer, settings: accurate reservations, 100 % resolution, frame limit Auto, 6 SPURS, PPU/SPU LLVM, Legacy shader
+      recompiler, levers627 `010111011111111112000`; windows 4-32 of the performance file are in the missing `.1`
+      generation, so only the timeline, causes and window 33 are read).** In play 30-38 FPS (median 31.2), p95 35-57 ms,
+      pauses 0.26-1.98 s in windows 19, 21, 23, 32 = first-use pipeline compilations (fragment library 0.37-0.99 s; no
+      costly fingerprint recurs across the 40 BO2 sessions read: the pipeline cache works, the work is first use). RAM:
+      footprint 2.23 -> 3.44 GiB in 2.5 min of play. Across every BO2 session of builds 620-721 the footprint grows 5-20 MiB/s
+      without plateau (build 666 session 5: 1.82 -> 3.56 GiB in 4.4 min, compressed 0.21 -> 1.03 GiB): the texture
+      cache's live bytes (TEXCACHE621 `texture_mib`) climb linearly 2 -> 527 MiB and the JITMEM texture pool 74 -> 568 MiB,
+      VMA blocks 544 -> 1376 MiB (the 64 MiB footprint steps), more than all PS3 memory, and `texture_trim_sections=0` in
+      every journal. Cause (code): on iOS every CPU texture is validated by content hash, never by page protection
+      (`texture_cache_protection_policy.h`), so a texture whose guest memory the game reused is found stale only if it is
+      looked up again; upstream's purge of stale hash sections (`ranged_storage::trim_sections`) only visits blocks with
+      more than 256 locked sections (tuned for PC's sub-4 KiB hashed textures) and never runs on BO2; the Core 573
+      residency is God of War III only and starts at 768 MiB. Device hash rate 12.8-16.8 GiB/s (builds 694/718/721).
+    - **Core 921 (in progress, engine tree from `4c4961b`):** bounded sweep of idle hash-validated texture sections
+      that releases exactly those whose guest bytes no longer match (a lookup would reject them anyway), bound textures
+      excluded, sampler descriptors invalidated as after the 573 eviction; witness first on the real texture cache
+      (harness of test/rpcs3_texture_lookup_memo660_harness.py, streamed pool rewritten at shifted offsets: Core 920 keeps
+      every stale section), then candidate, invariants (no valid section released, no stale texture served, cost per
+      frame bounded), Core build, pin, private IPA. Device question for that IPA only: does the BO2 footprint still grow
+      after game entry (TEXCACHE621 `texture_mib`, JITMEM `gpu_textures_requested`, MEMPROF527 over 20 min)?
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
