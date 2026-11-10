@@ -3746,9 +3746,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Owner/branch:** session 03, `work/playlists-xenios-20261110` (fast-forwarded to
   `5738e4ff` before its first commit). Effort `/rb-effort-high`, reported high.
 - **Input:** owner IPA reconstructed outside Git, 49156698 B, SHA-256 `8ba4c18b…600b`,
-  CRCs valid; XeniOS 2.3.1 (11662), minos 26.0/SDK 27.2, embeds
-  `libmetalirconverter.dylib`. Upstream `xenios-jp/XeniOS` `cf7c7ee45231…` = IPA
-  attestation `commitShort` = upstream HEAD. Contract: [xenios-playlist.md](xenios-playlist.md).
+  CRCs valid (receipt confirmed by owner); XeniOS 2.3.1 (11662), minos 26.0/SDK 27.2.
+  Upstream `xenios-jp/XeniOS` `cf7c7ee45231…` = IPA attestation `commitShort` = upstream
+  HEAD. Contract: [xenios-playlist.md](xenios-playlist.md).
+- **Shader converter:** no separate `XeniOS.framework`, but `Frameworks/libmetalirconverter.dylib`
+  (Apple Metal Shader Converter, 30171152 B, SHA-256 `923caf5d…90ff`, arm64 iPhoneOS,
+  minos 13.0, SDK 26.4, cryptid 0, system deps only, 188 exports in `IR*`/`DXIL*` only) is a
+  hard dependency: Metal init fails without it on both shader paths. Apple terms
+  (Apache-2.0 = headers only): never committed/rehosted/extracted; supplied out of band,
+  authenticated by `build-utils/xenia/validate_shader_converter.py` against
+  `build-utils/xenia/source.json` (run OK on the reference copy). Shipping it in a
+  published IPA needs a maintainer/legal decision (main).
 - **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
   `xbox360` entry (existing system id); Consoles tab grouped by application, external-
   RetroArch-only and missing-engine consoles removed from the tab only (maintainer
@@ -3758,7 +3766,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   global + per-game settings (10 cvars with verified core consumers, inherit/reset,
   title-ID identity) incl. guest language/region; 12 locales; isolated launch route,
   session-end monitoring; bridge `packages/xenia_internal_bridge` (ABI v1, dlopen on
-  iOS ≥ 26 only, transaction-guarded callbacks, shutdown quarantine).
+  iOS ≥ 26 only, `shaderConverterMissing`/`coreLoadFailed` states, transaction-guarded
+  callbacks, shutdown quarantine). Commits `74f668c2`, `66b09048`; draft PR #172.
 - **Shared-layer edits for main review:** `console_catalog.dart`,
   `embedded_engine_policy.dart`, `libretro_consoles_screen.dart`,
   `console_manager_locale.dart` (2 unused section keys removed),
@@ -3767,15 +3776,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `game_settings_emulator_tab.dart`, `assets/systems/xbox360.json`, `pubspec.yaml`,
   `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
   tab rule), `docs/storage-audit-cleanup.md`.
-- **Validation (Flutter 3.47.2 host):** new XeniOS tests 22/22; console catalog +
-  Consoles tab 43/43; storage contract 24/24; 41 Dart suites touching changed files
+- **Validation (Flutter 3.47.2 host):** new XeniOS + catalog/Consoles tests 65/65;
+  shader-converter validator unit tests 7/7; storage contract 24/24; 41 Dart suites touching changed files
   373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
   refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
   failure set as HEAD (19, shallow-history/baseline). Analyzer: no new issue.
-- **Blockers:** XeniaCore.framework adapter + CI (macOS, Xcode iOS SDK 27.2, out-of-band
-  iPhoneOS `libmetalirconverter.dylib`); dedicated JIT helper; ObjC plugin compile.
+- **Blockers:** XeniaCore.framework facade + CI (macOS, Xcode iOS SDK 27.2, validated
+  out-of-band converter dylib and its redistribution decision); dedicated JIT helper;
+  ObjC plugin compile. Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
+  no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
   Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
-- **Next:** Core adapter over `xe::Emulator` (`EmulatorThread` steps) exporting only
+- **Next:** facade over `EmulatorAppIOS` (plan in the contract) exporting only
   `NeoXenia_GetAPI`, component workflow like `armsx2-core.yml`; Core pin/CI/IPA with main.
 
 ### Codex orchestration — Codex
