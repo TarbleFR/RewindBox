@@ -271,85 +271,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
-- **Common IPA 720 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`):** the handoffs of MeloNX (lot 9, messages
-  of 05:22 and 05:47 UTC) and of the skins owner (PR #166 and PR #167, 06:28 UTC) stayed queued while main built and
-  delivered IPA 719; main read them at 08:50 UTC. 720 = the delivered 719 + those handoffs; RPCS3 Core 918 unchanged,
-  so the RPCS3 journals asked for on 719 stay valid on 720.
-  - **Integrated on `Claude`** (three separate merges, pushed with `b179a080`): MeloNX lot 9 `7d0ca6c1` (a8198f79, no
-    conflict), PR #166 `80aa7ac7` (32fd5309; one conflict, both imports kept at the head of
-    `MeloNXSkinOverlayTests.mm`), PR #167 `b6a9deee` (66c129b9). The seven Pocket archive identities read on the merged
-    tree equal the owner's values.
-  - **Independent read-only reviews (two reviewers):** skins native code: nothing to correct (mask on the body layer
-    only, hit test untouched, missing or invalid cutout = the previous rectangle, `lockRenderSurface` synchronous on
-    the main thread); minor: a Delta portrait-only skin without a screen opened sideways gets thin side bands
-    (unturned safe-area insets in `screenFrameForBounds:`), no Pocket skin concerned. MeloNX lot 9: no proven defect;
-    relayed to its owner: after a fragmented skip longer than 16 s the GC keep-alive stays silent until the runtime's
-    next background gen2, without counter or journal line (adapter `Fragmented` case); a present leaves the image
-    without drawable, harmless here because the only `vkGetMTLTextureMVK` caller (MetalFX filter) is refused by the
-    RewindBox host.
-  - **MoltenVK (lot 9 patch):** artifact 13736999411 of run 42760131591 verified offline by main (zip = API digest
-    `a36145bc`, binary `6d3a8d03` 4,822,256 B, identity = tag, commit and patch `9a6867b7` of the repository, patch in
-    `sources/` byte-identical, marker 1/1, 8/8 entry points, 428/428 exports) and pinned. Packaging defect found and
-    fixed by main: `package_standalone_moltenvk.py` refused every patched source and its notice said "unmodified"
-    (the delivery would have stopped at that step); it now needs pin, source and artifact to agree on the patch,
-    writes a modification notice and embeds a copy of the patch next to the Apache-2.0 license. Parity test 64 checks
-    (45), six refusals as negative controls; the previous packager fails the first patched case.
-    [Record](melonx-moltenvk-rebuild-2026-11-03.md).
-  - **Legal declarations:** the declaration chain refused the effective tree ("Pocket board Originals added packs
-    differ from the review"): six packs rebuilt in place. Revision review
-    `evidence/pocket-skins-framing-press-declarations-2026-11-10.json` (chained to the Switch Pocket review) and its
-    rule (`c6cb5837`): an earlier review accepts a rebuilt pack only at the identity the revision gives it, when the
-    revision names the identity that review recorded. Contract test on the effective tree with six negative controls.
-    Legal check of the 720 effective tree: passed.
-  - **Pre-existing red steps classified (not caused by these handoffs):** libretro frontend, 1 of 22
-    (`diagnostic_routing_test.m`, "FAIL one isolated fixture directory"): harness; the runner passes two arguments
-    since PR #152 (`705e90c7`, 4 Nov) and the test required one; fixed in the test (`bad024ec`), to be confirmed by
-    the next macOS run. Dolphin session harness (SessionMenuTests 13 tests / 21 failures, RecordingControllerTests one
-    test): harness/baseline, stale since `DolphinSessionMenu.mm` changed on 18 Oct to 1 Nov without its tests; owner:
-    main, open, outside the delivery test groups.
-  - **MeloNX owner's decision on the keep-alive remark (09:07 UTC):** no fix before IPA 720, Core 719 goes as frozen.
-    Its reasons: the dormancy also exists in Core 717 (a request the conserve-memory rule turns into a blocking
-    collection does not advance the background gen2 index, so that keep-alive also falls into Missed); above 0.5 the
-    runtime's next gen2 is blocking and compacting with or without the request; the remaining fallback after the
-    compaction is common to both Cores and is journaled (`fellBackFromBackground=1`, `fallbacksInSession`); the real
-    defect is one of accounting ("fragmented skips" instead of "missed"). Next Core: a bounded "gcKeepAlive dormant"
-    line and a separate Missed count, with main's reproduction as its gate.
-  - **Skins simulator suites on the merged tree** (run `42787761020`, `b179a080`, all steps, 30 min): Pocket host
-    verifier of the seven archives and input chain, MeloNXSkinOverlayTests 23/23 (the lot 9 tests and the skins frame
-    checks together), ARMSX2 13/13, Dolphin skin overlay 36/36, Dolphin orientation suites: green. Red: the two
-    classified pre-existing steps only (libretro 1 of 22; session harness 28 tests / 25 failures, the same methods and
-    counts as before the merges). Confirmation of the libretro test fix: run `42795464202` on `ff3edb7e`, in progress.
-  - **MeloNX Core 719 built and pinned:** run `42787755406` (dispatched on `b179a080`), job `129733174508`, 50 min,
-    attempt 1, every step green, 76 fresh Apple gates. Artifact `13753428009`, 91,029,102 B, `77cb3662…499f` (zip =
-    API digest, downloaded, read offline). iPhone library `1b2d434b…2f4b` (38,423,432 B), packaged fingerprint
-    `1336c87b…f38a`, result `643ca36c`, contract `38b3a5b7`. Component verifier on the downloaded artifact: passed.
-    Pin `a7d7bfae` (pin file `864dc08c…95ac`), replaces Core 717 (run `42728675479`, fingerprint `036c1cef`).
-  - **IPA 720 frozen and requested (10:00 UTC):** manifest on the delivered 719 (receipt with the signed inventory):
-    RPCS3 Core 918 unchanged from base (retained fingerprint `78f2defd`), MeloNX replaced (`1336c87b`),
-    `MeloNXMoltenVKStandalone` and the armsx2, dolphin and melonx bridges must change, `Runner` too. Six reviewed
-    commits (three merges, MoltenVK pin and packaging, skin revision review, libretro host test), none source-only,
-    78 inherited deferred paths. Freeze `b5be6a97`, effective digest `36a27ff5…b2ad`, 7476 product files, legal check
-    passed; delivery contract 61 tests OK (4 skipped), `contract 720` exit 0, trigger paths accepted. Flutter group
-    fresh (20 commands, with the MoltenVK packaging test), native fresh (19). Trigger `ff3edb7e`, run `42795453604`.
-    The label "MeloNX Core 719" is the owner's frozen one (kept so as not to refreeze its contract); it is not the
-    content of IPA 719, which holds Core 717.
-  - **Run `42795453604` attempt 1 failed (10:17 UTC): product defect of lot 9, fixed, refrozen, requested again.**
-    Preflight (delivery contract), republish and native (19 commands) green. Two red jobs, both on `6ddc96fd` (skin
-    touches after the menu), which no earlier job had compiled or run:
-    - application (job `129759822347`), xcodebuild exit 65, one compiler error:
-      `MeloNXMetalSessionViewController.swift:339:32: 'syncNowAndWhenUncovered(_:stillWanted:sync:)' has been renamed
-      to 'syncNowAnd(whenUncovered:stillWanted:sync:)'` (the name Swift gives the Objective-C selector). The MoltenVK
-      packaging step had passed on the runner.
-    - flutter (job `129759822227`), 979 passed, 1 failed: `test/melonx_skins_test.dart` "the session sends the skin
-      to the real router path…" still expected the single `skinSession?.sync()` after `router?.suspend(...)`. Every
-      other command passed, the MoltenVK packaging test included (64 checks).
-    Fix `65a9e633` (main; both owners told): the call site uses the imported name; the Dart contract expects the lot
-    9 form and refuses the spelling that does not compile. Not compilable here: verified by the application job of
-    the new run. Refreeze `e53126a6`, effective digest `be9afa4f…05e9`, seven reviewed commits, legal check passed,
-    contract 61 tests OK, both test groups fresh again (the fix changes the effective tree). Trigger `8a1884a9`, run
-    `42798677772`.
-  - Pre-existing, outside the delivery groups, told to its owner: `test/melonx_capture_journal_test.py` fails on
-    Linux ("controller removed lines") identically on the 719 trigger `3b4b4d02`.
+- **Common IPA 720 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).**
+  - **Goal:** the delivered 719 plus the handoffs that stayed queued while it was built: MeloNX lot 9 (`a8198f79`,
+    merge `7d0ca6c1`), skins PR #166 (`32fd5309`, merge `80aa7ac7`) and PR #167 (`66c129b9`, merge `b6a9deee`).
+    RPCS3 Core 918 unchanged: the RPCS3 journals asked for on 719 are as valid on 720.
+  - **State:** freeze `e53126a6` on the base 719 (effective digest `be9afa4f…05e9`, seven reviewed commits, legal
+    check passed), trigger `8a1884a9`, run `42798677772` attempt 1, five jobs green in 26.4 min (flutter 20 and
+    native 19 commands, fresh). IPA 266993445 B, SHA-256
+    `e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`, build 720, version 0.0.8;
+    `passed-offline-checks`, six validators 0; key 720 deleted; sent privately to the maintainer as a file.
+  - **Evidence:** [receipt](evidence/rewind720/delivery.json) with twelve proof files and the signed image inventory
+    (can be a base), [manifest](../build-utils/delivery/720.json), [recipe state](standard-delivery-recipe.md) § 21
+    (reviews, owner decisions and classified failures in full), [MoltenVK record](melonx-moltenvk-rebuild-2026-11-03.md).
+    Read by main in the delivered file: `libRPCS3Core.dylib` payload `78f2defd` (Core 918 pin, SCHED918 present);
+    `MeloNXCore` payload `1336c87b` (pin `864dc08c`: MeloNX Core 719 of run `42787755406`, replaces 717);
+    `MeloNXMoltenVKStandalone` code and data sections equal to the pinned binary `6d3a8d03`, ownership marker
+    present, modification notice and patch `9a6867b7` under `Legal/MeloNX/StandaloneMoltenVK/`; `MLXSkinInteraction`
+    and the `mgd=` literal compiled in the MeloNX bridge (absent from 719). 82 of the 90 images keep their 719
+    payload.
+  - **Failure kept:** the first request (`ff3edb7e`, freeze `b5be6a97`, run `42795453604`) failed on lot 9's
+    `6ddc96fd`, which nothing had compiled before the application job:
+    `MeloNXMetalSessionViewController.swift:339` called the Objective-C selector under a name Swift does not import
+    (xcodebuild exit 65), and one Dart contract still expected the previous form (979 passed, 1 failed). Fixed by
+    main in `65a9e633`, refrozen, both test groups run again. Main's other corrections for this build: the MoltenVK
+    packager refused every patched source and wrote "unmodified" (`b179a080`); Pocket skin revision review for the
+    six packs rebuilt in place (`c6cb5837`); libretro host test argument count (`bad024ec`, 22 of 22 in run
+    `42795464202`).
+  - **Open or limit:** not run on an iPhone; no FPS, crash or touch claim. Undeclared image changes explained
+    (recipe § 3.10): `libretro_internal_bridge` and `rpcs3_internal_bridge`, sources unchanged, differ from 719 in
+    linker-made stubs only (two import slots bound to `objc_msgSend`, exchanged; every other section and the bind
+    tables equal). Outside the delivery groups: Dolphin session harness stale since 18 Oct (main, open);
+    `test/melonx_capture_journal_test.py` red on Linux since before 719 (MeloNX owner told);
+    `DolphinSkinOverlayTests testWiiButtonsLandscape` failed once in run `42795464202` on sources that passed in
+    `42787761020` (fixed 20 ms wait; skins owner told). The MeloNX owner keeps the keep-alive accounting ("gcKeepAlive
+    dormant" line, separate Missed count) for its next Core. "MeloNX Core 719" is the owner's frozen label; IPA 719
+    holds Core 717.
+  - **Next:** device journals. RPCS3: [Core 918 record](rpcs3-core918-busy-wait.md) § 8. MeloNX:
+    [device protocol](evidence/melonx-719-gates/device-protocol.md). Skins: screen framing and pressed buttons on
+    the rebuilt packs.
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
   correcting its native-test failure and preserving valid reusable results. Check repeated source
@@ -1599,9 +1558,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       comparison passes sit at counted windows 7-22, 45-60 and 83-98 since boot, menus included (0:30-1:50,
       3:40-5:00, 6:50-8:10): play each game until nine minutes after its launch, in the same zone. BO2 has no device
       measurement since build 694 (Core 907): Cores 910, 911, 914, 916, 917 and 918 are all unmeasured on it.
-    - **Next:** the journals of build 719, one export per game (BO2 nine minutes from launch in the slow scene; GOW3
-      from a fresh boot, nine minutes), then the fix they select among those listed under "What the next export
-      decides" (the GETLLAR thresholds are off that list).
+    - **Next:** the journals of build 719 or 720 (IPA 720, delivered on 10 Nov, holds the same Core 918: payload
+      `78f2defd` read in both files), one export per game (BO2 nine minutes from launch in the slow scene; GOW3 from
+      a fresh boot, nine minutes), then the fix they select among those listed under "What the next export decides"
+      (the GETLLAR thresholds are off that list).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3340,20 +3300,20 @@ or permission for more deletion.
 
 ## Delivered baseline
 
-**Last verified: private RewindBox 0.0.8 (643), iOS 18+/SideStore.** Run`41772933869`
-attempt1, trigger `f19ed8cd`, freeze `2740e79c`, effective `e8bad150…`; all five jobs
-passed. RPCS3 641, MeloNX 642, PS2 playlist Skins entry, GC/Wii Originals and
-Dolphin session-chrome correction. [Manifest](../build-utils/delivery/643.json),
-[delivery](evidence/rewind643/delivery.json),
-[download verification](evidence/rewind643/download643-verification.json).
+**Last verified: private RewindBox 0.0.8 (720), iOS 18+/SideStore.** Run `42798677772`
+attempt 1, trigger `8a1884a9`, freeze `e53126a6`, effective `be9afa4f…`; all five jobs
+passed. RPCS3 Core 918, MeloNX Core 719 with the patched MoltenVK 1.4.2, skins PR #166/#167.
+[Manifest](../build-utils/delivery/720.json),
+[delivery](evidence/rewind720/delivery.json),
+[download verification](evidence/rewind720/download720-verification.json).
 
-IPA: 236198342 bytes; SHA-256
-`eb6f88ea41889fea072672ae82cd6b11d2a97336aa0bed4974ba3e9c78872f0a`.
+IPA: 266993445 bytes; SHA-256
+`e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`.
 Receipt binds 90 images / 44 retained, pins/signing/six validators. Private key deleted.
-Unchanged-source libretro bridge byte change recorded as nonblocking undeclared.
-Device gameplay/FPS/audio/visual verification remains separate.
-Previous 640 [receipt](evidence/rewind640/delivery.json).
-Older 627/628 component table belonged to 629, not 643; never use it as current pins.
+Unchanged-source libretro and RPCS3 bridge byte changes (linker stubs only) recorded as
+nonblocking undeclared. Device gameplay/FPS/audio/visual verification remains separate.
+Previous 719 [receipt](evidence/rewind719/delivery.json). The public 0.0.11 candidate stays
+IPA 718 (on hold). Component tables of older builds are not the current pins.
 
 ## Findings to carry forward
 

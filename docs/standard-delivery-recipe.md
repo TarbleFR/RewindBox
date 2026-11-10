@@ -145,6 +145,14 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
    reçu, comparer l'image à celle de la build précédente section par section : une différence dans le code compilé
    ou les données se classe (commit revu, image déclarée) ; une différence limitée à ce que l'éditeur de liens
    fabrique se note dans l'état de la build.
+11. **Le Swift d'un pont n'est compilé en entier que par le job application** (720). Les runs des Cores exécutent
+   leurs gates, le run simulateur des skins compile les tests Objective-C des ponts et le groupe natif ne compile
+   que des extraits ou des fichiers isolés (arbitrage des sticks, parité autonome) ; aucun ne compile les fichiers
+   Swift d'un pont contre l'interface que Swift tire de ses en-têtes Objective-C. Une remise qui ajoute ou modifie
+   un appel Swift vers un sélecteur Objective-C (Swift renomme `+syncNowAndWhenUncovered:stillWanted:sync:` en
+   `syncNowAnd(whenUncovered:stillWanted:sync:)`) arrive avec la preuve d'une compilation du pont sur macOS ;
+   sinon c'est la première demande de livraison qui la compile, et un échec y coûte un correctif revu, un regel
+   et les deux groupes de tests (§ 21).
 
 ## 4. État de la 611 (1er novembre 2026)
 
@@ -521,3 +529,77 @@ MeloNX Core 717 inchangé.
   (inventaire absent, inventaire d'une autre IPA).
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP. IPA
   vérifiée hors ligne (`passed-offline-checks`), clé privée supprimée. Aucun test sur iPhone.
+
+## 21. État de la 720 (10 novembre 2026)
+
+IPA commune privée livrée sur la 719, première base munie d'un reçu à inventaire signé depuis la 694 : run
+`42798677772`, déclencheur `8a1884a9`, cinq jobs verts, IPA `e7ad0a2a…5b64`, 266993445 octets, 26,4 min de bout en
+bout ([reçu](evidence/rewind720/delivery.json), douze fichiers de preuve dont l'inventaire signé des 90 images).
+Contenu de la 719 avec les remises restées en file pendant sa construction : lot 9 de MeloNX (`a8198f79`, fusion
+`7d0ca6c1`), PR #166 (`32fd5309`, fusion `80aa7ac7`) et PR #167 (`66c129b9`, fusion `b6a9deee`) des skins. RPCS3
+Core 918 inchangé (`unchangedFromBase`, charge `78f2defd…f9d3` retenue).
+- **Composants.** MeloNX remplacé par le « Core 719 » de son propriétaire (run `42787755406`, 50 min, 76 gates
+  Apple frais ; artefact `13753428009`, bibliothèque iPhone `1b2d434b…2f4b`, charge `1336c87b…f38a`, contrat
+  `38b3a5b7`, pin `864dc08c`) à la place du Core 717. Ce libellé est celui du contrat gelé du propriétaire ;
+  l'IPA 719 contient le Core 717. MoltenVK 1.4.2 avec le patch de propriété du drawable (`9a6867b7`) : artefact
+  `13736999411` du run `42760131591`, binaire `6d3a8d03`, vérifié hors ligne puis épinglé. L'empaqueteur refusait
+  toute source patchée et sa notice disait « non modifié » (la livraison se serait arrêtée à cette étape) :
+  corrigé par `b179a080`, avec une notice de modification et la copie du patch à côté de la licence ; test de
+  parité à 64 contrôles dont six refus.
+- **Revues.** Deux lectures indépendantes, en lecture seule. Skins : rien à corriger (masque sur le calque du
+  corps seulement, test de contact intact, découpe absente ou invalide = rectangle précédent) ; remarque mineure
+  transmise : un skin Delta « portrait seul » sans écran, ouvert à l'horizontale, garde de fines bandes latérales
+  (marges de zone sûre non tournées dans `screenFrameForBounds:`), aucun skin Pocket concerné. MeloNX : aucun
+  défaut démontré ; remarque transmise : après un saut « fragmenté » de plus de 16 s, le maintien du GC reste muet
+  jusqu'au prochain gen2 d'arrière-plan du runtime, sans compteur ni ligne de journal. Décision du propriétaire
+  (09:07 UTC) : pas de correctif avant la 720, la dormance existant aussi dans le Core 717 ; prochain Core : une
+  ligne bornée « gcKeepAlive dormant » et un compte « Missed » séparé, avec la reproduction de main comme gate.
+- **Déclarations.** La chaîne de déclarations refusait l'arbre effectif (« Pocket board Originals added packs
+  differ from the review ») : six packs reconstruits sur place. Revue de révision
+  `evidence/pocket-skins-framing-press-declarations-2026-11-10.json` et sa règle (`c6cb5837`) : une revue antérieure
+  n'accepte un pack reconstruit qu'à l'identité que la révision lui donne, quand la révision nomme l'identité que
+  cette revue avait enregistrée. Test de contrat sur l'arbre effectif, six contrôles négatifs.
+- **Gel.** Premier gel `b5be6a97` (empreinte effective `36a27ff5…b2ad`, six commits revus) ; regel `e53126a6` après
+  le correctif : empreinte `be9afa4f…05e9`, sept commits revus (trois fusions, pin et empaquetage MoltenVK, revue
+  de révision des skins, test hôte libretro, nom d'appel Swift), aucun « source seulement », 78 chemins différés
+  hérités, 7476 fichiers produit, contrôle légal réussi. Images « doit changer » : `Runner`, `MeloNXCore`,
+  `MeloNXMoltenVKStandalone`, ponts armsx2, dolphin et melonx.
+- **Première tentative.** Run `42795453604` (déclencheur `ff3edb7e`, 10:00:33 UTC) en échec ; contrôle,
+  republication et natif (19 commandes) verts. Deux jobs rouges, tous deux sur `6ddc96fd` (contacts du skin après
+  le menu), qu'aucun job n'avait compilé ni exécuté auparavant. Application (job `129759822347`, 10:11:32),
+  xcodebuild code 65, une erreur : `MeloNXMetalSessionViewController.swift:339:32:
+  'syncNowAndWhenUncovered(_:stillWanted:sync:)' has been renamed to 'syncNowAnd(whenUncovered:stillWanted:sync:)'`.
+  Flutter (job `129759822227`), 979 réussis, 1 échec : `test/melonx_skins_test.dart` attendait encore l'unique
+  `skinSession?.sync()` après `router?.suspend(...)`. Correctif `65a9e633` : l'appel porte le nom que Swift donne
+  au sélecteur Objective-C ; le contrat Dart attend la forme du lot 9 et refuse l'écriture qui ne compile pas. Les
+  deux groupes de tests sont rejoués, le correctif changeant l'arbre effectif. Seconde demande à 10:23:06.
+- **Leçon (règle § 3.11).** Ni le run du Core MeloNX (gates), ni le run simulateur des skins (tests Objective-C
+  des ponts) ne compilent `MeloNXMetalSessionViewController.swift` : la première demande de livraison a servi de
+  compilateur. Coût ici : 22,5 min entre les deux demandes, un regel et deux groupes de tests rejoués.
+- **Durées des jobs.** Contrôle 0,9 min ; Flutter 7,9 min ; natif 20,2 min ; republication 1,6 min ; application
+  25,4 min, dont compilation Xcode 323 s et signature/export 60 s.
+- **Images non déclarées.** `libretro_internal_bridge` et `rpcs3_internal_bridge`, sans aucun changement de source
+  entre `3b4b4d02` et `8a1884a9`, diffèrent de la 719 par un octet de `__stubs` et un octet par bouchon de
+  `__objc_stubs` (2055 et 834 bouchons). Dans la 719, les bouchons Objective-C lisent l'adresse de `objc_msgSend`
+  dans la première de deux cases voisines de la table des symboles importés et le bouchon ordinaire dans la
+  seconde ; dans la 720, c'est l'inverse. Les deux cases sont liées au même symbole ; toutes les autres sections,
+  la table `__got` et les liaisons (3337 et 3773) sont identiques. Aucune différence de comportement ; rien à
+  classer (§ 3.10). `dolphin_internal_bridge`, dans le même cas pour la 719, change ici pour une raison déclarée
+  (PR #166 et PR #167).
+- **Contenu relu dans le fichier livré.** `libRPCS3Core.dylib` : charge `78f2defd`, ligne SCHED918. `MeloNXCore` :
+  charge `1336c87b`. `MeloNXMoltenVKStandalone` : sections de code et de données identiques au binaire épinglé
+  (seul `__LINKEDIT` diffère, par la signature), marqueur « RewindBox drawable ownership », notice de modification
+  et copie du patch (`9a6867b7`) dans `Legal/MeloNX/StandaloneMoltenVK/`. Pont MeloNX : sélecteur
+  `syncNowAndWhenUncovered:stillWanted:sync:` et littéral `mgd=`, absent de la 719. 82 des 90 images gardent la
+  charge de la 719.
+- **Échecs préexistants, hors des groupes de livraison.** Frontend libretro, `diagnostic_routing_test.m` (le
+  lanceur passe deux arguments depuis la PR #152, le test en exigeait un) : corrigé par `bad024ec`, 22 fichiers
+  sur 22 au run `42795464202`. Banc de session Dolphin (SessionMenuTests 13 tests / 21 échecs,
+  RecordingControllerTests) : tests périmés depuis les changements de `DolphinSessionMenu.mm` du 18 octobre au
+  1er novembre ; ouvert, propriétaire main. `test/melonx_capture_journal_test.py` : échec sous Linux, identique
+  sur `3b4b4d02` ; signalé au propriétaire MeloNX. `DolphinSkinOverlayTests testWiiButtonsLandscape` : un échec au
+  run `42795464202` (`DolphinSkinOverlayTests.mm:233`, compte du Menu 0 puis 2 au lieu de 1) sur des sources qui
+  passent au run `42787761020` (36/36) ; attente fixe de 20 ms ; signalé au propriétaire des skins.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP. IPA
+  vérifiée hors ligne (`passed-offline-checks`), huit reçus copiés avant la suppression de la clé (§ 3.5), clé
+  privée supprimée, envoi privé en fichier. Aucun test sur iPhone.
