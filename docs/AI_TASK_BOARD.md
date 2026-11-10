@@ -3729,7 +3729,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   darker (upper-left lip, highlights flattened), drop shadow halved; sticks unchanged.
   Archives: wii-pocket `8650e532` 8329179, gamecube-pocket `214c29d6` 8646547 (others
   unchanged). Proof (host): verifier 7 packs, input chain 20 layouts, Dolphin chrome,
-  Flutter skins 156/156, rebuild byte-identical. Simulator: pending on this branch.
+  Flutter skins 156/156, rebuild byte-identical. Simulator: run `42908209483` (`07062d0d`)
+  green (host step, Dolphin skin overlay harness on the four GC/Wii packs: frame, touches,
+  turn, menu, relaunch; its pressed-drawing test covers the Originals only).
   [Sheets](evidence/skins-press-precision/) (wii-pocket-*, gamecube-pocket-*). Not observed
   on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
