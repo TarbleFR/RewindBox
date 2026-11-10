@@ -3066,7 +3066,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     (`test/melonx_moltenvk_drawable_ownership_test.py`): reported interleaving under ASan = heap-use-after-free in the
     block copy before, none after; TSan 20 000 presents = race before, none after, every drawable released once.
     iOS rebuild run 42760131591 green: artifact 13736999411 (13 872 142 B, digest `a36145bc…`), binary `6d3a8d03…`
-    (4 822 256 B, arm64, minos 15.0, marker 1/1, 428/428 exports). Not packaged as MeloNXMoltenVKStandalone (main),
+    (4 822 256 B, arm64, minos 15.0, marker 1/1, 428/428 exports). Packaged and delivered by main in IPA 720 (below);
     not run on an iPhone.
   - **P0 skin touches after the in-game menu.** `MeloNXSkinSession.sync` ran once at the resume; a menu action can run
     while its sheet is still being dismissed, so `skin.interactive` (no presented controller) left the overlay with
@@ -3093,13 +3093,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     under the main lock (render creations sent to the empty side cache), to conclude +1.36 MiB, no write. SSBU's in-play
     write 889 MiB in 4 936 ms holds the same lock. Next: skip the probe when the learned per-pipeline growth cannot reach
     the write threshold (the first estimate uses 128 KiB per pipeline, 20x the measured 6 KB).
-  - **Core 719 candidate (number provisional, main to confirm):** Core 717 + adapt_bgc_fragmentation_guard; all 76 gates
+  - **Core 719 (delivered in IPA 720, not run on an iPhone):** Core 717 + adapt_bgc_fragmentation_guard; all 76 gates
     passed locally on the final preparation (four taught the new replacements or the pinned MoltenVK patch, rerun green);
     contract `38b3a5b7` (195 inputs, 206 members, 76 fresh gates), contract test 449 checks with the baseline archive
-    (commit `b31a38a4`). Not compiled for iOS: Core build, pin, MoltenVK packaging and IPA are main's.
-    [Receipts](evidence/melonx-719-gates/run.json), [device protocol](evidence/melonx-719-gates/device-protocol.md).
-  - Next: Core CI and IPA (main); on the device, the protocol's three parts; then the probe skip, Hogwarts' long pause
-    from `mgd=`, Smash's replay order.
+    (commit `b31a38a4`). Integrated by main (`7d0ca6c1`); Core run 42787755406 green (job 129733174508; artifact
+    13753428009, 91 029 102 B, sha256 `77cb3662…`; iPhone library `1b2d434b…` 38 423 432 B, simulator `b343a1d7…`);
+    pin `a7d7bfae` (replaces Core 717). MoltenVK packaged by main as MeloNXMoltenVKStandalone from rebuild `6d3a8d03`
+    (sections identical, marker present, modification notice and patch in Legal/). IPA 720: run 42798677772, IPA
+    266 993 445 B, sha256 `e7ad0a2a…`, verified by main ([receipt](evidence/rewind720/delivery.json)); the first
+    request (run 42795453604) failed on `6ddc96fd`: Swift imports the selector as `syncNowAnd(whenUncovered:…)`, fixed by
+    main in `65a9e633` with the Dart contract. Lesson (recipe § 3.11): a Swift call to an Objective-C selector comes with
+    a macOS compile of the bridge. [Receipts](evidence/melonx-719-gates/run.json),
+    [device protocol](evidence/melonx-719-gates/device-protocol.md).
+  - Independent review (main, read-only): F1, a window refused for fragmentation leaves the keep-alive dormant until the
+    next background gen2 (as after an elevated request in Core 717) and counts it as a fragmented skip, not a miss;
+    decision: ship, next Core adds a bounded `gcKeepAlive dormant` line and a separate miss count, gate holding the ratio
+    above 0.48 for 20 s. Watch: after a present `_mtlDrawable` is nil; only MetalFX (refused by the host) reads a
+    swapchain texture before reacquisition.
+  - Next: the maintainer's device trials of IPA 720 (protocol's three parts); then the probe skip, Hogwarts' long pause
+    from `mgd=`, Smash's replay order, F1, `NS_SWIFT_NAME` on the selector, and `test/melonx_capture_journal_test.py`
+    (red on Linux since before 719, "controller removed lines").
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
