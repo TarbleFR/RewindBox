@@ -316,34 +316,83 @@ def shape_mask(screen: Image.Image, box, reach: int = 10, cuts=()):
     return x0, y0, _shrink(mask, 1)
 
 
-def pill_mask(extent, x0: int, y0: int, screen: Image.Image | None = None):
-    """A stadium (rounded ends of half its height) through a measured outline (board
-    px, exclusive right/bottom), as (x, y, mask) in screen px. With the board `screen`,
-    grown to the pill's drawn outer edge: one ring at a time while the ring still differs
-    from the body around the pill (its lit bevel and soft outline, which the darkest-line
-    measure leaves outside); otherwise one pixel inside the measured outline."""
+def _rounded_rect_points(x0, y0, x1, y1, r, n=240):
+    """Points along a rounded rectangle's outline (board px; x1 / y1 are its far edges)."""
+    w, h = x1 - x0, y1 - y0
+    r = min(r, w / 2, h / 2)
+    sw, sh = w - 2 * r, h - 2 * r
+    arc = math.pi * r / 2
+    pts = []
+    for s in np.linspace(0, 2 * (sw + sh) + 4 * arc, n, endpoint=False):
+        for length, at in ((sw, lambda u: (x0 + r + u, y0)),
+                           (arc, lambda u: (x1 - r + r * math.cos(-math.pi / 2 + u / r), y0 + r + r * math.sin(-math.pi / 2 + u / r))),
+                           (sh, lambda u: (x1, y0 + r + u)),
+                           (arc, lambda u: (x1 - r + r * math.cos(u / r), y1 - r + r * math.sin(u / r))),
+                           (sw, lambda u: (x1 - r - u, y1)),
+                           (arc, lambda u: (x0 + r + r * math.cos(math.pi / 2 + u / r), y1 - r + r * math.sin(math.pi / 2 + u / r))),
+                           (sh, lambda u: (x0, y1 - r - u)),
+                           (arc, lambda u: (x0 + r + r * math.cos(math.pi + u / r), y0 + r + r * math.sin(math.pi + u / r)))):
+            if s < length or length == arc and s <= length:
+                pts.append(at(s))
+                break
+            s -= length
+        else:
+            pts.append((x0 + r, y0))
+    return np.array(pts)
+
+
+def fit_pill(screen: Image.Image, extent) -> tuple[float, float, float, float, float]:
+    """A light pill's drawn outline as a rounded rectangle (x0, y0, x1, y1, radius in
+    board px): the one along which the board's edges are strongest, from the darkest-line
+    measure (pill_extent) moved by quarter pixels. The drawn pills are not stadiums: their
+    corners are tighter than half their height."""
     from scipy import ndimage
+    lum = ndimage.gaussian_filter(np.asarray(screen.convert('L')).astype(np.float32), 0.7)
+    mag = np.hypot(ndimage.sobel(lum, 1), ndimage.sobel(lum, 0))
+
+    def score(p):
+        x0, y0, x1, y1, r = p
+        if x1 - x0 < 6 or y1 - y0 < 6 or r < 0.2 * (y1 - y0) or r > 0.5 * min(x1 - x0, y1 - y0):
+            return -1.0
+        pts = _rounded_rect_points(*p)
+        return float(ndimage.map_coordinates(mag, [pts[:, 1], pts[:, 0]], order=1).mean())
+
+    ex0, ey0, ex1, ey1 = extent
+    p = np.array([ex0, ey0, ex1, ey1, (ey1 - ey0) / 2], float)
+    best = score(p)
+    for step in (1.0, 0.5, 0.25):
+        improved = True
+        while improved:
+            improved = False
+            for i in range(5):
+                for d in (-step, step):
+                    q = p.copy()
+                    q[i] += d
+                    v = score(q)
+                    if v > best + 1e-6:
+                        best, p, improved = v, q, True
+    return tuple(float(v) for v in p)
+
+
+def pill_mask(extent, x0: int, y0: int, screen: Image.Image | None = None):
+    """A light pill's outline as (x, y, mask) in screen px. With the board `screen`: the
+    rounded rectangle fitted on its drawn edge (fit_pill). Without: a stadium (rounded
+    ends of half its height) one pixel inside the measured outline (board px, exclusive
+    right/bottom)."""
+    if screen is not None:
+        px0, py0, px1, py1, r = fit_pill(screen, (extent[0] - x0, extent[1] - y0, extent[2] - x0, extent[3] - y0))
+        bx0, by0 = math.floor(px0), math.floor(py0)
+        w, h, ss = math.ceil(px1) - bx0, math.ceil(py1) - by0, 8
+        big = Image.new('L', (w * ss, h * ss), 0)
+        ImageDraw.Draw(big).rounded_rectangle(((px0 - bx0) * ss, (py0 - by0) * ss, (px1 - bx0) * ss - 1, (py1 - by0) * ss - 1),
+                                              radius=r * ss, fill=255)
+        return bx0, by0, np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128
     ex0, ey0, ex1, ey1 = extent
     w, h, ss = ex1 - ex0, ey1 - ey0, 4
     big = Image.new('L', (w * ss, h * ss), 0)
     ImageDraw.Draw(big).rounded_rectangle((0, 0, w * ss - 1, h * ss - 1), radius=h * ss / 2, fill=255)
     m = np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128
-    if screen is None:
-        return ex0 - x0, ey0 - y0, _shrink(m, 1)
-    pad = 8
-    sx0, sy0 = ex0 - x0 - pad, ey0 - y0 - pad
-    a = np.asarray(screen.convert('RGB').crop((sx0, sy0, sx0 + w + 2 * pad, sy0 + h + 2 * pad))).astype(np.float32)
-    grown = np.zeros(a.shape[:2], bool)
-    grown[pad:pad + h, pad:pad + w] = m
-    body = np.median(a[ndimage.binary_dilation(grown, iterations=7) & ~ndimage.binary_dilation(grown, iterations=5)], axis=0)
-    for _ in range(4):
-        ring = ndimage.binary_dilation(grown) & ~grown
-        if np.abs(a[ring] - body).mean(axis=-1).mean() < 8:
-            break
-        grown |= ring
-    ys, xs = np.nonzero(grown)
-    gx0, gy0 = xs.min(), ys.min()
-    return sx0 + gx0, sy0 + gy0, grown[gy0:ys.max() + 1, gx0:xs.max() + 1]
+    return ex0 - x0, ey0 - y0, _shrink(m, 1)
 
 
 def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int = 4) -> dict:
@@ -358,7 +407,8 @@ def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int 
         cuts = [(cx0 - x0, cy0 - y0, cx1 - x0, cy1 - y0) for cx0, cy0, cx1, cy1 in spec.get('cuts', ())]
         if label in spec.get('shapes', {}):
             # A light 3D pill whose faint upper outline no stroke threshold closes (Switch
-            # Pocket): its outline measured on the board (pill_extent), grown to its drawn edge.
+            # Pocket): its outline measured on the board (pill_extent), then fitted on its
+            # drawn edge as a rounded rectangle (fit_pill).
             mx, my, m = pill_mask(spec['shapes'][label], x0, y0, screen)
         else:
             mx, my, m = shape_mask(screen, box, reach=10, cuts=cuts)
@@ -430,10 +480,8 @@ def _control_part(rgb: np.ndarray, m: np.ndarray, scale: int):
         return m, True
     body = np.median(rgb[around], axis=0)
     if np.median(rgb[solid].mean(axis=-1)) >= body.mean() - 10:
-        # Its measured outline, without the thin teeth a shape measure can leave on it.
-        kept = ndimage.binary_opening(solid, structure=np.ones((3, 3), bool), iterations=2 * scale)
-        soft = ndimage.gaussian_filter(kept.astype(np.float32), 0.5 * scale)
-        return np.minimum(soft, m), False
+        # Its outline is fitted on its drawn edge (fit_pill): the whole sprite is the pill.
+        return m, False
     differs = np.abs(rgb - body).mean(axis=-1) > 20
     part = ndimage.binary_fill_holes(solid & differs)
     part = ndimage.binary_opening(part, iterations=max(1, scale // 2))
@@ -488,9 +536,11 @@ def pressed_face(normal: Image.Image, alpha: Image.Image, scale: int) -> Image.I
     cap, capc = squeeze(rgb), squeeze(c)
     # Beyond the sprite is outside the control (a crop edge is not the control's inside).
     inner = ndimage.distance_transform_edt(np.pad(c >= 0.5, 1))[1:-1, 1:-1]
-    # The shading fades out toward the outline: its last pixels stay the board's, so the
-    # sprite meets the drawing around it without a seam.
-    core = squeeze(np.clip((inner - 0.6 * scale) / (1.2 * scale), 0, 1))
+    # The shading fades out toward the outline: on a raised control its last pixels stay
+    # the board's, so the sprite meets the drawing around it without a seam; a flat pill,
+    # whose outline is its fitted drawn edge, is shaded to that edge.
+    core = squeeze(np.clip((inner - 0.6 * scale) / (1.2 * scale), 0, 1) if raised
+                   else np.clip(inner / (0.6 * scale), 0, 1))
     # The well's lip, cast from the upper left (shifted, not wrapped around the sprite).
     dx, dy = round(1.2 * scale), round(2.2 * scale)
     outside = np.pad(1 - c, ((dy, 0), (dx, 0)), constant_values=1)[:h, :w]
@@ -735,6 +785,19 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
             normal = up.crop(box)
             alpha = Image.fromarray(full.astype(np.uint8) * 255, 'L').resize(normal.size, Image.Resampling.BILINEAR)
             alpha = alpha.filter(ImageFilter.GaussianBlur(0.35 * UPSCALE))
+            if label in spec.get('shapes', {}):
+                # A light pill: its fitted rounded rectangle drawn at the sprite's resolution
+                # (antialiased, no board-pixel steps), within its share of the layout.
+                ex0, ey0, ex1, ey1 = spec['shapes'][label]
+                px0, py0, px1, py1, r = fit_pill(screen, (ex0 - x0, ey0 - y0, ex1 - x0, ey1 - y0))
+                ss = 4 * UPSCALE
+                big = Image.new('L', ((fx1 - fx0) * ss, (fy1 - fy0) * ss), 0)
+                ImageDraw.Draw(big).rounded_rectangle(((px0 - fx0) * ss, (py0 - fy0) * ss, (px1 - fx0) * ss - 1,
+                                                       (py1 - fy0) * ss - 1), radius=r * ss, fill=255)
+                drawn = big.resize(normal.size, Image.Resampling.BOX)
+                share = Image.fromarray(full.astype(np.uint8) * 255, 'L').resize(normal.size, Image.Resampling.NEAREST)
+                share = share.filter(ImageFilter.MaxFilter(2 * UPSCALE + 1))
+                alpha = ImageChops.multiply(drawn, share)
             files[f'controls/{key}.png'] = bp.png(with_alpha(normal, alpha))
             # An inert control (Switch HOME/Capture: no Core input) does not look pressed.
             files[f'controls/{key}-pressed.png'] = bp.png(
