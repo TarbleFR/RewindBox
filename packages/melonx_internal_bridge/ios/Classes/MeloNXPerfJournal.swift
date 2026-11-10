@@ -298,9 +298,9 @@ final class MeloNXStallWatch {
     private let path: String
     private let context: [String:String]
     private let lock = NSLock()
-    // Guarded by lock: the call in flight (0 when none) and the last call that returned.
+    // Guarded by lock: the call in flight (0 when none), the call the watch records (flagged) and when it returned.
     private var callStart: UInt64 = 0, callName = ""
-    private var lastStart: UInt64 = 0, lastEnd: UInt64 = 0
+    private var flagged: UInt64 = 0, flaggedEnd: UInt64 = 0
     private var running = false
     // Confined to the watch thread.
     private var watched: UInt64 = 0, watchedName = "", stage = 0, stalls = 0
@@ -321,7 +321,10 @@ final class MeloNXStallWatch {
 
     func exit() {
         let now = mach_absolute_time()
-        lock.lock(); lastStart = callStart; lastEnd = now; callStart = 0; lock.unlock()
+        lock.lock()
+        if callStart != 0 && callStart == flagged { flaggedEnd = now }
+        callStart = 0
+        lock.unlock()
     }
 
     func start() {
@@ -341,10 +344,10 @@ final class MeloNXStallWatch {
         while true {
             usleep(50_000)
             lock.lock()
-            let alive = running, start = callStart, name = callName, endedStart = lastStart, ended = lastEnd
+            let alive = running, start = callStart, name = callName, ended = flaggedEnd
             lock.unlock()
             if watched != 0 && start != watched {
-                let took = endedStart == watched ? Self.decimal(Self.milliseconds(ended &- watched)) : "?"
+                let took = ended != 0 ? Self.decimal(Self.milliseconds(ended &- watched)) : "?"
                 header("#\(stalls) end: \(watchedName) returned after \(took) ms")
                 watched = 0; stage = 0
             }
@@ -354,6 +357,10 @@ final class MeloNXStallWatch {
             if start != watched {
                 guard stalls < Self.maxStalls, age >= Self.stagesMs[0] else { continue }
                 stalls += 1; watched = start; watchedName = name; stage = 0; previousCpu = [:]
+                lock.lock()
+                // The call may have returned since it was read: its end is then unknown ("?"), never another call's.
+                if callStart == start { flagged = start; flaggedEnd = 0 } else { flagged = 0; flaggedEnd = 0 }
+                lock.unlock()
             }
             if stage < Self.stagesMs.count && age >= Self.stagesMs[stage] {
                 snapshot(age: age)
