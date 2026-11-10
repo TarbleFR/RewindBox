@@ -2922,8 +2922,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     iPhone; no MeloNX game run with the skin; no IPA from here.
 - **Game screen framing of the RewindBox Pocket skins (10 Nov request, high selector):**
   branch `work/skins-screen-framing-20261110` from `3c2a8e5c`, product commit `c90b86c8`.
-  The two Wii captures announced as references **were not received**; work done from the
-  packs and the code. [Record and per-layout tables](skins-screen-framing-2026-11-10.md),
+  The two Wii captures arrived after the fix (iPhone 956 × 440 pt, `wii-pocket-original`
+  sideways, in game and during shader compilation; not stored): surface = the old declared
+  rectangle within 2 px, navy strips 7.7 / 6.5 pt above and below, square corners over the
+  rounded frame; the measured opening matches the capture within 1 px. **Cause 1
+  confirmed on that layout; cause 2 is not what they show.**
+  [Record and per-layout tables](skins-screen-framing-2026-11-10.md),
   [evidence](evidence/skins-screen-framing/).
   - Input identity: the 7 bundled packs of `assets/skins/pocket/catalog.json` at `d09db191`
     (`wii-pocket` and `gamecube-pocket` share the wordmarked body).
@@ -2955,7 +2959,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     default 16:9 picture); standard-iPhone openings of wii/gamecube-pocket far from 4:3
     (body art). `DolphinInternalBridgePlugin.mm` is compiled by the IPA build only.
   - Not observed on an iPhone; no game run (loading, shader compilation, play not observed).
-    Next: maintainer resends the two captures to compare; main reviews/integrates the PR.
+    A 4:3 picture keeps thin black bands in the non-4:3 openings unless Stretched is
+    chosen (6.9 pt above and below on the captured layout): maintainer's choice of format,
+    or new art. Next: main reviews/integrates the PR; maintainer checks on the iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.

@@ -3,11 +3,39 @@
 The maintainer reported that, in the RewindBox skins, the game picture does not sit in the
 opening the skin draws: it goes over the frame on the left and right, does not fill the
 opening at the top and bottom, and the video rectangle does not match the drawn place. Two
-captures of the Wii skin were announced as references. **They did not arrive with the
-request** (no image and no file was attached), so this work starts from the packs and the
-code, not from the captures. What the captures show remains to be compared.
+captures of the Wii skin were announced as references. They did not arrive with the
+request, so the work started from the packs and the code; the maintainer sent them
+afterwards and they are compared below. They confirm the first cause on the layout they
+show.
 
 Evidence: [docs/evidence/skins-screen-framing/](evidence/skins-screen-framing/).
+
+## The two captures (received after the fix was written)
+
+Two iPhone captures, 2868 × 1320 px (956 × 440 pt at 3×; 1 684 248 B `745cae14…` in game,
+1 326 527 B `16395c98…` during "Compiling shaders"), of **Wii Pocket — Original**
+(`wii-pocket-original`) sideways. Both show the same framing. They are not stored in the
+repository (the first shows a game's screen). Measured on them, against the pack laid out
+at 956 × 440 pt (scale 1.1221):
+
+| In the capture (px) | Measured | Previous pack predicts | Rebuilt pack predicts |
+| --- | --- | --- | --- |
+| Game surface, left to right | 710 … 2104 | 708 … 2105 | 708 … 2108 |
+| Game surface, top / bottom | 109 / 1157 (edges of the navy bands) | 108 … 1157 | 87 … 1178 |
+| Navy window of the skin, top to bottom | 88 … 1178 | — | 87 … 1178 (the container) |
+
+So in the captures the surface is the previously declared rectangle: it stops 7.7 pt
+(top) and 6.5 pt (bottom) short of the drawn opening, leaving the two navy strips, and
+its square corners lie over the rounded corners of the frame on the left and right. The
+opening measured by `screen_opening.py` is the navy window of the captures within one
+pixel. The cause is the metadata, the same during shader compilation and in game. The
+captures do not show the second cause below (the surface there has the right shape).
+
+With the rebuilt pack the surface is the opening (rounded corners cut by the skin). A
+4:3 picture in it keeps 6.9 pt black bands above and below on that iPhone with the
+Automatic or 4:3 format, because the drawn opening is 1.283 wide for 1 high; the
+**Stretched** format of the session menu (Display › Aspect ratio) fills it, 4 % taller.
+The shader compilation screen fills the whole opening.
 
 ## Which skins
 
@@ -64,7 +92,7 @@ view's size at that instant. Right after the presentation UIKit can still give t
 of the screen that opened the session: a phone held sideways (the RewindBox menu) opening
 a portrait-only skin locked a full-screen landscape surface, afterwards fitted into the
 upright skin's screen with bands above and below. This is found in the code; it was not
-observed on a device and the captures were not available to confirm it is what they show.
+observed on a device and it is not what the two captures show.
 
 ## Correction
 
@@ -212,4 +240,5 @@ game ran.
   described above).
 - `DolphinInternalBridgePlugin.mm` is not compiled by the skins workflow (it needs the
   Core headers); its change is compiled by main's IPA build.
-- The two Wii captures were not received and are not compared.
+- The corrected build was not observed on an iPhone: the captures above are of the
+  previous pack.
