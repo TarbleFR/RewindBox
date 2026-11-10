@@ -229,7 +229,8 @@ communication evidence, not another implementation queue.
 
 Main `012mUAShv9k6pSCnpW7oAF63` ·
 MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
-Skins `012mUASjgVWk8DKKjVbwTD2n`.
+Skins `012mUASjgVWk8DKKjVbwTD2n` ·
+Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7`.
 
 Current records below are snapshots. Consult exact pins/manifests/receipts before
 acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
@@ -3725,6 +3726,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   the 10 Nov session, not invoked again after its context compaction.
 
 ### Codex orchestration — Codex
+
+- **Playlists/XeniOS routing — created and started (10 Nov).**
+  Session [03 Playlists](https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7),
+  branch `work/playlists-xenios-20261110` from `71d0f0a6`; UI Opus5.5/High,
+  native `/rb-effort-high` reported high. Full scoped prompt and three attachments
+  sent. Owner reconstructed the original IPA outside Git: **49156698 B**,
+  SHA-256 `8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b`,
+  all CRCs valid. Version2.3.1/build11662, iOS26 minimum (plist and Mach-O);
+  `Frameworks/libmetalirconverter.dylib` is present, not a separate XeniOS Core.
+  Existing `xbox360` identity found; upstream source retrieval started.
+  Scope: direct playlist/import, real supported per-game settings/language,
+  existing layered architecture; principal keeps integration/pins/CI/IPA.
+  [Input/routing receipt](evidence/xenios-playlists-input-routing-2026-11-10.json).
+  Component implementation/compilation/device results remain unverified;
+  owner maintains its one task and scoped PR toward Claude.
 
 - **Effort follow-up:** high selector expanded `b8e12584`, routing `20c14011`;
   skins UI Max→High, Opus5.5 retained. Reload/native Skill-return and automatic

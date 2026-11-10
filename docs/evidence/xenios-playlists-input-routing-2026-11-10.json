@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "scope": "New Claude Code component session for emulator playlists; initial integration XeniOS / Xbox 360",
+  "session": {
+    "id": "012mUASiVyxdnhNTUKesGGm7",
+    "title": "03 — RewindBox — Playlists émulateurs : XeniOS",
+    "url": "https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7"
+  },
+  "repository": "TarbleFR/RewindBox",
+  "branch": "work/playlists-xenios-20261110",
+  "initial_base_sha": "71d0f0a6a4ba4e42091331ff50968a142d78a29e",
+  "ownership": {
+    "integration_and_ipa": "012mUAShv9k6pSCnpW7oAF63",
+    "melonx": "012mUASkkFGHaPcEUx9dsp8q",
+    "skins": "012mUASjgVWk8DKKjVbwTD2n",
+    "playlists": "012mUASiVyxdnhNTUKesGGm7"
+  },
+  "model_observed": {
+    "ui": "Opus 5.5 / High",
+    "native_skill": "/rb-effort-high",
+    "native_reported_effort": "high",
+    "fast_mode": false
+  },
+  "input": {
+    "filename": "xenios_ios_iphone_ipad.ipa",
+    "bytes": 49156698,
+    "sha256": "8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b",
+    "version": "2.3.1",
+    "build": "11662",
+    "bundle_id": "com.xenios.jp",
+    "minimum_ios_plist": "26.0",
+    "minimum_ios_macho": "26.0.0",
+    "macho_type": "MH_EXECUTE",
+    "separate_xenios_framework": false,
+    "embedded_dependency": {
+      "path": "Payload/XeniOS.app/Frameworks/libmetalirconverter.dylib",
+      "bytes": 30171152
+    },
+    "upstream_repository": "xenios-jp/XeniOS",
+    "upstream_sha_reported_by_owner": "cf7c7ee452314913124d205e41e325b33891aacb"
+  },
+  "transfer": {
+    "reason": "Claude per-file attachment limit 30 MB; original IPA is 49.2 MB",
+    "method": "Two lossless binary parts, each in its own ZIP; third JSON manifest",
+    "attachments": [
+      "XeniOS_IPA_part_1_of_2.zip",
+      "XeniOS_IPA_part_2_of_2.zip",
+      "XeniOS_transfer_manifest.json"
+    ],
+    "destination_tool": "Reconstruct IPA and verify hashes/CRC",
+    "archive_bytes_received": [
+      25000166,
+      24156864
+    ],
+    "part_bytes_received": [
+      25000000,
+      24156698
+    ],
+    "destination_reconstructed_bytes": 49156698,
+    "destination_reconstructed_sha256": "8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b",
+    "crc_result": "No errors detected in compressed data",
+    "original_bytes_access_confirmed": true,
+    "no_binary_committed": true
+  },
+  "instructions": {
+    "sent": true,
+    "initial_message": 1,
+    "dependency_inventory_clarification": "Queued as one follow-up; owner had independently identified libmetalirconverter.dylib already",
+    "required_user_flow": [
+      "Direct access to Xbox 360 playlist",
+      "Import into canonical RewindBox library",
+      "Per-game options only when supported and passed to engine",
+      "Guest language choice when supported; preserve 12 UI locales"
+    ],
+    "architecture": "Existing screens/providers/services/repositories/datasources; stable xbox360 system identity; minimal native adapter from upstream sources, no pretend embedded IPA",
+    "compatibility": "Keep existing iOS18+ playlists supported; assess and gate iOS26-only dependencies",
+    "global_delivery": "Main remains integration/CI/pin/IPA owner; no duplicate global build or public release"
+  },
+  "observed_state": "Session running; input received, reconstructed and authenticated; repository architecture mapped; existing xbox360 identity found; upstream source retrieval started",
+  "limits": "No XeniOS integration, iOS compilation, delivery or iPhone gameplay validation is claimed by this coordination receipt",
+  "next": "Playlist owner implements first working increment and affected checks, records its single owned task and opens a scoped PR toward Claude"
+}
