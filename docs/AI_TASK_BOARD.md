@@ -271,6 +271,49 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 720 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`):** the handoffs of MeloNX (lot 9, messages
+  of 05:22 and 05:47 UTC) and of the skins owner (PR #166 and PR #167, 06:28 UTC) stayed queued while main built and
+  delivered IPA 719; main read them at 08:50 UTC. 720 = the delivered 719 + those handoffs; RPCS3 Core 918 unchanged,
+  so the RPCS3 journals asked for on 719 stay valid on 720.
+  - **Integrated on `Claude`** (three separate merges, pushed with `b179a080`): MeloNX lot 9 `7d0ca6c1` (a8198f79, no
+    conflict), PR #166 `80aa7ac7` (32fd5309; one conflict, both imports kept at the head of
+    `MeloNXSkinOverlayTests.mm`), PR #167 `b6a9deee` (66c129b9). The seven Pocket archive identities read on the merged
+    tree equal the owner's values.
+  - **Independent read-only reviews (two reviewers):** skins native code: nothing to correct (mask on the body layer
+    only, hit test untouched, missing or invalid cutout = the previous rectangle, `lockRenderSurface` synchronous on
+    the main thread); minor: a Delta portrait-only skin without a screen opened sideways gets thin side bands
+    (unturned safe-area insets in `screenFrameForBounds:`), no Pocket skin concerned. MeloNX lot 9: no proven defect;
+    relayed to its owner: after a fragmented skip longer than 16 s the GC keep-alive stays silent until the runtime's
+    next background gen2, without counter or journal line (adapter `Fragmented` case); a present leaves the image
+    without drawable, harmless here because the only `vkGetMTLTextureMVK` caller (MetalFX filter) is refused by the
+    RewindBox host.
+  - **MoltenVK (lot 9 patch):** artifact 13736999411 of run 42760131591 verified offline by main (zip = API digest
+    `a36145bc`, binary `6d3a8d03` 4,822,256 B, identity = tag, commit and patch `9a6867b7` of the repository, patch in
+    `sources/` byte-identical, marker 1/1, 8/8 entry points, 428/428 exports) and pinned. Packaging defect found and
+    fixed by main: `package_standalone_moltenvk.py` refused every patched source and its notice said "unmodified"
+    (the delivery would have stopped at that step); it now needs pin, source and artifact to agree on the patch,
+    writes a modification notice and embeds a copy of the patch next to the Apache-2.0 license. Parity test 64 checks
+    (45), six refusals as negative controls; the previous packager fails the first patched case.
+    [Record](melonx-moltenvk-rebuild-2026-11-03.md).
+  - **Legal declarations:** the declaration chain refused the effective tree ("Pocket board Originals added packs
+    differ from the review"): six packs rebuilt in place. Revision review
+    `evidence/pocket-skins-framing-press-declarations-2026-11-10.json` (chained to the Switch Pocket review) and its
+    rule (`c6cb5837`): an earlier review accepts a rebuilt pack only at the identity the revision gives it, when the
+    revision names the identity that review recorded. Contract test on the effective tree with six negative controls.
+    Legal check of the 720 effective tree: passed.
+  - **Pre-existing red steps classified (not caused by these handoffs):** libretro frontend, 1 of 22
+    (`diagnostic_routing_test.m`, "FAIL one isolated fixture directory"): harness; the runner passes two arguments
+    since PR #152 (`705e90c7`, 4 Nov) and the test required one; fixed in the test (`bad024ec`), to be confirmed by
+    the next macOS run. Dolphin session harness (SessionMenuTests 13 tests / 21 failures, RecordingControllerTests one
+    test): harness/baseline, stale since `DolphinSessionMenu.mm` changed on 18 Oct to 1 Nov without its tests; owner:
+    main, open, outside the delivery test groups.
+  - **Runs on `b179a080`:** MeloNX Core 719 (contract `38b3a5b7`, 76 gates) run `42787755406` and the skins simulator
+    suites (all steps) run `42787761020`, both dispatched by hand: a tagged push would also have started melonx-host,
+    the MoltenVK rebuild, shader-kit, touch-layout and unified-cheats. Results below when they end.
+  - **Draft `build-utils/delivery/720.json`** on the base 719 (its receipt holds the signed image inventory): RPCS3
+    unchanged from base, MeloNX replaced, `MeloNXMoltenVKStandalone` and the three bridges must change; five reviewed
+    commits; dry-run freeze: one blocker left, the MeloNX pin. The label "MeloNX Core 719" is the owner's frozen one
+    (kept so as not to refreeze its contract); it is not the content of IPA 719, which holds Core 717.
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
   correcting its native-test failure and preserving valid reusable results. Check repeated source
