@@ -1349,6 +1349,58 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       built source identities differ by rpcs3/ios/IOSTextureLookupMemo.h only. Artifact 13728955880, dylib `b4ece6df`,
       fingerprint `b8759812`; [identity](evidence/rpcs3-core915-ac1-ways4-witness/identity.json). Never pinned.
     - Preparation closed: reference 914 pinned, witness 915 recorded separately. Remaining: iPhone measurements only.
+  - **Mission 10 Nov, build 718 journals (maintainer: performance, stutters, stops of progression; verified changes only) →
+    Core 916** ([record](rpcs3-core916-build718.md)). Inputs: five app journals of build 718 (private; sha256 prefixes
+    97011f92, 27176ff9, 82d1c6be, 81f01cec, 9a023031). The `.1` rotation is not among them: the per-window CPU/SPU/pass/memo
+    lines of BO2 (sessions 1-2) and AC1 (session 3) and GOW3 window 12 are not in the files and found no change here.
+    - **Confirmed and fixed — AC1 stop sequence (6.125 s, PID 45272 s3, accurate_res=false):** the PPU's plain byte store
+      `sysSrvMessage = 0xff` (wake-up of the SPURS kernels for a workload shutdown) is absent from header line 0x102ec580
+      while the reservation store made just before it is in line 0x102ec600; five SPUs wait on that line with its current
+      time. Upstream's relaxed `relaxed_spurs` PUTLLC copied the SPU's whole 128-byte line without comparing it.
+      `REWINDBOX_SPURS_RELAXED_STORE_916`: whole-line compare, then one atomic exchange per changed 16-byte lane; a store
+      made since GETLLAR fails the PUTLLC and is never overwritten; a store that lands while the line is stored fails it
+      too and the lanes already stored are given back (time advances, waiters told). Same lock, no writer lock, wait or
+      timeout. Host (real header): 19 checks, 0 lost of 4.9-9.5 M guest stores, 98 173-176 233 interrupted PUTLLC taken
+      back; the previous store fails 12 checks and loses ~344 000-364 000. Independent review (rb-core-review): no lock,
+      time, livelock or wake-up defect; its one finding (a byte merge could split a multi-byte store) is fixed by the
+      roll-back and kept as a second negative control.
+    - **Confirmed and fixed — GOW3 MLAA bypass applied to nothing (PID 45272 s5):** setting Enabled, executable
+      PPU-4d5c5150 (01.00), bypass knew 01.03 only; PPU main 0.931 core, GPU 21 %, 58 colour-buffer read-backs per 57
+      frames. `REWINDBOX_GOW3_MLAA_100_916`: RPCS3's "Disable MLAA" pair for 01.00 behind a content guard, fresh boot only
+      (an old savestate keeps unpatched memory: `savestate_patched=0`). 26 host checks. No profile, resolution or
+      precision change; the setting's own effect (the game's anti-aliasing off) now applies.
+    - **Collection defects fixed:** levers627 exported 18 of 21 digits → no capture could be requested on 718 (limit 48);
+      lwcond waiters keyed on r3 (overwritten by the syscall) → read from the kernel queue, plus `FREEZE_DUMP ppu_stack`;
+      46 stopped windows filled the rotation → compact (`IDLE916`; that file 1 577 669 → 242 244 B); GOW3's inherited
+      custom profile refuses the test page → the report asks once per boot for the PPU region profile when a PPU thread
+      stays ≥ 0.85 core (`trigger=auto_ppu_bound`). The light-run channel level is restored on the stopped-window exit.
+    - **Open, with the next decisive test:** Black Flag (accurate_res=true, so not the SPURS store): main thread in
+      `_sys_lwcond_queue_wait` 9.615 s, TaskThread2 polling `*(u32*)0x110ddbd0 == 0` every 30 µs, SPURS idle (ready counts
+      0), no thread running; the dump does not show a lost wake-up → one stall on Core 916 (lwcond queue + stacks), then
+      A/B of one setting per run. GOW3 PPU main activity → automatic profile on a fresh boot. BO2 slow windows → captures
+      B1/B3, now requestable. AC1 cadence → GPU-bound in `GPUTIME621` (78 %); pass lines not in the files.
+    - **Unchanged on purpose:** no setting, SPU count/priority, GETLLAR/PUTLLC delay, LLVM option, frame limit; GOW3
+      texture epochs (put_horizon=0: profile not on Fast FIFO accuracy, no benefit claimed); 16-way memo.
+    - **Core 916 built and pinned:** engine commits 9acb865 + 7dd4d7b over 7aa8ab7; canonical 81678148 (453); source
+      `d27ec230`, drift declaration `7fb79306`. Request 1 (`3c2a8e5c`, run `42763953223`) was refused by the source
+      closure before any compile (the adapted Build 351 contract test, a declared Core input, was not in the reviewed
+      drift; I had not run the closure check locally): declared, closure passes. Request 2 `850341af`, run
+      `42764728604`: both jobs green first try (15 Apple host commands, core916 included). Verified offline: artifact
+      13740500237, dylib `7c941344` (80 920 128 B), fingerprint `845e82a2`, identities PPU a987639e / SPU 477a3fa4
+      unchanged, every 916 marker present; pin `708e4109`. Local: codegen audit (four exact aliases), fold chain, 13
+      host guards, route, closure, MoltenVK protocol, full driver: pass. `test/neo_swap_core_pin_test.py` fails as on
+      the parent commit (legacy pin cfe92344 lacks test/rpcs3_restore_eof_test.py): not from this work.
+    - **BO2 and GOW3 performance (maintainer, 10 Nov: do not stop before they run faster):** what the journals show.
+      GOW3 718 s5 w15: 231 ms of SPU time and 85 ms of PPU main per 88 ms frame, GPU 21 %, RSX thread 35 ms/frame with
+      8 ms of texture hashing (11.63 GB per window at 14.1 GB/s, already NEON XXH3): the MLAA SPU work is the first
+      item, bypassed by Core 916 on the installed 01.00 executable at a fresh boot. BO2 676 s3 w9-17 (the last export
+      that still holds its per-window lines): 1.08-1.60 M heavy PUTLLC per window, 2.4-2.9 s of SPU time acquiring the
+      writer lock against 13-19 ms holding it, PPU threads 1.06 s in timed waits behind it, 20-26 fps with no thread
+      saturated; the job queue lines (0x2e20c00…) are a tagged lock-free queue with ~190 jobs pending. The relaxed
+      PUTLLC stays refused; the next Core works on the cost of the exact path (the writer's hand-off before the PPU
+      threads have had time to park) and collects the captures by itself.
+    - **Next:** Core 917 (writer park spin with its park histogram, PPU parked time, automatic captures on a heavy
+      PUTLLC storm), then the common private IPA; iPhone protocol in the record, section 7.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

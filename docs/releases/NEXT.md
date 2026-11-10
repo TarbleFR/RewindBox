@@ -24,6 +24,12 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`; RPCS3 Core 914, MeloNX Core 717, main menu
   bar without labels (PR #164), Switch Pocket skin (PR #165). Downloaded plaintext IPA verified offline, private key
   deleted. Not tested on an iPhone; no FPS claim. The Switch 2 experiment and the RPCS3 Core 915 witness stay out.
+- RPCS3 Core 916 pinned on 10 November 2026 ([record](../rpcs3-core916-build718.md); run `42764728604`, dylib
+  `7c941344…`, pin `708e4109…`), not in an IPA yet: with Accurate SPU Reservations off, an SPU atomic store on a SPURS
+  header no longer overwrites a value the game's main processor wrote in between (Assassin's Creed waited 6 s when
+  leaving the game, until it was stopped); God of War III's MLAA bypass setting now also applies to version 1.00 of the
+  game, at a fresh boot; stall reports name the waited condition and the calling code; diagnostic captures can be
+  requested again; journals no longer fill up after a game is closed. Host tests only; no FPS claim.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

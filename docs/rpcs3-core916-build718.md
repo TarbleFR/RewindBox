@@ -173,9 +173,21 @@ après chaque essai (avec la rotation `.1`). Comparer aux mêmes scènes de 718.
 et 500 ms, durée des gels, CPU par thread, couverture GPU, textures/passes/soumissions/compilations, mémoire et
 état thermique. Une valeur absente ou `-1` reste écrite telle quelle.
 
-## 8. Vérifications exécutées (hôte)
+## 8. Vérifications exécutées, compilation et épinglage
 
-Audit des identités de code (4 alias exacts), chaîne de repli, 13 gardes hôte de la liste Apple, pilote complet
-`test/rpcs3_core916_test.py` (qui rejoue les tests des Cores 906 à 914 et les quatre tests 916, avec et sans
-assainisseurs), test de l'analyseur avec des lignes 916. Compilation iOS, artefact et épinglage : voir
-`build-utils/rpcs3/core-pin.json` et le cahier.
+Hôte (Linux g++ et Apple clang) : audit des identités de code (4 alias exacts), chaîne de repli, 13 gardes hôte de
+la liste Apple, route, fermeture source, pilote complet `test/rpcs3_core916_test.py` (qui rejoue les tests des
+Cores 906 à 914 et les quatre tests 916, avec et sans assainisseurs), test de l'analyseur avec des lignes 916.
+
+| | |
+|---|---|
+| Source | moteur `9acb865` + `7dd4d7b` ; dépôt `d27ec230`, dérive déclarée `7fb79306` |
+| Demande 1 | `3c2a8e5c`, run `42763953223` : refusée par la fermeture source avant toute compilation (le test de contrat Build 351, entrée déclarée du Core, avait été adapté sans être déclaré dans la dérive relue) |
+| Demande 2 | `850341af`, run `42764728604` : Core et bancs hôte Apple verts au premier essai (15 commandes) |
+| Artefact | 13740500237 (30 496 427 o, `758e2bf5…`) ; bancs hôte 13740240477 |
+| Binaire | `libRPCS3Core.dylib` 80 920 128 o, SHA-256 `7c941344…b534`, empreinte `845e82a2…c904` |
+| Identités de cache | PPU `a987639e9f838d1c`, SPU `477a3fa442d27917` : inchangées |
+| Épinglage | `build-utils/rpcs3/core-pin.json`, `708e4109…` ; vérifié hors ligne sur les artefacts téléchargés |
+
+`test/neo_swap_core_pin_test.py` échoue comme sur le commit parent (l'ancien pin `cfe92344` ne contient pas
+`test/rpcs3_restore_eof_test.py`) : sans lien avec ce travail.
