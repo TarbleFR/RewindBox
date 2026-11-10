@@ -109,16 +109,24 @@ check('            stalls.start()\n            breakdown.start()\n' in journal a
 check(all(name not in breakdown for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'task_suspend',
                                              'vm_write', 'vm_protect', 'mach_vm_protect', 'DispatchQueue.main', 'vm_deallocate')),
       'the breakdown calls no engine closure and changes no memory')
-check('static let maxRegions = 400_000' in breakdown and 'static let maxWalkMs = 400.0' in breakdown and
+check('static let maxRegions = 400_000' in breakdown and 'static let maxWalkMs = 1200.0' in breakdown and
+      'static let maxPageWalkBytes: UInt64 = 256 << 20' in breakdown and 'static let minSharedQueryBytes: UInt64 = 1 << 20' in breakdown and
       'first: Double = 30, every: Double = 60, maxLines: Int = 30' in breakdown and
       'guard lines < maxLines else { timer?.cancel(); timer = nil; return }' in breakdown and
       'qos:.utility' in breakdown and breakdown.count('MeloNXStdioCapture.appendLine(') == 1, 'breakdown bounds')
 check('task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO)' in breakdown and
       'vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)' in breakdown and
       'vm_region_submap_short_info_data_64_t()' in breakdown and 'VM_REGION_TOP_INFO' in breakdown and
-      'vm_region_submap_info_data_64_t' not in breakdown and 'if info.is_submap != 0 { continue }' in breakdown and
-      'sharedObjects[info.object_id]' in breakdown,
-      'ledgers, two O(1) queries per top-level region (no page walk, the shared region skipped), shared objects counted once')
+      'if info.is_submap != 0 { continue }' in breakdown and 'sharedObjects[info.object_id]' in breakdown,
+      'ledgers, one O(1) query per top-level region (the shared region skipped), shared objects counted once')
+# The page walk (resident and compressed pages) is for private anonymous regions under the size bound only; a small
+# shared region (the guest lease) costs the one O(1) query.
+walk = breakdown[breakdown.index('            if shared && UInt64(size) < minSharedQueryBytes {'):breakdown.index('            if shared {\n                // Every mapping')]
+check(breakdown.count('vm_region_submap_info_data_64_t()') == 1 and
+      walk.index('if shared && UInt64(size) < minSharedQueryBytes {') < walk.index('if !shared && !file && UInt64(size) <= maxPageWalkBytes {') <
+      walk.index('vm_region_submap_info_data_64_t()') < walk.index('} else {') < walk.index('VM_REGION_TOP_INFO') and
+      'compressed = UInt64(full.pages_swapped_out) * page' in walk and 'resident = UInt64(full.pages_resident) * page' in walk,
+      'page walk for private anonymous regions under the bound only')
 
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
@@ -317,16 +325,21 @@ exit(0)
         line = next(line for line in result.stdout.splitlines() if line.startswith('LINE ')).removeprefix('LINE ')
         print(line, flush=True)
         check(re.match(r't=0 footprint=(\d+)/(\d+) graphics=\d+\+\d+ internal=\d+ compressed=\d+ device=\d+ media=\d+ neural=\d+ '
-                       r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms groups=\S+ top=\S+$', line), line)
+                       r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms private=(\d+)\+(\d+) unwalked=(\d+)/(\d+) sharedSmall=(\d+)/(\d+) '
+                       r'groups=\S+ top=\S+$', line), line)
         # The dyld shared region is skipped (a submap): a small macOS process still has a few dozen top-level regions.
         check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 20, line)
-        groups = {g.split(':')[0]: [int(v) for v in g.split(':')[1].split('/')] for g in re.search(r' groups=(\S+)', line).group(1).split(',')}
-        check('app3' in groups and 64 <= groups['app3'][0] < 80 and groups['app3'][1] == 1, 'the tagged private region: ' + str(groups))
-        check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][1] == 1,
+        # name:resident+compressed/regions -> [resident, compressed, regions]
+        groups = {g.split(':')[0]: [int(v) for v in re.split(r'[+/]', g.split(':')[1])] for g in re.search(r' groups=(\S+)', line).group(1).split(',')}
+        check('app3' in groups and 64 <= groups['app3'][0] + groups['app3'][1] < 80 and groups['app3'][2] == 1, 'the tagged private region: ' + str(groups))
+        check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][1] == 0 and groups['app4~s'][2] == 1,
               'the shared object mapped three times counts once: ' + str(groups))
-        check(float(re.search(r' regions=\d+/([\d.]+)ms', line).group(1)) < 40, 'the walk is quick (no page walk): ' + line)
+        private = [int(v) for v in re.search(r' private=(\d+)\+(\d+) ', line).groups()]
+        check(private[0] + private[1] >= 64 and int(re.search(r' unwalked=(\d+)/', line).group(1)) == 0,
+              'the written private memory is in the private total, nothing over the page-walk bound: ' + line)
+        check(float(re.search(r' regions=\d+/([\d.]+)ms', line).group(1)) < 80, 'the walk is quick (private regions only are page-walked): ' + line)
         top = re.search(r' top=(\S+)', line).group(1).split(',')
-        check(len(top) <= 6 and any(entry.startswith(tagged + ':96:app3:private:') and int(entry.split(':')[4]) >= 64 for entry in top),
+        check(len(top) <= 10 and any(entry.startswith(tagged + ':96:app3:private:') and sum(map(int, entry.split(':')[4].split('+'))) >= 64 for entry in top),
               'the tagged region is among the largest: ' + str(top))
         written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
         check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written), 'three scheduled lines, then the bound: ' + str(written))
