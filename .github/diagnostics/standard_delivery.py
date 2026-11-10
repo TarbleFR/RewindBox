@@ -2556,6 +2556,19 @@ def record(build, run, verification, api_directory, key_deleted=False, root=None
     for name in ('run-attempt.json', 'jobs.json', 'artifacts.json'):
         shutil.copy2(api_directory / name, folder / 'api' / name)
     shutil.copy2(verification, folder / f'download{build}-verification.json')
+    # The signed image inventory of the delivered IPA is what authenticates this delivery as the base of a later
+    # build (verify_base). It only exists inside the encrypted delivery: it is copied from the decrypted folder
+    # into the evidence folder before the recipient key is deleted. A receipt without it (718, 10 November 2026:
+    # four proof files) cannot be completed afterwards, so the receipt is not written without it.
+    identity_path = folder / 'signed-payload-identity.json'
+    require(identity_path.is_file(), 'Copy the decrypted receipts of the delivery (signed-payload-identity.json and the '
+            'other JSON receipts) into ' + folder.relative_to(root).as_posix() + ' before recording and before deleting '
+            'the recipient key: without the signed image inventory this delivery cannot be the base of a later build')
+    identity = json.loads(identity_path.read_bytes())
+    require(identity.get('build') == build and identity.get('ipaSha256') == report['ipa']['sha256'] and
+            identity.get('ipaBytes') == report['ipa']['bytes'] and
+            len(identity.get('images', {})) == report['binaryValidation']['nativeImageCount'],
+            'The signed payload identity in the evidence folder is not the one of the verified IPA')
     by_name = {job['name']: job for job in jobs}
     require(set(by_name) == set(JOB_NAMES), 'The saved jobs are not the four standard jobs')
     product = manifest['product']

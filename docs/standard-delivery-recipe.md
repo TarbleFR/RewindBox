@@ -110,9 +110,13 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
    manifeste gelé avec le sujet `[ipa-delivery:<N>] …` (la balise ouvre le sujet) (pas de `[skip ci]`). Un sujet sans balise ne
    lance rien.
 5. **Après le run** : télécharger les 4 pièces et les métadonnées API, lancer
-   `build-utils/verify_downloaded_delivery.py` (clé privée hors Git), puis
+   `build-utils/verify_downloaded_delivery.py` (clé privée hors Git). **Avant de supprimer la clé**, copier
+   depuis le dossier déchiffré vers `docs/evidence/rewind<N>/` les huit reçus `signed-payload-identity.json`,
+   `signature.json`, `standard-embedded.json`, `standard-ipa-validation.json`, `standard-tests.json`,
+   `version-validation.json`, `environment.json` et `observed-timings.json`. Puis
    `standard_delivery.py record <N> --run <ID> --verification … --api …` écrit
-   `docs/evidence/rewind<N>/delivery.json` au schéma 610. Supprimer la clé privée.
+   `docs/evidence/rewind<N>/delivery.json` au schéma 610 ; depuis la 719 il refuse d'écrire un reçu sans
+   l'inventaire signé des images (règle § 3.8). Supprimer la clé privée.
 6. **Relance** : ne changer que la recette ; pour réutiliser un groupe, passer `tests.<groupe>.mode`
    à `reuse` avec ses épingles (source, run, job, artefact, empreinte) et regeler.
 7. **Commandes des groupes** (depuis la 718) : une commande n'est exécutée qu'une fois par groupe
@@ -121,6 +125,20 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
    chaîne d'outils ; une commande native fraîche n'importe pas PIL (le job natif ne fournit pas Pillow,
    garde du contrat). Le job natif démarre une fois le simulateur des XCTests avant l'installation de
    Flutter et l'attend juste avant le groupe (mesures : `docs/delivery-speed.md` § 5).
+
+8. **Un reçu sans inventaire signé n'est pas une base** (718). `verify_base` authentifie la base par son
+   `signed-payload-identity.json` (90 images, lié à l'IPA par son empreinte). Ce fichier n'existe que dans la
+   livraison chiffrée ; une fois la clé du destinataire supprimée, il n'est plus récupérable. Le reçu de la 718
+   n'en a pas (quatre fichiers de preuve) : la build suivante repart de la 694, dernière base complète, et rejoue
+   les commits de la 718 avec la même classification.
+9. **Ligne de livraison après une synchronisation de `main`.** Le gel et le contrat rejouent `base..HEAD` sur la
+   ligne « premier parent » de `Claude`. Une fusion « Claude dans main » dont le premier parent est `main`, suivie
+   de l'avancement de `Claude` sur cette fusion, fait passer cette ligne par l'historique de `main` : la base n'y
+   est plus et un brouillon échoue sur « The base is not on the first-parent line of HEAD ». Remède sans réécriture
+   ni push forcé : un commit de fusion dont l'arbre est celui de la tête, le premier parent la tête de `Claude`
+   d'avant la synchronisation et le second parent la tête actuelle
+   (`git commit-tree <arbre> -p <tête d'avant> -p HEAD`, puis avance rapide). Il est classé comme un seul
+   changement revu, avec dans sa note la liste de ce qu'il apporte (719 : `d506a8ed`).
 
 ## 4. État de la 611 (1er novembre 2026)
 
