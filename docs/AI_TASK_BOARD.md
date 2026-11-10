@@ -1220,8 +1220,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       checks PASS (the memo test takes --expect-ways 4 and refuses 16 on that tree). Source `32c0a426`, compile request
       `466e3f70`, run `42729856621` (in progress); `ee1f5c78` restores the exact Core 912 files at the head of the
       branch. The next reference Core is 914. The 16/4 comparison needs two IPAs that differ by the Core only.
-    - Remaining blocker: none on the preparation side. Next action: verify both artifacts offline, pin Core 912 only,
-      record the witness identity under docs/evidence/rpcs3-core913-ac1-ways4-witness/.
+    - **Superseded the same day: Core 912 and 913 were both built green (runs `42728150899`, `42729856621`) but are never
+      pinned and never compared with later Cores.** A review (maintainer, 10 Nov) found three defects; each was reproduced
+      on the shipped code before the fix and is covered by a test that fails without it:
+      1. Analyzer: two processes reusing a pid and a session number were merged (synthetic: titles A/B, builds 700/701,
+         21 and 35 FPS under one entry); the same text in two launches was dropped as a copy. Old analyzer: 13 failed
+         identity checks; new: 0. Entries are keyed by (pid, process, session); another process is recognised by a build
+         change, a repeated window or window numbers that start again; one told apart by its windows only is "unknown",
+         flagged BOOT AMBIGUITY and never compared; a shared pid:session must be named PID:SESSION#N. On the real 694
+         exports: 102 entries, AC1 pid 41776 window 41 = 21.739 fps from its origin, no false split.
+      2. Analyzer: a line naming session=2 joined the last window of session 1. It now waits for a window of its own
+         session, else stays "unattached" (kept, reported).
+      3. Core: on the exact Core 912 header, an event prepared under capture A and recorded after A was exported and B
+         started was stored in B with t0_us=0 (reproduced). REWINDBOX_CAPTURE_914: the capture generation is taken when
+         the event starts, record() refuses it unless that capture still collects (part=begin generation=
+         stale_rejected=), a stamp before the capture start is exported as before_start. 4 new scenarios and 4 new
+         negative controls (stale event accepted, token outside a capture, limits kept across boots, no per-boot limit).
+      Also: the host sends one request per closing of the menu (open to closed only); the host bridge now has a compile
+      check with the iPhone SDK (test/rpcs3_host_bridge_ios_syntax_test.py, workflow rpcs3-host-bridge-check.yml): run
+      42733987711 failed in the check itself (a pod not staged), run `42734348594` green (Rpcs3InternalBridgePlugin.mm and
+      Rpcs3SessionMenu.mm parse and type-check for arm64 iPhone; no link, no run). Protocol: frame limit per game (AC1
+      native 30 FPS cap kept, BO2 not capped at 30, GOW3 reference settings; frame_limit read from CONFIG_LAYERS, Auto for
+      the three titles in the 694 exports).
+    - **Core 914 (reference)**: engine commit 7aa8ab7 over 3e1549e; canonical c45491ed (448); MoltenVK dependency run
+      `42733987255` (library d19d3a42 identical, host bridge 8977315e, receipt verified offline). Local: route, codegen
+      audit (three exact SPUThread.cpp aliases: 911, 912, 914), fold chain, 13 host guards, Build 435 guard, capture test
+      (plain, TSan, ASan/UBSan, 11 negative controls), analyzer test, full driver: PASS. Source `1aef660b`, compile
+      request `ce12d397`, run `42736141716` (in progress).
+    - **Core 915 (AC1 4-way witness of Core 914, never pinned, not for a common IPA)**: engine commit e36fe47 = 7aa8ab7 with
+      `ways = 4`; the canonical trees differ by rpcs3/ios/IOSTextureLookupMemo.h only; canonical d679d066. Route, codegen,
+      fold, memo test with --expect-ways 4: PASS; guards and driver running.
+    - Next action: verify the Core 914 artifacts offline and pin it; build, verify and record Core 915 separately.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
