@@ -3369,7 +3369,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     whole page. In 718 the buffer cache held 107-119 MiB in play, which bounds what full copies can hold; the device
     share (memory lines, then a count of the copies) decides whether the settle step is worth its risk.
 
-- **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 11 Nov; maintainer request:
+- **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**
   - S2Arm rewrites a game's AArch64 code statically and runs it natively (no CPU emulator); graphics go from NVN to
@@ -3389,8 +3389,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     is attached; (2) the runtime owns its process (constructor window reservation before any other allocator, `main`,
     UIApplicationMain, process-wide signal handlers, one game per process, `_exit`) and statically links its own
     NativeAOT runtime beside MeloNX's; (3) copied code is dirty memory (file-backed signed pages were clean).
-  - Decision asked from the maintainer: a bounded prototype (load one rewritten module through the JIT arena in a test
-    host and run it to its first svc) before any integration lot. Separate from the Hogwarts 30 FPS mission.
+  - **Maintainer decision (10 Nov): prepare the bounded prototype, in its own discussion.** Handed to session
+    012mUASj3EQnvC86WC56AePw ("04 — RewindBox — Playlists émulateurs : S2Arm (Switch 2)", branch
+    `work/s2arm-switch2-prototype-20261110` from Claude): one module rewritten by S2Arm's own rewriter, loaded from a
+    data file into JIT memory and run to its first svc, host proof first (Linux rewriter, macOS arm64 run), then a
+    diagnostic entry for an iPhone trial IPA built by main. Owner of this topic from now on: that session; this one
+    keeps MeloNX only.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
