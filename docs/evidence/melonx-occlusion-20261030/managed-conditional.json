@@ -1,0 +1,13 @@
+{
+  "result": "passed",
+  "incremental": true,
+  "sdk": "10.0.100",
+  "runtime": "linux-x64",
+  "nativeAot": false,
+  "errors": 0,
+  "warnings": 2,
+  "elapsedSeconds": 8.35,
+  "preparedPostimagesMatched": 148,
+  "logSha256": "c3f23a1a5b0e13c9365a3074c507ffa92b4824dbfd490e9b2cce20471be6992b",
+  "physicalDeviceTested": false
+}

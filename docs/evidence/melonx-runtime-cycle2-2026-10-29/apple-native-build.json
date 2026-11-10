@@ -1,0 +1,95 @@
+{
+  "result": "passed",
+  "runConclusion": "success",
+  "host": "2f535c379ae385b68f0b33731d18efaf9e568047",
+  "run": 40811657940,
+  "runNumber": 79,
+  "job": 123243122106,
+  "artifact": 12870529413,
+  "artifactName": "MeloNX-engine-2f535c379ae385b68f0b33731d18efaf9e568047",
+  "artifactBytes": 102589633,
+  "artifactSha256": "4c06b9ecf0da713aedfae0bc5a1b5929153e85cd5ffe8568c324c3d97ba07752",
+  "workflow": ".github/workflows/melonx-core.yml",
+  "source": {
+    "repository": "https://starforgejo.dev/projects/MeloNX.git",
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "dotnet": "10.0.100",
+    "libHacFeed": "https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json",
+    "libHac": {
+      "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+      "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+      "package": "Ryujinx.LibHac",
+      "version": "0.21.0-alpha.129",
+      "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+      "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+    },
+    "controller": {
+      "repository": "https://github.com/stossy11/Melo-Controller.git",
+      "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "runtimeIdentifier": "ios-arm64"
+  },
+  "requiredExports": 47,
+  "embeddedLibraryAbi": 2,
+  "adaptationInputs": 62,
+  "compiledSourceMarkers": 19,
+  "compiledInputMapSHA256": "99a049d204bac080fc7635f12c75121b517ea78a84d3a184734e2931ea8948c1",
+  "sourceAuthentication": {
+    "head": "598842b98407983b500bed0c3211e2365de47ae7",
+    "engineSource": "2f535c379ae385b68f0b33731d18efaf9e568047",
+    "gitBlobsVerified": 62,
+    "sha256Verified": 62,
+    "changedCompiledInputs": [],
+    "aheadBy": 5,
+    "behindBy": 0
+  },
+  "binaries": {
+    "ios-arm64": {
+      "bytes": 37568600,
+      "sha256": "f771e466746ebd67636653abbc979b0c15c9c933b4f45220d8ae7c70275259f4",
+      "platform": 2
+    },
+    "iossimulator-arm64": {
+      "bytes": 37878728,
+      "sha256": "f10b1d4e07508f1efcbf601ddcccbabefca75c4f5e73264eee6516d44cbb8636",
+      "platform": 7
+    }
+  },
+  "adaptedSourceSHA256": "c8e7c809e07868eca00e2f5a9c0c36dd4e0690882bd2a5bcf3c3c97097a8d67d",
+  "checkReceiptsSHA256": {
+    "jit-context": "8eb122bdb6206af02cf38241aa59efb2ae6ce4da85b91c64d7a233a6d6e68822",
+    "jit-block-split": "3bf4ec07bb0c8aa800cd30eb7e1bdfe2cf6ad7d94c272c9d7f3454812dfbff8c",
+    "buffer-view": "e2588f41eac974cc898fe39b5539e90d4dee0dd21223fcd4004c498de7a1985f",
+    "pipeline-cache": "5d34dc53b30f2c0a5999f6d842309c71fdc6a5b778974ae1741ebf1739ccd2cf",
+    "input": "95fce23cfb377d56e44192420c959c8f1ca36c2787b4aac8fd8ef0aa321dfb5b",
+    "program-queue": "5d08afd980cf7872ac2ff5b62c8b4440e6cecec6fb48e25cdb2b6a7e00c94695",
+    "warmup-close": "184da7bf9ea0b645245bb9933fcf1bd43fbe298e26e28428e7b9578878d1da7b",
+    "jit-dataflow": "2c733012ab3792c915ca30922257c23b0345c6af71c7e494ab3f0c19bac69267",
+    "jit-dataflow-codegen": "530d55767da662966260e8e5b7c042a665d2aa43db9b6fb961087897109c11ba",
+    "upload-lifetime": "706d984acdb4d464a712fbb0a8cf0f49d26b6b32fb08f2911db54d10cf04fbe6",
+    "texture-upload": "5653c3940250aab2265f0a37c314399e4a872891270e6fff3362d0a856df5baf",
+    "pipeline-recycle": "b0b1b39fa1144a993745673a36af951e9f2d1a9d54cd24fd316f4e18fa85a0d5",
+    "fragmented-upload": "903e773b02401cf67bbebfc7357ce34781592a28c19186850bbb53419c1bad69"
+  },
+  "newCheckReceipts": [
+    "jit-dataflow",
+    "jit-dataflow-codegen",
+    "upload-lifetime",
+    "texture-upload",
+    "pipeline-recycle",
+    "fragmented-upload"
+  ],
+  "simulatorSmokeSHA256": "daddde8383551694e6f2e181036e5e755830a53a50d1dbdf5505f82c382b13a8",
+  "simulatorHomebrewSessions": 2,
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false,
+  "generatedArm64Executed": false,
+  "engineRebuiltForDelivery": false,
+  "rootPayloadIgnored": {
+    "bytes": 37369952,
+    "sha256": "2298a3fc964fe371314c67c326204c7ba011d03a91bca772c7c80640a80aae70",
+    "rootIdentityMatches": false,
+    "selection": "ios-arm64/Ryujinx.Library.dylib"
+  }
+}

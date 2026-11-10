@@ -1,3 +1,4 @@
+import 'package:neostation/services/retro_achievements_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -35,6 +36,7 @@ class GameAchievementsDialog extends StatefulWidget {
 
 class _GameAchievementsDialogState extends State<GameAchievementsDialog> {
   GameInfoAndUserProgress? _gameInfo;
+  RetroAchievementsIdentity? _identity;
   bool _isLoading = false;
   GamepadNavigation? _gamepadNav;
 
@@ -71,7 +73,7 @@ class _GameAchievementsDialogState extends State<GameAchievementsDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final info = await RetroAchievementsHelper.loadGameInfo(
+      final (info, identity) = await RetroAchievementsHelper.loadGameInfoWithIdentity(
         game: widget.game,
         provider: widget.retroAchievementsProvider,
         effectiveSystem: widget.system,
@@ -86,6 +88,7 @@ class _GameAchievementsDialogState extends State<GameAchievementsDialog> {
       if (mounted) {
         setState(() {
           _gameInfo = info;
+          _identity = identity;
           _isLoading = false;
         });
       }
@@ -140,6 +143,7 @@ class _GameAchievementsDialogState extends State<GameAchievementsDialog> {
               // with fixed offsets, so we place it directly in this Stack.
               GameDetailsAchievementsTab(
                 gameInfo: _gameInfo,
+                identity: _identity,
                 isLoading: _isLoading,
                 topOffset: 0,
                 bottomOffset: 0,

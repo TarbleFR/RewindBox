@@ -1,0 +1,85 @@
+{
+  "passed": true,
+  "baseline_commit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonical_patch_sha256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
+  "canonical_postimages_verified": 319,
+  "changed_core_files_verified": 8,
+  "unchanged_core_postimages_verified": 311,
+  "repository_inputs_verified": 89,
+  "inverse_delta_verified": true,
+  "harness_generation": [
+    {
+      "name": "dma-list",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "vm-mmio",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "dma-mmio",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "pipeline",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "gpu-wait",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "dma-ownership",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "texture-lifetimes",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "texture-baseline",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "atlas",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    },
+    {
+      "name": "atlas-area",
+      "matches_executed_harness": true,
+      "compiled": false,
+      "executed": false
+    }
+  ],
+  "codegen_identities": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "unmaterialized_locked_codegen_inputs": [
+    "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp"
+  ],
+  "neoswap_program_generation_matches": true,
+  "native_test_executed": false,
+  "apple_build": false,
+  "device_test": false,
+  "fps_claim": false
+}

@@ -1,0 +1,43 @@
+{
+  "result": "passed",
+  "checks": [
+    "valid metadata shape accepted",
+    "wrong validation source",
+    "failed validation run",
+    "wrong event",
+    "failed required validation step",
+    "wrong artifact digest",
+    "real authenticated ZIP prepares successfully",
+    "73 old plus86 candidate inputs authenticated",
+    "history never claims new-body coverage",
+    "only four operational LibHac files copied",
+    "no old native outputs at candidate root",
+    "LibHac extracted without fabricated Git",
+    "LibHac feed interface",
+    "both previous smoke results retained separately",
+    "prepare refuses already prepared outputs",
+    "copied package drift refused",
+    "extracted source drift refused",
+    "unexpected source member refused",
+    "changed historical preparation input refused",
+    "changed new adapter refused",
+    "unexpected preparation composition refused",
+    "changed ZIP refused before reuse",
+    "tar parent traversal refused",
+    "tar symlink refused",
+    "dependency inventory positive with explicit synthetic boundary",
+    "native dependency drift refused",
+    "duplicate framework entry refused"
+  ],
+  "checkCount": 27,
+  "runtimeSuitesExecuted": false,
+  "remoteOperationsPerformed": false,
+  "metadataBoundaryMocked": true,
+  "nativeDependenciesBoundaryMocked": true,
+  "realEngine82ArchiveUsed": true,
+  "archiveSha256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+  "implementationInputs": {
+    "build-utils/melonx/reuse_core_baseline.py": "b6f8c1f86813cd1e4054d6665ecab0eaeab766d6d2d8d8f93128ae3294a8f31f",
+    "build-utils/melonx/core-baseline.json": "7e2a329c72c2cece7568a1e6c6b86403070fb790f1bcbd8bb39b1ca0433596e2"
+  }
+}

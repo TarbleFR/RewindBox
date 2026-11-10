@@ -1,0 +1,122 @@
+name: RPCS3 CELL583 texture pre-validation pacing
+run-name: "RPCS3 CELL583 source-built iPhone Core • ${{ github.sha }}"
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/rpcs3-cell583-core.yml'
+      - '.github/diagnostics/rpcs3cell583_core.py'
+      - 'build-utils/rpcs3/**'
+      - 'build-utils/build_rpcs3_embedded_core.sh'
+      - 'test/*583*'
+      - 'test/native/*583*'
+      - 'test/fixtures/rpcs3*583*'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  core:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-cell583-core]') }}
+    name: 'RPCS3 CELL583: texture pre-validation pacing tests and iPhone Core'
+    runs-on: macos-15
+    timeout-minutes: 180
+    concurrency:
+      group: rewindbox-rpcs3-cell583-${{ github.sha }}
+      cancel-in-progress: false
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select Xcode16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Restore pinned dependencies and exact compiler objects
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/Library/Caches/ccache
+            ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+          key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-
+      - name: Authenticate the 581 Core and execute every 583 native case on ARM64
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for formula in ccache ninja cmake llvm@22 ffmpeg; do
+            brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+          done
+          SOURCE="$RUNNER_TEMP/cell583-source-preflight"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          CXX="$(xcrun --sdk macosx --find clang++)" \
+          HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+          LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+          LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \
+            python3 .github/diagnostics/rpcs3cell583_core.py --source "$SOURCE"
+      - name: Preserve native measurements before full Core compilation
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-preflight-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/*-result.json
+            build/rpcs3-core-diagnostics/*-result.s
+            build/rpcs3-core-diagnostics/cell583-proof.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Compile actual iPhone Core from the verified source
+        shell: bash
+        env:
+          RPCS3_CELL583_NATIVE_PROOF: ${{ github.workspace }}/build/rpcs3-core-diagnostics/cell583-proof.json
+        run: |
+          set -euo pipefail
+          env -u GITHUB_ENV OUTPUT_DIR="$PWD/dist/rpcs3" BUILD_JOBS=3 \
+            bash build-utils/build_rpcs3_embedded_core.sh 2>&1 | tee build/rpcs3-core-diagnostics/build.log
+          cp -R "$RUNNER_TEMP/neostation-rpcs3-embedded/build/rpcs3-native-simd-dependencies" build/rpcs3-core-diagnostics/
+      - name: Verify actual Core, exact exports, passive loading and 583 identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE=dist/rpcs3/libRPCS3Core.dylib
+          test -s "$CORE"
+          python3 build-utils/validate_rpcs3_embedded_core.py "$CORE"
+          python3 build-utils/validate_rpcs3_passive_dlopen.py "$CORE" | tee build/rpcs3-core-diagnostics/passive-dlopen.txt
+          file "$CORE" | tee build/rpcs3-core-diagnostics/file.txt
+          lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
+          nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
+          python3 .github/diagnostics/rpcs3cell583_core.py --write-core-identity dist/rpcs3
+      - name: Upload source-built583 Core
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-${{ github.sha }}
+          path: dist/rpcs3/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve verified dependencies and compiler objects
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/Library/Caches/ccache
+            ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+          key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+      - name: Upload diagnostic results including partial failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-diagnostics-${{ github.sha }}
+          path: build/rpcs3-core-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,52 @@
+{
+  "baseline": 603,
+  "build": 604,
+  "engine": {
+    "baselineDelivery": 603,
+    "engineCompileRun": 41118873328,
+    "engineRun": 41121572662,
+    "engineSource": "ada4058f5738465ac882934bb87224b637bcd0a1",
+    "engineValidationSource": "510e683a149e811e68ea6ab5e766e85c44ab1057",
+    "originalCoreSHA256": "7620fa3009e6df971665e7b8adec1a0bac654e6efa4bc3fceb292daefa6adb55",
+    "originalPayloadMatched": true,
+    "packagedCoreFingerprint": "85cc56d985e6f0a2dcce559dfd099d9f4dd574e61cfb0066c9e715a5bbbf5c7a",
+    "requiredExports": 47,
+    "signatureCryptographicallyVerifiedHere": false
+  },
+  "engineRecompiled": false,
+  "fpsGainMeasured": false,
+  "gameTested": false,
+  "identity": {
+    "baseline": 603,
+    "baselineReceipt": {
+      "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd",
+      "path": "docs/evidence/rewind603-delivery.json",
+      "run": 41102769156,
+      "sha256": "743dd950f710d118f81ace9375549ff561cac6e613caf9c4d3e7b8182ce77f4e",
+      "source": "808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd"
+    },
+    "build": 604,
+    "engineArchiveSHA256": "ed70ba31b1b52fc0fbd55e695b25cc4254d5f90c4f86b930d8bf2958235ac278",
+    "engineArtifact": 13009521221,
+    "engineCompileArtifact": 13007577275,
+    "engineCompileRun": 41118873328,
+    "engineRecompiled": false,
+    "engineRun": 41121572662,
+    "engineSource": "ada4058f5738465ac882934bb87224b637bcd0a1",
+    "engineValidationSource": "510e683a149e811e68ea6ab5e766e85c44ab1057",
+    "fpsGainMeasured": false,
+    "gameTested": false,
+    "originalCompileStepsConclusion": "success",
+    "originalCoreSHA256": "7620fa3009e6df971665e7b8adec1a0bac654e6efa4bc3fceb292daefa6adb55",
+    "originalIdentitySHA256": "0671f003a26d3b81ee396c156efbad0512b53537b854f1722448c06f679875eb",
+    "originalRunConclusion": "failure",
+    "packagedCoreFingerprint": "85cc56d985e6f0a2dcce559dfd099d9f4dd574e61cfb0066c9e715a5bbbf5c7a",
+    "physicalDeviceTested": false,
+    "priorGatesReexecuted": false,
+    "retainedProducerProofs": true
+  },
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "physicalDeviceTested": false,
+  "priorGatesReexecuted": false,
+  "result": "passed"
+}

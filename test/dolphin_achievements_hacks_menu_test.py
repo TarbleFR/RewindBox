@@ -4,9 +4,9 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 patch = (root / "build-utils/patch_dolphin_internal_core_v2.py").read_text()
 session = (root / "packages/dolphin_internal_bridge/core/NeoStationSession.inc").read_text()
+achievement_session = (root / "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc").read_text()
 host = (root / "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm").read_text()
 menu = (root / "packages/dolphin_internal_bridge/ios/Classes/DolphinSessionMenu.mm").read_text()
-service = (root / "lib/services/dolphin_internal_v2_service.dart").read_text()
 
 for token in [
     "neostation_dolphin_configure_achievements",
@@ -17,11 +17,13 @@ for token in [
     "achievements.enabled",
     '@"achievements":',
 ]:
-    assert token in patch or token in host, token
+    assert token in patch or token in achievement_session or token in host, token
 
 for forbidden in ["raUsername, @\"", "raApiToken, @\""]:
     assert forbidden not in host
-assert "RetroAchievementsRepository.getRAApiKey()" in service
+assert 'RBRATakeLaunchConfiguration(arguments, @"dolphin")' in host
+assert '[DolphinRetroAchievementsAccount credentials]' not in host
+assert 'DOLMenuAchievements' not in menu
 
 for key in [
     "viSkip", "skipEfbAccess", "ignoreFormatChanges", "efbCopyToTexture",
@@ -39,7 +41,7 @@ for token in [
     assert token in patch or token in session, token
 
 for token in [
-    "UITableViewStyleInsetGrouped", "UIBlurEffectStyleSystemChromeMaterial",
+    "UITableViewStyleInsetGrouped", "configureWithOpaqueBackground",
     "secondarySystemGroupedBackgroundColor", "wrench.and.screwdriver",
 ]:
     assert token in menu, token

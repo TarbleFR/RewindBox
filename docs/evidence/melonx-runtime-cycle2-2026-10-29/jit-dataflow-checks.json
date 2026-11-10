@@ -1,0 +1,37 @@
+{
+  "equivalentGraphs": 25288,
+  "realBlockGraphs": 5000,
+  "adverseBlocks": 1000,
+  "adverseEdgeReadsBefore": 2008000,
+  "adverseEdgeReadsAfter": 5002,
+  "adverseAllocatedBytesBefore": 48136,
+  "adverseAllocatedBytesAfter": 48136,
+  "adverseMillisecondsBefore": 11.9816,
+  "adverseMillisecondsAfter": 0.1052,
+  "smallAllocatedBytesBefore": 328,
+  "smallAllocatedBytesAfter": 328,
+  "singleAllocatedBytesBefore": 200,
+  "singleAllocatedBytesAfter": 120,
+  "exceptionOwnershipCases": 4,
+  "result": "passed",
+  "generatedArm64Executed": false,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "build-utils/melonx/adapt_jit_dataflow.py": "959bdfc031a8616fad8dfd066cf9f349d6c4ed08bead451ac2e67bb388acc4e0",
+    "test/melonx_jit_dataflow_test.py": "ed811b0a1a0db034285393c8a324d2994385dae7cab9530f48f1e38b551df51a",
+    "test/melonx_jit_dataflow/Program.cs": "3ed17b1080193b53ec60590b3667df84b02d592b6b3693475d744ff415643ffc"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Cpu/LightningJit/Graph/DataFlow.cs": "de7831abfcead47f062c03c1b66a62699e84ae4e6d7e9ffc0e1cbdafb62e02c2",
+    "src/Ryujinx.Cpu/LightningJit/Graph/IBlock.cs": "fe0411e1b68880fff5b2d649791999e1bcc72d9c8a83ea2625a40789ad3b5edb",
+    "src/Ryujinx.Cpu/LightningJit/Graph/IBlockList.cs": "3d2f8165f6742f1f3dcfa801459b04eef2afdb817c02ee16e4942790fd0bc8f8",
+    "src/Ryujinx.Cpu/LightningJit/Graph/RegisterUse.cs": "7b003b6ac533af48129a0599e98e2561a0e3ca6adc33eccc85464df8395a4207",
+    "src/Ryujinx.Cpu/LightningJit/Graph/RegisterMask.cs": "e641dbaa090af7434efe3d02886bbbe9855de7e42d9cadc70eee67c80ff3471a",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Block.cs": "be9e6aa5146ad66f23cfebf6929814bf40e16ed25e0f7532b9363e3688ecf7dc",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstInfo.cs": "6c8109fd54eeb1b3bd0b48796ef05ef7ee2cfd0f4a4ae06fe96a58d7e6649498",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstName.cs": "52649c00e450a43cfe955b0488dd3512b42cc8d59584eca6b52912aa45073318",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstFlags.cs": "260e4cd3bfb0705a66d2fb7d659409d25845713cb5ae56011755c891a1f9e570",
+    "src/Ryujinx.Cpu/LightningJit/AddressForm.cs": "a6f1c6a03a72aec3d3bb80c283a28e6d013172bc5b3e1c360c316ad42ca9c5ca"
+  }
+}

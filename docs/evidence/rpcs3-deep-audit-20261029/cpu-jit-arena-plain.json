@@ -1,0 +1,228 @@
+{
+  "passed": true,
+  "test": "rpcs3_jit_arena_merge_test.py",
+  "sourceSHA256": "47cd739c21c3f1e5944b912c846a7257ee15135941376fcc1b5173e07065cb4e",
+  "baselineSHA256": "1a6f57b45c599945706cf8c38a745b2865336a4b2aa53b3a13112d4788261578",
+  "fixtureSHA256": "bcbc9310be5f0ffb3adfc9466e31c953eb12f30605352651591926aad0234325",
+  "harnessSHA256": "555488e086562fcbec84154c779440beb4b640a9fd33a5bb5ff25e5944c765d3",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "sanitizer": "none",
+  "leakSanitizer": false,
+  "fullProductionClass": true,
+  "generatedCodeChanged": false,
+  "deviceTest": false,
+  "fpsClaim": false,
+  "results": {
+    "passed": true,
+    "randomOperations": 240000,
+    "purgeChecks": 720000,
+    "occupancyModelChecks": 7504,
+    "boundaryCases": 6561,
+    "baselineAdjacentReleaseAllocations": 1,
+    "candidateAdjacentReleaseAllocations": 0,
+    "allocationFailureCases": 2,
+    "benchmarks": [
+      {
+        "fragmentSlots": 2,
+        "operation": "adjacent_release",
+        "baselineMedianNs": 24.8906,
+        "candidateMedianNs": 4.375,
+        "baselineSamplesNs": [
+          79.1875,
+          25.6719,
+          24.0938,
+          24.8906,
+          24.25,
+          25.0469,
+          24.5625
+        ],
+        "candidateSamplesNs": [
+          5.3125,
+          4.6875,
+          4.375,
+          4.375,
+          4.23438,
+          4.375,
+          4.39062
+        ]
+      },
+      {
+        "fragmentSlots": 2,
+        "operation": "purge_lookup",
+        "baselineMedianNs": 2.19115,
+        "candidateMedianNs": 3.79091,
+        "baselineSamplesNs": [
+          2.16581,
+          2.19115,
+          2.46185,
+          2.61658,
+          2.16571,
+          2.7739,
+          2.1657
+        ],
+        "candidateSamplesNs": [
+          3.83738,
+          3.63668,
+          3.6523,
+          5.27961,
+          3.63699,
+          3.79091,
+          4.4582
+        ]
+      },
+      {
+        "fragmentSlots": 16,
+        "operation": "adjacent_release",
+        "baselineMedianNs": 18.1133,
+        "candidateMedianNs": 6.82617,
+        "baselineSamplesNs": [
+          27.1289,
+          18.8945,
+          18.2109,
+          18.1133,
+          17.9375,
+          18.0918,
+          17.9766
+        ],
+        "candidateSamplesNs": [
+          7.43164,
+          6.94336,
+          6.92383,
+          6.80664,
+          6.82617,
+          6.80664,
+          6.78711
+        ]
+      },
+      {
+        "fragmentSlots": 16,
+        "operation": "purge_lookup",
+        "baselineMedianNs": 3.67183,
+        "candidateMedianNs": 5.04427,
+        "baselineSamplesNs": [
+          3.53203,
+          3.97198,
+          3.95696,
+          3.67183,
+          3.48206,
+          3.47494,
+          3.72421
+        ],
+        "candidateSamplesNs": [
+          7.28419,
+          4.77507,
+          5.09855,
+          4.74392,
+          5.43695,
+          5.04427,
+          4.74833
+        ]
+      },
+      {
+        "fragmentSlots": 128,
+        "operation": "adjacent_release",
+        "baselineMedianNs": 42.7048,
+        "candidateMedianNs": 13.575,
+        "baselineSamplesNs": [
+          55.886,
+          39.5386,
+          39.5435,
+          42.7048,
+          103.813,
+          44.717,
+          39.4724
+        ],
+        "candidateSamplesNs": [
+          13.8291,
+          13.5918,
+          13.5186,
+          13.5481,
+          13.8022,
+          13.575,
+          13.5134
+        ]
+      },
+      {
+        "fragmentSlots": 128,
+        "operation": "purge_lookup",
+        "baselineMedianNs": 20.3314,
+        "candidateMedianNs": 8.78551,
+        "baselineSamplesNs": [
+          19.4366,
+          18.6733,
+          20.4583,
+          20.8676,
+          20.3314,
+          19.7825,
+          20.8685
+        ],
+        "candidateSamplesNs": [
+          8.32273,
+          8.81064,
+          8.1771,
+          8.78551,
+          8.96007,
+          18.9903,
+          8.41997
+        ]
+      },
+      {
+        "fragmentSlots": 1024,
+        "operation": "adjacent_release",
+        "baselineMedianNs": 193.078,
+        "candidateMedianNs": 70.7218,
+        "baselineSamplesNs": [
+          152.071,
+          157.572,
+          153.448,
+          194.364,
+          193.078,
+          193.247,
+          194.627
+        ],
+        "candidateSamplesNs": [
+          55.0886,
+          59.6028,
+          78.5196,
+          71.3291,
+          70.7218,
+          70.0632,
+          71.1662
+        ]
+      },
+      {
+        "fragmentSlots": 1024,
+        "operation": "purge_lookup",
+        "baselineMedianNs": 163.399,
+        "candidateMedianNs": 12.2666,
+        "baselineSamplesNs": [
+          269.603,
+          248.345,
+          216.885,
+          157.392,
+          163.399,
+          153.84,
+          157.653
+        ],
+        "candidateSamplesNs": [
+          15.5623,
+          14.0968,
+          12.7552,
+          12.0904,
+          12.2666,
+          11.9397,
+          12.2048
+        ]
+      }
+    ]
+  }
+}

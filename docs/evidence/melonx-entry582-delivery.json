@@ -1,0 +1,341 @@
+{
+  "result": "passed",
+  "build": 582,
+  "version": "0.0.8",
+  "source": "ecad3c401da0f294122e159953ca33f1d1faa0c9",
+  "recipeSource": "ecad3c401da0f294122e159953ca33f1d1faa0c9",
+  "run": 40675054767,
+  "base": "delivered private 581 (RPCS3 Core 581 03956454 on the 579 tree: MeloNX engine 577 afd0d4b0, controller relay d1f7b8d, StikDebug fallback removal, interface fixes 48b9865)",
+  "artifact": {
+    "id": 12813245444,
+    "name": "RewindBox-Build582-ecad3c401da0f294122e159953ca33f1d1faa0c9-cold",
+    "zipSHA256": "3ec26dca2635ab10e09726d038cfe16878bb7ca0666b0d266a9cd437e1e8a0de",
+    "recipient": "build-utils/delivery-582-recipient.pem",
+    "privateKeyInGit": false
+  },
+  "ipa": {
+    "name": "RewindBox-Build582-ecad3c401da0f294122e159953ca33f1d1faa0c9-cold.ipa",
+    "bytes": 188118382,
+    "sha256": "002d07d18cd5812c724c57a5ceaeca52a06dd748feff9dbc5be6371b8937a0c5",
+    "equalsSHA256SUMS": true,
+    "members": 5365
+  },
+  "melonxEngine": {
+    "source": "e55ca256a9347c4df8381bafc4702f80211fb492",
+    "engineCommits": [
+      "e55ca256a9347c4df8381bafc4702f80211fb492",
+      "e72895b66342ae25cefafd279239fc3ba8e6bfc1",
+      "6d8929d02f2e6f777a7332be335f098d7e71af2e"
+    ],
+    "run": 40665520797,
+    "artifact": 12806293726,
+    "artifactSHA256": "f684cfecda061e100122dd548dcc8222ee85b96eda55cad620cf578290b03579",
+    "identitySHA256": "15aa1ac6bf8364fba7d25a172dd7769e3bb53485e11f0e19cc8561b4fb9e2450",
+    "changes": [
+      "a LightningJit translation unit ends where another translation already starts (TranslatedEntries, one bit per aligned word), unless a branch within 1,024 instructions goes back past the entry (a loop around it) or the unit reached it by a forward branch of less than 256 bytes (a short skip)",
+      "guest code is read a 4 KiB page at a time (CodeReader) instead of one locked IMemoryManager read per instruction",
+      "a unit ends before a page that is not mapped; the 572 rule no longer reads a jump target on an unmapped page"
+    ],
+    "decoderProbe": {
+      "upstream": {
+        "switchCase": {
+          "guestInstructions": 82,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 348,
+          "hostCalls": 0
+        },
+        "knownRunOn": {
+          "guestInstructions": 41,
+          "blocks": 1,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 184,
+          "hostCalls": 0
+        },
+        "knownBlockStart": {
+          "guestInstructions": 12,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 112,
+          "hostCalls": 0
+        },
+        "knownAfterLoop": {
+          "guestInstructions": 11,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 164,
+          "hostCalls": 1
+        },
+        "farLoop": {
+          "guestInstructions": 1203,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 4932,
+          "hostCalls": 1
+        },
+        "layout": {
+          "functions": 300,
+          "guestInstructions": 542100,
+          "hostBytes": 8861400
+        },
+        "framelessLayout": {
+          "functions": 300,
+          "guestInstructions": 542100,
+          "hostBytes": 7957200
+        },
+        "knownInLoop": {
+          "guestInstructions": 11,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 164,
+          "hostCalls": 1
+        },
+        "ownEntry": {
+          "guestInstructions": 4,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 136,
+          "hostCalls": 1
+        },
+        "knownSwitchCases": {
+          "guestInstructions": 14,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 76,
+          "hostCalls": 0
+        },
+        "knownSkippedThen": {
+          "guestInstructions": 9,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 56,
+          "hostCalls": 0
+        },
+        "continuationInLoop": {
+          "guestInstructions": 10,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 216,
+          "hostCalls": 1
+        },
+        "unmappedLongJump": {
+          "guestInstructions": 1011,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 4212,
+          "hostCalls": 1
+        },
+        "unmappedAfterCall": {
+          "throws": true
+        }
+      },
+      "adapted": {
+        "switchCase": {
+          "guestInstructions": 6,
+          "blocks": 1,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 68,
+          "hostCalls": 0
+        },
+        "knownRunOn": {
+          "guestInstructions": 20,
+          "blocks": 1,
+          "truncated": true,
+          "emptyLastBlock": false,
+          "hostBytes": 128,
+          "hostCalls": 0
+        },
+        "knownBlockStart": {
+          "guestInstructions": 2,
+          "blocks": 2,
+          "truncated": true,
+          "emptyLastBlock": true,
+          "hostBytes": 96,
+          "hostCalls": 0
+        },
+        "knownAfterLoop": {
+          "guestInstructions": 5,
+          "blocks": 2,
+          "truncated": true,
+          "emptyLastBlock": false,
+          "hostBytes": 172,
+          "hostCalls": 1
+        },
+        "farLoop": {
+          "guestInstructions": 100,
+          "blocks": 1,
+          "truncated": true,
+          "emptyLastBlock": false,
+          "hostBytes": 448,
+          "hostCalls": 0
+        },
+        "layout": {
+          "functions": 300,
+          "guestInstructions": 3601,
+          "hostBytes": 81564
+        },
+        "framelessLayout": {
+          "functions": 300,
+          "guestInstructions": 3601,
+          "hostBytes": 74364
+        },
+        "knownInLoop": {
+          "guestInstructions": 11,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 164,
+          "hostCalls": 1
+        },
+        "ownEntry": {
+          "guestInstructions": 4,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 136,
+          "hostCalls": 1
+        },
+        "knownSwitchCases": {
+          "guestInstructions": 14,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 76,
+          "hostCalls": 0
+        },
+        "knownSkippedThen": {
+          "guestInstructions": 9,
+          "blocks": 3,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 56,
+          "hostCalls": 0
+        },
+        "continuationInLoop": {
+          "guestInstructions": 10,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 216,
+          "hostCalls": 1
+        },
+        "unmappedLongJump": {
+          "guestInstructions": 1011,
+          "blocks": 2,
+          "truncated": false,
+          "emptyLastBlock": false,
+          "hostBytes": 4212,
+          "hostCalls": 1
+        },
+        "unmappedAfterCall": {
+          "guestInstructions": 1024,
+          "blocks": 2,
+          "truncated": true,
+          "emptyLastBlock": true,
+          "hostBytes": 4236,
+          "hostCalls": 1
+        }
+      }
+    },
+    "previous": "afd0d4b0a7d9dfc6a40a38cb4088a747b413b688"
+  },
+  "applicationChanges": {
+    "switchDiscovery": [
+      "32a0da609ce66b5f08d23f2ecd9f8708d45bb98f",
+      "63fdb7ed716dc7b7e63df0370997ba7098f64a91"
+    ],
+    "files": [
+      "lib/services/melonx_library_scanner.dart",
+      "lib/widgets/melonx_internal_playlist_actions.dart",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+      "test/melonx_library_discovery_test.dart"
+    ],
+    "productTreesChanged": [
+      "lib",
+      "packages"
+    ],
+    "ciRuns": {
+      "melonx-integration": [
+        40643006039,
+        40648012242
+      ],
+      "melonx-host": 40643006036
+    }
+  },
+  "rpcsCore": {
+    "source": "03956454afc710cb55901c74108b88fbb03dec5d",
+    "run": 40631132527
+  },
+  "validators": {
+    "hd-textures-ipa-validation.json": "passed",
+    "liquid-glass-ui582-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-entry582-ipa-validation.json": "passed",
+    "melonx-input582-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-jit582-ipa-validation.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "melonx-perf582-ipa-validation.json": "passed",
+    "melonx-switch582-ipa-validation.json": "passed",
+    "melonx-sync582-ipa-validation.json": "passed",
+    "melonx-texture582-ipa-validation.json": "passed",
+    "melonx-warm582-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "reused-validation582.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "rpcs3-library-files582-ipa-validation.json": "passed",
+    "rpcs3-memory-audit-ipa.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "buildNumber": 582,
+    "engineHost": "e55ca256",
+    "entryStopsAdaptationInEngineIdentity": true,
+    "all582ReceiptsEmbedded": 11,
+    "receipts582": [
+      "LiquidGlass-ui582-identity.json",
+      "MeloNX-entry582-identity.json",
+      "MeloNX-input582-identity.json",
+      "MeloNX-jit582-identity.json",
+      "MeloNX-perf582-identity.json",
+      "MeloNX-switch582-identity.json",
+      "MeloNX-sync582-identity.json",
+      "MeloNX-texture582-identity.json",
+      "MeloNX-warm582-identity.json",
+      "RPCS3-cell582-identity.json",
+      "RPCS3-library-files582-identity.json"
+    ],
+    "discoveryMarkersInDart": true,
+    "discoveryMarkersInBridge": true,
+    "engineBinaryBytes": 37847280
+  },
+  "localChecks": {
+    "treePinDryRun": "passed",
+    "inheritedSourceContractDryRun": "passed",
+    "retainedChecksDryRun": "passed",
+    "engineEvidence563To582AgainstRealArtifacts": "passed",
+    "embedsDryRun": "10 of 11 passed (the standalone MoltenVK receipt needs the macOS job)",
+    "flutterAnalyzePinnedTree": "passed",
+    "discoveryTestCases": 6
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "launchTimeMeasured": false,
+  "fpsGainMeasured": false
+}

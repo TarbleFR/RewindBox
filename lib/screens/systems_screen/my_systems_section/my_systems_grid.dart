@@ -1,7 +1,13 @@
 import '../../../widgets/console_bubble_transition.dart';
 import '../../../widgets/neo_glass_bubble.dart';
+import '../../../widgets/glacier/glacier_widgets.dart';
+import '../../../widgets/glacier/glacier_systems_footer.dart';
+import '../../../themes/glacier_theme.dart';
+import 'dart:math' as math;
+import '../../../themes/liquid_glass_theme.dart';
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -90,7 +96,28 @@ class MySystems extends StatelessWidget {
           // PHASE 3: Content Presentation.
           // Dynamically toggle between Carousel and Grid layouts based on user preference.
           final Widget systemsWidget;
-          if (configProvider.config.systemViewMode == 'carousel') {
+          final glacier = GlacierLayout.active(context);
+          if (configProvider.config.systemViewMode == 'carousel' && glacier) {
+            final allSystems = _buildAllSystems(context, configProvider);
+            final currentSystem = selectedIndex < allSystems.length
+                ? allSystems[selectedIndex]
+                : allSystems[0];
+            systemsWidget = _buildGlacierFrame(
+              context,
+              configProvider,
+              currentSystem,
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: GlacierLayout.focusBleed,
+                ),
+                child: MySystemsCarousel(
+                  selectedIndex: selectedIndex,
+                  onCardTapped: onCardTapped,
+                  topPadding: 0,
+                ),
+              ),
+            );
+          } else if (configProvider.config.systemViewMode == 'carousel') {
             final allSystems = _buildAllSystems(context, configProvider);
             final currentSystem = selectedIndex < allSystems.length
                 ? allSystems[selectedIndex]
@@ -170,6 +197,35 @@ class MySystems extends StatelessWidget {
         ? allSystems[selectedIndex]
         : allSystems[0];
 
+    if (GlacierLayout.active(context)) {
+      return _buildGlacierFrame(
+        context,
+        configProvider,
+        currentSystem,
+        SystemCardGridView(
+          glacier: true,
+          crossAxisCount: Responsive.getSystemsCrossAxisCountFromSize(
+            configProvider.config.systemGridColumns,
+          ),
+          selectedIndex: selectedIndex,
+          onCardTapped: onCardTapped,
+          systems: allSystems,
+          onEnterPressed: () {
+            final current = selectedIndex < allSystems.length
+                ? allSystems[selectedIndex]
+                : allSystems[0];
+            _navigateToSystem(context, current, configProvider);
+          },
+          onEscapePressed: () {
+            final current = selectedIndex < allSystems.length
+                ? allSystems[selectedIndex]
+                : allSystems[0];
+            _openSystemSettings(context, current, configProvider);
+          },
+        ),
+      );
+    }
+
     return Column(
       children: [
         Expanded(
@@ -216,6 +272,27 @@ class MySystems extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+
+  /// RewindBox Glacier composition of the Systems tab ([GlacierSystemsFrame]).
+  Widget _buildGlacierFrame(
+    BuildContext context,
+    SqliteConfigProvider configProvider,
+    SystemInfo currentSystem,
+    Widget content,
+  ) {
+    return GlacierSystemsFrame(
+      current: currentSystem,
+      content: content,
+      onEnter: () {
+        SfxService().playEnterSound();
+        _navigateToSystem(context, currentSystem, configProvider);
+      },
+      onSettings: () {
+        SfxService().playEnterSound();
+        _openSystemSettings(context, currentSystem, configProvider);
+      },
     );
   }
 
@@ -488,6 +565,51 @@ class MySystems extends StatelessWidget {
   }
 }
 
+/// RewindBox Glacier composition of the Systems tab: the section title with
+/// the view mode on the right, the grid (or carousel) band and the action
+/// bar for [current], all inside the reference side margins and safe areas.
+class GlacierSystemsFrame extends StatelessWidget {
+  const GlacierSystemsFrame({
+    super.key,
+    required this.current,
+    required this.content,
+    required this.onEnter,
+    required this.onSettings,
+  });
+
+  final SystemInfo current;
+  final Widget content;
+  final VoidCallback onEnter;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final folder = current.primaryFolderName ?? current.folderName ?? '';
+    final systemArt = current.isGame || folder.isEmpty
+        ? null
+        : context.read<NeoAssetsProvider>().getBackgroundForSystemSync(folder);
+    return GlacierSystemsLayout(
+      sideInset: GlacierLayout.sideInset(context),
+      bleed: GlacierLayout.focusBleed,
+      bottomInset: math.max(
+        12.5.r,
+        MediaQuery.viewPaddingOf(context).bottom + 4.r,
+      ),
+      title: GlacierSectionHeader(
+        title: AppLocale.systems.getString(context),
+        trailing: HeaderSortDropdown(compact: true),
+      ),
+      content: content,
+      footer: GlacierSystemsFooter(
+        system: current,
+        systemArtPath: systemArt,
+        onEnter: onEnter,
+        onSettings: onSettings,
+      ),
+    );
+  }
+}
+
 /// Creates a virtual 'All Games' system model by aggregating metadata from all detected systems.
 SystemModel _createAllGamesSystem(
   BuildContext context,
@@ -532,9 +654,14 @@ class SystemCardGridView extends StatefulWidget {
     this.onEnterPressed,
     this.onEscapePressed,
     this.systems = const [],
+    this.glacier = false,
   });
 
   final int crossAxisCount;
+
+  /// RewindBox Glacier layout: one card template, two full rows in the
+  /// viewport at the reference size, the Glacier focus frame.
+  final bool glacier;
   final double childAspectRatio;
 
   /// Optional per-card aspect ratios. When supplied, each card is laid out with
@@ -594,6 +721,11 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
   List<List<int>>? _cachedVirtualGrid;
   int? _cachedGridCols;
   int? _cachedGridSystemCount;
+  bool? _cachedGridUniform;
+
+  /// Glacier geometry of the last layout (it depends on the viewport height,
+  /// which only the layout knows); used to centre the selection.
+  Map<String, double>? _glacierDims;
 
   /// Cached conversion of widget.systems to SystemInfo list, rebuilt only on systems change.
   late List<SystemInfo> _systemCards;
@@ -699,15 +831,17 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
   List<List<int>> _buildVirtualGrid(List<SystemInfo> cards, int cols) {
     if (_cachedVirtualGrid != null &&
         _cachedGridCols == cols &&
-        _cachedGridSystemCount == cards.length) {
+        _cachedGridSystemCount == cards.length &&
+        _cachedGridUniform == widget.glacier) {
       return _cachedVirtualGrid!;
     }
 
-    final grid = buildVirtualGrid(cards, cols);
+    final grid = buildVirtualGrid(cards, cols, uniformSpans: widget.glacier);
 
     _cachedVirtualGrid = grid;
     _cachedGridCols = cols;
     _cachedGridSystemCount = cards.length;
+    _cachedGridUniform = widget.glacier;
     return grid;
   }
 
@@ -715,6 +849,8 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
   /// the pure [calculateGridDimensions]. [customWidth], when supplied (e.g. from
   /// a `LayoutBuilder`'s constraints), is used as-is without the inset.
   Map<String, double> _calculateGridDimensions([double? customWidth]) {
+    final glacierDims = _glacierDims;
+    if (widget.glacier && glacierDims != null) return glacierDims;
     final screenWidth =
         customWidth ?? (MediaQuery.of(context).size.width - 12.0.r);
     return calculateGridDimensions(
@@ -882,6 +1018,7 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
     BuildContext context,
     List<SystemInfo> systemCards,
   ) {
+    if (widget.glacier) return _buildGlacierGrid(context, systemCards);
     final cols = _cols;
     final grid = _buildVirtualGrid(systemCards, cols);
 
@@ -1034,11 +1171,13 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
                 width: selWidth - 2.r,
                 height: selHeight - 2.r,
                 child: IgnorePointer(
-                  child: NeoGlassBubble(
-                    selected: true,
-                    radius: 30.r,
-                    child: const SizedBox.expand(),
-                  ),
+                  child: LiquidGlassTheme.of(context).settings.showSystemBubbles
+                      ? NeoGlassBubble(
+                          selected: true,
+                          radius: 30.r,
+                          child: const SizedBox.expand(),
+                        )
+                      : const SystemSelectionMarker(),
                 ),
               )
             : const SizedBox.shrink();
@@ -1058,6 +1197,157 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
           ),
         );
       },
+    );
+  }
+}
+
+extension _GlacierGrid on _SystemCardGridViewState {
+  /// RewindBox Glacier grid: equal cards row by row, two full rows in the
+  /// viewport at the reference size, scrolling for the rest. The selection
+  /// is the Glacier frame (outline, halo, corner accents), which follows the
+  /// real selection and jumps without animation when motion is reduced.
+  Widget _buildGlacierGrid(BuildContext context, List<SystemInfo> systemCards) {
+    final cols = _cols;
+    final grid = _buildVirtualGrid(systemCards, cols);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bleed = GlacierLayout.focusBleed;
+        final dims = calculateGlacierGridDimensions(
+          width: constraints.maxWidth - bleed * 2,
+          viewportHeight: constraints.maxHeight - bleed * 2,
+          cols: cols,
+          rows: grid.length,
+        );
+        if (!mapEquals(dims, _glacierDims)) {
+          final first = _glacierDims == null;
+          _glacierDims = dims;
+          if (first) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _scrollController.hasClients) {
+                _ensureSelectedItemVisibleUniversal();
+              }
+            });
+          }
+        }
+        final itemW = dims['itemWidth']!;
+        final itemH = dims['itemHeight']!;
+        final gap = dims['crossAxisSpacing']!;
+        final radius = 5.r;
+        final cards = <Widget>[];
+        Rect? selected;
+        for (var r = 0; r < grid.length; r++) {
+          for (var c = 0; c < grid[r].length; c++) {
+            final index = grid[r][c];
+            if (index == -1) continue;
+            final rect = Rect.fromLTWH(
+              c * (itemW + gap),
+              r * (itemH + gap),
+              itemW,
+              itemH,
+            );
+            final isSelected = index == widget.selectedIndex;
+            if (isSelected) selected = rect;
+            final card = systemCards[index];
+            cards.add(
+              Positioned.fromRect(
+                rect: rect,
+                child: RepaintBoundary(
+                  child: SystemCard(
+                    key: ValueKey('system_card_${card.title}_$index'),
+                    info: card,
+                    isSelected: isSelected,
+                    glacierRadius: radius,
+                    onTap: () => _onGlacierCardTap(index),
+                  ),
+                ),
+              ),
+            );
+          }
+        }
+        final frame = selected;
+        final rows = grid.length;
+        final totalHeight = rows == 0 ? 0.0 : rows * itemH + (rows - 1) * gap;
+        // GlacierSystemsLayout clips the band above and below (the title and
+        // the action bar stay clear while scrolling); [bleed] keeps the focus
+        // halo of the first and last rows inside it.
+        return SingleChildScrollView(
+          controller: _scrollController,
+          clipBehavior: Clip.none,
+          padding: EdgeInsets.all(bleed),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          child: SizedBox(
+            height: totalHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ...cards,
+                if (frame != null)
+                  AnimatedPositioned(
+                    key: const ValueKey('focus_indicator'),
+                    duration: NeoBubbleStyle.reduceMotion(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    left: frame.left - 2.r,
+                    top: frame.top - 2.r,
+                    width: frame.width + 4.r,
+                    height: frame.height + 4.r,
+                    child: IgnorePointer(
+                      child: GlacierFocusFrame(radius: radius + 2.r),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Touch: the first tap selects, a tap on the selected card enters it.
+  void _onGlacierCardTap(int index) {
+    if (index == widget.selectedIndex) {
+      widget.onEnterPressed?.call();
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastNavigationTime != null &&
+        now.difference(_lastNavigationTime!).inMilliseconds < 60) {
+      return;
+    }
+    _lastNavigationTime = now;
+    widget.onCardTapped?.call(index);
+  }
+}
+
+/// Selection cue used when the system bubbles are turned off: a short accent
+/// bar with a soft glow just under the focused art pack. It slides with the
+/// grid's focus indicator and never covers the artwork or the console name.
+class SystemSelectionMarker extends StatelessWidget {
+  const SystemSelectionMarker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: FractionalTranslation(
+        translation: const Offset(0, 1.6),
+        child: Container(
+          key: const ValueKey('system-selection-marker'),
+          width: 28.r,
+          height: 3.r,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(2.r),
+            boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: 0.55), blurRadius: 6.r),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

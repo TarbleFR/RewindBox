@@ -1,0 +1,775 @@
+{
+  "deduplication": {
+    "raw_diagnostic_performance_records": 3757,
+    "unique_records": 2293,
+    "duplicates_removed": 1464,
+    "key": [
+      "build",
+      "pid",
+      "timestamp",
+      "stage",
+      "message"
+    ]
+  },
+  "aggregates": [
+    {
+      "build": "597",
+      "pid": 51899,
+      "session": 3,
+      "title": "BLES00158",
+      "guest": {
+        "windows": [
+          41,
+          42,
+          43,
+          44
+        ],
+        "intervals": 577,
+        "total_interval_ms": 20716.956,
+        "fps_from_guest_intervals": 27.851582056746178,
+        "window_fps_range": {
+          "n": 4,
+          "min": 26.68052755777162,
+          "max": 30.05310730827996,
+          "median": 27.331360533722613
+        },
+        "window_p95_ms_range": {
+          "n": 4,
+          "min": 41.568,
+          "max": 42.852,
+          "median": 42.2175
+        },
+        "max_interval_ms": 61.802,
+        "over50ms": 6,
+        "over100ms": 0,
+        "sampled_texture_ms": {
+          "n": 4,
+          "min": 6.1,
+          "max": 9.377,
+          "median": 8.742
+        },
+        "sampled_vertex_ms": {
+          "n": 4,
+          "min": 2.366,
+          "max": 2.721,
+          "median": 2.6174999999999997
+        },
+        "spu_cores": {
+          "n": 4,
+          "min": 2.158,
+          "max": 2.204,
+          "median": 2.175
+        },
+        "rsx_cores": {
+          "n": 4,
+          "min": 0.974,
+          "max": 1.019,
+          "median": 1.002
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 0,
+          "module": 0,
+          "graphics": 0,
+          "compute": 0
+        }
+      },
+      "steady": {
+        "windows": [
+          41,
+          42,
+          43,
+          44
+        ],
+        "intervals": 577,
+        "total_interval_ms": 20716.956,
+        "fps_from_guest_intervals": 27.851582056746178,
+        "window_fps_range": {
+          "n": 4,
+          "min": 26.68052755777162,
+          "max": 30.05310730827996,
+          "median": 27.331360533722613
+        },
+        "window_p95_ms_range": {
+          "n": 4,
+          "min": 41.568,
+          "max": 42.852,
+          "median": 42.2175
+        },
+        "max_interval_ms": 61.802,
+        "over50ms": 6,
+        "over100ms": 0,
+        "sampled_texture_ms": {
+          "n": 4,
+          "min": 6.1,
+          "max": 9.377,
+          "median": 8.742
+        },
+        "sampled_vertex_ms": {
+          "n": 4,
+          "min": 2.366,
+          "max": 2.721,
+          "median": 2.6174999999999997
+        },
+        "spu_cores": {
+          "n": 4,
+          "min": 2.158,
+          "max": 2.204,
+          "median": 2.175
+        },
+        "rsx_cores": {
+          "n": 4,
+          "min": 0.974,
+          "max": 1.019,
+          "median": 1.002
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 0,
+          "module": 0,
+          "graphics": 0,
+          "compute": 0
+        }
+      }
+    },
+    {
+      "build": "597",
+      "pid": 51899,
+      "session": 4,
+      "title": "BCES00510",
+      "guest": {
+        "windows": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ],
+        "intervals": 7460,
+        "total_interval_ms": 129958.84,
+        "fps_from_guest_intervals": 57.4027899910464,
+        "window_fps_range": {
+          "n": 27,
+          "min": 30.630983030054892,
+          "max": 60.25715901400748,
+          "median": 59.99067471690044
+        },
+        "window_p95_ms_range": {
+          "n": 27,
+          "min": 16.974,
+          "max": 45.521,
+          "median": 17.691
+        },
+        "max_interval_ms": 84.97,
+        "over50ms": 7,
+        "over100ms": 0,
+        "sampled_texture_ms": {
+          "n": 27,
+          "min": 0.174,
+          "max": 5.262,
+          "median": 0.539
+        },
+        "sampled_vertex_ms": {
+          "n": 27,
+          "min": 0.0,
+          "max": 0.853,
+          "median": 0.006
+        },
+        "spu_cores": {
+          "n": 27,
+          "min": 0.093,
+          "max": 2.407,
+          "median": 1.396
+        },
+        "rsx_cores": {
+          "n": 27,
+          "min": 0.022,
+          "max": 0.466,
+          "median": 0.295
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 5,
+          "module": 5,
+          "graphics": 1,
+          "compute": 3
+        }
+      },
+      "steady": {
+        "windows": [
+          3,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28
+        ],
+        "intervals": 6985,
+        "total_interval_ms": 122027.966,
+        "fps_from_guest_intervals": 57.24097703964024,
+        "window_fps_range": {
+          "n": 25,
+          "min": 30.630983030054892,
+          "max": 60.25715901400748,
+          "median": 59.99104292151232
+        },
+        "window_p95_ms_range": {
+          "n": 25,
+          "min": 16.974,
+          "max": 45.521,
+          "median": 17.707
+        },
+        "max_interval_ms": 84.97,
+        "over50ms": 7,
+        "over100ms": 0,
+        "sampled_texture_ms": {
+          "n": 25,
+          "min": 0.321,
+          "max": 5.262,
+          "median": 0.546
+        },
+        "sampled_vertex_ms": {
+          "n": 25,
+          "min": 0.0,
+          "max": 0.853,
+          "median": 0.006
+        },
+        "spu_cores": {
+          "n": 25,
+          "min": 0.093,
+          "max": 2.407,
+          "median": 1.397
+        },
+        "rsx_cores": {
+          "n": 25,
+          "min": 0.026,
+          "max": 0.466,
+          "median": 0.303
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 0,
+          "module": 0,
+          "graphics": 0,
+          "compute": 0
+        }
+      }
+    },
+    {
+      "build": "597",
+      "pid": 51899,
+      "session": 5,
+      "title": "BCES00510",
+      "guest": {
+        "windows": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "intervals": 1418,
+        "total_interval_ms": 76317.447,
+        "fps_from_guest_intervals": 18.58028610417222,
+        "window_fps_range": {
+          "n": 15,
+          "min": 9.556984985781547,
+          "max": 25.57645317199554,
+          "median": 20.25743763289166
+        },
+        "window_p95_ms_range": {
+          "n": 15,
+          "min": 49.704,
+          "max": 170.923,
+          "median": 69.093
+        },
+        "max_interval_ms": 258.058,
+        "over50ms": 638,
+        "over100ms": 35,
+        "sampled_texture_ms": {
+          "n": 15,
+          "min": 6.079,
+          "max": 17.264,
+          "median": 9.947
+        },
+        "sampled_vertex_ms": {
+          "n": 15,
+          "min": 1.408,
+          "max": 6.86,
+          "median": 1.834
+        },
+        "spu_cores": {
+          "n": 15,
+          "min": 1.804,
+          "max": 3.395,
+          "median": 3.234
+        },
+        "rsx_cores": {
+          "n": 15,
+          "min": 0.338,
+          "max": 0.661,
+          "median": 0.572
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 6,
+          "module": 6,
+          "graphics": 1,
+          "compute": 4
+        }
+      },
+      "steady": {
+        "windows": [
+          3,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16
+        ],
+        "intervals": 1266,
+        "total_interval_ms": 68350.844,
+        "fps_from_guest_intervals": 18.52208291678154,
+        "window_fps_range": {
+          "n": 13,
+          "min": 9.556984985781547,
+          "max": 22.04346292628666,
+          "median": 20.25743763289166
+        },
+        "window_p95_ms_range": {
+          "n": 13,
+          "min": 59.737,
+          "max": 170.923,
+          "median": 69.093
+        },
+        "max_interval_ms": 258.058,
+        "over50ms": 567,
+        "over100ms": 30,
+        "sampled_texture_ms": {
+          "n": 13,
+          "min": 6.079,
+          "max": 17.264,
+          "median": 9.947
+        },
+        "sampled_vertex_ms": {
+          "n": 13,
+          "min": 1.408,
+          "max": 6.86,
+          "median": 1.834
+        },
+        "spu_cores": {
+          "n": 13,
+          "min": 3.033,
+          "max": 3.395,
+          "median": 3.234
+        },
+        "rsx_cores": {
+          "n": 13,
+          "min": 0.452,
+          "max": 0.661,
+          "median": 0.58
+        },
+        "gpu_time_ms_values": [
+          -1
+        ],
+        "shader_calls_total": {
+          "source": 0,
+          "module": 0,
+          "graphics": 0,
+          "compute": 0
+        }
+      }
+    }
+  ],
+  "neoswap": [
+    {
+      "memory_profile_sequence": 2,
+      "records": 146,
+      "first": {
+        "unix": 1793325465.102232,
+        "utc": "2026-10-30T01:57:45.102232+00:00",
+        "paris": "2026-10-30T02:57:45.102232+01:00"
+      },
+      "last": {
+        "unix": 1793325517.212327,
+        "utc": "2026-10-30T01:58:37.212327+00:00",
+        "paris": "2026-10-30T02:58:37.212327+01:00"
+      },
+      "sources": {
+        "first": {
+          "file": "NeoSwap-v1(1).jsonl",
+          "line": 1,
+          "timestamp": 1793325465.102232
+        },
+        "last": {
+          "file": "NeoSwap-v1(1).jsonl",
+          "line": 146,
+          "timestamp": 1793325517.212327
+        }
+      },
+      "title_labels": [
+        "BLES00158"
+      ],
+      "os_versions": [
+        "Version 27.0 (Build 24A5380h)"
+      ],
+      "metrics": {
+        "processFootprintBytes": {
+          "n": 146,
+          "min": 2442959920,
+          "max": 4282474648,
+          "median": 4180582552.0
+        },
+        "processResidentBytes": {
+          "n": 146,
+          "min": 1588248576,
+          "max": 2838953984,
+          "median": 2821709824.0
+        },
+        "processCompressedLedgerBytes": {
+          "n": 146,
+          "min": 1391312896,
+          "max": 1660436480,
+          "median": 1535852544.0
+        },
+        "processAvailableBytes": {
+          "n": 146,
+          "min": 2696847208,
+          "max": 4536361936,
+          "median": 2798739304.0
+        },
+        "ioErrors": {
+          "n": 146,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "iosMemoryWarningCount": {
+          "n": 146,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "donorLostCount": {
+          "n": 146,
+          "min": 0,
+          "max": 1,
+          "median": 1.0
+        },
+        "thermalState": {
+          "n": 146,
+          "min": 1,
+          "max": 1,
+          "median": 1.0
+        },
+        "allocatedDiskBytes": {
+          "n": 146,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "liveBytes": {
+          "n": 146,
+          "min": 0,
+          "max": 22691840,
+          "median": 22691840.0
+        }
+      },
+      "first_values": {
+        "processFootprintBytes": 4127924376,
+        "processResidentBytes": 2810134528,
+        "processCompressedLedgerBytes": 1536114688,
+        "processAvailableBytes": 2851397480,
+        "ioErrors": 0,
+        "iosMemoryWarningCount": 0,
+        "donorLostCount": 1,
+        "thermalState": 1,
+        "allocatedDiskBytes": 0,
+        "liveBytes": 22691840
+      },
+      "last_values": {
+        "processFootprintBytes": 2442959920,
+        "processResidentBytes": 1588264960,
+        "processCompressedLedgerBytes": 1391312896,
+        "processAvailableBytes": 4536345552,
+        "ioErrors": 0,
+        "iosMemoryWarningCount": 0,
+        "donorLostCount": 0,
+        "thermalState": 1,
+        "allocatedDiskBytes": 0,
+        "liveBytes": 0
+      },
+      "shader_memory_age_s": {
+        "n": 146,
+        "min": 0.14658808708190918,
+        "max": 227.81301617622375,
+        "median": 189.76091754436493
+      },
+      "event_counts": {
+        "budget_decision": 105,
+        "sample": 38,
+        "donation_session_end": 1,
+        "rpcs3_memory_session_end": 1,
+        "donation_preparation_transition": 1
+      },
+      "jetsam_confirmed_values": [
+        "False"
+      ],
+      "termination_cause_values": [
+        "None"
+      ]
+    },
+    {
+      "memory_profile_sequence": 3,
+      "records": 422,
+      "first": {
+        "unix": 1793325517.455029,
+        "utc": "2026-10-30T01:58:37.455029+00:00",
+        "paris": "2026-10-30T02:58:37.455029+01:00"
+      },
+      "last": {
+        "unix": 1793325752.823607,
+        "utc": "2026-10-30T02:02:32.823607+00:00",
+        "paris": "2026-10-30T03:02:32.823607+01:00"
+      },
+      "sources": {
+        "first": {
+          "file": "NeoSwap-v1(1).jsonl",
+          "line": 147,
+          "timestamp": 1793325517.455029
+        },
+        "last": {
+          "file": "NeoSwap-v1(1).jsonl",
+          "line": 568,
+          "timestamp": 1793325752.823607
+        }
+      },
+      "title_labels": [
+        "BCES00510"
+      ],
+      "os_versions": [
+        "Version 27.0 (Build 24A5380h)"
+      ],
+      "metrics": {
+        "processFootprintBytes": {
+          "n": 422,
+          "min": 2480741472,
+          "max": 5588263688,
+          "median": 4278845952.0
+        },
+        "processResidentBytes": {
+          "n": 422,
+          "min": 1361379328,
+          "max": 3099344896,
+          "median": 2710994944.0
+        },
+        "processCompressedLedgerBytes": {
+          "n": 422,
+          "min": 1389330432,
+          "max": 2654142464,
+          "median": 1557528576.0
+        },
+        "processAvailableBytes": {
+          "n": 422,
+          "min": 1408277728,
+          "max": 4498580384,
+          "median": 2700475904.0
+        },
+        "ioErrors": {
+          "n": 422,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "iosMemoryWarningCount": {
+          "n": 422,
+          "min": 0,
+          "max": 2,
+          "median": 0.0
+        },
+        "donorLostCount": {
+          "n": 422,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "thermalState": {
+          "n": 422,
+          "min": 1,
+          "max": 1,
+          "median": 1.0
+        },
+        "allocatedDiskBytes": {
+          "n": 422,
+          "min": 0,
+          "max": 0,
+          "median": 0.0
+        },
+        "liveBytes": {
+          "n": 422,
+          "min": 0,
+          "max": 257802240,
+          "median": 169623552.0
+        }
+      },
+      "first_values": {
+        "processFootprintBytes": 2480741472,
+        "processResidentBytes": 1646690304,
+        "processCompressedLedgerBytes": 1391247360,
+        "processAvailableBytes": 4498580384,
+        "ioErrors": 0,
+        "iosMemoryWarningCount": 0,
+        "donorLostCount": 0,
+        "thermalState": 1,
+        "allocatedDiskBytes": 0,
+        "liveBytes": 0
+      },
+      "last_values": {
+        "processFootprintBytes": 5519516376,
+        "processResidentBytes": 1726251008,
+        "processCompressedLedgerBytes": 2649931776,
+        "processAvailableBytes": 1459805480,
+        "ioErrors": 0,
+        "iosMemoryWarningCount": 2,
+        "donorLostCount": 0,
+        "thermalState": 1,
+        "allocatedDiskBytes": 0,
+        "liveBytes": 257802240
+      },
+      "shader_memory_age_s": {
+        "n": 422,
+        "min": 0.0002219676971435547,
+        "max": 2.2560877799987793,
+        "median": 0.372081995010376
+      },
+      "event_counts": {
+        "rpcs3_memory_session_start": 1,
+        "donation_preparation_transition": 3,
+        "donor_state": 92,
+        "sample": 212,
+        "budget_decision": 110,
+        "ios_memory_warning": 2,
+        "memory_pressure": 1,
+        "application_background": 1
+      },
+      "jetsam_confirmed_values": [
+        "False"
+      ],
+      "termination_cause_values": [
+        "None"
+      ]
+    }
+  ],
+  "rsx_acquires": [
+    {
+      "build": "595",
+      "pid": 50728,
+      "time": {
+        "unix": 1793300816.445992,
+        "utc": "2026-10-29T19:06:56.445992+00:00",
+        "paris": "2026-10-29T20:06:56.445992+01:00"
+      },
+      "fields": {
+        "address": "0x60300510",
+        "expected": "0x6F0E",
+        "observed": "0x6F0D",
+        "waited_us": 2000225
+      },
+      "message": "RSX [0x0274054]: RSX_ACQUIRE waiting_after_recovery address=0x60300510 expected=0x6F0E observed=0x6F0D waited_us=2000225",
+      "source": {
+        "file": "RPCS3-milestones(6).log",
+        "line": 16,
+        "timestamp": 1793300816.445992
+      }
+    },
+    {
+      "build": "597",
+      "pid": 51899,
+      "time": {
+        "unix": 1793325657.290492,
+        "utc": "2026-10-30T02:00:57.290492+00:00",
+        "paris": "2026-10-30T03:00:57.290492+01:00"
+      },
+      "fields": {
+        "address": "0x60300510",
+        "expected": "0x1A24",
+        "observed": "0x1A23",
+        "waited_us": 2001715
+      },
+      "message": "RSX [0x01e9074]: RSX_ACQUIRE waiting_after_recovery address=0x60300510 expected=0x1A24 observed=0x1A23 waited_us=2001715",
+      "source": {
+        "file": "RPCS3-milestones(6).log",
+        "line": 187,
+        "timestamp": 1793325657.290492
+      }
+    }
+  ]
+}

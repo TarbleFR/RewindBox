@@ -1,0 +1,10 @@
+{
+  "before": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "cd7d0baa5aa49cc244022ff18482706b5243c8206530bde93f02e97997b70576",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs": "f3dc8af5d149c703c215f6d3d1b3d50bd9b72d652de5508d24c5b22d46338bde"
+  },
+  "after": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "17b8fd7ce9c75bbdc2effdc78c8c9dffeac04765889db995053a63b9b32fc87e",
+    "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs": "d7c0ec0ce5014d76244a703d7645fcc6587d3bd94f0101532455f3aa63581a7d"
+  }
+}

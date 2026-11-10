@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
@@ -12,6 +11,7 @@ import '../../../widgets/custom_toggle_switch.dart';
 import '../../../constants/system_folder_names.dart';
 import 'settings_title.dart';
 import 'widgets/settings_card_row.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 /// A specialized content panel for managing system visibility and interface components.
 ///
@@ -144,7 +144,7 @@ class SystemsSettingsContentState extends State<SystemsSettingsContent> {
               title: AppLocale.systemsSettings.getString(context),
               subtitle: AppLocale.systemsSettingsSubtitle.getString(context),
             ),
-            SizedBox(height: 12.r),
+            const GlassGap(),
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,

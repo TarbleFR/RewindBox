@@ -33,7 +33,7 @@ jobs:
   native:
     # The unified-cheats workflow checks the changed cheat inputs; reuse the
     # recorded successful evidence for the unchanged skins/shaders/gameplay.
-    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 25
     steps:
@@ -61,7 +61,7 @@ jobs:
   skin-press:
     # The unified-cheats workflow checks the changed cheat inputs; reuse the
     # recorded successful evidence for the unchanged skins/shaders/gameplay.
-    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:

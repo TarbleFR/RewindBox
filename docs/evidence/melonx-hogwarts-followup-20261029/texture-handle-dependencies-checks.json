@@ -1,0 +1,109 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "scenarios": 83,
+      "checks": 4375,
+      "remapCycles": 32,
+      "retiredRetained": 32,
+      "currentDependenciesAfterRemaps": 33,
+      "peerDependenciesAfterRemaps": 33,
+      "reachableHandleNodes": 34,
+      "dependencyLinks": 1122,
+      "notificationsPerModification": 33,
+      "pendingAlive": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "retiredAfterSyncDrains": 8,
+      "selfDependencyEdges": 2,
+      "selfGpuModifiedPreserved": false,
+      "functionalDigest": "D29A84958ECEF37FAD5EA8DCBEE09503DD939EE50F65CB58E386D81EC6410E3F"
+    },
+    "candidate": {
+      "variant": "candidate",
+      "scenarios": 83,
+      "checks": 11239,
+      "remapCycles": 32,
+      "retiredRetained": 0,
+      "currentDependenciesAfterRemaps": 1,
+      "peerDependenciesAfterRemaps": 1,
+      "reachableHandleNodes": 2,
+      "dependencyLinks": 2,
+      "notificationsPerModification": 1,
+      "pendingAlive": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "retiredAfterSyncDrains": 0,
+      "selfDependencyEdges": 0,
+      "selfGpuModifiedPreserved": true,
+      "functionalDigest": "D29A84958ECEF37FAD5EA8DCBEE09503DD939EE50F65CB58E386D81EC6410E3F"
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeTextureGroupHandle": true,
+  "completeTextureDependency": true,
+  "completeGpuSyncActionWalker": true,
+  "nativeTextureAndCpuTrackingBoundariesDoubled": true,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "inputs": {
+    "build-utils/melonx/adapt_texture_handle_dependencies.py": "3e690accf88f880989d82ce793bd7a6b75950a0499a146206111faeaf4892466",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_texture_handle_dependencies_test.py": "a85cd06622d825395e7674cdca2517839573c284082165d0f96ff235466bc555",
+    "test/melonx_texture_handle_dependencies/Program.cs": "aeaee358df1c4d6eddc4c7c08fb45af73e37d512f4d3fcdc177fc84408650115"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "77e2e39233d670971a9e47ac65e952c1237b6f073e48707816d91b9b0df36283",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "e64798cc48550b7f8408d1fa8c432575618f11337a93b37defea8cec99e72e7b",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureDependency.cs": "796ad1fe2b78774c2a0e58082e7e16b7d15d819d209453d25b1f92a2978dec41",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/HostSyncFlags.cs": "d95b5d1fdc9cb3b170a9f9b262b2e5d4029195d3f0f5b44be498eaf748758cd5"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "ed73d3f6e19fc5e9ad809bf99695fa6becc501a07cdbe131779601b976bf2166",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a"
+  },
+  "extraction": {
+    "control": {
+      "completeGroupMethods": {
+        "private void InheritHandles(": "e426bc8108051362a450c434a6cd40100c8eaef834919bd96d93a444cb3a57f5",
+        "private void ReplaceHandles(": "8dc3ab3fc4a9196967e68ea9427be5b3bbadab6acd5feb029401bbff4bdf773d"
+      },
+      "completeContextMethods": {
+        "internal void RegisterSyncAction(": "5e8fe5b04b99fd30e4ef93cc4431768f289861abcc5e937b43ef65c400bce83e",
+        "internal void CreateHostSyncIfNeeded(": "75b333803da98d2e97b39a5e53bb2993d5883fb37e77521f47c9dd3cbec7e516"
+      },
+      "groupCompileSha256": "e4cc93ea5abe9e537b8fbd2a8929d66481308cf34b26d64f926c286818327992",
+      "contextCompileSha256": "876fd4e2d0b6eb8f1d963fc9a380909f216c12a68a94e8d343ad2d30b8f22f50"
+    },
+    "candidate": {
+      "completeGroupMethods": {
+        "private void InheritHandles(": "e426bc8108051362a450c434a6cd40100c8eaef834919bd96d93a444cb3a57f5",
+        "private void ReplaceHandles(": "52cb22cdc1d21b934d42f941f0a210ab5bcfdd7d2e787e25513a814bbc95d67d"
+      },
+      "completeContextMethods": {
+        "internal void RegisterSyncAction(": "5e8fe5b04b99fd30e4ef93cc4431768f289861abcc5e937b43ef65c400bce83e",
+        "internal void CreateHostSyncIfNeeded(": "75b333803da98d2e97b39a5e53bb2993d5883fb37e77521f47c9dd3cbec7e516"
+      },
+      "groupCompileSha256": "be4e6639e9b192e28b4c2dc35506419b12abb1f8f91b4cae9c5cb59e7293ebb0",
+      "contextCompileSha256": "876fd4e2d0b6eb8f1d963fc9a380909f216c12a68a94e8d343ad2d30b8f22f50"
+    }
+  }
+}

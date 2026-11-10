@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "program_sha256": "e2cf84a68443f4d8aa3ee25b00f24f9bb2ddc78e5dde68e16b3c80865f3b3766",
+  "evidence": "docs/evidence/rpcs3-device595-20261029/address-plain.json",
+  "canonical_program_sha256": "e2cf84a68443f4d8aa3ee25b00f24f9bb2ddc78e5dde68e16b3c80865f3b3766",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "results": {
+    "queries": 22753,
+    "mutations": 8618,
+    "baselineDirtyPredicateCalls": 4708181,
+    "indexedDirtyPredicateCalls": 4708181,
+    "sameFirstMatch": true,
+    "sameValidationOrder": true,
+    "sameOverlapMembership": true,
+    "clearAndResourceLessRetags": true,
+    "sectionLayoutUnchanged": true,
+    "presentationWalkUnchanged": true
+  },
+  "mode": "asan-ubsan",
+  "output_sha256": "f601c38f1f4ba73ed847f589dd162c7bba39c2dea8eba4fb1501e3378676c8d1",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

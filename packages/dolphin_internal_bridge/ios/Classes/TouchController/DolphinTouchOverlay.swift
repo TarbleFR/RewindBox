@@ -41,8 +41,24 @@ import GameController
     didSet { shakeButton?.accessibilityHint = shakeAccessibilityHint }
   }
 
-  public override var isHidden: Bool { didSet { refreshPhoneShake() } }
-  public override var isUserInteractionEnabled: Bool { didSet { refreshPhoneShake() } }
+  public override var isHidden: Bool { didSet { refreshPhoneShake(); stateHandler?() } }
+  public override var isUserInteractionEnabled: Bool { didSet { refreshPhoneShake(); stateHandler?() } }
+
+  /// Controller skins (docs/dolphin-skins.md): called after the controls
+  /// were shown, hidden, enabled or disabled, so the session's skin follows.
+  @objc public var stateHandler: (() -> Void)?
+
+  /// A controller skin (DOLSkinOverlay) is drawn instead of the DolphiniOS
+  /// pad: the pad and the touch Shake control are hidden, what they held is
+  /// released. The phone shake keeps working.
+  @objc public var padHiddenBySkin = false {
+    didSet {
+      guard padHiddenBySkin != oldValue else { return }
+      if padHiddenBySkin { cancelTouchInteractions() }
+      pad?.isHidden = padHiddenBySkin
+      refreshTouchShake()
+    }
+  }
 
   public override func didMoveToWindow() {
     super.didMoveToWindow()
@@ -96,11 +112,12 @@ import GameController
   /// visible, interactive session in the foreground.
   private var touchShakeAvailable: Bool {
     return wii && layoutName == "wii" && sessionInputActive && window != nil && !isHidden &&
-      isUserInteractionEnabled && appActive
+      isUserInteractionEnabled && appActive && !padHiddenBySkin
   }
 
   private func refreshTouchShake() {
-    shakeButton?.isHidden = !(wii && layoutName == "wii") || (shakeHiddenByLayout && !touchLayoutEditing)
+    shakeButton?.isHidden = !(wii && layoutName == "wii") || (shakeHiddenByLayout && !touchLayoutEditing) ||
+      padHiddenBySkin
     if !sessionInputActive || !isUserInteractionEnabled || !appActive || window == nil {
       // Pause (menu), background and game close: nothing may keep shaking.
       // The phone owner was invalidated just before and cannot press again.
@@ -174,6 +191,7 @@ import GameController
     else if wanted == "classic" { view = TCClassicWiiPad(frame: bounds) }
     else { view = TCWiiPad(frame: bounds) }
     view.port = wii ? 4 : 0
+    view.isHidden = padHiddenBySkin
     view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.backgroundColor = .clear
     if let remote = view as? TCWiiPad { remote.setTouchIRMode(.follow) }

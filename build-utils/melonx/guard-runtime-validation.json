@@ -1,0 +1,62 @@
+{
+  "repository": "TarbleFR/RewindBox",
+  "source": "ada4058f5738465ac882934bb87224b637bcd0a1",
+  "run": 41118873328,
+  "runAttempt": 1,
+  "job": 124280125758,
+  "artifact": 13007577275,
+  "artifactName": "MeloNX-engine-ada4058f5738465ac882934bb87224b637bcd0a1",
+  "archiveSha256": "93771c1ff47396f841534463ec6ea49ad3657d8a815e8c39c3d63e138c926395",
+  "archiveBytes": 87638481,
+  "adaptationCount": 120,
+  "buildInputs": {
+    "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
+    "build-utils/melonx/libhac-reuse.json": "191996e92d52adcd1ecb3c5821904df8f3188fa2d34836e667d9da23c292df8f"
+  },
+  "simulatorSha256": "fa3b21ce8e8ecfbfe6c2517ef45236d044a32cffb7e3d999167227741399dc95",
+  "binarySha256": {
+    "ios-arm64": "7620fa3009e6df971665e7b8adec1a0bac654e6efa4bc3fceb292daefa6adb55",
+    "iossimulator-arm64": "fa3b21ce8e8ecfbfe6c2517ef45236d044a32cffb7e3d999167227741399dc95"
+  },
+  "identitySha256": {
+    "ios-arm64": "0671f003a26d3b81ee396c156efbad0512b53537b854f1722448c06f679875eb",
+    "iossimulator-arm64": "68e73a5df4767e615c0aca5d99c98242b9fdfa776ad89b7e34eb404dcd7b020d"
+  },
+  "coreContractSha256": "7fe735ed513574ae1efa4b3b73707982cce8fa6dc5717689719da360ad7742b9",
+  "compileProofSha256": {
+    "core-validation/preflight.json": "9fe344b841e13bfede31981a7fe82aad2bb3ba60e8043b2e9d70f1091a73db82",
+    "core-validation/gates.json": "b865c7417946b2ba0709404bcf285c1d2069f2d0275786a0c98b061fde525e57",
+    "core-validation/compiled.json": "864b7c963de6def032108e72b47e0589affec313b9e1820841974ee26c3af08b"
+  },
+  "originalNativeLogSha256": "ff52b55fd8a1ba43a444dedd81c73c0bac31eb0b78e6f2a33c1370cdad4002ab",
+  "failedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+  "requiredSuccessfulSteps": [
+    "Authenticate engine82 evidence and reuse unchanged LibHac",
+    "Fetch exact MeloNX source",
+    "Verify Apple ARM64, exact SDK and reviewed guard Core inputs",
+    "Run three affected gates and authenticate 37 scoped historical receipts",
+    "Compile NativeAOT library and verify exported ABI",
+    "Bind both new libraries to reviewed sources and gate receipts",
+    "Authenticate unchanged native frameworks"
+  ],
+  "smoke": {
+    "path": "test/melonx_runtime_smoke.py",
+    "sha256": "5fc1008eb7ea5a18a5937e08ec2b6dad6b2242bae8a2a81cb92f8890c3fc45d4"
+  },
+  "nativeDependencies": {
+    "run": 39854858591,
+    "artifactName": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314"
+  },
+  "validationInputs": {
+    "build-utils/melonx/validate_guard_runtime.py": "8737662f2eb756577746b3e28b800b130af8eee8e3524f13f6b0125e7b5c467d",
+    ".github/workflows/melonx-guard-runtime-validation.yml": "bfef0af99011937d06ba7dc8e3e2171a39527a7d93037191e169d055d36edefa",
+    "test/melonx_runtime_smoke.py": "5fc1008eb7ea5a18a5937e08ec2b6dad6b2242bae8a2a81cb92f8890c3fc45d4",
+    "test/melonx_runtime_smoke_evidence_test.py": "b6df57c906a21511e3232d9dc3342e214ece252b7f1f57bd4aa57281079abda5",
+    "build-utils/melonx/validate_runtime_reuse.py": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+    "build-utils/melonx/native-dependencies.json": "70d1810ccac2a69d386a81e22602489a72ca2797c91e5911036919b354a2c189"
+  }
+}

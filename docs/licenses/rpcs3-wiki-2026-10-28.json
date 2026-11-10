@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "observed_date": "2026-10-28",
+  "timezone": "Europe/Paris",
+  "method": "Rendered DOM read in the user's connected Chrome browser. The automatic Cloudflare challenge completed without manual interaction.",
+  "pages": [
+    {
+      "url": "https://wiki.rpcs3.net/index.php?title=Help:Game_Patches",
+      "title": "Help:Game Patches",
+      "last_modified_as_displayed": "20 February 2026, at 15:07",
+      "observed_license": "CC-BY-SA-4.0",
+      "license_href_as_displayed": "http://creativecommons.org/licenses/by-sa/4.0/",
+      "exception_condition": "The footer excludes content explicitly marked with different terms."
+    },
+    {
+      "url": "https://wiki.rpcs3.net/index.php?title=RPCS3:General_disclaimer",
+      "title": "RPCS3:General disclaimer",
+      "last_modified_as_displayed": "18 December 2021, at 13:18",
+      "observed_license": "CC-BY-SA-4.0",
+      "license_href_as_displayed": "http://creativecommons.org/licenses/by-sa/4.0/",
+      "finding": "The opening paragraph expressly applies the license to the wiki's textual content; the footer retains the exception for separately marked material."
+    }
+  ],
+  "catalogue_input_sha256": "f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486",
+  "repo_baseline": "cb59a78472a9ce5c5fc6925db7119649e76b3220",
+  "scope": "Confirms the site's displayed default license. Does not independently audit all 3,643 patch authors, page-specific exceptions or the separate emulator/source licensing.",
+  "screenshot_included": false
+}

@@ -16,6 +16,8 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.private_header_files = 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/Armsx2TouchControls.h',
                            'Classes/ARMSX2Texture*.h', 'Classes/Armsx2TextureBridge.h', 'Classes/upstream/*.h'
   s.dependency 'Flutter'
+  s.dependency 'achievement_translation'
+  s.dependency 'retro_achievements_session'
   s.dependency 'neo_cheat_catalog'
   # Build 447: the Core's render view is a NeoExternalRenderHost of the
   # external_display pod (docs/external-display-universal.md § 5, row ARMSX2):
@@ -24,9 +26,11 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.dependency 'external_display'
   # Build 484: touch layouts, editor and controller policy (Armsx2TouchControls.mm).
   s.dependency 'neo_touch_layout'
-  s.platform = :ios, '17.4'
-  s.ios.deployment_target = '17.4'
-  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController', 'Metal'
+  s.platform = :ios, '18.0'
+  s.ios.deployment_target = '18.0'
+  # QuartzCore and CoreGraphics: the controller skin overlay (ARMSX2SkinOverlay.mm)
+  # masks the game window (CAShapeLayer) and draws PDF skin art (CGPDF).
+  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController', 'Metal', 'QuartzCore', 'CoreGraphics'
   # Build 485: zlib inflates ZIP texture packs (ARMSX2TexturePackCore.h).
   s.libraries = 'c++', 'z'
   s.preserve_paths = 'Frameworks/ARMSX2Core.framework'

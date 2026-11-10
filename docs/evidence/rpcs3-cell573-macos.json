@@ -1,0 +1,153 @@
+{
+  "build": 573,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "92074e51b9e7216902c57fd5ae099d8aa3caea63",
+  "run": 40578797847,
+  "workflow": ".github/workflows/rpcs3-cell573-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12768509707,
+      "name": "RPCS3Core-92074e51b9e7216902c57fd5ae099d8aa3caea63",
+      "bytes": 29082352,
+      "digest": "sha256:2f446ab1f77ab1e579af4927c3753dbf7ff67c3cf1ef06e7f8a9487b3285ce4c"
+    },
+    "diagnostics": {
+      "id": 12768499097,
+      "bytes": 205309,
+      "digest": "sha256:1822c7597500d2e0054c2b71ee557f817f33ffc94c360ebba8f66bd70c31bf3e"
+    }
+  },
+  "core": {
+    "sha256": "2d80a2beee8ed53ce083961f08b1605983c28751a98d1edade6d30969d8faacc",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "d09681b7e0ff51d3aeff6adc61dadf517bae4a077480e52055d1f508daa8cdba",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 139,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom571": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers573": [
+      "Texture Residency Cap",
+      "experimental.texture_residency",
+      "Scoped Texture Revalidation",
+      "experimental.scoped_texture_revalidation",
+      "passive_fairness=%d texture_residency=%d scoped_revalidation=%d"
+    ],
+    "replaces": {
+      "source": "0522f593b7abd08f32414b3107a4dbf2e7f0f186",
+      "run": 40570081835,
+      "sha256": "4f13dda2893c71a04b97e9b773379202f089ea319a926393a84b28245bb118b8"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell573"
+    ]
+  },
+  "residency": {
+    "addressUndefined": {
+      "passed": true,
+      "frames": 6000,
+      "softCapMiB": 768,
+      "off": {
+        "peakLiveMiB": 10304,
+        "finalLiveMiB": 10304,
+        "uploads": 6127
+      },
+      "on": {
+        "peakLiveMiB": 828,
+        "finalLiveMiB": 768,
+        "uploads": 6127,
+        "evictedMiB": 23740,
+        "passes": 375,
+        "reuploadsWorkingSet": 0,
+        "reuploadsRevisitedArea": 0,
+        "minIdleFramesAtEviction": 39
+      }
+    },
+    "optimized": {
+      "passed": true,
+      "frames": 6000,
+      "softCapMiB": 768,
+      "off": {
+        "peakLiveMiB": 10304,
+        "finalLiveMiB": 10304,
+        "uploads": 6127
+      },
+      "on": {
+        "peakLiveMiB": 828,
+        "finalLiveMiB": 768,
+        "uploads": 6127,
+        "evictedMiB": 23740,
+        "passes": 375,
+        "reuploadsWorkingSet": 0,
+        "reuploadsRevisitedArea": 0,
+        "minIdleFramesAtEviction": 39
+      }
+    }
+  },
+  "scopedRevalidation": {
+    "addressUndefined": {
+      "passed": true,
+      "sections": 5,
+      "flushHashes": {
+        "global": 5,
+        "scoped": 2
+      },
+      "commitHashes": {
+        "global": 5,
+        "scoped": 3
+      },
+      "cpuCausesGlobal": true,
+      "changesDetected": true
+    }
+  },
+  "policy": {
+    "passed": true,
+    "cases": 9
+  },
+  "placement": {
+    "nonIosBuildIdentical": 5,
+    "globalEpochSites": 3,
+    "usesStampMaintenanceDoesNot": true,
+    "passBeforeFrameEnd": true,
+    "boundTexturesExcluded": true,
+    "descriptorsInvalidated": [
+      "shader_read",
+      "blit_engine_src"
+    ],
+    "settingsAndLogWired": true
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom571": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell573_test.py": "3af8f0e1b9bc789e02dd736d7007031d9df4234585f506c655b6d9a5309f1765",
+    "test/native/rpcs3_texture_residency573.inc": "ac65a3c031a47e00ed500c3e36c7e20634aa778501121744f1820394eb9e437c",
+    "test/native/rpcs3_scoped_revalidation573.inc": "1b16848c738ca4068095c57c347dbd301f937eb6b29bd4e1ee7cfef2f0362608"
+  },
+  "scope": "The 573 host models (eviction routine and scoped revalidation copied from the Core) on the Apple Silicon runner, and the iPhone Core built from the verified source. No iPhone FPS, frame time or memory result."
+}

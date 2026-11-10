@@ -1,0 +1,194 @@
+{
+  "run": {
+    "id": 41097173966,
+    "head_sha": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "head_branch": "Claude",
+    "path": ".github/workflows/melonx-core.yml",
+    "status": "completed",
+    "conclusion": "success",
+    "run_attempt": 1,
+    "event": "push",
+    "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41097173966",
+    "created_at": "2026-10-30T17:15:11Z",
+    "updated_at": "2026-10-30T17:23:26Z"
+  },
+  "job": {
+    "id": 124205742820,
+    "head_sha": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "run_id": 41097173966,
+    "run_attempt": 1,
+    "name": "core",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-10-30T17:15:14Z",
+    "completed_at": "2026-10-30T17:23:25Z",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-30T17:15:15Z",
+        "completed_at": "2026-10-30T17:15:17Z"
+      },
+      {
+        "name": "Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-30T17:15:17Z",
+        "completed_at": "2026-10-30T17:16:09Z"
+      },
+      {
+        "name": "Run actions/setup-dotnet@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-10-30T17:16:09Z",
+        "completed_at": "2026-10-30T17:16:18Z"
+      },
+      {
+        "name": "Pin the selected SDK for all new Apple gates",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-30T17:16:18Z",
+        "completed_at": "2026-10-30T17:16:18Z"
+      },
+      {
+        "name": "Authenticate engine82 evidence and reuse unchanged LibHac",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-30T17:16:18Z",
+        "completed_at": "2026-10-30T17:16:30Z"
+      },
+      {
+        "name": "Fetch exact MeloNX source",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-10-30T17:16:30Z",
+        "completed_at": "2026-10-30T17:16:37Z"
+      },
+      {
+        "name": "Verify Apple ARM64, exact SDK and reviewed Hogwarts launch preparation inputs",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-30T17:16:37Z",
+        "completed_at": "2026-10-30T17:16:39Z"
+      },
+      {
+        "name": "Run changed startup gate and authenticate36 exact-input receipts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-10-30T17:16:39Z",
+        "completed_at": "2026-10-30T17:17:02Z"
+      },
+      {
+        "name": "Compile NativeAOT library and verify exported ABI",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-10-30T17:17:02Z",
+        "completed_at": "2026-10-30T17:20:12Z"
+      },
+      {
+        "name": "Bind both new libraries to reviewed sources and gate receipts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-10-30T17:20:12Z",
+        "completed_at": "2026-10-30T17:20:12Z"
+      },
+      {
+        "name": "Run actions/download-artifact@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-10-30T17:20:12Z",
+        "completed_at": "2026-10-30T17:20:18Z"
+      },
+      {
+        "name": "Authenticate unchanged native frameworks",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-10-30T17:20:18Z",
+        "completed_at": "2026-10-30T17:20:18Z"
+      },
+      {
+        "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-10-30T17:20:18Z",
+        "completed_at": "2026-10-30T17:23:13Z"
+      },
+      {
+        "name": "Preserve the current runtime result including failures",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-30T17:23:13Z",
+        "completed_at": "2026-10-30T17:23:14Z"
+      },
+      {
+        "name": "Verify fresh guest execution, teardown and backing release",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-30T17:23:14Z",
+        "completed_at": "2026-10-30T17:23:15Z"
+      },
+      {
+        "name": "Run actions/upload-artifact@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-10-30T17:23:15Z",
+        "completed_at": "2026-10-30T17:23:21Z"
+      },
+      {
+        "name": "Post Run actions/setup-dotnet@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 31,
+        "started_at": "2026-10-30T17:23:21Z",
+        "completed_at": "2026-10-30T17:23:21Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 32,
+        "started_at": "2026-10-30T17:23:21Z",
+        "completed_at": "2026-10-30T17:23:22Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 33,
+        "started_at": "2026-10-30T17:23:22Z",
+        "completed_at": "2026-10-30T17:23:23Z"
+      }
+    ]
+  },
+  "artifact": {
+    "id": 12995694624,
+    "name": "MeloNX-engine-1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "size_in_bytes": 87595452,
+    "digest": "sha256:7dd844774ff7991a406db8d37e35bba8f7b3b46284d1a8e05359b1d3ba135928",
+    "expired": false,
+    "workflow_run": {
+      "id": 41097173966,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "1630bd0230c9431de92faec9c5e2662262b1ede6"
+    }
+  }
+}

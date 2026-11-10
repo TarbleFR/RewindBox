@@ -1,0 +1,57 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "variant": "candidate",
+      "checks": 88788,
+      "scenarios": 5766,
+      "strideMismatches": 0,
+      "firstDrawPipelineCacheMisses": 0,
+      "oneBufferStride": 8,
+      "expectedOneBufferStride": 8,
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false,
+      "strideOracleScope": "fresh bindings; no historical unused-buffer alignment"
+    },
+    {
+      "result": "passed",
+      "keyScenarios": 1485,
+      "checks": 4462,
+      "iterations": 20000,
+      "controlManagedBytes": 640000,
+      "candidateManagedBytes": 0,
+      "controlNativeAllocations": 20000,
+      "candidateNativeAllocations": 0,
+      "controlNativeAllocatedBytes": 4800000,
+      "candidateNativeAllocatedBytes": 0,
+      "controlNativeFrees": 20000,
+      "candidateNativeFrees": 0,
+      "actualCompilationAndCloneStageOwnershipPreserved": true,
+      "completeVulkanProductionSources": true,
+      "nativeHostAllocatorUsed": true,
+      "vulkanOrMetalCallsUsed": false
+    }
+  ],
+  "physicalDeviceTested": false,
+  "vulkanOrMetalCallsUsed": false,
+  "fullProductionVulkanAssembly": true,
+  "hostNativeAllocatorCounted": true,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_key_allocation.py": "e0fb5872c891137b15d5c8171cd4f1fac83bf8ac1491b84f8d8c0cd20cc01626",
+    "test/melonx_pipeline_key_allocation_test.py": "d752d4ce8b6cf4bce18344eb2c4d2f91011415a037b787417655d28c893e41a6",
+    "test/melonx_pipeline_key_allocation/Program.cs": "36f2823402f4c22956c6b57e5ad3df3422531262f163a2e3ddd4ec7cf477210c",
+    "test/melonx_pipeline_vertex_state/Program.cs": "aaf67e68ea022c1bd3b2fe95938ae980ec420da281bd4570cabb5a95923f586e"
+  },
+  "productionInputs": {
+    "PipelineConverter.cs": "2b7ab2e75738cad488b875ab97b951e3ed0d80fe8d9610995f18c00413c9943d",
+    "PipelineState.cs": "27a2e43f31b476f3d5df9e9b9de67d49ac4531b73bbea82f4fdccfe17e5bc2b1",
+    "ShaderCollection.cs": "79462a4a7f95680dc963b69c30c91ffb9c0f848445e2f3225972b2d33f708bae"
+  },
+  "unchangedNativeArrayInput": "620ae9d494a30823c5d9e4f7b9cd6b37be2c267660e50413ef9fb0c991e4e77e",
+  "productionPostimages": {
+    "PipelineConverter.cs": "d8d3533eb32f12a0778fde421041b4a0d56296adcc26cd5661f106eb07813920",
+    "PipelineState.cs": "ac28ab85a4404c1622b9097470b5203cb47ebf5361a1ec60d81fc02ab767b397",
+    "ShaderCollection.cs": "ceb5d7e9b903771c1e2b1b92c4007d57d8f49bc1a8c442db6a4502f3f6e3bad8"
+  },
+  "limitation": "Host allocation counts and key equality only; no iPhone FPS/RAM measurements."
+}

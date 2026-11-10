@@ -17,6 +17,7 @@
 #import "RPCS3TouchControls.h"
 #import <neo_touch_layout/NeoTouchLayout.h>
 #import "RPCS3PerformanceOverlay.h"
+#include "RPCS3OverlayButtonLayout.h"
 #include "RPCS3PerformanceSnapshot.h"
 #include "RPCS3FrameRateHold.h"
 #include <atomic>
@@ -24,6 +25,11 @@
 #import "RPCS3InGameLocalization.h"
 #import "Rpcs3SessionMenu.h"
 #import "RPCS3UnifiedCheats.h"
+// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: central RetroAchievements session,
+// shared toasts and the PS3 rcheevos client (optional Core hooks via dlsym).
+#import "Rpcs3Achievements.h"
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 // NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the game's Metal view can be shown on
 // NeoStation's window on the TV (docs/external-display-universal.md § 5).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -35,6 +41,7 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #import <mach/mach.h>
+#import <malloc/malloc.h>
 #import <os/lock.h>
 #import <os/proc.h>
 #import <sys/sysctl.h>
@@ -42,6 +49,9 @@
 
 static NSString* const kRpcs3Channel = @"neostation/rpcs3_internal";
 static const uint32_t kExpectedAbi = 30;
+// REWINDBOX_INCIDENT_REPORT_621: posted from the logging thread when a Core line
+// says the game cannot continue; observed on the main queue by the plugin.
+static NSString* const kRPCS3GameStoppedNotification = @"RPCS3GameStoppedWithError";
 // Preparation runs incrementally on NeoSwap's existing maintenance queue.
 // This boot sample grants nothing: allocation still requires a verified loan.
 static const uint64_t kNeoSwapBootMinimumBytes = 16ULL * 1024 * 1024;
@@ -320,21 +330,54 @@ static UIViewController* RPCS3RootViewController(void) {
   self.performanceOverlay.hidden = YES;
   [view addSubview:self.performanceOverlay];
 
-  [NSLayoutConstraint activateConstraints:@[
-    [menu.leadingAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.leadingAnchor constant:12],
-    // Keep RPCS3 actions in their own rail below the virtual shoulder row.
-    [menu.topAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.topAnchor constant:70],
-    [menu.widthAnchor constraintEqualToConstant:44],
-    [menu.heightAnchor constraintEqualToConstant:44],
-    [performance.centerXAnchor constraintEqualToAnchor:menu.centerXAnchor],
-    [performance.topAnchor constraintEqualToAnchor:menu.bottomAnchor constant:8],
-    [performance.widthAnchor constraintEqualToConstant:44],
-    [performance.heightAnchor constraintEqualToConstant:44],
-    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:menu.trailingAnchor constant:8],
-    [self.performanceOverlay.topAnchor constraintEqualToAnchor:menu.topAnchor],
-    [self.performanceOverlay.widthAnchor constraintEqualToConstant:320],
-    [self.performanceOverlay.heightAnchor constraintEqualToConstant:250],
-  ]];
+  // Frames come from rpcs3_overlay::compute (see layoutOverlayButtons).
+  menu.translatesAutoresizingMaskIntoConstraints = YES;
+  performance.translatesAutoresizingMaskIntoConstraints = YES;
+  self.performanceOverlay.translatesAutoresizingMaskIntoConstraints = YES;
+  [self layoutOverlayButtons];
+}
+static CGRect RPCS3ToCG(const rpcs3_overlay::Rect& r) { return CGRectMake(r.x, r.y, r.w, r.h); }
+- (void)layoutOverlayButtons {
+  UIView* root = self.view;
+  if (!root || root.bounds.size.width <= 0) return;
+  // Real control frames: the live views of the touch overlay (after its own
+  // layout and stored/custom layout), in this view's coordinates. Hidden
+  // overlay (controller connected / switch off) contributes nothing.
+  std::vector<rpcs3_overlay::Rect> occupied;
+  RPCS3TouchControlsView* touch = self.inputController.touchControls;
+  if (touch && !touch.hidden && touch.alpha > 0.01) {
+    [touch layoutIfNeeded];
+    for (NSString* identifier in @[@"dpad.up", @"dpad.down", @"dpad.left", @"dpad.right", @"square", @"cross",
+                                   @"circle", @"triangle", @"l1", @"l2", @"r1", @"r2", @"select", @"start",
+                                   @"stick.left", @"stick.right"]) {
+      UIView* control = [touch controlForIdentifier:identifier];
+      if (!control || !control.superview) continue;
+      // A control is on screen only if it and every ancestor below this view are shown.
+      BOOL shown = YES;
+      for (UIView* v = control; v && v != root; v = v.superview) {
+        if (v.hidden || v.alpha <= 0.01) { shown = NO; break; }
+      }
+      if (!shown) continue;
+      CGRect f = [control.superview convertRect:control.frame toView:root];
+      if (f.size.width > 0 && f.size.height > 0)
+        occupied.push_back({f.origin.x, f.origin.y, f.size.width, f.size.height});
+    }
+  }
+  // The Core letterboxes inside the Metal view; its image rect is not exposed
+  // natively, so the whole Metal view is treated as the image (never altered).
+  CGRect image = self.metalView.superview == root ? self.metalView.frame : root.bounds;
+  UIEdgeInsets safe = root.safeAreaInsets;
+  rpcs3_overlay::Layout layout = rpcs3_overlay::compute(
+      {root.bounds.origin.x, root.bounds.origin.y, root.bounds.size.width, root.bounds.size.height},
+      {safe.top, safe.left, safe.bottom, safe.right}, {image.origin.x, image.origin.y, image.size.width, image.size.height},
+      occupied);
+  self.menuButton.frame = RPCS3ToCG(layout.menu);
+  self.performanceButton.frame = RPCS3ToCG(layout.performanceButton);
+  self.performanceOverlay.frame = RPCS3ToCG(layout.panel);
+}
+- (void)viewSafeAreaInsetsDidChange {
+  [super viewSafeAreaInsetsDidChange];
+  [self.view setNeedsLayout];
 }
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
@@ -343,6 +386,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   [self.inputController layoutControlsInBounds:self.view.bounds safeAreaInsets:self.view.safeAreaInsets];
+  [self layoutOverlayButtons];
   // The virtual pad is installed after loadView; preserve the independent
   // action rail's hit testing above it without sharing any pad geometry.
   [self.view bringSubviewToFront:self.performanceOverlay];
@@ -360,6 +404,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)menuPressed { if (self.menuHandler) self.menuHandler(); }
 - (void)performancePressed {
   self.showingPerformance = !self.showingPerformance;
+  [self layoutOverlayButtons];  // controller visibility may have changed since the last layout
   [self.performanceOverlay reset];
   self.performanceOverlay.hidden = !self.showingPerformance;
   self.performanceButton.tintColor = self.showingPerformance ? UIColor.systemGreenColor : UIColor.whiteColor;
@@ -426,6 +471,10 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) BOOL ppuIdentityConflict;
 @property(nonatomic, assign) BOOL observePPUIdentity;
 @property(nonatomic, strong) RPCS3UnifiedCheats* unifiedCheats;
+// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the single-use launch snapshot and its
+// client. Read from the main and runtime queues.
+@property(atomic, strong) NSDictionary* achievementConfiguration;
+@property(atomic, strong) Rpcs3Achievements* achievements;
 @property(nonatomic, copy) NSString* activeUiLocale;
 @property(nonatomic, assign) BOOL audioSessionActive;
 @property(nonatomic, copy) NSString* previousAudioCategory;
@@ -434,6 +483,13 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) double previousPreferredSampleRate;
 @property(nonatomic, assign) NSTimeInterval previousPreferredIOBufferDuration;
 @property(nonatomic, assign) BOOL audioPolicyCaptured;
+// REWINDBOX_INCIDENT_REPORT_621: main thread only.
+@property(nonatomic, assign) BOOL hostMenuOpen;
+@property(nonatomic, assign) BOOL hostBackground;
+@property(nonatomic, assign) BOOL gameStoppedAlertShown;
+@property(nonatomic, copy) NSString* pendingPreviousIncident;
+@property(nonatomic, copy) NSString* lastUiLocale;
+@property(nonatomic, strong) NSArray* incidentObservers;
 @end
 
 @implementation Rpcs3InternalBridgePlugin {
@@ -454,6 +510,7 @@ static UIViewController* RPCS3RootViewController(void) {
   uint64_t _diagnosticPreviousGuestFrames;  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1
   BOOL _diagnosticGuestFramesKnown;
   rpcs3_ios_api _api;
+  rpcs3_ios_ra_api _raAPI;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1 (optional exports)
   int32_t (*_neoSwapClientStats)(NeoSwapClientStats*);
   rpcs3_ios_neoswap_relay_stats_getter _neoSwapRelayClientStats;
   rpcs3_ios_neoswap_relay_stats_ext_getter _neoSwapRelayClientStatsExt;
@@ -468,6 +525,9 @@ static UIViewController* RPCS3RootViewController(void) {
                                                               binaryMessenger:registrar.messenger];
   Rpcs3InternalBridgePlugin* instance = [[Rpcs3InternalBridgePlugin alloc] init];
   instance.channel = channel;
+  // REWINDBOX_INCIDENT_REPORT_621: a previous process that ended during a PS3
+  // session left its record; its incident is offered at the next PS3 launch.
+  instance.pendingPreviousIncident = RPCS3TakePreviousSessionIncident();
   [registrar addMethodCallDelegate:instance channel:channel];
 }
 
@@ -475,6 +535,30 @@ static UIViewController* RPCS3RootViewController(void) {
   self = [super init];
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.rpcs3.runtime", DISPATCH_QUEUE_SERIAL);
+    // REWINDBOX_INCIDENT_REPORT_621: the host context of freeze incidents and the
+    // game-stopped alert. Blocks run on the main queue.
+    __weak Rpcs3InternalBridgePlugin* weakInstance = self;
+    NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+    _incidentObservers = @[
+      [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        Rpcs3InternalBridgePlugin* bridge = weakInstance;
+        if (!bridge) return;
+        bridge.hostBackground = YES;
+        [bridge publishHostState];
+      }],
+      [center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        Rpcs3InternalBridgePlugin* bridge = weakInstance;
+        if (!bridge) return;
+        bridge.hostBackground = NO;
+        [bridge publishHostState];
+      }],
+      [center addObserverForName:kRPCS3GameStoppedNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        [weakInstance gameStoppedWithError:note.userInfo[@"message"]];
+      }],
+    ];
     memset(&_api, 0, sizeof(_api));
     if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
       RPCS3Milestone(@"early_jit_escrow_skipped", cpuError);
@@ -490,6 +574,125 @@ static UIViewController* RPCS3RootViewController(void) {
 
 - (NSString*)localized:(NSString*)key {
   return RPCS3LocalizedString(key, self.activeUiLocale);
+}
+
+// ---- REWINDBOX_INCIDENT_REPORT_621 ------------------------------------------
+// The incident model (Rpcs3Diagnostics.mm) learns the host context: the
+// RewindBox menu (which does not pause the PS3 emulation) and the background.
+- (void)publishHostState {
+  if (!self.gameController) return;  // no PS3 session: nothing to record
+  RPCS3HostState(self.hostMenuOpen, self.hostBackground);
+}
+
+// Main thread: closes the menu and alerts above the game view, then stops the
+// game; stopAndDismiss alone would only dismiss the topmost of them.
+- (void)closeOverlaysAndStop:(FlutterResult)result {
+  RPCS3GameViewController* owner = self.gameController;
+  if (owner.presentedViewController) {
+    [owner dismissViewControllerAnimated:NO completion:^{ [self stopAndDismiss:result]; }];
+  } else {
+    [self stopAndDismiss:result];
+  }
+}
+
+// The topmost view controller above `controller` (menu, alerts).
+static UIViewController* RPCS3TopmostController(UIViewController* controller) {
+  UIViewController* top = controller;
+  while (top.presentedViewController) top = top.presentedViewController;
+  return top;
+}
+
+// A Core line said the game cannot continue while the app still responds:
+// offer to close it, with or without a report. Once per session.
+- (void)gameStoppedWithError:(NSString*)message {
+  RPCS3GameViewController* controller = self.gameController;
+  if (!controller || self.gameStoppedAlertShown) return;
+  self.gameStoppedAlertShown = YES;
+  RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI alert=game_stopped");
+  UIAlertController* alert = [UIAlertController alertControllerWithTitle:[self localized:@"gameStoppedTitle"]
+                                                                 message:[self localized:@"gameStoppedMessage"]
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  [alert addAction:[UIAlertAction actionWithTitle:[self localized:@"closeAndReport"]
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction* action) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    if (!bridge) return;
+    RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI action=close_and_report");
+    [bridge closeOverlaysAndStop:^(id result) { [weakSelf presentIncidentReportFrom:nil]; }];
+  }]];
+  [alert addAction:[UIAlertAction actionWithTitle:[self localized:@"closeGame"]
+                                            style:UIAlertActionStyleCancel
+                                          handler:^(UIAlertAction* action) {
+    RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI action=close");
+    [weakSelf closeOverlaysAndStop:nil];
+  }]];
+  [RPCS3TopmostController(controller) presentViewController:alert animated:YES completion:nil];
+}
+
+// Builds the report off the main thread, then lets the tester choose where to
+// send it (share sheet). Nothing is sent without that choice.
+- (void)presentIncidentReportFrom:(UIViewController*)presenter {
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak UIViewController* weakPresenter = presenter;
+  RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI report=requested");
+  RPCS3BuildIncidentReport(^(NSString* path) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    UIViewController* host = weakPresenter;
+    host = host.view.window ? RPCS3TopmostController(host) : RPCS3RootViewController();
+    if (!bridge || !host) return;
+    if (!path.length) {
+      // The game may have stopped already: its locale is kept in lastUiLocale.
+      NSString* locale = bridge.activeUiLocale ?: bridge.lastUiLocale;
+      UIAlertController* failure = [UIAlertController alertControllerWithTitle:RPCS3LocalizedString(@"reportFailed", locale)
+                                                                       message:nil
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+      [failure addAction:[UIAlertAction actionWithTitle:RPCS3LocalizedString(@"ok", locale)
+                                                  style:UIAlertActionStyleDefault handler:nil]];
+      [host presentViewController:failure animated:YES completion:nil];
+      return;
+    }
+    UIActivityViewController* share = [[UIActivityViewController alloc]
+        initWithActivityItems:@[[NSURL fileURLWithPath:path]] applicationActivities:nil];
+    share.popoverPresentationController.sourceView = host.view;
+    share.popoverPresentationController.sourceRect =
+        CGRectMake(CGRectGetMidX(host.view.bounds), CGRectGetMidY(host.view.bounds), 1, 1);
+    share.completionWithItemsHandler = ^(UIActivityType activityType, BOOL completed, NSArray* items, NSError* error) {
+      RPCS3Diagnostic(@"incident_ui", [NSString stringWithFormat:@"INCIDENT_UI share=%@ completed=%d",
+          activityType ?: @"none", completed ? 1 : 0]);
+    };
+    [host presentViewController:share animated:YES completion:nil];
+  });
+}
+
+// The previous process ended during a PS3 session: offered once, at the next
+// PS3 launch; the incident file stays in every later report.
+- (void)offerPreviousIncidentIfAny {
+  NSString* pending = self.pendingPreviousIncident;
+  RPCS3GameViewController* controller = self.gameController;
+  if (!pending.length || !controller) return;
+  self.pendingPreviousIncident = nil;
+  RPCS3Diagnostic(@"incident_ui", [NSString stringWithFormat:@"INCIDENT_UI alert=previous_session file=%@",
+      pending.lastPathComponent]);
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakController = controller;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakController;
+    if (!bridge || !owner || owner != bridge.gameController) return;
+    UIAlertController* alert = [UIAlertController alertControllerWithTitle:[bridge localized:@"previousEndedTitle"]
+                                                                   message:[bridge localized:@"previousEndedMessage"]
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:[bridge localized:@"shareReport"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction* action) {
+      [weakSelf presentIncidentReportFrom:weakController];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:[bridge localized:@"later"]
+                                              style:UIAlertActionStyleCancel
+                                            handler:nil]];
+    [RPCS3TopmostController(owner) presentViewController:alert animated:YES completion:nil];
+  });
 }
 
 // NEOSTATION_RPCS3_BUILD256_HOST_V1: do not leak Core-owned English strings into localized alerts.
@@ -523,6 +726,41 @@ static NSString* RPCS3HostCPUTopology(void) {
       integer("hw.memsize")];
 }
 
+// These existing driver-cache boundaries precede RSX shader warmup. Retain
+// them even at notice level so a slow vkCreatePipelineCache import can be
+// distinguished from the later native warmup without logging each shader.
+static BOOL RPCS3PipelineCacheBoundary(const char* message) {
+  return strstr(message, "Vulkan driver pipeline cache: ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache path: ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache is ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache could not be read completely;") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache has an invalid size (") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache initialized ") != nullptr ||
+      (strstr(message, "Vulkan driver rejected ") != nullptr &&
+       strstr(message, " bytes of persisted pipeline cache data (VkResult ") != nullptr);
+}
+
+// This independent group cannot consume the ordinary 128-line budget or the
+// older milestone groups. All boot sessions share a maximum of 16 writes per
+// second; take the clock under the lock to keep concurrent callers ordered.
+static BOOL RPCS3AdmitPipelineCacheMilestone(void) {
+  static os_unfair_lock cacheLock = OS_UNFAIR_LOCK_INIT;
+  static CFTimeInterval cacheWindow = 0;
+  static BOOL cacheWindowKnown = NO;
+  static uint32_t cacheCount = 0;
+  os_unfair_lock_lock(&cacheLock);
+  const CFTimeInterval now = CACurrentMediaTime();
+  if (!cacheWindowKnown || now - cacheWindow >= 1.0) {
+    cacheWindowKnown = YES;
+    cacheWindow = now;
+    cacheCount = 0;
+  }
+  const BOOL allowed = cacheCount < 16;
+  if (allowed) ++cacheCount;
+  os_unfair_lock_unlock(&cacheLock);
+  return allowed;
+}
+
 // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: milestone stage of a Build 487 Core
 // line, or nullptr. Complete bounded freeze snapshots are persisted as one milestone.
 static const char* RPCS3Build487MilestoneStage(const char* message) {
@@ -534,6 +772,9 @@ static const char* RPCS3Build487MilestoneStage(const char* message) {
   if (strstr(message, "NEOSTATION_RESTART ") != nullptr) return "internal_restart";
   if (strstr(message, "SAVESTATE_BOOT ") != nullptr) return "savestate_boot";
   if (strstr(message, "FREEZE_DUMP begin ") != nullptr) return "freeze_dump";
+  // REWINDBOX_FREEZE_EPISODE_621: one begin and one end per episode.
+  if (strstr(message, "FREEZE_EPISODE begin ") != nullptr) return "freeze_episode_begin";
+  if (strstr(message, "FREEZE_EPISODE end ") != nullptr) return "freeze_episode_end";
   if (strstr(message, "MUTEX_DESTROY_BUSY ") != nullptr) return "mutex_destroy_busy";
   return nullptr;
 }
@@ -547,6 +788,22 @@ static BOOL RPCS3Build487AdmitBoundedLine(const char* message) {
   return mutexLines.fetch_add(1, std::memory_order_relaxed) < 64;
 }
 
+// CELL546: per-constructor and per-file restore steps (up to 512 + 256 lines
+// per restore) go to RPCS3-restore-trace.log. As milestones they cost ~0.17 ms
+// each (fsync on the restore thread) and their 512 KiB filled the milestone
+// file, whose truncation erased every earlier process in build 541. Restore
+// phases, limits and errors remain milestones.
+static BOOL RPCS3RestoreTraceDetail(const char* message) {
+  return strstr(message, "SAVESTATE_RESTORE phase=fxo_type_begin ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE phase=fxo_type_end ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE phase=fs_stage ") != nullptr;
+}
+
+// CELL546: lines refused by the per-second budget are counted and reported
+// with the first line of the next budget window instead of vanishing.
+static void RPCS3ReportDroppedLines(uint32_t dropped) {
+  RPCS3Diagnostic(@"core_log", [NSString stringWithFormat:@"LOG_BUDGET dropped=%u limit_per_s=128", dropped]);
+}
 // Milestones are bounded files: complete freeze snapshots fit within 66 KiB;
 // legacy begin summaries use 512 bytes and ordinary records use 1 KiB.
 static NSString* RPCS3Build487MilestoneText(const char* message) {
@@ -560,9 +817,163 @@ static NSString* RPCS3Build487MilestoneText(const char* message) {
   return text ?: @"";
 }
 
+// REWINDBOX_GRAPHICS_TESTS_612: the last "CONFIG_LAYERS part=rsx" line of the
+// Core (one per boot), read by the in-game accuracy test page to show the
+// effective values of the last boot and which of them are test overrides.
+static os_unfair_lock gRPCS3RsxConfigLock = OS_UNFAIR_LOCK_INIT;
+static std::string gRPCS3RsxConfigLine;
+
+static void RPCS3RememberRsxConfig(const char* message) {
+  const char* line = strstr(message, "CONFIG_LAYERS part=rsx");
+  if (!line) return;
+  std::string copy(line, strnlen(line, 1024));
+  os_unfair_lock_lock(&gRPCS3RsxConfigLock);
+  gRPCS3RsxConfigLine.swap(copy);
+  os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+}
+
+// key=value tokens of the last line (values percent-decoded), or nil when the
+// last boot that reported one was another title.
+static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(NSString* title) {
+  std::string line;
+  os_unfair_lock_lock(&gRPCS3RsxConfigLock);
+  line = gRPCS3RsxConfigLine;
+  os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+  NSString* text = line.empty() ? nil : [[NSString alloc] initWithBytes:line.data() length:line.size()
+                                                                encoding:NSUTF8StringEncoding];
+  if (!text.length || !title.length) return nil;
+  NSMutableDictionary<NSString*, NSString*>* values = [NSMutableDictionary dictionary];
+  for (NSString* token in [text componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]) {
+    const NSRange equal = [token rangeOfString:@"="];
+    if (equal.location == NSNotFound || equal.location == 0) continue;
+    NSString* value = [token substringFromIndex:equal.location + 1];
+    values[[token substringToIndex:equal.location]] = value.stringByRemovingPercentEncoding ?: value;
+  }
+  return [values[@"title"] isEqualToString:title] ? values : nil;
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: the only keys and values the accuracy test page
+// may write; "@inherit" (Core 612) removes the key's per-game test value.
+static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void) {
+  static NSDictionary<NSString*, NSArray<NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"gpu.zcull_accuracy": @[@"Precise", @"Approximate", @"Relaxed"],
+      @"debug.disable_occlusion": @[@"false", @"true"],
+      @"debug.emulate_depth_compare": @[@"false", @"true"],
+      @"advanced.disable_msl_fast_math": @[@"false", @"true"],
+      @"debug.disable_vertex_cache": @[@"false", @"true"],
+      @"gpu.shader_precision": @[@"Low", @"High", @"Ultra"],
+      @"experimental.position_invariance": @[@"Enabled", @"Disabled"],
+      @"experimental.moltenvk_async_submits": @[@"Enabled", @"Disabled"],
+      @"experimental.gpu_timing": @[@"Enabled", @"Disabled"],  // REWINDBOX_GPU_TIMING_621
+      @"experimental.zcull_on_demand": @[@"Enabled", @"Disabled"],  // REWINDBOX_ZCULL_DEMAND_BO2_621
+      // Core 627: per-game A/B tests of the optimizations.
+      @"experimental.zcull_wait_guard": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_cond_no_wait": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_conservative_reports": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_noop_spin_wait": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_qos_below_rsx": @[@"Enabled", @"Disabled"],
+      @"experimental.fifo_nop_fast_path": @[@"Enabled", @"Disabled"],
+      @"experimental.light_measurement": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_async_reads": @[@"Enabled", @"Disabled"],
+      @"experimental.fast_jit_load": @[@"Enabled", @"Disabled"],
+      @"experimental.jit_object_release": @[@"Enabled", @"Disabled"],
+      @"experimental.spirv_disk_cache": @[@"Enabled", @"Disabled"],
+      @"experimental.hardware_crypto": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_object_prefetch": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_direct_object_hits": @[@"Enabled", @"Disabled"],
+      @"experimental.texture_lookup_memo": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_depth_guard": @[@"Enabled", @"Disabled"],
+      @"experimental.ppu_grace": @[@"Enabled", @"Disabled"],
+      @"experimental.metal_renderer": @[@"Enabled", @"Disabled"],
+      // Core 912: PUT horizon A/B and the two captures started by closing the menu.
+      @"experimental.put_epoch_horizon": @[@"Enabled", @"Disabled"],
+      @"experimental.heavy_putllc_trace": @[@"Enabled", @"Disabled"],
+      @"experimental.ppu_region_profile": @[@"Enabled", @"Disabled"],
+    };
+  });
+  return values;
+}
+
+// The (key, value) pairs of one test command, or nil when it is not allowed.
+static NSArray<NSArray<NSString*>*>* RPCS3TestSettingChanges(NSString* command, id value) {
+  NSDictionary<NSString*, NSArray<NSString*>*>* allowed = RPCS3TestSettingValues();
+  if ([command isEqual:@"testReset"]) {
+    NSMutableArray<NSArray<NSString*>*>* changes = [NSMutableArray array];
+    for (NSString* key in [allowed.allKeys sortedArrayUsingSelector:@selector(compare:)])
+      [changes addObject:@[key, @"@inherit"]];
+    return changes;
+  }
+  if (![command isEqual:@"testSetting"] || ![value isKindOfClass:NSDictionary.class]) return nil;
+  NSString* key = ((NSDictionary*)value)[@"key"];
+  NSString* setting = ((NSDictionary*)value)[@"value"];
+  if (![key isKindOfClass:NSString.class] || ![setting isKindOfClass:NSString.class] || !allowed[key]) return nil;
+  if (![setting isEqualToString:@"@inherit"] && ![allowed[key] containsObject:setting]) return nil;
+  return @[@[key, setting]];
+}
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: carries out an admission decision of RPCS3Log.
+// A fatal-level line is written at once to RPCS3-last-fatal.log, then every
+// admitted line is queued for the journal, LOG_REPEAT / LOG_BUDGET lines first
+// (their bytes add up to what the admission reserved); a fatal line then waits
+// at most 500 ms for the queue to drain, so the lines before an abort reach the
+// kernel; a game-stopped line notifies the plugin (main queue).
+static void RPCS3ForwardCoreLog(const char* message, size_t length, const rpcs3_host::core_log_decision& decision,
+                                NSString* text) {
+  if (decision.fatal) RPCS3RecordFatalLine(message, decision.game_stopped);
+  if (!decision.before.empty()) {
+    size_t at = 0;
+    while (at < decision.before.size()) {
+      const size_t newline = decision.before.find('\n', at);
+      const size_t end = newline == std::string::npos ? decision.before.size() : newline;
+      const std::string piece = decision.before.substr(at, end - at);
+      RPCS3CoreLogLine([NSString stringWithUTF8String:piece.c_str()] ?: @"",
+                       piece.size() + (newline == std::string::npos ? 0 : 1));
+      at = end + 1;
+    }
+  }
+  if (decision.write) {
+    RPCS3CoreLogLine(text ?: ([NSString stringWithUTF8String:message] ?: @""), length);
+  }
+  if (decision.fatal) {
+    // At most one drain per second: a thread that logs fatal lines in a loop
+    // does not wait 500 ms for each of them.
+    static std::atomic<double> lastDrain{0.0};
+    const double now = CACurrentMediaTime();
+    double previous = lastDrain.load(std::memory_order_relaxed);
+    if ((previous == 0.0 || now - previous >= 1.0) &&
+        lastDrain.compare_exchange_strong(previous, now, std::memory_order_relaxed)) {
+      RPCS3DiagnosticsDrain(500);
+    }
+  }
+  if (decision.game_stopped) {
+    // Posted on the main queue: the logging emulator thread never waits for the UI.
+    NSString* stopped = text ?: ([NSString stringWithUTF8String:message] ?: @"");
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [NSNotificationCenter.defaultCenter postNotificationName:kRPCS3GameStoppedNotification
+                                                        object:nil
+                                                      userInfo:@{@"message": stopped}];
+    });
+  }
+}
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: the admission decision for one line of
+// RPCS3Log, then its forwarding. `text` is the line as an NSString when the
+// caller already made it.
+static void RPCS3AdmitCoreLog(int32_t level, const char* message, BOOL profiler, NSString* text) {
+  const size_t length = strlen(message);
+  const rpcs3_host::core_log_decision decision = RPCS3CoreLogAdmissionShared().admit(
+      level, std::string_view(message, length), profiler, CACurrentMediaTime());
+  RPCS3ForwardCoreLog(message, length, decision, text);
+}
+
 static void RPCS3Log(void* context, int32_t level, const char* message) {
   Rpcs3InternalBridgePlugin* bridge = (__bridge Rpcs3InternalBridgePlugin*)context;
   if (!bridge || !message) return;
+  // REWINDBOX_GRAPHICS_TESTS_612: kept for the accuracy test page (one line per boot).
+  if (strstr(message, "CONFIG_LAYERS part=rsx") != nullptr) RPCS3RememberRsxConfig(message);
   const std::string executable=RPCS3PPUIdentityFromLog(message);
   if(!executable.empty()) { @synchronized(bridge) {
     if(bridge.observePPUIdentity && !bridge.ppuIdentityConflict) {
@@ -585,11 +996,28 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
     RPCS3Milestone(@"boot_policy", [NSString stringWithUTF8String:message] ?: @"");
   } else if (strstr(message, "Applied iOS God of War III") != nullptr) {
     RPCS3Milestone(@"gow3_mlaa_bypass", [NSString stringWithUTF8String:message] ?: @"");
+  } else if (RPCS3RestoreTraceDetail(message)) {
+    RPCS3RestoreTrace(RPCS3Build487MilestoneText(message));
+    return;
+  } else if (RPCS3PipelineCacheBoundary(message)) {
+    if (RPCS3AdmitPipelineCacheMilestone()) {
+      RPCS3Milestone(@"vk_pipeline_cache", RPCS3Build487MilestoneText(message));
+    }
   } else if (const char* stage = RPCS3Build487MilestoneStage(message)) {
     // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: boot facts of the audit (D3, D4,
     // D5, D6, D8, D10) survive the 2 MiB diagnostic rotation as milestones.
     if (!RPCS3Build487AdmitBoundedLine(message)) return;
     RPCS3Milestone(@(stage), RPCS3Build487MilestoneText(message));
+  }
+  // REWINDBOX_CORE_LOG_BOUNDED_621: two kinds of line leave before the Build 283
+  // budget below, whose code stays as the dependency run's milestones test
+  // compiled it: a fatal-level line (logs::level::fatal = 1), never refused and
+  // written at once to RPCS3-last-fatal.log (report_fatal_error aborts right
+  // after this callback), and a FREEZE_EPISODE line (REWINDBOX_FREEZE_EPISODE_621),
+  // a bounded profiler line like FREEZE_DUMP.
+  if (level == 1 || strstr(message, "FREEZE_EPISODE ") != nullptr) {
+    RPCS3AdmitCoreLog(level, message, level != 1, nil);
+    return;
   }
   // SPUPROF and RANGELOCKPROF are computed by the Core every report period
   // but were never exported: the 7 October 2026 God of War III analysis needs
@@ -623,22 +1051,33 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
   static os_unfair_lock budgetLock = OS_UNFAIR_LOCK_INIT;
   static CFTimeInterval budgetWindow = 0;
   static uint32_t budgetCount = 0;
+  static uint32_t budgetDropped = 0;
   if (!profiler) {
     const CFTimeInterval now = CACurrentMediaTime();
     BOOL allowed = YES;
+    uint32_t dropped = 0;
     os_unfair_lock_lock(&budgetLock);
     if (budgetWindow == 0 || now - budgetWindow >= 1.0) {
       budgetWindow = now;
       budgetCount = 0;
+      dropped = budgetDropped;
+      budgetDropped = 0;
     }
-    if (budgetCount >= 128) allowed = NO;
-    else budgetCount++;
+    if (budgetCount >= 128) {
+      allowed = NO;
+      ++budgetDropped;
+    } else budgetCount++;
     os_unfair_lock_unlock(&budgetLock);
+    if (dropped) RPCS3ReportDroppedLines(dropped);
     if (!allowed) return;
   }
 
   NSString* text = [NSString stringWithUTF8String:message] ?: @"";
-  RPCS3Diagnostic(@"core_log", text);
+  // REWINDBOX_CORE_LOG_BOUNDED_621: then the repeat collapse and the writer
+  // backlog (Rpcs3CoreLogAdmission.h, its own per-second budget off since the
+  // one above applies), decided on this emulator thread without touching a
+  // file; the journal write is asynchronous.
+  RPCS3AdmitCoreLog(level, message, profiler, text);
 }
 
 static void RPCS3Dispatch(void* context,
@@ -727,6 +1166,33 @@ static void RPCS3Progress(void* context,
       return NO;
     }
     RPCS3Milestone(@"core_handoff_end", @"verified; entering dlopen");
+  }
+
+  // REWINDBOX_HOST_MEMORY_BEFORE_CORE_650: IPA 650 logs (4 Nov 2026): the AC
+  // process that lost its GPU (VK_ERROR_DEVICE_LOST) already had 2.5 GB of
+  // compressed pages at its first in-game memory sample, after 6.5 minutes in the
+  // RewindBox UI (0 compressed for the process relaunched 15 s after its start;
+  // 4.7 GB footprint against the 6655 MiB process limit). No line measured the
+  // process right before the Core loaded. This one does, returns the malloc
+  // zones' free pages to the kernel (malloc_zone_pressure_relief, free memory
+  // only: nothing live is released) and measures again, so the next device log
+  // attributes the pre-game footprint, resident, compressed and jetsam headroom.
+  {
+    task_vm_info_data_t before = {};
+    const BOOL measuredBefore = RPCS3TaskVMInfo(&before);
+    const uint64_t availableBefore = os_proc_available_memory();
+    const size_t relieved = malloc_zone_pressure_relief(NULL, 0);
+    task_vm_info_data_t after = {};
+    const BOOL measuredAfter = RPCS3TaskVMInfo(&after);
+    RPCS3Milestone(@"host_memory_before_core_load", [NSString stringWithFormat:
+        @"valid=%d footprint=%llu resident=%llu compressed=%llu available=%llu thermal=%ld "
+        @"malloc_relief=%zu valid_after=%d footprint_after=%llu compressed_after=%llu available_after=%llu physical=%llu",
+        measuredBefore ? 1 : 0, (unsigned long long)before.phys_footprint, (unsigned long long)before.resident_size,
+        (unsigned long long)before.compressed, (unsigned long long)availableBefore,
+        (long)NSProcessInfo.processInfo.thermalState, relieved, measuredAfter ? 1 : 0,
+        (unsigned long long)after.phys_footprint, (unsigned long long)after.compressed,
+        (unsigned long long)os_proc_available_memory(),
+        (unsigned long long)NSProcessInfo.processInfo.physicalMemory]);
   }
 
   RPCS3Milestone(@"core_load_begin",
@@ -1350,6 +1816,17 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     return;
   }
 
+  // REWINDBOX_GRAPHICS_TESTS_612: accuracy tests (whitelisted keys only).
+  if ([command isEqual:@"testSetting"] || [command isEqual:@"testReset"]) {
+    NSArray<NSArray<NSString*>*>* changes = RPCS3TestSettingChanges(command, value);
+    if (!changes.count) {
+      if (completion) completion(NO, [self localized:@"settingsFailed"]);
+      return;
+    }
+    [self applyTestSettingChanges:changes title:titleId completion:completion];
+    return;
+  }
+
   NSString* setting = nil;
   NSString* settingValue = nil;
   if ([command isEqual:@"resolution"] && [value isKindOfClass:NSString.class]) {
@@ -1377,17 +1854,108 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       return;
     }
     self.operationBusy = YES;
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
     rpcs3_ios_status status = self->_api.stop_emulation();
+    const BOOL stopped = status == 0;
     if (status == 0)
       status = self->_api.set_game_setting(titleId.UTF8String, setting.UTF8String, settingValue.UTF8String);
     if (status == 0)
       status = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+    // The title restarted (or kept running when the stop was refused).
+    if (!stopped) [achievements resumeWithoutRestart];
+    else [achievements resumeAfterRestart:status == 0 savestateBoot:NO
+                            cheatsEnabled:[self titleHasEnabledCheats:titleId]];
     NSString* message = status == 0 ? @"" : [self lastError];
     self.operationBusy = NO;
     if (status == 0)
       RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@", titleId, setting, settingValue]);
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(status == 0, status == 0 ? @"" : (message ?: [self localized:@"settingsFailed"]));
+    });
+  });
+}
+
+// REWINDBOX_CAPTURE_912: the menu does not pause the PS3 emulation, so closing
+// it is the explicit start of a capture enabled on the test page (digits 20 and
+// 21 of levers627= at the last boot of this title): the Core takes this write
+// of the running title as "start one capture now" and loads, changes and saves
+// no setting. Nothing is sent when no capture is enabled, nor when the title
+// was stopped or booted again since the menu closed (a change made on the test
+// page restarts it); the request and its status join the journal.
+- (void)requestEnabledCaptures {
+  NSString* titleId = [self.activeTitleId copy];
+  if (!titleId.length || !self.gameController) return;
+  const uint64_t boot = _performanceDisplayEpoch.load(std::memory_order_acquire);
+  NSString* digits = RPCS3RsxConfigSnapshot(titleId)[@"levers627"];
+  NSArray<NSArray*>* captures = @[@[@19, @"experimental.heavy_putllc_trace"],
+                                  @[@20, @"experimental.ppu_region_profile"]];
+  for (NSArray* capture in captures) {
+    const NSUInteger bit = [capture[0] unsignedIntegerValue];
+    if (digits.length <= bit) continue;
+    const NSInteger digit = [digits characterAtIndex:bit] - '0';
+    if (digit < 0 || digit > 9 || !(digit & 1)) continue;
+    NSString* key = capture[1];
+    dispatch_async(_runtimeQueue, ^{
+      if (self.operationBusy || !self->_api.set_game_setting ||
+          self->_performanceDisplayEpoch.load(std::memory_order_acquire) != boot) return;
+      const rpcs3_ios_status status = self->_api.set_game_setting(titleId.UTF8String, key.UTF8String, "Enabled");
+      RPCS3Diagnostic(@"capture_request", [NSString stringWithFormat:@"CAPTURE_REQUEST title=%@ key=%@ status=%d",
+                                           titleId, key, (int)status]);
+    });
+  }
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: stop, write every change, then boot the title
+// again even when a change was refused (the game continues with the values it
+// had); the menu reports the refusal. Each applied change is logged.
+- (void)applyTestSettingChanges:(NSArray<NSArray<NSString*>*>*)changes
+                          title:(NSString*)titleId
+                     completion:(void (^)(BOOL success, NSString* message))completion {
+  // A full custom configuration (legacy_custom=1 at the last boot) would keep every
+  // test value permanently and cannot be reverted key by key: refuse, keep the game.
+  if ([RPCS3RsxConfigSnapshot(titleId)[@"legacy_custom"] isEqualToString:@"1"]) {
+    if (completion) completion(NO, [self localized:@"accuracyLegacyBlocked"]);
+    return;
+  }
+  dispatch_async(_runtimeQueue, ^{
+    if (self.operationBusy || !self->_api.stop_emulation ||
+        !self->_api.set_game_setting || !self->_api.boot_game) {
+      NSString* message = self.operationBusy ? [self localized:@"stateBusy"] : [self lastError];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        if (completion) completion(NO, message ?: [self localized:@"settingsFailed"]);
+      });
+      return;
+    }
+    self.operationBusy = YES;
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
+    rpcs3_ios_status status = self->_api.stop_emulation();
+    const BOOL stopped = status == 0;
+    NSString* refusal = nil;
+    if (stopped) {
+      for (NSArray<NSString*>* change in changes) {
+        const rpcs3_ios_status set = self->_api.set_game_setting(
+            titleId.UTF8String, change[0].UTF8String, change[1].UTF8String);
+        if (set != 0) {
+          refusal = [self lastError] ?: [self localized:@"settingsFailed"];
+          RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@ test=1 refused=%d",
+                                            titleId, change[0], change[1], (int)set]);
+          break;
+        }
+        RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@ test=1",
+                                          titleId, change[0], change[1]]);
+      }
+      status = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+    }
+    if (!stopped) [achievements resumeWithoutRestart];
+    else [achievements resumeAfterRestart:status == 0 savestateBoot:NO
+                            cheatsEnabled:[self titleHasEnabledCheats:titleId]];
+    NSString* message = status == 0 ? (refusal ?: @"") : ([self lastError] ?: [self localized:@"settingsFailed"]);
+    self.operationBusy = NO;
+    const BOOL success = status == 0 && !refusal;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (completion) completion(success, message);
     });
   });
 }
@@ -1450,6 +2018,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (completion) completion(NO, [self localized:@"stateFailed"]);
     return;
   }
+  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: RetroAchievements Hardcore forbids
+  // loading a state (saving stays available).
+  if (load && [self achievementHardcoreRestrictionsActive]) {
+    completion(NO, RBRALocalizedText(@"hardcoreBlocked", self.activeUiLocale ?: @"en"));
+    return;
+  }
   dispatch_async(_runtimeQueue, ^{
     if (self.operationBusy) {
       dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, [self localized:@"stateBusy"]); });
@@ -1477,17 +2051,25 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, [self localized:@"stateInvalid"]); });
       return;
     }
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
     rpcs3_ios_status status = self->_api.stop_emulation();
     if (status == 0) status = [self bootTitleForCore:titleId.UTF8String savestate:identifier.UTF8String];
     NSString* message = @"";
+    BOOL booted = status == 0;
+    BOOL savestateBoot = status == 0;
     if (status != 0) {
       NSString* original = [self lastError];
       if (self->_api.stop_emulation) self->_api.stop_emulation();
       rpcs3_ios_status recovery = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+      booted = recovery == 0;
       message = [self localizedSavestateError:original];
       if (recovery == 0)
         message = [NSString stringWithFormat:@"%@\n%@", message, [self localized:@"stateFreshRestart"]];
     }
+    // Restored state or fresh restart: the run changed, rcheevos is reset.
+    [achievements resumeAfterRestart:booted savestateBoot:savestateBoot
+                       cheatsEnabled:[self titleHasEnabledCheats:titleId]];
     self.operationBusy = NO;
     dispatch_async(dispatch_get_main_queue(), ^{ completion(status == 0, message); });
   });
@@ -1546,6 +2128,113 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   RPCS3Diagnostic(@"external_display", @"menu=released reason=core_stopped");
 }
 
+#pragma mark - RetroAchievements (NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1)
+
+// The game view, or the TV when the external display shows the game.
+static UIView* RPCS3AchievementSurface(UIViewController* owner) {
+  NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+  if (owner && display.renderHost.placeholderView == owner.view && !display.window.hidden &&
+      display.renderHost.renderView.window == display.window && display.window != nil)
+    return display.window.rootViewController.view;
+  return owner.view;
+}
+
+// Any enabled patch or cheat of this title: Hardcore is then not applied.
+// Runtime queue only: the unified cheats store and its runtimePPUHash are
+// used there exclusively. The PPU-hash filter of the menu snapshot is
+// ignored here (stricter, never weaker).
+- (BOOL)titleHasEnabledCheats:(NSString*)titleId {
+  RPCS3UnifiedCheats* cheats = self.unifiedCheats;
+  if (!cheats || !titleId.length) return NO;
+  NSString* runtimeHash = cheats.runtimePPUHash;
+  cheats.runtimePPUHash = @"";
+  NSDictionary* snapshot = [cheats snapshotForTitle:titleId version:self.activeGameVersion ?: @""];
+  cheats.runtimePPUHash = runtimeHash ?: @"";
+  for (NSDictionary* item in snapshot[@"items"])
+    if ([item isKindOfClass:NSDictionary.class] && [item[@"enabled"] boolValue]) return YES;
+  return NO;
+}
+
+- (BOOL)achievementHardcoreRestrictionsActive {
+  return self.achievements.hardcoreRestrictionsActive;
+}
+
+// Main queue. The hub announces the launch status (account, recognition,
+// achievement set, observed Hardcore) from the state the client published.
+- (void)registerAchievementStatusPresenterForController:(RPCS3GameViewController*)controller {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || !controller || self.gameController != controller) return;
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakOwner = controller;
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.achievementConfiguration != configuration) return;
+    RPCS3Diagnostic(@"achievements.status", key ?: @"");
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+      return RPCS3AchievementSurface(weakOwner);
+    }, ^BOOL {
+      Rpcs3InternalBridgePlugin* active = weakSelf;
+      return active && weakOwner && active.gameController == weakOwner &&
+          active.achievementConfiguration == configuration;
+    });
+  });
+}
+
+// Runtime queue, after the Core accepted the boot of the launched title.
+- (void)startAchievementsForController:(RPCS3GameViewController*)controller
+                               titleId:(NSString*)titleId
+                         savestateBoot:(BOOL)savestateBoot {
+  NSDictionary* configuration = self.achievementConfiguration;
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakOwner = controller;
+  if (!configuration || ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue]) {
+    // RA off, no usable account or unsupported: the status (if any) comes
+    // from the snapshot alone.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf registerAchievementStatusPresenterForController:weakOwner];
+    });
+    return;
+  }
+  const BOOL hooks = [Rpcs3Achievements resolveCoreAPI:_api.handle api:&_raAPI];
+  RPCS3Diagnostic(@"achievements.core", [NSString stringWithFormat:@"hooks=%d savestate_boot=%d", hooks, savestateBoot]);
+  Rpcs3Achievements* achievements = [[Rpcs3Achievements alloc] initWithConfiguration:configuration api:_raAPI];
+  achievements.journal = ^(NSString* event, NSString* detail) { RPCS3Diagnostic(event, detail); };
+  achievements.presentationReady = ^{
+    [weakSelf registerAchievementStatusPresenterForController:weakOwner];
+  };
+  achievements.unlocked = ^(NSUInteger achievementID, NSString* title, NSString* description, NSUInteger points) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.achievementConfiguration != configuration ||
+        ![configuration[@"notifications"] boolValue]) return;
+    RPCS3Diagnostic(@"achievements.unlock_presented", [NSString stringWithFormat:@"id=%lu", (unsigned long)achievementID]);
+    // Title, description and points in the app language of this launch.
+    RBAchievementPresent(owner, (NSInteger)achievementID, title, description, RBRAPointsText(configuration, points),
+                         4.0, 1, ^UIView* {
+      return RPCS3AchievementSurface(weakOwner);
+    }, ^BOOL {
+      Rpcs3InternalBridgePlugin* active = weakSelf;
+      return active && weakOwner && active.gameController == weakOwner &&
+          active.achievementConfiguration == configuration && [configuration[@"notifications"] boolValue];
+    });
+  };
+  self.achievements = achievements;
+  [achievements startWithSavestateBoot:savestateBoot cheatsEnabled:[self titleHasEnabledCheats:titleId]];
+}
+
+// Any queue; idempotent. The client stops before the Core memory goes away,
+// then the central ticket of this launch is released.
+- (void)endAchievementSession {
+  Rpcs3Achievements* achievements = self.achievements;
+  self.achievements = nil;
+  [achievements shutdown];
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  if (configuration) RBRAEndSession(configuration);
+}
+
 - (void)showGameMenu {
   RPCS3GameViewController* controller = self.gameController;
   if (!controller || controller.presentedViewController) return;
@@ -1558,6 +2247,11 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   menu.touchControlsVisible = controller.inputController.isTouchControlsEnabled;
   menu.touchHideWithController = NeoTouchHidesControlsWithController(@"ps3");
   menu.languageChoices = [self languageChoices];
+  // REWINDBOX_GRAPHICS_TESTS_612: effective values of the title's last boot.
+  NSString* accuracyTitle = [self.activeTitleId copy] ?: @"";
+  menu.readAccuracy = ^{
+    return RPCS3RsxConfigSnapshot(accuracyTitle);
+  };
 
   __weak Rpcs3InternalBridgePlugin* weakSelf = self;
   __weak RPCS3GameViewController* weakController = controller;
@@ -1579,6 +2273,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       @synchronized(bridge){bridge.unifiedCheats.runtimePPUHash=bridge.observedPPUHash ?: @"";}
       NSDictionary* snapshot=bridge.gameController==owner
           ? [bridge.unifiedCheats snapshotForTitle:bridge.activeTitleId ?: @"" version:bridge.activeGameVersion ?: @""] : nil;
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: no cheat can be enabled in Hardcore.
+      if (snapshot && [bridge achievementHardcoreRestrictionsActive]) {
+        NSMutableDictionary* restricted=[snapshot mutableCopy]; restricted[@"hardcore"]=@YES; snapshot=[restricted copy];
+      }
       dispatch_async(dispatch_get_main_queue(),^{ completion(snapshot); });
     });
   };
@@ -1596,6 +2294,8 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   menu.setCheat = ^(NSString* identifier,BOOL enabled,void (^completion)(BOOL)) {
     Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
     if (!bridge || !owner) { completion(NO); return; }
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: disabling stays possible.
+    if (enabled && [bridge achievementHardcoreRestrictionsActive]) { completion(NO); return; }
     dispatch_async(bridge->_runtimeQueue,^{
       BOOL current=bridge.gameController==owner && [bridge.activeTitleId isEqual:cheatSerial] && [bridge.activeGameVersion isEqual:cheatVersion];
       BOOL success=current && [bridge.unifiedCheats setIdentifier:identifier enabled:enabled serial:cheatSerial];
@@ -1621,6 +2321,25 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       [bridge stopAndDismiss:nil];
     }];
   };
+
+  // REWINDBOX_INCIDENT_REPORT_621: menu visibility for incidents, and the
+  // "Report a problem" row (the tester chooses where the report goes).
+  menu.menuDismissed = ^{
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    if (!bridge) return;
+    // REWINDBOX_CAPTURE_914: one request per enabled capture for one closing of
+    // the menu: only the change from open to closed asks, a second callback of
+    // the same dismissal asks nothing.
+    const BOOL wasOpen = bridge.hostMenuOpen;
+    bridge.hostMenuOpen = NO;
+    [bridge publishHostState];
+    if (wasOpen) [bridge requestEnabledCaptures];
+  };
+  menu.shareReport = ^(UIViewController* presenter) {
+    [weakSelf presentIncidentReportFrom:presenter];
+  };
+  self.hostMenuOpen = YES;
+  [self publishHostState];
 
   UINavigationController* navigation =
       [[UINavigationController alloc] initWithRootViewController:menu];
@@ -1797,6 +2516,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
         @"stage": @"game_boot", @"message": @"NeoSwap could not open the RPCS3 adaptive memory session."});
       return;
     }
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the single-use central snapshot
+    // of this launch (disabled when RA is off, unsupported or signed out).
+    // Released by endAchievementSession on every exit path below.
+    self.achievementConfiguration = RBRATakeLaunchConfiguration(args, @"rpcs3");
     // Sub-MiB RSX buffers borrow relay host loans or donor pages for every
     // title; the global budget closes the gate under measured pressure. The
     // God of War III list only selects the high-footprint Core profile now.
@@ -1832,6 +2555,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       self.gameController = controller;
       self.activeTitleId = titleId;
       self.activeUiLocale = controller.uiLocale;
+      // REWINDBOX_INCIDENT_REPORT_621: a new session's host context.
+      self.lastUiLocale = controller.uiLocale;
+      self.gameStoppedAlertShown = NO;
+      self.hostMenuOpen = NO;
+      [self publishHostState];
+      [self offerPreviousIncidentIfAny];
     };
     if (NSThread.isMainThread) present();
     else dispatch_sync(dispatch_get_main_queue(), present);
@@ -1844,6 +2573,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       self.activeTitleId = nil;
       @synchronized(self){self.observePPUIdentity=NO;self.observedPPUHash=nil;}
       self.activeUiLocale = nil;
+      [self endAchievementSession];
       NeoSwapStorage_EndSession();
       NeoSwap_SetOwnerSessionActive(NEOSWAP_RPCS3, 0);
       result(@{@"success": @NO, @"code": @"RPCS3_DISPLAY_SURFACE_FAILED",
@@ -1947,6 +2677,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       }
       if (bootStatus == 0) [self startDiagnosticPerformanceSampling];
       else [self stopAndDismiss:nil];
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the Core accepted this title.
+      if (bootStatus == 0)
+        [self startAchievementsForController:controller titleId:titleId savestateBoot:savestateId.length > 0];
       dispatch_async(dispatch_get_main_queue(), ^{ result(payload); });
     });
     return;
@@ -1984,8 +2717,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   [self detachExternalDisplay];
   dispatch_async(_runtimeQueue, ^{
     BOOL ok = YES;
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: no frame is evaluated while the
+    // Core stops; the client ends only if the stop succeeds.
+    [self.achievements suspendForRestart];
     if (self.initialized && self->_api.stop_emulation) ok = self->_api.stop_emulation() == 0;
     if (!ok) {
+      [self.achievements resumeWithoutRestart];
       [self showMessage:[self localized:@"state"] message:[self lastError]];
       dispatch_async(dispatch_get_main_queue(), ^{
         // The save still owns Emu and the session goes on: the game returns
@@ -1997,6 +2734,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
+    [self endAchievementSession];
+    // REWINDBOX_INCIDENT_REPORT_621: a clean stop; the record is marked stopped.
+    RPCS3SessionStopped();
     if (self.activeTitleId.length && self.unifiedCheats &&
         ![self.unifiedCheats applyPendingWhileStoppedForTitle:self.activeTitleId])
       RPCS3Diagnostic(@"cheats.pending",@"Catalogue changes remain pending; no personal patch was replaced.");

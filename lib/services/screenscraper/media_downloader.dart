@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import 'package:neostation/services/logger_service.dart';
 
 import 'region_config.dart';
 import 'rom_hasher.dart';
+import 'media_placeholder.dart';
 import 'media_resolver.dart';
 import 'screenscraper_client.dart';
 
@@ -39,26 +41,57 @@ class ScreenscraperMediaDownloader {
     }
   }
 
-  static Future<({bool success, bool wasExisting})> _downloadMediaFileSmart(
+  static const _imageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
+
+  /// The media already on disk for [fullPath]: that file, or for a picture
+  /// the same name with another image extension (a cover imported as JPEG
+  /// stands for the PNG ScreenScraper would send).
+  static Future<String?> _existingMediaPath(String fullPath) async {
+    if (await File(fullPath).exists()) return fullPath;
+    final ext = path.extension(fullPath).replaceFirst('.', '').toLowerCase();
+    if (!_imageExtensions.contains(ext)) return null;
+    final base = path.withoutExtension(fullPath);
+    for (final other in _imageExtensions) {
+      if (other == ext) continue;
+      final candidate = '$base.$other';
+      if (await File(candidate).exists()) return candidate;
+    }
+    return null;
+  }
+
+  static Future<({bool success, bool wasExisting, bool replaced})> _downloadMediaFileSmart(
     String url,
     String relativePath,
     String userDataDir, {
     required String mediaType,
     bool forceOverwrite = false,
     int? maxDailyRequests,
+    String? systemFolder,
+    ScreenscraperMediaVariants? variants,
   }) async {
     final fullPath = path.join(userDataDir, relativePath);
     final file = File(fullPath);
 
     try {
-      final existed = await file.exists();
-      if (existed) {
-        final validExisting = await isValidMediaFile(file, mediaType);
+      var replacing = false;
+      final existingPath = await _existingMediaPath(fullPath);
+      if (existingPath != null) {
+        final validExisting = await isValidMediaFile(File(existingPath), mediaType);
         if (validExisting && !forceOverwrite) {
-          await _removeCompetingImageVariants(fullPath);
-          return (success: true, wasExisting: true);
-        }
-        if (!validExisting) {
+          // Content already present is kept, unless it is an imported
+          // console icon or, when the choices changed, a ScreenScraper
+          // picture of another variant than the best one for them.
+          final placeholder =
+              systemFolder != null && ScrapeMediaPlaceholder.isPlaceholder(systemFolder, mediaType, existingPath);
+          final otherVariant = !placeholder && variants != null && await variants.isOtherVariant(existingPath);
+          if (!placeholder && !otherVariant) {
+            if (existingPath == fullPath) await _removeCompetingImageVariants(fullPath);
+            return (success: true, wasExisting: true, replaced: false);
+          }
+          replacing = true;
+        } else if (validExisting) {
+          replacing = true;
+        } else if (existingPath == fullPath) {
           try {
             await file.delete();
           } catch (_) {}
@@ -73,7 +106,7 @@ class ScreenscraperMediaDownloader {
       );
       if (response.statusCode != 200) {
         _log.e('Error downloading media (${response.statusCode}): $url');
-        return (success: false, wasExisting: false);
+        return (success: false, wasExisting: false, replaced: false);
       }
 
       final contentType = response.headers['content-type'] ?? '';
@@ -87,7 +120,7 @@ class ScreenscraperMediaDownloader {
           '(${response.bodyBytes.length} bytes, $contentType): '
           '${_safeBodyPrefix(response.bodyBytes)}',
         );
-        return (success: false, wasExisting: false);
+        return (success: false, wasExisting: false, replaced: false);
       }
 
       await file.parent.create(recursive: true);
@@ -106,10 +139,10 @@ class ScreenscraperMediaDownloader {
       }
 
       await _removeCompetingImageVariants(fullPath);
-      return (success: true, wasExisting: false);
+      return (success: true, wasExisting: false, replaced: replacing);
     } catch (e) {
       _log.e('Error downloading media: $e');
-      return (success: false, wasExisting: false);
+      return (success: false, wasExisting: false, replaced: false);
     }
   }
 
@@ -151,8 +184,14 @@ class ScreenscraperMediaDownloader {
   static Future<bool> isValidMediaFile(File file, String mediaType) async {
     try {
       if (!await file.exists()) return false;
-      final bytes = await file.readAsBytes();
-      return isValidMediaPayload(bytes, mediaType: mediaType);
+      // The signatures sit in the first bytes: a video is not read whole.
+      final raf = await file.open();
+      try {
+        final bytes = await raf.read(256);
+        return isValidMediaPayload(bytes, mediaType: mediaType);
+      } finally {
+        await raf.close();
+      }
     } catch (_) {
       return false;
     }
@@ -250,6 +289,15 @@ class ScreenscraperMediaDownloader {
         .trim();
   }
 
+  /// Downloads the media of one game for the enabled settings.
+  ///
+  /// Media already present are kept unless [forceOverwrite] ("All content"),
+  /// except an imported console icon, always replaced. [protectedTypes] are
+  /// never written: faces chosen by hand or by the box-media sources
+  /// (docs/game-box-3d.md § 18). With [replaceOtherVariants] ("New content
+  /// only" after the choices changed), a picture or a manual proven to be
+  /// another ScreenScraper variant (same MD5 as one ScreenScraper lists) is
+  /// replaced by the best one for the current regions and language (§ 19).
   static Future<Map<String, dynamic>> downloadGameMedia(
     String systemFolder,
     String romName,
@@ -262,24 +310,33 @@ class ScreenscraperMediaDownloader {
     List<String>? allowedMediaTypes,
     bool forceOverwrite = false,
     int? maxDailyRequests,
+    Set<String> protectedTypes = const {},
+    bool replaceOtherVariants = false,
   }) async {
+    final mediaTypes = expandMediaTypes(
+      allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'],
+    );
+    final protectedEnabled = [
+      for (final t in mediaTypes)
+        if (protectedTypes.contains(t)) t,
+    ];
     if (medias.isEmpty) {
       return {
         'success': true,
         'downloadedTypes': <String>[],
-        'existingTypes': <String>[],
+        'existingTypes': protectedEnabled,
+        'replacedTypes': <String>[],
+        'protectedTypes': protectedEnabled,
         'cancelled': false,
       };
     }
 
     final userDataDir = await ScreenscraperMediaResolver.getMediaDirectory();
     final regionPriority = await ScreenscraperRegionConfig.getRegionPriority();
-    final mediaTypes = expandMediaTypes(
-      allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'],
-    );
 
     final downloadTasks = <Map<String, dynamic>>[];
     for (final mediaType in mediaTypes) {
+      if (protectedTypes.contains(mediaType)) continue;
       final bestMedia = ScreenscraperMediaResolver.selectBestMedia(
         medias,
         mediaType,
@@ -305,6 +362,12 @@ class ScreenscraperMediaDownloader {
         'url': bestMedia['url'].toString(),
         'relativePath': '$systemFolder/$folderName/$romBaseName.$fileFormat',
         'mediaType': mediaType,
+        // A manual is replaced too: a new language brings its own print.
+        if (replaceOtherVariants && mediaType != 'video')
+          'variants': ScreenscraperMediaVariants.of(
+            bestMedia,
+            ScreenscraperMediaResolver.candidatesOf(medias, mediaType),
+          ),
       });
     }
 
@@ -312,7 +375,9 @@ class ScreenscraperMediaDownloader {
       return {
         'success': true,
         'downloadedTypes': <String>[],
-        'existingTypes': <String>[],
+        'existingTypes': protectedEnabled,
+        'replacedTypes': <String>[],
+        'protectedTypes': protectedEnabled,
         'cancelled': false,
       };
     }
@@ -326,7 +391,8 @@ class ScreenscraperMediaDownloader {
     }
 
     final downloadedTypes = <String>[];
-    final existingTypes = <String>[];
+    final existingTypes = <String>[...protectedEnabled];
+    final replacedTypes = <String>[];
     var wasCancelled = false;
     var completedTasks = 0;
 
@@ -345,11 +411,14 @@ class ScreenscraperMediaDownloader {
             mediaType: task['mediaType'] as String,
             forceOverwrite: forceOverwrite,
             maxDailyRequests: maxDailyRequests,
+            systemFolder: systemFolder,
+            variants: task['variants'] as ScreenscraperMediaVariants?,
           );
           return {
             'mediaType': task['mediaType'],
             'success': outcome.success,
             'wasExisting': outcome.wasExisting,
+            'replaced': outcome.replaced,
           };
         }),
       );
@@ -361,6 +430,7 @@ class ScreenscraperMediaDownloader {
           existingTypes.add(mediaType);
         } else {
           downloadedTypes.add(mediaType);
+          if (result['replaced'] == true) replacedTypes.add(mediaType);
         }
       }
 
@@ -373,10 +443,65 @@ class ScreenscraperMediaDownloader {
 
     final totalAvailable = downloadedTypes.length + existingTypes.length;
     return {
-      'success': totalAvailable == downloadTasks.length && !wasCancelled,
+      'success': totalAvailable == downloadTasks.length + protectedEnabled.length && !wasCancelled,
       'downloadedTypes': downloadedTypes,
       'existingTypes': existingTypes,
+      'replacedTypes': replacedTypes,
+      'protectedTypes': protectedEnabled,
       'cancelled': wasCancelled,
     };
+  }
+}
+
+/// The ScreenScraper variants of one media setting, to tell a picture
+/// ScreenScraper sent earlier (its MD5 is listed) from any other picture —
+/// imported, chosen by hand or from another scraper — which is never
+/// replaced by "New content only".
+class ScreenscraperMediaVariants {
+  ScreenscraperMediaVariants._(this.bestMd5, this.knownMd5, this.knownSizes);
+
+  /// Null when ScreenScraper lists no MD5 for the best variant.
+  static ScreenscraperMediaVariants? of(Map<String, dynamic> best, List<Map<String, dynamic>> all) {
+    String? md5Of(Map<String, dynamic> m) {
+      final v = m['md5']?.toString().trim().toLowerCase() ?? '';
+      return v.isEmpty ? null : v;
+    }
+
+    final bestMd5 = md5Of(best);
+    if (bestMd5 == null) return null;
+    final known = <String>{};
+    final sizes = <int>{};
+    var everySized = true;
+    for (final m in all) {
+      final h = md5Of(m);
+      if (h == null) continue;
+      known.add(h);
+      final size = int.tryParse(m['size']?.toString() ?? '');
+      if (size != null && size > 0) {
+        sizes.add(size);
+      } else {
+        everySized = false;
+      }
+    }
+    return ScreenscraperMediaVariants._(bestMd5, known, everySized ? sizes : const {});
+  }
+
+  final String bestMd5;
+  final Set<String> knownMd5;
+
+  /// Sizes ScreenScraper lists, when it lists them for every variant: a file
+  /// of another length was not sent by ScreenScraper and is not even hashed.
+  final Set<int> knownSizes;
+
+  /// Whether [path] holds a ScreenScraper variant other than the best one.
+  Future<bool> isOtherVariant(String path) async {
+    try {
+      final file = File(path);
+      if (knownSizes.isNotEmpty && !knownSizes.contains(await file.length())) return false;
+      final digest = (await md5.bind(file.openRead()).first).toString();
+      return digest != bestMd5 && knownMd5.contains(digest);
+    } catch (_) {
+      return false;
+    }
   }
 }

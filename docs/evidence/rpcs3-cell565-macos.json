@@ -1,0 +1,226 @@
+{
+  "build": 565,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "07e416c42bbdfaede2df1870ccd7fda91d97abce",
+  "run": 40533429692,
+  "workflow": ".github/workflows/rpcs3-cell565-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12748151352,
+      "name": "RPCS3Core-07e416c42bbdfaede2df1870ccd7fda91d97abce",
+      "bytes": 29071446,
+      "digest": "sha256:51a5e32edb30a80b0caabbda3278399695aa84a3ef39678a3460eccc1300fe34"
+    },
+    "diagnostics": {
+      "id": 12749120157,
+      "bytes": 205624,
+      "digest": "sha256:1d106aa44f040aea2dc5b31cf3518e7d6c0deba1388f877fd85f34acf8015355"
+    }
+  },
+  "core": {
+    "sha256": "428b11e6bc51a283fd1ff2ffcc3fe7307a3dba44461a9f170005752c8db15ca5",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "51dbbaa51ab446938003d1e765ce1b6991bd12de7eda9bf50cbd87488f6cc453",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom563": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers565": [
+      "No-op PUTLLC Keeps Reservations",
+      "experimental.noop_putllc_keeps_reservations",
+      "RSX Idle Park",
+      "experimental.rsx_idle_park",
+      "noop_putllc=%d rsx_idle_park=%d"
+    ],
+    "replaces": {
+      "source": "dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+      "run": 40500425037,
+      "sha256": "7e3ef6ad788d522810bd6b24b28abdb769b298b05c3394402a917f231c408447"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell565"
+    ]
+  },
+  "results": {
+    "addressUndefined": {
+      "policyCases": 162,
+      "noopProtocolCases": 10,
+      "contention": {
+        "pollers": 3,
+        "increments": 20000,
+        "keep": {
+          "workerFailures": 0,
+          "workerAttempts": 20000,
+          "pollerSuccesses": 4,
+          "pollerFailures": 442,
+          "elapsedUs": 709,
+          "finalTime": 2560000
+        },
+        "advance": {
+          "workerFailures": 2,
+          "workerAttempts": 20002,
+          "pollerSuccesses": 51,
+          "pollerFailures": 771,
+          "elapsedUs": 723,
+          "finalTime": 2566528
+        }
+      },
+      "park": {
+        "graceUs": 1000,
+        "sliceUs": 50,
+        "firstParkAfterUs": 1410,
+        "wakes": 200,
+        "woken": 200,
+        "medianWakeUs": 2,
+        "maxWakeUs": 15,
+        "notifyWaitUs": 6,
+        "disabledCpuUs": 59618,
+        "disabledWallUs": 60000,
+        "enabledCpuUs": 1589,
+        "enabledWallUs": 60141,
+        "resetRestartsGrace": true,
+        "wakeWithoutParkedIsNoop": true
+      }
+    },
+    "thread": {
+      "policyCases": 162,
+      "noopProtocolCases": 10,
+      "contention": {
+        "pollers": 3,
+        "increments": 20000,
+        "keep": {
+          "workerFailures": 0,
+          "workerAttempts": 20000,
+          "pollerSuccesses": 12899,
+          "pollerFailures": 7444,
+          "elapsedUs": 26546,
+          "finalTime": 2560000
+        },
+        "advance": {
+          "workerFailures": 6,
+          "workerAttempts": 20006,
+          "pollerSuccesses": 5003,
+          "pollerFailures": 7983,
+          "elapsedUs": 27756,
+          "finalTime": 3200384
+        }
+      },
+      "park": {
+        "graceUs": 1000,
+        "sliceUs": 50,
+        "firstParkAfterUs": 1296,
+        "wakes": 200,
+        "woken": 200,
+        "medianWakeUs": 4,
+        "maxWakeUs": 19,
+        "notifyWaitUs": 10,
+        "disabledCpuUs": 53555,
+        "disabledWallUs": 60424,
+        "enabledCpuUs": 1963,
+        "enabledWallUs": 60008,
+        "resetRestartsGrace": true,
+        "wakeWithoutParkedIsNoop": true
+      }
+    },
+    "optimizedTimingAppleSilicon": {
+      "policyCases": 162,
+      "noopProtocolCases": 10,
+      "contention": {
+        "pollers": 3,
+        "increments": 200000,
+        "keep": {
+          "workerFailures": 0,
+          "workerAttempts": 200000,
+          "pollerSuccesses": 510,
+          "pollerFailures": 2526,
+          "elapsedUs": 3845,
+          "finalTime": 25600000
+        },
+        "advance": {
+          "workerFailures": 637736,
+          "workerAttempts": 837736,
+          "pollerSuccesses": 648480,
+          "pollerFailures": 46980,
+          "elapsedUs": 48864,
+          "finalTime": 108605440
+        }
+      },
+      "park": {
+        "graceUs": 1000,
+        "sliceUs": 50,
+        "firstParkAfterUs": 1302,
+        "wakes": 200,
+        "woken": 200,
+        "medianWakeUs": 2,
+        "maxWakeUs": 15,
+        "notifyWaitUs": 6,
+        "disabledCpuUs": 56435,
+        "disabledWallUs": 60153,
+        "enabledCpuUs": 1724,
+        "enabledWallUs": 60292,
+        "resetRestartsGrace": true,
+        "wakeWithoutParkedIsNoop": true
+      }
+    },
+    "codegenIdentity": {
+      "identities": {
+        "PPU": "a987639e9f838d1c",
+        "SPU": "d070cb361bdef607"
+      },
+      "unchangedFrom563": true,
+      "spuThreadAlias": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+      "coldCompileRequiredByThisChange": false
+    },
+    "placement": {
+      "noopBlockOnlyAddition": true,
+      "parkBeforeYieldLoop": true,
+      "idlePeriodEndsOnResume": true,
+      "wakeSites": {
+        "rpcs3/Emu/RSX/VK/VKGSRender.cpp": 2,
+        "rpcs3/Emu/RSX/RSXThread.cpp": 1,
+        "rpcs3/Emu/RSX/RSXZCULL.cpp": 1
+      },
+      "nonIOSUnchanged": true,
+      "graceUs": 1000,
+      "sliceUs": 50
+    },
+    "earlySubmit": {
+      "automatic": "BLES01658 on for the whole session",
+      "headerAndReporterEqual561": true,
+      "alternationRemoved": true
+    }
+  },
+  "harnessSHA256": "3ba842a69311acb38b014cba684023aeede7fc6cd67b101973cfaa59d92c7bad",
+  "inputsSHA256": {
+    "test/rpcs3_cell565_test.py": "a074e99893eaa32d3e6e4b888e328eb54b0c639d955118432c57b6b98a93380f",
+    "test/native/rpcs3_spu_rsx565.inc": "5a771eed9feb313bb5efa747548bcf67a33ff4a405b25b400615728a650b0f3f"
+  },
+  "firstRun": {
+    "run": 40532040733,
+    "source": "36ff40f6f9668dcdc1165cd72f967a94cdba8476",
+    "conclusion": "failure",
+    "cause": "native preflight: harness timing check (first park 999 us against the 1000 us grace, clock read before the park block); fixed in 07e416c, no production source changed"
+  },
+  "scope": "Host behaviour on the Apple Silicon CI runner: the three-poller model and the idle-park CPU time are not iPhone game measurements; no FPS gain is claimed."
+}

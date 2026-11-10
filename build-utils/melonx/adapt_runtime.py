@@ -34,6 +34,20 @@ def disable_ios_host_import(source):
          '                !OperatingSystem.IsIOS() && _physicalDevice.IsDeviceExtensionPresent(ExtExternalMemoryHost.ExtensionName),')
     return [initialization, renderer]
 
+def preserve_fence_errors(source):
+    fences = source / 'src/Ryujinx.Graphics.Vulkan/FenceHelper.cs'
+    # A timeout is a pending fence. Device loss / OOM are failures, not a
+    # pending fence. Do not strand polling loops or hide the original result.
+    for wait_all in ('false', 'true'):
+        once(fences,
+             f'            return api.WaitForFences(device, (uint)fences.Length, fences, {wait_all}, timeout) == Result.Success;',
+             f'''            Result result = api.WaitForFences(device, (uint)fences.Length, fences, {wait_all}, timeout);
+            if (result == Result.Timeout) return false;
+            result.ThrowOnError();
+            return true;''')
+    return [fences]
+
+
 def apply(source):
     project = source / 'src/Ryujinx.Library/Ryujinx.Library.csproj'
     once(project, '<RuntimeIdentifiers>ios-arm64</RuntimeIdentifiers>',
@@ -168,4 +182,5 @@ def apply(source):
                 context.MarkLabel(callPrevious);
             }''')
     gpu_fallback = disable_ios_host_import(source)
-    return [project, library, ffmpeg, vk, memory, translator, cache, registration, signal, generator, *gpu_fallback]
+    fence_errors = preserve_fence_errors(source)
+    return [project, library, ffmpeg, vk, memory, translator, cache, registration, signal, generator, *fence_errors, *gpu_fallback]

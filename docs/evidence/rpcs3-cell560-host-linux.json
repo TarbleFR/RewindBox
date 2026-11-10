@@ -1,0 +1,177 @@
+{
+  "build": 560,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "baseline": "9e7bed794e71afde8817c6201cfdf4c72b1ae761",
+  "sourcePatchSHA256": "af53dc2368a7e458081824dfd6dafc3f2ad992674d3f7aeccbf697626f4d8b69",
+  "fixtureSHA256": "4da53ebb91988b88f3231cea20d0fb3ff3aec62e0098c323d9072d2b164e6cec",
+  "hostPreflight": {
+    "command": "CXX=clang++-22 python3 .github/diagnostics/rpcs3cell560_core.py --source <fresh materialized source>",
+    "host": "Linux x86_64 (cloud container)",
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "proofAllTestsPassed": true,
+    "verifyReusePassed": true,
+    "referenceCore559": {
+      "source": "07c76ec11f4000247f908b792f53b304c91c8bcd",
+      "run": 40403710130,
+      "artifact": 12690536391,
+      "archiveSHA256": "4d40aed94fb67530532ac094aa9e2981e667bb6d6b9b6da5c93da48af5680edb",
+      "coreSHA256": "1b490126c9a9c8fcdc2cdaaabd39fa6131573ef68e4492551593f117355a25d0",
+      "tests": 1,
+      "historicalResults": true,
+      "coreBinaryReused": false,
+      "scope": "Authenticated559 Core evidence is historical. Current560 tests execute every560 change against the exact559 preimages. No iPhone gain claimed."
+    },
+    "proofInputSHA256Count": 138,
+    "report": {
+      "passed": true,
+      "sourceContract": {
+        "baseline": "9e7bed794e71afde8817c6201cfdf4c72b1ae761",
+        "fixtureSHA256": "4da53ebb91988b88f3231cea20d0fb3ff3aec62e0098c323d9072d2b164e6cec",
+        "manifestSHA256": "227c52af4e713833d4b3f45dedf6626eb7086723c8e7a462c514e45f5d0b5154",
+        "sourceSHA256": {
+          "rpcs3/Emu/RSX/Common/texture_cache.h": "09766319e1002fe6406d0ec198032bd563c57b9ab3ca13599a9ab7b1165e9654",
+          "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "a6d7233a727139f8846cd22e90b9a067a254bef5ccd16c557fdc89dcd82aded6",
+          "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "df6b89844c0dbd3de1adf1eb97ee09d939c17649ea84080aeef00079a35264f0",
+          "rpcs3/Emu/RSX/VK/VKTextureCache.h": "b69707da4c0d40432c9d3f90bf6b6c9d017145a688797ba20fa6604c3ca2e983",
+          "rpcs3/Emu/system_config.h": "dadc597af3e98b9ec658a3d423bc00b0de4c9f0bf94d1ee42ab085444ff0461d",
+          "rpcs3/ios/IOSReadbackProfile.h": "a000d21bce260c42ba072de67217ca04b3ab472ad754d3c7a3be3ff0e340033a",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "f201f0b9fb2132e6b686d8c605671648ce361f6cdcfef22804763131b16a50d9",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "9508af04befaca138ae8252f31ddbc543031f6811ed2a1b6cfe366311fc051ae",
+          "rpcs3/ios/RPCS3IOSPerformance.cpp": "12d7c4233059d4630ae771d578b22638b7c971368c3bad86e491b89673fb5b48",
+          "rpcs3/ios/RPCS3IOSSettings.cpp": "0c8b9d1737ebfd1f0e04c43c2ae37b0a0d6387e3d6820485430ff57b76fbb298",
+          "rpcs3/ios/IOSDeferredCommit.h": "4e00304b7ceb07fda07ad68a05e329859b9922b04e78bd2a82841b433ac5b719"
+        },
+        "otherCoreSourcesUnchanged": 276
+      },
+      "codegenIdentity": {
+        "identities": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "d070cb361bdef607"
+        },
+        "unchangedFrom559": true,
+        "coldCompileRequiredByThisChange": false
+      },
+      "renderer": {
+        "commitsSubmittedAfterDeferral": 3,
+        "faultOriginsAttributed": true,
+        "nonIosRendererUnchanged": true
+      },
+      "exportLine": {
+        "line": "COREPROF OPT560",
+        "automaticTitles": [
+          "BLES01658"
+        ],
+        "readbackOriginsAppended": [
+          "fbo_commit",
+          "fault_read",
+          "fault_write"
+        ]
+      },
+      "deferredCommit": {
+        "addressUndefined": {
+          "passed": true,
+          "scenarios": 12,
+          "observedIdentical": 12,
+          "disabledIdenticalTo559": true,
+          "gpuWaitsBefore": 17,
+          "gpuWaitsAfter": 3,
+          "deferrals": 15,
+          "dropped": 5,
+          "forcedWritebacks": 4,
+          "unsubmittedWaitsWithoutSubmit": 1,
+          "unsubmittedWaits": 0,
+          "pagesReleasedOwingBytes": 0,
+          "harnessSHA256": "de592c22c70083d6cea8052eda55d24b8dff8c9575a7bfcc41d440f924052809"
+        },
+        "thread": {
+          "passed": true,
+          "scenarios": 12,
+          "observedIdentical": 12,
+          "disabledIdenticalTo559": true,
+          "gpuWaitsBefore": 17,
+          "gpuWaitsAfter": 3,
+          "deferrals": 15,
+          "dropped": 5,
+          "forcedWritebacks": 4,
+          "unsubmittedWaitsWithoutSubmit": 1,
+          "unsubmittedWaits": 0,
+          "pagesReleasedOwingBytes": 0,
+          "harnessSHA256": "de592c22c70083d6cea8052eda55d24b8dff8c9575a7bfcc41d440f924052809"
+        }
+      }
+    }
+  },
+  "arm64Correctness": {
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "target": "aarch64-linux-gnu -mcpu=apple-a7 -march=armv8.4-a",
+    "runner": "qemu-aarch64-static",
+    "sanitizer": "UBSan trap mode (no ASan/TSan runtime under qemu-user)",
+    "harnessIdenticalToHostRun": true,
+    "results": {
+      "deferredCommit": {
+        "passed": true,
+        "scenarios": 12,
+        "observedIdentical": 12,
+        "disabledIdenticalTo559": true,
+        "gpuWaitsBefore": 17,
+        "gpuWaitsAfter": 3,
+        "deferrals": 15,
+        "dropped": 5,
+        "forcedWritebacks": 4,
+        "unsubmittedWaitsWithoutSubmit": 1,
+        "unsubmittedWaits": 0,
+        "pagesReleasedOwingBytes": 0,
+        "harnessSHA256": "de592c22c70083d6cea8052eda55d24b8dff8c9575a7bfcc41d440f924052809"
+      }
+    },
+    "scope": "qemu-user emulation: correctness only, no performance figure"
+  },
+  "mutationChecks": {
+    "detected": [
+      "discard_without_writeback",
+      "unprotect_without_writeback",
+      "dirty_release_without_writeback",
+      "reprotect_ro_drops",
+      "defer_without_copy",
+      "create_keeps_owed"
+    ],
+    "notDetected": [],
+    "scope": "Each mutation edits one 560 production line in a copy of the source; the harness must fail."
+  },
+  "productionSyntax": {
+    "compiler": "clang++-22 --target=aarch64-linux-gnu -std=gnu++23 -DRPCS3_IOS=1 -fsyntax-only",
+    "units": [
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ],
+    "errors": 0,
+    "projectWarningSetIdenticalBeforeAfter": true,
+    "warningFlags": "-Wall -Wold-style-cast -Werror=old-style-cast -Werror=sign-compare -Werror=reorder -Werror=return-type -Werror=missing-noreturn -Werror=implicit-fallthrough -Wshadow",
+    "shims": "Apple headers shim, X11 headers and a syntax-only vulkan_xlib.h declaration stub for the renderer unit; never built into the Core.",
+    "warningBaseline": "clean 559 worktree, same flags and shims"
+  },
+  "existingSourceTests": {
+    "passed": [
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_failed_startup_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test"
+    ],
+    "preexistingFailure": {
+      "neo_swap_core_pin_test.py": "fails identically on the unchanged base: Core pin cfe92344 lacks input test/rpcs3_restore_eof_test.py (public neoswap-ipa.yml pin, left to the maintainer)"
+    }
+  },
+  "scope": "Host correctness only. No iPhone FPS, frame time, GPU wait, Metal rendering, thermal or memory result for 560."
+}

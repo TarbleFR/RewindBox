@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "verified": true,
+  "run_id": 40981514937,
+  "job_id": 123822448947,
+  "run_url": "https://github.com/TarbleFR/RewindBox/actions/runs/40981514937",
+  "source_commit": "88cdc5e3e115a0b8587711d77147467baf38128b",
+  "optimization_commit": "c0d5bc7cd271445fcb10f5fdda4f1eea9798b101",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "source_patch_sha256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
+  "artifact_id": 12946200694,
+  "artifact_name": "RPCS3Core-88cdc5e3e115a0b8587711d77147467baf38128b",
+  "artifact_bytes": 29139881,
+  "artifact_sha256": "18f76b5e28187cf28c46047ad8b4b13a631420412bb6efad2e9a5e5c19aae989",
+  "core_sha256": "cc7362544f922aebdc021b5dbe6ca68d9c0bfb15d79145606f71af584509edd1",
+  "core_bytes": 77270224,
+  "architecture": "arm64",
+  "platform": 2,
+  "minimum_ios": "16.3.0",
+  "abi_version": 30,
+  "export_count": 88,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "native_source_files": 319,
+  "targeted_modes": 24,
+  "executed_in_final_run": 8,
+  "reused_from_prior_attempts": 16,
+  "unchanged_historical_modes": 11,
+  "workflow_sha256": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
+  "build_script_sha256": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+  "gate_sha256": "b80f7157c3d0aa5c67913c96e34df720b0828d5e3aff78f7921587cc357b42df",
+  "job_seconds": 904,
+  "steps": {
+    "Set up job": {
+      "conclusion": "success",
+      "seconds": 1
+    },
+    "Checkout immutable candidate": {
+      "conclusion": "success",
+      "seconds": 32
+    },
+    "Select Xcode16.4": {
+      "conclusion": "success",
+      "seconds": 0
+    },
+    "Restore pinned dependencies and exact compiler objects": {
+      "conclusion": "success",
+      "seconds": 12
+    },
+    "Authenticate historical Core and execute only the candidate delta on ARM64": {
+      "conclusion": "success",
+      "seconds": 82
+    },
+    "Preserve native measurements before the single Core compilation": {
+      "conclusion": "success",
+      "seconds": 1
+    },
+    "Compile actual iPhone Core from the verified source": {
+      "conclusion": "success",
+      "seconds": 717
+    },
+    "Verify source candidate, exact exports, passive loading and source identity": {
+      "conclusion": "success",
+      "seconds": 8
+    },
+    "Upload source candidate without a delivery number": {
+      "conclusion": "success",
+      "seconds": 4
+    },
+    "Preserve verified dependencies and compiler objects": {
+      "conclusion": "success",
+      "seconds": 18
+    },
+    "Upload diagnostic results including partial failures": {
+      "conclusion": "success",
+      "seconds": 4
+    },
+    "Post Checkout immutable candidate": {
+      "conclusion": "success",
+      "seconds": 1
+    },
+    "Complete job": {
+      "conclusion": "success",
+      "seconds": 4
+    }
+  },
+  "physical_device_tested": false,
+  "neoswap_host_component_packaged": false,
+  "verified_at": "2026-10-30T01:00:01.099003+00:00",
+  "core_artifact_url": "https://github.com/TarbleFR/RewindBox/actions/runs/40981514937/artifacts/12946200694",
+  "diagnostics_artifact": {
+    "id": 12945842056,
+    "size": 89819506,
+    "sha256": "d03aa40178c59b6ea16c10dbfe3f9793687e635b38279fc5498c8f119b878de4"
+  },
+  "preflight_artifact": {
+    "id": 12945545762,
+    "size": 46169,
+    "sha256": "3a4c0d1d6ad3bc423e0f64a93957d8d835ef7993d0dfe1949ba0b5da6ee65e86"
+  },
+  "prior_attempts": [
+    {
+      "run": 40980093782,
+      "source": "09f623b748cd4d910c353d2c99d373079599103e",
+      "conclusion": "failure",
+      "core_compilation": "skipped",
+      "failure": "VM host-test enumerator collided with Darwin wait(2)",
+      "completed_modes": 2,
+      "diagnostics_artifact": 12945040077
+    },
+    {
+      "run": 40980790186,
+      "source": "36348545f85a62078339a742936f88dc78841466",
+      "conclusion": "failure",
+      "core_compilation": "skipped",
+      "failure": "Atlas host-test constant unused under Clang -Werror",
+      "completed_modes": 16,
+      "diagnostics_artifact": 12945101088
+    }
+  ],
+  "scope": {
+    "actual_core_built": true,
+    "workflow_unchanged": true,
+    "build_script_unchanged": true,
+    "passive_loading_validation": "Static initializer/direct ARM64 call-graph check; no device runtime test",
+    "application_ipa_built": false,
+    "release_created": false,
+    "device_performance_claimed": false
+  }
+}

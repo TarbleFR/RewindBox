@@ -1,0 +1,13 @@
+{
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs": "477fe022ac61f0acddeaa2c3becff3f7d1ff153209f3a63b88e0ce6b0e3b4fc2",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/GuestCodeAndCbData.cs": "d5e7de05a00b43c8efdc24f7d511e441a226d07843e10cc0f35e4392866829bc",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheLoadException.cs": "23dcae08c8aa849ba8a2fe8a1e9d52256296bd62cd8694bd82f08b468cebd37d",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheLoadResult.cs": "14fbf5524a8da16a37de492b17cbf32d61feeafa130d0f1165192de3935877c4",
+  "src/Ryujinx.Graphics.Gpu/Shader/ShaderCacheState.cs": "214c98c774cc1f27c96a313ace56c935b8ba94b84eb171411c301c4f79ded011",
+  "src/Ryujinx.Graphics.Gpu/Shader/CachedShaderStage.cs": "ece6c893ea3f3f3c9bd0a547ade73aac78d3149e7bd9cff12ede4849d83d8404",
+  "src/Ryujinx.Graphics.Gpu/Shader/CachedShaderProgram.cs": "bbb5973d739c97d1ab06eec3c0c5ea7294bf96dbbc6c1b1f207afa89a98c8f13",
+  "src/Ryujinx.Graphics.GAL/ProgramLinkStatus.cs": "1277206284b3e1dedca27e2e932acd21b20325247e3708b2673718abb9ccf9af",
+  "src/Ryujinx.Graphics.GAL/IProgram.cs": "1213108b8dfe8a766174e3821d2a8109284bde7ff2a746cc6b0f2b275a6ddba3",
+  "src/Ryujinx.Graphics.Shader/Translation/TargetApi.cs": "8ddb174b07322d80c411469b3930096f49f501c96ac9dce10f9fb96f6216665a",
+  "src/Ryujinx.Graphics.Shader/Translation/TranslationFlags.cs": "16f4fc8b1202b4d504c5c9c1f4f3d639ec6dfa098fd784f8451302b5d766b223"
+}

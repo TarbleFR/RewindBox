@@ -1,0 +1,570 @@
+{
+  "result": "passed",
+  "scope": "Twelve new adapters over engine82/c609b0d; earlier unavailable eleven-adapter batch is not included or cumulatively validated.",
+  "repositoryBase": "c609b0d05a583d2d39f636f328830a6256439807",
+  "branch": "Claude",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "baselineSourceFiles": 4095,
+  "finalSourceFiles": 4096,
+  "sourceDelta": {
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": {
+      "before": "8e146245540154577a8c5ca40caec65d89eedc532a431ad61ef20ac31d0697c7",
+      "after": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017"
+    },
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": {
+      "before": "2bc6d72d52cb3f47316a75dce80a0bdb50efe755f026d0ba818d137a1c2dbc9b",
+      "after": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007"
+    },
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": {
+      "before": "77e2e39233d670971a9e47ac65e952c1237b6f073e48707816d91b9b0df36283",
+      "after": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a"
+    },
+    "src/Ryujinx.Graphics.Texture/SizeInfo.cs": {
+      "before": "3e3bcadecbbe9c4fc629fa0aef6629c7b65e8affc7ebcf99dd09be1c016afa89",
+      "after": "6ab5af6c11fda9574bebfd36344c7bfdf634e5ff90383ae2a299fa98db1933ed"
+    },
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs": {
+      "before": "79ea043a3d71a72d08ef43eeef5452d2eb01192b38bc483469fda578811b8eb0",
+      "after": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731"
+    },
+    "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": {
+      "before": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1",
+      "after": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f"
+    },
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": {
+      "before": "e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c",
+      "after": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": {
+      "before": "a9a9a899373404dbc85a5a6a257eb00c99fbcf8ad45e51e95cc9a9c2776e9d19",
+      "after": "faa0c8b8d9d4a9801a296ed830f68403cd94ef60758e5e2e7c7b33c30c998b1b"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": {
+      "before": "9da95bda86e407b37f1bfea310f323e65472c96f88d8e11d25940b8c48458efc",
+      "after": "807d8c319aec5c8b6ac5c1061fde99c3d3c19fb370fcf5a3b274b015b2bd89fd"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": {
+      "before": "78d97abc12ff14a95a88b917632d6b6b509977a4e58ab81d922928a41773f65e",
+      "after": "3ef04768f15101df8e025f70bbffbe236aa8f097c3a6ee9db618ba9185317000"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": {
+      "before": "e1dc4b24b0861db309c00d29bb099b5458dee86caa6d4269e3b94d780b346272",
+      "after": "09a13c5739521d82cc119e5138636c734a27d04dfcfffe225cf2bbe93e01a565"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": {
+      "before": "b5f7dc3fce3e0337543ff6a8ae235e75e2056779b5ea1e8596ec672b9449b3d8",
+      "after": "12f1d70303a7cbed4d49c3021043163f5d7e76e199d4d88d75b66f902e754539"
+    },
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": {
+      "before": "372531da36094dc1ed1c3bd64341b3eeaff50abb1ce108eef294c06dbc3858f2",
+      "after": "7fdbfb507dfabaed0112e4150e3259d27c4aa626241785fec91d554c93988070"
+    },
+    "src/Ryujinx.Memory/Range/MultiRange.cs": {
+      "before": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+      "after": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+    },
+    "src/Ryujinx.Memory/Tracking/RegionHandle.cs": {
+      "before": "770936b7f2b7f1778f6f845b9aa68d263adff365fcf95b52917c6c3669ea02e3",
+      "after": "b93734e1c0b4156f41f16553a28ca4021c79a99e4ff697bed42bff4cc49ee6bb"
+    },
+    "src/Ryujinx.Memory/Tracking/RegionHandleSnapshot.cs": {
+      "before": null,
+      "after": "a2282660af482f4a8075c5db8f54cb69d648184c919a656962fd41e9e893239b"
+    },
+    "src/Ryujinx.Memory/Tracking/VirtualRegion.cs": {
+      "before": "fa42f3b8530060890ba73d8ed150d437c82a1481421ddea6b8d30f823250aa26",
+      "after": "7a738d69d225d69cc4a4a811b6b4449ea57036025c8a58756d79a267803cb09a"
+    }
+  },
+  "removedSourceFiles": 0,
+  "builtWorkspaceExactlyMatchesFreshPreparation": true,
+  "preparationInputCount": 86,
+  "previousUnchangedPreparationInputs": 73,
+  "newPreparationInputs": [
+    "build-utils/melonx/adapt_allocator_blocks.py",
+    "build-utils/melonx/adapt_auto_ownership.py",
+    "build-utils/melonx/adapt_converted_cache.py",
+    "build-utils/melonx/adapt_indirect_cache_key.py",
+    "build-utils/melonx/adapt_ipc_request_lifetime.py",
+    "build-utils/melonx/adapt_kernel_timer_allocations.py",
+    "build-utils/melonx/adapt_kernel_wait_lifetime.py",
+    "build-utils/melonx/adapt_multirange_slice.py",
+    "build-utils/melonx/adapt_texture_group_callbacks.py",
+    "build-utils/melonx/adapt_texture_handle_dependencies.py",
+    "build-utils/melonx/adapt_texture_region_cursor.py",
+    "build-utils/melonx/adapt_tracking_snapshots.py"
+  ],
+  "preparationInputs": {
+    "native/melonx/EmbeddedAddonSelection.cs": "5a37e4e21596141896598eeaefcbe68a208ee9be0df459473102c9609c27bad6",
+    "native/melonx/EmbeddedAddons.cs": "bb159cfec55c92ffc14fc5ac52a342e3112c4d95b7c1350b571f8cab29fd754f",
+    "native/melonx/EmbeddedAudioPacing.cs": "5d653790196980380037c38094731d60403cd34b94a9cfe93f66ed55aabaf492",
+    "native/melonx/EmbeddedAudioPacingExport.cs": "d4fa9af0304a4e4f95ce60c957935e56569c53da91c66d17c2f7eb0172a027b5",
+    "native/melonx/EmbeddedBootstrap.cs": "00060cff6b7eaab09a2943b1f43f82431541210316460faf7c5197591c78c009",
+    "native/melonx/EmbeddedContent.cs": "9659a22900a07eb4f9a77a3d98a62fe8424e7d48745bf270f8ee0b72bd246100",
+    "native/melonx/EmbeddedDarwinSignals.cs": "99c916dc81b8b361461f20c919ec69705276c7ad2cf598a3da405af127c8e3a3",
+    "native/melonx/EmbeddedDataRoot.cs": "0a0c9137403d5b2fbfa3a2f6c6c208d810fce0f5bebfc8ee435e0c313c89adb8",
+    "native/melonx/EmbeddedFirmwareArchive.cs": "d0f87ab671e8b701c4e986e4b748d1a20686e66069b42f0a46d6deaef2ba287f",
+    "native/melonx/EmbeddedFirmwareStore.cs": "5f336703e04676d91c7abe54b74b86d5f68eb90c075877fa85a87aebf5d61397",
+    "native/melonx/EmbeddedGameHeader.cs": "37d0621130800781281d7d098a516d7573f7e784ca192fb9cab2098418311b09",
+    "native/melonx/EmbeddedGraphicsSettings.cs": "e14561950f54df9c657ce9be0e9dac12c14289f360d84cbf7f3bea8fc2ffb10a",
+    "native/melonx/EmbeddedHomebrewAssets.cs": "94e7ec96cf9dbaed2b2bd6ed1b61d12a0d86102ecc03798fce597602498902cd",
+    "native/melonx/EmbeddedInitializationState.cs": "b563680eab89d135cf33bd5353db403404e3719089d854f76945a4e3c9531b36",
+    "native/melonx/EmbeddedInput.cs": "73ebf6f4e267686c0cfbdb591afe8700beeb04f3f9c7f7bca6cee719ccee234c",
+    "native/melonx/EmbeddedKeyValidation.cs": "7a86d2bd470afe653c14a00cdb098c06a2305ba11c67750f25c04735537fe597",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs": "929c07dd72c0102ccf30cc6e1f93cd33c6044418ff0dc59a684b2ceeeee536f8",
+    "native/melonx/EmbeddedLaunchPreflight.cs": "07beeeefccb9638b668a94fc4645a12b499706269cd177b9672ba9eca6bd7755",
+    "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+    "native/melonx/EmbeddedNativeGamepadLease.cs": "37d764bec6bc8de819c0d35aa63d5c7c9f76375f7149786f15950788abddc4b3",
+    "native/melonx/EmbeddedNativeLibraries.cs": "ad55396264a0e6c514ed3b6b643d5fdc63952fd15abbb3d503c7529f4cb5eebc",
+    "native/melonx/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462",
+    "native/melonx/EmbeddedPersonalOptions.cs": "aebfe555c9604ae89a0204a1e5e6c4ada2ade210c90daa0bb80dcfb753127619",
+    "native/melonx/EmbeddedRuntime.cs": "97737b97bb425d1310aea4bc119821def33750aee3539573a9dff2cb573e71f1",
+    "native/melonx/EmbeddedSaveTransfer.cs": "9d2cdda63fcd0c2ad1332bf163fbaa3e09b8511065b0df85f8b5a85e5d5799b0",
+    "native/melonx/EmbeddedSession.cs": "f08004f1e3a23e15c7d388502faab1785c65b740319f528853955bedd577d4ce",
+    "native/melonx/EmbeddedSessionCoordinator.cs": "2a6e32fb2c304365d8eb4036b83ab1dac950d9b2bba1870dbbc6cb04dd70c268",
+    "native/melonx/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650",
+    "build-utils/melonx/prepare_embedded.py": "454aa63ffc4b9a482aaf80200e02c03f9f1a0dbf3788b374cb275355a08234c2",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/adapt_input.py": "3be49cf1b8a657e40d82fc72c069e60643877249edd977a05a053e60caf5c568",
+    "build-utils/melonx/adapt_runtime.py": "4ce4c0889498a030c6a767b5a0ca9190e91f6623f4987614ab0c44b8395fed84",
+    "build-utils/melonx/adapt_audio.py": "26a705e5b299876431a6a28b035ccd9d0c5ca6ea280102baa02485c3d6edfdbd",
+    "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
+    "build-utils/melonx/adapt_firmware.py": "abceebc559458f09fed299ca917d0d2242a9b2cdbe83dbd3f7234e435eb68922",
+    "build-utils/melonx/adapt_memory.py": "72869c566a1f0774c3a88388fa79df38de419b078469977b7af44331960d9ac2",
+    "build-utils/melonx/adapt_pipeline.py": "f34a5525ecba0e47c90efed5e79264f846957f506268a22ea7f023a644d61280",
+    "build-utils/melonx/adapt_gpu_lifetime.py": "92ec7a6dad603dab1192baa41ecc86e027cbd08952ad3b4ab4aca50e1bf7bcc6",
+    "build-utils/melonx/adapt_audio_pacing.py": "eba34129e866e9079cb2a6cb18e15fbad496290685baeed1e697bc620438a973",
+    "build-utils/melonx/adapt_texture_pool.py": "6fec2c4dde92177e3774750f53ab5a46cad674d9fdbc62f82375a05b1965d7f2",
+    "build-utils/melonx/adapt_jit_decoder.py": "7e66f8de22be055fbe27982c9e09ad21e2ab2851aff73e2103e04b868a9bf1a5",
+    "build-utils/melonx/adapt_gc.py": "0c56653156a4365d8da84be6558d832083333ef4ac03daa77045148060f519cd",
+    "build-utils/melonx/adapt_shader_warmup.py": "d4398a9317a4bc12bea6b1635079abc429143b5fa8dec8a0351da9e65b50f3a9",
+    "build-utils/melonx/adapt_attachmentless_framebuffer.py": "d83bfe65af84f4808f039f07c261cf5375a5fc846b6373b90afefbe80009c3cf",
+    "build-utils/melonx/adapt_kernel_sync.py": "0a57220168852a7d2818563cb83bf65792e6f384826247338184440e24763889",
+    "build-utils/melonx/adapt_jit_arena.py": "92f6f6ba9de94406f1dcd403ff13d2a870dd3359c74b61be1be86fd98890b0ac",
+    "build-utils/melonx/adapt_pipeline_cache.py": "77d7ff19cc0ed9b7afcc1d28ec4a55b0409e3c7a770df38c1604e7783f0796e3",
+    "build-utils/melonx/adapt_gpu_allocations.py": "1d3a2fe24ddabe439fb58a4b361d1c95d513536c2535be7dac0c479c6e0e83f6",
+    "build-utils/melonx/adapt_shader_waits.py": "e86329b729958b994155a25cb64d700dc65a47c82ef12891a5ca3ad9ed154824",
+    "build-utils/melonx/adapt_deferred_flush.py": "2ed98cbb81bbbf530bbc4a70dce86a84d309e703b1f80fbe8eeb6e9381c7b6e6",
+    "build-utils/melonx/adapt_bindless.py": "54270351ee27fa2ef69d773cad011f2118556ee0e5f1bc29af87c82589173b79",
+    "build-utils/melonx/adapt_bindless_sources.py": "a680e18cfc4e215bb3d1387c9e0c602d84597e323c49a23e0f54aaa1f8c3b2e0",
+    "build-utils/melonx/adapt_device_memory.py": "cfd1c60f47e0a29f7b07cb1973c2b35f634f4d25ec42eccd7d3fb80349e99f4d",
+    "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
+    "build-utils/melonx/adapt_jit_block_split.py": "0a1c60a92e0a49c5f93fea1a9848270dab5602b79bda16377b4813f219336769",
+    "build-utils/melonx/adapt_buffer_views.py": "6b8547e10062a38ffdb67d36107583d43803c7267844e4df201c94a583e1c530",
+    "build-utils/melonx/adapt_memory_queries.py": "ef6fad1f5a74c0ee10e1166692844efcb67874eaacb4d166d4ffd6269ad97c6e",
+    "build-utils/melonx/adapt_jit_dataflow.py": "959bdfc031a8616fad8dfd066cf9f349d6c4ed08bead451ac2e67bb388acc4e0",
+    "build-utils/melonx/adapt_upload_lifetime.py": "c3eeeba74e9e82bf6f73bc964a8c34bf9d733565b37cedced0f5521c9ebf5b45",
+    "build-utils/melonx/adapt_texture_uploads.py": "87368d8399a41ef519cea37329f168da09488697a8aceb6cb63b7e4d26849150",
+    "build-utils/melonx/adapt_pipeline_recycle.py": "af428d2ac01bac375c7d3ac5c11abd85e2d4d6aeb456f865f3891044cedae426",
+    "build-utils/melonx/adapt_fragmented_uploads.py": "59d89d6e527eb4929af5ccadd495d371561876da3118504e33ce78ea02e7a088",
+    "build-utils/melonx/adapt_texture_ownership.py": "9614bcc9c4bd53eff1bdaeec3827cb77e6c501bc5f5955aea729fcc9a6f20dc6",
+    "build-utils/melonx/adapt_bindless_allocations.py": "22b9e06b1f1d8461c29bb03957315c44ba887290a8073d51dc6df33e587baca2",
+    "build-utils/melonx/adapt_array_barriers.py": "a71c65bca19a4b47a6fbd07b920a43e4a8a8ee707118d31277a7da138c07b639",
+    "build-utils/melonx/adapt_pipeline_lookup.py": "ea3973a7f9b3e6ce642e193b630939a3e0f7a316e30038d25d2b14c9e7a2e912",
+    "build-utils/melonx/adapt_binding_lookup.py": "e665fca9e2947fa204777e7484c0e8a2cbf2bcf19be88864d1144586968d094a",
+    "build-utils/melonx/adapt_descriptor_updates.py": "e767de4b338f3f4516f62efac2c03fa987d609e00d019b81e90defac9fc7ce6a",
+    "build-utils/melonx/adapt_memory_tracking.py": "b55ce129937ae3e39468d607bdbf117304aa21d4a1adedb9b19d7a8079797823",
+    "build-utils/melonx/adapt_texture_overlap.py": "33012abe655a8f6f37853299d07a188a44c1766b329c1f07463c82a4f73a40a8",
+    "build-utils/melonx/adapt_tracking_snapshots.py": "123e9e1414050aa38d0015d2df0284ebf981d7b4a6e098fed2569cf5d55793de",
+    "build-utils/melonx/adapt_multirange_slice.py": "7d02e2b2bb5b23f146d48d44facf81b875c15be5156e900ab127429a2920c5fa",
+    "build-utils/melonx/adapt_texture_group_callbacks.py": "f5688dca3d74e1e3a00acefe2deb758d4e6f4d1a0a1e7b083e524652da692ee2",
+    "build-utils/melonx/adapt_texture_region_cursor.py": "a702694a818e9638306fa45e80f9e4d0dfab33541d545e85d6228a53de9e4948",
+    "build-utils/melonx/adapt_auto_ownership.py": "ca49e50235f2e6117ded6c321b74f6ba8602e9a95f1e1b187ee66185199e8155",
+    "build-utils/melonx/adapt_converted_cache.py": "01ded0fb3f24a539d39c2eb617231f15f4751a593f6fbbb8b52b917d851b8859",
+    "build-utils/melonx/adapt_kernel_wait_lifetime.py": "68a954b4c8bd5f3e8e5dcf74ff424da91a1508a1a964ab3067321279b97892e4",
+    "build-utils/melonx/adapt_ipc_request_lifetime.py": "dfee2a2d7e970bb826f4dc609faf04a5d969d777e218e6933f0461fb55d6a71b",
+    "build-utils/melonx/adapt_kernel_timer_allocations.py": "a688677b1a29952979fe126b7c05d7de0710e21501407de474ad1fc50fd55289",
+    "build-utils/melonx/adapt_allocator_blocks.py": "adb3d761b7d03dbc445785e8ba16cf624a3b135024802150af2479487acc1f96",
+    "build-utils/melonx/adapt_indirect_cache_key.py": "ae54b52bd436453fbb7e3d8cb35fa4bda07668bbfb8876987692ca33d49953b2",
+    "build-utils/melonx/adapt_texture_handle_dependencies.py": "3e690accf88f880989d82ce793bd7a6b75950a0499a146206111faeaf4892466",
+    "build-utils/melonx/adapt_cached_shader_startup.py": "f3c3d8f826bd6e51fe60c9e815d0abb1f58c071e6530499e169e349a44523e0c",
+    "build-utils/melonx/adapt_threaded_renderer_failures.py": "f32b14f9995ccef936ec0eb3b1bd43c2d15482297f5d78c958c14d03e57d165b",
+    "build-utils/melonx/adapt_gpu_startup_failure.py": "685aae1354ccac73e42cc4206a3271e33d7c1e7eebe6456084f6b2d280fb1ffd",
+    "build-utils/melonx/adapt_shader_loader_lifetime.py": "8109ceeac7dae4094d56c319a2ee3496891160d151249890d6dbc920f80dc496"
+  },
+  "preparedArchive": {
+    "sha256": "0743c1eaf262f465161d69a061017e89177246c29e6255829643c314edb6367b",
+    "fileCount": 127,
+    "allMembersMatchFinalSource": true,
+    "allNewSourceChangesIncluded": true
+  },
+  "targetedReceipts": {
+    "allocator-blocks-checks.json": {
+      "sha256": "b5fce53cd1c0e95b3d42f1ac669f57b570459f77aad4960374fa498f26b1a384",
+      "result": "passed"
+    },
+    "auto-ownership-checks.json": {
+      "sha256": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+      "result": "passed"
+    },
+    "converted-cache-checks.json": {
+      "sha256": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+      "result": "passed"
+    },
+    "indirect-cache-key-checks.json": {
+      "sha256": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+      "result": "passed"
+    },
+    "ipc-request-lifetime-checks.json": {
+      "sha256": "9ba5e8bafeaae34cf13bece3ea4daf9809b677863f0f30334156fab2580afa0f",
+      "result": "passed"
+    },
+    "kernel-timer-allocations-checks.json": {
+      "sha256": "6d0ca067b1d9149d126500677bfb7e2c3be898dc16c5ed3a8540a6d5c84d69c5",
+      "result": "passed"
+    },
+    "kernel-wait-lifetime-checks.json": {
+      "sha256": "a49f485350477a075ac424b837ca00c060cabecfc75e339e555273508b38bbeb",
+      "result": "passed"
+    },
+    "multirange-slice-checks.json": {
+      "sha256": "46166e2e34006ef8c74bcd735bc2c50108ba0aa1b69f691c7c2304586324901b",
+      "result": "passed"
+    },
+    "texture-group-callbacks-checks.json": {
+      "sha256": "550e5327571cd6efcd1ddc7f4346e0c48bc1b01d37ea419066ab5d32ac4b06e2",
+      "result": "passed"
+    },
+    "texture-handle-dependencies-checks.json": {
+      "sha256": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+      "result": "passed"
+    },
+    "texture-region-cursor-checks.json": {
+      "sha256": "485139842acbdf19272a0939ced8ed59d2f3e41ff1ff42a44ef97a3e19f117b5",
+      "result": "passed"
+    },
+    "tracking-snapshot-checks.json": {
+      "sha256": "994e83abd9495e7d88a8be95adb799d70d8aaca98578bfc7021c3afecc89bfbc",
+      "result": "passed"
+    }
+  },
+  "receiptInputEntriesChecked": 54,
+  "upstreamInputEntriesChecked": 83,
+  "matchingCompletePostimages": [
+    {
+      "receipt": "allocator-blocks-checks.json",
+      "path": "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+      "sha256": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae"
+    },
+    {
+      "receipt": "auto-ownership-checks.json",
+      "path": "src/Ryujinx.Graphics.Vulkan/Auto.cs",
+      "sha256": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731"
+    },
+    {
+      "receipt": "indirect-cache-key-checks.json",
+      "path": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "sha256": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f"
+    },
+    {
+      "receipt": "ipc-request-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs",
+      "sha256": "09a13c5739521d82cc119e5138636c734a27d04dfcfffe225cf2bbe93e01a565"
+    },
+    {
+      "receipt": "ipc-request-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs",
+      "sha256": "3ef04768f15101df8e025f70bbffbe236aa8f097c3a6ee9db618ba9185317000"
+    },
+    {
+      "receipt": "kernel-timer-allocations-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs",
+      "sha256": "807d8c319aec5c8b6ac5c1061fde99c3d3c19fb370fcf5a3b274b015b2bd89fd"
+    },
+    {
+      "receipt": "kernel-wait-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs",
+      "sha256": "faa0c8b8d9d4a9801a296ed830f68403cd94ef60758e5e2e7c7b33c30c998b1b"
+    },
+    {
+      "receipt": "kernel-wait-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs",
+      "sha256": "7fdbfb507dfabaed0112e4150e3259d27c4aa626241785fec91d554c93988070"
+    },
+    {
+      "receipt": "multirange-slice-checks.json",
+      "path": "src/Ryujinx.Memory/Range/MultiRange.cs",
+      "sha256": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+    },
+    {
+      "receipt": "texture-handle-dependencies-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs",
+      "sha256": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a"
+    },
+    {
+      "receipt": "texture-region-cursor-checks.json",
+      "path": "src/Ryujinx.Graphics.Texture/SizeInfo.cs",
+      "sha256": "6ab5af6c11fda9574bebfd36344c7bfdf634e5ff90383ae2a299fa98db1933ed"
+    },
+    {
+      "receipt": "tracking-snapshot-checks.json",
+      "path": "src/Ryujinx.Memory/Tracking/MemoryTracking.cs",
+      "sha256": "67a1b2e6daadc2dcc663428ddc3960222e848e62930967981e25bfed3fa6f433"
+    },
+    {
+      "receipt": "tracking-snapshot-checks.json",
+      "path": "src/Ryujinx.Memory/Tracking/RegionHandle.cs",
+      "sha256": "b93734e1c0b4156f41f16553a28ca4021c79a99e4ff697bed42bff4cc49ee6bb"
+    },
+    {
+      "receipt": "tracking-snapshot-checks.json",
+      "path": "src/Ryujinx.Memory/Tracking/VirtualRegion.cs",
+      "sha256": "7a738d69d225d69cc4a4a811b6b4449ea57036025c8a58756d79a267803cb09a"
+    },
+    {
+      "receipt": "tracking-snapshot-checks.json",
+      "path": "src/Ryujinx.Memory/Tracking/RegionHandleSnapshot.cs",
+      "sha256": "a2282660af482f4a8075c5db8f54cb69d648184c919a656962fd41e9e893239b"
+    }
+  ],
+  "postimageCompositionExceptions": [
+    {
+      "receipt": "converted-cache-checks.json",
+      "path": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "fixturePostimage": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+      "finalPostimage": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "explanation": "The later indirect-key adapter removes two readonly qualifiers; its control hash matches this postimage."
+    },
+    {
+      "receipt": "kernel-wait-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
+      "fixturePostimage": "ad697837ea5adb7e0aeea347830d4fd174b445ebc175788247505e443044d47b",
+      "finalPostimage": "12f1d70303a7cbed4d49c3021043163f5d7e76e199d4d88d75b66f902e754539",
+      "explanation": "Existing engine82 ExitProcess diagnostics differ; the entire tested WaitSynchronization method matches exactly."
+    },
+    {
+      "receipt": "texture-group-callbacks-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "fixturePostimage": "ad3325098f23f5ae36632db8fddb88241b689b1ea10e6cf820935008c7195fd8",
+      "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+      "explanation": "Existing engine82 lifetime changes and the later dependency adapter affect other members; all eleven tested methods match."
+    },
+    {
+      "receipt": "texture-handle-dependencies-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "fixturePostimage": "ed73d3f6e19fc5e9ad809bf99695fa6becc501a07cdbe131779601b976bf2166",
+      "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+      "explanation": "The callback adapter and previous engine82 members affect other sections; the entire tested inheritance and replacement methods match."
+    },
+    {
+      "receipt": "texture-region-cursor-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "fixturePostimage": "50187e4802e2486ef6eb7bfe9db2fcfbe45bb50244dbf5090d6b56425cf0e082",
+      "finalPostimage": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017",
+      "explanation": "Existing engine82 lifetime changes affect other members; all five tested initialization and overlap methods match."
+    }
+  ],
+  "matchingExactProductionMethods": [
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public bool CheckDirty(",
+      "sha256": "b3d204f58fedbb2da180caf7a20a2348c6c0d5f765b6c208864918a27d2b64b6"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void DiscardData(",
+      "sha256": "983b0b23c83f0405c6210ffd619321af7f314763d5e2bd25cbea5db5693bfc4b"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void SynchronizeMemory(",
+      "sha256": "d8e1a1b43aafc79eaae1eef34022059cbf5cc9c2b955e493d7b39903cbb68224"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void SynchronizeDependents(",
+      "sha256": "30284176b45e3284f07b108506c0a50408dbceba357f11e27b3c8499d72e3761"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public bool FlushModified(",
+      "sha256": "cc3a9f2410f4b43c17e5c181b02e1d27e3ddab2b405ed8ea5ad073aa77dbbcf0"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void SignalModified(",
+      "sha256": "9b0ac93115af6d7f3de869f7b7699423201fce78a8b43c576c750050798705da"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void SignalModifying(",
+      "sha256": "0f1313c93f4e5641ce1f4dfbda674f09287c5fd11f2d7081dc30a0618b2a07ae"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "private (int Index, int Count) Get3DLevelRange(",
+      "sha256": "7bc29cf832f0a1a320ef20b9db47a6c7edcf3d9dabac1cb357ac4afe1825c346"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "public void CreateCopyDependency(Texture other,",
+      "sha256": "6734d27c7d1441ecf4faf28eac004f989d42cbc2d9e1f5b666852b89b445efa7"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "private void EvaluateRelevantHandles0",
+      "sha256": "c1c7905b6cb012e8ae907e9dceca754215b80b1278562a5df787a6bc72cbbb4b"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "private void EvaluateRelevantHandles1",
+      "sha256": "90aba9645b87ca43cf1ab62c83f4c70b549e9f18a2302a0606930c693a00c323"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "marker": "private void InitializeTexture(",
+      "sha256": "8833695e15390d9d04c7fbaf36628eabed856e97c12f32e8446b64a486c62179"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "marker": "public bool DataOverlaps(Texture texture, TextureViewCompatibility compatibility)",
+      "sha256": "e6456daf15449deb2ec60acdd83a9dea6507c0aa0ae49d639036fb1cbc077f63"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "marker": "private bool HasOrderedDataRegions()",
+      "sha256": "342b994d3feb2f9e23d33496c32541ad1c532d2488dcdd9f45f5ae376c4f696b"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "marker": "private bool DataOverlapsContiguous(Texture texture, MultiRange otherRange)",
+      "sha256": "2653ea20ec874fc0511323dc4f9e2ab76884e9b69c9565a51afcad4a4f422d33"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "marker": "private bool DataOverlapsUnordered(Texture texture, MultiRange otherRange)",
+      "sha256": "8976e547447b6cb1c67622360f2909b00491a5bb7b6c83cfe1203d9a15668f4f"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "private void InheritHandles(",
+      "sha256": "e426bc8108051362a450c434a6cd40100c8eaef834919bd96d93a444cb3a57f5"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "marker": "private void ReplaceHandles(",
+      "sha256": "52cb22cdc1d21b934d42f941f0a210ab5bcfdd7d2e787e25513a814bbc95d67d"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+      "marker": "internal void RegisterSyncAction(",
+      "sha256": "5e8fe5b04b99fd30e4ef93cc4431768f289861abcc5e937b43ef65c400bce83e"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+      "marker": "internal void CreateHostSyncIfNeeded(",
+      "sha256": "75b333803da98d2e97b39a5e53bb2993d5883fb37e77521f47c9dd3cbec7e516"
+    },
+    {
+      "path": "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
+      "marker": "        public Result WaitSynchronization(out int handleIndex, ReadOnlySpan<int> handles, long timeout)",
+      "sha256": "0a05b4efc3bd383725e62c0c1a039c3cf1d49c2d16f5b627e99ffa42592efa54"
+    }
+  ],
+  "callbackExtractMatchesAfterRemovingTwoDocumentedPreexistingEngine82Additions": true,
+  "convertedCacheCompositionProvenByIndirectControlDigest": true,
+  "pythonAstFiles": [
+    "build-utils/melonx/adapt_allocator_blocks.py",
+    "test/melonx_allocator_blocks_test.py",
+    "build-utils/melonx/adapt_auto_ownership.py",
+    "test/melonx_auto_ownership_test.py",
+    "build-utils/melonx/adapt_converted_cache.py",
+    "test/melonx_converted_cache_test.py",
+    "build-utils/melonx/adapt_indirect_cache_key.py",
+    "test/melonx_indirect_cache_key_test.py",
+    "build-utils/melonx/adapt_ipc_request_lifetime.py",
+    "test/melonx_ipc_request_lifetime_test.py",
+    "build-utils/melonx/adapt_kernel_timer_allocations.py",
+    "test/melonx_kernel_timer_allocations_test.py",
+    "build-utils/melonx/adapt_kernel_wait_lifetime.py",
+    "test/melonx_kernel_wait_lifetime_test.py",
+    "build-utils/melonx/adapt_multirange_slice.py",
+    "test/melonx_multirange_slice_test.py",
+    "build-utils/melonx/adapt_texture_group_callbacks.py",
+    "test/melonx_texture_group_callbacks_test.py",
+    "build-utils/melonx/adapt_texture_handle_dependencies.py",
+    "test/melonx_texture_handle_dependencies_test.py",
+    "build-utils/melonx/adapt_texture_region_cursor.py",
+    "test/melonx_texture_region_cursor_test.py",
+    "build-utils/melonx/adapt_tracking_snapshots.py",
+    "test/melonx_tracking_snapshots_test.py",
+    "build-utils/melonx/prepare_embedded.py"
+  ],
+  "workflowParsed": true,
+  "newWorkflowGates": 12,
+  "gitDiffCheckPassed": true,
+  "build": {
+    "command": [
+      "/workspace/scratch/90582008c087/dotnet-sdk/dotnet",
+      "build",
+      "/workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Library/Ryujinx.Library.csproj",
+      "--no-restore",
+      "-c",
+      "Release",
+      "-p:PublishAot=false",
+      "-p:UseNativeAOTRuntime=false",
+      "-p:RuntimeIdentifier=linux-x64",
+      "-p:RuntimeIdentifiers=linux-x64",
+      "-p:SelfContained=false",
+      "-p:NuGetAudit=false",
+      "-p:BuildInParallel=false",
+      "-m:1",
+      "-v:minimal"
+    ],
+    "cwd": "/workspace/scratch/90582008c087/MeloNX-followup-build",
+    "exitCode": 0,
+    "seconds": 6.229,
+    "log": "/workspace/scratch/90582008c087/followup-managed-final-complete-build.log",
+    "reason": "Finish final Library build after prior incomplete output; affected projects reuse incremental outputs."
+  },
+  "libraryAssemblies": {
+    "Ryujinx.Common": {
+      "sha256": "e8630d618eb0c375fe15b0e7a8788e36ac37af8bbba47ed5e3d2ab10ffe02ab0",
+      "bytes": 382464,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Memory": {
+      "sha256": "d9ee6f2c24feac325c1e1231c960b7258b9940e00fbae17b195f86aca1663adb",
+      "bytes": 100352,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Graphics.GAL": {
+      "sha256": "f11ee6a10c4772509b3b0611b5865e56e55e45521f3eeafc1fa2446d56463e52",
+      "bytes": 114688,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Graphics.Texture": {
+      "sha256": "be88e163fbfa37b53cbe248fc68ca07a178ee3fc4fef7cb61e3867fb67ad6a07",
+      "bytes": 151552,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Graphics.Vulkan": {
+      "sha256": "89d49351ccdb1eef05a38ad8e8bc29d95ac583186660e845a9e77b49f07d953e",
+      "bytes": 795136,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Graphics.Gpu": {
+      "sha256": "24202b6b37b94602229e91d1cdedf57e2f5789200f01d93034a373bb7e707c81",
+      "bytes": 615424,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.HLE": {
+      "sha256": "a4ce277c296aff4da8f66b8f67498d557d9e96eebdfbede1cc72db1d95dab2d0",
+      "bytes": 2059264,
+      "libraryOutputCopyIdentical": true
+    },
+    "Ryujinx.Library": {
+      "sha256": "763e2dc941446ab6137d4fa041e18e42a4726b33d8c99f720bf79331b3d79531",
+      "bytes": 361984,
+      "libraryOutputCopyIdentical": true
+    }
+  },
+  "physicalDeviceTested": false,
+  "nativeAppleBuild": false,
+  "workflowExecuted": false,
+  "historicalNativeSuitesReexecuted": false,
+  "overlapFixtureReusedBecauseProductionInputsChanged": true,
+  "newTelemetry": false,
+  "playerSettingsChanged": false,
+  "remoteWrites": false
+}

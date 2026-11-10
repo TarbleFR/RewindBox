@@ -1,0 +1,228 @@
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
+@@ -606,6 +606,106 @@
+ 			return (instIndex)* 4 * 4;
+ 	}
+ }
++
++#ifdef RPCS3_IOS
++static u16 fragment_instruction_input_mask(v128 inst)
++{
++	using namespace rsx::assembler;
++	const auto dst = OPDEST::from_be32(inst._u32[0]);
++	const SRC1 src1{ .HEX = OPDEST::from_be32(inst._u32[2]).HEX };
++	const u32 opcode = dst.opcode | (src1.opcode_hi << 6);
++	if (opcode >= RSX_FP_OPCODE_BRK || opcode == 0x30 || opcode == 0x32 || opcode == 0x3f ||
++		!FP::is_instruction_valid(static_cast<FP_opcode>(opcode)))
++	{
++		return 0xffff;
++	}
++	// TEMP (00) and CONSTANT (10) cannot reference an input. Avoid decoding
++	// operand counts and addressing for the common arithmetic-only instruction.
++	if (((inst._u32[1] | inst._u32[2] | inst._u32[3]) & 0x100) == 0)
++	{
++		return 0;
++	}
++	const SRC2 src2{ .HEX = OPDEST::from_be32(inst._u32[3]).HEX };
++
++	// TXD's GLSL consumes the coordinate and both explicit gradients, although
++	// the generic register-annotation operand count only reports its coordinate.
++	const u32 operands = opcode == RSX_FP_OPCODE_TXD ? 3 : FP::get_operand_count(static_cast<FP_opcode>(opcode));
++	u16 inputs = 0;
++	for (u32 i = 0; i < operands; ++i)
++	{
++		const u32 type = (inst._u32[i + 1] >> 8) & 3;
++		if (type == RSX_FP_REGISTER_TYPE_UNKNOWN)
++		{
++			return 0xffff;
++		}
++		if (type != RSX_FP_REGISTER_TYPE_INPUT)
++		{
++			continue;
++		}
++		if (src2.use_index_reg || dst.src_attr_reg_num >= 15)
++		{
++			return 0xffff;
++		}
++		inputs |= u16{1} << dst.src_attr_reg_num;
++	}
++	return inputs;
++}
++
++u16 fragment_program_utils::get_fragment_program_input_mask(const RSXFragmentProgram& program)
++{
++	if (!program.get_data() || !program.ucode_length || program.ucode_length % 16)
++	{
++		return 0xffff;
++	}
++
++	u16 inputs = 0;
++	for (usz offset = 0; offset < program.ucode_length;)
++	{
++		const auto inst = v128::loadu(static_cast<const u8*>(program.get_data()) + offset);
++		inputs |= fragment_instruction_input_mask(inst);
++		if (inputs == 0xffff)
++		{
++			return inputs;
++		}
++		const usz length = is_any_src_constant(inst) ? 32 : 16;
++		if (length > program.ucode_length - offset)
++		{
++			return 0xffff;
++		}
++		offset += length;
++		if ((inst._u32[0] >> 8) & 1)
++		{
++			return offset == program.ucode_length ? inputs : 0xffff;
++		}
++	}
++	return 0xffff;
++}
++
++std::optional<RSXFragmentProgram> fragment_program_utils::normalize_fragment_program_key(const RSXFragmentProgram& program, u16 inputs)
++{
++	if (inputs == 0xffff)
++	{
++		return {};
++	}
++	const u32 texcoords = (inputs >> 4) & 0x3ff;
++	const u32 texcoord_control = program.texcoord_control_mask & (texcoords | (texcoords << 16));
++	const bool uses_color = inputs & 6;
++	const bool two_sided_lighting = uses_color && program.two_sided_lighting;
++	const u32 ctrl = uses_color ? program.ctrl : program.ctrl & ~RSX_SHADER_CONTROL_FLAT_SHADING;
++	if (texcoord_control == program.texcoord_control_mask && two_sided_lighting == program.two_sided_lighting && ctrl == program.ctrl)
++	{
++		return {};
++	}
++
++	// Only the private cache key changes. Constants, guest properties, disk
++	// records and the original GLSL generation retain their existing inputs.
++	RSXFragmentProgram key = program;
++	key.texcoord_control_mask = texcoord_control;
++	key.two_sided_lighting = two_sided_lighting;
++	key.ctrl = ctrl;
++	return key;
++}
++#endif
+ 
+ fragment_program_utils::fragment_program_metadata fragment_program_utils::analyse_fragment_program(const void* ptr)
+ {
+@@ -871,6 +971,12 @@
+ 
+ 	void program_cache_hint_t::invalidate(u32 flags)
+ 	{
++#ifdef RPCS3_IOS
++		if (flags & rsx::fragment_program_ucode_dirty)
++		{
++			m_fragment_input_mask.reset();
++		}
++#endif
+ 		if (flags & rsx::vertex_program_dirty)
+ 		{
+ 			m_cached_vertex_program = nullptr;
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+@@ -19,6 +19,8 @@
+ #include <array>
+ #include <atomic>
+ #include <cstring>
++#include <optional>
++#include <type_traits>
+ #include "ios/IOSShaderTiming.h"
+ #include "ios/IOSCompilePressure.h"
+ #endif
+@@ -86,6 +88,10 @@
+ 		static fragment_program_metadata analyse_fragment_program(const void* ptr);
+ 
+ 		static usz get_fragment_program_ucode_hash(const RSXFragmentProgram &program);
++#ifdef RPCS3_IOS
++		static u16 get_fragment_program_input_mask(const RSXFragmentProgram& program);
++		static std::optional<RSXFragmentProgram> normalize_fragment_program_key(const RSXFragmentProgram& program, u16 inputs);
++#endif
+ 	};
+ 
+ 	struct fragment_program_storage_hash
+@@ -141,10 +147,22 @@
+ 
+ 		// Helper - optionally cache the fragment program if possible
+ 		static void cache_fragment_program(program_cache_hint_t* cache, const RSXFragmentProgram& ref, void* fragment_program);
++#ifdef RPCS3_IOS
++		u16 get_fragment_input_mask(const RSXFragmentProgram& program)
++		{
++			if (!m_fragment_input_mask)
++				m_fragment_input_mask = program_hash_util::fragment_program_utils::get_fragment_program_input_mask(program);
++			return *m_fragment_input_mask;
++		}
++#endif
+ 
+ 	protected:
+ 		void* m_cached_fragment_program = nullptr;
+ 		void* m_cached_vertex_program = nullptr;
++#ifdef RPCS3_IOS
++		// Empty means not analysed; 0xffff is a cached conservative result.
++		std::optional<u16> m_fragment_input_mask;
++#endif
+ 
+ 		RSXFragmentProgram m_cached_fp_properties;
+ 		RSXVertexProgram m_cached_vp_properties;
+@@ -340,6 +358,13 @@
+ 
+ 			lock.upgrade();
+ 			auto [it, added] = shaders.try_emplace(key);
++			if constexpr (std::is_same_v<Key, RSXFragmentProgram>)
++			{
++				// A published map key must remain immutable while other preload
++				// workers compare it. Acquire its microcode before releasing the
++				// writer lock; shader compilation still happens outside the lock.
++				if (added) it->first.clone_data();
++			}
+ 			entry = std::addressof(*it);
+ 			inserted = added;
+ 		}
+@@ -415,10 +440,20 @@
+ 		}
+ 
+ #ifdef RPCS3_IOS
+-		auto result = search_completed_shader(m_fragment_shader_cache, m_fragment_mutex, m_recent_fragment_shaders, rsx_fp,
+-			[&](const RSXFragmentProgram& owned_key, fragment_program_type& shader)
+-			{
+-				owned_key.clone_data();
++		// Analyse lazily only when a property might be removed. The live hint
++		// retains even conservative results until the microcode is invalidated.
++		// Disk preload has no hint and scans only its known-length blob.
++		std::optional<RSXFragmentProgram> normalized;
++		if (rsx_fp.texcoord_control_mask || rsx_fp.two_sided_lighting || (rsx_fp.ctrl & RSX_SHADER_CONTROL_FLAT_SHADING))
++		{
++			const u16 inputs = cache_hint ? cache_hint->get_fragment_input_mask(rsx_fp)
++				: program_hash_util::fragment_program_utils::get_fragment_program_input_mask(rsx_fp);
++			normalized = program_hash_util::fragment_program_utils::normalize_fragment_program_key(rsx_fp, inputs);
++		}
++		auto result = search_completed_shader(m_fragment_shader_cache, m_fragment_mutex, m_recent_fragment_shaders,
++			normalized ? *normalized : rsx_fp,
++			[&](const RSXFragmentProgram&, fragment_program_type& shader)
++			{
+ 				backend_traits::recompile_fragment_program(rsx_fp, shader, m_next_id++);
+ 			});
+ 		rsx::program_cache_hint_t::cache_fragment_program(cache_hint, rsx_fp, const_cast<fragment_program_type*>(&std::get<0>(result)));
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1601,8 +1601,14 @@
+ 	const u64 peak = jit_memory::batch_peak.load(std::memory_order_relaxed);
+ 	if (peak > footprint_start) jit_memory::maximum(observed_compile_cost[bucket], peak - footprint_start);
+ 	jit_memory::active.fetch_sub(1, std::memory_order_relaxed);
+-	if (api) api->release(ticket);
+-	else { std::lock_guard lock(compiler_wait_mutex); fallback_compiler_active = false; }
++	{
++		// Pair ticket availability with the mutex used to enter wait_for. The
++		// host API has its own budget lock; without this outer lock its release
++		// could notify between a failed acquisition and registration of the wait.
++		std::lock_guard lock(compiler_wait_mutex);
++		if (api) api->release(ticket);
++		else fallback_compiler_active = false;
++	}
+ 	compiler_wait_cv.notify_all();
+ }
+ 

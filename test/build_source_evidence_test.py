@@ -32,10 +32,28 @@ class BuildSourceEvidenceTests(unittest.TestCase):
             self.put("docs/" + name, "# " + name + "\nSource references with open gaps.\n")
         for name in evidence.SOURCE_EVIDENCE:
             self.put("docs/evidence/" + name, '{"schema":1,"complete":false}\n')
-        self.put("docs/evidence/package-sources-license-audit-2026-10-21.json", json.dumps({
+        baseline_name = "docs/evidence/package-sources-license-audit-2026-10-21.json"
+        baseline = self.put(baseline_name, json.dumps({
             "schema": 1,
             "pubspec_lock_sha256": hashlib.sha256((self.root / "pubspec.lock").read_bytes()).hexdigest(),
             "source_declaration_sha256": {"pubspec.yaml": hashlib.sha256((self.root / "pubspec.yaml").read_bytes()).hexdigest()},
+        }))
+        historical = json.loads(baseline.read_bytes())
+        reviewed = json.loads((ROOT / "docs/evidence/achievement-translation-declarations-2026-10-31.json").read_bytes())
+        updates = {}
+        for name in reviewed["declarations"]:
+            if name != "pubspec.yaml":
+                self.put(name, "Synthetic local declaration fixture: " + name + "\n")
+            updates[name] = {
+                "before": historical["source_declaration_sha256"].get(name),
+                "after": hashlib.sha256((self.root / name).read_bytes()).hexdigest(),
+            }
+        self.followup = "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+        self.put(self.followup, json.dumps({
+            "schema": 1, "baseline_inventory": baseline_name,
+            "baseline_inventory_sha256": hashlib.sha256(baseline.read_bytes()).hexdigest(),
+            "pubspec_lock_sha256": historical["pubspec_lock_sha256"],
+            "declarations": updates, "complete_corresponding_source_attested": False,
         }))
         self.env = patch.dict(os.environ, {"FLUTTER_ROOT": ""})
         self.env.start()
@@ -126,6 +144,28 @@ class BuildSourceEvidenceTests(unittest.TestCase):
             evidence.collect(self.root, COMMIT)
         self.put("pubspec.lock", "packages: {}\n")
         self.put("pubspec.yaml", "name: sample\ndependencies: {new_dependency: any}\n")
+        with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
+            evidence.collect(self.root, COMMIT)
+
+    def test_followup_cannot_rebind_history_or_omit_a_new_declaration(self):
+        original = (self.root / self.followup).read_bytes()
+        followup = json.loads(original)
+        followup["declarations"]["pubspec.yaml"]["before"] = "wrong"
+        self.put(self.followup, json.dumps(followup))
+        with self.assertRaisesRegex(SystemExit, "historical declaration"):
+            evidence.collect(self.root, COMMIT)
+        followup = json.loads(original)
+        del followup["declarations"]["packages/achievement_translation/pubspec.yaml"]
+        self.put(self.followup, json.dumps(followup))
+        with self.assertRaisesRegex(SystemExit, "scope changed"):
+            evidence.collect(self.root, COMMIT)
+        followup = json.loads(original)
+        followup["baseline_inventory_sha256"] = "wrong"
+        self.put(self.followup, json.dumps(followup))
+        with self.assertRaisesRegex(SystemExit, "different baseline"):
+            evidence.collect(self.root, COMMIT)
+        self.put(self.followup, original)
+        self.put("packages/achievement_translation/pubspec.yaml", "unreviewed dependency\n")
         with self.assertRaisesRegex(SystemExit, "declaration changed since review"):
             evidence.collect(self.root, COMMIT)
 

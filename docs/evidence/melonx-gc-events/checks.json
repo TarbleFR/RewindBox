@@ -1,0 +1,84 @@
+{
+  "result": "passed",
+  "checks": 46,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparation",
+  "sourceBaseline": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "7de6a7a29cc02ebf7878bebf5bb557886f2efb517fece493214de72ca4434a81",
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658"
+  },
+  "nativeBaseline": {
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "2af3a086c9271b6bcc40bd3b1087eb71e92aa6c3204325d44521b63f1816c835",
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658"
+  },
+  "productionCommonBuilt": {
+    "control": "7de6a7a29cc02ebf7878bebf5bb557886f2efb517fece493214de72ca4434a81",
+    "candidate": "2af3a086c9271b6bcc40bd3b1087eb71e92aa6c3204325d44521b63f1816c835"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "backgroundGcObserved": true,
+  "serverGc": false,
+  "candidateLines": {
+    "total": 38,
+    "statuses": [
+      "background",
+      "fullBlocking"
+    ],
+    "maxDetailLength": 596
+  },
+  "existingFixtureChecks": {
+    "control": 122,
+    "candidate": 122
+  },
+  "hostSampleDetail": {
+    "schema": 1,
+    "sessionGeneration": 1,
+    "line": 1,
+    "kindLine": 1,
+    "maxLinesPerKind": 16,
+    "suppressedLines": 0,
+    "finalSample": false,
+    "kind": "fullBlocking",
+    "newInWindow": true,
+    "index": 2,
+    "generation": 2,
+    "concurrent": 0,
+    "compacted": 1,
+    "pauseMs": [
+      0.265,
+      0
+    ],
+    "promotedBytes": 89072,
+    "heapSizeBytes": 89768,
+    "gen2": [
+      0,
+      0,
+      41416,
+      0
+    ],
+    "loh": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "generationColumns": "sizeBeforeBytes,fragmentationBeforeBytes,sizeAfterBytes,fragmentationAfterBytes",
+    "memoryLoadBytes": 2868376371,
+    "highMemoryLoadThresholdBytes": 12907693670,
+    "totalCommittedBytes": 352256,
+    "gen2CollectionsInWindow": 1
+  },
+  "inputs": {
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": "a899834ff0e46ce265e00c438e073b8aaa8e4299e8aa182b6c0a6435503810e0",
+    "build-utils/melonx/adapt_bindless_array_deltas.py": "eef2da4bdb9dc0d6fc23a32b7c7daf3a4d643dd5cd77f316150e3551f9078c1f",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_gc_events_test.py": "a84ce74d7de43e3cdfae5aab6b0f3ec183a3680ba14473cee1c4202c0073e927",
+    "test/melonx_performance_diagnostics/GcEventsProgram.cs": "f3d6d3d683a86135f07c325743839be832505f24d204c18873c491bcaf167ff1",
+    "test/melonx_performance_diagnostics/Program.cs": "aa9a4504a26f4058d0a654f3dbfe0ba655e30a836687b22c7521db5fe963bd41"
+  },
+  "limitation": "Journal only, host runtime (workstation concurrent GC, not Apple NativeAOT); the test fails on a host that runs no background gen2. A sample sees only the latest blocking and the latest background gen2; earlier ones in the same 5 s window are counted, not described. Lines over the 16-per-kind budget are counted (suppressedLines), not described, except the latest of each kind in the final sample. What triggered the device collection is known only from a device run with these lines."
+}

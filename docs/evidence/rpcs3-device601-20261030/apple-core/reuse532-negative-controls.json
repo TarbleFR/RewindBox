@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "source": "532ca40efc91730a6770db63879e9db759c7867d",
+  "run": 41113741373,
+  "artifact": 13005716946,
+  "archive_sha256": "14bf88f0c5fb2698b82656932c174886b42778d55c562a38c17f5c1742a4bb74",
+  "reused_modes": 10,
+  "fresh_modes_required": 2,
+  "compiler_executed": false,
+  "native_executed": false,
+  "apple_executed": false,
+  "negative_controls_rejected": [
+    "proof-bytes",
+    "report-bytes",
+    "output-bytes",
+    "compile_trace-bytes",
+    "captured-cpp-bytes",
+    "NDEBUG-compiler-flag",
+    "disabled-sanitizer-compiler-flag",
+    "current-compiler-version",
+    "extra-current-production-change",
+    "changed-reused-job",
+    "generated-program-relevance",
+    "actual-current-production-input",
+    "reused-result-relabeled-new",
+    "installed-capture-bytes"
+  ],
+  "provenance": {
+    "source": "532ca40efc91730a6770db63879e9db759c7867d",
+    "run": 41113741373,
+    "artifact": 13005716946,
+    "archive_bytes": 153758703,
+    "archive_sha256": "14bf88f0c5fb2698b82656932c174886b42778d55c562a38c17f5c1742a4bb74",
+    "proof_sha256": "138526c6a87ba56a2c08302bcd87d0949776989e877e3274d7289c1fbd67e07c",
+    "original_native_modes": 12,
+    "reused_native_modes": [
+      "color-feedback-asan-ubsan",
+      "color-feedback-plain",
+      "exitspawn-worker-asan-ubsan",
+      "exitspawn-worker-plain",
+      "savestate-completion-asan-ubsan",
+      "savestate-completion-plain",
+      "tiny-vertex-asan-ubsan",
+      "tiny-vertex-plain",
+      "vertex-range-asan-ubsan",
+      "vertex-range-plain"
+    ],
+    "new_native_modes": [
+      "mfc-decrementer-asan-ubsan",
+      "mfc-decrementer-plain"
+    ],
+    "native_executed_now": 0,
+    "old_core_built": false,
+    "previous_build_failed_at_ios_syntax": true,
+    "compiler_identity_equal": true,
+    "current_programs_equal": true,
+    "unchanged_modes_replayed": false,
+    "historical_378_modes_replayed": false
+  }
+}

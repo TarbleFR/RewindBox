@@ -1,0 +1,76 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "checks": 4351,
+      "scenarios": 136,
+      "retainedParticipants": 3,
+      "descriptorDigest": "078D9B0222ACFB91A989DC7A34496CE5EB5638C9FB098E768012F4866B405BE0",
+      "concurrentPoolCycles": 4000
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 4479,
+      "scenarios": 136,
+      "retainedParticipants": 0,
+      "descriptorDigest": "078D9B0222ACFB91A989DC7A34496CE5EB5638C9FB098E768012F4866B405BE0",
+      "concurrentPoolCycles": 4000
+    }
+  },
+  "physicalDeviceTested": false,
+  "ipcTransportExecuted": false,
+  "unchangedServerReturnSites": 5,
+  "compiledInputs": {
+    "control": {
+      "returnBoundarySha256": "c962359586c2b31aadee9cbd1b62beee7b1e2453dc0487871682dfa3d20ced7a",
+      "returnExpression": "RequestPool.Release(request);",
+      "programSha256": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f"
+    },
+    "candidate": {
+      "returnBoundarySha256": "1ecfe9c1376c18e04b5a0ca166e76de9c7f90c463e38f3e4ff050efe7cfcc9a6",
+      "returnExpression": "RequestPool.Release(request.ClearReferences());",
+      "programSha256": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f"
+    }
+  },
+  "postimages": {
+    "control": {
+      "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "e1dc4b24b0861db309c00d29bb099b5458dee86caa6d4269e3b94d780b346272",
+      "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "78d97abc12ff14a95a88b917632d6b6b509977a4e58ab81d922928a41773f65e"
+    },
+    "candidate": {
+      "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "09a13c5739521d82cc119e5138636c734a27d04dfcfffe225cf2bbe93e01a565",
+      "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "3ef04768f15101df8e025f70bbffbe236aa8f097c3a6ee9db618ba9185317000"
+    }
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "e1dc4b24b0861db309c00d29bb099b5458dee86caa6d4269e3b94d780b346272",
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "78d97abc12ff14a95a88b917632d6b6b509977a4e58ab81d922928a41773f65e",
+    "src/Ryujinx.Common/Pools/ObjectPool.cs": "f3a449f027d1a78831badcc565293763cd4eb51a0f2fe9219778c53f5f2ea4de",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+    "src/Ryujinx.Memory/MemoryPermission.cs": "215b4518d6c20a0ceb83d240a6ecab68ce9794c7f0b1601d01b259261abf850d",
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KBufferDescriptorTable.cs": "29deb8b635d88467ce8225f7c2239530d9fefd9c87ea1c7e8e4ff2408d9d3b46",
+    "src/Ryujinx.HLE/HOS/Kernel/Ipc/KBufferDescriptor.cs": "80700b62157428d291f756459bd281f9d04ba1efe8977514d6e00e1b28e52b0e",
+    "src/Ryujinx.HLE/HOS/Kernel/Memory/MemoryState.cs": "f07059519d959068f61c26690b1cfcd0e72b76c762b8b04de85e56213d9ccaff",
+    "src/Ryujinx.HLE/HOS/Kernel/Memory/MemoryAttribute.cs": "5aadc812a31ab41b434e7c91db0f6255826bcfd0a0010f23afdbbcb78b9285f5",
+    "src/Ryujinx.HLE/HOS/Kernel/Memory/KMemoryPermission.cs": "e1770c52d7f88cc2ed9a6ac0771e99d743ebe58f92db33b4f371f6d3312d9995",
+    "src/Ryujinx.Horizon.Common/Result.cs": "3adbe31c3a3c2a21d880fe8da816303ca43fe72a109be1ee5271b141d5c9b86a",
+    "src/Ryujinx.Horizon.Common/KernelResult.cs": "345fcdc02e58c757a7a6c54a084e3c6dadd6abf26ca9a3adfc60fd7194f0244a",
+    "src/Ryujinx.Horizon.Common/ResultNames.cs": "280f348f3362f595e5bb16b7b58b6b7828894780738f95ba8238fb02766a91ed",
+    "src/Ryujinx.Horizon.Common/InvalidResultException.cs": "5570e726b1e5592858e27f5a95484847f6a7396488afa21e79e4e5552849bf6f",
+    "src/Ryujinx.Horizon.Common/ThreadTerminatedException.cs": "c013adbfc0bcd0a3741dea6ebf0eeff85ebdbeb5ccef19927b44e16e4119bdae"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_ipc_request_lifetime.py": "dfee2a2d7e970bb826f4dc609faf04a5d969d777e218e6933f0461fb55d6a71b",
+    "test/melonx_ipc_request_lifetime_test.py": "5a85b28e6bdbba12e55360d98eeabc9f985ccbb2d2ce1c07b3ff02448750d1a2",
+    "test/melonx_ipc_request_lifetime/Program.cs": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f"
+  },
+  "adapterResultListIntegration": {
+    "previousAdapterSha256": "3313781dca47555b737df59b65d3139366c9f71ab870295e01a995dc744c2daa",
+    "currentAdapterSha256": "dfee2a2d7e970bb826f4dc609faf04a5d969d777e218e6933f0461fb55d6a71b",
+    "nativePostimagesUnchanged": true,
+    "runtimeSuiteReplayed": false,
+    "reason": "Adapter now returns its changed file list for preparation; all generated native bytes match the executed fixture exactly."
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "5045889ff9f1a872d238435293c50cacd7c127b5",
+    "run": 40895446303,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40895446303"
+  },
+  "identities": {
+    "ios-arm64": "cf441263ac24e60ec2c88601b7fc9d73abf2879d346b9c6c1a20780f75a586f1",
+    "iossimulator-arm64": "47010df9aa48cc794312a1875bbf7a3c4e6ba7ab172e81dfe6e1bb8d4869de06"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "a19229b27a949225dd6aebc03c6737b466f26f355ee0ec5f8418ec7857bfc6a4",
+      "bytes": 37585128
+    },
+    "iossimulator-arm64": {
+      "sha256": "a171296956d22e57d242b918ea262ac84fa0113591c46e69ce169cb200a10248",
+      "bytes": 37911912
+    }
+  },
+  "adaptationCount": 86,
+  "reviewedChangedSources": 17,
+  "verifiedGatePostimages": 22,
+  "compositionExceptions": [
+    {
+      "receipt": "converted-cache-checks.json",
+      "path": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "fixturePostimage": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+      "finalPostimage": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "explanation": "The later indirect-key adapter removes two readonly qualifiers; its control hash matches this postimage."
+    },
+    {
+      "receipt": "kernel-wait-lifetime-checks.json",
+      "path": "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
+      "fixturePostimage": "ad697837ea5adb7e0aeea347830d4fd174b445ebc175788247505e443044d47b",
+      "finalPostimage": "12f1d70303a7cbed4d49c3021043163f5d7e76e199d4d88d75b66f902e754539",
+      "explanation": "Existing engine82 ExitProcess diagnostics differ; the entire tested WaitSynchronization method matches exactly."
+    },
+    {
+      "receipt": "texture-group-callbacks-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "fixturePostimage": "ad3325098f23f5ae36632db8fddb88241b689b1ea10e6cf820935008c7195fd8",
+      "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+      "explanation": "Existing engine82 lifetime changes and the later dependency adapter affect other members; all eleven tested methods match."
+    },
+    {
+      "receipt": "texture-handle-dependencies-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "fixturePostimage": "ed73d3f6e19fc5e9ad809bf99695fa6becc501a07cdbe131779601b976bf2166",
+      "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+      "explanation": "The callback adapter and previous engine82 members affect other sections; the entire tested inheritance and replacement methods match."
+    },
+    {
+      "receipt": "texture-region-cursor-checks.json",
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "fixturePostimage": "50187e4802e2486ef6eb7bfe9db2fcfbe45bb50244dbf5090d6b56425cf0e082",
+      "finalPostimage": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017",
+      "explanation": "Existing engine82 lifetime changes affect other members; all five tested initialization and overlap methods match."
+    }
+  ],
+  "embeddedArchiveSha256": "198d3ee7c52bc97140be30cb77c650943f83d107e07edc59bb610b3f964c04fd",
+  "physicalDeviceTested": false,
+  "gameplayTested": false
+}

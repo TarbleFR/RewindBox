@@ -1,0 +1,71 @@
+{
+ "schema": 1,
+ "date": "2026-11-07",
+ "session": "https://claude.ai/code/session_01JA5QgKeoGVH5oVjNyhcj3D",
+ "core": 689,
+ "base": "Core 687 (b85df163, pin ab03701f)",
+ "finding": {
+  "input": "IPA 688 private journals, Hogwarts pids 29464 (16:48-16:55 UTC), 30431 and 30620 (17:05-17:14 UTC), async shaders on; not in the repository",
+  "drops": "GPU thread 60-95 % busy in drop stretches; DMA texture flush ~1 per frame, 5-15 ms (texFlushAction 0.4-2.3 s per 5.1 s window) from 4391 read-backs declined as occupied; render-thread compute pipeline waits 0.86-3.4 s per window on first visits (30620 17:11:32-17:11:55)",
+  "corruption": "5934 draws skipped while their program compiled (29464); targets held only until their first complete pass; maintainer reports a black menu (30431/30620)",
+  "steady": "30620 heavy area ~20 fps: render thread descriptors 0.9-1.2 s and submits 0.4-1.5 s per window, GPU thread bindings ~1 s, compute 0.7 s, arrayDelta 0.5 s, syncInvoke 1-1.7 s per window; GPU busy 15-19 ms per frame (not saturated)"
+ },
+ "change": "adapt_occupied_readback_buffers (DmaClass.cs, Hogwarts policy) and adapt_async_regenerated_targets (VulkanRenderer, Window, TextureStorage, FramebufferParams, PipelineBase; only with async shaders)",
+ "review": "rb-core-review: no proven defect; no skip added (proven); H1 stale-bytes hypothesis (receiver rendered before a guest read) as on the build 626 path, occupants logged modified False; docstring corrected",
+ "gatesRun": {
+  "artifact-counters-checks.json": "ed126a4eeceff1c35e9c49f4efc1db169c584cb416fff4987f1519499ef000ec",
+  "async-regenerated-targets-checks.json": "60eb345abc4f9ef33f01fc5d4135450def210b9479c0ea4df9b2b0cd1b340be3",
+  "bindless-retention-checks.json": "52a82198a04eeae126e4c2e5f6dc9f4d3158781fbd2b7a94cd4a4350996ad2aa",
+  "fallback-descriptor-scratch-checks.json": "ed037c51b813947e8c084c82337ea9c1ba9e06069758f3836e63eaf1a52cb847",
+  "fragmented-reads-checks.json": "01fc11becb6cfdfd8bc5b3991f916e148f831f690c1235f8e63f0d2c94cdf9e6",
+  "hogwarts-dma-copies-checks.json": "17110e8f9877e67247bc5ec9748d76df98506f9ac8f3b3f134feb9ff28b395f1",
+  "moltenvk-barrier-ordering-checks.json": "957eb46f11b8fac23fefd7367db97eb1e448f0a5a6f56292426ae855a263668f",
+  "moltenvk-stage-ordering-checks.json": "cdabb124e4c77c72e7907c9726dd49f5b36e9a1edac9171b47ef5eaeb41f9e47",
+  "occupied-readback-buffers-checks.json": "562d2f23ad6d629e2d2465c4a63b6bc1693d8398a7fd4cb526a7edb118299616",
+  "performance-diagnostics-checks.json": "101d7acc691061ad9f8a6190a3599e9eaf055501466d715ff5b070dbdfec9303",
+  "pipeline-cache-persist-checks.json": "45ba5cae1481c1bd3e2a31ba6b39fd9baa33d36b8e389de084d8964e3a96e130",
+  "present-drawable-residency-checks.json": "0976d3cb418f6e1d359bb712b686903539ba1852675f69bfda57115603e8aa93",
+  "present-pacer-fixes-checks.json": "bb5ffc00fa8bfe731c37fcd3cbb0cc86f76e23cd5437c39703b89d5746388d2d",
+  "present-pacing-checks.json": "8425b55b10bd29b0ca21472aab8c71fad7626d351525fdc21ca08d64f0bde184",
+  "readback-occupied-attribution-checks.json": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+  "readback-receivers-checks.json": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+  "scalar-texture-descriptor-checks.json": "e2acf2f56530cc473c6373a4b3b696955218a8fb76b506ceb99b8198aab8fe17",
+  "setprogram-warmup-checks.json": "39377fa183c0a8e01ac76a63cddbb4259ccc9ea56768cea2d186887176ed5fda",
+  "teardown-cache-checks.json": "0cddc21d8e6c39c5d2b6f0a899a52193c56d25669ea568939c96790319fa4364",
+  "teardown-compile-cancel-checks.json": "ebeb25edd5f2e51a33497ac8fefcb55e8524c7e0440c5a0d5c6506269925a14d",
+  "teardown-phase-marks-checks.json": "afe9c00b83b38e12d10f3366936ce7078adacae9db4d0f7b06c30ece71adb0f2",
+  "warmup-key-parity-checks.json": "b226d9f7791db3f382f262a4b7cd76a220a1385de88a64611de8f8dde3d0b02d"
+ },
+ "contract": {
+  "sha256": "7726d34edcd0ee1e112f6ccf8e7e75961a5b7c8c90b1ce0e37cf7f40fc64bd00",
+  "freshAppleGates": 58,
+  "preparationInputs": 176,
+  "contractTest": "407 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42397176037 attempt 1 (8c3a5353, Core 689)": "passed: 58 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42397176037,
+  "attempt": 1,
+  "job": 128476942271,
+  "source": "8c3a535310914ef9c445b2ef0eda002812ed069b",
+  "artifact": 13585285918,
+  "artifactBytes": 90711607,
+  "artifactSha256": "8eab999af51f3c83f2242b751e17346f25d15f8bb5b3b0719ae8f3a1c0159869",
+  "expiresAt": "2026-11-21T18:06:51Z",
+  "iphoneBinarySha256": "6d41033e1ef9dae7d9c59f2aff6313151d47c6784e814bdde94f2a7725e84360",
+  "iphoneBinaryBytes": 38193056,
+  "packagedFingerprint": "58f117b8a3259f3336082ad0ec1c0baddc03575eabe6e85fe433e38c608a32ff",
+  "resultSha256": "14a3d0e2c16ac9ca025562add8b3ed69616685063f2d59b4b03379f024d3ee04",
+  "contractSha256": "7726d34edcd0ee1e112f6ccf8e7e75961a5b7c8c90b1ce0e37cf7f40fc64bd00",
+  "iphoneBinaryMarkers": [
+   "rerouted into buffers",
+   "async draws held for their program",
+   "over an occupied destination into a buffer"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 687 (b85df163, pin ab03701f, fingerprint 56e192fa)"
+ }
+}

@@ -1,0 +1,14 @@
+{
+  "apiBoundary": "Saved exact run/job/artifact JSON",
+  "baseline": 594,
+  "bindingSHA256": "e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a",
+  "build": 595,
+  "compilersExecuted": 0,
+  "ipaCreated": false,
+  "nativeTestsExecuted": 0,
+  "receiptSHA256": "f42936565772789bf54b7b05abb9eef27f9702fe51290f625071a5ded85ec623",
+  "result": "passed",
+  "scope": "Actual integrated expected()/embed() schema with authenticated Core85 bytes and saved API metadata. Scratch output is a JSON schema fixture, not an app or IPA.",
+  "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+  "validatorSHA256": "e08d7844bafb0affee284cf1b789e5e9507f4e783c8cc0cc0e0c018422e8c3b8"
+}

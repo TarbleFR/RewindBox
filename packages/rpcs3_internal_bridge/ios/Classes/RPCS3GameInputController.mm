@@ -36,6 +36,12 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
 @property(nonatomic, assign) rpcs3_ios_api* api;
 @property(nonatomic, strong) RPCS3TouchControlsView* touchOverlay;
 @property(nonatomic, strong, nullable) GCController* physicalController;
+// Handlers the pad had before the game bound it (RewindBox's menu bridge).
+// Put back at unbind so the menu keeps the controller after the game closes.
+@property(nonatomic, copy, nullable) GCExtendedGamepadValueChangedHandler previousExtendedHandler;
+@property(nonatomic, copy, nullable) GCMicroGamepadValueChangedHandler previousMicroHandler;
+@property(nonatomic, assign) BOOL replacedExtendedHandler;
+@property(nonatomic, assign) BOOL replacedMicroHandler;
 @property(nonatomic, strong, nullable) NeoTouchControllerMonitor* controllerMonitor;
 @property(nonatomic, assign) BOOL started;
 @property(nonatomic, assign, readwrite, getter=isEditingTouchLayout) BOOL editingTouchLayout;
@@ -184,6 +190,8 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
   __weak RPCS3GameInputController* weakSelf = self;
   if (controller.extendedGamepad) {
     GCExtendedGamepad* pad = controller.extendedGamepad;
+    self.previousExtendedHandler = pad.valueChangedHandler;
+    self.replacedExtendedHandler = YES;
     pad.valueChangedHandler = ^(GCExtendedGamepad* gamepad, GCControllerElement* element) {
       dispatch_async(dispatch_get_main_queue(), ^{
         RPCS3GameInputController* strongSelf = weakSelf;
@@ -195,6 +203,8 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
     [self updateFromExtendedGamepad:pad];
   } else if (controller.microGamepad) {
     GCMicroGamepad* pad = controller.microGamepad;
+    self.previousMicroHandler = pad.valueChangedHandler;
+    self.replacedMicroHandler = YES;
     pad.valueChangedHandler = ^(GCMicroGamepad* gamepad, GCControllerElement* element) {
       dispatch_async(dispatch_get_main_queue(), ^{
         RPCS3GameInputController* strongSelf = weakSelf;
@@ -211,8 +221,18 @@ static inline void RPCS3SetBit(uint64_t* bits, uint64_t bit, BOOL pressed) {
 - (void)unbindPhysicalController {
   GCController* controller = self.physicalController;
   if (!controller) return;
-  if (controller.extendedGamepad) controller.extendedGamepad.valueChangedHandler = nil;
-  if (controller.microGamepad) controller.microGamepad.valueChangedHandler = nil;
+  // Restore what the pad had instead of clearing it: a nil handler left the
+  // RewindBox menu without controller input after every PS3 game.
+  if (self.replacedExtendedHandler && controller.extendedGamepad) {
+    controller.extendedGamepad.valueChangedHandler = self.previousExtendedHandler;
+  }
+  if (self.replacedMicroHandler && controller.microGamepad) {
+    controller.microGamepad.valueChangedHandler = self.previousMicroHandler;
+  }
+  self.previousExtendedHandler = nil;
+  self.previousMicroHandler = nil;
+  self.replacedExtendedHandler = NO;
+  self.replacedMicroHandler = NO;
   self.physicalController = nil;
   memset(&_physicalState, 0, sizeof(_physicalState));
   _physicalState.size = sizeof(_physicalState);

@@ -1,0 +1,5790 @@
+{
+  "ipa": "NeoStation.ipa",
+  "bytes": 188331345,
+  "sha256": "cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e",
+  "zipIntegrity": "passed",
+  "mainApplicationCount": 1,
+  "embeddedExtensions": [
+    "ARMSX2JITHelper.appex",
+    "DolphinJITHelper.appex",
+    "MeloNXJITHelper.appex",
+    "MeloNXRamDonor.appex",
+    "NeoSwapDonor.appex",
+    "NeoSwapPageRelay.appex",
+    "RPCS3JITHelper.appex"
+  ],
+  "networkExtensionDependencyPresent": false,
+  "requiredBridgeExports": [
+    "_neostation_dolphin_cheats_snapshot",
+    "_neostation_dolphin_download_gecko_codes",
+    "_neostation_dolphin_initialize",
+    "_neostation_dolphin_is_running",
+    "_neostation_dolphin_launch",
+    "_neostation_dolphin_launch_wii_menu",
+    "_neostation_dolphin_menu_apply",
+    "_neostation_dolphin_menu_snapshot",
+    "_neostation_dolphin_performance_snapshot",
+    "_neostation_dolphin_prepare_legacy_jit",
+    "_neostation_dolphin_refresh_controllers",
+    "_neostation_dolphin_release_touches",
+    "_neostation_dolphin_restart",
+    "_neostation_dolphin_save_identity",
+    "_neostation_dolphin_set_cheat_enabled",
+    "_neostation_dolphin_set_cheats_enabled",
+    "_neostation_dolphin_set_paused",
+    "_neostation_dolphin_state_operation",
+    "_neostation_dolphin_state_snapshot",
+    "_neostation_dolphin_stop",
+    "_neostation_dolphin_touch_event",
+    "_neostation_dolphin_validate_image",
+    "_neostation_dolphin_validate_wii_menu"
+  ],
+  "machOImages": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/DolphinJITHelper": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 21
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 16
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/NeoSwapDonor": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 26
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 21
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 21
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 21
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@executable_path/../../Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 3
+    },
+    "Payload/NeoStation.app/Runner": {
+      "architecture": "arm64",
+      "fileType": 2,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVKit.framework/AVKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVRouting.framework/AVRouting",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Accelerate.framework/Accelerate",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreData.framework/CoreData",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreText.framework/CoreText",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "@rpath/DolphinCore.framework/DolphinCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "@rpath/GTMSessionFetcher.framework/GTMSessionFetcher",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MediaAccessibility.framework/MediaAccessibility",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/NaturalLanguage.framework/NaturalLanguage",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "@rpath/PDFium.framework/PDFium",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ReplayKit.framework/ReplayKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Translation.framework/Translation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Vision.framework/Vision",
+          "weak": false
+        },
+        {
+          "path": "@rpath/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/battery_plus.framework/battery_plus",
+          "weak": false
+        },
+        {
+          "path": "@rpath/device_info_plus.framework/device_info_plus",
+          "weak": false
+        },
+        {
+          "path": "@rpath/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_display.framework/external_display",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_folder_access.framework/external_folder_access",
+          "weak": false
+        },
+        {
+          "path": "@rpath/file_picker.framework/file_picker",
+          "weak": false
+        },
+        {
+          "path": "@rpath/flutter_7zip.framework/flutter_7zip",
+          "weak": false
+        },
+        {
+          "path": "@rpath/flutter_localization.framework/flutter_localization",
+          "weak": false
+        },
+        {
+          "path": "@rpath/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+          "weak": false
+        },
+        {
+          "path": "@rpath/gamepads_darwin.framework/gamepads_darwin",
+          "weak": false
+        },
+        {
+          "path": "@rpath/libretro_internal_bridge.framework/libretro_internal_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/melonx_internal_bridge.framework/melonx_internal_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_swap.framework/neo_swap",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_texture_catalog.framework/neo_texture_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+          "weak": false
+        },
+        {
+          "path": "@rpath/package_info_plus.framework/package_info_plus",
+          "weak": false
+        },
+        {
+          "path": "@rpath/pdfium_flutter.framework/pdfium_flutter",
+          "weak": false
+        },
+        {
+          "path": "@rpath/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/share_plus.framework/share_plus",
+          "weak": false
+        },
+        {
+          "path": "@rpath/shared_preferences_foundation.framework/shared_preferences_foundation",
+          "weak": false
+        },
+        {
+          "path": "@rpath/stikjit_bridge.framework/stikjit_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/url_launcher_ios.framework/url_launcher_ios",
+          "weak": false
+        },
+        {
+          "path": "@rpath/video_player_avfoundation.framework/video_player_avfoundation",
+          "weak": false
+        },
+        {
+          "path": "@rpath/wakelock_plus.framework/wakelock_plus",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/LinkPresentation.framework/LinkPresentation",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreTelephony.framework/CoreTelephony",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/_Translation_SwiftUI.framework/_Translation_SwiftUI",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAccelerate.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftNaturalLanguage.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftSpatial.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftVideoToolbox.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Concurrency.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": null,
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 1062
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_ngp_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 610
+    },
+    "Payload/NeoStation.app/Frameworks/wakelock_plus.framework/wakelock_plus": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/wakelock_plus.framework/wakelock_plus",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 19
+    },
+    "Payload/NeoStation.app/Frameworks/objective_c.framework/objective_c": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/objective_c.framework/objective_c",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "definedSymbolCount": 139
+    },
+    "Payload/NeoStation.app/Frameworks/picodrive_libretro.framework/picodrive_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "picodrive_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1147
+    },
+    "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/neo_texture_catalog": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/neo_texture_catalog.framework/neo_texture_catalog",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 429
+    },
+    "Payload/NeoStation.app/Frameworks/freechaf_libretro.framework/freechaf_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "freechaf_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "7.0.0",
+      "definedSymbolCount": 400
+    },
+    "Payload/NeoStation.app/Frameworks/pokemini_libretro.framework/pokemini_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "pokemini_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 629
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_pcfx_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1237
+    },
+    "Payload/NeoStation.app/Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Combine.framework/Combine",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreLocation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftSpatial.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Concurrency.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_errno.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswift_stdio.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 314
+    },
+    "Payload/NeoStation.app/Frameworks/sqlite3.framework/sqlite3": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/sqlite3.framework/sqlite3",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "12.0.0",
+      "definedSymbolCount": 330
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 3
+    },
+    "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 28
+    },
+    "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 62
+    },
+    "Payload/NeoStation.app/Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "gearcoleco_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "15.0.0",
+      "definedSymbolCount": 2040
+    },
+    "Payload/NeoStation.app/Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "15.0.0",
+      "definedSymbolCount": 52
+    },
+    "Payload/NeoStation.app/Frameworks/sameduck_libretro.framework/sameduck_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "sameduck_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 155
+    },
+    "Payload/NeoStation.app/Frameworks/pdfium_flutter.framework/pdfium_flutter": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/pdfium_flutter.framework/pdfium_flutter",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 13
+    },
+    "Payload/NeoStation.app/Frameworks/mesen_libretro.framework/mesen_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mesen_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "9.0.0",
+      "definedSymbolCount": 1305
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "definedSymbolCount": 527
+    },
+    "Payload/NeoStation.app/Frameworks/video_player_avfoundation.framework/video_player_avfoundation": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift"
+      ],
+      "id": "@rpath/video_player_avfoundation.framework/video_player_avfoundation",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 63
+    },
+    "Payload/NeoStation.app/Frameworks/MoltenVK.framework/MoltenVK": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MoltenVK.framework/MoltenVK",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "definedSymbolCount": 503
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_psx_hw_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 2194
+    },
+    "Payload/NeoStation.app/Frameworks/snes9x_libretro.framework/snes9x_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "snes9x_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 791
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXCore.framework/MeloNXCore": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libicucore.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GSS.framework/GSS",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXCore.framework/MeloNXCore",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "12.2.0",
+      "definedSymbolCount": 84
+    },
+    "Payload/NeoStation.app/Frameworks/prosystem_libretro.framework/prosystem_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "prosystem_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 410
+    },
+    "Payload/NeoStation.app/Frameworks/ardens_libretro.framework/ardens_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/ardens_libretro.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 483
+    },
+    "Payload/NeoStation.app/Frameworks/potator_libretro.framework/potator_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "potator_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 94
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_psx_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1317
+    },
+    "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/WebKit.framework/WebKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MobileCoreServices.framework/MobileCoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreText.framework/CoreText",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalPerformanceShaders.framework/MetalPerformanceShaders",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/System/Library/Frameworks/Accessibility.framework/Accessibility",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUIKit.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++abi.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/Flutter.framework/Flutter",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "15.0.0",
+      "definedSymbolCount": 348
+    },
+    "Payload/NeoStation.app/Frameworks/freeintv_libretro.framework/freeintv_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "freeintv_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 473
+    },
+    "Payload/NeoStation.app/Frameworks/nestopia_libretro.framework/nestopia_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/nestopia_libretro.framework/nestopia_libretro",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 4568
+    },
+    "Payload/NeoStation.app/Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "genesis_plus_gx_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1238
+    },
+    "Payload/NeoStation.app/Frameworks/mgba_libretro.framework/mgba_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/mgba_libretro.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1323
+    },
+    "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_display.framework/external_display",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 55
+    },
+    "Payload/NeoStation.app/Frameworks/DolphinCore.framework/DolphinCore": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libresolv.9.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/DolphinCore.framework/DolphinCore",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 21262
+    },
+    "Payload/NeoStation.app/Frameworks/stella_libretro.framework/stella_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "stella_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 2093
+    },
+    "Payload/NeoStation.app/Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/LocalAuthentication.framework/LocalAuthentication",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 26
+    },
+    "Payload/NeoStation.app/Frameworks/App.framework/App": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/App.framework/App",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "15.0.0",
+      "definedSymbolCount": 2
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXSDL3.framework/MeloNXSDL3": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXSDL3.framework/MeloNXSDL3",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 1270
+    },
+    "Payload/NeoStation.app/Frameworks/fbneo_libretro.framework/fbneo_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "fbneo_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "14.2.0",
+      "definedSymbolCount": 42002
+    },
+    "Payload/NeoStation.app/Frameworks/url_launcher_ios.framework/url_launcher_ios": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SafariServices.framework/SafariServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift"
+      ],
+      "id": "@rpath/url_launcher_ios.framework/url_launcher_ios",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 14
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_wswan_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 272
+    },
+    "Payload/NeoStation.app/Frameworks/battery_plus.framework/battery_plus": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/battery_plus.framework/battery_plus",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 6
+    },
+    "Payload/NeoStation.app/Frameworks/device_info_plus.framework/device_info_plus": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/device_info_plus.framework/device_info_plus",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 8
+    },
+    "Payload/NeoStation.app/Frameworks/PDFium.framework/PDFium": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/PDFium.framework/PDFium",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "definedSymbolCount": 611
+    },
+    "Payload/NeoStation.app/Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "genesis_plus_gx_wide_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 1095
+    },
+    "Payload/NeoStation.app/Frameworks/flutter_localization.framework/flutter_localization": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/flutter_localization.framework/flutter_localization",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 15
+    },
+    "Payload/NeoStation.app/Frameworks/gambatte_libretro.framework/gambatte_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "gambatte_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 714
+    },
+    "Payload/NeoStation.app/Frameworks/o2em_libretro.framework/o2em_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "o2em_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 408
+    },
+    "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Concurrency.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks"
+      ],
+      "id": "@rpath/StikJIT.framework/StikJIT",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 68649
+    },
+    "Payload/NeoStation.app/Frameworks/wasm4_libretro.framework/wasm4_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/wasm4_libretro.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 25
+    },
+    "Payload/NeoStation.app/Frameworks/share_plus.framework/share_plus": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/LinkPresentation.framework/LinkPresentation",
+          "weak": true
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/share_plus.framework/share_plus",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 8
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "13.0.0",
+      "definedSymbolCount": 541
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_vb_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 212
+    },
+    "Payload/NeoStation.app/Frameworks/ppsspp_libretro.framework/ppsspp_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/ppsspp_libretro.framework/ppsspp_libretro",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 18182
+    },
+    "Payload/NeoStation.app/Frameworks/libRPCS3Core.dylib": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@loader_path"
+      ],
+      "id": "@rpath/libRPCS3Core.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "16.3.0",
+      "definedSymbolCount": 88
+    },
+    "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_display.framework/external_display",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 790
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 582
+    },
+    "Payload/NeoStation.app/Frameworks/stikjit_bridge.framework/stikjit_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/stikjit_bridge.framework/stikjit_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 14
+    },
+    "Payload/NeoStation.app/Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mednafen_pce_fast_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 957
+    },
+    "Payload/NeoStation.app/Frameworks/package_info_plus.framework/package_info_plus": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/package_info_plus.framework/package_info_plus",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 6
+    },
+    "Payload/NeoStation.app/Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift"
+      ],
+      "id": "@rpath/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 22
+    },
+    "Payload/NeoStation.app/Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/MeloNXAvUtil.framework/MeloNXAvUtil",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 278
+    },
+    "Payload/NeoStation.app/Frameworks/flutter_7zip.framework/flutter_7zip": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/flutter_7zip.framework/flutter_7zip",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 107
+    },
+    "Payload/NeoStation.app/Frameworks/external_folder_access.framework/external_folder_access": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/external_folder_access.framework/external_folder_access",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 32
+    },
+    "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libbz2.1.0.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "@rpath/DolphinCore.framework/DolphinCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Network.framework/Network",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ReplayKit.framework/ReplayKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "@rpath/StikJIT.framework/StikJIT",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_display.framework/external_display",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+          "weak": false
+        },
+        {
+          "path": "@rpath/stikjit_bridge.framework/stikjit_bridge",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreLocation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDarwin.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 160
+    },
+    "Payload/NeoStation.app/Frameworks/external_display.framework/external_display": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/external_display.framework/external_display",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 34
+    },
+    "Payload/NeoStation.app/Frameworks/gamepads_darwin.framework/gamepads_darwin": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/gamepads_darwin.framework/gamepads_darwin",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 16
+    },
+    "Payload/NeoStation.app/Frameworks/a5200_libretro.framework/a5200_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "a5200_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 493
+    },
+    "Payload/NeoStation.app/Frameworks/azahar_libretro.framework/azahar_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/azahar_libretro.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "14.0.0",
+      "definedSymbolCount": 25
+    },
+    "Payload/NeoStation.app/Frameworks/file_picker.framework/file_picker": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Photos.framework/Photos",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/PhotosUI.framework/PhotosUI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftAVFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCore.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreAudio.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreFoundation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreImage.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreLocation.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMIDI.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftCoreMedia.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftDispatch.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftMetal.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftOSLog.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftObjectiveC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftQuartzCore.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/swift/libswiftXPC.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswift_Builtin_float.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftos.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/swift/libswiftsimd.dylib",
+          "weak": true
+        }
+      ],
+      "rpaths": [
+        "/usr/lib/swift",
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/file_picker.framework/file_picker",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 15
+    },
+    "Payload/NeoStation.app/Frameworks/neo_swap.framework/neo_swap": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libcompression.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/neo_swap.framework/neo_swap",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 238
+    },
+    "Payload/NeoStation.app/Frameworks/gw_libretro.framework/gw_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "gw_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 593
+    },
+    "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+          "weak": false
+        },
+        {
+          "path": "@rpath/external_display.framework/external_display",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_swap.framework/neo_swap",
+          "weak": false
+        },
+        {
+          "path": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 46
+    },
+    "Payload/NeoStation.app/Frameworks/ARMSX2Core.framework/ARMSX2Core": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreText.framework/CoreText",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+          "weak": true
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libhvf.dylib",
+          "weak": true
+        },
+        {
+          "path": "/usr/lib/libz.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "@rpath/ARMSX2Core.framework/ARMSX2Core",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "18.0.0",
+      "definedSymbolCount": 1
+    },
+    "Payload/NeoStation.app/Frameworks/desmume_libretro.framework/desmume_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "desmume_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 2060
+    },
+    "Payload/NeoStation.app/Frameworks/handy_libretro.framework/handy_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "handy_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 494
+    },
+    "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/GameController.framework/GameController",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "@rpath/Flutter.framework/Flutter",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        }
+      ],
+      "rpaths": [
+        "@executable_path/Frameworks",
+        "@loader_path/Frameworks"
+      ],
+      "id": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "17.4.0",
+      "definedSymbolCount": 51
+    },
+    "Payload/NeoStation.app/Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "mupen64plus_next_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 155
+    },
+    "Payload/NeoStation.app/Frameworks/uzem_libretro.framework/uzem_libretro": {
+      "architecture": "arm64",
+      "fileType": 6,
+      "dependencies": [
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        }
+      ],
+      "rpaths": [],
+      "id": "uzem_libretro_ios.dylib",
+      "codeSignature": true,
+      "platform": 2,
+      "minimumOS": "8.0.0",
+      "definedSymbolCount": 219
+    }
+  },
+  "resolvedDependencies": [
+    {
+      "image": "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/DolphinCore.framework/DolphinCore",
+      "resolved": "Payload/NeoStation.app/Frameworks/DolphinCore.framework/DolphinCore"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "resolved": "Payload/NeoStation.app/Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/PDFium.framework/PDFium",
+      "resolved": "Payload/NeoStation.app/Frameworks/PDFium.framework/PDFium"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/battery_plus.framework/battery_plus",
+      "resolved": "Payload/NeoStation.app/Frameworks/battery_plus.framework/battery_plus"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/device_info_plus.framework/device_info_plus",
+      "resolved": "Payload/NeoStation.app/Frameworks/device_info_plus.framework/device_info_plus"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/external_display.framework/external_display",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/external_folder_access.framework/external_folder_access",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_folder_access.framework/external_folder_access"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/file_picker.framework/file_picker",
+      "resolved": "Payload/NeoStation.app/Frameworks/file_picker.framework/file_picker"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/flutter_7zip.framework/flutter_7zip",
+      "resolved": "Payload/NeoStation.app/Frameworks/flutter_7zip.framework/flutter_7zip"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/flutter_localization.framework/flutter_localization",
+      "resolved": "Payload/NeoStation.app/Frameworks/flutter_localization.framework/flutter_localization"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "resolved": "Payload/NeoStation.app/Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/gamepads_darwin.framework/gamepads_darwin",
+      "resolved": "Payload/NeoStation.app/Frameworks/gamepads_darwin.framework/gamepads_darwin"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/neo_swap.framework/neo_swap",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_swap.framework/neo_swap"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/neo_texture_catalog.framework/neo_texture_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/neo_texture_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/package_info_plus.framework/package_info_plus",
+      "resolved": "Payload/NeoStation.app/Frameworks/package_info_plus.framework/package_info_plus"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/pdfium_flutter.framework/pdfium_flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/pdfium_flutter.framework/pdfium_flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/share_plus.framework/share_plus",
+      "resolved": "Payload/NeoStation.app/Frameworks/share_plus.framework/share_plus"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "resolved": "Payload/NeoStation.app/Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/stikjit_bridge.framework/stikjit_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/stikjit_bridge.framework/stikjit_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/url_launcher_ios.framework/url_launcher_ios",
+      "resolved": "Payload/NeoStation.app/Frameworks/url_launcher_ios.framework/url_launcher_ios"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/video_player_avfoundation.framework/video_player_avfoundation",
+      "resolved": "Payload/NeoStation.app/Frameworks/video_player_avfoundation.framework/video_player_avfoundation"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/wakelock_plus.framework/wakelock_plus",
+      "resolved": "Payload/NeoStation.app/Frameworks/wakelock_plus.framework/wakelock_plus"
+    },
+    {
+      "image": "Payload/NeoStation.app/Runner",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/wakelock_plus.framework/wakelock_plus",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "dependency": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "dependency": "@rpath/external_display.framework/external_display",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "dependency": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/battery_plus.framework/battery_plus",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/device_info_plus.framework/device_info_plus",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/flutter_localization.framework/flutter_localization",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/share_plus.framework/share_plus",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "dependency": "@rpath/external_display.framework/external_display",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "dependency": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/package_info_plus.framework/package_info_plus",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "dependency": "@rpath/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "resolved": "Payload/NeoStation.app/Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/flutter_7zip.framework/flutter_7zip",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/external_folder_access.framework/external_folder_access",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/DolphinCore.framework/DolphinCore",
+      "resolved": "Payload/NeoStation.app/Frameworks/DolphinCore.framework/DolphinCore"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/StikJIT.framework/StikJIT",
+      "resolved": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/external_display.framework/external_display",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/neo_shader_kit.framework/neo_shader_kit",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/stikjit_bridge.framework/stikjit_bridge",
+      "resolved": "Payload/NeoStation.app/Frameworks/stikjit_bridge.framework/stikjit_bridge"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/file_picker.framework/file_picker",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_swap.framework/neo_swap",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "dependency": "@rpath/external_display.framework/external_display",
+      "resolved": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "dependency": "@rpath/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "dependency": "@rpath/neo_swap.framework/neo_swap",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_swap.framework/neo_swap"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "dependency": "@rpath/neo_touch_layout.framework/neo_touch_layout",
+      "resolved": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    },
+    {
+      "image": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "dependency": "@rpath/Flutter.framework/Flutter",
+      "resolved": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter"
+    }
+  ],
+  "systemDependencies": [
+    "/System/Library/Frameworks/AVFAudio.framework/AVFAudio",
+    "/System/Library/Frameworks/AVFoundation.framework/AVFoundation",
+    "/System/Library/Frameworks/AVKit.framework/AVKit",
+    "/System/Library/Frameworks/AVRouting.framework/AVRouting",
+    "/System/Library/Frameworks/Accelerate.framework/Accelerate",
+    "/System/Library/Frameworks/Accessibility.framework/Accessibility",
+    "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+    "/System/Library/Frameworks/CFNetwork.framework/CFNetwork",
+    "/System/Library/Frameworks/Combine.framework/Combine",
+    "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+    "/System/Library/Frameworks/CoreBluetooth.framework/CoreBluetooth",
+    "/System/Library/Frameworks/CoreData.framework/CoreData",
+    "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+    "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+    "/System/Library/Frameworks/CoreHaptics.framework/CoreHaptics",
+    "/System/Library/Frameworks/CoreImage.framework/CoreImage",
+    "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+    "/System/Library/Frameworks/CoreMedia.framework/CoreMedia",
+    "/System/Library/Frameworks/CoreMotion.framework/CoreMotion",
+    "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+    "/System/Library/Frameworks/CoreTelephony.framework/CoreTelephony",
+    "/System/Library/Frameworks/CoreText.framework/CoreText",
+    "/System/Library/Frameworks/CoreVideo.framework/CoreVideo",
+    "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+    "/System/Library/Frameworks/Foundation.framework/Foundation",
+    "/System/Library/Frameworks/GSS.framework/GSS",
+    "/System/Library/Frameworks/GameController.framework/GameController",
+    "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+    "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+    "/System/Library/Frameworks/ImageIO.framework/ImageIO",
+    "/System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore",
+    "/System/Library/Frameworks/LinkPresentation.framework/LinkPresentation",
+    "/System/Library/Frameworks/LocalAuthentication.framework/LocalAuthentication",
+    "/System/Library/Frameworks/MediaAccessibility.framework/MediaAccessibility",
+    "/System/Library/Frameworks/MediaPlayer.framework/MediaPlayer",
+    "/System/Library/Frameworks/Metal.framework/Metal",
+    "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+    "/System/Library/Frameworks/MetalKit.framework/MetalKit",
+    "/System/Library/Frameworks/MetalPerformanceShaders.framework/MetalPerformanceShaders",
+    "/System/Library/Frameworks/MobileCoreServices.framework/MobileCoreServices",
+    "/System/Library/Frameworks/NaturalLanguage.framework/NaturalLanguage",
+    "/System/Library/Frameworks/Network.framework/Network",
+    "/System/Library/Frameworks/OpenGLES.framework/OpenGLES",
+    "/System/Library/Frameworks/Photos.framework/Photos",
+    "/System/Library/Frameworks/PhotosUI.framework/PhotosUI",
+    "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+    "/System/Library/Frameworks/ReplayKit.framework/ReplayKit",
+    "/System/Library/Frameworks/SafariServices.framework/SafariServices",
+    "/System/Library/Frameworks/Security.framework/Security",
+    "/System/Library/Frameworks/SwiftUI.framework/SwiftUI",
+    "/System/Library/Frameworks/SystemConfiguration.framework/SystemConfiguration",
+    "/System/Library/Frameworks/Translation.framework/Translation",
+    "/System/Library/Frameworks/UIKit.framework/UIKit",
+    "/System/Library/Frameworks/UniformTypeIdentifiers.framework/UniformTypeIdentifiers",
+    "/System/Library/Frameworks/VideoToolbox.framework/VideoToolbox",
+    "/System/Library/Frameworks/Vision.framework/Vision",
+    "/System/Library/Frameworks/WebKit.framework/WebKit",
+    "/System/Library/Frameworks/_Translation_SwiftUI.framework/_Translation_SwiftUI",
+    "/usr/lib/libSystem.B.dylib",
+    "/usr/lib/libbz2.1.0.dylib",
+    "/usr/lib/libc++.1.dylib",
+    "/usr/lib/libc++abi.dylib",
+    "/usr/lib/libcompression.dylib",
+    "/usr/lib/libhvf.dylib",
+    "/usr/lib/libiconv.2.dylib",
+    "/usr/lib/libicucore.A.dylib",
+    "/usr/lib/libobjc.A.dylib",
+    "/usr/lib/libresolv.9.dylib",
+    "/usr/lib/libz.1.dylib",
+    "/usr/lib/swift/DolphinCore.framework/DolphinCore",
+    "/usr/lib/swift/Flutter.framework/Flutter",
+    "/usr/lib/swift/GTMSessionFetcher.framework/GTMSessionFetcher",
+    "/usr/lib/swift/MeloNXAvUtil.framework/MeloNXAvUtil",
+    "/usr/lib/swift/PDFium.framework/PDFium",
+    "/usr/lib/swift/StikJIT.framework/StikJIT",
+    "/usr/lib/swift/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+    "/usr/lib/swift/battery_plus.framework/battery_plus",
+    "/usr/lib/swift/device_info_plus.framework/device_info_plus",
+    "/usr/lib/swift/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+    "/usr/lib/swift/external_display.framework/external_display",
+    "/usr/lib/swift/external_folder_access.framework/external_folder_access",
+    "/usr/lib/swift/file_picker.framework/file_picker",
+    "/usr/lib/swift/flutter_7zip.framework/flutter_7zip",
+    "/usr/lib/swift/flutter_localization.framework/flutter_localization",
+    "/usr/lib/swift/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+    "/usr/lib/swift/gamepads_darwin.framework/gamepads_darwin",
+    "/usr/lib/swift/libretro_internal_bridge.framework/libretro_internal_bridge",
+    "/usr/lib/swift/libswiftAVFoundation.dylib",
+    "/usr/lib/swift/libswiftAccelerate.dylib",
+    "/usr/lib/swift/libswiftCore.dylib",
+    "/usr/lib/swift/libswiftCoreAudio.dylib",
+    "/usr/lib/swift/libswiftCoreFoundation.dylib",
+    "/usr/lib/swift/libswiftCoreImage.dylib",
+    "/usr/lib/swift/libswiftCoreLocation.dylib",
+    "/usr/lib/swift/libswiftCoreMIDI.dylib",
+    "/usr/lib/swift/libswiftCoreMedia.dylib",
+    "/usr/lib/swift/libswiftDarwin.dylib",
+    "/usr/lib/swift/libswiftDispatch.dylib",
+    "/usr/lib/swift/libswiftFoundation.dylib",
+    "/usr/lib/swift/libswiftMetal.dylib",
+    "/usr/lib/swift/libswiftNaturalLanguage.dylib",
+    "/usr/lib/swift/libswiftOSLog.dylib",
+    "/usr/lib/swift/libswiftObjectiveC.dylib",
+    "/usr/lib/swift/libswiftQuartzCore.dylib",
+    "/usr/lib/swift/libswiftSpatial.dylib",
+    "/usr/lib/swift/libswiftUIKit.dylib",
+    "/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib",
+    "/usr/lib/swift/libswiftVideoToolbox.dylib",
+    "/usr/lib/swift/libswiftXPC.dylib",
+    "/usr/lib/swift/libswift_Builtin_float.dylib",
+    "/usr/lib/swift/libswift_Concurrency.dylib",
+    "/usr/lib/swift/libswift_errno.dylib",
+    "/usr/lib/swift/libswift_stdio.dylib",
+    "/usr/lib/swift/libswiftos.dylib",
+    "/usr/lib/swift/libswiftsimd.dylib",
+    "/usr/lib/swift/melonx_internal_bridge.framework/melonx_internal_bridge",
+    "/usr/lib/swift/neo_cheat_catalog.framework/neo_cheat_catalog",
+    "/usr/lib/swift/neo_shader_kit.framework/neo_shader_kit",
+    "/usr/lib/swift/neo_swap.framework/neo_swap",
+    "/usr/lib/swift/neo_texture_catalog.framework/neo_texture_catalog",
+    "/usr/lib/swift/neo_touch_layout.framework/neo_touch_layout",
+    "/usr/lib/swift/package_info_plus.framework/package_info_plus",
+    "/usr/lib/swift/pdfium_flutter.framework/pdfium_flutter",
+    "/usr/lib/swift/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+    "/usr/lib/swift/share_plus.framework/share_plus",
+    "/usr/lib/swift/shared_preferences_foundation.framework/shared_preferences_foundation",
+    "/usr/lib/swift/stikjit_bridge.framework/stikjit_bridge",
+    "/usr/lib/swift/url_launcher_ios.framework/url_launcher_ios",
+    "/usr/lib/swift/video_player_avfoundation.framework/video_player_avfoundation",
+    "/usr/lib/swift/wakelock_plus.framework/wakelock_plus"
+  ],
+  "systemDependenciesOnDevice": "OS-provided; runtime dyld validation still requires an iOS device",
+  "signatureState": "main contains a code signature; certificate trust not tested",
+  "deviceLaunchValidated": false,
+  "structuralValidation": "passed"
+}

@@ -9,6 +9,19 @@ import '../models/retro_achievements_gotw.dart';
 import '../models/retro_achievement_comment.dart';
 import '../models/retro_achievements_dashboard_models.dart';
 
+/// Why a Web API sign-in request failed. Carries no URL, key or response body.
+enum RetroAchievementsWebFailure { rejected, notFound, network, rateLimited, server }
+
+class RetroAchievementsWebException implements Exception {
+  const RetroAchievementsWebException(this.failure, [this.statusCode]);
+  final RetroAchievementsWebFailure failure;
+  final int? statusCode;
+
+  @override
+  String toString() => 'RetroAchievementsWebException(${failure.name}'
+      '${statusCode == null ? '' : ', HTTP $statusCode'})';
+}
+
 /// Service for interacting with the RetroAchievements API.
 ///
 /// Provides access to user profiles, game achievements, and global community
@@ -76,7 +89,9 @@ class RetroAchievementsService {
     'gcn': 16,
     'wii': 82,
     'nds': 18,
-    '3ds': 78,
+    // Reserved console ID, not an assertion of native achievement support.
+    // The central capability policy keeps 3DS disabled until official rollout.
+    '3ds': 62,
     'genesis': 1,
     'sms': 11,
     'gg': 15,
@@ -99,37 +114,63 @@ class RetroAchievementsService {
   }
 
   /// Retrieves basic profile information for a RetroAchievements user.
+  ///
+  /// Returns null only when RetroAchievements answered that the user does not
+  /// exist. A refused Web API key, an unreachable server and an unexpected
+  /// response are reported as [RetroAchievementsWebException] so the sign-in
+  /// form can tell an input error, an authentication refusal and a network
+  /// problem apart. Neither the key nor the request URL is logged.
   static Future<RetroAchievementsUser?> getUserProfile(
     String username, {
     String? apiKey,
   }) async {
+    final url = Uri.parse(
+      '$_baseUrl/API_GetUserProfile.php',
+    ).replace(queryParameters: {'u': username, 'y': resolveApiKey(apiKey)});
+    final http.Response response;
     try {
-      final url = Uri.parse(
-        '$_baseUrl/API_GetUserProfile.php',
-      ).replace(queryParameters: {'u': username, 'y': resolveApiKey(apiKey)});
-
-      final response = await http.get(
-        url,
-        headers: {'User-Agent': 'NeoStation/1.0', 'Accept': 'application/json'},
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data['User'] != null) {
-          return RetroAchievementsUser.fromJson(data);
-        } else {
-          _log.e('User not found: $username');
-          return null;
-        }
-      } else {
-        _log.e('HTTP error ${response.statusCode}: ${response.body}');
-        return null;
-      }
+      response = await http
+          .get(
+            url,
+            headers: {'User-Agent': 'NeoStation/1.0', 'Accept': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 20));
     } catch (e) {
-      _log.e('Error getting user profile: $e');
-      return null;
+      // Socket, TLS, DNS and timeout failures: the request never got an answer.
+      _log.w('RetroAchievements profile request failed before a response (${e.runtimeType})');
+      throw const RetroAchievementsWebException(RetroAchievementsWebFailure.network);
     }
+    final failure = classifyProfileStatus(response.statusCode);
+    if (failure != null) {
+      _log.w('RetroAchievements profile request answered HTTP ${response.statusCode} (${failure.name})');
+      if (failure == RetroAchievementsWebFailure.notFound) return null;
+      throw RetroAchievementsWebException(failure, response.statusCode);
+    }
+    final Object? data;
+    try {
+      data = json.decode(response.body);
+    } catch (_) {
+      // A captive portal or a proxy error page is not a credential refusal.
+      _log.w('RetroAchievements profile response was not JSON');
+      throw RetroAchievementsWebException(RetroAchievementsWebFailure.server, response.statusCode);
+    }
+    if (data is Map<String, dynamic> && data['User'] is String &&
+        (data['User'] as String).trim().isNotEmpty) {
+      return RetroAchievementsUser.fromJson(data);
+    }
+    _log.w('RetroAchievements profile response has no user record');
+    return null;
+  }
+
+  /// Maps a Web API status to the failure shown to the player, or null for a
+  /// usable 200 response. 401/403 mean the key was refused; 404/422 mean the
+  /// requested username is unknown or malformed.
+  static RetroAchievementsWebFailure? classifyProfileStatus(int status) {
+    if (status == 200) return null;
+    if (status == 401 || status == 403) return RetroAchievementsWebFailure.rejected;
+    if (status == 404 || status == 422) return RetroAchievementsWebFailure.notFound;
+    if (status == 429) return RetroAchievementsWebFailure.rateLimited;
+    return RetroAchievementsWebFailure.server;
   }
 
   /// Fetches a comprehensive summary for a user, including recent games and achievements.

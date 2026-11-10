@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "review": "Independent texture-handle dependency retirement and final GPU source authenticity",
+  "reviewerAgent": "/root/gpu_allocation_followup",
+  "createdUtc": "2026-10-29T13:57:21.246728+00:00",
+  "result": "passed",
+  "blockingFindings": [],
+  "finalSourceRoot": "/workspace/scratch/90582008c087/MeloNX-followup-final",
+  "repositoryRoot": "/workspace/scratch/90582008c087/RewindBox",
+  "repositoryHeadAtReview": "c609b0d05a583d2d39f636f328830a6256439807",
+  "upstreamPristineRoot": "/workspace/scratch/90582008c087/MeloNX-pristine",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "reviewOnly": true,
+  "runtimeSuitesReplayed": false,
+  "newCompilationPerformed": false,
+  "physicalDeviceTested": false,
+  "repositoryMutationsPerformed": false,
+  "producedFiles": [
+    "/workspace/scratch/90582008c087/gpu-followup-work/independent-texture-review.json"
+  ],
+  "scope": "Source review, exact byte/digest comparison, existing receipt inspection and one review JSON write. No adapter, native suite or build was executed.",
+  "receipts": {
+    "auto-ownership": {
+      "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/auto-ownership-checks.json",
+      "sha256": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+      "recordedResult": "passed",
+      "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "copiedRecipeAndFixtureInputs": {
+        "build-utils/melonx/adapt_auto_ownership.py": "ca49e50235f2e6117ded6c321b74f6ba8602e9a95f1e1b187ee66185199e8155",
+        "test/melonx_auto_ownership_test.py": "93daa58f25710d0854b46a7941851eb1deeb7faeac7d80facf7cd879a568fac4",
+        "test/melonx_auto_ownership/Program.cs": "cd76a47dd96d6c30d6d859a83e445f7e98ba4f60247c771634c2c0d0583c7db7",
+        "test/melonx_auto_ownership/Boundaries.cs": "06236d90a3175e95a1967e69c1169b529e647c43cb4f08d97b5ca3a348883ee3"
+      },
+      "authenticatedPristineSourceInputs": {
+        "src/Ryujinx.Graphics.Vulkan/Auto.cs": "79ea043a3d71a72d08ef43eeef5452d2eb01192b38bc483469fda578811b8eb0",
+        "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+        "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+        "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+        "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs": "beb73c36e5ae5313781d224798375ff4870961b9777e608eb52205bdeb3f5cd5",
+        "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+        "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a"
+      },
+      "runtimeReplayed": false
+    },
+    "converted-cache": {
+      "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/converted-cache-checks.json",
+      "sha256": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+      "recordedResult": "passed",
+      "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "copiedRecipeAndFixtureInputs": {
+        "build-utils/melonx/adapt_converted_cache.py": "01ded0fb3f24a539d39c2eb617231f15f4751a593f6fbbb8b52b917d851b8859",
+        "test/melonx_converted_cache_test.py": "8104bdd62a66ad4af15c494922a8bfe0b2322f4b7a76a3ee483b0d4ae265dc03",
+        "test/melonx_converted_cache/Program.cs": "21ccb02d347e8675285159d52b6273e8741e363095b00af58fc9694dd8916fea",
+        "test/melonx_converted_cache/Boundaries.cs": "29ecb512b1a538bdf88276cd591c2ebc30b2b2e27717b38074762a43487dc58c"
+      },
+      "authenticatedPristineSourceInputs": {
+        "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1"
+      },
+      "runtimeReplayed": false
+    },
+    "allocator-blocks": {
+      "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/allocator-blocks-checks.json",
+      "sha256": "b5fce53cd1c0e95b3d42f1ac669f57b570459f77aad4960374fa498f26b1a384",
+      "recordedResult": "passed",
+      "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "copiedRecipeAndFixtureInputs": {
+        "build-utils/melonx/adapt_allocator_blocks.py": "adb3d761b7d03dbc445785e8ba16cf624a3b135024802150af2479487acc1f96",
+        "test/melonx_allocator_blocks_test.py": "ab1a6d3781d906f672a2d6a9f8e6e046bcf6d8b7650905e5c7a8f735d54c866c",
+        "test/melonx_allocator_blocks/Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+        "test/melonx_allocator_blocks/Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+      },
+      "authenticatedPristineSourceInputs": {
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c",
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+        "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+        "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261"
+      },
+      "runtimeReplayed": false
+    },
+    "indirect-cache-key": {
+      "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/indirect-cache-key-checks.json",
+      "sha256": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+      "recordedResult": "passed",
+      "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "copiedRecipeAndFixtureInputs": {
+        "build-utils/melonx/adapt_converted_cache.py": "01ded0fb3f24a539d39c2eb617231f15f4751a593f6fbbb8b52b917d851b8859",
+        "build-utils/melonx/adapt_indirect_cache_key.py": "ae54b52bd436453fbb7e3d8cb35fa4bda07668bbfb8876987692ca33d49953b2",
+        "test/melonx_indirect_cache_key_test.py": "170dbd1fe327156163c9bc0e0756ee227d9c5c3bb0d4609e81c6124800f00042",
+        "test/melonx_indirect_cache_key/Program.cs": "7dc9fa7c69a35df0de852d65a7209540db4ecf81ff067d9c5abf037e0e860727",
+        "test/melonx_indirect_cache_key/Boundaries.cs": "f7d6a91076602222e1e68f02677ace23359e406afce3d81d07d8b7d2eb2268de"
+      },
+      "authenticatedPristineSourceInputs": {
+        "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1",
+        "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+        "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f"
+      },
+      "runtimeReplayed": false
+    },
+    "texture-handle-dependencies": {
+      "path": "/workspace/scratch/90582008c087/texture-followup-work/dist/melonx/texture-handle-dependencies-checks.json",
+      "sha256": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+      "recordedResult": "passed",
+      "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "copiedRecipeAndFixtureInputs": {
+        "build-utils/melonx/adapt_texture_handle_dependencies.py": "3e690accf88f880989d82ce793bd7a6b75950a0499a146206111faeaf4892466",
+        "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+        "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+        "test/melonx_texture_handle_dependencies_test.py": "a85cd06622d825395e7674cdca2517839573c284082165d0f96ff235466bc555",
+        "test/melonx_texture_handle_dependencies/Program.cs": "aeaee358df1c4d6eddc4c7c08fb45af73e37d512f4d3fcdc177fc84408650115"
+      },
+      "authenticatedPristineSourceInputs": {
+        "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+        "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "77e2e39233d670971a9e47ac65e952c1237b6f073e48707816d91b9b0df36283",
+        "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "e64798cc48550b7f8408d1fa8c432575618f11337a93b37defea8cec99e72e7b",
+        "src/Ryujinx.Graphics.Gpu/Image/TextureDependency.cs": "796ad1fe2b78774c2a0e58082e7e16b7d15d819d209453d25b1f92a2978dec41",
+        "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff",
+        "src/Ryujinx.Graphics.Gpu/Synchronization/HostSyncFlags.cs": "d95b5d1fdc9cb3b170a9f9b262b2e5d4029195d3f0f5b44be498eaf748758cd5"
+      },
+      "runtimeReplayed": false
+    }
+  },
+  "exactFinalPostimages": {
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs": {
+      "sha256": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731",
+      "matchesReceipt": "auto-ownership"
+    },
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": {
+      "sha256": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae",
+      "matchesReceipt": "allocator-blocks"
+    },
+    "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": {
+      "sha256": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": {
+      "sha256": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a",
+      "matchesReceipt": "texture-handle-dependencies"
+    }
+  },
+  "exactCompiledProductionSources": {
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731",
+    "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+    "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+    "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+    "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+    "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+    "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureDependency.cs": "796ad1fe2b78774c2a0e58082e7e16b7d15d819d209453d25b1f92a2978dec41",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/HostSyncFlags.cs": "d95b5d1fdc9cb3b170a9f9b262b2e5d4029195d3f0f5b44be498eaf748758cd5"
+  },
+  "verifiedCompleteMethods": [
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
+      "signature": "public void AddDependant(int cbIndex, IAuto dependant)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "5b1f8ef896f29f66d04813cc945ad05d4282eac64651d90476737c67530a2d9d",
+      "matchesReceipt": "auto-ownership"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+      "signature": "public (Auto<DisposableBuffer>, Auto<DisposableBuffer>) GetBufferTopologyConversionIndirect(",
+      "extraction": "complete balanced-brace method",
+      "sha256": "f2ae27ff4041f2dee251b1d197489baffb48295d8ccc12aea3330717ea45361c",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+      "signature": "public void DirtyIndexBuffer(Auto<DisposableBuffer> buffer)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "c53030cdfa57c27ab0811f078474fd6a95316f3b7ab9f8d2f48c2e337731fdc7",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/IndexBufferState.cs",
+      "signature": "public readonly bool BoundEquals(Auto<DisposableBuffer> buffer)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "ed173ff929ef98223fe76c937b78c22fb71cd54a9e2e4e1d40889381d7f23abc",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public bool TryGetCachedConvertedBuffer(int offset, int size, ICacheKey key, out BufferHolder holder)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "6ad8db9302db350c380bca70d7d0acb690becdb0c1d829fb063065e957a56545",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void AddCachedConvertedBuffer(int offset, int size, ICacheKey key, BufferHolder holder)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "ce4a0b6bc07b5805f504ba9c684fb96579942c5e13fd91b309cc4a37742bb945",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void AddCachedConvertedBufferDependency(int offset, int size, ICacheKey key, Dependency dependency)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "0b7685f6a10e3672b765fc3351d9b9d3f28784f51cf5e87d4dd3d7cd865d9c12",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void RemoveCachedConvertedBuffer(int offset, int size, ICacheKey key)",
+      "extraction": "complete balanced-brace method",
+      "sha256": "8b0f280c116dc75f886d90a0425d05d3e240d1318ebbf4d8d10a6329050806ef",
+      "matchesReceipt": "indirect-cache-key"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "signature": "private void InheritHandles(",
+      "extraction": "complete member to next XML summary, identical to fixture extractor",
+      "sha256": "e426bc8108051362a450c434a6cd40100c8eaef834919bd96d93a444cb3a57f5",
+      "matchesReceipt": "texture-handle-dependencies"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "signature": "private void ReplaceHandles(",
+      "extraction": "complete member to next XML summary, identical to fixture extractor",
+      "sha256": "52cb22cdc1d21b934d42f941f0a210ab5bcfdd7d2e787e25513a814bbc95d67d",
+      "matchesReceipt": "texture-handle-dependencies"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+      "signature": "internal void RegisterSyncAction(",
+      "extraction": "complete member to next XML summary, identical to fixture extractor",
+      "sha256": "5e8fe5b04b99fd30e4ef93cc4431768f289861abcc5e937b43ef65c400bce83e",
+      "matchesReceipt": "texture-handle-dependencies"
+    },
+    {
+      "source": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+      "signature": "internal void CreateHostSyncIfNeeded(",
+      "extraction": "complete member to next XML summary, identical to fixture extractor",
+      "sha256": "75b333803da98d2e97b39a5e53bb2993d5883fb37e77521f47c9dd3cbec7e516",
+      "matchesReceipt": "texture-handle-dependencies"
+    }
+  ],
+  "indirectCacheWrapperCompositeSha256": "3dbb18df45d11f08510c224096cfd9fc17b93f7fdd17d4d934fea84e732a78a5",
+  "cacheAdapterComposition": {
+    "convertedCachePostimage": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+    "indirectKeyControlInput": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+    "combinedFinalPostimage": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+    "exactIntermediateToFinalChain": true
+  },
+  "allocatorExceptionIntegrationDifference": {
+    "source": "src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+    "finalSha256": "6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294",
+    "fixtureSha256": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+    "exactDifference": "Existing adapt_pipeline adds public Result? ResultCode and assigns it in the Result constructor.",
+    "deltaRemovedInMemoryMatchesFixture": true,
+    "sourceAdapter": "build-utils/melonx/adapt_pipeline.py",
+    "sourceAdapterSha256": "f34a5525ecba0e47c90efed5e79264f846957f506268a22ea7f023a644d61280",
+    "reviewConclusion": "CheckResult, throw branches, exception type and message are unchanged. No runtime replay was required for this property-only delta."
+  },
+  "reviewedTextureHandleMethods": {
+    "source": "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs",
+    "sha256BySignature": {
+      "internal void DetachDependencies()": "abf17c2c7051ce849f682502c31082357d2355a6296760d93fb04e6c0540ae3e",
+      "public void RemoveDependency(TextureDependency dependency)": "8f9092c9b09e889311c057add55ee067787517181c3fbd2b7cc5b5f60a49b12e",
+      "public void Inherit(TextureGroupHandle old, bool withCopies)": "e49ac9502dc12e6406a4810aec0962084db5ece104e3e9e27063d71210d1926a",
+      "public bool Copy(GpuContext context, TextureGroupHandle fromHandle = null)": "9be07d269a4a23bada7b6e8e1c347f86df92b0a17820172930f652de48a5ba9d",
+      "public bool SyncPreAction(bool syncpoint)": "eace7205552959940a42ff7b847798c23d3ab826a620eb46e231c9644a8328c1",
+      "public bool SyncAction(bool syncpoint)": "b8a7a91f1aa7d93921b37db6bbe83fbf8a54c0e93bf444199895d5a4f0903279",
+      "public void CreateCopyDependency(TextureGroupHandle other, bool copyToOther = false)": "35969c939e2957089e68b51da612b4382d0c7dc5ea9b7af9e142fb53e6c831be",
+      "public void SynchronizeDependents()": "47a6ea5e0643d433aac02fc114c36711f228a10520206b29adac9a626a97bb2d",
+      "public bool HasDependencyTo(TextureGroup group)": "ced640c6a0b2e44bb2499b5ac4483d0af05f07d84eae26a02c4d7e06658739c7",
+      "public void Dispose()": "ed8f9729bf4d5fe476d3ea4f7c5604745ceb59e2ff6eda055635ac54084558e7"
+    }
+  },
+  "reviewedFinalSourceFiles": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureDependency.cs": "796ad1fe2b78774c2a0e58082e7e16b7d15d819d209453d25b1f92a2978dec41",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "2c534bf24cb156d5cfc4cdc20446f1ef8b38fb91e58221c6360bd5160b321a76",
+    "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "cc1c77cd40639c9b6cc79fc339fc8abf12ce92efd99910aa29ce34b8164b8025",
+    "src/Ryujinx.Memory/Tracking/RegionHandle.cs": "b93734e1c0b4156f41f16553a28ca4021c79a99e4ff697bed42bff4cc49ee6bb"
+  },
+  "textureIntegrationReceipt": {
+    "path": "/workspace/scratch/90582008c087/texture-followup-work/dist/melonx/texture-integration-review.json",
+    "sha256": "07231783ce335148b4f612c925b41e317307057ff1662547d526761531c3ef03",
+    "finalSourcePostimagesMatched": {
+      "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "2c534bf24cb156d5cfc4cdc20446f1ef8b38fb91e58221c6360bd5160b321a76",
+      "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a",
+      "src/Ryujinx.Graphics.Texture/SizeInfo.cs": "6ab5af6c11fda9574bebfd36344c7bfdf634e5ff90383ae2a299fa98db1933ed"
+    }
+  },
+  "checks": [
+    {
+      "id": "inherit-before-detach",
+      "passed": true,
+      "finding": "ReplaceHandles completes all replacement inheritance before detaching any old handle. Existing region disposal precedes detachment."
+    },
+    {
+      "id": "dependency-detach-scope",
+      "passed": true,
+      "finding": "DetachDependencies removes reciprocal list entries and clears its own list; RemoveDependency only removes a list entry. Neither changes DeferredCopy, Modified, sync registers or GpuContext action queues."
+    },
+    {
+      "id": "pending-gpu-owner",
+      "passed": true,
+      "finding": "GpuContext retains the retired handle through its actual sync action lifetime. Existing fixtures cover ordinary and buffered paths, action re-registration, native sync creation failure and guest syncpoint completion."
+    },
+    {
+      "id": "remap-to-hole-deferred-copy",
+      "passed": true,
+      "finding": "A replacement with no CPU RegionHandle does not inherit; the dependent DeferredCopy reference retains the old source. Copy reads this reference directly without traversing Dependencies. Existing fixture verifies value 771, retention before consumption and release afterward."
+    },
+    {
+      "id": "active-graph-clients",
+      "passed": true,
+      "finding": "Active inherited links remain available to SynchronizeDependents and HasDependencyTo. Review found no active caller requiring retired nodes to stay in the dependency clique."
+    },
+    {
+      "id": "self-dependency-rejection",
+      "passed": true,
+      "finding": "Rejecting other == this prevents self-notification from calling DeferCopy(this), which would clear the handle own Modified flag. Existing control reproduces the failure."
+    },
+    {
+      "id": "gpu-final-postimages",
+      "passed": true,
+      "finding": "Auto, combined CacheByRange and final MemoryAllocatorBlockList bb57d694 match their tested postimages byte for byte."
+    },
+    {
+      "id": "indirect-key-caller-order",
+      "passed": true,
+      "finding": "The complete production caller matches the tested digest and SetBuffer occurs before AddCachedConvertedBuffer boxes/stores the key."
+    },
+    {
+      "id": "recipe-and-fixture-authenticity",
+      "passed": true,
+      "finding": "Every recorded input of the five inspected receipts matches the current RewindBox copy; upstream preimages match the recovered pinned source."
+    },
+    {
+      "id": "no-replay",
+      "passed": true,
+      "finding": "This review uses existing test receipts; no compiler, test executable or adapter application was invoked."
+    }
+  ],
+  "existingTextureFixtureResults": {
+    "receiptSha256": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+    "provenance": "Existing receipt only; not rerun by reviewer.",
+    "scenarios": 83,
+    "controlChecks": 4375,
+    "candidateChecks": 11239,
+    "controlRetiredRetained": 32,
+    "candidateRetiredRetained": 0,
+    "controlDependencyLinks": 1122,
+    "candidateDependencyLinks": 2,
+    "functionalDigest": "D29A84958ECEF37FAD5EA8DCBEE09503DD939EE50F65CB58E386D81EC6410E3F"
+  },
+  "limitations": [
+    "No iPhone, physical GPU, rendering, FPS, process RSS or Metal/MoltenVK timing result is established by this review.",
+    "Texture fixtures compile production handle/dependency classes and complete inheritance/replacement/sync-walker methods, while native texture endpoints and CPU tracking boundaries are doubled.",
+    "The complete TextureGroup and GpuContext have other existing engine82 adaptations; the selected compiled methods are authenticated exactly, rather than claiming the entire classes match pristine fixture preimages.",
+    "The allocator fixture doubles the native driver and uses explicit managed-setup/publication failure injection. VulkanException has the documented property-only integration delta.",
+    "The Auto fixture exercises concurrent atomic reference counts, not unsupported simultaneous ownership-bitmap writes.",
+    "Dedicated-block bookkeeping preserves the tested dedicated-only trace. Equal-capacity pooled block selection can differ; prior receipts record a one-block peak increase and slower 32-live-block timing in the synthetic workload.",
+    "A retained DeferredCopy or pending sync action may intentionally keep an old handle alive. The correct fix removes obsolete graph retention without cancelling those owners.",
+    "This is an independent source and evidence review, not a claim of exhaustive correctness under every renderer remap/interleaving."
+  ],
+  "relatedNotes": {
+    "path": "/workspace/scratch/90582008c087/gpu-followup-work/notes-gpu-followup.md",
+    "sha256": "90623ee69d7bd4442912c93841d54e3d4331291b376e1a8509e10f110d40bf1d"
+  }
+}

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -7,6 +6,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/services/game_service.dart';
 import 'core_footer.dart';
+import 'glass/glass_surface.dart';
 
 /// Heavier confirmation shown before relocating the user-data folder from
 /// Settings. Unlike the wizard's [FolderNotEmptyDialog], this actually MOVES
@@ -79,8 +79,8 @@ class _MoveUserDataDialogState extends State<MoveUserDataDialog> {
       width: double.infinity,
       padding: EdgeInsets.all(10.r),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(8.r),
+        color: LiquidGlassTheme.of(context).fill(context, GlassRole.control),
+        borderRadius: LiquidGlassTheme.of(context).radius(GlassRadius.s),
       ),
       child: Text(
         path,
@@ -99,30 +99,17 @@ class _MoveUserDataDialogState extends State<MoveUserDataDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 5.r, sigmaY: 5.r),
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          width: 440.r,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(
-              color: theme.colorScheme.tertiary.withValues(alpha: 0.4),
-              width: 1.r,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 30.r,
-                spreadRadius: 5.r,
-              ),
-            ],
-          ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: SizedBox(
+        width: 440.r,
+        child: GlassSurface(
+          role: GlassRole.modal,
+          radiusSize: GlassRadius.l,
+          rimColor: theme.colorScheme.tertiary.withValues(alpha: 0.35),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: LiquidGlassTheme.of(context).radius(GlassRadius.l),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

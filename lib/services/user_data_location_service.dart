@@ -218,6 +218,17 @@ class UserDataLocationService {
       await destDir.create(recursive: true);
     }
 
+    // The log the app is writing moves on its own, after every other copy is
+    // verified (LoggerService.moveLogFile): copying it like the others races
+    // its writes, and the lines logged during the migration would be deleted
+    // with the source or would recreate it in the old folder.
+    final liveLog = _log.logFilePath;
+    final liveLogName =
+        liveLog != null &&
+            path.canonicalize(path.dirname(liveLog)) == canonSource
+        ? path.basename(liveLog)
+        : null;
+
     // ---- Collect copy jobs from OWNED entries only ----
     final List<(String, String)> copyJobs = []; // (src, dest)
     // Owned directories whose now-empty tree we prune after deleting files.
@@ -226,6 +237,7 @@ class UserDataLocationService {
     await for (final entity in sourceDir.list()) {
       final name = path.basename(entity.path);
       if (!_isOwnedEntry(name)) continue; // leave foreign data untouched
+      if (entity is File && name == liveLogName) continue;
       if (entity is File) {
         copyJobs.add((entity.path, path.join(destPath, name)));
       } else if (entity is Directory) {
@@ -285,6 +297,17 @@ class UserDataLocationService {
     }
 
     _log.i('Migration: $copied files copied to $destPath');
+
+    if (liveLogName != null) {
+      try {
+        _log.moveLogFile(path.join(destPath, liveLogName));
+      } catch (e) {
+        throw Exception(
+          'Migration aborted: the log file could not be moved ($e). '
+          'Source data left intact.',
+        );
+      }
+    }
 
     // ---- Delete phase (0.5 → 1.0) ----
     // Delete ONLY the source files we successfully copied (all verified above).

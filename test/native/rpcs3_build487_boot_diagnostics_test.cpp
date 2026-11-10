@@ -95,7 +95,8 @@ int main()
 		expect_eq(format_config_layers_line(layers),
 			"CONFIG_LAYERS title=BLES01807 name=database_config database=1 legacy_custom=0 legacy_path=- sparse_overrides=1 "
 			"shader_mode=Legacy%20Recompiler%20(single-threaded) frame_limit=Auto wcb=false wdb=false rsx_res=100 spu_block=Safe "
-			"spu_decoder=Recompiler%20(LLVM) ppu_decoder=Recompiler%20(LLVM) async_tex=false max_spurs=6 getllar_pct=100",
+			"spu_decoder=Recompiler%20(LLVM) ppu_decoder=Recompiler%20(LLVM) async_tex=false max_spurs=6 getllar_pct=100 "
+			"inherited=0 kept=0 accurate_res=- mt_rsx=- spu_spin=- mlaa_bypass=0",
 			"CONFIG_LAYERS database boot");
 
 		layers.name = "/Documents/RPCS3/config/custom_configs/config_BLES01807.yml";
@@ -117,7 +118,16 @@ int main()
 		layers.sparse_overrides = true;
 		layers.shader_mode = "Async Recompiler with Shader Interpreter";
 		layers.spu_block = "Mega";
+		// CELL551: database leaves inherited under the full file and profile values.
+		layers.inherited = 19;
+		layers.kept = 1;
+		layers.accurate_res = "false";
+		layers.mt_rsx = "true";
+		layers.spu_spin = "Reference";
+		layers.mlaa_bypass = true;
 		const std::string long_line = format_config_layers_line(layers);
+		expect(long_line.find(" inherited=19 kept=1 accurate_res=false mt_rsx=true spu_spin=Reference mlaa_bypass=1") != std::string::npos,
+			"CONFIG_LAYERS reports inheritance and the profile's effective values", long_line);
 		expect(long_line.size() + 96 < 1024 && long_line.size() <= line_budget, "CONFIG_LAYERS with an iOS container path fits the milestone cut", long_line);
 	}
 

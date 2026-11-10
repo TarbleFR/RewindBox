@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "hostSourceSHA256": {
+    "native/neoswap-storage/Store.cpp": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "hostBaselineSHA256": {
+    "native/neoswap-storage/Store.cpp": "aefe035cdca80682362019cca31b4ab11ebc775b459d9c4f5ebfc9f9db24bb1c",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "baselineCommit": "3e4fcfa121e01fd08934486b833dde6a69a2d318",
+  "harnessSHA256": "f9090e284eb1111c32b1b8f9b1e8f447e28a800ea1aa7ae63f5ccac03cf86303",
+  "adapterSHA256": "c498820b0f6cf82b5744529828e1d626d317b8d41236dea8c742348b735802b7",
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "operations": 96000,
+    "audits": 124861,
+    "collectCallsPerVersion": 9818,
+    "discardCallsPerVersion": 19043
+  },
+  "compiler": "Homebrew clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-pthread",
+    "-UNDEBUG",
+    "-O1",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Wno-misleading-indentation",
+    "-fsanitize=thread",
+    "-fno-omit-frame-pointer",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+  ],
+  "sanitizer": "thread",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "realStoreCases": 11,
+  "realPOSIXFileRoundTrips": true,
+  "realStoreOutputSHA256": "e6d2b7116395f00a7e54ea0c4d6138916437d31f14377b04a52a9591f95c7e9e",
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Exact retirement methods with metadata boundaries and the complete production Store in 11 existing real POSIX/VM/fault/concurrency cases. Timings cover metadata collection only; no iPhone, NAND, GPU or FPS claim."
+}

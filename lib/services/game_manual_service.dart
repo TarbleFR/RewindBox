@@ -8,6 +8,10 @@ import '../models/system_model.dart';
 import '../providers/file_provider.dart';
 import '../repositories/system_repository.dart';
 import '../constants/system_folder_names.dart';
+import '../repositories/scraper_repository.dart';
+import 'game_manual_french_sources.dart';
+import 'screenscraper/media_resolver.dart';
+import 'screenscraper/rom_hasher.dart';
 import 'screenscraper_service.dart';
 
 /// Result of [GameManualService.download]: [messageKey] is an [AppLocale] key.
@@ -76,8 +80,19 @@ class GameManualService {
     if (debug != null) return debug(game, targetSystem);
     final romPath = game.romPath;
     final systemId = targetSystem.id;
+    // In French, the edition's own French manual first: by its product code
+    // on the Internet Archive, or Nintendo Europe's PDF of a DS game
+    // (docs/game-box-3d.md § 26).
+    final french = systemId != null && await _scrapesInFrench();
+    String? target;
+    if (french) {
+      target = await _canonicalPath(game, targetSystem);
+      if (await GameManualFrenchSources.fill(game, systemId, target, byTitle: false) != null) {
+        return const GameManualDownload(success: true, messageKey: AppLocale.manualDownloaded);
+      }
+    }
     if (romPath == null || systemId == null) {
-      return const GameManualDownload(success: false, messageKey: AppLocale.manualDownloadFailed);
+      return _frenchByTitle(french, game, systemId, target);
     }
     final result = await ScreenScraperService.downloadGameManual(
       appSystemId: systemId,
@@ -90,10 +105,40 @@ class GameManualService {
       onProgress: (status, progress) => onProgress?.call(progress),
     );
     final success = result['success'] == true;
+    if (!success && french) {
+      final byTitle = await _frenchByTitle(french, game, systemId, target);
+      if (byTitle.success) return byTitle;
+    }
     return GameManualDownload(
       success: success,
       messageKey: result['message']?.toString() ??
           (success ? AppLocale.manualDownloaded : AppLocale.manualDownloadFailed),
     );
+  }
+
+  /// A French manual found by the game's exact title on the Internet Archive
+  /// (the same platform named), when nothing else gave one.
+  static Future<GameManualDownload> _frenchByTitle(bool french, GameModel game, String? systemId, String? target) async {
+    if (french && systemId != null && target != null) {
+      if (await GameManualFrenchSources.fill(game, systemId, target) != null) {
+        return const GameManualDownload(success: true, messageKey: AppLocale.manualDownloaded);
+      }
+    }
+    return const GameManualDownload(success: false, messageKey: AppLocale.manualDownloadFailed);
+  }
+
+  static Future<bool> _scrapesInFrench() async {
+    try {
+      return (await ScraperRepository.getPreferredLanguage()).toLowerCase().startsWith('fr');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Where ScreenScraper writes the manual, for the same file name.
+  static Future<String> _canonicalPath(GameModel game, SystemModel system) async {
+    final clean = await ScreenscraperRomHasher.getCleanRomName(game.romname, system.id!);
+    final root = await ScreenscraperMediaResolver.getMediaDirectory();
+    return '$root/${system.primaryFolderName}/manuals/$clean.pdf';
   }
 }

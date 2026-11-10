@@ -1,0 +1,367 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "harnessSHA256": "1aa656f1d5924dcb7e8dc9901b6f00f4db4369d4f7aa5bcac1b81eb0afac837b",
+  "timingHarnessSHA256": "c810f0d15150a22c3974aa2474815be7c84eabc9086efbd4d6c6f13012e89c26",
+  "adapterSHA256": {
+    "test/native/rpcs3_spu_timer_runtime.inc": "d6eeef7602fff8d28bedf9a72c77bc9bc4a64b35d1f3955cc24d4c1bbbdbfc14",
+    "test/native/rpcs3_spu_timer_reuse.inc": "f3606e975376f778416069e701659621607b69077f32c2ebe1e7ed8af0656d56"
+  },
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "matrixCases": 210,
+    "reentrantCases": 1,
+    "shutdownCases": 1,
+    "firstAllocationFailureCases": 2,
+    "laterGrowthFailureCases": 1,
+    "stableWakes": 128,
+    "baselineStableAllocations": 128,
+    "candidateStableAllocations": 1,
+    "variableWakes": 1024,
+    "baselineVariableAllocations": 768,
+    "candidateVariableAllocations": 4,
+    "obsoleteTokensRejected": 6145,
+    "notifications": 47752,
+    "pendingOrderComparisons": 1793,
+    "waitDeadlineComparisons": 1793,
+    "callbacksWhileLocked": 0,
+    "samePublicationAndWaitOrder": true,
+    "reentrantRetainedUntilCallbackReturned": true
+  },
+  "hostSweepTiming": {
+    "samples": 7,
+    "cases": [
+      {
+        "entries": 6,
+        "pattern": "all_due",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          31.4466,
+          37.8943,
+          30.4812,
+          38.0072,
+          29.6442,
+          29.0867,
+          29.0286
+        ],
+        "candidateNs": [
+          18.9949,
+          19.8957,
+          19.0025,
+          17.8837,
+          17.8949,
+          18.8602,
+          20.1271
+        ],
+        "baselineMedianNs": 30.4812,
+        "candidateMedianNs": 18.9949
+      },
+      {
+        "entries": 6,
+        "pattern": "alternating",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          27.5816,
+          38.8625,
+          35.2597,
+          33.1488,
+          27.6054,
+          27.5093,
+          30.5113
+        ],
+        "candidateNs": [
+          17.7679,
+          18.5889,
+          17.7098,
+          17.6684,
+          17.8577,
+          25.3241,
+          27.9559
+        ],
+        "baselineMedianNs": 30.5113,
+        "candidateMedianNs": 17.8577
+      },
+      {
+        "entries": 6,
+        "pattern": "none_due",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          17.0788,
+          16.7633,
+          16.7437,
+          17.1103,
+          17.0907,
+          16.8208,
+          16.7072
+        ],
+        "candidateNs": [
+          17.3368,
+          22.815,
+          19.6097,
+          17.3235,
+          17.728,
+          18.1381,
+          17.8984
+        ],
+        "baselineMedianNs": 16.8208,
+        "candidateMedianNs": 17.8984
+      },
+      {
+        "entries": 32,
+        "pattern": "all_due",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          65.0267,
+          82.171,
+          89.0092,
+          61.6257,
+          61.5531,
+          61.9297,
+          61.5663
+        ],
+        "candidateNs": [
+          74.863,
+          51.8455,
+          51.2373,
+          51.003,
+          98.6838,
+          50.9436,
+          51.1218
+        ],
+        "baselineMedianNs": 61.9297,
+        "candidateMedianNs": 51.2373
+      },
+      {
+        "entries": 32,
+        "pattern": "alternating",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          90.8571,
+          53.6835,
+          53.6406,
+          70.0508,
+          71.4719,
+          54.3116,
+          68.7551
+        ],
+        "candidateNs": [
+          49.5881,
+          43.9693,
+          48.1403,
+          52.7479,
+          44.3924,
+          44.3825,
+          67.2944
+        ],
+        "baselineMedianNs": 68.7551,
+        "candidateMedianNs": 48.1403
+      },
+      {
+        "entries": 32,
+        "pattern": "none_due",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          38.8264,
+          38.1554,
+          38.1686,
+          41.7152,
+          38.9188,
+          38.9917,
+          38.9587
+        ],
+        "candidateNs": [
+          38.0399,
+          38.268,
+          50.4145,
+          38.9782,
+          45.3838,
+          37.8644,
+          42.7132
+        ],
+        "baselineMedianNs": 38.9188,
+        "candidateMedianNs": 38.9782
+      },
+      {
+        "entries": 128,
+        "pattern": "all_due",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          251.339,
+          199.832,
+          199.726,
+          200.412,
+          279.485,
+          196.11,
+          236.827
+        ],
+        "candidateNs": [
+          178.56,
+          178.728,
+          179.271,
+          196.342,
+          178.366,
+          178.51,
+          178.637
+        ],
+        "baselineMedianNs": 200.412,
+        "candidateMedianNs": 178.637
+      },
+      {
+        "entries": 128,
+        "pattern": "alternating",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          157.446,
+          157.666,
+          158.674,
+          166.013,
+          165.677,
+          157.006,
+          157.097
+        ],
+        "candidateNs": [
+          137.196,
+          137.067,
+          137.314,
+          154.874,
+          137.493,
+          137.726,
+          137.351
+        ],
+        "baselineMedianNs": 157.666,
+        "candidateMedianNs": 137.351
+      },
+      {
+        "entries": 128,
+        "pattern": "none_due",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          120.681,
+          121.225,
+          121.172,
+          121.173,
+          121.134,
+          138.178,
+          122.013
+        ],
+        "candidateNs": [
+          139.342,
+          148.116,
+          120.683,
+          120.668,
+          120.655,
+          121.406,
+          121.495
+        ],
+        "baselineMedianNs": 121.173,
+        "candidateMedianNs": 121.406
+      },
+      {
+        "entries": 1024,
+        "pattern": "all_due",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          1815.99,
+          1676.4,
+          1822.48,
+          1678.88,
+          2459.1,
+          1676.29,
+          1679.48
+        ],
+        "candidateNs": [
+          1660.51,
+          1675.77,
+          1657.92,
+          1656.27,
+          2726.3,
+          1657.81,
+          1655.12
+        ],
+        "baselineMedianNs": 1679.48,
+        "candidateMedianNs": 1657.92
+      },
+      {
+        "entries": 1024,
+        "pattern": "alternating",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          3458.72,
+          1510.07,
+          1491.59,
+          1830.24,
+          1497.47,
+          1500.37,
+          1506.56
+        ],
+        "candidateNs": [
+          1678.15,
+          1511.72,
+          1492.31,
+          1492.93,
+          2244.66,
+          1499.12,
+          1869.46
+        ],
+        "baselineMedianNs": 1506.56,
+        "candidateMedianNs": 1511.72
+      },
+      {
+        "entries": 1024,
+        "pattern": "none_due",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          1282.31,
+          1316.59,
+          1253.92,
+          1264.65,
+          1260.22,
+          1261.56,
+          1294.6
+        ],
+        "candidateNs": [
+          1236.98,
+          1721.82,
+          1214.78,
+          1807.1,
+          1328.67,
+          1229.34,
+          1222.54
+        ],
+        "baselineMedianNs": 1264.65,
+        "candidateMedianNs": 1236.98
+      }
+    ],
+    "sink": 22375766
+  },
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-O3"
+  ],
+  "sanitizer": null,
+  "host": "x86_64",
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "concurrentMemoryOrderingTested": false
+}

@@ -8,14 +8,13 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:neostation/l10n/neoplay_companion_locale.dart';
-import 'package:neostation/l10n/rpcs3_ui_locale.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/themes/app_themes.dart';
+import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/services/controller_battery_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/services/permission_service.dart';
-import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/widgets/header_battery.dart';
 
@@ -32,10 +31,12 @@ import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/utils/time_format.dart';
 
-import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import '../themes/corner_radii.dart';
+import '../themes/glacier_theme.dart';
+import '../themes/liquid_glass_theme.dart';
+import 'glacier/glacier_widgets.dart';
 
 class Header extends StatefulWidget {
   final int selectedTabIndex;
@@ -61,11 +62,6 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
   BatteryState? _batteryState;
   StreamSubscription<BatteryState>? _batteryStateSubscription;
   StreamSubscription<bool>? _powerSubscription;
-  StreamSubscription<Rpcs3RuntimeState>? _rpcs3RuntimeSubscription;
-  Timer? _jitStatusTimer;
-  bool _jitActive =
-      Rpcs3InternalService.jitPrepared ||
-      Rpcs3InternalService.runtimeState.jitReady;
   bool _isTelevision = false;
   DateTime _now = DateTime.now();
   Timer? _timeUpdateTimer;
@@ -88,20 +84,6 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
     _getBatteryLevel();
     _listenToBatteryState();
     ControllerBatteryService.instance.attach();
-    _rpcs3RuntimeSubscription = Rpcs3InternalService.runtimeStates.listen((
-      state,
-    ) {
-      final active = state.jitReady || Rpcs3InternalService.jitPrepared;
-      if (mounted && active && !_jitActive) {
-        setState(() => _jitActive = true);
-        _jitStatusTimer?.cancel();
-        _jitStatusTimer = null;
-      }
-    });
-    unawaited(_refreshJitStatus());
-    _jitStatusTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      unawaited(_refreshJitStatus());
-    });
     _updateTime();
     _startTimeUpdateTimer();
     if (Platform.isAndroid) {
@@ -118,21 +100,10 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
     _batteryStateSubscription?.cancel();
     _powerSubscription?.cancel();
     ControllerBatteryService.instance.detach();
-    _rpcs3RuntimeSubscription?.cancel();
-    _jitStatusTimer?.cancel();
     for (final node in _tabFocusNodes) {
       node.dispose();
     }
     super.dispose();
-  }
-
-  Future<void> _refreshJitStatus() async {
-    if (!Platform.isIOS || _jitActive) return;
-    final active = await Rpcs3InternalService.jitEnabledForUi();
-    if (!mounted || !active) return;
-    setState(() => _jitActive = true);
-    _jitStatusTimer?.cancel();
-    _jitStatusTimer = null;
   }
 
   /// Subscribes to real-time battery state changes (charging/discharging/full).
@@ -250,14 +221,21 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
   Widget _buildBattery(
     BuildContext context,
     dynamic customColors,
-    List<NeoPlayControllerBattery> controllers,
-  ) {
+    List<NeoPlayControllerBattery> controllers, {
+    required bool showDevice,
+    required bool showController,
+  }) {
     final battery = HeaderBattery.choose(
       controllers: controllers,
       deviceLevel: _batteryLevel,
       deviceCharging: _deviceCharging,
     );
     if (battery == null) return const SizedBox.shrink();
+    // Without a controller the reading is the device's own battery.
+    if (!battery.controller && !showDevice) return const SizedBox.shrink();
+    if (battery.controller && !showDevice && !showController) {
+      return const SizedBox.shrink();
+    }
     final color = battery.controller && battery.percent == null
         ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
         : _getBatteryColor(customColors, battery.percent);
@@ -319,7 +297,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (_batteryLevel >= 0)
+        if (showDevice && _batteryLevel >= 0)
           Semantics(
             key: const ValueKey('header-device-battery'),
             label: LiquidMotionLocale.deviceBattery(context),
@@ -348,7 +326,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               ),
             ),
           ),
-        controller,
+        if (showController) controller,
       ],
     );
   }
@@ -356,23 +334,33 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final customColors = AppThemes.getCustomColors(context);
+    final status = LiquidGlassTheme.of(context).settings;
     final safe = MediaQuery.viewPaddingOf(context);
-    final padding = EdgeInsets.fromLTRB(
-      safe.left + 6.r,
-      safe.top + 3.r,
-      safe.right + 6.r,
-      3.r,
-    );
+    // RewindBox Glacier: the header shares the content's side margins, the
+    // brand sits on the left and the view mode moves to the section title.
+    final glacier = status.style == InterfaceStyle.glacier;
+    final side = glacier ? GlacierLayout.sideInset(context) : 0.0;
+    final padding = glacier
+        ? EdgeInsets.fromLTRB(side, safe.top + 2.r, side, 3.r)
+        : EdgeInsets.fromLTRB(
+            safe.left + 6.r,
+            safe.top + 3.r,
+            safe.right + 6.r,
+            3.r,
+          );
     return Consumer2<ThemeProvider, SqliteConfigProvider>(
       builder: (context, themeProvider, configProvider, child) => Padding(
         padding: padding,
         child: ResponsiveHeaderLayout(
           gap: 4.r,
+          deepScale: MediaQuery.textScalerOf(context).scale(1) <= 1.25,
           onExtentChanged: (height) =>
               widget.onExtentChanged?.call(height + padding.vertical),
           leading: KeyedSubtree(
             key: const ValueKey('header-controls'),
-            child: widget.selectedTabIndex == AppTabs.systems
+            child: glacier
+                ? const FittedBox(fit: BoxFit.scaleDown, child: GlacierBrand())
+                : widget.selectedTabIndex == AppTabs.systems
                 ? FittedBox(
                     fit: BoxFit.scaleDown,
                     child: HeaderSortDropdown(compact: true),
@@ -385,9 +373,13 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
             child: MainMenuTabStrip(
               tabs: visibleNavTabs(configProvider.config),
               selected: NavTab.values[widget.selectedTabIndex],
-              cellExtent: 32.r,
+              cellExtent: glacier ? 21.r : 32.r,
               tabBuilder: (tab) => _buildTabButton(context, tab),
+              // No visible tab names (maintainer, 9 Nov): the icons alone, in
+              // every interface style; each button keeps its translated name
+              // as its accessibility label (see _buildTabButton).
               iconBuilder: (tab) => NavTabIcon(
+                tab: tab,
                 spec: navTabSpec(tab),
                 tint: Theme.of(context).colorScheme.onSurface,
               ),
@@ -396,74 +388,77 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
           status: FittedBox(
             key: const ValueKey('header-status'),
             fit: BoxFit.scaleDown,
-            child: NeoGlass(
-              role: GlassSurfaceRole.chrome,
-              borderRadius:
-                  Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
-                  BorderRadius.circular(14),
-              padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).colorScheme.shadow
-                      .withValues(alpha: 0.1),
-                  blurRadius: 4.r,
-                  offset: Offset(2.0.r, 2.0.r),
-                ),
-              ],
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const NotificationBell(),
-                  SizedBox(width: 6.r),
-                  Icon(
-                    Symbols.schedule,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    size: 14.r,
+            child: _glacierStatusScale(
+              glacier,
+              NeoGlass(
+                role: GlassSurfaceRole.chrome,
+                borderRadius:
+                    Theme.of(
+                      context,
+                    ).extension<CornerRadii>()?.radiusExternal ??
+                    BorderRadius.circular(14),
+                padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.shadow.withValues(alpha: 0.1),
+                    blurRadius: 4.r,
+                    offset: Offset(2.0.r, 2.0.r),
                   ),
-                  SizedBox(width: 4.r),
-                  Text(
-                    formatClockTime(
-                      _now,
-                      use12Hour: configProvider.config.use12HourClock,
-                    ),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 12.r,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.3.r,
-                    ),
-                  ),
-                  if (!_isTelevision)
-                    ValueListenableBuilder<List<NeoPlayControllerBattery>>(
-                      valueListenable:
-                          ControllerBatteryService.instance.controllers,
-                      builder: (context, controllers, _) =>
-                          _buildBattery(context, customColors, controllers),
-                    ),
-                  if (Platform.isIOS && _jitActive) ...[
-                    SizedBox(width: 8.r),
-                    Tooltip(
-                      message: 'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
-                      child: Semantics(
-                        label: 'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
-                        child: Container(
-                          key: const ValueKey('header-jit-active-dot'),
-                          width: 8.r,
-                          height: 8.r,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF22C55E),
-                            shape: BoxShape.circle,
-                          ),
+                ],
+                // Bell, time and batteries, each of which can be hidden in
+                // Settings › Themes › User interface. No clock glyph: it sat
+                // before a label that already reads as a time (as upstream).
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (status.showNotifications) const NotificationBell(),
+                    if (status.showNotifications && status.showClock)
+                      SizedBox(width: 8.r),
+                    if (status.showClock)
+                      Text(
+                        key: const ValueKey('header-clock'),
+                        formatClockTime(
+                          _now,
+                          use12Hour: configProvider.config.use12HourClock,
+                        ),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 12.r,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3.r,
                         ),
                       ),
-                    ),
+                    if (!_isTelevision)
+                      ValueListenableBuilder<List<NeoPlayControllerBattery>>(
+                        valueListenable:
+                            ControllerBatteryService.instance.controllers,
+                        builder: (context, controllers, _) => _buildBattery(
+                          context,
+                          customColors,
+                          controllers,
+                          showDevice: status.showDeviceBattery,
+                          showController: status.showControllerBattery,
+                        ),
+                      ),
                   ],
-                ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Glacier draws the status capsule at the height of the approved header
+  /// (bell, time and batteries scaled together, so their proportions stay).
+  Widget _glacierStatusScale(bool glacier, Widget status) {
+    if (!glacier) return status;
+    return SizedBox(
+      height: 20.5.r,
+      child: FittedBox(fit: BoxFit.contain, child: status),
     );
   }
 
@@ -494,9 +489,20 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
             SfxService().playNavSound();
             widget.onTabSelected(tabIndex);
           },
-          child: Container(
-            padding: EdgeInsets.all(8.r),
-            child: NavTabIcon(spec: navTabSpec(tab), tint: tint),
+          child: Center(
+            child: SizedBox.square(
+              dimension: 16.r * LiquidGlassTheme.of(context).tabIconScale,
+              child: FittedBox(
+                child: SizedBox.square(
+                  dimension: 16.r,
+                  child: NavTabIcon(
+                    tab: tab,
+                    spec: navTabSpec(tab),
+                    tint: tint,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

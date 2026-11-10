@@ -1,0 +1,270 @@
+{
+  "success": true,
+  "scope": "production_helper_external_lock_adapter_no_gpu_no_iphone",
+  "source": {
+    "rpcs3/ios/IOSTextureValidationProfile.h": "9838477bf0cf4ebb4d00ad67baf478700a658b2c71c34183de13b94e0b9ee9c2"
+  },
+  "baseline": {
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967"
+  },
+  "runner_sha256": "ac5825ac8e93dcd05e0061a4f9d2b01f5395e217f0a70054794daebafee17cf9",
+  "adapter_sha256": "5e9458fba23c8a9d35dba47b58fea7d949c80fc049518958411d2f9e0cd55dee",
+  "generated_sha256": "22c168d5f72d00c01b250337ada4e28b1a2b9e7b74417b621e7375971fed74f3",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-UNDEBUG",
+    "-O3"
+  ],
+  "sanitizer": null,
+  "leak_sanitizer": false,
+  "results": {
+    "checks": 2040084,
+    "publication_writer_interleaving": true,
+    "benchmarks": [
+      {
+        "active": 0,
+        "overlap": 0,
+        "before_ns": 12.2001,
+        "after_ns": 0.812353
+      },
+      {
+        "active": 0,
+        "overlap": 1,
+        "before_ns": 12.1898,
+        "after_ns": 0.812293
+      },
+      {
+        "active": 1,
+        "overlap": 0,
+        "before_ns": 12.7074,
+        "after_ns": 1.89526
+      },
+      {
+        "active": 1,
+        "overlap": 1,
+        "before_ns": 11.3979,
+        "after_ns": 1.81701
+      },
+      {
+        "active": 4,
+        "overlap": 0,
+        "before_ns": 12.1739,
+        "after_ns": 4.5068
+      },
+      {
+        "active": 4,
+        "overlap": 1,
+        "before_ns": 12.2317,
+        "after_ns": 8.80549
+      },
+      {
+        "active": 8,
+        "overlap": 0,
+        "before_ns": 13.1514,
+        "after_ns": 7.73761
+      },
+      {
+        "active": 8,
+        "overlap": 1,
+        "before_ns": 18.3097,
+        "after_ns": 18.0064
+      },
+      {
+        "active": 20,
+        "overlap": 0,
+        "before_ns": 12.0121,
+        "after_ns": 24.1434
+      },
+      {
+        "active": 20,
+        "overlap": 1,
+        "before_ns": 44.9773,
+        "after_ns": 45.8679
+      },
+      {
+        "publication_unbind": 0,
+        "before_ns": 1.08571,
+        "after_ns": 1.26351
+      },
+      {
+        "publication_unbind": 1,
+        "before_ns": 1.02288,
+        "after_ns": 1.32313
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 1,
+        "unbind": 0,
+        "before_ns": 19.5969,
+        "after_ns": 2.9795
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 1,
+        "unbind": 1,
+        "before_ns": 20.0733,
+        "after_ns": 3.25057
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 8,
+        "unbind": 0,
+        "before_ns": 119.74,
+        "after_ns": 15.5578
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 8,
+        "unbind": 1,
+        "before_ns": 120.502,
+        "after_ns": 15.7034
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 32,
+        "unbind": 0,
+        "before_ns": 472.005,
+        "after_ns": 75.4422
+      },
+      {
+        "mix_active": 1,
+        "invalidations_per_publication": 32,
+        "unbind": 1,
+        "before_ns": 499.505,
+        "after_ns": 75.1023
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 1,
+        "unbind": 0,
+        "before_ns": 23.5112,
+        "after_ns": 7.42453
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 1,
+        "unbind": 1,
+        "before_ns": 18.0629,
+        "after_ns": 10.5482
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 8,
+        "unbind": 0,
+        "before_ns": 144.694,
+        "after_ns": 51.6319
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 8,
+        "unbind": 1,
+        "before_ns": 142.547,
+        "after_ns": 51.5825
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 32,
+        "unbind": 0,
+        "before_ns": 485.14,
+        "after_ns": 177.553
+      },
+      {
+        "mix_active": 4,
+        "invalidations_per_publication": 32,
+        "unbind": 1,
+        "before_ns": 474.572,
+        "after_ns": 176.541
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 1,
+        "unbind": 0,
+        "before_ns": 18.2282,
+        "after_ns": 14.3533
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 1,
+        "unbind": 1,
+        "before_ns": 18.8114,
+        "after_ns": 13.4199
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 8,
+        "unbind": 0,
+        "before_ns": 136.179,
+        "after_ns": 91.3562
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 8,
+        "unbind": 1,
+        "before_ns": 135.239,
+        "after_ns": 89.2109
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 32,
+        "unbind": 0,
+        "before_ns": 494.127,
+        "after_ns": 353.331
+      },
+      {
+        "mix_active": 8,
+        "invalidations_per_publication": 32,
+        "unbind": 1,
+        "before_ns": 464.285,
+        "after_ns": 341.015
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 1,
+        "unbind": 0,
+        "before_ns": 17.902,
+        "after_ns": 18.6758
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 1,
+        "unbind": 1,
+        "before_ns": 17.4186,
+        "after_ns": 19.7481
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 8,
+        "unbind": 0,
+        "before_ns": 200.194,
+        "after_ns": 208.078
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 8,
+        "unbind": 1,
+        "before_ns": 232.174,
+        "after_ns": 243.22
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 32,
+        "unbind": 0,
+        "before_ns": 803.382,
+        "after_ns": 837.677
+      },
+      {
+        "mix_active": 20,
+        "invalidations_per_publication": 32,
+        "unbind": 1,
+        "before_ns": 964.131,
+        "after_ns": 989.502
+      }
+    ]
+  }
+}

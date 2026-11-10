@@ -339,9 +339,13 @@ class _GamesCarouselState extends State<GamesCarousel> {
       onLetterJump: _letterJump, // Held D-pad left/right → alphabet skipping.
       letterJumpAxis: LetterJumpAxis.horizontal,
       onLeftStickClick: widget.onRandom,
+      // Select tap opens the ⋯ menu of the action rail and keeps it open; it
+      // mutes the preview only when the rail has no menu to open.
+      latchSelectLayer: widget.onScrape != null || widget.onRandom != null,
       onSelectButton: _toggleVideoMute, // Select tap - Mute preview video.
       onSelectModifierA: widget.onScrape, // Select + A - Scrape.
       onSelectModifierB: _toggleLegend, // Select + B - Hide/show legend.
+      onSelectModifierX: _toggleVideoMute, // Select + X - Mute preview video.
       onSelectModifierY: widget.onRandom, // Select + Y - Random game.
       onSettings: widget.onSettings,
       onPreviousTab: AppNavigation.previousTab,
@@ -458,15 +462,16 @@ class _GamesCarouselState extends State<GamesCarousel> {
     // Positioning/visibility is applied at the Stack level (AnimatedPositioned)
     // so Select + B can slide it without invalidating this memoized subtree.
     _chromeLegend = GameActionButtons(
-        system: widget.system,
-        selectedGame: settledGame,
-        onBack: widget.onBack,
-        onFavorite: widget.onFavorite ?? () {},
-        onViewMode: () =>
-            GameViewModeDropdown.globalKey.currentState?.showDropdown(),
-        onSettings: widget.onSettings ?? () {},
-        onRandom: widget.onRandom,
-        onScrape: widget.onScrape,
+      system: widget.system,
+      selectedGame: settledGame,
+      onBack: widget.onBack,
+      onFavorite: widget.onFavorite ?? () {},
+      onViewMode: () =>
+          GameViewModeDropdown.globalKey.currentState?.showDropdown(),
+      onSettings: widget.onSettings ?? () {},
+      onRandom: widget.onRandom,
+      onScrape: widget.onScrape,
+      onContextAction: _toggleVideoMute,
     );
   }
 
@@ -638,7 +643,8 @@ class _GamesCarouselState extends State<GamesCarousel> {
     }
     final letterWidth = _calculateLetterWidth(currentLetter, selectedTextStyle);
     final viewportWidth = _letterBarController.position.viewportDimension;
-    double targetOffset = 4.r + offset - (viewportWidth / 2) + (letterWidth / 2);
+    double targetOffset =
+        4.r + offset - (viewportWidth / 2) + (letterWidth / 2);
     targetOffset = targetOffset.clamp(
       0.0,
       _letterBarController.position.maxScrollExtent,
@@ -986,71 +992,81 @@ class _GamesCarouselState extends State<GamesCarousel> {
 
         return Center(
           child: SizedBox(
-              width: cardW + 10.r,
-              height: cardH + 10.r,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: GameBoxCard(
-                      key: ValueKey('box3d:$boxPath'),
-                      frontPath: boxPath,
-                      title: game.name,
-                      systemId: _boxSystemId(game),
-                      spinePath: _spinePath(game),
-                    ),
+            width: cardW + 10.r,
+            height: cardH + 10.r,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: GameBoxCard(
+                    key: ValueKey('box3d:$boxPath'),
+                    frontPath: boxPath,
+                    title: game.name,
+                    systemId: _boxSystemId(game),
+                    spinePath: _spinePath(game),
                   ),
-                  if (game.isFavorite == true)
-                    Positioned(
-                      top: 8.r,
-                      right: 8.r,
-                      child: Container(
-                        width: 32.r,
-                        height: 32.r,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Symbols.favorite_rounded,
-                          size: 18.r,
-                          color: Colors.redAccent,
-                        ),
+                ),
+                if (game.isFavorite == true)
+                  Positioned(
+                    top: 8.r,
+                    right: 8.r,
+                    child: Container(
+                      width: 32.r,
+                      height: 32.r,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Symbols.favorite_rounded,
+                        size: 18.r,
+                        color: Colors.redAccent,
                       ),
                     ),
-                  if (isSelected)
-                    Positioned(
-                      left: 8.r,
-                      bottom: 8.r,
-                      child: Tooltip(
-                        message: GameBoxLocale.text(context, GameBoxLocale.inspectHint),
-                        child: Semantics(
-                          button: true,
-                          label: GameBoxLocale.text(context, GameBoxLocale.inspect),
-                          child: GestureDetector(
-                            onTap: () => _inspect(game),
-                            child: Container(
-                              padding: EdgeInsets.all(6.r),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Symbols.threed_rotation_rounded, size: 18.r, color: Colors.white),
+                  ),
+                if (isSelected)
+                  Positioned(
+                    left: 8.r,
+                    bottom: 8.r,
+                    child: Tooltip(
+                      message: GameBoxLocale.text(
+                        context,
+                        GameBoxLocale.inspectHint,
+                      ),
+                      child: Semantics(
+                        button: true,
+                        label: GameBoxLocale.text(
+                          context,
+                          GameBoxLocale.inspect,
+                        ),
+                        child: GestureDetector(
+                          onTap: () => _inspect(game),
+                          child: Container(
+                            padding: EdgeInsets.all(6.r),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Symbols.threed_rotation_rounded,
+                              size: 18.r,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  if (widget.scrapingGameRomnames.contains(game.romname))
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: _buildScrapeProgress(game),
-                    ),
-                ],
-              ),
+                  ),
+                if (widget.scrapingGameRomnames.contains(game.romname))
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _buildScrapeProgress(game),
+                  ),
+              ],
             ),
+          ),
         );
       },
     );
@@ -1070,10 +1086,14 @@ class _GamesCarouselState extends State<GamesCarousel> {
   }
 
   bool get _isBoxStyle =>
-      context.read<SqliteConfigProvider>().config.gameCarouselCardStyle == 'box';
+      context.read<SqliteConfigProvider>().config.gameCarouselCardStyle ==
+      'box';
 
   String? _boxSystemId(GameModel game) {
-    final id = (_isAllMode ? game.systemId : null) ?? widget.system.id ?? game.systemId;
+    final id =
+        (_isAllMode ? game.systemId : null) ??
+        widget.system.id ??
+        game.systemId;
     if (id != null && _boxProfilesLoading.add(id)) {
       GameBoxProfiles.load(id).then((_) {
         if (mounted) setState(() {});
@@ -1090,7 +1110,8 @@ class _GamesCarouselState extends State<GamesCarousel> {
     return cached.isEmpty ? null : cached;
   }
 
-  bool _hasBoxFront(GameModel game) => _resolveImagePath(game, 'box2d').isNotEmpty;
+  bool _hasBoxFront(GameModel game) =>
+      _resolveImagePath(game, 'box2d').isNotEmpty;
 
   void _inspectCurrent() {
     if (!_isBoxStyle) return;
@@ -1237,10 +1258,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
                 ),
                 top: 0,
                 bottom: 0,
-                width: _calculateLetterWidth(
-                  currentLetter,
-                  selectedTextStyle,
-                ),
+                width: _calculateLetterWidth(currentLetter, selectedTextStyle),
                 child: Container(
                   decoration: BoxDecoration(
                     color: theme.colorScheme.secondary,
@@ -1251,10 +1269,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
               Row(
                 children: letters.map((letter) {
                   final isSelected = letter == currentLetter;
-                  final w = _calculateLetterWidth(
-                    letter,
-                    selectedTextStyle,
-                  );
+                  final w = _calculateLetterWidth(letter, selectedTextStyle);
                   return GestureDetector(
                     onTap: () {
                       SfxService().playNavSound();
@@ -1267,9 +1282,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
                       margin: EdgeInsets.only(right: 6.r),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.1,
-                        ),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(

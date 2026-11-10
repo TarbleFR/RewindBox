@@ -1,0 +1,215 @@
+{
+  "result": "passed",
+  "build": 605,
+  "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "ipaName": "RewindBox-605.ipa",
+  "ipaSHA256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+  "ipaBytes": 189643236,
+  "zipEntries": 5363,
+  "zipCrcVerified": true,
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    }
+  },
+  "displayName": "RewindBox",
+  "minimumIOS": "18.0",
+  "machOImages": 89,
+  "thinPayloadFingerprintsVerified": 86,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 139,
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392,
+      "signatureStructureValid": true
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 330,
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496,
+      "signatureStructureValid": true
+    },
+    "Frameworks/App.framework/App": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 2,
+      "sha256": "598d269a25b9dfe805398c77565a7cccbe2cca02232bc7d586d61de9ded548bb",
+      "bytes": 23845072,
+      "signatureStructureValid": true
+    }
+  },
+  "signatureStructuresVerified": 89,
+  "signaturesVerifiedByAppleCI": 89,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "structuralValidation": "passed",
+  "legalBundleValidation": "passed",
+  "retiredComponentPathsAbsent": true,
+  "relocatedDependenciesVerified": 88,
+  "actualTranslationPluginPresent": true,
+  "systemTranslationLinked": true,
+  "nativeConsumerMinimumIOS": {
+    "armsx2_internal_bridge": "18.0.0",
+    "dolphin_internal_bridge": "18.0.0",
+    "libretro_internal_bridge": "18.0.0"
+  },
+  "newDolphinPayloadMatched": true,
+  "rpcCompiledSourceMembersVerified": true,
+  "melonxActualPayloadValidation": "passed",
+  "retainedNeoPlay": {
+    "build": "605",
+    "commit": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "neoplayPackaged": true,
+    "controllerBatteryPackaged": true,
+    "appleTVSystemRoutePackaged": true,
+    "nativeLinkage": "static_framework",
+    "nativeImage": "Payload/NeoStation.app/Runner",
+    "nativeImageSHA256": "c78b64c77590f68cdedc23930263855a5a388153f3774954db3bd9333856c6d4",
+    "physicalTVValidation": false,
+    "physicalControllerValidation": false
+  },
+  "shaderCompilerIsolation": {
+    "build": "605",
+    "kitSha256": "e23fa7fdaae308b3460b8c6f6f5b445e5220e6b6b4554923fe5e633af838c6a1",
+    "publicExportCount": 62,
+    "compilerExports": 0,
+    "oldDolphinWeakSwizzles": [
+      "__ZN7glslang13TIntermediate10addSwizzleINS_15TMatrixSelectorEEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE",
+      "__ZN7glslang13TIntermediate10addSwizzleIiEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE"
+    ],
+    "compilerIsolationPackaged": true,
+    "physicalDeviceGameplayValidated": false
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "scriptSHA256": "3aa7f5baa543c532d5950c564893cc4a10c5aa7587584e5f92ea15759bb0b586",
+  "verifiedUTC": "2026-10-31T16:15:19.095061+00:00",
+  "run": 41216465880,
+  "job": 124584748706,
+  "attempt": 1,
+  "version": "0.0.8",
+  "workflowResult": "success",
+  "baselineBuild": 604,
+  "baselineSource": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323",
+  "translationTests": {
+    "run": 41216465837,
+    "swiftJob": 124581910401,
+    "flutterJob": 124581910595,
+    "xctestPassed": 33,
+    "flutterPassed": 70
+  },
+  "newDolphinProducer": {
+    "run": 41209480072,
+    "artifact": 13046204173,
+    "source": "af5b18e67864e6555f54b7b4b6f1452ed82f6982"
+  },
+  "encryptedArtifactMetadata": {
+    "id": 13048812990,
+    "name": "RewindBox-Build605-5de451091208c13926ccdb373a0a34f35ec2ee2d-cold",
+    "size_in_bytes": 190065565,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13048812990",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13048812990/zip",
+    "expired": false,
+    "created_at": "2026-10-31T16:12:58Z",
+    "expires_at": "2026-11-14T16:12:56Z",
+    "updated_at": "2026-10-31T16:12:58Z",
+    "digest": "sha256:da2af0899683e9c4db4f4c78afe74c14eb05770abccc6c43fef804d736d24726",
+    "workflow_run": {
+      "id": 41216465880,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "5de451091208c13926ccdb373a0a34f35ec2ee2d"
+    }
+  },
+  "encryptedPayload": {
+    "bytes": 190064672,
+    "sha256": "dce793f6b7de51869d8cb0d05dd40a5de37657c980c0bdfd7e18073b258c560b"
+  },
+  "transportParts": [
+    {
+      "artifactId": 13048956566,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:1aa82485cb182a5457f5051db87417081c5272aed4852cac6d9b1aca25716c90",
+      "index": 0,
+      "bytes": 47516168,
+      "sha256": "9b5b7046d72f64b9850b819b7c14eb6e5c8943415d0772b56939a0fe4afc83ea"
+    },
+    {
+      "artifactId": 13048793097,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:e7808cbff8aae4faee59ae0a5f511d340f923779ffdca5b9cc22622eb5deb16d",
+      "index": 1,
+      "bytes": 47516168,
+      "sha256": "0591302334b5db83a4aa8753cdf978e4be2f489f6023189b29396360e424180d"
+    },
+    {
+      "artifactId": 13047769678,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:b06a72b8a26fe862a89b1033557f9e91b51002c3000c0c4c714ae8628926dccb",
+      "index": 2,
+      "bytes": 47516168,
+      "sha256": "b216ae90e2138092cf55a18a081c7a160ea7e1bf5924e621bd7f37c7bce02072"
+    },
+    {
+      "artifactId": 13048179044,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:414ed94c877b88ec883f1f24ff4a87870168662dcf60abd89b00b1f7406d7d53",
+      "index": 3,
+      "bytes": 47516168,
+      "sha256": "8b00feecd18b5fa55421ddac82deed61090df9b8709bc1da5234b3b3f68b00bc"
+    }
+  ],
+  "libraryFileId": "libfile_70c40307f99481919fc12d98995ae387",
+  "libraryFileName": "RewindBox-605.ipa",
+  "recipientPrivateKeyDeleted": true,
+  "translationLinkerWarnings": 0,
+  "translationSwiftWarnings": 0,
+  "otherFullApplicationWarningLines": 444,
+  "appleModelTranslationExecuted": false,
+  "officialTranslationSourceConfigured": false,
+  "evidenceSHA256": {
+    "achievement-ipa-validation.json": "a27311940fb3cf8dc056ce3f0e971d0aaf9f66cff186c1b669a454953a332139",
+    "achievement-tests.json": "d508f3e4accb2a0484da141c80987864a099dfed1e4ce720382c346168fca63b",
+    "download-decryption.json": "fc52bbed9367305074ba54448ce03d11326849c5a8e4987f952939d5e3bbbe6c",
+    "downloaded-ipa-verification.json": "28aa2e49f3616178531e38ff759787ee25495c4abc9760ae35a85f1bc6347f4c",
+    "environment.json": "b67173688d008db6721e3025b3ecae81886d093648bce6a61ec3db1217e59aca",
+    "observed-timings.json": "63f94898ab698a453b3c63eee61e227f8be715ec86b7b87848850ef12d4e64b4",
+    "signature.json": "18f8d01295a74212bcb3c0e006eaf1d939cfcc7e54c62bcccb93349e606ee91c",
+    "signed-payload-identity.json": "d3d543386d0c958df22b766756556e609fb01ace68c8c0772cdc7d331ecb4a7a",
+    "verify-downloaded.py": "3aa7f5baa543c532d5950c564893cc4a10c5aa7587584e5f92ea15759bb0b586",
+    "workflow.json": "7fdbb474e8e877e7ea87e92d206465a593b85a8528e9c943935916bb2d3294b9"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "mode": "control",
+      "checks": 45,
+      "samePoolLeakedReferences": 1,
+      "crossPoolLeakedReferences": 1,
+      "obsoleteCacheEntriesAfterTwoTicks": 1,
+      "duplicateShortReferences": 2,
+      "productionPerSlotDisposal": true,
+      "liveBindingsAndViewsPreserved": true,
+      "physicalDeviceTested": false,
+      "gpuStorageDoubled": true
+    },
+    {
+      "mode": "fixed",
+      "checks": 45,
+      "samePoolLeakedReferences": 0,
+      "crossPoolLeakedReferences": 0,
+      "obsoleteCacheEntriesAfterTwoTicks": 0,
+      "duplicateShortReferences": 1,
+      "productionPerSlotDisposal": true,
+      "liveBindingsAndViewsPreserved": true,
+      "physicalDeviceTested": false,
+      "gpuStorageDoubled": true
+    }
+  ],
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "physicalDeviceTested": false,
+  "gpuStorageDoubled": true,
+  "inputs": {
+    "build-utils/melonx/adapt_texture_ownership.py": "9614bcc9c4bd53eff1bdaeec3827cb77e6c501bc5f5955aea729fcc9a6f20dc6",
+    "build-utils/melonx/adapt_gpu_lifetime.py": "92ec7a6dad603dab1192baa41ecc86e027cbd08952ad3b4ab4aca50e1bf7bcc6",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_texture_ownership_test.py": "4a0d1b9b3a5277c4dc2b74a125d0627e763e774fd7cbfbc96f1da4f20210de6b",
+    "test/melonx_texture_ownership/Program.cs": "5b72501acef291469072c5842cf4a4cf92d4aaa5f4d6135792041466c438841b"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07",
+    "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "c1b8e1809347fae5058232a8249b6e650814e0aab22b9ba319f2b383a965091d",
+    "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs": "f353fbc15730730fd442ff49f82f8498ccfa1505d95c33918208b849bf2d5d50",
+    "src/Ryujinx.Graphics.Gpu/Image/Pool.cs": "b07c6db82a95d1485ad21bb6a804f94b803efd0f6600a67d613491ec08d326f0",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs": "ebbf67f1568d2422f1d19ec09bca6f2a17acb3a018ad92770e3dfbf7e3d6ebf5",
+    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "926fed78436a4ce587203174d0217933593be627c68055c8cddfc5be32c6cd6f",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "e64798cc48550b7f8408d1fa8c432575618f11337a93b37defea8cec99e72e7b"
+  }
+}

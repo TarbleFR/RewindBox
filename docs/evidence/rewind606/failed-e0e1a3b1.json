@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "repository": "TarbleFR/RewindBox",
+  "source": "e0e1a3b1a14cf98ac6ceaba1f31ebd95da969d7d",
+  "runId": 41241694539,
+  "runAttempt": 1,
+  "runUrl": "https://github.com/TarbleFR/RewindBox/actions/runs/41241694539",
+  "jobId": 124656839346,
+  "jobName": "Compile delivered605 application with reviewed Hogwarts changes",
+  "conclusion": "failure",
+  "failedStep": {
+    "number": 29,
+    "name": "Verify fresh MeloNX inputs, final-source gates and actual runtime sessions"
+  },
+  "failureUTC": "2026-10-31T21:08:29Z",
+  "error": "ValueError: Recovery archive added, removed or renamed original evidence",
+  "cause": "Strict recovered Core archive member equality was evaluated against dist/melonx after two packaging steps had added generated identity receipts.",
+  "authenticatedArchiveMembers": 418,
+  "generatedReceiptPaths": [
+    "packaging-identity.json",
+    "standalone-moltenvk-identity.json"
+  ],
+  "writers": [
+    "build-utils/melonx/package_runtime.py:73",
+    "build-utils/melonx/package_standalone_moltenvk.py:90"
+  ],
+  "applicationReleaseCompilation": {
+    "stepNumber": 35,
+    "name": "Compile Release device binary with measured AOT and Xcode phases",
+    "conclusion": "skipped"
+  },
+  "ipaCreated": false,
+  "productionEngineChanges": false
+}

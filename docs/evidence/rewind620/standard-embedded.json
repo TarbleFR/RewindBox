@@ -1,0 +1,1759 @@
+{
+  "result": "embedded",
+  "identity": {
+    "schema": 1,
+    "build": 620,
+    "recipe": "standard",
+    "manifest": {
+      "path": "build-utils/delivery/620.json",
+      "sha256": "b9ad53ed7b776000f63037d7f7ec48837547db4267005ff87fd3ea4aa47de0dc"
+    },
+    "base": {
+      "build": 619,
+      "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+      "ipaSHA256": "2e570645c7500deba655ea0d210e4fac025bd16b0c6b45ab127d5d13454816c9"
+    },
+    "application": {
+      "result": "passed",
+      "build": 620,
+      "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+      "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+      "manifest": {
+        "path": "build-utils/delivery/620.json",
+        "sha256": "b9ad53ed7b776000f63037d7f7ec48837547db4267005ff87fd3ea4aa47de0dc"
+      },
+      "base": {
+        "build": 619,
+        "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+        "ipaSHA256": "2e570645c7500deba655ea0d210e4fac025bd16b0c6b45ab127d5d13454816c9",
+        "images": 90
+      },
+      "effective": {
+        "result": "verified",
+        "effectiveDigest": "bf6ee0b03282b8e938eae88acb2bfce60d66e73f77682ca4dfacf7b128b8f3d6",
+        "productFiles": 6842,
+        "restored": 69,
+        "freezeCommit": "4eedd6fc0b581477da3819acd90ea2d6f3f65255",
+        "laterRecipeOnlyCommits": [
+          "757e3b400b60181e0588ec40f9641d08c2262664"
+        ]
+      },
+      "reviewedCommits": [
+        "6d6e7eac73b49564c793daf2c1d090d9aae9e280",
+        "cd01987635f945293975b80b6b4475b28be42595",
+        "490b19f590d75e9e4c66a9138222bb6649262b30",
+        "c00bdca65a0bb7a528cbb133a674021463b2d5ab",
+        "3facc1feabd83fc4d0b19a28c693809bed87f793",
+        "f24785457f77539957289510c138e3db1a5bc530",
+        "1c83655738268086fd07d535bf4f4d40e6b85bc3",
+        "8a3dd9cf7b26d7d074caf90e9b0cc6da80cc5b68",
+        "56bb0478"
+      ],
+      "sourceOnly": [],
+      "componentPins": {
+        "rpcs3": "3d19075354afcc2ec04ddb1a2917486320028bea",
+        "melonx": "1c83655738268086fd07d535bf4f4d40e6b85bc3"
+      },
+      "retainedInputs": 44,
+      "recipient": {
+        "path": "build-utils/delivery-620-recipient.pem",
+        "sha256": "10f47e186f64b9de68e1b6acff62ff7583a09189b5991a1dc350eaa952351423"
+      },
+      "replacedComponents": [
+        "melonx",
+        "rpcs3"
+      ],
+      "retainedComponents": [
+        "armsx2",
+        "dolphin",
+        "donor",
+        "libretro",
+        "melonx-dependencies",
+        "melonx-upstream",
+        "stikjit"
+      ],
+      "rebuiltForDelivery": [
+        "Flutter application and host plugins"
+      ],
+      "testsRun": {
+        "flutter": "fresh",
+        "native": "fresh",
+        "delivery-contract": "fresh"
+      },
+      "testsExecutedInThisRun": [
+        "flutter",
+        "native",
+        "delivery-contract"
+      ],
+      "physicalDeviceTested": false
+    },
+    "testEvidence": {
+      "flutter": {
+        "result": "authenticated",
+        "evidenceMode": "fresh",
+        "kind": "flutter",
+        "execution": {
+          "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+          "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+          "run": 41527072487,
+          "attempt": 1
+        },
+        "job": 125557973510,
+        "artifact": 13180915905,
+        "artifactName": "RewindBox-Build620-757e3b400b60181e0588ec40f9641d08c2262664-attempt1-tests-flutter",
+        "archiveSHA256": "78eaa7c96eb4e67bac9e6b1745970e47adea8171252956a662dfed16cd970234",
+        "archiveBytes": 32825,
+        "receipt": {
+          "schema": 1,
+          "result": "passed",
+          "group": "flutter",
+          "build": 620,
+          "execution": {
+            "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+            "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+            "run": 41527072487,
+            "attempt": 1
+          },
+          "effectiveDigest": "bf6ee0b03282b8e938eae88acb2bfce60d66e73f77682ca4dfacf7b128b8f3d6",
+          "manifestSHA256": "b9ad53ed7b776000f63037d7f7ec48837547db4267005ff87fd3ea4aa47de0dc",
+          "recipeReads": {
+            "THEMES.md": "6b54fb3921842881f65a19f1c5424015a12f11de",
+            "docs/design/rewindbox-glacier/reference/MENU-CIBLE.png": "83dcd2cf7b73ae169f2d91fdfcb03ce80df4df66",
+            "docs/design/rewindbox-glacier/reference/composition.json": "e7f20be36011a6a692a99fa385a933244e7ced97"
+          },
+          "sourceContract": {
+            "result": "verified",
+            "effectiveDigest": "bf6ee0b03282b8e938eae88acb2bfce60d66e73f77682ca4dfacf7b128b8f3d6",
+            "productFiles": 6842,
+            "restored": 69,
+            "freezeCommit": "4eedd6fc0b581477da3819acd90ea2d6f3f65255",
+            "laterRecipeOnlyCommits": [
+              "757e3b400b60181e0588ec40f9641d08c2262664"
+            ]
+          },
+          "commands": [
+            {
+              "name": "delivery-contract-tests",
+              "argv": [
+                "python3",
+                "-B",
+                "test/standard_delivery_contract_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 11.489,
+              "log": "delivery-contract-tests.log",
+              "logSHA256": "e793dafa0a57c2b1849a043141c13d2f1abd0da66cfe6191c30723440534accd"
+            },
+            {
+              "name": "translation-source",
+              "argv": [
+                "python3",
+                "-B",
+                "test/achievement_translation_contract_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.064,
+              "log": "translation-source.log",
+              "logSHA256": "64c563c792ac3b5c8e06c4b7867c9fabee68e7de611025df83906933ab4f1516"
+            },
+            {
+              "name": "central-harness-contract",
+              "argv": [
+                "python3",
+                "-B",
+                "test/retro_achievements_session_native_test.py",
+                "--check-only"
+              ],
+              "exitCode": 0,
+              "seconds": 0.064,
+              "log": "central-harness-contract.log",
+              "logSHA256": "afa134af8a9d4108b6790df6b7143760d2797417c3240be2112e888e55800927"
+            },
+            {
+              "name": "libretro-policy",
+              "argv": [
+                "python3",
+                "-B",
+                "test/libretro_ra_policy_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 3.02,
+              "log": "libretro-policy.log",
+              "logSHA256": "6ad0813f4c10a8903b018197314c9eab94fb268850b0947f5cf635b646d1d2d1"
+            },
+            {
+              "name": "libretro-retired-account",
+              "argv": [
+                "python3",
+                "-B",
+                "test/libretro_legacy_ra_contract_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.114,
+              "log": "libretro-retired-account.log",
+              "logSHA256": "ccf7b54f144d3e9682c95e71a54d347376487292982197f61b4f9bb2d6f65cc8"
+            },
+            {
+              "name": "libretro-native-labels",
+              "argv": [
+                "python3",
+                "-B",
+                "test/cheat_bootstrap_test.py",
+                "Bootstrap.test_native_label_contract",
+                "Bootstrap.test_twelve_complete_locales"
+              ],
+              "exitCode": 0,
+              "seconds": 0.114,
+              "log": "libretro-native-labels.log",
+              "logSHA256": "cc4ce8d54ec0f6a2d972abf34157488e5e132e9d71efaebb422979f2bf3356f8"
+            },
+            {
+              "name": "dolphin-policy",
+              "argv": [
+                "python3",
+                "-B",
+                "test/dolphin_ra_session_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.916,
+              "log": "dolphin-policy.log",
+              "logSHA256": "ff24179ce12367c91e7d6e528f3f5f444e4b587dbfa32b478c329e840ac09a7b"
+            },
+            {
+              "name": "dolphin-presentation",
+              "argv": [
+                "python3",
+                "-B",
+                "test/achievement_translation_native_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.565,
+              "log": "dolphin-presentation.log",
+              "logSHA256": "e3a7b488fd83dde263f12fb69dc8b1add0645d1ffc742938c3116d2a01d5412b"
+            },
+            {
+              "name": "dolphin-retired-account",
+              "argv": [
+                "python3",
+                "-B",
+                "test/dolphin_account_267_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.114,
+              "log": "dolphin-retired-account.log",
+              "logSHA256": "36074451aeec0bd8f5dec6aca61400b4c94b6d3b0761bd7a3fae39fc40a12ac3"
+            },
+            {
+              "name": "armsx2-policy",
+              "argv": [
+                "python3",
+                "-B",
+                "test/armsx2_ra_launch_settings_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 1.417,
+              "log": "armsx2-policy.log",
+              "logSHA256": "3df2318fd9d7ebdd044787419f898023c160b8d4853204ca281566f2c5f5a567"
+            },
+            {
+              "name": "flutter-analysis",
+              "argv": [
+                "flutter",
+                "analyze",
+                "packages/achievement_translation/lib",
+                "packages/retro_achievements_session/lib",
+                "lib/models/retro_achievements_session.dart",
+                "lib/services/retro_achievements_session_service.dart",
+                "lib/services/retro_achievements_service.dart",
+                "lib/repositories/retro_achievements_repository.dart",
+                "lib/providers/retro_achievements_dashboard_source.dart",
+                "lib/providers/retro_achievements_provider.dart",
+                "lib/screens/retro_achievements_screen",
+                "lib/widgets/translated_achievement_text.dart",
+                "lib/l10n/achievement_translation_locale.dart",
+                "lib/l10n/app_widget_localizations.dart",
+                "lib/services/dolphin_internal_v2_service.dart",
+                "lib/services/libretro_internal_service.dart",
+                "lib/services/stikjit_armsx2_service.dart",
+                "packages/armsx2_internal_bridge/lib",
+                "lib/services/rpcs3_config_adapter.dart",
+                "lib/services/rpcs3_game_profile_service.dart",
+                "lib/l10n/retro_achievements_status_locale.dart",
+                "lib/services/rpcs3_internal_service.dart",
+                "packages/neo_swap/lib",
+                "lib/widgets/glacier",
+                "lib/services/system_art",
+                "lib/services/glacier_preset.dart",
+                "lib/themes",
+                "lib/widgets/main_menu_tab_strip.dart",
+                "lib/widgets/header.dart",
+                "lib/widgets/header_sort_dropdown.dart",
+                "lib/widgets/glass",
+                "lib/screens/systems_screen/my_systems_section",
+                "lib/screens/settings_screen/new_settings_options/themes_settings_content.dart",
+                "lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart",
+                "lib/screens/settings_screen/interface_style",
+                "lib/providers/neo_assets_provider.dart",
+                "lib/providers/theme_provider.dart",
+                "lib/services/neo_assets_service.dart",
+                "lib/main.dart",
+                "lib/l10n",
+                "lib/services/game_box",
+                "lib/screens/game_box",
+                "lib/services/screenscraper",
+                "lib/services/screenscraper_service.dart",
+                "lib/screens/scraper_screen"
+              ],
+              "exitCode": 0,
+              "seconds": 37.709,
+              "log": "flutter-analysis.log",
+              "logSHA256": "227df003382d3c2cf884efdff52c5c9172046cce2a2579d33b9ac592d08011a2"
+            },
+            {
+              "name": "flutter-behavior",
+              "argv": [
+                "flutter",
+                "test",
+                "--reporter",
+                "expanded",
+                "test/achievement_translation_test.dart",
+                "test/retro_achievements_service_test.dart",
+                "test/retro_achievements_credentials_test.dart",
+                "test/retro_achievements_repository_test.dart",
+                "test/retro_achievements_resolver_test.dart",
+                "test/retro_achievements_layout_test.dart",
+                "test/secondary_achievement_item_test.dart",
+                "test/external_menu_screen_test.dart",
+                "test/retro_achievements_session_test.dart",
+                "test/retro_achievements_migration_test.dart",
+                "test/retro_achievements_account_consistency_test.dart",
+                "test/retro_achievements_session_localization_test.dart",
+                "test/retro_achievements_capabilities_test.dart",
+                "test/armsx2_in_game_localization_test.dart",
+                "test/armsx2_embedded_library_contract_test.dart",
+                "test/retro_achievements_login_regression_test.dart",
+                "test/rpcs3_game_profile_service_test.dart",
+                "test/rpcs3_profile_engine_test.dart",
+                "test/rpcs3_guest_relay_launch_test.dart",
+                "test/rewindbox_glacier_test.dart",
+                "test/glacier_menu_capture_test.dart",
+                "test/main_menu_tab_strip_test.dart",
+                "test/main_menu_tab_strip_styles_test.dart",
+                "test/header_one_line_test.dart",
+                "test/header_battery_test.dart",
+                "test/grid_geometry_test.dart",
+                "test/menu_carousel_correction_test.dart",
+                "test/liquid_glass_theme_test.dart",
+                "test/interface_style_locale_test.dart",
+                "test/interface_style_settings_test.dart",
+                "test/interface_style_screen_test.dart",
+                "test/builtin_theme_catalog_test.dart",
+                "test/nav_tabs_test.dart",
+                "test/system_bubbles_option_test.dart",
+                "test/system_bubble_render_test.dart",
+                "test/ui_correction_visual_test.dart",
+                "test/theme_provider_background_persistence_test.dart",
+                "test/scraper_batch_flow_test.dart",
+                "test/game_box_sharp_scan_test.dart",
+                "test/game_box_sharp_back_test.dart",
+                "test/game_box_sources_test.dart",
+                "test/screenscraper_service_test.dart",
+                "test/screenscraper_manual_media_test.dart",
+                "test/retro_achievements_native_client_test.dart",
+                "test/game_box_booklet_test.dart",
+                "test/game_box_compare_preview_test.dart",
+                "test/game_box_geometry_test.dart",
+                "test/game_box_inspector_test.dart",
+                "test/game_box_library_views_test.dart",
+                "test/game_box_locale_test.dart",
+                "test/game_box_manual_inspector_test.dart",
+                "test/game_box_media_sheet_test.dart",
+                "test/game_box_media_test.dart",
+                "test/game_box_physical_test.dart",
+                "test/game_box_refused_face_test.dart",
+                "test/game_box_render_inspector_preview_test.dart",
+                "test/game_box_render_open_preview_test.dart",
+                "test/game_box_render_preview_test.dart",
+                "test/game_box_rotation_test.dart",
+                "test/game_box_text_test.dart"
+              ],
+              "exitCode": 0,
+              "seconds": 142.96,
+              "log": "flutter-behavior.log",
+              "logSHA256": "194101ae38fc0624832b9157b764b91b5bc0d328bf7c2dea7de1e358910eb80b"
+            },
+            {
+              "name": "storage-contract",
+              "argv": [
+                "python3",
+                "-B",
+                "test/storage_contract_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 16.352,
+              "log": "storage-contract.log",
+              "logSHA256": "b2d7853d4ad326ed3ed5647d64657a59fae806d74cb99a5a7d749ebd44fbf3b6"
+            },
+            {
+              "name": "localization-12-locales",
+              "argv": [
+                "python3",
+                "-B",
+                "test/localization_12_locale_coverage_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.365,
+              "log": "localization-12-locales.log",
+              "logSHA256": "2904d391afcd957d390c15947543fd64964a6aefc81aaeed3d0361e606aed0fb"
+            },
+            {
+              "name": "theme-surfaces-retained",
+              "argv": [
+                "python3",
+                "-B",
+                "test/theme_importer_retirement_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.264,
+              "log": "theme-surfaces-retained.log",
+              "logSHA256": "985f88c62b41a47b5db6f02b7cc75206e7e922fe5d354382904ca42a32df959a"
+            },
+            {
+              "name": "game-box-strings",
+              "argv": [
+                "python3",
+                "-B",
+                "test/game_box_strings_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.164,
+              "log": "game-box-strings.log",
+              "logSHA256": "c2a45c7a30d64be3aef707c07716d42235e96c6ec793cf5023829e4dada3a658"
+            }
+          ],
+          "physicalDeviceTested": false,
+          "translationModelsDownloaded": false
+        },
+        "testsExecutedInThisRun": true
+      },
+      "native": {
+        "result": "authenticated",
+        "evidenceMode": "fresh",
+        "kind": "native",
+        "execution": {
+          "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+          "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+          "run": 41527072487,
+          "attempt": 1
+        },
+        "job": 125557973428,
+        "artifact": 13181137515,
+        "artifactName": "RewindBox-Build620-757e3b400b60181e0588ec40f9641d08c2262664-attempt1-tests-native",
+        "archiveSHA256": "04dfa76f53e82efa607349a682b8b01d53b2316ca36d82bcce16ad80907952b1",
+        "archiveBytes": 78909,
+        "receipt": {
+          "schema": 1,
+          "result": "passed",
+          "group": "native",
+          "build": 620,
+          "execution": {
+            "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+            "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+            "run": 41527072487,
+            "attempt": 1
+          },
+          "effectiveDigest": "bf6ee0b03282b8e938eae88acb2bfce60d66e73f77682ca4dfacf7b128b8f3d6",
+          "manifestSHA256": "b9ad53ed7b776000f63037d7f7ec48837547db4267005ff87fd3ea4aa47de0dc",
+          "recipeReads": {
+            ".github/diagnostics/achievement_translation_delivery.py": "d8d58571fdfa63cef3bd009f8c1538ae07764dce",
+            ".github/diagnostics/hogwarts606_host.py": "009a187012a2f0df86fa1f3383c7c704751b133a",
+            ".github/diagnostics/hogwarts606_presentation_recovery.py": "2431becf0054a125e74b26cc0af54587662acf28",
+            ".github/diagnostics/melonx_unreal_completion_host.py": "cb278897e84a631cd4ab1031d64926e65ecf01c4",
+            ".github/diagnostics/rewind596_engine.py": "a90a23fbe9cfbbbfa36f6d24dfbb1b78bc81c38b",
+            ".github/diagnostics/rewind597_baseline.py": "3a4005f7d1b6ca2e5acb19a66e6af8d82f952a72",
+            ".github/diagnostics/rewind597_baseline_delivery.py": "faeb9ef9faea6867beb5671472fe95a92deccbe7",
+            ".github/diagnostics/rewind597_engine.py": "5b5bdd17cf123233de84151f9ab5f4f273e37857",
+            ".github/diagnostics/rewind600_baseline.py": "e1ec7a43b576afb0088107c4fb072a54fac1f725",
+            ".github/diagnostics/rewind600_baseline_delivery.py": "6e0fb8fb0db06cd98c32eb8050c9ccb883d794fa",
+            ".github/diagnostics/rewind600_engine.py": "f59283cb7a2c95d6fdb3087e1910e038b078c4a2",
+            ".github/diagnostics/rewind604_baseline.py": "15064047e2cf19a0bb639e4459623a579002a92e",
+            ".github/diagnostics/rewind604_baseline_delivery.py": "2da7558506ca189d21052f1e68df322486b1d00c",
+            ".github/diagnostics/rewind604_checks.py": "38da47e33452855102fbd5ac5a1e265329eaad71",
+            ".github/diagnostics/rewind604_engine.py": "e72d4edcf8c94b90a78b3d443144ce8818708ebe",
+            ".github/diagnostics/rewind606_baseline.py": "fd33d2a3cebd145c5ff849effb68513626f6d636",
+            ".github/diagnostics/rewind606_delivery.py": "2592b0de141abd960dcae1135e66bdd341fb33ee",
+            ".github/diagnostics/rewind606_engine.py": "d659ea267205cb3ca57b5ad9ada0a3b3bd4e8183",
+            ".github/diagnostics/rewind607_baseline.py": "cb32d1c896024f4690f0996e1ad2e1eb48d0c288",
+            ".github/diagnostics/rewind607_delivery.py": "998eaf2a199233218f3d8ef445ae3f32e5a61f95",
+            ".github/diagnostics/rewind608_baseline.py": "af9a05e0c7866795678925fc783d489272b76cbe",
+            ".github/diagnostics/rewind608_checks.py": "ca467ebd5c6c8cb273893aa2ede7c13bf2913c68",
+            ".github/diagnostics/rewind608_delivery.py": "b8c3c7b64186360eb11bf85fdd6f8a44a28b8db8",
+            ".github/diagnostics/rewind608_producers.py": "9e9e988e32c8a5b817cd4f1dcec774fd2ba9ec0c",
+            ".github/diagnostics/rewind608_reuse.py": "de07fa01193f70fe7740d88914accd5accf5043b",
+            ".github/diagnostics/rewind609_baseline.py": "5f25888b83f32be8400dd26e0ec168808736c9d5",
+            ".github/diagnostics/rewind609_delivery.py": "6f225ac15706248fe42a3da81e7887fc05f726d8",
+            ".github/diagnostics/rewind609_engine.py": "158645409d2c3889b2aa29c89bc9d804b3555b21",
+            ".github/diagnostics/rewind610_baseline.py": "b824c5187781a284866c09563b5a23f479c14efe",
+            ".github/diagnostics/rewind610_checks.py": "f9d8c515307ad820d1bbefacb296b792dbd81896",
+            ".github/diagnostics/rpcs3_mvk_cache_core.py": "945b871c03ba607fb0493aa524b344484f3c6b43",
+            ".github/diagnostics/rpcs3_mvk_cache_host.py": "94c9153d15808374a3f2ad7e5c82054c3129c615",
+            ".github/diagnostics/rpcs3_mvk_dependency_artifact.py": "540d03f52e1109a8fbdb3922d4389121d2b7b3bf",
+            ".github/diagnostics/rpcs3continuation_core.py": "8101a2c801d211a53e76596e1ab572c76784d43c",
+            ".github/diagnostics/rpcs3deep_core.py": "9d769bb12afbb1cb1ebefc70e70ede3018eb9d88",
+            ".github/diagnostics/rpcs3deep_resume.py": "602a2c7dd9db44f2dda00926176f0a57caf7a70c",
+            ".github/diagnostics/rpcs3deep_resume2.py": "923602f03e3c063f8de9d308748d69af3737c6ae",
+            ".github/diagnostics/rpcs3deep_resume3.py": "e41131274b9ee0837bf19668a83eeb3188dbe328",
+            ".github/diagnostics/rpcs3device601_reuse.py": "ab3b2e73e68f3d89c8a26c8c7e074cef4b5a843b",
+            ".github/diagnostics/rpcs3runtime592_core.py": "946f2d66d9ba4718d296bbfff5aec44fadd3ba46",
+            ".github/diagnostics/rpcs3runtime597_delivery_core.py": "808ae004c891bc53e376ebc7789a274988f47a7f",
+            ".github/diagnostics/rpcs3runtime600_retained_core.py": "6f16e19acc7c15f34768d238ac5cc4ca39a0a37c",
+            ".github/diagnostics/rpcs3runtime604_core.py": "fc382b621444aeec183dc93a37ec783bc3ee850b",
+            ".github/diagnostics/rpcs3runtime606_core.py": "78910b3dc72191049a300833f342c0c167bbdeda",
+            ".github/diagnostics/rpcs3runtime607_core.py": "cd825e76639b70d9dac937f5c4123c276a79b1c4",
+            ".github/diagnostics/rpcs3runtime_bo2_core.py": "cba838a8d5ea518bd354be4dcb920aefd0e32b8c",
+            ".github/diagnostics/rpcs3runtime_bo2_exact_core.py": "d3afd6bbc5e57a57581b7aad22796c5744ad1c25",
+            ".github/diagnostics/rpcs3runtime_bo2_warm_core.py": "ab29741392e52d2e6ee7e3580ebd8ebcfc740513",
+            ".github/diagnostics/rpcs3runtime_device593_core.py": "12aef2bb6b9e13f93dd7dea33a5466dbd35f24c7",
+            ".github/diagnostics/rpcs3runtime_device594_core.py": "a5218d25a0d715fce3ac49ef6c1aa8b87792ac1a",
+            ".github/diagnostics/rpcs3runtime_device597_core.py": "5e409577a51cea1e14c797836b1cbd7aeaa569a7",
+            ".github/diagnostics/rpcs3runtime_device601_core.py": "67eab00021305d563f2d625cc3247a013827ec5c",
+            ".github/diagnostics/rpcs3runtime_global_core.py": "5bb52de438922a08080a432ebe17c8de58b28e23",
+            ".github/diagnostics/rpcs3runtime_global_resume.py": "ac10184f5b4a2163159e02d898e659d2e682dfb8",
+            ".github/diagnostics/rpcs3runtime_global_resume2.py": "8a988e51e0f2506a26ddcd306a5827133d12ab18",
+            ".github/diagnostics/rpcs3runtime_log_followup_core.py": "29d1f8a6fa89ad4b842d9ffbab720d252abb35c7",
+            ".github/diagnostics/rpcs3runtime_refinement_core.py": "4257c53b648e45d2fa4d0ae46196db36f723a01c",
+            ".github/diagnostics/rpcs3runtime_refinement_resume.py": "74a12d90d0fe67de6859a685dc087f5210998f2b",
+            ".github/workflows/achievement-translation-dolphin.yml": "f6f520f9858dafd250279c3f4eb6c8d6aa72b1b9",
+            ".github/workflows/achievement-translation.yml": "a4734b748f14e63c1bdda4a12e0c05777f53a6a1",
+            ".github/workflows/hogwarts606-host-recovery.yml": "56f865fc3b2126e63e805e51006acb26232f5b4e",
+            ".github/workflows/hogwarts606-host.yml": "56f3f55a345c334e93118f0b043f7410860c8dd0",
+            ".github/workflows/melonx-completion-host.yml": "de2b12f97ce6b3cf995ef920ca1214b2877d8d90",
+            ".github/workflows/melonx-core.yml": "59f4cc36133c94f973ee670cf55ae7f139eca5b8",
+            ".github/workflows/melonx-guard-runtime-validation.yml": "e2bd9dcff3d78f70d5efe10317babfce37a5a278",
+            ".github/workflows/melonx-performance-finalize.yml": "918b5027e17f27ad876c79ca424ca05d812dcdec",
+            ".github/workflows/rewind597-baseline-delivery.yml": "59dde54d787c42d1da0237e9898e58ba447d53bd",
+            ".github/workflows/rewind600-baseline-delivery.yml": "c0807bbd884ae65101f6b450b29617d5cf2b4ed7",
+            ".github/workflows/rewind604-hogwarts-core-delivery.yml": "4e4f2f6916d6b0d92fd2e4ef4e01a99fad26ad16",
+            ".github/workflows/rewind606-hogwarts-performance-delivery.yml": "0194d19f25775dc977dfcefab1fcf2d812b438df",
+            ".github/workflows/rewind607-rpcs3-core-delivery.yml": "9c0c1bee73fe896282bb4e78ff538cc521d89550",
+            ".github/workflows/rewind608-retro-achievements-delivery.yml": "69af7a18508768123eca4c6cb05a0b782b1d98eb",
+            ".github/workflows/rewind609-hogwarts-liveness-delivery.yml": "9a909b328f3fc38a4a57585ceee47c73d3a32503",
+            ".github/workflows/rpcs3-cell591-core.yml": "f61a02faf5430d925b14a0bfd16a10c5026b7edb",
+            ".github/workflows/rpcs3-core.yml": "e444ee2d78e813286388c083731b30d81efbfa80",
+            ".github/workflows/rpcs3-deep-audit-core.yml": "06ea642eb8b0abd6253c0d374e6d15a0542e5dc9",
+            ".github/workflows/rpcs3-mvk-cache-core.yml": "4b5e93e10b3167c5c437a6c231b1f1b5f7b52d19",
+            ".github/workflows/rpcs3-mvk-cache-validation.yml": "6babd1d2ed8b7401941187a79562b6eec871bc5d",
+            ".github/workflows/rpcs3-runtime592-core.yml": "5afdabfc1675de83c833daeb4751336ffa6a0aa0",
+            "AGENTS.md": "0a938f91880e168c229d331ccc347b5ec22cc16b",
+            "build-utils/delivery-597-recipient.pem": "6f6809c58cb2801c1c4ede7e2f178300cf81eb76",
+            "build-utils/delivery-600-recipient.pem": "f1ca9e898174ab1c8a5b8074b6180e948aa1ea18",
+            "build-utils/delivery-604-recipient.pem": "789b0e97a1f7a6e5bf84ccd85773c7eabc12fc83",
+            "build-utils/delivery-606-recipient.pem": "0c74844d21a2e7bc4a2aaa6b0d20aa789626dc4a",
+            "build-utils/delivery-607-recipient.pem": "510d117120ff0f22c417fd26dfc26a7b9d7f53c4",
+            "build-utils/delivery-608-recipient.pem": "e88cc49cdc3853830dc3f1c72ac9542d5e369af4",
+            "build-utils/delivery-609-recipient.pem": "1d2e1f6a98e8a421d30913984266a9b95e0e57c2",
+            "build-utils/delivery-610-recipient.pem": "22b2b07023ac157ec7386a3c1fc08f02f676e938",
+            "docs/evidence/achievement-translation-declarations-2026-10-31.json": "8e71301320ba1171c53ae1fd02d750f5fa9d209c",
+            "docs/evidence/achievement-translation-ipa/achievement-ipa-validation.json": "aa8523e854528dfa8f24c648db2ee61dc7a755b7",
+            "docs/evidence/achievement-translation-ipa/achievement-tests.json": "9becc4801ce193871a5bf9075197737eb95c6855",
+            "docs/evidence/achievement-translation-ipa/delivery.json": "3dbd192ea4e14066813c785d95ab82e5a6795650",
+            "docs/evidence/achievement-translation-scope.json": "70be439e330c3feee8f531b8bd8726cd12d9e7e4",
+            "docs/evidence/melonx-descriptor-cache-20261029/embedded-inputs.json": "5efcb554224b7cf4acbc2f7e1c4e6ba5e77df374",
+            "docs/evidence/melonx-hogwarts-lots-20261030/apple-host.json": "1c52f63ef823e942feb4703c130ad43ffba2e242",
+            "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "a83aee544d1f0cd46b0f3cd4b6398e7b0bd2ddcc",
+            "docs/evidence/rewind596-delivery.json": "23a3af91c2e919fabbb547d2dcc23396b6a4d7b1",
+            "docs/evidence/rewind599-delivery.json": "c2bba5f4d29e5dc86ceb27b31b392d5059316a61",
+            "docs/evidence/rewind603-delivery.json": "642d9d7a7130b7a0cf0c738e32eac6ffc09b79bb",
+            "docs/evidence/rewind604-delivery.json": "addb1ccd3ddbe9fc8a45d5499c8ab89d84cef2c0",
+            "docs/evidence/rewind606/delivery.json": "d37cb97415ff12179810f66f7dfcd1a8ca3effb4",
+            "docs/evidence/rewind606/signed-payload-identity.json": "ef3c246dde8a2fd865f401940cad050337467838",
+            "docs/evidence/rewind608/delivery.json": "56b50a38c5958305279ae450c6d4a430d7511cd0",
+            "docs/evidence/rewind609/delivery.json": "234419ae5467e4d90106a0f7291fa3e1232e8b1a",
+            "docs/evidence/rpcs3-bo2-20261029/committed-contract.json": "94faddc6a80e00e072d4916a29e57b854d8852dd",
+            "docs/evidence/rpcs3-bo2-warm-20261029/committed-contract.json": "65d20e3f02aeb81e34e9d2e1138f82916fe58283",
+            "docs/evidence/rpcs3-continuation-20261030/apple-core.json": "ac4071e4a47f53d786d4c7e0bb095efed0f9f278",
+            "docs/evidence/rpcs3-continuation-20261030/codegen-identity.json": "b229b559860ab6b4083e10b80ad01f73e478e0b8",
+            "docs/evidence/rpcs3-core604/apple-core.json": "458b09672f767ed9cf05a2196c7c7257206a8392",
+            "docs/evidence/rpcs3-device593-20261029/codegen-identity.json": "fe7492248d5ccd685e7995f6e6b2563d78d54825",
+            "docs/evidence/rpcs3-device593-20261029/committed-contract.json": "4219ff085014d1ed25706f14bfcb5c95f66acb77",
+            "docs/evidence/rpcs3-device594-20261029/committed-contract.json": "92f7c30596985cd2d314bf8ef93ac10c4d3ab95f",
+            "docs/evidence/rpcs3-device597-20261030/apple-core.json": "c4f372a5a2a39798411be73af33878dc89ed0d49",
+            "docs/evidence/rpcs3-device597-20261030/contract.json": "5fb5a8973c1f2b3acdfa97cb4380ed1e55e17449",
+            "docs/evidence/rpcs3-device597-20261030/cpu/codegen-review-final.json": "916ce13ec5769e0832ea3d8de6927772ceb99325",
+            "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json": "af73d3a4802c23fe815d8605dc89bcc78fe6c8c6",
+            "docs/evidence/rpcs3-device601-20261030/source-contract.json": "fb2df1a7a1c93ec23fd3aeb40865b667d22a91f5",
+            "docs/evidence/rpcs3-global-20261029/spu-cache-identity.json": "569d3ae134bc4883925b266c01399b55a747b4f0",
+            "docs/evidence/rpcs3-runtime-20261029b/apple-core.json": "20e0918a1d593a776024ae497d4a7c590dd9b40c",
+            "docs/evidence/rpcs3-runtime592-macos.json": "ae352de51632ea78bdafe03b4ccdb8e979ca1e53",
+            "docs/evidence/rpcs3-temporary-remap-20261029/plain.json": "a013c0345d3a227799cb484c50a861a529f59aaf"
+          },
+          "sourceContract": {
+            "result": "verified",
+            "effectiveDigest": "bf6ee0b03282b8e938eae88acb2bfce60d66e73f77682ca4dfacf7b128b8f3d6",
+            "productFiles": 6842,
+            "restored": 69,
+            "freezeCommit": "4eedd6fc0b581477da3819acd90ea2d6f3f65255",
+            "laterRecipeOnlyCommits": [
+              "757e3b400b60181e0588ec40f9641d08c2262664"
+            ]
+          },
+          "commands": [
+            {
+              "name": "translation-xctest",
+              "argv": [
+                "python3",
+                "-B",
+                ".github/diagnostics/rewind610_checks.py",
+                "translation"
+              ],
+              "exitCode": 0,
+              "seconds": 309.729,
+              "log": "translation-xctest.log",
+              "logSHA256": "f627330b72efe41983dc79b224059de499b228d9f10920fdc12c60c363e88f91"
+            },
+            {
+              "name": "central-session-xctest",
+              "argv": [
+                "python3",
+                "-B",
+                "test/retro_achievements_session_native_test.py",
+                "--output",
+                "build/ra-session-validation"
+              ],
+              "exitCode": 0,
+              "seconds": 452.899,
+              "log": "central-session-xctest.log",
+              "logSHA256": "3e29df4f4e406041546441b9bad88e69418b96bdccdf1856ccb28a2b8118bb04"
+            },
+            {
+              "name": "dolphin-menu-xctest",
+              "argv": [
+                "python3",
+                "-B",
+                "test/dolphin_account_267_test.py",
+                "--native"
+              ],
+              "exitCode": 0,
+              "seconds": 56.14,
+              "log": "dolphin-menu-xctest.log",
+              "logSHA256": "45c292ad9c389fbe9ff74a09d9a30af78b4b07209190bc16d568d5475edd353c"
+            },
+            {
+              "name": "armsx2-menu-xctest",
+              "argv": [
+                "python3",
+                "-B",
+                "test/armsx2_graphics_ui_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 28.44,
+              "log": "armsx2-menu-xctest.log",
+              "logSHA256": "384b51f2053de28f8a333a9c2083af1ec2e7281c016c118564e2d708197a5b0c"
+            },
+            {
+              "name": "libretro-host-behavior",
+              "argv": [
+                "python3",
+                "-B",
+                "test/libretro_host_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 12.524,
+              "log": "libretro-host-behavior.log",
+              "logSHA256": "07881edd0be272979f002d76c4fe36061ed47a090932bb51b92d40fc643af094"
+            },
+            {
+              "name": "libretro-device-compile",
+              "argv": [
+                "python3",
+                "-B",
+                "test/libretro_ios_syntax_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 35.822,
+              "log": "libretro-device-compile.log",
+              "logSHA256": "ab28ec099facf79868d1ff12fc68762e4344ea403419e312e00508a82f9a5303"
+            },
+            {
+              "name": "actual-flutter-host-compile",
+              "argv": [
+                "python3",
+                "-B",
+                ".github/diagnostics/rewind610_checks.py",
+                "hosts"
+              ],
+              "exitCode": 0,
+              "seconds": 46.097,
+              "log": "actual-flutter-host-compile.log",
+              "logSHA256": "44c8d41bdc47819d9e2c7c0d8ec8346e65d88e4c43e04de80b6d1073851b80b4"
+            },
+            {
+              "name": "rpcs3-retroachievements-apple-clang",
+              "argv": [
+                "python3",
+                "-B",
+                "test/rpcs3_retroachievements_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 16.638,
+              "log": "rpcs3-retroachievements-apple-clang.log",
+              "logSHA256": "37a6d5d6d11f39bc9c7397336729775b1a5a42c61c4e9c545d98c9831c472e67"
+            },
+            {
+              "name": "rpcs3-graphics-tests-612-apple",
+              "argv": [
+                "python3",
+                "-B",
+                "test/rpcs3_graphics_tests612_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 0.252,
+              "log": "rpcs3-graphics-tests-612-apple.log",
+              "logSHA256": "8c0c065efe459dbe54e363f7a79ad388d0a018ee54ae69e5f54eabfc712038f0"
+            },
+            {
+              "name": "rpcs3-timeline-613-foundation",
+              "argv": [
+                "python3",
+                "-B",
+                "test/rpcs3_diagnostics546_native_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 10.622,
+              "log": "rpcs3-timeline-613-foundation.log",
+              "logSHA256": "ac9e5c243258bcd06fbaeb8be6ba0b0cb5c4acf9cb2512eeefe2953c5d60e03d"
+            },
+            {
+              "name": "rpcs3-timeline-616-foundation",
+              "argv": [
+                "python3",
+                "-B",
+                "test/rpcs3_diagnostics546_native_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 13.216,
+              "log": "rpcs3-timeline-616-foundation.log",
+              "logSHA256": "0ab4db29a4c7833281ccf43da093e7b49a500dc55324ce3e5d66a1499a362835"
+            },
+            {
+              "name": "melonx-perf-journal",
+              "argv": [
+                "python3",
+                "-B",
+                "test/melonx_perf_journal_test.py"
+              ],
+              "exitCode": 0,
+              "seconds": 23.641,
+              "log": "melonx-perf-journal.log",
+              "logSHA256": "b677efcbcaad2cc87ae81edaef00cd3cfd7da4a5fc7f7cae0e32d9c7e5276f33"
+            }
+          ],
+          "physicalDeviceTested": false,
+          "translationModelsDownloaded": false,
+          "xcodeVersion": "Xcode 16.4\nBuild version 16F6",
+          "swiftVersion": "Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)\nTarget: arm64-apple-macosx15.0",
+          "centralSessionXCTest": {
+            "status": "passed",
+            "xcode": "Xcode 16.4\nBuild version 16F6",
+            "sdk": "18.5",
+            "simulator": {
+              "lastBootedAt": "2026-11-02T21:23:27Z",
+              "dataPath": "/Users/runner/Library/Developer/CoreSimulator/Devices/15FAB4A1-2F41-4DFB-B3E0-FB0C9936253D/data",
+              "dataPathSize": 683585536,
+              "logPath": "/Users/runner/Library/Logs/CoreSimulator/15FAB4A1-2F41-4DFB-B3E0-FB0C9936253D",
+              "udid": "15FAB4A1-2F41-4DFB-B3E0-FB0C9936253D",
+              "isAvailable": true,
+              "logPathSize": 233472,
+              "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro",
+              "state": "Shutdown",
+              "name": "iPhone 16 Pro"
+            },
+            "contract": {
+              "test_methods": [
+                "testINIUnicodeBOMCommentsQuotesEqualsAndCaseInsensitiveSection",
+                "testUnknownAndMalformedHeadersCloseTheAchievementSection",
+                "testMissingFileIsEmptyButDirectoryInvalidEncodingAndOversizeAreErrors",
+                "testUnreadableExistingFileIsNotTreatedAsAbsent",
+                "testCaseInsensitiveIdentityAndEqualPoliciesMergeTheirSources",
+                "testDifferentHardcoreOrEnabledPolicyRequiresAnExplicitChoice",
+                "testDolphinKeychainWinsForSameIdentityButDifferentINIIdentityIsAChoice",
+                "testARMSX2SecretsTakePriorityWithLegacyBaseTokenFallback",
+                "testAbsentLegacyDefaultIsOffAndIncompleteAccountsAreNotCandidates",
+                "testMissingMalformedAndUnknownHandlesDisableRA",
+                "testHandleIsOneShotAndBoundToItsEngine",
+                "testConcurrentTakeOnlyGrantsOneSnapshot",
+                "testExpiredHandleCannotLaunchAndReleasesPendingCredentials",
+                "testNotificationsFollowActivationAndSnapshotsCopyMutableInputs",
+                "testUnsupportedEnginesAndMissingCredentialsCannotBecomeActive",
+                "testPendingHandleCapacityIsBounded",
+                "testLogoutKeepsTheRunningSnapshotAndInvalidatesPendingLaunches",
+                "testAccountReplacementOnlyChangesTheNextLaunch",
+                "testPublicSessionIdCannotForgePublishOrEndAuthority",
+                "testPublishOnlyEmitsKnownCodesAndNonsecretFields",
+                "testActivityRequiresALoadedGameAndMalformedStateCannotInjectFields",
+                "testNewSessionDiscardsQueuedEventsAndLateCallbacksFromTheOldSession",
+                "testEndIsIdempotentAndInvalidatesQueuedActiveUpdates",
+                "testConcurrentEngineUpdatesAreSerializedAndDeliveredOnMain",
+                "testFinishSessionUsesOwnedSnapshotAndCancelsUnusedHandles",
+                "testRealLoginRequestAndKeychainSuccessNeverReturnTheToken",
+                "testAuthenticationErrorsDiscardRawResponseAndLeaveStorageEmpty",
+                "testLogoutCancelsPendingLoginWithoutRepopulatingKeychain",
+                "testSupersededLoginCannotReplaceNewerAccount",
+                "testSignInSurvivesALostKeychainItemAndSignOutRemovesBothCopies",
+                "testInvalidKeychainDataFailsClosedWithoutEchoingContents",
+                "testRedirectDelegateNeverForwardsCredentials",
+                "testLegacyMigrationImportAndInterruptedDBRetryKeepSourcesIntact",
+                "testAbsentNSUserDefaultDoesNotMigrateLibretroAsEnabled",
+                "testLogoutAndExplicitLoginInvalidateLegacySelectionHandles",
+                "testRestrictionLabelsUseAllTwelveExplicitAppLanguages",
+                "testStatusClassificationUsesObservedEngineStateOnly",
+                "testSignInSeparatesRefusalNetworkAndUnexpectedServerAnswers",
+                "testStatusPresenterAnnouncesOnceAndNeverOutlivesItsLaunch",
+                "testPresenterCannotAttachToAStaleOrForgedSnapshot"
+              ],
+              "locales": [
+                "de",
+                "en",
+                "es",
+                "fr",
+                "id",
+                "it",
+                "ja",
+                "ko",
+                "pt",
+                "ru",
+                "zh",
+                "zh_Hant"
+              ],
+              "sources": {
+                "packages/retro_achievements_session/Tests/RBRALegacyMigrationTests.m": "6cf6027a162bde031dc30ad7b309b452f9479896f420b4daf4dae953db59c69e",
+                "packages/retro_achievements_session/Tests/RBRASessionHubTests.m": "2773a813361a1f061fad1024e9f817c5e9007c650b4c7266927e0b9bb2c37025",
+                "packages/retro_achievements_session/ci/TestHost/main.m": "d707725f9f025ee00931fe2e29d231c5f679b8a1f89f2f41bee63f23bfe853bb",
+                "packages/retro_achievements_session/ci/project.yml": "fc5dbf53139d9f00aac9891cc45dcc7050e917e208e25a8ba888595bcec7866e",
+                "packages/retro_achievements_session/ios/Classes/Public/RBRASession.h": "dde2967bc7de1657d000dbdf58082f7ab8a651ba020734ea828cf3469adc5236",
+                "packages/retro_achievements_session/ios/Classes/Public/RetroAchievementsSessionPlugin.h": "6006c12528aeeca120012fda5b2d22a8ab507bd9cef79efd891b3d9e0e67f6dd",
+                "packages/retro_achievements_session/ios/Classes/RBRALegacyMigration.h": "a5577fc8f6541cc5dceb1d3e2db4e80b0fd4333eeb770eda645d70a1b2f1e73d",
+                "packages/retro_achievements_session/ios/Classes/RBRALegacyMigration.m": "938e5852cb37d2e270b0f5a69b63545db89845cae8c1881cc52a47b4db5c7e89",
+                "packages/retro_achievements_session/ios/Classes/RBRALocalization.m": "4630928585342ad92bcfbcffd56e6ff13a31d6738290bc032cea6d31375a2cfd",
+                "packages/retro_achievements_session/ios/Classes/RetroAchievementsSessionPlugin.m": "3d01f578ae1c050fb144ee953109ae9227b29a25bfae3bf8d1d1d963c0d05e1f",
+                "test/retro_achievements_session_native_test.py": "2cdecd858b11e06c62e3569218cbf32071e64e371441051bc1b01bd58a7b9856"
+              }
+            },
+            "started_utc": "2026-11-02T21:26:56Z",
+            "xctest_summary": {
+              "devicesAndConfigurations": [
+                {
+                  "device": {
+                    "architecture": "arm64",
+                    "deviceId": "15FAB4A1-2F41-4DFB-B3E0-FB0C9936253D",
+                    "deviceName": "iPhone 16 Pro",
+                    "modelName": "iPhone 16 Pro",
+                    "osBuildNumber": "22F77",
+                    "osVersion": "18.5",
+                    "platform": "iOS Simulator"
+                  },
+                  "expectedFailures": 0,
+                  "failedTests": 0,
+                  "passedTests": 40,
+                  "skippedTests": 0,
+                  "testPlanConfiguration": {
+                    "configurationId": "1",
+                    "configurationName": "Test Scheme Action"
+                  }
+                }
+              ],
+              "environmentDescription": "RetroAchievementsSession \u00b7 Built with macOS 15.8.2",
+              "expectedFailures": 0,
+              "failedTests": 0,
+              "finishTime": 1793655255.954,
+              "passedTests": 40,
+              "result": "Passed",
+              "skippedTests": 0,
+              "startTime": 1793654884.954,
+              "statistics": [],
+              "testFailures": [],
+              "title": "Test - RetroAchievementsSession",
+              "topInsights": [
+                {
+                  "category": "Longest Test Runs",
+                  "impact": "65% of duration",
+                  "text": "1 longest test run with outlier durations exceeding 1.57s (three standard deviations)"
+                }
+              ],
+              "totalTestCount": 40
+            },
+            "result_bundle": "/Users/runner/work/RewindBox/RewindBox/build/ra-session-validation/RetroAchievementsSession.xcresult",
+            "finished_utc": "2026-11-02T21:34:25Z"
+          }
+        },
+        "testsExecutedInThisRun": true
+      },
+      "deliveryContract": {
+        "result": "authenticated",
+        "evidenceMode": "fresh",
+        "command": "python3 -B test/standard_delivery_contract_test.py",
+        "rerunInThisRun": true,
+        "job": 125557449390,
+        "artifact": 13180566130,
+        "archiveSHA256": "d27e38b72a7ca56046171a13d85e2bccd961555b740b1a45c3a7b0f77b3d3568",
+        "logSHA256": "badfc9073796ec4c92cc74299ef08323dc8c0153372568efa3c8db848b0c1649",
+        "execution": {
+          "source": "757e3b400b60181e0588ec40f9641d08c2262664",
+          "tree": "539e2996322fd7810b185a33f8fc2c403f4c06bc",
+          "run": 41527072487,
+          "attempt": 1
+        }
+      },
+      "testsExecutedInThisRun": [
+        "flutter",
+        "native",
+        "delivery-contract"
+      ],
+      "testsRun": {
+        "flutter": {
+          "mode": "fresh",
+          "run": 41527072487,
+          "attempt": 1,
+          "job": 125557973510,
+          "source": "757e3b400b60181e0588ec40f9641d08c2262664"
+        },
+        "native": {
+          "mode": "fresh",
+          "run": 41527072487,
+          "attempt": 1,
+          "job": 125557973428,
+          "source": "757e3b400b60181e0588ec40f9641d08c2262664"
+        },
+        "delivery-contract": {
+          "mode": "fresh",
+          "run": 41527072487,
+          "attempt": 1,
+          "job": 125557449390
+        }
+      }
+    },
+    "evidenceModes": {
+      "flutter": "fresh",
+      "native": "fresh"
+    },
+    "components": {
+      "rpcs3": {
+        "type": "rpcs3-ios-core619",
+        "coreSource": "3d19075354afcc2ec04ddb1a2917486320028bea",
+        "coreRun": 41509883194,
+        "coreJob": 125498675082,
+        "coreArtifact": 13174470646,
+        "coreSHA256": "5e81053e3a5c7ace0acd221e373902b0664bdb7a765641a71c71c51cbb0a5ab9",
+        "corePayloadFingerprint": "44fc928ed12424c555c9146301d54ff7783e3fceb91c9370e1194fd0680e3950",
+        "identitySHA256": "1fc50ab8744b781c6c42c0271bb7894946518a4ff3e904318c825fd574ce9d0c",
+        "proofSHA256": "34fd2160f95915f723baaf4e906612df22260b42b57284872d83ec0081d0b678",
+        "sourcePatchSHA256": "2887d3b7dd69210618305b425a4a2038fd4819592b9fd6f80371cf4533b356c3",
+        "codegen": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "477a3fa442d27917"
+        },
+        "exports": 92,
+        "addedExports": [
+          "_rpcs3_ios_ra_api_version",
+          "_rpcs3_ios_ra_get_session_info",
+          "_rpcs3_ios_ra_read_memory",
+          "_rpcs3_ios_ra_set_frame_callback"
+        ],
+        "origin": {
+          "core": {
+            "run": 41509883194,
+            "job": 125498675082,
+            "source": "3d19075354afcc2ec04ddb1a2917486320028bea",
+            "artifact": 13174470646,
+            "archiveSHA256": "eba9ca4039960d06f5fb239ceda02ca5a132a2188c6ea6119616ee22e5d85273",
+            "runConclusion": "failure",
+            "jobConclusion": "success",
+            "expiresAt": "2026-12-02T19:43:36Z"
+          },
+          "appleHostTests": {
+            "run": 41514477410,
+            "job": 125514372674,
+            "source": "86cb5933242bd8e0a3463696225795c3fff9f30c",
+            "artifact": 13174317863,
+            "archiveSHA256": "ef64be03b63bf4d651069f4b7110e5079705c10b4d4fe9dd2c4cbe54914d398c",
+            "runConclusion": "success",
+            "jobConclusion": "success",
+            "expiresAt": "2026-12-02T19:57:58Z"
+          },
+          "coreRecompiledForDelivery": false,
+          "nativeSuitesExecutedByDelivery": 0
+        },
+        "appleHostTests": {
+          "schema": 1,
+          "build": 619,
+          "source": "86cb5933242bd8e0a3463696225795c3fff9f30c",
+          "run": 41514477410,
+          "host": "Darwin sat12-bq158-70db3e84-ebb7-42e5-9c5f-ac79a1bb2214-12FF5B76021F.local 24.6.0 Darwin Kernel Version 24.6.0: Sun Oct 11 23:44:11 PDT 2026; root:xnu-11417.140.69.713.47~2/RELEASE_ARM64_VMAPPLE arm64",
+          "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+          "baseline": {
+            "source": "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+            "canonical_patch_sha256": "70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79"
+          },
+          "commands": [
+            {
+              "name": "ra-core-hooks",
+              "argv": [
+                "python3",
+                "test/rpcs3_retroachievements_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core"
+              ],
+              "exit_code": 0,
+              "seconds": 6.677
+            },
+            {
+              "name": "ra-core-hooks-asan-ubsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_retroachievements_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--sanitize"
+              ],
+              "exit_code": 0,
+              "seconds": 4.864
+            },
+            {
+              "name": "exitspawn-worker-plain",
+              "argv": [
+                "python3",
+                "test/rpcs3_exitspawn_worker610_test.py",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--compiler",
+                "clang++",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/exitspawn-worker-plain.json"
+              ],
+              "exit_code": 0,
+              "seconds": 3.833
+            },
+            {
+              "name": "exitspawn-worker-asan-ubsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_exitspawn_worker610_test.py",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--compiler",
+                "clang++",
+                "--sanitize",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/exitspawn-worker-asan-ubsan.json"
+              ],
+              "exit_code": 0,
+              "seconds": 7.617
+            },
+            {
+              "name": "transition-phases",
+              "argv": [
+                "python3",
+                "test/rpcs3_transition_phases_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/transition-phases.json"
+              ],
+              "exit_code": 0,
+              "seconds": 0.799
+            },
+            {
+              "name": "feedback-census",
+              "argv": [
+                "python3",
+                "test/rpcs3_feedback_census_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--compiler",
+                "clang++",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/feedback-census.json"
+              ],
+              "exit_code": 0,
+              "seconds": 5.418
+            },
+            {
+              "name": "position-invariance-contract",
+              "argv": [
+                "python3",
+                "test/rpcs3_position_invariance_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/position-invariance-contract.json"
+              ],
+              "exit_code": 0,
+              "seconds": 0.389
+            },
+            {
+              "name": "graphics-tests-612",
+              "argv": [
+                "python3",
+                "test/rpcs3_graphics_tests612_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/graphics-tests-612.json"
+              ],
+              "exit_code": 0,
+              "seconds": 1.283
+            },
+            {
+              "name": "graphics-tests-612-asan-ubsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_graphics_tests612_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--sanitize",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/graphics-tests-612-asan-ubsan.json"
+              ],
+              "exit_code": 0,
+              "seconds": 1.616
+            },
+            {
+              "name": "reuse-audit",
+              "argv": [
+                "python3",
+                "test/rpcs3_core610_reuse_audit_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/reuse-audit.json"
+              ],
+              "exit_code": 0,
+              "seconds": 0.062
+            },
+            {
+              "name": "spu-object-hit-admission-613",
+              "argv": [
+                "python3",
+                "test/rpcs3_spu_object_hit_admission613_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/spu-object-hit-admission-613.json"
+              ],
+              "exit_code": 0,
+              "seconds": 0.806
+            },
+            {
+              "name": "spu-object-hit-admission-613-asan-ubsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_spu_object_hit_admission613_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--sanitize",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/spu-object-hit-admission-613-asan-ubsan.json"
+              ],
+              "exit_code": 0,
+              "seconds": 0.96
+            },
+            {
+              "name": "codegen-audit",
+              "argv": [
+                "python3",
+                "test/rpcs3_core619_codegen_test.py",
+                "/Users/runner/work/_temp/core",
+                "--baseline",
+                "/Users/runner/work/_temp/delivered",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/codegen-audit.json"
+              ],
+              "exit_code": 0,
+              "seconds": 1.285
+            },
+            {
+              "name": "core619",
+              "argv": [
+                "python3",
+                "test/rpcs3_core619_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/core619.json"
+              ],
+              "exit_code": 0,
+              "seconds": 12.534
+            },
+            {
+              "name": "core619-asan-ubsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_core619_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--sanitize",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/core619-asan-ubsan.json"
+              ],
+              "exit_code": 0,
+              "seconds": 13.444
+            },
+            {
+              "name": "core619-tsan",
+              "argv": [
+                "python3",
+                "test/rpcs3_core619_test.py",
+                "--source",
+                "/Users/runner/work/_temp/core",
+                "--cxx",
+                "clang++",
+                "--tsan",
+                "--report",
+                "/Users/runner/work/RewindBox/RewindBox/build/core-apple-host/core619-tsan.json"
+              ],
+              "exit_code": 0,
+              "seconds": 12.825
+            }
+          ],
+          "physical_device_tested": false,
+          "reused": {
+            "receipt": "reused-apple-evidence.json",
+            "receipt_sha256": "0cfb9e2b780836db116585e00fd2ef3672677e90d4e2a12d9e45238da4a018d2",
+            "reference": {
+              "run": 41333351872,
+              "attempt": 1,
+              "job": 124927901813,
+              "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+              "artifact": {
+                "id": 13094565494,
+                "name": "RPCS3Core-610-apple-host-tests-fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+                "bytes": 21024,
+                "sha256": "33857562f708eeec933528ecf0dc8ca6a4056ebfbecef22dca0725cb04c4815a"
+              }
+            },
+            "commands": [
+              "lr-full-queue",
+              "reuse-audit"
+            ],
+            "label": "reused: reference Apple results whose inputs are unchanged in this build"
+          },
+          "result": "passed"
+        },
+        "compatibility": {
+          "abiVersion": 30,
+          "hostCoreHeadersSHA256": {
+            "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+            "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+            "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+            "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc",
+            "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+            "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+            "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+            "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+            "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+            "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+            "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+            "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+            "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140"
+          },
+          "neoswapStoreSHA256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+          "hostPluginSHA256": "d1ecbdaa6039f798a6572c3c810f8320bad8aa1c912a7cba9b06b11b78b4b503",
+          "physicalDeviceTested": false
+        },
+        "inputs": {
+          ".github/diagnostics/rpcs3_core610.py": "3dddc6626cbcd6802b9de809cae25c9edfd36996ddbb5ac173d460fa9acdb95d",
+          ".github/diagnostics/rpcs3_mvk_cache_core.py": "e1f65f5cfa14e474c7632bc6aac3f33effc903330230c664eff45d16b8825ac4",
+          ".github/diagnostics/rpcs3_mvk_dependency_artifact.py": "118de06dac687d29de7a810756a7bd8a68e8505a4099f36816019905d4687531",
+          ".github/diagnostics/rpcs3_core_apple_host.py": "56f9a11cad7c7754c6cf8536fca5201e5650477951f73dfefd118fd0cb276ee0",
+          ".github/workflows/rpcs3-core610.yml": "a78697f5c5aac09aaa874775cabec4b6109ac803f25a2af60bc6a37d1b4f387b",
+          "build-utils/rpcs3/core-build.json": "5bb438f7fb2ef5444db255384b922f584f9adc09a112d30089aabc7697874510",
+          "build-utils/rpcs3/core619-delta.json": "5e4b212305668d75d0723afe2bb23480d6e1a589694e4438b5b2b72b2b56fe5b",
+          "build-utils/rpcs3/core619-delta.patch": "d932127450edb38497c0b9fee78df4449469fe2a0397e22f6b550bff3d50f0cb",
+          "build-utils/rpcs3/build_rpcs3_core610.py": "75336ac6d0801f3c078428ff619c29049ea0aa7a4580c50f22cdbea2564b7acb",
+          "build-utils/rpcs3/patches/core610-recipe.patch": "7ad2bcf20680d948f22ac89e474b2a600f8bd4c910d82646a84bb5886019525a",
+          "build-utils/rpcs3/build_moltenvk_deferred_cache.py": "704c5013c3960f6ca151aed469f998d6d62629ffa0b3cb94f0fb591d2ff49387",
+          "build-utils/rpcs3/patch_moltenvk_deferred_cache.py": "424476c68304e8a581684de58b86719035f931401f9ccd307003a3e4e321e57c",
+          "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch": "f176ffc09bcd1cbae22dcf9be7f4fb62aa7dd4d79e13cc63275978ddaa78b6a1",
+          "build-utils/rpcs3/collect_rpcs3_mvk_unverified_core.py": "dd95e2bb80c58599d6dbb57b88403a35759eab85153fc748b121fa05a19ce0ff",
+          "test/rpcs3_mvk_dependency_artifact_test.py": "709b37c8e4bc8757459d916920f70c23210394cffb26d05b5b97b493aefb87a7",
+          "test/rpcs3_pipeline_cache_milestones_test.py": "d090e0a63faef76ee20264a2738f5e0a8964e2aca71bf29b2833e6787fa42d27",
+          "test/fixtures/rpcs3_git_version_22f11527.cmake": "ff5ab78fe7e35c78f4fd7efe49d13e4bd5b85b99ff9070a36f74080f913696f0",
+          "test/rpcs3_core610_reuse_audit_test.py": "5d2c864bb5dfe82b1b44c9aee8a6217356736a15c76445a927d53ac24f8b12e7",
+          "test/rpcs3_core610_codegen_test.py": "3e6e53ea8c48c11a59d0d5904ab7ea28c2c552b6afecdb375abc8d6e8c603b1d",
+          "test/rpcs3_retroachievements_test.py": "989516a4b9218fb5a88867bc881e336caa0505f9d629390ac6b12733ecd1481a",
+          "test/rpcs3_retroachievements_core_test.cpp": "dd60ac64631192dc99883cdfdb0f73f7217f858107ad6d617407a72e454c483f",
+          "test/rpcs3_retroachievements_policy_test.cpp": "36a238ab773baaad68b8d581a82d3e7fed784ba496df0d7b34d326857e47a61f",
+          "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json": "64defc9dced498da137436d9783023d073aa41777f51ef65b874470feb8cbc14",
+          "test/rpcs3_restore_eof_test.py": "866bb431a21ba7159a8dd3df9cbf556eeab36e482fd95bc4d75c1ecc967c744b",
+          "test/native/rpcs3_savestate_harness.cpp": "16740ecf9009a7c3f6597f7f9e160aeb6ebded8a648c27d760d00abeeb2e25dc",
+          "test/rpcs3_build265_core_test.py": "8b7964f38cabba94ee98b21e3bfa87babbbfbf12ac26a79d689465bb62666658",
+          "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "d1ecbdaa6039f798a6572c3c810f8320bad8aa1c912a7cba9b06b11b78b4b503",
+          "test/rpcs3_gow3_restore_regression_test.py": "a1cff8eac96fe40f696e715f8d6bcab872df20f32f5fab340d0f34a56a9df30c",
+          "test/fixtures/rpcs3_gow3_restore.diff": "de97e829e1b6b4781a5931ebb8e1e6039d84e47d664e6ea920bef8b0010d1084",
+          ".github/diagnostics/rpcs3gow3_core.py": "2c2c83cd5f594040477e46b48f84f27231f5db15110ae038838323fc38c8d661",
+          "test/rpcs3_gow3_boot_regression_test.py": "23b89e483f93cb9ae4b83f93a5c8d4b22f619455d1b887e6c0a9bb15a064800b",
+          "test/fixtures/rpcs3_memory_audit/JITLLVM.diff": "9f883117157a1ded4a069adc1cae7f6a0751b282f29568e01cf9503a26220714",
+          ".github/workflows/rpcs3-memory-audit.yml": "3cf4366d869f1095530dea893834d195b8dc7bfa8cd9b78681555f6fb0d60ad1",
+          "test/rpcs3_core_syntax_gate_test.py": "ca3692bd1549f40f07a7ea9d78b6af88dd65f41678d59d222f924e9d4bd8103a",
+          "test/rpcs3_memory_audit_test.py": "ddf8fee13f91f1aab5f1739035d1061610e669c332186bef84308bb6b7ba3cde",
+          "test/native/rpcs3_memory_audit_test.cpp": "b2c2048b09d2a2ce3891fedaeaae40a13d4e24dff57ef432b6a0e5b4c6b15ebc",
+          "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+          "packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h": "2c2aaf6fad9aaf138145174034a0e8ac7653dffce35fc9624585688b66b25d71",
+          "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+          "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+          "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+          "test/rpcs3_shader_storage_test.py": "67151cdd1b9ec4e6b3d9d1549aa337b6389140ce2d7b6eb80d12777f6409ef64",
+          "test/native/rpcs3_shader_storage_client_test.cpp": "1db819e79809f41dc58915db75a4ca2c0962b243f7f21a291848abf5aa6e106f",
+          "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+          "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+          "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+          "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+          "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
+          "test/rpcs3_video_frame_archive_test.py": "63d52127195d7ca6bd4fa6b8209f5396184dd4b5be71d0b4a443115ee1eea34b",
+          "test/native/rpcs3_video_frame_archive_test.cpp": "ffe75a00448fc8af9b85a6f457ee686e5a45357620c8257645c7468554cb9e4d",
+          "build-utils/run_vdec_archive_validation.sh": "727177595d1c0e43e6d86b52b35683b21c951aad44b2f68f22b22a1b6b72c979",
+          "test/rpcs3_source_archive_test.py": "81cf54411611fa51f7a4bffaccb0a7cdf765e90237f9474163c532b5f0a50499",
+          "test/native/rpcs3_source_archive_client_test.cpp": "436972a9549e6e811f24f86a36fa775b6e08adda6e5ec4a658d04f37493ad5dd",
+          "build-utils/build_rpcs3_embedded_core.sh": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+          "build-utils/materialize_rpcs3_core.py": "0f06b5befb249a398fa6e22d326f57794979bfa01eae971d7f28cbb2f3933889",
+          "build-utils/apply_rpcs3_llvm_patch.py": "a9a06a9c2d3639b980901585af6456f9fc9a561ec82760bebc78be56a1ebacfc",
+          "build-utils/rpcs3/canonical-source.json": "93939463a0cdae4996fe9c21eec90140c48a9aab446353063dfcd14b487aee6d",
+          "build-utils/rpcs3/embedded-core.patch": "2887d3b7dd69210618305b425a4a2038fd4819592b9fd6f80371cf4533b356c3",
+          "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+          "build-utils/rpcs3_core_syntax_gate.py": "1843d58c15988f4fe240f5285ae6cedbddb4c06cfb09b0488a6f2b34e5e6e5ff",
+          "build-utils/validate_rpcs3_embedded_core.py": "f0a70357087e099c6dfb7187d8564c724f7b9b5ce8c7cbacb808539f03e0ca89",
+          "build-utils/validate_rpcs3_passive_dlopen.py": "e051ffc47d722e1f53e28a9919ef29502022edb68b34a545e81d2b5f01258b9a",
+          "build-utils/patch_rpcs3_build301_passive_dlopen.py": "bd22b3f77aedab664b64088c7691b1230a88c547a0dff32d6fc7599ddbea998a",
+          "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h": "b819a02685eb2b74b8e10aee3a2c74b086033540559c712a4815729e998ea99b",
+          "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+          "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+          "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc",
+          "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+          "test/neo_swap_core_pin_test.py": "fea41316d009b41fef90e1cb5f22178ca1fa626c826ae619837acb1977b1b16e",
+          "test/neoswap_rpcs3_allocator_test.cpp": "20d262c5bb2a97a348e9b9b1a6aa64e8875e409ba75fb84fc51a95b9ea984d5c",
+          "test/neoswap_cpu_buffers_test.cpp": "78d8cd9dc0de795f0dcd8c6e3e5d9d4b40ec81d1f9b270ca3b1308d5b344bc0b",
+          "test/rpcs3_neoswap_vulkan_buffer_test.py": "6f694f9fc0538087e5e40f6412c627a342af7b816432ffc06ed77976d2032672",
+          "test/native/rpcs3_neoswap_vulkan_buffer_test.cpp": "38aeedc549ce7d34f53c86d50c8e16e846cad9de4cd5b9c423e0edd870ec4dbe",
+          "test/rpcs3_neoswap_relay_test.py": "231b55231573bf2600d807e7e73d5447822643b1039d68817fa9d0c1c9402c08",
+          "test/native/rpcs3_neoswap_relay_test.cpp": "58548d5bab23a36fcf08d728c5640d92cd63bc76503ee4ea768f9735717db646",
+          "test/rpcs3_embedded_core_validator_test.py": "889a07d7b85530f79ad216276ac2a176f776a9d1366d8852f0e791d3ecf37cc1",
+          "test/rpcs3_preprocessor_balance_test.py": "e28414917ba428816afbe83e06d698c272a442264b9d25b7fc3cfba01982d491",
+          "test/rpcs3_build301_passive_dlopen_test.py": "9c51fa9479c13a12be04f0d1e14118548849ec04a7c85e382e222a1f520994c7",
+          "test/rpcs3_atomic_startup_test.py": "a6ae0de05363681d5c82a1ed69ee4c1b137d2dce655eef1a3918c934d5e691c3",
+          "test/rpcs3_failed_startup_test.py": "b35bb9911c63605884d5b5d0ddcdc1e05b4bb86cd1dff535b07db71a0153f853",
+          "test/rpcs3_build264_gow3_core_test.py": "f7abfcece81dca34f85706c3e6e510fc882dc11afd07b21511aba9cad624a8ed",
+          "test/rpcs3_build351_gow3_engine_test.py": "8c5c9974d64c461fbf16278304f865d54b5078c0ed44afec3e17b9cd596d215b",
+          "test/rpcs3_build352_gow3_memory_test.py": "4f94744c8c905e64cb3cb593b19f24627fda3b643321e2b86e335f6c63b56450",
+          "test/rpcs3_build353_xitrix_v010_test.py": "663aeced15af5cb343fbcfd8c5faea17a188d39e8988e2913bf99f9a7cff8435",
+          "test/rpcs3_armsx3_performance_patch_test.py": "f5ee563929ff520aa0f4385bb54e2ce5628141f4594934a39a3d3bd901257d8e",
+          "test/rpcs3_build435_core_delta_test.py": "648cabf9ff7cfe601c486928f40d3677b0c58991540f319d211b6c4092e8c8a0",
+          "test/native/rpcs3_build435_core_delta_test.cpp": "8aef04558a2522899c5ed0b9d4b9dc7803a7d094d568c25c4c275fb15043e10a",
+          "test/rpcs3_build444_core_delta_test.py": "f3f474628cfbc7d1a20ff40080a51be41ec36f9bd5f8831f4b0e33fe2657ca1a",
+          "test/native/rpcs3_build444_core_delta_test.cpp": "e72d9c167cc9d7055164e93c6eb02217f59769d6b10cb6764f447dd343b516f5",
+          "test/rpcs3_build481_spu_object_cache_test.py": "f784c65d9c8a8842a11cda3e8cd226a7dc1bac043fa4c8e2b315a80cf9fcad25",
+          "test/native/rpcs3_build481_spu_object_cache_test.cpp": "79775e43775ea0eb1595df4a778c1249cfe885e818225297643e09dac3cbc2c7",
+          "test/native/rpcs3_spu_object_relocation_test.cpp": "892308f964f507aa02aadd20b784dac62af1091834e142d78826f9d485cfd378",
+          "test/rpcs3_build483_llvm_pipeline_test.py": "d0fcdf0f14be9fbebf65216f13ce5a8c9934599a91ca0338320ca1e2187eda4d",
+          "test/native/rpcs3_llvm_pipeline_harness.cpp": "6b86bc751a97b56d53aa21b482d0f2b740ea2b52d33c8f211c03c08933e32aa9",
+          "test/rpcs3_build499_spu_audit_test.py": "2738bb4c3de4fe1efacf9c4c19321009dbe3e799b31da54b2b48ad8191d18867",
+          "test/native/rpcs3_build499_spu_audit_test.cpp": "848bda735b932beb91cbf1ced6c67e094c1967a4a0614c06f6e0569f2d5611d3",
+          "test/rpcs3_build487_core_diagnostics_test.py": "1fe3661903dde902d131c37e37155b3a73e0de651b56e1b461d9a59224b052dd",
+          "test/native/rpcs3_build487_profiler_helpers_test.cpp": "a28b0404046cab9cbb194d9d5444855e23cfd922c685feb3934c3452b075b808",
+          "test/native/rpcs3_build487_boot_diagnostics_test.cpp": "3f61bbf86af16481f1466d73a8a8dd2a06a845b3253a1e5259027438319dd78d",
+          "test/native/rpcs3_build487_lever_helpers_test.cpp": "e834f6ec1082a4b8022fbce892f417a03205029da8af63a3b5454c105b263116",
+          "test/native/rpcs3_build487_retention_sequence_test.cpp": "10247800219dc4d2ce755a97c5b26835b68b165800eec3d071cb23bea9a5222f",
+          "test/rpcs3_build487_host_diagnostics_test.py": "dc2aa027e0036cee92591bfb47e8e44958718a444f50e9700a80d8418b1a0a31",
+          "test/rpcs3_build258_core_architecture_test.py": "509fdee858f18a85b5de87f9129b5492d7c4d3d316b10577127ce6305ef746f3",
+          "test/rpcs3_ios_ppu_compile_budget_test.cpp": "b3461cf3032805e77e2f1493e038857dadabe16056a064b7b90a33f3f456d41c",
+          "test/rpcs3_ppu_no_size_split_policy_test.cpp": "85b4938ca30d40379006b07938d0cc22d710a5674768515270b732bd4d1926b6",
+          "test/rpcs3_xitrix_v0101_native_test.py": "292d2a28389cf1b3fcb731d03c11c442d1881b2d5fa569e526cfd639cdbdf340",
+          "test/rpcs3_xitrix_v011_native_test.py": "a6b055c93589a065375a7f336599e2d2ae5e784b06a6cf5a3f6b5dfe6d33b4c0",
+          "test/native/rpcs3_spu_analyzer_support.h": "67e90e91c47a394a71a7bbedbc0986fbe16910bb0a5edf5635ea4d9a68333864",
+          "test/native/rpcs3_spu_branch_analyzer_test.cpp": "69c855b80c49f6d9b4c9fe06211c61e774ef7afdc4ac454d348e072db36ef33e",
+          "test/rpcs3_spu_warmup_test.py": "98f4ba81dd6b5ff8f5bc83f41e2fdf4aec23df946603253f8ae9a86cff326661",
+          "test/native/rpcs3_spu_warmup_test.cpp": "eae4b3c3196ec2c55a8f0ed44ab54cc1cbc2b94c45f805f0a53548fec700cb94",
+          "test/native/rpcs3_vk_memory_pressure_test.cpp": "b7033e5e27d9259591df5b5a62fbacafe98c527df508fec1be84c60aff7d8fab",
+          "test/native/rpcs3_vk_conditional_render_test.cpp": "fb925a69c80a7a07a53ed64f71bbcf35e01d857746476edefcf68eacca1634d1",
+          "test/native/rpcs3_neoswap_stats_getter_test.cpp": "72b4c84a0c06335ed302be1af18057972057a92cde068fc6dca94d57756044b0",
+          ".github/workflows/rpcs3-core.yml": "da03fd312eb9f0b86e3675808e354b853a8c07e589f58b83918ae11e0f7b0c5d"
+        },
+        "replaces": {
+          "source": "b56a608d6165469c8b6ab70f5f3310101dcd6be3",
+          "run": 41467174038,
+          "artifact": 13155525585,
+          "payloadFingerprint": "633d844b7dc39a7d30758e88c8c52302df9c13b5070e9401074c4b5202bff964"
+        },
+        "coreRecompiledForDelivery": false,
+        "nativeSuitesExecutedByDelivery": 0,
+        "physicalDeviceTested": false,
+        "gameplayMeasured": false,
+        "fpsGainMeasured": false
+      },
+      "melonx": {
+        "result": "passed",
+        "component": "melonx-hogwarts-dma-copy-core",
+        "origin": {
+          "result": "authenticated",
+          "source": "1c83655738268086fd07d535bf4f4d40e6b85bc3",
+          "run": 41519432972,
+          "job": 125531349207,
+          "attempt": 1,
+          "artifact": 13177253242,
+          "archiveSHA256": "51923d392c526f6c89b9f91e46de85dcf677b99556b4444253ac510e8a1a2d68",
+          "testsExecutedByDelivery": 0
+        },
+        "source": "1c83655738268086fd07d535bf4f4d40e6b85bc3",
+        "binaries": {
+          "ios-arm64": {
+            "sha256": "58330ffd6eddfa741267101de85e88ea6a0eacebcece8f6b6bd3f0dc9f57e5cc",
+            "bytes": 37815096
+          },
+          "iossimulator-arm64": {
+            "sha256": "ae2817687ada0085cd2832f9c0a1c5360cfef0c95cc80919000e3f8f63ca4480",
+            "bytes": 38127144
+          }
+        },
+        "identities": {
+          "ios-arm64": "85c5d7ba27051652bf1a1a8678d6b14aeda61aa47840ad5f51cec91f68e5af79",
+          "iossimulator-arm64": "0268acbab11608a3969e419c2fc242e7756e98370698f40d18027518846b58f4"
+        },
+        "payloadFingerprint": "c5627b99d2cb4d108ec8f89893b3f6de3d8b686a8865d90b9c2380a76ec52b7b",
+        "replacedCoreSource": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+        "replacedCorePackagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+        "freshAppleGatesInProducer": 5,
+        "reusedScopedAppleGatesInProducer": 29,
+        "historicalAppleReceiptsInProducer": 61,
+        "producerSimulatorSessions": 2,
+        "engineRecompiledForDelivery": false,
+        "priorGatesReexecuted": false,
+        "physicalDeviceTested": false,
+        "gameTested": false,
+        "fpsGainProven": false,
+        "deviceAllocationReductionProven": false,
+        "packagedCoreSHA256": "540a316c2ded72de980b8b022bd6c9d67499aeb7401c6a1d690c4f40a89ab2a5"
+      },
+      "dolphin": {
+        "result": "authenticated",
+        "evidenceMode": "reused",
+        "retainedFrom": 608,
+        "kind": "dolphin",
+        "execution": {
+          "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+          "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+          "run": 41293321826,
+          "attempt": 1
+        },
+        "job": 124810929735,
+        "artifact": 13078193437,
+        "artifactName": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "archiveSHA256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "archiveBytes": 11191038,
+        "expiresAt": "2026-11-15T09:41:57Z",
+        "republished": {
+          "build": 619,
+          "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+          "run": 41516165812,
+          "attempt": 1,
+          "job": 125520646833,
+          "artifact": 13175487882,
+          "name": "RewindBox-Build619-c5d9c8a985a2632aa1f701ad776894b99315c011-attempt1-component-dolphin",
+          "bytes": 11192276,
+          "sha256": "214a08b92e72f4b929517d553b46d8086e4aa7018bd0953d3f0cab236ab15e7d"
+        },
+        "identity": {
+          "schema_version": 1,
+          "repository": "https://github.com/OatmealDome/dolphin-ios.git",
+          "host_commit": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+          "source_revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+          "sha256": "4e0c9cdb221d9d7d09021314beddd410ee17591bc5fbdba97de0371be22c9da6",
+          "architectures": [
+            "arm64"
+          ],
+          "abi": "NeoStation Dolphin internal v3 + cheat manager",
+          "cheat_catalogues": [
+            "Gecko/WiiRD",
+            "Action Replay/local INI"
+          ],
+          "device_runtime_tested": false,
+          "achievement_presenter": 1,
+          "use_retro_achievements": true,
+          "source_inputs": {
+            ".github/diagnostics/rewind608_producers.py": "b33cf03f8f26925b3af08988e91d04534e94b0a9ef763303ff07e5a8b8dd989f",
+            ".github/workflows/rewind608-retro-achievements-delivery.yml": "7ebf71d919f7fd40e98e31c9fc2982a68d6931aae528ccfd834f9654172bc494",
+            "build-utils/patch_dolphin_internal_core_v2.py": "4fe8c5ece09793bb83a35f59e06e22f99d41bea43ba72c9064bca875fdf555db",
+            "packages/dolphin_internal_bridge/ci/build_support.py": "d1ef3336b399f52b962260a92ef28c4de8a3c3357962039c9bfc98d877b8888e",
+            "packages/dolphin_internal_bridge/ci/verify_ipa.py": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
+            "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+            "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+            "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+            "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "563a3575f53382716084c826a5150d2321442fe8618ae0bb167e4b69f976b073",
+            "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+            "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+            "packages/dolphin_internal_bridge/core/RetroAchievementsMigration.md": "d5007ceacec7dab0d990a735612d933f8321a96b7a38ab60792a1ec8b7e0b42f"
+          },
+          "achievement_session_policy": 1
+        },
+        "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+        "sourceInputs": {
+          ".github/diagnostics/rewind608_producers.py": "b33cf03f8f26925b3af08988e91d04534e94b0a9ef763303ff07e5a8b8dd989f",
+          ".github/workflows/rewind608-retro-achievements-delivery.yml": "7ebf71d919f7fd40e98e31c9fc2982a68d6931aae528ccfd834f9654172bc494",
+          "build-utils/patch_dolphin_internal_core_v2.py": "4fe8c5ece09793bb83a35f59e06e22f99d41bea43ba72c9064bca875fdf555db",
+          "packages/dolphin_internal_bridge/ci/build_support.py": "d1ef3336b399f52b962260a92ef28c4de8a3c3357962039c9bfc98d877b8888e",
+          "packages/dolphin_internal_bridge/ci/verify_ipa.py": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+          "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+          "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "563a3575f53382716084c826a5150d2321442fe8618ae0bb167e4b69f976b073",
+          "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+          "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+          "packages/dolphin_internal_bridge/core/RetroAchievementsMigration.md": "d5007ceacec7dab0d990a735612d933f8321a96b7a38ab60792a1ec8b7e0b42f"
+        },
+        "candidateSourceInputs": {
+          ".github/diagnostics/rewind608_producers.py": "f8b510f0450b03de8e36d6d352ffa8e3f2e1de0a2d4927742e03333953eebdea",
+          ".github/workflows/rewind608-retro-achievements-delivery.yml": "f94ecfb3d0826e285a85bf9d0ed264315ff44493a34f285c517a3a462d559881",
+          "build-utils/patch_dolphin_internal_core_v2.py": "4fe8c5ece09793bb83a35f59e06e22f99d41bea43ba72c9064bca875fdf555db",
+          "packages/dolphin_internal_bridge/ci/build_support.py": "d1ef3336b399f52b962260a92ef28c4de8a3c3357962039c9bfc98d877b8888e",
+          "packages/dolphin_internal_bridge/ci/verify_ipa.py": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+          "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+          "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "563a3575f53382716084c826a5150d2321442fe8618ae0bb167e4b69f976b073",
+          "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+          "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+          "packages/dolphin_internal_bridge/core/RetroAchievementsMigration.md": "d5007ceacec7dab0d990a735612d933f8321a96b7a38ab60792a1ec8b7e0b42f"
+        },
+        "compiledSourcePostimages": {
+          "Source/Core/Common/MemoryUtil_iOS_LuckTXM.cpp": "a6de3608cca33fa771bfdee031759da02998088117bc721ef614fe57d6f824c6",
+          "Source/Core/Core/AchievementManager.cpp": "9e9425b0c5ab73828ef5061e0cc89951a01526ce0ad153baef42c6d192692757",
+          "Source/Core/Core/ConfigManager.cpp": "e7663f94856c912f3783de70cf269c201c1f9d3888d0fb550d62384a8cfa9e9b",
+          "Source/Core/Core/State.cpp": "88c3c47826cb13e33dcb878b6def718279bc955ee785ab0998493e9961d1fa4f",
+          "Source/Core/Core/State.h": "6b70d2add6b80bb9ecffa46120c87d9ccf7fdf7fb35e3dd208ed14640a69ded3",
+          "Source/Core/VideoBackends/Metal/MTLMain.mm": "3f19a821c3a8a9155fb119ca9ee1b81a7681df392abd9b239801282cae4f3d05",
+          "Source/Core/VideoBackends/Metal/MTLStateTracker.h": "f5b971a9ed09a141ccbbb6a16b36370774253c37962df83ad7487a0cd031d2ae",
+          "Source/Core/VideoBackends/Metal/MTLStateTracker.mm": "87edc7f77e6f5bfc2e0a602dc476a71e4d43ae99286f9f50fb2db6c20c4ec1cc",
+          "Source/Core/VideoCommon/FramebufferManager.cpp": "8926c3b582f280461b7e784e9ccf20fc6f8839661e63d648ce810f9499b12248",
+          "Source/Core/VideoCommon/PerformanceMetrics.h": "68cda7cab0f62549fef451087560f255392cab63e080d8846e12700afd8a8d86",
+          "Source/iOS/Library/CMakeLists.txt": "6303cc589da926375cd3e0532326c01dd1e7bc8adb73cd83052a8397794ff61a",
+          "Source/iOS/Library/NeoStationBridge.mm": "4ade09021e1b4054d9fec2f2f7e43b7e3eee44152667b24d5d78f477bb95fd8f"
+        },
+        "coreRecompiled": false,
+        "retainedSince": 608,
+        "physicalDeviceTested": false,
+        "installed": true
+      },
+      "armsx2": {
+        "result": "authenticated",
+        "evidenceMode": "reused",
+        "retainedFrom": 608,
+        "kind": "armsx2",
+        "execution": {
+          "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+          "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+          "run": 41293321826,
+          "attempt": 1
+        },
+        "job": 124810929747,
+        "artifact": 13078023872,
+        "artifactName": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "archiveSHA256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "archiveBytes": 14042625,
+        "expiresAt": "2026-11-15T09:57:51Z",
+        "republished": {
+          "build": 619,
+          "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+          "run": 41516165812,
+          "attempt": 1,
+          "job": 125520646833,
+          "artifact": 13175093106,
+          "name": "RewindBox-Build619-c5d9c8a985a2632aa1f701ad776894b99315c011-attempt1-component-armsx2",
+          "bytes": 14043861,
+          "sha256": "a1b0a48e73b46b841480dc3a4fe2f626c735ec450ecb95b3206d0c9c8106e9c7"
+        },
+        "identity": {
+          "schema_version": 1,
+          "repository": "https://github.com/ARMSX2/ARMSX2.git",
+          "revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+          "release": "iOSv2.6.0",
+          "baseline": "52acfe7d5e1bee8716da8f36eecc5efcc386f667",
+          "abi_version": 9,
+          "host_commit": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+          "sha256": "a59bbb7ab5f4d22a3fc05d15f7fc089f3e7ded573bc873f277fe6e03f3ee148e",
+          "architectures": [
+            "arm64"
+          ],
+          "signature": "ad-hoc; sideloading must re-sign",
+          "shader_chains": true,
+          "bundled_shader_presets": 12,
+          "bundled_shader_files": 28,
+          "bundled_shader_sha256": {
+            "ATTRIBUTION.md": "b19d6ac810da2d9167796fbc4ab98d188dd1cd89095d58b12024c59a435fae0d",
+            "armsx2-tracer/armsx2-scanline.slang": "e7e8300dc165d6520653337cc1734ef4ee04540407c63ab0251786460c8e0737",
+            "armsx2-tracer/armsx2-scanline.slangp": "f5a3be45776adf907e09027c9a67272725287212947f6b0bf4c5a91bc986bdb6",
+            "presets/.gitattributes": "209b77ca21b2faff6b7b0fce90dfd863d0598655c77890f0d86bf6f94d59845d",
+            "presets/crt/crt-aperture.slangp": "71ea5ae6ca681ac45e74bb1af694d72a5bebf80a272b0766a2e7f1f62d78cc06",
+            "presets/crt/crt-easymode.slangp": "3e624916ca4e3bc8660c0b00b3abcb262b03b2699137a03d8171d936054a1fd5",
+            "presets/crt/crt-geom.slangp": "094d5133a3b6fbb4c2e6cba65141e5b850517aa3201bea7bdb41e4899087b60b",
+            "presets/crt/crt-hyllian-fast.slangp": "7fda3944ba33c65e9ff8fff440628ba7a0113312d420d06f69c666136e1ae201",
+            "presets/crt/shaders/crt-aperture.slang": "c4089fefc87e968c91d55d31c0f54f4bfb573b7a458cdde7f76c3e3e4c877958",
+            "presets/crt/shaders/crt-easymode.slang": "cacb1595c7988619c29b46cc283e2140f25cf14a9d104fcf6c28f197ee4b29a3",
+            "presets/crt/shaders/crt-geom.slang": "6533ad97601445f35a1b4f25ad54974ee9983fef0337ffec11c9c372226dbb58",
+            "presets/crt/shaders/hyllian/crt-hyllian-fast.slang": "4b8dc17d092440d6e1edd31aaea41165bc491e82e112ddb974f1db2d450be11e",
+            "presets/crt/shaders/zfast_crt/zfast_crt_finemask.slang": "0214419beed4c08d991288e90f8a73700fd7da567a454ad2ffe725b3b6eea366",
+            "presets/crt/shaders/zfast_crt/zfast_crt_impl.inc": "e1006274577b85f18ed793856b46f92d5cd6f6207a98af398004644006907bf1",
+            "presets/crt/zfast-crt.slangp": "fa3a7f37344f351572e692bc317a21f89f30628c08c09adc1091e4900f1f8e11",
+            "presets/handheld/lcd3x.slangp": "73aad2f4b1b548d9ea566cd3c72dbad433594235aed00115013b1ec46bf4c2d9",
+            "presets/handheld/sameboy-lcd.slangp": "77e23ca1b427e99fcd2cc0821d8b6370a51339e63f613bcbbbae31b1b5b370a6",
+            "presets/handheld/shaders/lcd3x.slang": "58cb684d42d3ab336aefedb7f961bf551428d21d7371d2fa9eae64cbdaafcdec",
+            "presets/handheld/shaders/sameboy-lcd.slang": "9cb12c233a13b2a6ca4d87c7e828859c5737577409844dc95c4ea8cc63826142",
+            "presets/include/subpixel_masks.h": "540385326e9f4bb0aedd4e669f59dd7ce947b1232ea3fc6b9ca6b685aac6c22c",
+            "presets/pixel-art-scaling/shaders/sharp-bilinear-simple.slang": "d97d47b9f7b399d5bdb9c6d67d11393b80e3e2f4fbec7db4e364f0ccbb5907ae",
+            "presets/pixel-art-scaling/shaders/sharp-bilinear.slang": "c4f6fe011e5e735bd79d7005e57e94798fcd351cc9094a0625f1ffd86c4e423e",
+            "presets/pixel-art-scaling/sharp-bilinear-simple.slangp": "310b6193f770baef6a7485fbc7115b5bdf9e237203aaa1ebe39e154b6895a50d",
+            "presets/pixel-art-scaling/sharp-bilinear.slangp": "059a79b17fe4635420f032cb8c1c42072bf7e9104052f3a6cce564cca17f9b5d",
+            "presets/scanlines/res-independent-scanlines.slangp": "c3ff08a03aa0c44c3ea91920a4cb53f21e681c49f85dbed37ea64e4c0d78d306",
+            "presets/scanlines/scanlines-sine-abs.slangp": "97d1bd369bb9e4a6771b8e0dd5e00e8a2690f936467f5849d27fec1c0d26c376",
+            "presets/scanlines/shaders/res-independent-scanlines.slang": "9f29c110cc191ed599a5fa8f99d393004b7f232a4cd37c12346a60cb32cd6dc8",
+            "presets/scanlines/shaders/scanlines-sine-abs.slang": "8b9aba47622b3e75e9f5475990bee32a513bd3c67e53e0c05516b65fadc681c5"
+          },
+          "performance_overlays": true,
+          "device_runtime_tested": false
+        },
+        "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+        "sourceInputs": {
+          ".github/diagnostics/rewind608_producers.py": "b33cf03f8f26925b3af08988e91d04534e94b0a9ef763303ff07e5a8b8dd989f",
+          ".github/workflows/rewind608-retro-achievements-delivery.yml": "7ebf71d919f7fd40e98e31c9fc2982a68d6931aae528ccfd834f9654172bc494",
+          "build-utils/armsx2/build_core.sh": "f9d85d0c1b443fd88a2fdfa6119c6b838b0aa0189c067fb92765ddb21eeec97f",
+          "build-utils/armsx2/neostation-core.patch": "0a309763b7671cc437609ea11948e1a19e35c9e1fe26245fd7d408129ede4d26",
+          "build-utils/armsx2/prepare_source.py": "820e5228b89e089855b9aef0870b913f477dee81c87028390a9891c2c891765c",
+          "build-utils/armsx2/source.json": "f3321d9b573a4e5562b6583d1bda8509fd75124c6e8d0f062a0d8ffa55e30810",
+          "build-utils/armsx2/upstream-files.json": "b6cc6328b6e203cc399a58575a6ab2ddfe4f934ee2aa87d6759e9f2dd9a0feb3",
+          "build-utils/armsx2/verify_core.py": "e2492fd433bf8963fcfdb04dcaf7e5fb98149e707acb2e7cf1a3701443ef593e",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h": "d1ea3a2c8de4d8f5fd8bcf5b84cb095bf17df7d5591b7b3e7c5a87fece31fd25",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc": "5a3938a7be7545e64c157832d9dcd0564a172545fd69d0641710fc3b95e7d18a",
+          "packages/armsx2_internal_bridge/core/ARMSX2Core.mm": "37480dc35121aa9081b3093fa3a107412c51cf24b1dc2a3e8de0bfb4a9cd81f8",
+          "packages/armsx2_internal_bridge/core/ARMSX2GraphicsAssets.inc": "57c3ab0444f14f339c9c37418ed6f571deaeea632d4764a7c2b14dcdd0decd6c",
+          "packages/armsx2_internal_bridge/core/ARMSX2Patches.inc": "d8c3b357e74f9947b752316d9d4ae494eef580c3ef977d4f028c428a333bde40",
+          "packages/armsx2_internal_bridge/core/ARMSX2RALaunchSettings.h": "8c1d5ff315f5118c25a87ce0ae4cae88f2f18fdac3f687b7ea2a47d8f2c23ab8",
+          "packages/armsx2_internal_bridge/core/ARMSX2ShaderLibrary.h": "40fe839454ddad11820a28405abafbbae0aa82359231c8526c3d29f02e6052b8",
+          "packages/armsx2_internal_bridge/core/ARMSX2TextureReplacements.inc": "a747bbd973b15910f4993550653e59e3efc68397eb0c54269ae38c961942b8d3",
+          "packages/armsx2_internal_bridge/core/RETROACHIEVEMENTS_SESSION.md": "b007786a3586e61de7eab338cfffc4a9e7d70069c61bd9965c85f4f38e0484c9",
+          "packages/armsx2_internal_bridge/core/exports.txt": "6d645df4e4df141cc5b35ad83d469e0c167f897e92e6c8a46dff8704d108be83",
+          "packages/armsx2_internal_bridge/core/target.cmake": "8c102a6668e58681de645ad596a8064137d758b983fc5769529904d9c741ec67",
+          "packages/armsx2_internal_bridge/ios/Classes/ARMSX2CoreABI.h": "0de572092ef219f0b2a00b489851b0cde696267f9ba71f878d4d09451cf89fe7"
+        },
+        "candidateSourceInputs": {
+          ".github/diagnostics/rewind608_producers.py": "f8b510f0450b03de8e36d6d352ffa8e3f2e1de0a2d4927742e03333953eebdea",
+          ".github/workflows/rewind608-retro-achievements-delivery.yml": "f94ecfb3d0826e285a85bf9d0ed264315ff44493a34f285c517a3a462d559881",
+          "build-utils/armsx2/build_core.sh": "f9d85d0c1b443fd88a2fdfa6119c6b838b0aa0189c067fb92765ddb21eeec97f",
+          "build-utils/armsx2/neostation-core.patch": "0a309763b7671cc437609ea11948e1a19e35c9e1fe26245fd7d408129ede4d26",
+          "build-utils/armsx2/prepare_source.py": "820e5228b89e089855b9aef0870b913f477dee81c87028390a9891c2c891765c",
+          "build-utils/armsx2/source.json": "f3321d9b573a4e5562b6583d1bda8509fd75124c6e8d0f062a0d8ffa55e30810",
+          "build-utils/armsx2/upstream-files.json": "b6cc6328b6e203cc399a58575a6ab2ddfe4f934ee2aa87d6759e9f2dd9a0feb3",
+          "build-utils/armsx2/verify_core.py": "e2492fd433bf8963fcfdb04dcaf7e5fb98149e707acb2e7cf1a3701443ef593e",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h": "d1ea3a2c8de4d8f5fd8bcf5b84cb095bf17df7d5591b7b3e7c5a87fece31fd25",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc": "5a3938a7be7545e64c157832d9dcd0564a172545fd69d0641710fc3b95e7d18a",
+          "packages/armsx2_internal_bridge/core/ARMSX2Core.mm": "37480dc35121aa9081b3093fa3a107412c51cf24b1dc2a3e8de0bfb4a9cd81f8",
+          "packages/armsx2_internal_bridge/core/ARMSX2GraphicsAssets.inc": "57c3ab0444f14f339c9c37418ed6f571deaeea632d4764a7c2b14dcdd0decd6c",
+          "packages/armsx2_internal_bridge/core/ARMSX2Patches.inc": "d8c3b357e74f9947b752316d9d4ae494eef580c3ef977d4f028c428a333bde40",
+          "packages/armsx2_internal_bridge/core/ARMSX2RALaunchSettings.h": "8c1d5ff315f5118c25a87ce0ae4cae88f2f18fdac3f687b7ea2a47d8f2c23ab8",
+          "packages/armsx2_internal_bridge/core/ARMSX2ShaderLibrary.h": "40fe839454ddad11820a28405abafbbae0aa82359231c8526c3d29f02e6052b8",
+          "packages/armsx2_internal_bridge/core/ARMSX2TextureReplacements.inc": "a747bbd973b15910f4993550653e59e3efc68397eb0c54269ae38c961942b8d3",
+          "packages/armsx2_internal_bridge/core/RETROACHIEVEMENTS_SESSION.md": "b007786a3586e61de7eab338cfffc4a9e7d70069c61bd9965c85f4f38e0484c9",
+          "packages/armsx2_internal_bridge/core/exports.txt": "6d645df4e4df141cc5b35ad83d469e0c167f897e92e6c8a46dff8704d108be83",
+          "packages/armsx2_internal_bridge/core/target.cmake": "8c102a6668e58681de645ad596a8064137d758b983fc5769529904d9c741ec67",
+          "packages/armsx2_internal_bridge/ios/Classes/ARMSX2CoreABI.h": "0de572092ef219f0b2a00b489851b0cde696267f9ba71f878d4d09451cf89fe7"
+        },
+        "compiledSourcePostimages": {
+          "common/Darwin/DarwinMisc.cpp": "4e5fae44481b63a95c77ebb1a45167c7d57cd0217c872299c934c5f52cc40eb2",
+          "pcsx2/CDVD/CDVD.cpp": "4c985c41613697cf0c7eeb42e8875baf8e0a103fe1c4819916f3cacab7fa817a",
+          "pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp": "d35a91dd55b07707286101c4c2d12976cb59c943106fc1b31694b68883220709",
+          "pcsx2/GS/Renderers/HW/GSTextureReplacements.h": "3fe0b619fe4b251dbaa392aabd91b275aca83bfe4b5cbd9068bd770c0ed5a6ba",
+          "pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm": "5d5ed26233d1e518a30f598d8d371a7dde44bc926a75c73ec683e408fcf755bc",
+          "pcsx2/Host.cpp": "316b1da7838102e27929a302676c8b6b83f5dc474baac284277a17a8abf9a441",
+          "platforms/ios/app/src/main/cpp/3rdparty/librashader/CMakeLists.txt": "1e85d2572aeb6f96f509a5ce116f384bcb4e1d707b033fd95904d4062cf58c4d",
+          "platforms/ios/app/src/main/cpp/CMakeLists.txt": "6485ba26e01819af7e3bb9249e293ed9e5b3a10e749f8395eeefe1be80e9fee2",
+          "platforms/ios/app/src/main/cpp/IOS/HostImpls.mm": "e53b09458e2f5a5294a711f2a74708521028183103e07bec782ae5dc63dc696f"
+        },
+        "coreRecompiled": false,
+        "retainedSince": 608,
+        "physicalDeviceTested": false,
+        "installed": true
+      },
+      "libretro": {
+        "result": "authenticated",
+        "kind": "libretro",
+        "artifact": 12280822192,
+        "run": 39455712245,
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "destination": "dist/libretro",
+        "workflow": ".github/workflows/build497-checks.yml",
+        "expiresAt": "2026-11-03T16:19:42Z",
+        "republished": {
+          "build": 619,
+          "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+          "run": 41516165812,
+          "attempt": 1,
+          "job": 125520646833,
+          "artifact": 13174753429,
+          "name": "RewindBox-Build619-c5d9c8a985a2632aa1f701ad776894b99315c011-attempt1-component-libretro",
+          "bytes": 55568023,
+          "sha256": "9bf84b368142acdb885a501b3a36520f32f6ecd6cb3d6ba5c98ed4de786dc97a"
+        }
+      },
+      "melonx-dependencies": {
+        "result": "authenticated",
+        "kind": "melonx-dependencies",
+        "artifact": 12458409441,
+        "run": 39854858591,
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "destination": "dist/melonx-native",
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "expiresAt": "2026-11-05T21:09:37Z",
+        "republished": {
+          "build": 619,
+          "source": "c5d9c8a985a2632aa1f701ad776894b99315c011",
+          "run": 41516165812,
+          "attempt": 1,
+          "job": 125520646833,
+          "artifact": 13175358124,
+          "name": "RewindBox-Build619-c5d9c8a985a2632aa1f701ad776894b99315c011-attempt1-component-melonx-dependencies",
+          "bytes": 49179302,
+          "sha256": "e66e77cb5873bdc9c3799e214bda5e9ee31f3617a9f02f2719bf132fff1adbc4"
+        }
+      }
+    },
+    "physicalDeviceTested": false,
+    "gameTested": false,
+    "fpsGainProven": false
+  },
+  "legalNotices": {
+    "dolphin": "Legal/Dolphin-session608",
+    "armsx2": "Legal/ARMSX2-session608"
+  }
+}

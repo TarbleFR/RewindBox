@@ -51,6 +51,7 @@ EXPECTED_FILES = [
 # unqualified SharedPreferencesPlugin (never resolves for that Swift class).
 EXPECTED_MENU_PLUGINS = [
     'shared_preferences_foundation.SharedPreferencesPlugin',
+    'achievement_translation.AchievementTranslationPlugin',
 ]
 # The versions the registry above was checked against (pubspec.lock); a new
 # version means the registry is checked again.

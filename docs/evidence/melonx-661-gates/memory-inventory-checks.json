@@ -1,0 +1,53 @@
+{
+  "result": "passed",
+  "checks": 26,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "8600d75c306800c4672cc8f7274846783dde9c0f4feb264f3ee42450ac37593a"
+  },
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "09cffe2afef6c907e33489b551592c853aa6ca8c9ddde94d3e78042fc918cbdd"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionGpuAssemblyBuilt": true,
+  "firstLine": {
+    "schema": 1,
+    "line": 1,
+    "report": 1,
+    "maxLines": 240,
+    "reportIntervalMs": 30000,
+    "footprintBytes": 4787798016,
+    "availableBytes": 2190475264,
+    "deviceAvailablePercent": 11,
+    "textureCacheBytes": 162529280,
+    "textureCacheLimitBytes": 805306368,
+    "bufferCacheBytes": 31457280,
+    "bufferCacheLimitBytes": 580911104,
+    "managedInUseBytes": 6484288,
+    "lastGcIndex": 1,
+    "lastGcHeapBytes": 6420304,
+    "lastGcCommittedBytes": 10899456,
+    "lastGcFragmentedBytes": 13304,
+    "gen2AfterBytes": 0,
+    "gen2FreeAfterBytes": 0,
+    "lohAfterBytes": 2097376,
+    "lohFreeAfterBytes": 128,
+    "lohOccupiedAfterBytes": 2097248,
+    "collections": [
+      1,
+      1,
+      1
+    ]
+  },
+  "inventoryLines": 240,
+  "inputs": {
+    "build-utils/melonx/adapt_memory_inventory.py": "83688db6169fdbed244c82e0f8ea589c9c7366cf64877194216f66eb225f6e89",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_memory_inventory_test.py": "0fbd3f3d8afe28a3612e1d08c6ff03b536cf183940c7d96705f4919ae316294f",
+    "test/melonx_memory_inventory/Program.cs": "561d988bc845c99f20a1e905b1ade0c707a2c35a590d1ce7d03c3640c88c0a06",
+    "test/melonx_adapter_control.py": "98c804f48d3cec8e133ddea5bd1e37bdabb491a4a61944f44bedca481b416db1"
+  },
+  "limitation": "Host fixture with doubles for the iOS budget values (footprint, headroom, device %) and the GPU caches; the device values, and the Metal and native memory outside these counters, are known only from a device run. Journal only."
+}

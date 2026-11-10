@@ -1,0 +1,1 @@
+{"checks":7680,"baselineShaderReadScopesWithoutVertex":1152,"candidateShaderReadScopesWithoutVertex":0,"sameImageAccessRangesQueueFamiliesAndBarrierCounts":true,"computeScopeChanged":false}

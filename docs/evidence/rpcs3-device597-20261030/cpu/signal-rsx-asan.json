@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "mode": "rsx",
+  "sanitizer": "address,undefined",
+  "results": {
+    "productionAcquireAndReleaseExtracted": true,
+    "noSignalInventedAfterTimeout": true,
+    "unresolvedPolls": 80,
+    "unresolvedTraceEvents": 3,
+    "cpuCommitAfterActualWrite": true,
+    "deferredGpuNotReportedAsCommit": true,
+    "noOpNotReportedAsCommit": true,
+    "failedWriteNotReportedAsCommit": true,
+    "priorReleaseRetained": true,
+    "disabledModeNoRecords": true
+  },
+  "sourceBodies": {
+    "BEFORE_ACQUIRE": "ce1dd199c814a1f565d290a14dbe061d660499a8ba5aa340669aeacc284b05fd",
+    "BEFORE_RELEASE": "03167ef6bf1d29412b225cd9c09595f50465484ee94e288a071751bff228131f",
+    "BEFORE_SYNC": "9a4f2b44889ab7b49ecda29bd9dda56611de4bebb052438f3a326e72fa4b3866",
+    "AFTER_ACQUIRE": "a1cc444163473741ce7c8352ef896e399d321599f8bb18e519c69558aea44ef8",
+    "AFTER_RELEASE": "0c8dc1af07f4c80d666835c69e854326a8a65016726ee9d903d102fff9400f1a",
+    "AFTER_SYNC": "167f8175fc24a56eaf32c59a725af0e3e9a59a7277cf307e8bc658293003d22b"
+  },
+  "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+  "programSHA256": "ca52d128011e1b2f6e1679cf8e4da54b2a12cef8f6335e48b3c4a2bb26f3ce5e",
+  "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-g",
+    "-O1",
+    "-DRPCS3_IOS",
+    "-I",
+    "/workspace/scratch/82df14a3df84/device597-core-cpu/rpcs3",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "platformAtomicWaitBackendExecuted": false,
+  "scope": "Real bounded trace header; complete acquire/release/write_gcm_label bodies for rsx mode; complete do_dma_transfer/do_list_transfer for dma/list modes. Guest memory, atomic reservation/locks, GPU backend, log formatting, clock and wait pump are explicit host adapters."
+}

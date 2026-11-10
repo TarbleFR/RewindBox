@@ -1,0 +1,711 @@
+﻿2026-10-31T20:52:36.9673640Z Current runner version: '2.338.2'
+2026-10-31T20:52:36.9688940Z ##[group]Runner Image Provisioner
+2026-10-31T20:52:36.9689570Z Hosted Compute Agent
+2026-10-31T20:52:36.9689930Z Version: 20261021.618
+2026-10-31T20:52:36.9690330Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-31T20:52:36.9690780Z Build Date: 2026-10-21T00:45:21Z
+2026-10-31T20:52:36.9691210Z Worker ID: {49e326b6-7583-460c-ba7e-e3e8d485f295}
+2026-10-31T20:52:36.9691910Z Region: westus
+2026-10-31T20:52:36.9692260Z Cloud: MacCloud
+2026-10-31T20:52:36.9692650Z ##[endgroup]
+2026-10-31T20:52:36.9693640Z ##[group]Operating System
+2026-10-31T20:52:36.9694030Z macOS
+2026-10-31T20:52:36.9694420Z 15.8.2
+2026-10-31T20:52:36.9694780Z 24H232
+2026-10-31T20:52:36.9695170Z ##[endgroup]
+2026-10-31T20:52:36.9695570Z ##[group]Runner Image
+2026-10-31T20:52:36.9695970Z Image: macos-15-arm64
+2026-10-31T20:52:36.9696390Z Version: 20261028.0489.1
+2026-10-31T20:52:36.9697390Z Included Software: https://github.com/actions/runner-images/blob/macos-15-arm64/20261028.0489/images/macos/macos-15-arm64-Readme.md
+2026-10-31T20:52:36.9698590Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-15-arm64%2F20261028.0489
+2026-10-31T20:52:36.9699260Z ##[endgroup]
+2026-10-31T20:52:36.9700140Z ##[group]GITHUB_TOKEN Permissions
+2026-10-31T20:52:36.9701250Z Actions: read
+2026-10-31T20:52:36.9701680Z Contents: read
+2026-10-31T20:52:36.9702070Z Metadata: read
+2026-10-31T20:52:36.9702440Z ##[endgroup]
+2026-10-31T20:52:36.9704220Z Secret source: Actions
+2026-10-31T20:52:36.9704800Z Cache mode: write
+2026-10-31T20:52:36.9705250Z Prepare workflow directory
+2026-10-31T20:52:37.0005950Z Prepare all required actions
+2026-10-31T20:52:37.0050180Z Getting action download info
+2026-10-31T20:52:37.1486960Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-31T20:52:37.3745800Z Download action repository 'maxim-lobanov/setup-xcode@v1' (SHA:ed7a3b1fda3918c0306d1b724322adc0b8cc0a90)
+2026-10-31T20:52:38.1406040Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-31T20:52:38.2147290Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-31T20:52:38.3986540Z Complete job name: RPCS3 iPhone Core with authenticated source-built MoltenVK
+2026-10-31T20:52:38.4567040Z ##[group]Run set -euo pipefail
+2026-10-31T20:52:38.4567820Z [36;1mset -euo pipefail[0m
+2026-10-31T20:52:38.4568310Z [36;1m[[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]][0m
+2026-10-31T20:52:38.4568870Z [36;1m[[ "$CANDIDATE_SHA" == "$GITHUB_SHA" ]][0m
+2026-10-31T20:52:38.4569420Z [36;1m[[ "$DEPENDENCY_RUN" =~ ^[0-9]+$ ]][0m
+2026-10-31T20:52:38.4569990Z [36;1m[[ "$DEPENDENCY_SOURCE" =~ ^[0-9a-f]{40}$ ]][0m
+2026-10-31T20:52:38.4620830Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T20:52:38.4621710Z env:
+2026-10-31T20:52:38.4622110Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:52:38.4622560Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:52:38.4624340Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:52:38.4625800Z   CANDIDATE_SHA: 6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:52:38.4626360Z   DEPENDENCY_RUN: 41239096061
+2026-10-31T20:52:38.4627580Z   DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:52:38.4628820Z ##[endgroup]
+2026-10-31T20:52:38.5367330Z ##[group]Run actions/checkout@v4
+2026-10-31T20:52:38.5369120Z with:
+2026-10-31T20:52:38.5369630Z   ref: 6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:52:38.5370170Z   fetch-depth: 0
+2026-10-31T20:52:38.5370570Z   persist-credentials: false
+2026-10-31T20:52:38.5371020Z   repository: TarbleFR/RewindBox
+2026-10-31T20:52:38.5374410Z   token: ***
+2026-10-31T20:52:38.5374770Z   ssh-strict: true
+2026-10-31T20:52:38.5375150Z   ssh-user: git
+2026-10-31T20:52:38.5375530Z   clean: true
+2026-10-31T20:52:38.5375920Z   sparse-checkout-cone-mode: true
+2026-10-31T20:52:38.5376410Z   fetch-tags: false
+2026-10-31T20:52:38.5376840Z   show-progress: true
+2026-10-31T20:52:38.5377850Z   lfs: false
+2026-10-31T20:52:38.5378310Z   submodules: false
+2026-10-31T20:52:38.5378770Z   set-safe-directory: true
+2026-10-31T20:52:38.5379490Z   allow-unsafe-pr-checkout: false
+2026-10-31T20:52:38.5380320Z env:
+2026-10-31T20:52:38.5380740Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:52:38.5381260Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:52:38.5382300Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:52:38.5383000Z ##[endgroup]
+2026-10-31T20:52:39.0277950Z Syncing repository: TarbleFR/RewindBox
+2026-10-31T20:52:39.0279530Z ##[group]Getting Git version info
+2026-10-31T20:52:39.0280520Z Working directory is '/Users/runner/work/RewindBox/RewindBox'
+2026-10-31T20:52:39.0288320Z [command]/opt/homebrew/bin/git version
+2026-10-31T20:52:39.0723250Z git version 2.56.0
+2026-10-31T20:52:39.0741370Z ##[endgroup]
+2026-10-31T20:52:39.0768120Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/ca1cf2fd-ef2f-4cdf-9921-8bc7414dc188/.gitconfig'
+2026-10-31T20:52:39.0772560Z Temporarily overriding HOME='/Users/runner/work/_temp/ca1cf2fd-ef2f-4cdf-9921-8bc7414dc188' before making global git config changes
+2026-10-31T20:52:39.0773940Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T20:52:39.0775530Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/RewindBox/RewindBox
+2026-10-31T20:52:39.0900890Z Deleting the contents of '/Users/runner/work/RewindBox/RewindBox'
+2026-10-31T20:52:39.0905240Z ##[group]Initializing the repository
+2026-10-31T20:52:39.0907370Z [command]/opt/homebrew/bin/git init /Users/runner/work/RewindBox/RewindBox
+2026-10-31T20:52:39.1181550Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-31T20:52:39.1186320Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-31T20:52:39.1189070Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-31T20:52:39.1199470Z hint: call:
+2026-10-31T20:52:39.1201040Z hint:
+2026-10-31T20:52:39.1201700Z hint: 	git config --global init.defaultBranch <name>
+2026-10-31T20:52:39.1202800Z hint:
+2026-10-31T20:52:39.1203600Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-31T20:52:39.1204800Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-31T20:52:39.1207060Z hint:
+2026-10-31T20:52:39.1208190Z hint: 	git branch -m <name>
+2026-10-31T20:52:39.1208760Z hint:
+2026-10-31T20:52:39.1209530Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-31T20:52:39.1210940Z Initialized empty Git repository in /Users/runner/work/RewindBox/RewindBox/.git/
+2026-10-31T20:52:39.1213250Z [command]/opt/homebrew/bin/git remote add origin https://github.com/TarbleFR/RewindBox
+2026-10-31T20:52:39.1295440Z ##[endgroup]
+2026-10-31T20:52:39.1297270Z ##[group]Disabling automatic garbage collection
+2026-10-31T20:52:39.1298960Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-31T20:52:39.1378150Z ##[endgroup]
+2026-10-31T20:52:39.1379130Z ##[group]Setting up auth
+2026-10-31T20:52:39.1382180Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T20:52:39.1497780Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T20:52:39.2718470Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T20:52:39.2782390Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T20:52:39.3626290Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T20:52:39.3697730Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-31T20:52:39.4580960Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-31T20:52:39.4656270Z ##[endgroup]
+2026-10-31T20:52:39.4658100Z ##[group]Fetching the repository
+2026-10-31T20:52:39.4661620Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-10-31T20:53:01.0787820Z From https://github.com/TarbleFR/RewindBox
+2026-10-31T20:53:01.0885330Z  * [new branch]        Claude      -> origin/Claude
+2026-10-31T20:53:01.0992980Z  * [new branch]        delivery529-chatgpt-20261025 -> origin/delivery529-chatgpt-20261025
+2026-10-31T20:53:01.1043500Z  * [new branch]        dependabot/pub/pub-dependencies-c8cd421889 -> origin/dependabot/pub/pub-dependencies-c8cd421889
+2026-10-31T20:53:01.1048630Z  * [new branch]        diag/melonx-ios-audio-20261025 -> origin/diag/melonx-ios-audio-20261025
+2026-10-31T20:53:01.1050450Z  * [new branch]        diag/melonx532-simulator-rerun -> origin/diag/melonx532-simulator-rerun
+2026-10-31T20:53:01.1054030Z  * [new branch]        docs/fix-009-build530-source-refresh -> origin/docs/fix-009-build530-source-refresh
+2026-10-31T20:53:01.1057950Z  * [new branch]        fix/melonx-ios-audio-buffer-underrun-532 -> origin/fix/melonx-ios-audio-buffer-underrun-532
+2026-10-31T20:53:01.1059160Z  * [new branch]        fix/melonx-ios-vulkan-host-import-20261025 -> origin/fix/melonx-ios-vulkan-host-import-20261025
+2026-10-31T20:53:01.1064510Z  * [new branch]        fix/melonx-sync-shaders-cache-531 -> origin/fix/melonx-sync-shaders-cache-531
+2026-10-31T20:53:01.1067450Z  * [new branch]        main        -> origin/main
+2026-10-31T20:53:01.1073650Z  * [new branch]        work/rpcs3-audit-20261023 -> origin/work/rpcs3-audit-20261023
+2026-10-31T20:53:01.1107420Z  * [new branch]        work/rpcs3-audit-delivery-508 -> origin/work/rpcs3-audit-delivery-508
+2026-10-31T20:53:01.1146290Z  * [new tag]           0.0.1       -> 0.0.1
+2026-10-31T20:53:01.1173530Z  * [new tag]           0.0.10      -> 0.0.10
+2026-10-31T20:53:01.1185110Z  * [new tag]           0.0.2       -> 0.0.2
+2026-10-31T20:53:01.1187570Z  * [new tag]           0.0.3       -> 0.0.3
+2026-10-31T20:53:01.1188240Z  * [new tag]           0.0.4       -> 0.0.4
+2026-10-31T20:53:01.1188730Z  * [new tag]           0.0.5       -> 0.0.5
+2026-10-31T20:53:01.1189210Z  * [new tag]           0.0.6       -> 0.0.6
+2026-10-31T20:53:01.1189640Z  * [new tag]           0.0.7       -> 0.0.7
+2026-10-31T20:53:01.1190120Z  * [new tag]           0.0.8       -> 0.0.8
+2026-10-31T20:53:01.1190580Z  * [new tag]           0.0.9       -> 0.0.9
+2026-10-31T20:53:01.1191110Z  * [new tag]           0.0.9-fix.1 -> 0.0.9-fix.1
+2026-10-31T20:53:01.1191560Z  * [new tag]           build-483   -> build-483
+2026-10-31T20:53:01.1192180Z  * [new tag]           build-489   -> build-489
+2026-10-31T20:53:01.1192610Z  * [new tag]           build-490   -> build-490
+2026-10-31T20:53:01.1193220Z  * [new tag]           build-494   -> build-494
+2026-10-31T20:53:01.1201380Z [command]/opt/homebrew/bin/git rev-parse --verify --quiet 6140ed4f9a52786fcf3d72598cc643d24cfbb43f^{object}
+2026-10-31T20:53:01.1216920Z 6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:53:01.1219200Z ##[endgroup]
+2026-10-31T20:53:01.1219710Z ##[group]Determining the checkout info
+2026-10-31T20:53:01.1220200Z ##[endgroup]
+2026-10-31T20:53:01.1220590Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-31T20:53:01.1325810Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-31T20:53:01.1596750Z ##[group]Checking out the ref
+2026-10-31T20:53:01.1609250Z [command]/opt/homebrew/bin/git checkout --progress --force 6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:53:02.7518320Z Updating files:   3% (336/9375)
+2026-10-31T20:53:02.8153400Z Updating files:   4% (375/9375)
+2026-10-31T20:53:03.1378730Z Updating files:   5% (469/9375)
+2026-10-31T20:53:03.1575970Z Updating files:   6% (563/9375)
+2026-10-31T20:53:03.1893800Z Updating files:   7% (657/9375)
+2026-10-31T20:53:03.2175710Z Updating files:   8% (750/9375)
+2026-10-31T20:53:03.2312820Z Updating files:   8% (773/9375)
+2026-10-31T20:53:04.2490790Z Updating files:   9% (844/9375)
+2026-10-31T20:53:04.2806530Z Updating files:   9% (925/9375)
+2026-10-31T20:53:04.3005300Z Updating files:  10% (938/9375)
+2026-10-31T20:53:04.3170610Z Updating files:  11% (1032/9375)
+2026-10-31T20:53:04.4034870Z Updating files:  12% (1125/9375)
+2026-10-31T20:53:05.1999090Z Updating files:  13% (1219/9375)
+2026-10-31T20:53:05.2062960Z Updating files:  13% (1312/9375)
+2026-10-31T20:53:05.2869690Z Updating files:  14% (1313/9375)
+2026-10-31T20:53:05.3490580Z Updating files:  15% (1407/9375)
+2026-10-31T20:53:05.3626020Z Updating files:  16% (1500/9375)
+2026-10-31T20:53:05.3797010Z Updating files:  17% (1594/9375)
+2026-10-31T20:53:05.4039360Z Updating files:  18% (1688/9375)
+2026-10-31T20:53:05.4606930Z Updating files:  19% (1782/9375)
+2026-10-31T20:53:05.4907370Z Updating files:  20% (1875/9375)
+2026-10-31T20:53:05.5374690Z Updating files:  21% (1969/9375)
+2026-10-31T20:53:05.5608270Z Updating files:  22% (2063/9375)
+2026-10-31T20:53:05.5925960Z Updating files:  23% (2157/9375)
+2026-10-31T20:53:05.6293800Z Updating files:  24% (2250/9375)
+2026-10-31T20:53:05.8601520Z Updating files:  25% (2344/9375)
+2026-10-31T20:53:05.8777230Z Updating files:  26% (2438/9375)
+2026-10-31T20:53:05.8915510Z Updating files:  27% (2532/9375)
+2026-10-31T20:53:05.9033970Z Updating files:  28% (2625/9375)
+2026-10-31T20:53:05.9122780Z Updating files:  29% (2719/9375)
+2026-10-31T20:53:05.9294020Z Updating files:  30% (2813/9375)
+2026-10-31T20:53:05.9780310Z Updating files:  31% (2907/9375)
+2026-10-31T20:53:06.2059770Z Updating files:  32% (3000/9375)
+2026-10-31T20:53:06.3760210Z Updating files:  32% (3023/9375)
+2026-10-31T20:53:06.4083980Z Updating files:  33% (3094/9375)
+2026-10-31T20:53:06.4218570Z Updating files:  34% (3188/9375)
+2026-10-31T20:53:06.4418560Z Updating files:  35% (3282/9375)
+2026-10-31T20:53:06.4622450Z Updating files:  36% (3375/9375)
+2026-10-31T20:53:06.4796200Z Updating files:  37% (3469/9375)
+2026-10-31T20:53:06.5201840Z Updating files:  38% (3563/9375)
+2026-10-31T20:53:06.5436840Z Updating files:  39% (3657/9375)
+2026-10-31T20:53:06.5865920Z Updating files:  40% (3750/9375)
+2026-10-31T20:53:06.6067150Z Updating files:  41% (3844/9375)
+2026-10-31T20:53:06.7222000Z Updating files:  42% (3938/9375)
+2026-10-31T20:53:06.8050430Z Updating files:  43% (4032/9375)
+2026-10-31T20:53:06.8411540Z Updating files:  44% (4125/9375)
+2026-10-31T20:53:06.9186760Z Updating files:  45% (4219/9375)
+2026-10-31T20:53:07.0203680Z Updating files:  46% (4313/9375)
+2026-10-31T20:53:07.0499190Z Updating files:  47% (4407/9375)
+2026-10-31T20:53:07.2041440Z Updating files:  48% (4500/9375)
+2026-10-31T20:53:07.3272290Z Updating files:  48% (4576/9375)
+2026-10-31T20:53:08.1168480Z Updating files:  49% (4594/9375)
+2026-10-31T20:53:08.2012590Z Updating files:  50% (4688/9375)
+2026-10-31T20:53:08.5102310Z Updating files:  50% (4712/9375)
+2026-10-31T20:53:09.2049820Z Updating files:  51% (4782/9375)
+2026-10-31T20:53:09.4360020Z Updating files:  51% (4850/9375)
+2026-10-31T20:53:10.2067780Z Updating files:  52% (4875/9375)
+2026-10-31T20:53:10.4097620Z Updating files:  52% (4958/9375)
+2026-10-31T20:53:11.0996690Z Updating files:  53% (4969/9375)
+2026-10-31T20:53:11.1984210Z Updating files:  54% (5063/9375)
+2026-10-31T20:53:11.4635540Z Updating files:  54% (5097/9375)
+2026-10-31T20:53:11.8547930Z Updating files:  55% (5157/9375)
+2026-10-31T20:53:12.1989130Z Updating files:  56% (5250/9375)
+2026-10-31T20:53:12.2861110Z Updating files:  56% (5327/9375)
+2026-10-31T20:53:12.6237950Z Updating files:  57% (5344/9375)
+2026-10-31T20:53:12.9583890Z Updating files:  58% (5438/9375)
+2026-10-31T20:53:13.1977460Z Updating files:  59% (5532/9375)
+2026-10-31T20:53:13.3293680Z Updating files:  59% (5583/9375)
+2026-10-31T20:53:13.6219890Z Updating files:  60% (5625/9375)
+2026-10-31T20:53:13.8495460Z Updating files:  61% (5719/9375)
+2026-10-31T20:53:14.1582630Z Updating files:  62% (5813/9375)
+2026-10-31T20:53:14.1990320Z Updating files:  63% (5907/9375)
+2026-10-31T20:53:14.3729730Z Updating files:  63% (5921/9375)
+2026-10-31T20:53:14.7744190Z Updating files:  64% (6000/9375)
+2026-10-31T20:53:15.1096620Z Updating files:  65% (6094/9375)
+2026-10-31T20:53:15.1988800Z Updating files:  66% (6188/9375)
+2026-10-31T20:53:15.4314210Z Updating files:  66% (6223/9375)
+2026-10-31T20:53:15.6105240Z Updating files:  67% (6282/9375)
+2026-10-31T20:53:15.6817680Z Updating files:  68% (6375/9375)
+2026-10-31T20:53:15.6977110Z Updating files:  69% (6469/9375)
+2026-10-31T20:53:15.7291060Z Updating files:  70% (6563/9375)
+2026-10-31T20:53:15.7493390Z Updating files:  71% (6657/9375)
+2026-10-31T20:53:15.7628710Z Updating files:  72% (6750/9375)
+2026-10-31T20:53:15.7766940Z Updating files:  73% (6844/9375)
+2026-10-31T20:53:15.8895770Z Updating files:  74% (6938/9375)
+2026-10-31T20:53:15.9113910Z Updating files:  75% (7032/9375)
+2026-10-31T20:53:15.9923120Z Updating files:  76% (7125/9375)
+2026-10-31T20:53:16.0364710Z Updating files:  77% (7219/9375)
+2026-10-31T20:53:16.0799360Z Updating files:  78% (7313/9375)
+2026-10-31T20:53:16.1135380Z Updating files:  79% (7407/9375)
+2026-10-31T20:53:16.1365040Z Updating files:  80% (7500/9375)
+2026-10-31T20:53:16.1509400Z Updating files:  81% (7594/9375)
+2026-10-31T20:53:16.1667640Z Updating files:  82% (7688/9375)
+2026-10-31T20:53:16.2089160Z Updating files:  83% (7782/9375)
+2026-10-31T20:53:16.2249060Z Updating files:  83% (7828/9375)
+2026-10-31T20:53:16.2629980Z Updating files:  84% (7875/9375)
+2026-10-31T20:53:16.2872130Z Updating files:  85% (7969/9375)
+2026-10-31T20:53:16.3102330Z Updating files:  86% (8063/9375)
+2026-10-31T20:53:16.3277930Z Updating files:  87% (8157/9375)
+2026-10-31T20:53:16.3418140Z Updating files:  88% (8250/9375)
+2026-10-31T20:53:16.3552350Z Updating files:  89% (8344/9375)
+2026-10-31T20:53:16.3790200Z Updating files:  90% (8438/9375)
+2026-10-31T20:53:16.4050360Z Updating files:  91% (8532/9375)
+2026-10-31T20:53:16.4248140Z Updating files:  92% (8625/9375)
+2026-10-31T20:53:16.4400730Z Updating files:  93% (8719/9375)
+2026-10-31T20:53:16.4630410Z Updating files:  94% (8813/9375)
+2026-10-31T20:53:16.4847520Z Updating files:  95% (8907/9375)
+2026-10-31T20:53:16.5127050Z Updating files:  96% (9000/9375)
+2026-10-31T20:53:16.5579640Z Updating files:  97% (9094/9375)
+2026-10-31T20:53:16.5752450Z Updating files:  98% (9188/9375)
+2026-10-31T20:53:16.6203900Z Updating files:  99% (9282/9375)
+2026-10-31T20:53:16.6204450Z Updating files: 100% (9375/9375)
+2026-10-31T20:53:16.6204860Z Updating files: 100% (9375/9375), done.
+2026-10-31T20:53:16.6397470Z HEAD is now at 6140ed4f ci(rpcs3): compile the verified deferred-cache Core [rpcs3-mvk-cache-core]
+2026-10-31T20:53:16.6489280Z ##[endgroup]
+2026-10-31T20:53:16.6760560Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-31T20:53:16.6906990Z 6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:53:16.6927960Z ##[group]Removing auth
+2026-10-31T20:53:16.6931230Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T20:53:16.7011710Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T20:53:16.8424320Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T20:53:16.8482950Z http.https://github.com/.extraheader
+2026-10-31T20:53:16.8488880Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-31T20:53:16.8557120Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T20:53:16.9601110Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T20:53:16.9972030Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-31T20:53:17.1347680Z ##[endgroup]
+2026-10-31T20:53:17.1862770Z ##[group]Run maxim-lobanov/setup-xcode@v1
+2026-10-31T20:53:17.1863090Z with:
+2026-10-31T20:53:17.1863340Z   xcode-version: 16.4
+2026-10-31T20:53:17.1863550Z env:
+2026-10-31T20:53:17.1863830Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:53:17.1864090Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:17.1864500Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:17.1864820Z ##[endgroup]
+2026-10-31T20:53:17.3692930Z Switching Xcode to version '16.4'...
+2026-10-31T20:53:17.5547030Z Xcode is set to 16.4.0 (16F6)
+2026-10-31T20:53:17.7817090Z ##[group]Run actions/cache/restore@v4
+2026-10-31T20:53:17.7817370Z with:
+2026-10-31T20:53:17.7817550Z   path: ~/Library/Caches/ccache
+2026-10-31T20:53:17.7818130Z   key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:53:17.7818950Z   restore-keys: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-
+2026-10-31T20:53:17.7819410Z   enableCrossOsArchive: false
+2026-10-31T20:53:17.7819620Z   fail-on-cache-miss: false
+2026-10-31T20:53:17.7819790Z   lookup-only: false
+2026-10-31T20:53:17.7819960Z env:
+2026-10-31T20:53:17.7820110Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:53:17.7820300Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:17.7820610Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:17.7820960Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:53:17.7821260Z ##[endgroup]
+2026-10-31T20:53:17.9039510Z (node:2457) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T20:53:17.9042080Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T20:53:18.0795830Z Cache not found for input keys: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-6140ed4f9a52786fcf3d72598cc643d24cfbb43f, rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-
+2026-10-31T20:53:18.2876730Z ##[group]Run actions/cache/restore@v4
+2026-10-31T20:53:18.2877510Z with:
+2026-10-31T20:53:18.2878260Z   path: ~/Library/Caches/ccache
+/Users/runner/work/_temp/neostation-rpcs3-embedded/deps
+
+2026-10-31T20:53:18.2880270Z   key: rpcs3-audit-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:53:18.2884120Z   restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-
+2026-10-31T20:53:18.2885010Z   enableCrossOsArchive: false
+2026-10-31T20:53:18.2885700Z   fail-on-cache-miss: false
+2026-10-31T20:53:18.2886790Z   lookup-only: false
+2026-10-31T20:53:18.2888090Z env:
+2026-10-31T20:53:18.2888540Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:53:18.2889330Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:18.2890100Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:18.2891010Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:53:18.2892590Z ##[endgroup]
+2026-10-31T20:53:18.4483890Z (node:2467) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T20:53:18.4501180Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T20:53:18.5159370Z Cache hit for restore-key: rpcs3-audit-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a
+2026-10-31T20:53:18.5259790Z (node:2467) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T20:53:19.5906050Z Received 71303168 of 829213840 (8.6%), 67.5 MBs/sec
+2026-10-31T20:53:20.6262330Z Received 150994944 of 829213840 (18.2%), 70.7 MBs/sec
+2026-10-31T20:53:21.9273560Z Received 268435456 of 829213840 (32.4%), 76.5 MBs/sec
+2026-10-31T20:53:22.9369550Z Received 360710144 of 829213840 (43.5%), 79.1 MBs/sec
+2026-10-31T20:53:23.9298480Z Received 415236096 of 829213840 (50.1%), 74.0 MBs/sec
+2026-10-31T20:53:24.9290320Z Received 515899392 of 829213840 (62.2%), 77.5 MBs/sec
+2026-10-31T20:53:25.9369240Z Received 616562688 of 829213840 (74.4%), 80.0 MBs/sec
+2026-10-31T20:53:26.9330310Z Received 742391808 of 829213840 (89.5%), 84.8 MBs/sec
+2026-10-31T20:53:27.9066180Z Received 829213840 of 829213840 (100.0%), 84.8 MBs/sec
+2026-10-31T20:53:27.9196210Z Cache Size: ~791 MB (829213840 B)
+2026-10-31T20:53:27.9412410Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/162c8959-d256-4634-afcf-1b473f4674a2/cache.tzst -P -C /Users/runner/work/RewindBox/RewindBox --delay-directory-restore --use-compress-program unzstd
+2026-10-31T20:53:34.6208010Z Cache restored successfully
+2026-10-31T20:53:34.6471490Z Cache restored from key: rpcs3-audit-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a
+2026-10-31T20:53:34.6894180Z ##[group]Run set -euo pipefail
+2026-10-31T20:53:34.6894950Z [36;1mset -euo pipefail[0m
+2026-10-31T20:53:34.6895390Z [36;1mpython3 - <<'PYCODE'[0m
+2026-10-31T20:53:34.6895890Z [36;1mimport os[0m
+2026-10-31T20:53:34.6896240Z [36;1mfrom pathlib import Path[0m
+2026-10-31T20:53:34.6897530Z [36;1mtemp = Path(os.environ['RUNNER_TEMP']).resolve(strict=True)[0m
+2026-10-31T20:53:34.6899620Z [36;1mprevious = temp / 'neostation-rpcs3-embedded'[0m
+2026-10-31T20:53:34.6900380Z [36;1mstaging = temp / 'rpcs3-retained-dependency-cache'[0m
+2026-10-31T20:53:34.6901590Z [36;1mif previous.exists() or previous.is_symlink():[0m
+2026-10-31T20:53:34.6902090Z [36;1m    if previous.is_symlink() or not previous.is_dir():[0m
+2026-10-31T20:53:34.6902680Z [36;1m        raise RuntimeError('Historical cache root is not an owned directory')[0m
+2026-10-31T20:53:34.6904590Z [36;1m    if {child.name for child in previous.iterdir()} != {'deps'}:[0m
+2026-10-31T20:53:34.6906410Z [36;1m        raise RuntimeError('Unexpected contents in historical cache root; preserve them')[0m
+2026-10-31T20:53:34.6907640Z [36;1m    deps = previous / 'deps'[0m
+2026-10-31T20:53:34.6962980Z [36;1m    if deps.is_symlink() or not deps.is_dir():[0m
+2026-10-31T20:53:34.6963770Z [36;1m        raise RuntimeError('Historical dependency cache is not an owned directory')[0m
+2026-10-31T20:53:34.6966550Z [36;1m    if staging.exists() or staging.is_symlink():[0m
+2026-10-31T20:53:34.6967970Z [36;1m        raise RuntimeError('Historical cache staging already exists; preserve it')[0m
+2026-10-31T20:53:34.6969340Z [36;1m    deps.rename(staging)[0m
+2026-10-31T20:53:34.6970120Z [36;1m    previous.rmdir()[0m
+2026-10-31T20:53:34.6971150Z [36;1mif previous.exists() or previous.is_symlink():[0m
+2026-10-31T20:53:34.6972440Z [36;1m    raise RuntimeError('Candidate work root must be absent before its producer runs')[0m
+2026-10-31T20:53:34.6972900Z [36;1mPYCODE[0m
+2026-10-31T20:53:34.7240040Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T20:53:34.7240380Z env:
+2026-10-31T20:53:34.7240540Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:53:34.7240800Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:34.7241230Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:34.7241640Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:53:34.7242050Z ##[endgroup]
+2026-10-31T20:53:35.0680640Z ##[group]Run set -euo pipefail
+2026-10-31T20:53:35.0680940Z [36;1mset -euo pipefail[0m
+2026-10-31T20:53:35.0681160Z [36;1mmkdir -p build/rpcs3-core-diagnostics[0m
+2026-10-31T20:53:35.0685250Z [36;1mgit diff --check[0m
+2026-10-31T20:53:35.0685680Z [36;1mfor formula in ccache ninja cmake llvm@22 ffmpeg; do[0m
+2026-10-31T20:53:35.0686120Z [36;1m  brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"[0m
+2026-10-31T20:53:35.0686560Z [36;1mdone[0m
+2026-10-31T20:53:35.0686780Z [36;1mpython3 test/rpcs3_mvk_core_protocol_test.py \[0m
+2026-10-31T20:53:35.0687190Z [36;1m  2>&1 | tee build/rpcs3-core-diagnostics/core-protocol-tests.log[0m
+2026-10-31T20:53:35.0687580Z [36;1mpython3 test/rpcs3_mvk_dependency_artifact_test.py \[0m
+2026-10-31T20:53:35.0687980Z [36;1m  2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log[0m
+2026-10-31T20:53:35.0688380Z [36;1mSOURCE="$RUNNER_TEMP/rpcs3-mvk-cache-source-preflight"[0m
+2026-10-31T20:53:35.0688890Z [36;1mgit init -q "$SOURCE"[0m
+2026-10-31T20:53:35.0689280Z [36;1mgit -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git[0m
+2026-10-31T20:53:35.0689970Z [36;1mUPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')[0m
+2026-10-31T20:53:35.0690610Z [36;1mgit -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"[0m
+2026-10-31T20:53:35.0690980Z [36;1mgit -C "$SOURCE" checkout -q --detach FETCH_HEAD[0m
+2026-10-31T20:53:35.0691320Z [36;1mpython3 build-utils/materialize_rpcs3_core.py "$SOURCE"[0m
+2026-10-31T20:53:35.0691660Z [36;1mCXX="$(brew --prefix llvm@22)/bin/clang++" \[0m
+2026-10-31T20:53:35.0692020Z [36;1mSDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \[0m
+2026-10-31T20:53:35.0692520Z [36;1mHOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \[0m
+2026-10-31T20:53:35.0692930Z [36;1mLLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \[0m
+2026-10-31T20:53:35.0693410Z [36;1mLLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \[0m
+2026-10-31T20:53:35.0693890Z [36;1m  python3 .github/diagnostics/rpcs3_mvk_cache_core.py \[0m
+2026-10-31T20:53:35.0694250Z [36;1m    --prepare --source "$SOURCE" \[0m
+2026-10-31T20:53:35.0694750Z [36;1m    --dependency-run "$DEPENDENCY_RUN" --dependency-source "$DEPENDENCY_SOURCE" \[0m
+2026-10-31T20:53:35.0695360Z [36;1m    2>&1 | tee build/rpcs3-core-diagnostics/mvk-cache-preflight.log[0m
+2026-10-31T20:53:35.0729100Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T20:53:35.0729450Z env:
+2026-10-31T20:53:35.0729750Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:53:35.0730010Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:35.0730420Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:35.0730770Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:53:35.0733400Z   GH_TOKEN: ***
+2026-10-31T20:53:35.0733650Z   DEPENDENCY_RUN: 41239096061
+2026-10-31T20:53:35.0734090Z   DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:53:35.0734370Z ##[endgroup]
+2026-10-31T20:53:39.5401980Z [32m==>[0m [1mDownloading bottle manifests[0m
+2026-10-31T20:53:39.5499420Z ✔︎ Bottle Manifest ccache (4.14.2)
+2026-10-31T20:53:39.6337270Z [34m==>[0m [1mWould install 1 formula:[0m
+2026-10-31T20:53:39.6337710Z ccache 4.14.2
+2026-10-31T20:53:39.6343450Z [34m==>[0m [1mWould install 4 dependencies for ccache:[0m
+2026-10-31T20:53:39.6344130Z blake3   1.8.7
+2026-10-31T20:53:39.6344440Z fmt      12.2.0
+2026-10-31T20:53:39.6344660Z hiredis  1.5.0
+2026-10-31T20:53:39.6345040Z xxhash   0.8.4
+2026-10-31T20:53:39.6954430Z [32m==>[0m [1mFetching downloads for: [32mccache[39m[0m
+2026-10-31T20:53:40.0191630Z ✔︎ Bottle Manifest fmt (12.2.0)
+2026-10-31T20:53:40.2831580Z ✔︎ Bottle Manifest blake3 (1.8.7)
+2026-10-31T20:53:40.2933000Z ✔︎ Bottle Manifest hiredis (1.5.0)
+2026-10-31T20:53:40.3340420Z ✔︎ Bottle Manifest xxhash (0.8.4)
+2026-10-31T20:53:41.7347020Z ✔︎ Bottle blake3 (1.8.7)
+2026-10-31T20:53:41.9419200Z ✔︎ Bottle ccache (4.14.2)
+2026-10-31T20:53:41.9552620Z ✔︎ Bottle fmt (12.2.0)
+2026-10-31T20:53:41.9725670Z ✔︎ Bottle hiredis (1.5.0)
+2026-10-31T20:53:42.0161560Z ✔︎ Bottle xxhash (0.8.4)
+2026-10-31T20:53:42.0410920Z [32m==>[0m [1mInstalling dependencies for ccache:[0m [32mblake3[39m, [32mfmt[39m, [32mhiredis[39m and [32mxxhash[39m[0m
+2026-10-31T20:53:42.0411670Z [32m==>[0m [1mInstalling ccache dependency: [32mblake3[39m (1.8.7)[0m
+2026-10-31T20:53:42.0433010Z [34m==>[0m [1mPouring blake3--1.8.7.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:53:43.0911730Z 🍺  /opt/homebrew/Cellar/blake3/1.8.7: 13 files, 79.5KB
+2026-10-31T20:53:43.0913730Z [32m==>[0m [1mInstalling ccache dependency: [32mfmt[39m (12.2.0)[0m
+2026-10-31T20:53:43.0976290Z [34m==>[0m [1mPouring fmt--12.2.0.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:53:44.0702480Z 🍺  /opt/homebrew/Cellar/fmt/12.2.0: 31 files, 1.1MB
+2026-10-31T20:53:44.0704460Z [32m==>[0m [1mInstalling ccache dependency: [32mhiredis[39m (1.5.0)[0m
+2026-10-31T20:53:44.0830290Z [34m==>[0m [1mPouring hiredis--1.5.0.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:53:45.1502730Z 🍺  /opt/homebrew/Cellar/hiredis/1.5.0: 53 files, 553KB
+2026-10-31T20:53:45.1505720Z [32m==>[0m [1mInstalling ccache dependency: [32mxxhash[39m (0.8.4)[0m
+2026-10-31T20:53:45.1536170Z [34m==>[0m [1mPouring xxhash--0.8.4.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:53:46.2441940Z 🍺  /opt/homebrew/Cellar/xxhash/0.8.4: 28 files, 583.3KB
+2026-10-31T20:53:46.2542690Z [32m==>[0m [1mInstalling [32mccache[39m[0m
+2026-10-31T20:53:46.2643590Z [34m==>[0m [1mPouring ccache--4.14.2.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:53:47.3424880Z 🍺  /opt/homebrew/Cellar/ccache/4.14.2: 89 files, 2.3MB
+2026-10-31T20:53:47.3430080Z [32m==>[0m [1mCaveats[0m
+2026-10-31T20:53:47.3430490Z [34m==>[0m [1mccache[0m
+2026-10-31T20:53:47.3431550Z To install symlinks for compilers that will automatically use
+2026-10-31T20:53:47.3432110Z ccache, prepend this directory to your PATH:
+2026-10-31T20:53:47.3432740Z   /opt/homebrew/opt/ccache/libexec
+2026-10-31T20:53:47.3433050Z 
+2026-10-31T20:53:47.3433270Z If this is an upgrade and you have previously added the symlinks to
+2026-10-31T20:53:47.3433720Z your PATH, you may need to modify it to the path specified above so
+2026-10-31T20:53:47.3434150Z it points to the current version.
+2026-10-31T20:53:47.3434360Z 
+2026-10-31T20:53:47.3434480Z NOTE: ccache can prevent some software from compiling.
+2026-10-31T20:53:47.3434930Z ALSO NOTE: The brew command, by design, will never use ccache.
+2026-10-31T20:53:48.9447120Z [32m==>[0m [1mDownloading bottle manifests[0m
+2026-10-31T20:53:49.3319390Z ✔︎ Bottle Manifest llvm@22 (22.1.8)
+2026-10-31T20:53:49.3858800Z [32m==>[0m [1mFetching downloads for: [32mllvm@22[39m[0m
+2026-10-31T20:53:58.4211670Z ✔︎ Bottle llvm@22 (22.1.8)
+2026-10-31T20:53:58.4395660Z [34m==>[0m [1mPouring llvm@22--22.1.8.arm64_sequoia.bottle.3.tar.gz[0m
+2026-10-31T20:54:03.5804190Z ##[warning]llvm@22 was installed but not linked because llvm@18 is already installed.
+To link this version, run:
+  brew link llvm@22
+
+2026-10-31T20:54:10.2937110Z 🍺  /opt/homebrew/Cellar/llvm@22/22.1.8: 9,055 files, 1.6GB
+2026-10-31T20:54:10.2938110Z [32m==>[0m [1mCaveats[0m
+2026-10-31T20:54:10.2938610Z [34m==>[0m [1mllvm@22[0m
+2026-10-31T20:54:10.2938970Z CLANG_CONFIG_FILE_SYSTEM_DIR: /opt/homebrew/etc/clang
+2026-10-31T20:54:10.2939430Z CLANG_CONFIG_FILE_USER_DIR:   ~/.config/clang
+2026-10-31T20:54:10.2939690Z 
+2026-10-31T20:54:10.2939830Z LLD is now provided in a separate formula:
+2026-10-31T20:54:10.2940100Z   brew install lld@22
+2026-10-31T20:54:10.2940290Z 
+2026-10-31T20:54:10.2940630Z Using `clang`, `clang++`, etc., requires a CLT installation at `/Library/Developer/CommandLineTools`.
+2026-10-31T20:54:10.2941340Z If you don't want to install the CLT, you can write appropriate configuration files pointing to your
+2026-10-31T20:54:10.2941790Z SDK at ~/.config/clang.
+2026-10-31T20:54:10.2941960Z 
+2026-10-31T20:54:10.2948370Z To use the bundled libunwind please use the following LDFLAGS:
+2026-10-31T20:54:10.2948850Z   LDFLAGS="-L/opt/homebrew/opt/llvm@22/lib/unwind -lunwind"
+2026-10-31T20:54:10.2949140Z 
+2026-10-31T20:54:10.2950030Z To use the bundled libc++ please use the following LDFLAGS:
+2026-10-31T20:54:10.2950590Z   LDFLAGS="-L/opt/homebrew/opt/llvm@22/lib/c++ -L/opt/homebrew/opt/llvm@22/lib/unwind -lunwind"
+2026-10-31T20:54:10.2951160Z Features newer than system libc++ will require the following define to enable:
+2026-10-31T20:54:10.2951650Z   CPPFLAGS="-D_LIBCPP_DISABLE_AVAILABILITY"
+2026-10-31T20:54:10.2951880Z 
+2026-10-31T20:54:10.2952210Z NOTE: You probably want to use the libunwind and libc++ provided by macOS unless you know what you're doing.
+2026-10-31T20:54:10.2952570Z 
+2026-10-31T20:54:10.2952720Z llvm@22 is keg-only, which means it was not symlinked into /opt/homebrew,
+2026-10-31T20:54:10.2953230Z because this is an alternate version of another formula.
+2026-10-31T20:54:10.2953500Z 
+2026-10-31T20:54:10.2953670Z If you need to have llvm@22 first in your PATH, run:
+2026-10-31T20:54:10.2954160Z   printf '%s\n' export\ PATH\=/opt/homebrew/opt/llvm@22/bin:\$PATH >> /Users/runner/.bash_profile
+2026-10-31T20:54:10.2954520Z 
+2026-10-31T20:54:10.2954700Z For compilers to find llvm@22 you may need to set:
+2026-10-31T20:54:10.2955590Z   export LDFLAGS=-L/opt/homebrew/opt/llvm@22/lib
+2026-10-31T20:54:10.2955940Z   export CPPFLAGS=-I/opt/homebrew/opt/llvm@22/include
+2026-10-31T20:54:10.2956200Z 
+2026-10-31T20:54:10.2956360Z For cmake to find llvm@22 you may need to set:
+2026-10-31T20:54:10.2956730Z   export CMAKE_PREFIX_PATH=/opt/homebrew/opt/llvm@22
+2026-10-31T20:54:11.9880240Z [32m==>[0m [1mDownloading bottle manifests[0m
+2026-10-31T20:54:11.9964960Z ✔︎ Bottle Manifest ffmpeg (9.0.2_1)
+2026-10-31T20:54:12.0918490Z [34m==>[0m [1mWould install 1 formula:[0m
+2026-10-31T20:54:12.0919760Z ffmpeg 9.0.2_1
+2026-10-31T20:54:12.0981340Z [34m==>[0m [1mWould install 11 dependencies for ffmpeg:[0m
+2026-10-31T20:54:12.0982840Z dav1d        1.5.4
+2026-10-31T20:54:12.0983200Z mpg123       1.33.7
+2026-10-31T20:54:12.0983610Z lame         4.0
+2026-10-31T20:54:12.0984610Z libvmaf      3.2.1
+2026-10-31T20:54:12.0985100Z libvpx       1.17.0
+2026-10-31T20:54:12.0987590Z opus         1.6.1
+2026-10-31T20:54:12.0988300Z sdl3         3.4.18
+2026-10-31T20:54:12.0988910Z sdl2-compat  2.32.74
+2026-10-31T20:54:12.0989750Z svt-av1      4.2.0
+2026-10-31T20:54:12.0990040Z x264         r3222
+2026-10-31T20:54:12.0990780Z x265         4.3
+2026-10-31T20:54:12.2393580Z [32m==>[0m [1mFetching downloads for: [32mffmpeg[39m[0m
+2026-10-31T20:54:13.4418790Z ✔︎ Bottle Manifest dav1d (1.5.4)
+2026-10-31T20:54:13.4520730Z ✔︎ Bottle Manifest mpg123 (1.33.7)
+2026-10-31T20:54:13.4623200Z ✔︎ Bottle Manifest lame (4.0)
+2026-10-31T20:54:13.6088640Z ✔︎ Bottle Manifest libvpx (1.17.0)
+2026-10-31T20:54:15.6992500Z ✔︎ Bottle dav1d (1.5.4)
+2026-10-31T20:54:15.7091730Z ✔︎ Bottle Manifest libvmaf (3.2.1)
+2026-10-31T20:54:15.7193200Z ✔︎ Bottle Manifest opus (1.6.1)
+2026-10-31T20:54:15.9600820Z ✔︎ Bottle mpg123 (1.33.7)
+2026-10-31T20:54:16.0602870Z ✔︎ Bottle lame (4.0)
+2026-10-31T20:54:16.0821940Z ✔︎ Bottle libvmaf (3.2.1)
+2026-10-31T20:54:16.0923790Z ✔︎ Bottle Manifest sdl3 (3.4.18)
+2026-10-31T20:54:16.1025360Z ✔︎ Bottle Manifest sdl2-compat (2.32.74)
+2026-10-31T20:54:16.1126640Z ✔︎ Bottle Manifest svt-av1 (4.2.0)
+2026-10-31T20:54:16.1227640Z ✔︎ Bottle libvpx (1.17.0)
+2026-10-31T20:54:16.1328900Z ✔︎ Bottle Manifest x264 (r3222)
+2026-10-31T20:54:16.2938900Z ✔︎ Bottle ffmpeg (9.0.2_1)
+2026-10-31T20:54:16.3040590Z ✔︎ Bottle Manifest x265 (4.3)
+2026-10-31T20:54:17.7061580Z ✔︎ Bottle opus (1.6.1)
+2026-10-31T20:54:18.0293870Z ✔︎ Bottle sdl3 (3.4.18)
+2026-10-31T20:54:18.0394130Z ✔︎ Bottle x264 (r3222)
+2026-10-31T20:54:18.0495760Z ✔︎ Bottle svt-av1 (4.2.0)
+2026-10-31T20:54:18.0597150Z ✔︎ Bottle sdl2-compat (2.32.74)
+2026-10-31T20:54:18.1098120Z ✔︎ Bottle x265 (4.3)
+2026-10-31T20:54:18.1390800Z [32m==>[0m [1mInstalling dependencies for ffmpeg:[0m [32mdav1d[39m, [32mmpg123[39m, [32mlame[39m, [32mlibvmaf[39m, [32mlibvpx[39m, [32mopus[39m, [32msdl3[39m, [32msdl2-compat[39m, [32msvt-av1[39m, [32mx264[39m and [32mx265[39m[0m
+2026-10-31T20:54:18.1392290Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mdav1d[39m (1.5.4)[0m
+2026-10-31T20:54:18.1485980Z [34m==>[0m [1mPouring dav1d--1.5.4.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:19.1428410Z 🍺  /opt/homebrew/Cellar/dav1d/1.5.4: 16 files, 976.1KB
+2026-10-31T20:54:19.1431950Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mmpg123[39m (1.33.7)[0m
+2026-10-31T20:54:19.1466650Z [34m==>[0m [1mPouring mpg123--1.33.7.arm64_sequoia.bottle.1.tar.gz[0m
+2026-10-31T20:54:20.2851810Z 🍺  /opt/homebrew/Cellar/mpg123/1.33.7: 34 files, 1.9MB
+2026-10-31T20:54:20.2895810Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mlame[39m (4.0)[0m
+2026-10-31T20:54:20.2938820Z [34m==>[0m [1mPouring lame--4.0.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:21.4152390Z 🍺  /opt/homebrew/Cellar/lame/4.0: 29 files, 1.9MB
+2026-10-31T20:54:21.4153880Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mlibvmaf[39m (3.2.1)[0m
+2026-10-31T20:54:21.4224540Z [34m==>[0m [1mPouring libvmaf--3.2.1.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:22.7548020Z 🍺  /opt/homebrew/Cellar/libvmaf/3.2.1: 243 files, 8.2MB
+2026-10-31T20:54:22.7648420Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mlibvpx[39m (1.17.0)[0m
+2026-10-31T20:54:22.7696730Z [34m==>[0m [1mPouring libvpx--1.17.0.arm64_sequoia.bottle.1.tar.gz[0m
+2026-10-31T20:54:24.0534410Z 🍺  /opt/homebrew/Cellar/libvpx/1.17.0: 22 files, 4.4MB
+2026-10-31T20:54:24.0535710Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mopus[39m (1.6.1)[0m
+2026-10-31T20:54:24.0563070Z [34m==>[0m [1mPouring opus--1.6.1.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:25.3904360Z 🍺  /opt/homebrew/Cellar/opus/1.6.1: 16 files, 1.1MB
+2026-10-31T20:54:25.3906990Z [32m==>[0m [1mInstalling ffmpeg dependency: [32msdl3[39m (3.4.18)[0m
+2026-10-31T20:54:25.3965530Z [34m==>[0m [1mPouring sdl3--3.4.18.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:26.8600730Z 🍺  /opt/homebrew/Cellar/sdl3/3.4.18: 103 files, 6.3MB
+2026-10-31T20:54:26.8609830Z [32m==>[0m [1mInstalling ffmpeg dependency: [32msdl2-compat[39m (2.32.74)[0m
+2026-10-31T20:54:26.8733190Z [34m==>[0m [1mPouring sdl2-compat--2.32.74.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:27.9368820Z 🍺  /opt/homebrew/Cellar/sdl2-compat/2.32.74: 117 files, 3.3MB
+2026-10-31T20:54:27.9371230Z [32m==>[0m [1mInstalling ffmpeg dependency: [32msvt-av1[39m (4.2.0)[0m
+2026-10-31T20:54:27.9404150Z [34m==>[0m [1mPouring svt-av1--4.2.0.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:29.0343330Z 🍺  /opt/homebrew/Cellar/svt-av1/4.2.0: 23 files, 3.3MB
+2026-10-31T20:54:29.0346020Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mx264[39m (r3222)[0m
+2026-10-31T20:54:29.0367950Z [34m==>[0m [1mPouring x264--r3222.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:30.1347390Z 🍺  /opt/homebrew/Cellar/x264/r3222: 12 files, 4.4MB
+2026-10-31T20:54:30.1414400Z [32m==>[0m [1mInstalling ffmpeg dependency: [32mx265[39m (4.3)[0m
+2026-10-31T20:54:30.1415480Z [34m==>[0m [1mPouring x265--4.3.arm64_sequoia.bottle.1.tar.gz[0m
+2026-10-31T20:54:31.1332870Z 🍺  /opt/homebrew/Cellar/x265/4.3: 12 files, 17.4MB
+2026-10-31T20:54:31.1334500Z [32m==>[0m [1mInstalling [32mffmpeg[39m[0m
+2026-10-31T20:54:31.1339820Z [34m==>[0m [1mPouring ffmpeg--9.0.2_1.arm64_sequoia.bottle.tar.gz[0m
+2026-10-31T20:54:32.3891270Z 🍺  /opt/homebrew/Cellar/ffmpeg/9.0.2_1: 290 files, 54.4MB
+2026-10-31T20:54:32.3896160Z [32m==>[0m [1mCaveats[0m
+2026-10-31T20:54:32.3896730Z [34m==>[0m [1mffmpeg[0m
+2026-10-31T20:54:32.3897320Z ffmpeg-full includes additional tools and libraries that are not included in the regular ffmpeg formula.
+2026-10-31T20:54:32.9113910Z E.......
+2026-10-31T20:54:32.9114670Z ======================================================================
+2026-10-31T20:54:32.9117220Z ERROR: test_actual_response_file_is_read_and_bound (__main__.ProtocolTests.test_actual_response_file_is_read_and_bound)
+2026-10-31T20:54:32.9118870Z ----------------------------------------------------------------------
+2026-10-31T20:54:32.9120830Z Traceback (most recent call last):
+2026-10-31T20:54:32.9123420Z   File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_mvk_core_protocol_test.py", line 108, in test_actual_response_file_is_read_and_bound
+2026-10-31T20:54:32.9127930Z     self.assertEqual(result["response_files"][str(response)]["sha256"], GATE.file_sha(response))
+2026-10-31T20:54:32.9128550Z                      ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+2026-10-31T20:54:32.9129050Z KeyError: '/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/tmpm_ehtvqa/link.rsp'
+2026-10-31T20:54:32.9129380Z 
+2026-10-31T20:54:32.9129570Z ----------------------------------------------------------------------
+2026-10-31T20:54:32.9129890Z Ran 8 tests in 0.075s
+2026-10-31T20:54:32.9130050Z 
+2026-10-31T20:54:32.9130180Z FAILED (errors=1)
+2026-10-31T20:54:32.9324350Z ##[error]Process completed with exit code 1.
+2026-10-31T20:54:32.9621240Z ##[group]Run set -euo pipefail
+2026-10-31T20:54:32.9622340Z [36;1mset -euo pipefail[0m
+2026-10-31T20:54:32.9623790Z [36;1mmkdir -p build/rpcs3-core-diagnostics[0m
+2026-10-31T20:54:32.9625200Z [36;1mif command -v ccache >/dev/null 2>&1; then[0m
+2026-10-31T20:54:32.9628170Z [36;1m  ccache --show-stats > build/rpcs3-core-diagnostics/ccache-after.txt[0m
+2026-10-31T20:54:32.9628750Z [36;1m  ccache --print-stats > build/rpcs3-core-diagnostics/ccache-after-counters.txt[0m
+2026-10-31T20:54:32.9630260Z [36;1mfi[0m
+2026-10-31T20:54:32.9631760Z [36;1mpython3 - <<'PYCODE'[0m
+2026-10-31T20:54:32.9633800Z [36;1mimport json, os, time[0m
+2026-10-31T20:54:32.9635500Z [36;1mfrom pathlib import Path[0m
+2026-10-31T20:54:32.9636900Z [36;1mout = Path('build/rpcs3-core-diagnostics')[0m
+2026-10-31T20:54:32.9638590Z [36;1mdef counters(name):[0m
+2026-10-31T20:54:32.9638930Z [36;1m    path = out / name[0m
+2026-10-31T20:54:32.9639170Z [36;1m    if not path.is_file():[0m
+2026-10-31T20:54:32.9639540Z [36;1m        return None[0m
+2026-10-31T20:54:32.9641100Z [36;1m    return {parts[0]: int(parts[1]) for line in path.read_text().splitlines()[0m
+2026-10-31T20:54:32.9641630Z [36;1m            if len(parts := line.split()) == 2 and parts[1].isdigit()}[0m
+2026-10-31T20:54:32.9695250Z [36;1mbefore = counters('ccache-before-counters.txt')[0m
+2026-10-31T20:54:32.9695590Z [36;1mafter = counters('ccache-after-counters.txt')[0m
+2026-10-31T20:54:32.9695900Z [36;1mstart = out / 'core-compile-start-epoch.txt'[0m
+2026-10-31T20:54:32.9696240Z [36;1mreceipt = {'schema': 1, 'source': os.environ['GITHUB_SHA'],[0m
+2026-10-31T20:54:32.9696650Z [36;1m           'candidate_cache_match': os.environ['CANDIDATE_CACHE_MATCH'],[0m
+2026-10-31T20:54:32.9697130Z [36;1m           'historical_cache_match': os.environ['HISTORICAL_CACHE_MATCH'],[0m
+2026-10-31T20:54:32.9697620Z [36;1m           'ccache_before': before, 'ccache_after': after,[0m
+2026-10-31T20:54:32.9698190Z [36;1m           'ccache_counter_deltas': {key: after[key] - value for key, value in before.items()[0m
+2026-10-31T20:54:32.9698730Z [36;1m                                     if key in after} if before is not None and after is not None else None,[0m
+2026-10-31T20:54:32.9699160Z [36;1m           'core_compile_started': start.is_file(),[0m
+2026-10-31T20:54:32.9699590Z [36;1m           'elapsed_seconds_since_compile_start': int(time.time()) - int(start.read_text())[0m
+2026-10-31T20:54:32.9700000Z [36;1m                                                   if start.is_file() else None,[0m
+2026-10-31T20:54:32.9700320Z [36;1m           'historical_dependencies_linked': False,[0m
+2026-10-31T20:54:32.9700710Z [36;1m           'cache_speedup_claimed': False, 'fps_gain_claimed': False}[0m
+2026-10-31T20:54:32.9701180Z [36;1m(out / 'compiler-cache-observed.json').write_text(json.dumps(receipt, indent=2) + '\n')[0m
+2026-10-31T20:54:32.9701580Z [36;1mPYCODE[0m
+2026-10-31T20:54:32.9746990Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-31T20:54:32.9747250Z env:
+2026-10-31T20:54:32.9747470Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:54:32.9747770Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:54:32.9748410Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:54:32.9749730Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:54:32.9750290Z   CANDIDATE_CACHE_MATCH: 
+2026-10-31T20:54:32.9750940Z   HISTORICAL_CACHE_MATCH: rpcs3-audit-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a
+2026-10-31T20:54:32.9751700Z ##[endgroup]
+2026-10-31T20:54:33.4795210Z ##[group]Run actions/cache/save@v4
+2026-10-31T20:54:33.4795470Z with:
+2026-10-31T20:54:33.4795630Z   path: ~/Library/Caches/ccache
+2026-10-31T20:54:33.4796220Z   key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:54:33.4796870Z   enableCrossOsArchive: false
+2026-10-31T20:54:33.4797070Z env:
+2026-10-31T20:54:33.4797230Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:54:33.4797440Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:54:33.4797890Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:54:33.4798250Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:54:33.4798550Z ##[endgroup]
+2026-10-31T20:54:33.6046250Z (node:4556) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T20:54:33.6047030Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T20:54:33.6219310Z [command]/opt/homebrew/bin/gtar --posix -cf cache.tzst --exclude cache.tzst -P -C /Users/runner/work/RewindBox/RewindBox --files-from manifest.txt --delay-directory-restore --use-compress-program zstdmt
+2026-10-31T20:54:41.3589060Z (node:4556) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T20:54:42.3506840Z Sent 0 of 813794328 (0.0%), 0.0 MBs/sec
+2026-10-31T20:54:43.3490230Z Sent 0 of 813794328 (0.0%), 0.0 MBs/sec
+2026-10-31T20:54:44.3502950Z Sent 0 of 813794328 (0.0%), 0.0 MBs/sec
+2026-10-31T20:54:45.3501160Z Sent 0 of 813794328 (0.0%), 0.0 MBs/sec
+2026-10-31T20:54:46.3583190Z Sent 545358872 of 813794328 (67.0%), 103.8 MBs/sec
+2026-10-31T20:54:47.3620950Z Sent 545358872 of 813794328 (67.0%), 86.4 MBs/sec
+2026-10-31T20:54:47.9679600Z Sent 813794328 of 813794328 (100.0%), 117.1 MBs/sec
+2026-10-31T20:54:48.1399440Z Cache saved with key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-79d1ab75209c5f8f2035e43552e4a8a0131958c62d406b55f3a0c04f4dcd4e0e-6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:54:48.1688620Z ##[group]Run actions/upload-artifact@v4
+2026-10-31T20:54:48.1688920Z with:
+2026-10-31T20:54:48.1689350Z   name: RPCS3Core-MVK-cache-diagnostics-6140ed4f9a52786fcf3d72598cc643d24cfbb43f
+2026-10-31T20:54:48.1690960Z   path: build/rpcs3-core-diagnostics/*.json
+build/rpcs3-core-diagnostics/*.txt
+build/rpcs3-core-diagnostics/*.log
+build/rpcs3-core-diagnostics/*.sh
+build/rpcs3-core-diagnostics/mvk-cache-reference/*.json
+build/rpcs3-core-diagnostics/mvk-cache-reference/*.log
+build/rpcs3-core-diagnostics/mvk-cache-dependency/
+!build/rpcs3-core-diagnostics/mvk-cache-reference/*.zip
+!build/rpcs3-core-diagnostics/mvk-cache-reference/a4-source/**
+
+2026-10-31T20:54:48.1692440Z   if-no-files-found: warn
+2026-10-31T20:54:48.1692680Z   retention-days: 14
+2026-10-31T20:54:48.1692900Z   compression-level: 6
+2026-10-31T20:54:48.1693290Z   overwrite: false
+2026-10-31T20:54:48.1693630Z   include-hidden-files: false
+2026-10-31T20:54:48.1694030Z env:
+2026-10-31T20:54:48.1694300Z   HOMEBREW_NO_AUTO_UPDATE: 1
+2026-10-31T20:54:48.1694600Z   RPCS3_MVK_DEPENDENCY_RUN: 41239096061
+2026-10-31T20:54:48.1695030Z   RPCS3_MVK_DEPENDENCY_SOURCE: 7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed
+2026-10-31T20:54:48.1695500Z   MD_APPLE_SDK_ROOT: /Applications/Xcode_16.4.app
+2026-10-31T20:54:48.1695940Z ##[endgroup]
+2026-10-31T20:54:48.3852680Z (node:4961) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-31T20:54:48.3854250Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-31T20:54:48.3914490Z With the provided path, there will be 4 files uploaded
+2026-10-31T20:54:48.3916790Z Artifact name is valid!
+2026-10-31T20:54:48.3917180Z Root directory input is valid!
+2026-10-31T20:54:48.5847350Z Beginning upload of artifact content to blob storage
+2026-10-31T20:54:48.6091480Z (node:4961) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-31T20:54:48.6553680Z Uploaded bytes 2397
+2026-10-31T20:54:48.6723060Z Finished uploading artifact content to blob storage!
+2026-10-31T20:54:48.6723670Z SHA256 digest of uploaded artifact zip is a5bf272d6dabb0db5ad45f4345f156aad5a12a870f2b4e39155f8416c7ce1225
+2026-10-31T20:54:48.6724310Z Finalizing artifact upload
+2026-10-31T20:54:49.0846210Z Artifact RPCS3Core-MVK-cache-diagnostics-6140ed4f9a52786fcf3d72598cc643d24cfbb43f.zip successfully finalized. Artifact ID 13057770681
+2026-10-31T20:54:49.0849080Z Artifact RPCS3Core-MVK-cache-diagnostics-6140ed4f9a52786fcf3d72598cc643d24cfbb43f has been successfully uploaded! Final size is 2397 bytes. Artifact ID is 13057770681
+2026-10-31T20:54:49.0867910Z Artifact download URL: https://github.com/TarbleFR/RewindBox/actions/runs/41240930719/artifacts/13057770681
+2026-10-31T20:54:49.1130250Z Post job cleanup.
+2026-10-31T20:54:49.2467350Z [command]/opt/homebrew/bin/git version
+2026-10-31T20:54:49.2548320Z git version 2.56.0
+2026-10-31T20:54:49.2566720Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/ddad9f13-e7a0-43ed-bc9f-d0690c4c411d/.gitconfig'
+2026-10-31T20:54:49.2573620Z Temporarily overriding HOME='/Users/runner/work/_temp/ddad9f13-e7a0-43ed-bc9f-d0690c4c411d' before making global git config changes
+2026-10-31T20:54:49.2574480Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-31T20:54:49.2577200Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/RewindBox/RewindBox
+2026-10-31T20:54:49.2669980Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-31T20:54:49.2735330Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-31T20:54:49.3736560Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-31T20:54:49.3813820Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-31T20:54:49.4873990Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-31T20:54:49.4946140Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-31T20:54:49.5909530Z Cleaning up orphan processes
+2026-10-31T20:54:50.4872550Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache/restore@v4, actions/cache/save@v4, actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-/// Actionable settings tile: a bordered card with a leading icon, a
+import '../../../../widgets/glass/glass_surface.dart';
+
+/// Actionable settings tile: a glass bubble with a leading icon, a
 /// title/subtitle block and a trailing control (toggle or action button).
 ///
-/// This is the shared extraction of the Directories card chrome, reused by the
-/// Tools and Systems panels so every actionable settings list renders with the
-/// same background, corner radius, focus border and spacing. Richer one-off
-/// rows (destructive/monospace paths in Directories) keep their bespoke layout.
+/// Shared by the Directories, Tools and Systems panels so every actionable
+/// settings list renders with the same surface, corner radius, focus ring and
+/// the standard bubble gap below it. Richer one-off rows (destructive or
+/// monospace paths in Directories) keep their bespoke layout.
 class SettingsCardRow extends StatelessWidget {
   /// Leading glyph.
   final IconData icon;
@@ -55,75 +57,73 @@ class SettingsCardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final glass = LiquidGlassTheme.of(context);
 
-    final borderColor = selected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.outline.withValues(alpha: 0);
     final foreground = selected
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurface.withValues(alpha: disabled ? 0.4 : 1.0);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: borderColor, width: selected ? 2.r : 1.r),
-      ),
-      margin: EdgeInsets.only(bottom: 8.r),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12.r),
-        canRequestFocus: false,
-        focusColor: Colors.transparent,
-        hoverColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: foreground, size: 20.r),
-                  SizedBox(width: 12.r),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12.r,
-                            color: foreground,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          SizedBox(height: 2.r),
+    return GlassSurface(
+      role: GlassRole.bubble,
+      focused: selected,
+      margin: EdgeInsets.only(bottom: glass.gap),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: glass.radius(GlassRadius.m),
+          canRequestFocus: false,
+          focusColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          child: Padding(
+            padding: glass.bubblePadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: foreground, size: 20.r),
+                    SizedBox(width: 12.r),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 9.r,
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: disabled ? 0.25 : 0.6,
-                              ),
+                            title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.r,
+                              color: foreground,
                             ),
-                            maxLines: subtitleMaxLines,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (subtitle.isNotEmpty) ...[
+                            SizedBox(height: 2.r),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 9.r,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: disabled ? 0.25 : 0.6,
+                                ),
+                              ),
+                              maxLines: subtitleMaxLines,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  if (trailing != null) SizedBox(width: 12.r),
-                  ?trailing,
-                ],
-              ),
-              ?belowContent,
-            ],
+                    if (trailing != null) SizedBox(width: 12.r),
+                    ?trailing,
+                  ],
+                ),
+                ?belowContent,
+              ],
+            ),
           ),
         ),
       ),

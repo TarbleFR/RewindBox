@@ -1,0 +1,43 @@
+{
+  "relay": "Codex, 4 Nov 2026; maintainer PNG archive received in this session",
+  "archive": {
+    "name": "rewindbox-skins-original-png-20261104.zip",
+    "bytes": 6396023,
+    "sha256": "938904a7f46a09af7b1c0461119c751bd19786987d514c14a99fdfbf548b517b"
+  },
+  "images": [
+    {
+      "role": "target GameCube Pocket (portrait + landscape)",
+      "file": "01-target-gamecube-pocket.png",
+      "bytes": 2244426,
+      "size": [
+        1533,
+        1021
+      ],
+      "sha256": "78890512441cb3accfd80a295001923481de1e6a59f07202263bd5d746697f9d",
+      "relationToRepositoryBoard": "pixel-identical crop of docs/design/pocket/approved-gamecube.png (1536x1024, ecead3bd...f0f7) at offset (2,1); mean |diff| 0.00"
+    },
+    {
+      "role": "current non-conforming GameCube device render (Fire Emblem), NOT a target",
+      "file": "02-current-gamecube-fire-emblem.png",
+      "bytes": 2113786,
+      "size": [
+        2048,
+        943
+      ],
+      "sha256": "565dbc876e56ee018a8007be2ec7d4af127c4b88a16efa7b58531ebcabe4f887"
+    },
+    {
+      "role": "target Wii Pocket (portrait + landscape)",
+      "file": "03-target-wii-pocket.png",
+      "bytes": 2041331,
+      "size": [
+        1533,
+        1023
+      ],
+      "sha256": "bfb4da275b897abc3637f0dd0f3aecc412c1fbf1133c8ef63ffa62c7cd05e0b6",
+      "relationToRepositoryBoard": "pixel-identical crop of docs/design/pocket/approved-wii.png (1536x1024, fae06ef4...dc90f) at offset (0,0); mean |diff| 0.00"
+    }
+  ],
+  "note": "The packs are built from the repository boards, which contain the maintainer's PNG pixels exactly; no higher-resolution master was found."
+}

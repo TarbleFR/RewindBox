@@ -1,0 +1,164 @@
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -917,6 +917,15 @@
+ 
+ 			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
+ 			return std::move(m_preloaded);
++		}
++
++		// CELL538_SPU_CACHE_PROBE: try_add_cached receives the result of the
++		// validated probe made before IR construction, including a cache miss.
++		// Do not repeat disk I/O or accept an unbound file appearing mid-build.
++		// The ordinary PPU cache path below still performs its own lookup.
++		if (m_spu)
++		{
++			return nullptr;
+ 		}
+ 
+ 		std::string path = m_path;
+--- a/rpcs3/Emu/CMakeLists.txt
++++ b/rpcs3/Emu/CMakeLists.txt
+@@ -37,6 +37,7 @@
+ # the LLVM release and the JIT target features in the PPU object cache name, so
+ # a changed Core never reuses objects built by another one; it recompiles once.
+ if(RPCS3_FRONTEND STREQUAL "IOS")
++    include("${CMAKE_CURRENT_SOURCE_DIR}/CPU/JITCacheCompatibility.cmake")
+     set(NEOSTATION_PPU_CODEGEN_DIGEST "")
+     foreach(NEOSTATION_PPU_CODEGEN_SOURCE IN ITEMS
+         Cell/PPUTranslator.cpp
+@@ -61,6 +62,7 @@
+         ../../Utilities/JITPhaseProfile.h
+         ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
+         file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_PPU_CODEGEN_SOURCE}" NEOSTATION_PPU_CODEGEN_FILE_SHA256)
++        neostation_codegen_compatible_hash("${NEOSTATION_PPU_CODEGEN_SOURCE}" "${NEOSTATION_PPU_CODEGEN_FILE_SHA256}" NEOSTATION_PPU_CODEGEN_FILE_SHA256)
+         string(APPEND NEOSTATION_PPU_CODEGEN_DIGEST "${NEOSTATION_PPU_CODEGEN_SOURCE}:${NEOSTATION_PPU_CODEGEN_FILE_SHA256};")
+     endforeach()
+     string(SHA256 NEOSTATION_PPU_CODEGEN_ID "${NEOSTATION_PPU_CODEGEN_DIGEST}")
+@@ -111,6 +113,7 @@
+         ../ios/NeoSwapCompilerAPI.h
+         ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
+         file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_SPU_CODEGEN_SOURCE}" NEOSTATION_SPU_CODEGEN_FILE_SHA256)
++        neostation_codegen_compatible_hash("${NEOSTATION_SPU_CODEGEN_SOURCE}" "${NEOSTATION_SPU_CODEGEN_FILE_SHA256}" NEOSTATION_SPU_CODEGEN_FILE_SHA256)
+         string(APPEND NEOSTATION_SPU_CODEGEN_DIGEST "${NEOSTATION_SPU_CODEGEN_SOURCE}:${NEOSTATION_SPU_CODEGEN_FILE_SHA256};")
+     endforeach()
+     string(SHA256 NEOSTATION_SPU_CODEGEN_ID "${NEOSTATION_SPU_CODEGEN_DIGEST}")
+--- a/rpcs3/ios/IOSShaderTiming.h
++++ b/rpcs3/ios/IOSShaderTiming.h
+@@ -2,7 +2,10 @@
+ #pragma once
+ 
+ #include "IOSRuntimeMetrics.h"
++#include <array>
++#include <atomic>
+ #include <chrono>
++#include <cstdint>
+ #include <mutex>
+ 
+ namespace rpcs3::ios::shader_timing
+@@ -12,6 +15,46 @@
+ // Fixed process-wide storage, no allocation, no logs and no emulation choices.
+ enum class Stage : std::size_t { source, module, graphics, compute, debug_source, count };
+ inline std::array<diagnostics::EventCost, static_cast<std::size_t>(Stage::count)> costs{};
++
++// CELL538: operation boundaries permit alignment with guest-flip intervals.
++// Fixed 32-entry storage; producers never wait for the reporter or each other.
++// Slow startup bursts may overflow: every rejected record is counted.
++struct SlowOperation { Stage stage{}; std::uint64_t begin_us = 0, end_us = 0; };
++class SlowOperations final
++{
++    std::mutex mutex_;
++    std::array<SlowOperation, 32> events_{};
++    std::size_t size_ = 0;
++    std::atomic<std::uint64_t> dropped_{0};
++public:
++    struct Snapshot
++    {
++        std::array<SlowOperation, 32> events{};
++        std::size_t size = 0;
++        std::uint64_t dropped = 0;
++        bool captured = false;
++    };
++    void record(Stage stage, std::uint64_t begin_us, std::uint64_t end_us) noexcept
++    {
++        if (end_us < begin_us || end_us - begin_us < 50'000) return;
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock || size_ == events_.size())
++        {
++            dropped_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        events_[size_++] = {stage, begin_us, end_us};
++    }
++    Snapshot take() noexcept
++    {
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock) return {};
++        Snapshot result{events_, size_, dropped_.exchange(0, std::memory_order_relaxed), true};
++        size_ = 0;
++        return result;
++    }
++};
++inline constinit SlowOperations slow_operations;
+ 
+ // CELL536: retain the renderer's actual configuration in periodic evidence.
+ // Fixed storage, no renderer dereference, no lock on a frame/compile path.
+@@ -59,8 +102,15 @@
+     Scope& operator=(const Scope&) = delete;
+     ~Scope() noexcept
+     {
+-        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - begin_).count();
++        const auto end = Clock::now();
++        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin_).count();
+         costs[static_cast<std::size_t>(stage_)].record(static_cast<std::uint64_t>(std::max<std::int64_t>(elapsed, 0)));
++        if (elapsed >= 50'000)
++        {
++            slow_operations.record(stage_,
++                std::chrono::duration_cast<std::chrono::microseconds>(begin_.time_since_epoch()).count(),
++                std::chrono::duration_cast<std::chrono::microseconds>(end.time_since_epoch()).count());
++        }
+     }
+ };
+ 
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -846,6 +846,24 @@
+                 shader[2].count, shader[2].total, shader[2].maximum,
+                 shader[3].count, shader[3].total, shader[3].maximum,
+                 shader[4].count, shader[4].total, shader[4].maximum);
++        }
++        {
++            const auto slow = rpcs3::ios::shader_timing::slow_operations.take();
++            ios_core_profiler.notice(
++                "COREPROF SHADERSTALL538 session=%llu window=%llu captured=%u retained=%llu dropped=%llu "
++                "capacity=32 threshold_us=50000 clock=steady_clock report_steady_us=%llu scope=process_completed_operations",
++                profile_session, profile_window, slow.captured ? 1u : 0u,
++                static_cast<u64>(slow.size), slow.dropped,
++                static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(sample_clock::now().time_since_epoch()).count()));
++            for (std::size_t i = 0; i < slow.size; ++i)
++            {
++                const auto& event = slow.events[i];
++                ios_core_profiler.notice(
++                    "COREPROF SHADERSTALL538_EVENT stage=%u begin_us=%llu end_us=%llu duration_us=%llu "
++                    "scope=process_operation report_session=%llu report_window=%llu",
++                    static_cast<u32>(event.stage), event.begin_us, event.end_us,
++                    event.end_us - event.begin_us, profile_session, profile_window);
++            }
+         }
+         // Fence scope excludes wait_flush(); range scope is one whole episode;
+         // semaphore measures guest semaphore polling; admission is host-budget wait.
+--- /dev/null
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -0,0 +1,13 @@
++# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
++# cache probe after a validated miss. It changes neither generated objects nor
++# their ABI. Preserve the 536 identity for this exact source snapshot only.
++# Unknown paths or future file changes retain their actual hash and invalidate
++# the cache normally. Never alias older reservation implementations to 536.
++function(neostation_codegen_compatible_hash source actual output)
++    if(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
++       actual STREQUAL "d7094a664f5b59510e518e09e115a01ec0c1cd899d2550dab324b5e925a02fc9")
++        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    else()
++        set(${output} "${actual}" PARENT_SCOPE)
++    endif()
++endfunction()

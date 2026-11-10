@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "program_sha256": "fb9fc2d33cfc182737171e6f7ae47fe25208ac2fe899eb3b25c51f90fb6e9263",
+  "evidence": "docs/evidence/rpcs3-device595-followup-20261029/surface-coverage-plain.json",
+  "canonical_program_sha256": "fb9fc2d33cfc182737171e6f7ae47fe25208ac2fe899eb3b25c51f90fb6e9263",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "rowChecks": 391754,
+    "surfaceGeometryCases": 10128,
+    "sameInvalidationsAndOrder": true,
+    "baseline4MiBMarkerBytes": 4194308,
+    "candidate4MiBMarkerBytes": 524296,
+    "sink": 0
+  },
+  "mode": "plain",
+  "output_sha256": "9a54a38e381908d177858ed507432e1c1f294a5bbefe3cc6133a7f9d40e1d15f",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

@@ -30,7 +30,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
 
-CURRENT PUBLISHED IOS RELEASE — FIX 0.0.9 / BUILD 530
+CURRENT PUBLIC BASELINE — 0.0.10 / BUILD 559
+
+https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10
+Build 559 recipe: fb0a80e7da6ecade04f0503a48ffaab507263dc4.
+Its internal app version remains 0.0.8. See README.md for the public
+download and exact Build 559 delivery record. The Build 530 source records
+below and the linked historical source audits are release-specific; they
+do not attest complete source or rights clearance for later builds.
+
+HISTORICAL PUBLISHED IOS RELEASE — FIX 0.0.9 / BUILD 530
 
 GitHub release title: fix 0.0.9
 Tag: 0.0.9-fix.1
@@ -64,7 +73,7 @@ the original Android/macOS/other platform code path is not reclassified as fixed
 Retained RPCS3 source-built Core 528:
 17ee65469c39e560c91fdb6d55604ab590992f59
 https://github.com/TarbleFR/RewindBox/actions/runs/40142369420
-All 35 current Libretro core identities are present in the Build 530 package.
+All 35 Libretro core identities recorded for Build 530 are present in that package.
 Third-party licenses, original authorship and the per-core source gaps remain
 authoritative in assets/legal/ and docs/EMBEDDED_RUNTIME_PROVENANCE.md.
 
@@ -129,6 +138,89 @@ source correspondence, and preservation of individual overlay notices.
 Credits are not a clearance of these findings. Verified upstream cheat
 notices supplement the frozen catalogue metadata and are archived under
 docs/licenses/cheats/. This documentation does not change existing IPAs.
+
+CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026 (LICENSED SOURCES ONLY)
+
+docs/ENHANCEMENTS.md and native/enhancements/catalogue/. The IPA bundles only
+the catalogue index (titles and counts); code entries are downloaded on demand
+per game from the RewindBox repository. No game, BIOS, firmware or key is
+included. Only content whose licence allows redistribution, or that the
+embedded engine already ships, is listed (rights review of 28 October 2026,
+docs/ENHANCEMENTS.md, "Rights"). These notes are not a clearance. Authors who
+want their entries removed or credited differently can open an issue at
+https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
+
+- RPCS3 game patches — content of the RPCS3 Wiki
+  (https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) by the RPCS3 Wiki
+  contributors; per-patch authors are credited in each entry. Obtained through
+  https://rpcs3.net/compatibility?patch&api=v1&v=1.2, patch.yml 1.2, content
+  SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486.
+  Licensed under Creative Commons Attribution-ShareAlike 4.0 International
+  (https://creativecommons.org/licenses/by-sa/4.0/), per the wiki's General
+  disclaimer and Help:Game Patches footer, directly browser-verified on
+  28 October 2026 (docs/licenses/rpcs3-wiki-2026-10-28.md). The footer
+  retains the exception for content otherwise noted. Changes: converted to
+  RewindBox JSON, anchors flattened, configurable values turned into fixed
+  choices, filtered.
+  The adapted RPCS3 entries in native/enhancements/catalogue/ are distributed
+  under CC BY-SA 4.0. RPCS3 is a trademark of its owners; no affiliation.
+- ARMSX2 patches.zip (ARMSX2/ARMSX2 9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe,
+  the PCSX2 patch set the embedded engine already ships): referenced by patch
+  name and author credit only, to enable a patch in the per-game settings. No
+  patch body or description is redistributed.
+- CookiePLMonster/Console-Cheat-Codes 26e407a754e0a2b2c73f55ad4f9261b32cfb42cd:
+  MIT, Copyright (c) 2020-2023 Adrian Zdanowicz (Silent).
+- AeroWidescreen/PCSX2-Cheats ab043ba5adb9e65837fd451d207e6c7c2731c3b1:
+  MIT, Copyright (c) 2023 Aero_.
+  Each cheat file RewindBox installs from these two sources carries their
+  copyright and permission notice in its comments.
+- Dolphin GameSettings, GPL-2.0-or-later: OatmealDome/dolphin-ios
+  7cac54161659421ed95c2cd1c0b0746539a4cd38 (names only, bodies ship with the
+  engine); dolphin-emu/dolphin 3eb30c7620b4475b2e0404228ba0d2b238a132f1;
+  Tinob/Ishiiruka cba6d7279b44894297d8c1dde1effdbba3605c32;
+  project-slippi/Ishiiruka d6779e03dcfd8dab4bb9b6634eb8f9b393c9d195;
+  MarioPartyNetplay/Dolphin-MPN cb414b1d65213869928ccb2b6fd0d2406d04bfe0.
+  Code credits ([Ralf], [gamemasterplc]...) are kept in each label.
+- Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
+  GPL-3.0 (GameCube disc files only).
+
+Downloaded from the source, not hosted (same day): HamletDuFromage/switch-
+cheats-db 109766ab21c784150287c83ff85c02ab9512dccb. RewindBox lists names,
+categories and credits; the app downloads each title's original file from
+raw.githubusercontent.com at that revision and checks its SHA-256. The codes
+belong to the authors credited in each title. Titles whose authors restrict
+distribution are left out.
+
+Removed on 28 October 2026 because they grant no licence to redistribute
+their codes: HamletDuFromage/switch-cheats-db, exefer/gbatemp-matias3ds-cheats
+("All rights belong to the original cheat authors"), blawar/titledb
+cheats.json (uncredited codes), KeatonTheBot/switch-pchtxt-mods,
+Fl4sh9174/Switch-Ultrawide-Mods, the pcsx2_patches bodies (only names of the
+copy ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
+The Switch (MeloNX) catalogue is therefore empty.
+
+UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
+
+The 60 FPS supplement programs of PCSX2/pcsx2_patches, Gabominated/PCSX2,
+Saramagrean/NetherSX2-cheats and a Reddit post by TheYearOfWaluigi are
+withheld: no licence or written permission covers their codes. Their credits
+remain in docs/CHEAT_CATALOG_SOURCES.md. The illusion0001 RPCS3 mirror keeps
+280 programs identical to the official RPCS3 patch.yml, under CC BY-SA 4.0
+(RPCS3 Wiki contributors and the named patch authors). Its 3 programs that
+differ are withheld. See docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md.
+
+Origin publication of the unified cheat catalogue (same day): for updated
+apps, the codes of the sources with no licence for them (MiSTer/GameHacking,
+CWCheat Database Plus, FBNeo cheats, GeckoArchive, DuckStation chtdb,
+PSX Datacenter, Mighty Mo and the PS2 pnach collections) are downloaded by
+the app from those sources at pinned revisions. RewindBox lists only their
+names, credits and positions (docs/CHEAT_ORIGIN_PUBLICATION.md).
+
+Researched and not integrated: StevensND/switch-port-mods and
+ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods
+and UltraCam (CC BY-NC), masagrator/FPSLocker-Warehouse (needs its own
+runtime), Dolphin Wiki codes (game ID only inferred), codes.rc24.xyz (same
+content as GeckoArchive).
 
 RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
 Original input:

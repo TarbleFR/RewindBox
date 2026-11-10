@@ -210,10 +210,18 @@ extension _LaunchFlow on _SystemGamesListState {
         onLaunchFailed: (ctx, result) async {
           // Restore memory on failed launch.
           if (mounted) _loadGames();
-          _SystemGamesListState._log.e('SystemGamesList: Game launch failed');
           if (mounted && _isGameLaunching) {
             rebuild(() => _isGameLaunching = false);
           }
+          // Build 554: declining the RPCS3 installation of a PS3 disc is a
+          // choice, not a failure.
+          if (result.cancelled) {
+            _SystemGamesListState._log.i(
+              'SystemGamesList: Game launch cancelled',
+            );
+            return;
+          }
+          _SystemGamesListState._log.e('SystemGamesList: Game launch failed');
           await showDialog(
             context: ctx,
             builder: (BuildContext context) {

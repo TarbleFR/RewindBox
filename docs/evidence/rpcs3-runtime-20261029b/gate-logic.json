@@ -1,0 +1,125 @@
+{
+  "verified": true,
+  "scope": "Gate Python logic, command parsing and immutable legacy dispatcher identity; no macOS execution, receipt acquisition, C++ compilation, CI or delivery.",
+  "commands": [
+    {
+      "test": "shader",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "test/rpcs3_recent_shader_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/shader-plain-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "shader",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "test/rpcs3_recent_shader_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--sanitize",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/shader-asan-ubsan-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "dynamic",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "test/rpcs3_dynamic_state_retention_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--output",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/dynamic-plain-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "dynamic",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "test/rpcs3_dynamic_state_retention_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--sanitize",
+        "--output",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/dynamic-asan-ubsan-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "prehash",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "test/rpcs3_prehash_admission_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/prehash-plain-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "prehash",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "test/rpcs3_prehash_admission_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--sanitizer",
+        "address,undefined",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/prehash-asan-ubsan-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "vm",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "test/rpcs3_vm_alloc_search_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/vm-plain-result.json"
+      ],
+      "parserAccepted": true
+    },
+    {
+      "test": "vm",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "test/rpcs3_vm_alloc_search_test.py",
+        "/workspace/scratch/c599e38ba32c/rpcs3-core",
+        "--sanitize",
+        "--report",
+        "/workspace/scratch/c599e38ba32c/RewindBox/build/rpcs3-core-diagnostics/vm-asan-ubsan-result.json"
+      ],
+      "parserAccepted": true
+    }
+  ],
+  "actualClang22VMReportAccepted": true,
+  "rejectedReportMutations": [
+    "failed_test",
+    "assertions_disabled",
+    "wrong_sanitizer_mode",
+    "wrong_compiler",
+    "wrong_source",
+    "wrong_preimage",
+    "wrong_fixture",
+    "dense_only_without_correctness"
+  ],
+  "legacyDispatcherUnchangedWithoutFollowup": true,
+  "workflow": "parsed; existing authorization, commands and permissions unchanged",
+  "fullCommittedSourceContractExecuted": false,
+  "reason": "Current gate changes await the local candidate commit; the exact HEAD guard rejects them as intended.",
+  "appleSDKUsed": false,
+  "iPhoneCoreBuilt": false,
+  "physicalDeviceTested": false
+}

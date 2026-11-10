@@ -1,0 +1,140 @@
+{
+  "result": "passed",
+  "commit": "e7143e566462bf6e3d9c143ce24532c1ad7aeb10",
+  "run": 40998920652,
+  "artifact": 12953505421,
+  "archiveSha256": "0b734460e07c35dc81575940b0feff86af5d755a6f8a25b5d395d3b99b8818c1",
+  "archiveBytes": 87766998,
+  "zipCrcVerified": true,
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "b0bb4cd7da18337fd66eedec218df4a783efeff38f7c412cef2a00be813f41e6",
+      "bytes": 37601600,
+      "machO": {
+        "cpuType": 16777228,
+        "cpuSubtype": 0,
+        "fileType": 6,
+        "buildVersion": {
+          "platform": 2,
+          "minimumOS": "12.2.0",
+          "sdk": "26.5.0"
+        },
+        "uuid": "c6928597639035dfbee16db79119c485",
+        "actualExportedSymbols": 84,
+        "requiredExportsVerified": 47,
+        "dependencies": [
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libSystem.B.dylib",
+          "/usr/lib/libobjc.A.dylib",
+          "/usr/lib/swift/libswiftCore.dylib",
+          "/usr/lib/swift/libswiftFoundation.dylib",
+          "/usr/lib/libz.1.dylib",
+          "/usr/lib/libicucore.A.dylib",
+          "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "/System/Library/Frameworks/Network.framework/Network",
+          "/System/Library/Frameworks/Security.framework/Security",
+          "/System/Library/Frameworks/GSS.framework/GSS"
+        ]
+      }
+    },
+    "iossimulator-arm64": {
+      "sha256": "a53e404f668b4c470247092ea83e877004f4a6661548b704b508aeee2fb7556e",
+      "bytes": 37911992,
+      "machO": {
+        "cpuType": 16777228,
+        "cpuSubtype": 0,
+        "fileType": 6,
+        "buildVersion": {
+          "platform": 7,
+          "minimumOS": "14.0.0",
+          "sdk": "26.5.0"
+        },
+        "uuid": "6f2d7210786a3c889387cc61e8c9bd00",
+        "actualExportedSymbols": 84,
+        "requiredExportsVerified": 47,
+        "dependencies": [
+          "/usr/lib/libc++.1.dylib",
+          "/usr/lib/libSystem.B.dylib",
+          "/usr/lib/libobjc.A.dylib",
+          "/usr/lib/swift/libswiftCore.dylib",
+          "/usr/lib/swift/libswiftFoundation.dylib",
+          "/usr/lib/libz.1.dylib",
+          "/usr/lib/libicucore.A.dylib",
+          "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "/System/Library/Frameworks/CryptoKit.framework/CryptoKit",
+          "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "/System/Library/Frameworks/Network.framework/Network",
+          "/System/Library/Frameworks/Security.framework/Security",
+          "/System/Library/Frameworks/GSS.framework/GSS"
+        ]
+      }
+    }
+  },
+  "preparationInputs": 108,
+  "preparedMembers": 148,
+  "productionPaths": 15,
+  "freshAppleGates": 2,
+  "authenticatedHistoricalGates": 30,
+  "simulatorGuestSvcSessions": 2,
+  "closedAndReleasedBackingSessions": 2,
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "experimentalGpuControlsDefault": "off",
+  "progressiveJitFallback": "blocked-no-proven-native-rollback",
+  "reports": {
+    "occlusion-checks.json": {
+      "control": {
+        "checks": 5,
+        "scenarios": 2,
+        "controlLatePublication": true
+      },
+      "candidate": {
+        "checks": 16432,
+        "scenarios": 274,
+        "controlLatePublication": false
+      }
+    },
+    "query-policy-checks.json": {
+      "control": {
+        "checks": 32,
+        "normalSubmissions": 64,
+        "batchedSubmissions": 64
+      },
+      "candidate": {
+        "checks": 58,
+        "normalSubmissions": 64,
+        "batchedSubmissions": 8
+      }
+    },
+    "display-checks.json": "/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Stubs.cs(43,25): warning CS0649: Field 'Library._virtualFileSystem' is never assigned to, and will always have its default value null [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/EmbeddedMemory.cs(33,24): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryWithdraw()' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/EmbeddedMemory.cs(18,24): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryOffer(nint, ulong)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/EmbeddedMemory.cs(45,13): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Snapshot(out ulong, out ulong, out ulong)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(92,81): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(102,9): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(96,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(88,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(91,34): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(90,25): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(95,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Free(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(97,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Free(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/Program.cs(92,51): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryWithdraw()' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-6fcfqb3l/test.csproj]\nPASS 77 graphics, FPS snapshot, generation and real donated allocator cases; window double, no gameplay claim.\n"
+  },
+  "job": 123878488200,
+  "jobSeconds": 726.0,
+  "stepSeconds": {
+    "Set up job": 2.0,
+    "Run actions/checkout@v4": 24.0,
+    "Run actions/setup-dotnet@v4": 24.0,
+    "Pin the selected SDK for all new Apple gates": 1.0,
+    "Authenticate engine82 evidence and reuse unchanged LibHac": 15.0,
+    "Fetch exact MeloNX source": 6.0,
+    "Verify Apple ARM64, exact SDK and reviewed occlusion preparation inputs": 2.0,
+    "Run two affected Apple gates and authenticate 30 historical results": 38.0,
+    "Compile NativeAOT library and verify exported ABI": 367.0,
+    "Bind both new libraries to reviewed sources and gate receipts": 3.0,
+    "Run actions/download-artifact@v4": 5.0,
+    "Authenticate unchanged native frameworks": 0.0,
+    "Exercise this exact rebuilt engine in an ARM64 iOS app": 225.0,
+    "Preserve the current runtime result including failures": 1.0,
+    "Verify fresh guest execution, teardown and backing release": 0.0,
+    "Run actions/upload-artifact@v4": 6.0,
+    "Post Run actions/setup-dotnet@v4": 0.0,
+    "Post Run actions/checkout@v4": 1.0,
+    "Complete job": 3.0
+  },
+  "workflow": ".github/workflows/melonx-core.yml",
+  "requiredExports": 47,
+  "abi": 2,
+  "sourceRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

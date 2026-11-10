@@ -1,0 +1,22 @@
+{
+  "command": [
+    "g++",
+    "-Wunused-const-variable",
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O3",
+    "/tmp/rpcs3-descriptor-clang-fix/old-baseline-desktop.cpp",
+    "-o",
+    "/tmp/rpcs3-descriptor-clang-fix/old-baseline-desktop"
+  ],
+  "returncode": 1,
+  "rejected": true,
+  "expectedDiagnostic": "unused-const-variable",
+  "constant": "rpcs3::ios::rsx_sync::cb_reuse",
+  "programSHA256": "cca3b1cc4a84a5778bc3ff4eada4e1523dfaa2960dae79de8c3d7dc899d3a3b4",
+  "outputSHA256": "c21e85c1cf8ad1c37fc8317b10f086c1a51f0091f97f157b958204df4aa3c193"
+}

@@ -1,0 +1,74 @@
+// The runner inserts the production queue type, allocation statement and
+// renderctl function. Only Vulkan handles and the submit backend are adapted.
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+
+#ifdef NDEBUG
+#error Assertions must be active
+#endif
+
+using u32 = std::uint32_t;
+using VkQueue = void*;
+using VkCommandBuffer = void*;
+using VkSemaphore = std::uintptr_t;
+using VkPipelineStageFlags = std::uint32_t;
+#define VK_NULL_HANDLE 0
+
+template <typename C>
+auto& at32(C& container, u32 index)
+{
+    return container.at(index);
+}
+
+namespace vk
+{
+struct fence {};
+
+// @QUEUE_SUBMIT_TYPE@
+
+constexpr u32 rctrl_queue_submit = 1;
+u32 processed = 0;
+void queue_submit(const queue_submit_t* packet)
+{
+    assert(packet->queue == reinterpret_cast<void*>(1));
+    assert(packet->commands == reinterpret_cast<void*>(2));
+    assert(packet->wait_semaphores_count == 1);
+    assert(packet->wait_semaphores[0] == 3 && packet->wait_stages[0] == 4);
+    assert(packet->signal_semaphores_count == 1 && packet->signal_semaphores[0] == 5);
+    ++processed;
+}
+
+queue_submit_t* allocate_packet(const queue_submit_t& submit_info)
+{
+    // @ALLOCATE_STATEMENT@
+    return packet;
+}
+}
+
+namespace rsx
+{
+struct thread
+{
+    void renderctl(u32, void*) {}
+};
+}
+
+class VKGSRender : public rsx::thread
+{
+public:
+    void renderctl(u32 request_code, void* args);
+};
+
+// @RENDERCTL_FUNCTION@
+
+int main()
+{
+    vk::queue_submit_t submit_info(reinterpret_cast<void*>(1), nullptr);
+    submit_info.commands = reinterpret_cast<void*>(2);
+    submit_info.wait_on(3, 4).queue_signal(5);
+    VKGSRender{}.renderctl(vk::rctrl_queue_submit, vk::allocate_packet(submit_info));
+    assert(vk::processed == 1);
+}

@@ -1,0 +1,77 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "827f4653e0dee5b86258f598373255d179638bdb",
+    "run": 41028130487,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41028130487"
+  },
+  "identities": {
+    "ios-arm64": "ab8f37dfd7799246baf3d24995760a888f7930ef36d52b96c6e29054dfe96370",
+    "iossimulator-arm64": "763361dde4cbcfadad91584ee29213dd2d560edc24ab21b42d38b424a1159ad6"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "b4beb50452ab3a36ad71e0415c4a775249bddf92c7db222899f3da2fc43521c4",
+      "bytes": 37618008
+    },
+    "iossimulator-arm64": {
+      "sha256": "63d623af21f654c512f436748665b075897f1faca7f710051b6c692a3607cb7c",
+      "bytes": 37928536
+    }
+  },
+  "adaptationCount": 114,
+  "preparedMembers": 151,
+  "freshAppleGates": 3,
+  "reusedAppleGates": 32,
+  "embeddedArchiveSha256": "611214108416847762c0e81790f5b3e8c74f2fce35439c340618bf99f255996a",
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "runtimeSmokeSha256": "0874c80a5a35839ec03579c710be0db5415b05b14cf0337ad65bcd09cdf0f460",
+  "guestSvcSessions": [
+    {
+      "afterSequence": 23,
+      "generation": 1,
+      "session": 1,
+      "svcSequence": 39
+    },
+    {
+      "afterSequence": 40,
+      "generation": 2,
+      "session": 2,
+      "svcSequence": 56
+    }
+  ],
+  "homebrewSimulatorSessions": 2,
+  "releasedBackingSessions": 2,
+  "gateReceiptSha256": "d82c4fea9a65cb82ddc569c1a300976121f788e47acb61135921cab9ea37ff81",
+  "reusedEvidenceSha256": {
+    "baseline-engine82/authentication/result.json": "3e996191944508082d77bc30f9ce3786a5ac067951a1797de40e5b0c85fc05c0",
+    "libhac-authenticated-reuse.json": "77ada960f7b6f7e4ae4654e29daab7400da97a72a340683b73ed3c67b35bf369",
+    "native-dependencies-reused.json": "c1fcb34886a3b5afb8a8337406a9c395303f0311f71fd15f23578b157cde0810"
+  },
+  "historicalGatesReexecuted": false,
+  "nativeDependenciesRecompiled": false,
+  "status": "compiled-and-simulator-validated-not-gameplay-tested",
+  "inputs": {
+    ".github/workflows/melonx-core.yml": "a079d49e561cda4f70cbaef980a192a80d97a20cc66450e7bdc3ed21201dccb9",
+    "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+    "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
+    "build-utils/melonx/reuse_core_baseline.py": "9638b84da0f4e6ac5514b12d4169820e4d0c10465e4467326caff3d00d1f8a73",
+    "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
+    "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
+    "build-utils/melonx/verify_continuation_core.py": "e96d42a8ad1ff5ea4e7b122767a3f96295bcb754ded315bf2e8b9c550b9d0ba8",
+    "build-utils/melonx/continuation-core-contract.json": "7399e3868eb1fcb5d75f5bcaff4d57d3de371621f510398b47bcc461148471af",
+    "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "879df6151e9b292b5c8dab7f8a88634aa92a3f25518d080c68722d243adaf0b3"
+  },
+  "continuationContractSha256": "7399e3868eb1fcb5d75f5bcaff4d57d3de371621f510398b47bcc461148471af",
+  "progressiveJit": "explicit-preparation-free-refusals-only",
+  "unrealProfiles": "experimental-unverified-cvars",
+  "blackTextureFixOnDeviceProven": false,
+  "artifact": {
+    "id": 12964518860,
+    "bytes": 87580969,
+    "sha256": "3d94e1bd81c5b710af7668068ff339799749a426f6e9d4d155bea781c07689f7"
+  },
+  "independentlyDownloadedAndHashed": true
+}

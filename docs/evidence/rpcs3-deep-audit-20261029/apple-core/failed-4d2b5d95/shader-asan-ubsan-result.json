@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "program_sha256": "7cbed62e1fb1d506764fc09fcce0c448deafe226172ea02e71928c6416e1aca4",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/shader-tokens-plain.json",
+  "canonical_program_sha256": "2192b21868c74d7892aa0fbc360ca19afe7b264db82a81ce9e09c6ce46e11cad",
+  "apple_host_adapter": true,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "results": {
+    "formatChecks": 76391,
+    "addCodeChecks": 10913,
+    "productionTokenLiterals": 91,
+    "identicalTextAndCallbackOrder": true,
+    "sameDeclarations": true,
+    "benchmarks": []
+  },
+  "mode": "asan-ubsan",
+  "output_sha256": "54471881eff399065d795e85620b7eac985786b526bc2a4c3584b15d31ac32ab",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

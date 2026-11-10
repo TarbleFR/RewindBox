@@ -1,0 +1,669 @@
+{
+  "method": "Portraits de studio générés. Pour certaines familles, des pictogrammes Systematic ont servi de guides de silhouette. Les PNG et SVG de référence ne sont pas redistribués dans ce pack.",
+  "references": {
+    "ps1": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20PlayStation.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20PlayStation.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "4ab4241dacf4f9edd02a847058d0be44fba710679db2094a51eacad918abe0a4"
+    },
+    "ps2": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20PlayStation%202%20SCPH-10000.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20PlayStation%202%20SCPH-10000.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "9875c7a4916145d2a2b43dafb04166bb3459314a1a8977499282849c83078a51"
+    },
+    "ps3": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20Playstation%203.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20Playstation%203.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "403940cf0c627ef069f880383c00bfd428d585a7998f0e423adff1a0cafd325b"
+    },
+    "psp": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20PlayStation%20Portable.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20PlayStation%20Portable.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "4d86746fb1b63682110137192ec6f031e4a9dcd5bf38134c5bcfa367c5addf1d"
+    },
+    "md": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Mega%20Drive%20-%20Genesis%20MK-1601%20%28E%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Mega%20Drive%20-%20Genesis%20MK-1601%20%28E%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "c0a315e403aa20f9dece1f5367563c166551ffc51f6a320ded880dca4b582965"
+    },
+    "genesis": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Mega%20Drive%20-%20Genesis.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Mega%20Drive%20-%20Genesis.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "e2d534a080904cb0f08f4bcd5d8273f35b13d558ca36b24a0f8ac2013d698f4f"
+    },
+    "sms": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Master%20System%20-%20Mark%20III%20MK-3006.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Master%20System%20-%20Mark%20III%20MK-3006.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "68ff4498a933c6df6082af2d00111328eebebf2099ea6cd4c36946b6ba2adaef"
+    },
+    "mark3": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Master%20System%20-%20Mark%20III%20SG-1000M3%20%28J%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Master%20System%20-%20Mark%20III%20SG-1000M3%20%28J%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "82ae3459dce01b58a58f43ead91d27e40821817138dc70a158eb305c0d2b7d51"
+    },
+    "sg1k": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20SG-1000.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20SG-1000.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "298365fa10664695df55934d6a90dae297c75f69115331cf6aa99c6db01ca8ad"
+    },
+    "gg": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Game%20Gear.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Game%20Gear.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "bf5a5686eed81e87bd7f874b0f6c962bb264fdfaf61c47baa854df90087234f3"
+    },
+    "mcd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Mega-CD%20-%20Sega%20CD%20MK-1601-1690%20%28E%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Mega-CD%20-%20Sega%20CD%20MK-1601-1690%20%28E%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "8ffb1f2c39bd905d2654edef8b596de4f813b96fe6519eaf7032980b5880c072"
+    },
+    "32x": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%2032X%20MK-1601-84000%20%28E%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%2032X%20MK-1601-84000%20%28E%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "ea4707985fc6695c9aaaf03a40bba87a8ff32ba97d46276c182ff2eac0acc7a4"
+    },
+    "scd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Mega-CD%20-%20Sega%20CD%20MK-1601-1690%20%28U%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Mega-CD%20-%20Sega%20CD%20MK-1601-1690%20%28U%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "165a875491157b962e6ad59b41a17a12008e0b1c2fbee7b996febc1840e09be2"
+    },
+    "sat": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Saturn.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Saturn.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "73441a5237eb7c0b1eed89832eb55f690655aaf975251e2e8f132b2f339fb2fe"
+    },
+    "dc": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Dreamcast.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Dreamcast.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "5ebee9af7eb1c623c8cbe51d466047365e214ac52b3706e0e9aa4217e6ca507c"
+    },
+    "pico": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20PICO.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20PICO.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "b620ae49733b52fc9ce7ed6e38c456fc20c408e50d780d20ae2bdd287d406d1a"
+    },
+    "pcfx": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC-FX.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC-FX.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "1b274a6f92da83bc2197424d856a62303172bb690b14294ff9781901487e88b2"
+    },
+    "3do": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/The%203DO%20Company%20-%203DO.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/The%203DO%20Company%20-%203DO.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "a8901d0fe4f2d0eb4f6b1f532d768235ccfdbcb3604b5ddffa44b91c9df00573"
+    },
+    "pce": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC%20Engine%20-%20TurboGrafx%2016.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC%20Engine%20-%20TurboGrafx%2016.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "6a2295dec0228a1a82de857dac680c42c53d133f75e285bea078367225f7bf28"
+    },
+    "tg16": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC%20Engine%20-%20TurboGrafx%2016%20HES-TGX-01%20%28U%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC%20Engine%20-%20TurboGrafx%2016%20HES-TGX-01%20%28U%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "123ba0a2a54fdcff02fc95b71d9aa6ed0754bca52d0da487cf471a50201f2a72"
+    },
+    "pccd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC%20Engine%20CD%20-%20TurboGrafx-CD%20PI-CD1%20%28J%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC%20Engine%20CD%20-%20TurboGrafx-CD%20PI-CD1%20%28J%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "50b0f955614a562b4deb1f19be3d7b4316c76b33379dd3f6e62fb90d4135697c"
+    },
+    "tgcd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC%20Engine%20CD%20-%20TurboGrafx-CD%20HES-CDR-01%20%28U%29.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC%20Engine%20CD%20-%20TurboGrafx-CD%20HES-CDR-01%20%28U%29.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "b42c3972a0fcc0120e113e066ab55d410eb75bae4638f2c06ce111453d66ebd7"
+    },
+    "ngcd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/SNK%20-%20Neo%20Geo%20CD.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/SNK%20-%20Neo%20Geo%20CD.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "786dbacb99505b65df58b14155db2adfe4b8106f1368783583b2069b00188237"
+    },
+    "neogeo": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/SNK%20-%20Neo%20Geo.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/SNK%20-%20Neo%20Geo.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "573753bedcd55b8108a227fdf8c0c6699bbb27f84b9958f3080d7da116ae87b6"
+    },
+    "ws": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Bandai%20-%20WonderSwan.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Bandai%20-%20WonderSwan.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "3566896bd9afd41d5faebd504f23c33070bd60002a5c623baaa6fc0f97f878a4"
+    },
+    "wsc": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Bandai%20-%20WonderSwan%20Color.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Bandai%20-%20WonderSwan%20Color.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "ac7aad3148e69aba54924f14e371494fec785f7d36cc1867f0ed5cb9065091ab"
+    },
+    "ngp": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/SNK%20-%20Neo%20Geo%20Pocket.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/SNK%20-%20Neo%20Geo%20Pocket.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "20e91f82c833f25205bee839d2e2d3d8317699cff56c1dd9571d9503f72bee8b"
+    },
+    "ngpc": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/SNK%20-%20Neo%20Geo%20Pocket%20Color.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/SNK%20-%20Neo%20Geo%20Pocket%20Color.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "e0b352179bee612dc8acc85ffc7cd45d8a2591ef16b003443a4b6c46cbdcc2ab"
+    },
+    "lynx": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%20Lynx.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%20Lynx.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "fee055e6cf3287f57799f75f77cf71749db8479fd1edcc974280cfdb3985c8d8"
+    },
+    "duck": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Welback%20-%20Mega%20Duck.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Welback%20-%20Mega%20Duck.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "028615cfe1416069479482d656955367a08563373c6c4631516cb02aca7fe0d4"
+    },
+    "2600": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%202600.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%202600.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "91ccccafe31af5e1f1fe31f0095c636791db99e42309b3cc6e2dd0adac0df00c"
+    },
+    "5200": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%205200.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%205200.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "bb0177052927df65be971f5fd7689b9ebec7a1f403b4dc9b32a143fcfe6c48c6"
+    },
+    "7800": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%207800.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%207800.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "966f1261db2ce91ad99b2f3a1b68e495fd534c606d3b7dc29156cdea7eb38bd5"
+    },
+    "jag": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%20Jaguar.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%20Jaguar.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "4f123154383aa823c99833aa26a31c484d070353589c7c4213ca8fba37629de8"
+    },
+    "cv": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Coleco%20-%20ColecoVision.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Coleco%20-%20ColecoVision.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "2453738c7510fcb74b093427e8959d917e19d9883bbf6cb2c5dedd9dd7857dcd"
+    },
+    "intv": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Mattel%20-%20Intellivision.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Mattel%20-%20Intellivision.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "7d31cb8bf6b030ab9a6c8bff86d401937fa05eaa6083c8256ac86aa3d1bf7252"
+    },
+    "aw": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atomiswave.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atomiswave.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "b2c4c6170a11bfd5eb063aef9c048606aa59406a85e6b61a8372c8628cbfca87"
+    },
+    "naomi": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Naomi.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Naomi.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "d8c91757a8771396fe6c11689737619366a187a898635a957d39dcb58ee1b11e"
+    },
+    "naomi2": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sega%20-%20Naomi%202.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sega%20-%20Naomi%202.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "449dad4dbf4360984f1b6ced2c76e205480a516df1ff9140360f9b3a11e55fa5"
+    },
+    "fbneo": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/FBNeo%20-%20Arcade%20Games.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/FBNeo%20-%20Arcade%20Games.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "ba541f99cdff09a2641ebe6231343b82662c1108da4fa3f82aaa49e655d10ff5"
+    },
+    "mame": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/MAME.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/MAME.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "907e0769d51540dd316906c56d0bc531f7402f7e9c58221e7c7c19f24e40d07c"
+    },
+    "cps1": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Capcom%20-%20CP%20System%20I.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Capcom%20-%20CP%20System%20I.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "1747ca35bd565f1340125f820de910dd5b143f57d130f78bb47e77701d98bd1a"
+    },
+    "cps2": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Capcom%20-%20CP%20System%20II.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Capcom%20-%20CP%20System%20II.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "f4dca3c69665d0cdcdc139e0c77c14f549be985953f4452eecce100e429076eb"
+    },
+    "cps3": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Capcom%20-%20CP%20System%20III.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Capcom%20-%20CP%20System%20III.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "6b017e346f9460c20579a3ef24dbaf59c2e7f9abd19b2fb1a8644304e672224d"
+    },
+    "ard": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Arduboy%20Inc%20-%20Arduboy.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Arduboy%20Inc%20-%20Arduboy.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "f382cc94044aabfcd111d52bd320981764d14a9fed62b33f46f8c789eb8da7cb"
+    },
+    "uze": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Uzebox.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Uzebox.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "086a30e19d15e685c050e80a1a524a6619139a32f5c6a5f8d34f5bb7b212bea5"
+    },
+    "wsv": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Watara%20-%20Supervision.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Watara%20-%20Supervision.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "9e1cda1b8a9c9e3e6c4219ce6bec99d77c7910e9bee736e94c13704e63671472"
+    },
+    "chf": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Fairchild%20-%20Channel%20F.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Fairchild%20-%20Channel%20F.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "0a375b0b688f758b5bd3cb636f242b6c94b47f785b2ba3cb2b2d9365c6605af9"
+    },
+    "mo2": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Magnavox%20-%20Odyssey2.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Magnavox%20-%20Odyssey2.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "578f2e8491a72bc4f25a9a4105534bad8cf3c95f79fb525558b8ed0be5f86eb3"
+    },
+    "a2001": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Emerson%20-%20Arcadia%202001.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Emerson%20-%20Arcadia%202001.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "6b403ccb88fa44de762e2922b8a19483c146cc812ccee64b498b22f017ff46b9"
+    },
+    "vc4k": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Interton%20-%20VC%204000.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Interton%20-%20VC%204000.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "35cfae49b9b9204172718786b93e677712ab6f3de2f43194a5941ce81b94297c"
+    },
+    "vect": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/GCE%20-%20Vectrex.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/GCE%20-%20Vectrex.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "2f6ac1305fd10fa7a0687b37b09ffe8adec99a9a25b4e82bc8ab2095d18ef08e"
+    },
+    "a2": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Apple%20-%20II.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Apple%20-%20II.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "cc5a1cba7e50a1ba8a3667571c1c14b46db53452fe3c983704619911d00b979c"
+    },
+    "amiga": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Commodore%20-%20Amiga.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Commodore%20-%20Amiga.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "4f9ead31efe806a579bd09199c0419e5eec1c51bf53fbfa8d294e21e2f021e54"
+    },
+    "ast": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%20ST.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%20ST.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "2f92b2f54db5c4520d5176c82cf6bc334791f412447083309112b7ddf3382ecd"
+    },
+    "bbcmicro": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Acorn%20-%20BBC%20Micro.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Acorn%20-%20BBC%20Micro.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "0c1fab6b588ab5f3fb531d3e060ba64f34d1e75d85be890cc3b1d5f4e615497e"
+    },
+    "c64": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Commodore%20-%2064.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Commodore%20-%2064.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "3fe9d59d277329932a1ad5b4316c0f0d0087c827e1315d92313ccc74d5464841"
+    },
+    "cpc": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Amstrad%20-%20CPC.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Amstrad%20-%20CPC.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "352d62f055a53e593a453465d15891fd147ea0c81de41c7574ae4547ff4b0412"
+    },
+    "msx": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Microsoft%20-%20MSX.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Microsoft%20-%20MSX.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "69c40f3a3792a9247edb6f362cbff9c192e3fcaa441310c10bff635dfb0c61a2"
+    },
+    "pc88": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC-8001%20-%20PC-8801.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC-8001%20-%20PC-8801.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "fa350732e91934ced735833b14aa97e03148103665cd13c4782b3425251e6dcc"
+    },
+    "pc98": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/NEC%20-%20PC-98.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/NEC%20-%20PC-98.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "442dbb65eea455ea041f55c46756f2110d7f2bb04b669772a4029c762618bea0"
+    },
+    "sharpx68000": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sharp%20-%20X68000.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sharp%20-%20X68000.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "7b48dc91f77ed1f6fa512d68755479cfa3c8beec2c6c6439f27eea4ebcee2ced"
+    },
+    "x1": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sharp%20-%20X1.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sharp%20-%20X1.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "6af106995d7bba8dea9999bc51bbb0b5fd73f587502ac6978a627f6632b6142c"
+    },
+    "zx81": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sinclair%20-%20ZX%2081.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sinclair%20-%20ZX%2081.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "f9c8200b8b76b9136c017e0963b3e9f71069093a6eb77f76fe21a9d20eff05be"
+    },
+    "zxspectrum": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sinclair%20-%20ZX%20Spectrum.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sinclair%20-%20ZX%20Spectrum.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "6015081ce99756aeca0782f0d761c3fcf7d16019bbd4dc7460c68368b6258d44"
+    },
+    "vic20": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Commodore%20-%20VIC-20.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Commodore%20-%20VIC-20.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "0bdd8247a09e2bee6ee71c0856a825ffae22568b0219a2c8489585dd2b6277ec"
+    },
+    "pet": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Commodore%20-%20PET.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Commodore%20-%20PET.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "2f5b8fb1650821c9ad7e1d0d35bf147bfa45aa599790fbf40d28c78a6dd780e4"
+    },
+    "plus4": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Commodore%20-%20Plus-4.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Commodore%20-%20Plus-4.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "eb9f8da246c1afcc1b42ffa9738c6953b52d876722ec59d8a71f90e6fb29ef94"
+    },
+    "dos": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/DOS.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/DOS.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "729a87bdadff353fbd1376aba2246f29b6bddb737197b0706bf76e91026b5009"
+    },
+    "palm": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Mobile%20-%20Palm%20OS.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Mobile%20-%20Palm%20OS.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "95c442a311f4a4bd1841a17e3138bd2df9bc8fabac63ab3f867a9efe8bf18923"
+    },
+    "rpgmaker": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/RPG%20Maker.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/RPG%20Maker.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "81e4763ed37b223c254d1185c6935bf294a4101006153e072d423848291f78a9"
+    },
+    "scummvm": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/ScummVM.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/ScummVM.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "b0b5a8ea745a2a80a1b3fa1a7bd17c7569e2fff31b500ae28e43991af5168b4f"
+    },
+    "wasm4": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/WASM-4.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/WASM-4.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "645a8325cf8cc59a29b61a53053e24c9797bccffb0d85b99e2a12afdb301c88f"
+    },
+    "tic80": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/TIC-80.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/TIC-80.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "a7503353477784d29479302acf1058fdbebfa39614506b9a640f27ae53c747e2"
+    },
+    "cdi": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Philips%20-%20CD-i.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Philips%20-%20CD-i.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "2d4b3a6747c16c36ce0c2e01a492186651c5c11254616ceb534decd02d1f8801"
+    },
+    "jagcd": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Atari%20-%20Jaguar%20CD.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Atari%20-%20Jaguar%20CD.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "1a49ab8761bd307e3d0b66ad74b5f01fd8c08d134041dd427e58ae203cab866b"
+    },
+    "vita": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20PlayStation%20Vita.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20PlayStation%20Vita.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "335a49bfc30754b57737543c42c2c6f352e201f0d059f21b9027a684927fb7f5"
+    },
+    "wiiu": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Nintendo%20-%20Wii%20U.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Nintendo%20-%20Wii%20U.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "befe8647fc8d2932e76e1fa22288aa3272ff08f5aaf2ef87d8e2a12686703cef"
+    },
+    "xbox": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Microsoft%20-%20Xbox.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Microsoft%20-%20Xbox.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "9b79cbeff29e98f9464e771c5a586b67fabc7b4d60f6921dd9d30c357049e1b5"
+    },
+    "xbox360": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Microsoft%20-%20Xbox%20360.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Microsoft%20-%20Xbox%20360.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "7b0e84488ae15da65159d9f9e7f04e50e2054c81db95c8925e9caa31226c59af"
+    },
+    "favorites": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/favorites.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/favorites.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "dad44b15433367d847f0642ed9528497362517a2fb8e11ada2c2c3e8d0a30aaa"
+    },
+    "music": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/music.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/music.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "e5981f3ea12f12f0cb95533869b5ded1bb5b7b9261ba3061bedadc009e967256"
+    },
+    "pspminis": {
+      "creator": "BAXY / baxysquare, Systematic series, Libretro asset contributors",
+      "source_png": "https://github.com/libretro/retroarch-assets/blob/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic/png/Sony%20-%20PlayStation%20Portable.png",
+      "source_svg": "https://github.com/baxysquare/baxy-retroarch-themes/blob/3798875e3a592b2b5d737212be3a2d4bc9454629/Systematic/src/svg/Sony%20-%20PlayStation%20Portable.svg",
+      "original_artwork_license": "MIT (BAXY README)",
+      "distribution_repo_license": "CC BY 4.0 (libretro/COPYING)",
+      "png_sha256": "4d86746fb1b63682110137192ec6f031e4a9dcd5bf38134c5bcfa367c5addf1d"
+    }
+  }
+}

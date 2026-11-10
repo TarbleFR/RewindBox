@@ -1,0 +1,18 @@
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/Emu/Cell/lv2/sys_process.cpp' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/Emu/CPU/JITCacheCompatibility.cmake' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/ios/RPCS3IOS.cpp' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/ios/NeoStationSavestateStatus.h' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/ios/IOSRestoreExecutor.h' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/Emu/RSX/rsx_cache.h' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/Emu/RSX/VK/VKDraw.cpp' is beyond a symbolic link
+error: affected file '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z/rpcs3/Emu/Cell/SPUThread.cpp' is beyond a symbolic link
+
+Traceback (most recent call last):
+  File "/workspace/scratch/e5c0462e637a/RewindBox/.github/diagnostics/rpcs3runtime_device601_core.py", line 333, in <module>
+    manifest, record, inputs, exports, codegen = source_contract(args.source.resolve())
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/e5c0462e637a/RewindBox/.github/diagnostics/rpcs3runtime_device601_core.py", line 140, in source_contract
+    support.run(['git', 'apply', '--reverse', '--unsafe-paths', '--directory', before, ROOT / DELTA],
+  File "/workspace/scratch/e5c0462e637a/RewindBox/.github/diagnostics/rpcs3runtime_device597_core.py", line 393, in run
+    raise RuntimeError('Command failed: ' + repr([str(x) for x in argv]))
+RuntimeError: Command failed: ['git', 'apply', '--reverse', '--unsafe-paths', '--directory', '/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias/rpcs3-followup-inverse-uk2df90z', '/workspace/scratch/e5c0462e637a/RewindBox/test/fixtures/rpcs3_device601.diff']

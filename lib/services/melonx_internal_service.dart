@@ -8,9 +8,10 @@ import 'package:stikjit_bridge/stikjit_bridge.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
 
 import 'config_service.dart';
-import 'jit_backend_preference_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
+import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
+import 'package:neostation/services/enhancements/enhancement_service.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -22,7 +23,8 @@ abstract final class MelonxInternalService {
   static const gameExtensions = {'nsp', 'xci', 'nro', 'nso'};
   static const _jit = MethodChannel('neostation/melonx_jit');
   static bool _launching = false;
-  static bool _editing = false;
+  static final libraryEditing = ValueNotifier(false);
+  static bool get _editing => libraryEditing.value;
   static bool _diagnosticsInstalled = false;
   static bool nativeQuarantined = false;
 
@@ -55,11 +57,27 @@ abstract final class MelonxInternalService {
     });
   }
 
+  /// A run can return while its native resources stay retained until RewindBox
+  /// restarts (failed or unproven teardown). The game has ended, but no other
+  /// Switch session may start. Unknown answers never clear a known quarantine.
+  static Future<bool> refreshSessionQuarantine() async {
+    try {
+      if (await channel.invokeMethod<Object?>('isSessionQuarantined') == true) {
+        nativeQuarantined = true;
+      }
+    } on PlatformException {
+      // Keep the current state.
+    } on MissingPluginException {
+      // Keep the current state.
+    }
+    return nativeQuarantined;
+  }
+
   /// Holds the native launch gate while files used by the engine are changed.
   /// Unknown/native-error states fail closed, including a pending JIT launch.
   static Future<T> editLibrary<T>(Future<T> Function() operation) async {
     if (_editing || _launching) throw StateError('libraryBusy');
-    _editing = true;
+    libraryEditing.value = true;
     var acquired = false;
     try {
       acquired =
@@ -70,7 +88,7 @@ abstract final class MelonxInternalService {
       try {
         if (acquired) await channel.invokeMethod<void>('endLibraryMutation');
       } finally {
-        _editing = false;
+        libraryEditing.value = false;
       }
     }
   }
@@ -104,10 +122,61 @@ abstract final class MelonxInternalService {
 
   static String _graphicsKey(String gamePath) =>
       'rewindbox.melonx.graphics.${path.normalize(gamePath).split('/Documents/').last}';
+
+  /// Per-game graphics choices are also kept in Documents. An update that
+  /// moves the app to a new container keeps Documents (library, caches,
+  /// saves) but can start with empty preferences: build 586, 28 October 2026,
+  /// launched Hogwarts Legacy at 1.0 right after the update although it was
+  /// set to 0.75 under build 585.
+  static Future<File?> Function() durableGraphicsFile = () async =>
+      Platform.isIOS
+          ? File(path.join((await rootDirectory()).path, 'rewindbox-graphics.json'))
+          : null;
+
+  static Future<Map<String, dynamic>> _durableGraphics(File? file) async {
+    try {
+      if (file == null || !await file.exists()) return {};
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : {};
+    } on Object {
+      return {};
+    }
+  }
+
+  static Future<void> _keepDurableGraphics(String key, String text) async {
+    try {
+      final file = await durableGraphicsFile();
+      if (file == null) return;
+      final all = await _durableGraphics(file);
+      if (all[key] == text) return;
+      all[key] = text;
+      final temporary = File('${file.path}.tmp');
+      await temporary.writeAsString(jsonEncode(all), flush: true);
+      await temporary.rename(file.path);
+    } on Object {
+      // The preference is the primary copy; Documents only backs it up.
+    }
+  }
+
   static Future<Map<String, dynamic>> graphicsForGame(String gamePath) async {
-    final text = (await SharedPreferences.getInstance()).getString(
-      _graphicsKey(gamePath),
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final key = _graphicsKey(gamePath);
+    var text = prefs.getString(key);
+    if (text == null) {
+      File? file;
+      try {
+        file = await durableGraphicsFile();
+      } on Object {
+        file = null;
+      }
+      final kept = (await _durableGraphics(file))[key];
+      if (kept is String) {
+        text = kept;
+        await prefs.setString(key, kept);
+      }
+    } else {
+      await _keepDurableGraphics(key, text);
+    }
     final decoded = text == null ? null : jsonDecode(text);
     final saved = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
     // Older preferences contain only resolution/filter. Fill missing options from
@@ -138,8 +207,38 @@ abstract final class MelonxInternalService {
           }
         }
       }
-      return {...migratedGraphics(values), ...saved};
+      final cleaned = await clearImportedThreading(
+        await SharedPreferences.getInstance(),
+        _graphicsKey(gamePath),
+        values,
+        saved,
+      );
+      return {...migratedGraphics(values), ...cleaned};
     }
+  }
+
+  static const _threadingCheckedKey = 'rewindbox.melonx.threadingImportChecked553';
+
+  /// Builds 549 to 551 imported the standalone config's stored threading Off
+  /// (1) as `backendThreading: false`, and any later per-game save kept it as
+  /// if the player had chosen it. Once per game, a stored false next to that
+  /// imported Off is cleared, so the engine default (On, as in the standalone
+  /// app) applies; a choice made afterwards is kept.
+  static Future<Map<String, dynamic>> clearImportedThreading(
+    SharedPreferences prefs,
+    String key,
+    Map<String, dynamic> imported,
+    Map<String, dynamic> saved,
+  ) async {
+    final checked = prefs.getStringList(_threadingCheckedKey) ?? const <String>[];
+    if (checked.contains(key)) return saved;
+    var result = saved;
+    if (imported['backendThreading'] == 1 && saved['backendThreading'] == false) {
+      result = Map<String, dynamic>.from(saved)..remove('backendThreading');
+      if (!await prefs.setString(key, jsonEncode(result))) return saved;
+    }
+    await prefs.setStringList(_threadingCheckedKey, [...checked, key]);
+    return result;
   }
 
   static Map<String, dynamic> migratedGraphics(Map<String, dynamic> source) {
@@ -156,6 +255,9 @@ abstract final class MelonxInternalService {
       result['vsync'] = source['vSyncMode'] == 0;
     else if (source['disableVSync'] is bool)
       result['vsync'] = !(source['disableVSync'] as bool);
+    // backendThreading is not imported: standalone MeloNX stores Off by
+    // default but forces On at every launch (RyujinxController), so its
+    // saved value never reached the engine there either.
     if (source['donateGuestMemory'] is bool) result['donateMemory'] = source['donateGuestMemory'];
     final aspect = source['aspectRatio'];
     if (aspect is int && aspect >= 0 && aspect <= 5) result['aspectRatio'] = aspect;
@@ -173,12 +275,25 @@ abstract final class MelonxInternalService {
     String gamePath,
     Map<String, dynamic> settings,
   ) async {
-    if (!await (await SharedPreferences.getInstance()).setString(
-      _graphicsKey(gamePath),
-      jsonEncode(settings),
-    )) {
+    final key = _graphicsKey(gamePath);
+    final text = jsonEncode(settings);
+    if (!await (await SharedPreferences.getInstance()).setString(key, text)) {
       throw StateError('Graphics configuration could not be saved');
     }
+    await _keepDurableGraphics(key, text);
+  }
+
+  /// A library row written before an update can still name the previous
+  /// container (`/var/mobile/Containers/Data/Application/<old>/Documents/...`)
+  /// until the next scan; the same file now lives under this container's
+  /// Documents (build 586, 28 October 2026: the first Hogwarts Legacy launch
+  /// after the update failed with localGameRequired, the next one worked).
+  static Future<String> inCurrentDocuments(String gamePath) async {
+    final marker = gamePath.indexOf('/Documents/');
+    if (marker < 0 || await File(gamePath).exists()) return gamePath;
+    final documents = await getApplicationDocumentsDirectory();
+    final moved = path.join(documents.path, gamePath.substring(marker + '/Documents/'.length));
+    return moved != gamePath && await File(moved).exists() ? moved : gamePath;
   }
 
   static Future<bool> runtimeAvailable() async {
@@ -238,6 +353,20 @@ abstract final class MelonxInternalService {
     }
   }
 
+  /// RewindBox catalogue cheats the player did not choose in RewindBox are
+  /// disabled before the game starts. Never blocks a launch.
+  static Future<void> _disableUnlistedCatalogueCheats() async {
+    try {
+      final chosen = MelonxEnhancementAdapter.chosenKeys(await EnhancementService.instance.store.all());
+      final titles = await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(await rootDirectory(), chosen);
+      if (titles.isNotEmpty) {
+        MelonxLaunchDiagnostics.record('cheats', 'unchosenDisabled', {'titles': titles.join(',')});
+      }
+    } catch (error) {
+      MelonxLaunchDiagnostics.record('cheats', 'unlistedCheckFailed', {'error': error.runtimeType.toString()});
+    }
+  }
+
   static Future<Map<String, dynamic>> launch({
     required String gamePath,
     required String locale,
@@ -284,6 +413,7 @@ abstract final class MelonxInternalService {
       if (!Platform.isIOS || isRetiredLink(gamePath)) {
         return {'success': false, 'error': 'localGameRequired'};
       }
+      gamePath = await inCurrentDocuments(gamePath);
       MelonxLaunchDiagnostics.record('file', 'begin');
       if (!gameExtensions.contains(
             path.extension(gamePath).replaceFirst('.', '').toLowerCase(),
@@ -300,6 +430,7 @@ abstract final class MelonxInternalService {
           'diagnostic': 'The local game file is empty.',
         };
       MelonxLaunchDiagnostics.record('file', 'passed', {'bytes': bytes});
+      await _disableUnlistedCatalogueCheats();
       MelonxLaunchDiagnostics.record('entitlements', 'begin');
       final accessFailure = await verifyMemoryAccess();
       if (accessFailure != null) return accessFailure;
@@ -327,11 +458,10 @@ abstract final class MelonxInternalService {
       } catch (_) {
         // Diagnostic I/O must never prevent an otherwise valid game launch.
       }
-      final external = await JitBackendPreferenceService.useStikDebugFallback();
+      // The integrated helper is the only JIT method. The removed StikDebug
+      // fallback ran the pre-iOS 26 RX/RW probe, which iOS 26 kills.
       MelonxLaunchDiagnostics.record('jitHelper', 'begin', {
-        'diagnostic': external
-            ? 'User-selected external JIT method.'
-            : 'User-selected embedded helper with LocalDevVPN route.',
+        'diagnostic': 'Embedded helper with LocalDevVPN route.',
       });
       if (report?['jitArenaReady'] == true) {
         final state = await _jit.invokeMapMethod<String, dynamic>('status');
@@ -344,7 +474,7 @@ abstract final class MelonxInternalService {
                 'The RewindBox process no longer has JIT authorization.',
           };
       }
-      if (report?['jitArenaReady'] != true && !external) {
+      if (report?['jitArenaReady'] != true) {
         if (!await PairingFileService.hasStoredPairingFile()) {
           final title = context != null && context.mounted
               ? PairingFileLocale.get(context, PairingFileLocale.pickerTitle)
@@ -377,7 +507,7 @@ abstract final class MelonxInternalService {
       final response = await channel.invokeMethod<Object?>('launch', {
         'gamePath': gamePath,
         'locale': locale,
-        'jitBackend': external ? 'external' : 'builtin',
+        'jitBackend': 'builtin',
         'graphics': await graphicsForGame(gamePath),
       });
       final result = response is Map

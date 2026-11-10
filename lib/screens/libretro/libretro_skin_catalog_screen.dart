@@ -77,6 +77,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
   bool _loading = true;
   bool _failed = false;
   bool _checking = false;
+  bool _awaitingRemote = false;
   bool _favoritesOnly = false;
   bool _showHidden = false;
   String _query = '';
@@ -87,6 +88,9 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
   /// Bumped by each load and on dispose: a classification of an older load
   /// stops and its results are ignored.
   int _generation = 0;
+
+  /// Local and merged entries are classified independently within one load.
+  int _classification = 0;
 
   String _t(String key) => LibretroLocale.text(context, key);
   String _f(String key, Map<String, Object?> values) => LibretroLocale.formatContext(context, key, values);
@@ -132,10 +136,10 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
   }
 
   /// Back where the page was left, once its entries are laid out.
-  void _restoreOffset() {
+  void _restoreOffset(int generation) {
     if (_offsetRestored) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _offsetRestored) return;
+      if (!mounted || generation != _generation || _offsetRestored) return;
       _offsetRestored = true;
       if (!_scroll.hasClients) return;
       final target = _view.offset.clamp(0.0, _scroll.position.maxScrollExtent).toDouble();
@@ -152,8 +156,20 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
     return !(size.width > size.height && size.shortestSide < 600);
   }
 
+  // A saved remote source must not hide the bundled entries while that
+  // source is loading or unavailable. Keep the saved choice for a later load.
+  String? get _visibleSource {
+    final source = _source;
+    if (source == null) return null;
+    if ((_awaitingRemote || _unavailable.contains(source)) &&
+        !_entries.any((entry) => entry.belongsToSource(source))) {
+      return null;
+    }
+    return _entries.any((entry) => entry.belongsToSource(source)) ? source : null;
+  }
+
   int get _activeFilters =>
-      (_source == null ? 0 : 1) + (_orientation == null ? 0 : 1) + (_favoritesOnly ? 1 : 0);
+      (_visibleSource == null ? 0 : 1) + (_orientation == null ? 0 : 1) + (_favoritesOnly ? 1 : 0);
 
   void _retry() {
     setState(() {
@@ -165,56 +181,95 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
 
   Future<void> _load({bool refresh = false}) async {
     final generation = ++_generation;
-    List<LibretroCatalogSkin>? entries;
+    _classification++;
+    _offsetRestored = false;
+    _awaitingRemote = true;
+    var local = const <LibretroCatalogSkin>[];
     final favorites = <String>{};
     try {
-      entries = await _catalogs.load(refresh: refresh);
       favorites.addAll(await _catalogs.favorites());
+    } catch (error) {
+      _log.w('Libretro skin favorites failed: $error');
+    }
+    try {
+      local = LibretroSkinCatalogs.forConsole(await _catalogs.bundledEntries(), widget.console);
+    } catch (error) {
+      _log.w('Bundled controller skins failed: $error');
+    }
+    if (!mounted || generation != _generation) return;
+    setState(() {
+      _entries = local;
+      _loading = local.isEmpty;
+      _failed = false;
+      _checking = false;
+      _unavailable = const <String>{};
+      _verdicts.clear();
+      _favorites
+        ..clear()
+        ..addAll(favorites);
+    });
+    if (local.isNotEmpty) unawaited(_classify(generation));
+
+    List<LibretroCatalogSkin>? entries;
+    try {
+      entries = await _catalogs.load(refresh: refresh);
     } catch (error) {
       _log.w('Libretro skin catalogs failed: $error');
     }
     if (!mounted || generation != _generation) return;
     final unavailable = _catalogs.unavailableSources;
-    // The overlay index ships with NeoStation: without any online catalog
-    // (Provenance, cached or not, and the Delta Skins site) nothing can be
-    // checked or downloaded, the overlays included.
+    // The overlay index alone cannot provide downloadable skins offline.
+    // The original archives, in contrast, are already in the application.
     final offline = unavailable.contains(LibretroSkinSources.provenance) &&
         unavailable.contains(LibretroSkinSources.deltaSkins);
+    final available = entries ?? local;
+    final merged = LibretroSkinCatalogs.forConsole(
+      offline ? available.where((entry) => entry.bundled != null).toList() : available,
+      widget.console,
+    );
     setState(() {
+      _classification++;
+      _awaitingRemote = false;
       _loading = false;
-      _failed = entries == null || offline;
-      _entries = _failed ? const <LibretroCatalogSkin>[] : LibretroSkinCatalogs.forConsole(entries!, widget.console);
+      _failed = merged.isEmpty && (entries == null || offline);
+      _entries = merged;
       _unavailable = unavailable;
-      _verdicts.clear();
-      _favorites
-        ..clear()
-        ..addAll(favorites);
-      if (_source != null && !_entries.any((entry) => entry.belongsToSource(_source!))) _source = null;
+      _verdicts.removeWhere((key, _) => !merged.any((entry) => entry.key == key));
+      // Keep the current favorites: they may have changed while the remote
+      // catalog was pending. Reapplying the old snapshot loses those taps.
     });
     if (!_failed) {
-      _restoreOffset();
+      _restoreOffset(generation);
       unawaited(_classify(generation));
+    } else {
+      setState(() => _checking = false);
     }
   }
 
   Future<void> _classify(int generation) async {
+    if (!mounted || generation != _generation) return;
+    final classification = ++_classification;
     final entries = _entries;
-    if (entries.isEmpty) return;
+    if (entries.isEmpty) {
+      setState(() => _checking = false);
+      return;
+    }
     setState(() => _checking = true);
+    bool cancelled() => !mounted || generation != _generation || classification != _classification;
     try {
       await _catalogs.classifyAll(
         entries,
         widget.console,
         onVerdict: (entry, verdict) {
-          if (!mounted || generation != _generation) return;
+          if (cancelled()) return;
           setState(() => _verdicts[entry.key] = verdict);
         },
-        cancelled: () => !mounted || generation != _generation,
+        cancelled: cancelled,
       );
     } catch (error) {
       _log.w('Libretro skin compatibility check failed: $error');
     }
-    if (!mounted || generation != _generation) return;
+    if (cancelled()) return;
     setState(() => _checking = false);
   }
 
@@ -254,7 +309,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
 
   /// Entries matching the search, source and favorites filters.
   List<LibretroCatalogSkin> get _matching => LibretroSkinCatalogs.search(_entries, _query)
-      .where((entry) => _source == null || entry.belongsToSource(_source!))
+      .where((entry) => _visibleSource == null || entry.belongsToSource(_visibleSource!))
       .where((entry) => !_favoritesOnly || _favorites.contains(entry.key))
       .toList();
 
@@ -396,9 +451,9 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
             spacing: 8,
             runSpacing: 4,
             children: [
-              _chip(_t('catalogSourcesAll'), _source == null, () => change(() => _source = null)),
+              _chip(_t('catalogSourcesAll'), _visibleSource == null, () => change(() => _source = null)),
               for (final source in sources)
-                _chip(LibretroSkinSources.label(source), _source == source, () => change(() => _source = source)),
+                _chip(LibretroSkinSources.label(source), _visibleSource == source, () => change(() => _source = source)),
             ],
           ),
           const SizedBox(height: 4),
@@ -721,6 +776,32 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
   }
 
   Widget _preview(LibretroCatalogSkin entry, Size size) {
+    final bundled = entry.bundled;
+    if (bundled != null) {
+      final previews = bundled.previewAssets.entries
+          .where((preview) => _orientation == null || preview.key == _orientation)
+          .toList();
+      if (previews.isEmpty) return _Thumbnail(url: null, size: size);
+      final ratio = MediaQuery.devicePixelRatioOf(context);
+      return SizedBox(
+        width: size.width,
+        height: size.height,
+        child: Row(children: [
+          for (final preview in previews)
+            Expanded(child: Semantics(
+              label: _t(preview.key == 'portrait' ? 'orientationPortrait' : 'orientationLandscape'),
+              image: true,
+              child: Image.asset(
+                preview.value,
+                fit: BoxFit.contain,
+                gaplessPlayback: true,
+                cacheWidth: (size.longestSide * ratio).round().clamp(1, 2400).toInt(),
+                errorBuilder: (context, error, stackTrace) => _Thumbnail(url: null, size: size),
+              ),
+            )),
+        ]),
+      );
+    }
     final overlay = entry.overlay;
     if (overlay == null) return _Thumbnail(url: entry.thumbnailURL, size: size);
     return SizedBox(

@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "tag": "v10.0.0",
+  "revision": "60629d14374c56f1cb51819049ad1fa529307f8d",
+  "patchSha256": "018214fb546d305f729f60d6895f94b0d3c6fe76af14f1d5fb2b061f52ba3824",
+  "run": null,
+  "job": null,
+  "headSha": null,
+  "artifact": null,
+  "artifactName": null,
+  "artifactBytes": null,
+  "artifactDigest": null,
+  "artifactExpires": null,
+  "libraries": {
+    "ios-arm64": {
+      "sha256": null,
+      "bytes": null,
+      "officialSha256": "44b780ba8bcaa1261cca8f7a28fcc95de8623b242f1f94c290e2cb29f9757f33"
+    },
+    "iossimulator-arm64": {
+      "sha256": null,
+      "bytes": null,
+      "officialSha256": "39fea820ec5cf2cd9cdb8e20a42c5ca5f1eb91084a8ec131c2b6e384a0d68ec5"
+    }
+  },
+  "summary": null
+}

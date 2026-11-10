@@ -1,0 +1,26 @@
+{
+  "mode": "plain",
+  "status": "generated",
+  "executed": false,
+  "baseline": "/workspace/scratch/144c744e94bb/cpu-review/baseline",
+  "source": "/workspace/scratch/144c744e94bb/cpu-review/core",
+  "program_sha256": "de97288b323674b7ee761754051fe76f299af71461f9262a13e44c87df48bf29",
+  "sources": {
+    "old": {
+      "list_sha256": "0a7021163cc583a1ad0f32fa93fd3729d22709de86ac1c676954635b127acfb3",
+      "queue_sha256": "90b6ee9085a647c61ae2502cfbda23fa876c4abf9c278382fa99e9ada466ac4b"
+    },
+    "new": {
+      "list_sha256": "fee7ad6dcbf25cb3d171593c3ec7553e8a1bfc00022e1840f6a97ad5dea93dc3",
+      "queue_sha256": "90b6ee9085a647c61ae2502cfbda23fa876c4abf9c278382fa99e9ada466ac4b"
+    }
+  },
+  "scope": "Complete production do_list_transfer and do_mfc; bounded host adapters for VM, vector storage, locks, IRQ, timing, generic DMA; not real GPU/ARM64 concurrency or iPhone gameplay.",
+  "limitations": [
+    "The original zero-element underflow is intercepted by the copy adapter after the initial 16-byte store and before the next 128-byte copy; no four-GiB overwrite is executed.",
+    "Native ARM64 instructions, iOS vector-copy specialization, and hardware concurrency are not executed.",
+    "No FPS, device RSS, or game-scene resolution claim."
+  ],
+  "reference_result": "/workspace/scratch/144c744e94bb/cpu-review/evidence/asan-ubsan-result.json",
+  "matches_reference_program": true
+}

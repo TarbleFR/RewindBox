@@ -1,0 +1,284 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -31,8 +31,11 @@
+     # All are host code that SPU objects call, not code they contain:
+     # generated objects are unchanged. Keep the 546 identity for this exact
+     # source snapshot only.
++    # Runtime MFC/timer follow-up: only do_mfc's host clock mask and the
++    # decrementer timer worker change. SPU layout, translator, helper symbols,
++    # relocation targets and every other SPUThread.cpp body remain identical.
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+-           actual STREQUAL "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c")
++           actual STREQUAL "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -4062,8 +4062,15 @@
+ 	auto get_exec_mask = [&size = mfc_size]
+ 	{
+ 		// Get commands' execution mask
+-		// Mask bits are always set when mfc_transfers_shuffling is 0
+-		return static_cast<u16>((0 - (1u << std::min<u32>(g_cfg.core.mfc_transfers_shuffling, size))) | utils::get_tsc());
++		const u32 shuffle_count = std::min<u32>(g_cfg.core.mfc_transfers_shuffling, size);
++		if (!shuffle_count)
++		{
++			// All commands are enabled. Reading the host clock cannot affect
++			// this mask, including an empty queue with shuffling enabled.
++			return u16{0xffff};
++		}
++
++		return static_cast<u16>((0 - (1u << shuffle_count)) | utils::get_tsc());
+ 	};
+ 
+ 	// Process enqueued commands
+@@ -5683,19 +5690,27 @@
+ 			sleep_us = umax;
+ 			{
+ 				std::lock_guard lock(mutex);
+-				for (auto it = armed.begin(); it != armed.end();)
+-				{
+-					if (it->due <= now)
+-					{
+-						due_entries.push_back(*it);
+-						it = armed.erase(it);
+-						continue;
++				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
++				{
++					if (pending.due <= now)
++					{
++						if (due_entries.empty())
++						{
++							// Allocate before compacting the queue. Entry copies and
++							// moves cannot throw, so no allocation can interrupt it.
++							due_entries.reserve(armed.size());
++						}
++						due_entries.push_back(pending);
++						return true;
+ 					}
+ 					// The guest timebase runs at 80 MHz times clocks_scale / 100.
+-					const u64 us = (it->due - now) * 100 / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
++					const u64 us = (pending.due - now) * 100 / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
+ 					sleep_us = std::min(sleep_us, us);
+-					++it;
+-				}
++					return false;
++				});
++				// Preserve notification and pending-entry order while moving each
++				// survivor at most once, rather than shifting it after every expiry.
++				armed.erase(pending_end, armed.end());
+ 			}
+ 			for (const auto& e : due_entries)
+ 			{
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -628,10 +628,11 @@
+ 			return true;
+ 		}
+ 
+-		// CELL581_TEXTURE_PREHASH: the worker's hash of this range taken in this epoch,
++		// CELL581_TEXTURE_PREHASH: a completed hash of this range taken in this epoch,
+ 		// unless an RSX write inside the epoch revalidates the section.
+ 		u64 hash = 0;
+ 		bool prehashed = false;
++		bool share_hash = false;
+ 
+ 		if (epoch && rpcs3::ios::texture_prehash::enabled.load(std::memory_order_relaxed))
+ 		{
+@@ -639,6 +640,7 @@
+ 
+ 			if (range.length() >= rpcs3::ios::texture_prehash::min_bytes)
+ 			{
++				share_hash = !prehash_bypass;
+ 				prehashed = !prehash_bypass && rpcs3::ios::texture_prehash::lookup(range.start, range.length(), epoch, hash);
+ 				rpcs3::ios::texture_prehash::record(range.start, range.length(), !prehash_bypass);
+ 				(prehashed ? rpcs3::ios::texture_prehash::hits : rpcs3::ios::texture_prehash::misses).fetch_add(1, std::memory_order_relaxed);
+@@ -655,6 +657,14 @@
+ 		if (!prehashed)
+ 		{
+ 			hash = fast_hash_internal();
++			if (share_hash && rpcs3::ios::texture_validation::current_epoch() == epoch)
++			{
++				// Another section of the same range, or the worker, can reuse
++				// these bytes in this epoch. Scoped writes always keep their own
++				// hash, even if another overlapping section was revalidated first.
++				const auto& range = confirmed_range.valid() ? confirmed_range : cpu_range;
++				rpcs3::ios::texture_prehash::publish(range.start, range.length(), epoch, hash);
++			}
+ 		}
+ 
+ 		const bool unchanged = (hash == mem_hash);
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+@@ -118,7 +118,14 @@
+ 		m_dynamic_state.clear();
+ 		m_bound_pipelines[0] = VK_NULL_HANDLE;
+ 		m_bound_pipelines[1] = VK_NULL_HANDLE;
++#ifdef RPCS3_IOS
++		for (auto& binding : m_descriptor_bindings)
++		{
++			binding.count = 0;
++		}
++#else
+ 		m_bound_descriptor_sets[0] = VK_NULL_HANDLE;
++#endif
+ 	}
+ 
+ 	void command_buffer::begin()
+@@ -292,6 +299,44 @@
+ 		if (changed) vkCmdSetStencilReference(commands, changed, value);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	bool command_buffer::update_descriptor_binding_cache(const std::span<VkDescriptorSet>& sets,
++		VkPipelineBindPoint bind_point, VkPipelineLayout layout, bool has_dynamic_offsets) const
++	{
++		ensure(is_open && sets.size() <= 2);
++		if (sets.empty())
++		{
++			return false;
++		}
++		if (bind_point != VK_PIPELINE_BIND_POINT_GRAPHICS && bind_point != VK_PIPELINE_BIND_POINT_COMPUTE)
++		{
++			// Preserve pass-through behavior for any future pipeline type.
++			return true;
++		}
++
++		// Vulkan keeps descriptor bindings independently for each pipeline type.
++		// Require the exact layout; compatibility between different layouts is
++		// intentionally not inferred from descriptor handles alone.
++		auto& cached = m_descriptor_bindings[static_cast<u32>(bind_point)];
++		if (has_dynamic_offsets)
++		{
++			// Dynamic offsets are consumed at bind time. Keep their existing path
++			// and invalidate only this pipeline type's non-dynamic cache.
++			cached.count = 0;
++			return true;
++		}
++		if (cached.count == sets.size() && cached.layout == layout &&
++			!std::memcmp(cached.sets.data(), sets.data(), sets.size_bytes()))
++		{
++			return false;
++		}
++		cached.layout = layout;
++		cached.count = ::size32(sets);
++		std::memcpy(cached.sets.data(), sets.data(), sets.size_bytes());
++		return true;
++	}
++#endif
++
+ 	void command_buffer::bind_descriptor_sets(
+ 		const std::span<VkDescriptorSet>& sets,
+ 		const std::span<u32>& dynamic_offsets,
+@@ -301,6 +346,12 @@
+ 		const u32 num_sets = ::size32(sets);
+ 		ensure(num_sets <= 2);
+ 
++#ifdef RPCS3_IOS
++		if (!update_descriptor_binding_cache(sets, bind_point, pipe_layout, !dynamic_offsets.empty()))
++		{
++			return;
++		}
++#else
+ 		if (dynamic_offsets.empty() &&
+ 			!memcmp(sets.data(), m_bound_descriptor_sets.data(), sets.size_bytes()))
+ 		{
+@@ -308,6 +359,7 @@
+ 		}
+ 
+ 		std::memcpy(m_bound_descriptor_sets.data(), sets.data(), sets.size_bytes());
++#endif
+ 		vkCmdBindDescriptorSets(commands, bind_point, pipe_layout, 0, num_sets, sets.data(), ::size32(dynamic_offsets), dynamic_offsets.data());
+ 	}
+ 
+@@ -319,12 +371,19 @@
+ 		const u32 num_sets = ::size32(sets);
+ 		ensure(is_open && num_sets <= 2);
+ 
++#ifdef RPCS3_IOS
++		if (!update_descriptor_binding_cache(sets, bind_point, pipe_layout, false))
++		{
++			return;
++		}
++#else
+ 		if (!memcmp(sets.data(), m_bound_descriptor_sets.data(), sets.size_bytes()))
+ 		{
+ 			return;
+ 		}
+ 
+ 		std::memcpy(m_bound_descriptor_sets.data(), sets.data(), sets.size_bytes());
++#endif
+ 		vkCmdBindDescriptorSets(commands, bind_point, pipe_layout, 0, num_sets, sets.data(), 0, nullptr);
+ 	}
+ }
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+@@ -77,7 +77,19 @@
+ 		VkCommandBuffer commands = nullptr;
+ 
+ 		// State cache
++#ifdef RPCS3_IOS
++		struct descriptor_binding_state
++		{
++			VkPipelineLayout layout = VK_NULL_HANDLE;
++			std::array<VkDescriptorSet, 2> sets{};
++			u32 count = 0;
++		};
++		mutable std::array<descriptor_binding_state, 2> m_descriptor_bindings{};
++		bool update_descriptor_binding_cache(const std::span<VkDescriptorSet>& sets,
++			VkPipelineBindPoint bind_point, VkPipelineLayout layout, bool has_dynamic_offsets) const;
++#else
+ 		mutable std::array<VkDescriptorSet, 2> m_bound_descriptor_sets {{ VK_NULL_HANDLE }};
++#endif
+ 		mutable std::array<VkPipeline, 2> m_bound_pipelines{{ VK_NULL_HANDLE }};
+ 		mutable dynamic_state_cache m_dynamic_state;
+ 
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -48,7 +48,8 @@
+ 
+ struct result_slot
+ {
+-	// Even: stable; odd: being written (single writer: the worker).
++	// Even: stable; odd: being written. The worker and synchronous validators
++	// share completed hashes; a contended publication is simply abandoned.
+ 	std::atomic<std::uint64_t> seq{0};
+ 	std::atomic<std::uint64_t> key{0};
+ 	std::atomic<std::uint64_t> epoch{0};
+@@ -74,7 +75,7 @@
+ 	return static_cast<std::size_t>((key * 0x9E3779B97F4A7C15ull) >> 52) & (table_size - 1);
+ }
+ 
+-// Any thread: the worker's hash of [start, start + length) taken in `epoch`.
++// Any thread: a completed hash of [start, start + length) taken in `epoch`.
+ inline bool lookup(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t& out) noexcept
+ {
+ 	const std::uint64_t key = make_key(start, length);
+@@ -100,13 +101,17 @@
+ 	return true;
+ }
+ 
+-// Worker thread only.
++// Any producer. Try once: validation must never wait for speculative work.
+ inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t hash) noexcept
+ {
+ 	const std::uint64_t key = make_key(start, length);
+ 	auto& slot = table[slot_of(key)];
+-	const std::uint64_t seq = slot.seq.load(std::memory_order_relaxed);
+-	slot.seq.store(seq + 1, std::memory_order_relaxed);
++	std::uint64_t seq = slot.seq.load(std::memory_order_relaxed);
++	if ((seq & 1) || !slot.seq.compare_exchange_strong(seq, seq + 1,
++		std::memory_order_acquire, std::memory_order_relaxed))
++	{
++		return;
++	}
+ 	// Release stores: whoever reads one of them also sees the odd sequence before it.
+ 	slot.key.store(key, std::memory_order_release);
+ 	slot.epoch.store(epoch, std::memory_order_release);

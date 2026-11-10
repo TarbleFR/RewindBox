@@ -1,0 +1,55 @@
+--- delivered597/dma-mmio
++++ integrated/dma-mmio
+@@ -862,6 +862,22 @@
+ 
+ 	u32 eal = args.eal;
+ 	u32 lsa = args.lsa & 0x3ffff;
++#ifdef RPCS3_IOS
++	// Capture the session before the copy; a completion from a previous
++	// session must never appear as a producer of a new session's acquire.
++	const auto label_trace = !is_get && eal < RAW_SPU_BASE_ADDR
++		? rpcs3::ios::signal_trace::overlap(eal, args.size) : rpcs3::ios::signal_trace::watch_token{};
++	const auto trace_dma_commit = [&]
++	{
++		if (label_trace)
++		{
++			const bool owner = _this && get_current_cpu_thread<spu_thread>() == _this;
++			rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_dma_commit,
++				0, get_system_time(),
++				args.eal, args.size, _this ? _this->id : 0, owner ? _this->pc : 0, args.cmd);
++		}
++	};
++#endif
+ 
+ 	// Keep src point to const
+ 	u8* dst = nullptr;
+@@ -1322,6 +1338,9 @@
+ 				std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 			}
+ 
++#ifdef RPCS3_IOS
++			trace_dma_commit();
++#endif
+ 			return;
+ 		}
+ 		else
+@@ -1534,6 +1553,9 @@
+ 			std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 		}
+ 
++#ifdef RPCS3_IOS
++		trace_dma_commit();
++#endif
+ 		return;
+ 	}
+ 
+@@ -1610,6 +1632,9 @@
+ 		dump.block_hash = _this->block_hash;
+ 		std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 	}
++#ifdef RPCS3_IOS
++	trace_dma_commit();
++#endif
+ }
+ static u32 failures=0,group_put_cases=0,group_get_cases=0,ram_cases=0,raw_cases=0,invalid_offset_cases=0,snr_cases=0;
+ static u32 old_group_faults=0,new_group_faults=0,old_atomic_misroutes=0,new_atomic_misroutes=0;

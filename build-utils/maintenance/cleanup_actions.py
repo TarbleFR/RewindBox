@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 
-REPOSITORY = "TarbleFR/neostation-ios"
+REPOSITORY = "TarbleFR/RewindBox"
 BRANCH = "Claude"
 API_URL = "https://api.github.com"
 PREFIX = f"/repos/{REPOSITORY}"
@@ -129,6 +129,10 @@ def validate_plan(plan: object, now: datetime | None = None) -> dict:
         ids.append(positive_id(item.get("id")))
     if len(ids) != len(set(ids)):
         raise SafetyError("Duplicate explicit protected run IDs")
+    if plan.get('skipped_only') is True:
+        protected_ids = set(ids)
+        if any(r.get('conclusion') != 'skipped' and r['id'] not in protected_ids for r in runs):
+            raise SafetyError('Skipped-only policy must explicitly protect every other conclusion')
     return plan
 
 
@@ -235,6 +239,7 @@ class GitHubAPI:
 
     def request(self, method: str, path: str) -> tuple[int, bytes]:
         allowed_get = (re.fullmatch(re.escape(PREFIX) + r"/actions/runs\?per_page=100&page=[1-9][0-9]*", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
                        or path in (PREFIX + "/git/ref/heads/Claude", PREFIX + "/git/ref/heads/main"))
         allowed_delete = re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
         if not ((method == "GET" and allowed_get) or (method == "DELETE" and allowed_delete)):
@@ -331,18 +336,25 @@ def list_all_runs(api) -> list[dict]:
         runs.extend(validate_run(item) for item in part)
     if len(runs) != total:
         raise SafetyError("Unique enumeration does not match total_count")
-    validate_order(runs)
+    # Across GitHub workers, timestamps may invert while IDs stay stable.
+    # Detect shifted/duplicate pages, then sort the complete set locally.
+    if len({run['id'] for run in runs}) != len(runs):
+        raise SafetyError('Duplicate run IDs: pagination moved; refusing cleanup')
     # Detect insertion/deletion at the first-page boundary while later pages
     # were read. There is no API transaction spanning this listing and DELETE.
     check = api.get_json(PREFIX + "/actions/runs?per_page=100&page=1")
     if check.get("total_count") != total or [r.get("id") for r in check.get("workflow_runs", [])] != [r["id"] for r in runs[:100]]:
         raise SafetyError("First page moved during pagination; refusing cleanup")
-    return runs
+    return sorted(runs, key=run_key, reverse=True)
 
 
-def check_refs(api, expected_claude_sha: str, main_sha: str) -> None:
+def check_refs(api, expected_claude_sha: str, main_sha: str, *, allow_claude_advance=False) -> None:
     for branch, expected in (("Claude", expected_claude_sha), ("main", main_sha)):
         response = api.get_json(PREFIX + "/git/ref/heads/" + branch)
+        if branch == 'Claude' and allow_claude_advance:
+            # The immutable skipped-only plan never targets any executed job.
+            # Product pushes may continue while these fixed old IDs are cleaned.
+            continue
         if response.get("object", {}).get("sha") != expected:
             raise SafetyError(f"{branch} SHA changed; no further deletion is authorized")
 
@@ -370,6 +382,8 @@ def refresh_selection(plan: dict, current: list[dict], sticky: dict[int, set[str
             raise SafetyError(f"Snapshot identity changed for run {rid}")
         if run["status"] != "completed":
             sticky.setdefault(rid, set()).add("currently_active")
+        if plan.get('skipped_only') is True and run.get('conclusion') != 'skipped':
+            sticky.setdefault(rid, set()).add('not_skipped_currently')
         observed = observations.get(rid, prior)
         if "run_attempt" in observed and run.get("run_attempt") != observed["run_attempt"]:
             sticky.setdefault(rid, set()).add("rerun_since_snapshot_or_observation")
@@ -440,7 +454,7 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
     expected_sha = validate_execution_context(plan, environment, event or {}) if execute else None
     executing_run = int(environment["GITHUB_RUN_ID"]) if environment.get("GITHUB_RUN_ID", "").isdigit() else None
     if execute:
-        check_refs(api, expected_sha, plan["main_sha"])
+        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
     current = list_all_runs(api)
     sticky: dict[int, set[str]] = {}
     observations: dict[int, dict] = {}
@@ -464,7 +478,7 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
 
     def revalidate_after_quota_pause(run_id: int) -> None:
         validate_plan(plan)
-        check_refs(api, expected_sha, plan["main_sha"])
+        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
         fresh = list_all_runs(api)
         eligible = refresh_selection(plan, fresh, sticky, observations, executing_run)
         journal.event("quota_resume_revalidated", total=len(fresh), candidate_count=len(eligible))
@@ -486,11 +500,18 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
             if journal.state["delete_attempts"] >= plan["max_deletions"]:
                 raise SafetyError("Deletion attempt bound reached")
             if journal.state["delete_attempts"] % CHECK_REFS_EVERY == 0:
-                check_refs(api, expected_sha, plan["main_sha"])
+                check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
             rid = run["id"]
             # Defense in depth: never let a changed selection produce a new ID.
             if rid in sticky or rid not in {r["id"] for r in plan["snapshot_runs"]} or run["status"] != "completed":
                 raise SafetyError("Deletion target failed the final snapshot membership guard")
+            if plan.get('skipped_only') is True:
+                live = api.get_json(PREFIX + f'/actions/runs/{rid}')
+                fields = ('id', 'created_at', 'head_sha', 'path', 'status', 'conclusion', 'run_attempt', 'updated_at')
+                if live.get('conclusion') != 'skipped' or any(live.get(k) != run.get(k) for k in fields):
+                    sticky.setdefault(rid, set()).add('changed_at_individual_pre_delete_check')
+                    journal.event('preserved_changed_run', run_id=rid)
+                    continue
             journal.state["delete_attempts"] += 1
             attempted.add(rid)
             journal.event("delete_requested", run_id=rid, head_sha=run["head_sha"], created_at=run["created_at"])
@@ -510,13 +531,13 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
                       f"{len(journal.state['deleted_run_ids'])} deleted; "
                       f"{len(journal.state['conflict_run_ids'])} conflicts retained", flush=True)
             api.pace()
-        check_refs(api, expected_sha, plan["main_sha"])
+        check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
         current = list_all_runs(api)
         candidates = refresh_selection(plan, current, sticky, observations, executing_run)
         journal.state["remaining_candidate_count"] = len([r for r in candidates if r["id"] not in attempted])
         journal.state["final_total"] = len(current)
         journal.event("refreshed", total=len(current), remaining=journal.state["remaining_candidate_count"])
-    check_refs(api, expected_sha, plan["main_sha"])
+    check_refs(api, expected_sha, plan["main_sha"], allow_claude_advance=plan.get("skipped_only") is True)
     # Even an empty initial candidate list gets a final independent enumeration.
     current = list_all_runs(api)
     candidates = refresh_selection(plan, current, sticky, observations, executing_run)

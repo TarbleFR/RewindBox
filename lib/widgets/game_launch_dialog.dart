@@ -14,6 +14,7 @@ import '../services/game_launch_manager.dart';
 import '../services/logger_service.dart';
 import '../utils/gamepad_nav.dart';
 import '../constants/system_folder_names.dart';
+import '../l10n/melonx_launch_failure_locale.dart';
 
 class GameLaunchDialog extends StatefulWidget {
   final GameModel game;
@@ -99,7 +100,9 @@ class _GameLaunchDialogState extends State<GameLaunchDialog> {
       _performCleanup();
     }
 
-    if (phase == GameLaunchPhase.closed) {
+    // A quarantined native end stays on its explanation until acknowledged.
+    if (phase == GameLaunchPhase.closed &&
+        GameLaunchManager().closeFailureKey == null) {
       _closeDialog();
     }
 
@@ -120,7 +123,13 @@ class _GameLaunchDialogState extends State<GameLaunchDialog> {
             break;
           case GameLaunchPhase.closing:
           case GameLaunchPhase.closed:
-            _gameStatus = AppLocale.closingGame.getString(context);
+            final failure = GameLaunchManager().closeFailureKey;
+            _gameStatus = failure == null
+                ? AppLocale.closingGame.getString(context)
+                : MelonxLaunchFailureLocale.text(
+                    Localizations.localeOf(context),
+                    failure,
+                  );
             break;
           default:
             break;
@@ -261,8 +270,11 @@ class _GameLaunchDialogState extends State<GameLaunchDialog> {
 
               Text(
                 _gameStatus,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24.r,
+                  fontSize: GameLaunchManager().closeFailureKey == null
+                      ? 24.r
+                      : 16.r,
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context).colorScheme.onSurface,
                   letterSpacing: 0.5.r,

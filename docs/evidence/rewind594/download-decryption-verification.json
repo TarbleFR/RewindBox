@@ -1,0 +1,47 @@
+{
+  "result": "passed",
+  "archiveSHA256": "8635a172589ee2aaa57590b10f6b1306fd99faedc27867e0ac72f13642619ea1",
+  "archiveBytes": 188621725,
+  "ipa": "RewindBox-Build594.ipa",
+  "ipaSHA256": "714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63",
+  "ipaBytes": 188316921,
+  "zipEntries": 5350,
+  "zipCRCValid": true,
+  "applicationAndExtensions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "build": "594",
+      "version": "0.0.8"
+    }
+  },
+  "embeddedCoreSource": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+  "embeddedEngineSource": "ebcee3529645a781311429a869434005e76d6275",
+  "physicalDeviceTested": false
+}

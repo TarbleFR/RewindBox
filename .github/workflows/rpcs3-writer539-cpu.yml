@@ -1,0 +1,47 @@
+name: RPCS3539 writer CPU accounting supplement
+run-name: "RPCS3539 writer CPU measurements • ${{ github.sha }}"
+'on':
+  push:
+    branches: [Claude]
+    paths: ['.github/workflows/rpcs3-writer539-cpu.yml', 'test/rpcs3_writer539_cpu_test.py']
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  cpu:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-writer539-cpu]') }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Materialize exact tested Core sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/writer539-cpu-source"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+      - name: Compare elapsed and actual thread CPU time
+        shell: bash
+        run: |
+          set -euo pipefail
+          CXX="$(xcrun --sdk macosx --find clang++)" \
+          HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+            python3 test/rpcs3_writer539_cpu_test.py "$RUNNER_TEMP/writer539-cpu-source" --report build/writer539-cpu/result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3-writer539-cpu-${{ github.sha }}
+          path: build/writer539-cpu/result.json
+          if-no-files-found: error
+          retention-days: 14

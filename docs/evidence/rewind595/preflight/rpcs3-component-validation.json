@@ -1,0 +1,87 @@
+{
+  "passed": true,
+  "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+  "sourceInputs": 349,
+  "coreInputs": 92,
+  "nativePostimages": 313,
+  "supplements": 97,
+  "tests": 11,
+  "currentSourceExact": true,
+  "actualDownloadedZipAndDylibVerified": true,
+  "networkAPIBoundaryForModuleDryRun": "pinned final metadata; live run/artifact/jobs separately queried",
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false,
+  "nativeBinaryExecuted": false,
+  "hostRuntime": {
+    "path": "native/neoswap-storage/Store.cpp",
+    "sha256": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+    "appleModes": [
+      "neoswap-discard-plain",
+      "neoswap-discard-asan-ubsan",
+      "neoswap-discard-tsan"
+    ],
+    "historicalProofSHA256": "fd8c79aa9bc31df71360e62c618c7e14e764a7f87797a9be70aad52b7a347a9b",
+    "compiledIntoHostOnly": true,
+    "testsReplayed": false
+  },
+  "corePayloadFingerprint": "2ac9f481897ac66053b2e9008a914d56ec5b5820960dd1288349866ff3c11681",
+  "moduleSHA256": "3d972046396da51ed2f5a4e418ac113d902bfee92c70c42246de3b7604c53ee3",
+  "negativeControlCount": 11,
+  "negativeControls": [
+    {
+      "case": "wrong-live-source",
+      "rejected": true,
+      "reason": "Core run does not match the successful Apple receipt"
+    },
+    {
+      "case": "failed-live-run",
+      "rejected": true,
+      "reason": "Core run does not match the successful Apple receipt"
+    },
+    {
+      "case": "wrong-live-job",
+      "rejected": true,
+      "reason": "Wrong successful Core job"
+    },
+    {
+      "case": "failed-build-step",
+      "rejected": true,
+      "reason": "Missing/duplicate/failed Core step: Compile actual iPhone Core from the verified source"
+    },
+    {
+      "case": "expired-core-artifact",
+      "rejected": true,
+      "reason": "Core artifact differs from Apple receipt: artifact"
+    },
+    {
+      "case": "changed-core-zip-digest",
+      "rejected": true,
+      "reason": "Core artifact differs from Apple receipt: artifact"
+    },
+    {
+      "case": "changed-host-Store.cpp",
+      "rejected": true,
+      "reason": "Current Core input changed: native/neoswap-storage/Store.cpp"
+    },
+    {
+      "case": "changed-Apple-reuse-proof",
+      "rejected": true,
+      "reason": "Changed Apple evidence: reuse-verification.json"
+    },
+    {
+      "case": "rewritten-artifact-identity",
+      "rejected": true,
+      "reason": "Identity differs from the authenticated source candidate"
+    },
+    {
+      "case": "unknown-candidate-source-pin",
+      "rejected": true,
+      "reason": "Wrong source candidate pin"
+    },
+    {
+      "case": "unknown-candidate-input-path",
+      "rejected": true,
+      "reason": "Unknown Core input path"
+    }
+  ]
+}

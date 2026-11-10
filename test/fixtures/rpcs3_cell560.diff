@@ -1,0 +1,506 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index b65747259..c2392e224 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -17,6 +17,7 @@
+ #include "ios/IOSReadbackProfile.h"
+ // CELL559_FULL_OVERWRITE_INCLUDE
+ #include "ios/IOSFullOverwrite.h"
++#include "ios/IOSDeferredCommit.h"
+ #endif
+ 
+ #define RSX_GCM_FORMAT_IGNORED 0
+@@ -1266,6 +1267,22 @@ namespace rsx
+ 			// Decide which sections to flush, unprotect, and exclude
+ 			update_cache_tag();
+ 
++#ifdef RPCS3_IOS
++			// CELL560_DEFERRED_COMMIT: only a single flushable section, so no flush
++			// ordering, exclusion or inheritance between flushed sections changes.
++			bool ios_defer_commit = false;
++			if (cause == invalidation_cause::committed_as_fbo &&
++				rpcs3::ios::deferred_commit::enabled.load(std::memory_order_relaxed))
++			{
++				u32 flushables = 0;
++				for (const auto* section : trampled_set.sections)
++				{
++					flushables += section->is_locked() && section->is_flushable();
++				}
++				ios_defer_commit = (flushables == 1);
++			}
++#endif
++
+ 			for (auto &obj : trampled_set.sections)
+ 			{
+ 				auto &tex = *obj;
+@@ -1310,9 +1327,33 @@ namespace rsx
+ 						{
+ 							tex.set_dirty(true);
+ 						}
++#ifdef RPCS3_IOS
++						// CELL560_DEFERRED_COMMIT: owed bytes reach guest memory while the pages are still locked.
++						tex.write_back_deferred_commit();
++#endif
+ 
+ 						result.sections_to_unprotect.push_back(&tex);
+ 					}
++#ifdef RPCS3_IOS
++					else if (ios_defer_commit &&
++						tex.get_context() == texture_upload_context::framebuffer_storage &&
++						tex.is_locked(true))
++					{
++						// CELL560_DEFERRED_COMMIT: record the same GPU copy as the flush would,
++						// keep the pages locked and skip the wait. The first access that needs
++						// these bytes flushes them from the copy (exactly the bytes written today);
++						// a GPU rewrite before any access drops them unseen.
++						if (!tex.is_synchronized())
++						{
++							tex.copy_texture(cmd, true, std::forward<Args>(extras)...);
++						}
++						tex.mark_deferred_commit();
++						rpcs3::ios::deferred_commit::deferrals.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::deferred_commit::deferral_bytes.fetch_add(tex.get_confirmed_range().length(), std::memory_order_relaxed);
++						result.sections_to_exclude.push_back(&tex);
++						result.num_excluded++;
++					}
++#endif
+ #ifdef RPCS3_IOS
+ 					else if (!cause.is_read() && cause.use_strict_data_bounds() &&
+ 						tex.get_context() != texture_upload_context::framebuffer_storage &&
+@@ -2107,6 +2148,9 @@ namespace rsx
+ 				return;
+ 
+ 			std::lock_guard lock(m_cache_mutex);
++#ifdef RPCS3_IOS
++			const rpcs3::ios::readback::OriginScope ios_readback_origin(rpcs3::ios::readback::Origin::fbo_commit);
++#endif
+ 			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
+ 		}
+ 
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index b4793a64a..37c7e6338 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -13,6 +13,7 @@
+ #include <unordered_set>
+ #ifdef RPCS3_IOS
+ #include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSDeferredCommit.h"
+ #include "util/tsc.hpp"
+ #endif
+ 
+@@ -1101,6 +1102,9 @@ namespace rsx
+ 		bool synchronized = false;
+ 		bool flushed = false;
+ 		bool speculatively_flushed = false;
++#ifdef RPCS3_IOS
++		bool deferred_commit = false; // CELL560_DEFERRED_COMMIT: synchronized bytes owed to guest memory
++#endif
+ 
+ 		rsx::memory_read_flags readback_behaviour = rsx::memory_read_flags::flush_once;
+ 		rsx::component_order view_flags = rsx::component_order::default_;
+@@ -1170,6 +1174,9 @@ namespace rsx
+ 			synchronized = false;
+ 			flushed = false;
+ 			speculatively_flushed = false;
++#ifdef RPCS3_IOS
++			deferred_commit = false;
++#endif
+ 
+ 			cache_tag = 0ull;
+ 			last_write_tag = 0ull;
+@@ -1428,6 +1435,9 @@ namespace rsx
+ 
+ 		inline void unprotect()
+ 		{
++#ifdef RPCS3_IOS
++			write_back_deferred_commit();
++#endif
+ 			utils::protection old_prot = get_protection();
+ 			rsx::buffered_section::unprotect();
+ 			post_protect(old_prot, utils::protection::rw);
+@@ -1435,6 +1445,9 @@ namespace rsx
+ 
+ 		inline void discard(bool set_dirty = true)
+ 		{
++#ifdef RPCS3_IOS
++			write_back_deferred_commit();
++#endif
+ 			utils::protection old_prot = get_protection();
+ 			rsx::buffered_section::discard();
+ 			post_protect(old_prot, utils::protection::rw);
+@@ -1447,6 +1460,9 @@ namespace rsx
+ 
+ 		void reprotect(const utils::protection prot)
+ 		{
++#ifdef RPCS3_IOS
++			settle_deferred_commit(prot);
++#endif
+ 			if (synchronized && !flushed)
+ 			{
+ 				// Abort enqueued transfer
+@@ -1463,6 +1479,9 @@ namespace rsx
+ 
+ 		void reprotect(const utils::protection prot, const std::pair<u32, u32>& range)
+ 		{
++#ifdef RPCS3_IOS
++			settle_deferred_commit(prot);
++#endif
+ 			if (synchronized && !flushed)
+ 			{
+ 				// Abort enqueued transfer
+@@ -1518,6 +1537,64 @@ namespace rsx
+ 			m_tex_cache->on_miss(*derived());
+ 		}
+ 
++#ifdef RPCS3_IOS
++		/**
++		 * CELL560_DEFERRED_COMMIT
++		 */
++		bool has_deferred_commit() const
++		{
++			return deferred_commit && synchronized && !flushed;
++		}
++
++		void mark_deferred_commit()
++		{
++			AUDIT(synchronized && !flushed && is_locked());
++			deferred_commit = true;
++		}
++
++		// Pages are about to be released without a flush: the owed bytes first.
++		void write_back_deferred_commit()
++		{
++			if (!has_deferred_commit())
++			{
++				deferred_commit = false;
++				return;
++			}
++
++			rpcs3::ios::deferred_commit::forced_writebacks.fetch_add(1, std::memory_order_relaxed);
++			flush();
++		}
++
++		// Protection changes: the bytes are owed only if the pages become readable.
++		void settle_deferred_commit(utils::protection prot)
++		{
++			if (!has_deferred_commit())
++			{
++				deferred_commit = false;
++			}
++			else if (prot != utils::protection::no)
++			{
++				write_back_deferred_commit();
++			}
++			else
++			{
++				drop_deferred_commit();
++			}
++		}
++
++		// The pages stay locked and the copy is no longer needed (new GPU contents).
++		void drop_deferred_commit()
++		{
++			if (has_deferred_commit())
++			{
++				rpcs3::ios::deferred_commit::dropped.fetch_add(1, std::memory_order_relaxed);
++				rpcs3::ios::deferred_commit::dropped_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			}
++
++			deferred_commit = false;
++		}
++#endif
++
+ 		void touch(u64 tag)
+ 		{
+ 			last_write_tag = tag;
+@@ -1680,6 +1757,9 @@ namespace rsx
+ 			auto cleanup_flush = [&]()
+ 			{
+ 				flushed = true;
++#ifdef RPCS3_IOS
++				deferred_commit = false;
++#endif
+ 				flush_exclusions.clear();
+ 				on_flush();
+ 			};
+@@ -1695,8 +1775,20 @@ namespace rsx
+ 			// NOTE: Hard faults should have been pre-processed beforehand
+ 			ensure(synchronized);
+ 
++#ifdef RPCS3_IOS
++			const bool ios_deferred = deferred_commit;
++			const u64 ios_writeback_begin = ios_deferred ? utils::get_tsc() : 0;
++#endif
+ 			// Copy flush result to guest memory
+ 			imp_flush();
++#ifdef RPCS3_IOS
++			if (ios_deferred)
++			{
++				const u64 end = utils::get_tsc();
++				rpcs3::ios::deferred_commit::writeback_ticks.record(end >= ios_writeback_begin ? end - ios_writeback_begin : 0);
++				rpcs3::ios::deferred_commit::writeback_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			}
++#endif
+ 
+ 			// Finish up
+ 			// Its highly likely that this surface will be reused, so we just leave resources in place
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 626fda9d6..31bd55cfa 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -24,6 +24,8 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
+ #include "ios/IOSShaderTiming.h"
++#include "ios/IOSReadbackProfile.h"
++#include "ios/IOSDeferredCommit.h"
+ #endif
+ 
+ #include "../Program/SPIRVCommon.h"
+@@ -1015,6 +1017,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			};
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL560_READBACK_ORIGIN: guest CPU access to GPU-resident memory.
++		const rpcs3::ios::readback::OriginScope ios_readback_origin(is_writing ?
++			rpcs3::ios::readback::Origin::fault_write : rpcs3::ios::readback::Origin::fault_read);
++#endif
+ 		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
+ 
+ 		if (has_queue_ref)
+@@ -2681,6 +2688,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		flush_command_queue();
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// CELL560_DEFERRED_COMMIT: a deferred commit records its copy without submitting.
++	// Submit it before the next commit, as after a speculative copy, so a later
++	// write-back never waits on an unsubmitted command buffer.
++	const auto ios_submit_deferred_commit = [this]()
++	{
++		if (m_current_command_buffer->flags & vk::command_buffer::cb_has_dma_transfer)
++		{
++			flush_command_queue();
++			rpcs3::ios::deferred_commit::submits.fetch_add(1, std::memory_order_relaxed);
++		}
++	};
++#endif
++
+ 	if (!m_rtts.superseded_surfaces.empty())
+ 	{
+ 		for (auto& surface : m_rtts.superseded_surfaces)
+@@ -2715,6 +2736,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 			if (!lock) [[likely]]
+ 			{
+ 				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
++#ifdef RPCS3_IOS
++				ios_submit_deferred_commit();
++#endif
+ 				continue;
+ 			}
+ 
+@@ -2742,6 +2766,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		else
+ 		{
+ 			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
++#ifdef RPCS3_IOS
++			ios_submit_deferred_commit();
++#endif
+ 		}
+ 	}
+ 
+@@ -2758,6 +2785,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		else
+ 		{
+ 			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
++#ifdef RPCS3_IOS
++			ios_submit_deferred_commit();
++#endif
+ 		}
+ 	}
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+index d9d4d94ad..7369f1910 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -89,6 +89,10 @@ namespace vk
+ 
+ 			if (synchronized)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL560_DEFERRED_COMMIT: new GPU contents replace bytes nobody accessed.
++				this->drop_deferred_commit();
++#endif
+ 				// Even if we are managing the same vram section, we cannot guarantee contents are static
+ 				// The create method is only invoked when a new managed session is required
+ 				release_dma_resources();
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index b006af854..0532dd9ba 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -134,6 +134,7 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
+ 		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
+ 		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSDeferredCommit.h b/rpcs3/ios/IOSDeferredCommit.h
+new file mode 100644
+index 000000000..661bcee0d
+--- /dev/null
++++ b/rpcs3/ios/IOSDeferredCommit.h
+@@ -0,0 +1,32 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++
++#include <atomic>
++#include <cstdint>
++#include <string_view>
++
++// CELL560_DEFERRED_COMMIT: with Write Color Buffers off, binding a region as a
++// framebuffer writes a GPU-resident section starting at that address back to
++// guest memory before releasing its pages: the RSX thread submits, waits for
++// the GPU and copies. The GPU copy is recorded at the same point; the wait and
++// the copy to guest memory happen when an access needs the bytes. The pages
++// stay locked until then, so guest code cannot observe the difference; a
++// section rewritten by the GPU before any access never needs the bytes.
++namespace rpcs3::ios::deferred_commit
++{
++inline std::atomic<bool> enabled{false};
++
++inline std::atomic<std::uint64_t> deferrals{0}, deferral_bytes{0};
++// Write-backs of deferred bytes; the forced ones release pages without a flush request.
++inline diagnostics::EventCost writeback_ticks;
++inline std::atomic<std::uint64_t> writeback_bytes{0}, forced_writebacks{0};
++inline std::atomic<std::uint64_t> dropped{0}, dropped_bytes{0};
++inline std::atomic<std::uint64_t> submits{0};
++
++constexpr bool is_dbz_budokai_hd_title(std::string_view title_id) noexcept
++{
++	return title_id == "BLES01658";
++}
++}
+diff --git a/rpcs3/ios/IOSReadbackProfile.h b/rpcs3/ios/IOSReadbackProfile.h
+index afd18357e..2fa0e3502 100644
+--- a/rpcs3/ios/IOSReadbackProfile.h
++++ b/rpcs3/ios/IOSReadbackProfile.h
+@@ -9,13 +9,17 @@
+ // only for a nonempty DMA batch, never for an ordinary draw/cache hit.
+ namespace rpcs3::ios::readback
+ {
++// CELL560: framebuffer commits and guest CPU faults are named (appended, the
++// 555 field order is unchanged).
+ enum class Origin : unsigned
+ {
+-    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu, count
++    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu,
++    fbo_commit, fault_read, fault_write, count
+ };
+ inline constexpr unsigned origin_count = static_cast<unsigned>(Origin::count);
+ inline constexpr std::array<const char*, origin_count> names{
+-    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu"};
++    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu",
++    "fbo_commit", "fault_read", "fault_write"};
+ inline thread_local Origin current_origin = Origin::unknown;
+ 
+ class OriginScope final
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 2563295b1..859afb3f9 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -7,6 +7,7 @@
+ #include "Emu/System.h"
+ #include "IOSMemoryPressurePolicy.h"
+ #include "IOSTextureValidationProfile.h"
++#include "IOSDeferredCommit.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+ 
+@@ -127,6 +128,11 @@ void resolve_experimental_policy() noexcept
+ 	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch,
+ 		is_god_of_war_iii_title(Emu.GetTitleID()));
+ 	texture_validation::epoch_enabled.store(resolved.texture_validation_epoch, std::memory_order_relaxed);
++	// CELL560_DEFERRED_COMMIT: Automatic is Dragon Ball Z Budokai HD Collection only,
++	// where build 559 waited for the GPU on one or two framebuffer commits per frame.
++	resolved.deferred_fbo_writeback = resolve_mode(g_cfg.ios_experimental.deferred_fbo_writeback,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	rpcs3::ios::deferred_commit::enabled.store(resolved.deferred_fbo_writeback, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -159,8 +165,9 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d",
+-		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch);
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d",
++		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
++		resolved.deferred_fbo_writeback);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 186e3e34a..a30457f2c 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -16,6 +16,7 @@ struct experimental_policy
+ 	// CELL559_TEXTURE_EPOCH: keep a confirmed texture hash until the next RSX
+ 	// synchronization point instead of re-hashing it for every draw.
+ 	bool texture_validation_epoch = false;
++	bool deferred_fbo_writeback = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 9db08a7c0..823e7e21d 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -14,6 +14,7 @@
+ #include "IOSTextureValidationProfile.h"
+ #include "IOSReadbackProfile.h"
+ #include "IOSFullOverwrite.h"
++#include "IOSDeferredCommit.h"
+ #include "IOSCompileAdmission.h"
+ #include "IOSRuntimeMetrics.h"
+ #include "IOSShaderTiming.h"
+@@ -1056,6 +1057,21 @@ private:
+                 validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
+                 validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
+         }
++        // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
++        // became of their bytes in this window, one bounded line.
++        {
++            namespace deferred = rpcs3::ios::deferred_commit;
++            const auto writebacks = deferred::writeback_ticks.take();
++            ios_core_profiler.notice("COREPROF OPT560 session=%llu window=%llu deferred_fbo_writeback=%u deferrals=%llu deferral_bytes=%llu "
++                "writebacks=%llu:%.3f:%.3f writeback_bytes=%llu forced_writebacks=%llu dropped=%llu dropped_bytes=%llu submits=%llu "
++                "tuple=count:total_ms:max_ms scope=process_window_counters bytes_scope=section_ranges_not_transfers window_boundary_approximate=1",
++                profile_session, profile_window, deferred::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                deferred::deferrals.exchange(0, std::memory_order_relaxed), deferred::deferral_bytes.exchange(0, std::memory_order_relaxed),
++                writebacks.count, milliseconds(writebacks.total), milliseconds(writebacks.maximum),
++                deferred::writeback_bytes.exchange(0, std::memory_order_relaxed), deferred::forced_writebacks.exchange(0, std::memory_order_relaxed),
++                deferred::dropped.exchange(0, std::memory_order_relaxed), deferred::dropped_bytes.exchange(0, std::memory_order_relaxed),
++                deferred::submits.exchange(0, std::memory_order_relaxed));
++        }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+         ios_core_profiler.notice(
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 1145eae14..60900fc33 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -127,6 +127,7 @@ const std::array catalog{
+ 	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
+ 	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
++	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

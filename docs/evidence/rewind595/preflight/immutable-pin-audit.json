@@ -1,0 +1,88 @@
+{
+  "result": "passed_after_Dolphin_pin_correction",
+  "method": "Exact literal comparison without normalizing hashes or IDs; 594-to-595 substring search inside inherited immutable literals; workflow pins compared as structured YAML; component modules equal independent artifact-verified originals.",
+  "files": [
+    {
+      "path": ".github/workflows/rewind595-baseline-delivery.yml",
+      "sha256": "2bca40fc1210e6c19c42e90ee10b792171827391aa967aa514ffde8def642d7e",
+      "inheritedHashLiterals": 9,
+      "inheritedLongNumberLiterals": 5
+    },
+    {
+      "path": ".github/diagnostics/rewind595_baseline.py",
+      "sha256": "f354d6153c900523a43ac799d1478d502390949bd987cbc2055513890e7e8143",
+      "inheritedHashLiterals": 3,
+      "inheritedLongNumberLiterals": 1
+    },
+    {
+      "path": ".github/diagnostics/rewind595_baseline_delivery.py",
+      "sha256": "4a0480874a720777848e8d4b899624a5d3c702be375bd05b4f8c22ea1ea8de1f",
+      "inheritedHashLiterals": 0,
+      "inheritedLongNumberLiterals": 0
+    },
+    {
+      "path": ".github/diagnostics/rewind595_engine.py",
+      "sha256": "e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a",
+      "inheritedHashLiterals": 109,
+      "inheritedLongNumberLiterals": 11
+    },
+    {
+      "path": ".github/diagnostics/rpcs3runtime595_delivery_core.py",
+      "sha256": "3d972046396da51ed2f5a4e418ac113d902bfee92c70c42246de3b7604c53ee3",
+      "inheritedHashLiterals": 3,
+      "inheritedLongNumberLiterals": 4
+    },
+    {
+      "path": "build-utils/validate_melonx_engine595_ipa.py",
+      "sha256": "e08d7844bafb0affee284cf1b789e5e9507f4e783c8cc0cc0e0c018422e8c3b8",
+      "inheritedHashLiterals": 0,
+      "inheritedLongNumberLiterals": 0
+    },
+    {
+      "path": "build-utils/validate_rpcs3_core595_ipa.py",
+      "sha256": "9c51fd759e2ad079142db64cf58ca3404b6629df07195a0a4ffb835d8461b5f1",
+      "inheritedHashLiterals": 0,
+      "inheritedLongNumberLiterals": 0
+    },
+    {
+      "path": "build-utils/delivery-595-recipient.pem",
+      "sha256": "71cd9f979ea43fdcc338bcb07661501e1c640e383112f7f8a82128dda707791a",
+      "inheritedHashLiterals": 0,
+      "inheritedLongNumberLiterals": 0
+    }
+  ],
+  "findings": [],
+  "otherWorkflowPinsUnchanged": [
+    "DOLPHIN_CORE_HOST_SHA",
+    "ARMSX2_CORE_HOST_SHA",
+    "ARMSX2_CORE_RUN_ID",
+    "LIBRETRO_CORES_HOST_SHA",
+    "LIBRETRO_CORES_VALIDATED_SHA",
+    "LIBRETRO_CORES_RUN_ID"
+  ],
+  "componentBindingIdentity": {
+    ".github/diagnostics/rewind595_engine.py": {
+      "byteIdenticalToAgentArtifactVerifiedModule": true,
+      "sha256": "e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a"
+    },
+    ".github/diagnostics/rpcs3runtime595_delivery_core.py": {
+      "byteIdenticalToAgentArtifactVerifiedModule": true,
+      "sha256": "3d972046396da51ed2f5a4e418ac113d902bfee92c70c42246de3b7604c53ee3"
+    }
+  },
+  "publicRecipientExact": true,
+  "mainEdited": false,
+  "nativeTestsReplayed": false,
+  "legalGuardUnmodified": true,
+  "historicalFinding": {
+    "source": "929b644327157e542d8043f4c2d7b038a7b8e697",
+    "path": ".github/workflows/rewind595-baseline-delivery.yml",
+    "workflowSHA256": "0c374b8327c17a578dc147bde22d2dc3d5fe197b076349c93f3f958b74d7c403",
+    "field": "DOLPHIN_SHA",
+    "expected": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "actual": "7cac54161659521ed95c2cd1c0b0746539a4cd38",
+    "cause": "Unscoped string replacement of delivery number594with595alsochangedsubstringinsideSHA",
+    "observedGuardFailure": "Legal Dolphin notice rejected stale pinned revision; not bypassed"
+  },
+  "currentRemainingFindings": []
+}

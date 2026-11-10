@@ -1,0 +1,33 @@
+{
+  "test": "Vulkan dynamic-state retention",
+  "sanitized": false,
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "results": {
+    "mask_cases": 514,
+    "random_draws": 100000,
+    "resets": 788,
+    "unknown_binds": 9091,
+    "compute_binds": 7693,
+    "identical_state_switches": 10000,
+    "baseline_dynamic_commands": 70000,
+    "candidate_dynamic_commands": 7,
+    "random_baseline_commands": 512366,
+    "random_candidate_commands": 306800
+  },
+  "harness_sha256": "5450b2687a579c8b7bf2003a0ccd399a2b701ee8b720cf0c57dcd98a08ece79a",
+  "before_sha256": {
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "aae2b2dc2e74a55627f1ad1c82e4adaf52f44e87f0ebfd3e50226b04c49b4054",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "8d35fab2d1abc889bb52f23ff983ddfc146292350933ae6dd58ee59104736a00",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "e6da1104067f69d4a3fcd8d6ae267dbf1a71bb30c419f64857eab4bb2ef3917a",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "d9af29d486b675c00a838608ac3c6bc48b3eb51ca629270b0909dd2f28b0e3a1",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "2ac2594b706e46f6494a7fa4b3330e54ee53b47723c43214387238e674e9ba26"
+  },
+  "after_sha256": {
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "be65c65b46c08254cccb900cde9d6e4a094548d6ebb2695d61125fa101d34829",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "4557a1872934d9968b3e0029ae64264b6086db93a24a9c2e7c853bcec343d970",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "16cd58f7e06ab7c50685f0dbcc63a149ef5be279dc3192116dcb5642f9d0ffaa"
+  },
+  "limits": "Host adapter of Vulkan commands; no Apple SDK, GPU execution or iPhone FPS measurement."
+}

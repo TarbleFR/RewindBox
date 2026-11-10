@@ -1,0 +1,163 @@
+{
+ "schema": 1,
+ "build": 610,
+ "version": "0.0.8",
+ "result": "delivered-and-verified",
+ "deliveryType": "private",
+ "execution": {
+  "source": "df337fe7fcb52f512dc1c76195120e077b175f9b",
+  "tree": "ae37cc70ad0fcb0f54b04585130859ec560d34b5",
+  "run": 41344399524,
+  "attempt": 1,
+  "branch": "Claude",
+  "jobs": {
+   "Build610 authenticate delivered609, the Core 610 run and retained engines": {
+    "id": 124961014608,
+    "conclusion": "success",
+    "started": "2026-11-01T19:58:09Z",
+    "completed": "2026-11-01T19:58:35Z"
+   },
+   "Build610 full Flutter IPA with RPCS3 Core 610 and retained engines": {
+    "id": 124961131649,
+    "conclusion": "success",
+    "started": "2026-11-01T19:58:38Z",
+    "completed": "2026-11-01T20:09:39Z"
+   }
+  },
+  "runConclusion": "success",
+  "startedUTC": "2026-11-01T19:58:06Z",
+  "completedUTC": "2026-11-01T20:09:40Z"
+ },
+ "baseline": {
+  "build": 609,
+  "source": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a",
+  "ipaSHA256": "7908d1283f722e6b8ed7999c374aab073736740a4cb9f0ce588468bf95620f97"
+ },
+ "ipa": {
+  "name": "RewindBox-610.ipa",
+  "producerName": "RewindBox-Build610-df337fe7fcb52f512dc1c76195120e077b175f9b-cold.ipa",
+  "bytes": 189880489,
+  "sha256": "6e92f25108d6e189858fdfa1df8758c35eeaf5ebad737f197816b6be150fb426"
+ },
+ "delta": {
+  "sourceScope": "build-utils/rewind610-source-scope.json",
+  "sourcePaths": 147,
+  "productPaths": 38,
+  "productReview": {
+   "raFix": "45d19d7632cb198c3278af611c5d18a40d0584fc",
+   "raProductPaths": 30,
+   "rpcs3ProductPaths": [
+    "lib/services/rpcs3_config_adapter.dart",
+    "lib/services/rpcs3_game_profile_service.dart",
+    "lib/services/rpcs3_internal_service.dart"
+   ],
+   "neoswapProductPaths": [
+    "packages/neo_swap/ios/Classes/NeoSwapPlugin.mm",
+    "packages/neo_swap/ios/Classes/NeoSwapRelayService.h",
+    "packages/neo_swap/ios/Classes/NeoSwapRelayService.mm",
+    "packages/neo_swap/lib/neo_swap.dart"
+   ],
+   "concurrentUncompiledProductPaths": [
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs"
+   ]
+  }
+ },
+ "rpcs3Core": {
+  "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+  "run": 41333351872,
+  "artifact": 13094491719,
+  "coreSHA256": "e5e494ae8b6921de8fe2148d522bc0b31f76d6f162e57a8aeff4229ae93abc09",
+  "payloadFingerprint": "9af73ca875146dad1a873a04c6f34c401fb43c18c3728cecfebfe8151f715f95",
+  "abi": 30,
+  "exports": 88,
+  "patchSHA256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
+  "recompiledForDelivery": false
+ },
+ "retained": {
+  "fingerprints": {
+   "MeloNXCore": "c43a80bf1bea280935103b8f942ea2922771874fd950afec0df7ea7ae91591b7",
+   "DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+   "ARMSX2Core": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4"
+  },
+  "melonxCoreFrom": 609,
+  "dolphinArmsx2From": 608,
+  "libretroArtifact": 12280822192,
+  "melonxNativeDependenciesArtifact": 12458409441
+ },
+ "verification": {
+  "result": "passed-offline-checks",
+  "nativeImageCount": 90,
+  "bundleVersions": "0.0.8 (610)",
+  "bundles": 8,
+  "imagesChangedFrom609": [
+   "Frameworks/App.framework/App",
+   "Frameworks/achievement_translation.framework/achievement_translation",
+   "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+   "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+   "Frameworks/libRPCS3Core.dylib",
+   "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+   "Frameworks/neo_swap.framework/neo_swap",
+   "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+   "Runner"
+  ],
+  "neoswapRelayExports": [
+   "_NeoSwapRelay_PrepareForBoot",
+   "_NeoSwapRelay_Start",
+   "_NeoSwapRelay_WaitReady"
+  ],
+  "dartMarkers": {
+   "prepareGuestRelay": true,
+   "RPCS3 guest relay before boot": true
+  },
+  "offlineValidators": {
+   "melonx": 0,
+   "neoplay": 0,
+   "shaders": 0,
+   "legal": 0,
+   "no-kartpad": 0,
+   "no-dusklight": 0
+  },
+  "signerReceiptIPASHA256Matched": true,
+  "cryptographicSignatureVerificationPerformedOffline": false
+ },
+ "compilerReview": "warning-review.json",
+ "limits": {
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "raCredentialsFixDeviceTested": false,
+  "neoswapRelayDeviceTested": false,
+  "appleProvisioningVerified": false,
+  "directAppleInstallationReady": false
+ },
+ "privateRecipientKeyDeletedAfterVerifiedDelivery": true,
+ "proofFiles": {
+  "api/artifacts.json": "595cc9e06492bd13c3b8b340e2acd4948ac7c8773df2c189cd80dc87437f82a0",
+  "api/jobs.json": "66dbb007504092409e16b6751f3ee735b9c07968b49d7be2f1aa5fb70909e364",
+  "api/run-attempt.json": "c3d02495d08205ef7c3acfced98b08930e069cb72d41e72abd57c5602063e2fa",
+  "download610-verification.json": "10bd27f2d0403f4fae96df2aa5840d894c6d6e8cb146ceed0918b1217818bf72",
+  "environment.json": "06578ba702d67dca7595a17b9443130f4c5825543b521317c2264bfc9924211c",
+  "observed-timings.json": "b0bf46f72a088346512aa1e0df4b1bb52962168004db3adcaed73c0b3fb48c2e",
+  "rewind610-embedded.json": "bc54e7b13312e8a5e54fb44250cc2320a6e414a6de9113acfc72517b1fb2eb66",
+  "rewind610-engine-evidence.json": "e2b8d06ffa525de88ca3a492e57ea45369ec4065f31f3ecca7b3e7ffb9436062",
+  "rewind610-ipa-validation.json": "1773a9f04c09fd2cd031af03844ed58c26e44fc05bc88eae4dd0233c19b477f9",
+  "rewind610-rpcs3-structure.json": "ec6cc17d47366d7af76ab86b917daf565cb18afcf36eda83f354f5845f7369c7",
+  "rewind610-tests.json": "3c7693c21a31e13d8f3c4cec23d58673e06ca3ca00c1d43c1e6885a5dccbbedf",
+  "signature.json": "e8478614364b3cbd29756b030621f2338b1ddac925d9d6fecc44e5e7bc0dd74c",
+  "signed-payload-identity.json": "9e2b91ffe46a03faea46a3d91c02ea3a4efb33c4b2ead3af301d3fdce4f44edb",
+  "version-validation.json": "297cbc1a5e98358e78a7fd8cf50a20c3ae09ff3223e025cc33b03b9a6840539f",
+  "warning-review.json": "40612d42b129d132ed9455cfc2b351880e44c1ed35c8def62874d50ec8d5efc1",
+  "preflight-reuse-check.json": "38143a2b076cfeb0b207d139f332f42f72ce370d0f18f0a0d21730e2ec21ac7b"
+ },
+ "testEvidence": {
+  "mode": "reused-identical-product-sources",
+  "reusedFromRun": 41341797604,
+  "flutterJob": 124953301162,
+  "nativeJob": 124953301200,
+  "testsExecutedInThisRun": false,
+  "deliveryContractRerunInThisRun": true,
+  "deliveryContractJob": 124961014608,
+  "deliveryContractLogSHA256": "7cbdd99cacd0c5716e8c1c9de9c329fcb6c4a99a5df1774f349303e401786d9e",
+  "embeddedFreshTestsFieldMeaning": "the tests ran on the 610 product sources in run 41341797604, not in the delivery run"
+ }
+}

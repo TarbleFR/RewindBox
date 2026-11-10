@@ -1,0 +1,137 @@
+{
+  "total_count": 1,
+  "jobs": [
+    {
+      "id": 124274114161,
+      "run_id": 41117115264,
+      "workflow_name": "RPCS3 runtime source candidate \u2022 a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41117115264",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAc71B-cQ",
+      "head_sha": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/124274114161",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41117115264/job/124274114161",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-30T19:40:09Z",
+      "started_at": "2026-10-30T19:40:13Z",
+      "completed_at": "2026-10-30T20:01:15Z",
+      "name": "RPCS3 runtime: targeted ARM64 regressions and source candidate",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-30T19:40:13Z",
+          "completed_at": "2026-10-30T19:40:15Z"
+        },
+        {
+          "name": "Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-30T19:40:15Z",
+          "completed_at": "2026-10-30T19:46:13Z"
+        },
+        {
+          "name": "Select Xcode16.4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-30T19:46:13Z",
+          "completed_at": "2026-10-30T19:46:13Z"
+        },
+        {
+          "name": "Restore pinned dependencies and exact compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-30T19:46:13Z",
+          "completed_at": "2026-10-30T19:46:29Z"
+        },
+        {
+          "name": "Authenticate historical Core and execute only the candidate delta on ARM64",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-30T19:46:29Z",
+          "completed_at": "2026-10-30T19:48:37Z"
+        },
+        {
+          "name": "Preserve native measurements before the single Core compilation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-30T19:48:37Z",
+          "completed_at": "2026-10-30T19:48:39Z"
+        },
+        {
+          "name": "Compile actual iPhone Core from the verified source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-30T19:48:39Z",
+          "completed_at": "2026-10-30T20:00:05Z"
+        },
+        {
+          "name": "Verify source candidate, exact exports, passive loading and source identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-30T20:00:05Z",
+          "completed_at": "2026-10-30T20:00:15Z"
+        },
+        {
+          "name": "Upload source candidate without a delivery number",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-30T20:00:15Z",
+          "completed_at": "2026-10-30T20:00:19Z"
+        },
+        {
+          "name": "Preserve verified dependencies and compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-30T20:00:19Z",
+          "completed_at": "2026-10-30T20:00:41Z"
+        },
+        {
+          "name": "Upload diagnostic results including partial failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-30T20:00:41Z",
+          "completed_at": "2026-10-30T20:00:48Z"
+        },
+        {
+          "name": "Post Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-10-30T20:00:48Z",
+          "completed_at": "2026-10-30T20:00:48Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-10-30T20:00:48Z",
+          "completed_at": "2026-10-30T20:00:53Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/124274114161",
+      "labels": [
+        "macos-15"
+      ],
+      "runner_id": 1000012263,
+      "runner_name": "GitHub Actions 1000012263",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "equivalentLayouts": 10405,
+  "denseSplitInstructions": 2048,
+  "denseSplitTargets": 511,
+  "denseAllocatedBytesBefore": 21208760,
+  "denseAllocatedBytesAfter": 188704,
+  "denseMillisecondsBefore": 1.5649,
+  "denseMillisecondsAfter": 0.0235,
+  "externalTargets": 4096,
+  "externalMillisecondsBefore": 2.5421,
+  "externalMillisecondsAfter": 0.011,
+  "result": "passed",
+  "generatedArm64Executed": false,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "build-utils/melonx/adapt_jit_block_split.py": "0a1c60a92e0a49c5f93fea1a9848270dab5602b79bda16377b4813f219336769",
+    "test/melonx_jit_block_split_test.py": "b3269cf8753ab85cd06efa547844cdf6d7ae3aba9f20c284249cf483cbd5fdd7",
+    "test/melonx_jit_block_split/Program.cs": "684de943a310df3f6d8973b13a7689ca70d2b85bb702d4931148cae5db71f0f9"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "87a7829db3cc7ea142c43b0a8390ec7df4e2406a0d59dfe90babb1900a5a8cdc",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Block.cs": "be9e6aa5146ad66f23cfebf6929814bf40e16ed25e0f7532b9363e3688ecf7dc",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstInfo.cs": "6c8109fd54eeb1b3bd0b48796ef05ef7ee2cfd0f4a4ae06fe96a58d7e6649498",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstName.cs": "52649c00e450a43cfe955b0488dd3512b42cc8d59584eca6b52912aa45073318",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/InstFlags.cs": "260e4cd3bfb0705a66d2fb7d659409d25845713cb5ae56011755c891a1f9e570",
+    "src/Ryujinx.Cpu/LightningJit/AddressForm.cs": "a6f1c6a03a72aec3d3bb80c283a28e6d013172bc5b3e1c360c316ad42ca9c5ca",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/ImmUtils.cs": "0866d6a3a1b413261c856554c57c9b0860025b882c8a92b2ad8258cc69769c50",
+    "src/Ryujinx.Cpu/LightningJit/Graph/IBlock.cs": "fe0411e1b68880fff5b2d649791999e1bcc72d9c8a83ea2625a40789ad3b5edb",
+    "src/Ryujinx.Cpu/LightningJit/Graph/RegisterUse.cs": "7b003b6ac533af48129a0599e98e2561a0e3ca6adc33eccc85464df8395a4207",
+    "src/Ryujinx.Cpu/LightningJit/Graph/RegisterMask.cs": "e641dbaa090af7434efe3d02886bbbe9855de7e42d9cadc70eee67c80ff3471a"
+  }
+}

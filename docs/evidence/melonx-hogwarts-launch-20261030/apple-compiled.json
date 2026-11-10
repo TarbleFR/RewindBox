@@ -1,0 +1,30 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "run": 41097173966,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41097173966"
+  },
+  "identities": {
+    "ios-arm64": "303a9aa42d1ae865a8e2bfb65671b7b428f0d6569669400ae0e91035b641da95",
+    "iossimulator-arm64": "42257cb4921ae1d00f497a7208a097d1df692ca526c429df248f8185fef3f355"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "423f2af029a5c1319d518a67114dc0b963ba5399747960cb6155b44014037ddc",
+      "bytes": 37618024
+    },
+    "iossimulator-arm64": {
+      "sha256": "43d3a82ce66e19441190b120b5c3807f82f76659d275ab378c99888980a12a77",
+      "bytes": 37928552
+    }
+  },
+  "adaptationCount": 117,
+  "preparedMembers": 154,
+  "freshAppleGates": 1,
+  "reusedAppleGates": 36,
+  "embeddedArchiveSha256": "9689fb8f795e155b7d98edf8cd1e502920979acd32749721df7c2f2801cf4438",
+  "physicalDeviceTested": false,
+  "gameplayTested": false
+}

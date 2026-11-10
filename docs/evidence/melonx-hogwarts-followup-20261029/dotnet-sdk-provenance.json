@@ -1,0 +1,7 @@
+{
+  "version": "10.0.100",
+  "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.100/dotnet-sdk-10.0.100-linux-x64.tar.gz",
+  "sha512": "f78dbac30c9af2230d67ff5c224de3a5dbf63f8a78d1c206594dedb80e6909d2cc8a9d865d5105c72c2fd2aa266fc0c6c77dedac60408cbccf272b116bd11b07",
+  "bytes": 239125653,
+  "metadata": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json"
+}

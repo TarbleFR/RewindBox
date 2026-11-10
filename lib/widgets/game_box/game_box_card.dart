@@ -49,9 +49,12 @@ class GameBoxCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = GameBoxImageSize.of(frontPath);
     final aspect = size == null || size.height == 0 ? null : size.width / size.height;
+    // Rigid cases keep their physical size; only cardboard boxes (and tall
+    // jewel inserts) follow their art (docs/game-box-3d.md § 13).
     final profile = GameBoxProfiles.of(systemId).withFrontAspect(aspect);
     final media = GameBoxLocalMedia(front: frontPath, spine: spinePath);
-    final art = GameBoxArtSet(media: media, title: title).art(detailed: false, compactWidth: decodeWidth);
+    final art = GameBoxArtSet(media: media, title: title)
+        .art(detailed: false, compactWidth: decodeWidth, profile: profile);
     return ExcludeSemantics(
       child: GameBoxScene(
         model: GameBoxModel(profile, cornerSegments: compact ? 1 : 3),

@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patch_sha256": "b5b9d2f103113a15b17717b6c16cc5b5029b91390ec2b49cde14a2014c980a75",
+  "reproduced_postimages": 305,
+  "modified_native_files": [
+    "rpcs3/Emu/RSX/Common/texture_cache.h",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h"
+  ],
+  "unchanged_native_files": 301,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "iOSCoreCompiled": false,
+  "physicalDeviceTested": false
+}

@@ -1,0 +1,28 @@
+{
+  "case": "atlas_coverage",
+  "cases": 84000,
+  "checks": 694279,
+  "newly_omitted_color_clears": 22263,
+  "unchanged_clear_cases": 61737,
+  "unsafe_fallbacks": 14,
+  "helper_allocations": 0,
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final/atlas.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final/atlas"
+  ],
+  "program_sha256": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+  "source_sha256": "ebbacda18e8dcc94da5dc288116a96b7a52f441dbaf897036cffd83f0770f273",
+  "baseline_sha256": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+  "sanitizers": false,
+  "limitations": [
+    "Recorded Vulkan APIs and independent texel painter, not GPU execution.",
+    "No driver timing, Metal execution or iPhone FPS claim."
+  ]
+}

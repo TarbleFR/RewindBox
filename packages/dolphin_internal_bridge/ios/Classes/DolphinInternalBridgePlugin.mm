@@ -1,3 +1,8 @@
+#import <external_display/NeoExternalDisplayCoordinator.h>
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
+#import <dlfcn.h>
+#include <atomic>
 #import "DolphinInternalBridgePlugin.h"
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
@@ -15,6 +20,9 @@
 #import "DolphinExternalDisplay.h"
 #import "DolphinRecordingController.h"
 #import "DOLTouchLayout.h"
+#import "DOLSkinOverlay.h"
+#import "DOLSessionChromePolicy.h"
+#import "DOLOrientation.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
 
@@ -40,8 +48,9 @@ char* neostation_dolphin_save_identity(const char* game_path, const char* expect
 int32_t neostation_dolphin_initialize(const char* user_directory,
                                       const char* system_directory,
                                       const char* log_path);
-int32_t neostation_dolphin_configure_achievements(const char* username,
-                                                   const char* api_token);
+int32_t neostation_dolphin_configure_achievements_session(int32_t enabled, int32_t hardcore,
+    int32_t notifications, const char* username, const char* api_token);
+char* neostation_dolphin_achievements_snapshot(void);
 int32_t neostation_dolphin_validate_image(const char* game_path,
                                           const char* expected_system,
                                           const char* log_path);
@@ -92,6 +101,15 @@ static NSDictionary* DOLReadCheatSnapshot(void) {
   NSData* data=[NSData dataWithBytes:text length:strlen(text)];free(text);
   id decoded=[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   return [decoded isKindOfClass:NSDictionary.class]?decoded:nil;
+}
+
+static NSDictionary* DOLReadAchievementState(void) {
+  char* text = neostation_dolphin_achievements_snapshot();
+  if (!text) return nil;
+  NSData* data = [NSData dataWithBytes:text length:strlen(text)];
+  free(text);
+  id decoded = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [decoded isKindOfClass:NSDictionary.class] ? decoded : nil;
 }
 
 static NSString* const kDolphinChannel = @"neostation/dolphin_internal";
@@ -186,6 +204,30 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   return controller;
 }
 
+// Optional additive presentation export. An older core retains its original OSD;
+// the new IPA validator requires this export in the newly compiled core.
+typedef void (*DOLAchievementPresenter)(uint64_t, uint32_t, const char*, const char*, uint32_t, const char*, int);
+static std::atomic<uint64_t> DOLAchievementNextSession{1};
+static NSString* const DOLAchievementNotification = @"RewindBoxDolphinAchievementPresentation";
+static void DOLSetAchievementPresenter(DOLAchievementPresenter presenter, uint64_t session) {
+  typedef void (*Setter)(DOLAchievementPresenter, uint64_t);
+  Setter setter = reinterpret_cast<Setter>(dlsym(RTLD_DEFAULT, "neostation_dolphin_set_achievement_presenter"));
+  if (setter) setter(presenter, session);
+}
+static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, const char* title,
+                                  const char* description, uint32_t points, const char* progress, int kind) {
+  @autoreleasepool {
+    // The event and all core-owned pointers expire when this callback returns.
+    NSDictionary* copied = @{@"session": @(session), @"id": @(achievementID), @"points": @(points), @"kind": @(kind),
+      @"title": title ? ([NSString stringWithUTF8String:title] ?: @"") : @"",
+      @"description": description ? ([NSString stringWithUTF8String:description] ?: @"") : @"",
+      @"progress": progress ? ([NSString stringWithUTF8String:progress] ?: @"") : @""};
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [NSNotificationCenter.defaultCenter postNotificationName:DOLAchievementNotification object:nil userInfo:copied];
+    });
+  }
+}
+
 @interface DOLDolphinViewController : UIViewController
 @property(nonatomic, readonly) MTKView* metalView;
 @property(nonatomic, copy, nullable) dispatch_block_t closeHandler;
@@ -212,6 +254,22 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 // game image on the iPhone while the controls stay here.
 @property(nonatomic, strong, nullable) DolphinExternalDisplay* externalDisplay;
 @property(nonatomic, strong) UILabel* externalHint;
+// Controller skins (docs/dolphin-skins.md): only when the console (or the
+// game) has a GameCube or Wii skin chosen in Consoles › Skins.
+@property(nonatomic, strong, nullable) DOLSkinOverlay* skinOverlay;
+@property(nonatomic, assign) BOOL renderSurfaceLocked;
+@property(nonatomic, assign) CGSize lockedRenderSize;
+// The floating menu and performance buttons, and their two placements: beside
+// each other at the safe area's corner, or the performance toggle inside the
+// skin's game screen (DOLSessionChromePolicy.h).
+@property(nonatomic, strong) UIButton* floatingMenuButton;
+@property(nonatomic, copy) NSArray<NSLayoutConstraint*>* chromeFloating;
+@property(nonatomic, copy) NSArray<NSLayoutConstraint*>* chromeInScreen;
+@property(nonatomic, strong) NSLayoutConstraint* performanceScreenLeading;
+@property(nonatomic, strong) NSLayoutConstraint* performanceScreenTop;
+- (void)lockRenderSurface;
+- (void)placeRenderSurface;
+- (void)syncSkinOverlay;
 - (void)refreshTouchVisibility;
 - (void)applyTouchVisibility;
 - (void)beginTouchLayoutEditing:(dispatch_block_t)completion;
@@ -283,6 +341,21 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   }];
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(touchPreferenceChanged:)
       name:NeoTouchControllerPreferenceDidChangeNotification object:nil];
+  // Controller skins (docs/dolphin-skins.md): a skin chosen for this console
+  // or game replaces the DolphiniOS pad and shows the game in its screen.
+  // Without one there is no overlay and nothing below changes.
+  DOLSkinOverlay* skin = [[DOLSkinOverlay alloc] initWithWii:self.wii gameKey:self.touchGameKey];
+  if (skin.hasSkin) {
+    skin.frame = container.bounds;
+    skin.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    skin.menuHandler = ^{ [weakController menuPressed:nil]; };
+    skin.layoutChanged = ^{ [weakController syncSkinOverlay]; };
+    [container addSubview:skin];
+    self.skinOverlay = skin;
+    self.touchOverlay.stateHandler = ^{ [weakController syncSkinOverlay]; };
+    // The skin places the Metal view; the container's turns no longer resize it.
+    _metalView.autoresizingMask = UIViewAutoresizingNone;
+  }
   self.acceptsTouchInput = YES;
   self.controllerGeneration = 1;
   for (NSString* name in @[GCKeyboardDidConnectNotification,GCKeyboardDidDisconnectNotification])
@@ -327,15 +400,26 @@ static UIViewController* _Nullable DOLRootViewController(void) {
   self.performanceOverlay.translatesAutoresizingMaskIntoConstraints = NO;
   self.performanceOverlay.hidden = YES;
   [self.view addSubview:self.performanceOverlay];
-  [NSLayoutConstraint activateConstraints:@[
+  self.floatingMenuButton = close;
+  self.chromeFloating = @[
     [performance.leadingAnchor constraintEqualToAnchor:close.trailingAnchor constant:8.0],
     [performance.centerYAnchor constraintEqualToAnchor:close.centerYAnchor],
+    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:close.leadingAnchor],
+    [self.performanceOverlay.topAnchor constraintEqualToAnchor:close.bottomAnchor constant:8.0],
+  ];
+  self.performanceScreenLeading = [performance.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor];
+  self.performanceScreenTop = [performance.topAnchor constraintEqualToAnchor:self.view.topAnchor];
+  self.chromeInScreen = @[
+    self.performanceScreenLeading, self.performanceScreenTop,
+    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:performance.leadingAnchor],
+    [self.performanceOverlay.topAnchor constraintEqualToAnchor:performance.bottomAnchor constant:8.0],
+  ];
+  [NSLayoutConstraint activateConstraints:self.chromeFloating];
+  [NSLayoutConstraint activateConstraints:@[
     [performance.widthAnchor constraintEqualToConstant:44.0],
     [performance.heightAnchor constraintEqualToConstant:44.0],
     [self.recordingIndicator.leadingAnchor constraintEqualToAnchor:performance.trailingAnchor constant:8.0],
     [self.recordingIndicator.centerYAnchor constraintEqualToAnchor:performance.centerYAnchor],
-    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:close.leadingAnchor],
-    [self.performanceOverlay.topAnchor constraintEqualToAnchor:close.bottomAnchor constant:8.0],
     [self.performanceOverlay.widthAnchor constraintEqualToConstant:300.0],
     [self.performanceOverlay.heightAnchor constraintEqualToConstant:188.0],
     [close.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:12.0],
@@ -350,7 +434,106 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 }
 
 - (void)releaseTouchInput {
-  if (self.acceptsTouchInput) neostation_dolphin_release_touches();
+  if (!self.acceptsTouchInput) return;
+  [self.skinOverlay releaseAllInputs];
+  neostation_dolphin_release_touches();
+}
+
+#pragma mark Controller skins (docs/dolphin-skins.md)
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+  if (self.skinOverlay == nil) return;
+  [self.skinOverlay layoutIfNeeded];
+  [self syncSkinOverlay];
+}
+
+// The skin's art stays under a menu (only its input stops); a connected
+// controller (the console's preference) and the layout editor hide it, and
+// the DolphiniOS pad is hidden while it shows.
+- (void)syncSkinOverlay {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  if (skin == nil) return;
+  const BOOL shown = skin.layoutActive && !self.touchEditing &&
+      !NeoTouchControlsShouldHide([self touchConsole], self.controllerMonitor.connected, YES, NO, NO);
+  const BOOL interactive = shown && self.acceptsTouchInput && !self.touchOverlay.hidden &&
+      self.touchOverlay.userInteractionEnabled && self.presentedViewController == nil;
+  if (!interactive) [skin releaseAllInputs];
+  skin.hidden = !shown;
+  skin.userInteractionEnabled = interactive;
+  self.touchOverlay.padHiddenBySkin = shown;
+  [self placeRenderSurface];
+  [self placeSessionChrome];
+}
+
+// The session's floating buttons never cover the skin's controls
+// (DOLSessionChromePolicy.h): its own Menu replaces the floating one, and the
+// performance toggle moves into the corner of the skin's game screen.
+- (void)placeSessionChrome {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  UIButton* menu = self.floatingMenuButton;
+  if (skin == nil || menu == nil || self.performanceButton == nil) return;
+  const BOOL shown = !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame);
+  const CGRect screen = shown ? [skin convertRect:skin.screenFrame toView:self.view] : CGRectZero;
+  const DOLChromePlacement placement = DOLSessionChromePlace(
+      shown, skin.hasMenuControl,
+      (DOLChromeRect){screen.origin.x, screen.origin.y, screen.size.width, screen.size.height}, 44.0, 8.0);
+  // Only real changes: this runs from viewDidLayoutSubviews.
+  if (menu.hidden != !placement.showMenuButton) menu.hidden = !placement.showMenuButton;
+  const BOOL inScreen = self.chromeInScreen.firstObject.active;
+  if (placement.performanceInScreen) {
+    if (self.performanceScreenLeading.constant != placement.performanceX)
+      self.performanceScreenLeading.constant = placement.performanceX;
+    if (self.performanceScreenTop.constant != placement.performanceY)
+      self.performanceScreenTop.constant = placement.performanceY;
+    if (inScreen) return;
+    [NSLayoutConstraint deactivateConstraints:self.chromeFloating];
+    [NSLayoutConstraint activateConstraints:self.chromeInScreen];
+  } else {
+    if (!inScreen) return;
+    [NSLayoutConstraint deactivateConstraints:self.chromeInScreen];
+    [NSLayoutConstraint activateConstraints:self.chromeFloating];
+  }
+}
+
+// Dolphin reads its render surface once, when the core starts. Until then
+// the Metal view takes the shape of the skin's screen; afterwards it keeps
+// that size and only a transform moves it (as on the external screen).
+- (void)placeRenderSurface {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  MTKView* render = _metalView;
+  if (skin == nil || render == nil || self.externalDisplay.active || render.superview != self.view) return;
+  const CGRect bounds = self.view.bounds;
+  if (bounds.size.width < 1 || bounds.size.height < 1) return;
+  const BOOL inScreen = !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame) &&
+      skin.screenFrame.size.width >= 1 && skin.screenFrame.size.height >= 1;
+  const CGRect target = inScreen ? [skin convertRect:skin.screenFrame toView:self.view] : bounds;
+  if (!self.renderSurfaceLocked) {
+    render.transform = CGAffineTransformIdentity;
+    render.frame = CGRectIntegral(target);
+    return;
+  }
+  const CGSize size = self.lockedRenderSize;
+  if (size.width < 1 || size.height < 1) return;
+  const CGFloat scale = MIN(target.size.width / size.width, target.size.height / size.height);
+  render.transform = CGAffineTransformIdentity;
+  render.bounds = CGRectMake(0, 0, size.width, size.height);
+  render.center = CGPointMake(CGRectGetMidX(target), CGRectGetMidY(target));
+  render.transform = CGAffineTransformMakeScale(scale, scale);
+}
+
+- (void)lockRenderSurface {
+  if (self.renderSurfaceLocked) return;
+  if (self.skinOverlay != nil) {
+    [self.view layoutIfNeeded];
+    [self.skinOverlay layoutIfNeeded];
+    [self syncSkinOverlay];
+    [_metalView layoutIfNeeded];
+    // The drawable keeps the size Dolphin reads now, whatever moves the view.
+    _metalView.autoResizeDrawable = NO;
+  }
+  self.lockedRenderSize = _metalView.bounds.size;
+  self.renderSurfaceLocked = YES;
 }
 
 - (void)suspendTouchInput {
@@ -473,6 +656,10 @@ static UIViewController* _Nullable DOLRootViewController(void) {
 }
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  // Portrait skins (docs/dolphin-skins.md): portrait only for a portrait-only
+  // skin, both for a skin with two layouts, landscape without a skin. UIKit
+  // intersects this with the application mask (DOLOrientation).
+  if (self.skinOverlay != nil) return self.skinOverlay.supportedOrientationMask;
   return UIInterfaceOrientationMaskLandscape;
 }
 
@@ -836,6 +1023,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 @interface DolphinInternalBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
+@property(atomic, assign) uint64_t achievementPresentationSession;
+@property(atomic, copy, nullable) NSDictionary* achievementConfiguration;
+@property(nonatomic, copy, nullable) NSDictionary* lastAchievementState;
+// Consecutive runtime polls with a recognized game but nothing to process.
+@property(nonatomic, assign) NSUInteger achievementIdlePolls;
 @property(atomic, strong, nullable) DOLDolphinViewController* dolphinController;
 @property(nonatomic, strong, nullable) DOLHelperSession* helperSession;
 @property(nonatomic, strong, nullable) dispatch_source_t runningTimer;
@@ -874,9 +1066,108 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   dispatch_queue_t _runtimeQueue;
 }
 
+// Invoked only from the serial runtime queue. The central publisher filters
+// stale generations and dispatches Flutter events without exposing credentials.
+- (void)publishAchievementState {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration) return;
+  NSDictionary* native = DOLReadAchievementState();
+  const BOOL gameLoaded = [native[@"gameLoaded"] boolValue];
+  const BOOL active = [native[@"active"] boolValue];
+  NSString* code = native ? ([native[@"errorCode"] isKindOfClass:NSString.class] ? native[@"errorCode"] : @"")
+                          : @"state_unavailable";
+  // The pinned core reports a recognized game (gameLoaded) whose rc_client has
+  // nothing to process (no achievement left, no leaderboard or rich presence)
+  // as loaded but inactive. After two consecutive polls this is the launch's
+  // final status, not an initialization still in progress.
+  self.achievementIdlePolls = (code.length == 0 && gameLoaded && !active) ? self.achievementIdlePolls + 1 : 0;
+  if (self.achievementIdlePolls >= 2 && [configuration[@"enabled"] boolValue]) code = @"RA_NO_ACHIEVEMENTS";
+  NSDictionary* state = @{@"active": @(active),
+      @"gameLoaded": @(gameLoaded),
+      @"hardcoreActive": @([native[@"hardcoreActive"] boolValue]),
+      @"errorCode": code};
+  if ([self.lastAchievementState isEqual:state]) return;
+  self.lastAchievementState = state;
+  RBRAPublishSessionState(configuration, state);
+}
+
+- (void)endAchievementSession {
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  self.lastAchievementState = nil;
+  self.achievementIdlePolls = 0;
+  if (configuration) RBRAEndSession(configuration);
+}
+
+// Display-only launch status (account, game recognition, tracking, observed
+// Hardcore) decided by the central hub from the states published above. The
+// toast belongs to this controller and launch; the JSON journal records only
+// the status key.
+- (void)registerAchievementStatusPresenterForController:(DOLDolphinViewController*)controller
+                                                logPath:(NSString*)logPath {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || self.systemMenuSession) return;
+  __weak DolphinInternalBridgePlugin* weakSelf = self;
+  __weak DOLDolphinViewController* weakOwner = controller;
+  NSString* journal = [logPath copy] ?: @"";
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    DolphinInternalBridgePlugin* bridge = weakSelf;
+    DOLDolphinViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.dolphinController != owner || bridge.stopInProgress ||
+        bridge.achievementConfiguration != configuration) return;
+    DOLAppendJSONLog(journal, @"achievements.status", key, nil);
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+        UIViewController* surfaceOwner = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return surfaceOwner.view;
+      }, ^BOOL {
+        DolphinInternalBridgePlugin* activeBridge = weakSelf;
+        return activeBridge && weakOwner && activeBridge.dolphinController == weakOwner &&
+            !activeBridge.stopInProgress && activeBridge.achievementConfiguration == configuration;
+      });
+  });
+}
+
+- (void)presentAchievement:(NSNotification*)notification {
+  NSDictionary* event = notification.userInfo;
+  uint64_t session = [event[@"session"] unsignedLongLongValue];
+  DOLDolphinViewController* owner = self.dolphinController;
+  if (!session || self.achievementPresentationSession != session || !owner || self.stopInProgress) return;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue] ||
+      self.systemMenuSession) return;
+  if ([event[@"kind"] intValue] == 0) { RBAchievementPrefetch(@[event]); return; }
+  if (![configuration[@"notifications"] boolValue]) return;
+  // Unlocks show their points in the app language; progress keeps the core's
+  // measured "x/y" text verbatim.
+  NSString* suffix = [event[@"kind"] intValue] == 1
+      ? RBRAPointsText(configuration, [event[@"points"] unsignedIntegerValue]) : event[@"progress"];
+  __weak DolphinInternalBridgePlugin* weakSelf = self;
+  __weak DOLDolphinViewController* weakOwner = owner;
+  RBAchievementPresent(owner, [event[@"id"] integerValue], event[@"title"], event[@"description"], suffix ?: @"",
+      [event[@"kind"] intValue] == 1 ? 5.0 : 2.0, [event[@"kind"] integerValue], ^UIView* {
+        UIViewController* controller = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
+        DolphinInternalBridgePlugin* active = weakSelf;
+        return active && weakOwner && active.dolphinController == weakOwner && !active.stopInProgress &&
+            active.achievementPresentationSession == session &&
+            active.achievementConfiguration == configuration && [configuration[@"notifications"] boolValue];
+      });
+}
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // Build 484: Dolphin's controls for the editor opened from the settings.
   DOLTouchLayoutRegisterPreviews();
+  DOLOrientationInstall();
   FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:kDolphinChannel
                                                               binaryMessenger:registrar.messenger];
   DolphinInternalBridgePlugin* instance = [[DolphinInternalBridgePlugin alloc] init];
@@ -889,6 +1180,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.dolphin.runtime", DISPATCH_QUEUE_SERIAL);
     DOLPhoneShakeSetRuntimeQueue(_runtimeQueue);
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(presentAchievement:)
+        name:DOLAchievementNotification object:nil];
     self.recorder = [DolphinRecordingController new];
     __weak DolphinInternalBridgePlugin* weakSelf = self;
     self.recorder.statusHandler = ^(DolphinRecordingState state, NSError* error) {
@@ -1045,10 +1338,18 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
                           ? arguments[@"logPath"] : @"";
   NSString* pairingPath = [arguments[@"pairingFilePath"] isKindOfClass:NSString.class]
                               ? arguments[@"pairingFilePath"] : @"";
-  // Only a validated emulator token is accepted. Do not use the Web API key.
-  NSDictionary* raCredentials = [DolphinRetroAchievementsAccount credentials];
-  NSString* raUsername = raCredentials[@"username"] ?: @"";
-  NSString* raApiToken = raCredentials[@"token"] ?: @"";
+  // Consume the central one-shot launch ticket once, after owning the launch.
+  // Missing/invalid tickets return a disabled snapshot; never read a local account.
+  NSDictionary* raConfiguration = [RBRATakeLaunchConfiguration(arguments, @"dolphin") copy];
+  self.achievementConfiguration = raConfiguration;
+  self.lastAchievementState = nil;
+  self.achievementIdlePolls = 0;
+  const BOOL raEnabled = [raConfiguration[@"enabled"] boolValue] &&
+      [raConfiguration[@"supported"] boolValue] && !wiiMenu;
+  NSString* raUsername = raEnabled && [raConfiguration[@"username"] isKindOfClass:NSString.class]
+      ? raConfiguration[@"username"] : @"";
+  NSString* raApiToken = raEnabled && [raConfiguration[@"token"] isKindOfClass:NSString.class]
+      ? raConfiguration[@"token"] : @"";
   self.activeLogPath = logPath;
   self.activeUserDirectory = userDirectory;
   self.activeSystemDirectory = systemDirectory;
@@ -1122,11 +1423,19 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       fail(@"core.initialize_failed", @"The embedded Dolphin core could not initialize.");
       return [self finishFailedLaunch:state];
     }
-    // Take account changes only at a fresh launch, before booting the game.
-    // The password is never persisted; the emulator token is read from Keychain.
-    [DolphinRetroAchievementsAccount beginSession];
-    neostation_dolphin_configure_achievements(raUsername.UTF8String,
-                                              raApiToken.UTF8String);
+    // The core receives explicit policy before boot. Its native token login,
+    // Wii/GameCube hash selection and award callbacks remain the authority.
+    const BOOL raConfigured = neostation_dolphin_configure_achievements_session(
+        raEnabled ? 1 : 0, raEnabled && [raConfiguration[@"hardcore"] boolValue] ? 1 : 0,
+        raEnabled && [raConfiguration[@"notifications"] boolValue] ? 1 : 0,
+        raUsername.UTF8String, raApiToken.UTF8String) != 0;
+    if (!raConfigured) {
+      RBRAPublishSessionState(raConfiguration, @{@"active": @NO, @"gameLoaded": @NO,
+          @"hardcoreActive": @NO, @"errorCode": @"configuration_failed"});
+      // The new export fails closed; a missing/disabled RA client never blocks boot.
+    } else {
+      [self publishAchievementState];
+    }
 
     const BOOL accepted = wiiMenu
         ? neostation_dolphin_validate_wii_menu(logPath.fileSystemRepresentation) == 1
@@ -1253,6 +1562,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         });
       };
       self.dolphinController = controller;
+      self.achievementPresentationSession = DOLAchievementNextSession.fetch_add(1);
+      DOLSetAchievementPresenter(DOLReceiveAchievement, self.achievementPresentationSession);
       [controller loadViewIfNeeded];
       metalReady = controller.metalView.device != nil && [controller.metalView.device newCommandQueue] != nil;
       layer = (CAMetalLayer*)controller.metalView.layer;
@@ -1260,6 +1571,13 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       // still report a 1x layer scale before UIKit attaches it to that screen.
       metalScale = root.view.window.screen.scale;
       if (!metalReady) return;
+      // The application mask follows the session BEFORE it is presented, so a
+      // phone held sideways opens upright for a portrait-only skin. Only a
+      // session with a portrait skin changes anything; it is released in the
+      // dismissal completion (cleanupSharedResourcesAndUI), also after a failure.
+      if (controller.skinOverlay.portraitAvailable) {
+        DOLOrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+      }
       [root presentViewController:controller animated:NO completion:nil];
       metalReady = controller.presentingViewController == root && root.presentedViewController == controller;
       } @catch (NSException* exception) {
@@ -1292,6 +1610,9 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       }
     });
 
+    // Controller skins (docs/dolphin-skins.md): the core reads the render
+    // surface now; from here on a skin moves it by a transform only.
+    dispatch_sync(dispatch_get_main_queue(), ^{ [controller lockRenderSurface]; });
     int32_t launchFlags = wiiMenu
         ? neostation_dolphin_launch_wii_menu((__bridge void*)layer, metalScale, logPath.fileSystemRepresentation)
         : neostation_dolphin_launch(gamePath.fileSystemRepresentation, system.UTF8String,
@@ -1334,6 +1655,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         DOLDolphinViewController* strong = weakController;
         strong.externalHint.hidden = !active;
         strong.framePacing.externalDisplayActive = active;
+        // Back on the iPhone: the skin's screen takes the game again.
+        if (!active) [strong placeRenderSurface];
         DOLAppendJSONLog(logPath, active ? @"display.external_started" : @"display.external_stopped",
                          active ? @"Game drawn on the external screen; controls stay on the iPhone."
                                 : @"Game drawn on the iPhone again.", nil);
@@ -1341,6 +1664,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       controller.externalDisplay = external;
       [external start];
     });
+    // The game is running: from now on the hub may announce its RA status.
+    [self registerAchievementStatusPresenterForController:controller logPath:logPath];
     [self startRunningMonitor];
     @synchronized(self) { self.launchInProgress = NO; }
     return state;
@@ -1711,7 +2036,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         dispatch_async(bridge->_runtimeQueue, ^{
           @autoreleasepool {
             DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"state.operation.begin", @"Starting savestate operation.", @{@"slot": @(slot), @"load": @(load)});
-            const BOOL success = neostation_dolphin_state_operation((int32_t)slot, load ? 1 : 0) != 0;
+            // Check the live client again on the runtime queue, not a setting
+            // captured when the menu opened. The core independently enforces it.
+            const BOOL blocked = load && [DOLReadAchievementState()[@"hardcoreEnforced"] boolValue];
+            const BOOL success = !blocked &&
+                neostation_dolphin_state_operation((int32_t)slot, load ? 1 : 0) != 0;
             DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"state.operation.complete", @"Savestate operation finished.", @{@"slot": @(slot), @"load": @(load), @"success": @(success)});
             dispatch_async(dispatch_get_main_queue(), ^{
               if (bridge.stopInProgress || bridge.dolphinController != owner) return;
@@ -1813,6 +2142,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   self.helperSession = nil;
   neostation_dolphin_stop(self.activeLogPath.fileSystemRepresentation);
   DOLRestoreDisplayTrial(self.activeUserDirectory);
+  [self endAchievementSession];
   [self cleanupSharedResourcesAndUI];
   @synchronized(self) { self.launchInProgress = NO; }
   return state;
@@ -1860,6 +2190,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           [strongSelf stopRuntimeWithReason:@"core_stopped"];
           return;
         }
+        [strongSelf publishAchievementState];
         const double inputStart=CACurrentMediaTime();
         const int32_t layout = refreshInput ? neostation_dolphin_refresh_controllers() : 0;
         const double inputMs=refreshInput ? (CACurrentMediaTime()-inputStart)*1000 : 0;
@@ -1962,6 +2293,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   DOLAppendJSONLog(logPath,@"display.trial_restored",@"Restored only temporary display keys; kept other settings and cheats.",@{@"success":@(displayRestored)});
   [self.helperSession close];
   self.helperSession = nil;
+  [self endAchievementSession];
   [self cleanupSharedResourcesAndUI];
   @synchronized(self) { self.launchInProgress = NO; }
   if (saveToken.length > 0 && savesFlushed) {
@@ -1976,6 +2308,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 }
 
 - (void)prepareSessionForStop {
+  self.achievementPresentationSession = 0;
+  DOLSetAchievementPresenter(nullptr, 0);
   // The runtime queue waits only for this short UI operation, before entering
   // any core shutdown locks. Keep the game and its Metal layer attached until
   // the real emulation thread has joined.
@@ -2047,6 +2381,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       self.previousAudioMode = nil;
     }
     DOLDismissSessionController(controller, ^{
+      DOLOrientationSetGameMask(0);
       DOLAppendJSONLog(self.activeLogPath ?: @"", @"session.ui_dismissed",
                        @"Dolphin game and settings fully dismissed after core shutdown.", nil);
       self.activeLogPath = nil;

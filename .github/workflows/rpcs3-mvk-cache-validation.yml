@@ -1,0 +1,195 @@
+# Explicit candidate validation only. Source pushes use [skip ci]; a separate
+# marker commit touching only this workflow avoids historical broad Core routes.
+# Validation request: BO2 cache candidate, 31 October 2026; no IPA or release.
+# Validation request: RPCS3 Core 655 in-pass read transitions (MVKCmdPipelineBarrier fence waits
+# inside a render encoder, rbx_mvk_in_pass_read_barrier_waits), 4 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 655 (in-pass read transitions), 4 November 2026.
+# Run request: the dependency of RPCS3 Core 660 (same MoltenVK source and patch; the host bridge
+# gains the three Core 660 test page keys), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 664 (same MoltenVK source and patch; the host bridge
+# gains the Core 664 test page key experimental.ppu_grace), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 665 (same MoltenVK source and patch; the host bridge
+# gains the Core 665 test page key experimental.thread_orchestrator), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 668 (same MoltenVK source and patch; the host bridge
+# is the Core 664 bridge again, the orchestrator key removed), 6 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 902 (same MoltenVK source and patch; the host bridge
+# gains the Metal 4 renderer test page key experimental.metal_renderer), 6 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 908 (same MoltenVK source and patch; the host bridge
+# places the in-game Menu and Performances buttons with a collision-aware layout), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 910 (same MoltenVK source and patch; the host bridge
+# counts only touch controls whose ancestors are shown when it places the overlay buttons), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 912 (same MoltenVK source and patch; the host bridge
+# accepts three more test page keys: PUT horizon, heavy PUTLLC trace, PPU region profile), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 912, second request (same MoltenVK source and patch; the host bridge asks the Core
+# to start an enabled capture when the in-game menu closes: that menu does not pause the emulation), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 914 (same MoltenVK source and patch; the host bridge sends the capture request
+# only when the menu goes from open to closed), 10 November 2026; no IPA or release.
+name: RPCS3 MoltenVK cache candidate validation
+run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/rpcs3-mvk-cache-validation.yml'
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact full commit SHA; must equal the selected workflow ref
+        required: true
+        type: string
+      run_metal_probe:
+        description: Build the macOS static dependency and execute the real Metal probe
+        required: true
+        default: true
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-rpcs3-mvk-cache-${{ github.sha }}
+  cancel-in-progress: false
+env:
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+jobs:
+  preflight:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-mvk-cache-check]') }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Bind explicit request to immutable workflow source
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_SHA" == "$GITHUB_SHA" ]]
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Capture actual Apple ARM64 host and candidate inputs
+        run: python3 .github/diagnostics/rpcs3_mvk_cache_host.py --phase preflight --output build/rpcs3-mvk-cache-validation/host-preflight.json
+      - name: Check producer artifact rejection and prepare exact patched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 test/rpcs3_moltenvk_source_producer_test.py 2>&1 | tee build/rpcs3-mvk-cache-validation/producer-tests.log
+          python3 build-utils/rpcs3/build_moltenvk_deferred_cache.py \
+            --work-root "$RUNNER_TEMP/rpcs3-mvk-preflight" \
+            --output "$PWD/build/rpcs3-mvk-cache-validation/source-prepared" \
+            --prepare-only
+      - name: Execute affected source-extracted C++ cases on Apple ARM64
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 test/rpcs3_moltenvk_deferred_cache_test.py "$RUNNER_TEMP/rpcs3-mvk-preflight/MoltenVK" \
+            --sanitizers --report build/rpcs3-mvk-cache-validation/arm64-source-extracted.json \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-source-extracted.log
+          python3 test/rpcs3_pipeline_cache_milestones_test.py \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-host-milestones.log
+          python3 test/rpcs3_moltenvk_in_pass_read_wait_test.py "$RUNNER_TEMP/rpcs3-mvk-preflight/MoltenVK" --cxx clang++ \
+            --report build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.json \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.log
+      - name: Preserve preflight receipts and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3-MVK-cache-preflight-${{ github.sha }}
+          path: build/rpcs3-mvk-cache-validation/
+          if-no-files-found: error
+          retention-days: 14
+  ios-dependency:
+    needs: preflight
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Capture actual iOS dependency build host and candidate inputs
+        run: python3 .github/diagnostics/rpcs3_mvk_cache_host.py --phase ios --output build/rpcs3-mvk-cache-validation/host-ios.json
+      - name: Provision only required dependency build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          for formula in cmake ninja; do
+            brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+          done
+      - name: Build the complete pinned iOS static MoltenVK candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 build-utils/rpcs3/build_moltenvk_deferred_cache.py \
+            --work-root "$RUNNER_TEMP/rpcs3-mvk-ios" \
+            --output "$PWD/build/rpcs3-mvk-cache-validation/ios-package" \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/ios-producer.log
+      - name: Preserve actual iOS dependency and all producer receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3-MVK-cache-ios-${{ github.sha }}
+          path: build/rpcs3-mvk-cache-validation/
+          if-no-files-found: error
+          retention-days: 14
+  macos-metal:
+    needs: preflight
+    if: ${{ github.event_name == 'push' || inputs.run_metal_probe }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Capture actual macOS dependency build host and candidate inputs
+        run: python3 .github/diagnostics/rpcs3_mvk_cache_host.py --phase macos --output build/rpcs3-mvk-cache-validation/host-macos.json
+      - name: Provision dependency build tools and SPIR-V fixture validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          for formula in cmake ninja spirv-tools; do
+            brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+          done
+      - name: Build the complete pinned macOS static candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 build-utils/rpcs3/build_moltenvk_deferred_cache.py \
+            --platform macos --work-root "$RUNNER_TEMP/rpcs3-mvk-macos" \
+            --output "$PWD/build/rpcs3-mvk-cache-validation/macos-package" \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/macos-producer.log
+      - name: Execute the real Metal cache-import and shared-entry probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 test/rpcs3_moltenvk_metal_probe.py \
+            --package build/rpcs3-mvk-cache-validation/macos-package \
+            --output build/rpcs3-mvk-cache-validation/metal-probe \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/metal-probe.log
+      - name: Preserve real Metal results and producer failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3-MVK-cache-metal-${{ github.sha }}
+          path: build/rpcs3-mvk-cache-validation/
+          if-no-files-found: error
+          retention-days: 14

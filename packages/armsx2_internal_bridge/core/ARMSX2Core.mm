@@ -12,6 +12,9 @@
 #include "common/FileSystem.h"
 #include "common/Path.h"
 #include "pcsx2/Host.h"
+#include "pcsx2/LayeredSettingsInterface.h"
+#include "ARMSX2RALaunchSettings.h"
+#include <memory>
 #include "pcsx2/Config.h"
 #include "pcsx2/Memory.h"
 #include "pcsx2/Patch.h"
@@ -71,6 +74,9 @@ struct Runtime {
   // race controller/render callbacks owned by the loaded core.
   bool sdl_initialized = false;
   std::string failure, data, resources, bios_directory, bios_name, game;
+  ARMSX2RALaunchPolicy achievements;
+  std::unique_ptr<ARMSX2RALaunchSettings> achievement_base, achievement_secrets, achievement_launch;
+  SettingsInterface* previous_command_line = nullptr;
   uint32_t kind = 0;
   uint64_t transaction = 0;
   NeoARMSX2Event event = nullptr;
@@ -135,8 +141,33 @@ void initialize_settings() {
   s_settings_interface->Load();
   s_secrets_settings_interface = new INISettingsInterface(Path::Combine(EmuFolders::Settings,"secrets.ini"));
   s_secrets_settings_interface->Load();
-  Host::Internal::SetBaseSettingsLayer(s_settings_interface);
-  Host::Internal::SetSecretsSettingsLayer(s_secrets_settings_interface);
+  // Reuse the native INI/authentication infrastructure, but read launch-owned
+  // RA values from memory. Saving unrelated settings never writes this token.
+  r.achievement_base = std::make_unique<ARMSX2RALaunchSettings>(
+      s_settings_interface, r.achievements, ARMSX2RALaunchSettings::Scope::Base);
+  r.achievement_secrets = std::make_unique<ARMSX2RALaunchSettings>(
+      s_secrets_settings_interface, r.achievements, ARMSX2RALaunchSettings::Scope::Secrets);
+  Host::Internal::SetBaseSettingsLayer(r.achievement_base.get());
+  Host::Internal::SetSecretsSettingsLayer(r.achievement_secrets.get());
+  {
+    auto settings_lock = Host::GetSettingsLock();
+    // The pinned Host returns its LayeredSettingsInterface here. Use its public
+    // command-line layer so per-game files cannot override the app's snapshot.
+    auto* layers = static_cast<LayeredSettingsInterface*>(Host::GetSettingsInterface());
+    r.previous_command_line = layers->GetLayer(LayeredSettingsInterface::LAYER_CMDLINE);
+    r.achievement_launch = std::make_unique<ARMSX2RALaunchSettings>(
+        r.previous_command_line, r.achievements, ARMSX2RALaunchSettings::Scope::Launch,
+        [layers] {
+          // Query current lower layers, including a later per-game INI. The
+          // caller already owns Host's settings lock while reading settings.
+          return std::vector<SettingsInterface*>{
+              layers->GetLayer(LayeredSettingsInterface::LAYER_GAME),
+              layers->GetLayer(LayeredSettingsInterface::LAYER_INPUT),
+              layers->GetLayer(LayeredSettingsInterface::LAYER_SECRETS),
+              layers->GetLayer(LayeredSettingsInterface::LAYER_BASE)};
+        });
+    layers->SetLayer(LayeredSettingsInterface::LAYER_CMDLINE, r.achievement_launch.get());
+  }
   g_p44_settings_interface = s_settings_interface;
   auto& si=*s_settings_interface;
   si.SetStringValue("Folders","Bios",r.bios_directory.c_str());
@@ -144,12 +175,8 @@ void initialize_settings() {
   si.SetStringValue("Folders","Savestates",EmuFolders::Savestates.c_str());
   si.SetStringValue("SPU2/Output","Backend","SDL");
   si.SetIntValue("EmuCore/GS","Renderer",static_cast<int>(GSRendererType::Metal));
-  // Preserve RetroAchievements across launches. Previous builds forced this
-  // off on every prepare, making the native ARMSX2 account/settings unusable.
-  if (!si.ContainsValue("Achievements","Enabled"))
-    si.SetBoolValue("Achievements","Enabled",false);
-  if (!si.ContainsValue("Achievements","ChallengeMode"))
-    si.SetBoolValue("Achievements","ChallengeMode",false);
+  // RA preferences and credentials are intentionally not copied into this INI.
+  // The application migrates legacy files once; every launch uses its snapshot.
   si.SetBoolValue("PINE","Enabled",false);
   si.SetBoolValue("UI","EnableDiscordPresence",false);
   si.SetStringValue("ARMSX2iOS/JIT","ScriptProtocol","universal");
@@ -287,8 +314,18 @@ void vm_worker() {
       sigaction(SIGBUS,&r.old_bus,nullptr); sigaction(SIGSEGV,&r.old_segv,nullptr);
       r.signal_snapshot=false;
     }
-    Host::Internal::SetBaseSettingsLayer(nullptr);
-    Host::Internal::SetSecretsSettingsLayer(nullptr);
+    {
+      auto settings_lock = Host::GetSettingsLock();
+      auto* layers = static_cast<LayeredSettingsInterface*>(Host::GetSettingsInterface());
+      if (r.achievement_launch)
+        layers->SetLayer(LayeredSettingsInterface::LAYER_CMDLINE, r.previous_command_line);
+      r.previous_command_line = nullptr;
+      // Initialization setters assert that their layer has never been set.
+      // Clear via the same public layer interface before deleting the adapters.
+      layers->SetLayer(LayeredSettingsInterface::LAYER_BASE, nullptr);
+      layers->SetLayer(LayeredSettingsInterface::LAYER_SECRETS, nullptr);
+    }
+    r.achievement_launch.reset(); r.achievement_secrets.reset(); r.achievement_base.reset();
     delete s_settings_interface; s_settings_interface=nullptr;
     delete s_secrets_settings_interface; s_secrets_settings_interface=nullptr;
     g_p44_settings_interface=nullptr;
@@ -348,6 +385,7 @@ int prepare(const NeoARMSX2Configuration* config,uint32_t timeout,char* error,si
   r.data=config->data_directory; r.resources=config->resource_directory;
   r.bios_directory=config->bios_directory; r.bios_name=config->bios_filename?config->bios_filename:"";
   r.transaction=config->transaction; r.event=config->event; r.context=config->context;
+  r.achievements = ARMSX2RALaunchPolicy::Copy(config->achievements);
   r.phase=Phase::Preparing; s_requestVMStop.store(false);
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
@@ -356,6 +394,7 @@ int prepare(const NeoARMSX2Configuration* config,uint32_t timeout,char* error,si
       +[](void*)->void* { vm_worker(); return nullptr; },nullptr);
   pthread_attr_destroy(&attributes);
   if(start_error) { r.phase=Phase::Empty; r.context=nullptr; r.event=nullptr;
+    r.achievements.Clear();
     return error_out("Cannot start owned ARMSX2 CPU thread: "+std::to_string(start_error),error,capacity); }
   r.worker_owned=true;
   if (!r.changed.wait_for(lock,std::chrono::milliseconds(timeout),[&]{return r.phase==Phase::Prepared||r.phase==Phase::Exited||!r.failure.empty();})) {
@@ -445,6 +484,7 @@ int shutdown(uint32_t timeout,char* error,size_t capacity) {
   r.worker_owned=false;
   r.phase=Phase::Empty; r.initialized=false; r.context=nullptr; r.event=nullptr;
   r.transaction=0; r.failure.clear(); r.stop=false; r.boot_requested=false;
+  r.achievements.Clear();
   return 1;
 }
 void paused(int value) {
@@ -485,10 +525,16 @@ uint32_t get_aspect_ratio() {
   NSString* value=[ARMSX2Bridge getPerGameINIString:@"EmuCore/GS" key:@"AspectRatio" defaultValue:global forISO:nil];
   return aspect_index(value);
 }
+// The launch policy closes the login-pending window; native state remains the
+// authority reported as hardcoreActive. Only call under the RA lock/CPU thread.
+bool hardcore_restrictions_active() {
+  return runtime().achievements.HardcoreGuard() || Achievements::IsHardcoreModeActive();
+}
 int get_cheats_enabled() {
   if(!has_running_game()) return 0;
-  const BOOL global=[ARMSX2Bridge getINIBool:@"EmuCore" key:@"EnableCheats" defaultValue:NO];
-  return [ARMSX2Bridge getPerGameINIBool:@"EmuCore" key:@"EnableCheats" defaultValue:global forISO:nil] ? 1 : 0;
+  bool enabled=false;
+  Host::RunOnCPUThread([&] { enabled=EmuConfig.EnableCheats; },true);
+  return enabled ? 1 : 0;
 }
 int set_upscale_multiplier(float value,char* error,size_t capacity) {
   if(!has_running_game()) return error_out("ARMSX2 game settings require a running game.",error,capacity);
@@ -508,13 +554,17 @@ int set_aspect_ratio(uint32_t value,char* error,size_t capacity) {
 }
 int set_cheats_enabled(int enabled,char* error,size_t capacity) {
   if(!has_running_game()) return error_out("ARMSX2 cheats require a running game.",error,capacity);
-  [ARMSX2Bridge setPerGameINIBool:@"EmuCore" key:@"EnableCheats" value:enabled!=0 forISO:nil];
-  Host::RunOnCPUThread([] {
+  bool applied=false, hardcore_blocked=false;
+  Host::RunOnCPUThread([&] {
+    if(enabled && hardcore_restrictions_active()) { hardcore_blocked=true; return; }
+    [ARMSX2Bridge setPerGameINIBool:@"EmuCore" key:@"EnableCheats" value:enabled!=0 forISO:nil];
     VMManager::ReloadGameSettings();
     Patch::ReloadPatches(VMManager::GetDiscSerial(),VMManager::GetDiscCRC(),true,true,true,true);
     Patch::UpdateActivePatches(true,true,true,true);
+    applied=(EmuConfig.EnableCheats==(enabled!=0));
   },true);
-  return 1;
+  return applied ? 1 : error_out(hardcore_blocked ? "hardcore_blocked" :
+      "ARMSX2 could not apply the cheats setting.",error,capacity);
 }
 int reload_cheats(char* error,size_t capacity) {
   if(!has_running_game()) return error_out("ARMSX2 cheats require a running game.",error,capacity);
@@ -537,6 +587,11 @@ int has_save_state(uint32_t slot) {
 int state_operation(bool load,uint32_t slot,uint32_t timeout,char* error,size_t capacity) {
   if(!has_running_game()) return error_out("ARMSX2 save states require a running game.",error,capacity);
   if(slot<1 || slot>10) return error_out("ARMSX2 save-state slot must be between 1 and 10.",error,capacity);
+  if(load) {
+    const auto achievements_lock=Achievements::GetLock();
+    if(hardcore_restrictions_active())
+      return error_out("hardcore_blocked",error,capacity);
+  }
   __block BOOL success=NO;
   dispatch_semaphore_t done=dispatch_semaphore_create(0);
   void (^completion)(BOOL, NSString* _Nullable)=^(BOOL ok, NSString* _Nullable){
@@ -571,66 +626,6 @@ int get_retroachievements_state_json(char* output,size_t capacity) {
     return 1;
   }
 }
-bool wait_ra_value(NSString* key,bool expected,uint32_t timeout) {
-  const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(std::max<uint32_t>(timeout,250u));
-  do {
-    @autoreleasepool {
-      id value=[ARMSX2Bridge retroAchievementsState][key];
-      if([value respondsToSelector:@selector(boolValue)] && [value boolValue]==expected) return true;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  } while(std::chrono::steady_clock::now()<deadline);
-  return false;
-}
-int set_retroachievements_option(uint32_t option,int enabled,uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements requires a running ARMSX2 game.",error,capacity);
-  const BOOL value=enabled!=0;
-  NSString* key=nil;
-  switch(option) {
-    case NEO_ARMSX2_RA_ENABLED: key=@"enabled"; [ARMSX2Bridge setRetroAchievementsEnabled:value]; break;
-    case NEO_ARMSX2_RA_HARDCORE: key=@"hardcorePreference"; [ARMSX2Bridge setRetroAchievementsHardcore:value]; break;
-    case NEO_ARMSX2_RA_NOTIFICATIONS: key=@"notifications"; [ARMSX2Bridge setRetroAchievementsNotifications:value]; break;
-    case NEO_ARMSX2_RA_LEADERBOARDS: key=@"leaderboardNotifications"; [ARMSX2Bridge setRetroAchievementsLeaderboards:value]; break;
-    case NEO_ARMSX2_RA_OVERLAYS: key=@"overlays"; [ARMSX2Bridge setRetroAchievementsOverlays:value]; break;
-    default: return error_out("Unsupported RetroAchievements option.",error,capacity);
-  }
-  return wait_ra_value(key,value,timeout) ? 1 :
-      error_out("RetroAchievements setting did not settle before timeout.",error,capacity);
-}
-int login_retroachievements(const char* username,const char* password,uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements login requires a running ARMSX2 game.",error,capacity);
-  if(!username || !password || !username[0] || !password[0])
-    return error_out("RetroAchievements username and password are required.",error,capacity);
-  if([NSThread isMainThread])
-    return error_out("RetroAchievements login must run off the main thread.",error,capacity);
-  __block BOOL completed=NO,success=NO;
-  dispatch_semaphore_t done=dispatch_semaphore_create(0);
-  NSString* user=[NSString stringWithUTF8String:username];
-  NSString* pass=[NSString stringWithUTF8String:password];
-  if(!user || !pass) return error_out("RetroAchievements credentials are not valid UTF-8.",error,capacity);
-  [ARMSX2Bridge loginRetroAchievementsWithUsername:user password:pass completion:^(BOOL ok,NSString* message){
-    success=ok; completed=YES; dispatch_semaphore_signal(done);
-  }];
-  const int64_t nanos=(int64_t)std::max<uint32_t>(timeout,1000u)*NSEC_PER_MSEC;
-  if(dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,nanos))!=0 || !completed)
-    return error_out("RetroAchievements login timed out.",error,capacity);
-  return success ? 1 : error_out("RetroAchievements login failed.",error,capacity);
-}
-int logout_retroachievements(uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements logout requires a running ARMSX2 game.",error,capacity);
-  [ARMSX2Bridge logoutRetroAchievements];
-  const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(std::max<uint32_t>(timeout,250u));
-  do {
-    @autoreleasepool {
-      NSDictionary* state=[ARMSX2Bridge retroAchievementsState];
-      const bool logged=[state[@"loggedIn"] boolValue] || [state[@"savedLogin"] boolValue];
-      if(!logged) return 1;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  } while(std::chrono::steady_clock::now()<deadline);
-  return error_out("RetroAchievements logout did not settle before timeout.",error,capacity);
-}
-
 // All GS-setting operations use the existing upstream INI and apply paths.
 // Never write BIOS bytes, arbitrary INI keys or a global performance preset.
 int get_graphics_hacks_json(char* output,size_t capacity) {
@@ -708,8 +703,7 @@ const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_S
   get_upscale_multiplier,get_aspect_ratio,get_cheats_enabled,set_upscale_multiplier,set_aspect_ratio,
   set_cheats_enabled,reload_cheats,get_available_patches_json,set_patch_state,
   has_save_state,save_state,load_state,
-  get_retroachievements_state_json,set_retroachievements_option,
-  login_retroachievements,logout_retroachievements,
+  get_retroachievements_state_json,
   get_graphics_hacks_json,set_graphics_hack,
   get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack,
   get_blending_accuracy_json,set_blending_accuracy,

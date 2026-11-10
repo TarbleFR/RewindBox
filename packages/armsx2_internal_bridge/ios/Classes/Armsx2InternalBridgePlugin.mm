@@ -1,14 +1,18 @@
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
+#import <objc/message.h>
 #include <vector>
 #import "Armsx2InternalBridgePlugin.h"
 #import "Armsx2JitBridgePlugin.h"
 #import "ARMSX2CoreABI.h"
-#import "Armsx2RetroAchievementsMenu.h"
 #import "Armsx2SessionMenu.h"
 #include "NeoCheatStore.h"
 #include "NeoUnifiedNativeImport.h"
 #import "ARMSX2InGameLocalization.h"
 #import "Armsx2TextureBridge.h"
 #import "Armsx2TouchControls.h"
+#import "ARMSX2SkinOverlay.h"
+#import "ARMSX2Orientation.h"
 // Build 447: the Core's render view is a NeoExternalRenderHost of the
 // external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -93,6 +97,8 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, copy) dispatch_block_t closeHandler;
 @property(nonatomic, copy) dispatch_block_t menuHandler;
 @property(nonatomic, strong) Armsx2TouchControlsView* controlsView;
+/// Controller skin chosen for PS2 (docs/dolphin-skins.md); nil without one.
+@property(nonatomic, strong, nullable) ARMSX2SkinOverlay* skinOverlay;
 @property(nonatomic, strong) UIButton* menuButton;
 @property(nonatomic, strong) UILabel* statusLabel;
 /// The Touch Controls switch of the in-game Controls page.
@@ -172,6 +178,27 @@ static UIViewController* ARMSX2RootViewController(void) {
     Armsx2GameViewController* strongSelf = weakSelf;
     if (strongSelf.api && strongSelf.api->set_sticks) strongSelf.api->set_sticks(leftX, leftY, rightX, rightY);
   };
+  // A skin chosen for this console or game replaces the stock controls and
+  // shows the game in its screen. Without one nothing below changes.
+  ARMSX2SkinOverlay* skin = [[ARMSX2SkinOverlay alloc] initWithGameKey:self.touchGameKey];
+  if (skin.hasSkin) {
+    skin.frame = root.bounds;
+    skin.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    skin.buttonChanged = ^(uint32_t button, BOOL pressed) {
+      Armsx2GameViewController* strongSelf = weakSelf;
+      if (strongSelf.api && strongSelf.api->set_button && button < 16) strongSelf.api->set_button(button, pressed ? 1 : 0);
+    };
+    skin.sticksChanged = ^(float leftX, float leftY, float rightX, float rightY) {
+      Armsx2GameViewController* strongSelf = weakSelf;
+      if (strongSelf.api && strongSelf.api->set_sticks) strongSelf.api->set_sticks(leftX, leftY, rightX, rightY);
+    };
+    skin.menuHandler = ^{ [weakSelf menuPressed]; };
+    skin.layoutChanged = ^{ [weakSelf syncSkinOverlay]; };
+    [root addSubview:skin];  // above the stock controls, below the menu button added next
+    self.skinOverlay = skin;
+  }
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(resetInput)
+      name:UIApplicationWillResignActiveNotification object:nil];
   self.controllerMonitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(__unused BOOL connected) {
     [weakSelf applyTouchVisibility];
   }];
@@ -224,8 +251,49 @@ static UIViewController* ARMSX2RootViewController(void) {
   // subview of this controller and keeps the bounds, scale and transform the
   // coordinator gave it: only the iPhone layout sizes it. The touch controls
   // always follow the iPhone.
-  if (!self.externalRenderHost.attached) self.coreView.frame = self.view.bounds;
   self.controlsView.frame = self.view.bounds;
+  self.skinOverlay.frame = self.view.bounds;
+  [self.skinOverlay layoutIfNeeded];
+  [self placeRenderSurface];
+}
+
+// The game fills the view, or the skin's screen while a skin is drawn. The
+// external-display adapter keeps the view it was given while it is attached.
+- (void)placeRenderSurface {
+  if (self.externalRenderHost.attached) return;
+  ARMSX2SkinOverlay* skin = self.skinOverlay;
+  const BOOL inScreen = skin != nil && !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame) &&
+      skin.screenFrame.size.width >= 1 && skin.screenFrame.size.height >= 1;
+  self.coreView.frame = inScreen ? CGRectIntegral([skin convertRect:skin.screenFrame toView:self.view]) : self.view.bounds;
+}
+
+// The skin's art and input follow the same policy as the stock controls (the
+// Touch Controls switch, a connected controller, the layout editor) and stop
+// while a menu covers the session. The session's floating hamburger is not part
+// of the skin: it stays available, except over a visible skin that draws its own
+// Menu control (which opens the same session menu), where it would cover the
+// skin's controls (L1 of PS2 Pocket - Original in landscape), as in Dolphin.
+- (void)syncSkinOverlay {
+  ARMSX2SkinOverlay* skin = self.skinOverlay;
+  if (skin == nil) return;
+  const BOOL hiddenByPolicy = NeoTouchControlsShouldHide(@"ps2", self.controllerMonitor.connected,
+                                                         self.touchControlsVisible, self.closing, self.touchEditing);
+  const BOOL shown = skin.layoutActive && !hiddenByPolicy;
+  const BOOL interactive = shown && self.presentedViewController == nil && !self.closing;
+  if (!interactive) [skin releaseAllInputs];
+  skin.hidden = !shown;
+  skin.userInteractionEnabled = interactive;
+  self.menuButton.hidden = shown && skin.hasMenuControl;
+  self.controlsView.hidden = hiddenByPolicy || shown;
+  [self placeRenderSurface];
+}
+
+// Skins: the session follows the orientations the player chose
+// (ARMSX2SkinOverlay.supportedOrientationMask); the application mask is
+// given to ARMSX2Orientation before the presentation.
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  if (self.skinOverlay.hasSkin) return self.skinOverlay.supportedOrientationMask;
+  return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 - (void)setTouchGameKey:(NSString*)touchGameKey {
@@ -253,6 +321,7 @@ static UIViewController* ARMSX2RootViewController(void) {
                                                  self.closing, self.touchEditing);
   if (hidden && !self.controlsView.hidden) [self resetInput];
   self.controlsView.hidden = hidden;
+  [self syncSkinOverlay];
 }
 
 - (void)beginTouchLayoutEditing:(dispatch_block_t)completion {
@@ -284,6 +353,7 @@ static UIViewController* ARMSX2RootViewController(void) {
   // Visuals first (sticks back to the centre, buttons released), then every
   // ARMSX2 button up and both sticks neutral, as before.
   [self.controlsView releaseAllInput];
+  [self.skinOverlay releaseAllInputs];
   if(self.api && self.api->set_button)
     for(uint32_t i=0;i<16;i++) self.api->set_button(i,0);
   if(self.api && self.api->set_sticks) self.api->set_sticks(0,0,0,0);
@@ -346,6 +416,10 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, strong) Armsx2TextureBridge* textures;
 @property(nonatomic, copy) NSString* activeGamePath;
 @property(nonatomic, assign) uint32_t activeBootKind;
+@property(nonatomic, weak) Armsx2GameViewController* achievementPrefetchOwner;
+@property(nonatomic, assign) NSUInteger achievementPrefetchGameID;
+@property(nonatomic, assign) BOOL achievementPrefetchPending;
+@property(atomic, copy) NSDictionary* achievementConfiguration;
 @end
 
 @implementation Armsx2InternalBridgePlugin {
@@ -355,6 +429,7 @@ static UIViewController* ARMSX2RootViewController(void) {
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // Build 484: the PS2 controls for the editor opened from the settings.
   Armsx2TouchControlsRegisterPreview();
+  ARMSX2OrientationInstall();
   FlutterMethodChannel* channel = [FlutterMethodChannel
       methodChannelWithName:kARMSX2Channel
             binaryMessenger:registrar.messenger];
@@ -375,8 +450,131 @@ static UIViewController* ARMSX2RootViewController(void) {
     _runtimeQueue = dispatch_queue_create(
         "com.neogamelab.neostation.armsx2.runtime",
         DISPATCH_QUEUE_SERIAL);
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(presentAchievementNotification:)
+        name:@"ARMSX2RetroAchievementsNotification" object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(prefetchAchievementSources:)
+        name:@"ARMSX2RetroAchievementsStateChanged" object:nil];
   }
   return self;
+}
+
+// The pinned core owns award/authentication state; these public ObjC methods
+// only copy presentation data. Resolve them dynamically because its C ABI hides
+// the upstream ObjC symbols from direct linking.
+- (NSArray<NSDictionary*>*)achievementSources {
+  Class bridge = NSClassFromString(@"ARMSX2Bridge");
+  SEL selector = NSSelectorFromString(@"retroAchievementsForCurrentGame");
+  if (!bridge || ![bridge respondsToSelector:selector]) return @[];
+  id rows = ((id (*)(id, SEL))objc_msgSend)(bridge, selector);
+  return [rows isKindOfClass:NSArray.class] ? rows : @[];
+}
+
+- (void)prefetchAchievementSources:(NSNotification*)notification {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self prefetchAchievementSources:notification]; });
+    return;
+  }
+  Armsx2GameViewController* owner = self.gameController;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!owner || self.stopInProgress || owner.closing || self.achievementPrefetchPending ||
+      ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue]) return;
+  // The core posts this event when the game's state becomes available, even
+  // when its optional summary toast is disabled. Rich presence also posts it;
+  // copy the full list only once per loaded game and controller.
+  self.achievementPrefetchPending = YES;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = owner;
+  [self readRetroAchievementsForController:owner completion:^(NSDictionary<NSString*, id>* state) {
+    Armsx2InternalBridgePlugin* active = weakSelf;
+    if (!active || active.achievementConfiguration != configuration) return;
+    active.achievementPrefetchPending = NO;
+    if (!weakOwner || active.gameController != weakOwner || active.stopInProgress || weakOwner.closing) return;
+    NSUInteger gameID = [state[@"gameId"] unsignedIntegerValue];
+    if (![state[@"hasActiveGame"] boolValue] || ![state[@"hasAchievements"] boolValue] || gameID == 0) {
+      active.achievementPrefetchOwner = nil;
+      active.achievementPrefetchGameID = 0;
+      return;
+    }
+    if (active.achievementPrefetchOwner == weakOwner && active.achievementPrefetchGameID == gameID) return;
+    NSArray<NSDictionary*>* sources = [active achievementSources];
+    if (sources.count == 0) return;
+    RBAchievementPrefetch(sources);
+    active.achievementPrefetchOwner = weakOwner;
+    active.achievementPrefetchGameID = gameID;
+  }];
+}
+
+- (void)presentAchievementNotification:(NSNotification*)notification {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self presentAchievementNotification:notification]; });
+    return;
+  }
+  Class bridge = NSClassFromString(@"ARMSX2Bridge");
+  SEL consume = NSSelectorFromString(@"consumePendingRetroAchievementsNotification");
+  if (!bridge || ![bridge respondsToSelector:consume]) return;
+  id toast = ((id (*)(id, SEL))objc_msgSend)(bridge, consume);
+  // Always drain the native presentation event, even after stop or when RA is
+  // disabled. The engine has already processed the award independently.
+  Armsx2GameViewController* owner = self.gameController;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!owner || self.stopInProgress || owner.closing ||
+      ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue] ||
+      ![configuration[@"notifications"] boolValue]) return;
+  if (!toast || ![toast respondsToSelector:@selector(title)] ||
+      ![toast respondsToSelector:NSSelectorFromString(@"message")]) return;
+  NSString* title = [toast valueForKey:@"title"] ?: @"";
+  NSString* message = [toast valueForKey:@"message"] ?: @"";
+  NSArray<NSDictionary*>* sources = [self achievementSources];
+  RBAchievementPrefetch(sources);
+  NSMutableArray<NSDictionary*>* matches = [NSMutableArray array];
+  for (id value in sources) {
+    if (![value isKindOfClass:NSDictionary.class]) continue;
+    NSDictionary* row = value;
+    NSString* rawTitle = [row[@"title"] isKindOfClass:NSString.class] ? row[@"title"] : @"";
+    BOOL unofficial = [row[@"category"] integerValue] == 2 &&
+        [title isEqual:[rawTitle stringByAppendingString:@" (Unofficial)"]];
+    if (([rawTitle isEqual:title] || unofficial) && [row[@"description"] isEqual:message]) [matches addObject:row];
+  }
+  // No guessed ID: a summary/game title or an ambiguous toast stays original.
+  NSInteger achievementID = matches.count == 1 ? [matches.firstObject[@"id"] integerValue] : 0;
+  if (matches.count == 0) {
+    // The pinned core's English launch notices (login score, game summary)
+    // repeat what the localized central status toast already announces.
+    if ([message hasPrefix:@"You have unlocked "] || [message isEqualToString:@"This game has no achievements."] ||
+        ([message hasPrefix:@"Score: "] && [message containsString:@" pts"])) {
+      NSLog(@"[ARMSX2] RetroAchievements launch notice replaced by the central status");
+      return;
+    }
+    [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]];
+    return;
+  }
+  NSTimeInterval duration = [toast respondsToSelector:NSSelectorFromString(@"duration")]
+      ? [[toast valueForKey:@"duration"] doubleValue] : 4.0;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = owner;
+  NSString* sourceTitle = achievementID > 0 ? matches.firstObject[@"title"] : title;
+  NSString* marker = achievementID > 0 && ![sourceTitle isEqual:title] ? @"(Unofficial)" : @"";
+  // Points of the matched achievement, in the app language of this launch.
+  if (achievementID > 0 && [matches.firstObject[@"points"] isKindOfClass:NSNumber.class]) {
+    NSString* points = RBRAPointsText(configuration, [matches.firstObject[@"points"] unsignedIntegerValue]);
+    marker = marker.length ? [NSString stringWithFormat:@"%@ · %@", points, marker] : points;
+  }
+  RBAchievementPresent(owner, achievementID, sourceTitle, message, marker, duration, 1, ^UIView* {
+        UIViewController* controller = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
+    Armsx2InternalBridgePlugin* active = weakSelf;
+    return active && weakOwner && active.achievementConfiguration == configuration &&
+        active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
+  });
+}
+
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (NSString*)corePath {
@@ -438,8 +636,6 @@ static UIViewController* ARMSX2RootViewController(void) {
       !api->set_patch_state || !api->has_save_state ||
       !api->save_state || !api->load_state ||
       !api->get_retroachievements_state_json ||
-      !api->set_retroachievements_option ||
-      !api->login_retroachievements || !api->logout_retroachievements ||
       !api->get_graphics_hacks_json || !api->set_graphics_hack ||
       !api->get_graphics_assets_json || !api->set_shader_preset ||
       !api->set_performance_overlay || !api->install_shader_pack ||
@@ -501,6 +697,7 @@ static UIViewController* ARMSX2RootViewController(void) {
 
   __weak Armsx2InternalBridgePlugin* weakSelf = self;
   void (^releaseView)(void) = ^{
+    ARMSX2OrientationSetGameMask(0);
     Armsx2InternalBridgePlugin* strongSelf = weakSelf;
     if (strongSelf.api && strongSelf.api->release_render_view)
       strongSelf.api->release_render_view();
@@ -508,7 +705,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     if (completion) completion();
   };
 
-  // Dismiss from the presenter so any child settings/account controller is
+  // Dismiss from the presenter so any child settings controller is
   // removed with the game surface. Only release g_gameRenderView after UIKit
   // confirms that the presentation hierarchy no longer owns it.
   UIViewController* presenter = controller.presentingViewController;
@@ -570,6 +767,7 @@ static UIViewController* ARMSX2RootViewController(void) {
         if (completion) completion(NO, message);
         return;
       }
+      [self endAchievementSession];
       [self dismissGameControllerWithCompletion:^{
         self.operationBusy = NO;
         self.stopInProgress = NO;
@@ -585,15 +783,58 @@ static UIViewController* ARMSX2RootViewController(void) {
   });
 }
 
+// Display-only launch status (account, game recognition, tracking, observed
+// Hardcore) decided by the central hub from the states this host publishes.
+// Main queue. The toast belongs to this controller and launch only.
+- (void)registerAchievementStatusPresenterForController:(Armsx2GameViewController*)controller {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || !controller) return;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = controller;
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    Armsx2InternalBridgePlugin* bridge = weakSelf;
+    Armsx2GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.stopInProgress || owner.closing ||
+        bridge.achievementConfiguration != configuration) return;
+    NSLog(@"[ARMSX2] RetroAchievements status: %@", key);
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+        UIViewController* surfaceOwner = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return surfaceOwner.view;
+      }, ^BOOL {
+        Armsx2InternalBridgePlugin* active = weakSelf;
+        return active && weakOwner && active.achievementConfiguration == configuration &&
+            active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
+      });
+  });
+}
+
+- (void)endAchievementSession {
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  self.achievementPrefetchOwner = nil;
+  self.achievementPrefetchGameID = 0;
+  self.achievementPrefetchPending = NO;
+  if (configuration) RBRAEndSession(configuration);
+}
+
 - (void)failTransaction:(NSString*)message result:(FlutterResult)result {
+  BOOL stopped = YES;
   if (self.api) {
     char ignored[256] = {};
     self.api->request_stop();
-    self.api->shutdown(30000, ignored, sizeof(ignored));
+    stopped = self.api->shutdown(30000, ignored, sizeof(ignored)) != 0;
   }
   ARMSX2JitAbortTransaction();
   self.operationBusy = NO;
   dispatch_async(dispatch_get_main_queue(), ^{
+    if (stopped) [self endAchievementSession];
+    else if (self.achievementConfiguration)
+      RBRAPublishSessionState(self.achievementConfiguration, @{@"errorCode": @"cleanup_pending"});
     [self dismissGameController];
     result(@{@"success": @NO, @"message": message ?: @"ARMSX2 launch failed."});
   });
@@ -630,56 +871,35 @@ static UIViewController* ARMSX2RootViewController(void) {
 
 - (void)readRetroAchievementsForController:(Armsx2GameViewController*)controller
                                 completion:(void (^)(NSDictionary<NSString*, id>* state))completion {
+  NSDictionary* configuration = self.achievementConfiguration;
   dispatch_async(_runtimeQueue, ^{
-    NSDictionary* state = self.gameController == controller ? [self decodeRetroAchievementsState] : nil;
-    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(state); });
-  });
-}
-
-- (void)performRetroAchievementsCommand:(NSString*)command
-                                  value:(id)value
-                             controller:(Armsx2GameViewController*)controller
-                             completion:(void (^)(BOOL success, NSString* message))completion {
-  dispatch_async(_runtimeQueue, ^{
-    if (!self.api || self.gameController != controller) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        if (completion) completion(NO, @"ARMSX2 session is no longer active.");
-      });
-      return;
-    }
-
-    char error[1024] = {};
-    BOOL ok = NO;
-    NSString* success = @"";
-    uint32_t option = 0;
-    if ([command isEqualToString:@"enabled"]) option = NEO_ARMSX2_RA_ENABLED;
-    else if ([command isEqualToString:@"hardcore"]) option = NEO_ARMSX2_RA_HARDCORE;
-    else if ([command isEqualToString:@"notifications"]) option = NEO_ARMSX2_RA_NOTIFICATIONS;
-    else if ([command isEqualToString:@"leaderboards"]) option = NEO_ARMSX2_RA_LEADERBOARDS;
-    else if ([command isEqualToString:@"overlays"]) option = NEO_ARMSX2_RA_OVERLAYS;
-
-    if (option) {
-      ok = self.api->set_retroachievements_option(option, [value boolValue] ? 1 : 0,
-                                                   5000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements setting updated."
-                            fr:@"Paramètre RetroAchievements mis à jour."];
-    } else if ([command isEqualToString:@"login"] && [value isKindOfClass:NSDictionary.class]) {
-      NSString* username = [value[@"username"] isKindOfClass:NSString.class] ? value[@"username"] : @"";
-      NSString* password = [value[@"password"] isKindOfClass:NSString.class] ? value[@"password"] : @"";
-      ok = self.api->login_retroachievements(username.UTF8String, password.UTF8String,
-                                              30000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements account linked."
-                            fr:@"Compte RetroAchievements lié."];
-    } else if ([command isEqualToString:@"logout"]) {
-      ok = self.api->logout_retroachievements(5000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements account unlinked."
-                            fr:@"Compte RetroAchievements déconnecté."];
-    }
-
-    NSString* message = ok ? success :
-        (error[0] ? [NSString stringWithUTF8String:error] : @"RetroAchievements operation failed.");
+    NSDictionary* state = self.gameController == controller && !self.stopInProgress
+        ? [self decodeRetroAchievementsState] : nil;
     dispatch_async(dispatch_get_main_queue(), ^{
-      if (completion) completion(ok, message ?: @"");
+      if (self.gameController != controller || self.achievementConfiguration != configuration || self.stopInProgress) {
+        if (completion) completion(nil);
+        return;
+      }
+      if (configuration && state) {
+        const BOOL gameLoaded = [state[@"hasActiveGame"] boolValue];
+        const BOOL loggedIn = [state[@"loggedIn"] boolValue];
+        const BOOL active = [state[@"active"] boolValue] && loggedIn &&
+            gameLoaded && [state[@"hasAchievements"] boolValue];
+        const BOOL hardcoreActive = [state[@"hardcoreActive"] boolValue];
+        NSString* code = [configuration[@"hardcore"] boolValue] && active && gameLoaded && !hardcoreActive
+            ? @"hardcore_inactive" : @"";
+        // Signed in and the game identified, but its set has no achievement:
+        // a final launch status, not an initialization still in progress.
+        if (!active && loggedIn && gameLoaded && ![state[@"hasAchievements"] boolValue] &&
+            [configuration[@"enabled"] boolValue]) code = @"RA_NO_ACHIEVEMENTS";
+        RBRAPublishSessionState(configuration, @{@"active": @(active), @"gameLoaded": @(gameLoaded),
+            @"loggedIn": @(loggedIn),
+            @"hardcoreActive": @(hardcoreActive), @"errorCode": code,
+            @"gameId": state[@"gameId"] ?: @0,
+            @"totalCount": state[@"totalAchievements"] ?: @0,
+            @"unlockedCount": state[@"unlockedAchievements"] ?: @0});
+      }
+      if (completion) completion(state);
     });
   });
 }
@@ -755,7 +975,8 @@ static UIViewController* ARMSX2RootViewController(void) {
     NSString* message=ok
         ? [controller en:@"Patch setting updated for this game."
                       fr:@"Réglage du patch mis à jour pour ce jeu."]
-        : (error[0] ? [NSString stringWithUTF8String:error] : @"Patch update failed.");
+        : (strcmp(error, "hardcore_blocked") == 0 ? RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale) :
+           (error[0] ? [NSString stringWithUTF8String:error] : @"Patch update failed."));
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(ok,message ?: @"");
     });
@@ -772,6 +993,10 @@ static UIViewController* ARMSX2RootViewController(void) {
     const float upscale = self.api->get_upscale_multiplier();
     const uint32_t aspect = self.api->get_aspect_ratio();
     const BOOL cheats = self.api->get_cheats_enabled() != 0;
+    const BOOL hardcoreActive = [[self decodeRetroAchievementsState][@"hardcoreActive"] boolValue];
+    const BOOL hardcoreGuardActive = hardcoreActive ||
+        ([self.achievementConfiguration[@"enabled"] boolValue] &&
+         [self.achievementConfiguration[@"hardcore"] boolValue]);
     uint32_t mask = 0;
     for (uint32_t slot = 1; slot <= 5; slot++)
       if (self.api->has_save_state(slot)) mask |= (1u << (slot - 1));
@@ -800,6 +1025,8 @@ static UIViewController* ARMSX2RootViewController(void) {
         @"aspect": @(aspect),
         @"cheats": @(cheats),
         @"saveStateMask": @(mask),
+        @"hardcoreActive": @(hardcoreActive),
+        @"hardcoreGuardActive": @(hardcoreGuardActive),
         @"touch": @(controller.touchControlsVisible),
         @"touchHideWithController": @(NeoTouchHidesControlsWithController(@"ps2")),
         @"touchLayoutEditable": @YES,
@@ -912,6 +1139,17 @@ static UIViewController* ARMSX2RootViewController(void) {
     BOOL ok = NO;
     NSString* success = @"";
 
+    const BOOL forbiddenInHardcore = [command isEqualToString:@"loadState"] ||
+        ([command isEqualToString:@"cheats"] && [value boolValue]);
+    const BOOL hardcoreGuardActive =
+        ([self.achievementConfiguration[@"enabled"] boolValue] &&
+         [self.achievementConfiguration[@"hardcore"] boolValue]) ||
+        [[self decodeRetroAchievementsState][@"hardcoreActive"] boolValue];
+    if (forbiddenInHardcore && hardcoreGuardActive) {
+      NSString* blocked = RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale);
+      dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO, blocked); });
+      return;
+    }
     if ([command isEqualToString:@"upscale"]) {
       ok = self.api->set_upscale_multiplier([value floatValue], error, sizeof(error)) != 0;
       NSString* format = [controller en:@"Internal resolution: %.0f×"
@@ -964,7 +1202,8 @@ static UIViewController* ARMSX2RootViewController(void) {
     }
 
     NSString* message = ok ? success :
-        (error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 command failed.");
+        (strcmp(error, "hardcore_blocked") == 0 ? RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale) :
+         (error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 command failed."));
     [self publishMenuStateForController:controller message:message ?: @""];
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(ok, message ?: @"");
@@ -1044,22 +1283,6 @@ static UIViewController* ARMSX2RootViewController(void) {
           return;
         }
         [bridge performGameCommand:command value:value controller:owner completion:completion];
-      };
-      menu.readRetroAchievements = ^(void (^completion)(NSDictionary<NSString*, id>* state)) {
-        Armsx2InternalBridgePlugin* bridge = weakSelf;
-        Armsx2GameViewController* owner = weakController;
-        if (!bridge || !owner) { if (completion) completion(nil); return; }
-        [bridge readRetroAchievementsForController:owner completion:completion];
-      };
-      menu.performRetroAchievementsCommand = ^(NSString* command, id value,
-                                                void (^completion)(BOOL success, NSString* message)) {
-        Armsx2InternalBridgePlugin* bridge = weakSelf;
-        Armsx2GameViewController* owner = weakController;
-        if (!bridge || !owner) {
-          if (completion) completion(NO, @"ARMSX2 session is no longer active.");
-          return;
-        }
-        [bridge performRetroAchievementsCommand:command value:value controller:owner completion:completion];
       };
       menu.readGraphicsHacks = ^(void (^completion)(NSDictionary<NSString*, id>* state)) {
         Armsx2InternalBridgePlugin* bridge=weakSelf;
@@ -1211,7 +1434,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
 
-  if (self.operationBusy) {
+  if (self.operationBusy || self.gameController || self.achievementConfiguration) {
     result(@{@"success": @NO, @"message": @"An ARMSX2 transaction is already active."});
     return;
   }
@@ -1235,6 +1458,10 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
 
+  NSDictionary* achievementConfiguration = [RBRATakeLaunchConfiguration(args, @"armsx2") copy] ?: @{};
+  self.achievementConfiguration = achievementConfiguration;
+  RBRAPublishSessionState(achievementConfiguration, @{@"active": @NO, @"gameLoaded": @NO,
+      @"hardcoreActive": @NO, @"errorCode": @""});
   self.operationBusy = YES;
   dispatch_async(_runtimeQueue, ^{
     NSString* loadError = nil;
@@ -1267,6 +1494,14 @@ static UIViewController* ARMSX2RootViewController(void) {
       };
       [controller loadViewIfNeeded];
       if (!controller.coreView) { controller = nil; return; }
+      // A skin chosen for the console or game decides the orientations: the
+      // application mask is set BEFORE the presentation, so a phone held
+      // sideways opens upright for a portrait-only skin. Without a skin
+      // nothing changes. Released in dismissGameControllerWithCompletion,
+      // after a stop and after a failed launch alike.
+      if (controller.skinOverlay.hasSkin) {
+        ARMSX2OrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+      }
       [root presentViewController:controller animated:NO completion:nil];
       self.gameController = controller;
     });
@@ -1291,6 +1526,20 @@ static UIViewController* ARMSX2RootViewController(void) {
     config.bios_filename = biosFilename.length ? biosFilename.fileSystemRepresentation : "";
     config.event = NULL;
     config.context = NULL;
+    const BOOL achievementsEnabled = [achievementConfiguration[@"enabled"] boolValue] &&
+        [achievementConfiguration[@"supported"] boolValue] && !biosBoot;
+    NSString* raUsername = [achievementConfiguration[@"username"] isKindOfClass:NSString.class]
+        ? achievementConfiguration[@"username"] : @"";
+    NSString* raToken = [achievementConfiguration[@"token"] isKindOfClass:NSString.class]
+        ? achievementConfiguration[@"token"] : @"";
+    NeoARMSX2RALaunchConfiguration ra = {};
+    ra.size = sizeof(ra);
+    ra.enabled = achievementsEnabled ? 1u : 0u;
+    ra.hardcore = achievementsEnabled && [achievementConfiguration[@"hardcore"] boolValue] ? 1u : 0u;
+    ra.notifications = achievementsEnabled && [achievementConfiguration[@"notifications"] boolValue] ? 1u : 0u;
+    ra.username = raUsername.UTF8String;
+    ra.token = raToken.UTF8String;
+    config.achievements = &ra;
 
     if (!self.api->prepare(&config, 120000, error, sizeof(error))) {
       NSString* message = error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 Core preparation failed.";
@@ -1346,6 +1595,9 @@ static UIViewController* ARMSX2RootViewController(void) {
       // Presented earlier and booted with the surface the Core sized for the
       // iPhone: from here the render view may be shown on the TV.
       [self attachExternalDisplayForController:controller];
+      // The game is running: the hub may now announce its RA status.
+      if (!biosBoot) [self registerAchievementStatusPresenterForController:controller];
+      [self readRetroAchievementsForController:controller completion:nil];
       result(@{
         @"success": @YES,
         @"transaction": transactionNumber,

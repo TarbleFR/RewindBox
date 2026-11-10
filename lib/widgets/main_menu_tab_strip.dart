@@ -1,13 +1,24 @@
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import '../services/frontend_media_gate.dart';
+import '../themes/glacier_theme.dart';
+import '../themes/liquid_glass_theme.dart';
+import 'bumper_glyph.dart';
 import 'neo_glass_bubble.dart';
 import 'mau_ali_tab_motion.dart';
 import 'liquid_motion_clock.dart';
 
 /// Original Mau Ali selection tracks, retargeted to the real visible tabs.
+///
+/// The capsule, the selection indicator, the icon size and the optional tab
+/// labels follow Settings › Themes › User interface ([LiquidGlassTheme]):
+/// floating, compact or classic bar; lens, pill, underline or NeoStation's
+/// solid indicator; small, medium or large icons; labels hidden, on the
+/// selected tab or always; optional LB/RB glyphs. Cell geometry stays uniform
+/// whatever the choice, so navigation, swipes and hit regions are unchanged.
 class MainMenuTabStrip extends StatefulWidget {
   const MainMenuTabStrip({
     super.key,
@@ -15,12 +26,16 @@ class MainMenuTabStrip extends StatefulWidget {
     required this.selected,
     required this.tabBuilder,
     this.iconBuilder,
+    this.labelBuilder,
     this.cellExtent,
   });
   final List<NavTab> tabs;
   final NavTab selected;
   final Widget Function(NavTab) tabBuilder;
   final Widget Function(NavTab)? iconBuilder;
+
+  /// Translated tab name drawn under the icon when labels are enabled.
+  final Widget Function(NavTab, bool selected)? labelBuilder;
   final double? cellExtent;
   @override
   State<MainMenuTabStrip> createState() => _MainMenuTabStripState();
@@ -42,14 +57,30 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
   ).indexOf(widget.selected).clamp(0, widget.tabs.length - 1);
   bool get _reduced =>
       NeoBubbleStyle.reduceMotion(context) ||
+      !LiquidGlassTheme.of(context).motionEnabled(context) ||
       LiquidMotionClock.instance.lowPower ||
       !_foreground ||
       !TickerMode.valuesOf(context).enabled ||
       FrontendMediaGate.instance.blocked;
+
+  /// NeoStation's solid pill slides in 160 ms without deforming, as upstream.
+  static const _solidDuration = Duration(milliseconds: 160);
+  // Glacier's outline slides like the solid pill, without lens deformation.
+  bool get _solid =>
+      switch (LiquidGlassTheme.of(context).settings.tabIndicator) {
+        TabIndicatorStyle.solid || TabIndicatorStyle.glacier => true,
+        _ => false,
+      };
   MauAliSelectionFrame get _frame =>
       MauAliTabMotion.sample(_segment, _motion.value);
-  double get _position => _from + (_to - _from) * _frame.position;
+  double get _position =>
+      _from +
+      (_to - _from) *
+          (_solid
+              ? Curves.easeInOut.transform(_motion.value)
+              : _frame.position);
   (double, double, double) get _shape {
+    if (_solid) return (1, 1, 1);
     final f = _frame;
     // Blend interrupted deformation back into the author's track in four frames.
     // Carrying it through another peak would accumulate scale on repeated taps.
@@ -106,8 +137,10 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       _segment = MauAliTabMotion.segmentFor(current, _slot, widget.tabs.length);
       _from = current;
       _to = _slot.toDouble();
-      _carry = (shape.$1 - 1, shape.$2 - 1, shape.$3 - 1);
-      _motion.duration = MauAliTabMotion.durationFor(_segment);
+      _carry = _solid ? (0, 0, 0) : (shape.$1 - 1, shape.$2 - 1, shape.$3 - 1);
+      _motion.duration = _solid
+          ? _solidDuration
+          : MauAliTabMotion.durationFor(_segment);
       _motion.forward(from: 0);
     }
   }
@@ -123,42 +156,187 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
 
   @override
   Widget build(BuildContext context) {
+    final glass = LiquidGlassTheme.of(context);
+    final settings = glass.settings;
     final tabs = inNavTabDisplayOrder(widget.tabs);
-    final cell = widget.cellExtent ?? 32.r;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final compact = settings.tabBarStyle == TabBarStyle.compact;
+    final classic = settings.tabBarStyle == TabBarStyle.classic;
+    // Icon cell: a square whose side follows the icon size; labels add a
+    // text band below it. Every cell keeps the same size.
+    final cell =
+        (widget.cellExtent ?? 32.r) * glass.tabIconScale * (compact ? 0.88 : 1);
+    final showLabels =
+        widget.labelBuilder != null &&
+        settings.tabLabels != TabLabelMode.hidden;
+    // Glacier's capsule is wider than tall (approved mock-up): each cell is
+    // a wider rectangle and the active name a little larger. Every other
+    // indicator keeps square cells.
+    final glacierIndicator = settings.tabIndicator == TabIndicatorStyle.glacier;
+    // Without names (the main menu draws none since 9 Nov) the Glacier frame
+    // only has to hold the glyph: narrower cells, no empty band beside it.
+    final cellW = glacierIndicator
+        ? cell * (showLabels ? 1.81 : 1.4)
+        : cell;
+    final labelBand = showLabels
+        ? (glacierIndicator ? 10.r : 9.r) * glass.tabIconScale
+        : 0.0;
+    final iconExtent = (glacierIndicator ? 16.5.r : 17.r) * glass.tabIconScale;
+    final cellHeight = cell + labelBand;
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final effect = glass.tabEffectScale;
+    final indicator = settings.tabIndicator;
+
+    Widget label(NavTab tab) {
+      if (!showLabels) return const SizedBox.shrink();
+      final selected = tab == widget.selected;
+      if (settings.tabLabels == TabLabelMode.selectedOnly && !selected) {
+        return SizedBox(height: labelBand);
+      }
+      return SizedBox(
+        height: labelBand,
+        child: Padding(
+          // Glacier: the name stays inside the outline of the active tab.
+          padding: EdgeInsets.symmetric(
+            horizontal: glacierIndicator ? cellW * .11 : 0,
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: widget.labelBuilder!(tab, selected),
+          ),
+        ),
+      );
+    }
+
     final buttons = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final tab in tabs)
           SizedBox(
             key: ValueKey('main-menu-cell-${tab.name}'),
-            width: cell,
-            height: cell,
-            child: widget.tabBuilder(tab),
+            width: cellW,
+            height: cellHeight,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: cellW,
+                  height: cell,
+                  child: widget.tabBuilder(tab),
+                ),
+                if (showLabels) label(tab),
+              ],
+            ),
           ),
       ],
     );
+    // Glacier names only the active tab: the other glyphs sit in the middle
+    // of the capsule instead of above an empty label band.
+    final centerUnlabelled =
+        glacierIndicator &&
+        showLabels &&
+        settings.tabLabels == TabLabelMode.selectedOnly;
     Widget icons() => ExcludeSemantics(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final tab in tabs)
             SizedBox(
-              width: cell,
-              height: cell,
-              child: Center(
-                child: SizedBox.square(
-                  dimension: 17.r,
-                  child: widget.iconBuilder!(tab),
-                ),
-              ),
+              width: cellW,
+              height: cellHeight,
+              child: centerUnlabelled && tab != widget.selected
+                  ? Center(
+                      child: SizedBox.square(
+                        dimension: iconExtent,
+                        child: widget.iconBuilder!(tab),
+                      ),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: cellW,
+                          // Glacier keeps the active name clear of the
+                          // outline's bottom edge.
+                          height: glacierIndicator && showLabels
+                              ? cell - 4.r
+                              : cell,
+                          child: Center(
+                            child: SizedBox.square(
+                              dimension: iconExtent,
+                              child: widget.iconBuilder!(tab),
+                            ),
+                          ),
+                        ),
+                        if (showLabels) label(tab),
+                        if (glacierIndicator && showLabels)
+                          SizedBox(height: 4.r),
+                      ],
+                    ),
             ),
         ],
       ),
     );
+
+    // Capsule material. The floating bar keeps its original tinted glass; the
+    // classic bar is a flat theme-surface strip; intensity scales rim, fill
+    // and shadow; blur follows the glass settings and the performance budget.
+    final blurSigma = classic || !glass.blurEnabled
+        ? 0.0
+        : glass.blur(context, GlassRole.chrome) * 1.4;
+    final floatingFill = dark
+        ? const Color(0xFF102C3E)
+        : const Color(0xFFE5F0F5);
+    final fillAlpha = classic
+        ? glass.fillAlpha(
+            theme,
+            GlassRole.chrome,
+            highContrast: LiquidGlassTheme.highContrastOf(context),
+          )
+        : ((dark ? 0.87 : 0.90) *
+                  (blurSigma > 0 ? 0.80 : 1.0) *
+                  (0.85 + 0.3 * settings.tabEffectIntensity))
+              .clamp(0.55, 0.96);
+    // Glacier: smoked graphite glass with a silver rim.
+    final capsuleColor = glacierIndicator
+        ? GlacierColors.panel.withValues(alpha: .72)
+        : classic
+        ? glass.surfaceColor(theme).withValues(alpha: fillAlpha)
+        : floatingFill.withValues(alpha: fillAlpha);
+    final capsuleRadius = BorderRadius.circular(
+      classic ? glass.radiusValue(GlassRadius.m) : 999,
+    );
+    final rimColor = glacierIndicator
+        ? GlacierColors.silver.withValues(alpha: .24)
+        : classic
+        ? glass.rim(context, GlassRole.chrome)
+        : Colors.white.withValues(alpha: (.23 * effect).clamp(0.0, 0.6));
+    final shadows = classic || glass.depthScale <= 0
+        ? const <BoxShadow>[]
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(
+                alpha: (.17 * effect * glass.depthScale).clamp(0.0, 0.5),
+              ),
+              blurRadius: 8.r,
+              offset: Offset(0, 3.r),
+            ),
+          ];
+    final sheen = classic ? null : glass.sheen(context, GlassRole.chrome);
+
+    final solid = indicator == TabIndicatorStyle.solid;
+    final onAccent = theme.colorScheme.onPrimary;
+
     // Padding reserves the maximum author capsule pulse and lens deformation.
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 7.r, vertical: 5.r),
+    final strip = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: glacierIndicator
+            ? 2.r
+            : compact
+            ? 5.r
+            : 7.r,
+        vertical: compact ? 3.r : 5.r,
+      ),
       child: AnimatedBuilder(
         animation: _motion,
         child: buttons,
@@ -170,55 +348,111 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
             height: cell / 1.61 * shape.$2,
           );
           final lensPath = frame.contour(rect.size).shift(rect.topLeft);
+          final refracting = indicator == TabIndicatorStyle.lens;
+          // NeoStation's pill spans the cell minus an eighth above and below.
+          final solidPath = Path()
+            ..addRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromLTWH(_position * cell, cell * .125, cell, cell * .75),
+                Radius.circular(cell * .18),
+              ),
+            );
           return Transform.scale(
             key: const ValueKey('main-menu-capsule-pulse'),
             scale: shape.$3,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                color: dark ? const Color(0xDE102C3E) : const Color(0xE5E5F0F5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: .23),
-                  width: .8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .17),
-                    blurRadius: 8.r,
-                    offset: Offset(0, 3.r),
-                  ),
-                ],
+                borderRadius: capsuleRadius,
+                color: capsuleColor,
+                border: Border.all(color: rimColor, width: classic ? 1 : .8),
+                boxShadow: shadows,
               ),
               child: SizedBox(
-                width: tabs.length * cell,
-                height: cell,
+                width: tabs.length * cellW,
+                height: cellHeight,
                 child: Stack(
                   key: const ValueKey('main-menu-tab-strip'),
                   clipBehavior: Clip.none,
                   children: [
-                    if (widget.iconBuilder != null)
+                    if (blurSigma > 0 || sheen != null)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ClipRRect(
+                            borderRadius: capsuleRadius,
+                            child: blurSigma > 0
+                                ? BackdropFilter(
+                                    key: const ValueKey(
+                                      'main-menu-capsule-blur',
+                                    ),
+                                    filter: ui.ImageFilter.blur(
+                                      sigmaX: blurSigma,
+                                      sigmaY: blurSigma,
+                                    ),
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: sheen,
+                                      ),
+                                    ),
+                                  )
+                                : DecoratedBox(
+                                    decoration: BoxDecoration(gradient: sheen),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    if (widget.iconBuilder != null && refracting)
                       ClipPath(
                         clipper: _SelectionClip(lensPath, outside: true),
                         child: icons(),
                       ),
+                    if (widget.iconBuilder != null && !refracting) icons(),
                     Positioned(
-                      left: _position * cell,
+                      left: _position * cellW,
                       top: 0,
-                      width: cell,
-                      height: cell,
+                      width: cellW,
+                      // Glacier frames the glyph and the active tab's name.
+                      height: glacierIndicator ? cellHeight : cell,
                       child: IgnorePointer(
                         child: CustomPaint(
                           key: const ValueKey('main-menu-tab-indicator'),
-                          painter: MauAliSelectionPainter(
-                            frame: frame,
-                            scaleX: shape.$1,
-                            scaleY: shape.$2,
-                            dark: dark,
-                          ),
+                          painter: switch (indicator) {
+                            TabIndicatorStyle.lens => MauAliSelectionPainter(
+                              frame: frame,
+                              scaleX: shape.$1,
+                              scaleY: shape.$2,
+                              dark: dark,
+                              strength: effect,
+                            ),
+                            TabIndicatorStyle.pill => PillSelectionPainter(
+                              frame: frame,
+                              scaleX: shape.$1,
+                              scaleY: shape.$2,
+                              dark: dark,
+                              classic: classic,
+                              accent: theme.colorScheme.primary,
+                              strength: effect,
+                            ),
+                            TabIndicatorStyle.underline =>
+                              UnderlineSelectionPainter(
+                                frame: frame,
+                                scaleX: shape.$1,
+                                color: classic
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                                strength: effect,
+                              ),
+                            TabIndicatorStyle.solid => SolidSelectionPainter(
+                              color: theme.colorScheme.primary,
+                            ),
+                            TabIndicatorStyle.glacier =>
+                              const GlacierSelectionPainter(
+                                color: GlacierColors.focus,
+                              ),
+                          },
                         ),
                       ),
                     ),
-                    if (widget.iconBuilder != null)
+                    if (widget.iconBuilder != null && refracting)
                       IgnorePointer(
                         child: ClipPath(
                           clipper: _SelectionClip(lensPath),
@@ -227,6 +461,40 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                             alignment: Alignment(
                               (_position + .5) / tabs.length * 2 - 1,
                               0,
+                            ),
+                            child: icons(),
+                          ),
+                        ),
+                      ),
+                    // Under the solid pill the icons take the accent's contrast
+                    // colour, exactly where the pill currently is.
+                    if (widget.iconBuilder != null && solid)
+                      IgnorePointer(
+                        child: ClipPath(
+                          clipper: _SelectionClip(solidPath),
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              onAccent,
+                              BlendMode.srcIn,
+                            ),
+                            child: icons(),
+                          ),
+                        ),
+                      ),
+                    // Glacier: the active glyph turns glacier blue; its name
+                    // below stays in the text colour.
+                    if (widget.iconBuilder != null && glacierIndicator)
+                      IgnorePointer(
+                        child: ClipPath(
+                          clipper: _SelectionClip(
+                            Path()..addRect(
+                              Rect.fromLTWH(_position * cellW, 0, cellW, cell),
+                            ),
+                          ),
+                          child: ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              GlacierColors.focus,
+                              BlendMode.srcIn,
                             ),
                             child: icons(),
                           ),
@@ -250,7 +518,58 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
         },
       ),
     );
+    if (!settings.showTabBumpers) return strip;
+    // LB/RB glyphs outside the capsule, as in NeoStation: hardware hints, not
+    // part of the switch (no hit region, no semantics).
+    Widget bumper(bool left) => ExcludeSemantics(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: glacierIndicator ? 3.r : 2.r),
+        child: glacierIndicator
+            ? GlacierBumper(isLeft: left, height: cell * .82)
+            : BumperGlyph(isLeft: left, size: cell * .75),
+      ),
+    );
+    return Row(
+      key: const ValueKey('main-menu-tab-bumpers'),
+      mainAxisSize: MainAxisSize.min,
+      children: [bumper(true), strip, bumper(false)],
+    );
   }
+}
+
+/// Glacier LB/RB hint: the bumper name in a small smoked capsule with a
+/// silver rim (hardware names, identical in every language).
+class GlacierBumper extends StatelessWidget {
+  const GlacierBumper({super.key, required this.isLeft, required this.height});
+  final bool isLeft;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ValueKey(isLeft ? 'glacier-bumper-lb' : 'glacier-bumper-rb'),
+    height: height,
+    padding: EdgeInsets.symmetric(horizontal: height * .36),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: GlacierColors.panel.withValues(alpha: .78),
+      borderRadius: BorderRadius.circular(height / 2),
+      border: Border.all(
+        color: GlacierColors.silver.withValues(alpha: .26),
+        width: .8,
+      ),
+    ),
+    child: Text(
+      isLeft ? 'LB' : 'RB',
+      textScaler: TextScaler.noScaling,
+      style: TextStyle(
+        color: GlacierColors.text,
+        fontSize: height * .42,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .4,
+        height: 1,
+      ),
+    ),
+  );
 }
 
 class _SelectionClip extends CustomClipper<Path> {
@@ -275,10 +594,14 @@ class MauAliSelectionPainter extends CustomPainter {
     required this.scaleX,
     required this.scaleY,
     required this.dark,
+    this.strength = 1,
   });
   final MauAliSelectionFrame frame;
   final double scaleX, scaleY;
   final bool dark;
+
+  /// Effect intensity multiplier from the interface settings (1 = designed).
+  final double strength;
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Rect.fromCenter(
@@ -287,12 +610,17 @@ class MauAliSelectionPainter extends CustomPainter {
       height: size.height / 1.61 * scaleY,
     );
     final path = frame.contour(rect.size).shift(rect.topLeft);
-    canvas.drawShadow(path, Colors.black.withValues(alpha: .25), 3, false);
+    canvas.drawShadow(
+      path,
+      Colors.black.withValues(alpha: (.25 * strength).clamp(0, 1)),
+      3,
+      false,
+    );
     canvas.drawPath(
       path,
       Paint()
         ..color = (dark ? const Color(0xFFACC8DA) : Colors.white).withValues(
-          alpha: (.21 * frame.fillOpacity).clamp(0, 1),
+          alpha: (.21 * frame.fillOpacity * strength).clamp(0, 1),
         ),
     );
     Offset rim(Offset p) => Offset(
@@ -308,9 +636,15 @@ class MauAliSelectionPainter extends CustomPainter {
           rim(frame.rimStart),
           rim(frame.rimEnd),
           [
-            Colors.white.withValues(alpha: .9 * frame.rimOpacity),
-            Colors.white.withValues(alpha: .08 * frame.rimOpacity),
-            const Color(0xFFC3EEFF).withValues(alpha: .65 * frame.rimOpacity),
+            Colors.white.withValues(
+              alpha: (.9 * frame.rimOpacity * strength).clamp(0, 1),
+            ),
+            Colors.white.withValues(
+              alpha: (.08 * frame.rimOpacity * strength).clamp(0, 1),
+            ),
+            const Color(0xFFC3EEFF).withValues(
+              alpha: (.65 * frame.rimOpacity * strength).clamp(0, 1),
+            ),
           ],
           [0, .5, 1],
         ),
@@ -321,18 +655,192 @@ class MauAliSelectionPainter extends CustomPainter {
   bool shouldRepaint(MauAliSelectionPainter old) => true;
 }
 
+/// Simple translucent pill under the selected icon: the author's motion
+/// (position, stretch and compression) without the refracting lens.
+class PillSelectionPainter extends CustomPainter {
+  const PillSelectionPainter({
+    required this.frame,
+    required this.scaleX,
+    required this.scaleY,
+    required this.dark,
+    required this.classic,
+    required this.accent,
+    this.strength = 1,
+  });
+  final MauAliSelectionFrame frame;
+  final double scaleX, scaleY;
+  final bool dark;
+  final bool classic;
+  final Color accent;
+  final double strength;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: size.width * scaleX * 0.92,
+      height: size.height / 1.55 * scaleY,
+    );
+    final pill = RRect.fromRectAndRadius(rect, Radius.circular(rect.height));
+    final fill = classic
+        ? accent.withValues(
+            alpha: (.20 * frame.fillOpacity * strength).clamp(0, 1),
+          )
+        : (dark ? const Color(0xFFACC8DA) : Colors.white).withValues(
+            alpha: (.24 * frame.fillOpacity * strength).clamp(0, 1),
+          );
+    canvas.drawRRect(pill, Paint()..color = fill);
+    canvas.drawRRect(
+      pill,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = (classic ? accent : Colors.white).withValues(
+          alpha: (.45 * frame.rimOpacity * strength).clamp(0, 1),
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(PillSelectionPainter old) => true;
+}
+
+/// Thin bar under the selected icon, following the author's position track.
+class UnderlineSelectionPainter extends CustomPainter {
+  const UnderlineSelectionPainter({
+    required this.frame,
+    required this.scaleX,
+    required this.color,
+    this.strength = 1,
+  });
+  final MauAliSelectionFrame frame;
+  final double scaleX;
+  final Color color;
+  final double strength;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final width = size.width * 0.56 * scaleX;
+    final height = (size.height * 0.08).clamp(2.0, 4.0);
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height - height * 1.6),
+      width: width,
+      height: height,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(height)),
+      Paint()
+        ..color = color.withValues(
+          alpha: (.9 * frame.fillOpacity.clamp(0.5, 1) * strength).clamp(0, 1),
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(UnderlineSelectionPainter old) => true;
+}
+
+/// RewindBox Glacier's selection: a rounded glacier-blue outline around the
+/// active glyph and its name, a faint blue fill and a soft halo. Its shape
+/// alone shows the selection when motion is reduced.
+class GlacierSelectionPainter extends CustomPainter {
+  const GlacierSelectionPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = size.shortestSide * .06;
+    final rect = Rect.fromLTWH(
+      inset,
+      inset,
+      size.width - inset * 2,
+      size.height - inset * 2,
+    );
+    final rrect = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(size.width * .24),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color.withValues(alpha: .35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.shortestSide * .07
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          size.shortestSide * .06,
+        ),
+    );
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: .12));
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.2, size.shortestSide * .035),
+    );
+  }
+
+  @override
+  bool shouldRepaint(GlacierSelectionPainter old) => old.color != color;
+}
+
+/// NeoStation's selection: a solid accent pill under the selected icon.
+class SolidSelectionPainter extends CustomPainter {
+  const SolidSelectionPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(
+      0,
+      size.height * .125,
+      size.width,
+      size.height * .75,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(size.width * .18)),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(SolidSelectionPainter old) => old.color != color;
+}
+
 /// Icon of a navigation tab, drawn in a 16.r box like every other tab: its
 /// webp asset, its Material symbol, or its symbol with a small badge at the
 /// top right (the consoles tab: a controller with a "+"). Every part takes
 /// [tint], so the selected and theme colors are those of the other tabs.
+///
+/// With the Glacier interface style and a known [tab], the tab is drawn with
+/// its RewindBox Glacier glyph (one white PNG per tab, tinted like the other
+/// icons); the tab identity, label and order are unchanged.
 class NavTabIcon extends StatelessWidget {
-  const NavTabIcon({super.key, required this.spec, required this.tint});
+  const NavTabIcon({
+    super.key,
+    required this.spec,
+    required this.tint,
+    this.tab,
+  });
 
   final NavTabSpec spec;
   final Color tint;
+  final NavTab? tab;
 
   @override
   Widget build(BuildContext context) {
+    final glacierTab = tab;
+    if (glacierTab != null &&
+        LiquidGlassTheme.of(context).style == InterfaceStyle.glacier) {
+      return Image.asset(
+        glacierNavGlyphAsset(glacierTab.name),
+        key: ValueKey('glacier-nav-glyph-${glacierTab.name}'),
+        color: tint,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      );
+    }
     final iconData = spec.iconData;
     final badge = spec.badgeIconData;
     if (iconData == null) {

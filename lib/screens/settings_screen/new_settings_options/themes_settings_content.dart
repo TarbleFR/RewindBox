@@ -22,7 +22,15 @@ import 'package:neostation/responsive.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../l10n/glacier_locale.dart';
+import '../../../l10n/interface_style_locale.dart';
+import '../../../providers/neo_assets_provider.dart';
+import '../../../providers/sqlite_config_provider.dart';
+import '../../../services/glacier_preset.dart';
+import '../../../themes/glacier_theme.dart';
 import '../../../services/storage/storage_import_activity.dart';
+import '../../../widgets/glass/glass_surface.dart';
+import '../interface_style/interface_style_screen.dart';
 import 'settings_title.dart';
 
 /// A specialized content panel for selecting application color themes and a
@@ -67,11 +75,11 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     if (mounted) setState(() {});
   }
 
-  /// System theme + built-in variants + custom background + menu music.
+  /// System theme + built-in variants + custom background + menu music +
+  /// the user-interface style card + the RewindBox Glacier card.
   void _initializeKeys() {
     _itemKeys.clear();
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final count = themeProvider.getThemeList().length + 3;
+    final count = getItemCount(context);
     for (int i = 0; i < count; i++) {
       _itemKeys.add(GlobalKey());
     }
@@ -86,7 +94,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
 
   int getItemCount(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    return themeProvider.getThemeList().length + 3;
+    return themeProvider.getThemeList().length + 5;
   }
 
   int get _gridColumns => Responsive.getThemesCrossAxisCount(context);
@@ -155,7 +163,13 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     final themes = themeProvider.getThemeList();
     final customBackgroundIndex = themes.length + 1;
     final menuMusicIndex = themes.length + 2;
+    final interfaceStyleIndex = themes.length + 3;
+    final glacierIndex = themes.length + 4;
 
+    if (index == glacierIndex) {
+      await _toggleGlacier();
+      return;
+    }
     if (index == 0) {
       await themeProvider.setTheme('system');
     } else if (index - 1 < themes.length) {
@@ -165,6 +179,9 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
       return;
     } else if (index == menuMusicIndex) {
       await _pickHomeMusic();
+      return;
+    } else if (index == interfaceStyleIndex) {
+      await InterfaceStyleScreen.open(context);
       return;
     } else {
       return;
@@ -238,6 +255,44 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     );
   }
 
+  /// RewindBox Glacier in one step: applies the Glacier look (interface,
+  /// colours, background, glyphs and the embedded System Art, offline), or
+  /// when it is active, returns to the look it replaced.
+  Future<void> _toggleGlacier() async {
+    final themeProvider = context.read<ThemeProvider>();
+    final assets = context.read<NeoAssetsProvider>();
+    final config = context.read<SqliteConfigProvider>();
+    if (GlacierPreset.isActive(themeProvider, assets) &&
+        await GlacierPreset.previousLook() != null) {
+      final restored = await GlacierPreset.restorePrevious(
+        theme: themeProvider,
+        assets: assets,
+        systemFolders: config.availableSystems
+            .map((system) => system.folderName)
+            .toList(),
+      );
+      if (!mounted || !restored) return;
+      setState(() {});
+      AppNotification.showNotification(
+        context,
+        GlacierLocale.text(context, GlacierLocale.presetRestored),
+        type: NotificationType.info,
+      );
+      return;
+    }
+    final applied = await GlacierPreset.apply(
+      theme: themeProvider,
+      assets: assets,
+    );
+    if (!mounted || !applied) return;
+    setState(() {});
+    AppNotification.showNotification(
+      context,
+      GlacierLocale.text(context, GlacierLocale.presetApplied),
+      type: NotificationType.info,
+    );
+  }
+
   /// Gamepad entry point: clears only the custom background or menu music.
   void deleteFocusedTheme(int index) {
     if (index <= 0) return;
@@ -270,7 +325,13 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
 
     final customBackgroundIndex = allThemes.length;
     final menuMusicIndex = allThemes.length + 1;
-    final itemCount = allThemes.length + 2;
+    final interfaceStyleIndex = allThemes.length + 2;
+    final glacierIndex = allThemes.length + 3;
+    final itemCount = allThemes.length + 4;
+    final glacierActive = GlacierPreset.isActive(
+      themeProvider,
+      context.watch<NeoAssetsProvider>(),
+    );
 
     if (_itemKeys.length != itemCount) {
       _initializeKeys();
@@ -287,15 +348,15 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
             title: AppLocale.themes.getString(context),
             subtitle: AppLocale.themesSubtitle.getString(context),
           ),
-          SizedBox(height: 12.r),
+          const GlassGap(),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: itemCount,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: _gridColumns,
-              crossAxisSpacing: 8.r,
-              mainAxisSpacing: 8.r,
+              crossAxisSpacing: LiquidGlassTheme.of(context).gap,
+              mainAxisSpacing: LiquidGlassTheme.of(context).gap * 0.6,
               childAspectRatio: 1.05,
             ),
             itemBuilder: (context, index) {
@@ -325,6 +386,49 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
                 );
               }
 
+              if (index == glacierIndex) {
+                return Container(
+                  key: _itemKeys[index],
+                  child: _GlacierPresetCard(
+                    subtitle: GlacierLocale.text(
+                      context,
+                      glacierActive
+                          ? GlacierLocale.presetRestore
+                          : GlacierLocale.presetSubtitle,
+                    ),
+                    active: glacierActive,
+                    isFocused: isFocused,
+                    onTap: () {
+                      SfxService().playEnterSound();
+                      widget.onSelectionChanged?.call(index);
+                      _toggleGlacier();
+                    },
+                  ),
+                );
+              }
+
+              if (index == interfaceStyleIndex) {
+                return Container(
+                  key: _itemKeys[index],
+                  child: _InterfaceStyleCard(
+                    label: InterfaceStyleLocale.text(
+                      context,
+                      InterfaceStyleLocale.title,
+                    ),
+                    subtitle: InterfaceStyleLocale.text(
+                      context,
+                      InterfaceStyleLocale.cardSubtitle,
+                    ),
+                    isFocused: isFocused,
+                    onTap: () {
+                      SfxService().playEnterSound();
+                      widget.onSelectionChanged?.call(index);
+                      InterfaceStyleScreen.open(context);
+                    },
+                  ),
+                );
+              }
+
               if (index == menuMusicIndex) {
                 // Ambient music (Build 448): the switch and the volume are
                 // in Settings › General; this card chooses the track — your
@@ -346,7 +450,9 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
                       );
                 final state = AmbientMusicLocale.text(
                   context,
-                  music.enabled ? AmbientMusicLocale.on : AmbientMusicLocale.off,
+                  music.enabled
+                      ? AmbientMusicLocale.on
+                      : AmbientMusicLocale.off,
                 );
 
                 return Container(
@@ -404,6 +510,120 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Settings › Themes card of the RewindBox Glacier look: the Glacier
+/// background and emblem, its name, and what a tap does.
+class _GlacierPresetCard extends StatelessWidget {
+  const _GlacierPresetCard({
+    required this.subtitle,
+    required this.active,
+    required this.isFocused,
+    required this.onTap,
+  });
+
+  final String subtitle;
+  final bool active;
+  final bool isFocused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return Semantics(
+      button: true,
+      selected: active,
+      label: 'RewindBox Glacier',
+      hint: subtitle,
+      child: GestureDetector(
+        key: const ValueKey('glacier-preset-card'),
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Container(
+                margin: EdgeInsets.symmetric(vertical: 4.h),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(
+                    color: isFocused || active
+                        ? (isFocused ? accent : GlacierColors.focus)
+                        : Colors.transparent,
+                    width: 2.r,
+                  ),
+                  boxShadow: isFocused
+                      ? [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.3),
+                            blurRadius: 8.r,
+                            spreadRadius: 1.r,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6.r),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        glacierBackgroundAsset,
+                        fit: BoxFit.cover,
+                        cacheWidth: 384,
+                      ),
+                      Center(
+                        child: Image.asset(
+                          glacierEmblemAsset,
+                          height: 30.r,
+                          cacheHeight: 128,
+                        ),
+                      ),
+                      if (active)
+                        Positioned(
+                          top: 6.r,
+                          right: 6.r,
+                          child: Icon(
+                            Symbols.check_circle_rounded,
+                            color: GlacierColors.focus,
+                            size: 18.r,
+                            fill: 1,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 4.r),
+            Text(
+              'RewindBox Glacier',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal,
+                fontSize: 11.r,
+              ),
+            ),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                fontSize: 8.r,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -711,6 +931,132 @@ class _HomeMusicCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 4.r),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: isFocused
+                ? theme.colorScheme.onSurface
+                : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontWeight: isFocused ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12.r,
+          ),
+        ),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+            fontSize: 8.r,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Themes grid entry opening Settings › Themes › User interface. The tile
+/// itself is a small live composition of the current glass tokens.
+class _InterfaceStyleCard extends StatelessWidget {
+  const _InterfaceStyleCard({
+    required this.label,
+    required this.subtitle,
+    required this.isFocused,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool isFocused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final glass = LiquidGlassTheme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: Container(
+            key: const ValueKey('interface-style-card'),
+            margin: EdgeInsets.symmetric(vertical: 4.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8.r),
+              boxShadow: isFocused
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.3),
+                        blurRadius: 8.r,
+                        spreadRadius: 1.r,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: GlassSurface(
+              role: GlassRole.card,
+              radius: BorderRadius.circular(8.r),
+              focused: isFocused,
+              rimColor: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+              borderWidth: 2.r,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(8.r),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Symbols.auto_awesome_rounded,
+                          color: isFocused
+                              ? accent
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
+                                ),
+                          size: 22.r,
+                        ),
+                        SizedBox(height: 6.r),
+                        // Three tiny bubbles: the glass tokens, live.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < 3; i++) ...[
+                              GlassSurface(
+                                role: GlassRole.bubble,
+                                radiusSize: GlassRadius.s,
+                                blur: false,
+                                selected: i == 1,
+                                width: 18.r,
+                                height: 10.r,
+                                child: const SizedBox.shrink(),
+                              ),
+                              if (i < 2) SizedBox(width: glass.gap * 0.3),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(canRequestFocus: false, onTap: onTap),
+                    ),
+                  ),
                 ],
               ),
             ),

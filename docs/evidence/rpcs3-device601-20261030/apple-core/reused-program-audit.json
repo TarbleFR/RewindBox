@@ -1,0 +1,288 @@
+{
+  "passed": true,
+  "reports_checked": 10,
+  "native_compilations": 0,
+  "native_executions": 0,
+  "results": [
+    {
+      "schema": 1,
+      "job": "tiny-vertex-plain",
+      "mode": "plain",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/rsx_cache.h": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/Emu/RSX/rsx_cache.h": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_tiny_vertex_cache_test.py": "73d1e237c56d22d393f2cb2363b6324d19bd71c8dc2932f4c2f51071f4cd2d82"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "baseline-ios": "95ea6eda0abd01941c4693dcc7705b23d79ffe133c624edfe524e74f117f75eb",
+        "candidate-ios": "1405d70f2cd92eb3c83acc5a6b75339470d849191a7d3e78b0ccc727e793b871",
+        "candidate-other": "1405d70f2cd92eb3c83acc5a6b75339470d849191a7d3e78b0ccc727e793b871"
+      },
+      "generated_cpp_sha256": [
+        "1405d70f2cd92eb3c83acc5a6b75339470d849191a7d3e78b0ccc727e793b871",
+        "95ea6eda0abd01941c4693dcc7705b23d79ffe133c624edfe524e74f117f75eb"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "vertex-range-plain",
+      "mode": "plain",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+        "rpcs3/ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+        "rpcs3/Emu/RSX/RSXThread.cpp": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
+        "rpcs3/Emu/RSX/rsx_cache.h": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb",
+        "rpcs3/Emu/RSX/Core/RSXVertexTypes.h": "a756b80c78e010e7678e6680e2dac894929b5807efcfb0b4e927ca354033446b",
+        "rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp": "6115d41176e7effa7f713830786f9433a21936ec93ea16b5a87d6bfc2a0caa9e"
+      },
+      "baseline_inputs_sha256": {},
+      "fixture_inputs_sha256": {
+        "test/rpcs3_device597/renderer/test_vertex_upload_key.py": "babadbb6bb0db8731a706e7382744d1bf209b51116100b777c00b0f66eda6769",
+        "test/rpcs3_device597/renderer/fixtures/VKVertexBuffers.before.cpp": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "before": "df7f46ea736dc99081148a5b099dbfaed9ca7ec9bd0e5521e0f9909d3d5b4f6b",
+        "after": "1758f9ae877923e7686ddd49b118b6348ae99838b94dba7c1e4c91f6e9431b8a"
+      },
+      "generated_cpp_sha256": [
+        "1758f9ae877923e7686ddd49b118b6348ae99838b94dba7c1e4c91f6e9431b8a",
+        "df7f46ea736dc99081148a5b099dbfaed9ca7ec9bd0e5521e0f9909d3d5b4f6b"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "tiny-vertex-asan-ubsan",
+      "mode": "asan-ubsan",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/rsx_cache.h": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb"
+      },
+      "baseline_inputs_sha256": {},
+      "fixture_inputs_sha256": {
+        "test/rpcs3_tiny_vertex_cache_test.py": "73d1e237c56d22d393f2cb2363b6324d19bd71c8dc2932f4c2f51071f4cd2d82"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "candidate-ios": "1405d70f2cd92eb3c83acc5a6b75339470d849191a7d3e78b0ccc727e793b871"
+      },
+      "generated_cpp_sha256": [
+        "1405d70f2cd92eb3c83acc5a6b75339470d849191a7d3e78b0ccc727e793b871"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "vertex-range-asan-ubsan",
+      "mode": "asan-ubsan",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+        "rpcs3/ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+        "rpcs3/Emu/RSX/RSXThread.cpp": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
+        "rpcs3/Emu/RSX/rsx_cache.h": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb",
+        "rpcs3/Emu/RSX/Core/RSXVertexTypes.h": "a756b80c78e010e7678e6680e2dac894929b5807efcfb0b4e927ca354033446b",
+        "rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp": "6115d41176e7effa7f713830786f9433a21936ec93ea16b5a87d6bfc2a0caa9e"
+      },
+      "baseline_inputs_sha256": {},
+      "fixture_inputs_sha256": {
+        "test/rpcs3_device597/renderer/test_vertex_upload_key.py": "babadbb6bb0db8731a706e7382744d1bf209b51116100b777c00b0f66eda6769",
+        "test/rpcs3_device597/renderer/fixtures/VKVertexBuffers.before.cpp": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "before": "df7f46ea736dc99081148a5b099dbfaed9ca7ec9bd0e5521e0f9909d3d5b4f6b",
+        "after": "1758f9ae877923e7686ddd49b118b6348ae99838b94dba7c1e4c91f6e9431b8a"
+      },
+      "generated_cpp_sha256": [
+        "1758f9ae877923e7686ddd49b118b6348ae99838b94dba7c1e4c91f6e9431b8a",
+        "df7f46ea736dc99081148a5b099dbfaed9ca7ec9bd0e5521e0f9909d3d5b4f6b"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "exitspawn-worker-plain",
+      "mode": "plain",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/Cell/lv2/sys_process.cpp": "4dfc45d978c42b8615eae6a36fecd44ec84547e3e2d838ff0c561f7b40a0005e",
+        "rpcs3/ios/IOSRestoreExecutor.h": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456",
+        "rpcs3/ios/RPCS3IOS.cpp": "8b233678d5ae264444cbef28d6e03e61c60d9e87089ec417b9aa57a137c87651",
+        "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/Emu/Cell/lv2/sys_process.cpp": "de9541c42f0a8a4e295a5806f177fdf65dccdfd9382489f63178737e156e6b4c",
+        "rpcs3/ios/IOSRestoreExecutor.h": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
+        "rpcs3/ios/RPCS3IOS.cpp": "f10ba0eb66a08a1b0254e1f64103a23cc35942c6cec23defe2641ec539a26a0d",
+        "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_exitspawn_worker601_test.py": "5170ff16eecd648e82cc00492e610cc880a8e556a198eebfdd4e8d51103c9aab",
+        "test/native/rpcs3_exitspawn_worker601.cpp": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      },
+      "extraction_sha256": {
+        "executor": "b0b527de2db3d02c29014fe37ed2fde20e0ed1cf1f2a9d08781800df7935963b",
+        "continuations": "60cad1d178d949f1bb5545fe40d578a6a8989510794972f11a60be56f47cebd3"
+      },
+      "program_variants_sha256": {
+        "fixture": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      },
+      "generated_cpp_sha256": [
+        "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "savestate-completion-plain",
+      "mode": "plain",
+      "source_inputs_sha256": {
+        "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_savestate_completion601_test.py": "478a8a26d123a56e7ebbca873277518ff592f4b1c3cc4a2911f9317885505499",
+        "test/native/rpcs3_savestate_completion601.cpp": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "fixture": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      },
+      "generated_cpp_sha256": [
+        "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "color-feedback-plain",
+      "mode": "plain",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKDraw.cpp": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKDraw.cpp": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_color_feedback_test.py": "a48f65b5074be7e8defb0f58d889e8079b165a9b35e9aebbe176724a8e3e5ff3"
+      },
+      "extraction_sha256": {
+        "before": "27d0f97c01c1f1ecd01196ca02108fb667e807e44cc0099e799403f273679292",
+        "after": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec",
+        "after-nonios": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec"
+      },
+      "program_variants_sha256": {
+        "before": "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae",
+        "after": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926",
+        "after-nonios": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926"
+      },
+      "generated_cpp_sha256": [
+        "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926",
+        "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "exitspawn-worker-asan-ubsan",
+      "mode": "asan-ubsan",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/Cell/lv2/sys_process.cpp": "4dfc45d978c42b8615eae6a36fecd44ec84547e3e2d838ff0c561f7b40a0005e",
+        "rpcs3/ios/IOSRestoreExecutor.h": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456",
+        "rpcs3/ios/RPCS3IOS.cpp": "8b233678d5ae264444cbef28d6e03e61c60d9e87089ec417b9aa57a137c87651",
+        "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/Emu/Cell/lv2/sys_process.cpp": "de9541c42f0a8a4e295a5806f177fdf65dccdfd9382489f63178737e156e6b4c",
+        "rpcs3/ios/IOSRestoreExecutor.h": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
+        "rpcs3/ios/RPCS3IOS.cpp": "f10ba0eb66a08a1b0254e1f64103a23cc35942c6cec23defe2641ec539a26a0d",
+        "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_exitspawn_worker601_test.py": "5170ff16eecd648e82cc00492e610cc880a8e556a198eebfdd4e8d51103c9aab",
+        "test/native/rpcs3_exitspawn_worker601.cpp": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      },
+      "extraction_sha256": {
+        "executor": "b0b527de2db3d02c29014fe37ed2fde20e0ed1cf1f2a9d08781800df7935963b",
+        "continuations": "60cad1d178d949f1bb5545fe40d578a6a8989510794972f11a60be56f47cebd3"
+      },
+      "program_variants_sha256": {
+        "fixture": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      },
+      "generated_cpp_sha256": [
+        "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "savestate-completion-asan-ubsan",
+      "mode": "asan-ubsan",
+      "source_inputs_sha256": {
+        "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_savestate_completion601_test.py": "478a8a26d123a56e7ebbca873277518ff592f4b1c3cc4a2911f9317885505499",
+        "test/native/rpcs3_savestate_completion601.cpp": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      },
+      "extraction_sha256": {},
+      "program_variants_sha256": {
+        "fixture": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      },
+      "generated_cpp_sha256": [
+        "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    },
+    {
+      "schema": 1,
+      "job": "color-feedback-asan-ubsan",
+      "mode": "asan-ubsan",
+      "source_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKDraw.cpp": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
+      },
+      "baseline_inputs_sha256": {
+        "rpcs3/Emu/RSX/VK/VKDraw.cpp": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494"
+      },
+      "fixture_inputs_sha256": {
+        "test/rpcs3_color_feedback_test.py": "a48f65b5074be7e8defb0f58d889e8079b165a9b35e9aebbe176724a8e3e5ff3"
+      },
+      "extraction_sha256": {
+        "before": "27d0f97c01c1f1ecd01196ca02108fb667e807e44cc0099e799403f273679292",
+        "after": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec",
+        "after-nonios": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec"
+      },
+      "program_variants_sha256": {
+        "before": "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae",
+        "after": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926",
+        "after-nonios": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926"
+      },
+      "generated_cpp_sha256": [
+        "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926",
+        "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae"
+      ],
+      "compiler_executed": false,
+      "native_executed": false
+    }
+  ],
+  "helper_sha256": "718d3d0deeca9fe431d5c55b29805484aad0233f77f321fb7145ea1e271e2079"
+}

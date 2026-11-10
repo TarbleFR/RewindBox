@@ -9,8 +9,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import '../../../l10n/glacier_locale.dart';
+import '../../../themes/glacier_theme.dart';
 import '../../../themes/corner_radii.dart';
 import '../../../themes/chrome_surface.dart';
+import '../../../themes/liquid_glass_theme.dart';
 import '../../../widgets/neo_glass.dart';
 import '../../../widgets/neo_glass_bubble.dart';
 import '../../../widgets/console_bubble_transition.dart';
@@ -32,6 +36,7 @@ class SystemCard extends StatefulWidget {
     this.isSelected = false,
     this.backgroundCacheWidth = 512,
     this.carouselArtworkOnly = false,
+    this.glacierRadius,
   });
 
   /// The system or game metadata resolved for this card.
@@ -50,6 +55,10 @@ class SystemCard extends StatefulWidget {
   /// Carousel artwork is already branded; never append the grid logo/footer.
   final bool carouselArtworkOnly;
 
+  /// Set by the RewindBox Glacier grid: the card is drawn with the Glacier
+  /// template (full-bleed art, name at the bottom) and this corner radius.
+  final double? glacierRadius;
+
   @override
   State<SystemCard> createState() => _SystemCardState();
 }
@@ -66,6 +75,7 @@ class _SystemCardState extends State<SystemCard> {
   String? _lastActiveTrackPath;
 
   String? _themeBackgroundPath;
+  bool _themeBackgroundExists = false;
   String _lastThemeFolder = '';
 
   /// Cached wheel file and existence check — computed once, not on every build.
@@ -212,9 +222,16 @@ class _SystemCardState extends State<SystemCard> {
           widget.info.customBackgroundPath?.isNotEmpty == true
           ? null
           : neoAssets.getBackgroundForSystemSync(folderName);
+      // Checked once per pack change: a pack without this system (or not
+      // installed) shows the logo instead of an empty card.
+      final themePath = _themeBackgroundPath;
+      _themeBackgroundExists =
+          themePath != null && themePath.isNotEmpty && File(themePath).existsSync();
     }
 
     if (widget.carouselArtworkOnly) return _buildCarouselArtwork(context);
+    final glacierRadius = widget.glacierRadius;
+    if (glacierRadius != null) return _buildGlacierCard(context, glacierRadius);
 
     final card = Padding(
       padding: EdgeInsets.all(2.r),
@@ -293,6 +310,186 @@ class _SystemCardState extends State<SystemCard> {
         float: true,
         child: card,
       ),
+    );
+  }
+
+  /// RewindBox Glacier card: one template for systems and the recent game.
+  /// The art fills the card (portraits stay centred), a dark gradient
+  /// carries the name aligned at the bottom, and a silver rim outlines it;
+  /// the grid draws the focus frame above. The recent game shows its own
+  /// database artwork, a clock and "Recent"; screen readers get the full,
+  /// untruncated name.
+  Widget _buildGlacierCard(BuildContext context, double radius) {
+    final info = widget.info;
+    final game = info.isGame;
+    final title = info.title ?? info.shortName ?? '';
+    final recent = GlacierLocale.text(context, GlacierLocale.recent);
+    final bubbles = LiquidGlassTheme.of(context).settings.showSystemBubbles;
+    final hasArt =
+        info.customBackgroundPath?.isNotEmpty == true ||
+        _themeBackgroundExists ||
+        (game && _cachedHasWheelFile);
+    final art = game && info.customBackgroundPath?.isNotEmpty != true
+        ? (_cachedHasWheelFile
+              ? Positioned.fill(
+                  child: Image.file(
+                    _cachedWheelFile!,
+                    fit: BoxFit.cover,
+                    cacheWidth: widget.backgroundCacheWidth,
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  ),
+                )
+              : const SizedBox.shrink())
+        : _buildSystemBackground();
+    final nameStyle = TextStyle(
+      color: GlacierColors.text,
+      fontSize: 8.5.r,
+      fontWeight: FontWeight.w600,
+      height: 1.15,
+      shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
+    );
+    final card = Semantics(
+      key: ValueKey('glacier-card-${info.folderName}'),
+      button: true,
+      selected: widget.isSelected,
+      label: game ? '$title, $recent' : title,
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: bubbles ? GlacierColors.panel : Colors.transparent,
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: bubbles
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .38),
+                    blurRadius: 10.r,
+                    offset: Offset(0, 4.r),
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              canRequestFocus: false,
+              focusColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              onTap: () {
+                if (widget.isSelected) {
+                  SfxService().playEnterSound();
+                } else {
+                  SfxService().playNavSound();
+                }
+                widget.onTap?.call();
+              },
+              child: Stack(
+                key: _contentStackKey,
+                fit: StackFit.expand,
+                children: [
+                  art,
+                  if (!hasArt && !game)
+                    Align(
+                      alignment: const Alignment(0, -.2),
+                      child: FractionallySizedBox(
+                        widthFactor: .7,
+                        heightFactor: .45,
+                        child: FittedBox(
+                          child: _buildSystemLogo(
+                            _resolveSystemLogoPath(),
+                            height: 40.r,
+                            color: GlacierColors.text,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Legibility gradient under the name.
+                  const IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: [.45, 1],
+                          colors: [Color(0x00000000), Color(0xC6050709)],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 6.r,
+                    right: 6.r,
+                    bottom: 5.r,
+                    child: game
+                        ? Row(
+                            children: [
+                              Icon(
+                                Symbols.history,
+                                size: 11.r,
+                                color: GlacierColors.text,
+                              ),
+                              SizedBox(width: 5.r),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: nameStyle.copyWith(fontSize: 7.5.r),
+                                    ),
+                                    Text(
+                                      recent,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: nameStyle.copyWith(
+                                        fontSize: 6.5.r,
+                                        fontWeight: FontWeight.w500,
+                                        color: GlacierColors.secondaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            title,
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: nameStyle,
+                          ),
+                  ),
+                  if (bubbles)
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(radius),
+                          border: Border.all(
+                            color: GlacierColors.silver.withValues(alpha: .22),
+                            width: .9,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (game) return card;
+    return ConsoleBubbleAnchor(
+      identity: info.folderName ?? info.title ?? 'all',
+      selected: widget.isSelected,
+      child: card,
     );
   }
 
@@ -387,6 +584,10 @@ class _SystemCardState extends State<SystemCard> {
         child: child,
       );
     }
+    // Without system bubbles the art pack sits on the menu background as
+    // is: no rim, fill or lens. The grid's selection marker and the float of
+    // [NeoBubbleMotion] still show which system is focused.
+    if (!LiquidGlassTheme.of(context).settings.showSystemBubbles) return child;
     return NeoGlassBubble(
       selected: widget.isSelected,
       radius: 30.r,

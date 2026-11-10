@@ -687,7 +687,8 @@ void main() {
         );
         expect(
           valueText(tester, 'language'),
-          'Automatique (langue de NeoStation : Français)',
+          // The app is RewindBox since the rebranding (docs/REBRANDING.md).
+          'Automatique (langue de RewindBox : Français)',
         );
         expect(
           find.byKey(const ValueKey('3ds-language-fallback')),

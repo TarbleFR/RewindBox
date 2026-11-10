@@ -1,0 +1,37 @@
+  Determining projects to restore...
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Audio.Backends.Apple/Ryujinx.Audio.Backends.Apple.csproj (in 419 ms).
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon/Ryujinx.Horizon.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129) [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon/Ryujinx.Horizon.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ] [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Audio.Backends.OpenAL/Ryujinx.Audio.Backends.OpenAL.csproj (in 810 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Nvdec.FFmpeg/Ryujinx.Graphics.Nvdec.FFmpeg.csproj (in 12 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Host1x/Ryujinx.Graphics.Host1x.csproj (in 11 ms).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon/Ryujinx.Horizon.csproj (in 831 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon.Common/Ryujinx.Horizon.Common.csproj (in 16 ms).
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.Native/Ryujinx.Input.Native.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129) [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.Native/Ryujinx.Input.Native.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ] [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon.Kernel.Generators/Ryujinx.Horizon.Kernel.Generators.csproj (in 4.38 sec).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Horizon.Generators/Ryujinx.Horizon.Generators.csproj (in 3.59 sec).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.Native/Ryujinx.Input.Native.csproj (in 4.45 sec).
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input/Ryujinx.Input.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129) [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input/Ryujinx.Input.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ] [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.HLE/Ryujinx.HLE.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129) [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.HLE/Ryujinx.HLE.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ] [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Video/Ryujinx.Graphics.Video.csproj (in 30 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Vic/Ryujinx.Graphics.Vic.csproj (in 31 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.HLE.Generators/Ryujinx.HLE.Generators.csproj (in 37 ms).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.HLE/Ryujinx.HLE.csproj (in 3.59 sec).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input/Ryujinx.Input.csproj (in 4.5 sec).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.OpenGL/Ryujinx.Graphics.OpenGL.csproj (in 17 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Nvdec.Vp9/Ryujinx.Graphics.Nvdec.Vp9.csproj (in 13 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Nvdec/Ryujinx.Graphics.Nvdec.csproj (in 29 ms).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Audio/Ryujinx.Audio.csproj (in 17 ms).
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.SDL3/Ryujinx.Input.SDL3.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129) [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.SDL3/Ryujinx.Input.SDL3.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ] [/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj]
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.SDL3.Common/Ryujinx.SDL3.Common.csproj (in 4.72 sec).
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Audio.Backends.SDL3/Ryujinx.Audio.Backends.SDL3.csproj (in 4.81 sec).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Input.SDL3/Ryujinx.Input.SDL3.csproj (in 309 ms).
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj : error NU1102: Unable to find package Ryujinx.LibHac with version (>= 0.21.0-alpha.129)
+/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj : error NU1102:   - Found 4 version(s) in nuget.org [ Nearest version: 0.20.0 ]
+  Restored /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj (in 424 ms).
+  Failed to restore /workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Library/Ryujinx.Library.csproj (in 4.48 sec).
+  10 of 33 projects are up-to-date for restore.

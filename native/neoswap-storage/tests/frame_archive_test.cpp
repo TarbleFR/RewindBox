@@ -107,7 +107,8 @@ void errors(const std::string& dir){
     using Fault=neostation::storage::Store::Fault;
     const auto pixels=fixture(512*1024,44);
     for(auto fault:{Fault::write_error,Fault::sync_error,Fault::read_error,Fault::corrupt}){
-        Archive a(dir,12,config());reset(a,12);ColdFrame f;
+        auto policy=config();policy.managed.store.sync_writes=fault==Fault::sync_error;
+        Archive a(dir,12,policy);reset(a,12);ColdFrame f;
         CHECK(f.offload(pixels.data(),pixels.size()));a.inject(fault);a.maintain();
         CHECK(a.snapshot().staging_bytes==pixels.size());
         std::string restored;int error=0;

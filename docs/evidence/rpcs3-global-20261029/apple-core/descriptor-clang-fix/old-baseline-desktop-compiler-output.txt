@@ -1,0 +1,4 @@
+/tmp/rpcs3-descriptor-clang-fix/old-baseline-desktop.cpp:160:19: error: ‘rpcs3::ios::rsx_sync::cb_reuse’ defined but not used [-Werror=unused-const-variable=]
+  160 |     constexpr int cb_reuse = 1;
+      |                   ^~~~~~~~
+cc1plus: all warnings being treated as errors

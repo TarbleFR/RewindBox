@@ -1,0 +1,45 @@
+{
+  "inputs": {
+    "build-utils/melonx/adapt_fragmented_uploads.py": "59d89d6e527eb4929af5ccadd495d371561876da3118504e33ce78ea02e7a088",
+    "build-utils/melonx/adapt_gpu_allocations.py": "1d3a2fe24ddabe439fb58a4b361d1c95d513536c2535be7dac0c479c6e0e83f6",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/adapt_upload_lifetime.py": "c3eeeba74e9e82bf6f73bc964a8c34bf9d733565b37cedced0f5521c9ebf5b45",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_fragmented_uploads/Boundary.cs": "e67dd9c50a62cc0dd35acf5c4026dfb698e54a2db66445ad0a1beb26f31ff317",
+    "test/melonx_fragmented_uploads/Program.cs": "d4bcbdb78bdbaf47be55e3c4a2ed5796f91e3af4be6d4f5d752b7fda22bc7589",
+    "test/melonx_fragmented_uploads_test.py": "0eb0f22410c2d851be3f88c7f626144cfaba87173a9d65262d9513f6af948791"
+  },
+  "physicalDeviceTested": false,
+  "reports": [
+    {
+      "allocatedBytes": 201353728,
+      "checks": 14,
+      "fragmentedUploads": 192,
+      "mode": "control",
+      "passed": true,
+      "physicalDeviceTested": false,
+      "rents": 0,
+      "returns": 0
+    },
+    {
+      "allocatedBytes": 28672,
+      "checks": 14,
+      "fragmentedUploads": 192,
+      "mode": "fixed",
+      "passed": true,
+      "physicalDeviceTested": false,
+      "rents": 219,
+      "returns": 219
+    }
+  ],
+  "result": "passed",
+  "upstreamInputs": {
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs": "28de9f4232b06c52a836a41f8c3a63c00f4178dcc12a2d5a5e3f53c5d7403054",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "926fed78436a4ce587203174d0217933593be627c68055c8cddfc5be32c6cd6f",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767"
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

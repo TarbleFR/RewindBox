@@ -75,7 +75,10 @@ int main(int argc,const char **argv) { @autoreleasepool {
   [UTF8(@"FILE \"../outside.bin\" BINARY\n") writeToFile:cue atomically:YES];
   CHECK([[LibretroCheats identityContentPath:cue] isEqual:cue],"CUE traversal never reads another folder");
   CHECK(([LibretroCheats codesForCheat:@{@"code":@"80012345 007F+30010000 00FF",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"].count==1),"PSX program preserves bounded simple GameShark writes");
-  CHECK(([LibretroCheats codesForCheat:@{@"code":@"D0012345 0001+80012345 0002",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"]==nil),"unreviewed PSX conditional opcode remains explicitly unavailable");
+  // Contract replaced: PSX conditions (D0-D3/E0-E3) and repeaters (5000) are now reviewed and
+  // stay grouped with their write in one native call (test/unified_identity_test.m).
+  CHECK(([[LibretroCheats codesForCheat:@{@"code":@"D0012345 0001+80012345 0002",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"] isEqual:@[@"D00123450001+800123450002"]]),"reviewed PSX condition stays with its write in one native call");
+  CHECK(([LibretroCheats codesForCheat:@{@"code":@"C0012345 0001+80012345 0002",@"handler":@0} core:@"mednafen_psx_hw" console:@"psx"]==nil),"unreviewed PSX opcode remains explicitly unavailable");
   CHECK(([LibretroCheats codesForCheat:@{@"code":@"22000024 0000007F",@"handler":@0} core:@"desmume" console:@"nds"].count==1),"DeSmuME Action Replay adapter retains a complete program");
   NSError *parseError=nil;
   NSArray *separators=[LibretroCheats parseCHT:UTF8(@"cheats=2\ncheat0_desc=Section\ncheat0_code=\"\"\ncheat1_desc=Counter\ncheat1_code=0024:7F") error:&parseError];
@@ -105,7 +108,8 @@ int main(int argc,const char **argv) { @autoreleasepool {
   NSArray *ff7codes=[LibretroCheats parseCHT:ff7data error:&parseError];CHECK(ff7codes.count==19,"all actual FFVII CHT entries parse");
   for(NSString *core in @[@"mednafen_psx_hw",@"mednafen_psx"]) {
     NSUInteger supported=0;for(NSDictionary *r in ff7codes)if([LibretroCheats codesForCheat:r core:core console:@"psx"])supported++;
-    CHECK(supported==17,"both Beetle variants accept 17 simple FFVII programs and explicitly reject two repeat programs");
+    CHECK(supported==19,"both Beetle variants accept all 19 FFVII programs, repeat programs included");
+    CHECK((ff7codes.count==19 && [[LibretroCheats codesForCheat:ff7codes[17] core:core console:@"psx"] isEqual:@[@"500069020001+8009CBE0C600+5000C0020001+8009CCB2C680"]]),"a FFVII repeat program stays one native call");
     CHECK(([[LibretroCheats codesForCheat:ff7codes.lastObject core:core console:@"psx"] isEqual:@[@"8009D260 967F+8009D262 0098"]]),"actual Max Gil plus-separated words become complete libretro program");
   }
   [NSFileManager.defaultManager removeItemAtPath:work error:nil];

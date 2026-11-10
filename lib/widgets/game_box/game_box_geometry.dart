@@ -895,6 +895,7 @@ class ProjectedFace {
     required this.shade,
     required this.depth,
     required this.pxPerMm,
+    this.facing = 1,
   });
 
   final BoxFace face;
@@ -913,6 +914,12 @@ class ProjectedFace {
 
   /// Logical pixels per millimetre of the model at this pose.
   final double pxPerMm;
+
+  /// How squarely the face is seen: 1 straight on, 0 edge-on (cosine of
+  /// the angle between its normal and the line of sight). Gloss and the
+  /// light caught by its edges grow as it turns away (docs/game-box-3d.md
+  /// § 20).
+  final double facing;
 }
 
 /// Projects the model for a viewport.
@@ -955,7 +962,8 @@ class BoxProjector {
   (double, double, double) _computeFraming() {
     final base = _fitScale();
     final t = outlineBlend.clamp(0.0, 1.0);
-    if (t == 0) return (base, 0, 0);
+    final centre = _centring(base * pose.zoom.clamp(BoxPose.minZoom * 0.3, BoxPose.maxZoom));
+    if (t == 0) return (base, centre.dx, centre.dy);
     final r = pose.rotation;
     var minX = double.infinity, maxX = -double.infinity;
     var minY = double.infinity, maxY = -double.infinity;
@@ -1007,7 +1015,42 @@ class BoxProjector {
     final s = base + (outline - base) * t;
     // Offsets were computed for the outline scale; follow the blended one.
     final follow = outline == 0 ? 0.0 : s / outline;
-    return (s, ox * t * zoom * follow, oy * t * zoom * follow);
+    return (
+      s,
+      centre.dx * (1 - t) + ox * t * zoom * follow,
+      centre.dy * (1 - t) + oy * t * zoom * follow,
+    );
+  }
+
+  /// Offset that keeps the closed box's outline centred at this pose, at
+  /// [s] logical pixels per millimetre (zoom included). Seen in perspective,
+  /// a turning box is not symmetric: its outline would drift sideways and up
+  /// while it turns to its back, around an axis that seems to move
+  /// (docs/game-box-3d.md § 20). Centred, every pose turns about the same
+  /// vertical line of the screen. The closed box's faces give the outline,
+  /// whatever the opening, so opening the box never moves it.
+  Offset _centring(double s) {
+    if (s <= 0 || !s.isFinite) return Offset.zero;
+    final r = pose.rotation;
+    final f = focal;
+    var minX = double.infinity, maxX = -double.infinity;
+    var minY = double.infinity, maxY = -double.infinity;
+    for (final face in model.parts(BoxOpening.closed).first.faces) {
+      // The sides span the whole depth and follow the rounded corners; the
+      // front and back rectangles would add the corners the rounding cuts.
+      if (face.surface == BoxSurface.front || face.surface == BoxSurface.back) continue;
+      for (final (a, b) in const [(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), (1.0, 1.0)]) {
+        final local = face.origin + face.u * (face.width * a) + face.v * (face.height * b);
+        final q = r.apply(local) * s;
+        final k = math.max(0.2, 1 + q.z / f);
+        minX = math.min(minX, q.x / k);
+        maxX = math.max(maxX, q.x / k);
+        minY = math.min(minY, q.y / k);
+        maxY = math.max(maxY, q.y / k);
+      }
+    }
+    if (!minX.isFinite) return Offset.zero;
+    return Offset(-(minX + maxX) / 2, -(minY + maxY) / 2);
   }
 
   /// Where a model point (mm, box coordinates) of [partId] lands on screen.
@@ -1180,6 +1223,8 @@ class BoxProjector {
         final toFace = c - e;
         final facing = n.dot(toFace) < 0;
         if (part.cull && !facing) continue;
+        final distance = toFace.length;
+        final squareness = distance <= 0 ? 1.0 : (-n.dot(toFace) / distance).abs();
         final lambert = n.dot(light);
         final shade = (0.62 + 0.38 * lambert) / (0.62 + 0.38 * frontLight);
         final m = Matrix4(
@@ -1195,8 +1240,9 @@ class BoxProjector {
           width: face.width * s,
           height: face.height * s,
           shade: shade.clamp(0.55, 1.0).toDouble(),
-          depth: toFace.length,
+          depth: distance,
           pxPerMm: s,
+          facing: squareness.clamp(0.0, 1.0).toDouble(),
         ));
       }
       visible.sort((a, b) => b.depth.compareTo(a.depth));

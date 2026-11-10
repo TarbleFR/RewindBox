@@ -152,6 +152,7 @@ extension SqliteConfigMutators on SqliteConfigProvider {
     _config = _config.copyWith(appLanguage: langCode);
     await SqliteConfigService.saveConfig(_config);
     FlutterLocalization.instance.translate(langCode);
+    await AchievementTranslationClient.shared.setLanguage(langCode);
     _notify();
   }
 

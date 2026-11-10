@@ -86,7 +86,7 @@ void main() {
       expect(profiles, contains("'cpu.spu_block_size': 'Safe'"));
       expect(profiles, contains("'BLES00215'"));
       expect(profiles, contains("'BLUS30110'"));
-      expect(profiles, contains("'cpu.ppu_decoder': 'Interpreter (static)'"));
+      expect(profiles, contains("'cpu.ppu_decoder': 'Recompiler (LLVM)'"));
       expect(profiles, contains("'BCUS98111'"));
       expect(profiles, contains("'BCES00510'"));
       expect(profiles, contains("'BCAS25003'"));

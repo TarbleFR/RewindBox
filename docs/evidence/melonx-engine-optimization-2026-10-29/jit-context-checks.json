@@ -1,0 +1,36 @@
+{
+  "contextMaskCases": 120246,
+  "fullVectorContextLoadInstructionsBefore": 32,
+  "fullVectorContextLoadInstructionsAfter": 16,
+  "fullVectorContextStoreInstructionsBefore": 32,
+  "fullVectorContextStoreInstructionsAfter": 16,
+  "alternatingPageReads": 2000,
+  "alternatingPageCopies": 2,
+  "codeReaderChecks": 16,
+  "result": "passed",
+  "generatedArm64Executed": false,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
+    "build-utils/melonx/adapt_jit_decoder.py": "7e66f8de22be055fbe27982c9e09ad21e2ab2851aff73e2103e04b868a9bf1a5",
+    "test/melonx_jit_context_test.py": "537b61aa6a9c614ad681dd6ee23189e99b709bfe40e54198dde3820c01c61ce7",
+    "test/melonx_jit_context/Program.cs": "6a2111c8e86d6b7c6c80a6b8e124fb8983a5e8d327b91f5cb6c1d867e551c558"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Compiler.cs": "1e0111a037fd6cc1f35f8e999ee8a892d706c11d1938b315a7bd411dffc1240e",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "87a7829db3cc7ea142c43b0a8390ec7df4e2406a0d59dfe90babb1900a5a8cdc",
+    "src/Ryujinx.Cpu/LightningJit/Translator.cs": "b2b20182625e431b5da96abab96b91b83d9bfd72cbd0bcc6a017325284cb6f34",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Operand.cs": "c754739e7c1ea5fd68dfccce1df3523456eb7b3360d4bbc7c62ea5a4938ff5a7",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/OperandKind.cs": "ddbfaada5ff0708dd3f36f91459631ac2c11ce388575c5545474377a2ddd96d3",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/OperandType.cs": "7b87dc8d86adb09cc5ac4c8299daead3c03c8cd67d56a8aebc32b9428bbec729",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Register.cs": "ca793d64fd857b40332e0768a9500a0a02532b1351fabcdad2f0b95fa15546e2",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/RegisterType.cs": "39f4fe374695086bef1772286b3d7274f1dee098746c1acb1b7afc20afbc6f7d",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/Assembler.cs": "2d99bd3cfff602f759d8cd302b7287897b070ae22e9fd219c5b5e3c31d99b073",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmCondition.cs": "b0788e194d7101a13ca949aa6d29a80fb624c34f6f16f3785b68ae75e4d15cf0",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmExtensionType.cs": "d5f52bbff8f385b3d4179ab4839fedadabeeb787993c6ac851f8d72e4e41b5c7",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmShiftType.cs": "ad1d6b28bc3a573f3a65d6b7f71e31eaa97aed7058219374f2f63a7acbb5c75d",
+    "src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/CodeGenCommon.cs": "e55b8dfb424e954c96ee977dc61b32c7c74c8aa1977f703dea6dac643b21c799",
+    "src/Ryujinx.Cpu/LightningJit/CodeWriter.cs": "4f3f5530aa8a9d5b6499abe791ed19c84d11423048c2d37f57d7591c2a5c314e"
+  }
+}

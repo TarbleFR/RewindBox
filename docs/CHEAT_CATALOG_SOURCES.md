@@ -637,6 +637,7 @@ remain implementation follow-ups.
 ### PCSX2/pcsx2_patches explicit 60 FPS patches
 
 - **Source entry:** `pcsx2_fps478`.
+- **Withheld, 28 October 2026:** no licence or written permission covers the codes; its programs were removed from the active publication (followup: [SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md](SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md)). Credit kept here.
 - **Source:** [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches).
 - **Credit:** PCSX2 and collection contributors; original code authors.
 - **Recorded rights notice:** Original authors retain rights; preserve author names, descriptions and source notices.
@@ -649,6 +650,7 @@ remain implementation follow-ups.
 ### Gabominated/PCSX2 explicit 60 FPS patches
 
 - **Source entry:** `gabominated_fps478`.
+- **Withheld, 28 October 2026:** no licence or written permission covers the codes; its programs were removed from the active publication (followup: [SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md](SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md)). Credit kept here.
 - **Source:** [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2).
 - **Credit:** Gabominated and collection contributors; original code authors.
 - **Recorded rights notice:** Original authors retain rights; preserve author names, descriptions and source notices.
@@ -661,6 +663,7 @@ remain implementation follow-ups.
 ### Saramagrean/NetherSX2-cheats explicit 60 FPS patches
 
 - **Source entry:** `nethersx2_fps478`.
+- **Withheld, 28 October 2026:** no licence or written permission covers the codes; its programs were removed from the active publication (followup: [SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md](SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md)). Credit kept here.
 - **Source:** [Saramagrean/NetherSX2-cheats explicit 60 FPS patches](https://github.com/Saramagrean/NetherSX2-cheats).
 - **Credit:** Saramagrean and collection contributors; original code authors.
 - **Recorded rights notice:** Original authors retain rights; preserve author names, descriptions and source notices.
@@ -673,6 +676,7 @@ remain implementation follow-ups.
 ### RPCS3 native 60 FPS patches, pinned illusion mirror
 
 - **Source entry:** `illusion_fps478`.
+- **Relicensed, 28 October 2026:** 280 programs whose native document is identical to the official RPCS3 patch.yml (content SHA-256 `f1f3cab0…`) are published under CC BY-SA 4.0 (RPCS3 Wiki, [browser-verified](licenses/rpcs3-wiki-2026-10-28.md)); the 3 that differ were withheld ([followup](SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md)).
 - **Source:** [RPCS3 native 60 FPS patches, pinned illusion mirror](https://github.com/illusion0001/rpcs3-game-patch).
 - **Credit:** illusion0001 mirror, RPCS3 patch contributors and original patch authors.
 - **Recorded rights notice:** Original patch authors retain rights; preserve attribution and source requirements.
@@ -686,6 +690,7 @@ remain implementation follow-ups.
 ### TheYearOfWaluigi Gen IV battle framerate codes
 
 - **Source entry:** `nds_fps478`.
+- **Withheld, 28 October 2026:** no licence or written permission covers the codes; its programs were removed from the active publication (followup: [SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md](SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md)). Credit kept here.
 - **Source:** [TheYearOfWaluigi Gen IV battle framerate codes](https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/).
 - **Credit:** TheYearOfWaluigi.
 - **Recorded rights notice:** Original author rights and attribution retained.

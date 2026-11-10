@@ -15,6 +15,11 @@ import plistlib
 import re
 
 REPOSITORY_URL = "https://github.com/TarbleFR/RewindBox"
+PS2_POCKET_REVIEW = "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json"
+BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026-11-04.json"
+PS2_ORIGINAL_REVIEW = "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json"
+SWITCH_POCKET_REVIEW = "docs/evidence/switch-pocket-declarations-2026-11-10.json"
+ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -26,6 +31,11 @@ SOURCE_EVIDENCE = (
     "engine-source-license-audit-2026-10-21.json",
     "ppsspp-source-license-audit-2026-10-21.json",
     "modified-sources-since-0.0.8-2026-10-21.json",
+    "achievement-translation-declarations-2026-10-31.json",
+    "retro-achievements-session-declarations-2026-11-01.json",
+    "rpcs3-retroachievements-declarations-2026-11-02.json",
+    "rewindbox-glacier-declarations-2026-11-02.json",
+    "pocket-originals-declarations-2026-11-03.json",
 )
 
 
@@ -52,9 +62,300 @@ def repository_inputs(root: Path) -> dict[str, str]:
     package_audit = json.loads(read_input(root, root / "docs/evidence/package-sources-license-audit-2026-10-21.json"))
     if package_audit.get("pubspec_lock_sha256") != sha256(read_input(root, root / "pubspec.lock")):
         raise SystemExit("Package source/license inventory is stale for pubspec.lock")
-    declarations = package_audit.get("source_declaration_sha256", {})
+    declarations = dict(package_audit.get("source_declaration_sha256", {}))
     if not declarations:
         raise SystemExit("Package source/license inventory lacks dependency declaration identities")
+    # Preserve the historical review; authenticate the narrowly scoped follow-up
+    # instead of silently relabeling old package evidence as a new review.
+    followup_path = root / "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+    followup = json.loads(read_input(root, followup_path))
+    baseline_path = "docs/evidence/package-sources-license-audit-2026-10-21.json"
+    if (followup.get("schema") != 1 or followup.get("baseline_inventory") != baseline_path or
+            followup.get("baseline_inventory_sha256") != sha256(read_input(root, root / baseline_path)) or
+            followup.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            followup.get("complete_corresponding_source_attested") is not False):
+        raise SystemExit("Achievement translation declaration review has a different baseline")
+    updates = followup.get("declarations", {})
+    expected_updates = {
+        "pubspec.yaml",
+        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/achievement_translation/pubspec.yaml",
+        "packages/achievement_translation/ios/achievement_translation.podspec",
+    }
+    if set(updates) != expected_updates:
+        raise SystemExit("Achievement translation review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong historical declaration identity: {name}")
+        declarations[name] = update["after"]
+    # Build608 adds a second, separately reviewed local plugin. Preserve the
+    # original audit and605 follow-up verbatim; this overlay must start at their
+    # exact postimages and may change only the six session declarations.
+    session_path = root / "docs/evidence/retro-achievements-session-declarations-2026-11-01.json"
+    session = json.loads(read_input(root, session_path))
+    prior_name = "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+    if (session.get("schema") != 1 or session.get("baseline_inventory") != prior_name or
+            session.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+            session.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            session.get("complete_corresponding_source_attested") is not False or
+            session.get("dependency_changes", {}).get("external_packages_added") != []):
+        raise SystemExit("RetroAchievements session review has a different baseline or dependency scope")
+    updates = session.get("declarations", {})
+    expected_updates = {
+        "pubspec.yaml",
+        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/retro_achievements_session/pubspec.yaml",
+        "packages/retro_achievements_session/ios/retro_achievements_session.podspec",
+    }
+    if set(updates) != expected_updates:
+        raise SystemExit("RetroAchievements session declaration review scope changed")
+    # A later review overlay may move pubspec.yaml on (RewindBox Glacier); the
+    # final loop below binds every declaration to the checked-out file.
+    later_pubspec = (root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json").is_file()
+    # The PS2 Pocket skins review overlay may move the ARMSX2 bridge podspec on (system frameworks).
+    later_armsx2 = (root / PS2_POCKET_REVIEW).is_file()
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong previous declaration identity: {name}")
+        if not (later_pubspec and name == "pubspec.yaml") and not (later_armsx2 and name == ARMSX2_PODSPEC) and \
+                update.get("after") != sha256(read_input(root, root / name)):
+            raise SystemExit(f"Session source/license declaration changed since review: {name}")
+        declarations[name] = update["after"]
+    # Build611: PS3 RetroAchievements through RPCS3. The RPCS3 bridge compiles a
+    # vendored rcheevos copy, byte-identical to the declared libretro copy. This
+    # overlay starts at the session review's exact postimage and may change only
+    # the RPCS3 bridge podspec; every vendored file stays bound by digest.
+    rpcs3_path = root / "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json"
+    rpcs3 = json.loads(read_input(root, rpcs3_path))
+    prior_name = "docs/evidence/retro-achievements-session-declarations-2026-11-01.json"
+    vendored = rpcs3.get("dependency_changes", {}).get("vendored_sources", {})
+    if (rpcs3.get("schema") != 1 or rpcs3.get("baseline_inventory") != prior_name or
+            rpcs3.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+            rpcs3.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            rpcs3.get("complete_corresponding_source_attested") is not False or
+            rpcs3.get("dependency_changes", {}).get("external_packages_added") != []):
+        raise SystemExit("RPCS3 RetroAchievements review has a different baseline or dependency scope")
+    updates = rpcs3.get("declarations", {})
+    if set(updates) != {"packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec"}:
+        raise SystemExit("RPCS3 RetroAchievements declaration review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong previous declaration identity: {name}")
+        if update.get("after") != sha256(read_input(root, root / name)):
+            raise SystemExit(f"RPCS3 source/license declaration changed since review: {name}")
+        declarations[name] = update["after"]
+    vendored_root = vendored.get("path", "")
+    vendored_files = vendored.get("files_sha256", {})
+    actual_files = sorted(str(path.relative_to(root)) for path in (root / vendored_root).rglob("*")
+                          if path.is_file()) if vendored_root else []
+    if (vendored_root != "packages/rpcs3_internal_bridge/ios/ThirdParty/rcheevos" or
+            vendored.get("license") != "MIT" or sorted(vendored_files) != actual_files or
+            vendored.get("files") != len(actual_files)):
+        raise SystemExit("Vendored rcheevos sources differ from the RPCS3 review")
+    for name, expected in vendored_files.items():
+        if sha256(read_input(root, root / name)) != expected:
+            raise SystemExit(f"Vendored rcheevos source changed since review: {name}")
+    # RewindBox Glacier: pubspec.yaml declares the bundled menu and System Art
+    # assets. No package, dependency, engine or native source changes; the
+    # bundled pack is bound file by file by its bundle-index.json.
+    glacier_path = root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json"
+    if glacier_path.is_file():
+        glacier = json.loads(read_input(root, glacier_path))
+        prior_name = "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json"
+        if (glacier.get("schema") != 1 or glacier.get("baseline_inventory") != prior_name or
+                glacier.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                glacier.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                glacier.get("complete_corresponding_source_attested") is not False or
+                glacier.get("dependency_changes", {}).get("external_packages_added") != []):
+            raise SystemExit("RewindBox Glacier review has a different baseline or dependency scope")
+        updates = glacier.get("declarations", {})
+        if set(updates) != {"pubspec.yaml"}:
+            raise SystemExit("RewindBox Glacier declaration review scope changed")
+        # A later review overlay may move pubspec.yaml on (Pocket originals).
+        later_pubspec = (root / "docs/evidence/pocket-originals-declarations-2026-11-03.json").is_file()
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if not later_pubspec and update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"RewindBox Glacier source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = glacier.get("bundled_assets", {})
+        index_path = bundle.get("index", "")
+        if (index_path != "assets/system_art/rewindbox-glacier/bundle-index.json" or
+                bundle.get("index_sha256") != sha256(read_input(root, root / index_path))):
+            raise SystemExit("RewindBox Glacier bundled pack index changed since review")
+    # RewindBox Pocket originals: pubspec.yaml declares the two bundled original
+    # skin packs. No package, dependency, engine or native source changes; the
+    # catalog binds each archive to its size and SHA-256.
+    pocket_path = root / "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+    if pocket_path.is_file():
+        pocket = json.loads(read_input(root, pocket_path))
+        prior_name = "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json"
+        if (pocket.get("schema") != 1 or pocket.get("baseline_inventory") != prior_name or
+                pocket.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                pocket.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                pocket.get("complete_corresponding_source_attested") is not False or
+                pocket.get("dependency_changes", {}).get("external_packages_added") != []):
+            raise SystemExit("Pocket originals review has a different baseline or dependency scope")
+        updates = pocket.get("declarations", {})
+        if set(updates) != {"pubspec.yaml"}:
+            raise SystemExit("Pocket originals declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"Pocket originals source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = pocket.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (PS2 Pocket); it binds the previous digest.
+        later_catalog = (root / PS2_POCKET_REVIEW).is_file()
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                (not later_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
+            raise SystemExit("Pocket originals catalog changed since review")
+    # RewindBox skins orientation and PS2 Pocket (PR #152): the ARMSX2 bridge podspec adds Apple system frameworks
+    # (QuartzCore, CoreGraphics) and the Pocket catalog gains the original PS2 pack. No package, dependency, engine
+    # or native source change; the catalog binds each archive to its size and SHA-256.
+    ps2_path = root / PS2_POCKET_REVIEW
+    if ps2_path.is_file():
+        ps2 = json.loads(read_input(root, ps2_path))
+        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        prior_pocket = json.loads(read_input(root, root / prior_name))
+        changes = ps2.get("dependency_changes", {})
+        if (ps2.get("schema") != 1 or ps2.get("baseline_inventory") != prior_name or
+                ps2.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                ps2.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                ps2.get("complete_corresponding_source_attested") is not False or
+                changes.get("external_packages_added") != [] or changes.get("external_packages_removed") != [] or
+                changes.get("system_frameworks_added") != {ARMSX2_PODSPEC: ["QuartzCore", "CoreGraphics"]}):
+            raise SystemExit("PS2 Pocket skins review has a different baseline or dependency scope")
+        updates = ps2.get("declarations", {})
+        if set(updates) != {ARMSX2_PODSPEC}:
+            raise SystemExit("PS2 Pocket skins declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"PS2 Pocket skins source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = ps2.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (GameCube/Wii board Originals); it binds this digest.
+        later_ps2_catalog = (root / BOARD_ORIGINALS_REVIEW).is_file()
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_pocket.get("bundled_assets", {}).get("catalog_sha256") or
+                (not later_ps2_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
+            raise SystemExit("PS2 Pocket catalog changed since review")
+    # RewindBox GameCube/Wii Pocket Originals from the approved boards (PR #155): the Pocket catalog gains two packs,
+    # nothing else. No package, dependency, framework, engine or native source declaration changes; the review binds
+    # the previous (PS2 Pocket) catalog, the new catalog and the exact id, size and SHA-256 of each added pack.
+    board_path = root / BOARD_ORIGINALS_REVIEW
+    if board_path.is_file():
+        board = json.loads(read_input(root, board_path))
+        prior_ps2 = json.loads(read_input(root, root / PS2_POCKET_REVIEW))
+        changes = board.get("dependency_changes", {})
+        if (board.get("schema") != 1 or board.get("baseline_inventory") != PS2_POCKET_REVIEW or
+                board.get("baseline_inventory_sha256") != sha256(read_input(root, root / PS2_POCKET_REVIEW)) or
+                board.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                board.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
+            raise SystemExit("Pocket board Originals review has a different baseline or dependency scope")
+        if board.get("declarations") != {}:
+            raise SystemExit("Pocket board Originals declaration review scope changed")
+        bundle = board.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (PS2 Pocket - Original); it binds this digest, and the two
+        # packs reviewed here stay checked below in whatever catalog follows.
+        later_board_catalog = (root / PS2_ORIGINAL_REVIEW).is_file()
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_ps2.get("bundled_assets", {}).get("catalog_sha256") or
+                (not later_board_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
+            raise SystemExit("Pocket board Originals catalog changed since review")
+        catalog = json.loads(read_input(root, root / catalog_path))
+        added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                 for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
+        if added != bundle.get("added_skins") or (not later_board_catalog and
+                                                  len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
+            raise SystemExit("Pocket board Originals added packs differ from the review")
+        for skin in added.values():
+            raw = read_input(root, root / skin["archiveAsset"])
+            if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
+                raise SystemExit("Pocket board Originals archive differs from the catalog: " + skin["archiveAsset"])
+    # RewindBox PS2 Pocket - Original from the approved PS2 design (PR #158): the Pocket catalog gains one pack, nothing
+    # else. No package, dependency, framework, engine or native source declaration changes; the review binds the previous
+    # (board Originals) catalog, the new catalog and the exact id, size and SHA-256 of the added pack.
+    ps2_original_path = root / PS2_ORIGINAL_REVIEW
+    if ps2_original_path.is_file():
+        ps2_original = json.loads(read_input(root, ps2_original_path))
+        prior_board = json.loads(read_input(root, root / BOARD_ORIGINALS_REVIEW))
+        changes = ps2_original.get("dependency_changes", {})
+        if (ps2_original.get("schema") != 1 or ps2_original.get("baseline_inventory") != BOARD_ORIGINALS_REVIEW or
+                ps2_original.get("baseline_inventory_sha256") != sha256(read_input(root, root / BOARD_ORIGINALS_REVIEW)) or
+                ps2_original.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                ps2_original.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
+            raise SystemExit("PS2 Pocket Original review has a different baseline or dependency scope")
+        if ps2_original.get("declarations") != {}:
+            raise SystemExit("PS2 Pocket Original declaration review scope changed")
+        bundle = ps2_original.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (Switch Pocket); it binds this digest, and the pack reviewed
+        # here stays checked below in whatever catalog follows.
+        later_ps2_original_catalog = (root / SWITCH_POCKET_REVIEW).is_file()
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_board.get("bundled_assets", {}).get("catalog_sha256") or
+                (not later_ps2_original_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
+            raise SystemExit("PS2 Pocket Original catalog changed since review")
+        catalog = json.loads(read_input(root, root / catalog_path))
+        added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                 for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
+        if added != bundle.get("added_skins") or (not later_ps2_original_catalog and
+                                                  len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
+            raise SystemExit("PS2 Pocket Original added pack differs from the review")
+        for skin in added.values():
+            raw = read_input(root, root / skin["archiveAsset"])
+            if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
+                raise SystemExit("PS2 Pocket Original archive differs from the catalog: " + skin["archiveAsset"])
+    # RewindBox Switch Pocket from the approved Switch design (PR #165): the Pocket catalog gains one pack, nothing else.
+    # No package, dependency, framework, engine or native source declaration changes; the review binds the previous
+    # (PS2 Pocket - Original) catalog, the new catalog, the exact id, size and SHA-256 of the added pack and of the
+    # approved design it is built from.
+    switch_path = root / SWITCH_POCKET_REVIEW
+    if switch_path.is_file():
+        switch = json.loads(read_input(root, switch_path))
+        prior_ps2_original = json.loads(read_input(root, root / PS2_ORIGINAL_REVIEW))
+        changes = switch.get("dependency_changes", {})
+        if (switch.get("schema") != 1 or switch.get("baseline_inventory") != PS2_ORIGINAL_REVIEW or
+                switch.get("baseline_inventory_sha256") != sha256(read_input(root, root / PS2_ORIGINAL_REVIEW)) or
+                switch.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                switch.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
+            raise SystemExit("Switch Pocket review has a different baseline or dependency scope")
+        if switch.get("declarations") != {}:
+            raise SystemExit("Switch Pocket declaration review scope changed")
+        bundle = switch.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_ps2_original.get("bundled_assets", {}).get("catalog_sha256") or
+                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+            raise SystemExit("Switch Pocket catalog changed since review")
+        catalog = json.loads(read_input(root, root / catalog_path))
+        added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                 for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
+        if added != bundle.get("added_skins") or len(catalog.get("skins", [])) != bundle.get("catalog_skins"):
+            raise SystemExit("Switch Pocket added pack differs from the review")
+        for skin in added.values():
+            raw = read_input(root, root / skin["archiveAsset"])
+            if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
+                raise SystemExit("Switch Pocket archive differs from the catalog: " + skin["archiveAsset"])
+        design = bundle.get("design_reference", {})
+        raw = read_input(root, root / design.get("path", "missing"))
+        if len(raw) != design.get("size") or sha256(raw) != design.get("sha256"):
+            raise SystemExit("Switch Pocket approved design differs from the review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

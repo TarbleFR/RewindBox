@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "compiler_executed": false,
+  "apple_executed": false,
+  "changed_paths": [
+    "rpcs3/Emu/RSX/rsx_cache.h"
+  ],
+  "postimages_checked": 325,
+  "preserved_postimages": 324,
+  "negative_controls_rejected": [
+    "canonical-bytes",
+    "native-manifest",
+    "missing-native-change",
+    "runner-input",
+    "recipe",
+    "dispatcher",
+    "historical-receipt",
+    "codegen-evidence",
+    "inverse-delta"
+  ],
+  "native_jobs_scheduled": 4,
+  "historical_native_modes_replayed": 0,
+  "historical_archives_verified_locally": false,
+  "abi_exports": 88
+}

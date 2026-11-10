@@ -1,0 +1,1 @@
+{"case":"retired_image_pressure","checks":5234,"completed_pool_bytes":268435456,"active_temporary_bytes":2097152,"retained_after_pressure":2097152,"late_driver_returns":1000}

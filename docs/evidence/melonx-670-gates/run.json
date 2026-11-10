@@ -1,0 +1,28 @@
+{
+ "schema": 1,
+ "date": "2026-11-06",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 670,
+ "base": "Core 667 (4a0dffff, pin ffaa2046, delivered in IPA 669)",
+ "finding": {
+  "input": "IPA 669 private journals of pid 17770 (Hogwarts Legacy alone, 6 Nov 11:40-11:44 UTC); not in the repository",
+  "symptom": "the maintainer closed the game after 232 s without a first frame; IPA 666 reached its first frame 8 s after the start",
+  "proof": [
+   "performance samples: fps 0, no draw, app CPU 3 % for 232 s, footprint rising about 1.5 MiB/s",
+   "stderr: the render thread stops after MoltenVK creates the VkDevice; \"Vulkan pipeline cache initialized\" (IPA 666: 1.4 s after start, 203.66 MiB main data, mainPipelineCache 639 ms) never comes",
+   "MoltenVK 1.4.2 source: MVKPipelineCache::readData -> MVKShaderLibraryCache::addShaderLibrary -> MVKShaderLibrary::compileLibrary -> newMTLLibrary with getMTLCompileOptions(fastMathEnabled from the configuration)",
+   "Core 667 changed only that option for Hogwarts (adapt_hogwarts_precise_math); Metal compiles out of process, so the app CPU stays idle while the whole pipeline cache is compiled again without the fast-math library cache"
+  ]
+ },
+ "change": "native/melonx/EmbeddedRuntime.cs (core667_native.NOTE_BLOCK): EmbeddedPreciseMathTitles is empty; every title, Hogwarts Legacy included, keeps MoltenVK fast math as on IPA 666. The other Core 667 fixes are unchanged.",
+ "gatesRerun": {
+  "core667-fixes": "317b90fb716c4858486e0208215b97994246fb6b3e9938a1bfcb1830f35679e8",
+  "guest-fault-context": "0bce0c0d2b255f2f1978ed0b49aafccd9a84ffc9c657e0432e3234fdeacfaaed"
+ },
+ "contract": {
+  "path": "build-utils/melonx/dma-core-contract.json",
+  "sha256": "b16bd775d1e852baa89e65744e90dc8db0581be6757f999952188415d8728b24",
+  "contractTest": "381 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false
+}

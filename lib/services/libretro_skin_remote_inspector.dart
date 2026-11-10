@@ -53,6 +53,9 @@ class LibretroRemoteSkinInspector {
   static const int maxEntries = 1024;
   static const int maxInfoBytes = 1024 * 1024;
 
+  /// Inspects an authenticated local bundle using the same bounded ZIP reader.
+  LibretroRemoteSkinArchive readBytes(Uint8List bytes) => _fromWhole(bytes);
+
   Future<LibretroRemoteSkinArchive> read(Uri uri) async {
     final tail = await _get(uri, range: 'bytes=-$tailBytes');
     if (tail.statusCode == 200) return _fromWhole(tail.bodyBytes);

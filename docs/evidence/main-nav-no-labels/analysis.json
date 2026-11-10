@@ -1,0 +1,22 @@
+{
+ "request": "Sur la barre de navigation principale montrée dans RewindBox-menu-principal-reference.png, supprime les libellés visibles sous TOUTES les icônes, y compris ceux de l’onglet actif (« Système », « Ajouter des consoles », etc.). Conserve les icônes, leur sélection, leur ordre, leurs actions et les noms d’accessibilité/VoiceOver. Ajuste l’alignement et l’espacement pour que la disparition des textes ne laisse pas de vide inutile.",
+ "reference": {
+  "received": "PNG 1162 x 198, RGBA",
+  "bytes": 73048,
+  "sha256": "d7f20bddb800cf9b3720aaf25d7fba354cb0750fbdc97630f819104c1562ea65",
+  "shows": "the dark capsule, the active consoles tab highlighted, its name 'Ajouter des consoles' under it (TabLabelMode.selectedOnly)"
+ },
+ "cause": "lib/widgets/header.dart passed a labelBuilder to MainMenuTabStrip; the stored interface style (Settings > Themes > User interface, 'Tab labels': hidden / active tab / always; the Glacier preset uses active tab) decided whether names were drawn under the icons",
+ "change": [
+  "header.dart: the main menu no longer passes a labelBuilder, so no tab name is drawn in any interface style or stored label mode; each tab button keeps its Semantics(button, selected, label = translated name)",
+  "main_menu_tab_strip.dart: without names the label band is 0 (the capsule shrinks to the icon row) and Glacier's frame only holds the glyph (cell 1.4 x instead of 1.81 x its height; icons centred, no 4 px offset)",
+  "Settings > Themes > User interface: the 'Tab labels' choice and the preview's labels switch are removed (they no longer change anything); the stored value is kept untouched for compatibility"
+ ],
+ "renders": "header-before-after.png: the real Header widget rendered in a Flutter test (iOS tabs, French, consoles tab active, Roboto/Material fonts loaded) before/after, in the NeoStation (solid indicator, active-tab name: the reference), Glacier, Liquid Glass and classic+always styles; capsule heights 59.8 -> 46.7 pt (NeoStation, classic), Glacier strip 443 x 45 -> 343 x 31 pt",
+ "tests": {
+  "new": "test/main_nav_no_labels_test.dart 5/5: 4 styles x 3 stored label modes: no Text in the bar, no tab name drawn, every tab present in display order, VoiceOver label/button/selected/tap action per tab, each tap selects its own tab, one bar height whatever the mode; icons vertically centred",
+  "updated": "test/interface_style_screen_test.dart: the preview has no labels switch",
+  "fullSuite": "flutter test test/: +4187 ~8 -25; the 25 failures (15 files) fail identically on origin/Claude f477f469 without this change (baseline)"
+ },
+ "notObserved": "on an iPhone"
+}

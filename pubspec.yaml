@@ -4,6 +4,8 @@ description: RewindBox - emulation frontend for iPhone and iPad with embedded na
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 workspace:
+  - packages/achievement_translation
+  - packages/retro_achievements_session
   - packages/external_folder_access
   - packages/flutter_7zip
   - packages/gamepads
@@ -30,6 +32,10 @@ environment:
   sdk: '>=3.9.2'
 
 dependencies:
+  achievement_translation:
+    path: packages/achievement_translation
+  retro_achievements_session:
+    path: packages/retro_achievements_session
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -130,8 +136,16 @@ flutter:
     - assets/images/gamepad/
     - assets/images/icons/
     - assets/images/music/
+    # RewindBox Glacier: menu background, emblem and navigation glyphs.
+    - assets/images/glacier/
+    - assets/images/glacier/nav/
+    # Bundled System Art pack, installed offline (see BundledSystemArt).
+    - assets/system_art/rewindbox-glacier/
+    - assets/system_art/rewindbox-glacier/backgrounds/
     - assets/manifest.json
     - assets/data/
+    # Original interactive Wii and GameCube Pocket packs and composed previews.
+    - assets/skins/pocket/
     - assets/systems/
     - assets/sounds/
     - assets/legal/

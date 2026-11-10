@@ -1,0 +1,1043 @@
+{
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/ios/IOSTexturePrehash.h": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "rpcs3/ios/IOSTexturePrehash.h": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+  },
+  "adapterSHA256": "f7e96f6ab360df6c14d0e015e3a6ea5a8cb648d174e70ac1c09c03490d9ea070",
+  "retainedAdapterSHA256": "134e0629e2e7e44e0c2e43117b5c30356b35da1cc224bce631c615d323197ac6",
+  "nonIosSourceIdentical": true,
+  "workerLookupBeforeHashPreserved": true,
+  "slotStorageUnchanged": true,
+  "publicationTryOnce": true,
+  "correctnessHarnessesSHA256": {
+    "baseline": "ee78a8d2497964ff4d9dc5d2161ceebe589fcd96f5e28094a154c51874655f10",
+    "candidate": "bb0f5661ad1e5112ac602b248b78dad00d6fbacc4a47562eb7473651187bb737"
+  },
+  "benchmarkHarnessesSHA256": {
+    "baseline": "19f233ec295891ae58964d591c84b31fa76bc506ce679ab020c228a193349590",
+    "candidate": "864cc81ddff7776afacfd8d30a3cc4705cd2d16ec3aadd1f9649b7617d434cbf"
+  },
+  "benchmarkAdapterSHA256": "620f22d7862258fc91fba9fa911e64a72085608111a2b346df95c82185010f12",
+  "passed": true,
+  "measurementOnly": true,
+  "series": 7,
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-UNDEBUG",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fno-exceptions",
+    "-fno-omit-frame-pointer",
+    "-pthread",
+    "-DRPCS3_IOS=1"
+  ],
+  "host": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "workerParkedWithoutSpin": true,
+  "observationHooksDisabled": true,
+  "recordBufferPreallocated": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fullCoreBuilt": false,
+  "hybridHashExecuted": false,
+  "epochNotificationExcludedFromTiming": true,
+  "timingScope": "eight real section validations per epoch; worker parked in test hook; no epoch notification scheduling",
+  "comparisons": [
+    {
+      "bytes": 32768,
+      "pattern": "identical",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          2303.7253418,
+          2118.74951172,
+          2112.80053711,
+          1794.76904297,
+          1757.48681641,
+          1778.73706055,
+          1718.95825195
+        ],
+        "medianNsPerValidation": 1794.76904297,
+        "minNsPerValidation": 1718.95825195,
+        "maxNsPerValidation": 2303.7253418
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          2133.72021484,
+          1856.42260742,
+          2048.98583984,
+          2151.34521484,
+          1986.19482422,
+          1754.46484375,
+          1867.67480469
+        ],
+        "medianNsPerValidation": 1986.19482422,
+        "minNsPerValidation": 1754.46484375,
+        "maxNsPerValidation": 2151.34521484
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 512,
+      "medianChangePercent": 10.665761257683993
+    },
+    {
+      "bytes": 32768,
+      "pattern": "distinct",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          1701.74291992,
+          1805.2409668,
+          1801.38989258,
+          1826.33642578,
+          1718.00488281,
+          1972.55639648,
+          1868.42773438
+        ],
+        "medianNsPerValidation": 1805.2409668,
+        "minNsPerValidation": 1701.74291992,
+        "maxNsPerValidation": 1972.55639648
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          1801.88647461,
+          1804.09399414,
+          1941.33105469,
+          1845.65722656,
+          1696.64746094,
+          2090.96923828,
+          2029.72363281
+        ],
+        "medianNsPerValidation": 1845.65722656,
+        "minNsPerValidation": 1696.64746094,
+        "maxNsPerValidation": 2090.96923828
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 512,
+      "medianChangePercent": 2.238829081728766
+    },
+    {
+      "bytes": 32768,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          1920.75610352,
+          1814.21899414,
+          1707.95581055,
+          2524.9831543,
+          2333.53393555,
+          2502.65258789,
+          2511.66040039
+        ],
+        "medianNsPerValidation": 2333.53393555,
+        "minNsPerValidation": 1707.95581055,
+        "maxNsPerValidation": 2524.9831543
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          1866.85058594,
+          2051.67749023,
+          1948.80786133,
+          2528.48925781,
+          2483.83325195,
+          2471.50830078,
+          2506.99975586
+        ],
+        "medianNsPerValidation": 2471.50830078,
+        "minNsPerValidation": 1866.85058594,
+        "maxNsPerValidation": 2528.48925781
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 512,
+      "medianChangePercent": 5.912678754229472
+    },
+    {
+      "bytes": 65536,
+      "pattern": "identical",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          5037.29638672,
+          5170.58935547,
+          6099.33740234,
+          4699.13964844,
+          3361.67626953,
+          3425.67285156,
+          3632.90869141
+        ],
+        "medianNsPerValidation": 4699.13964844,
+        "minNsPerValidation": 3361.67626953,
+        "maxNsPerValidation": 6099.33740234
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          673.331054688,
+          635.085449219,
+          727.331542969,
+          723.522460938,
+          431.283203125,
+          450.940917969,
+          447.195800781
+        ],
+        "medianNsPerValidation": 635.085449219,
+        "minNsPerValidation": 431.283203125,
+        "maxNsPerValidation": 727.331542969
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 256,
+      "medianChangePercent": -86.4850696780243
+    },
+    {
+      "bytes": 65536,
+      "pattern": "distinct",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          3441.84423828,
+          3524.48095703,
+          3519.11230469,
+          3428.54345703,
+          3412.75341797,
+          3983.66210938,
+          3854.54980469
+        ],
+        "medianNsPerValidation": 3519.11230469,
+        "minNsPerValidation": 3412.75341797,
+        "maxNsPerValidation": 3983.66210938
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          3937.6171875,
+          3990.24902344,
+          3337.15820312,
+          3386.29296875,
+          3870.82421875,
+          3601.76855469,
+          3868.77490234
+        ],
+        "medianNsPerValidation": 3868.77490234,
+        "minNsPerValidation": 3337.15820312,
+        "maxNsPerValidation": 3990.24902344
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 256,
+      "medianChangePercent": 9.936102271700653
+    },
+    {
+      "bytes": 65536,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          4067.05712891,
+          3608.79980469,
+          3585.62646484,
+          3778.67138672,
+          4106.82275391,
+          3569.68457031,
+          3712.32324219
+        ],
+        "medianNsPerValidation": 3712.32324219,
+        "minNsPerValidation": 3569.68457031,
+        "maxNsPerValidation": 4106.82275391
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          3673.95996094,
+          3692.49902344,
+          3817.1171875,
+          3620.08642578,
+          3760.79833984,
+          3653.89648438,
+          6325.78417969
+        ],
+        "medianNsPerValidation": 3692.49902344,
+        "minNsPerValidation": 3620.08642578,
+        "maxNsPerValidation": 6325.78417969
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 256,
+      "medianChangePercent": -0.5340111153226301
+    },
+    {
+      "bytes": 262144,
+      "pattern": "identical",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          18242.8515625,
+          15656.8359375,
+          16283.6230469,
+          17322.6992188,
+          16556.9550781,
+          14844.3417969,
+          15772.8671875
+        ],
+        "medianNsPerValidation": 16283.6230469,
+        "minNsPerValidation": 14844.3417969,
+        "maxNsPerValidation": 18242.8515625
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          2205.78515625,
+          1884.64648438,
+          2358.765625,
+          2312.83984375,
+          2437.96484375,
+          2465.31054688,
+          2330.03125
+        ],
+        "medianNsPerValidation": 2330.03125,
+        "minNsPerValidation": 1884.64648438,
+        "maxNsPerValidation": 2465.31054688
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 64,
+      "medianChangePercent": -85.69095315404283
+    },
+    {
+      "bytes": 262144,
+      "pattern": "distinct",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          18475.5976562,
+          22122.2460938,
+          19618.2460938,
+          24743.4335938,
+          19623.8808594,
+          19583.8007812,
+          19505.0507812
+        ],
+        "medianNsPerValidation": 19618.2460938,
+        "minNsPerValidation": 18475.5976562,
+        "maxNsPerValidation": 24743.4335938
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          15246.890625,
+          19004.5742188,
+          19659.9882812,
+          19571.3808594,
+          19465.8339844,
+          19584.6816406,
+          19779.3066406
+        ],
+        "medianNsPerValidation": 19571.3808594,
+        "minNsPerValidation": 15246.890625,
+        "maxNsPerValidation": 19779.3066406
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 64,
+      "medianChangePercent": -0.23888595430969772
+    },
+    {
+      "bytes": 262144,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          19421.2558594,
+          13320.1542969,
+          13760.8828125,
+          13899.6445312,
+          13663.2792969,
+          14989.5390625,
+          14707.734375
+        ],
+        "medianNsPerValidation": 13899.6445312,
+        "minNsPerValidation": 13320.1542969,
+        "maxNsPerValidation": 19421.2558594
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          19397.3339844,
+          13487.8613281,
+          13363.5957031,
+          13198.7421875,
+          14724.3613281,
+          14307.5898438,
+          13760.9609375
+        ],
+        "medianNsPerValidation": 13760.9609375,
+        "minNsPerValidation": 13198.7421875,
+        "maxNsPerValidation": 19397.3339844
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 64,
+      "medianChangePercent": -0.9977492114183306
+    },
+    {
+      "bytes": 1048576,
+      "pattern": "identical",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          58367.515625,
+          68315.2578125,
+          56960.8203125,
+          70838.640625,
+          58390.515625,
+          61001.1015625,
+          58932.8046875
+        ],
+        "medianNsPerValidation": 58932.8046875,
+        "minNsPerValidation": 56960.8203125,
+        "maxNsPerValidation": 70838.640625
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          6608.6875,
+          6816.8125,
+          6600.1640625,
+          7475.28125,
+          7629.34375,
+          7406.4375,
+          7130.875
+        ],
+        "medianNsPerValidation": 7130.875,
+        "minNsPerValidation": 6600.1640625,
+        "maxNsPerValidation": 7629.34375
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 16,
+      "medianChangePercent": -87.8999904419745
+    },
+    {
+      "bytes": 1048576,
+      "pattern": "distinct",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          74438.9765625,
+          63330.09375,
+          54561.3359375,
+          61201.6328125,
+          62934.4296875,
+          67543.375,
+          61770.6015625
+        ],
+        "medianNsPerValidation": 62934.4296875,
+        "minNsPerValidation": 54561.3359375,
+        "maxNsPerValidation": 74438.9765625
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          71394.1484375,
+          67307.078125,
+          56754.7421875,
+          62519.5234375,
+          62581.5703125,
+          68004.4375,
+          81059.078125
+        ],
+        "medianNsPerValidation": 67307.078125,
+        "minNsPerValidation": 56754.7421875,
+        "maxNsPerValidation": 81059.078125
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 16,
+      "medianChangePercent": 6.947943215204022
+    },
+    {
+      "bytes": 1048576,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          52992.3671875,
+          61647.765625,
+          60324.484375,
+          63129.015625,
+          74441.0859375,
+          67820.421875,
+          55683.5390625
+        ],
+        "medianNsPerValidation": 61647.765625,
+        "minNsPerValidation": 52992.3671875,
+        "maxNsPerValidation": 74441.0859375
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          57744.5625,
+          54164.421875,
+          59299.4453125,
+          52671.8984375,
+          69675.9765625,
+          79435.75,
+          60946.4921875
+        ],
+        "medianNsPerValidation": 59299.4453125,
+        "minNsPerValidation": 52671.8984375,
+        "maxNsPerValidation": 79435.75
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 16,
+      "medianChangePercent": -3.8092545426296587
+    },
+    {
+      "bytes": 3686400,
+      "pattern": "identical",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          219374.203125,
+          203890.953125,
+          204649.28125,
+          213532.265625,
+          215430.0625,
+          221266.515625,
+          213832.703125
+        ],
+        "medianNsPerValidation": 213832.703125,
+        "minNsPerValidation": 203890.953125,
+        "maxNsPerValidation": 221266.515625
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          25694.140625,
+          23121.578125,
+          27960.625,
+          27033.46875,
+          28875.578125,
+          24591.09375,
+          23002.34375
+        ],
+        "medianNsPerValidation": 25694.140625,
+        "minNsPerValidation": 23002.34375,
+        "maxNsPerValidation": 28875.578125
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 8,
+      "medianChangePercent": -87.98399858885008
+    },
+    {
+      "bytes": 3686400,
+      "pattern": "distinct",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          235264.109375,
+          212235.5,
+          208637.828125,
+          218964.984375,
+          211803.921875,
+          210649.40625,
+          203641.984375
+        ],
+        "medianNsPerValidation": 211803.921875,
+        "minNsPerValidation": 203641.984375,
+        "maxNsPerValidation": 235264.109375
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          198465.421875,
+          204302.03125,
+          242834.234375,
+          269059.46875,
+          227521.09375,
+          207855.890625,
+          287823.046875
+        ],
+        "medianNsPerValidation": 227521.09375,
+        "minNsPerValidation": 198465.421875,
+        "maxNsPerValidation": 287823.046875
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 8,
+      "medianChangePercent": 7.420623629564216
+    },
+    {
+      "bytes": 3686400,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "baseline": {
+        "seriesNsPerValidation": [
+          277187.125,
+          210406.375,
+          222345.703125,
+          253559.015625,
+          199790.203125,
+          192138.703125,
+          235418.5625
+        ],
+        "medianNsPerValidation": 222345.703125,
+        "minNsPerValidation": 192138.703125,
+        "maxNsPerValidation": 277187.125
+      },
+      "candidate": {
+        "seriesNsPerValidation": [
+          254073.46875,
+          206213.3125,
+          287465.328125,
+          196036.359375,
+          212359.734375,
+          221594.359375,
+          212311.234375
+        ],
+        "medianNsPerValidation": 212359.734375,
+        "minNsPerValidation": 196036.359375,
+        "maxNsPerValidation": 287465.328125
+      },
+      "order": [
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ],
+        [
+          "candidate",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "candidate"
+        ]
+      ],
+      "iterationsPerSeries": 8,
+      "medianChangePercent": -4.4911903444277534
+    }
+  ],
+  "affinityCpu": 8,
+  "affinityApplied": true,
+  "exclusiveHostCpuGuaranteed": false
+}

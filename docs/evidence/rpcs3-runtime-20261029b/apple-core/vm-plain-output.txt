@@ -1,0 +1,11 @@
+first-probe-empty: page reads 1 -> 1, first-fit address 536870912
+first-probe-empty: page reads 16 -> 16, first-fit address 536870912
+128MiB-prefix: page reads 32784 -> 17, first-fit address 671088640
+foreign-pages-only: page reads 5 -> 5, first-fit address 536879104
+mixed-map-and-foreign: page reads 23 -> 20, first-fit address 536952832
+dense-mixed-map-keeps-original-scan: page reads 40 -> 40, first-fit address 538443776
+dense-map-2GiB-alignment: page reads 2 -> 2, first-fit address 2147483648
+guards: page reads 12 -> 5, first-fit address 536907776
+last-page-at-4GiB: page reads 16 -> 2, first-fit address 4294963200
+skip-past-4GiB: page reads 16 -> 1, first-fit address 0
+PASS 20068 exact-first-fit cases; identical mapping/constructor/lock events, protection bytes, shared-memory ownership and guards. Page reads: 3275240 -> 1109939

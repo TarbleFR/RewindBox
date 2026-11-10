@@ -38,6 +38,7 @@ PORTABLE_FRONTEND = (
     'LibretroInputLatch.m',
     'LibretroTouchTracker.m',
     'LibretroSkinCompatibility.m',
+    'LibretroOrientationSelection.m',
 )
 FRAMEWORKS = ('Foundation', 'CoreGraphics')
 LINK_MARKER = '// LINK:'

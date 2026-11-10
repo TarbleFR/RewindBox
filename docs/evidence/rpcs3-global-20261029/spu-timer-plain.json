@@ -1,0 +1,385 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "matrixCases": 210,
+    "reentrantCases": 1,
+    "shutdownCases": 1,
+    "firstAllocationFailureCases": 2,
+    "baselineNonemptyErases": 10357,
+    "candidateNonemptyErases": 277,
+    "baselineShiftedSlots": 960340,
+    "candidateShiftedSlots": 0,
+    "baselineDueAllocations": 1065,
+    "candidateDueAllocations": 277,
+    "obsoleteTokensRejected": 6145,
+    "notifications": 2172,
+    "pendingOrderComparisons": 636,
+    "waitDeadlineComparisons": 636,
+    "callbacksWhileLocked": 0,
+    "reentrantRetainedUntilCallbackReturned": true
+  },
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-O3"
+  ],
+  "sanitizer": null,
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "harnessSHA256": "4010f379301d1885c46b058edd969e2b5ba7bf35702f549cc63c4a76f35cd523",
+  "timingHarnessSHA256": "f7211aabf962c65ef37c6178a95b5a350534c1fff13d5cadaefbfaa4d9c34053",
+  "adapterSHA256": {
+    "test/native/rpcs3_spu_timer_runtime.inc": "d6eeef7602fff8d28bedf9a72c77bc9bc4a64b35d1f3955cc24d4c1bbbdbfc14"
+  },
+  "sourceScope": {
+    "onlyRuntimeBodiesChanged": true,
+    "unchangedTextSHA256": "b474968c354ce91c08a5fd856ff73da6015ec65c89e1baa9fd61c3f9a89790d4",
+    "changedBodies": {
+      "baseline": {
+        "mask": "b404dbee618d0c324d927ca41df68afa3ecc01651d19b507d1501befdc2235df",
+        "timerWorker": "1b5e4c6bd7250e21b9532b9da1221435c47ce9cc908d430421109f2693fbb7a0"
+      },
+      "candidate": {
+        "mask": "df0ecaea2d79c86d687f2901b573acff4f7ab37dbee873a17b6ea2d62ecb2782",
+        "timerWorker": "2eba5b6e6f382ae1d49c7a715d44c7d2de122099cb916ee8f0f47e8972808773"
+      }
+    },
+    "unchangedTimerEntryAndMembers": true,
+    "unchangedSPUThreadLayout": true,
+    "unchangedCPUFlagDefinitions": true
+  },
+  "host": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "hostSweepTiming": {
+    "samples": 7,
+    "cases": [
+      {
+        "entries": 6,
+        "pattern": "all_due",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          134.196,
+          137.14,
+          133.345,
+          132.787,
+          134.012,
+          129.85,
+          130.726
+        ],
+        "candidateNs": [
+          49.0431,
+          48.0707,
+          51.5705,
+          51.1673,
+          54.8543,
+          52.4244,
+          48.0692
+        ],
+        "baselineMedianNs": 133.345,
+        "candidateMedianNs": 51.1673
+      },
+      {
+        "entries": 6,
+        "pattern": "alternating",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          104.29,
+          105.521,
+          104.55,
+          102.288,
+          106.913,
+          107.688,
+          112.267
+        ],
+        "candidateNs": [
+          50.842,
+          51.6777,
+          51.8467,
+          50.2847,
+          51.7016,
+          51.461,
+          52.226
+        ],
+        "baselineMedianNs": 105.521,
+        "candidateMedianNs": 51.6777
+      },
+      {
+        "entries": 6,
+        "pattern": "none_due",
+        "iterationsPerSample": 14285,
+        "baselineNs": [
+          27.7661,
+          27.7836,
+          26.7117,
+          26.9641,
+          28.1812,
+          26.2581,
+          26.4074
+        ],
+        "candidateNs": [
+          27.6673,
+          28.1167,
+          30.9791,
+          29.3653,
+          28.3305,
+          30.9483,
+          29.0883
+        ],
+        "baselineMedianNs": 26.9641,
+        "candidateMedianNs": 29.0883
+      },
+      {
+        "entries": 32,
+        "pattern": "all_due",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          592.295,
+          591.528,
+          600.744,
+          623.156,
+          597.273,
+          562.049,
+          611.648
+        ],
+        "candidateNs": [
+          103.038,
+          102.72,
+          96.0901,
+          97.6366,
+          99.6231,
+          99.7584,
+          102.648
+        ],
+        "baselineMedianNs": 597.273,
+        "candidateMedianNs": 99.7584
+      },
+      {
+        "entries": 32,
+        "pattern": "alternating",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          397.091,
+          383.721,
+          382.026,
+          365.255,
+          369.423,
+          382.677,
+          385.321
+        ],
+        "candidateNs": [
+          116.136,
+          115.961,
+          107.037,
+          114.345,
+          107.612,
+          110.494,
+          107.397
+        ],
+        "baselineMedianNs": 382.677,
+        "candidateMedianNs": 110.494
+      },
+      {
+        "entries": 32,
+        "pattern": "none_due",
+        "iterationsPerSample": 3030,
+        "baselineNs": [
+          78.5657,
+          77.8716,
+          79.2495,
+          75.7363,
+          77.8746,
+          79.6099,
+          80.2578
+        ],
+        "candidateNs": [
+          81.6987,
+          73.201,
+          85.6155,
+          77.9409,
+          84.5281,
+          76.037,
+          74.4472
+        ],
+        "baselineMedianNs": 78.5657,
+        "candidateMedianNs": 77.9409
+      },
+      {
+        "entries": 128,
+        "pattern": "all_due",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          4357.11,
+          4294.09,
+          4396.59,
+          4259.99,
+          4318.93,
+          4209.35,
+          4284.72
+        ],
+        "candidateNs": [
+          321.51,
+          319.157,
+          317.711,
+          336.732,
+          351.374,
+          315.32,
+          343.116
+        ],
+        "baselineMedianNs": 4294.09,
+        "candidateMedianNs": 321.51
+      },
+      {
+        "entries": 128,
+        "pattern": "alternating",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          2364.38,
+          2365.74,
+          2326.69,
+          2323.8,
+          2367.45,
+          2373.12,
+          2299.55
+        ],
+        "candidateNs": [
+          352.769,
+          324.534,
+          325.735,
+          321.147,
+          330.426,
+          331.019,
+          327.815
+        ],
+        "baselineMedianNs": 2364.38,
+        "candidateMedianNs": 327.815
+      },
+      {
+        "entries": 128,
+        "pattern": "none_due",
+        "iterationsPerSample": 775,
+        "baselineNs": [
+          258.125,
+          259.573,
+          274.15,
+          251.134,
+          261.266,
+          297.383,
+          281.605
+        ],
+        "candidateNs": [
+          261.008,
+          283.932,
+          236.48,
+          270.661,
+          245.009,
+          243.276,
+          246.934
+        ],
+        "baselineMedianNs": 261.266,
+        "candidateMedianNs": 246.934
+      },
+      {
+        "entries": 1024,
+        "pattern": "all_due",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          181424,
+          180418,
+          184977,
+          180513,
+          180085,
+          179197,
+          182346
+        ],
+        "candidateNs": [
+          2869.31,
+          2617.49,
+          2838.33,
+          2596.64,
+          2602.41,
+          2788.99,
+          2529.32
+        ],
+        "baselineMedianNs": 180513,
+        "candidateMedianNs": 2617.49
+      },
+      {
+        "entries": 1024,
+        "pattern": "alternating",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          88720.3,
+          88886.3,
+          90293.8,
+          92259.9,
+          94397.8,
+          93263.2,
+          92428.4
+        ],
+        "candidateNs": [
+          2923.31,
+          2759.97,
+          2762.65,
+          2810.88,
+          3037.6,
+          2817.59,
+          2821.92
+        ],
+        "baselineMedianNs": 92259.9,
+        "candidateMedianNs": 2817.59
+      },
+      {
+        "entries": 1024,
+        "pattern": "none_due",
+        "iterationsPerSample": 97,
+        "baselineNs": [
+          2432.06,
+          2466.86,
+          2513.32,
+          2290.41,
+          2468.2,
+          2604.38,
+          2504.34
+        ],
+        "candidateNs": [
+          2430.93,
+          2537.38,
+          2548.84,
+          2251.07,
+          2562.68,
+          2402.85,
+          2310.02
+        ],
+        "baselineMedianNs": 2468.2,
+        "candidateMedianNs": 2430.93
+      }
+    ],
+    "sink": 22375766
+  },
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "concurrentMemoryOrderingTested": false,
+  "scope": "Execute both production SPU decrementer timers with deterministic host edges.\n\nThe complete timer declaration, arm and worker bodies are extracted. Guest\ntime, wait scheduling, IDM retention and atomic publication have explicit\nadapters. Two vector adapters count allocations/erases and inject allocation\nfailure without replacing the compaction algorithm. Timing separately executes\nthe production locked sweep on ordinary std::vectors and a host mutex.\nNo device timing, complete CPU scheduler or concurrent atomic ordering is tested.\n"
+}

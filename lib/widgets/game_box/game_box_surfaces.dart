@@ -8,7 +8,7 @@ import 'package:neostation/services/game_box/game_box_profile.dart';
 /// Neutral surfaces of the 3D box: what is drawn when a scan is missing.
 ///
 /// None of them imitates a scan. A missing back is a plain surface with a
-/// discreet notice, a missing spine shows the known title in plain type, a
+/// discreet notice, a missing spine its platform's template (game_box_spine_design.dart), a
 /// missing support label leaves a blank, neutral label (docs/game-box-3d.md
 /// § 5).
 class GameBoxNeutralFace extends StatelessWidget {
@@ -58,47 +58,6 @@ class GameBoxNeutralFace extends StatelessWidget {
                 ),
               );
             }),
-    );
-  }
-}
-
-/// A spine without scan: case colour and the title, reading top to bottom.
-class GameBoxTitleSpine extends StatelessWidget {
-  const GameBoxTitleSpine({super.key, required this.color, required this.title});
-
-  final Color color;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final onColor = _onColor(color);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        border: Border.all(color: onColor.withValues(alpha: 0.10), width: 1),
-      ),
-      child: LayoutBuilder(builder: (context, c) {
-        final size = (c.maxWidth * 0.42).clamp(5.0, 18.0);
-        return RotatedBox(
-          quarterTurns: 1,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: c.maxHeight * 0.06),
-            child: Center(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: size,
-                  color: onColor.withValues(alpha: 0.85),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 }
@@ -298,6 +257,7 @@ class GameBoxEdgePainter extends CustomPainter {
     this.ridged = false,
     this.seam = false,
     this.cardboard = false,
+    this.clear = false,
     this.pxPerMm = 1,
   });
 
@@ -305,12 +265,28 @@ class GameBoxEdgePainter extends CustomPainter {
   final bool ridged;
   final bool seam;
   final bool cardboard;
+
+  /// Clear plastic seen edge-on: lighter along both long borders, where
+  /// light runs through the plastic.
+  final bool clear;
   final double pxPerMm;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     canvas.drawRect(rect, Paint()..color = color);
+    if (clear) {
+      final band = math.max(0.6, math.min(size.width, size.height) * 0.18);
+      final horizontal = size.width >= size.height;
+      final glow = Paint()..color = _lift(color, 0.35).withValues(alpha: 0.85);
+      if (horizontal) {
+        canvas.drawRect(Rect.fromLTWH(0, 0, size.width, band), glow);
+        canvas.drawRect(Rect.fromLTWH(0, size.height - band, size.width, band), glow);
+      } else {
+        canvas.drawRect(Rect.fromLTWH(0, 0, band, size.height), glow);
+        canvas.drawRect(Rect.fromLTWH(size.width - band, 0, band, size.height), glow);
+      }
+    }
     final dark = Paint()
       ..strokeWidth = math.max(0.6, pxPerMm * 0.25)
       ..color = _shade(color, 0.72);
@@ -345,7 +321,76 @@ class GameBoxEdgePainter extends CustomPainter {
   @override
   bool shouldRepaint(GameBoxEdgePainter old) =>
       old.color != color || old.ridged != ridged || old.seam != seam ||
-      old.cardboard != cardboard || old.pxPerMm != pxPerMm;
+      old.cardboard != cardboard || old.clear != clear || old.pxPerMm != pxPerMm;
+}
+
+/// A cover that is not a scan of this case: catalogue art (an XMB or
+/// console icon, a logo, a 3D render) shown whole and small on a plain
+/// sheet, with the known title in plain type (docs/game-box-3d.md § 13). It
+/// keeps the art recognisable in the library without presenting it as the
+/// print of the box.
+class GameBoxNeutralCover extends StatelessWidget {
+  const GameBoxNeutralCover({
+    super.key,
+    required this.art,
+    required this.title,
+    required this.color,
+    this.artAspect,
+    this.compact = false,
+  });
+
+  final Widget art;
+  final String title;
+  final Color color;
+
+  /// Width / height of the art (null: square).
+  final double? artAspect;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final onColor = _onColor(color);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: onColor.withValues(alpha: 0.10), width: 1),
+      ),
+      child: LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth, h = c.maxHeight;
+        final aspect = (artAspect ?? 1).clamp(0.3, 3.0).toDouble();
+        var artW = w * 0.72;
+        var artH = artW / aspect;
+        if (artH > h * 0.46) {
+          artH = h * 0.46;
+          artW = artH * aspect;
+        }
+        final size = (w * 0.075).clamp(6.0, 16.0).toDouble();
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(width: artW, height: artH, child: art),
+            if (!compact) ...[
+              SizedBox(height: size),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: w * 0.08),
+                child: Text(
+                  title,
+                  maxLines: 3,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: size,
+                    color: onColor.withValues(alpha: 0.82),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      }),
+    );
+  }
 }
 
 /// A disc, with its original art when one is known.
@@ -805,6 +850,325 @@ class GameBoxBookletPaperPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(GameBoxBookletPaperPainter old) => old.spine != spine || old.pages != pages;
+}
+
+/// Light on one face of the box (docs/game-box-3d.md § 20), painted over
+/// what the face shows.
+///
+/// [darken] is the shade of the face's orientation (black). [sheen] is the
+/// light a glossy or dark material reflects at grazing angles (white), so a
+/// black case keeps its volume against a dark background. [rim] is the light
+/// caught by the face's borders: the rounded edges of a plastic case, the
+/// folds of a cardboard box. Only the borders named are lit, so the narrow
+/// facets of a rounded corner do not show stripes.
+class GameBoxFaceLight extends CustomPainter {
+  const GameBoxFaceLight({
+    this.darken = 0,
+    this.sheen = 0,
+    this.rim = 0,
+    this.rimWidth = 1,
+    this.rimVertical = true,
+    this.rimHorizontal = true,
+    this.radius = 0,
+  });
+
+  final double darken;
+  final double sheen;
+  final double rim;
+  final double rimWidth;
+
+  /// Borders at x = 0 and x = width.
+  final bool rimVertical;
+
+  /// Borders at y = 0 and y = height.
+  final bool rimHorizontal;
+
+  /// Corner radius of the face's outline (logical pixels).
+  final double radius;
+
+  bool get isEmpty => darken < 0.004 && sheen < 0.004 && rim < 0.01;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    if (darken >= 0.004) {
+      canvas.drawRect(rect, Paint()..color = Color.fromRGBO(0, 0, 0, darken.clamp(0.0, 0.6)));
+    }
+    if (sheen >= 0.004) {
+      // Stronger toward the top left, where the light comes from.
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = ui.Gradient.linear(
+            rect.topLeft,
+            rect.bottomRight,
+            [
+              Color.fromRGBO(255, 255, 255, (sheen * 1.25).clamp(0.0, 0.5)),
+              Color.fromRGBO(255, 255, 255, (sheen * 0.75).clamp(0.0, 0.5)),
+            ],
+          ),
+      );
+    }
+    if (rim < 0.01 || size.width <= 0 || size.height <= 0) return;
+    final w = rimWidth.clamp(0.5, math.max(0.5, math.min(size.width, size.height) * 0.25)).toDouble();
+    final soft = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 2.4
+      ..color = Color.fromRGBO(255, 255, 255, (rim * 0.3).clamp(0.0, 1.0));
+    final sharp = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w
+      ..color = Color.fromRGBO(255, 255, 255, rim.clamp(0.0, 1.0));
+    if (rimVertical && rimHorizontal) {
+      final r = RRect.fromRectAndRadius(rect.deflate(w / 2), Radius.circular(math.max(0, radius - w / 2)));
+      canvas.drawRRect(r, soft);
+      canvas.drawRRect(r, sharp);
+      return;
+    }
+    for (final paint in [soft, sharp]) {
+      final i = paint.strokeWidth / 2;
+      if (rimVertical) {
+        canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+        canvas.drawLine(Offset(size.width - i, 0), Offset(size.width - i, size.height), paint);
+      }
+      if (rimHorizontal) {
+        canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+        canvas.drawLine(Offset(0, size.height - i), Offset(size.width, size.height - i), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(GameBoxFaceLight old) =>
+      old.darken != darken || old.sheen != sheen || old.rim != rim || old.rimWidth != rimWidth ||
+      old.rimVertical != rimVertical || old.rimHorizontal != rimHorizontal || old.radius != radius;
+}
+
+/// Verified details of a game that a reconstructed back may show.
+@immutable
+class GameBoxBackDetails {
+  const GameBoxBackDetails({
+    required this.title,
+    this.platform = '',
+    this.year = '',
+    this.developer = '',
+    this.publisher = '',
+    this.genre = '',
+    this.players = '',
+    this.summary = '',
+    this.screenshot,
+    this.screenshotAspect,
+  });
+
+  final String title;
+  final String platform;
+  final String year;
+  final String developer;
+  final String publisher;
+  final String genre;
+  final String players;
+  final String summary;
+  final ImageProvider? screenshot;
+
+  /// Width / height of [screenshot], when known.
+  final double? screenshotAspect;
+
+  /// Year, studio, publisher and genre, without repeats or empty values.
+  String get facts {
+    final seen = <String>{};
+    final parts = <String>[];
+    for (final v in [year, developer, publisher, genre]) {
+      final t = v.trim();
+      if (t.isEmpty || t == '0' || !seen.add(t.toLowerCase())) continue;
+      parts.add(t);
+    }
+    return parts.join(' · ');
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GameBoxBackDetails &&
+      other.title == title &&
+      other.platform == platform &&
+      other.year == year &&
+      other.developer == developer &&
+      other.publisher == publisher &&
+      other.genre == genre &&
+      other.players == players &&
+      other.summary == summary &&
+      other.screenshot == screenshot &&
+      other.screenshotAspect == screenshotAspect;
+
+  @override
+  int get hashCode => Object.hash(
+      title, platform, year, developer, publisher, genre, players, summary, screenshot, screenshotAspect);
+}
+
+/// A back composed from the game's verified details when no authentic back
+/// exists (docs/game-box-3d.md § 21): plain colours taken from the cover,
+/// the title, a screenshot and the summary when the library has them, the
+/// facts of the game, and a label that says it is a reconstruction. It
+/// imitates no print and invents nothing.
+class GameBoxComposedBack extends StatelessWidget {
+  const GameBoxComposedBack({
+    super.key,
+    required this.color,
+    required this.details,
+    required this.label,
+    this.compact = false,
+  });
+
+  /// Average colour of the cover's border (or the case's print colour).
+  final Color color;
+  final GameBoxBackDetails details;
+
+  /// « Verso reconstitué » in the player's language.
+  final String label;
+  final bool compact;
+
+  /// The sheet's colour: the cover's own tone, quietened for reading.
+  static Color sheetOf(Color cover) => cover.computeLuminance() > 0.42
+      ? Color.lerp(cover, const Color(0xFFF2F1EE), 0.62)!
+      : Color.lerp(cover, const Color(0xFF101114), 0.5)!;
+
+  @override
+  Widget build(BuildContext context) {
+    final sheet = sheetOf(color);
+    final ink = _onColor(sheet);
+    return ColoredBox(
+      color: sheet,
+      child: LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth, h = c.maxHeight;
+        if (!w.isFinite || !h.isFinite || w < 24 || h < 24) return const SizedBox.expand();
+        final unit = math.min(w, h);
+        final pad = unit * 0.07;
+        final titleSize = (unit * 0.075).clamp(6.0, 22.0).toDouble();
+        final bodySize = (unit * 0.04).clamp(4.5, 13.0).toDouble();
+        final labelSize = (unit * 0.034).clamp(4.0, 11.0).toDouble();
+        final wide = w > h * 1.15;
+        final shot = details.screenshot;
+        final aspect = (details.screenshotAspect ?? 4 / 3).clamp(0.5, 2.4).toDouble();
+        Widget? picture;
+        if (shot != null && !compact) {
+          picture = AspectRatio(
+            aspectRatio: aspect,
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(border: Border.all(color: ink.withValues(alpha: 0.25), width: 1)),
+              child: Image(
+                image: shot,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+                excludeFromSemantics: true,
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+            ),
+          );
+        }
+        final title = Text(
+          details.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: titleSize, fontWeight: FontWeight.w800, color: ink, height: 1.1),
+        );
+        final facts = details.facts;
+        final summary = details.summary.trim();
+        final text = <Widget>[
+          if (summary.isNotEmpty && !compact)
+            Expanded(
+              child: Text(
+                summary,
+                overflow: TextOverflow.fade,
+                style: TextStyle(fontSize: bodySize, color: ink.withValues(alpha: 0.86), height: 1.3),
+              ),
+            )
+          else
+            const Spacer(),
+          if (facts.isNotEmpty) ...[
+            SizedBox(height: pad * 0.4),
+            Text(
+              facts,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: bodySize * 0.92, color: ink.withValues(alpha: 0.72)),
+            ),
+          ],
+          if (details.players.trim().isNotEmpty && details.players.trim() != '0') ...[
+            SizedBox(height: pad * 0.25),
+            Row(children: [
+              Icon(Icons.person_outline, size: bodySize * 1.2, color: ink.withValues(alpha: 0.72)),
+              SizedBox(width: bodySize * 0.3),
+              Text(details.players.trim(),
+                  style: TextStyle(fontSize: bodySize * 0.92, color: ink.withValues(alpha: 0.72))),
+            ]),
+          ],
+        ];
+        final footer = Row(children: [
+          if (details.platform.isNotEmpty)
+            Expanded(
+              child: Text(
+                details.platform,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: labelSize, color: ink.withValues(alpha: 0.6), fontWeight: FontWeight.w600),
+              ),
+            )
+          else
+            const Spacer(),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: ink.withValues(alpha: 0.45), width: 1),
+              borderRadius: BorderRadius.circular(labelSize),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: labelSize * 0.7, vertical: labelSize * 0.25),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.info_outline, size: labelSize * 1.15, color: ink.withValues(alpha: 0.75)),
+                SizedBox(width: labelSize * 0.35),
+                Text(label, style: TextStyle(fontSize: labelSize, color: ink.withValues(alpha: 0.85))),
+              ]),
+            ),
+          ),
+        ]);
+        final Widget body;
+        if (wide && picture != null) {
+          body = Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: (w - 2 * pad) * 0.42, child: picture),
+            SizedBox(width: pad),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                title,
+                SizedBox(height: pad * 0.5),
+                ...text,
+              ]),
+            ),
+          ]);
+        } else {
+          body = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            title,
+            if (picture != null) ...[
+              SizedBox(height: pad * 0.6),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: h * 0.34),
+                child: Center(child: picture),
+              ),
+            ],
+            SizedBox(height: pad * 0.6),
+            ...text,
+          ]);
+        }
+        return Padding(
+          padding: EdgeInsets.all(pad),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: body),
+            SizedBox(height: pad * 0.5),
+            footer,
+          ]),
+        );
+      }),
+    );
+  }
 }
 
 Color _onColor(Color c) =>

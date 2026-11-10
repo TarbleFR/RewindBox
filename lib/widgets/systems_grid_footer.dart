@@ -5,6 +5,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/models/my_systems.dart';
 import '../themes/corner_radii.dart';
 import 'core_footer.dart';
+import 'glass/glass_surface.dart';
 
 /// Unified footer for the systems grid
 /// Implements the left-text and right-controls layout
@@ -32,21 +33,13 @@ class SystemsGridFooter extends CoreFooter {
 
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
+      child: GlassSurface(
+        role: GlassRole.chrome,
+        shadow: GlassShadow.low,
         padding: EdgeInsets.only(top: 4.r, bottom: 4.r, left: 12.r, right: 6.r),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.tertiaryFixed,
-          borderRadius:
-              Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
-              BorderRadius.circular(24.r),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.shadow.withValues(alpha: 0.3),
-              blurRadius: 3.r,
-              offset: Offset(2.0.r, 2.0.r),
-            ),
-          ],
-        ),
+        radius:
+            Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
+            BorderRadius.circular(24.r),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -56,7 +49,7 @@ class SystemsGridFooter extends CoreFooter {
                     ? "${AppLocale.lastPlayed.getString(context)}: ${system.title}"
                     : system.title ?? "",
                 style: TextStyle(
-                  color: theme.colorScheme.onTertiaryFixed,
+                  color: theme.colorScheme.onSurface,
                   fontSize: 14.r,
                   fontWeight: FontWeight.bold,
                   overflow: TextOverflow.ellipsis,
@@ -114,8 +107,6 @@ class SystemsGridFooter extends CoreFooter {
           label: AppLocale.settings.getString(context),
           iconPath: 'assets/images/gamepad/Xbox_Menu_button.png',
           onTap: onSettings,
-          textColor: theme.colorScheme.onTertiaryFixed,
-          backgroundColor: theme.colorScheme.tertiaryFixed,
         ),
       if (!system.isGame) SizedBox(width: 8.r),
       // Enter/Play button

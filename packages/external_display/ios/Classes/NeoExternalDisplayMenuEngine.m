@@ -22,7 +22,8 @@ static const NSTimeInterval kNeoExternalLifecycleReassertDelay = 0.1;
 /// class is resolved by name and skipped when absent from the app; a Swift
 /// plugin without @objc(name) only resolves by its module-qualified runtime
 /// name. Checked against the plugins the app pins (pubspec.lock, 12 October
-/// 2026): the TV menu needs shared_preferences only (flutter_localization
+/// 2026), extended for the display-only achievement translation plugin.
+/// The TV menu needs shared_preferences (flutter_localization
 /// reads the stored language there), a Swift class without @objc name
 /// (shared_preferences_foundation 2.5.6). path_provider_foundation 2.6.0
 /// has no native class (FFI), sqflite is not a dependency (the app uses
@@ -33,6 +34,7 @@ static const NSTimeInterval kNeoExternalLifecycleReassertDelay = 0.1;
 /// starts there. test/external_display_scope_test.py pins this list.
 static NSString *const kNeoExternalMenuPlugins[] = {
   @"shared_preferences_foundation.SharedPreferencesPlugin",
+  @"achievement_translation.AchievementTranslationPlugin",
 };
 
 NSArray<NSString *> *NeoExternalMenuPluginClassNames(void) {

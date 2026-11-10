@@ -1,0 +1,11 @@
+{
+  "source": "cd85227e95b75284f25308a753060ad622719489",
+  "run": 40195752177,
+  "artifact": 12600626331,
+  "artifactSHA256": "0ec633141bd6a7e8a2a153593d87a8508cea363a65f9a2176fcbbb8320146054",
+  "hardware": "macos-15-arm64 runner; not iPhone",
+  "superseded": true,
+  "counterSHA256": "dcef02fec49363763b99d8e849ffc89842f84efbbba683fb7483bbd001727fcf",
+  "assemblySHA256": "603b4f436d06b46c8179561aaff1b56fa7a8d50a13951d3ab1382acca3ee7cd9",
+  "observation": "Before and initial after paths both perform two Darwin TLS lookups. Initial optimized 8-thread median regresses; preserved, not omitted."
+}

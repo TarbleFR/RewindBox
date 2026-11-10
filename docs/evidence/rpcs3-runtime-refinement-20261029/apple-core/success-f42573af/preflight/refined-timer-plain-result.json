@@ -1,0 +1,401 @@
+{
+  "passed": true,
+  "case": "timer",
+  "sourceSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "49de1afd2abe5bff86989e2200ef0c05a283d891f384cd0877fb4b7d0996b9da",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "baselineSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "8d0f19e0468686a7e893f81f9c9c106b409925f93e550e64df83084345286fa6",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "programSHA256": {
+    "functional": "56730d6dd27b72fb6b3e621516fac35bc85c3e093995aed633b30ada196075e1",
+    "timing": "2c8dab30e49ca1c2ee50afb550e8154c3bd8c8ec319c0ab542e23e479644b809"
+  },
+  "scriptSHA256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+  "timerEdgesSHA256": "6ab124fe84a0c569f47e0464a66840e1a7fa32102de5c3ee326547784860ce8f",
+  "results": {
+    "functional": {
+      "passed": true,
+      "assertionsActive": true,
+      "matrixCases": 210,
+      "reentrantCases": 1,
+      "shutdownCases": 1,
+      "firstAllocationFailureCases": 2,
+      "baselineNonemptyErases": 277,
+      "candidateNonemptyErases": 277,
+      "baselineShiftedSlots": 0,
+      "candidateShiftedSlots": 0,
+      "baselineDueAllocations": 277,
+      "candidateDueAllocations": 277,
+      "obsoleteTokensRejected": 6145,
+      "notifications": 2172,
+      "pendingOrderComparisons": 636,
+      "waitDeadlineComparisons": 636,
+      "arithmeticEdgeCases": 1792,
+      "callbacksWhileLocked": 0,
+      "reentrantRetainedUntilCallbackReturned": true
+    },
+    "timing": {
+      "samples": 7,
+      "cases": [
+        {
+          "entries": 6,
+          "pattern": "all_due",
+          "iterationsPerSample": 14285,
+          "baselineNs": [
+            60.4568,
+            56.5774,
+            57.2395,
+            58.1817,
+            56.0378,
+            55.8949,
+            59.9405
+          ],
+          "candidateNs": [
+            55.9503,
+            57.5808,
+            80.6878,
+            63.7819,
+            58.1787,
+            58.5287,
+            57.365
+          ],
+          "baselineMedianNs": 57.2395,
+          "candidateMedianNs": 58.1787
+        },
+        {
+          "entries": 6,
+          "pattern": "alternating",
+          "iterationsPerSample": 14285,
+          "baselineNs": [
+            59.3747,
+            59.7714,
+            54.7748,
+            57.9221,
+            56.1049,
+            58.6017,
+            108.22
+          ],
+          "candidateNs": [
+            59.1733,
+            59.4388,
+            58.2371,
+            77.2168,
+            56.0466,
+            55.6907,
+            129.372
+          ],
+          "baselineMedianNs": 58.6017,
+          "candidateMedianNs": 59.1733
+        },
+        {
+          "entries": 6,
+          "pattern": "none_due",
+          "iterationsPerSample": 14285,
+          "baselineNs": [
+            69.5514,
+            68.8076,
+            100.963,
+            50.9188,
+            57.1083,
+            29.9177,
+            29.9527
+          ],
+          "candidateNs": [
+            54.6348,
+            76.4701,
+            32.8375,
+            44.8431,
+            32.5049,
+            42.813,
+            30.2007
+          ],
+          "baselineMedianNs": 57.1083,
+          "candidateMedianNs": 42.813
+        },
+        {
+          "entries": 32,
+          "pattern": "all_due",
+          "iterationsPerSample": 3030,
+          "baselineNs": [
+            148.006,
+            150.468,
+            145.668,
+            146.04,
+            161.702,
+            168.468,
+            167.822
+          ],
+          "candidateNs": [
+            158.746,
+            148.914,
+            173.378,
+            156.449,
+            157.247,
+            155.432,
+            147.25
+          ],
+          "baselineMedianNs": 150.468,
+          "candidateMedianNs": 156.449
+        },
+        {
+          "entries": 32,
+          "pattern": "alternating",
+          "iterationsPerSample": 3030,
+          "baselineNs": [
+            119.142,
+            116.213,
+            116.928,
+            132.178,
+            117.89,
+            300.756,
+            252.544
+          ],
+          "candidateNs": [
+            110.891,
+            112.803,
+            110.726,
+            148.583,
+            114.893,
+            124.835,
+            110.561
+          ],
+          "baselineMedianNs": 119.142,
+          "candidateMedianNs": 112.803
+        },
+        {
+          "entries": 32,
+          "pattern": "none_due",
+          "iterationsPerSample": 3030,
+          "baselineNs": [
+            52.1865,
+            51.4851,
+            52.929,
+            51.0865,
+            51.4439,
+            58.031,
+            51.3201
+          ],
+          "candidateNs": [
+            48.336,
+            47.3736,
+            55.1568,
+            47.3736,
+            47.6898,
+            47.6347,
+            48.4462
+          ],
+          "baselineMedianNs": 51.4851,
+          "candidateMedianNs": 47.6898
+        },
+        {
+          "entries": 128,
+          "pattern": "all_due",
+          "iterationsPerSample": 775,
+          "baselineNs": [
+            535.375,
+            385.214,
+            386.236,
+            396.236,
+            523.279,
+            444.839,
+            594.086
+          ],
+          "candidateNs": [
+            393.119,
+            387.365,
+            390.859,
+            391.881,
+            572.043,
+            504.732,
+            451.774
+          ],
+          "baselineMedianNs": 444.839,
+          "candidateMedianNs": 393.119
+        },
+        {
+          "entries": 128,
+          "pattern": "alternating",
+          "iterationsPerSample": 775,
+          "baselineNs": [
+            384.301,
+            442.795,
+            401.183,
+            232.419,
+            232.795,
+            233.387,
+            235.968
+          ],
+          "candidateNs": [
+            328.764,
+            253.119,
+            235.592,
+            253.226,
+            231.236,
+            232.312,
+            235.054
+          ],
+          "baselineMedianNs": 235.968,
+          "candidateMedianNs": 235.592
+        },
+        {
+          "entries": 128,
+          "pattern": "none_due",
+          "iterationsPerSample": 775,
+          "baselineNs": [
+            152.365,
+            152.419,
+            152.796,
+            153.012,
+            150.915,
+            153.71,
+            151.397
+          ],
+          "candidateNs": [
+            144.462,
+            144.302,
+            144.085,
+            144.248,
+            142.366,
+            142.419,
+            143.603
+          ],
+          "baselineMedianNs": 152.419,
+          "candidateMedianNs": 144.085
+        },
+        {
+          "entries": 1024,
+          "pattern": "all_due",
+          "iterationsPerSample": 97,
+          "baselineNs": [
+            3048.54,
+            2982.82,
+            2876.72,
+            2928.27,
+            2978.96,
+            2872.86,
+            2874.14
+          ],
+          "candidateNs": [
+            2862.11,
+            2893.47,
+            2873.29,
+            3274.05,
+            2902.92,
+            2893.9,
+            2881.02
+          ],
+          "baselineMedianNs": 2928.27,
+          "candidateMedianNs": 2893.47
+        },
+        {
+          "entries": 1024,
+          "pattern": "alternating",
+          "iterationsPerSample": 97,
+          "baselineNs": [
+            1582.91,
+            1682.99,
+            1584.2,
+            1604.81,
+            1609.97,
+            1586.34,
+            1593.65
+          ],
+          "candidateNs": [
+            1579.9,
+            1589.78,
+            1578.19,
+            1679.56,
+            1590.21,
+            1581.61,
+            1572.6
+          ],
+          "baselineMedianNs": 1593.65,
+          "candidateMedianNs": 1581.61
+        },
+        {
+          "entries": 1024,
+          "pattern": "none_due",
+          "iterationsPerSample": 97,
+          "baselineNs": [
+            1055.85,
+            1059.28,
+            1066.58,
+            1056.27,
+            1152.06,
+            1060.14,
+            1079.9
+          ],
+          "candidateNs": [
+            1048.97,
+            1046.82,
+            1044.67,
+            1043.38,
+            1061.86,
+            1049.4,
+            1070.88
+          ],
+          "baselineMedianNs": 1060.14,
+          "candidateMedianNs": 1048.97
+        }
+      ],
+      "sink": 22375766
+    }
+  },
+  "compilerFlags": [
+    "-std=c++20",
+    "-O3",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-DRPCS3_IOS=1",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+  ],
+  "compiler": "Homebrew clang version 22.1.8",
+  "sanitizer": "",
+  "benchmark": true,
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "coreBuilt": false,
+  "tsanSuppressions": [],
+  "leakSanitizer": false
+}

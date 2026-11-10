@@ -1,0 +1,379 @@
+{
+  "source": "/workspace/scratch/82df14a3df84/device597-core-integrated",
+  "baseline_commit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+  "baseline_reconstructed_from": "delivered597 exact eight changed files plus unchanged vm_locking.h; reversed original continuation core-delta.patch",
+  "baseline_sha256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4",
+    "rpcs3/Emu/Memory/vm.cpp": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "32826f1eb03b2fa9eb4bf21523a6d9ab1f0acc3df146d0d573b84b210c999b93",
+    "rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp": "972966edf09811b4f7e4ef7fbb1bd92ec12974f4e8aa03e4680575f23007072e",
+    "rpcs3/Emu/Memory/vm_locking.h": "324e1d72801211f867a33294130967ed5129ae1a5f48add94d7c345fa6bc7081"
+  },
+  "frozen_source_record_sha256": "12d321b8dd64164af40fd297dff520eec12d183723a6a9d95134909faae231d5",
+  "inverse_delta_sha256": "900b41d8920ca1eb7d76b0efb0224fe3322b2ba17d191846b91547aa0ef40a41",
+  "native_compilation": false,
+  "native_execution": false,
+  "apple_host_tested": false,
+  "jobs": [
+    {
+      "name": "dma-list",
+      "exit_code": 1,
+      "runner": "test/rpcs3_continuation/cpu/run_dma_list_test.py",
+      "runner_sha256": "4bbb2cdec070d98be948d45096c5589527cb888416ece0c27af3557d0899dfff",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/cpu/run_dma_list_test.py",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-list",
+        "--report",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-list/report.json",
+        "--reference-result",
+        "/workspace/scratch/82df14a3df84/device597-work/docs/evidence/rpcs3-continuation-20261030/cpu/evidence/plain-result.json",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-list/report.json",
+      "checks": [
+        {
+          "key": [
+            "program_sha256"
+          ],
+          "expected": "de97288b323674b7ee761754051fe76f299af71461f9262a13e44c87df48bf29",
+          "actual": "e93d6ccb203f63168e63a7f46fa9a2c08d3aeaf1f7ab6a2ce019fea4325e7309",
+          "matches_frozen": false
+        }
+      ],
+      "generated_report_sha256": "aaf967cf20e0924412bd0a62289fa704d3c51056743b340ea406b3e4f110af67",
+      "all_checks_match": false
+    },
+    {
+      "name": "vm-mmio",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/cpu/run_vm_mmio_test.py",
+      "runner_sha256": "82f0988a8ea04be474d736bfd68acd8d97185220a47e2e403e82732f0b40684f",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/cpu/run_vm_mmio_test.py",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/vm-mmio",
+        "--report",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/vm-mmio/report.json",
+        "--reference-result",
+        "/workspace/scratch/82df14a3df84/device597-work/docs/evidence/rpcs3-continuation-20261030/cpu/evidence/vm-plain-result.json",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/vm-mmio/report.json",
+      "checks": [
+        {
+          "key": [
+            "program_sha256"
+          ],
+          "expected": "99948de731c66e846211cb68e95ef521ef63420b6c6a3e3f6291b7770820e5fd",
+          "actual": "99948de731c66e846211cb68e95ef521ef63420b6c6a3e3f6291b7770820e5fd",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "ac84bd72034902428347da7be62dbc7c45b15e3bdee0e253a1f9066d30243e24",
+      "all_checks_match": true
+    },
+    {
+      "name": "dma-mmio",
+      "exit_code": 1,
+      "runner": "test/rpcs3_continuation/cpu/run_dma_mmio_test.py",
+      "runner_sha256": "c6b76d225dc36ab513f60c9c5f2ef1afc1b790868410d051f99268b76d95e0d9",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/cpu/run_dma_mmio_test.py",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-mmio",
+        "--report",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-mmio/report.json",
+        "--reference-result",
+        "/workspace/scratch/82df14a3df84/device597-work/docs/evidence/rpcs3-continuation-20261030/cpu/evidence/dma-mmio-plain-result.json",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-mmio/report.json",
+      "checks": [
+        {
+          "key": [
+            "program_sha256"
+          ],
+          "expected": "7faa7633afa5a218243d3ed4200cea58f8cbc5317fb70b5f18cf046b2abb6ddd",
+          "actual": "6e1c315849a1edc5444d8cba66383ebea3c5a2b2334cba2072f8d0600479f007",
+          "matches_frozen": false
+        }
+      ],
+      "generated_report_sha256": "73066fe9f27d11d7535933121e296eba83a6362473a73f3b62f5339bc68d7176",
+      "all_checks_match": false
+    },
+    {
+      "name": "pipeline",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/renderer/test_pipeline_reload.py",
+      "runner_sha256": "64fdbb1f327c8d84d43d5da299b7148d7e707e4a39f6416f2560de0ba80e2754",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/renderer/test_pipeline_reload.py",
+        "--core",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/pipeline",
+        "--label",
+        "pipeline",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/pipeline/pipeline.generated.json",
+      "checks": [
+        {
+          "key": [
+            "harness_sha256"
+          ],
+          "expected": "46a5736c6253729e1d9c80cb3d63b8ef80770305bd2dbf0e2f2134e6c3d2b1c6",
+          "actual": "21c877e7a3213bb5f5d0706cb02cd4957577ee2b379da17393eef9427f518d09",
+          "matches_frozen": false
+        }
+      ],
+      "generated_report_sha256": "e5e2387db1db2e8e8b957bb0e50c192d5fd382a2f2e6a56bda1a17c92dd3d83c",
+      "all_checks_match": false
+    },
+    {
+      "name": "gpu-wait",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/renderer/test_gpu_wait_retirement.py",
+      "runner_sha256": "23d0392b3940d33f6d3538aacf7968cdceb9cdf609d98569fa6853eaa8685691",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/renderer/test_gpu_wait_retirement.py",
+        "--core",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/gpu-wait",
+        "--label",
+        "gpu-wait",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/gpu-wait/gpu-wait.generated.json",
+      "checks": [
+        {
+          "key": [
+            "harness_sha256"
+          ],
+          "expected": "32d90a62a032902dbda03d618f0d150a4411db41d096a8163d361f5ef95aa6a4",
+          "actual": "32d90a62a032902dbda03d618f0d150a4411db41d096a8163d361f5ef95aa6a4",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "b208002f0c5b7b95aacee730ced35f7c76353e308fe7939e2ec8f511ddf77796",
+      "all_checks_match": true
+    },
+    {
+      "name": "dma-ownership",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/renderer/test_dma_wait_ownership.py",
+      "runner_sha256": "3bc40bb19da88b44693b51f89216e96af76d5379ee5ad4e0c32967a1d1145b5f",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/renderer/test_dma_wait_ownership.py",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--candidate",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--support-core",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--output-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-ownership",
+        "--label",
+        "dma-ownership",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/dma-ownership/dma-ownership.generated.json",
+      "checks": [
+        {
+          "key": [
+            "harness_sha256"
+          ],
+          "expected": "4f5cf93e58a1116fc4e8ab09ae47e9d66d266bd6f490db33c30837fa1d8619ae",
+          "actual": "4f5cf93e58a1116fc4e8ab09ae47e9d66d266bd6f490db33c30837fa1d8619ae",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "1fb0fad20690c90253c88ca961b7f4bd12cc5b7ee634c8e64f8236d27f679bd8",
+      "all_checks_match": true
+    },
+    {
+      "name": "texture-lifetimes",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/texture/verify_texture_lifetimes.py",
+      "runner_sha256": "5df44d0453ba9d57183128f8d18c905c1752f7ef1b4156b2d91db1950168c201",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/texture/verify_texture_lifetimes.py",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--report-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/texture-lifetimes",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/texture-lifetimes/report.json",
+      "checks": [
+        {
+          "key": [
+            "reports",
+            0,
+            "program_sha256"
+          ],
+          "expected": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+          "actual": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+          "matches_frozen": true
+        },
+        {
+          "key": [
+            "reports",
+            1,
+            "program_sha256"
+          ],
+          "expected": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+          "actual": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "8350247f0ba01b0c519dbef013e051583b2641be130fdcdee54047c87c3e81b3",
+      "all_checks_match": true
+    },
+    {
+      "name": "texture-baseline",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/texture/verify_texture_lifetimes.py",
+      "runner_sha256": "5df44d0453ba9d57183128f8d18c905c1752f7ef1b4156b2d91db1950168c201",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/texture/verify_texture_lifetimes.py",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--report-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/texture-baseline",
+        "--expect-baseline",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/texture-baseline/report.json",
+      "checks": [
+        {
+          "key": [
+            "reports",
+            0,
+            "program_sha256"
+          ],
+          "expected": "1c20df059b34b98e3b269b952236b298e9a0af42c3b0af48bb44ef2cfdd165ca",
+          "actual": "1c20df059b34b98e3b269b952236b298e9a0af42c3b0af48bb44ef2cfdd165ca",
+          "matches_frozen": true
+        },
+        {
+          "key": [
+            "reports",
+            1,
+            "program_sha256"
+          ],
+          "expected": "0138b0ea1145a5f1e27efc962bf19bb5dda89995894ac36ff15b3aff85a65d1b",
+          "actual": "0138b0ea1145a5f1e27efc962bf19bb5dda89995894ac36ff15b3aff85a65d1b",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "80d87297bb63f83169ddd179b2062350e0f9b1e35889389d46c36e0423c52d6d",
+      "all_checks_match": true
+    },
+    {
+      "name": "atlas",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/texture/verify_atlas_coverage.py",
+      "runner_sha256": "4cbca1813efd435e60b028f973880c7997d2e3d2f69ee1f8cfdffbf0954ced2d",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/texture/verify_atlas_coverage.py",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--report-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/atlas",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/atlas/report.json",
+      "checks": [
+        {
+          "key": [
+            "program_sha256"
+          ],
+          "expected": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+          "actual": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "dc32d45625c63c6708052e4d570d75642b2e1d5127913798886d500b42191daa",
+      "all_checks_match": true
+    },
+    {
+      "name": "atlas-area",
+      "exit_code": 0,
+      "runner": "test/rpcs3_continuation/texture/verify_atlas_area.py",
+      "runner_sha256": "9e6b3012f78605f689c1583aedf14486dc88c570aa1fec08113290e662808100",
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_continuation/texture/verify_atlas_area.py",
+        "--source",
+        "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "--baseline",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/baseline-de816",
+        "--report-dir",
+        "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/atlas-area",
+        "--generate-only"
+      ],
+      "generated_report": "/workspace/scratch/82df14a3df84/device597-recipe-review/historical-closure/generated/atlas-area/report.json",
+      "checks": [
+        {
+          "key": [
+            "program_sha256"
+          ],
+          "expected": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+          "actual": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+          "matches_frozen": true
+        }
+      ],
+      "generated_report_sha256": "19ac8f289707cd3e3aa9513a5bcf9707d793f562f0e477aff70d4aafe354dfa6",
+      "all_checks_match": true
+    }
+  ],
+  "all_closures_unchanged": false,
+  "changed_jobs": [
+    "dma-list",
+    "dma-mmio",
+    "pipeline"
+  ],
+  "unchanged_jobs": [
+    "vm-mmio",
+    "gpu-wait",
+    "dma-ownership",
+    "texture-lifetimes",
+    "texture-baseline",
+    "atlas",
+    "atlas-area"
+  ]
+}

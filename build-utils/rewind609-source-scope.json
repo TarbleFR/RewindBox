@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "build": 609,
+  "baseline": {
+    "build": 608,
+    "source": "90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07",
+    "tree": "067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3",
+    "run": 41303386398,
+    "job": 124838986809,
+    "attempt": 1,
+    "ipaBytes": 189825138,
+    "ipaSHA256": "575321ba6daed2678bedbb7da2a8412930bffb7f67c340980a235ee46c95450d",
+    "receipt": "docs/evidence/rewind608/delivery.json",
+    "receiptSHA256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+  },
+  "sourceDelta": {
+    ".github/diagnostics/rewind609_baseline.py": {
+      "before": null,
+      "after": "c66b80f874ed05cfca5f73810509c3057099adc06564c0db8dcb8912dba167f5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind609_delivery.py": {
+      "before": null,
+      "after": "b3bdba30a9d282fd23590accfc31f3f006ee9cf5c3b3a2cb9cc9544dd0879c19",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind609_engine.py": {
+      "before": null,
+      "after": "bddd1412e27933b19ad5c930943785b3d884f0bf9db6ade774f579f51651c7d8",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/workflows/melonx-core.yml": {
+      "before": "085f70560fa8e8dadc23d594baa030ba427072caee88545b37c4ee6b2ed529e4",
+      "after": "4c4c03df80d656c2baa437592a1c914a1b1aef1be0e38770ef6cc7ac6091382e",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    ".github/workflows/rewind609-hogwarts-liveness-delivery.yml": {
+      "before": null,
+      "after": "ff14b69f75e309764ee43fd2dd7f9927c3b92f34a84d1841c11cb5fbeae8456a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "AGENTS.md": {
+      "before": "c2b930c52f752bba32732e93f022d19b5f415034ababb504db481a0fa385b057",
+      "after": "ce193b997c92f7474c93d066feb52be50fdf528cef3f416e90b24400ee66d16b",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/delivery-609-recipient.pem": {
+      "before": null,
+      "after": "4793bd0f928b72bfc98d495c044b290c8f0a2765b045e3dd5db9813155b9c729",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/adapt_register_liveness.py": {
+      "before": null,
+      "after": "be37aa724d628c3a06737008c0d22756fe26eaf9d3c2f657aa4dbd057d39903a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/freeze_liveness_core.py": {
+      "before": null,
+      "after": "dd6dbdd2b93d125bf4245711b20bda4cc4e0c53573398d6abc3512c1ac3e0d20",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/liveness-core-contract.json": {
+      "before": null,
+      "after": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/liveness-core-plan.json": {
+      "before": null,
+      "after": "10a20c2228e2679bf47e27d57ea16fdf5a6355f189b1fdd5e4642bcb592c8e35",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/prepare_embedded.py": {
+      "before": "d51e8752affcde893580cba10ba659cb3eb584b43a950ec39616e0bbe59458ac",
+      "after": "36b0f6ede620802d6ee288fe3ce3ae4619ff37837bf4496e92f5d37bb1184077",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/verify_liveness_core.py": {
+      "before": null,
+      "after": "5ba00fc30bec90b5265e7e3d40d6fe5736da8a1e3d90e05142f45f912eefd83c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/rewind608-source-scope.json": {
+      "before": "8cddafcc7cc8cfc75fb47e70afca379eb5675a8ec681a99b32a1a206c94629c1",
+      "after": "dadac797831c224de33dc8864959f50bb809762a5f5729b160096dc820e80c5b",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/rewind609-native-inventory.json": {
+      "before": null,
+      "after": "ef56eccb3c39de4ea643d6e51aa78007d371ca375aa64f615227e1e9ccf9a284",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/build608-ra-session-delivery.md": {
+      "before": "0b6be823d3f9aefe25e16a351d522666bd67ae2fd0296331ec2a97f61f9bcfe0",
+      "after": "378edf3957281e7f93f13bc7a175fcc77d432e9e9f8f52a812048418e9c5faef",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "docs/evidence/melonx-register-liveness-20261101/register-liveness-audit.json": {
+      "before": null,
+      "after": "3054d70dd9cbc648560e524e58101d5e4345de8d52ca48e6549a340b7a968f90",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/melonx-register-liveness-20261101/register-liveness-checks.json": {
+      "before": null,
+      "after": "2e80c5f591cc6d67c9271403e4bfb37d6c43ea1cfa97595d443878b5cf9d464a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/delivery.json": {
+      "before": null,
+      "after": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/download608-verification.json": {
+      "before": null,
+      "after": "65fe55402d75d0360dfb84ca0d876b5935f304252a8fe9ccb9f81a87629c3ac5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/environment.json": {
+      "before": null,
+      "after": "5e1008801dd2eb1835cff41be633e225296db39e6c07db4b9211fff77c5106e9",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/final90a9e8fc-ci-receipt.json": {
+      "before": null,
+      "after": "85b564d536c93d8e7e1e8a99e9b3650c3799da3b823ab82cc4a76143f794fe84",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/final90a9e8fc-warning-review.json": {
+      "before": null,
+      "after": "9481aa27bf901d68a429f537149d03e08d0b11e2d4a4f4f54b16e0670f95be47",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/flutter-0279198-validation.json": {
+      "before": null,
+      "after": "734d40b80f70df494c20fcf72626c86125d0691a3ab0a553b6bd1da2d850fb6f",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/guard-90a9e8fc-validation.json": {
+      "before": null,
+      "after": "5f9aeb6b6f39230bbecca5973a7992aec57258b533decca6341ad344ca781b8d",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/native-0279198-validation.json": {
+      "before": null,
+      "after": "1d96174e11d0f340d9f87d197c6fce0b3ac5c51fadfc1d80d070a5b0da7240e4",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/python-contract-matrix.json": {
+      "before": null,
+      "after": "e108a8023e852d2179de5f5682fe9d8e4db092a79f9354e17d40b4d9da7dc80e",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/rewind608-ipa-validation.json": {
+      "before": null,
+      "after": "d689461826d07d601525f5c0c7e83e1c6949a561a86d6d8f6adb5fa93f54882a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/rewind608-tests.json": {
+      "before": null,
+      "after": "15929ac6654d07ec7651b8b341ae3264c4a6683c007f4ee475cd5cd1bf1b793b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/signature.json": {
+      "before": null,
+      "after": "9dc5b59d0a195a1abd5ac240b565ed11af866dbc283723692bc041ba20075a0b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/signed-payload-identity.json": {
+      "before": null,
+      "after": "ebfbef4d1d45f947e7ef520e7eb500e5d4ea6ce74b8d857bcd38f1508840ed5c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/melonx-performance-diagnostics-2026-10-31.md": {
+      "before": "475a8379d318d6f31f814bda7a8a90adec818d6a316d65bac6a6a565978fdce3",
+      "after": "10ab409379d1de0e7d8f4f663482a57dd07aec4f2b810cf2aa02542429a0ab17",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": {
+      "before": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+      "after": "36e47c24a47409d7fde622bd771ac96234ea5c3366b442b0ad73f756b6454182",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/delivery609_contract_test.py": {
+      "before": null,
+      "after": "6e79c31aaa5347561140728dcf337ea3c36ae95127d414452018df7438b49576",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_liveness_core_contract_test.py": {
+      "before": null,
+      "after": "25fd06ad9d87995139eac2760c5f872410475053a5fac0819b64a3d4d3df3d09",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_performance_diagnostics/Program.cs": {
+      "before": "deb0891a978027c9a5cae047fe53abe8d73c94abe325e6bbb7d9e4da5d10a323",
+      "after": "10465981fa2ce5cc04519146f533ceeefdc98b0a51472b91d344f93817b3d8cc",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/melonx_register_liveness/Program.cs": {
+      "before": null,
+      "after": "668b731da41d2c134b98bcceb15ecc21d603324cc1466693ee13f41aee912ed0",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_register_liveness_audit.py": {
+      "before": null,
+      "after": "95519084828f225224520142eea2d61d0b878918036ed53df5757847199eadc1",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_register_liveness_test.py": {
+      "before": null,
+      "after": "dba1f668499d2c5ec03230d4e119dbc92fb015165c3364c2efa51397f1c35739",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    }
+  },
+  "productDelta": {
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": {
+      "before": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+      "after": "36e47c24a47409d7fde622bd771ac96234ea5c3366b442b0ad73f756b6454182",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    }
+  },
+  "coreContractSHA256": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
+  "nativeInventorySHA256": "ef56eccb3c39de4ea643d6e51aa78007d371ca375aa64f615227e1e9ccf9a284",
+  "publicKeySHA256": "4793bd0f928b72bfc98d495c044b290c8f0a2765b045e3dd5db9813155b9c729",
+  "core": {
+    "source": "1f12796c6b8c3d509bc203e52c561e0d345e7bfc",
+    "run": 41323968050,
+    "job": 124899905807,
+    "attempt": 1,
+    "workflow": ".github/workflows/melonx-core.yml",
+    "artifact": 13090479414,
+    "name": "MeloNX-engine-1f12796c6b8c3d509bc203e52c561e0d345e7bfc",
+    "bytes": 88300108,
+    "sha256": "83827a94d5812a4dd85d83501d2bee5e31879e1c6961bb1043605ee90b7957fb",
+    "binaries": {
+      "ios-arm64": {
+        "sha256": "34fb7a5ca139626d49a6c191278625779a0fbc2b95f1fdcb9e3a642e69f2d4aa",
+        "bytes": 37732912
+      },
+      "iossimulator-arm64": {
+        "sha256": "669adbd06feb89893b640af02ba0f6b947a03d0a680806d4a7b3f72b85ec7f35",
+        "bytes": 38044328
+      }
+    },
+    "identities": {
+      "ios-arm64": "17c5a59a90cb1a75e7538a54a659a2483dc321d53fc1d844d308cfeed4bd314f",
+      "iossimulator-arm64": "499b4de13eb3d96b366b3e778bc7e6b00f019391181bdbe42757cbcb2d8c61e9"
+    },
+    "contractSha256": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
+    "resultSha256": "0f5121087e57b60a35351b616e0e564c01e698ebd3fbf626245f3e6690261672",
+    "packagedFingerprint": "c43a80bf1bea280935103b8f942ea2922771874fd950afec0df7ea7ae91591b7"
+  },
+  "scopeGeneratedInCI": false,
+  "physicalDeviceTested": false
+}

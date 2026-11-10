@@ -1,0 +1,26 @@
+{
+  "result": "passed",
+  "scope": "Actual two authenticated Core ZIPs and 418 copied real members plus two explicit local receipt fixtures",
+  "sourceArchiveMembers": 418,
+  "localReceiptFixtureNames": [
+    "packaging-identity.json",
+    "standalone-moltenvk-identity.json"
+  ],
+  "actualNativePackagingValidatedHere": false,
+  "nativeExecutionReplayed": false,
+  "originalRunConclusion": "failure",
+  "separateValidation": {
+    "source": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+    "run": 41240588272,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41240588272"
+  },
+  "strictOriginalMembersPreserved": true,
+  "focusedRejectionTests": 8,
+  "inputs": {
+    ".github/diagnostics/rewind606_engine.py": "51630caff5508e6bf31558dabfb3bf9469c09d8e91e2e3e88cb2b55c7cfa9d7b",
+    "test/hogwarts606_delivery_contract_test.py": "3dfcc806d68976b73ff9d6798df5686b60859a6935a0beaaabb24f2f85456fbd"
+  },
+  "originalArchiveSHA256": "c5baa6c2a0765ffedfdb0440d8f5e1604190cb6232f0d544e5f38b4c72c63182",
+  "validationArchiveSHA256": "8643daa4c5dc34839d1d7e88c33dd59c35aafc03b7cb946adbde3ad93a15efc6"
+}

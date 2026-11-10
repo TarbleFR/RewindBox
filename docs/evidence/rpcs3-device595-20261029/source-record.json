@@ -1,0 +1,29 @@
+{
+  "baseline_branch": "Claude",
+  "baseline_commit": "c0df3394d81d957eb7b28c85802278b69cc0f71b",
+  "baseline_patch_sha256": "41c9ab4938e95b37b88e9851230920a8c38823bb26b3eebe4427038a1c32b869",
+  "source_only": true,
+  "canonical_postimages_unchanged": 311,
+  "delta_fixture": "test/fixtures/rpcs3_device595_allocations.diff",
+  "delta_sha256": "e7fba6a3c207fb07b5412448f0adb7c97e485e007931379f3725f39621411595",
+  "files_before_sha256": {
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "76018074bea16510ba2453e0ec785967387b2890e63b69a3f62334ea8e407d36",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "1ee38e8848f5100263165ab77df3eb1d856d732256fe64bb0bdbcd970fb08347",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5"
+  },
+  "files_after_sha256": {
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "0bfc08b1aa55827758c6d985fe4af2ad129942c8b0c55c1daed00f81cc3ab2e6",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8fe947c46018fa9e2b0ee10594fced5aff02aea265b96fdb4d22975901d203f0"
+  },
+  "affected_tests": [
+    "test/rpcs3_device595_test.py --case array",
+    "test/rpcs3_device595_test.py --case temporary",
+    "test/rpcs3_texture_address_index_test.py"
+  ],
+  "ios_build_run": false,
+  "iphone_validation_run": false,
+  "fps_gain_claimed": false,
+  "visual_or_freeze_fix_claimed": false,
+  "existing_delivery_recipes_and_pins_preserved": true
+}

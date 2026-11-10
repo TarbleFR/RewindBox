@@ -1,0 +1,221 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 00f4af2..3acc2f9 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -81,6 +81,15 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "d03e51eef50cb89fdb0c5d32484e40e400f7f6baf6d8e2155c7be1b472a309a5")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911: only the host body of do_putllc changes again (the
++    # accurate no-op path feeds the Core 627 tracker and takes its bounded wait after the PUTLLC
++    # completed). process_mfc_cmd, get_ch_value, set_ch_value, the SPU layout (SPUThread.h),
++    # emitter bodies, external helper signatures and relocation targets are unchanged: the
++    # objects call the same host functions. Preserve the delivered effective hash for this
++    # exact reviewed snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "c59a24dd44e7fee377a56f32d1e3114658649f33c04d54fe09f737ac3cb94da4")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index a12c16b..2b3039a 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -3602,6 +3602,11 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 
+ 	// Store conditionally
+ 	const u32 addr = args.eal & -128;
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911: this PUTLLC completed as the write-back of unchanged data under
++	// Accurate SPU Reservations (CELL565 path below).
++	bool ios_accurate_noop = false;
++#endif
+ 
+ 	if ([&]()
+ 	{
+@@ -3658,7 +3663,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 		}
+ 
+ #ifdef RPCS3_IOS
+-		t_ios_noop_spin.on_progress(); // REWINDBOX_SPU_NOOP_SPIN_WAIT_627: this PUTLLC changes data
++		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: this PUTLLC changes data.
++		// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911: with Accurate SPU Reservations the write-back of unchanged data
++		// arrives here too, and it is not progress.
++		if (!(accurate && cmp_rdata(to_write, rdata)))
++		{
++			t_ios_noop_spin.on_progress();
++		}
+ #endif
+ 
+ 		auto& res = vm::reservation_acquire(addr);
+@@ -3684,6 +3695,7 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 			{
+ 				if (cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime && cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime)
+ 				{
++					ios_accurate_noop = true; // REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911
+ 					raddr = 0; // Disable notification
+ 					return true;
+ 				}
+@@ -3805,6 +3817,44 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 	{
+ #ifdef RPCS3_IOS
+ 		rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::putllc_ok);
++
++		// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911 (ios/IOSSpuNoopSpin.h): Black Ops II runs with Accurate SPU
++		// Reservations (database configuration), where the write-back of unchanged data never reaches the wait
++		// of REWINDBOX_SPU_NOOP_SPIN_WAIT_627 at the top of this function: on the build 676 logs its six SPURS
++		// threads complete 53-102 million such PUTLLC per 5 s window in the menus on 4-5 cores, getllar_sleep=0.
++		// The same tracker and the same bounded wait apply here once the PUTLLC has completed: the line was seen
++		// unchanged under an unchanged reservation time (CELL565), nothing was stored, its result is decided, and
++		// the RSX reservation lock of the comparison is released. The sleep is what a host preemption of this SPU
++		// thread at this point would be. Only with No-op PUTLLC Keeps Reservations, which keeps the time stable.
++		if (ios_accurate_noop && rpcs3::ios::get_experimental_policy().spu_noop_spin_wait)
++		{
++			static const u64 s_ios_noop_gap_ticks = utils::get_tsc_freq() * rpcs3::ios::spu_noop_spin::spin_gap_ns / 1'000'000'000;
++			t_ios_noop_spin.on_noop(utils::get_tsc(), s_ios_noop_gap_ticks, addr, rtime);
++
++			if (t_ios_noop_spin.due() && vm::reservation_acquire(addr) == rtime)
++			{
++				const u64 ios_bound_ns = t_ios_noop_spin.next_wait_ns();
++				const u64 ios_sleep_begin = utils::get_tsc();
++				state += cpu_flag::wait;
++				const usz cache_line_waiter_index = register_cache_line_waiter(addr);
++
++				if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
++				{
++					utils::bless<atomic_t<u32>>(&wait_var->raw().wait_flag)->wait(flag_val, atomic_wait_timeout{ios_bound_ns});
++					vm::reservation_notifier_end_wait(*wait_var);
++				}
++
++				deregister_cache_line_waiter(cache_line_waiter_index);
++
++				// The existing journal of a polling SPU that slept: SPUWAIT551 getllar_sleep.
++				const u64 ios_sleep_ticks = utils::get_tsc() - ios_sleep_begin;
++				rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::getllar_sleep_ticks, ios_sleep_ticks);
++				rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::getllar_sleeps);
++				t_ios_noop_spin.on_woken(ios_sleep_begin + ios_sleep_ticks, ios_sleep_ticks * 1'000'000'000 / utils::get_tsc_freq(), ios_bound_ns);
++				static_cast<void>(test_stopped());
++			}
++		}
++		// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911 end
+ #endif
+ 		if (raddr)
+ 		{
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index afebc7e..c9c186e 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -292,7 +292,7 @@ namespace rpcs3::ios::texture_prehash
+ 						continue;
+ 					}
+ 
+-					publish(range.start, range.length, epoch, hash);
++					publish(range.start, range.length, epoch, hash, origin_worker); // REWINDBOX_PREHASH_USED_911
+ 					worker_hashes.fetch_add(1, std::memory_order_relaxed);
+ 					total_worker_hashes.fetch_add(1, std::memory_order_relaxed);
+ 				}
+@@ -695,7 +695,13 @@ namespace rsx
+ 				if (prehashed)
+ 				{
+ 					rpcs3::ios::texture_prehash::hit_bytes.fetch_add(range.length(), std::memory_order_relaxed);
+-					rpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed); // REWINDBOX_PREHASH_BUDGET_910
++					// REWINDBOX_PREHASH_BUDGET_910, REWINDBOX_PREHASH_USED_911: the budget follows the worker results
++					// used at least once, not every lookup served.
++					if (rpcs3::ios::texture_prehash::claim_worker_result(range.start, range.length(), epoch))
++					{
++						rpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::texture_prehash::worker_used.fetch_add(1, std::memory_order_relaxed);
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+index 9d566a1..40783db 100644
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -44,8 +44,10 @@ constexpr std::size_t max_sequence = 2048;
+ // Recorded validations the worker hashes ahead of the RSX thread.
+ constexpr std::size_t lookahead = 64;
+ // REWINDBOX_PREHASH_BUDGET_910: God of War III, build 694 device log (Core 907), window 29: the worker completed 10,135
+-// hashes (10.48 GB) and the RSX thread used 4,623 of them (5.05 GB): the rest was hashed for an epoch that ended first.
+-// The depth of the worker's look-ahead now follows what the last frame used: under half of its completed hashes used,
++// hashes (10.48 GB) while 4,623 validations were served by a published result (5.05 GB). That is not the share of the
++// worker's hashes that was used (the RSX thread publishes its own hashes, and one result serves several sections), so
++// since REWINDBOX_PREHASH_USED_911 the input below is the number of worker results used at least once.
++// The depth of the worker's look-ahead follows what the last frame used: under half of its completed hashes used,
+ // the depth halves (down to 4 ranges); above 85 %, it doubles (up to 64). Only how much is hashed ahead changes: a
+ // result still validates nothing but the range and epoch it was taken for, and what the worker leaves is hashed by
+ // the RSX thread as before.
+@@ -80,7 +82,14 @@ struct result_slot
+ 	std::atomic<std::uint64_t> key{0};
+ 	std::atomic<std::uint64_t> epoch{0};
+ 	std::atomic<std::uint64_t> hash{0};
++	// REWINDBOX_PREHASH_USED_911: who published the result (origin_*), and whether a worker result was used.
++	std::atomic<std::uint32_t> origin{0};
+ };
++// REWINDBOX_PREHASH_USED_911: OPT581 `hits` counts lookups served, by any published result: the RSX thread publishes
++// the hashes it computes itself, and several sections of one range are served by one result. The share of the
++// worker's hashes that was used is counted here: a worker result, the first time a validation takes it.
++constexpr std::uint32_t origin_validator = 0, origin_worker = 1, origin_worker_used = 2;
++inline std::atomic<std::uint64_t> worker_used{0}; // OPT583 (process window)
+ 
+ inline std::array<result_slot, table_size> table{};
+ 
+@@ -138,7 +147,7 @@ inline bool lookup(std::uint32_t start, std::uint32_t length, std::uint64_t epoc
+ }
+ 
+ // Any producer. Try once: validation must never wait for speculative work.
+-inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t hash) noexcept
++inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t hash, std::uint32_t origin = origin_validator) noexcept
+ {
+ 	const std::uint64_t key = make_key(start, length);
+ 	auto& slot = table[slot_of(key)];
+@@ -158,9 +167,29 @@ inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epo
+ 	slot.key.store(key, std::memory_order_release);
+ 	slot.epoch.store(epoch, std::memory_order_release);
+ 	slot.hash.store(hash, std::memory_order_release);
++	slot.origin.store(origin, std::memory_order_release);
+ 	slot.seq.store(seq + 2, std::memory_order_release);
+ }
+ 
++// The validating thread, after lookup() served [start, start + length) in `epoch`: true the first time the result is
++// one the worker published. A counter only: the served hash was checked by lookup(); a slot republished in between is
++// not counted.
++inline bool claim_worker_result(std::uint32_t start, std::uint32_t length, std::uint64_t epoch) noexcept
++{
++	const std::uint64_t key = make_key(start, length);
++	auto& slot = table[slot_of(key)];
++	const std::uint64_t seq = slot.seq.load(std::memory_order_acquire);
++
++	if ((seq & 1) || slot.key.load(std::memory_order_acquire) != key || slot.epoch.load(std::memory_order_acquire) != epoch)
++	{
++		return false;
++	}
++
++	std::uint32_t expected = origin_worker;
++	return slot.origin.compare_exchange_strong(expected, origin_worker_used, std::memory_order_acq_rel, std::memory_order_relaxed) &&
++		slot.seq.load(std::memory_order_relaxed) == seq;
++}
++
+ // The texture cache's validation hash of guest memory at `src` (Emu/RSX/Common/texture_cache.cpp).
+ std::uint64_t range_hash(const void* src, std::uint32_t length) noexcept;
+ 
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index bb1bd66..77889ef 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1896,10 +1896,11 @@ private:
+         {
+             namespace prehash = rpcs3::ios::texture_prehash;
+             ios_core_profiler.notice("COREPROF OPT583 session=%llu window=%llu worker_passed=%llu worker_refills=%llu "
+-                "lookahead=%u scope=process_window_counters window_boundary_approximate=1",
++                "lookahead=%u worker_used=%llu scope=process_window_counters window_boundary_approximate=1",
+                 profile_session, profile_window,
+                 prehash::worker_passed.exchange(0, std::memory_order_relaxed), prehash::worker_refills.exchange(0, std::memory_order_relaxed),
+-                prehash::current_lookahead.load(std::memory_order_relaxed)); // REWINDBOX_PREHASH_BUDGET_910
++                prehash::current_lookahead.load(std::memory_order_relaxed), // REWINDBOX_PREHASH_BUDGET_910
++                prehash::worker_used.exchange(0, std::memory_order_relaxed)); // REWINDBOX_PREHASH_USED_911
+         }
+         // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
+         // became of their bytes in this window, one bounded line.

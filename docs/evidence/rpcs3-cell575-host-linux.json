@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "build": 575,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "d1f61ee0fe6de8d3d692b2e8bcd295057957ece6",
+    "fixtureSHA256": "42574628a5063c5f88cfce56556a62ed0c1f473c5c8cad82069088fc8051d3b3",
+    "sourceSHA256": {
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "bd7654d966c04954b01db8da30a71a643b0b05778e530ab5c698d9c51245009b",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "c4ddbaa2e9827eb14ec0a3b16af6a98ac27df750b00a0c6cc5179b0eca73a616",
+      "rpcs3/ios/IOSTitleLevers.h": "c0f008decadfc282f07ce834d4700109e5156391ef1568330e8dba4cb1d97703"
+    },
+    "otherCoreSourcesUnchanged": 291
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom573": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "placement": {
+    "policyOtherwiseIdentical": true,
+    "settingTextsChanged": [
+      "noop_putllc_keeps_reservations",
+      "rsx_idle_park",
+      "scoped_texture_revalidation",
+      "texture_validation_epoch"
+    ],
+    "serials": {
+      "blackOpsII": [
+        "BLES01717"
+      ],
+      "bladestorm": [
+        "BLES00113",
+        "BLUS30070"
+      ]
+    }
+  },
+  "policy": {
+    "passed": true,
+    "cases": 42,
+    "harnessSHA256": "ae1285fdccbe3f68db14282c20ca8bd98aa9c62d7cf0c979a08ce2b11e483f81"
+  },
+  "inputs": {
+    "test/rpcs3_cell575_test.py": "e1aa84101baf7f0ef29d672bf0f0a8d6e51deae8d20f851ca5cedc6c706bd168"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 575 policy blocks compiled verbatim for every title and mode; no iPhone FPS, frame time or memory result."
+}

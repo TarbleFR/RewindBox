@@ -1,0 +1,139 @@
+{
+  "result": "passed",
+  "build": 551,
+  "version": "0.0.8",
+  "source": "8715bd55970f2b170cc9aa361f1505e65ec6803a",
+  "run": 40249519900,
+  "jobs": {
+    "checks": 121338134033,
+    "cold": 121339210584
+  },
+  "failedAttempt": {
+    "run": 40248010529,
+    "source": "f5eceb321ce7301e0267b41592329a99fa16f3f1",
+    "step": "Bind audited RPCS3 binary provenance and verify the linked host compiler broker",
+    "cause": "validate_rpcs3_551_ipa.py looked up Frameworks/App.framework/App among the images it collects by the 64-bit Mach-O header; App is a universal binary (cafebabe). Fixed in 8715bd55: read by path."
+  },
+  "artifact": {
+    "id": 12620386313,
+    "name": "RewindBox-Build551-8715bd55970f2b170cc9aa361f1505e65ec6803a-cold",
+    "bytes": 187009949,
+    "zipSHA256": "acad30578bbaae2cf00bb29035db5ebd14fbb54e82efe9350100dc91fc9656b0",
+    "recipient": "build-utils/delivery-551-recipient.pem",
+    "cipher": "AES-256-CBC PBKDF2 200000 + RSA OAEP SHA256",
+    "privateKey": "outside Git"
+  },
+  "ipa": {
+    "name": "RewindBox-Build551-8715bd55970f2b170cc9aa361f1505e65ec6803a-cold.ipa",
+    "bytes": 186532490,
+    "sha256": "2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5",
+    "sha256sumsMatched": true,
+    "signedPayloadIdentityMatched": true,
+    "cfBundleShortVersion": "0.0.8",
+    "cfBundleVersion": "551",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "members": 5348
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source547": "08f2f7fa8c9081ff8f049eb96d31f054d549f278",
+    "source548": "5a9f1502973f3b9c37ddbc5f32abb5457b86ee80",
+    "source549": "c605eafdea4064b13cc316524c851ef2c75257c2",
+    "sourceInterface": "e12f1d4feaccd3cfbe8ed4b6b27352d136184ceb",
+    "source551": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "restored": {},
+    "removed": [
+      "docs/evidence/liquid-glass-ui548-delivery.json",
+      "docs/evidence/liquid-glass-ui550-delivery.json",
+      "docs/evidence/melonx-threading549-delivery.json"
+    ],
+    "productTrees": {
+      "lib": "0dbd5db92a7de3dac11983b67d0092f757c82e3e",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "26776d4bb632215d78b1bc0bc7aaa548f2533ae0",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees550": {
+      "lib": "6d7d826dc950e9ce018d74538b0ccc9d37f79856",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "b3b03d3be2f2d0a5bef2408823cbec1de25ac090",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "note": "productTrees550 (the 551 index with the two shipped 551 files put back) equals the trees the 550 interface and MeloNX receipts were bound to."
+  },
+  "components": {
+    "rpcCoreSource": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "rpcCoreRun": 40247161327,
+    "rpcCoreArtifact": 12619351982,
+    "rpcCoreArtifactZipSHA256": "42ddbb11f66e97684e47e69291572775d999185f7d514044e3e11badee914d61",
+    "rpcCoreSHA256": "38bd663eeca1802a209cfa2ca0efed5f8be2dac7b0ac0b08ec1481aa0a3da998",
+    "rpcCoreSourcePatchSHA256": "c1f58a946bed5bbcadace3887fbb6a4a4b64fa965fb365923fa03df38dadb28c",
+    "codegenIdentities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "moltenvkCompileQos": "libMoltenVK.a-arm64-prelink.o 245e7e05\u2026 -> b91a46f7\u2026, hook linked (Core build log)",
+    "melonxSource": "9bf068b3a1dbbd16875f7d843ace4b44402fef13",
+    "melonxRun": 40235589254,
+    "hostSource": "9bf068b3a1dbbd16875f7d843ace4b44402fef13",
+    "hostRun": 40235589280
+  },
+  "ciValidation": {
+    "rpcs3": {
+      "result": "passed",
+      "build": 551,
+      "ipaSHA256": "2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5"
+    },
+    "liquidGlass": {
+      "result": "passed",
+      "build": 551,
+      "ipaSHA256": "2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5"
+    },
+    "melonx": {
+      "result": "passed",
+      "build": 551,
+      "ipaSHA256": "2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5"
+    }
+  },
+  "localRevalidation": {
+    "signedCorePayloadEqualsArtifact": true,
+    "bridgeMarkers": [
+      "COREPROF RSXSYNC551 ",
+      "COREPROF RSXFRAME551 ",
+      "COREPROF SPUWAIT551 ",
+      "metal_compiles_interactive",
+      "mlaa_bypass"
+    ],
+    "dartMarkers": [
+      "BLES01658",
+      "experimental.moltenvk_async_submits",
+      "rewindbox_interface_style_v1",
+      "header-clock"
+    ],
+    "coreMarkers": [
+      "COREPROF RSXSYNC551 session=",
+      "COREPROF RSXFRAME551 session=",
+      "COREPROF SPUWAIT551 session=",
+      "Applying database config under the custom config",
+      "MoltenVK asynchronous submits enabled for this boot",
+      "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS",
+      "metal_compiles_interactive=",
+      "MoltenVK Asynchronous Submits"
+    ]
+  },
+  "installsOver": [
+    547,
+    548,
+    549,
+    550
+  ],
+  "physicalDeviceTested": false,
+  "fpsGainMeasured": false,
+  "asyncSubmitsDeviceTested": false,
+  "configInheritanceDeviceTested": false,
+  "scope": "RPCS3 551 Core and host files on the validated 550 product tree; native tests on Linux and macOS, CI validators and compiled-marker checks only; no FPS measured on iPhone."
+}

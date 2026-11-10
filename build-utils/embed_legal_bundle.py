@@ -31,6 +31,8 @@ REQUIRED_LEGAL_FILES = (
     "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
     "RiiSU-ATTRIBUTION.md",
     "Canvas-ES-DE-ATTRIBUTION.md",
+    # RewindBox Glacier: bundled menu presentation and System Art pack.
+    "RewindBox-Glacier-ATTRIBUTION.md",
     "NeoStation-GPL-3.0.txt",
     "GameDB-PS3-GPL-3.0.txt",
     "Guest-Page-Relay-MIT.txt",

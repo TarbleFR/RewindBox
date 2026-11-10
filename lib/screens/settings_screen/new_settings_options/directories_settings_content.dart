@@ -33,6 +33,7 @@ import 'package:neostation/utils/adaptive_scroll.dart';
 import 'settings_title.dart';
 import 'widgets/settings_section_header.dart';
 import 'widgets/settings_action_button.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class DirectoriesSettingsContent extends StatefulWidget {
   final bool isContentFocused;
@@ -987,7 +988,7 @@ class DirectoriesSettingsContentState
     final pct = _migrationProgress;
     final isCopying = pct < 0.5;
     return Container(
-      margin: EdgeInsets.only(bottom: 12.r),
+      margin: EdgeInsets.only(bottom: LiquidGlassTheme.of(context).gap),
       padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
@@ -1056,7 +1057,7 @@ class DirectoriesSettingsContentState
   Widget _buildScanProgress(ThemeData theme, SqliteConfigProvider provider) {
     if (!provider.isScanning) return const SizedBox.shrink();
     return Container(
-      margin: EdgeInsets.only(bottom: 12.r),
+      margin: EdgeInsets.only(bottom: LiquidGlassTheme.of(context).gap),
       padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
@@ -1216,14 +1217,18 @@ class DirectoriesSettingsContentState
                                 ? theme.colorScheme.error.withValues(
                                     alpha: 0.08,
                                   )
-                                : theme.cardColor.withValues(alpha: 0.25),
+                                : LiquidGlassTheme.of(
+                                    context,
+                                  ).fill(context, GlassRole.bubble),
                             borderRadius: BorderRadius.circular(12.r),
                             border: Border.all(
                               color: borderColor,
                               width: isSelected ? 2.r : 1.r,
                             ),
                           ),
-                          margin: EdgeInsets.only(bottom: 8.r),
+                          margin: EdgeInsets.only(
+                            bottom: LiquidGlassTheme.of(context).gap,
+                          ),
                           child: InkWell(
                             onTap: isEsdeDisabled
                                 ? null
@@ -1481,7 +1486,7 @@ class DirectoriesSettingsContentState
     if (!_esdeSupported || !_isImporting) return const SizedBox.shrink();
     final pct = _importProgress;
     return Container(
-      margin: EdgeInsets.only(bottom: 12.r),
+      margin: EdgeInsets.only(bottom: LiquidGlassTheme.of(context).gap),
       padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
@@ -1550,7 +1555,7 @@ class DirectoriesSettingsContentState
     final r = _lastEsdeResult;
     if (r == null || _isImporting) return const SizedBox.shrink();
     return Container(
-      margin: EdgeInsets.only(bottom: 12.r),
+      margin: EdgeInsets.only(bottom: LiquidGlassTheme.of(context).gap),
       padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.06),

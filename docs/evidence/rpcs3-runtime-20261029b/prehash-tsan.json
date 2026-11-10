@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sanitizer": "thread",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "candidate": {
+    "admission": {
+      "passed": true,
+      "candidate": true,
+      "frames": 12,
+      "rewrittenBytesPerFrame": 3686400,
+      "workerBytes": 786432,
+      "workerHashes": 12,
+      "changedTexturesRejected": 12,
+      "mixedEligibility": true,
+      "epochOrdinals": true,
+      "nextFrameReadmission": true,
+      "staleEpochRejected": true,
+      "scopedWriteRejected": true
+    },
+    "existingModel": {
+      "passed": true,
+      "disabledPrehashNoWorker": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 192,
+        "misses": 60,
+        "hitRate": 0.762,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 246
+      },
+      "tightLoop": {
+        "hits": 74,
+        "misses": 52,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 80,
+        "misses": 46,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 19,
+        "workerSkips": 783,
+        "workerHashes": 2
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "harnessSHA256": "67bd4e62a246ea9dca0afeabf5d4436b90fbe6014d13bbadd6dfcd4d0399e6f3"
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "rpcs3/ios/IOSTexturePrehash.h": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c"
+  }
+}

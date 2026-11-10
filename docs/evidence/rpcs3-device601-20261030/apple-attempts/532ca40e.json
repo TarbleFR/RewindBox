@@ -1,0 +1,21 @@
+{
+  "source": "532ca40efc91730a6770db63879e9db759c7867d",
+  "run": 41113741373,
+  "job": 124262474799,
+  "conclusion": "failure",
+  "stage": "full iOS syntax gate before native Core object compilation",
+  "reason": "spu->notify() ambiguous between cpu_thread::notify and thread_base::notify on named_thread<spu_thread>",
+  "new_apple_native_modes_passed": 12,
+  "native_compiler_invocations": 20,
+  "historical_modes_authenticated": 28,
+  "historical_modes_replayed": 0,
+  "core_compiled": false,
+  "diagnostics_artifact": {
+    "id": 13005716946,
+    "bytes": 153758703,
+    "sha256": "14bf88f0c5fb2698b82656932c174886b42778d55c562a38c17f5c1742a4bb74"
+  },
+  "proof_sha256": "138526c6a87ba56a2c08302bcd87d0949776989e877e3274d7289c1fbd67e07c",
+  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8",
+  "job_log_sha256": "dc09d7826485ed0e01ff282a37caa26b93adad225a3967cda595f87c9fc2590d"
+}

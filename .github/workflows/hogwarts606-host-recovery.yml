@@ -1,0 +1,44 @@
+name: Hogwarts diagnostics UIKit recovery
+run-name: RewindBox current UIKit diagnostics and authenticated host reuse - ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  host:
+    if: ${{ contains(github.event.head_commit.message, '[hogwarts606-host-recovery]') }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact recovery source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Set up pinned Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Prepare the pinned iOS simulator Flutter framework
+        run: flutter precache --ios
+      - name: Authenticate original passed host commands and exact input delta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/diagnostics/hogwarts606_presentation_recovery.py prepare
+      - name: Exercise current UIKit routing and retained achievements
+        run: python3 .github/diagnostics/hogwarts606_presentation_recovery.py execute
+      - name: Bind fresh and reused host commands with original provenance
+        run: python3 .github/diagnostics/hogwarts606_presentation_recovery.py finalize
+      - name: Preserve exact recovery checks and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hogwarts606-host-${{ github.sha }}
+          path: build/hogwarts606-host
+          if-no-files-found: error
+          retention-days: 14

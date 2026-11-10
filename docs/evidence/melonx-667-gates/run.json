@@ -1,0 +1,82 @@
+{
+ "schema": 1,
+ "date": "2026-11-05",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "667",
+ "base": "Core 663 (source 9022c1a1, pin 89e1c361, run 42053144885, contract 1cc9441f)",
+ "inputs": "IPA 666 private journals of the maintainer (pids 15155, 15186; not in the repository) and three screenshots",
+ "findings": {
+  "jitArena": "pid 15155: Super Smash Bros. Ultimate then Hogwarts Legacy in one process; the helper maps the code arena once per process at the first launch size (512 MiB); Hogwarts with its update needs 1 GiB and threw System.OutOfMemoryException \"JIT Cache exhausted\" (DualMappedNoWxCache.MemoryCache.Allocate) 16 s after its start (abort, crash journal SIGABRT in SlateLoadingThread1). Launch history: Hogwarts first then another title 6/6 processes fine (builds 625-658); another title first then Hogwarts 3/3 died (builds 658, 662, 666).",
+  "renderWorker": "pid 15186 (21 min of Hogwarts): render worker NullReferenceException at TextureArray.QueueWriteToReadBarriers <- DescriptorSetUpdater.SetTextureArraySeparate one second after the translator bound a TextureSample TextureBuffer through the whole texture pool (adapt_bindless_sources); a buffer TextureArray leaves _views null (upstream: _textureRefs); ImageArray has the same path. The session ended (\"Session termination is unproven\").",
+  "skyBlocks": "Black sky blocks with blue/cyan edges remain with the Core 661 barrier lever active (later readers ordered in a new stage, encoder switches ordered by the policy): the barrier reading is refuted. MeloNX sets MoltenVK FastMathEnabled = true (MVK_CONFIG_FAST_MATH_ALWAYS, MTLMathModeFast on iOS 18+, no Inf/NaN guarantee) and Ryujinx drops NoContraction on MoltenVK; NaN/Inf is the hypothesis this Core tests for Hogwarts.",
+  "stutter": "pid 15186: the render thread spent 199 s of 1259 s creating pipelines (114.6 s graphics, 84.7 s compute; 40 five-second windows above 2 s, worst 6.9 s for 13 frames). Hogwarts loaded 759 programs from the shader cache in every session from 15:24 to 20:55 UTC while a session ends with 1238; every Hogwarts session in that window died within 30 s. A review of the save path found it correct apart from the unwritten tail at teardown; the save counters decide it on the next run."
+ },
+ "changes": {
+  "adapt_buffer_array_barriers": "TextureArray/ImageArray.QueueWriteToReadBarriers return for buffer arrays (every title).",
+  "adapt_hogwarts_precise_math": "MVKInitialization.Initialize() writes FastMathEnabled = !PreciseMath; the launch preflight sets PreciseMath for Hogwarts Legacy only.",
+  "adapt_shader_save_journal": "ShaderCache save counters, durable \"shaderCache saves\" lines at each 64th write and at disposal (no behaviour change).",
+  "core667_native": "EmbeddedRuntime.EmbeddedJitArenaRequest: the first launch maps the 1 GiB arena where the process may use 6 GiB or more (maintainer choice, 2026-11-05), a later title needing more than the mapped arena is refused before it starts (restart status, JIT not quarantined); EmbeddedNoteLaunchTitle selects the math mode; the preflight resets and notes the title."
+ },
+ "contract": {
+  "path": "build-utils/melonx/dma-core-contract.json",
+  "sha256": "36e69afcef1070fcd4f57b0bc0b4284a9098f1ca4405fa43ebf29a40e51686c3",
+  "freshAppleGates": 47,
+  "preparationInputs": 165,
+  "preparedMembers": 199,
+  "productionChanges": 70
+ },
+ "contractTest": {
+  "checks": 381,
+  "actualBaselineArchiveVerified": true
+ },
+ "newGate": {
+  "name": "core667-fixes",
+  "receipt": "core667-fixes-checks.json",
+  "checks": 55,
+  "host": "Linux x86_64, SDK 10.0.100"
+ },
+ "gatesRerun": [
+  "artifact-counters",
+  "bindless-retention",
+  "bounded-binding-snapshots",
+  "fragmented-reads",
+  "guest-fault-context",
+  "hogwarts-dma-copies",
+  "shader-save-poll",
+  "single-resource-bindings",
+  "warmup-key-parity"
+ ],
+ "fixtureBookkeeping": "single-resource-bindings and bounded-binding-snapshots: a backend file changed by a later reviewed adapter is allowed exactly as GAL files were (the delivered file plus exactly that adapter gives the final file), reported as otherBackendsUnchanged false with backendFilesChangedByLaterSteps (plan assertions updated accordingly); guest-fault-context and fragmented-reads compose or reverse the Core 667 edits exactly (core667_native, Core 667 adapters); hogwarts-dma-copies lists the Core 667 adapters' files.",
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42110141980 attempt 1 (b3b7161f)": "failed in forced-syncpoint-wait (unchanged gate): termination-to-return 168 ms against its 150 ms bound on the macOS runner (the production wait polls termination every 50 ms); attempt 2 passed that gate.",
+  "42110141980 attempt 2 (b3b7161f)": "failed in core667-fixes: the probe restore kept the upstream nuget.config naming the starforgejo.dev LibHac feed (HTTP 403 since 2026-11-05), so Ryujinx.Memory was not restored and the GPU project could not see its types (190 CS0246). Fixed: the gate copies trees as the other gates (no src/MeloNX), switches to the authenticated LibHac feed (use_authenticated_libhac_feed) and restores with RestoreIgnoreFailedSources.",
+  "42117936769 (cdd3d2e4)": "failed in core667-fixes: on macOS the probe built projects under /var/folders while their sources resolved to /private/var/folders (a link), so MSBuild lost the project and package references (CS0234/CS0246 for Ryujinx.Graphics.Shader, Gommon, Ryujinx.Memory types). Fixed: the work directory is resolved, as in every other gate.",
+  "42122823566 (fafac5a5)": "all 47 gates, the NativeAOT compile, the ABI check and the source binding passed; then the download of the original native-dependency artifact (run 39854858591, 14-day retention) failed: \"Artifact not found\" (expired and purged; the run lists no artifact). Fixed: the step fetches the same archive through the republication pinned in build-utils/delivery/666.json with retained_components.download_archive, as the standard delivery does; the next step still authenticates identity.json, the pins and all ten framework binaries against the engine82 baseline. Replayed offline with the recorded GitHub metadata and the real build 662 bundle (artifact 13411123524, sha256 f70032b3...): original purged branch taken, record and content (sha256 12a1e4c7...) authenticated, identity, pins, inventory and bytes equal to the engine82 receipt.",
+  "42129498597 (4a0dffff)": "passed first try: all 47 fresh gates on Apple ARM64, NativeAOT compile and exported ABI, binding to the reviewed sources, the native frameworks fetched through their pinned republication and authenticated against engine82, the engine in an ARM64 iOS app (two simulator sessions), fresh guest execution, teardown and backing release."
+ },
+ "pin": {
+  "commitNote": "build-utils/melonx/dma-core-pin.json",
+  "run": 42129498597,
+  "job": 127602201977,
+  "source": "4a0dffff8788039c20675c2c3e584db9e9638be7",
+  "artifact": 13464317590,
+  "artifactBytes": 90639897,
+  "artifactSha256": "9c44556c1d1345babcf4110e00e7ef09f56752bd0b56a9c2affea6367787bca7",
+  "expiresAt": "2026-11-19T23:57:49Z",
+  "iphoneBinarySha256": "788ec63f640bdb1c27e56e2ebcc76ea1d83f34adbf05cc6cfc9ef32668898698",
+  "iphoneBinaryBytes": 38143840,
+  "packagedFingerprint": "ef4c49dbb61faf72dc103c58c60df0ce6afeaa14c7bca6e4ce02ace61663c845",
+  "resultSha256": "97a32489ef1cb64666f5f594db57391117b0cc3b54d2d17726a65b503fd349c8",
+  "contractSha256": "36e69afcef1070fcd4f57b0bc0b4284a9098f1ca4405fa43ebf29a40e51686c3",
+  "nativeAotGcPatchMarkerInIphoneBinary": 0,
+  "core667JournalStringsInIphoneBinary": [
+   "MoltenVK math mode precise (Inf and NaN kept)",
+   "MoltenVK math mode fast",
+   "programs made in play queued",
+   " MiB code arena; RewindBox mapped "
+  ],
+  "engineEvidence": "passed offline (producer metadata from the GitHub API: run, job, artifact)",
+  "replaces": "Core 663 (9022c1a1, run 42053144885, fingerprint 22fd9912)"
+ }
+}

@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "baselineCommit": "075d84a49e3540cdae5352908fd81bc411b78942",
+  "patchSHA256": "b07952f3b96deb3c446e9b739f29d8f9af9e749695465bd0bfde848ce0cde6f3",
+  "fixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7",
+  "canonicalPostimagesVerified": 308,
+  "unchangedCanonicalPostimages": 299,
+  "changedPaths": [
+    "rpcs3/Emu/Memory/vm.cpp",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp",
+    "rpcs3/ios/IOSTexturePrehash.h"
+  ],
+  "materializerStdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported\n",
+  "freshInput": "Sparse pristine upstream Git snapshot; all 173 original blobs and upstream commit authenticated by Git object hashes. No full checkout/build claimed.",
+  "offIOSNonblankSourceIdentical": {
+    "rpcs3/Emu/Memory/vm.cpp": "2fbd2618e5ac56d0e7a6c699345cac3af39062db4766407b23d98d52c0feca3a",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "50d12b881d50b95f0f559dfee39403df2c4925088cc646990c3333db7a74e622",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "167b588f348b696feb2b2a0e6de706f84dea251b28f7271a87afb2734ce2fea5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "6c0697e9f9992675c42bd9a7a53b62eca0536be1069f82615605e739bcb9f486",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "cfc636187a7e6d44e858469aff24f51c30656961bf3d059bebb47d3945771c9e",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "302bb96e9f7e788c424f8297126e648f24363e6f8b028f2b101ade71a5d184af",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "705e15d78f53cc5c37f59d621fb701bceca056c94412403a4615b491d7262351",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "c0bd022a468dde5cb2342bf1392ead335248f6d837a2d10fbbb183e5ed02c1fa"
+  },
+  "dedicatedIOSHeader": "rpcs3/ios/IOSTexturePrehash.h",
+  "codegen": {
+    "PPU": {
+      "identity": "a987639e9f838d1c",
+      "declaredInputCount": 21,
+      "changedDeclaredInputs": [],
+      "identityRecomputed": false,
+      "proof": "CMake, compatibility mapping and every declared input are unchanged from the authenticated Core592 delta."
+    },
+    "SPU": {
+      "identity": "d070cb361bdef607",
+      "declaredInputCount": 33,
+      "changedDeclaredInputs": [],
+      "identityRecomputed": false,
+      "proof": "CMake, compatibility mapping and every declared input are unchanged from the authenticated Core592 delta."
+    }
+  },
+  "AppleCoreBuilt": false,
+  "physicalDeviceTested": false
+}

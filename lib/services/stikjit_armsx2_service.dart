@@ -14,6 +14,7 @@ import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/pairing_file_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:stikjit_bridge/stikjit_bridge.dart';
+import 'retro_achievements_session_service.dart';
 
 /// Native ARMSX2 launch transaction.
 ///
@@ -61,6 +62,7 @@ class StikJitArmsx2Service {
         (DateTime.now().microsecondsSinceEpoch << 8) | ((_transactionSeed++) & 0xff);
 
     var nativeTransactionStarted = false;
+    Map<String, Object?> raLaunch = const {};
     try {
       await _writeDiagnostic(
         'STATE: START\nTransaction: $transaction\n'
@@ -140,6 +142,9 @@ class StikJitArmsx2Service {
         'Message: ${jit['message']}\n',
       );
 
+      raLaunch = await RetroAchievementsSessionService.shared.prepareLaunch(
+        engine: 'armsx2', system: 'ps2', language: uiLocale, systemMenu: bootBios,
+        contentPath: bootBios ? null : gamePath);
       final launch = await Armsx2InternalBridge.launch(
         transaction: transaction,
         gamePath: normalized,
@@ -148,6 +153,7 @@ class StikJitArmsx2Service {
         biosFilename: biosFilename,
         dataPath: dataPath,
         biosDirectory: biosDirectory,
+        raSessionId: raLaunch['raSessionId'] as String?,
       );
       if (launch['success'] != true) {
         throw StateError(
@@ -166,6 +172,7 @@ class StikJitArmsx2Service {
       );
       return true;
     } catch (error, stackTrace) {
+      await RetroAchievementsSessionService.shared.finishLaunch(raLaunch);
       _lastError = error.toString();
       _log.e(
         'Embedded ARMSX2 launch failed: $error',

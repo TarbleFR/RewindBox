@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "run": 41239096061,
+  "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+  "artifacts": [
+    {
+      "id": 13057525542,
+      "node_id": "MDg6QXJ0aWZhY3QxMzA1NzUyNTU0Mg==",
+      "name": "RPCS3-MVK-cache-metal-7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+      "size_in_bytes": 5696056,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13057525542",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13057525542/zip",
+      "expired": false,
+      "digest": "sha256:8649ce9caf18ac7af9dc7b1fa68ffca3e9a94f338dbbb237b887d8aa6c0f4adc",
+      "created_at": "2026-10-31T20:42:34Z",
+      "updated_at": "2026-10-31T20:42:34Z",
+      "expires_at": "2026-11-14T20:42:32Z",
+      "workflow_run": {
+        "id": 41239096061,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed"
+      }
+    },
+    {
+      "id": 13056672047,
+      "node_id": "MDg6QXJ0aWZhY3QxMzA1NjY3MjA0Nw==",
+      "name": "RPCS3-MVK-cache-preflight-7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+      "size_in_bytes": 9516,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13056672047",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13056672047/zip",
+      "expired": false,
+      "digest": "sha256:c3a968fde0254e477c83f5174e615f9414432ea78152db640efa1c2947b6e441",
+      "created_at": "2026-10-31T20:30:20Z",
+      "updated_at": "2026-10-31T20:30:20Z",
+      "expires_at": "2026-11-14T20:30:19Z",
+      "workflow_run": {
+        "id": 41239096061,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed"
+      }
+    },
+    {
+      "id": 13056518647,
+      "node_id": "MDg6QXJ0aWZhY3QxMzA1NjUxODY0Nw==",
+      "name": "RPCS3-MVK-cache-ios-7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+      "size_in_bytes": 5144230,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13056518647",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/13056518647/zip",
+      "expired": false,
+      "digest": "sha256:833e431b0274002fba4fe36db65219144dedfa5440c7b7c821591c264352da0c",
+      "created_at": "2026-10-31T20:36:49Z",
+      "updated_at": "2026-10-31T20:36:49Z",
+      "expires_at": "2026-11-14T20:36:46Z",
+      "workflow_run": {
+        "id": 41239096061,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed"
+      }
+    }
+  ],
+  "downloaded_archive_sizes_sha256_and_crc_verified": true,
+  "iphone_tested": false,
+  "fps_gain_claimed": false
+}

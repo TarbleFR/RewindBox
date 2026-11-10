@@ -19,6 +19,9 @@ double CACurrentMediaTime() { return test_now; }
 void os_unfair_lock_lock(os_unfair_lock*) { ++locks; assert(lock_depth++ == 0); }
 void os_unfair_lock_unlock(os_unfair_lock*) { ++unlocks; assert(lock_depth-- == 1); }
 #include "host_milestones.inc"
+// CELL546 reporter of lines refused by the budget (outside the lock).
+static unsigned dropped_reports = 0;
+void RPCS3ReportDroppedLines(uint32_t) { assert(lock_depth == 0); ++dropped_reports; }
 bool permit_log(int32_t level, const char* message)
 {
 #include "host_admission.inc"

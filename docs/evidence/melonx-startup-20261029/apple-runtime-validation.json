@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+  "validationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+  "originalCompilation": {
+    "run": 40837997888,
+    "number": 82,
+    "attempt": 1,
+    "job": 123327250278,
+    "overallConclusion": "failure",
+    "failureLimitedTo": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+    "nativeAotAndAbi": "success",
+    "fiveNewStartupGates": "success",
+    "receipt": "apple-engine82-first-attempt.json",
+    "artifact": 12882675844,
+    "archiveSha256": "94794155b1743800c8724a744db353df6d5d019891f2ff0091ebfdec4de8d0f6"
+  },
+  "validation": {
+    "id": 40841402428,
+    "number": 1,
+    "attempt": 1,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40841402428",
+    "startedAt": "2026-10-29T08:20:15Z",
+    "updatedAt": "2026-10-29T08:25:36Z"
+  },
+  "job": {
+    "id": 123338394512,
+    "status": "completed",
+    "conclusion": "success",
+    "startedAt": "2026-10-29T08:20:18Z",
+    "completedAt": "2026-10-29T08:25:35Z",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-29T08:20:19Z",
+        "completed_at": "2026-10-29T08:20:20Z"
+      },
+      {
+        "name": "Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-29T08:20:20Z",
+        "completed_at": "2026-10-29T08:21:07Z"
+      },
+      {
+        "name": "Restore the existing native dependencies",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-10-29T08:21:07Z",
+        "completed_at": "2026-10-29T08:21:10Z"
+      },
+      {
+        "name": "Authenticate and restore unchanged engine 82",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-29T08:21:10Z",
+        "completed_at": "2026-10-29T08:21:16Z"
+      },
+      {
+        "name": "Validate the existing engine with the corrected ARM64 simulator smoke",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-29T08:21:16Z",
+        "completed_at": "2026-10-29T08:25:16Z"
+      },
+      {
+        "name": "Retain the original failure and new runtime proof",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-10-29T08:25:16Z",
+        "completed_at": "2026-10-29T08:25:18Z"
+      },
+      {
+        "name": "Run actions/upload-artifact@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-29T08:25:18Z",
+        "completed_at": "2026-10-29T08:25:29Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-29T08:25:29Z",
+        "completed_at": "2026-10-29T08:25:31Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-29T08:25:31Z",
+        "completed_at": "2026-10-29T08:25:34Z"
+      }
+    ]
+  },
+  "artifact": {
+    "id": 12883480724,
+    "name": "MeloNX-engine-ebcee3529645a781311429a869434005e76d6275-runtime-validation-40841402428",
+    "size_in_bytes": 102750721,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12883480724",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12883480724/zip",
+    "expired": false,
+    "created_at": "2026-10-29T08:25:29Z",
+    "expires_at": "2026-11-12T08:25:19Z",
+    "updated_at": "2026-10-29T08:25:29Z",
+    "digest": "sha256:be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+    "workflow_run": {
+      "id": 40841402428,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "e46ace78c0232864764009c5506bb1041bc1eddd"
+    }
+  },
+  "artifactUrl": "https://github.com/TarbleFR/RewindBox/actions/runs/40841402428/artifacts/12883480724",
+  "execution": {
+    "engineRecompiled": false,
+    "nativeDependenciesRecompiled": false,
+    "priorHostSuitesReexecuted": false,
+    "executedTest": "test/melonx_runtime_smoke.py",
+    "testSha256": "135f825f8e51fc399e67df5bda0fea6ee752ffd69aa59d33d4b90845c09b314b",
+    "originalFailedSmokePreserved": "runtime-smoke-engine82-original-failure/actual-runtime.json",
+    "correctedSmoke": "runtime-smoke/actual-runtime.json",
+    "validationReceipt": "runtime-validation/result.json",
+    "originalCompileIdentitiesPreserved": true
+  },
+  "authenticatedReuse": {
+    "repositoryMetadata": true,
+    "archiveVerifiedBeforeExtraction": true,
+    "iosAndSimulatorBinariesVerified": true,
+    "originalCompileIdentityFilesVerifiedBeforeAndAfter": true,
+    "preparationInputsCompared": 74,
+    "buildRecipeInputsCompared": 4,
+    "swiftBridgeInputsCompared": 2,
+    "buildRecipeHashes": {
+      "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+      "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+      "build-utils/melonx/build_libhac.py": "8477b495ad4a88855d73e847c74ac976ef9621b8536dd3ac1d539381cd79d677",
+      "build-utils/melonx/libhac-reuse.json": "191996e92d52adcd1ecb3c5821904df8f3188fa2d34836e667d9da23c292df8f"
+    },
+    "simulatorCoreSha256": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968",
+    "iosCompileIdentityPath": "ios-arm64/identity.json",
+    "simulatorCompileIdentityPath": "iossimulator-arm64/identity.json",
+    "evidence": "Successful Authenticate and restore / Retain original failure and new runtime proof steps in this validation run; original and corrected receipts are included in the authenticated artifact."
+  },
+  "runtimeEvidence": {
+    "reportCopy": "apple-runtime-smoke.json",
+    "reportCopySha256": "de4edc64a8300e713197a7d35a00d480f2ca28729d0804319ef092558c0a5895",
+    "capture": "Decoded complete JSON report emitted by the corrected smoke in the GitHub job log.",
+    "jobLogSha256": "a75404b0e894aaed6b4773743064c69740f9a467a48aeb7ef8f0e842ae0aa332",
+    "homebrewSessions": 2,
+    "guestSvcSessions": [
+      {
+        "afterSequence": 23,
+        "generation": 1,
+        "session": 1,
+        "svcSequence": 39
+      },
+      {
+        "afterSequence": 40,
+        "generation": 2,
+        "session": 2,
+        "svcSequence": 56
+      }
+    ],
+    "donatedBackingSessions": 2,
+    "livePerformanceSnapshotSessions": 2,
+    "closedAndStalePerformanceGenerationsRefused": true,
+    "simulatorRuntime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+  },
+  "limitations": {
+    "physicalDeviceTested": false,
+    "ssbuGameplayTested": false,
+    "launchTimeImprovementMeasured": false,
+    "fpsImprovementMeasured": false,
+    "wholeProcessMemoryGainMeasured": false,
+    "donorProcessUsedInSmoke": false,
+    "newIpaDelivered": false
+  },
+  "retainedApplicationBaseline": "Private IPA 593; this engine artifact does not change an already installed application.",
+  "preservedConcurrentSource": "RPCS3 changes merged at fe587e27fcefadaa36315a3ddc7dc1edba17b825."
+}

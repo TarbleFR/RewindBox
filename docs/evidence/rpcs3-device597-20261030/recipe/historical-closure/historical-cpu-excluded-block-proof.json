@@ -1,0 +1,63 @@
+{
+  "native_compilation": false,
+  "native_execution": false,
+  "cpp_preprocessor_executed": false,
+  "scope": "Exact inserted-block text proof for the historical non-RPCS3_IOS CPU harness modes only; candidate iOS diagnostics are covered separately by the new signal suites.",
+  "historical_recipe": ".github/diagnostics/rpcs3continuation_core.py",
+  "historical_recipe_sha256": "b80f7157c3d0aa5c67913c96e34df720b0828d5e3aff78f7921587cc357b42df",
+  "historical_cpu_flags_define_RPCS3_IOS": false,
+  "jobs": {
+    "dma-list": {
+      "historical_program_sha256": "de97288b323674b7ee761754051fe76f299af71461f9262a13e44c87df48bf29",
+      "candidate_program_sha256": "e93d6ccb203f63168e63a7f46fa9a2c08d3aeaf1f7ab6a2ce019fea4325e7309",
+      "restored_historical_program_sha256": "de97288b323674b7ee761754051fe76f299af71461f9262a13e44c87df48bf29",
+      "exact_only_inserted_RPCS3_IOS_blocks": true,
+      "inserted_blocks": [
+        {
+          "source_line_1_based": 1226,
+          "line_count": 3,
+          "sha256": "a58e54c546567c7a4a4b9b6b4b23af76bed1d22d5fe1c223c8b02aeb9ae81c8b",
+          "text": "#ifdef RPCS3_IOS\n\t\t\tconst auto label_trace = rpcs3::ios::signal_trace::overlap(addr, size);\n#endif\n"
+        },
+        {
+          "source_line_1_based": 1307,
+          "line_count": 6,
+          "sha256": "32242fb5636e8ccfefd9bf60b503c4676b78ef522c73da88c5977a26cac51c57",
+          "text": "#ifdef RPCS3_IOS\n\t\t\tif (label_trace)\n\t\t\t\trpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_list_commit,\n\t\t\t\t\t0, get_system_time(),\n\t\t\t\t\taddr, size, id, pc, args.cmd);\n#endif\n"
+        }
+      ]
+    },
+    "dma-mmio": {
+      "historical_program_sha256": "7faa7633afa5a218243d3ed4200cea58f8cbc5317fb70b5f18cf046b2abb6ddd",
+      "candidate_program_sha256": "6e1c315849a1edc5444d8cba66383ebea3c5a2b2334cba2072f8d0600479f007",
+      "restored_historical_program_sha256": "7faa7633afa5a218243d3ed4200cea58f8cbc5317fb70b5f18cf046b2abb6ddd",
+      "exact_only_inserted_RPCS3_IOS_blocks": true,
+      "inserted_blocks": [
+        {
+          "source_line_1_based": 865,
+          "line_count": 16,
+          "sha256": "ef7bc04638cd05948f1393e6756f4224c49620ef0632d0f41459caa870cda041",
+          "text": "#ifdef RPCS3_IOS\n\t// Capture the session before the copy; a completion from a previous\n\t// session must never appear as a producer of a new session's acquire.\n\tconst auto label_trace = !is_get && eal < RAW_SPU_BASE_ADDR\n\t\t? rpcs3::ios::signal_trace::overlap(eal, args.size) : rpcs3::ios::signal_trace::watch_token{};\n\tconst auto trace_dma_commit = [&]\n\t{\n\t\tif (label_trace)\n\t\t{\n\t\t\tconst bool owner = _this && get_current_cpu_thread<spu_thread>() == _this;\n\t\t\trpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_dma_commit,\n\t\t\t\t0, get_system_time(),\n\t\t\t\targs.eal, args.size, _this ? _this->id : 0, owner ? _this->pc : 0, args.cmd);\n\t\t}\n\t};\n#endif\n"
+        },
+        {
+          "source_line_1_based": 1341,
+          "line_count": 3,
+          "sha256": "dee0599a56d8e7f526da8f64e6480446a01ab740bb5bc1e703b4fe69f4e766da",
+          "text": "#ifdef RPCS3_IOS\n\t\t\ttrace_dma_commit();\n#endif\n"
+        },
+        {
+          "source_line_1_based": 1556,
+          "line_count": 3,
+          "sha256": "6a9357c523a4c7c10637b5c3033bd63eefa4b61dc098a68839f5b4ff9f1fef15",
+          "text": "#ifdef RPCS3_IOS\n\t\ttrace_dma_commit();\n#endif\n"
+        },
+        {
+          "source_line_1_based": 1635,
+          "line_count": 3,
+          "sha256": "db1acf1a80eb481ace5efbbba09da22c74b5559030d6a8275e5057ea811ed3e6",
+          "text": "#ifdef RPCS3_IOS\n\ttrace_dma_commit();\n#endif\n"
+        }
+      ]
+    }
+  }
+}

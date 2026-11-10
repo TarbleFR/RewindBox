@@ -1,0 +1,8 @@
+{
+  "before": {
+    "src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs": "25b9c79925fa89576883cb4de6ea12390a3743d07cd1c0443ef14fb9c03774b7"
+  },
+  "after": {
+    "src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs": "fdce8da71d8ad0e075d145a9a2bf2cee76b750155f0089633c3f8c6ae90c9ae5"
+  }
+}

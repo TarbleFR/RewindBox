@@ -1,0 +1,160 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "assertions": 1445,
+      "functionalDigest": "e1f3241870f44620",
+      "allocations": [
+        {
+          "kind": 0,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 0,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 640000
+        },
+        {
+          "kind": 0,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        },
+        {
+          "kind": 1,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 1,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 640000
+        },
+        {
+          "kind": 1,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        },
+        {
+          "kind": 2,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 2,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 640000
+        },
+        {
+          "kind": 2,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        }
+      ]
+    },
+    "candidate": {
+      "variant": "candidate",
+      "assertions": 1484,
+      "functionalDigest": "e1f3241870f44620",
+      "allocations": [
+        {
+          "kind": 0,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 0,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 0,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        },
+        {
+          "kind": 1,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 1,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 1,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        },
+        {
+          "kind": 2,
+          "length": 0,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 2,
+          "length": 1,
+          "updates": 20000,
+          "bytes": 0
+        },
+        {
+          "kind": 2,
+          "length": 2,
+          "updates": 20000,
+          "bytes": 800000
+        }
+      ]
+    }
+  },
+  "physicalDeviceTested": false,
+  "rendererTransportDoubled": true,
+  "wholeProductionClasses": true,
+  "backendDriftControls": 4,
+  "inputs": {
+    "build-utils/melonx/adapt_single_resource_bindings.py": "aadf2b51d0cb69ee53230c277d8b5cf8df83d501b3f3867e06bce6a42f981ae0",
+    "test/melonx_single_resource_bindings_test.py": "18debe745d8ce406befbbf1572636a89c01c36ead2388d0112925e31f545c0c5",
+    "test/melonx_single_resource_bindings/Program.cs": "56adf609d1dd7a139fadc08e0a03dce6953eb81504be39f2309d9fb2a9c49363"
+  },
+  "baselineInputs": {
+    "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "5dd236e731089d04967d4c6ba7551a7b69450154e4800d925dc022c01883f3db",
+    "src/Ryujinx.Graphics.GAL/IImageArray.cs": "9f030d7bbe15ed180d92b1f588635100a7e9ffff040f6450df24bf08d7f778ea",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/IGALCommand.cs": "eaa488cca3edf751a90bc88c82542970150e0bcf3317f779e085a660168ac8ec",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs": "13f0a8514b2bca94c6bdb4fac560b6fea6551459b7f0f035db75411d03e01c03",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs": "2280f3d9484e932f1927605847e14e9b9dd105291dd727321b0c6006b47fb2b2",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetTexturesCommand.cs": "a0e10d0d5a315d4fbd7e43351cf9e7c5bd3832ee4fbc7bac2567ce0770b91428",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetSamplersCommand.cs": "646a37b792bec9a4db04ce4a9d9d9eab162d37cad91cb61c4a52853f2fc3afe0",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArrayDisposeCommand.cs": "99447090c4a79a7a0a766a49de05d283a4bbc55a4e91d7158837c172b2a1ff50",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArraySetImagesCommand.cs": "ef59fcd001f339e97d4c575c425b36a18f26d09906f17e1601998245933b47f9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArrayDisposeCommand.cs": "f8e139f1db1c81ec0df9ce7205e21ccf9a691bef4ab6aea06644d1b74740c3d4",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "0bed44e171184a7d641e04d0a7e5542b5d7cdf7cf400cb44867ccf0509f5fd86",
+    "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": "cf238484e0218aaf4082271bd328187fac89014313b2ec63609580de47799515",
+    "src/Ryujinx.Graphics.OpenGL/Image/TextureArray.cs": "bd3d4b5fdaa73fdbe0cf6b97031ebc4bb68bfc21bbc452df1a6f363e6e489526",
+    "src/Ryujinx.Graphics.OpenGL/Image/ImageArray.cs": "c9f2fd0d19ea1f4e49ee5700135dca3d2ef6ea764cdc74891280e6e45a6217b8"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs": "7f20ccd20b12a2eff1a6b459b0dda352a6dd82629d86ff28fd067a6787c24af6",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetTexturesCommand.cs": "3b03a9eb9b22e9b538ebfd6abdf2a6b932a534bd2409aa49fbd4f743b893628d",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetSamplersCommand.cs": "34b4b05a93512287ecfc3626cd4b3afc4ceb69a48f907b6dba4808835164b880",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs": "c5ae3f5a7a42e2571d4777eb28d5605b8c7e914a794740166c3d7cabcd64e2a8",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArraySetImagesCommand.cs": "0e39992874a4674a2e8b48de7b66d78520b21acb6e86ec3f8b1866e2998e99a0"
+  }
+}

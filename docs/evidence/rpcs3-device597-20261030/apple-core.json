@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "status": "compiled-and-independently-verified",
+  "source": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
+  "workflow": ".github/workflows/rpcs3-runtime592-core.yml",
+  "run": 41033511090,
+  "job": 123988660858,
+  "attempt": 1,
+  "conclusion": "success",
+  "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonicalPatchSHA256": "68234e0ead31d40c61c2b3b29c0c962f89d8687407e0cc60eb45d60b68dd71e8",
+  "canonicalPostimages": 325,
+  "toolchain": {"xcode": "16.4", "llvm": "22.1.8", "preflightArchitecture": "arm64", "preflightSDK": "MacOSX15.5"},
+  "recipe": {
+    "workflowSHA256": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
+    "buildShellSHA256": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+    "unchangedFromHistoricalSuccessfulRecipe": true
+  },
+  "artifact": {
+    "id": 12968555534,
+    "bytes": 29273074,
+    "sha256": "7d3b26e3d6709855997ebb9e20c737b2839a8aff72eb7edae78c2f7c5f0d7099",
+    "name": "RPCS3Core-378509e82d360bc2cb2fcc9fb23d4d9d98787506"
+  },
+  "diagnosticsArtifact": {
+    "id": 12968066519,
+    "bytes": 122845035,
+    "sha256": "d5673b00f33020bdb2f222a85d9a5ea37e248485024dcd8074274f6e0e867341"
+  },
+  "preflightArtifact": {
+    "id": 12967426340,
+    "bytes": 141846,
+    "sha256": "b5a1cd09b5da5d3b0ac6cd69c50f5ff7324da6476c6f61a7683a28c5f2a0ea56"
+  },
+  "core": {
+    "file": "libRPCS3Core.dylib",
+    "bytes": 77392480,
+    "sha256": "973f59bf02a1c51989dc880aefb8d4be8c4df6c27c2f1f1a63c240b7341d2bf8",
+    "architecture": "arm64",
+    "platform": "iOS",
+    "abi": 30,
+    "exportCount": 88,
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "identitySHA256": "67fd2e23d0e4c7ba816b7f7dbaabad3c884a324d9b309d5b854d49561231f55e",
+    "proofSHA256": "efd54d52f585f1f8144a7b328442c5e2164928a6f7b02170e0de38f90ff3b671",
+    "codegen": {"PPU": "a987639e9f838d1c", "SPU": "477a3fa442d27917"}
+  },
+  "validation": {
+    "freshAppleNativeModes": 28,
+    "freshSourceCodegenAudits": 1,
+    "allPassed": true,
+    "assertionsRetained": true,
+    "nativeModes": ["plain", "asan-ubsan"],
+    "historicalResultsRetainOriginalScope": true,
+    "independentArchiveDigestAndCRC": true,
+    "independentCoreDigestAndMachO": true,
+    "independentExportCount": 88,
+    "independentReportAndCompilerTraceDigests": true,
+    "passiveDlopenValidationScope": "Static Mach-O named forbidden functions via direct ARM64 B/BL reachability, depth 16; not physical-device loading"
+  },
+  "foundationSanitizerAdaptation": {
+    "productionLoggerAndFixtureBytesChanged": false,
+    "sdkInlineProbeReproducesAssumptionFailure": true,
+    "publicOutOfLineProbePassed": true,
+    "probeInitializations": 1,
+    "probeObservations": 8001,
+    "sanitizerFlagsDisabled": false,
+    "sdkInlineWrapperInstrumentedInAdaptedVariant": false,
+    "scope": "The ASan/UBSan Foundation variant selects real public out-of-line dispatch_once and dispatch_once_f rather than SDK inline wrappers. The ordinary Foundation variant uses the unchanged SDK wrapper. Production logger code remains instrumented; no mock replaces libdispatch.",
+    "foundationRuntimePassed": true,
+    "sourceOfOriginalFailure": "MacOSX15.5 dispatch/once.h compiler assumption under LLVM22 UBSan"
+  },
+  "delivery": {
+    "coreArchiveSavedToMaintainerDownloads": true,
+    "savedArchiveName": "RewindBox-RPCS3-Core-device597-378509e8.zip",
+    "newIPA": false,
+    "publicRelease": false,
+    "tagCreated": false,
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false,
+    "fpsGainClaimed": false,
+    "hostLoggerPackaged": false,
+    "note": "Core-only artifact. Later application integration must include the matching host logger to retain RPCS3-causes logs. This receipt does not claim any previously delivered IPA contains this new Core. Reuse this exact binary for authorized integration while relevant inputs match."
+  }
+}

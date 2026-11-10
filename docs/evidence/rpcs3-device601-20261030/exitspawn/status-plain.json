@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "actual_header_compiled": true,
+  "exceptions_disabled": true,
+  "core_ui_gpu_device_executed": false,
+  "sanitizers": [],
+  "leak_sanitizer": false,
+  "source_inputs_sha256": {
+    "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+  },
+  "baseline_inputs_sha256": {
+    "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692"
+  },
+  "runner_sha256": "478a8a26d123a56e7ebbca873277518ff592f4b1c3cc4a2911f9317885505499",
+  "fixture_sha256": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compiler_flags": [
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-fno-exceptions"
+  ],
+  "results": {
+    "checks": 51228,
+    "original_status_behavior_equal": true,
+    "snapshot_layout_preserved": true,
+    "single_slot_owner_guard": true,
+    "callback_outside_mutex": true,
+    "registration_finish_races": 1200,
+    "callback_lifetime_released": true
+  }
+}

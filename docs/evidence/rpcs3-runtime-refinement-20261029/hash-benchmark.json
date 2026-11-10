@@ -1,0 +1,404 @@
+{
+  "passed": true,
+  "case": "hash-benchmark",
+  "sourceSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "49de1afd2abe5bff86989e2200ef0c05a283d891f384cd0877fb4b7d0996b9da",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "baselineSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "8d0f19e0468686a7e893f81f9c9c106b409925f93e550e64df83084345286fa6",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "programSHA256": {
+    "baseline": "864cc81ddff7776afacfd8d30a3cc4705cd2d16ec3aadd1f9649b7617d434cbf",
+    "candidate": "8213ea63a230d238643d5404e9bee59b2305c78905c552742be0e6b4dfbe6e87"
+  },
+  "scriptSHA256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+  "timerEdgesSHA256": "6ab124fe84a0c569f47e0464a66840e1a7fa32102de5c3ee326547784860ce8f",
+  "results": {
+    "comparisons": [
+      {
+        "bytes": 32768,
+        "pattern": "identical",
+        "baseline": [
+          1592.31835938,
+          1288.35791016,
+          1316.54931641,
+          2404.14868164,
+          1230.53564453,
+          1350.70361328,
+          1405.14453125
+        ],
+        "candidate": [
+          1445.79321289,
+          1182.90917969,
+          1488.39648438,
+          1571.20825195,
+          1194.46411133,
+          1252.67529297,
+          1383.08325195
+        ]
+      },
+      {
+        "bytes": 32768,
+        "pattern": "distinct",
+        "baseline": [
+          1363.15625,
+          1603.31860352,
+          1540.02416992,
+          1289.27026367,
+          1369.3762207,
+          1208.52807617,
+          1291.82739258
+        ],
+        "candidate": [
+          1206.70654297,
+          1406.9440918,
+          1181.46411133,
+          1493.29248047,
+          1451.43383789,
+          1369.2175293,
+          1415.99560547
+        ]
+      },
+      {
+        "bytes": 32768,
+        "pattern": "scoped_bypass",
+        "baseline": [
+          1293.4362793,
+          1483.00634766,
+          1311.90356445,
+          1620.20141602,
+          1437.98364258,
+          2084.45385742,
+          1833.55639648
+        ],
+        "candidate": [
+          1427.19140625,
+          1478.13574219,
+          1299.98168945,
+          1258.6706543,
+          1424.83178711,
+          1500.42700195,
+          1423.47973633
+        ]
+      },
+      {
+        "bytes": 65536,
+        "pattern": "identical",
+        "baseline": [
+          387.555664062,
+          511.161132812,
+          795.404785156,
+          356.499023438,
+          397.53125,
+          367.550292969,
+          420.284667969
+        ],
+        "candidate": [
+          556.672851562,
+          321.402832031,
+          407.315917969,
+          369.354980469,
+          563.724609375,
+          322.488769531,
+          374.38671875
+        ]
+      },
+      {
+        "bytes": 65536,
+        "pattern": "distinct",
+        "baseline": [
+          4088.08935547,
+          2965.640625,
+          2588.04638672,
+          2994.50195312,
+          2763.26171875,
+          3379.66601562,
+          2844.28955078
+        ],
+        "candidate": [
+          3196.53417969,
+          3224.82763672,
+          2695.92089844,
+          2403.76513672,
+          2900.6328125,
+          2719.11425781,
+          2664.51220703
+        ]
+      },
+      {
+        "bytes": 65536,
+        "pattern": "scoped_bypass",
+        "baseline": [
+          2929.08300781,
+          3067.90185547,
+          3670.99755859,
+          2919.87548828,
+          3959.94873047,
+          2861.40478516,
+          3602.59326172
+        ],
+        "candidate": [
+          2644.92724609,
+          2456.83203125,
+          3329.53857422,
+          2480.41650391,
+          3049.29931641,
+          2956.13476562,
+          2484.43115234
+        ]
+      },
+      {
+        "bytes": 262144,
+        "pattern": "identical",
+        "baseline": [
+          1258.73632812,
+          1263.25390625,
+          1418.93554688,
+          1580.05273438,
+          1498.1328125,
+          1284.43945312,
+          1181.00390625
+        ],
+        "candidate": [
+          1227.06835938,
+          1176.93554688,
+          1257.79882812,
+          1147.10546875,
+          1178.05078125,
+          1352.09765625,
+          1699.81835938
+        ]
+      },
+      {
+        "bytes": 262144,
+        "pattern": "distinct",
+        "baseline": [
+          11142.5136719,
+          10668.6484375,
+          10755.0664062,
+          10271.3417969,
+          12607.5917969,
+          10688.9921875,
+          9940.9140625
+        ],
+        "candidate": [
+          12326.7851562,
+          13130.4550781,
+          11002.5527344,
+          12592.4921875,
+          12293.4941406,
+          13334.7988281,
+          12740.0722656
+        ]
+      },
+      {
+        "bytes": 262144,
+        "pattern": "scoped_bypass",
+        "baseline": [
+          11388.9140625,
+          10511.0722656,
+          11098.015625,
+          9752.93945312,
+          10639.1914062,
+          10058.78125,
+          10788.2617188
+        ],
+        "candidate": [
+          17945.328125,
+          11119.0019531,
+          21809.4707031,
+          9959.16210938,
+          10228.4863281,
+          10912.3886719,
+          11467.8007812
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "pattern": "identical",
+        "baseline": [
+          6052.390625,
+          4837.2265625,
+          4534.28125,
+          7011.3828125,
+          4648.984375,
+          5366.453125,
+          5072.1171875
+        ],
+        "candidate": [
+          4679.890625,
+          5639.1171875,
+          5391.0234375,
+          4670.734375,
+          4513.390625,
+          5994.0234375,
+          5005.6875
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "pattern": "distinct",
+        "baseline": [
+          42510.0546875,
+          39795.65625,
+          46907.5703125,
+          46691.0078125,
+          38609.2890625,
+          45512.390625,
+          44026.828125
+        ],
+        "candidate": [
+          39665.2265625,
+          42154.609375,
+          39445.9140625,
+          41830.5390625,
+          44545.1015625,
+          43237.8515625,
+          39583.9296875
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "pattern": "scoped_bypass",
+        "baseline": [
+          41825.6875,
+          41616.7109375,
+          41318.921875,
+          49705.46875,
+          41145.703125,
+          40351.7109375,
+          39504.75
+        ],
+        "candidate": [
+          40042.8203125,
+          40727.109375,
+          42058.21875,
+          50670.40625,
+          50367.421875,
+          42511.390625,
+          50235.1484375
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "pattern": "identical",
+        "baseline": [
+          16512.546875,
+          16381.71875,
+          18302.84375,
+          17354.578125,
+          17285.5625,
+          19385.546875,
+          22592.15625
+        ],
+        "candidate": [
+          21475.828125,
+          16089.421875,
+          17194.65625,
+          23164.421875,
+          16370.765625,
+          18216.796875,
+          24606.234375
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "pattern": "distinct",
+        "baseline": [
+          171649.65625,
+          143575.9375,
+          161106.859375,
+          148802.421875,
+          194947.21875,
+          155930.609375,
+          154846.828125
+        ],
+        "candidate": [
+          147583.421875,
+          166894.328125,
+          148704.609375,
+          183800.890625,
+          143261.578125,
+          185522.5,
+          150904.734375
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "pattern": "scoped_bypass",
+        "baseline": [
+          154837.59375,
+          145289.578125,
+          173543.234375,
+          264531.3125,
+          153632.109375,
+          200469.296875,
+          143570.765625
+        ],
+        "candidate": [
+          151765.546875,
+          164042.765625,
+          142338.3125,
+          170076.6875,
+          155154.140625,
+          179871.953125,
+          150385.375
+        ]
+      }
+    ]
+  },
+  "compilerFlags": [
+    "-std=c++20",
+    "-O3",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-DRPCS3_IOS=1"
+  ],
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sanitizer": "",
+  "benchmark": true,
+  "host": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "coreBuilt": false,
+  "tsanSuppressions": [],
+  "leakSanitizer": false
+}

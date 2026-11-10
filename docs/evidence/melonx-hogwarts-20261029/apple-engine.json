@@ -1,0 +1,368 @@
+{
+  "result": "passed",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "sourceCommit": "a33eee843956a2607754a7c8d601ea62439e4bee",
+  "sourceTree": "efd5e3dfac799b4fce50bad6c9f6344224bbb095",
+  "runId": 40822941790,
+  "runNumber": 80,
+  "runAttempt": 1,
+  "runUrl": "https://github.com/TarbleFR/RewindBox/actions/runs/40822941790",
+  "jobId": 123279313664,
+  "startedAt": "2026-10-29T05:21:39Z",
+  "completedAt": "2026-10-29T05:37:29Z",
+  "artifact": {
+    "id": 12875966763,
+    "name": "MeloNX-engine-a33eee843956a2607754a7c8d601ea62439e4bee",
+    "sizeBytes": 102604839,
+    "digest": "sha256:d75a4ab4539f766a929c557651436d0adb63393bb4a44190c183b79922ac64b5",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40822941790/artifacts/12875966763",
+    "expiresAt": "2026-11-12T05:37:04Z",
+    "digestSource": "GitHub upload log and artifact API agree",
+    "downloadedAndRehashedInThisSession": false
+  },
+  "relevantSteps": [
+    {
+      "name": "Verify exact JIT dataflow and unchanged emitted ARM64",
+      "result": "success",
+      "startedAt": "2026-10-29T05:26:18Z",
+      "completedAt": "2026-10-29T05:26:33Z"
+    },
+    {
+      "name": "Verify balanced texture pool references and obsolete texture expiry",
+      "result": "success",
+      "startedAt": "2026-10-29T05:26:52Z",
+      "completedAt": "2026-10-29T05:26:59Z"
+    },
+    {
+      "name": "Verify bindless command snapshots and bounded scratch ownership",
+      "result": "success",
+      "startedAt": "2026-10-29T05:26:59Z",
+      "completedAt": "2026-10-29T05:27:04Z"
+    },
+    {
+      "name": "Verify reused Vulkan array storage sets preserve barriers and descriptors",
+      "result": "success",
+      "startedAt": "2026-10-29T05:27:04Z",
+      "completedAt": "2026-10-29T05:27:10Z"
+    },
+    {
+      "name": "Compile NativeAOT library and verify exported ABI",
+      "result": "success",
+      "startedAt": "2026-10-29T05:27:58Z",
+      "completedAt": "2026-10-29T05:32:43Z"
+    },
+    {
+      "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "result": "success",
+      "startedAt": "2026-10-29T05:32:49Z",
+      "completedAt": "2026-10-29T05:37:01Z"
+    }
+  ],
+  "textureOwnership": {
+    "result": "passed",
+    "reports": [
+      {
+        "mode": "control",
+        "checks": 45,
+        "samePoolLeakedReferences": 1,
+        "crossPoolLeakedReferences": 1,
+        "obsoleteCacheEntriesAfterTwoTicks": 1,
+        "duplicateShortReferences": 2,
+        "productionPerSlotDisposal": true,
+        "liveBindingsAndViewsPreserved": true,
+        "physicalDeviceTested": false,
+        "gpuStorageDoubled": true
+      },
+      {
+        "mode": "fixed",
+        "checks": 45,
+        "samePoolLeakedReferences": 0,
+        "crossPoolLeakedReferences": 0,
+        "obsoleteCacheEntriesAfterTwoTicks": 0,
+        "duplicateShortReferences": 1,
+        "productionPerSlotDisposal": true,
+        "liveBindingsAndViewsPreserved": true,
+        "physicalDeviceTested": false,
+        "gpuStorageDoubled": true
+      }
+    ],
+    "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "physicalDeviceTested": false,
+    "gpuStorageDoubled": true,
+    "inputs": {
+      "build-utils/melonx/adapt_texture_ownership.py": "9614bcc9c4bd53eff1bdaeec3827cb77e6c501bc5f5955aea729fcc9a6f20dc6",
+      "build-utils/melonx/adapt_gpu_lifetime.py": "92ec7a6dad603dab1192baa41ecc86e027cbd08952ad3b4ab4aca50e1bf7bcc6",
+      "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+      "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+      "test/melonx_texture_ownership_test.py": "4a0d1b9b3a5277c4dc2b74a125d0627e763e774fd7cbfbc96f1da4f20210de6b",
+      "test/melonx_texture_ownership/Program.cs": "5b72501acef291469072c5842cf4a4cf92d4aaa5f4d6135792041466c438841b"
+    },
+    "upstreamInputs": {
+      "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07",
+      "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs": "c1b8e1809347fae5058232a8249b6e650814e0aab22b9ba319f2b383a965091d",
+      "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs": "f353fbc15730730fd442ff49f82f8498ccfa1505d95c33918208b849bf2d5d50",
+      "src/Ryujinx.Graphics.Gpu/Image/Pool.cs": "b07c6db82a95d1485ad21bb6a804f94b803efd0f6600a67d613491ec08d326f0",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs": "ebbf67f1568d2422f1d19ec09bca6f2a17acb3a018ad92770e3dfbf7e3d6ebf5",
+      "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "926fed78436a4ce587203174d0217933593be627c68055c8cddfc5be32c6cd6f",
+      "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "e64798cc48550b7f8408d1fa8c432575618f11337a93b37defea8cec99e72e7b"
+    }
+  },
+  "bindlessAllocations": {
+    "control": {
+      "adapted": false,
+      "checks": 799,
+      "imageCallerMutationIsolated": false,
+      "allocations": [
+        {
+          "length": 256,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 12624,
+          "elapsedMilliseconds": 3.449583
+        },
+        {
+          "length": 256,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 4288,
+          "elapsedMilliseconds": 2.598416
+        },
+        {
+          "length": 1024,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 49488,
+          "elapsedMilliseconds": 12.35575
+        },
+        {
+          "length": 1024,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 16576,
+          "elapsedMilliseconds": 10.133292
+        },
+        {
+          "length": 4096,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 196944,
+          "elapsedMilliseconds": 29.276708
+        },
+        {
+          "length": 4096,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 65728,
+          "elapsedMilliseconds": 29.904292
+        }
+      ],
+      "mixedLengthBytesPerUpdate": 86352,
+      "sourcePaths": [
+        "UpdateFromPool",
+        "UpdateFromBuffer"
+      ],
+      "maximumRetainedScratchReferenceBytes": 0
+    },
+    "candidate": {
+      "adapted": true,
+      "checks": 90264,
+      "imageCallerMutationIsolated": true,
+      "allocations": [
+        {
+          "length": 256,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 4240,
+          "elapsedMilliseconds": 5.498375
+        },
+        {
+          "length": 256,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 2168,
+          "elapsedMilliseconds": 3.885417
+        },
+        {
+          "length": 1024,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 16528,
+          "elapsedMilliseconds": 21.302166
+        },
+        {
+          "length": 1024,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 8312,
+          "elapsedMilliseconds": 22.039333
+        },
+        {
+          "length": 4096,
+          "image": false,
+          "iterations": 200,
+          "bytesPerUpdate": 65680,
+          "elapsedMilliseconds": 62.023
+        },
+        {
+          "length": 4096,
+          "image": true,
+          "iterations": 200,
+          "bytesPerUpdate": 32888,
+          "elapsedMilliseconds": 46.209292
+        }
+      ],
+      "mixedLengthBytesPerUpdate": 28816,
+      "sourcePaths": [
+        "UpdateFromPool",
+        "UpdateFromBuffer"
+      ],
+      "maximumRetainedScratchReferenceBytes": 262144
+    },
+    "note": "Default-tiered-JIT host microtimers are not a steady-state NativeAOT CPU benchmark."
+  },
+  "arrayBarriers": {
+    "result": "passed",
+    "reports": [
+      {
+        "mode": "control",
+        "checks": 5415,
+        "measurements": [
+          {
+            "length": 256,
+            "repetitions": 256,
+            "samplerAllocated": 4108288,
+            "samplerHashInsertions": 65536,
+            "resourceAllocated": 8216576,
+            "resourceHashInsertions": 131072
+          },
+          {
+            "length": 1024,
+            "repetitions": 256,
+            "samplerAllocated": 18726912,
+            "samplerHashInsertions": 262144,
+            "resourceAllocated": 37453824,
+            "resourceHashInsertions": 524288
+          },
+          {
+            "length": 4096,
+            "repetitions": 256,
+            "samplerAllocated": 82589696,
+            "samplerHashInsertions": 1048576,
+            "resourceAllocated": 165179392,
+            "resourceHashInsertions": 2097152
+          }
+        ],
+        "physicalDeviceTested": false,
+        "vulkanCallsDoubled": true
+      },
+      {
+        "mode": "candidate",
+        "checks": 5415,
+        "measurements": [
+          {
+            "length": 256,
+            "repetitions": 256,
+            "samplerAllocated": 0,
+            "samplerHashInsertions": 0,
+            "resourceAllocated": 0,
+            "resourceHashInsertions": 0
+          },
+          {
+            "length": 1024,
+            "repetitions": 256,
+            "samplerAllocated": 0,
+            "samplerHashInsertions": 0,
+            "resourceAllocated": 0,
+            "resourceHashInsertions": 0
+          },
+          {
+            "length": 4096,
+            "repetitions": 256,
+            "samplerAllocated": 0,
+            "samplerHashInsertions": 0,
+            "resourceAllocated": 0,
+            "resourceHashInsertions": 0
+          }
+        ],
+        "physicalDeviceTested": false,
+        "vulkanCallsDoubled": true
+      }
+    ],
+    "physicalDeviceTested": false,
+    "vulkanCallsDoubled": true,
+    "inputs": {
+      "build-utils/melonx/adapt_array_barriers.py": "a71c65bca19a4b47a6fbd07b920a43e4a8a8ee707118d31277a7da138c07b639",
+      "test/melonx_array_barriers_test.py": "6595b805c69471e49703f1dd9f68035931b956de7379d5df4f9bd04f2b6c7555",
+      "test/melonx_array_barriers/Program.cs": "1b9045bd127976292f4f7b464a19d90ad0f24853a78b478d4ac67b3dc30c1482"
+    },
+    "upstreamInputs": {
+      "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "948628754db29845a576c42c3087f7a1727d920b33ec0053cf814f68603500ae",
+      "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": "2788a716d836e75300de1dc479b29eb3d0947cc0178b26e7e7f7557e833063cf",
+      "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "b0cf3ed2cb662369493d4fda562dcd79763bb2f3f0e1c1916305a0f97f1310d7"
+    }
+  },
+  "jitCodegen": {
+    "identicalArm64Fragments": 2000,
+    "identicalArm64Bytes": 64085248,
+    "beforeAllocatedBytes": 665742264,
+    "afterAllocatedBytes": 665410328,
+    "beforeMilliseconds": 1090.676249,
+    "afterMilliseconds": 945.523884,
+    "sharedRealFunctionTable": true,
+    "result": "passed",
+    "generatedArm64Executed": false,
+    "physicalDeviceTested": false,
+    "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "inputs": {
+      "build-utils/melonx/adapt_jit_decoder.py": "7e66f8de22be055fbe27982c9e09ad21e2ab2851aff73e2103e04b868a9bf1a5",
+      "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
+      "build-utils/melonx/adapt_jit_block_split.py": "0a1c60a92e0a49c5f93fea1a9848270dab5602b79bda16377b4813f219336769",
+      "build-utils/melonx/adapt_jit_dataflow.py": "959bdfc031a8616fad8dfd066cf9f349d6c4ed08bead451ac2e67bb388acc4e0",
+      "test/melonx_jit_dataflow_codegen_test.py": "807cc9e33c0e315f081b9fdd8691040acabc761632447c3fdf5120711139514e",
+      "test/melonx_jit_dataflow_codegen/Program.cs": "560f28ef5bcdc9c28c2476fa428e75ecfebfaee89e1795e07d1e0f48518e6a3d"
+    }
+  },
+  "runtimeSmoke": {
+    "actualCoreDonatedBackingSessions": 2,
+    "actualDarwinThreeArgumentHandlersVerified": true,
+    "actualKeyImportABIValidated": true,
+    "actualNativeAOT": true,
+    "actualNativeLaunchJournalWritten": true,
+    "actualSimulatorCodeArenaVerified": true,
+    "displayAndMemoryConfigurationAccepted": true,
+    "donorProcessUsedInSmoke": false,
+    "gameplayTested": false,
+    "graphicsAccepted": true,
+    "homebrewProducesVideo": false,
+    "homebrewSimulatorSessions": 2,
+    "initializationAndIdempotency": true,
+    "invalidContentRejected": true,
+    "invalidGraphicsCodePreserved": true,
+    "invalidGuestRejected": true,
+    "invalidSaveAssociationRejected": true,
+    "iphoneGuestExecutionTested": false,
+    "jitTested": false,
+    "keyRefusalCodePreserved": true,
+    "keyUnknownEntryAccepted": true,
+    "livePerformanceSnapshotSessions": 2,
+    "missingKeysRejectedBeforeGuest": true,
+    "mixedInvalidKeySizeAccepted": true,
+    "originalHomebrewGuestSvcConfirmed": true,
+    "performanceSnapshotStaleAndEndedRefused": true,
+    "personalKeysUsed": false,
+    "result": "passed",
+    "storageProfilesRecognized": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "coreSha256": "a8bab9862c1749d18ae1f45120ef19c3ccb58df300fdc62f34da1b785ac6ef6c",
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+      "test/melonx_runtime_smoke.py": "ec5bdb5dcb6ac5a870804d5db56601a9f219be29003c0ed859142be8ed95bdbd"
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "applicationIpaBuiltByThisRun": false
+}

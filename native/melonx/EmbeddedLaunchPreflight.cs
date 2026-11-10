@@ -21,6 +21,8 @@ partial class Library
     private static void EmbeddedLaunchPreflight(string path, Utf8JsonWriter json)
     {
         EmbeddedLaunchDiagnostics.Begin();
+        EmbeddedJitArenaHint = 0;
+        EmbeddedNoteLaunchTitle(0);
         EmbeddedLaunchDiagnostics.Record("file", "begin");
         if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
             throw new FileNotFoundException("The selected local game is unavailable.");
@@ -74,6 +76,8 @@ partial class Library
                     }
                 }
                 json.WriteString("titleId", entry.Key.ToString("x16"));
+                EmbeddedJitArenaHint = EmbeddedJitArenaFor(entry.Key, program);
+                EmbeddedNoteLaunchTitle(entry.Key);
                 programFound = true; break;
             }
             if (!programFound) throw new InvalidDataException("No base program was found in the selected package.");
@@ -81,7 +85,7 @@ partial class Library
         EmbeddedLaunchDiagnostics.Record("contentPreflight", "passed", detail: packaged ? "Base program sections opened with the user's keys; no decrypted bytes logged." : "Homebrew format validated.");
 
         EmbeddedLaunchDiagnostics.Record("firmware", "begin");
-        _contentManager.LoadEntries();
+        // The version reader refreshes the content index itself.
         var version = _contentManager.GetCurrentFirmwareVersion();
         string firmware = version?.VersionString ?? "";
         json.WriteString("firmware", firmware);

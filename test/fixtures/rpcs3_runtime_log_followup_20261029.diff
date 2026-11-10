@@ -1,0 +1,534 @@
+diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
+index 6086314..488b437 100644
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -1529,6 +1529,101 @@ namespace vm
+ 			return 0;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// Keep the first probe as cheap as before, including when the map is empty.
++		if (try_alloc(addr, flags, size, std::move(shm)))
++		{
++			return addr + (flags & stack_guarded ? 0x1000 : 0);
++		}
++
++		if (addr == max)
++		{
++			return 0;
++		}
++
++		addr += align;
++
++		// The allocation map is stable under writer_lock and includes stack guards.
++		// Skip a mapped interval in one step instead of probing every aligned
++		// address inside it. An interval that overlaps the candidate also rules
++		// out every later candidate before its end, preserving first-fit order.
++		auto& allocations = (m.*block_map)();
++		// A dense map can cost more to walk than the contiguous page table.
++		// Keep the original scan when there is at least one map node per
++		// aligned position covering the map's extent. This conservative test
++		// uses no workload threshold; mixed dense maps may forgo useful jumps.
++		u64 map_span = 0;
++		if (!allocations.empty())
++		{
++			const auto& last = *allocations.rbegin();
++			const u64 first = u64{allocations.begin()->first} & (u64{0} - align);
++			map_span = utils::align<u64>(u64{last.first} + last.second.first, align) - first;
++		}
++
++		if (u64{allocations.size()} * align < map_span)
++		{
++			const auto find_next = [&](u32 candidate)
++			{
++				auto next = allocations.lower_bound(candidate);
++				if (next != allocations.begin())
++				{
++					const auto prev = std::prev(next);
++					if (u64{prev->first} + prev->second.first > candidate)
++					{
++						next = prev;
++					}
++				}
++
++				return next;
++			};
++			auto next = find_next(addr);
++
++			for (;;)
++			{
++				// An alignment step can pass many small allocations. Find the next
++				// relevant interval without walking every skipped map node.
++				if (next != allocations.end() && u64{next->first} + next->second.first <= addr)
++				{
++					next = find_next(addr);
++				}
++
++				if (next != allocations.end() && next->first < u64{addr} + size)
++				{
++					const u64 after = utils::align<u64>(u64{next->first} + next->second.first, align);
++					if (after > max)
++					{
++						return 0;
++					}
++
++					// A map hop that rejects only one candidate buys no useful jump.
++					// Use the original scan for dense allocations this small instead.
++					if (after == u64{addr} + align)
++					{
++						addr = static_cast<u32>(after);
++						break;
++					}
++
++					addr = static_cast<u32>(after);
++					++next;
++					continue;
++				}
++
++				// Keep the page-table check: occupied pages can exist outside this
++				// block's allocation map. A failed probe retains the original step.
++				if (try_alloc(addr, flags, size, std::move(shm)))
++				{
++					return addr + (flags & stack_guarded ? 0x1000 : 0);
++				}
++
++				if (addr == max)
++				{
++					return 0;
++				}
++
++				addr += align;
++			}
++		}
++#endif
+ 		// Search for an appropriate place (unoptimized)
+ 		for (;; addr += align)
+ 		{
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index 298e774..e56405c 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -85,6 +85,9 @@ namespace rpcs3::ios::texture_prehash
+ 			u32 length;
+ 			// Epochs this frame had started before the validation (0: the frame's first).
+ 			u64 ordinal;
++			// Scoped RSX writes require the caller's own hash. Retain their sequence
++			// positions, but avoid predicting hashes that this validation cannot use.
++			bool eligible;
+ 		};
+ 
+ 		// All below under g_mutex; the worker never holds it while hashing.
+@@ -224,6 +227,11 @@ namespace rpcs3::ios::texture_prehash
+ 						break;
+ 					}
+ 
++					if (!range.eligible)
++					{
++						continue;
++					}
++
+ 					// CELL583_PREHASH_PACING: a range the RSX thread has already passed was hashed
+ 					// by it; hashing it here would only be wasted.
+ 					if (index < g_position.load(std::memory_order_relaxed))
+@@ -265,7 +273,7 @@ namespace rpcs3::ios::texture_prehash
+ 		}
+ 	}
+ 
+-	void record(u32 start, u32 length) noexcept
++	void record(u32 start, u32 length, bool eligible) noexcept
+ 	{
+ 		if (length < min_bytes || !enabled.load(std::memory_order_relaxed))
+ 		{
+@@ -291,7 +299,7 @@ namespace rpcs3::ios::texture_prehash
+ 
+ 		if (g_current.size() < max_sequence)
+ 		{
+-			g_current.push_back({start, length, epoch >= g_frame_epoch ? epoch - g_frame_epoch : 0});
++			g_current.push_back({start, length, epoch >= g_frame_epoch ? epoch - g_frame_epoch : 0, eligible});
+ 			g_position.store(g_current.size(), std::memory_order_relaxed);
+ 		}
+ 
+@@ -632,7 +640,7 @@ namespace rsx
+ 			if (range.length() >= rpcs3::ios::texture_prehash::min_bytes)
+ 			{
+ 				prehashed = !prehash_bypass && rpcs3::ios::texture_prehash::lookup(range.start, range.length(), epoch, hash);
+-				rpcs3::ios::texture_prehash::record(range.start, range.length());
++				rpcs3::ios::texture_prehash::record(range.start, range.length(), !prehash_bypass);
+ 				(prehashed ? rpcs3::ios::texture_prehash::hits : rpcs3::ios::texture_prehash::misses).fetch_add(1, std::memory_order_relaxed);
+ 
+ 				if (prehashed)
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+index 10eb57e..0b85c54 100644
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+@@ -18,6 +18,7 @@
+ #ifdef RPCS3_IOS
+ #include <array>
+ #include <atomic>
++#include <cstring>
+ #include "ios/IOSShaderTiming.h"
+ #include "ios/IOSCompilePressure.h"
+ #endif
+@@ -177,8 +178,21 @@ class program_state_cache
+ 	using vertex_program_type = typename backend_traits::vertex_program_type;
+ 	using fragment_program_type = typename backend_traits::fragment_program_type;
+ 
++#ifdef RPCS3_IOS
++	template <typename Program>
++	struct completed_shader
++	{
++		Program program;
++		// Compilation takes place outside the map mutex. A map placeholder
++		// must never be remembered as a completed shader by the fast path.
++		std::atomic<bool> ready{false};
++	};
++	using binary_to_vertex_program = std::unordered_map<RSXVertexProgram, completed_shader<vertex_program_type>, program_hash_util::vertex_program_storage_hash, program_hash_util::vertex_program_compare>;
++	using binary_to_fragment_program = std::unordered_map<RSXFragmentProgram, completed_shader<fragment_program_type>, program_hash_util::fragment_program_storage_hash, program_hash_util::fragment_program_compare>;
++#else
+ 	using binary_to_vertex_program = std::unordered_map<RSXVertexProgram, vertex_program_type, program_hash_util::vertex_program_storage_hash, program_hash_util::vertex_program_compare> ;
+ 	using binary_to_fragment_program = std::unordered_map<RSXFragmentProgram, fragment_program_type, program_hash_util::fragment_program_storage_hash, program_hash_util::fragment_program_compare>;
++#endif
+ 
+ 	using pipeline_data_type = std::tuple<pipeline_type*, const vertex_program_type*, const fragment_program_type*>;
+ 
+@@ -232,6 +246,13 @@ protected:
+ 
+ 	binary_to_vertex_program m_vertex_shader_cache;
+ 	binary_to_fragment_program m_fragment_shader_cache;
++#ifdef RPCS3_IOS
++	// REWINDBOX_SHADER_RECENT: a hint skips the microcode hash, never equality.
++	// Map nodes own their immutable keys and survive rehash. The map mutex
++	// protects node lifetime; clear invalidates every hint before freeing keys.
++	std::array<std::atomic<const typename binary_to_vertex_program::value_type*>, 64> m_recent_vertex_shaders{};
++	std::array<std::atomic<const typename binary_to_fragment_program::value_type*>, 64> m_recent_fragment_shaders{};
++#endif
+ 	std::unordered_map<pipeline_key, pipeline_storage_type, pipeline_key_hash, pipeline_key_compare> m_storage;
+ #ifdef RPCS3_IOS
+ 	// REWINDBOX_PIPELINE_RECENT: node addresses survive unordered_map rehash.
+@@ -256,6 +277,84 @@ protected:
+ 	fragment_program_type __null_fragment_program;
+ 	pipeline_storage_type __null_pipeline_handle;
+ 
++#ifdef RPCS3_IOS
++	static usz recent_shader_slot(const RSXVertexProgram& program)
++	{
++		u32 signature = program.ctrl ^ program.output_mask ^ static_cast<u32>(program.data.size());
++		if (!program.data.empty()) signature ^= program.data[0];
++		signature *= 0x9e3779b9u;
++		return (signature ^ (signature >> 16)) & 63;
++	}
++
++	static usz recent_shader_slot(const RSXFragmentProgram& program)
++	{
++		u32 signature = program.ctrl ^ program.ucode_length ^ program.texcoord_control_mask;
++		if (program.ucode_length >= 16)
++		{
++			u32 first_word;
++			std::memcpy(&first_word, program.get_data(), sizeof(first_word));
++			signature ^= first_word;
++		}
++		signature *= 0x9e3779b9u;
++		return (signature ^ (signature >> 16)) & 63;
++	}
++
++	static bool recent_shader_matches(const RSXVertexProgram& stored, const RSXVertexProgram& incoming)
++	{
++		// The vertex hash consumes the instruction mask, while its equality
++		// body assumes matching masks. Never bypass hashing for different masks.
++		auto changed_mask = stored.instruction_mask;
++		changed_mask ^= incoming.instruction_mask;
++		return changed_mask.none() &&
++			program_hash_util::vertex_program_compare{}(incoming, stored);
++	}
++
++	static bool recent_shader_matches(const RSXFragmentProgram& stored, const RSXFragmentProgram& incoming)
++	{
++		return program_hash_util::fragment_program_compare{}(incoming, stored);
++	}
++
++	template <typename Map, typename Key, typename Compile>
++	auto search_completed_shader(Map& shaders, shared_mutex& mutex,
++		std::array<std::atomic<const typename Map::value_type*>, 64>& hints,
++		const Key& key, Compile&& compile)
++	{
++		using program_type = decltype(typename Map::mapped_type{}.program);
++		const auto slot = recent_shader_slot(key);
++		typename Map::value_type* entry;
++		bool inserted;
++		{
++			reader_lock lock(mutex);
++			if (const auto* recent = hints[slot].load(std::memory_order_acquire);
++				recent && recent_shader_matches(recent->first, key))
++			{
++				return std::tuple<const program_type&, bool>{recent->second.program, true};
++			}
++
++			if (const auto it = shaders.find(key); it != shaders.end())
++			{
++				if (it->second.ready.load(std::memory_order_acquire))
++					hints[slot].store(std::addressof(*it), std::memory_order_release);
++				return std::tuple<const program_type&, bool>{it->second.program, true};
++			}
++
++			lock.upgrade();
++			auto [it, added] = shaders.try_emplace(key);
++			entry = std::addressof(*it);
++			inserted = added;
++		}
++
++		if (inserted)
++		{
++			compile(entry->first, entry->second.program);
++			reader_lock lock(mutex);
++			entry->second.ready.store(true, std::memory_order_release);
++			hints[slot].store(entry, std::memory_order_release);
++		}
++		return std::tuple<const program_type&, bool>{entry->second.program, false};
++	}
++#endif
++
+ 	/// bool here to inform that the program was preexisting.
+ 	std::tuple<const vertex_program_type&, bool> search_vertex_program(
+ 		rsx::program_cache_hint_t* cache_hint,
+@@ -267,6 +366,15 @@ protected:
+ 			return std::forward_as_tuple(*cache_hint->get_vertex_program<vertex_program_type>(), true);
+ 		}
+ 
++#ifdef RPCS3_IOS
++		auto result = search_completed_shader(m_vertex_shader_cache, m_vertex_mutex, m_recent_vertex_shaders, rsx_vp,
++			[&](const RSXVertexProgram&, vertex_program_type& shader)
++			{
++				backend_traits::recompile_vertex_program(rsx_vp, shader, m_next_id++);
++			});
++		rsx::program_cache_hint_t::cache_vertex_program(cache_hint, rsx_vp, const_cast<vertex_program_type*>(&std::get<0>(result)));
++		return result;
++#else
+ 		bool recompile = false;
+ 		vertex_program_type* new_shader;
+ 		{
+@@ -294,6 +402,7 @@ protected:
+ 
+ 		rsx::program_cache_hint_t::cache_vertex_program(cache_hint, rsx_vp, new_shader);
+ 		return std::forward_as_tuple(*new_shader, false);
++#endif
+ 	}
+ 
+ 	/// bool here to inform that the program was preexisting.
+@@ -305,6 +414,16 @@ protected:
+ 			return std::forward_as_tuple(*cache_hint->get_fragment_program<fragment_program_type>(), true);
+ 		}
+ 
++#ifdef RPCS3_IOS
++		auto result = search_completed_shader(m_fragment_shader_cache, m_fragment_mutex, m_recent_fragment_shaders, rsx_fp,
++			[&](const RSXFragmentProgram& owned_key, fragment_program_type& shader)
++			{
++				owned_key.clone_data();
++				backend_traits::recompile_fragment_program(rsx_fp, shader, m_next_id++);
++			});
++		rsx::program_cache_hint_t::cache_fragment_program(cache_hint, rsx_fp, const_cast<fragment_program_type*>(&std::get<0>(result)));
++		return result;
++#else
+ 		bool recompile = false;
+ 		typename binary_to_fragment_program::iterator it;
+ 		fragment_program_type* new_shader;
+@@ -333,6 +452,7 @@ protected:
+ 
+ 		rsx::program_cache_hint_t::cache_fragment_program(cache_hint, rsx_fp, new_shader);
+ 		return std::forward_as_tuple(*new_shader, false);
++#endif
+ 	}
+ 
+ public:
+@@ -684,6 +804,10 @@ public:
+ 		std::scoped_lock lock(m_vertex_mutex, m_fragment_mutex, m_decompiler_mutex, m_pipeline_mutex);
+ 
+ 		notify_pipeline_compiled = {};
++#ifdef RPCS3_IOS
++		for (auto& recent : m_recent_vertex_shaders) recent.store(nullptr, std::memory_order_relaxed);
++		for (auto& recent : m_recent_fragment_shaders) recent.store(nullptr, std::memory_order_relaxed);
++#endif
+ 		m_fragment_shader_cache.clear();
+ 		m_vertex_shader_cache.clear();
+ #ifdef RPCS3_IOS
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+index 49a383f..a873cc6 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
++++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+@@ -461,6 +461,11 @@ namespace vk
+ 				static_cast<void>(bits);
+ #endif
+ 				CHECK_RESULT(result);
++#ifdef RPCS3_IOS
++				// Retain only scalar state declared dynamic by this actual pipeline,
++				// including auxiliary graphics pipelines with a different state set.
++				m_dynamic_state_mask = vk::pipeline_dynamic_state_mask(create_info.pDynamicState);
++#endif
+ 			}
+ 			else
+ 			{
+@@ -588,7 +593,11 @@ namespace vk
+ 				bind_sets[count++] = set.commit();   // Commit variable changes and return handle to the new set
+ 			}
+ 
++#ifdef RPCS3_IOS
++			cmd.bind_pipeline(m_pipeline, bind_point, m_dynamic_state_mask);
++#else
+ 			cmd.bind_pipeline(m_pipeline, bind_point);
++#endif
+ 			cmd.bind_descriptor_sets({ bind_sets, count }, bind_point, m_pipeline_layout);
+ 			return *this;
+ 		}
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.h b/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
+index b40bd1c..3bcd9f0 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
++++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
+@@ -239,6 +239,9 @@ namespace vk
+ 			VkDevice m_device = VK_NULL_HANDLE;
+ 			VkPipeline m_pipeline = VK_NULL_HANDLE;
+ 			VkPipelineLayout m_pipeline_layout = VK_NULL_HANDLE;
++#ifdef RPCS3_IOS
++			u32 m_dynamic_state_mask = 0;
++#endif
+ 
+ 			std::variant<VkGraphicsPipelineCreateInfo, VkComputePipelineCreateInfo> m_info;
+ 			std::array<descriptor_table_t, binding_set_index_max_enum> m_sets;
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+index 8bd563b..2b0c5c2 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+@@ -9,6 +9,36 @@
+ 
+ namespace vk
+ {
++#ifdef RPCS3_IOS
++	u32 pipeline_dynamic_state_mask(const VkPipelineDynamicStateCreateInfo* info) noexcept
++	{
++		if (!info)
++		{
++			return 0;
++		}
++
++		using cache = dynamic_state_cache;
++		u32 mask = 0;
++		for (u32 i = 0; i < info->dynamicStateCount; ++i)
++		{
++			switch (info->pDynamicStates[i])
++			{
++			case VK_DYNAMIC_STATE_LINE_WIDTH: mask |= 1u << cache::line_width; break;
++			case VK_DYNAMIC_STATE_BLEND_CONSTANTS: mask |= 1u << cache::blend_constants; break;
++			case VK_DYNAMIC_STATE_DEPTH_BIAS: mask |= 1u << cache::depth_bias; break;
++			case VK_DYNAMIC_STATE_DEPTH_BOUNDS: mask |= 1u << cache::depth_bounds; break;
++			case VK_DYNAMIC_STATE_STENCIL_WRITE_MASK:
++				mask |= (1u << cache::stencil_write_front) | (1u << cache::stencil_write_back); break;
++			case VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK:
++				mask |= (1u << cache::stencil_compare_front) | (1u << cache::stencil_compare_back); break;
++			case VK_DYNAMIC_STATE_STENCIL_REFERENCE:
++				mask |= (1u << cache::stencil_reference_front) | (1u << cache::stencil_reference_back); break;
++			default: break;
++			}
++		}
++		return mask;
++	}
++#endif
+ 	// This queue flushing method to be implemented by the backend as behavior depends on config
+ 	void queue_submit(const queue_submit_t& submit_info, VkBool32 flush);
+ 
+@@ -153,7 +183,11 @@ namespace vk
+ 		clear_flags();
+ 	}
+ 
++#ifdef RPCS3_IOS
++	void command_buffer::bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point, u32 dynamic_state_mask) const
++#else
+ 	void command_buffer::bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point) const
++#endif
+ 	{
+ 		ensure(is_open && bind_point <= VK_PIPELINE_BIND_POINT_COMPUTE);
+ 		auto& cached = m_bound_pipelines[static_cast<int>(bind_point)];
+@@ -165,8 +199,14 @@ namespace vk
+ 		cached = pipeline;
+ 		if (bind_point == VK_PIPELINE_BIND_POINT_GRAPHICS)
+ 		{
++#ifdef RPCS3_IOS
++			// Preserve exactly the states declared dynamic at creation. Unknown
++			// callers use mask zero and retain the original full invalidation.
++			m_dynamic_state.retain(dynamic_state_mask);
++#else
+ 			// Static state in a different pipeline can invalidate dynamic state.
+ 			m_dynamic_state.clear();
++#endif
+ 		}
+ 		vkCmdBindPipeline(commands, bind_point, pipeline);
+ 	}
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+index d8e9fa8..26b3773 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+@@ -9,6 +9,10 @@
+ 
+ namespace vk
+ {
++#ifdef RPCS3_IOS
++	// Only states actually tracked by dynamic_state_cache are represented.
++	u32 pipeline_dynamic_state_mask(const VkPipelineDynamicStateCreateInfo* info) noexcept;
++#endif
+ 	class command_pool
+ 	{
+ 		vk::render_device* owner = nullptr;
+@@ -112,7 +116,11 @@ namespace vk
+ 		void submit(queue_submit_t& submit_info, VkBool32 flush = VK_FALSE);
+ 
+ 		// Abstractions with caching
++#ifdef RPCS3_IOS
++		void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point, u32 dynamic_state_mask = 0) const;
++#else
+ 		void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point) const;
++#endif
+ 		void set_line_width(float width) const;
+ 		void set_blend_constants(const float* colors) const;
+ 		void set_depth_bias(float constant, float clamp, float slope) const;
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
+index 44ac28b..5df545b 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
+@@ -5,7 +5,11 @@
+ 
+ namespace vk
+ {
++#ifdef RPCS3_IOS
++	// Valid for one recording, until a graphics pipeline makes a state static.
++#else
+ 	// Valid only for one command-buffer recording and one graphics pipeline.
++#endif
+ 	// Store float bit patterns so signed zero and NaN payloads stay distinct.
+ 	struct dynamic_state_cache
+ 	{
+@@ -21,6 +25,11 @@ namespace vk
+ 		std::uint32_t valid = 0;
+ 
+ 		void clear() { valid = 0; }
++#ifdef RPCS3_IOS
++		// A graphics bind invalidates only the states supplied statically by
++		// that pipeline. Dynamic values survive other graphics pipeline binds.
++		void retain(std::uint32_t dynamic_mask) { valid &= dynamic_mask; }
++#endif
+ 		bool update(slot index, std::array<std::uint32_t, 4> value)
+ 		{
+ 			const auto bit = 1u << index;
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+index 9ad3b59..03aa496 100644
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -118,7 +118,11 @@ inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epo
+ std::uint64_t range_hash(const void* src, std::uint32_t length) noexcept;
+ 
+ // A validation that hashed or looked up [start, start + length) (any thread).
+-void record(std::uint32_t start, std::uint32_t length) noexcept;
++// Keep ineligible validations in the sequence so its positions/epoch ordinals
++// remain aligned, but do not predict worker work for a validation that had to
++// bypass worker results after an RSX write. This only schedules speculation;
++// it never changes whether a result may validate the current texture.
++void record(std::uint32_t start, std::uint32_t length, bool eligible = true) noexcept;
+ // The texture cache's frame end, after the frame's epoch advance.
+ void end_frame() noexcept;
+ // Any thread that advanced the validation epoch.

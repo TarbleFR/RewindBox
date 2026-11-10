@@ -1,0 +1,39 @@
+{
+  "mode": "plain",
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "-g",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/dma-list-program.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/dma-list-plain"
+  ],
+  "exit_code": 0,
+  "sources": {
+    "old": {
+      "list_sha256": "0a7021163cc583a1ad0f32fa93fd3729d22709de86ac1c676954635b127acfb3",
+      "queue_sha256": "90b6ee9085a647c61ae2502cfbda23fa876c4abf9c278382fa99e9ada466ac4b"
+    },
+    "new": {
+      "list_sha256": "fee7ad6dcbf25cb3d171593c3ec7553e8a1bfc00022e1840f6a97ad5dea93dc3",
+      "queue_sha256": "90b6ee9085a647c61ae2502cfbda23fa876c4abf9c278382fa99e9ada466ac4b"
+    }
+  },
+  "program_sha256": "de97288b323674b7ee761754051fe76f299af71461f9262a13e44c87df48bf29",
+  "scope": "Complete production do_list_transfer and do_mfc; bounded host adapters for VM, vector storage, locks, IRQ, timing, generic DMA; not real GPU/ARM64 concurrency or iPhone gameplay.",
+  "results": {
+    "empty_queued_cases": 1536,
+    "baseline_empty_ls_reads": 1536,
+    "zero_element_cases": 512,
+    "baseline_zero_element_accesses": 512,
+    "baseline_copy_underflows": 256,
+    "nonzero_cases_each": 1300,
+    "stall_ack_cases": 97,
+    "nonzero_trace_hash": 7379061402071571080,
+    "fixed_failures": 0
+  }
+}

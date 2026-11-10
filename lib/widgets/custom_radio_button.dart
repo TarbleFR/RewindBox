@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/services/sfx_service.dart';
 
+import 'glass/glass_surface.dart';
+
+/// Radio option drawn as a glass bubble: title, optional subtitle and a
+/// round indicator. Gamepad focus draws the accent ring.
 class CustomRadioButton<T> extends StatelessWidget {
   final T value;
   final T groupValue;
@@ -23,6 +27,7 @@ class CustomRadioButton<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final glass = LiquidGlassTheme.of(context);
     final isSelected = value == groupValue;
 
     return Material(
@@ -37,22 +42,12 @@ class CustomRadioButton<T> extends StatelessWidget {
           SfxService().playNavSound();
           onChanged(value);
         },
-        borderRadius: BorderRadius.circular(8.r),
-        child: Container(
-          padding: EdgeInsets.only(
-            left: 12.r,
-            right: 12.r,
-            top: 6.r,
-            bottom: 6.r,
-          ),
-          decoration: BoxDecoration(
-            color: theme.cardColor.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(
-              color: isFocused ? theme.colorScheme.primary : Colors.transparent,
-              width: 2,
-            ),
-          ),
+        borderRadius: glass.radius(GlassRadius.m),
+        child: GlassSurface(
+          role: GlassRole.bubble,
+          focused: isFocused,
+          selected: isSelected,
+          padding: glass.bubblePadding,
           child: Row(
             children: [
               Expanded(
@@ -86,7 +81,7 @@ class CustomRadioButton<T> extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 16.r),
-              _buildCustomIndicator(context, isSelected, theme),
+              _buildCustomIndicator(context, isSelected, theme, glass),
             ],
           ),
         ),
@@ -98,9 +93,10 @@ class CustomRadioButton<T> extends StatelessWidget {
     BuildContext context,
     bool isSelected,
     ThemeData theme,
+    LiquidGlassTheme glass,
   ) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: glass.duration(context, GlassMotion.standard),
       curve: Curves.easeOut,
       width: 24.r,
       height: 24.r,
@@ -109,12 +105,12 @@ class CustomRadioButton<T> extends StatelessWidget {
         border: Border.all(
           color: isSelected
               ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withValues(alpha: 0.5),
+              : glass.rim(context, GlassRole.control),
           width: 2.0,
         ),
         color: isSelected
             ? theme.colorScheme.primary
-            : theme.scaffoldBackgroundColor.withValues(alpha: 0.2),
+            : glass.fill(context, GlassRole.control),
       ),
       child: isSelected
           ? Center(

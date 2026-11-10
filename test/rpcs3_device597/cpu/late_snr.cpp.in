@@ -1,0 +1,243 @@
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <bit>
+#include <cassert>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <functional>
+#include <iostream>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
+#include <type_traits>
+#include <utility>
+
+using u8=std::uint8_t; using u16=std::uint16_t; using u32=std::uint32_t;
+using u64=std::uint64_t; using s64=std::int64_t; using usz=std::size_t; using uint=unsigned;
+constexpr u64 umax=~u64{0};
+#define ensure(x,...) assert(x)
+#define ENABLE_BITWISE_SERIALIZATION
+struct Escaped {};
+struct WouldBlock {};
+std::mutex wait_mutex;
+std::condition_variable wait_cv;
+std::atomic<u64> notify_calls{};
+std::function<void()> before_state_wait, before_list_wait;
+bool concurrent_wait=false;
+std::atomic<bool> list_entered{};
+
+// A mutex-backed atomic adapter preserves indivisible update callbacks.
+// The production notification latch and wait-list construction are extracted
+// below. The platform futex/ulock backend is replaced by a condition variable.
+template<class T> struct atomic_t {
+    mutable std::mutex mutex;
+    T value{};
+    atomic_t()=default;
+    atomic_t(T initial):value(initial){}
+    T load()const{std::lock_guard guard(mutex);return value;}
+    operator T()const{return load();}
+    void release(T next){std::lock_guard guard(mutex);value=next;}
+    T exchange(T next){std::lock_guard guard(mutex);return std::exchange(value,next);}
+    auto fetch_op(auto fn){
+        std::lock_guard guard(mutex);T old=value;T next=old;
+        if constexpr(std::is_void_v<decltype(fn(next))>){fn(next);value=next;return old;}
+        else{bool commit=fn(next);if(commit)value=next;return std::pair<T,bool>{old,commit};}
+    }
+    auto atomic_op(auto fn){std::lock_guard guard(mutex);return fn(value);}
+    bool compare_and_swap_test(T old,T next){std::lock_guard guard(mutex);if(value!=old)return false;value=next;return true;}
+    T fetch_and(T mask){std::lock_guard guard(mutex);T old=value;value&=mask;return old;}
+    bool bit_test_reset(uint index){std::lock_guard guard(mutex);T mask=T{1}<<index;bool old=bool(value&mask);value&=~mask;return old;}
+    void operator|=(T bits){std::lock_guard guard(mutex);value|=bits;}
+    void notify_one(){notify_all();}
+    void notify_all(){std::lock_guard guard(wait_mutex);++notify_calls;wait_cv.notify_all();}
+};
+
+enum class cpu_flag:u32 {wait=1,stop=2,again=4};
+struct CpuState:atomic_t<u32>{
+    u32 add_fetch(cpu_flag bit){
+        if(before_state_wait){auto f=std::move(before_state_wait);before_state_wait={};f();}
+        return atomic_op([&](u32& x){return x|=u32(bit);});
+    }
+    void operator+=(cpu_flag bit){*this|=u32(bit);}
+};
+struct cpu_thread {
+    CpuState state;
+    static cpu_thread* get_current(){return nullptr;}
+};
+struct thread_base {
+    atomic_t<u32> m_sync{},m_taskq{};
+    void notify();
+};
+@NOTIFY@
+struct atomic_wait_timeout{u64 value;};
+namespace atomic_wait {
+template<uint Size>struct list {
+    std::array<std::function<bool()>,Size> changed;
+    template<uint Index,class Atomic,class Value>void set(Atomic& atomic,Value old){changed[Index]=[&atomic,old]{return atomic.load()!=static_cast<decltype(atomic.load())>(old);};}
+    template<uint Index,class Atomic>void set(Atomic& atomic){set<Index>(atomic,atomic.load());}
+    void wait(atomic_wait_timeout timeout){
+        assert(timeout.value==umax); // Production never adds a recovery timeout.
+        if(before_list_wait){auto f=std::move(before_list_wait);before_list_wait={};f();}
+        auto ready=[&]{for(auto& f:changed)if(f&&f())return true;return false;};
+        if(!concurrent_wait){if(!ready())throw WouldBlock{};return;}
+        std::unique_lock guard(wait_mutex);list_entered.store(true,std::memory_order_release);wait_cv.notify_all();
+        // This deadline is solely a test watchdog, not candidate code.
+        assert(wait_cv.wait_for(guard,std::chrono::seconds(2),ready));
+    }
+};
+}
+struct thread_ctrl {
+    static thread_local thread_base* g_tls_this_thread;
+    @WAIT_CUSTOM@
+    @WAIT_ON@
+};
+thread_local thread_base* thread_ctrl::g_tls_this_thread=nullptr;
+namespace utils {
+template<class T>T* bless(void*){static T sink[2];return sink;}
+u64 get_tsc(){return 0xffff;}
+}
+void atomic_fence_seq_cst(){std::atomic_thread_fence(std::memory_order_seq_cst);}
+u64 get_system_time(){return 1;}
+struct {struct {u32 mfc_transfers_shuffling{};bool mfc_shuffling_in_steps{};}core;}g_cfg;
+constexpr u32 SPU_EVENT_S1=0x200,SPU_EVENT_S2=0x100;
+@MFC@
+@CHANNEL@
+namespace spu_runtime {template<class T>[[noreturn]]void g_escape(T*){throw Escaped{};}}
+
+// @CLASS_BEGIN@
+struct spu_thread:cpu_thread {
+    struct ch_events_t{u32 events{};u8 locks{};bool waiting{},count{};u32 mask{};};
+    atomic_t<ch_events_t> ch_events;
+    thread_base host;
+    spu_channel ch_snr1,ch_snr2,ch_tag_stat;
+    u64 snr_config{};
+    u32 id{0x2000001},ch_stall_mask{},mfc_size{},mfc_barrier{},mfc_fence{},ch_tag_mask{},ch_tag_upd{};
+    u64 mfc_last_timestamp{};
+    spu_mfc_cmd mfc_queue[16]{},ch_mfc_cmd{};
+    u32 pc{0x1240},srr0{},interrupt_word{0x30000100};
+    bool interrupts_enabled{true},complete_lists{};
+    u32 accepted{},dma_calls{},list_calls{},interrupt_cancels{},notified{};
+    u8* ls{};
+    void notify(){++notified;state.notify_one();host.notify();}
+    bool test_stopped(){return is_stopped(state.load());}
+    bool is_stopped()const{return is_stopped(state.load());}
+    static bool is_stopped(u32 flags){return flags&u32(cpu_flag::stop);}
+    void cancel_dec_interrupt(){++interrupt_cancels;}
+    template<class T>T _ref(u32 addr){assert(addr==0);return interrupt_word;}
+    bool do_list_transfer(spu_mfc_cmd& command){++list_calls;if(complete_lists)return true;command.tag|=0x80;return false;}
+    void do_putlluc(const spu_mfc_cmd&){++dma_calls;}
+    static void do_dma_transfer(spu_thread* self,const spu_mfc_cmd&,u8*){++self->dma_calls;}
+    bool do_mfc(bool can_escape=true,bool must_finish=true);
+    u32 get_mfc_completed()const;
+    bool check_mfc_interrupts(u32 next_pc);
+    void push_snr(u32 number,u32 value);
+    void set_events(u32 bits);
+    bool process_prefix();
+};
+// @CLASS_END@
+@VERSIONS@
+
+template<class T>void fixture(T& t,u32 number,bool full=true,bool drained=false){
+    rpcs3::ios::signal_trace::reset(100,true);
+    typename T::ch_events_t ev{};ev.mask=SPU_EVENT_S1>>number;ev.events=0x20;t.ch_events.release(ev);
+    t.mfc_size=full?16:15;t.complete_lists=drained;
+    for(u32 i=0;i<t.mfc_size;++i){t.mfc_queue[i]={MFC_PUT_CMD,u8(i),16,16*i,0x10000+16*i,0};}
+    if(!drained){t.mfc_queue[0].cmd=MFC_GETL_CMD;t.mfc_queue[0].tag|=0x80;t.mfc_queue[1].cmd=MFC_BARRIER_CMD;}
+    t.ch_mfc_cmd={MFC_SYNC_CMD,31,0,0,0x60300510,0};
+    thread_ctrl::g_tls_this_thread=&t.host;
+}
+
+struct Outcome{bool blocked{},escaped{},accepted{},waiting{},count{};u32 notifications{},srr0{},queue_size{};};
+template<class T>Outcome schedule(u32 number,u32 location,bool enabled,bool mask,bool halted=false){
+    T t;fixture(t,number);t.interrupts_enabled=enabled;
+    if(!mask)t.ch_events.atomic_op([](auto& e){e.mask=0;});
+    auto send=[&]{t.push_snr(number,0xa55a1234);if(halted)t.state+=cpu_flag::stop;};
+    if(location==0)send();
+    else if(location==1)before_state_wait=send;
+    else before_list_wait=send;
+    Outcome out;
+    try{out.accepted=t.process_prefix();}catch(const Escaped&){out.escaped=true;}catch(const WouldBlock&){out.blocked=true;}
+    before_state_wait={};before_list_wait={};
+    const auto e=t.ch_events.load();
+    assert(e.events==(0x20u|(SPU_EVENT_S1>>number))&&e.locks==0);
+    assert((number?t.ch_snr2:t.ch_snr1).get_value()==0xa55a1234);
+    assert(!out.accepted&&t.accepted==0&&t.mfc_size==16&&t.ch_mfc_cmd.cmd==MFC_SYNC_CMD);
+    if(out.escaped){assert(t.srr0==0x1240&&t.interrupt_cancels==1&&!e.waiting);}
+    out.waiting=e.waiting;out.count=e.count;out.notifications=t.notified;out.srr0=t.srr0;out.queue_size=t.mfc_size;
+    return out;
+}
+
+int main(){
+    u32 reproduced=0,resolved=0,unchanged=0,stop_cases=0,retries=0,concurrent_cases=0;
+    for(u32 number:{0u,1u})for(u32 location:{0u,1u,2u}){
+        auto old=schedule<before::spu_thread>(number,location,true,true);
+        auto fresh=schedule<after::spu_thread>(number,location,true,true);
+        assert(fresh.escaped&&fresh.count&&!fresh.waiting);++resolved;
+        if(location){assert(old.blocked&&!old.escaped&&!old.notifications&&old.count);++reproduced;}
+        else assert(old.escaped);
+        for(bool enabled:{false,true})for(bool mask:{false,true})if(!enabled||!mask){
+            auto unchanged_old=schedule<before::spu_thread>(number,location,enabled,mask);
+            auto unchanged_new=schedule<after::spu_thread>(number,location,enabled,mask);
+            assert(unchanged_old.blocked&&unchanged_new.blocked&&!unchanged_new.escaped);
+            assert(unchanged_old.count==unchanged_new.count&&!unchanged_new.notifications);++unchanged;
+        }
+        if(location==1){auto stopped=schedule<after::spu_thread>(number,location,true,true,true);assert(!stopped.blocked&&!stopped.escaped&&!stopped.waiting);++stop_cases;}
+    }
+    // Fresh event after an earlier host wake: re-registration must still work.
+    for(u32 number:{0u,1u}){
+        after::spu_thread t;fixture(t,number);
+        before_list_wait=[&]{t.host.notify();before_state_wait=[&]{t.push_snr(number,0x11);};};
+        bool escaped=false;try{t.process_prefix();}catch(const Escaped&){escaped=true;}
+        assert(escaped&&t.srr0==0x1240&&!t.ch_events.load().waiting&&t.accepted==0);
+        // Explicit guest-handler acknowledgement adapter, followed by WRCH retry.
+        t.ch_events.atomic_op([](auto& e){e.count=false;});t.complete_lists=true;t.mfc_queue[0].tag&=0x7f;
+        assert(t.process_prefix()&&t.accepted==1&&t.mfc_size==0);++retries;
+    }
+    // The owner-published queue copy is taken by the real helper, while only
+    // its public diagnostic copy is read by this observer.
+    {
+        after::spu_thread t;fixture(t,0);
+        before_list_wait=[&]{
+            auto snapshot=rpcs3::ios::signal_trace::snapshot();assert(snapshot.producer_count==1);
+            const auto& p=snapshot.producers[0];assert(p.id==t.id&&p.pc==0x1240&&p.size==16);
+            assert(p.phase==rpcs3::ios::signal_trace::producer_phase::mfc_blocked&&p.event_waiting==1&&p.event_count==0);
+            assert(p.queue[0].cmd==MFC_GETL_CMD&&(p.queue[0].tag&0x80)&&p.unaccepted.cmd==MFC_SYNC_CMD);
+            t.push_snr(0,0x55);
+        };
+        bool escaped=false;try{t.process_prefix();}catch(const Escaped&){escaped=true;}
+        const auto snapshot=rpcs3::ios::signal_trace::snapshot();assert(escaped&&snapshot.producers[0].phase==rpcs3::ios::signal_trace::producer_phase::mfc_irq&&snapshot.producers[0].return_pc==0x1240);
+    }
+    // Queue-never-full, drained queue, and stop-before-drain are unchanged.
+    {
+        after::spu_thread t;fixture(t,0);before_list_wait=[&]{rpcs3::ios::signal_trace::reset(101,true);t.push_snr(0,0x11);};
+        bool escaped=false;try{t.process_prefix();}catch(const Escaped&){escaped=true;}
+        assert(escaped&&rpcs3::ios::signal_trace::snapshot().producer_count==0);
+    }
+    {
+        after::spu_thread t;fixture(t,0);rpcs3::ios::signal_trace::reset(102,false);before_list_wait=[&]{t.push_snr(0,0x22);};
+        bool escaped=false;try{t.process_prefix();}catch(const Escaped&){escaped=true;}
+        assert(escaped&&t.srr0==0x1240&&rpcs3::ios::signal_trace::snapshot().producer_count==0);
+    }
+    for(bool full:{false,true})for(bool stopped:{false,true}){
+        after::spu_thread t;fixture(t,0,full,true);if(stopped)t.state+=cpu_flag::stop;
+        bool result=t.process_prefix();assert(result==(!full||!stopped));assert(!t.ch_events.load().waiting&&!t.notified);
+    }
+    // Real producer/consumer threads use extracted notification latching and
+    // wait-list construction. The platform wake primitive remains an adapter.
+    concurrent_wait=true;
+    for(u32 iteration=0;iteration<128;++iteration){
+        after::spu_thread t;const u32 number=iteration%2;fixture(t,number);list_entered=false;
+        std::thread producer([&]{
+            {std::unique_lock guard(wait_mutex);assert(wait_cv.wait_for(guard,std::chrono::seconds(2),[]{return list_entered.load(std::memory_order_acquire);}));}
+            t.push_snr(number,iteration+1);
+        });
+        bool escaped=false;try{t.process_prefix();}catch(const Escaped&){escaped=true;}
+        producer.join();assert(escaped&&t.srr0==0x1240&&t.accepted==0&&t.notified==1&&!t.ch_events.load().waiting);++concurrent_cases;
+    }
+    std::cout<<"{\"baselineLostWakeSchedules\":"<<reproduced<<",\"candidateInterruptDeliveries\":"<<resolved
+             <<",\"maskedOrDisabledCases\":"<<unchanged<<",\"stopAfterRegistration\":"<<stop_cases
+             <<",\"handlerAckRetriesAcceptedOnce\":"<<retries<<",\"concurrentProducerConsumerCases\":"<<concurrent_cases
+             <<",\"ownerPublishedMfcSnapshotVerified\":true,\"disabledInstrumentationPreservesLateIrq\":true,\"oldSessionProducerSnapshotDropped\":true,\"guestTimeoutAdded\":false,\"testPlatformWakeBackend\":\"std::condition_variable\"}";
+}

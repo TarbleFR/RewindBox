@@ -182,6 +182,156 @@ static NSData *RzipWrap(NSData *payload) {
   return file;
 }
 
+
+
+// FBNeo has a distinct native-option path. This fixture supplies only the
+// already-validated driver/options snapshot; the production command method
+// must reject activation before changing the option store or native master.
+@interface FBNeoHardcoreFixture : LibretroCoreHost
+@property(nonatomic) NSUInteger masterChanges;
+@property(nonatomic) BOOL masterEnabled;
+@end
+@implementation FBNeoHardcoreFixture
+- (BOOL)isFBNeoCore { return YES; }
+- (NSDictionary *)fbneoCheatSnapshot {
+  NSString *value = [self.options currentValueForKey:@"fbneo-cheat-0-fixture-infinite"] ?: @"0 - Disabled";
+  return @{@"enabled_count": @(![value isEqualToString:@"0 - Disabled"]),
+           @"options": @[@{@"key": @"fbneo-cheat-0-fixture-infinite", @"available": @YES,
+                            @"value": value, @"off_value": @"0 - Disabled",
+                            @"values": @[@"0 - Disabled", @"1 - Enabled"]}]};
+}
+- (void)setFBNeoCheatsMasterEnabled:(BOOL)enabled {
+  self.masterChanges++;
+  self.masterEnabled = enabled;
+}
+@end
+
+static void CheckFBNeoHardcoreBoundary(NSString *core, NSString *work) {
+  FBNeoHardcoreFixture *host = [[FBNeoHardcoreFixture alloc] initWithCorePath:core
+      systemDirectory:work saveDirectory:work stateDirectory:work optionsDirectory:work
+      cacheDirectory:work language:RETRO_LANGUAGE_ENGLISH jitCapable:NO];
+  LibretroCoreOptions *options = [[LibretroCoreOptions alloc] initWithStorePath:
+      [work stringByAppendingPathComponent:@"FBNeoFixture.json"]];
+  const struct retro_variable variables[] = {
+    {"fbneo-cheat-0-fixture-infinite", "Infinite; 0 - Disabled|1 - Enabled"}, {NULL, NULL}};
+  [options declareVariables:variables];
+  // Test-only setup of a loaded, validated driver. No FBNeo binary or game is
+  // claimed here; the exercised method and option store are production code.
+  [host setValue:options forKey:@"options"];
+  [host setValue:@YES forKey:@"contentLoaded"];
+  host.hardcoreRestrictionsEnabled = YES;
+  NSDictionary *activate = @{@"action": @"set", @"key": @"fbneo-cheat-0-fixture-infinite", @"value": @"1 - Enabled"};
+  NSError *error = nil;
+  CHECK([host performFBNeoCheatCommand:activate error:&error] == nil &&
+        error.code == LibretroHostErrorContentRejected && host.masterChanges == 0 &&
+        [[options currentValueForKey:@"fbneo-cheat-0-fixture-infinite"] isEqualToString:@"0 - Disabled"],
+        "Hardcore blocks FBNeo activation before option or native-master side effects");
+  CHECK([host performFBNeoCheatCommand:@{@"action": @"disableAll"} error:&error] != nil &&
+        !host.masterEnabled, "disabling FBNeo cheats remains available under Hardcore");
+  host.hardcoreRestrictionsEnabled = NO;
+  CHECK([host performFBNeoCheatCommand:activate error:&error] != nil && host.masterEnabled &&
+        [[options currentValueForKey:@"fbneo-cheat-0-fixture-infinite"] isEqualToString:@"1 - Enabled"],
+        "the same validated FBNeo activation works when Hardcore is off");
+  [host setValue:@NO forKey:@"contentLoaded"];
+}
+
+// Exercised against the real CoreHost ABI, not just disabled menu rows.
+// The fixture's fake core reports accepted state restores and cheat writes
+// through its frame counter and save RAM.
+static void CheckHardcoreBoundaries(NSString *core, NSString *root, NSString *content) {
+  NSString *work = [root stringByAppendingPathComponent:@"HardcorePolicy"];
+  [NSFileManager.defaultManager createDirectoryAtPath:work withIntermediateDirectories:YES attributes:nil error:nil];
+  TestDelegate *delegate = [TestDelegate new];
+  LibretroCoreHost *host = MakeHost(core, work);
+  host.delegate = delegate;
+  host.hardcoreRestrictionsEnabled = YES;
+  host.achievementsConsoleId = 7;
+  host.hardcoreOptionAllowed = ^BOOL(NSString *library, unsigned consoleId, NSString *key, NSString *value) {
+    (void)library; (void)consoleId;
+    return ![key isEqualToString:@"neotest_mode"] || ![value isEqualToString:@"beta"];
+  };
+  NSError *error = nil;
+  CHECK([host loadCore:&error] && [host loadContentAtPath:content error:&error], "Hardcore fixture loads normally");
+  CHECK([host validateHardcoreOptions:&error], "allowed initial core options pass Hardcore preflight");
+  for (int i = 0; i < 3; ++i) [host runFrame];
+  NSData *state = [host serializeState:&error];
+  CHECK(state.length > 0 && [host saveStateToSlot:1 error:&error], "Hardcore still permits creating save states");
+  for (int i = 0; i < 4; ++i) [host runFrame];
+  uint32_t before = delegate.pixel0;
+  error = nil;
+  CHECK(![host loadStateFromSlot:1 error:&error] && error.code == LibretroHostErrorStateRejected,
+        "Hardcore rejects slot loading at the native execution boundary");
+  error = nil;
+  CHECK(![host unserializeState:state error:&error] && error.code == LibretroHostErrorStateRejected,
+        "Hardcore rejects a direct unserialize call bypassing menus and hotkeys");
+  [host runFrame];
+  CHECK(delegate.pixel0 == before + 1, "rejected Hardcore restores never reach the core");
+  [host applyCheats:@[@"CODE-1"]];
+  [host runFrame];
+  size_t size = 0;
+  const uint8_t *ram = [host memoryDataForIdentifier:RETRO_MEMORY_SAVE_RAM size:&size];
+  CHECK(size > 4 && ram[4] == 0, "Hardcore prevents cheat writes at the libretro ABI");
+  CHECK(![host.options setValue:@"beta" forKey:@"neotest_mode" persist:YES],
+        "Hardcore refuses a forbidden menu or core SET_VARIABLE mutation");
+  [host.options applySessionOverrides:@{@"neotest_mode": @"beta"}];
+  CHECK(![[host.options currentValueForKey:@"neotest_mode"] isEqualToString:@"beta"],
+        "Hardcore also filters internal session overrides");
+  CHECK([host validateHardcoreOptions:&error], "rejected option mutations leave Hardcore validation intact");
+  host.fastForwarding = YES;
+  CHECK(host.fastForwarding && [host flushSaveRAM:&error], "Hardcore preserves fast forward and ordinary save RAM");
+  host.hardcoreRestrictionsEnabled = NO;
+  CHECK([host loadStateFromSlot:1 error:&error], "Softcore/off can still restore the saved state");
+  [host applyCheats:@[@"CODE-1"]];
+  [host runFrame];
+  ram = [host memoryDataForIdentifier:RETRO_MEMORY_SAVE_RAM size:&size];
+  CHECK(size > 4 && ram[4] == 1, "Softcore/off retains the existing explicit cheat path");
+  [host unloadWithContextDestroy:nil contextRelease:nil];
+
+  // A removal can reveal an old forbidden default. Failed writes must leave
+  // both the effective value and the persisted choices untouched.
+  NSString *optionsPath = [work stringByAppendingPathComponent:@"Policy.json"];
+  NSString *gamePath = [work stringByAppendingPathComponent:@"PolicyGames.json"];
+  LibretroCoreOptions *options = [[LibretroCoreOptions alloc] initWithStorePath:optionsPath
+                                                                gameStorePath:gamePath gameKey:@"nes/game"];
+  const struct retro_variable variables[] = {{"region", "Region; pal|auto|ntsc"}, {NULL, NULL}};
+  [options declareVariables:variables];
+  CHECK([options setValue:@"auto" forKey:@"region" persist:YES], "safe region fixture saved before policy activation");
+  NSData *originalFile = [NSData dataWithContentsOfFile:optionsPath];
+  options.valueAllowed = ^BOOL(NSString *key, NSString *value) {
+    return ![key isEqualToString:@"region"] || ![value isEqualToString:@"pal"];
+  };
+  uint64_t revision = options.effectiveRevision;
+  CHECK(![options removeValueForKey:@"region" game:NO applyNow:YES],
+        "Hardcore refuses removal that would reveal a forbidden default");
+  CHECK([[options currentValueForKey:@"region"] isEqualToString:@"auto"] &&
+        options.effectiveRevision == revision &&
+        [originalFile isEqualToData:[NSData dataWithContentsOfFile:optionsPath]],
+        "rejected removal is atomic in memory and on disk");
+  CHECK(![options setValue:@"pal" forKey:@"region" game:YES applyNow:YES] &&
+        ![options setValue:@"pal" forKey:@"region" game:YES applyNow:NO],
+        "forbidden per-game mutations cannot bypass Hardcore with next-launch semantics");
+  CHECK([options setValue:@"ntsc" forKey:@"region" game:YES applyNow:YES] &&
+        options.effectiveRevision > revision, "permitted values remain editable and invalidate preflight cache");
+
+  // Existing incompatible settings are diagnosed without erasing or changing
+  // the player's choice. A later ordinary session must see that choice.
+  NSString *badWork = [root stringByAppendingPathComponent:@"HardcorePersistedOption"];
+  NSString *badConfig = [badWork stringByAppendingPathComponent:@"Config/NeoTest.json"];
+  [NSFileManager.defaultManager createDirectoryAtPath:badConfig.stringByDeletingLastPathComponent
+                         withIntermediateDirectories:YES attributes:nil error:nil];
+  NSData *badData = [NSJSONSerialization dataWithJSONObject:@{@"values": @{@"neotest_mode": @"beta"}} options:0 error:nil];
+  [badData writeToFile:badConfig atomically:YES];
+  LibretroCoreHost *bad = MakeHost(core, badWork);
+  bad.hardcoreRestrictionsEnabled = YES;
+  bad.hardcoreOptionAllowed = host.hardcoreOptionAllowed;
+  CHECK([bad loadCore:&error], "incompatible stored option does not prevent ordinary core loading");
+  CHECK(![bad validateHardcoreOptions:&error] &&
+        [[bad.options currentValueForKey:@"neotest_mode"] isEqualToString:@"beta"] &&
+        [badData isEqualToData:[NSData dataWithContentsOfFile:badConfig]],
+        "Hardcore preflight rejects an incompatible stored option without rewriting it");
+  [bad unloadWithContextDestroy:nil contextRelease:nil];
+}
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     if (argc < 5) {
@@ -195,6 +345,8 @@ int main(int argc, const char *argv[]) {
     NSMutableData *rom = [NSMutableData dataWithLength:100];
     for (int index = 0; index < 100; index++) ((uint8_t *)rom.mutableBytes)[index] = (uint8_t)(index + 1);
     [rom writeToFile:content atomically:YES];
+    CheckHardcoreBoundaries(core, work, content);
+    CheckFBNeoHardcoreBoundary(core, work);
 
     // Build 453: the real option store preserves the FastInterp user choice
     // across fresh sessions and refuses values the core does not declare.

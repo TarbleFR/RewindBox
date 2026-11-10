@@ -1,0 +1,1 @@
+{"matrixCases":768,"baselineMissingEvents":256,"baselineSpuriousEvents":512,"candidateEventMismatches":0,"payloadComparisons":1280,"postponedAndJostlingCases":8,"deterministicCasRetryCases":4,"repeatPopRepushCycles":512,"sameChannelPayloadAndNotify":true,"eventLocksReleased":true}

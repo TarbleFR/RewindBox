@@ -114,6 +114,9 @@ partial class Library
                             case 9:
                                 EmbeddedLaunchDiagnostics.ConfigureJournal(path);
                                 break;
+                            case 10:
+                                EmbeddedInspectUnreal(path, json);
+                                break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }
                         json.WriteBoolean("success", true);
@@ -130,6 +133,7 @@ partial class Library
                     string code = error is OperationCanceledException ? "cancelled" : "failed";
                     if (operation == 8) code = EmbeddedLaunchDiagnostics.ErrorCode;
                     if (operation == 2) code = EmbeddedKeyValidation.ErrorCode(error);
+                    if (operation == 4 || operation == 5) code = EmbeddedAddonSelection.ErrorCode(error);
                     if (operation == 1 && code != "cancelled")
                         code = EmbeddedFirmwareProgress.Phase >= 4 ? "firmwareInstallFailed" :
                             error.GetType().Name == "MissingKeyException" ? "firmwareIncompatible" :

@@ -1,0 +1,169 @@
+{
+  "result": "passed",
+  "checks": 46,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "be0e5a59a2cd8c7715648b3ab6e8d09ec5c571ed8ebee71446e46b769f6475bd"
+  },
+  "comparison": {
+    "sameDescriptorsWritten": true,
+    "trace": "92c76272a6586c2b",
+    "binds": 2044,
+    "violations": 0,
+    "referencePasses": 1582,
+    "referencesAddedControl": 1303291,
+    "referencesAddedCandidate": 154752,
+    "getsControl": 1307565,
+    "getsCandidate": 156226,
+    "policyOffIdentical": true,
+    "sensitivityVariantFailed": true
+  },
+  "reports": {
+    "control-on": {
+      "mode": "on",
+      "checks": 8177,
+      "violations": 0,
+      "trace": "92c76272a6586c2b",
+      "descriptors": 36728510,
+      "writeCalls": 1729,
+      "templateCommits": 1102,
+      "setsAllocated": 36,
+      "binds": 2044,
+      "freshViews": 1627,
+      "freshSamplers": 200,
+      "passingReferenced": false,
+      "gets": 1307565,
+      "barriers": 1407073,
+      "textureDirty": 4830,
+      "detail": {
+        "ArrayWholeWrites": 16,
+        "ArrayRangeWrites": 464,
+        "ArrayRangeElements": 93886,
+        "ArrayReferencePasses": 1582,
+        "ArrayReferencesAdded": 1303291,
+        "ArrayCurrentBinds": 139,
+        "ArraySlotsAdded": 8,
+        "ArrayFallbacks": 1425
+      }
+    },
+    "control-off": {
+      "mode": "off",
+      "checks": 8177,
+      "violations": 0,
+      "trace": "9a1117b96b535221",
+      "descriptors": 51806208,
+      "writeCalls": 0,
+      "templateCommits": 1581,
+      "setsAllocated": 35,
+      "binds": 2044,
+      "freshViews": 1627,
+      "freshSamplers": 200,
+      "passingReferenced": false,
+      "gets": 51310214,
+      "barriers": 1407073,
+      "textureDirty": 4830,
+      "detail": {
+        "ArrayWholeWrites": 0,
+        "ArrayRangeWrites": 0,
+        "ArrayRangeElements": 0,
+        "ArrayReferencePasses": 0,
+        "ArrayReferencesAdded": 0,
+        "ArrayCurrentBinds": 0,
+        "ArraySlotsAdded": 0,
+        "ArrayFallbacks": 0
+      }
+    },
+    "candidate-on": {
+      "mode": "on",
+      "checks": 8177,
+      "violations": 0,
+      "trace": "92c76272a6586c2b",
+      "descriptors": 36728510,
+      "writeCalls": 1729,
+      "templateCommits": 1102,
+      "setsAllocated": 36,
+      "binds": 2044,
+      "freshViews": 1627,
+      "freshSamplers": 200,
+      "passingReferenced": false,
+      "gets": 156226,
+      "barriers": 1407073,
+      "textureDirty": 4830,
+      "detail": {
+        "ArrayWholeWrites": 16,
+        "ArrayRangeWrites": 464,
+        "ArrayRangeElements": 93886,
+        "ArrayReferencePasses": 1582,
+        "ArrayReferencesAdded": 154752,
+        "ArrayCurrentBinds": 139,
+        "ArraySlotsAdded": 8,
+        "ArrayFallbacks": 1425
+      }
+    },
+    "candidate-off": {
+      "mode": "off",
+      "checks": 8177,
+      "violations": 0,
+      "trace": "9a1117b96b535221",
+      "descriptors": 51806208,
+      "writeCalls": 0,
+      "templateCommits": 1581,
+      "setsAllocated": 35,
+      "binds": 2044,
+      "freshViews": 1627,
+      "freshSamplers": 200,
+      "passingReferenced": false,
+      "gets": 51310214,
+      "barriers": 1407073,
+      "textureDirty": 4830,
+      "detail": {
+        "ArrayWholeWrites": 0,
+        "ArrayRangeWrites": 0,
+        "ArrayRangeElements": 0,
+        "ArrayReferencePasses": 0,
+        "ArrayReferencesAdded": 0,
+        "ArrayCurrentBinds": 0,
+        "ArraySlotsAdded": 0,
+        "ArrayFallbacks": 0
+      }
+    },
+    "newViewsNotReferenced": {
+      "failedAsExpected": true,
+      "message": "InvalidOperationException: frame 0 round 3: every view and sampler the set references is owned by the command buffer\n   at Program.<<Main>$>g__Check|0_0(Boolean value, String message, <>c__DisplayClas"
+    }
+  },
+  "compiledSources": {
+    "control": {
+      "TextureArray.cs": "1e73e46318cbcd689b9436e289515f3e1f3afcb48920c8a497f17517c4b50d49",
+      "ResourceArray.cs": "d5fd75895705a92f8b839ee39b646b2a491e21a5fcf9c16e7c73970090fbcb63"
+    },
+    "candidate": {
+      "TextureArray.cs": "be0e5a59a2cd8c7715648b3ab6e8d09ec5c571ed8ebee71446e46b769f6475bd",
+      "ResourceArray.cs": "d5fd75895705a92f8b839ee39b646b2a491e21a5fcf9c16e7c73970090fbcb63"
+    },
+    "newViewsNotReferenced": {
+      "TextureArray.cs": "cffcf58df10d51998276b854e2e2fae454e114aa612162bce8e279cd14f03683",
+      "ResourceArray.cs": "d5fd75895705a92f8b839ee39b646b2a491e21a5fcf9c16e7c73970090fbcb63"
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Graphics.Vulkan"
+  ],
+  "productionTextureArrayExecuted": true,
+  "vulkanBoundariesDoubled": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "1e73e46318cbcd689b9436e289515f3e1f3afcb48920c8a497f17517c4b50d49"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_array_reference_deltas.py": "f13093287385765df498e18ad0928c05cd04a2834759391df5e660a360a17684",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_array_reference_deltas_test.py": "a0e2ce376c71368781843b610d24f0b8e6d082f209164a56cb44054ae3f0f78b",
+    "test/melonx_adapter_control.py": "d5e481df20c335071228c256ab56e18ab00d57585b329c6a95bb0e0958d1c163",
+    "test/melonx_array_reference_deltas/Program.cs": "a2f40b24aaaaa1189fb44f91c74b30ba6c2cf5c1b4260a065aac3c8eadb1b562",
+    "test/melonx_array_descriptor_ranges/Boundaries.cs": "882dc7a8660221fdb057f17703380026e890e6ddbf127c74599475966d3d0f08"
+  },
+  "limitation": "The whole production TextureArray with doubled Vulkan, ownership and descriptor set cache; MoltenVK, the render thread time saved and the passes per command buffer of Hogwarts Legacy are known only from a device run (the pass detail line counts reference passes and references added)."
+}

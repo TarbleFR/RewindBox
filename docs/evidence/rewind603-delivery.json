@@ -1,0 +1,221 @@
+{
+  "result": "passed",
+  "build": 603,
+  "version": "0.0.8",
+  "source": "808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd",
+  "run": 41102769156,
+  "job": 124223520172,
+  "artifact": 13000847907,
+  "encryptedArchiveSHA256": "3f8cfd963d67e63da8f4c166fa46fa9c17a2d7459aa6c77eaa98aaf95f2290b4",
+  "encryptedArchiveBytes": 190230045,
+  "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd",
+  "ipaBytes": 189835284,
+  "ipaName": "RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold.ipa",
+  "zipEntries": 5354,
+  "zipCrcVerified": true,
+  "productTrees": {
+    "lib": "9296876c195b848340efcf53f2ecec904d720b7a",
+    "native": "9ff87f370b91fe45924857bdc76d789fe883e496",
+    "packages": "6e40b266828b38664b763286300b1c8f86fc839a",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "603"
+    }
+  },
+  "machOImages": 88,
+  "thinPayloadFingerprintsVerified": 85,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 139,
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 330,
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496
+    },
+    "Frameworks/App.framework/App": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 2,
+      "sha256": "3cd94fa06120b57eedbda3338452361006085baa2787dd72454a622224ee1493",
+      "bytes": 23795536
+    }
+  },
+  "helper": {
+    "scriptSHA256": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
+    "wholeScriptChecks": 99,
+    "protocolChecks": 101,
+    "appleJavaScriptCoreSessions": 14,
+    "exactRelocation": true
+  },
+  "melonx": {
+    "source": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "originalCoreSHA256": "423f2af029a5c1319d518a67114dc0b963ba5399747960cb6155b44014037ddc",
+    "payloadMatched": true,
+    "exports": 47
+  },
+  "rpcs3": {
+    "source": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
+    "originalCoreSHA256": "973f59bf02a1c51989dc880aefb8d4be8c4df6c27c2f1f1a63c240b7341d2bf8",
+    "payloadMatched": true,
+    "exports": 88,
+    "abi": 30
+  },
+  "signaturesVerifiedByAppleCI": 88,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "observedTimings": {
+    "mode": "cold",
+    "commit": "808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd",
+    "phases": [
+      {
+        "phase": "dart_dependencies",
+        "seconds": 1.5760775420000073,
+        "exitCode": 0
+      },
+      {
+        "phase": "ruby_dependencies",
+        "seconds": 1.1422762079999984,
+        "exitCode": 0
+      },
+      {
+        "phase": "host_scaffold_and_registrant",
+        "seconds": 1.5740919580000252,
+        "exitCode": 0
+      },
+      {
+        "phase": "flutter_configuration_and_first_pods",
+        "seconds": 30.41990266700003,
+        "exitCode": 0
+      },
+      {
+        "phase": "cocoa_pods",
+        "seconds": 4.973653959000046,
+        "exitCode": 0
+      },
+      {
+        "phase": "xcode_build",
+        "seconds": 385.01531387500006,
+        "exitCode": 0
+      },
+      {
+        "phase": "signature_and_ipa_export",
+        "seconds": 44.65738162499997,
+        "exitCode": 0
+      }
+    ],
+    "flutterTargets": {
+      "targets": [
+        {
+          "name": "gen_localizations",
+          "skipped": true,
+          "succeeded": true,
+          "elapsedMilliseconds": 14
+        },
+        {
+          "name": "gen_dart_plugin_registrant",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 599
+        },
+        {
+          "name": "release_unpack_ios",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 3415
+        },
+        {
+          "name": "build_hooks",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 13631
+        },
+        {
+          "name": "kernel_snapshot_program",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 53764
+        },
+        {
+          "name": "link_hooks",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 3527
+        },
+        {
+          "name": "install_code_assets",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 9389
+        },
+        {
+          "name": "ios_aot",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 39647
+        },
+        {
+          "name": "release_ios_bundle_flutter_assets",
+          "skipped": false,
+          "succeeded": true,
+          "elapsedMilliseconds": 5385
+        }
+      ]
+    },
+    "xcodeTaskTimingSummary": "\n\nCompileC (380 tasks) | 345.814 seconds\n\nPhaseScriptExecution (17 tasks) | 158.408 seconds\n\nSwiftCompile (23 tasks) | 96.812 seconds\n\nSwiftDriver (23 tasks) | 31.335 seconds\n\nScanDependencies (260 tasks) | 26.842 seconds\n\nCompileStoryboard (2 tasks) | 19.043 seconds\n\nLd (36 tasks) | 17.995 seconds\n\nCompileAssetCatalogVariant (1 task) | 17.501 seconds\n\nGenerateDSYMFile (36 tasks) | 16.226 seconds\n\nValidateEmbeddedBinary (7 tasks) | 13.896 seconds\n\nGenerateAssetSymbols (1 task) | 5.498 seconds\n\nExtractAppIntentsMetadata (23 tasks) | 3.294 seconds\n\nCopyPNGFile (63 tasks) | 3.183 seconds\n\nCpResource (82 tasks) | 1.990 seconds\n\nCpHeader (291 tasks) | 0.854 seconds\n\nProcessInfoPlistFile (66 tasks) | 0.819 seconds\n\nAppIntentsSSUTraining (17 tasks) | 0.785 seconds\n\nWriteAuxiliaryFile (897 tasks) | 0.578 seconds\n\nCopySwiftLibs (1 task) | 0.508 seconds\n\nCopy (163 tasks) | 0.413 seconds\n\nGenerateTAPI (28 tasks) | 0.400 seconds\n\nTouch (66 tasks) | 0.365 seconds\n\nRegisterExecutionPolicyException (66 tasks) | 0.306 seconds\n\nLinkStoryboards (1 task) | 0.149 seconds\n\nLibtool (13 tasks) | 0.126 seconds\n\nSwiftGeneratePch (1 task) | 0.121 seconds\n\nCopyStringsFile (12 tasks) | 0.081 seconds\n\nSwiftDriver Compilation Requirements (23 tasks) | 0.074 seconds\n\nSwiftDriver Compilation (23 tasks) | 0.041 seconds\n\nValidate (1 task) | 0.031 seconds\n\nConcatenate (36 tasks) | 0.021 seconds\n\nSwiftMergeGeneratedHeaders (23 tasks) | 0.016 seconds\n\nLinkAssetCatalog (1 task) | 0.003 seconds\n\nCopyPlistFile (1 task) | 0.001 seconds\n\nnote: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nnote: Run script build phase 'Run Script' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'Runner' from project 'Runner')\nwarning: Run script build phase '[CP-User] Prepare StikJIT framework' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking \"Based on dependency analysis\" in the script phase. (in target 'stikjit_bridge' from project 'Pods')\n** BUILD SUCCEEDED **\n\n",
+    "archive": "SideStore exports the one sealed Payload directly; no Apple exportArchive without profiles",
+    "deviceInstallationTested": false,
+    "retroArchGameplayTested": false
+  },
+  "enginesRecompiled": false,
+  "nativeFixturesReexecuted": false,
+  "physicalDeviceTested": false,
+  "hogwartsCrashCauseProven": false,
+  "gpuStartupDelayFixed": false,
+  "gameplayMeasured": false,
+  "smashRegressionFixed": false,
+  "jobStepMetadataAvailable": false,
+  "executionLogExcerptSHA256": "8526d17d858a15755750fcd848f8ff6bb4dba2e00ada14f5f29cae71a992db43",
+  "executionProof": "Successful run and job metadata, actual job-log excerpt, sealed phase receipts and independently verified payloads",
+  "scriptSHA256": "00ac88599b2cf12cbba2e3d16e4b8e708cbada4f3383699e4cfa75469d78b906",
+  "metadataSHA256": "ef51cab42052de1d6fe9da71b6e6250afc1d55cdd82e38806e358318e9442675",
+  "verifiedUTC": "2026-10-30T18:17:16.039162+00:00"
+}

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+  "tag": "v1.4.2",
+  "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "patch": null,
+  "patchSha256": null,
+  "platform": "ios",
+  "license": "Apache-2.0",
+  "agreement": "Maintainer, 3 Nov 2026: 14:40 agreement to recompile MoltenVK or replace its kept binary; 15:04 go-ahead for this workflow and its runs; 15:23 'keep the latest MoltenVK library, the most recent one'.",
+  "keptBinary": {
+    "path": "src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib",
+    "sha256": "5735ca4aee60ed7e0475b80b8ecdcfc952e4e0b7d49018f11781e51e5106bfa5",
+    "embeddedRevision": "85d607a13d53b78186b53a0dcec0cbe421a4d56b",
+    "embeddedRevisionInKhronosHistory": false,
+    "buildVersion": "iOS, SDK 18.5, minimum 13.0",
+    "exportedVulkanEntryPoints": 428,
+    "exportedVulkanEntryPointsSha256": "42a254c69fc3eb79c3cba8ab808ccfdada98e1a8d7372458e6d64af324e314d9"
+  },
+  "why": "v1.4.2 (newest Khronos release) enables MTLResidencySet on iOS 18 (mvkOSVersionIsAtLeast(15.0, 18.0, 2.0), Apple6 GPUs) and defers useResource in deduplicated lists, which removes upstream the per-descriptor walk measured in 629; the RewindBox argument buffer patch written for 1.4.0 no longer applies and is retired. MVKConfiguration is unchanged from 1.4.0."
+}

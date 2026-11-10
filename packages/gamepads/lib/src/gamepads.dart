@@ -13,6 +13,10 @@ class Gamepads {
 
   static Stream<GamepadEvent> get events => _platform.gamepadEventsStream;
 
+  /// Takes the controller input back once a game session has ended. See
+  /// [GamepadsPlatformInterface.reclaimGamepads].
+  static Future<void> reclaim() => _platform.reclaimGamepads();
+
   static Stream<GamepadEvent> eventsByGamepad(String gamepadId) {
     return events.where((event) => event.gamepadId == gamepadId);
   }

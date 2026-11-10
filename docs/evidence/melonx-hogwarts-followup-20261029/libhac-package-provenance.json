@@ -1,0 +1,15 @@
+{
+  "name": "Ryujinx.LibHac",
+  "version": "0.21.0-alpha.129",
+  "sourceRevision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+  "artifactId": 12302912762,
+  "runId": 39504259828,
+  "runOverallConclusion": "failure; only its completed LibHac package was reused, not the overall run as a passing proof",
+  "archiveBytes": 2361769,
+  "archiveSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+  "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+  "packageRebuilt": false,
+  "historicalSuiteReexecuted": false,
+  "initialPublicRestoreFailed": "NU1102: exact private alpha absent from public feed",
+  "resolvedBy": "Read-only retrieval of the exact prior package; restored with a local feed plus nuget.org."
+}

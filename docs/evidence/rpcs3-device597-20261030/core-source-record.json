@@ -1,0 +1,147 @@
+{
+  "baseline_tree": "2f16663b0a238a8f11230431d374daea252ecc9a",
+  "delta_sha256": "d9e4973033be0eee30b60ab1d39d14a18fb9d5dab124843e6e926ba782bc870f",
+  "delta_bytes": 94686,
+  "files": {
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "status": "M",
+      "before_sha256": "acf9518ceed92ca6024939054a83060b9fdc9dce2f1281dbfed0bebda040a4db",
+      "before_lf_sha256": "acf9518ceed92ca6024939054a83060b9fdc9dce2f1281dbfed0bebda040a4db",
+      "after_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+      "after_lf_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa"
+    },
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "status": "M",
+      "before_sha256": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+      "before_lf_sha256": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+      "after_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after_lf_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440"
+    },
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": {
+      "status": "M",
+      "before_sha256": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+      "before_lf_sha256": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+      "after_sha256": "85c75155f09f2ffd0554fadfbaf9987510173323e008ad09edb70cd6809707ed",
+      "after_lf_sha256": "85c75155f09f2ffd0554fadfbaf9987510173323e008ad09edb70cd6809707ed"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": {
+      "status": "M",
+      "before_sha256": "67b78d21235bc944559b32d07e821f69d93e9f0cc4df0253e33e1f86f399d652",
+      "before_lf_sha256": "4c976a1df2cda8f324595aeac7d44a41000ca106228e68760317bdfb983787a5",
+      "after_sha256": "742e1c536d53f7279cd3ca0fff9df729dc2c99e8a33c5721273f52b663f2fef6",
+      "after_lf_sha256": "c1a5d71f20f6fa5dfdd9b1277a0b1dec0b7e6018027bd6767386d30c29434824"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp": {
+      "status": "M",
+      "before_sha256": "370ef0ef8221cd72cbe9435fc8cb387640b6b0629c0e0cd4585ef737d21ea893",
+      "before_lf_sha256": "38a2aca840e02905f33fccd34377cc1146a294996c65cf604024ef0c7da8da22",
+      "after_sha256": "233ff027cc3bb660cd5c5d6e812782b9fab438d844a7606a3f504ede24374576",
+      "after_lf_sha256": "c5ca7d51fb7a195796f5a474c4fbec6d513ca475e7c3373433a73444defaf13f"
+    },
+    "rpcs3/Emu/RSX/RSXThread.cpp": {
+      "status": "M",
+      "before_sha256": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
+      "before_lf_sha256": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
+      "after_sha256": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
+      "after_lf_sha256": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f"
+    },
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": {
+      "status": "M",
+      "before_sha256": "afd51290efacad8fdb43947f4f4d9e4996fd3095356699f3d1804508a9a3513f",
+      "before_lf_sha256": "afd51290efacad8fdb43947f4f4d9e4996fd3095356699f3d1804508a9a3513f",
+      "after_sha256": "2a3c919ec0f6dd8743b7705085d1231e093bfc07fc2a42356b433bfb3a0fe731",
+      "after_lf_sha256": "2a3c919ec0f6dd8743b7705085d1231e093bfc07fc2a42356b433bfb3a0fe731"
+    },
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": {
+      "status": "M",
+      "before_sha256": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+      "before_lf_sha256": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+      "after_sha256": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "after_lf_sha256": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494"
+    },
+    "rpcs3/Emu/RSX/VK/VKPresent.cpp": {
+      "status": "M",
+      "before_sha256": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+      "before_lf_sha256": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+      "after_sha256": "afadbb3088f709382b5e7fb4217d2cd038a608972f648063c94b66152d6919ab",
+      "after_lf_sha256": "afadbb3088f709382b5e7fb4217d2cd038a608972f648063c94b66152d6919ab"
+    },
+    "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp": {
+      "status": "M",
+      "before_sha256": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0",
+      "before_lf_sha256": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0",
+      "after_sha256": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+      "after_lf_sha256": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp": {
+      "status": "A",
+      "before_sha256": null,
+      "before_lf_sha256": null,
+      "after_sha256": "2c87816317eeabe688e2b68c895ab4ad066c268eb8f6343a6dfe03c5e6212fca",
+      "after_lf_sha256": "2c87816317eeabe688e2b68c895ab4ad066c268eb8f6343a6dfe03c5e6212fca"
+    },
+    "rpcs3/ios/IOSCompilePressure.h": {
+      "status": "M",
+      "before_sha256": "d62e305fc5ddba3565e31014044ce9c399feff304b16bcd5148fc6837c97e5a9",
+      "before_lf_sha256": "d62e305fc5ddba3565e31014044ce9c399feff304b16bcd5148fc6837c97e5a9",
+      "after_sha256": "b45b0415882dce357734d04495948b6815dcf3e8a1683bfaca02b37f5856548f",
+      "after_lf_sha256": "b45b0415882dce357734d04495948b6815dcf3e8a1683bfaca02b37f5856548f"
+    },
+    "rpcs3/ios/IOSFrameTrace.h": {
+      "status": "A",
+      "before_sha256": null,
+      "before_lf_sha256": null,
+      "after_sha256": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3",
+      "after_lf_sha256": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3"
+    },
+    "rpcs3/ios/IOSRendererCausality.h": {
+      "status": "A",
+      "before_sha256": null,
+      "before_lf_sha256": null,
+      "after_sha256": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+      "after_lf_sha256": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413"
+    },
+    "rpcs3/ios/IOSRsxSyncProfile.h": {
+      "status": "M",
+      "before_sha256": "1c5c9f29739196f736c9ca3bb65763280326485feff07fe39742813d36b66efe",
+      "before_lf_sha256": "1c5c9f29739196f736c9ca3bb65763280326485feff07fe39742813d36b66efe",
+      "after_sha256": "d87c8394ed4772255edf01a592b9ad08eed4dd79295886f569894f56cb14c04c",
+      "after_lf_sha256": "d87c8394ed4772255edf01a592b9ad08eed4dd79295886f569894f56cb14c04c"
+    },
+    "rpcs3/ios/IOSSignalTrace.h": {
+      "status": "A",
+      "before_sha256": null,
+      "before_lf_sha256": null,
+      "after_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "after_lf_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
+    },
+    "rpcs3/ios/IOSTextureHash.cpp": {
+      "status": "M",
+      "before_sha256": "561c3a31438f3c492493c778bbeebba8291e180a29defab75a34c86b45688e72",
+      "before_lf_sha256": "561c3a31438f3c492493c778bbeebba8291e180a29defab75a34c86b45688e72",
+      "after_sha256": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc",
+      "after_lf_sha256": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc"
+    },
+    "rpcs3/ios/IOSTextureHash.h": {
+      "status": "M",
+      "before_sha256": "83d4f2a310604a5a72d83e25e8a1180ca8acba3cd4069394166bdfa3e3393724",
+      "before_lf_sha256": "83d4f2a310604a5a72d83e25e8a1180ca8acba3cd4069394166bdfa3e3393724",
+      "after_sha256": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816",
+      "after_lf_sha256": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816"
+    },
+    "rpcs3/ios/IOSTexturePrehash.h": {
+      "status": "M",
+      "before_sha256": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+      "before_lf_sha256": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+      "after_sha256": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235",
+      "after_lf_sha256": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235"
+    },
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": {
+      "status": "M",
+      "before_sha256": "3d4d593c63d835a582482fadf9449e120efd0f0b434c237a29fcbc7871a9e26c",
+      "before_lf_sha256": "3d4d593c63d835a582482fadf9449e120efd0f0b434c237a29fcbc7871a9e26c",
+      "after_sha256": "cc7a7d2871f498439eaad41fbacfce1928fa4f89e38d05a8efb448022b9ef1cb",
+      "after_lf_sha256": "cc7a7d2871f498439eaad41fbacfce1928fa4f89e38d05a8efb448022b9ef1cb"
+    }
+  }
+}

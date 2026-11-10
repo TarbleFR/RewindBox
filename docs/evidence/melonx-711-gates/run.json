@@ -1,0 +1,217 @@
+{
+ "schema": 1,
+ "date": "2026-11-09",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 711,
+ "lot": 5,
+ "base": "Core 709 (b73459da, Core CI run 42634615592 green; not pinned)",
+ "deviceBaseline": "IPA 694 / Core 699 (maintainer)",
+ "finding": {
+  "coverage": "a cached program warms up one graphics state (ProgramPipelineState); its other states were created on the render thread every session and recorded nowhere; guest compute has one key (SpecData.Empty), already warmed up",
+  "inputs": "IPA 688/690: 27-28 compiled again in each first minute; render-thread pipeline waits 0.85-3.4 s per window on first visits; IPA 684 compute prepare 3.5-3.7 s per window (board, private journals not in the repository)"
+ },
+ "change": "adapt_pipeline_variant_replay (PipelineCacheManager.cs, ShaderCollection.cs, PipelineBase.cs, PipelineState.cs)",
+ "postimages": {
+  "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
+  "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "c721da2bbaa47c6b37d0dcfd46dc3fab890f7e5cc41f4d0cd935ab464a67b1de",
+  "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
+  "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6"
+ },
+ "review": "rb-core-review (source only): no deadlock, no queued-table race, no endless join, no draw lost; 5 defects fixed (ageing, compaction race, failure markers through compaction, resume after a memory hold, renderer failure report)",
+ "maintainerChecks": "failure kinds (strike / temporary / cancelled), memory hold limited to speculative work, promote/take/cancel race, ready-before-first-draw and joins in the summary",
+ "gate": {
+  "checks": 107,
+  "codec": {
+   "states": 3000,
+   "readBack": 3000,
+   "sameKey": 3000,
+   "sameHash": 3000,
+   "sameSlots": 3000,
+   "sameTessellation": 3000,
+   "deterministic": 3000,
+   "maxBytes": 1440
+  },
+  "priority": {
+   "waitedMs": 41,
+   "warmUpsQueued": 20,
+   "warmUpsBeforeIt": 1,
+   "compilesOfIt": 1,
+   "waiters": 8
+  },
+  "close": {
+   "planned": 40,
+   "executed": 3,
+   "executedAfterClose": 0,
+   "failedMarked": 0,
+   "nextPlanned": 40
+  },
+  "failure": {
+   "launch2": [
+    4,
+    1,
+    1,
+    2
+   ],
+   "launch3": [
+    4,
+    1,
+    1,
+    2
+   ],
+   "launch4": [
+    3,
+    1,
+    0,
+    2
+   ],
+   "launch4LateAfterFailed": 1,
+   "launch5Planned": 4
+  },
+  "memory": {
+   "executedWhileShort": 0,
+   "holds": 1,
+   "demandedServedWhileShort": true
+  },
+  "race": {
+   "rounds": 200,
+   "ranOnce": 4,
+   "cancelled": 196,
+   "inconsistent": 0,
+   "hung": 0,
+   "runningRefusedCancel": 20,
+   "runningCompleted": 20
+  },
+  "refresh": {
+   "readyBeforeUse": 10,
+   "session": 12,
+   "usedStillPlanned": true,
+   "unusedStillPlanned": false
+  },
+  "bounds": {
+   "lateNew": 2100,
+   "fileBytes": 595984,
+   "reloaded": 2048,
+   "loadMs": 3,
+   "backgroundConstructorMs": 0
+  },
+  "cap": {
+   "planned": 600,
+   "replayed": 512,
+   "executed": 512
+  },
+  "evicted": {
+   "inFileBeforeEviction": true,
+   "inFileAfterEviction": false,
+   "plannedAtEviction": 2,
+   "launchesPlannedWhileMarked": 0,
+   "replayedAfterMarkerExpiry": false,
+   "plannedAfterADraw": true
+  }
+ },
+ "gatesRun": {
+  "fragmented-reads-checks.json": "7596ba5a0d1bc49bee6cd0fec7cd330dabb6b99d6f243f736cfcc34cd2d28407",
+  "performance-diagnostics-checks.json": "bdcc004dfbe3d4a69eaec05345e11e1b6e8d11d7b78a550b6d5838375ca1f26a",
+  "hogwarts-dma-copies-checks.json": "193a2558512703c9aa3dc5d9c25bd7009448562c407f8f0b0e0bc9ebf8ebfd8c",
+  "pipeline-checkpoint-checks.json": "1da13337f221c9cbec5a69019d42fecaf0e3de1749725133ea630e602ea4d5cd",
+  "scalar-texture-descriptor-checks.json": "734dc1defce8b47758e6170ce12830a9ef0cd5ce7887fddca8f6db4c5a87b7b5",
+  "fallback-descriptor-scratch-checks.json": "cfa52b7e8e154a69e15a0c7527827d34f614fa8dafbd39e262038dc795b18d69",
+  "pipeline-warmup-parity-checks.json": "5f99ffafd9460a94cb8f4c7b25a1e6d0472d99b09ac4f11396aa95b783113cc4",
+  "moltenvk-barrier-ordering-checks.json": "abecdd2aad19c848dcf72da1df950eeeeddeb41d91ba182ef283a968a0039394",
+  "pipeline-miss-context-checks.json": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+  "teardown-compile-cancel-checks.json": "0a19866eead0e4c595d146c5914a8c287112bb4933ea8b6a34e845f6dc6d460d",
+  "artifact-counters-checks.json": "5ab62c4096dede25294fa92eda4dfd4cbefea2b61ec9f2978e5b1d2abd3bae3d",
+  "warmup-key-parity-checks.json": "d7c8005954ed431a5e9af56841fb35983402c4615fa0bd1d16a96e316d3210bc",
+  "setprogram-warmup-checks.json": "35672239c4f22b386dda909fd998969918f51a0a33b2a5a0797ff80bf48d531c",
+  "teardown-cache-checks.json": "6f7603b514cfae2beef6a5399abd10d7ed7caa5a5f8be61fc63f0e163fb21f11",
+  "bindless-retention-checks.json": "5f564a5de8f93f50af11f2540902e434c0b52171f6c470ec2f93b378ac294fe9",
+  "moltenvk-stage-ordering-checks.json": "8468340e320513f934fe4410bf4f01ce67bf2d848e2f4bc0b228455c522bc0db",
+  "main-cache-checkpoint-checks.json": "7e8bdf5b23ce6e72b6bc93d24a1623175bdaac34c4441614eb9d48248d6f9018",
+  "checkpoint-side-cache-checks.json": "71169f58eacd08e39de4b5175aa701dc47aca8b2533a96a6e4cb043d55ac221c",
+  "pipeline-cache-room-checks.json": "97b5bff28e35346cfcf891aa3dcb68602df05b0eb70df2948db59b24060516c0",
+  "pipeline-cache-persist-checks.json": "9060c8297f2bd1e31b0467dc841c6e9d82d304eddae64caf5bbb924069de94e1",
+  "pipeline-build-journal-checks.json": "4795e76ef4b90618177dab525b5188349c837fb2b34798428665d3307e489357",
+  "pipeline-cache-growth-checks.json": "b179f8765123d56c4c02a037a22bf40805d1e1ce89c7f32c69217c6d3df03bd9",
+  "async-regenerated-targets-checks.json": "1bafb3c4a37d1821dfc2aaca94a9c12486e27358f3326b0ca9ad44ac2086f31a",
+  "pipeline-failure-identity-checks.json": "8921a2a8a941ba99cdec92e316a0ac4c0af546e3c4d16a35289162b209ce7861",
+  "worker-main-cache-lookup-checks.json": "ab82f5525ffb12cce8491847c35511d0a56bd58182bd07bfb455ad957415142e",
+  "pipeline-cache-background-checks.json": "4d589dcd7557ecb28a35677872221dc995597886238ab3cc8beecb3145a8212c",
+  "same-program-descriptors-checks.json": "c3f5054d522cceb7c0489cd54e84dca5da92845e2363fb494541251b1b764e57",
+  "pipeline-variant-replay-checks.json": "d2b89656a39ecc39ff7cca919b96c9c47fd80987505ece9fd3d04e70bba6678e"
+ },
+ "otherReceiptsForFreeze": "the 43 gates whose files Core 711 does not change: receipts of Core 709 CI run 42634615592 (artifact 13685196805, sha256 2089a96f9d1ffec5980b7ae1749b7fb421e9d6f0f0cd631641f055098cdc5441), read by the freeze for their control preimages only; the Core CI reruns every fresh gate",
+ "contract": {
+  "sha256": "e3cc304acaf371eaa1ce9dd68ac01b2957eb596db8bb003cdd46584f3859395c",
+  "freshAppleGates": 71,
+  "preparationInputs": 190,
+  "preparedMembers": 206,
+  "contractTest": "439 checks with the authenticated archive",
+  "localGateValidation": "28 fresh receipts validated against the frozen contract (13 rerun for this revision, 15 unchanged files)"
+ },
+ "verifiedWithoutVulkan": [
+  "codec round trip on the real PipelineState (3000 random states, PipelineUid Equals/GetHashCode)",
+  "journal file format, staleness, bounds, failure markers",
+  "replay ranking, bounds, memory hold, demand promotion, joins, close and races on the real BackgroundCompilationScheduler",
+  "render pass layout mirrors RenderPassHolder (source)"
+ ],
+ "toValidateOnDevice": [
+  "MoltenVK accepts the rebuilt render pass and creates the pipeline",
+  "replayed key equals the draw key for real Hogwarts states (built but missed 0, ready before first draw > 0)",
+  "Metal compile cost and native memory of replayed pipelines",
+  "launch to first frame unchanged",
+  "replays run at Hogwarts usual 4-10 % device memory (held for memory)"
+ ],
+ "physicalDeviceTested": false,
+ "ipa": "none (maintainer)",
+ "revisions": [
+  {
+   "contract": "ea2ba417",
+   "commit": "914ea9d2",
+   "note": "first freeze; a recipe suspended after two strikes was removed only when another compaction ran"
+  },
+  {
+   "contract": "e3cc304a",
+   "commit": "(this commit)",
+   "note": "the load that suspends a recipe compacts at once; documentation states eviction until a successful draw; gate 107 checks; 12 PipelineCacheManager-bound gates rerun green"
+  }
+ ],
+ "policy": "two strikes evict the recipe at the next load (removed from the file); never replayed automatically again; back only when a draw creates the state successfully (re-recorded, marker cleared); the marker lasts 8 sessions and its expiry replays nothing",
+ "proofScope": "rebuilt earlier gates verify their historical behaviours and source composition; the new gate creates no real Vulkan pipeline; no scenario validates the final manager during load, replay and close on a real backend",
+ "proposedTargetedTest": "in the existing iOS simulator runtime smoke (real MoltenVK, final manager, two sessions): read session 2 pipelineVariants lines; require built but missed 0 and no refused replay when one is replayed; report not exercised otherwise",
+ "ciRuns": [
+  {
+   "commit": "914ea9d2",
+   "contract": "ea2ba417",
+   "run": 42669419054,
+   "job": 129341657099,
+   "conclusion": "success",
+   "artifact": {
+    "id": 13700246784,
+    "bytes": 90994066,
+    "sha256": "ef110c96212acf71a270353274b700c508b56feef09717245d37ddde0f0c030c"
+   },
+   "binaries": {
+    "ios-arm64": "59425ce53d32a88dcae703275328e56e5d1a24888e3ccd0b901546903e6184cd",
+    "iossimulator-arm64": "7714fe6d17e791fd1945eb230395d85a52765ac426cf40ed7d56130b9dc2958e"
+   },
+   "freshAppleGates": 71,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "note": "first freeze (eviction waited for another compaction)"
+  },
+  {
+   "commit": "b60d0c0e",
+   "contract": "e3cc304a",
+   "run": 42671662153,
+   "job": 129356932199,
+   "conclusion": "failure",
+   "failedStep": "8: Run five affected final-source gates",
+   "artifact": {
+    "id": 13703016859,
+    "bytes": 5797273,
+    "sha256": "d7ddd0bef8fc60e551fe9542c6475e2f14be4b0df55980cbfebd46217a29cd9f",
+    "content": "gate receipts and logs only, no engine binary"
+   },
+   "classification": "harness: gate pipeline-variant-replay, failure scenario, launch 2 [4, 1, 0, 3] instead of [4, 1, 1, 2]; the memory-short replay lowered a device-memory value shared by both replays in flight, so the deterministic failure was classified while memory read short (temporary, as the journal rightly does); not a product defect",
+   "fix": "Core 713: the harness lowers memory only once every other replay of the launch has its outcome (green locally, also with every core busy)"
+  }
+ ]
+}

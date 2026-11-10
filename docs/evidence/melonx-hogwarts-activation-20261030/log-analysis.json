@@ -1,0 +1,49 @@
+{
+  "logSHA256": "ae2dea5d2a4be08d5f7092ef264a5cc3674e2341d7f2dfac23994ac48acfe64e",
+  "logBytes": 3310166,
+  "totalSessions": 17,
+  "latestSessions": [
+    {
+      "start": "2026-10-30T06:09:32.162391Z",
+      "nonzeroRunningSamples": 66,
+      "runningFPSMedian": 4.15,
+      "below10FPSMedian": 4.05,
+      "footprintMiB": [
+        2433,
+        3623
+      ],
+      "availableMiB": [
+        3032,
+        4222
+      ],
+      "configuration": "Applied graphics: resolution=1; shaderCache=True; asyncShaders=True; vsync=Unbounded; hostMemoryBudget=True; textureRecompression=True; threading=On",
+      "jit1024MiBVerified": true,
+      "perfSummary": "end: 89 s sampled, 89 lines; game FPS 14.0 on average while running; 664 frames presented, 236 gaps over 20 ms, 226 over 40 ms; 237 late DSP episodes (5168.6 ms), 686 skipped; 115 audio starvations (156.9 ms); hottest thermal state nominal",
+      "closePassed": true,
+      "donorReleased": true
+    },
+    {
+      "start": "2026-10-30T06:11:22.346669Z",
+      "nonzeroRunningSamples": 69,
+      "runningFPSMedian": 4.2,
+      "below10FPSMedian": 3.9,
+      "footprintMiB": [
+        3151,
+        4094
+      ],
+      "availableMiB": [
+        2561,
+        3504
+      ],
+      "configuration": "Applied graphics: resolution=1; shaderCache=True; asyncShaders=False; vsync=Switch; hostMemoryBudget=True; textureRecompression=True; threading=On",
+      "jit1024MiBVerified": true,
+      "perfSummary": "end: 102 s sampled, 102 lines; game FPS 7.5 on average while running; 564 frames presented, 547 gaps over 20 ms, 225 over 40 ms; 175 late DSP episodes (6761.7 ms), 1148 skipped; 87 audio starvations (117.9 ms); hottest thermal state nominal",
+      "closePassed": true,
+      "donorReleased": true
+    }
+  ],
+  "exactApplicationBuildAttested": false,
+  "exactCoreSourceAttested": false,
+  "settingsComparisonControlled": false,
+  "physicalGPUBusyPercentMeasured": false
+}

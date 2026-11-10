@@ -1,0 +1,39 @@
+  Ryujinx.Common -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Common/bin/Release/net10.0/linux-x64/Ryujinx.Common.dll
+  Spv.Generator -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Spv.Generator/bin/Release/net10.0/linux-x64/Spv.Generator.dll
+  Ryujinx.Graphics.Shader -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Shader/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Shader.dll
+  Ryujinx.Graphics.GAL -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.GAL/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.GAL.dll
+  Ryujinx.Graphics.Vulkan -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Vulkan/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Vulkan.dll
+  Ryujinx.Memory -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Memory/bin/Release/net10.0/linux-x64/Ryujinx.Memory.dll
+  ARMeilleure -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/ARMeilleure/bin/Release/net10.0/linux-x64/ARMeilleure.dll
+  Ryujinx.Cpu -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Cpu/bin/Release/net10.0/linux-x64/Ryujinx.Cpu.dll
+  Ryujinx.Audio -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Audio/bin/Release/net10.0/linux-x64/Ryujinx.Audio.dll
+  Ryujinx.Graphics.Device -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Device/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Device.dll
+  Ryujinx.Graphics.Host1x -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Host1x/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Host1x.dll
+  Ryujinx.Graphics.Video -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Video/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Video.dll
+  Ryujinx.Graphics.Nvdec.FFmpeg -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Nvdec.FFmpeg/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.FFmpeg.dll
+  Ryujinx.Graphics.Nvdec.Vp9 -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Nvdec.Vp9/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.Vp9.dll
+  Ryujinx.Graphics.Texture -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Texture/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Texture.dll
+  Ryujinx.Graphics.Nvdec -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Nvdec/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.dll
+  Ryujinx.Graphics.Vic -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Vic/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Vic.dll
+  Ryujinx.Horizon.Common -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Horizon.Common/bin/Release/net10.0/linux-x64/Ryujinx.Horizon.Common.dll
+  Ryujinx.Horizon.Generators -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Horizon.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.Horizon.Generators.dll
+  Ryujinx.Horizon -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Horizon/bin/Release/net10.0/linux-x64/Ryujinx.Horizon.dll
+  Ryujinx.Graphics.Gpu -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.Gpu/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Gpu.dll
+  Ryujinx.HLE.Generators -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.HLE.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.HLE.Generators.dll
+  Ryujinx.Horizon.Kernel.Generators -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Horizon.Kernel.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.Horizon.Kernel.Generators.dll
+  Ryujinx.HLE -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.HLE/bin/Release/net10.0/linux-x64/Ryujinx.HLE.dll
+  Ryujinx.Input -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Input/bin/Release/net10.0/linux-x64/Ryujinx.Input.dll
+  Ryujinx.SDL3.Common -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.SDL3.Common/bin/Release/net10.0/linux-x64/Ryujinx.SDL3.Common.dll
+  Ryujinx.Input.SDL3 -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Input.SDL3/bin/Release/net10.0/linux-x64/Ryujinx.Input.SDL3.dll
+  Ryujinx.Audio.Backends.SDL3 -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Audio.Backends.SDL3/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.SDL3.dll
+  Ryujinx.Graphics.OpenGL -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Graphics.OpenGL/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.OpenGL.dll
+  Ryujinx.Audio.Backends.OpenAL -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Audio.Backends.OpenAL/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.OpenAL.dll
+  Ryujinx.Audio.Backends.Apple -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Audio.Backends.Apple/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.Apple.dll
+  Ryujinx.Input.Native -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Input.Native/bin/Release/net10.0/linux-x64/Ryujinx.Input.Native.dll
+  Ryujinx.Library -> /workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Library/bin/Release/net10.0/linux-x64/Ryujinx.Library.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.96

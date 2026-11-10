@@ -25,11 +25,19 @@ assert 'budgetCount >= 128' in host
 # protects both the one-second window and its count; rejection precedes output.
 assert 'if (!profiler) {' in core_log
 assert core_log.index('os_unfair_lock_lock(&budgetLock);') < core_log.index('now - budgetWindow >= 1.0')
-assert core_log.index('now - budgetWindow >= 1.0') < core_log.index('if (budgetCount >= 128) allowed = NO;')
-assert core_log.index('if (budgetCount >= 128) allowed = NO;') < core_log.index('else budgetCount++;')
+assert core_log.index('now - budgetWindow >= 1.0') < core_log.index('if (budgetCount >= 128) {')
+assert core_log.index('if (budgetCount >= 128) {') < core_log.index('allowed = NO;') < core_log.index('else budgetCount++;')
+# CELL546: refused lines are counted under the lock and reported outside it.
+assert core_log.index('os_unfair_lock_unlock(&budgetLock);') < core_log.index('if (dropped) RPCS3ReportDroppedLines(dropped);') < core_log.index('if (!allowed) return;')
 assert core_log.index('else budgetCount++;') < core_log.index('os_unfair_lock_unlock(&budgetLock);')
 assert core_log.index('os_unfair_lock_unlock(&budgetLock);') < core_log.index('if (!allowed) return;')
-assert core_log.index('if (!allowed) return;') < core_log.index('RPCS3Diagnostic(@"core_log", text);')
+# REWINDBOX_CORE_LOG_BOUNDED_621: an admitted line then goes to the repeat
+# collapse and the bounded asynchronous writer; a fatal-level or FREEZE_EPISODE
+# line leaves before this budget (never refused), so the budget code below stays
+# the one the MoltenVK dependency run's milestones test compiled.
+assert core_log.index('if (!allowed) return;') < core_log.index('RPCS3AdmitCoreLog(level, message, profiler, text);')
+assert core_log.index('if (level == 1 || strstr(message, "FREEZE_EPISODE ") != nullptr) {') < core_log.index('  const BOOL profiler =')
+assert core_log.count('RPCS3AdmitCoreLog(') == 2 and 'RPCS3Diagnostic(@"core_log", text);' not in core_log
 assert 'RPCS3Milestone(@"core_load_begin"' in host
 assert 'RPCS3Milestone(@"core_initialize_begin"' in host
 assert 'RPCS3Milestone(@"game_boot_begin"' in host
@@ -62,6 +70,12 @@ using os_unfair_lock = int;
 static double testNow = 1.0;
 static unsigned lockDepth = 0, locks = 0, unlocks = 0;
 double CACurrentMediaTime() { return testNow; }
+static unsigned reportedDropped = 0, reports = 0;
+void RPCS3ReportDroppedLines(uint32_t dropped) {
+  assert(lockDepth == 0);
+  reportedDropped += dropped;
+  ++reports;
+}
 void os_unfair_lock_lock(os_unfair_lock*) {
   assert(lockDepth++ == 0);
   ++locks;
@@ -98,12 +112,19 @@ int main() {
   testNow = 1.999;
   assert(!permitLog(5, "NEOSWAP_VDEC released=1"));
 
+  assert(reports == 0);
+
   // At one second the shared budget renews; VDEC is never exempt from it.
+  // CELL546: the three lines refused in the first second are reported once.
   testNow = 2.0;
   for (unsigned i = 0; i < 128; ++i)
     assert(permitLog(5, "NEOSWAP_VDEC restored=1"));
+  assert(reports == 1 && reportedDropped == 3);
   assert(!permitLog(5, "NEOSWAP_VDEC restored=1"));
   assert(!permitLog(0, "ordinary notice"));
+  testNow = 3.0;
+  assert(permitLog(1, "ordinary error"));
+  assert(reports == 2 && reportedDropped == 5);
   assert(lockDepth == 0 && locks == unlocks);
 }
 '''

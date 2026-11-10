@@ -1,0 +1,212 @@
+{
+  "scope": "stale prehash publication ordering only",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "machine": "x86_64",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-fno-omit-frame-pointer"
+  ],
+  "sanitizer": "",
+  "sourceSHA256": {
+    "before": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+    "after": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235"
+  },
+  "namespaceAdaptations": {
+    "before": {
+      "operation": "replace namespace identifier only",
+      "sha256": "dfba1e6958c7f16f5071e66c1517e7a6b9bbd6b36d4960622fb89598fcb3bf66"
+    },
+    "after": {
+      "operation": "replace namespace identifier only",
+      "sha256": "624bab39c96f3460ff763cca7d9ff086dec00075bd64b9e27515d62bdd46f496"
+    }
+  },
+  "harnessSHA256": "f27c79e78f5b10cfb64b7ecea24ac7c4c522bb0f9b8e8cae61007ea2a8ffe2be",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainClaimed": false,
+  "guestPayloadBoundary": "deterministic key/epoch oracle; no real texture reads",
+  "buildReturnCode": 0,
+  "limits": [
+    "Concurrency stress is not a proof of all C++ interleavings.",
+    "Acquire ordering proof is reviewed separately; TSan does not detect every wrong atomic memory order.",
+    "Timings measure isolated host publication calls; retained negative samples are not iPhone timings.",
+    "Logical fallback-range bytes model demand misses; they are not measured device bandwidth."
+  ],
+  "runReturnCode": 0,
+  "passed": true,
+  "baseline": {
+    "sameKeyStaleEvictions": 1024,
+    "collidingKeyStaleEvictions": 1024,
+    "sameEpochReplacements": 1024,
+    "newerEpochReplacements": 1024,
+    "busyReturns": 3,
+    "replayFallbackLookups": 4096,
+    "modeledReplayFallbackRangeBytes": 268435456
+  },
+  "candidate": {
+    "sameKeyStaleEvictions": 0,
+    "collidingKeyStaleEvictions": 0,
+    "sameEpochReplacements": 1024,
+    "newerEpochReplacements": 1024,
+    "busyReturns": 3,
+    "replayFallbackLookups": 0,
+    "modeledReplayFallbackRangeBytes": 0
+  },
+  "baselineConcurrent": {
+    "writerCalls": 300000,
+    "readerHits": 19572,
+    "readerMisses": 180428,
+    "sampledEpochRegressions": 401,
+    "payloadErrors": 0
+  },
+  "candidateConcurrent": {
+    "writerCalls": 300000,
+    "readerHits": 43921,
+    "readerMisses": 156079,
+    "sampledEpochRegressions": 0,
+    "payloadErrors": 0
+  },
+  "timingsNsPerPublish": [
+    {
+      "pattern": 0,
+      "iterationsPerSample": 300000,
+      "samples": [
+        {
+          "baseline": 3.13451,
+          "candidate": 3.21784,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.08928,
+          "candidate": 3.07756,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.0831,
+          "candidate": 3.13318,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.14159,
+          "candidate": 3.0547,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.16469,
+          "candidate": 3.13735,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.11962,
+          "candidate": 3.16246,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.4157,
+          "candidate": 3.17935,
+          "first": "baseline"
+        }
+      ],
+      "baselineMedianNs": 3.13451,
+      "candidateMedianNs": 3.13735,
+      "percentChange": 0.09060427307616692
+    },
+    {
+      "pattern": 1,
+      "iterationsPerSample": 300000,
+      "samples": [
+        {
+          "baseline": 4.17252,
+          "candidate": 4.25451,
+          "first": "baseline"
+        },
+        {
+          "baseline": 4.1144,
+          "candidate": 3.93587,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.70673,
+          "candidate": 4.3431,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.8029,
+          "candidate": 3.94956,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.54165,
+          "candidate": 3.80093,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.81602,
+          "candidate": 4.02991,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.623,
+          "candidate": 3.88446,
+          "first": "baseline"
+        }
+      ],
+      "baselineMedianNs": 3.8029,
+      "candidateMedianNs": 3.94956,
+      "percentChange": 3.8565305424807406
+    },
+    {
+      "pattern": 2,
+      "iterationsPerSample": 300000,
+      "samples": [
+        {
+          "baseline": 3.98591,
+          "candidate": 4.05107,
+          "first": "baseline"
+        },
+        {
+          "baseline": 4.10245,
+          "candidate": 4.00974,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.75654,
+          "candidate": 3.9342,
+          "first": "baseline"
+        },
+        {
+          "baseline": 4.12895,
+          "candidate": 3.8863,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.83302,
+          "candidate": 4.23805,
+          "first": "baseline"
+        },
+        {
+          "baseline": 3.80931,
+          "candidate": 3.65598,
+          "first": "candidate"
+        },
+        {
+          "baseline": 3.85057,
+          "candidate": 4.1576,
+          "first": "baseline"
+        }
+      ],
+      "baselineMedianNs": 3.85057,
+      "candidateMedianNs": 4.00974,
+      "percentChange": 4.133673715839481
+    }
+  ]
+}

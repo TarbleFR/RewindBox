@@ -1,0 +1,92 @@
+{
+  "passed": true,
+  "baselineCommit": "571dbc0849caa55c76be797b649c8abf79de5053",
+  "branchBaseCommit": "58809ae610d51950c54a719598aac3c2675a79c4",
+  "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patchSHA256": "1ee71b4e78b145fa9d8a902d26c201516debef01c036df5f3e61a2a9d8ffa774",
+  "fixtureSHA256": "97e67b1c1bf9cf67a929d8da2ef2a51d96c9fe4973c6fbbe97136b0f04b11d0e",
+  "canonicalPostimagesVerified": 311,
+  "unchangedDeliveredPostimages": 298,
+  "changedDeliveredPostimages": 10,
+  "newlyCoveredExistingUpstreamFiles": [
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp"
+  ],
+  "sourceRawSHA256": {
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "rpcs3/ios/IOSMoltenVKExecQueue.h": "21bbc64eec0d18e8c439dd59145b3596a9f53c1c4774502e666261bdc949cfff",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "c9da4597bd0930f6dd0693d54f0430a0e213817a3fcad599d08f5c5fbd7ec94a",
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp": "da387f5250e208319fd89102169d501efd238658565c09511d7c83edaa33e54f",
+    "Utilities/JITLLVM.cpp": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+    "rpcs3/ios/RPCS3IOSPlatform.mm": "9ca15ecec27764d9923e6aba72b64edbba3d2a33ff46d4977ec42ff614272445",
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "3bc3d15ad80f11006df6a79171bb5291b7aed9ba90cd1072c7290b52065c1ea8",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "033098b1bbfe968d1f550af8245f0fabb11c6bf1680304cc48e272414b900e60",
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp": "9d554d6bb220964c348bf562675972827828d5c845f98c83cf0c28d7c985a843",
+    "rpcs3/ios/IOSMoltenVKExec.h": "308be3be6d185a6bd8761e894cf7ce9be80bec2beec34fac66d8e715f3b411d4",
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp": "1496dfaae12f21428b3d471d7ae0172c8f135b48b47faacf2d890e217f731abb",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "c7dcaa6d23930a42edf8f34a91e14c0c9c1adeb65e5d91d78db84d00a321cad7",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967"
+  },
+  "reconstructedBaselineRawSHA256": {
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "1f605264ac9e7c173cae4b0e0237d2d11ad792c7c1888a6f21db2172634b45d3",
+    "rpcs3/ios/IOSMoltenVKExecQueue.h": "3d030bef4cee687a87325e1acbf5fda6a850fb87669cc45adbdaf711e6e0e532",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "e1e81abc413a27df26cd42d18f12ac339e6cbd58ed61c6fa427a4d5d1fb09daa",
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp": "385973f5bde5a92ab313b7e748d9451f93b6fe0e261925117f7483c8bc095d81",
+    "Utilities/JITLLVM.cpp": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+    "rpcs3/ios/RPCS3IOSPlatform.mm": "3729cbd350e96c998128c0a238daf0cdb5891a55c25d7d3494635905171df555",
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "3246db472dec7d8d048c4b0dc8d1248aef6d96844715eec394e2661985849477",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "69c8038541403bbe687c130caa7b7ea1b528fa16ea63b11adb4284b1967c9ae8",
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp": "ea98040bb218a7542803efe5eafed68ad16875c05674659a1eb7dd5f8d683b54",
+    "rpcs3/ios/IOSMoltenVKExec.h": "9fc07caa2227ab2c11d1e8dddd8506a30503be1bac690201c21ef5e734c6df2a",
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp": "4384a55f7267b492a92477c45a4682a6cde1c773465b99585b627279ed8eea18",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "897fecfed78009fd93fc2cf3a9ee47dc2763d1ad2215d3dfd1677681788d69f0",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "5686eb04be07904bfcaf1be57115c2c97b8662bc90292df035b8c42544a71aa7"
+  },
+  "pristineSource": "Fresh sparse upstream Git snapshot. All 176 needed original blobs, every tree and upstream commit authenticated by Git object hashes. Not a full checkout or Core build.",
+  "originalInputCount": 176,
+  "materializerStdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported\n",
+  "allFixturePreimagesByteIdenticalIncludingCRLF": true,
+  "offIOSSourceChecks": {
+    "Utilities/JITLLVM.cpp": {
+      "actualPreprocessorEqualityProofReused": true,
+      "newPreprocessingOrCompilation": false,
+      "reportSHA256": "923bf4d43492f271180e5b6051d35eb9310a5ca869868594db2cd4ad128d1aa6"
+    },
+    "rpcs3/Emu/RSX/Common/texture_cache.h": {
+      "onlyOffIOSChange": "Three return initializers retained byte-for-byte, named locals added for iOS range attachment; unchanged values returned.",
+      "initializerEquivalenceVerified": true,
+      "afterSHA256": "2fde98ac92154d48c2e66b9cd3bac5d99ca487eb7bf352eac090d180e7d7fa88"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "2b3d5947c373f556e1584879aa41b5054e5424866271ef250f2da933597b37a9"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "e52cdb8e09b99057a694df2560ff19b6cf4c7005e4afb987445b81da8d7919ef"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "e01e73ba109e5450016b69156ec47a1f092754e732e04bbf3c761d3ec22c7078"
+    },
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "a54b571e8e3516f9cad807a026dcd5dbc4f8a696b39d2445f36096576bf7ad95"
+    },
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": {
+      "onlyOffIOSChange": "free(packet) -> delete packet; correct matching new allocation",
+      "afterSHA256": "071bde178a3178715b1bbd05fa5a2baa43fe4cf071bab2eea521f2ce827b3df1"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "ff570b02375ea93dd562dc6839f5c2f74f4fd4f442e12d383699b0eb3c11d0f9"
+    }
+  },
+  "sourceExportDeclarationsUnchanged": 88,
+  "sourceABIHeaderUnchanged": true,
+  "testsRecompiledOrExecuted": false,
+  "appleCoreBuilt": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

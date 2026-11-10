@@ -14,6 +14,12 @@ FOUNDATION_EXPORT NSNotificationName const NeoUnifiedCheatCatalogProgressNotific
 typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
                                     void (^completion)(NSData *_Nullable, NSError *_Nullable));
 
+/// Rebuilds a pack of the origin publication (pack JSON with an "origin"
+/// table) into a standard pack JSON, downloading the files of the sources
+/// RewindBox does not host. Called on a catalogue worker, never on main.
+/// Every chunk it returns is still verified against the manifest.
+typedef NSData *_Nullable (^NeoUnifiedCheatOriginResolver)(NSData *packJSON, NSError *_Nullable *_Nullable error);
+
 /// Shared data service only. It never activates cheats or writes engine files.
 /// Configure before use; callbacks and progress arrive on the main queue.
 @interface NeoUnifiedCheatCatalog : NSObject
@@ -24,6 +30,8 @@ typedef void (^NeoUnifiedCheatFetch)(NSURL *url, NSUInteger maximumBytes,
 /// Defaults to Documents/NeoStation/Cheats/Unified. Injectable for host tests.
 @property(nonatomic, copy) NSString *storageDirectory;
 @property(nonatomic, copy, nullable) NeoUnifiedCheatFetch fetch;
+/// Set by NeoCheatCatalogPlugin; without it, origin packs report an error.
+@property(nonatomic, copy, nullable) NeoUnifiedCheatOriginResolver originResolver;
 
 /// Reads a validated disk/bundle index; fetches only if no local index exists.
 /// Snapshot installation_state: missing/partial/installing/complete. Counts

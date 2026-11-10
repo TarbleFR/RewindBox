@@ -1,0 +1,129 @@
+{
+  "result": "passed",
+  "build": 588,
+  "version": "0.0.8",
+  "source": "4a20e8e9a036314134df2605a6d33cd168c50098",
+  "run": 40803513166,
+  "artifact": {
+    "id": 12867282283,
+    "name": "RewindBox-Build588-4a20e8e9a036314134df2605a6d33cd168c50098-cold",
+    "bytes": 188559901,
+    "zipDigestFromGitHub": "sha256:165b064858a9b0a531a2f92d85b1cff2ecb14348fc0200a6a29d8d32de344fc5"
+  },
+  "transport": "Four final pieces independently SHA-256 verified; equal manifests, payload hash and RSA/AES decryption verified.",
+  "ipa": {
+    "bytes": 188291408,
+    "sha256": "dfa8aa7a1d60e29226dbaa260cd12bf44a9a91510d4e25805ec6aaa0a1af9b70",
+    "members": 5350
+  },
+  "rpcs3Core": {
+    "source": "27b5cc99a0763c0a2c3939bf6b6b0d022a1a026f",
+    "nativeSource": "9938d918f73e6284697e50706aa8e36bba92e249",
+    "run": 40800626294,
+    "rawSHA256": "436830efb07b1204f57713dfd1ecd242d7f36bed3f55aea01a25cc0ff6a7a8ac",
+    "newNativeSuites": 3,
+    "plainAndASanUBSanPassed": true,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    }
+  },
+  "melonxEngine": {
+    "source": "7be2a83bd2b5b6938560c520783584f9b8e9e9ff",
+    "run": 40794453036,
+    "artifact": 12864051465,
+    "rawSHA256": "d3fd895bf87964ada9d93ea2fab0380b4fbd607568bb3b995bc2a30594ebb549",
+    "rebuiltForThisIPA": false,
+    "compiledInputs": 57,
+    "requiredExports": 47
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "equalsSHA256SUMS": true,
+    "equalsSignedPayloadIdentity": true,
+    "zipIntegrity": true,
+    "signedCoreComparedToVerifiedRaw": true,
+    "signedCoreMetadata": {
+      "nonSignatureLoadCommandsSHA256": "480e3a1f96eba87d99cc727ae82b4d636a53f969c216cf0c63fcf01cbd2b29c4",
+      "nonSignatureLinkeditSHA256": "57d4d51892147fba8d5282847c863cf703c9cbc4926f5425b9beed7eb65e182b",
+      "nonSignatureLoadCommandsUnchanged": true,
+      "nonSignatureLinkeditUnchanged": true,
+      "alignmentPaddingDifference": 8
+    },
+    "signedMeloNXComparedToVerifiedRaw": true,
+    "compiledImages": 85,
+    "receipts": [
+      "RPCS3-core592-identity.json",
+      "MeloNX-engine588-identity.json"
+    ]
+  },
+  "baseline": {
+    "build": 587,
+    "ipaSHA256": "06c3f59fff3b0aaf6e029befd36c7b94ac360b03793584b1aff3bbf040498180",
+    "run": 40789729450,
+    "source": "cd7ed1e2c127aa22a1466a06ed2961d9babf0f08",
+    "tree": "fed8b77804738d471dc983853c2e1cd3f15ffb9c"
+  },
+  "deliveredTree": {
+    "tree": "81db3172b5ffb79e724c5ff6f944a61898fb7252",
+    "report": "host-tree588.json",
+    "deltaFiles": 63,
+    "followHead": 159,
+    "nextBaseline": true
+  },
+  "durations": {
+    "deliverySeconds": 601.0,
+    "coreSeconds": 930.0,
+    "phases": [
+      {
+        "phase": "dart_dependencies",
+        "seconds": 1.40373995799996,
+        "exitCode": 0
+      },
+      {
+        "phase": "ruby_dependencies",
+        "seconds": 1.4173810409999987,
+        "exitCode": 0
+      },
+      {
+        "phase": "host_scaffold_and_registrant",
+        "seconds": 1.127537708000034,
+        "exitCode": 0
+      },
+      {
+        "phase": "flutter_configuration_and_first_pods",
+        "seconds": 18.438668042000018,
+        "exitCode": 0
+      },
+      {
+        "phase": "cocoa_pods",
+        "seconds": 2.7713220419999516,
+        "exitCode": 0
+      },
+      {
+        "phase": "xcode_build",
+        "seconds": 218.463397375,
+        "exitCode": 0
+      },
+      {
+        "phase": "signature_and_ipa_export",
+        "seconds": 36.10267575,
+        "exitCode": 0
+      }
+    ],
+    "longestDeliveryPhase": "xcode_build"
+  },
+  "firstAttempt": {
+    "run": 40802595865,
+    "source": "6659a3f0475f7aa47ee1fd0287f9dd554d067c44",
+    "failure": "Guard expected two JSON receipts for stdout-only MeloNX tests. Corrected against the actual archive and successful official step.",
+    "xcodeStarted": false,
+    "enginesRebuilt": false
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainMeasured": false,
+  "publicRelease": false,
+  "privateKeyInGit": false,
+  "privateKeyDestroyedAfterHandoff": true
+}

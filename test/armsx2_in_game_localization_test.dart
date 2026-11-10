@@ -10,8 +10,8 @@ void main() {
     final menu = File(
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
-    final ra = File(
-      'packages/armsx2_internal_bridge/ios/Classes/Armsx2RetroAchievementsMenu.mm',
+    final centralLabels = File(
+      'packages/retro_achievements_session/ios/Classes/RBRALocalization.m',
     ).readAsStringSync();
     final native = File(
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm',
@@ -44,8 +44,6 @@ void main() {
       'Graphics Hacks',
       'Automatic',
       'Touch Controls',
-      'Account',
-      'Leaderboard notifications',
       'Manual graphics hacks',
       'GPU palette conversion',
       'CPU framebuffer conversion',
@@ -58,7 +56,17 @@ void main() {
     }
 
     expect(menu, contains('ARMSX2LocalizedText'));
-    expect(ra, contains('ARMSX2LocalizedText'));
+    for (final key in const [
+      'en', 'de', 'es', 'pt', 'ru', 'zh', 'zh_Hant',
+      'fr', 'it', 'id', 'ja', 'ko',
+    ]) {
+      expect(centralLabels, contains('@"$key": @['), reason: key);
+    }
+    expect(menu, contains('RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier)'));
+    expect(native, contains('RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale)'));
+    expect(centralLabels, contains('[tag hasPrefix:@"zh-hant"]'));
+    expect(centralLabels, contains('[tag hasPrefix:@"zh-tw"]'));
+    expect(centralLabels, contains('[tag hasPrefix:@"zh-hk"]'));
     expect(native, contains('ARMSX2CanonicalLocale(args[@"uiLocale"])'));
     expect(bridge, contains("'uiLocale': uiLocale"));
     // Snapshot the explicit UI locale before asynchronous launch work, then
@@ -82,7 +90,7 @@ void main() {
 
     // Native menus must track NeoStation's explicit locale, not iOS language.
     expect(menu, isNot(contains('NSLocale.preferredLanguages')));
-    expect(ra, isNot(contains('NSLocale.preferredLanguages')));
+    expect(centralLabels, isNot(contains('NSLocale.preferredLanguages')));
     expect(native, isNot(contains('NSLocale.preferredLanguages')));
   });
 }

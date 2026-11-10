@@ -1,0 +1,113 @@
+{
+  "result": "passed",
+  "checks": 26,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.GAL/ITexture.cs": "3657e82adb6678d67d60f5a8fc1ee829473b6e20848a19255d49a1fe5c803995",
+    "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1012eb3c77c5d3e471d2527e3b3ebc804f01c7f61b52f7e6dc37f9bb403b3200",
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "a639dc480573123265307e260441a51f21e42a53131e2cb99af738707d0ec51d",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "185177cf3d69b78a5b59a7d886daee8b1645e8346149ae162e6034d9a783ac90"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "live": {
+        "outcome": "copied",
+        "copies": [
+          6673
+        ]
+      },
+      "releasedFull": {
+        "outcome": "copied",
+        "copies": [
+          0
+        ],
+        "nullHandleCopies": 1
+      },
+      "releasedSlice": {
+        "outcome": "copied",
+        "copies": [
+          0
+        ],
+        "nullHandleCopies": 1
+      },
+      "releasedDuring": {
+        "outcome": "copied",
+        "copies": [
+          15411
+        ],
+        "destroyedBeforeCompletion": false,
+        "destroyedAfterCompletion": true
+      },
+      "gpuFull": {
+        "released": "threw",
+        "output": "1,2,3,4",
+        "liveOutput": "7,7,7,7",
+        "lines": 0
+      },
+      "gpuSlice": {
+        "released": "threw",
+        "output": "1,2,3,4",
+        "liveOutput": "7,7,7,7",
+        "lines": 0
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "live": {
+        "outcome": "copied",
+        "copies": [
+          6673
+        ]
+      },
+      "releasedFull": {
+        "outcome": "released",
+        "copies": [],
+        "nullHandleCopies": 0
+      },
+      "releasedSlice": {
+        "outcome": "released",
+        "copies": [],
+        "nullHandleCopies": 0
+      },
+      "releasedDuring": {
+        "outcome": "copied",
+        "copies": [
+          15411
+        ],
+        "destroyedBeforeCompletion": false,
+        "destroyedAfterCompletion": true
+      },
+      "gpuFull": {
+        "released": "returned",
+        "output": "1,2,3,4",
+        "liveOutput": "7,7,7,7",
+        "lines": 1
+      },
+      "gpuSlice": {
+        "released": "returned",
+        "output": "1,2,3,4",
+        "liveOutput": "7,7,7,7",
+        "lines": 1
+      }
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.GAL/ITexture.cs": "bebb69971eaf9f1f3947e94e30115a0e6c477e4fed95a188b18aa325fa38369b",
+    "src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs": "1906acde917876bdbd0ec4f929834b57567a98352b5920fd8cf532b4e66b6f65",
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "c7ecc07151a14de6dbbb2650c4d4007f99f170b95009f900081d305d665dcf9c",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "1b8b8696f3ab803249f127ed83c86b3aa468578bce9718a03c138ff29588fb77"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_released_texture_flush.py": "80c34b6661a7e27ab96713eb065cd72b748d2f522edb80dc872e76b062eb0e01",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_released_texture_flush_test.py": "bcc2d9f65e04adaa99be6f7bc6b64e53a658d5fcb4c2b8f8aa24dc1eb7675429",
+    "test/melonx_released_texture_flush/Program.cs": "4f965b30e90068ebfed1d075b0d782e088b302c224a90a7b03163dc9c33c5554",
+    "test/melonx_adapter_control.py": "bffa07e88d9fd2857dbc8ff088748ba2e05df780015859c02e225bc534df5482"
+  },
+  "limitation": "Real Auto.cs and extracted methods with doubles for MoltenVK and the command buffer pool; whether the device crash is gone is known only after a device run."
+}

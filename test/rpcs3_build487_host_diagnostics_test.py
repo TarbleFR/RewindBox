@@ -84,6 +84,8 @@ static unsigned locks = 0;
 double CACurrentMediaTime() { return testNow; }
 void os_unfair_lock_lock(os_unfair_lock*) { ++locks; }
 void os_unfair_lock_unlock(os_unfair_lock*) {}
+// CELL546 reporter of refused lines; its behavior is checked by the Build 283 test.
+void RPCS3ReportDroppedLines(uint32_t) {}
 bool permitLog(int32_t level, const char* message) {
 ''' + logic + r'''
   return true;

@@ -1,0 +1,363 @@
+# Core-only producer route of the RPCS3 iPhone Core, for the build declared in
+# build-utils/rpcs3/core-build.json (build number, delivered reference Core,
+# canonical delta, expected exports, pins, reused and rerun Apple harnesses).
+# The route keeps its Core 610 file names: the frozen recipe patch and the
+# driver pins name its gate path, so every build executes the same recipe.
+# Source changes use [skip ci]; a separate marker commit touching only this
+# workflow requests the build: '[rpcs3-core-build]' runs both jobs and
+# '[rpcs3-core-build-apple]' only the Apple host harnesses. No application
+# build, IPA, release or publication is performed here: the private IPA
+# consumes the verified artifact of a successful run in its own delivery route.
+# Core compile request: Core 610 source lot, 1 November 2026 (patch a63b9643, request 1).
+# Apple host harness rerun: LR harness accepts clang's unused static inline report (request 2).
+# Core compile request 3: identity step fixed (a local variable shadowed identity() in main()).
+# Core compile request: Core 611 (core-build.json build 611, canonical patch c96f071b), request 1.
+# Core compile request: Core 612 (core-build.json build 612, canonical patch 4e2dd29b), request 1.
+# Core compile request: Core 613 (core-build.json build 613, canonical patch c107718c), request 1.
+# Core compile request: Core 616 (core-build.json build 616, canonical patch 2abb6474), request 1.
+# Core compile request: Core 619 (core-build.json build 619, canonical patch 2887d3b7), request 1.
+# Core compile request: Core 621 (core-build.json build 621, canonical patch 63f746af), request 1.
+# Core compile request: Core 621 (core-build.json build 621, canonical patch e8f29811), request 2 (fixes from the Build 620 logs).
+# Core compile request: Core 621 (core-build.json build 621, canonical patch 6e0f18e9), request 3 (texture cache line and deeper freeze dump from the single re-read of the Build 620 logs).
+# Core compile request: Core 621 (core-build.json build 621, canonical patch 1660c795), request 4 (ZCULL guard on one-second buckets and the other fixes of the adversarial review).
+# Core compile request: Core 624 (core-build.json build 624, canonical patch fd79d496), request 1 (GCM labels off the ZCULL report pages, conditional render on the previous visible report, from the Build 622 logs).
+# Core compile request: Core 627 (core-build.json build 627, canonical patch d9f63f04), request 1 (optimisation phase from the Build 624 logs: ZCULL waits, bounded SPU no-op wait, SPU QoS, FIFO NOP, light measurement profile).
+# Core compile request: Core 630 (core-build.json build 630, canonical patch cfaba801), request 1 (from the Build 629 logs: ZCULL reads wait for their own report slot, final memory is completed in the access violation handler).
+# Core compile request: Core 634 (core-build.json build 634, canonical patch e7750b68), request 1 (from the Build 629 logs: PPU objects loaded on four threads, object bytes and GDB listener copies released, SPIR-V pack, ARMv8 cryptography, SPU prefetch for Assassin's Creed).
+# Core compile request: Core 636 (core-build.json build 636, canonical patch 01ba35fc), request 1 (from the Core 634 audit: Darwin X29/X30 guard in the fault handler, SPIR-V cap counts the batch in flight, PPU check pass stops at the first miss; ZCULL slot release wakes the guest pause).
+# Core compile request: Core 638 (core-build.json build 638, canonical patch b6d87995), request 1 (God of War III speculative readback counters, instrumentation only, on Core 636).
+# Core compile request: Core 641 (core-build.json build 641, canonical patch 0b6a14a0), request 1 (IPA 640 logs: the Core's audio diagnostics reach the device logs, COREPROF AUDIO641 on Core 638).
+# Core compile request: Core 645 (core-build.json build 645, canonical patch 2777b017), request 1 (IPA 643 logs: a timed-out cellAudio period is output instead of dropped, REWINDBOX_AUDIO_TIMEOUT_MIX_645 on Core 641).
+# Core compile request: Core 651 (core-build.json build 651, canonical patch 226dcd21), request 1 (the cellAudio wait for a late port ends when the output ring runs low, REWINDBOX_AUDIO_LOW_RING_MIX_651 on Core 645).
+# Core compile request: Core 652 (core-build.json build 652, canonical patch 6d0e63d2), request 1 (read-only cyclic depth chains keep one barrier, depth-test-off draws included, and the render pass end census, REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652 / DEPTH_READ_CHAIN_652 / RENDERPASS_CENSUS_652 on Core 651).
+# Core compile request: Core 655 (core-build.json build 655, canonical patch e006ca0c), request 1 (a read transition of an image that is not an attachment of the open render pass stays inside the pass, REWINDBOX_IN_PASS_READ_TRANSITION_655 on Core 652, linking the MoltenVK dependency of run 41912442196).
+# Core compile request: Core 659 (core-build.json build 659, canonical patch c695ddaa), request 1 (early command buffer submission at render pass boundaries for Assassin's Creed and Black Ops II, REWINDBOX_EARLY_SUBMIT_BOUNDARY_659, and the ZCULL read-lead and hint-site counters, on Core 655 with its MoltenVK dependency).
+# Core compile request: Core 660 (core-build.json build 660, canonical patch 3a1ad201), request 1 (SPU timebase mapping, SPU direct object hits, texture lookup memo, ZCULL watched flush for Assassin's Creed and queue-depth guard, three test page levers, on Core 659 with its MoltenVK dependency).
+# Core compile request: Core 660 (core-build.json build 660, canonical patch 3a1ad201), request 2 (the same source, linking the MoltenVK dependency of run 41993591512, which records the current host bridge; the texture lookup memo harness asks for LeakSanitizer on Linux only).
+# Core compile request: Core 664 (core-build.json build 664, canonical patch 252b9dd1), request 1 (PPU grace after starvation for the Black Ops II SPU writer-lock storm stalls, REWINDBOX_PPU_GRACE_664, and its test page lever, on Core 660, linking the MoltenVK dependency of run 42051417882).
+# Core compile request: Core 665 (core-build.json build 665, canonical patch d81e7fd2), request 1 (thread orchestrator v1: adaptive SPU placement, PPU above the background threads, REWINDBOX_THREAD_ORCHESTRATOR_665, and its test page lever, on Core 664, linking the MoltenVK dependency of run 42061304593).
+# Core compile request: Core 665 (core-build.json build 665, canonical patch 614ba1b8), request 2 (the orchestrator include of RSXThread.cpp outside the RetroAchievements patch context; request 1 also met an external HTTP 503 on the dependency download).
+# Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 1 (the thread orchestrator v1 of Core 665 removed by the maintainer: every Core file back to Core 664 except the comment-only ios/IOSThreadOrchestrator.h, the host test page row removed, linking the MoltenVK dependency of run 42051417882 again, whose recorded bridge is the current one).
+# Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 2 (the same source, linking the MoltenVK dependency of run 42140012211, which records the current dependency workflow and host bridge).
+# Core compile request: Core 902 (core-build.json build 902, canonical patch fb5dc826), request 1 (Core 668 plus the native Metal 4 renderer, stages M1 and M2, opt-in per title; Core job on Xcode 26.3 for the iOS 26 SDK; linking the MoltenVK dependency of run 42213572281, which records the Metal host bridge).
+# Core compile request: Core 903 (core-build.json build 903, canonical patch f90bafb1), request 1 (Core 902 plus the native Metal 4 renderer stages M3 and M4: texture cache, blit engine and readback, exact occlusion queries, MSAA, conversion kernels, native overlays; opt-in per title; Xcode 26.3; MoltenVK dependency of run 42213572281, the host bridge unchanged).
+# Core compile request: Core 904 (core-build.json build 904, canonical patch f11ab251), request 1 (Core 903 plus the JIT arena high window for iOS 27 beta, Metal M5 part 1 and the M3 gaps; MoltenVK dependency of run 42213572281, host bridge unchanged).
+# Core compile request: Core 905 (core-build.json build 905, canonical patch f9b33b81), request 1 (Core 904 plus the last Metal parity items: iOS ZCULL hooks, multi-worker boot precompile, MSAA resolve-before-read).
+# Core compile request: Core 906 (core-build.json build 906, canonical patch 53220481), request 1 (Core 905 plus retired game-setting overrides skipped and pruned, and the timed COREPROF METAL report with its drain state line; MoltenVK dependency of run 42213572281, host bridge unchanged).
+# Core compile request: Core 907 (core-build.json build 907, canonical patch e4d82eb4), request 1 (Core 906 plus the Assassin's Creed GPU levers: full clears as render pass load-op CLEAR, native float16 RSX H registers; per-title settings; MoltenVK dependency of run 42213572281, host bridge unchanged).
+# Core compile request: Core 908 (core-build.json build 908, canonical patch 324305dd), request 1 (Core 907 plus the texture lookup memo with 16 entries per slot, the SPU PUTLLC writer lock phases and the freeze dump of polling PPU threads and lwconds; MoltenVK dependency of run 42668189251, host bridge bdcd0ac7 with the Menu/Performances layout).
+# Core compile request: Core 909 (core-build.json build 909, canonical patch 7932b112), request 1 (Core 908 plus the God of War III levers: NV308A inline data and NV0039 copies revalidated over their range under the Core 573 scope, texture epoch sources, MLAA bypass application report, label lines in the freeze dump; MoltenVK dependency of run 42668189251, host bridge bdcd0ac7 unchanged).
+# Core compile request: Core 910 (core-build.json build 910, canonical patch 5714df92), request 1 (Core 909 plus texture epochs deferred to the PUT horizon for God of War III with the three review fixes, the prehash look-ahead budget, the exact texture memo capacity-miss counter and the render pass shape census; MoltenVK dependency of run 42695255551, host bridge c1494c46).
+# Core compile request: Core 911 (core-build.json build 911, canonical patch 5b116293), request 1 (Core 910 plus the bounded wait of a polling SPU thread on the accurate no-op PUTLLC path for Black Ops II, one exact SPUThread.cpp alias with its audit, and the prehash budget fed by the worker results used; MoltenVK dependency of run 42695255551, host bridge c1494c46 unchanged).
+# Apple host harness rerun: Core 911 (the Core job of run 42709542308 is green; its Apple job failed in the Core 664 PPU grace host model, scenario 2b: the observer missed the 500 us sleep window of the writers on a loaded runner; the model now runs a missed observation again, every check kept).
+# Core compile request: Core 912 (core-build.json build 912, canonical patch 70dfe005), request 1 (Core 911 plus the bounded captures of the heavy PUTLLC and of the PPU regions, started by a request of the host when its in-game menu closes, the stall dump complements and lever digits 19 to 21; one exact SPUThread.cpp alias with its audit; MoltenVK dependency of run 42724924537, host bridge c98b6f36).
+# Core compile request: Core 914 (core-build.json build 914, canonical patch c45491ed), request 1 (Core 912 plus the capture corrections: an event is stored only by the capture it was prepared under, per-boot limits as tested helpers; one more exact SPUThread.cpp alias with its audit; MoltenVK dependency of run 42733987255, host bridge 8977315e).
+# Core compile request: Core 907 (core-build.json build 907, canonical patch 654680ea), request 2 (request 1 failed in the Apple host harnesses: begin_render_pass back to its reviewed form for the feedback census guard; the PPU grace 664 ASan timing check is rerun unchanged).
+# Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
+# Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
+# Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
+# Apple host harness rerun: Core 636 slot wake measures both pause forms from the release instant (request 2).
+# Apple host harness rerun: Core 621 ZCULL guard scenarios hold on the runner's longer sleeps (request 4).
+# Apple host harness rerun: Core 621 ZCULL storm with 15 ms reads, read floors that fit macOS ASan (request 5).
+# Apple host harness rerun: Core 621 ISO test counts descriptors with fstat on Darwin (request 6).
+# Apple host harness rerun: Core 621 ZCULL storm with 5 ms reads, bounded by the 3-second rule (request 7).
+# Apple host harness rerun: Core 655 hook-less variant links on Apple ld64, census accepts the exact 655 block (request 2).
+name: RPCS3 Core
+# run-name is evaluated before any job and cannot read the spec; the build
+# number is in the step names, the artifact names and the identity type.
+run-name: "RPCS3 Core producer • ${{ github.sha }}"
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/rpcs3-core610.yml'
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact full commit SHA, equal to the selected workflow ref
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rewindbox-rpcs3-core-${{ github.sha }}
+  cancel-in-progress: false
+env:
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+jobs:
+  core:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core-build]') }}
+    name: RPCS3 iPhone Core with authenticated source-built MoltenVK
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - name: Bind the request to exact source identities
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_SHA" == "$GITHUB_SHA" ]]
+      - name: Checkout immutable candidate and retained source history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the declared Core build
+        id: core-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core610.py --github-outputs | tee -a "$GITHUB_OUTPUT"
+      - name: Select the retained Core toolchain
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Restore compiler objects of the same frozen recipe
+        id: candidate-objects
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          restore-keys: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
+      - name: Authenticate the Core ${{ steps.core-build.outputs.build }} source closure and the native dependency
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RPCS3_MVK_DEPENDENCY_RUN: ${{ steps.core-build.outputs.dependency_run }}
+          RPCS3_MVK_DEPENDENCY_SOURCE: ${{ steps.core-build.outputs.dependency_source }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/rpcs3-core-diagnostics
+          git diff --check
+          for formula in ccache ninja cmake llvm@22 ffmpeg; do
+            brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+          done
+          python3 test/rpcs3_mvk_dependency_artifact_test.py \
+            2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log
+          python3 test/rpcs3_mvk_unverified_core_collector_test.py \
+            2>&1 | tee build/rpcs3-core-diagnostics/recovery-collector-tests.log
+          SOURCE="$RUNNER_TEMP/rpcs3-core-source-preflight"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          CXX="$(brew --prefix llvm@22)/bin/clang++" \
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+          HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+          LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+          LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \
+            python3 .github/diagnostics/rpcs3_core610.py \
+              --prepare --source "$SOURCE" \
+              --dependency-run "$RPCS3_MVK_DEPENDENCY_RUN" --dependency-source "$RPCS3_MVK_DEPENDENCY_SOURCE" \
+              2>&1 | tee build/rpcs3-core-diagnostics/core610-preflight.log
+      - name: Preserve the authenticated preflight
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-preflight-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/core610-proof.json
+            build/rpcs3-core-diagnostics/core610-preflight.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Compile and link the actual iPhone Core ${{ steps.core-build.outputs.build }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ccache --show-stats > build/rpcs3-core-diagnostics/ccache-before.txt
+          ccache --print-stats > build/rpcs3-core-diagnostics/ccache-before-counters.txt
+          date +%s > build/rpcs3-core-diagnostics/core-compile-start-epoch.txt
+          env -u GITHUB_ENV BUILD_JOBS=3 \
+            python3 build-utils/rpcs3/build_rpcs3_core610.py \
+              --proof "$PWD/build/rpcs3-core-diagnostics/core610-proof.json" \
+              --output "$PWD/dist/rpcs3" \
+              --work-root "$RUNNER_TEMP/neostation-rpcs3-embedded" \
+              2>&1 | tee build/rpcs3-core-diagnostics/core-driver.log
+      - name: Verify the actual binary and write its Core ${{ steps.core-build.outputs.build }} identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE=dist/rpcs3/libRPCS3Core.dylib
+          test -s "$CORE"
+          python3 build-utils/validate_rpcs3_embedded_core.py "$CORE"
+          python3 build-utils/validate_rpcs3_passive_dlopen.py "$CORE" \
+            | tee build/rpcs3-core-diagnostics/passive-dlopen.txt
+          file "$CORE" | tee build/rpcs3-core-diagnostics/file.txt
+          lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
+          nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
+          python3 .github/diagnostics/rpcs3_core610.py \
+            --write-core-identity "$PWD/dist/rpcs3"
+          python3 - <<'PYCODE'
+          import hashlib, json
+          from pathlib import Path
+          dist = Path('dist/rpcs3')
+          diagnostics = Path('build/rpcs3-core-diagnostics')
+          identity = json.loads((dist / 'identity.json').read_text())
+          if (diagnostics / 'identity.json').read_bytes() != (dist / 'identity.json').read_bytes():
+              raise RuntimeError('Core and diagnostic identities differ after ABI validation')
+          proof = json.loads((dist / 'core610-proof.json').read_text())
+          build = Path(proof['build_root']).resolve(strict=True)
+          saved = {}
+          for index, (name, expected) in enumerate(identity['actual_link']['response_files'].items()):
+              source = Path(name)
+              if source.is_symlink() or not source.resolve(strict=True).is_relative_to(build):
+                  raise RuntimeError('Validated linker response file escaped the actual build')
+              raw = source.read_bytes()
+              if len(raw) != expected['bytes'] or hashlib.sha256(raw).hexdigest() != expected['sha256']:
+                  raise RuntimeError('Validated linker response file changed')
+              relative = Path('link-response') / f'{index:03d}.rsp'
+              destination = dist / relative
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(raw)
+              saved[name] = dict(expected, artifact_path=str(relative))
+          (dist / 'link-response-manifest.json').write_text(json.dumps(saved, indent=2) + '\n')
+          PYCODE
+      - name: Preserve an unverified binary and actual inputs after metadata failure
+        if: always()
+        shell: bash
+        env:
+          PRIOR_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 build-utils/rpcs3/collect_rpcs3_mvk_unverified_core.py \
+            --dist "$PWD/dist/rpcs3" \
+            --proof "$PWD/build/rpcs3-core-diagnostics/core610-proof.json" \
+            --diagnostics "$PWD/build/rpcs3-core-diagnostics" \
+            --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --job-status "$PRIOR_JOB_STATUS"
+      - name: Record observed compiler-cache counters and compile duration
+        if: always()
+        shell: bash
+        env:
+          CANDIDATE_CACHE_MATCH: ${{ steps.candidate-objects.outputs.cache-matched-key }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/rpcs3-core-diagnostics
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats > build/rpcs3-core-diagnostics/ccache-after.txt
+            ccache --print-stats > build/rpcs3-core-diagnostics/ccache-after-counters.txt
+          fi
+          python3 - <<'PYCODE'
+          import json, os, time
+          from pathlib import Path
+          out = Path('build/rpcs3-core-diagnostics')
+          def counters(name):
+              path = out / name
+              if not path.is_file():
+                  return None
+              return {parts[0]: int(parts[1]) for line in path.read_text().splitlines()
+                      if len(parts := line.split()) == 2 and parts[1].isdigit()}
+          before = counters('ccache-before-counters.txt')
+          after = counters('ccache-after-counters.txt')
+          start = out / 'core-compile-start-epoch.txt'
+          receipt = {'schema': 1, 'source': os.environ['GITHUB_SHA'],
+                     'candidate_cache_match': os.environ['CANDIDATE_CACHE_MATCH'],
+                     'ccache_before': before, 'ccache_after': after,
+                     'ccache_counter_deltas': {key: after[key] - value for key, value in before.items()
+                                               if key in after} if before is not None and after is not None else None,
+                     'core_compile_started': start.is_file(),
+                     'elapsed_seconds_since_compile_start': int(time.time()) - int(start.read_text())
+                                                             if start.is_file() else None,
+                     'cache_speedup_claimed': False, 'fps_gain_claimed': False}
+          (out / 'compiler-cache-observed.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PYCODE
+      - name: Upload the verified Core ${{ steps.core-build.outputs.build }} without an application delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-${{ github.sha }}
+          path: dist/rpcs3/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve compiler objects for the same recipe
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+      - name: Preserve real diagnostics including partial failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-diagnostics-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/*.json
+            build/rpcs3-core-diagnostics/*.txt
+            build/rpcs3-core-diagnostics/*.log
+            build/rpcs3-core-diagnostics/*.sh
+            build/rpcs3-core-diagnostics/mvk-cache-dependency/
+            build/rpcs3-core-diagnostics/unverified-core/
+            build/rpcs3-core-diagnostics/captured-build-inputs/
+          if-no-files-found: warn
+          retention-days: 14
+  apple-host-tests:
+    # '[rpcs3-core-build-apple]' reruns only this job (the core job needs '[rpcs3-core-build]').
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core-build]') || contains(github.event.head_commit.message, '[rpcs3-core-build-apple]') }}
+    name: Core host harnesses on Apple ARM64 (changed, new and reused)
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout immutable candidate and the delivered Core history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Read the declared Core build
+        id: core-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core610.py --github-outputs | tee -a "$GITHUB_OUTPUT"
+      - name: Select the retained Core toolchain
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Materialize the Core ${{ steps.core-build.outputs.build }} sources and the delivered ${{ steps.core-build.outputs.apple_baseline_short }} sources
+        shell: bash
+        env:
+          RPCS3_DELIVERED_CORE_SOURCE: ${{ steps.core-build.outputs.apple_baseline_source }}
+          RPCS3_DELIVERED_CORE_PATCH: ${{ steps.core-build.outputs.apple_baseline_patch_sha256 }}
+        run: |
+          set -euo pipefail
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          for tree in core delivered; do
+            git init -q "$RUNNER_TEMP/$tree"
+            git -C "$RUNNER_TEMP/$tree" remote add origin https://github.com/XITRIX/rpcs3.git
+            git -C "$RUNNER_TEMP/$tree" fetch --depth 1 origin "$UPSTREAM"
+            git -C "$RUNNER_TEMP/$tree" checkout -q --detach FETCH_HEAD
+          done
+          python3 build-utils/materialize_rpcs3_core.py "$RUNNER_TEMP/core"
+          git worktree add --detach "$RUNNER_TEMP/repo-delivered" "$RPCS3_DELIVERED_CORE_SOURCE"
+          python3 "$RUNNER_TEMP/repo-delivered/build-utils/materialize_rpcs3_core.py" "$RUNNER_TEMP/delivered"
+          test "$(python3 -c 'import json; print(json.load(open("'"$RUNNER_TEMP"'/repo-delivered/build-utils/rpcs3/canonical-source.json"))["patch_sha256"])')" \
+            = "$RPCS3_DELIVERED_CORE_PATCH"
+      - name: Authenticate the reused Core ${{ steps.core-build.outputs.reference_build }} Apple harness evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core_apple_host.py --authenticate-reused \
+            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
+      - name: Run the affected and new Core ${{ steps.core-build.outputs.build }} harnesses with Apple clang
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          python3 .github/diagnostics/rpcs3_core_apple_host.py --run \
+            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
+      - name: Preserve the Apple host harness reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-apple-host-tests-${{ github.sha }}
+          path: |
+            build/core-apple-host/*.json
+            build/core-apple-host/*.log
+            build/core-apple-host/reused-reference/*.json
+          if-no-files-found: warn
+          retention-days: 30

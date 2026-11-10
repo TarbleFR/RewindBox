@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "historical_root": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+  "historical_checkout": {
+    "source": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "parent_partial_clone": true,
+    "tracked_worktree_clean": true
+  },
+  "historical_core_inputs_exact": 92,
+  "copied_verifier_sha256": "1c49cd057592835b4f7be4a58127ee7c45f0a558314b548b306b8d8a9454914c",
+  "verifier_help_invoked": true,
+  "historical_archives_authenticated": false,
+  "native_compilations": 0,
+  "native_executions": 0,
+  "old_global_root_modified": false,
+  "initial_shared_clone_issue": "Missing promisor metadata emitted missing historical blob diagnostics; the producer now inherits its real upstream promisor configuration and requires a clean tracked checkout."
+}

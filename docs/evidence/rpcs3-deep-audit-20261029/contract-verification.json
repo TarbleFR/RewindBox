@@ -1,0 +1,134 @@
+{
+  "passed": true,
+  "canonicalPostimages": 319,
+  "unchangedHistoricalPostimages": 308,
+  "changedCoreFiles": [
+    "Utilities/JITArenaAllocator.h",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+    "rpcs3/Emu/Cell/SPUThread.cpp",
+    "rpcs3/Emu/Cell/SPUThread.h",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp",
+    "rpcs3/Emu/RSX/Program/ShaderParam.h",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp"
+  ],
+  "reverseDeltaMatchesBaseline": true,
+  "authenticatedNativeModes": 21,
+  "finalProgramModes": 17,
+  "reconstructedHistoricalMFCModes": 4,
+  "completePOSIXStoreModes": 2,
+  "authenticatedProofs": {
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-snr-plain.json": {
+      "evidenceSHA256": "13309609fcdd3e5e370c65bd4d1a7c1816e6588de35e489b9017b6b1233761ff",
+      "harnessSHA256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-snr-asan.json": {
+      "evidenceSHA256": "bf465b120803a9a50037cec659c160f440739b94dbe2d5b9585fec5f6179ae9d",
+      "harnessSHA256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-irq-plain.json": {
+      "evidenceSHA256": "3fd64b01af1fe4c72f2d1783e140b93b502ad23065775122b3ee3228af5c291e",
+      "harnessSHA256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-irq-asan.json": {
+      "evidenceSHA256": "d7921fb5a3f3c51ad6bc5977fbe5810dab7898a8d2cc455ed06ea2aa6f3ddb34",
+      "harnessSHA256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-restore-plain.json": {
+      "evidenceSHA256": "22c6936751620e558a3c93c5f10ceaa1abd0945a859915a766288d8bf22bdd47",
+      "harnessSHA256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-restore-asan.json": {
+      "evidenceSHA256": "cbdd584387d061442a10b33dc54ddacebdaf68014081552fc69128b073edeefe",
+      "harnessSHA256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-plain.json": {
+      "evidenceSHA256": "a86d739ad4fe4b4cafee661b40aae189b3ca4f1fb6397bc590c27fee822853e2",
+      "harnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-asan.json": {
+      "evidenceSHA256": "49f04487576bc8cffb8a6d47a9c7080f43de95c89c6c8ae702aabcfaf10ec252",
+      "harnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-plain.json": {
+      "evidenceSHA256": "23f48657d6e1f40f3950452e808da85c27c5115bc52028608aace2a6f27a48df",
+      "harnessSHA256": "463770ede9d677e2d682af984d5b90162d81df9a40354fb63b3e02d34accb6a1"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-asan.json": {
+      "evidenceSHA256": "1bb3e54184348fe0158dc07f68304e00b880b546344242c87b03059033d82710",
+      "harnessSHA256": "463770ede9d677e2d682af984d5b90162d81df9a40354fb63b3e02d34accb6a1"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/shader-tokens-plain.json": {
+      "evidenceSHA256": "7fe6fb19fb7c78774f10c10ea1434c4a7b82bcc761d6a3a07eca8133f21ab6ab",
+      "harnessSHA256": "2192b21868c74d7892aa0fbc360ca19afe7b264db82a81ce9e09c6ce46e11cad"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/shader-tokens-asan.json": {
+      "evidenceSHA256": "0d40deaa8c3428dfa02caefae8babe7de0c6d3d9a5e871c984a5d97688eae81a",
+      "harnessSHA256": "2192b21868c74d7892aa0fbc360ca19afe7b264db82a81ce9e09c6ce46e11cad"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/texture-plain.json": {
+      "evidenceSHA256": "8600f44e3fe29f19009d597094a068320eedc5461fba7d35af17f735df0f454f",
+      "harnessSHA256": "2a229886dbdae698eba3ecff161a6429cc5d31718e1522cdf817eb2cc34766d7"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/texture-asan.json": {
+      "evidenceSHA256": "41193cf43cfa88d16f12550ca7d95ac06daa5e660127eeea4711dea429230920",
+      "harnessSHA256": "2a229886dbdae698eba3ecff161a6429cc5d31718e1522cdf817eb2cc34766d7"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/async-sync-pool-plain.json": {
+      "evidenceSHA256": "b4e6bfbb373f7de2d52ddd1c91b3cf74d1570244e45dfaf6f7c19b3d6f9ad7b6",
+      "harnessSHA256": "3a7dd421390e097b64bb052472be5fb4dc14428a05dd9d95cb58a83ea900247d"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/async-sync-pool-asan.json": {
+      "evidenceSHA256": "72af4b33beb14c68380e704552333e6dd725754540ae1583fd5ce5b93b1e8bfb",
+      "harnessSHA256": "3a7dd421390e097b64bb052472be5fb4dc14428a05dd9d95cb58a83ea900247d"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/texture-barriers.json": {
+      "evidenceSHA256": "00fa8002b49e2a71dfcc9ac12e14c5f15e5e4d0dc94f7ee7711f06999b34bc18",
+      "harnessSHA256": "1b86396e262009ed64c5c82ce10e016bb4d1413f993e75f60a4df8d6c8af4b17"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/cpu-jit-arena-plain.json": {
+      "evidenceSHA256": "20c7e5990058cc2101c09b6aa141666245aa6981a45cbcbd0080a55a222d4852",
+      "harnessSHA256": "555488e086562fcbec84154c779440beb4b640a9fd33a5bb5ff25e5944c765d3"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/cpu-jit-arena-asan.json": {
+      "evidenceSHA256": "d4c883f829d3f3b1a70a240b75c2b21e20533a698141a2524224ee51d773040c",
+      "harnessSHA256": "555488e086562fcbec84154c779440beb4b640a9fd33a5bb5ff25e5944c765d3"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/cpu-neoswap-trim-plain.json": {
+      "evidenceSHA256": "6f846e05baff4e952ba8cb57cc89de485bef32f9ebc6a6197ad2b3ca2cd52b2c",
+      "harnessSHA256": "ffe8bc278d1801729387a1a95cb9e7c0275a72bbbf4e1c757c128d73d2463b98"
+    },
+    "docs/evidence/rpcs3-deep-audit-20261029/cpu-neoswap-trim-asan.json": {
+      "evidenceSHA256": "4919baac44577409d7774318b81b04b11d7bbf6d058f7c9786a25793c35b42fb",
+      "harnessSHA256": "ffe8bc278d1801729387a1a95cb9e7c0275a72bbbf4e1c757c128d73d2463b98"
+    }
+  },
+  "codegenIdentity": {
+    "before": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "after": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    }
+  },
+  "historicalMFCStagesReconstructed": true,
+  "snrConsumedBodiesUnchanged": true,
+  "restoreConsumedBodiesUnchangedAfterIRQ": true,
+  "withdrawnExperimentsExcluded": true,
+  "rawShaderCacheRestoredToBaseline": true,
+  "nativeOrCmakeReexecuted": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "externalLLVMBackendMaterialized": false,
+  "recordedStoreExternalDependencies": {
+    "lz4HeaderSHA256": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6",
+    "lz4Library": "-l:liblz4.so.1"
+  },
+  "storeExternalDependenciesReexecuted": false,
+  "scope": "Authenticate recorded host executions against exact final or reconstructed historical inputs; no new native execution, LLVM execution, device test or FPS claim."
+}

@@ -10,7 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:libretro_internal_bridge/libretro_internal_bridge.dart';
 import 'package:path/path.dart' as path;
 
-import 'libretro_core_catalog.dart';
+import 'dolphin_skins.dart';
 import 'libretro_internal_service.dart';
 import 'libretro_skin_compatibility.dart';
 import 'logger_service.dart';
@@ -271,7 +271,7 @@ class LibretroSkinService {
     required this.frontendDirectory,
     required this.cacheDirectory,
     Map<String, Object?>? consoleGeometry,
-  }) : consoleGeometry = consoleGeometry ?? LibretroCoreCatalog.consoleGeometry();
+  }) : consoleGeometry = consoleGeometry ?? DolphinSkins.consoleGeometry();
 
   static Future<LibretroSkinService> create() async => LibretroSkinService(
         skinsDirectory: (await LibretroInternalService.skinsDirectory()).path,
@@ -387,11 +387,23 @@ class LibretroSkinService {
         await _remove(staging);
         return LibretroSkinImported(installed, alreadyInstalled: true);
       }
-      final inspected = await LibretroInternalBridge.inspectSkin(
-        directory: staging.path,
-        consoleGeometry: consoleGeometry,
-        validateResources: true,
-      );
+      // GameCube and Wii skins are read here, not by the native Libretro
+      // parser (docs/dolphin-skins.md).
+      final dolphin = await DolphinSkins.inspectDirectory(staging.path);
+      final inspected = dolphin != null
+          ? <String, dynamic>{
+              'ok': true,
+              'device': 'iphone',
+              'summary': <String, Object?>{
+                ...dolphin.summary,
+                'compatibility': <String, Object?>{dolphin.console: dolphin.compatibility.toJson()},
+              },
+            }
+          : await LibretroInternalBridge.inspectSkin(
+              directory: staging.path,
+              consoleGeometry: consoleGeometry,
+              validateResources: true,
+            );
       final rawSummary = inspected['summary'];
       final summary = rawSummary is Map ? rawSummary : inspected;
       final consoles = _texts(summary['consoles']);
@@ -585,6 +597,10 @@ class LibretroSkinService {
     required double height,
     double? scale,
   }) async {
+    if (DolphinSkins.isDolphinConsole(console)) {
+      // The skin's own picture; Dolphin's default controls have none.
+      return skin == null ? null : DolphinSkins.previewImage(skin.directory, orientation);
+    }
     try {
       return await LibretroInternalBridge.skinPreview(
         skinDirectory: skin?.directory,
@@ -667,6 +683,14 @@ class LibretroSkinService {
     if (skin.compatibility.isNotEmpty) return skin.compatibility;
     final cached = _verdicts[skin.id];
     if (cached != null) return cached;
+    if (skin.consoles.any(DolphinSkins.isDolphinConsole)) {
+      final report = await DolphinSkins.inspectDirectory(skin.directory);
+      final verdicts = report == null
+          ? const <String, LibretroSkinCompatibility>{}
+          : <String, LibretroSkinCompatibility>{report.console: report.compatibility};
+      _verdicts[skin.id] = verdicts;
+      return verdicts;
+    }
     try {
       final inspected = await LibretroInternalBridge.inspectSkin(
         directory: skin.directory,

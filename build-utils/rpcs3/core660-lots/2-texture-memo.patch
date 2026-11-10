@@ -1,0 +1,1282 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index 24ccf42..758976a 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -18,6 +18,9 @@
+ // CELL559_FULL_OVERWRITE_INCLUDE
+ #include "ios/IOSFullOverwrite.h"
+ #include "ios/IOSDeferredCommit.h"
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#include "ios/IOSTextureLookupMemo.h"
++#include <optional>
+ #endif
+ 
+ #define RSX_GCM_FORMAT_IGNORED 0
+@@ -822,6 +825,9 @@ namespace rsx
+ 
+ #ifdef RPCS3_IOS
+ 		rpcs3::ios::texture_validation::sampler_bindings<rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count> m_sampler_validation;
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): ways per sampler slot, same slot numbering.
++		using lookup_memo_type = rpcs3::ios::texture_lookup_memo::table<sampled_image_descriptor, rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count>;
++		lookup_memo_type m_lookup_memo;
+ 
+ 		// CELL573_SCOPED_RSX_WRITES: the next validation of every section over `range` hashes again.
+ 		void revalidate_overlapping(const address_range32& range)
+@@ -831,6 +837,8 @@ namespace rsx
+ 				It->reset_validation();
+ 			}
+ 			m_sampler_validation.invalidate(range.start, range.valid() ? u64{range.end} - range.start + 1 : 0);
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the memo entries over `range` go with the slot bindings.
++			m_lookup_memo.invalidate(range.start, range.valid() ? u64{range.end} - range.start + 1 : 0);
+ 		}
+ #endif
+ 
+@@ -3303,10 +3311,18 @@ namespace rsx
+ 		}
+ 
+ 		template <typename surface_store_type>
+-		void finish_sampler_validation(u32 index, sampled_image_descriptor& descriptor, rpcs3::ios::texture_validation::sampler_stamp stamp, const surface_store_type&)
++		void finish_sampler_validation(u32 index, sampled_image_descriptor& descriptor, rpcs3::ios::texture_validation::sampler_stamp stamp, const surface_store_type& surface_cache)
+ 		{
+ 			descriptor.ios_validation_stamp = stamp;
+ 			reader_lock lock(m_cache_mutex);
++			finish_sampler_validation_locked(index, descriptor, surface_cache);
++		}
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the body of finish_sampler_validation, under the caller's cache
++		// lock (ios_validation_stamp already set). Returns the length bound for `index` (0: forgotten or unknown).
++		template <typename surface_store_type>
++		u64 finish_sampler_validation_locked(u32 index, sampled_image_descriptor& descriptor, const surface_store_type&)
++		{
+ 			// A clipped local view can inherit framebuffer_storage from a merge.
+ 			// Prove the image is an actual RTT, as is_expired() does, once per lookup.
+ 			descriptor.ios_direct_framebuffer = descriptor.upload_context == rsx::texture_upload_context::framebuffer_storage &&
+@@ -3315,7 +3331,7 @@ namespace rsx
+ 			if (!descriptor.validate() || descriptor.ios_direct_framebuffer)
+ 			{
+ 				m_sampler_validation.forget(index);
+-				return;
++				return 0;
+ 			}
+ 			// Use the range the lookup actually consumed, including mip/gather
+ 			// sources. Never infer a range from partially validated RSX registers.
+@@ -3327,6 +3343,7 @@ namespace rsx
+ 				length = 0; // tiling can touch padding outside the linear payload
+ 			}
+ 			m_sampler_validation.set_range(index, range.start, length);
++			return length;
+ 		}
+ #endif
+ 
+@@ -3523,6 +3540,18 @@ namespace rsx
+ 		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
+ 		sampled_image_descriptor upload_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, Args&&... extras)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the lookup takes the cache lock itself, as before.
++			return upload_texture_impl(cmd, tex, m_rtts, nullptr, std::forward<Args>(extras)...);
++		}
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: held_lock, when set, is the caller's reader lock on m_cache_mutex
++		// (upload_sampler_texture). It replaces this lookup's own lock at the same point and is upgraded the
++		// same way for a CPU upload: a second shared lock of this thread would never let the upgrade finish.
++		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
++		sampled_image_descriptor upload_texture_impl(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, reader_lock* held_lock, Args&&... extras)
++		{
++#endif
+ 			m_texture_upload_calls_this_frame++;
+ 
+ 			image_section_attributes_t attributes{};
+@@ -3639,7 +3668,16 @@ namespace rsx
+ 			}
+ 
+ 			const auto lookup_range = utils::address_range32::start_length(attributes.address, attributes.pitch * required_surface_height);
++#ifdef RPCS3_IOS
++			std::optional<reader_lock> own_lock;
++			if (!held_lock)
++			{
++				own_lock.emplace(m_cache_mutex);
++			}
++			reader_lock& lock = held_lock ? *held_lock : *own_lock;
++#else
+ 			reader_lock lock(m_cache_mutex);
++#endif
+ 
+ 			auto result = fast_texture_search(cmd, attributes, scale, tex.decoded_remap(),
+ 				options, lookup_range, extended_dimension, m_rtts,
+@@ -3815,6 +3853,131 @@ namespace rsx
+ 			return uploaded_descriptor;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the lookup of sampler slot `index`
++		// (0-15 fragment, 16-19 vertex) with its validation binding, for load_texture_env.
++		// Lever off: the Core 659 sequence, prepare, upload_texture and finish (three cache locks).
++		// Lever on: one reader lock for the binding, the memo and the lookup, passed to upload_texture_impl,
++		// which upgrades it for a CPU upload. A hit returns the descriptor an identical lookup returned
++		// earlier in this epoch, stamped with the store's current write tag, without the lookup; the sampler
++		// validation and everything load_texture_env derives from the descriptor run as for any lookup.
++		// A sampled hit (should_verify) runs the full lookup, returns its result and compares.
++		template <typename RsxTextureType, typename surface_store_type>
++		sampled_image_descriptor upload_sampler_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, u32 index, u32 memo_flags)
++		{
++			namespace memo = rpcs3::ios::texture_lookup_memo;
++			const auto memo_mode = memo::current_mode();
++			if (memo_mode == memo::mode::off)
++			{
++				const auto validation_stamp = prepare_sampler_validation(index);
++				auto result = upload_texture(cmd, tex, m_rtts);
++				finish_sampler_validation(index, result, validation_stamp, m_rtts);
++				return result;
++			}
++
++			const u64 lookup_begin = utils::get_tsc();
++			reader_lock lock(m_cache_mutex);
++			memo::count(memo::counters.lookups);
++			memo::count(memo::counters.locks_avoided, 2);
++			const auto validation_stamp = m_sampler_validation.prepare(index);
++
++			// Everything the exact lookup reads from the texture unit, and the address it resolves to now.
++			const memo::key key{ rsx::get_address(tex.offset(), tex.location()), tex.lookup_words(), memo_flags };
++			const bool compressed = helpers::is_compressed_gcm_format(tex.format() & ~(CELL_GCM_TEXTURE_LN | CELL_GCM_TEXTURE_UN));
++			// The only surface store input of an exact local lookup (fast_texture_search); address 0 is never memoized.
++			const bool bound = !compressed && (!key.address || m_rtts.address_is_bound(key.address));
++
++			const auto found = m_lookup_memo.find(index, key, compressed, bound);
++			// The first reuse of each (slot, key) of the boot, then the sampled hits (IOSTextureLookupMemo.h).
++			const bool first_reuse = found.value && memo_mode != memo::mode::verify_all &&
++				memo::verify_first_reuse.load(std::memory_order_relaxed) && m_lookup_memo.first_reuse(index, key);
++			const bool verify = found.value && (memo::should_verify(memo_mode, memo::boot_hits.fetch_add(1, std::memory_order_relaxed)) || first_reuse);
++			if (first_reuse)
++			{
++				memo::count(memo::counters.first_reuses);
++			}
++			if (found.value && !verify)
++			{
++				sampled_image_descriptor result = *found.value;
++				result.surface_cache_tag = m_rtts.write_tag;
++				result.ios_validation_stamp = validation_stamp;
++				finish_sampler_validation_locked(index, result, m_rtts);
++				memo::count(memo::counters.hits);
++				memo::count(memo::counters.hit_ticks, utils::get_tsc() - lookup_begin);
++				return result;
++			}
++
++			memo::count_miss(found.reason);
++			// After a verified difference the memo stays out of the way: the lookup and its binding only.
++			const bool store = !verify && found.reason != memo::miss::disabled;
++			sampled_image_descriptor expected;
++			typename lookup_memo_type::ticket ticket{};
++			if (verify)
++			{
++				expected = *found.value;
++			}
++			else if (store)
++			{
++				ticket = m_lookup_memo.begin(index, key);
++			}
++
++			const auto sections_before = memo::generations::now();
++			const u32 cpu_uploads_before = m_texture_upload_misses_this_frame;
++			auto result = upload_texture_impl(cmd, tex, m_rtts, &lock);
++			if (m_texture_upload_misses_this_frame != cpu_uploads_before)
++			{
++				memo::count(memo::counters.cpu_uploads);
++			}
++
++			if (verify)
++			{
++				expected.surface_cache_tag = m_rtts.write_tag;
++				u32 differences = memo::compare(expected, result);
++				if (!sections_before.sections_equal(memo::generations::now()))
++				{
++					// The memo would have skipped a change the full lookup made.
++					differences |= memo::differs_state;
++				}
++				memo::count(memo::counters.verified);
++				if (differences)
++				{
++					memo::count(memo::counters.mismatches);
++					memo::disabled.store(true, std::memory_order_relaxed);
++					m_lookup_memo.clear();
++					if (!memo::mismatch_logged.exchange(true, std::memory_order_relaxed))
++					{
++						rsx_log.error("TEXMEMO660 verification mismatch: slot=%u address=0x%x words=0x%x:0x%x:0x%x:0x%x:0x%x:0x%x flags=%u "
++							"differences=0x%x; the texture lookup memo is off for the rest of this boot", index, key.address,
++							key.words[0], key.words[1], key.words[2], key.words[3], key.words[4], key.words[5], key.flags, differences);
++					}
++				}
++			}
++
++			result.ios_validation_stamp = validation_stamp;
++			const u64 bound_length = finish_sampler_validation_locked(index, result, m_rtts);
++
++			if (store)
++			{
++				// Only a direct shader_read view of the section at the key's address: no render target, no
++				// deferred or gathered descriptor, no cyclic reference.
++				const bool direct = result.image_handle && result.upload_context == rsx::texture_upload_context::shader_read &&
++					result.external_subresource_desc.op == deferred_request_command::nop && !result.is_cyclic_reference &&
++					!result.ios_direct_framebuffer && result.ref_address == key.address &&
++					result.ios_validation_range.valid() && result.ios_validation_range.start == key.address;
++				switch (m_lookup_memo.end(ticket, key, compressed, bound, result, direct, key.address, bound_length))
++				{
++				case lookup_memo_type::store_result::stored: memo::count(memo::counters.stores); break;
++				case lookup_memo_type::store_result::changed: memo::count(memo::counters.unstored_changed); break;
++				case lookup_memo_type::store_result::kind: memo::count(memo::counters.unstored_kind); break;
++				case lookup_memo_type::store_result::bound: memo::count(memo::counters.unstored_bound); break;
++				}
++			}
++
++			memo::count(memo::counters.lookup_ticks, utils::get_tsc() - lookup_begin);
++			return result;
++		}
++#endif
++
+ 		// FIXME: This function is way too large and needs an urgent refactor.
+ 		template <typename surface_store_type, typename blitter_type, typename ...Args>
+ 		blit_op_result upload_scaled_image(const rsx::blit_src_info& src_info, const rsx::blit_dst_info& dst_info, bool interpolate, commandbuffer_type& cmd, surface_store_type& m_rtts, blitter_type& blitter, Args&&... extras)
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index 193d72c..da2171f 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -20,6 +20,7 @@
+ #include "ios/IOSTextureResidency.h"
+ #include "ios/IOSDeferredCommit.h"
+ #include "ios/IOSReadbackPrediction.h"
++#include "ios/IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "util/tsc.hpp"
+ #endif
+ 
+@@ -368,6 +369,11 @@ namespace rsx
+ 
+ 		inline section_storage_type& create_section()
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block size chooses between the exact address
++			// index and the range walk (fast_texture_search, find_texture_from_dimensions).
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
++#endif
+ 			auto &res = sections.emplace_back(this);
+ #ifdef RPCS3_IOS
+ 			if (sections.size() == address_index_threshold + 1)
+@@ -413,6 +419,8 @@ namespace rsx
+ 		inline void clear()
+ 		{
+ #ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: every section of the block goes.
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
+ 			// Bulk clear owns the cache lock. Drop this index before callbacks so
+ 			// destroying N sections does not perform N vector compactions.
+ 			m_address_index.clear();
+@@ -1257,6 +1265,16 @@ namespace rsx
+ #ifdef RPCS3_IOS
+ 		// CELL573_TEXTURE_RESIDENCY: frame of the last lookup that used this section.
+ 		u64 last_use_frame = 0;
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a change of this section that an
++		// exact texture lookup can observe (protection, dirty flag, ranges, resources, format, dimensions,
++		// pitch, swizzle, view flags, image type). A section that stays framebuffer storage bumps only the
++		// all-sections generation; set_context() decides from the old and the new context. Every writer of
++		// these fields calls it before or while it writes, under the cache lock its caller holds.
++		void ios_memo_changed() const noexcept
++		{
++			rpcs3::ios::texture_lookup_memo::section_changed(context == rsx::texture_upload_context::framebuffer_storage);
++		}
+ #endif
+ 
+ 		~cached_texture_section()
+@@ -1288,6 +1306,10 @@ namespace rsx
+ 		{
+ 			AUDIT(memory_range.valid());
+ 			AUDIT(!is_locked());
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: new range and fields; the context becomes shader_read.
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
++#endif
+ 
+ 			// Destroy if necessary
+ 			destroy();
+@@ -1345,6 +1367,9 @@ namespace rsx
+ 
+ 		void create_dma_only(u16 width, u16 height, u32 pitch)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: dimensions and pitch
++#endif
+ 			this->width = width;
+ 			this->height = height;
+ 			this->rsx_pitch = pitch;
+@@ -1362,6 +1387,10 @@ namespace rsx
+ 		{
+ 			AUDIT(exists());
+ 			AUDIT(valid_range());
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: also when the callbacks already ran (a re-created section).
++			ios_memo_changed();
++#endif
+ 
+ 			if (triggered_exists_callbacks) return;
+ 			triggered_exists_callbacks = true;
+@@ -1373,6 +1402,9 @@ namespace rsx
+ 
+ 		void on_section_resources_destroyed()
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: also without callbacks
++#endif
+ 			if (!triggered_exists_callbacks) return;
+ 			triggered_exists_callbacks = false;
+ 
+@@ -1402,6 +1434,9 @@ namespace rsx
+ 
+ 		void set_dirty(bool new_dirty)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			if (new_dirty == false && !is_locked() && context == texture_upload_context::shader_read)
+ 				return;
+ 
+@@ -1439,6 +1474,9 @@ namespace rsx
+ 		void notify_range_valid()
+ 		{
+ 			AUDIT(valid_range());
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block's address index changes
++#endif
+ 
+ 			// Callbacks
+ 			m_block->on_section_range_valid(*derived());
+@@ -1453,6 +1491,9 @@ namespace rsx
+ 
+ 		void invalidate_range()
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block's address index changes
++#endif
+ 			if (!valid_range())
+ 				return;
+ 
+@@ -1523,6 +1564,11 @@ namespace rsx
+ 		 */
+ 		void post_protect(utils::protection old_prot, utils::protection prot)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: protect, unprotect, discard and reprotect (lock state,
++			// hash, validation epoch, confirmed range), whatever the protection before and after.
++			ios_memo_changed();
++#endif
+ 			if (old_prot != utils::protection::rw && prot == utils::protection::rw)
+ 			{
+ 				AUDIT(!is_locked());
+@@ -1993,27 +2039,45 @@ namespace rsx
+ 
+ 		void set_view_flags(rsx::component_order flags)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: every call, changed or not
++#endif
+ 			view_flags = flags;
+ 		}
+ 
+ 		void set_context(rsx::texture_upload_context upload_context)
+ 		{
+ 			AUDIT(!exists() || !is_locked() || context == upload_context);
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: a section leaving or joining framebuffer storage changes
++			// the candidates of an uncompressed lookup; decided from the old and the new context.
++			rpcs3::ios::texture_lookup_memo::section_changed(context == rsx::texture_upload_context::framebuffer_storage &&
++				upload_context == rsx::texture_upload_context::framebuffer_storage);
++#endif
+ 			context = upload_context;
+ 		}
+ 
+ 		void set_image_type(rsx::texture_dimension_extended type)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			image_type = type;
+ 		}
+ 
+ 		void set_gcm_format(u32 format)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			gcm_format = format;
+ 		}
+ 
+ 		void set_swizzled(bool is_swizzled)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			swizzled = is_swizzled;
+ 		}
+ 
+diff --git a/rpcs3/Emu/RSX/RSXTexture.cpp b/rpcs3/Emu/RSX/RSXTexture.cpp
+index f6c2cbc..bb5d939 100644
+--- a/rpcs3/Emu/RSX/RSXTexture.cpp
++++ b/rpcs3/Emu/RSX/RSXTexture.cpp
+@@ -580,4 +580,32 @@ namespace rsx
+ 	{
+ 		return registers[NV4097_SET_VERTEX_TEXTURE_CONTROL3 + (m_index * 8)] & 0xfffff;
+ 	}
++
++#ifdef RPCS3_IOS
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the words of the registers read by the
++	// accessors a lookup uses (upload_texture, get_texture_size), indexed exactly as those accessors index them.
++	std::array<u32, 6> fragment_texture::lookup_words() const
++	{
++		return {
++			registers[NV4097_SET_TEXTURE_OFFSET + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_FORMAT + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_ADDRESS + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_CONTROL1 + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_IMAGE_RECT + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_CONTROL3 + m_index],
++		};
++	}
++
++	std::array<u32, 6> vertex_texture::lookup_words() const
++	{
++		return {
++			registers[NV4097_SET_VERTEX_TEXTURE_OFFSET + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_FORMAT + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_ADDRESS + (m_index * 8)],
++			0u,
++			registers[NV4097_SET_VERTEX_TEXTURE_IMAGE_RECT + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_CONTROL3 + (m_index * 8)],
++		};
++	}
++#endif
+ }
+diff --git a/rpcs3/Emu/RSX/RSXTexture.h b/rpcs3/Emu/RSX/RSXTexture.h
+index 0de96bb..0388725 100644
+--- a/rpcs3/Emu/RSX/RSXTexture.h
++++ b/rpcs3/Emu/RSX/RSXTexture.h
+@@ -88,6 +88,11 @@ namespace rsx
+ 		u32 pitch() const;
+ 
+ 		image_section_attributes_t attributes() const;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the raw words of the six registers
++		// the accessors used by a texture cache lookup read: OFFSET, FORMAT, ADDRESS, CONTROL1, IMAGE_RECT, CONTROL3.
++		std::array<u32, 6> lookup_words() const;
++#endif
+ 	};
+ 
+ 	class vertex_texture
+@@ -147,6 +152,10 @@ namespace rsx
+ 
+ 		rsx::texture_dimension_extended get_extended_texture_dimension() const;
+ 		u16 get_exact_mipmap_count() const;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: as fragment_texture::lookup_words(); no CONTROL1 (the remap is fixed).
++		std::array<u32, 6> lookup_words() const;
++#endif
+ 	};
+ 
+ 	template<typename T>
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 4d4a4df..7ded007 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -15,6 +15,7 @@
+ #include "ios/IOSRendererCausality.h"
+ #include "ios/IOSFrameTrace.h" // REWINDBOX_PIPELINE_QUEUE_621
+ #include "ios/IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
++#include "ios/IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #endif
+ 
+ namespace vk
+@@ -422,6 +423,14 @@ void VKGSRender::load_texture_env()
+ 	};
+ 
+ 	std::lock_guard lock(m_sampler_mutex);
++#ifdef RPCS3_IOS
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: a global sampler refresh (frame end, blit, access violation, unmap,
++	// tile change, surface eviction) drops every texture lookup memo entry before any slot is looked up.
++	if (m_samplers_dirty && rpcs3::ios::texture_lookup_memo::consolidated())
++	{
++		rpcs3::ios::texture_lookup_memo::sampler_refresh();
++	}
++#endif
+ 
+ 	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
+ 	{
+@@ -460,11 +469,21 @@ void VKGSRender::load_texture_env()
+ 		}
+ 
+ #ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: with the lever, the sampler validation binding and the lookup under
++		// one cache lock and through the lookup memo (ios/IOSTextureLookupMemo.h); without it, the sequence below.
++		if (rpcs3::ios::texture_lookup_memo::consolidated())
++		{
++			*sampler_state = m_texture_cache.upload_sampler_texture(*m_current_command_buffer, tex, m_rtts, i,
++				rpcs3::ios::texture_lookup_memo::fragment_flags(current_fp_metadata.bx2_texture_reads_mask, i));
++		}
++		else
++		{
+ 		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(i);
+ #endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
+ #ifdef RPCS3_IOS
+ 		m_texture_cache.finish_sampler_validation(i, *sampler_state, validation_stamp, m_rtts);
++		}
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
+@@ -737,11 +756,20 @@ void VKGSRender::load_texture_env()
+ 
+ #ifdef RPCS3_IOS
+ 		const auto validation_index = rsx::limits::fragment_textures_count + i;
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: as for a fragment slot; the vertex slots follow the fragment ones.
++		if (rpcs3::ios::texture_lookup_memo::consolidated())
++		{
++			*sampler_state = m_texture_cache.upload_sampler_texture(*m_current_command_buffer, tex, m_rtts, validation_index,
++				rpcs3::ios::texture_lookup_memo::vertex_flag);
++		}
++		else
++		{
+ 		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(validation_index);
+ #endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
+ #ifdef RPCS3_IOS
+ 		m_texture_cache.finish_sampler_validation(validation_index, *sampler_state, validation_stamp, m_rtts);
++		}
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index 7a0b6ac..bc4a269 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -118,6 +118,14 @@ namespace vk
+ 		const auto transfer_width = static_cast<u32>(src_area.width());
+ 		const auto transfer_height = static_cast<u32>(src_area.height());
+ 		real_pitch = internal_bpp * transfer_width;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: rsx_pitch is read by pitch_compatible() on the exact lookup paths.
++		// Its only caller (copy_texture) passes rsx_pitch itself, so this never bumps today.
++		if (pitch != rsx_pitch)
++		{
++			ios_memo_changed();
++		}
++#endif
+ 		rsx_pitch = pitch;
+ 
+ 		const bool require_format_conversion = !!(src->aspect() & VK_IMAGE_ASPECT_STENCIL_BIT) || src->format() == VK_FORMAT_D32_SFLOAT;
+@@ -1580,6 +1588,9 @@ namespace vk
+ 		auto image = static_cast<vk::viewable_image*>(section.get_raw_texture());
+ 
+ 		ensure(image);
++#ifdef RPCS3_IOS
++		section.ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the section's views are disposed
++#endif
+ 		image->set_native_component_layout(mapping);
+ 
+ 		section.set_view_flags(expected_flags);
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+index efb2ab3..43abdea 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -49,6 +49,11 @@ namespace vk
+ 
+ 		void create(u16 w, u16 h, u16 depth, u16 mipmaps, vk::image* image, u32 rsx_pitch, bool managed, u32 gcm_format, bool pack_swap_bytes = false)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: image, dimensions, pitch, format and swizzle are written
++			// directly below; on_section_resources_created() can return early for a re-created section.
++			ios_memo_changed();
++#endif
+ 			auto new_texture = static_cast<vk::viewable_image*>(image);
+ 			ensure(!exists() || !is_managed() || vram_texture == new_texture);
+ 
+@@ -149,6 +154,9 @@ namespace vk
+ 		{
+ 			if (!exists() && context != rsx::texture_upload_context::dma)
+ 				return;
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the image and its views go
++#endif
+ 
+ 			m_tex_cache->on_section_destroyed(*this);
+ 
+@@ -394,6 +402,9 @@ namespace vk
+ 		void set_rsx_pitch(u32 pitch)
+ 		{
+ 			ensure(!is_locked());
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: read by pitch_compatible()
++#endif
+ 			rsx_pitch = pitch;
+ 		}
+ 
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 11a31ef..d9601f6 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -207,6 +207,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> fifo_nop_fast_path{ this, "RSX FIFO NOP Fast Path", ios_experimental_mode::automatic };
+ 		// REWINDBOX_LIGHT_MEASUREMENT_627: Automatic is off; Enabled leaves only the COREPROF synthesis line.
+ 		cfg::_enum<ios_experimental_mode> light_measurement{ this, "Light Measurement Profile", ios_experimental_mode::automatic };
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): Automatic serves hits for Assassin's Creed and
++		// verifies every hit for Black Ops II; needs Texture Validation Per FIFO Batch.
++		cfg::_enum<ios_experimental_mode> texture_lookup_memo{ this, "Texture Lookup Memo", ios_experimental_mode::automatic };
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
+ 		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
+diff --git a/rpcs3/ios/IOSTextureLookupMemo.h b/rpcs3/ios/IOSTextureLookupMemo.h
+new file mode 100644
+index 0000000..20660f4
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureLookupMemo.h
+@@ -0,0 +1,467 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSTextureValidationProfile.h"
++
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <type_traits>
++
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: per sampler slot, the last results of an exact texture lookup
++// (texture_cache::upload_texture), reused for an identical lookup in the same validation epoch.
++//
++// IPA 657 (Core 655, PID 10471), Assassin's Creed window 1:42: 904 lookups per frame for 1,515 draws
++// (TEXCACHE621 upload_calls 106,705 over 118 frames), 61 % of them confirmed without hashing because
++// the section had already been validated in the same epoch (OPT559 epoch_skips 64,999), and 5.03 ms
++// of texture stage per sampled frame (RSXFRAME551). A slot is looked up again whenever one of its
++// registers is rewritten (A/B/A alternation, a filter or LOD change), even when the texture is the same.
++//
++// The key is everything the lookup reads from the texture unit: the six raw words of OFFSET, FORMAT,
++// ADDRESS, CONTROL1, IMAGE_RECT and CONTROL3 (rsx::fragment_texture::lookup_words(); a vertex texture
++// has no CONTROL1), the address they resolve to now (IO mappings can change under the same words), and
++// whether the slot is a vertex slot or a BX2 read of the fragment program. The value is the descriptor
++// upload_texture returned, before VKDraw.cpp derives the format, view override and sampler from it (that
++// code still runs on every hit); the validation stamp and binding are set again by every hit.
++//
++// An entry is used only while nothing the exact lookup reads can have changed:
++// - the validation epoch (a lookup repeated in the same epoch never hashes: buffered_section::sync) and
++//   sampler_revision (every advance_epoch: PUT, semaphores, RSX writes, frame end);
++// - a scoped RSX write over the entry's section range (CELL573: revalidate_overlapping drops it through
++//   the memo's own sampler bindings, as it does for the slot bindings);
++// - the section-state generations below, bumped under the cache lock by every change of a section, of
++//   its block or of its image views that the lookup reads (create, reset, destroy, protection, dirty,
++//   context, format, dimensions, pitch, swizzle, view flags, ranges, block size, component order):
++//   local for an uncompressed entry, all for a compressed one (find_texture_from_dimensions does not
++//   filter contexts);
++// - the sampler context generation, bumped by a global sampler refresh (m_samplers_dirty);
++// - for an uncompressed entry, no render target bound at the address, checked at every use (the only
++//   surface store input of an exact local lookup; the write tag is stamped again on every hit).
++// Only direct shader_read views of a section are stored: no render target, no deferred or gathered
++// descriptor, no cyclic reference, nothing created or changed by the lookup that produced it.
++//
++// Self-verification: the first reuse of each (slot, key) of a boot, the first 256 hits of a boot, then
++// one hit in 64 (every hit in verify_all mode) run the full lookup under the same lock and use its
++// result; a difference in the descriptor, the view or the sampler inputs, or a section change during
++// that lookup, is counted, logged once with the slot and key, and turns the memo off for the rest of
++// the boot. This is a spot check, not a bound: one hit clock is shared by all slots, so a stale path
++// that occurs rarely may never be sampled. Correctness rests on the invalidation census above (checked
++// by test/rpcs3_texture_lookup_memo660_test.py); the verification catches what the census would miss
++// systematically, for every texture of the boot at least once.
++namespace rpcs3::ios::texture_lookup_memo
++{
++enum class mode : std::uint32_t
++{
++	off = 0,        // The Core 659 lookup: prepare, upload_texture and finish, three cache locks.
++	active = 1,     // One cache lock per lookup; hits served, sampled verification.
++	verify_all = 2, // One cache lock per lookup; every hit runs the full lookup (counters only).
++};
++
++constexpr std::size_t ways = 4;
++constexpr std::uint64_t verify_first = 256;
++constexpr std::uint64_t verify_period = 64;
++
++constexpr std::uint32_t vertex_flag = 1u;
++constexpr std::uint32_t bx2_flag = 2u;
++
++inline std::atomic<std::uint32_t> boot_mode{0};
++// Set by the first verified difference: no hit for the rest of the boot.
++inline std::atomic<bool> disabled{false};
++inline std::atomic<bool> mismatch_logged{false};
++// Hits of this boot, the sampling clock of the verification.
++inline std::atomic<std::uint64_t> boot_hits{0};
++// The first reuse of each (slot, key) is verified. Always true in the Core; the host test turns it off only to
++// exercise served hits directly (test/rpcs3_texture_lookup_memo660_test.py, mode active_served).
++inline std::atomic<bool> verify_first_reuse{true};
++
++// Section-state generations (see above). Bumped on every title: one atomic increment per change.
++inline std::atomic<std::uint64_t> local_generation{1}, all_generation{1}, context_generation{1};
++
++struct counters_t
++{
++	std::atomic<std::uint64_t> lookups{0}, hits{0}, verified{0}, mismatches{0}, stores{0};
++	std::atomic<std::uint64_t> miss_empty{0}, miss_epoch{0}, miss_revision{0}, miss_range{0}, miss_context{0},
++		miss_section{0}, miss_bound{0}, miss_disabled{0};
++	std::atomic<std::uint64_t> unstored_kind{0}, unstored_changed{0}, unstored_bound{0};
++	std::atomic<std::uint64_t> locks_avoided{0}, cpu_uploads{0};
++	// First reuses of a (slot, key) verified; reuses not checked that way because the key table was full.
++	std::atomic<std::uint64_t> first_reuses{0}, seen_full{0};
++	std::atomic<std::uint64_t> hit_ticks{0}, lookup_ticks{0};
++};
++inline counters_t counters;
++
++inline void count(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
++{
++	counter.fetch_add(value, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++
++inline mode current_mode() noexcept
++{
++	return static_cast<mode>(boot_mode.load(std::memory_order_relaxed));
++}
++
++// The lookups of load_texture_env take the one-lock path (with or without hits).
++inline bool consolidated() noexcept
++{
++	return current_mode() != mode::off;
++}
++
++// Boot policy (resolve_experimental_policy), after the texture epoch was set and before the RSX
++// thread starts. New generations: no entry survives a boot or a change of epoch_enabled.
++inline void configure(mode value) noexcept
++{
++	boot_mode.store(static_cast<std::uint32_t>(value), std::memory_order_relaxed);
++	disabled.store(false, std::memory_order_relaxed);
++	mismatch_logged.store(false, std::memory_order_relaxed);
++	boot_hits.store(0, std::memory_order_relaxed);
++	local_generation.fetch_add(1, std::memory_order_acq_rel);
++	all_generation.fetch_add(1, std::memory_order_acq_rel);
++	context_generation.fetch_add(1, std::memory_order_acq_rel);
++}
++
++// A section change the exact lookup can observe. framebuffer_only: the section's context is
++// framebuffer_storage before and after the change (no uncompressed lookup visits it).
++inline void section_changed(bool framebuffer_only) noexcept
++{
++	all_generation.fetch_add(1, std::memory_order_acq_rel);
++	if (!framebuffer_only)
++	{
++		local_generation.fetch_add(1, std::memory_order_acq_rel);
++	}
++}
++
++// A global sampler refresh (VKGSRender::m_samplers_dirty) drops every entry.
++inline void sampler_refresh() noexcept
++{
++	context_generation.fetch_add(1, std::memory_order_acq_rel);
++}
++
++constexpr bool should_verify(mode value, std::uint64_t hit) noexcept
++{
++	return value == mode::verify_all || hit < verify_first || (hit - verify_first) % verify_period == 0;
++}
++
++constexpr std::uint32_t fragment_flags(std::uint32_t bx2_mask, std::uint32_t slot) noexcept
++{
++	return ((bx2_mask >> slot) & 1u) ? bx2_flag : 0u;
++}
++
++struct key
++{
++	std::uint32_t address = 0;            // rsx::get_address(offset, location), resolved at every use
++	std::array<std::uint32_t, 6> words{}; // OFFSET FORMAT ADDRESS CONTROL1 IMAGE_RECT CONTROL3
++	std::uint32_t flags = 0;              // vertex_flag, bx2_flag
++
++	bool operator==(const key&) const = default;
++};
++
++enum class miss : std::uint32_t
++{
++	none = 0, empty, epoch, revision, range, context, section, bound, disabled
++};
++
++inline void count_miss(miss reason) noexcept
++{
++	switch (reason)
++	{
++	case miss::none: break;
++	case miss::empty: count(counters.miss_empty); break;
++	case miss::epoch: count(counters.miss_epoch); break;
++	case miss::revision: count(counters.miss_revision); break;
++	case miss::range: count(counters.miss_range); break;
++	case miss::context: count(counters.miss_context); break;
++	case miss::section: count(counters.miss_section); break;
++	case miss::bound: count(counters.miss_bound); break;
++	case miss::disabled: count(counters.miss_disabled); break;
++	}
++}
++
++// Differences found by a verification (bits of the logged reasons).
++enum difference : std::uint32_t
++{
++	differs_view = 1u,       // image_handle
++	differs_descriptor = 2u, // context, image type, reference address, ranges, deferred operation, flags
++	differs_sampler = 4u,    // format class, texture coordinate transform, samples, cyclic reference
++	differs_state = 8u,      // the full lookup changed a section: the memo would have skipped that change
++};
++
++// Fields a memo hit hands to the sampler setup and to the draw (VKDraw.cpp). Both sides come straight
++// from upload_texture (before the validation stamp); surface_cache_tag is the store's current write tag.
++template <typename Descriptor>
++std::uint32_t compare(const Descriptor& memo, const Descriptor& full) noexcept
++{
++	std::uint32_t result = 0;
++	if (memo.image_handle != full.image_handle)
++	{
++		result |= differs_view;
++	}
++	if (memo.upload_context != full.upload_context || memo.image_type != full.image_type || memo.ref_address != full.ref_address ||
++		memo.surface_cache_tag != full.surface_cache_tag || memo.flag != full.flag ||
++		memo.external_subresource_desc.op != full.external_subresource_desc.op ||
++		memo.ios_validation_range != full.ios_validation_range || !(memo.format_ex == full.format_ex) ||
++		memo.format_ex.texel_remap_control != full.format_ex.texel_remap_control)
++	{
++		result |= differs_descriptor;
++	}
++	// The coordinate transform: scale and bias, and the clamp bounds only when clamping (the constructors
++	// leave the bounds unset and RSXThread.cpp reads them only for a clamped descriptor).
++	using xform_type = std::remove_cvref_t<decltype(memo.texcoord_xform)>;
++	const auto* memo_xform = reinterpret_cast<const unsigned char*>(&memo.texcoord_xform);
++	const auto* full_xform = reinterpret_cast<const unsigned char*>(&full.texcoord_xform);
++	constexpr std::size_t bounds_offset = offsetof(xform_type, clamp_min);
++	constexpr std::size_t flag_offset = offsetof(xform_type, clamp);
++	bool xform_differs = std::memcmp(memo_xform, full_xform, bounds_offset) != 0 || memo.texcoord_xform.clamp != full.texcoord_xform.clamp;
++	if (!xform_differs && memo.texcoord_xform.clamp)
++	{
++		xform_differs = std::memcmp(memo_xform + bounds_offset, full_xform + bounds_offset, flag_offset - bounds_offset) != 0;
++	}
++	if (memo.format_class != full.format_class || memo.samples != full.samples || memo.is_cyclic_reference != full.is_cyclic_reference ||
++		xform_differs)
++	{
++		result |= differs_sampler;
++	}
++	return result;
++}
++
++struct generations
++{
++	std::uint64_t epoch = 0, local = 0, all = 0, context = 0;
++
++	static generations now() noexcept
++	{
++		return { texture_validation::current_epoch(), local_generation.load(std::memory_order_acquire),
++			all_generation.load(std::memory_order_acquire), context_generation.load(std::memory_order_acquire) };
++	}
++
++	bool sections_equal(const generations& other) const noexcept
++	{
++		return local == other.local && all == other.all;
++	}
++};
++
++// Owned by the texture cache. The RSX thread finds, stores and clears entries under the cache reader
++// lock; invalidate() runs under the exclusive lock on any thread and only touches the range bindings.
++template <typename Descriptor, std::size_t Slots>
++class table
++{
++	struct entry
++	{
++		key k{};
++		Descriptor value{};
++		texture_validation::sampler_stamp stamp{};
++		generations gen{};
++		bool compressed = false;
++		bool valid = false;
++		std::uint32_t used = 0;
++	};
++
++	std::array<entry, Slots * ways> m_entries{};
++	texture_validation::sampler_bindings<Slots * ways> m_ranges;
++	std::uint32_t m_clock = 0;
++	// Hashes of the (slot, key) pairs whose first reuse this table has verified (0: free), filled to half at
++	// most; the table lives as long as the texture cache, one boot.
++	static constexpr std::size_t seen_capacity = 4096;
++	std::array<std::uint64_t, seen_capacity> m_seen{};
++	std::size_t m_seen_count = 0;
++
++public:
++	struct found
++	{
++		const Descriptor* value = nullptr;
++		miss reason = miss::empty;
++	};
++
++	// Under the cache reader lock. bound: a render target is bound at k.address (uncompressed only).
++	found find(std::size_t slot, const key& k, bool compressed, bool bound) noexcept
++	{
++		if (disabled.load(std::memory_order_relaxed))
++		{
++			return { nullptr, miss::disabled };
++		}
++
++		for (std::size_t way = 0; way < ways; ++way)
++		{
++			const std::size_t index = slot * ways + way;
++			auto& e = m_entries[index];
++			if (!e.valid || !(e.k == k) || e.compressed != compressed)
++			{
++				continue;
++			}
++
++			const auto now = generations::now();
++			miss reason = miss::none;
++			if (!now.epoch || e.gen.epoch != now.epoch)
++			{
++				reason = miss::epoch;
++			}
++			else if (e.stamp.memory != texture_validation::sampler_revision.load(std::memory_order_acquire))
++			{
++				reason = miss::revision;
++			}
++			else if (!m_ranges.matches(index, e.stamp))
++			{
++				reason = miss::range;
++			}
++			else if (e.gen.context != now.context)
++			{
++				reason = miss::context;
++			}
++			else if (e.gen.local != now.local || (compressed && e.gen.all != now.all))
++			{
++				reason = miss::section;
++			}
++			else if (!compressed && bound)
++			{
++				reason = miss::bound;
++			}
++
++			if (reason != miss::none)
++			{
++				e.valid = false;
++				m_ranges.forget(index);
++				return { nullptr, reason };
++			}
++
++			e.used = ++m_clock;
++			return { &e.value, miss::none };
++		}
++
++		return { nullptr, miss::empty };
++	}
++
++	// Under the cache reader lock, on the RSX thread, for a hit: true the first time this (slot, key) is
++	// reused in this table's life (that hit is verified). Once the key table is half full, false (only the
++	// sampled verification remains) and counted.
++	bool first_reuse(std::size_t slot, const key& k) noexcept
++	{
++		std::uint64_t h = 1469598103934665603ull;
++		const auto mix = [&h](std::uint64_t value) { h = (h ^ value) * 1099511628211ull; };
++		mix(slot);
++		mix(k.address);
++		for (const std::uint32_t word : k.words)
++		{
++			mix(word);
++		}
++		mix(k.flags);
++		if (!h)
++		{
++			h = 1;
++		}
++
++		for (std::size_t probe = 0, at = h % seen_capacity; probe < seen_capacity; ++probe, at = (at + 1) % seen_capacity)
++		{
++			if (m_seen[at] == h)
++			{
++				return false;
++			}
++			if (!m_seen[at])
++			{
++				if (m_seen_count >= seen_capacity / 2)
++				{
++					count(counters.seen_full);
++					return false;
++				}
++				m_seen[at] = h;
++				++m_seen_count;
++				return true;
++			}
++		}
++		count(counters.seen_full);
++		return false;
++	}
++
++	struct ticket
++	{
++		std::size_t index = 0;
++		texture_validation::sampler_stamp stamp{};
++		generations gen{};
++	};
++
++	// Under the cache reader lock, before the lookup. The way of the same key, else a free way, else the
++	// least recently used one. Its range is unknown until end(): a scoped write in between drops it.
++	ticket begin(std::size_t slot, const key& k) noexcept
++	{
++		std::size_t victim = slot * ways;
++		std::uint32_t best = 0;
++		for (std::size_t way = 0; way < ways; ++way)
++		{
++			const std::size_t index = slot * ways + way;
++			const auto& e = m_entries[index];
++			const std::uint32_t rank = e.k == k ? 3 : !e.valid ? 2 : 1;
++			if (rank > best || (rank == best && rank == 1 && e.used < m_entries[victim].used))
++			{
++				best = rank;
++				victim = index;
++			}
++		}
++
++		m_entries[victim].valid = false;
++		const auto gen = generations::now();
++		return { victim, m_ranges.prepare(victim), gen };
++	}
++
++	enum class store_result
++	{
++		stored, changed, kind, bound
++	};
++
++	// Under the cache reader (or upgraded) lock, after the lookup and its sampler validation. direct: the
++	// descriptor is a direct shader_read view of a section at k.address. length: the length the slot
++	// binding received (0: unknown, then any scoped write drops the entry).
++	store_result end(const ticket& t, const key& k, bool compressed, bool bound, const Descriptor& value, bool direct,
++		std::uint32_t start, std::uint64_t length) noexcept
++	{
++		const auto now = generations::now();
++		if (!t.gen.epoch || now.epoch != t.gen.epoch || now.local != t.gen.local || now.context != t.gen.context ||
++			(compressed && now.all != t.gen.all) || disabled.load(std::memory_order_relaxed))
++		{
++			m_ranges.forget(t.index);
++			return store_result::changed;
++		}
++		if (!compressed && bound)
++		{
++			m_ranges.forget(t.index);
++			return store_result::bound;
++		}
++		if (!direct)
++		{
++			m_ranges.forget(t.index);
++			return store_result::kind;
++		}
++
++		m_ranges.set_range(t.index, start, length);
++		auto& e = m_entries[t.index];
++		e.k = k;
++		e.value = value;
++		e.stamp = t.stamp;
++		e.gen = t.gen;
++		e.compressed = compressed;
++		e.valid = true;
++		e.used = ++m_clock;
++		return store_result::stored;
++	}
++
++	// Under the cache exclusive lock, next to the slot bindings (revalidate_overlapping).
++	void invalidate(std::uint32_t start, std::uint64_t length) noexcept
++	{
++		m_ranges.invalidate(start, length);
++	}
++
++	// Under the cache reader lock: after a verified difference.
++	void clear() noexcept
++	{
++		for (std::size_t index = 0; index < m_entries.size(); ++index)
++		{
++			m_entries[index].valid = false;
++			m_ranges.forget(index);
++		}
++	}
++};
++}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 126bad1..014bd34 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -202,4 +202,22 @@ constexpr bool early_submit_at_pass_boundary(std::string_view title_id) noexcept
+ {
+ 	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
+ }
++
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): IPA 657 (Core 655, PID 10471). Assassin's
++// Creed, window 1:42: 904 texture lookups per frame for 1,515 draws (TEXCACHE621 upload_calls 106,705 over 118
++// frames), 61 % of them confirmed without hashing because the same section was already validated in the same
++// epoch (OPT559 epoch_skips 64,999), 5.03 ms of texture stage per sampled frame (RSXFRAME551) and 29 CPU uploads
++// in the window: the Automatic title whose memo hits are served. Black Ops II, windows 3:12-3:16, shows the same
++// counters (1,243-1,545 lookups per frame, 48-51 % epoch skips, 4.0-5.7 ms of texture stage) but 248-293 CPU
++// uploads per window, each of which ends every entry: its Automatic mode verifies every hit (the full lookup
++// runs and its result is used), so TEXMEMO660 measures what it would gain before any hit is served.
++constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
++constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 9b03ffc..84bb280 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -21,6 +21,7 @@
+ #include "IOSMoltenVKAsyncCanary.h"
+ #include "IOSInPassReadTransition.h"
+ #include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
++#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -334,6 +335,29 @@ void resolve_experimental_policy() noexcept
+ 	resolved.texture_prehash = resolved.texture_validation_epoch &&
+ 		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
+ 	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h, ios/IOSTitleLevers.h): needs the epochs.
++	// Automatic serves hits for Assassin's Creed and verifies every hit for Black Ops II (counters only);
++	// Enabled serves hits for any title with the epochs; Disabled keeps the Core 659 lookup. Set after the
++	// epoch flag above, before the RSX thread starts: no entry survives a boot.
++	{
++		namespace memo = rpcs3::ios::texture_lookup_memo;
++		const auto memo_setting = g_cfg.ios_experimental.texture_lookup_memo.get();
++		memo::mode memo_mode = memo::mode::off;
++		if (resolved.texture_validation_epoch && memo_setting != ios_experimental_mode::disabled)
++		{
++			if (memo_setting == ios_experimental_mode::enabled || rpcs3::ios::title_levers::serves_texture_lookup_memo(title_id))
++			{
++				memo_mode = memo::mode::active;
++			}
++			else if (rpcs3::ios::title_levers::verifies_texture_lookup_memo(title_id))
++			{
++				memo_mode = memo::mode::verify_all;
++			}
++		}
++		resolved.texture_lookup_memo = memo_mode != memo::mode::off;
++		resolved.texture_lookup_memo_verify_all = memo_mode == memo::mode::verify_all;
++		memo::configure(memo_mode);
++	}
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -491,6 +515,10 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 660: spu_direct_object_hits=%d spu_object_cache=%d",
+ 		resolved.spu_direct_object_hits, resolved.persistent_spu_object_cache);
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: its own line.
++	ios_experimental_log.notice("Resolved title policy 660: texture_lookup_memo=%d verify_all=%d ways=%u verify_first=%u verify_period=%u",
++		resolved.texture_lookup_memo, resolved.texture_lookup_memo_verify_all, static_cast<u32>(rpcs3::ios::texture_lookup_memo::ways),
++		static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_first), static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_period));
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 8f5b582..0050a72 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -108,6 +108,11 @@ struct experimental_policy
+ 	bool moltenvk_in_pass_waits = false;
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: early submissions wait for a point without an open render pass.
+ 	bool early_submit_at_pass_boundary = false;
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a sampler slot reuses the result of an
++	// identical texture lookup of the same validation epoch, one cache lock per lookup. Needs the texture epoch.
++	bool texture_lookup_memo = false;
++	// With it, every hit runs the full lookup and is compared (counters only, nothing skipped).
++	bool texture_lookup_memo_verify_all = false;
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
+ 	// like the fields above; none of them enters an object-cache key.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index b17e874..6d0c6e6 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -33,6 +33,7 @@
+ #include "IOSFrameTrace.h"
+ #include "IOSFeedbackCensus.h"
+ #include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
++#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
+ #include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+@@ -1597,6 +1598,56 @@ private:
+                 static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip,
+                 fb_skip_off, post_skip_off);
+         }
++        // REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): sampler-slot lookups through the one-lock
++        // path (lookups=), hits served without the cache lookup (hits=; TEXCACHE621 upload_calls then counts the
++        // other lookups), hits that ran the full lookup and were compared (verified=), differences found
++        // (mismatches=; the first turns the memo off for the boot: disabled=1), entries stored, misses by reason
++        // (no entry, epoch, sampler revision, scoped write over the range, global sampler refresh, section change,
++        // render target bound, memo off), results not stored by reason (not a direct shader_read view, the cache
++        // changed during the lookup, render target bound), section-state generation bumps (local= seen by
++        // uncompressed lookups, fb= framebuffer-only), CPU uploads on the one lock, the reader locks it saved
++        // (2 per lookup) and the RSX thread time of the served hits and of the other lookups (ms).
++        {
++            namespace memo = rpcs3::ios::texture_lookup_memo;
++            auto& c = memo::counters;
++            static u64 s_local = 0, s_all = 0, s_context = 0, s_session = 0;
++            const u64 local_now = memo::local_generation.load(std::memory_order_relaxed);
++            const u64 all_now = memo::all_generation.load(std::memory_order_relaxed);
++            const u64 context_now = memo::context_generation.load(std::memory_order_relaxed);
++            if (s_session != profile_session)
++            {
++                // A new session: the bumps of the previous boot's shutdown and of configure() are not this window's.
++                s_session = profile_session;
++                s_local = local_now;
++                s_all = all_now;
++                s_context = context_now;
++            }
++            const u64 local_bumps = local_now >= s_local ? local_now - s_local : 0;
++            const u64 all_bumps = all_now >= s_all ? all_now - s_all : 0;
++            const u64 context_bumps = context_now >= s_context ? context_now - s_context : 0;
++            s_local = local_now;
++            s_all = all_now;
++            s_context = context_now;
++            const u64 lookups = memo::take(c.lookups), hits = memo::take(c.hits), verified = memo::take(c.verified);
++            const u64 mismatches = memo::take(c.mismatches), stores = memo::take(c.stores);
++            const u64 m_empty = memo::take(c.miss_empty), m_epoch = memo::take(c.miss_epoch), m_revision = memo::take(c.miss_revision);
++            const u64 m_range = memo::take(c.miss_range), m_context = memo::take(c.miss_context), m_section = memo::take(c.miss_section);
++            const u64 m_bound = memo::take(c.miss_bound), m_disabled = memo::take(c.miss_disabled);
++            const u64 u_kind = memo::take(c.unstored_kind), u_changed = memo::take(c.unstored_changed), u_bound = memo::take(c.unstored_bound);
++            const u64 locks = memo::take(c.locks_avoided), uploads = memo::take(c.cpu_uploads);
++            const u64 first_reuses = memo::take(c.first_reuses), seen_full = memo::take(c.seen_full);
++            const u64 hit_ticks = memo::take(c.hit_ticks), lookup_ticks = memo::take(c.lookup_ticks);
++            ios_core_profiler.notice(
++                "COREPROF TEXMEMO660 session=%llu window=%llu mode=%u disabled=%u lookups=%llu hits=%llu verified=%llu mismatches=%llu "
++                "stores=%llu miss_empty=%llu miss_epoch=%llu miss_revision=%llu miss_range=%llu miss_context=%llu miss_section=%llu "
++                "miss_bound=%llu miss_disabled=%llu unstored_kind=%llu unstored_changed=%llu unstored_bound=%llu local_bumps=%llu "
++                "fb_bumps=%llu context_bumps=%llu cpu_uploads=%llu locks_avoided=%llu first_reuses=%llu seen_full=%llu hit_ms=%.3f lookup_ms=%.3f "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, static_cast<u32>(memo::current_mode()), memo::disabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                lookups, hits, verified, mismatches, stores, m_empty, m_epoch, m_revision, m_range, m_context, m_section, m_bound, m_disabled,
++                u_kind, u_changed, u_bound, local_bumps, all_bumps >= local_bumps ? all_bumps - local_bumps : 0, context_bumps, uploads, locks,
++                first_reuses, seen_full, milliseconds(hit_ticks), milliseconds(lookup_ticks));
++        }
+         // REWINDBOX_RENDERPASS_CENSUS_652: why render passes ended in the window. begins= passes really begun;
+         // fresh= the first on their command buffer; same_target/other_target= begun after an end on the same or another
+         // framebuffer. sites= the eight sites with the most restarts, file:line:ends:same_target:other_target.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index a1019e4..78cd1c3 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -170,6 +170,8 @@ const std::array catalog{
+ 	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h)
+ 	GAME_SETTING("experimental.spu_direct_object_hits", "Experimental", "SPU", "SPU direct object hits", "Links an SPU block found in the persistent object cache without building its LLVM IR again, when every symbol of the object is a known SPU helper or patchpoint; any other object takes the usual path. The same code runs. Automatic enables it for every game; Disabled builds the IR of every hit as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_direct_object_hits, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h)
++	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed, and for Call of Duty: Black Ops II in a measuring mode that searches and compares at every reuse; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
+ 	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
+ 	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING

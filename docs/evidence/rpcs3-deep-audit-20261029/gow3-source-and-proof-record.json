@@ -1,0 +1,280 @@
+{
+  "baseline": "a363d923",
+  "baselineSource": "/workspace/scratch/479e2052a078/rpcs3-followup-verify",
+  "source": "/workspace/scratch/479e2052a078/rpcs3-core",
+  "files": {
+    "rpcs3/Emu/Cell/SPUThread.h": {
+      "beforeSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+      "afterSHA256": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c"
+    },
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "beforeSHA256": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+      "afterSHA256": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4"
+    },
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": {
+      "beforeSHA256": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+      "afterSHA256": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff"
+    }
+  },
+  "authenticatedProofs": {
+    "gow3-snr-plain.json": {
+      "evidenceSHA256": "13309609fcdd3e5e370c65bd4d1a7c1816e6588de35e489b9017b6b1233761ff",
+      "harnessSHA256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+      "finalProgram": true
+    },
+    "gow3-snr-asan.json": {
+      "evidenceSHA256": "bf465b120803a9a50037cec659c160f440739b94dbe2d5b9585fec5f6179ae9d",
+      "harnessSHA256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+      "finalProgram": true
+    },
+    "gow3-mfc-restore-plain.json": {
+      "evidenceSHA256": "22c6936751620e558a3c93c5f10ceaa1abd0945a859915a766288d8bf22bdd47",
+      "harnessSHA256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56",
+      "finalProgram": true
+    },
+    "gow3-mfc-restore-asan.json": {
+      "evidenceSHA256": "cbdd584387d061442a10b33dc54ddacebdaf68014081552fc69128b073edeefe",
+      "harnessSHA256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56",
+      "finalProgram": true
+    },
+    "gow3-mfc-llvm-plain.json": {
+      "evidenceSHA256": "23f48657d6e1f40f3950452e808da85c27c5115bc52028608aace2a6f27a48df",
+      "harnessSHA256": "463770ede9d677e2d682af984d5b90162d81df9a40354fb63b3e02d34accb6a1",
+      "finalProgram": false
+    },
+    "gow3-mfc-llvm-asan.json": {
+      "evidenceSHA256": "1bb3e54184348fe0158dc07f68304e00b880b546344242c87b03059033d82710",
+      "harnessSHA256": "463770ede9d677e2d682af984d5b90162d81df9a40354fb63b3e02d34accb6a1",
+      "finalProgram": false
+    },
+    "gow3-mfc-full-plain.json": {
+      "evidenceSHA256": "a86d739ad4fe4b4cafee661b40aae189b3ca4f1fb6397bc590c27fee822853e2",
+      "harnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1",
+      "finalProgram": false
+    },
+    "gow3-mfc-full-asan.json": {
+      "evidenceSHA256": "49f04487576bc8cffb8a6d47a9c7080f43de95c89c6c8ae702aabcfaf10ec252",
+      "harnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1",
+      "finalProgram": false
+    },
+    "gow3-mfc-full-irq-plain.json": {
+      "evidenceSHA256": "3fd64b01af1fe4c72f2d1783e140b93b502ad23065775122b3ee3228af5c291e",
+      "harnessSHA256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71",
+      "finalProgram": true
+    },
+    "gow3-mfc-full-irq-asan.json": {
+      "evidenceSHA256": "d7921fb5a3f3c51ad6bc5977fbe5810dab7898a8d2cc455ed06ea2aa6f3ddb34",
+      "harnessSHA256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71",
+      "finalProgram": true
+    }
+  },
+  "finalProgramHashes": {
+    "snr": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+    "mfc-restore": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56",
+    "mfc-full-irq": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71"
+  },
+  "historicalStagesAuthenticatedByFinalHarness": {
+    "authenticatedFullProofs": {
+      "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-plain.json": "a86d739ad4fe4b4cafee661b40aae189b3ca4f1fb6397bc590c27fee822853e2",
+      "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-asan.json": "49f04487576bc8cffb8a6d47a9c7080f43de95c89c6c8ae702aabcfaf10ec252"
+    },
+    "authenticatedFullHarnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1",
+    "historicalScope": {
+      "intermediateSourceSHA256": "2ff386b14bcc2ab4f32f6c3d8f7cfd295b1faaa31523f79d6702caef673850dc",
+      "authenticatedTagProofs": {
+        "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-plain.json": "23f48657d6e1f40f3950452e808da85c27c5115bc52028608aace2a6f27a48df",
+        "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-asan.json": "1bb3e54184348fe0158dc07f68304e00b880b546344242c87b03059033d82710"
+      },
+      "fullQueuePrefixSHA256": "8050bbb235f75e5063f2937c2e490e14b47e207809a491fd5e209660d517cc91",
+      "helperBodiesSHA256": "27df27498200b2c7c6e14165f9df0547554e7f7434594a6ca7fd5168380b31f5",
+      "guardSHA256": "f010c0335586cdc754c0ec1711f3605e1544e2b15f20e5fb0b4c1f3e4351a18b"
+    },
+    "previousFullQueuePrefixSHA256": "8050bbb235f75e5063f2937c2e490e14b47e207809a491fd5e209660d517cc91",
+    "fullQueuePrefixSHA256": "7d2359ef1e873e24401bfc06727ff85a304005017af586a0270a3e14ad0ea80f",
+    "iretBodySHA256": "da23deebc18539b7671195c294f161bfb0c198e48bbc99010b871a7cc25a5182",
+    "unstallBodySHA256": "52a65b7c836c0fcf139c42654831698c0c4c064084b41ce3ed2f0c9578516450"
+  },
+  "snrAndRestoreProofReuse": "Constructor and full-queue prefix changes in SPUThread.cpp occurred after earlier runs. Consumed bodies and full extracted SNR/restore programs remain byte-identical; original reports are retained unchanged.",
+  "verificationRecompiledNativePrograms": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "codegenIdentity": {
+    "before": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "after": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    }
+  },
+  "codegenInputs": {
+    "Cell/PPUTranslator.cpp": {
+      "before": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "after": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd"
+    },
+    "Cell/PPUTranslator.h": {
+      "before": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+      "after": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3"
+    },
+    "Cell/PPUThread.cpp": {
+      "before": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "after": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44"
+    },
+    "Cell/PPUThread.h": {
+      "before": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+      "after": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3"
+    },
+    "Cell/PPUFunction.h": {
+      "before": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+      "after": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15"
+    },
+    "Cell/PPUOpcodes.h": {
+      "before": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+      "after": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c"
+    },
+    "CPU/CPUTranslator.cpp": {
+      "before": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+      "after": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+    },
+    "CPU/CPUTranslator.h": {
+      "before": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+      "after": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+    },
+    "CPU/Backends/AArch64/CellVectorLowering.h": {
+      "before": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "after": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b"
+    },
+    "../util/simd.hpp": {
+      "before": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+      "after": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+    },
+    "../util/v128.hpp": {
+      "before": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+      "after": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+    },
+    "../../Utilities/JIT.h": {
+      "before": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+      "after": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+    },
+    "../../Utilities/JITLLVM.cpp": {
+      "before": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+      "after": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf"
+    },
+    "../../Utilities/JITPublicationQueue.h": {
+      "before": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+      "after": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+    },
+    "../../Utilities/JITObjectBuffer.h": {
+      "before": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+      "after": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+    },
+    "../../Utilities/JITMemoryProfile.h": {
+      "before": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+      "after": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+    },
+    "../../Utilities/JITMinimalObject.h": {
+      "before": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+      "after": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+    },
+    "../ios/IOSCompileAdmission.h": {
+      "before": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+      "after": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+    },
+    "../ios/NeoSwapCompilerAPI.h": {
+      "before": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+      "after": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+    },
+    "../../Utilities/JITPhaseProfile.h": {
+      "before": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+      "after": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230"
+    },
+    "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp": {
+      "before": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+      "after": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+    },
+    "Cell/SPULLVMRecompiler.cpp": {
+      "before": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+      "after": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff"
+    },
+    "Cell/SPUCommonRecompiler.cpp": {
+      "before": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "after": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb"
+    },
+    "Cell/SPURecompiler.h": {
+      "before": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+      "after": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07"
+    },
+    "Cell/SPUThread.h": {
+      "before": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+      "after": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c"
+    },
+    "Cell/SPUThread.cpp": {
+      "before": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+      "after": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4"
+    },
+    "Cell/SPUInterpreter.cpp": {
+      "before": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+      "after": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3"
+    },
+    "Cell/SPUInterpreter.h": {
+      "before": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+      "after": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3"
+    },
+    "Cell/SPUOpcodes.h": {
+      "before": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+      "after": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc"
+    },
+    "Cell/SPUAnalyser.h": {
+      "before": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+      "after": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa"
+    },
+    "Cell/SPUObjectCachePolicy.h": {
+      "before": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+      "after": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233"
+    },
+    "Cell/SPUARM64Lowering.h": {
+      "before": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+      "after": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d"
+    },
+    "Cell/SPUARM64ConstantTable.h": {
+      "before": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+      "after": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e"
+    },
+    "Cell/SPUARM64CompareLowering.h": {
+      "before": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+      "after": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958"
+    },
+    "CPU/Backends/AArch64/AArch64JIT.cpp": {
+      "before": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+      "after": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017"
+    },
+    "CPU/Backends/AArch64/AArch64JIT.h": {
+      "before": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+      "after": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8"
+    },
+    "CPU/Backends/AArch64/SPUChecksum.h": {
+      "before": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+      "after": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63"
+    },
+    "CPU/Backends/AArch64/SPUInterrupts.h": {
+      "before": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+      "after": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5"
+    },
+    "CPU/Backends/AArch64/SPUInterpreterGateway.h": {
+      "before": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+      "after": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3"
+    },
+    "CPU/Backends/AArch64/SPUReservationHash.h": {
+      "before": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+      "after": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3"
+    },
+    "CPU/Backends/AArch64/SPUReservationScan.h": {
+      "before": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+      "after": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0"
+    }
+  },
+  "compatibilityAliasUnchanged": true,
+  "externalLLVMBackendMaterialized": false,
+  "coldCacheConsequence": "SPU generated-object cache namespace changes normally; old SPU objects are not reused under the new identity. First subsequent warmup/gameplay may compile those objects again. No device timing measured; no compatibility alias added."
+}

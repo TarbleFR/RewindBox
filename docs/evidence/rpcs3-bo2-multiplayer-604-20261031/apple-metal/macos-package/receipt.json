@@ -1,0 +1,841 @@
+{
+  "schema": 1,
+  "component": "RewindBox RPCS3 MoltenVK deferred-cache candidate",
+  "status": "candidate_dependency_built",
+  "upstream_repository": "https://github.com/KhronosGroup/MoltenVK.git",
+  "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "candidate_macro": "RBX_MVK_DEFERRED_CACHE_IMPORT=1",
+  "platform": "macos",
+  "configuration": "Release",
+  "static_only": true,
+  "core_dependency_selected": false,
+  "apple_native_build_executed": true,
+  "core_built": false,
+  "ipa_built": false,
+  "device_tested": false,
+  "producer_sha256": "704c5013c3960f6ca151aed469f998d6d62629ffa0b3cb94f0fb591d2ff49387",
+  "adapter_sha256": "424476c68304e8a581684de58b86719035f931401f9ccd307003a3e4e321e57c",
+  "planned_build_command": [
+    "xcodebuild",
+    "build",
+    "-project",
+    "MoltenVK/MoltenVK.xcodeproj",
+    "-target",
+    "MoltenVK-macOS-static",
+    "-configuration",
+    "Release",
+    "-sdk",
+    "macosx",
+    "ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=NO",
+    "CODE_SIGNING_ALLOWED=NO",
+    "GCC_PREPROCESSOR_DEFINITIONS=$(inherited) RBX_MVK_DEFERRED_CACHE_IMPORT=1",
+    "MACOSX_DEPLOYMENT_TARGET=12.0",
+    "CONFIGURATION_BUILD_DIR=/Users/runner/work/_temp/rpcs3-mvk-macos/products"
+  ],
+  "upstream_tree": "efebd918bbe772eead074100c0a18789ad39606d",
+  "dependency_pins": {
+    "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+    "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+    "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+    "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+    "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+    "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+    "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+  },
+  "source_patch_report_sha256": "59803b928f3c952a5f311bc6208a2786c3c136ea7137fa43d09cd3df8e73d08e",
+  "source_patch": {
+    "schema": 1,
+    "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "macro": "RBX_MVK_DEFERRED_CACHE_IMPORT",
+    "default_enabled": false,
+    "status": "applied",
+    "source_postimages": {
+      "MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h": "cb2be170bf8033c52df7e5d1cd4cb2c76073cfe052066ac8614e6483c39c103f",
+      "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h": "053ddce4ef78daf1fddefab4b0bfc01b6365a4eed42e54ed8f8de8333c60ec7e",
+      "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm": "14e25d611580971159d491adf82ae0066ef01c20c8b89b06fd7195f705e4b63e",
+      "MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm": "d7f64fd428a07c859b02d1639a9f4f165e2f64ba1723f27ca25c9a34a152b584",
+      "MoltenVK/MoltenVK/GPUObjects/MVKSync.mm": "fc90ab52817375f04ed543dfc0dcbf2e827f12fb4baec8af457cadf9f7fae60c"
+    },
+    "patch_sha256": "f176ffc09bcd1cbae22dcf9be7f4fb62aa7dd4d79e13cc63275978ddaa78b6a1",
+    "requires_full_framework_rebuild": true,
+    "apple_validation": "not_run"
+  },
+  "xcode": "Xcode 16.4\nBuild version 16F6",
+  "sdk_version": "15.5",
+  "sdk_build": "24F74",
+  "clang": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "verified_dependency_commits": {
+    "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+    "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+    "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+    "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+    "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+    "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+    "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+  },
+  "archive_validation": {
+    "objects": 1,
+    "architecture": "arm64",
+    "platform": "macos",
+    "object_minimum_os_versions": [
+      "12.0.0"
+    ]
+  },
+  "required_core_queue_hooks": [
+    "_rbx_mvk_compile_qos_queue",
+    "_rbx_mvk_exec_q_create"
+  ],
+  "package_files": {
+    "include/MoltenVK/mvk_config.h": {
+      "bytes": 1399,
+      "sha256": "af29d0b556f91c5435ab9dd7173d64d2133ff3bdc67f7cf3ce4398ac2c815e18"
+    },
+    "include/MoltenVK/mvk_datatypes.h": {
+      "bytes": 24851,
+      "sha256": "137fb8b9d39719ca013fc459fd873f924c93c28744fb9993acfba64250054fc7"
+    },
+    "include/MoltenVK/mvk_deprecated_api.h": {
+      "bytes": 25617,
+      "sha256": "ba263887ae74215a1bc562374e6af6a688fccd4ae3ad9e15ed6befc687038cb0"
+    },
+    "include/MoltenVK/mvk_private_api.h": {
+      "bytes": 32404,
+      "sha256": "eb0c20649a3f377723aa8d24ae2de7bf0931d1568d9d16ca152a89bbbf2faa9d"
+    },
+    "include/MoltenVK/mvk_vulkan.h": {
+      "bytes": 1707,
+      "sha256": "4559af38c2f9a02c68bf3acbabfc8002e745a6a6f77c5b88ee399de3dd3e4dd2"
+    },
+    "include/MoltenVK/vk_mvk_moltenvk.h": {
+      "bytes": 1815,
+      "sha256": "9e2a2f0ef6cd8404f6b06298be285cbd1f54a7208b3038ea555cad80e3256603"
+    },
+    "include/vk_video/vulkan_video_codec_av1std.h": {
+      "bytes": 16694,
+      "sha256": "c75c1d324b97d247aef0008024bc7f3adb98c741ab7f66c882ec38fdacc7ee33"
+    },
+    "include/vk_video/vulkan_video_codec_av1std_decode.h": {
+      "bytes": 4257,
+      "sha256": "7e3a1ce177c12546d410f3179ce1b81f2da7a8eba4f525b29cd563ab4099c0e5"
+    },
+    "include/vk_video/vulkan_video_codec_av1std_encode.h": {
+      "bytes": 5986,
+      "sha256": "8d166b4543260a38347860443b1a59c7a5e86cdb0d0facaf4c704f667de030e3"
+    },
+    "include/vk_video/vulkan_video_codec_h264std.h": {
+      "bytes": 13961,
+      "sha256": "fded484cef9f90fbbd089e0647268f36e5f4292179fbc5428a2c9e8d7709bbe9"
+    },
+    "include/vk_video/vulkan_video_codec_h264std_decode.h": {
+      "bytes": 2730,
+      "sha256": "37b970c3d80536ad1ac074cfe19b58ee03c3075378e02179e1dc5e4351266821"
+    },
+    "include/vk_video/vulkan_video_codec_h264std_encode.h": {
+      "bytes": 6885,
+      "sha256": "227e092b53c4e7ca1a948ed021704511c1ed16040cd6188ff6703e5ae66db64d"
+    },
+    "include/vk_video/vulkan_video_codec_h265std.h": {
+      "bytes": 23446,
+      "sha256": "0b81f8986ada015ef2e127449eff9d9634899bb59a0a9277a4054e9ec4416c12"
+    },
+    "include/vk_video/vulkan_video_codec_h265std_decode.h": {
+      "bytes": 2436,
+      "sha256": "879a0dd370a1b1ad184638906c52bdfe7d80d639fbc5a5baa8b02d7c5b60b147"
+    },
+    "include/vk_video/vulkan_video_codec_h265std_encode.h": {
+      "bytes": 7469,
+      "sha256": "abb3e72af22e4e0a3dbe5dff7be1b275949388809fb3987830341e8f495ea1c7"
+    },
+    "include/vk_video/vulkan_video_codec_vp9std.h": {
+      "bytes": 5391,
+      "sha256": "0a47125865376a3fe7014b69ff6db9d04e30ebf8c4d15664f1d894649ad5c09d"
+    },
+    "include/vk_video/vulkan_video_codec_vp9std_decode.h": {
+      "bytes": 2378,
+      "sha256": "1ceb1a8d0e3370e508cf688a6e57dc314cd82186b60f3cef420ea4b1b483865d"
+    },
+    "include/vk_video/vulkan_video_codecs_common.h": {
+      "bytes": 667,
+      "sha256": "d2e7caa396c521d03d491a269572b1d31b925b5127d22fda14199951ebae89f8"
+    },
+    "include/vulkan/vk_icd.h": {
+      "bytes": 8228,
+      "sha256": "ba22828f76de7231e7dfbb5d8564e7a58dd9f5dbeac8c1f0ff6c056c92db744a"
+    },
+    "include/vulkan/vk_layer.h": {
+      "bytes": 7182,
+      "sha256": "a9fb1343e7e1fa3456189bf146f2186b8df46c1b1a01f88f8b9ae4cd25b1623c"
+    },
+    "include/vulkan/vk_platform.h": {
+      "bytes": 2832,
+      "sha256": "a2cd9085c66776845d2524c3b0e73ccf4827ba046aa6f676c4b8ddbed47d6552"
+    },
+    "include/vulkan/vulkan.cppm": {
+      "bytes": 48865,
+      "sha256": "0636d9b30ba9af217d810603ede7107c6299962383de48b6bc5f116d67aa5487"
+    },
+    "include/vulkan/vulkan.h": {
+      "bytes": 1620,
+      "sha256": "096f50152d0b298d8df84a561a37d8190c8a60af34dff0e2cc8328b24491a640"
+    },
+    "include/vulkan/vulkan.hpp": {
+      "bytes": 1223000,
+      "sha256": "1b381bb1c00c36006ea5d8cb4cce6435702c6e30be784b3420d2edaf1911b1e1"
+    },
+    "include/vulkan/vulkan_android.h": {
+      "bytes": 6337,
+      "sha256": "9dcce545a790b5b1ce00e103ade95c8efa4c8a0bf2ff39865d76a7d2f987aef2"
+    },
+    "include/vulkan/vulkan_beta.h": {
+      "bytes": 17419,
+      "sha256": "bb43577a445c357c3f0c03572b3dd3ebd9fca39914c0092f7d77e942af05d3fc"
+    },
+    "include/vulkan/vulkan_core.h": {
+      "bytes": 1355514,
+      "sha256": "a7ac0d7e35e77f642c175af5d36729cfdae2d626d2aaa9145c030a42bd44edc6"
+    },
+    "include/vulkan/vulkan_directfb.h": {
+      "bytes": 1959,
+      "sha256": "efecf5a15380f61c16ef257ed55a998f2cc651789bec22056ccc81d2518daefc"
+    },
+    "include/vulkan/vulkan_enums.hpp": {
+      "bytes": 733049,
+      "sha256": "8d5de6fa92ca6ebf72a48cc10f25a83df9c1bd4ca481f3c2028be0e3ee2ab6fa"
+    },
+    "include/vulkan/vulkan_extension_inspection.hpp": {
+      "bytes": 206384,
+      "sha256": "0b21a6d9fee393938e513fc2ebf47a54573ce9bad754cbd7d911944a3442c65d"
+    },
+    "include/vulkan/vulkan_format_traits.hpp": {
+      "bytes": 428681,
+      "sha256": "b980aefbb629a1bfebdfd475532f9f2214660a6532c39dffb91c2fe6c38ec0d2"
+    },
+    "include/vulkan/vulkan_fuchsia.h": {
+      "bytes": 12907,
+      "sha256": "17aedccaae68825bfa2954faec1bc9e953b106f1161e1b2ab26ab4cdccf21a06"
+    },
+    "include/vulkan/vulkan_funcs.hpp": {
+      "bytes": 2287170,
+      "sha256": "6beb302c8f8ab26afc4056718f63087f3829f65467a0628ee142844043992136"
+    },
+    "include/vulkan/vulkan_ggp.h": {
+      "bytes": 1946,
+      "sha256": "b68cbbf19b9397ee63dd6ba94526059bd2ff000c66083243758e3a04e215bd2c"
+    },
+    "include/vulkan/vulkan_handles.hpp": {
+      "bytes": 1758311,
+      "sha256": "1bfbf0d70d5f6a0a623f5803e3d25fc6ec98095e8ea459c087d2ae28d2ff8cd9"
+    },
+    "include/vulkan/vulkan_hash.hpp": {
+      "bytes": 1098745,
+      "sha256": "f225e0fb261fd9c3c567dd596e764d598e64fbc14eb29b7ef383e5b4b10e3da5"
+    },
+    "include/vulkan/vulkan_hpp_macros.hpp": {
+      "bytes": 12019,
+      "sha256": "b9a71f468bde2facb989164186c99e4ec565ca0bc45b3c2675ebb4056a236a4b"
+    },
+    "include/vulkan/vulkan_ios.h": {
+      "bytes": 1359,
+      "sha256": "ebaeffc3f4ec0484dcf34753678f1642caf73f6db4e17f11f1b82302151b918c"
+    },
+    "include/vulkan/vulkan_macos.h": {
+      "bytes": 1391,
+      "sha256": "3ae5522081741e9021be86727e11949ad8c695e66f75e1c422e577afd7657f59"
+    },
+    "include/vulkan/vulkan_metal.h": {
+      "bytes": 8073,
+      "sha256": "d5fe0caf881cc9c72ea2ba31ca86c684e97cdec6741d6e6298ecbd8f58dc8c5e"
+    },
+    "include/vulkan/vulkan_ohos.h": {
+      "bytes": 4113,
+      "sha256": "3cc40f845b5fd75cda0d8a3b1f2782522a3591657f67c656a211b4639eb23b16"
+    },
+    "include/vulkan/vulkan_raii.hpp": {
+      "bytes": 1882478,
+      "sha256": "5336b82c63b6229ff9d05229df44817c9b8533b0e63da5aed435f18399222f1b"
+    },
+    "include/vulkan/vulkan_screen.h": {
+      "bytes": 4200,
+      "sha256": "b9e7e7921b4be199c8ecfe518bd71bd8e533adbbab193714c542157b87b10e86"
+    },
+    "include/vulkan/vulkan_shared.hpp": {
+      "bytes": 37350,
+      "sha256": "9fe25e7cae294e71ce1683b15c78a3f57d772a889b7f0e4319e5a8a7b5d94e59"
+    },
+    "include/vulkan/vulkan_static_assertions.hpp": {
+      "bytes": 939019,
+      "sha256": "d66c5b9f332fa2e7da407887a2a90afe599e81c22ff89d9057a44d5d02b23023"
+    },
+    "include/vulkan/vulkan_structs.hpp": {
+      "bytes": 8886873,
+      "sha256": "03d0b7a96fb43ac05b98d829054de685eb148a2facce2e284a4c13fedb997ef4"
+    },
+    "include/vulkan/vulkan_to_string.hpp": {
+      "bytes": 674638,
+      "sha256": "c26500482fc87dbbdcf254cdb00eae33f3dd8bab8a1dd6112e83e6516733d9ae"
+    },
+    "include/vulkan/vulkan_ubm.h": {
+      "bytes": 1878,
+      "sha256": "ac106317c017d1975f26184d3979dba0352f10aa1cfc7ef5373be92fef6bd137"
+    },
+    "include/vulkan/vulkan_vi.h": {
+      "bytes": 1332,
+      "sha256": "a53e35bb1b3113e6ef4932cb9358a27861a198d7865227ecd93555fecc73dd68"
+    },
+    "include/vulkan/vulkan_video.cppm": {
+      "bytes": 2278,
+      "sha256": "aa8f15aa490d52337acf06a0de6165da8c1a589ced8caf732aedbfec7e00d268"
+    },
+    "include/vulkan/vulkan_video.hpp": {
+      "bytes": 271650,
+      "sha256": "0d1166ce914ba96a561c79f0905426419cd833b77d5b1a297f8ebe7d53f637df"
+    },
+    "include/vulkan/vulkan_wayland.h": {
+      "bytes": 1959,
+      "sha256": "6c4146149d45bcbb5a22c7540feaa396ee9a49f077737c7a343c62de5199fbc7"
+    },
+    "include/vulkan/vulkan_win32.h": {
+      "bytes": 15764,
+      "sha256": "72f0b6de71287d3b04d12235e4f2fef8f343126f85be4963c516d31d5bb4c099"
+    },
+    "include/vulkan/vulkan_xcb.h": {
+      "bytes": 1973,
+      "sha256": "3d49f5eb52090e72e1cf7cde545088225ac524a2ff1d1f35737e7d944474c1b7"
+    },
+    "include/vulkan/vulkan_xlib.h": {
+      "bytes": 1954,
+      "sha256": "3c44e97d3f380eb912e01a79e9667457fdf5e18164f0b09b3c61431f421bc551"
+    },
+    "include/vulkan/vulkan_xlib_xrandr.h": {
+      "bytes": 1504,
+      "sha256": "188233d112d812cca1777cfa6c1585073f1f2b033fa08b2f11c8d0757fcc232e"
+    },
+    "static/MoltenVK.xcframework/Info.plist": {
+      "bytes": 699,
+      "sha256": "101717d2ac6ec3b97a8db0c39034280679f3c568365c794762b670971a440f3b"
+    },
+    "static/MoltenVK.xcframework/macos-arm64/libMoltenVK.a": {
+      "bytes": 7123176,
+      "sha256": "18acc1c90b52697938b610dc60354a82ea4f71909e4bcd7c3b854624ce06ae94"
+    }
+  },
+  "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+  "documentation_files": {
+    "MoltenVK_Configuration_Parameters.md": {
+      "bytes": 30872,
+      "sha256": "16807a341695c77d3f40d7298aaf189f372cd641e98185a6d52ea91cc4e53a55"
+    },
+    "MoltenVK_Runtime_UserGuide.md": {
+      "bytes": 32852,
+      "sha256": "e416df6e6f2953a23118f5b8dd0ddbcdbbc955f8a68ba81a1ed1005fc022a29c"
+    },
+    "Whats_New.md": {
+      "bytes": 146655,
+      "sha256": "4f709e479ae83a44774b4c5d73ab598f9f06655f6ea1a58718a8d68704fa53d4"
+    },
+    "images/MoltenVK-Logo-Banner.png": {
+      "bytes": 163965,
+      "sha256": "1815a88acaa39a40f5c1e85f9d8e7b087c0046f7aaf46fdc6f754b6e62e91c4b"
+    }
+  },
+  "dependency_license_files": {
+    "SPIRV-Cross/LICENSE": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "SPIRV-Headers/LICENSE": {
+      "bytes": 23503,
+      "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613"
+    },
+    "SPIRV-Tools/LICENSE": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "Volk/LICENSE.md": {
+      "bytes": 1066,
+      "sha256": "04a0693a84f19e53d281ca98bbb0c86ca77251ab13769c6168e6684feb9a1436"
+    },
+    "Vulkan-Headers/LICENSE.md": {
+      "bytes": 495,
+      "sha256": "95ad366d23fadf701d355bc45fb8b82ae2d700239471d35d41286ac3b08ff903"
+    },
+    "Vulkan-Tools/LICENSE.txt": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "cereal/LICENSE": {
+      "bytes": 1542,
+      "sha256": "58604a126af6a671ea390ee3d5b3e42228aa59b2858fb7af1d5b20b31739ccbb"
+    }
+  },
+  "limits": [
+    "This is a full-source static MoltenVK candidate, not a compiled RPCS3 Core.",
+    "Not selected by the delivered Core recipe; consumer must authenticate this receipt.",
+    "No iPhone BO2/AC/GOW3 recovery or FPS gain is established."
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "init",
+        "-q",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.01608924999999317,
+      "log": "01-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "fetch",
+        "--depth",
+        "1",
+        "https://github.com/KhronosGroup/MoltenVK.git",
+        "db66022459ffb663aa2b50f6b018bc2e124f5edf"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 1.0870607500000062,
+      "log": "02-git.log",
+      "log_sha256": "1abcee2133750595e89888b794201dec8cae2aeb84a60eb7e1bb296843e9c2ec"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "checkout",
+        "-q",
+        "--detach",
+        "FETCH_HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.041457459000000085,
+      "log": "03-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.006030666999990331,
+      "log": "04-git.log",
+      "log_sha256": "b38394f59a90558c3f3d21d0d38867a18f439c8468d2cd4b1807db9f33a01935"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "rev-parse",
+        "HEAD^{tree}"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.009456749999998237,
+      "log": "05-git.log",
+      "log_sha256": "f2043a47785a8b01d74a89f809a88f623da309674258b9ae1b51f811dfc1a828"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "--report",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/macos-package/source-patch.json"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.07810812499999997,
+      "log": "06-python3.15.log",
+      "log_sha256": "b2d44445a3b4bf869bfc75e777caa0289dbbfeee3ef3b36970b59f8c29cb7928"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "--check"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.05368304099999932,
+      "log": "07-python3.15.log",
+      "log_sha256": "6bac509662680f368c43d0b9f483b6fa3bacf2dd45eeb0fc2bed952a31652a64"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "diff",
+        "--name-only",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.024003249999992704,
+      "log": "08-git.log",
+      "log_sha256": "4b5b0edd581f29d240ad2aefc366bed46d4d85172fc5db78d0fc4e44a5c30759"
+    },
+    {
+      "argv": [
+        "xcodebuild",
+        "-version"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.058091916999998716,
+      "log": "09-xcodebuild.log",
+      "log_sha256": "a8be4f9af0a29137fe7e59b9928056d4a0df297bb46ba40f80eaa6b0ae982f12"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "--sdk",
+        "macosx",
+        "--show-sdk-version"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.0110098330000028,
+      "log": "10-xcrun.log",
+      "log_sha256": "521fbd942d19d4f08ee3ac22fe5e1fee54d05fb48db0d8d179461b8195d210eb"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "--sdk",
+        "macosx",
+        "--show-sdk-build-version"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.0068116659999901685,
+      "log": "11-xcrun.log",
+      "log_sha256": "15010bb870c974f6c9be518954683168ab45b6c686a17ec4ca6e436cc2c79200"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "--sdk",
+        "macosx",
+        "clang",
+        "--version"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.5581305420000007,
+      "log": "12-xcrun.log",
+      "log_sha256": "df12815703ce3452ab4bd51ecbea4cf8155246b94b5b15113a580ff6aec2befd"
+    },
+    {
+      "argv": [
+        "./fetchDependencies",
+        "--macos"
+      ],
+      "cwd": "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+      "exit_code": 0,
+      "seconds": 569.210904417,
+      "log": "13-fetchDependencies.log",
+      "log_sha256": "64e78de2bb665c899caa25da2c82df91b88ab75d5b5f9d2c5ac79272904e822f"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/cereal",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.07264950000001136,
+      "log": "14-git.log",
+      "log_sha256": "1d97620f58d495c4530be25353c4c6912a35e75cedaa59f9cb24580bd5c555db"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/cereal",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.2207645409999941,
+      "log": "15-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Vulkan-Headers",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.025782125000091582,
+      "log": "16-git.log",
+      "log_sha256": "ea88d2dbb28b9535ad0b60960ec63c8f7129f4c8cd6dd7b00d51116da4708269"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Vulkan-Headers",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.6547038340000881,
+      "log": "17-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Cross",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.020082916999967892,
+      "log": "18-git.log",
+      "log_sha256": "204278c29b384fd92982e535c99a5ad018b6e4e24a58826d2528b26f0c341df3"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Cross",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.4422126250000247,
+      "log": "19-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Tools",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.03221187500002998,
+      "log": "20-git.log",
+      "log_sha256": "524e8e3496557e168e34e6a70ccf4f4a8a1da28833aeeb303b1154373bb116e7"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Tools",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.5770488749999458,
+      "log": "21-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Tools/external/spirv-headers",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.02300462499999867,
+      "log": "22-git.log",
+      "log_sha256": "bfd51eac9a0c25939c3de412280765cc1d403d8d54bc6e1abe5bfc8efb3e8df5"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/SPIRV-Tools/external/spirv-headers",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.1368425829999751,
+      "log": "23-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Vulkan-Tools",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.014608665999958248,
+      "log": "24-git.log",
+      "log_sha256": "6f1d760b60b90c616b54d2c81f04a6588815101a98855dd992944793950d538b"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Vulkan-Tools",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.16486812499999814,
+      "log": "25-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Volk",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.02372833299989452,
+      "log": "26-git.log",
+      "log_sha256": "0064041d3baa0be45052ac815d85546778fcea53820f7954c7306b163a00a6fb"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK/External/Volk",
+        "diff",
+        "--quiet",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.03675587500003985,
+      "log": "27-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "xcodebuild",
+        "build",
+        "-project",
+        "MoltenVK/MoltenVK.xcodeproj",
+        "-target",
+        "MoltenVK-macOS-static",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "macosx",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=NO",
+        "CODE_SIGNING_ALLOWED=NO",
+        "GCC_PREPROCESSOR_DEFINITIONS=$(inherited) RBX_MVK_DEFERRED_CACHE_IMPORT=1",
+        "MACOSX_DEPLOYMENT_TARGET=12.0",
+        "CONFIGURATION_BUILD_DIR=/Users/runner/work/_temp/rpcs3-mvk-macos/products"
+      ],
+      "cwd": "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+      "exit_code": 0,
+      "seconds": 77.61509608300003,
+      "log": "28-xcodebuild.log",
+      "log_sha256": "2a60d0137ee560e23949a7e1e38eac8c2e8d6006893687ff2e47301289971b22"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "--check"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.3294692079999777,
+      "log": "29-python3.15.log",
+      "log_sha256": "6bac509662680f368c43d0b9f483b6fa3bacf2dd45eeb0fc2bed952a31652a64"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/MoltenVK",
+        "diff",
+        "--name-only",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.13999820800006546,
+      "log": "30-git.log",
+      "log_sha256": "4b5b0edd581f29d240ad2aefc366bed46d4d85172fc5db78d0fc4e44a5c30759"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "nm",
+        "-u",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/products/libMoltenVK.a"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 2.6315181250000705,
+      "log": "31-xcrun.log",
+      "log_sha256": "657404f91ab21e31d234e7d7f368848ee031859c6c1380d390fce3d50967132c"
+    },
+    {
+      "argv": [
+        "xcodebuild",
+        "-create-xcframework",
+        "-library",
+        "/Users/runner/work/_temp/rpcs3-mvk-macos/products/libMoltenVK.a",
+        "-output",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/macos-package/MoltenVK/static/MoltenVK.xcframework"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 2.3326995000001034,
+      "log": "32-xcodebuild.log",
+      "log_sha256": "6dbad618da0a6f1683b93489f62c941398e2080165c30310e46d0d86e4c70ec7"
+    }
+  ]
+}

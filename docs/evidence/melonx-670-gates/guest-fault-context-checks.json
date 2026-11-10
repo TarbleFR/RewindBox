@@ -1,0 +1,61 @@
+{
+  "result": "passed",
+  "checks": 53,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "sourceBaseline": {
+    "src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs": "9fe7ff30e550816e44f8429edf5488767698165a30febe0c598955b7ba8e0471",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs": "97737b97bb425d1310aea4bc119821def33750aee3539573a9dff2cb573e71f1"
+  },
+  "postimages": {
+    "src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs": "ee29981d53d9e4d4a321bef3202d1e732bae7531f3afda28a25e74deb02853a9",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs": "bc299f69db7ebd43bb513f13305657f72cd7c626f811e371f601cdeabefdda4c"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionLibraryBuilt": true,
+  "productionHleAssemblyBuilt": true,
+  "guestContextSample": "guestFaultContext; guestThread=80; guestThreadName=FHeartBeatThread; registers as of the last guest dispatch (FP LR SP PC):\nFP: 0x0000000010001000 (main:0x1000) =>\nLR: 0x0000000010000404 (main:0x0404) =>\nSP: 0x0000000010001800 (main:0x1800) =>\nPC: 0x0000000010000400 (main:0x0400) =>\nguest stack:\nProcess: Fixture, PID: 81\nThread ID: 80 (FHeartBeatThread)\n0x0000000010000444 main:0x0444\n0x0000000010000888 main:0x0888",
+  "unit": {
+    "nullForObject": true,
+    "nullForOther": true,
+    "nullOnHostThread": true,
+    "nestedDetected": true,
+    "timeoutText": "guestFaultContext; unavailable=timeout after 250 ms",
+    "timeoutMs": 251,
+    "throwText": "guestFaultContext; unavailable=InvalidMemoryRegionException",
+    "direct": "guestFaultContext; guestThread=80; guestThreadName=FHeartBeatThread; registers as of the last guest dispatch (FP LR SP PC):\nFP: 0x0000000010001000 (main:0x1000) =>\nLR: 0x0000000010000404 (main:0x0404) =>\nSP: 0x0000000010001800 (main:0x1800) =>\nPC: 0x0000000010000400 (main:0x0400) =>\nguest stack:\nProcess: Fixture, PID: 81\nThread ID: 80 (FHeartBeatThread)\n0x0000000010000444 main:0x0444\n0x0000000010000888 main:0x0888",
+    "directSafeUnchanged": true,
+    "boundedLength": 1218,
+    "boundedFrameLines": 38,
+    "boundedEndsWithMore": true,
+    "boundedKeepsX0": false,
+    "hugeLength": 3600
+  },
+  "crashLines": {
+    "control": {
+      "guest": 1,
+      "host": 1,
+      "other": 1,
+      "nested": 1,
+      "broken": 1
+    },
+    "candidate": {
+      "guest": 2,
+      "host": 1,
+      "other": 1,
+      "nested": 2,
+      "broken": 2
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_guest_fault_context.py": "71e482149cc8cc9264435e2b960b656475889a389a397cecd4e01e97a3cc1fe7",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "native/melonx/EmbeddedRuntime.cs": "bc299f69db7ebd43bb513f13305657f72cd7c626f811e371f601cdeabefdda4c",
+    "test/melonx_guest_fault_context_test.py": "575e71e5b5dd28e6d36afd81c33e44ffd3c42ad3734230203eb9a2bb380aab4c",
+    "test/melonx_guest_fault_context/Program.cs": "a2be14475835e289c1f713141cb7e039662111ecb279075dfc5f2d2fca3e4dd5",
+    "test/melonx_adapter_control.py": "22829618b7b8802d66fc8b80bf8d456d250a92e0a7c2a24cde38de4abb1c9f19",
+    "build-utils/melonx/core667_native.py": "3aa69fe04107da2b669b0945ff57f8ed747337d9bb61c3a6faac96d39e492221"
+  },
+  "limitation": "JIT runtime on Linux, not NativeAOT on iOS: the device crash handler runs on the faulting guest thread only if NativeAOT raises UnhandledException there (the delivered crash lines show it does). The guest objects are real classes built without a kernel (fields set); register values are those of the last guest dispatch, stale inside a JIT block, so PC names the last dispatched block, not the faulting instruction. X0-X28 are not journaled by rule."
+}

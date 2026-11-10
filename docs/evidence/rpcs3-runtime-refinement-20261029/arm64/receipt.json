@@ -1,0 +1,64 @@
+{
+  "compiler": "clang version 22.1.8 (Zig 0.17.0 driver)",
+  "target": "aarch64-linux-gnu",
+  "cpu": "apple_a16",
+  "flags": [
+    "-std=c++20",
+    "-O3",
+    "-UNDEBUG",
+    "-S",
+    "-target",
+    "aarch64-linux-gnu",
+    "-mcpu=apple_a16"
+  ],
+  "descriptorDefine": "-DRPCS3_IOS",
+  "files": {
+    "timer-aarch64.s.gz": {
+      "bytes": 167036,
+      "sha256": "9c47b57ebb305453e1132d8fa6e96251896e4be767e47465bd77f99350b688b3"
+    },
+    "baseline-descriptor-clang.json": {
+      "bytes": 3896,
+      "sha256": "6d76b4d1b02395fac645350d5e5cb6aa2e3f88f6de65abb313e8273becd0c6ce"
+    },
+    "baseline-descriptor.cpp": {
+      "bytes": 31956,
+      "sha256": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2"
+    },
+    "candidate-descriptor-aarch64.s.gz": {
+      "bytes": 648088,
+      "sha256": "9f998cc70a3767a3456172feb2ce597f312e26db6ea9985c50e6d1ae81471b2b"
+    },
+    "baseline-descriptor-helper-arm64.s": {
+      "bytes": 1648,
+      "sha256": "da30c4418080d7708f8c2fc5c3cd61369ec9866c90e3499d03ea4df8374cb15c"
+    },
+    "candidate-descriptor.cpp": {
+      "bytes": 32155,
+      "sha256": "161fa25dab6f96608dd406cb802268d64e607a972a34690082e6a9f833ab4b7f"
+    },
+    "mfc-aarch64.s.gz": {
+      "bytes": 91408,
+      "sha256": "b028e5ff8717d88aaae05d811a9fbec9a65cf28ef4bda0d4e6dc168c7d69503d"
+    },
+    "baseline-descriptor-aarch64.s.gz": {
+      "bytes": 648052,
+      "sha256": "9ac74a2bb01f5a35bee4e9807c7f5ca5ba197056c88f6cc57ce2ac5594bf0699"
+    },
+    "timer-timing.cpp": {
+      "bytes": 4675,
+      "sha256": "2c8dab30e49ca1c2ee50afb550e8154c3bd8c8ec319c0ab542e23e479644b809"
+    },
+    "candidate-descriptor-helper-arm64.s": {
+      "bytes": 1362,
+      "sha256": "81ffa4656be69ccd9d9b71b3e18d580711a29a9bab32128231fbc41ffde1adcf"
+    },
+    "candidate-descriptor-clang.json": {
+      "bytes": 3882,
+      "sha256": "627f1d9f298918bf0a96391d32670ecfde3516072b096c277091691c2a90f83d"
+    }
+  },
+  "scope": "Cross-compiled extracted source with host boundary adapters and libc++; no iOS SDK or ARM64 execution. Timer mock clock scale is constant, so LLVM lowers integer divisions to multiply/shifts.",
+  "executed": false,
+  "deviceMeasured": false
+}

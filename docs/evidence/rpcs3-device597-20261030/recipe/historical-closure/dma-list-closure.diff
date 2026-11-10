@@ -1,0 +1,25 @@
+--- delivered597/dma-list
++++ integrated/dma-list
+@@ -1223,6 +1223,9 @@
+ 		// Avoid inlining huge transfers because it intentionally drops range lock unlock
+ 		else if (size && optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
+ 		{
++#ifdef RPCS3_IOS
++			const auto label_trace = rpcs3::ios::signal_trace::overlap(addr, size);
++#endif
+ 			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
+ 			{
+ 				rsx_lock.update_if_enabled(addr, size, range_lock);
+@@ -1301,6 +1304,12 @@
+ 			}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (label_trace)
++				rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_list_commit,
++					0, get_system_time(),
++					addr, size, id, pc, args.cmd);
++#endif
+ 			arg_lsa += utils::align<u32>(size, 16);
+ 		}
+ 		else if (size)

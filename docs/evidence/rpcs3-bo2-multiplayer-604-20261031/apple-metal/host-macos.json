@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "phase": "macos",
+  "status": "verified_host_and_inputs",
+  "requested_source_commit": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+  "run_id": "41239096061",
+  "run_attempt": "1",
+  "job": "macos-metal",
+  "event": "push",
+  "runner_arch": "ARM64",
+  "uname": {
+    "system": "Darwin",
+    "node": "sat12-dp151-c0084451-48ed-4304-828b-9c32fc505fb9-B6A071F4D891.local",
+    "release": "24.6.0",
+    "version": "Darwin Kernel Version 24.6.0: Sun Oct 11 23:44:11 PDT 2026; root:xnu-11417.140.69.713.47~2/RELEASE_ARM64_VMAPPLE",
+    "machine": "arm64",
+    "processor": "arm"
+  },
+  "sdk": "macosx",
+  "physical_iphone_test": false,
+  "core_built_by_this_job": false,
+  "ipa_built_by_this_job": false,
+  "source_commit": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+  "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t15.8.2\nBuildVersion:\t\t24H232",
+  "xcode": "Xcode 16.4\nBuild version 16F6",
+  "sdk_version": "15.5",
+  "sdk_build": "24F74",
+  "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "input_sha256": {
+    ".github/workflows/rpcs3-mvk-cache-validation.yml": "5c7f59c6eb6a48da0b37c0a11bc2645cc249140b8a82e836a4aa60137a2bce59",
+    ".github/diagnostics/rpcs3_mvk_cache_host.py": "5ea9a862d029a33bc38150439d83a524cc9d10cb0de56aef218b223237015972",
+    "build-utils/rpcs3/build_moltenvk_deferred_cache.py": "704c5013c3960f6ca151aed469f998d6d62629ffa0b3cb94f0fb591d2ff49387",
+    "build-utils/rpcs3/patch_moltenvk_deferred_cache.py": "424476c68304e8a581684de58b86719035f931401f9ccd307003a3e4e321e57c",
+    "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch": "f176ffc09bcd1cbae22dcf9be7f4fb62aa7dd4d79e13cc63275978ddaa78b6a1",
+    "test/rpcs3_moltenvk_deferred_cache_test.py": "99293ff4492dd116bc698242af229b0a0ca5761074b80add55d2ba19c867f7d2",
+    "test/rpcs3_moltenvk_source_producer_test.py": "556d54f3327fb1cf14cc10f3076010c565c67f4c5db758fd46a52f50911aae92",
+    "test/rpcs3_pipeline_cache_milestones_test.py": "d090e0a63faef76ee20264a2738f5e0a8964e2aca71bf29b2833e6787fa42d27",
+    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16",
+    "test/rpcs3_moltenvk_metal_probe.py": "51b193c06852d2530924e1084947d0c8d5244afc260231e8a88061f5adb2fcba",
+    "test/native/rpcs3_moltenvk_metal_probe.mm": "dbd9e85e3752c3910b31938fcb6a4b1f0d2e2ee195f2c11901e8f99dacc04f35"
+  }
+}

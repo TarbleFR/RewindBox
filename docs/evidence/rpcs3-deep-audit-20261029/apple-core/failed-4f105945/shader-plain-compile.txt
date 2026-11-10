@@ -1,0 +1,4 @@
+/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/shader-program.cpp:15:16: error: unused variable 'umax' [-Werror,-Wunused-const-variable]
+   15 | constexpr auto umax=static_cast<usz>(-1);
+      |                ^~~~
+1 error generated.

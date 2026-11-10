@@ -81,6 +81,13 @@ class GamepadNavigation {
   final VoidCallback? onSelectModifierX;
   final VoidCallback? onSelectModifierY;
 
+  /// Whether a plain Select tap latches the chord layer open (the `⋯` menu of
+  /// the game views) instead of firing [onSelectButton]. While latched, A, X
+  /// and Y fire their Select-modifier action and close the layer, B only
+  /// closes it, another Select tap closes it, and directions keep working.
+  /// Holding Select for a chord is unchanged.
+  final bool latchSelectLayer;
+
   /// ES-DE style alphabetical jumping. Once a direction on [letterJumpAxis] has
   /// been held for longer than `_letterJumpAfter`, each repeat calls this with
   /// `true` for forward (down / right) instead of moving one item, and then
@@ -199,18 +206,52 @@ class GamepadNavigation {
   static const int _throttleDelayMs = 128;
   bool _isActive = false;
 
-  /// Broadcasts whether Select is currently held, so UI (e.g. the gamepad
-  /// legend) can reveal the Select+face-button chord shortcuts while it is down.
-  /// Only the active navigation layer drives this.
+  /// Broadcasts whether the Select chord layer is showing — Select held, or
+  /// the layer latched open — so UI (e.g. the gamepad legend) can reveal the
+  /// Select+face-button chord shortcuts. Only the active navigation layer
+  /// drives this.
   static final ValueNotifier<bool> selectHeldNotifier = ValueNotifier(false);
+
+  /// The chord layer latched open by a Select tap ([latchSelectLayer]) or by
+  /// the on-screen `⋯` pill. Shared because the pill has no navigator.
+  static bool _selectLatched = false;
+
+  /// Opens or closes the latched chord layer (the on-screen `⋯` pill).
+  static void toggleSelectLayer() => _setSelectLatched(!_selectLatched);
+
+  /// Closes the latched chord layer after one of its actions ran.
+  static void closeSelectLayer() => _setSelectLatched(false);
+
+  static void _setSelectLatched(bool latched) {
+    _selectLatched = latched;
+    if (selectHeldNotifier.value != latched) {
+      selectHeldNotifier.value = latched;
+    }
+  }
 
   /// Tap-vs-chord decisions for Select. See [SelectTap] for the rules.
   final SelectTap _selectTap = SelectTap();
 
-  /// Mirrors [SelectTap.held] onto the shared notifier for the legend UI.
+  /// A Select tap waiting out [SelectTap.chordWindow] before it toggles the
+  /// latched layer. The layer already shows its target state meanwhile, so
+  /// the menu neither blinks shut on release nor lingers after a closing tap.
+  bool _latchToggleQueued = false;
+
+  /// Whether the layer is latched open with Select up: face buttons then
+  /// belong to the layer rather than to the screen underneath.
+  bool get _selectLayerLatchedOpen =>
+      latchSelectLayer &&
+      _selectLatched &&
+      !_latchToggleQueued &&
+      !_selectTap.held;
+
+  /// Mirrors the chord layer's visibility onto the shared notifier.
   void _publishSelectHeld() {
-    final held = _selectTap.held;
-    if (selectHeldNotifier.value != held) selectHeldNotifier.value = held;
+    final latched = _latchToggleQueued ? !_selectLatched : _selectLatched;
+    final visible = _selectTap.held || latched;
+    if (selectHeldNotifier.value != visible) {
+      selectHeldNotifier.value = visible;
+    }
   }
 
   /// Face buttons whose PRESS fired a combo and whose matching RELEASE must be
@@ -226,6 +267,9 @@ class GamepadNavigation {
     _selectTap.press(now);
     _selectTapTimer?.cancel();
     _selectTapTimer = null;
+    // A press inside the chord window continues the same hold (pulse): the
+    // pending tap is void, so the layer must not toggle for it.
+    _latchToggleQueued = false;
     _publishSelectHeld();
   }
 
@@ -239,12 +283,26 @@ class GamepadNavigation {
   /// chord. Any chord landing inside that window invalidates the pending tap.
   void _onSelectUp(DateTime now) {
     final schedulesTap = _selectTap.releaseSchedulesTap(now);
+    _latchToggleQueued = schedulesTap && latchSelectLayer;
     _publishSelectHeld();
     if (!schedulesTap) return;
     _selectTapTimer?.cancel();
     _selectTapTimer = Timer(SelectTap.chordWindow, () {
       _selectTapTimer = null;
-      if (!_selectTap.tapStillValid) return;
+      final toggle = _latchToggleQueued;
+      _latchToggleQueued = false;
+      if (!_selectTap.tapStillValid) {
+        _publishSelectHeld();
+        return;
+      }
+      if (latchSelectLayer) {
+        if (toggle) {
+          SfxService().playNavSound();
+          _setSelectLatched(!_selectLatched);
+        }
+        _publishSelectHeld();
+        return;
+      }
       onSelectButton?.call();
     });
   }
@@ -290,6 +348,7 @@ class GamepadNavigation {
     this.onSelectModifierB,
     this.onSelectModifierX,
     this.onSelectModifierY,
+    this.latchSelectLayer = false,
     this.onLetterJump,
     this.letterJumpAxis = LetterJumpAxis.vertical,
     this.accelerateRepeats = false,
@@ -420,25 +479,37 @@ class GamepadNavigation {
 
   /// Disables input processing and cancels any active auto-repeat timers.
   void deactivate() {
+    final wasActive = _isActive;
     _isActive = false;
     _activationTime = null;
-    _resetSelectModifier();
+    _resetSelectModifier(releaseSharedLayer: wasActive);
     cancelAllRepeatTimers();
   }
 
   /// Clears Select chord-modifier state so it can't leak across layer changes
   /// (e.g. opening a dialog while Select is down).
-  void _resetSelectModifier() {
+  ///
+  /// Only the layer that had input focus closes the shared chord layer: an
+  /// inactive navigator being disposed or deactivated in the background must
+  /// not shut the `⋯` menu the user just opened on the active screen.
+  void _resetSelectModifier({required bool releaseSharedLayer}) {
     _selectTap.reset();
-    _publishSelectHeld();
     _selectTapTimer?.cancel();
     _selectTapTimer = null;
+    _latchToggleQueued = false;
     _comboConsumed.clear();
+    if (releaseSharedLayer) _setSelectLatched(false);
   }
 
   /// Whether a Select+face-button chord should register right now: Select is
   /// still reported down, or it pulsed within the chord window.
   bool _isSelectChordActive() => _selectTap.isChordActive(DateTime.now());
+
+  static bool _isFaceButton(GamepadInputType inputType) =>
+      inputType == GamepadInputType.buttonA ||
+      inputType == GamepadInputType.buttonB ||
+      inputType == GamepadInputType.buttonX ||
+      inputType == GamepadInputType.buttonY;
 
   /// Maps a face button to its Select-modifier combo callback, if any.
   VoidCallback? _selectModifierFor(GamepadInputType inputType) {
@@ -485,7 +556,7 @@ class GamepadNavigation {
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
-    _resetSelectModifier();
+    _resetSelectModifier(releaseSharedLayer: _isActive);
     cancelAllRepeatTimers();
 
     if (_keyboardInitialized && isDesktop) {
@@ -634,6 +705,7 @@ class GamepadNavigation {
           // the action debounce so a quick chord isn't swallowed.
           final isChordRelated =
               translatedEvent.inputType == GamepadInputType.buttonSelect ||
+              _selectLayerLatchedOpen ||
               (_isSelectChordActive() &&
                   _selectModifierFor(translatedEvent.inputType) != null);
           if (!isChordRelated) {
@@ -684,6 +756,28 @@ class GamepadNavigation {
       return; // Select alone only ever fires its tap action, on release.
     }
 
+    // The latched layer owns the face buttons: one press runs one layer
+    // action (or just closes it, for B) and its release is swallowed, so it
+    // never also launches, favourites or leaves the screen underneath.
+    if (event.isPressed && _selectLayerLatchedOpen) {
+      if (event.inputType == GamepadInputType.buttonB) {
+        _comboConsumed.add(event.inputType);
+        SfxService().playBackSound();
+        closeSelectLayer();
+        return;
+      }
+      if (_isFaceButton(event.inputType)) {
+        _comboConsumed.add(event.inputType);
+        final modifier = _selectModifierFor(event.inputType);
+        if (modifier != null) {
+          SfxService().playNavSound();
+          closeSelectLayer();
+          modifier();
+        }
+        return;
+      }
+    }
+
     // A face-button PRESS fires its modifier combo when Select is still held or
     // was seen within the chord window.
     if (event.isPressed && _isSelectChordActive()) {
@@ -694,7 +788,11 @@ class GamepadNavigation {
         _selectTap.chordFired();
         _selectTapTimer?.cancel();
         _selectTapTimer = null;
+        _latchToggleQueued = false;
         _comboConsumed.add(event.inputType);
+        // A chord is an action of the layer: it closes a latched layer too.
+        if (latchSelectLayer) _selectLatched = false;
+        _publishSelectHeld();
         SfxService().playNavSound();
         modifier();
         return;

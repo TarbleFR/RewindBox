@@ -1,0 +1,21 @@
+Microsoft.IO.RecyclableMemoryStream 3.0.1 (NuGet package), .NET SDK 10.0.100, linux-x64, rms-pool-proof.cs, 2026-11-05.
+One 200 MiB stream written in 64 KiB chunks, then disposed; LOH measured after two full blocking collections.
+
+[default] BlockSize=131072 LargeBufferMultiple=1048576 MaximumBufferSize=134217728 MaximumSmallPoolFreeBytes=0 MaximumLargePoolFreeBytes=0 AggressiveBufferReturn=False UseExponentialLargeBuffer=False
+[default] before: LOH size 0 MiB, LOH live 0 MiB, committed 0 MiB
+[default] stream 200 MiB live: SmallPoolInUse 200 MiB, SmallPoolFree 0 MiB; LOH size 200 MiB, LOH live 200 MiB, committed 209 MiB
+[default] after dispose: SmallPoolInUse 0 MiB, SmallPoolFree 200 MiB, LargePoolFree 0 MiB; LOH size 200 MiB, LOH live 200 MiB, committed 209 MiB
+[default] after CompactOnce: LOH size 200 MiB, LOH live 200 MiB, committed 209 MiB
+[bounded] BlockSize=131072 LargeBufferMultiple=1048576 MaximumBufferSize=134217728 MaximumSmallPoolFreeBytes=16777216 MaximumLargePoolFreeBytes=16777216 AggressiveBufferReturn=False UseExponentialLargeBuffer=False
+[bounded] before: LOH size 0 MiB, LOH live 0 MiB, committed 0 MiB
+[bounded] stream 200 MiB live: SmallPoolInUse 200 MiB, SmallPoolFree 0 MiB; LOH size 200 MiB, LOH live 200 MiB, committed 209 MiB
+[bounded] after dispose: SmallPoolInUse 0 MiB, SmallPoolFree 16 MiB, LargePoolFree 0 MiB; LOH size 16 MiB, LOH live 16 MiB, committed 193 MiB
+[bounded] after CompactOnce: LOH size 16 MiB, LOH live 16 MiB, committed 193 MiB
+
+Conclusion: the default pools are unbounded (a disposed stream's 128 KiB blocks stay live in the pool for the life of
+the process). Not adopted for Core 658 on iOS: with memoryManager=HostMappedUnsafe on ARM64 the CPU engine is
+LightningJit (ArmProcessContextFactory.cs), whose LoadDiskCache returns DummyDiskCacheLoadState, so the PTC carriers
+(Ptc.cs) and ARMeilleure's CodeGenContext streams (never disposed, Arm64/CodeGenContext.cs) do not run. The remaining
+MemoryStreamManager.Shared users (IPC ServerBase streams, shared-font decryption, ShaderBinarySerializer.Pack,
+string/applet helpers) peak at a few MiB of pooled blocks. MeloNX's ObjectPool<RecyclableMemoryStream> wrapper is inert:
+ReleaseStream has no caller, so every GetStream creates a new stream and nothing keeps disposed streams.

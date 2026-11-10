@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "cases": 95,
+  "small_hit": {
+    "before_stat_seek_read": [
+      2,
+      2,
+      2
+    ],
+    "after_stat_seek_pread": [
+      1,
+      0,
+      1
+    ]
+  },
+  "large_hit": {
+    "before_seek": 18,
+    "after_seek": 0
+  },
+  "host_warm_3k_object_median_us": {
+    "before": 9.3536,
+    "after": 7.82425
+  },
+  "benchmark_scope": "host filesystem, zlib, adapted LLVM buffers; not iPhone or gameplay",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-UNDEBUG",
+    "-DRPCS3_IOS",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer"
+  ],
+  "source_sha256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+  "baseline_sha256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+  "generated_cpp_sha256": "dcfdf7886fde3dcc7ca1c3e2127f4b16adf1381484397d7788e36d4688b41b50",
+  "non_ios_read_bodies_unchanged": true,
+  "emission_and_relocation_code_unchanged": true,
+  "physical_device_tested": false
+}

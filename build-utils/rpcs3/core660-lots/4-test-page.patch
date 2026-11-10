@@ -1,0 +1,28 @@
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index 457ec53..f235479 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2154,6 +2154,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_add_lever(ios_levers.spirv_disk_cache, ios_lever_settings.spirv_disk_cache);
+ 					ios_add_lever(ios_levers.hardware_crypto, ios_lever_settings.hardware_crypto);
+ 					ios_add_lever(ios_levers.spu_object_prefetch, ios_lever_settings.spu_object_prefetch);
++					// Core 660: digits 14 to 16 of levers627=.
++					ios_add_lever(ios_levers.spu_direct_object_hits, ios_lever_settings.spu_direct_object_hits);
++					ios_add_lever(ios_levers.texture_lookup_memo, ios_lever_settings.texture_lookup_memo);
++					ios_add_lever(ios_levers.zcull_depth_guard, ios_lever_settings.zcull_depth_guard);
+ 					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index dba38f1..6422ee6 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -475,7 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 13);
++		append_text(line, "levers627", rsx.levers627, 16);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);

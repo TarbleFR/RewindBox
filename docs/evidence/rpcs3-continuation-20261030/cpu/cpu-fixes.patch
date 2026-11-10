@@ -1,0 +1,50 @@
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -2452,7 +2452,9 @@
+ 			}
+ 		}
+ 
+-		if (g_cfg.core.spu_accurate_dma) [[unlikely]]
++		// Accurate PUT stores resolve the effective address again. MMIO LS
++		// transfers must keep the pointer selected by the MMIO dispatcher.
++		if (eal < RAW_SPU_BASE_ADDR && g_cfg.core.spu_accurate_dma) [[unlikely]]
+ 		{
+ 			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
+ 			{
+@@ -2990,6 +2992,13 @@
+ 
+ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ {
++	// Deferred zero-length lists must complete without reading the list address.
++	// The immediate path already accepts them, but queued commands enter here.
++	if (!args.size)
++	{
++		return true;
++	}
++
+ 	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
+ 
+ 	// Amount of elements to fetch in one go
+@@ -3410,7 +3419,7 @@
+ 			arg_lsa += utils::align<u32>(size, 16);
+ 		}
+ 		// Avoid inlining huge transfers because it intentionally drops range lock unlock
+-		else if (optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
++		else if (size && optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
+ 		{
+ 			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
+ 			{
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -260,7 +260,10 @@
+ 
+ 			if (!busy) [[likely]]
+ 			{
+-				if (vm::check_addr(begin, vm::page_readable, size)) [[likely]]
++				// SPU MMIO DMA may already target a validated, redirected LS pointer.
++				// Its MMIO address is not a normal guest page; keep range exclusion
++				// above without faulting that synthetic address here.
++				if (begin >= RAW_SPU_BASE_ADDR || vm::check_addr(begin, vm::page_readable, size)) [[likely]]
+ 				{
+ 					break;
+ 				}

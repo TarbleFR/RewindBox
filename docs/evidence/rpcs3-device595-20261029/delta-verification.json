@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "canonicalPostimages": 314,
+  "unchangedCanonicalPostimages": 311,
+  "affectedNativeResults": {
+    "array-plain.json": "6dc39573c98ecf0a919e6cd7bec7141c19a77c721446ee46fb0ea584f956d68d",
+    "array-asan.json": "98cd4f0d3373b14ded62db91dace8a239cef7ba6f16932e4e921fab3cb159f98",
+    "temporary-plain.json": "eb87dd73970cf67be8aee9de00b46810ce543d4d5eb6ba56c133112960eb62ce",
+    "temporary-asan.json": "53c8faa5f79555a8c766ddca3eee0588d0d3bb80f186c4a1e5d086f3dd0449e2",
+    "address-plain.json": "d30f98de0ae11a13813a4d006d0b26698cda0d78722b7c04348e45ff30aae4be",
+    "address-asan.json": "baf4826e91988ee125b4e045b8278764e0328650fb1ed83d802ad2726240ea5f"
+  },
+  "reverseDeltaMatchesBaseline": true,
+  "nativeSuitesReexecuted": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

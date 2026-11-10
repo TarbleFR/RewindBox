@@ -4,6 +4,10 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxLibraryLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "Synchronize occlusion results": "Synchronize occlusion results",
+      "Group GPU query submissions": "Group GPU query submissions",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Hogwarts GPU options apply on the next launch. Disable them here to compare.",
+
       "Use RamDonor": "Use RamDonor",
       "Donor in use": "Donor in use",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.",
@@ -76,6 +80,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Shader cache",
       "Async shaders": "Async shaders",
       "VSync": "VSync",
+      "Backend threading": "Backend threading",
       "Scaling filter": "Scaling filter",
       "Import completed": "Import completed",
       "Import failed": "Import failed",
@@ -86,6 +91,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automatic",
     },
     "fr": {
+      "Synchronize occlusion results": "Synchroniser les résultats d’occlusion",
+      "Group GPU query submissions": "Regrouper les soumissions GPU des requêtes",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Les options GPU Hogwarts s’appliquent au prochain lancement. Désactivez-les ici pour comparer.",
+
       "Use RamDonor": "Utiliser RamDonor",
       "Donor in use": "Prêt utilisé",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor prête de la mémoire via l’extension intégrée. Si le prêt est indisponible, MeloNX utilise la mémoire habituelle.",
@@ -159,6 +168,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Cache des shaders",
       "Async shaders": "Shaders asynchrones",
       "VSync": "Synchronisation verticale",
+      "Backend threading": "Multithreading du backend",
       "Scaling filter": "Filtre de mise à l’échelle",
       "Import completed": "Importation terminée",
       "Import failed": "Échec de l’importation",
@@ -169,6 +179,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automatique",
     },
     "de": {
+      "Synchronize occlusion results": "Okklusionsergebnisse synchronisieren",
+      "Group GPU query submissions": "GPU-Abfrageübermittlungen bündeln",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Die Hogwarts-GPU-Optionen gelten beim nächsten Start. Zum Vergleichen hier deaktivieren.",
+
       "Use RamDonor": "RamDonor verwenden",
       "Donor in use": "Genutzte Leihregion",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor stellt Speicher über die integrierte Erweiterung bereit. Ist dies nicht verfügbar, nutzt MeloNX normalen Speicher.",
@@ -242,6 +256,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Shader-Cache",
       "Async shaders": "Asynchrone Shader",
       "VSync": "VSync",
+      "Backend threading": "Backend-Threading",
       "Scaling filter": "Skalierungsfilter",
       "Import completed": "Import abgeschlossen",
       "Import failed": "Import fehlgeschlagen",
@@ -252,6 +267,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automatisch",
     },
     "es": {
+      "Synchronize occlusion results": "Sincronizar resultados de oclusión",
+      "Group GPU query submissions": "Agrupar envíos GPU de consultas",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Las opciones GPU de Hogwarts se aplican al próximo inicio. Desactívalas aquí para comparar.",
+
       "Use RamDonor": "Usar RamDonor",
       "Donor in use": "Préstamo en uso",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor presta memoria mediante la extensión integrada. Si no está disponible, MeloNX usa la memoria habitual.",
@@ -325,6 +344,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Caché de sombreadores",
       "Async shaders": "Sombreadores asíncronos",
       "VSync": "Sincronización vertical",
+      "Backend threading": "Multithreading del backend",
       "Scaling filter": "Filtro de escalado",
       "Import completed": "Importación completada",
       "Import failed": "Error de importación",
@@ -335,6 +355,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automático",
     },
     "it": {
+      "Synchronize occlusion results": "Sincronizza i risultati di occlusione",
+      "Group GPU query submissions": "Raggruppa gli invii GPU delle query",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Le opzioni GPU di Hogwarts si applicano al prossimo avvio. Disattivale qui per confrontare.",
+
       "Use RamDonor": "Usa RamDonor",
       "Donor in use": "Prestito in uso",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor presta memoria tramite l’estensione integrata. Se non è disponibile, MeloNX usa la memoria normale.",
@@ -408,6 +432,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Cache shader",
       "Async shaders": "Shader asincroni",
       "VSync": "Sincronizzazione verticale",
+      "Backend threading": "Multithreading del backend",
       "Scaling filter": "Filtro di ridimensionamento",
       "Import completed": "Importazione completata",
       "Import failed": "Importazione non riuscita",
@@ -418,6 +443,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automatico",
     },
     "pt": {
+      "Synchronize occlusion results": "Sincronizar resultados de oclusão",
+      "Group GPU query submissions": "Agrupar envios GPU de consultas",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "As opções GPU de Hogwarts aplicam-se no próximo início. Desative-as aqui para comparar.",
+
       "Use RamDonor": "Usar RamDonor",
       "Donor in use": "Empréstimo em uso",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor empresta memória pela extensão integrada. Se não estiver disponível, MeloNX usa a memória normal.",
@@ -491,6 +520,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Cache de shaders",
       "Async shaders": "Shaders assíncronos",
       "VSync": "Sincronização vertical",
+      "Backend threading": "Multithreading do backend",
       "Scaling filter": "Filtro de escala",
       "Import completed": "Importação concluída",
       "Import failed": "Falha na importação",
@@ -501,6 +531,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Automático",
     },
     "ru": {
+      "Synchronize occlusion results": "Синхронизировать результаты окклюзии",
+      "Group GPU query submissions": "Группировать отправки GPU-запросов",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Параметры GPU Hogwarts применятся при следующем запуске. Отключите их здесь для сравнения.",
+
       "Use RamDonor": "Использовать RamDonor",
       "Donor in use": "Используется из займа",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor предоставляет память через встроенное расширение. Если она недоступна, MeloNX использует обычную память.",
@@ -574,6 +608,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Кэш шейдеров",
       "Async shaders": "Асинхронные шейдеры",
       "VSync": "Вертикальная синхронизация",
+      "Backend threading": "Многопоточность бэкенда",
       "Scaling filter": "Фильтр масштабирования",
       "Import completed": "Импорт завершён",
       "Import failed": "Ошибка импорта",
@@ -584,6 +619,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Автоматически",
     },
     "id": {
+      "Synchronize occlusion results": "Sinkronkan hasil oklusi",
+      "Group GPU query submissions": "Kelompokkan pengiriman kueri GPU",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Opsi GPU Hogwarts berlaku saat peluncuran berikutnya. Nonaktifkan di sini untuk membandingkan.",
+
       "Use RamDonor": "Gunakan RamDonor",
       "Donor in use": "Pinjaman terpakai",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor meminjamkan memori melalui ekstensi bawaan. Jika tidak tersedia, MeloNX memakai memori biasa.",
@@ -657,6 +696,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "Cache shader",
       "Async shaders": "Shader asinkron",
       "VSync": "Sinkronisasi vertikal",
+      "Backend threading": "Threading backend",
       "Scaling filter": "Filter skala",
       "Import completed": "Impor selesai",
       "Import failed": "Impor gagal",
@@ -667,6 +707,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "Otomatis",
     },
     "ja": {
+      "Synchronize occlusion results": "オクルージョン結果を同期",
+      "Group GPU query submissions": "GPUクエリの送信をまとめる",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "HogwartsのGPU設定は次回起動時に適用されます。比較するにはここで無効にしてください。",
+
       "Use RamDonor": "RamDonorを使用",
       "Donor in use": "使用中の貸与領域",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonorは内蔵拡張機能を通じてメモリを貸与します。利用できない場合、MeloNXは通常のメモリを使用します。",
@@ -739,6 +783,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "シェーダーキャッシュ",
       "Async shaders": "非同期シェーダー",
       "VSync": "垂直同期",
+      "Backend threading": "バックエンドのマルチスレッド",
       "Scaling filter": "拡大フィルター",
       "Import completed": "インポート完了",
       "Import failed": "インポート失敗",
@@ -749,6 +794,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "自動",
     },
     "ko": {
+      "Synchronize occlusion results": "오클루전 결과 동기화",
+      "Group GPU query submissions": "GPU 쿼리 제출 묶기",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Hogwarts GPU 옵션은 다음 실행 시 적용됩니다. 비교하려면 여기서 끄세요.",
+
       "Use RamDonor": "RamDonor 사용",
       "Donor in use": "사용 중인 대여 영역",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor는 내장 확장을 통해 메모리를 대여합니다. 사용할 수 없으면 MeloNX는 일반 메모리를 사용합니다.",
@@ -821,6 +870,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "셰이더 캐시",
       "Async shaders": "비동기 셰이더",
       "VSync": "수직 동기화",
+      "Backend threading": "백엔드 멀티스레딩",
       "Scaling filter": "업스케일 필터",
       "Import completed": "가져오기 완료",
       "Import failed": "가져오기 실패",
@@ -831,6 +881,10 @@ abstract final class MelonxLibraryLocale {
       "Automatic": "자동",
     },
     "zh": {
+      "Synchronize occlusion results": "同步遮挡查询结果",
+      "Group GPU query submissions": "合并 GPU 查询提交",
+      "Hogwarts GPU options apply on the next launch. Disable them here to compare.": "Hogwarts GPU 选项将在下次启动时生效。可在此关闭以进行比较。",
+
       "Use RamDonor": "使用 RamDonor",
       "Donor in use": "已用借入内存",
       "RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.": "RamDonor 通过内置扩展借出内存。若不可用，MeloNX 会使用常规内存。",
@@ -903,6 +957,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "着色器缓存",
       "Async shaders": "异步着色器",
       "VSync": "垂直同步",
+      "Backend threading": "后端多线程",
       "Scaling filter": "缩放滤镜",
       "Import completed": "导入完成",
       "Import failed": "导入失败",
@@ -985,6 +1040,7 @@ abstract final class MelonxLibraryLocale {
       "Shader cache": "著色器快取",
       "Async shaders": "非同步著色器",
       "VSync": "垂直同步",
+      "Backend threading": "後端多執行緒",
       "Scaling filter": "縮放濾鏡",
       "Import completed": "匯入完成",
       "Import failed": "匯入失敗",

@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie",
+    "-UNDEBUG"
+  ],
+  "sanitizer": "address,undefined",
+  "host": "x86_64",
+  "system": "Linux",
+  "results": {
+    "queries": 22753,
+    "mutations": 8618,
+    "baselineDirtyPredicateCalls": 26629,
+    "indexedDirtyPredicateCalls": 26629,
+    "sameFirstMatch": true,
+    "sameValidationOrder": true,
+    "sameOverlapMembership": true,
+    "clearAndResourceLessRetags": true,
+    "sectionLayoutUnchanged": true,
+    "presentationWalkUnchanged": true,
+    "fullIndexChecks": 26872,
+    "boundaryRetags": 4105,
+    "baselineStaleMembershipChecks": 216,
+    "clearReuseChecks": 3,
+    "privateRetirementAccessChecked": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Exercise production texture retirement and ordered index maintenance.\n\nStorage, lifecycle and lookup bodies are extracted verbatim. GPU resources,\nguest mappings and validation are host adapters. The address case compares\n594 with this candidate and checks cross-block membership/index invariants.\nThe exact case compares each lifecycle's indexed lookup with its own existing\nlinear fallback, restoring the same storage between calls. Private range\nretirement stays private in the compiled section adapter; only the actual\nproduction owning-block friend declaration grants clear() access.\n",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "1ee38e8848f5100263165ab77df3eb1d856d732256fe64bb0bdbcd970fb08347",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0",
+    "rpcs3/Emu/RSX/Utils/rsx_utils.h": "335737069a998550bcdb6dff94d86d3df133c1d2dd64e63cf3465a9fb159040d",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "76018074bea16510ba2453e0ec785967387b2890e63b69a3f62334ea8e407d36"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "1ee38e8848f5100263165ab77df3eb1d856d732256fe64bb0bdbcd970fb08347",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0",
+    "rpcs3/Emu/RSX/Utils/rsx_utils.h": "335737069a998550bcdb6dff94d86d3df133c1d2dd64e63cf3465a9fb159040d",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "76018074bea16510ba2453e0ec785967387b2890e63b69a3f62334ea8e407d36"
+  },
+  "harnessesSHA256": {
+    "combined": "cbb45191b7c3481eb236e8e4791d9a09f47be77ebe7a95e184e7d3315f8a9c31"
+  },
+  "adapterSHA256": "b4ff3e7bb2d09bc32c0f28bfabcd01c4fbd5235cf569c8cb651c41298d04d241",
+  "retainedAdaptersSHA256": {
+    "test/native/rpcs3_texture_address_index.inc": "1192d9107f105b979c6337f29c6afc20b914cc2bede870efaac39bdc6133e23b",
+    "test/native/rpcs3_texture_exact_index.inc": "af79106ad9fc38c0c8c39d76a0a8bc502de37f6f54008ca0787c76387bd41bb6"
+  },
+  "case": "address",
+  "nonIosSourceIdentical": true,
+  "privateRangeAccessPreserved": true
+}

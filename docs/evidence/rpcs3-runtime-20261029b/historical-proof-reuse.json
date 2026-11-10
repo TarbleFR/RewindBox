@@ -1,0 +1,60 @@
+{
+  "verified": true,
+  "mode": "historical-harness-identity",
+  "testsExecuted": false,
+  "proofCommit": "075d84a49e3540cdae5352908fd81bc411b78942",
+  "generatorUnchanged": true,
+  "harnessSHA256": "eef76968809aacff5771e0991d0388bfdc552f0ab51d36ed7b246f8d3ea04511",
+  "reusedReports": [
+    {
+      "path": "docs/evidence/rpcs3-hotpaths-2026-10-29/plain.json",
+      "sha256": "0260255c50c350705e284c90263966ca6e28ab7e25f65822704f95374451aa1b",
+      "sanitized": false,
+      "threadSanitized": false
+    },
+    {
+      "path": "docs/evidence/rpcs3-hotpaths-2026-10-29/asan-ubsan.json",
+      "sha256": "dd2bd89f2c8ab85661ea5497d445a839dbdb799cd4d524833941dd1f98dd5758",
+      "sanitized": true,
+      "threadSanitized": false
+    },
+    {
+      "path": "docs/evidence/rpcs3-hotpaths-2026-10-29/tsan.json",
+      "sha256": "ad7d3b8c0b78b97cba0505690b55874c94627249c5c63e5f09f3940d535e4755",
+      "sanitized": false,
+      "threadSanitized": true
+    }
+  ],
+  "sourceBefore": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "77006008182feb4a494e6a5d21d3912d9c0520303ce87b03d954767e469be7d7",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "5e95a3647b7103e5431f20ab418ee45953874c9099b5e25beb513f045c368678",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h": "7d9abbedf29c32d5fa1c69f91975efaea8e5f0f98c733712b1c25c1feb9cd5f0",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "35dcb012c2c85fd8d89a3b9258aa1717cdb34836d83e4406dd870e4c55664a12"
+  },
+  "sourceAfter": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "69c8038541403bbe687c130caa7b7ea1b528fa16ea63b11adb4284b1967c9ae8",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "6e125eb9dfe1e73ff8675db7b3d6f3f202047298378c076f82642dfa1c0d3c74",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h": "184a98ccd0d724c476405f30c16d03838f3e59f61731979eaf4ce658f027c207",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "2025a7cbaa52bf0ff24fb2bed93f0fd3564d88895258fc58f30800fc8f33dacc"
+  },
+  "physicalDeviceTested": false,
+  "MetalCompiled": false,
+  "gameplayMeasured": false,
+  "scope": "Exact generated C++ and source identity with committed historical executions; no historical suite was recompiled or rerun. Current follow-up code has separate tests.",
+  "followupAuthenticated": {
+    "record": "runtime_log_followup_20261029",
+    "fixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7",
+    "sourceAfter": {
+      "rpcs3/Emu/Memory/vm.cpp": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+      "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "960d26436d75aa5f68655e113c3840229e90e0e8406b7e98ff2d51e2bf0618fc",
+      "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+      "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "16cd58f7e06ab7c50685f0dbcc63a149ef5be279dc3192116dcb5642f9d0ffaa",
+      "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "4557a1872934d9968b3e0029ae64264b6086db93a24a9c2e7c853bcec343d970",
+      "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+      "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "be65c65b46c08254cccb900cde9d6e4a094548d6ebb2695d61125fa101d34829",
+      "rpcs3/ios/IOSTexturePrehash.h": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c"
+    },
+    "canonicalPostimagesVerified": 308
+  }
+}

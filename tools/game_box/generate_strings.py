@@ -23,6 +23,13 @@ ZH_SHARED = {
     'front', 'back', 'reset', 'original', 'textSize', 'faceFront', 'faceBack',
     'faceBottom', 'edition', 'translationNotNeeded', 'region.jp', 'region.sp',
     'region.br', 'region.pt', 'region.ca', 'region.se', 'region.wor', 'goBack',
+    # "Cancel" and "cancelled" (取消, 已取消) are written alike in both scripts.
+    'mediaCancel', 'srcCancelled',
+    # "Scraping finished" (抓取完成) and "succeeded" (成功) too.
+    'scrapeSummaryTitle', 'scrapeSummarySuccess',
+    # "Corrected" (已校正), "blur" (模糊), "reconstructed back" (重建的封底)
+    # and "edit the back" (更改封底) too.
+    'correctedShort', 'defectBlur', 'reconstructedBack', 'editBack',
 }
 
 PLACEHOLDER = re.compile(r'\{(\w+)\}')

@@ -1,0 +1,162 @@
+{
+  "result": "passed",
+  "report": {
+    "result": "passed",
+    "scenarios": 624,
+    "checks": 716,
+    "completeProductionBarrierBatchAndNativeArray": true,
+    "realSilkTypes": true,
+    "vulkanCallsDoubled": true,
+    "timings": [
+      {
+        "count": 1,
+        "pattern": "same",
+        "iterations": 5000,
+        "controlMedianNs": 59.0888,
+        "candidateMedianNs": 58.9904,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 1,
+        "pattern": "alternating",
+        "iterations": 5000,
+        "controlMedianNs": 58.3024,
+        "candidateMedianNs": 57.8992,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 1,
+        "pattern": "seven-stage-cycle",
+        "iterations": 5000,
+        "controlMedianNs": 58.713,
+        "candidateMedianNs": 58.8126,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 16,
+        "pattern": "same",
+        "iterations": 1250,
+        "controlMedianNs": 131.3504,
+        "candidateMedianNs": 111.8504,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 16,
+        "pattern": "alternating",
+        "iterations": 1250,
+        "controlMedianNs": 387.6384,
+        "candidateMedianNs": 168.548,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 16,
+        "pattern": "seven-stage-cycle",
+        "iterations": 1250,
+        "controlMedianNs": 713.7872,
+        "candidateMedianNs": 347.5456,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 128,
+        "pattern": "same",
+        "iterations": 156,
+        "controlMedianNs": 852.0192307692307,
+        "candidateMedianNs": 1249.378205128205,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 128,
+        "pattern": "alternating",
+        "iterations": 156,
+        "controlMedianNs": 4640.397435897436,
+        "candidateMedianNs": 919.2435897435897,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 128,
+        "pattern": "seven-stage-cycle",
+        "iterations": 156,
+        "controlMedianNs": 5597.51282051282,
+        "candidateMedianNs": 1675.5641025641025,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 1024,
+        "pattern": "same",
+        "iterations": 19,
+        "controlMedianNs": 23508.052631578947,
+        "candidateMedianNs": 20639.473684210527,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 1024,
+        "pattern": "alternating",
+        "iterations": 19,
+        "controlMedianNs": 154233.47368421053,
+        "candidateMedianNs": 17726.684210526317,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 1024,
+        "pattern": "seven-stage-cycle",
+        "iterations": 19,
+        "controlMedianNs": 249628,
+        "candidateMedianNs": 28834.842105263157,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 4096,
+        "pattern": "same",
+        "iterations": 4,
+        "controlMedianNs": 228293,
+        "candidateMedianNs": 225744.25,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 4096,
+        "pattern": "alternating",
+        "iterations": 4,
+        "controlMedianNs": 2325785.25,
+        "candidateMedianNs": 230576.25,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      },
+      {
+        "count": 4096,
+        "pattern": "seven-stage-cycle",
+        "iterations": 4,
+        "controlMedianNs": 3710745.5,
+        "candidateMedianNs": 238069.5,
+        "controlAllocatedBytes": 0,
+        "candidateAllocatedBytes": 0
+      }
+    ],
+    "limitation": "host CPU micro-measurements; no iPhone FPS or physical GPU measurement"
+  },
+  "physicalDeviceTested": false,
+  "vulkanCallsDoubled": true,
+  "inputs": {
+    "build-utils/melonx/adapt_barrier_compaction.py": "aaeae89b1bb947c4402fb8511814a7fd88b46bc6067aa994fd81d279c3fe96be",
+    "test/melonx_barrier_compaction_test.py": "c85089edf019ce665d98ab1f12e4bebcfb3298facb4d5f370a781c3adb87367f",
+    "test/melonx_barrier_compaction/Program.cs": "03624f4f4f15617b46ea69a0e8ed08b5843190e0ebb674305f197a0d03b376db",
+    "test/melonx_barrier_compaction/Boundaries.cs": "dcea059647329acaa27c0b508fe4ca15620237126e64695917c459aabc5c7cfc"
+  },
+  "productionInputs": {
+    "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "ac30ac1bad76d11a0d4af3d6528f6aa809abf2999dcea9d0a7cd65cbf41b7ae6",
+    "src/Ryujinx.Graphics.Vulkan/NativeArray.cs": "620ae9d494a30823c5d9e4f7b9cd6b37be2c267660e50413ef9fb0c991e4e77e"
+  },
+  "productionPostimage": "b6d5db87a7a69e5ea034e7a61a341ef9198801a8dde957eadc9babbd410944eb"
+}

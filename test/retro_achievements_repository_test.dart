@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:neostation/repositories/retro_achievements_repository.dart';
+import 'package:neostation/models/retro_achievements_session.dart';
 
 import 'database_test_helper.dart';
 
@@ -20,6 +21,20 @@ void main() {
   });
 
   group('RetroAchievementsRepository', () {
+    test('central preferences persist independently from games and web credentials', () async {
+      expect((await RetroAchievementsRepository.loadSessionPreferences()).enabled, isFalse);
+      await RetroAchievementsRepository.saveRAUser('TestUser');
+      await RetroAchievementsRepository.saveSessionPreferences(
+        const RetroAchievementsPreferences(enabled: true, hardcore: true, migrationVersion: 1));
+      final loaded = await RetroAchievementsRepository.loadSessionPreferences();
+      expect(loaded.enabled, isTrue);
+      expect(loaded.hardcore, isTrue);
+      expect(loaded.migrationVersion, 1);
+      await RetroAchievementsRepository.saveSessionPreferences(loaded.copyWith(enabled: false));
+      expect((await RetroAchievementsRepository.loadSessionPreferences()).enabled, isFalse);
+      expect(await RetroAchievementsRepository.getRAUser(), 'TestUser');
+      expect(await RetroAchievementsRepository.getLocalRomStats(), (totalRoms: 0, raCompatibleRoms: 0));
+    });
     test('getLocalRomStats returns zero when no ROMs', () async {
       final stats = await RetroAchievementsRepository.getLocalRomStats();
       expect(stats.totalRoms, 0);

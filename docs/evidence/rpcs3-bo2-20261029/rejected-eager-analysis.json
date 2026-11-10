@@ -1,0 +1,51 @@
+{
+  "rejected": true,
+  "reason": "Per-instruction analysis increased cost before any lookup; replaced by lazy bounded scan and optional hint. No current production analysis changes.",
+  "measurement": "GCC13 -O3 x86_64, scalar SIMD host adapter, seven trials median, 3,000,000 instructions per trial; prototype analysis function only, not gameplay or complete lookup.",
+  "timings": [
+    {
+      "instructions": 16,
+      "input": false,
+      "beforeNs": 34.2065,
+      "afterNs": 117.342,
+      "ratio": 3.43039
+    },
+    {
+      "instructions": 16,
+      "input": true,
+      "beforeNs": 33.7906,
+      "afterNs": 119.953,
+      "ratio": 3.54988
+    },
+    {
+      "instructions": 256,
+      "input": false,
+      "beforeNs": 491.611,
+      "afterNs": 1954.04,
+      "ratio": 3.97477
+    },
+    {
+      "instructions": 256,
+      "input": true,
+      "beforeNs": 507.899,
+      "afterNs": 1860.94,
+      "ratio": 3.66399
+    },
+    {
+      "instructions": 2048,
+      "input": false,
+      "beforeNs": 3710.7,
+      "afterNs": 14584.4,
+      "ratio": 3.93037
+    },
+    {
+      "instructions": 2048,
+      "input": true,
+      "beforeNs": 3677.39,
+      "afterNs": 14645.9,
+      "ratio": 3.98269
+    }
+  ],
+  "rerun": false,
+  "sourceState": "Original eager prototype before common TEMP/CONSTANT shortcut; measured output retained from session. Superseded source not the final candidate."
+}

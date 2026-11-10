@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 
 import '../l10n/rpcs3_ui_locale.dart';
@@ -9,14 +10,15 @@ import '../models/system_model.dart';
 import '../providers/file_provider.dart';
 import '../providers/sqlite_database_provider.dart';
 import '../repositories/game_repository.dart';
-import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_library_service.dart';
 import '../services/rpcs3_launch_service.dart';
 
 /// Multi-selection deletion UI for NeoStation's embedded RPCS3 library.
 ///
-/// Uses the same verified installation deletion as the per-game settings.
-/// It works without JIT and retains saves, firmware and savestates.
+/// Uses the same verified deletion as the per-game settings: RPCS3's
+/// installation, and the disc image of the library folder (roms/ps3) with
+/// it (Build 557). It works without JIT and retains saves, firmware and
+/// savestates.
 class Rpcs3MultiDeleteDialog extends StatefulWidget {
   const Rpcs3MultiDeleteDialog({
     super.key,
@@ -64,6 +66,14 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
   String _tf(String key, Map<String, Object?> values) =>
       Rpcs3UiLocale.format(context, key, values);
 
+  /// Build 557: rows are selected by path. A disc image of the library
+  /// folder has no title ID until RPCS3 installs it, and used to be left out
+  /// of this list.
+  String? _key(GameModel game) {
+    final romPath = game.romPath;
+    return romPath == null || romPath.isEmpty ? null : romPath;
+  }
+
   String? _titleId(GameModel game) {
     final direct = Rpcs3LaunchService.normalizeTitleId(game.titleId);
     if (direct != null) return direct;
@@ -80,23 +90,22 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
     return Rpcs3LaunchService.normalizeTitleId(game.romname);
   }
 
-  List<GameModel> get _deletableGames => widget.games
-      .where((game) => _titleId(game) != null)
-      .toList(growable: false);
+  List<GameModel> get _deletableGames =>
+      widget.games.where((game) => _key(game) != null).toList(growable: false);
 
   @override
   void initState() {
     super.initState();
-    final initial = _titleId(widget.initialGame);
+    final initial = _key(widget.initialGame);
     if (initial != null) _selected.add(initial);
   }
 
   void _toggle(GameModel game) {
     if (_deleting) return;
-    final titleId = _titleId(game);
-    if (titleId == null) return;
+    final key = _key(game);
+    if (key == null) return;
     setState(() {
-      if (!_selected.add(titleId)) _selected.remove(titleId);
+      if (!_selected.add(key)) _selected.remove(key);
     });
   }
 
@@ -109,7 +118,7 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
       } else {
         _selected
           ..clear()
-          ..addAll(games.map(_titleId).whereType<String>());
+          ..addAll(games.map(_key).whereType<String>());
       }
     });
   }
@@ -117,7 +126,7 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
   Future<void> _deleteSelected() async {
     if (_deleting || _selected.isEmpty) return;
     final selectedGames = _deletableGames
-        .where((game) => _selected.contains(_titleId(game)))
+        .where((game) => _selected.contains(_key(game)))
         .toList(growable: false);
     if (selectedGames.isEmpty) return;
 
@@ -132,20 +141,22 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
       final fileProvider = context.read<FileProvider>();
 
       for (final game in selectedGames) {
-        final titleId = _titleId(game)!;
-        await Rpcs3InternalService.deleteInstalledGame(titleId);
-
-        await GameRepository.deleteNeoStationScrapedMedia(
-          systemFolderName: 'ps3',
+        final key = _key(game)!;
+        // The per-game deletion: RPCS3's installation, the library-folder
+        // disc image and its key, the rows and the scraped media.
+        await GameRepository.deleteGame(
+          appSystemId: game.systemId ?? widget.system.id,
           filename: game.romname,
+          systemFolderName: 'ps3',
           romBaseName: game.romname,
+          romPath: game.romPath,
           fileProvider: fileProvider,
         );
 
         if (mounted) {
           setState(() {
             _deletedCount++;
-            _selected.remove(titleId);
+            _selected.remove(key);
           });
         }
       }
@@ -205,8 +216,9 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
                 itemCount: games.length,
                 itemBuilder: (context, index) {
                   final game = games[index];
-                  final titleId = _titleId(game)!;
-                  final checked = _selected.contains(titleId);
+                  final key = _key(game)!;
+                  final titleId = _titleId(game);
+                  final checked = _selected.contains(key);
                   return CheckboxListTile(
                     value: checked,
                     onChanged: _deleting ? null : (_) => _toggle(game),
@@ -218,7 +230,7 @@ class _Rpcs3MultiDeleteDialogState extends State<Rpcs3MultiDeleteDialog> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      titleId,
+                      titleId ?? path.basename(key),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

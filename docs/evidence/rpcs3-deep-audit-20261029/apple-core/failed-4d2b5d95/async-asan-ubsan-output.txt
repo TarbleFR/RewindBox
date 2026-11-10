@@ -1,0 +1,1 @@
+{"passed":true,"sameSlotIdentityChecks":99000,"baselineStartupDriverObjects":16384,"candidateStartupDriverObjects":0,"candidateFirstUseObjects":1,"candidateAfterEightObjects":8,"fullCycleObjectsUnchanged":16384,"destroyedExactlyOnce":true,"desktopUnchanged":true}

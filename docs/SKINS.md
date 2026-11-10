@@ -132,6 +132,26 @@ retain the available author and download URL, or identify an import from Files.
 Each creator's terms still apply. Catalog inclusion does not make artwork
 RewindBox-owned or grant permission to redistribute it.
 
+## GameCube and Wii (embedded Dolphin)
+
+Since 3 November 2026 the embedded Dolphin takes `.deltaskin` and
+`.manicskin` skins for the **Nintendo GameCube** and the **Nintendo Wii**,
+for example [GameCube Pocket](https://deltastyles.com/skins/760-gamecube-pocket).
+Open **Skins** on the GameCube or Wii row of the Consoles tab, or from the
+import menu of their game list. The page, the catalogs, the import from Files,
+the iPhone filter and the portrait / landscape choices are the ones described
+above. The **default** keeps the DolphiniOS touch pad.
+
+In a game, the skin replaces the DolphiniOS pad and the game is drawn in the
+skin's screen. A connected controller hides the skin. A portrait skin lets the
+Dolphin session turn upright; without one it stays landscape. The skin's
+**Menu**, **Quick save** and **Quick load** buttons open the in-game menu,
+where the savestates are. On the Wii, a skin drives the Wii Remote and its
+Nunchuk. A finger on the game's screen moves the pointer.
+
+RetroArch overlays are not offered for these consoles. The input names and
+the limits of this first version are in [dolphin-skins.md](dolphin-skins.md).
+
 ## Files and implementation references
 
 Installed skins are stored in `Documents/Libretro/Skins/<id>/`.
@@ -149,4 +169,5 @@ changing an emulation core for the same console does not change its skin choice.
 - [Native skin parser](../packages/libretro_internal_bridge/ios/Classes/LibretroSkin.m)
 - [Default skins](../packages/libretro_internal_bridge/ios/Classes/LibretroDefaultSkins.m)
 - [Design and implementation notes](libretro-skins-shaders.md)
+- [GameCube and Wii skins (Dolphin)](dolphin-skins.md)
 - [Credits and notices](LEGAL_AND_CREDITS.md)

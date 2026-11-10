@@ -134,6 +134,15 @@ class ScrapingProvider extends ChangeNotifier {
   /// Increments after a completed scrape writes new artwork to disk.
   int _artworkRevision = 0;
 
+  /// What the session wrote (docs/game-box-3d.md § 18): ScreenScraper media
+  /// added, media replaced (imported icons, another variant for changed
+  /// choices, "All content"), box faces found by each source, and box faces
+  /// still missing after every source.
+  int _mediaAdded = 0;
+  int _mediaReplaced = 0;
+  final Map<String, int> _facesBySource = {};
+  int _facesMissing = 0;
+
   bool get isScraping => _isScraping;
   int get totalRequests => _totalRequests;
   int get maxDailyRequests => _maxDailyRequests;
@@ -145,6 +154,31 @@ class ScrapingProvider extends ChangeNotifier {
   List<ThreadProgress> get threads => _threads;
   Duration? get estimatedTimeRemaining => _estimatedTimeRemaining;
   int get artworkRevision => _artworkRevision;
+  int get mediaAdded => _mediaAdded;
+  int get mediaReplaced => _mediaReplaced;
+  Map<String, int> get facesBySource => Map.unmodifiable(_facesBySource);
+  int get facesFound => _facesBySource.values.fold(0, (a, b) => a + b);
+  int get facesMissing => _facesMissing;
+
+  /// Adds one game's ScreenScraper download to the session's summary.
+  void addMediaResult({int added = 0, int replaced = 0}) {
+    if (added == 0 && replaced == 0) return;
+    _mediaAdded += added;
+    _mediaReplaced += replaced;
+    notifyListeners();
+  }
+
+  /// Adds one game's box-face completion to the session's summary: faces
+  /// found by source id (`screenscraper`, `gametdb`, `mobygames`) and faces
+  /// still missing.
+  void addFaceResult(Map<String, int> bySource, int missing) {
+    if (bySource.isEmpty && missing == 0) return;
+    for (final e in bySource.entries) {
+      _facesBySource[e.key] = (_facesBySource[e.key] ?? 0) + e.value;
+    }
+    _facesMissing += missing;
+    notifyListeners();
+  }
 
   void markArtworkUpdated() {
     _artworkRevision++;
@@ -163,6 +197,10 @@ class ScrapingProvider extends ChangeNotifier {
     _processedGames = 0;
     _successfulGames = 0;
     _failedGames = 0;
+    _mediaAdded = 0;
+    _mediaReplaced = 0;
+    _facesBySource.clear();
+    _facesMissing = 0;
     _maxThreads = maxThreads ?? 4;
     _startTime = DateTime.now();
     _estimatedTimeRemaining = null;

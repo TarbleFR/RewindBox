@@ -1,9 +1,15 @@
+import 'package:achievement_translation/achievement_translation.dart';
+import 'services/retro_achievements_session_service.dart';
 import 'package:neostation/widgets/rewind_startup.dart';
 import 'package:neostation/providers/menu_app_provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/providers/sqlite_database_provider.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
+import 'package:neostation/services/glacier_preset.dart';
+import 'package:retro_achievements_session/retro_achievements_session.dart';
+import 'package:neostation/themes/glacier_theme.dart';
+import 'package:neostation/themes/interface_style.dart';
 import 'package:neostation/providers/scraping_provider.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/screens/main_screen.dart';
@@ -20,13 +26,15 @@ import 'package:neostation/widgets/permission_check_wrapper.dart';
 import 'package:neostation/utils/custom_scroll_behavior.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/app_widget_localizations.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/diagnostics_directory.dart';
+import 'package:neostation/services/libretro_skin_catalogs.dart';
+import 'package:neostation/services/libretro_skin_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +63,9 @@ import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/audio_policy_service.dart';
+
+export 'l10n/app_widget_localizations.dart'
+    show FallbackMaterialLocalizationsDelegate;
 
 final _rewindStartup = RewindStartupController();
 
@@ -317,6 +328,28 @@ Future<void> _prepareIosFilesWorkspaceAfterStartup() async {
   }
 }
 
+/// RewindBox's bundled controller skins follow the archives this build ships:
+/// a pack installed by an earlier build is refreshed in place, its selections
+/// kept (LibretroSkinCatalogs.refreshInstalledBundledSkins). Deferred like the
+/// Files housekeeping; nothing is read when no installed pack is stale.
+Future<void> _refreshBundledSkinsAfterStartup() async {
+  if (!Platform.isIOS) return;
+  final log = LoggerService.instance;
+  try {
+    final refreshed = await LibretroSkinCatalogs.refreshBundledSkins(
+      await LibretroSkinService.create(),
+    );
+    if (refreshed.isNotEmpty) {
+      log.i(
+        'Bundled skins refreshed: '
+        '${refreshed.map((skin) => '${skin.identifier}=${skin.id}').join(', ')}.',
+      );
+    }
+  } catch (error) {
+    log.w('Bundled skin refresh failed: $error');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -486,6 +519,11 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  // Where the saved in-game sign-in was found at each read (Keychain, the
+  // private copy, or none): codes only, into the app log.
+  RetroAchievementsNativeClient.diagnostics = log.i;
+  await RetroAchievementsSessionService.shared.initialize();
 
   // Inicializar providers criticos
   final sqliteConfigProvider = SqliteConfigProvider();
@@ -560,7 +598,13 @@ void main() async {
   // ThemeProvider would paint its platform-brightness fallback until the
   // database read returned — a white flash on any platform that reports a
   // light brightness (the Steam Deck does) for a user on a dark theme.
+  // RewindBox Glacier is the first look of a new installation; an update
+  // keeps every choice already made (Settings › Themes offers Glacier).
+  await GlacierPreset.applyDefaultForNewInstall(sqliteConfigProvider.config);
   final themeProvider = await ThemeProvider.create();
+  if (themeProvider.interfaceStyle.style == InterfaceStyle.glacier) {
+    await warmGlacierBackground();
+  }
 
   _rewindStartup.attach(
     MyApp(
@@ -582,6 +626,7 @@ void main() async {
           _prepareIosFilesWorkspaceAfterStartup,
         ),
       );
+      unawaited(_refreshBundledSkinsAfterStartup());
     });
   }
 
@@ -838,29 +883,9 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
-}
-
-/// Provides MaterialLocalizations as a fallback for locales that Flutter's
-/// global delegates do not support (e.g. zh_Hant). This prevents TextField
-/// and other Material widgets from crashing when MaterialLocalizations.of
-/// returns null.
-class FallbackMaterialLocalizationsDelegate
-    extends LocalizationsDelegate<MaterialLocalizations> {
-  const FallbackMaterialLocalizationsDelegate();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<MaterialLocalizations> load(Locale locale) =>
-      GlobalMaterialLocalizations.delegate.load(const Locale('en'));
-
-  @override
-  bool shouldReload(
-    covariant LocalizationsDelegate<MaterialLocalizations> old,
-  ) => false;
 }
 
 class MyApp extends StatefulWidget {
@@ -918,7 +943,9 @@ class _MyAppState extends State<MyApp> {
           // game straight from the systems/recent screen (which never reads the
           // provider) would find RA disconnected and skip the secondary panel.
           lazy: false,
-          create: (context) => RetroAchievementsProvider()..initialize(),
+          create: (context) => RetroAchievementsProvider(
+            sessionService: RetroAchievementsSessionService.shared,
+          )..initialize(),
         ),
         ChangeNotifierProvider(create: (context) => SystemBackgroundProvider()),
         ChangeNotifierProvider(
@@ -957,8 +984,8 @@ class _MyAppState extends State<MyApp> {
                       title: 'RewindBox',
                       locale: _locale,
                       localizationsDelegates: [
-                        const FallbackMaterialLocalizationsDelegate(),
                         ...FlutterLocalization.instance.localizationsDelegates,
+                        ...appWidgetLocalizationsDelegates,
                       ],
                       supportedLocales:
                           FlutterLocalization.instance.supportedLocales,

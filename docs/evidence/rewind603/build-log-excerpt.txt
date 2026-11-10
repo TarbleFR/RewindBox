@@ -1,0 +1,114 @@
+2026-10-30T17:58:02.1731190Z ##[group]Runner Image Provisioner
+2026-10-30T17:58:02.1735970Z ##[group]Operating System
+2026-10-30T17:58:02.1738080Z ##[group]Runner Image
+2026-10-30T17:58:02.1742960Z ##[group]GITHUB_TOKEN Permissions
+2026-10-30T17:58:06.5731120Z ##[group]Run actions/checkout@v4
+2026-10-30T17:58:07.0596110Z ##[group]Getting Git version info
+2026-10-30T17:58:07.1038850Z ##[group]Initializing the repository
+2026-10-30T17:58:07.1403040Z ##[group]Disabling automatic garbage collection
+2026-10-30T17:58:07.1479570Z ##[group]Setting up auth
+2026-10-30T17:58:07.5055340Z ##[group]Fetching the repository
+2026-10-30T17:58:52.8735740Z ##[group]Determining the checkout info
+2026-10-30T17:58:52.9047020Z ##[group]Checking out the ref
+2026-10-30T17:59:02.0292040Z ##[group]Removing auth
+2026-10-30T17:59:02.7213750Z ##[group]Run python3 test/rewind603_delivery_contract_test.py
+2026-10-30T17:59:03.5645180Z {"result": "passed", "build": 603, "applicationBaseline": 602, "productDelta": ["native/melonx/EmbeddedStartupTrace.cs"], "coreRecompiled": false, "nativeFixturesReplayed": false}
+2026-10-30T17:59:03.5851230Z ##[group]Run python3 .github/diagnostics/rewind603_baseline.py --pin
+2026-10-30T17:59:04.8482440Z ##[group]Run python3 .github/diagnostics/rewind603_baseline_delivery.py --retain-checks
+2026-10-30T17:59:18.0335440Z     "result": "passed",
+2026-10-30T17:59:18.1382350Z ##[group]Run maxim-lobanov/setup-xcode@v1
+2026-10-30T17:59:18.8848810Z ##[group]Run python3 .github/diagnostics/rewind603_checks.py
+2026-10-30T17:59:22.9943360Z   "result": "passed",
+2026-10-30T17:59:23.1344440Z ##[group]Run subosito/flutter-action@v2
+2026-10-30T17:59:23.1469480Z ##[group]Run chmod +x "$GITHUB_ACTION_PATH/setup.sh"
+2026-10-30T17:59:23.2072070Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh -p \
+2026-10-30T17:59:23.5256440Z ##[group]Run actions/cache@v5
+2026-10-30T18:00:36.1229880Z ##[group]Run actions/cache@v5
+2026-10-30T18:00:48.2794740Z ##[group]Run $GITHUB_ACTION_PATH/setup.sh \
+2026-10-30T18:00:48.7354100Z ##[group]Run mkdir -p build/delivery
+2026-10-30T18:00:56.7402660Z ##[group]Run python3 build-utils/delivery_metrics.py dart_dependencies flutter pub get --enforce-lockfile
+2026-10-30T18:00:58.4157300Z ##[group]Run set -euo pipefail
+2026-10-30T18:00:59.6404670Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:01.5264880Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:12.5789060Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:17.3518700Z ##[group]Run actions/cache@v4
+2026-10-30T18:01:19.4232940Z ##[group]Run python3 build-utils/install_patched_stikjit.py build/stikjit-current/StikJIT.xcframework
+2026-10-30T18:01:41.2643810Z ##[group]Run python3 .github/diagnostics/rewind603_baseline_delivery.py --download-core --output build/delivery/rpcs3-runtime-candidate-download.json
+2026-10-30T18:01:44.5732710Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:52.7338710Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:53.1778290Z ##[group]Run rm -rf dist/armsx2
+2026-10-30T18:01:53.2510160Z ##[group]Run actions/download-artifact@v4
+2026-10-30T18:01:55.9797380Z ##[group]Run set -euo pipefail
+2026-10-30T18:01:56.0851020Z ##[group]Run rm -rf dist/libretro
+2026-10-30T18:01:56.1986990Z ##[group]Run actions/download-artifact@v4
+2026-10-30T18:02:01.6199040Z ##[group]Run set -euo pipefail
+2026-10-30T18:02:02.2137000Z ##[group]Run python3 .github/diagnostics/rewind603_baseline_delivery.py --component-runs --output build/delivery/component-runs603.json
+2026-10-30T18:02:02.6085350Z     "result": "passed",
+2026-10-30T18:02:02.6202890Z ##[group]Run python3 .github/diagnostics/rewind603_baseline_delivery.py --download-components --output build/delivery/melonx-components603.json
+2026-10-30T18:02:10.4991100Z ##[group]Run actions/download-artifact@v4
+2026-10-30T18:02:15.3985450Z ##[group]Run set -euo pipefail
+2026-10-30T18:02:24.9481700Z ##[group]Run python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
+2026-10-30T18:02:25.1643620Z ##[group]Run python3 .github/diagnostics/rewind603_baseline_delivery.py --engine-evidence --output build/delivery/melonx-engine-evidence603.json
+2026-10-30T18:02:25.6636770Z     "result": "passed",
+2026-10-30T18:02:25.6646350Z       "result": "passed",
+2026-10-30T18:02:25.6711520Z ##[group]Run set -euo pipefail
+2026-10-30T18:02:25.8453090Z ##[group]Run set -euo pipefail
+2026-10-30T18:03:21.3252090Z ##[group]Run python3 build-utils/stamp_host_version.py
+2026-10-30T18:03:21.6775180Z ##[group]Run python3 - <<'PY_STORE'
+2026-10-30T18:03:21.7793600Z ##[group]Run set -euo pipefail
+2026-10-30T18:09:46.8519600Z ** BUILD SUCCEEDED **
+2026-10-30T18:09:47.1363980Z ##[group]Run set -euo pipefail
+2026-10-30T18:09:47.5796460Z ##[group]Run set -euo pipefail
+2026-10-30T18:10:37.5963430Z ##[group]Run python3 build-utils/validate_rpcs3_core603_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
+2026-10-30T18:10:42.6097170Z ##[group]Run python3 build-utils/validate_melonx_engine603_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+2026-10-30T18:10:43.4559150Z ##[group]Run python3 build-utils/validate_hogwarts603_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+2026-10-30T18:10:43.5968060Z ##[group]Run set -euo pipefail
+2026-10-30T18:10:46.9008950Z ##[group]Run set -euo pipefail
+2026-10-30T18:10:48.8323060Z ##[group]Run set -euo pipefail
+2026-10-30T18:10:49.3354420Z ##[group]Run python3 .github/diagnostics/rpcs3runtime601_core.py --embed-source build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+2026-10-30T18:10:52.4638770Z ##[group]Run python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+2026-10-30T18:10:53.9784910Z ##[group]Run python3 build-utils/melonx/package_standalone_moltenvk.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+2026-10-30T18:10:54.1367870Z ##[group]Run set -euo pipefail
+2026-10-30T18:12:41.2419930Z ##[group]Run python3 build-utils/delivery_metrics.py signature_and_ipa_export python3 build-utils/delivery_benchmark.py seal
+2026-10-30T18:13:26.0896610Z ##[group]Run set -euo pipefail
+2026-10-30T18:13:28.6258290Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:13:31.6266640Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-recovery-part00.zip successfully finalized. Artifact ID 13001142337
+2026-10-30T18:13:31.6401980Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:13:34.2413590Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-recovery-part01.zip successfully finalized. Artifact ID 12999499555
+2026-10-30T18:13:34.2570360Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:13:36.9408670Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-recovery-part02.zip successfully finalized. Artifact ID 13000162803
+2026-10-30T18:13:36.9588400Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:13:39.9956190Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-recovery-part03.zip successfully finalized. Artifact ID 13000437506
+2026-10-30T18:13:40.0218580Z ##[group]Run python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json
+2026-10-30T18:13:41.7282440Z   "result": "passed",
+2026-10-30T18:13:41.7420480Z ##[group]Run python3 build-utils/validate_rpcs3_core603_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" \
+2026-10-30T18:13:46.1705080Z   "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd",
+2026-10-30T18:13:46.1824910Z   "result": "passed",
+2026-10-30T18:13:46.2065340Z ##[group]Run python3 build-utils/validate_melonx_engine603_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" \
+2026-10-30T18:13:48.1680470Z   "result": "passed",
+2026-10-30T18:13:48.1682980Z   "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd",
+2026-10-30T18:13:48.1862600Z ##[group]Run python3 build-utils/validate_hogwarts603_ipa.py "dist/$IPA_NAME.ipa" --report build/delivery/hogwarts603-ipa-validation.json
+2026-10-30T18:13:49.8703670Z   "result": "passed",
+2026-10-30T18:13:49.8705070Z   "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd",
+2026-10-30T18:13:49.8724030Z       "result": "passed",
+2026-10-30T18:13:49.8727640Z         "result": "passed",
+2026-10-30T18:13:49.8730080Z         "result": "passed",
+2026-10-30T18:13:49.8733120Z         "result": "passed",
+2026-10-30T18:13:49.9556970Z ##[group]Run set -euo pipefail
+2026-10-30T18:13:51.6513600Z ##[group]Run python3 build-utils/delivery_benchmark.py report
+2026-10-30T18:13:51.8219010Z ##[group]Run mkdir -p build/delivery-artifact
+2026-10-30T18:13:56.8447920Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:02.2912810Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold.zip successfully finalized. Artifact ID 13000847907
+2026-10-30T18:14:02.3418840Z ##[group]Run python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
+2026-10-30T18:14:03.7747820Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:06.5121310Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-part00.zip successfully finalized. Artifact ID 13001182458
+2026-10-30T18:14:06.5539620Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:10.3090570Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-part01.zip successfully finalized. Artifact ID 13001142458
+2026-10-30T18:14:10.3630730Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:13.1370690Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-part02.zip successfully finalized. Artifact ID 13000567529
+2026-10-30T18:14:13.1629560Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:15.7950800Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-part03.zip successfully finalized. Artifact ID 12999598920
+2026-10-30T18:14:15.8197590Z ##[group]Run mkdir -p build/delivery
+2026-10-30T18:14:16.1463920Z ##[group]Run actions/upload-artifact@v4
+2026-10-30T18:14:18.4597240Z Artifact RewindBox-Build603-808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd-cold-diagnostics.zip successfully finalized. Artifact ID 13000962769
+2026-10-30T18:14:18.4798950Z ##[group]Run rm -f .dart-defines.json

@@ -1,0 +1,66 @@
+{
+  "result": "passed",
+  "configuration": "Release",
+  "target": "Ryujinx.Library",
+  "runtime": "linux-x64",
+  "nativeAot": false,
+  "sdk": "10.0.100",
+  "firstNineAdapters": {
+    "exitCode": 0,
+    "msbuildElapsedSeconds": 98.57,
+    "warnings": 27,
+    "errors": 0,
+    "log": "managed-build-first-nine.txt"
+  },
+  "firstFinalAttempt": {
+    "log": "managed-build-final-incomplete.txt",
+    "terminalBuildSummaryPresent": false,
+    "treatedAsSuccess": false,
+    "reason": "Output ended before Library success; the remaining incremental Library build was explicitly completed."
+  },
+  "finalAllTwelveAdapters": {
+    "command": [
+      "/workspace/scratch/90582008c087/dotnet-sdk/dotnet",
+      "build",
+      "/workspace/scratch/90582008c087/MeloNX-followup-build/src/Ryujinx.Library/Ryujinx.Library.csproj",
+      "--no-restore",
+      "-c",
+      "Release",
+      "-p:PublishAot=false",
+      "-p:UseNativeAOTRuntime=false",
+      "-p:RuntimeIdentifier=linux-x64",
+      "-p:RuntimeIdentifiers=linux-x64",
+      "-p:SelfContained=false",
+      "-p:NuGetAudit=false",
+      "-p:BuildInParallel=false",
+      "-m:1",
+      "-v:minimal"
+    ],
+    "cwd": "/workspace/scratch/90582008c087/MeloNX-followup-build",
+    "exitCode": 0,
+    "seconds": 6.229,
+    "log": "managed-build-final.txt",
+    "reason": "Finish final Library build after prior incomplete output; affected projects reuse incremental outputs.",
+    "warnings": 0,
+    "errors": 0,
+    "msbuildElapsedSeconds": 5.96,
+    "incremental": true
+  },
+  "initialWarningsInUnchangedSourcePaths": [
+    "src/Ryujinx.Cpu/LightningJit/Translator.cs",
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+    "src/Ryujinx.Library/Compression/NativeZip.cs",
+    "src/Ryujinx.Library/EmbeddedBootstrap.cs",
+    "src/Ryujinx.Library/EmbeddedMemory.cs",
+    "src/Ryujinx.Library/GameInfo.cs",
+    "src/Ryujinx.Library/Library.cs",
+    "src/Ryujinx.Library/Native/AlertHelper.cs",
+    "src/Ryujinx.Library/Native/NativeTouchDriver.cs",
+    "src/Ryujinx.Library/Window/WindowBase.cs"
+  ],
+  "allFinalPreparedSourceFilesMatchBuiltWorkspace": true,
+  "assemblyEvidence": "integration.json#libraryAssemblies",
+  "appleBuild": false,
+  "deviceTest": false,
+  "noClaimOfWarningFreeFullCleanBuild": true
+}

@@ -13,9 +13,11 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:neo_swap/neo_swap.dart';
 import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'logger_service.dart';
+import 'retro_achievements_session_service.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'rpcs3_game_profile_service.dart';
@@ -814,10 +816,45 @@ class Rpcs3InternalService {
     return true;
   });
 
+  /// NeoSwap guest relay before every boot (Build 610). The Core maps its
+  /// preallocated guest blocks during boot; a block mapped before the relay is
+  /// ready stays file-backed for that session. The bridge waits for the relay
+  /// only at Core load, and the relay shuts down when idle after a session, so
+  /// a relaunch or a game switch used to boot without it. This bounded wait
+  /// never fails or retries the launch.
+  @visibleForTesting
+  static Future<Map<String, dynamic>> Function({int timeoutMs})
+  guestRelayPreparer = NeoSwap.prepareGuestRelay;
+  @visibleForTesting
+  static Duration guestRelayTimeout = const Duration(seconds: 12);
+
+  @visibleForTesting
+  static Future<String> prepareGuestRelayForBoot(String titleId) async {
+    final timer = Stopwatch()..start();
+    String outcome;
+    try {
+      final report = await guestRelayPreparer(
+        timeoutMs: 10000,
+      ).timeout(guestRelayTimeout);
+      outcome =
+          'result=${report['result']} ok=${report['ok']} '
+          'relayEnabled=${report['relayEnabled']} '
+          'waitedMs=${report['waitedMs']}';
+    } catch (error) {
+      outcome = 'unavailable error=$error';
+    }
+    final line =
+        'RPCS3 guest relay before boot $titleId: $outcome; '
+        'elapsedMs=${timer.elapsedMilliseconds}.';
+    _log.i(line);
+    return line;
+  }
+
   static Future<bool> launchTitle(
     String titleId, {
     required String uiLocale,
     String? savestateId,
+    String? contentPath,
   }) async {
     final normalized = titleId.trim().toUpperCase();
     if (normalized.isEmpty) return false;
@@ -849,13 +886,40 @@ class Rpcs3InternalService {
       coreReady: true,
     );
 
+    await prepareGuestRelayForBoot(normalized);
+
+    // RetroAchievements: one single-use ticket from the central session (the
+    // app language labels the in-game status). Its preparation never blocks
+    // or fails the game launch.
+    final raService = RetroAchievementsSessionService.shared;
+    Map<String, Object?> raLaunch = const {};
+    try {
+      raLaunch = await raService.prepareLaunch(
+        engine: 'rpcs3',
+        system: 'ps3',
+        language: uiLocale,
+        contentPath: contentPath,
+      );
+    } catch (error) {
+      _log.w('RPCS3 RetroAchievements preparation skipped: $error');
+    }
     final bootTimer = Stopwatch()..start();
-    final report = await Rpcs3InternalBridge.launchGame(
-      titleId: normalized,
-      uiLocale: uiLocale,
-      savestateId: savestateId,
-    );
+    final Map<String, dynamic> report;
+    try {
+      report = await Rpcs3InternalBridge.launchGame(
+        titleId: normalized,
+        uiLocale: uiLocale,
+        savestateId: savestateId,
+        raSessionId: raLaunch['raSessionId'] as String?,
+      );
+    } catch (_) {
+      await raService.finishLaunch(raLaunch);
+      rethrow;
+    }
     if (report['success'] != true) {
+      // The native bridge already released a consumed ticket; this also
+      // drops one it never took (idempotent).
+      await raService.finishLaunch(raLaunch);
       throw Rpcs3InternalException(
         report['code']?.toString() ?? 'RPCS3_GAME_BOOT_FAILED',
         report['message']?.toString() ??

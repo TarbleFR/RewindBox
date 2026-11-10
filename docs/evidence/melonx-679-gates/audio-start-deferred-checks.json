@@ -1,0 +1,94 @@
+{
+  "result": "passed",
+  "checks": 16,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs": "30c1ef4c6f02b68d0496034c4e889101ea1c57b6483527af0dd3b2e6f4bc897b"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "refusedAtCreation": {
+        "created": false,
+        "exception": "InvalidOperationException: AVAudioEngine failed to start.",
+        "nativeObjectsLeftByThrow": 1
+      },
+      "startedAtCreation": {
+        "created": true,
+        "playedWhileRefused": 480,
+        "runningWhileRefused": true,
+        "runningAfterPoll": true,
+        "played": 960,
+        "pcmIntact": true,
+        "starts": 1
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "refusedAtCreation": {
+        "created": true,
+        "playedWhileRefused": 0,
+        "runningWhileRefused": false,
+        "runningAfterPoll": true,
+        "played": 960,
+        "pcmIntact": true,
+        "starts": 4
+      },
+      "startedAtCreation": {
+        "created": true,
+        "playedWhileRefused": 480,
+        "runningWhileRefused": true,
+        "runningAfterPoll": true,
+        "played": 960,
+        "pcmIntact": true,
+        "starts": 1
+      }
+    }
+  },
+  "compiledSources": {
+    "control": {
+      "AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8",
+      "AppleAudioBuffer.cs": "2e4500fe39821fb2b814fbb6a711d1e348a1658a8857f6db845a9bff4617167f",
+      "AppleHardwareDeviceDriver.cs": "fca54f2112dac0260eb743cacd99bc55eb47e6ece04973564cad479b44889014",
+      "AppleHardwareDeviceSession.cs": "b4f6a9c1f7c55dd7fc0a909cbf81d843409f28bd2b006cc7a6ae53c3434b084e",
+      "AudioBuffer.cs": "1d08f5e845820a5bc1bbac44031d601a92393d217d922b42a0811abc1dc8ab69",
+      "BackendHelper.cs": "2a99a25ce65ad50bbb4b289dda6bf41204861118c7370381a2a0cc38ae84c111",
+      "EmbeddedAudioPacing.cs": "5d653790196980380037c38094731d60403cd34b94a9cfe93f66ed55aabaf492",
+      "HardwareDeviceSessionOutputBase.cs": "453154f422748dccdb8ea7f6cec4b6b86610bab503aa76dcb730caee63645cee",
+      "IHardwareDeviceDriver.cs": "4fec60900ed0250231b364304be7fbb6fab000941cef17653f30466ef715de8d",
+      "IHardwareDeviceSession.cs": "9becaab33bfc06d638282eb07a1cc3660e36fe889572bd454d19e65841f636aa",
+      "Program.cs": "33a50e9d750f6b908bc92f3e4d06d4c8033eb00cd968eeb4ced228247dc69a05",
+      "SampleFormat.cs": "09ff4d4491822f2eae073a389c4c4a22ac473c7bf1d814ca27da1e438b5696db"
+    },
+    "candidate": {
+      "AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8",
+      "AppleAudioBuffer.cs": "2e4500fe39821fb2b814fbb6a711d1e348a1658a8857f6db845a9bff4617167f",
+      "AppleHardwareDeviceDriver.cs": "fca54f2112dac0260eb743cacd99bc55eb47e6ece04973564cad479b44889014",
+      "AppleHardwareDeviceSession.cs": "30c1ef4c6f02b68d0496034c4e889101ea1c57b6483527af0dd3b2e6f4bc897b",
+      "AudioBuffer.cs": "1d08f5e845820a5bc1bbac44031d601a92393d217d922b42a0811abc1dc8ab69",
+      "BackendHelper.cs": "2a99a25ce65ad50bbb4b289dda6bf41204861118c7370381a2a0cc38ae84c111",
+      "EmbeddedAudioPacing.cs": "5d653790196980380037c38094731d60403cd34b94a9cfe93f66ed55aabaf492",
+      "HardwareDeviceSessionOutputBase.cs": "453154f422748dccdb8ea7f6cec4b6b86610bab503aa76dcb730caee63645cee",
+      "IHardwareDeviceDriver.cs": "4fec60900ed0250231b364304be7fbb6fab000941cef17653f30466ef715de8d",
+      "IHardwareDeviceSession.cs": "9becaab33bfc06d638282eb07a1cc3660e36fe889572bd454d19e65841f636aa",
+      "Program.cs": "33a50e9d750f6b908bc92f3e4d06d4c8033eb00cd968eeb4ced228247dc69a05",
+      "SampleFormat.cs": "09ff4d4491822f2eae073a389c4c4a22ac473c7bf1d814ca27da1e438b5696db"
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "avFoundationDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_audio_start_deferred.py": "aa9f26925fb2b710e7cbfb3a0020b75744942d557f3f48f8c14ed66c14b9e9f1",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_audio_start_deferred_test.py": "b49ed93e28e00afa02e9c1208fd42236ecba98b247d918ec387f52157e8acbf2",
+    "test/melonx_audio_start_deferred/Program.cs": "33a50e9d750f6b908bc92f3e4d06d4c8033eb00cd968eeb4ced228247dc69a05",
+    "test/melonx_apple_audio/AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8",
+    "native/melonx/EmbeddedAudioPacing.cs": "5d653790196980380037c38094731d60403cd34b94a9cfe93f66ed55aabaf492",
+    "test/melonx_adapter_control.py": "4417134cf81f271156b88ca6331cdd27cd19150f024f04c41c02eae917e8c695"
+  },
+  "limitation": "Real final Apple session and driver against the AVFoundation double. Why iOS refused the engine on the device (memory pressure, an interruption) is not reproduced."
+}

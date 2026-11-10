@@ -1,0 +1,1548 @@
+{
+  "result": "passed",
+  "build": 604,
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "policy": {
+    "build": 604,
+    "titleId": "0100F7E00C70E000",
+    "hostSource": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323",
+    "defaultOptions": {
+      "occlusionQuerySync": true,
+      "relaxQueryFlushing": true
+    },
+    "explicitOptOutRespected": true,
+    "batchingRequiresSync": true,
+    "nativePreflightIdentityRequired": true,
+    "coreContentIdentityCheckedAgain": true,
+    "shaderChoicesPreserved": true,
+    "sourceSHA256": {
+      "lib/widgets/melonx_hogwarts_graphics_options.dart": "4549ea9fbb5c29ab7f618a9e8e91c1334ae8a2df0945c5121b92ca95407b9d9f",
+      "lib/widgets/melonx_internal_playlist_actions.dart": "440d338063c96e48236bf8d8fab8d4f2d88b9d6fd5430efb9e850a96aaea9020",
+      "lib/l10n/melonx_library_locale.dart": "2926d1888c5993def26643cac3a1bf8c91c111ed9c27aa7283ed07d418cd5143",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "ad4cc5d47118b7e8f6faf8e498aedb99f0211be091131a99353eb07b2544a8bc",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXHogwartsGraphics.swift": "c9ccc867ef1aaecc8fa734ab69e382f3c561760518a165b1ae94c4c40dca5c2a",
+      "lib/services/melonx_unreal_profiles.dart": "5601614dddb2e8a5f5e2877b92ddf63063431c13fd42ae462b8eb5799e849540",
+      "lib/widgets/melonx_unreal_profile_dialog.dart": "f0d8854e54fc73be822ecf44129eb12a3e3a9d83d5d71181d60306ca2117d6d5",
+      "lib/l10n/melonx_unreal_profile_locale.dart": "5c4afbb2266d677a405847bf149bfaf9d72313379f8ea4158549b1ac77e55fd4",
+      "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc"
+    },
+    "swiftChecks": 3342,
+    "flutterTests": 40,
+    "freshFlutterTests": 19,
+    "historicalUnchangedFlutterTests": 21,
+    "historicalFullPluginInputSuperseded": true,
+    "currentPresentationSHA256": "456dea6a77c82b489a2747c38f3bcdad708bf01046249a15790fa1b9b295bbb2",
+    "actualUIKitPresentationChecked": true,
+    "deviceLaunchGainMeasured": false,
+    "checksReexecuted": false,
+    "helperProof": {
+      "result": "passed",
+      "baseline": "d042eefbaf5544e58faac91bf1680f7ff2f6dc93",
+      "baselineScriptSHA256": "879df6151e9b292b5c8dab7f8a88634aa92a3f25518d080c68722d243adaf0b3",
+      "currentScriptSHA256": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
+      "exactBlockRelocation": true,
+      "wholeScript": {
+        "result": "passed",
+        "checks": 99,
+        "completePackagedScript": true,
+        "debugserverAndVmDoubled": true,
+        "physicalDeviceTested": false
+      },
+      "isolatedProtocol": {
+        "checks": 101,
+        "result": "passed",
+        "nativeDebugserverDoubled": true,
+        "stagedPreparationFailureNeverRetried": true
+      },
+      "originalFailure": "ReferenceError: Cannot access 'rewindboxSizedArenaV1' before initialization",
+      "appleJavaScriptCore": {
+        "result": "passed",
+        "sessions": 14,
+        "originalFailure": "ReferenceError: Cannot access uninitialized variable.",
+        "observations": [
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=1024 attempts=1",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 35,
+              "prepared": [
+                [
+                  "17179869184",
+                  "1073741824"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "1073741824",
+                    "17179869184",
+                    "1",
+                    "1"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "1073741824",
+                    "17179869184",
+                    "1",
+                    "1"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=960 attempts=2",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 36,
+              "prepared": [
+                [
+                  "17179869184",
+                  "1006632960"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "1006632960",
+                    "17179869184",
+                    "1",
+                    "2"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "1006632960",
+                    "17179869184",
+                    "1",
+                    "2"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=896 attempts=3",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 37,
+              "prepared": [
+                [
+                  "17179869184",
+                  "939524096"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "939524096",
+                    "17179869184",
+                    "1",
+                    "3"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "939524096",
+                    "17179869184",
+                    "1",
+                    "3"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=832 attempts=4",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 38,
+              "prepared": [
+                [
+                  "17179869184",
+                  "872415232"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "872415232",
+                    "17179869184",
+                    "1",
+                    "4"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "872415232",
+                    "17179869184",
+                    "1",
+                    "4"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=768 attempts=5",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 39,
+              "prepared": [
+                [
+                  "17179869184",
+                  "805306368"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "805306368",
+                    "17179869184",
+                    "1",
+                    "5"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "805306368",
+                    "17179869184",
+                    "1",
+                    "5"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368",
+                "738197504"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=704 attempts=6",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 40,
+              "prepared": [
+                [
+                  "17179869184",
+                  "738197504"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "738197504",
+                    "17179869184",
+                    "1",
+                    "6"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "738197504",
+                    "17179869184",
+                    "1",
+                    "6"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368",
+                "738197504",
+                "671088640"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=640 attempts=7",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 41,
+              "prepared": [
+                [
+                  "17179869184",
+                  "671088640"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "671088640",
+                    "17179869184",
+                    "1",
+                    "7"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "671088640",
+                    "17179869184",
+                    "1",
+                    "7"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368",
+                "738197504",
+                "671088640",
+                "603979776"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=576 attempts=8",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 42,
+              "prepared": [
+                [
+                  "17179869184",
+                  "603979776"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "603979776",
+                    "17179869184",
+                    "1",
+                    "8"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "603979776",
+                    "17179869184",
+                    "1",
+                    "8"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368",
+                "738197504",
+                "671088640",
+                "603979776",
+                "536870912"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "REWINDBOX_SIZED_ARENA_V1 selectedMiB=512 attempts=9",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 43,
+              "prepared": [
+                [
+                  "17179869184",
+                  "536870912"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "536870912",
+                    "17179869184",
+                    "1",
+                    "9"
+                  ],
+                  "kind": "sized",
+                  "returned": "17179869184"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "536870912",
+                    "17179869184",
+                    "1",
+                    "9"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824",
+                "1006632960",
+                "939524096",
+                "872415232",
+                "805306368",
+                "738197504",
+                "671088640",
+                "603979776",
+                "536870912"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 5,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 6",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 43,
+              "prepared": [],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "2",
+                    "9"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "2",
+                    "9"
+                  ],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "1073741824"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [
+                "5927396036142444593",
+                "1073741824",
+                "536870912",
+                "67108864",
+                "0",
+                "0",
+                "4",
+                "0"
+              ],
+              "index": 4,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 4",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Handling signal 5",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 30,
+              "prepared": [
+                [
+                  "17179869184",
+                  "1073741824"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "capability",
+                  "returned": "5927396036142444593"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "1073741824",
+                    "17179869184",
+                    "3",
+                    "1"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                },
+                {
+                  "fields": [
+                    "5927396036142444593",
+                    "1073741824",
+                    "536870912",
+                    "67108864",
+                    "0",
+                    "0",
+                    "4",
+                    "0"
+                  ],
+                  "kind": "sized",
+                  "returned": "0"
+                }
+              ],
+              "writes": 2
+            }
+          },
+          {
+            "error": null,
+            "state": {
+              "allocations": [
+                "536870912"
+              ],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [],
+              "index": 2,
+              "logs": [
+                "NEOSTATION_DEBUGGER_ATTACHED_V1 pid=1234 nonce=41",
+                "Handling signal 1",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 3",
+                "NEOSTATION_DEBUGGER_PROBE_V1 pid=1234 nonce=41",
+                "Handling signal 2",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 1",
+                "instruction at pc: a0013ed4",
+                "Allocated JIT page at address: 0x400000000",
+                "prepareJITPageResponse = OK",
+                "putX0Response = OK",
+                "Handling signal 3",
+                "instruction at pc: a0013ed4",
+                "BRK immediate: 0xf00d (61453)",
+                "pcPlus4Response = OK",
+                "Invoking command 0"
+              ],
+              "packets": 16,
+              "prepared": [
+                [
+                  "17179869184",
+                  "536870912"
+                ]
+              ],
+              "returns": [
+                {
+                  "fields": [],
+                  "kind": "probe",
+                  "returned": "42"
+                },
+                {
+                  "fields": [],
+                  "kind": "legacy",
+                  "returned": "17179869184"
+                }
+              ],
+              "writes": 0
+            }
+          },
+          {
+            "error": "Error: vAttach did not return a stop reply: E01",
+            "state": {
+              "allocations": [],
+              "currentReturn": null,
+              "detached": false,
+              "fields": [],
+              "index": -1,
+              "logs": [],
+              "packets": 1,
+              "prepared": [],
+              "returns": [],
+              "writes": 0
+            }
+          },
+          {
+            "error": "Error: debugserver process identity does not match the requested PID",
+            "state": {
+              "allocations": [],
+              "currentReturn": null,
+              "detached": true,
+              "fields": [],
+              "index": -1,
+              "logs": [],
+              "packets": 3,
+              "prepared": [],
+              "returns": [],
+              "writes": 0
+            }
+          }
+        ]
+      },
+      "nativeVMAndDebugserverDoubled": true,
+      "physicalDeviceTested": false,
+      "coreRecompiled": false,
+      "inputs": {
+        "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
+        "build-utils/melonx/helper_initialization.py": "51da4f34f3c70cfab6f645b17214d8655fb767b1cbfb273e6df4386ea1b1b58e",
+        "test/melonx_jit_helper_initialization_test.py": "442166609faf78fe5483355bd1a28d0f130245758fc436b334e84776542fe790",
+        "test/melonx_sized_jit_session_test.js": "c57d5721d05de8d5a9f873283f041217f5cce41dfd49835f32bb73adb7910341",
+        "test/melonx_sized_jit/Session.js": "95d29122789f699c7407ee06b8d468014e5977f1e8a056058cc355eac405ead0",
+        "test/melonx_sized_jit/Session.swift": "551e1558c4a915b028093816534c1cc2f3cb5453c2c34f198e9fa61b601993b8",
+        "test/melonx_sized_jit/Protocol.js": "43c1e91463d9faec892930a122402940b190816a3d60bbd31c5a1a0d26ba97cb"
+      }
+    },
+    "deviceGameplayTested": false,
+    "literalLoadFixIncluded": true,
+    "vectorRegisterMaskFixIncluded": true,
+    "occlusionCompletionFixIncluded": true,
+    "unmappedGuestAccessContextIncluded": true,
+    "lastGuestDispatchIsExactFaultPc": false,
+    "hogwartsCrashCauseProven": false,
+    "gpuStartupDelayFixed": false,
+    "coreRebuiltInSeparateProducer": true,
+    "unrealProfilesDefault": "off",
+    "unrealCVarsVerified": false,
+    "progressiveJitMiB": [
+      1024,
+      960,
+      896,
+      832,
+      768,
+      704,
+      640,
+      576,
+      512
+    ],
+    "blackTextureFixOnDeviceProven": false
+  },
+  "compiledHostMarkers": true,
+  "physicalDeviceTested": false
+}

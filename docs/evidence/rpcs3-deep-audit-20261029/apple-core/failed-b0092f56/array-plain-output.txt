@@ -1,0 +1,1 @@
+{"contentAndAlignmentChecks":726336,"doubleFreeOrLeak":false,"candidateSwapOrMoveAllocations":0,"baseline4096RegionMoveAllocations":1,"baseline4096RegionMoveBytes":163840,"candidate4096RegionMoveAllocations":0,"candidate4096RegionMoveBytes":0,"heapOwnershipTransferred":true}

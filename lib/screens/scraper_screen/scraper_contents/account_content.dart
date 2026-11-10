@@ -3,6 +3,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class AccountContent extends StatelessWidget {
   final bool isContentFocused;
@@ -182,9 +183,19 @@ class AccountContent extends StatelessWidget {
     );
   }
 
+  /// Bubble fill from the theme's glass tokens (these helpers receive the
+  /// ThemeData rather than a BuildContext).
+  Color _bubbleFill(ThemeData theme) {
+    final glass =
+        theme.extension<LiquidGlassTheme>() ?? LiquidGlassTheme.standard;
+    return glass
+        .surfaceColor(theme)
+        .withValues(alpha: glass.fillAlpha(theme, GlassRole.bubble));
+  }
+
   BoxDecoration _cardDecoration(ThemeData theme) {
     return BoxDecoration(
-      color: theme.cardColor.withValues(alpha: 0.25),
+      color: _bubbleFill(theme),
       borderRadius: BorderRadius.circular(12.r),
       border: Border.all(
         color: theme.colorScheme.primary.withValues(alpha: 0.15),
@@ -236,7 +247,7 @@ class AccountContent extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
+        color: _bubbleFill(theme),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.15),

@@ -8,6 +8,9 @@ final class MeloNXRuntimeAPI {
     private typealias StringCall = @convention(c) (UnsafePointer<CChar>?) -> Int32
     private typealias MemoryOffer = @convention(c) (UnsafeMutableRawPointer?, UInt64) -> Int32
     private typealias MemorySnapshot = @convention(c) (UnsafeMutablePointer<UInt64>?, Int32) -> Int32
+    private typealias PerformanceSnapshot = @convention(c) (Int64, UnsafeMutablePointer<Double>?, Int32) -> Int32
+    private typealias PresentTarget = @convention(c) (Int64, Int32) -> Int32
+    private typealias AudioPacing = @convention(c) (UnsafeMutablePointer<Int64>?, Int32) -> Int32
     private typealias Mode = @convention(c) (Int32) -> Int32
     private typealias Content = @convention(c) (UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private typealias Attach = @convention(c) (Int64, Int32, UnsafePointer<CChar>?, Int32) -> Int32
@@ -15,6 +18,8 @@ final class MeloNXRuntimeAPI {
     private typealias Button = @convention(c) (Int64, Int32, Int32, Int32) -> Int32
     private typealias Stick = @convention(c) (Int64, Int32, Int32, Float, Float) -> Int32
     private typealias Diagnostic = @convention(c) (UnsafeMutablePointer<CChar>?, Int32) -> Int32
+    typealias CallbackRegister = @convention(c) (UnsafePointer<CChar>?, UnsafeRawPointer?, UnsafeMutableRawPointer?) -> Void
+    typealias CallbackInvoke = @convention(c) (UnsafePointer<CChar>?, UnsafeRawPointer?, Int32) -> UInt8
     private static var preparedSDLPaths = Set<String>() // main-thread only
     private static func prepareSDL(frameworks: URL) throws {
         let prepare = {
@@ -47,6 +52,16 @@ final class MeloNXRuntimeAPI {
     private let memoryOffer: MemoryOffer
     private let memoryWithdraw: Version
     private let memorySnapshotFunction: MemorySnapshot
+    private let performanceSnapshotFunction: PerformanceSnapshot?
+    var providesPerformanceSnapshot: Bool { performanceSnapshotFunction != nil }
+    private let presentTargetFunction: PresentTarget?
+    private let audioPacingFunction: AudioPacing?
+    /// The engine's callback registry (Ryujinx.Common.Callbacks), through which
+    /// MeloNX asks the host for text; nil on an engine without these exports.
+    let registerCallback: CallbackRegister?
+    let invokeCallback: CallbackInvoke?
+    /// The MoltenVK this process loaded: 0 source-built, 1 the standalone app's.
+    let moltenVk: Int32
     private let configureJit: Mode
     private let contentFunction: Content
     private let contentProgressFunction: Version?
@@ -61,8 +76,17 @@ final class MeloNXRuntimeAPI {
     private let diagnosticsFunction: Diagnostic
     private let prepareJitFunction: Version
 
-    init(library: URL, frameworks: URL, root: URL) throws {
+    // The engine's NativeAOT runtime reads its GC configuration from the environment
+    // when it starts, at the first load of the engine below. A 64 MiB gen0 budget,
+    // instead of the one derived from the CPU cache (about 13 MiB here), cuts the gen0
+    // collections of a game's start: build 620 Hogwarts Legacy allocated 6.2 GB in its
+    // first 5 s, in 610 gen0 collections and 903 ms of pauses. An existing value is kept.
+    static let gen0BudgetVariable = "DOTNET_GCgen0size"
+    static let gen0BudgetHex = "4000000"
+
+    init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0) throws {
         MeloNXLaunchJournal.record("frameworks", "begin", detail:"Loading the private ARM64 MeloNX engine and resolving its ABI.")
+        setenv(Self.gen0BudgetVariable, Self.gen0BudgetHex, 0)
         session = try MeloNXNativeSessionAPI(libraryURL: library)
         // session already owns a process-lifetime handle, including on error.
         guard let handle = dlopen(library.path, RTLD_NOW | RTLD_LOCAL) else {
@@ -81,6 +105,12 @@ final class MeloNXRuntimeAPI {
         memoryOffer = try symbol("neostation_melonx_memory_offer", MemoryOffer.self)
         memoryWithdraw = try symbol("neostation_melonx_memory_withdraw", Version.self)
         memorySnapshotFunction = try symbol("neostation_melonx_memory_snapshot", MemorySnapshot.self)
+        // Optional: an older engine without it keeps the overlay RAM-only.
+        performanceSnapshotFunction = dlsym(handle, "neostation_melonx_performance_snapshot").map { unsafeBitCast($0, to: PerformanceSnapshot.self) }
+        presentTargetFunction = dlsym(handle, "neostation_melonx_set_present_target_fps").map { unsafeBitCast($0, to: PresentTarget.self) }
+        audioPacingFunction = dlsym(handle, "neostation_melonx_audio_pacing").map { unsafeBitCast($0, to: AudioPacing.self) }
+        registerCallback = dlsym(handle, "RegisterCallback").map { unsafeBitCast($0, to: CallbackRegister.self) }
+        invokeCallback = dlsym(handle, "InvokeCallback").map { unsafeBitCast($0, to: CallbackInvoke.self) }
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
@@ -94,12 +124,22 @@ final class MeloNXRuntimeAPI {
         prepareJitFunction = try symbol("neostation_melonx_prepare_jit", Version.self)
         let diagnosticsVersion = try symbol("neostation_melonx_diagnostics_abi", Version.self)
         guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2, diagnosticsVersion() == 1 else { throw MeloNXHostError.incompatibleABI }
+        // Optional, and only before configure_native: an engine without it
+        // always loads the source-built MoltenVK.
+        var variant: Int32 = 0
+        if requested != 0, let address = dlsym(handle, "neostation_melonx_select_moltenvk") {
+            let choose = unsafeBitCast(address, to: Mode.self)
+            let status = choose(requested)
+            if status == 0 { variant = requested }
+            else { MeloNXLaunchJournal.record("frameworks", "moltenVk", code:Int64(status), detail:"MoltenVK \(requested) refused; the source-built MoltenVK is used.") }
+        }
+        moltenVk = variant
         let nativeStatus = frameworks.path.withCString({ configureNative($0) })
         guard nativeStatus == 0 else {
             throw MeloNXHostError.operation("frameworks",Int64(nativeStatus),diagnostics()["diagnostic"] as? String ?? "Private MeloNX native dependencies could not be loaded")
         }
         try Self.prepareSDL(frameworks:frameworks)
-        MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized.")
+        MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized; MoltenVK \(variant == 1 ? "standalone MeloNX" : "source-built").")
         MeloNXLaunchJournal.record("nativeAot", "begin")
         try session.initialize(root: root)
         MeloNXLaunchJournal.record("nativeAot", "passed")
@@ -121,9 +161,30 @@ final class MeloNXRuntimeAPI {
         guard memorySnapshotFunction(&values,3) == 0 else { return [:] }
         return ["donorOfferedBytes":values[0],"donorUsedBytes":values[1],"donorAllocations":values[2]]
     }
+    // The engine's own game FPS statistics; empty for a stale or stopped generation.
+    func performanceSnapshot(generation: Int64) -> [String:Any] {
+        guard let performanceSnapshotFunction else { return [:] }
+        var values = [Double](repeating:0,count:3)
+        guard performanceSnapshotFunction(generation,&values,3) == 0 else { return [:] }
+        return ["gameFps":values[0],"gameFrameTimeMs":values[1],"fifoPercent":values[2]]
+    }
+
+    // The engine's cumulative audio pacing counters (EmbeddedAudioPacing order:
+    // DSP periods, late episodes, their late ns, max late ns, skipped, buffers played,
+    // starvations, starved ns, max starved ns); nil without the export.
+    func audioPacing() -> [Int64]? {
+        guard let audioPacingFunction else { return nil }
+        var values = [Int64](repeating:0,count:9)
+        guard audioPacingFunction(&values,9) == 0 else { return nil }
+        return values
+    }
 
     func setAspectRatio(_ value: Int32, generation: Int64) -> Bool {
         setAspectFunction(generation,value) == 0
+    }
+    // The standalone app's unbounded-present cap (its screen's maximum rate).
+    func setPresentTargetFps(_ fps: Int32, generation: Int64) -> Bool {
+        presentTargetFunction?(generation,fps) == 0
     }
 
     func prepareJit() throws {
@@ -168,10 +229,14 @@ final class MeloNXRuntimeAPI {
     }
     func detach(_ id: Int64, pad: Int32) { _ = detachFunction(id, pad) }
     func reset(_ id: Int64, pad: Int32) { _ = resetFunction(id, pad) }
-    func button(_ id: Int64, pad: Int32, button: Int32, pressed: Bool) {
-        _ = buttonFunction(id, pad, button, pressed ? 1 : 0)
+    // The export's code: 0 accepted, 1 invalid, 2 the session takes no input
+    // (stale generation, closed or stopping), 3 exception (EmbeddedInput.cs).
+    @discardableResult
+    func button(_ id: Int64, pad: Int32, button: Int32, pressed: Bool) -> Int32 {
+        buttonFunction(id, pad, button, pressed ? 1 : 0)
     }
-    func stick(_ id: Int64, pad: Int32, stick: Int32, x: Float, y: Float) {
-        _ = stickFunction(id, pad, stick, max(-1, min(1, x)), max(-1, min(1, y)))
+    @discardableResult
+    func stick(_ id: Int64, pad: Int32, stick: Int32, x: Float, y: Float) -> Int32 {
+        stickFunction(id, pad, stick, max(-1, min(1, x)), max(-1, min(1, y)))
     }
 }

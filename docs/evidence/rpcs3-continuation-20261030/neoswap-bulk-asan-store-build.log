@@ -1,0 +1,7 @@
+/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/Store.cpp: In member function ‘neostation::storage::Result neostation::storage::Store::Impl::read(uint64_t, bool)’:
+/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/Store.cpp:336:52: warning: ignoring return value of ‘int ftruncate(int, __off_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  336 |                 if(hit(Fault::truncate))::ftruncate(fd,static_cast<off_t>(offset+sizeof(Header)+expected.stored/2));
+      |                                         ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/Store.cpp:337:72: warning: ignoring return value of ‘ssize_t pwrite(int, const void*, size_t, __off_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  337 |                 if(hit(Fault::corrupt)){uint8_t bad=0xff;(void)::pwrite(fd,&bad,1,static_cast<off_t>(offset));}
+      |                                                                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

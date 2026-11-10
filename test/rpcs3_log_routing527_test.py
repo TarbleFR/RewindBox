@@ -16,7 +16,7 @@ def braced(text,start):
 callback=braced(host,host.index('static void RPCS3Log(void* context, int32_t level, const char* message) {'))
 admission=callback[callback.index('  const BOOL profiler ='):callback.index('  NSString* text =')].replace('return;','return false;')
 assert 'if (level > 2 && !profiler && !videoArchive) return false;' in admission
-assert 'if (budgetCount >= 128) allowed = NO;' in admission
+assert 'if (budgetCount >= 128) {' in admission and 'allowed = NO;' in admission
 assert 'if (!profiler)' in admission
 listener=braced(core,core.index('class callback_log_listener final'))+';'
 emit=braced(core,core.index('void emit_log(int32_t level, std::string_view message)'))

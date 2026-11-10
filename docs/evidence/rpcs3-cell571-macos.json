@@ -1,0 +1,149 @@
+{
+  "build": 571,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "0522f593b7abd08f32414b3107a4dbf2e7f0f186",
+  "run": 40570081835,
+  "workflow": ".github/workflows/rpcs3-cell571-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12766245088,
+      "name": "RPCS3Core-0522f593b7abd08f32414b3107a4dbf2e7f0f186",
+      "bytes": 29073915,
+      "digest": "sha256:8dffb12fe540f792106f1c55fb640dc2bfa606ba859485eedec47f277c904afb"
+    },
+    "diagnostics": {
+      "id": 12765895474,
+      "bytes": 204379,
+      "digest": "sha256:70e7191ca565a6d257ada8851ed9df6d3cc867a37049f26ac1d1bd50c23fdec0"
+    }
+  },
+  "core": {
+    "sha256": "4f13dda2893c71a04b97e9b773379202f089ea319a926393a84b28245bb118b8",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "b141e71b3d72e336051edc1b54dae91e73bfe05726469aefc18cd174b76b0afe",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom569": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers571": [
+      "Passive Lock Fairness",
+      "experimental.passive_lock_fairness",
+      "rsx_thread_priority=%d passive_fairness=%d"
+    ],
+    "replaces": {
+      "source": "e70fa381297f53808db3e136ae9df65718daca3a",
+      "run": 40566094740,
+      "sha256": "7fd4739453c5aba9f638ee33e413d5abea584cef5087b4b8079860c1d06b2537"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell571"
+    ]
+  },
+  "sanitizers": {
+    "addressUndefined": {
+      "passed": true,
+      "episodes": 2000,
+      "capMs": 20,
+      "writers": 2,
+      "cores": 3,
+      "off": {
+        "starved": 1,
+        "maxEpisodeUs": 20050.7,
+        "totalEpisodeMs": 494.9,
+        "writerOpsPerMs": 495.2
+      },
+      "on": {
+        "starved": 0,
+        "maxEpisodeUs": 9983.2,
+        "totalEpisodeMs": 59.5,
+        "writerOpsPerMs": 333.0,
+        "deferrals": 180,
+        "maxDeferUs": 4430.0
+      }
+    },
+    "thread": {
+      "passed": true,
+      "episodes": 2000,
+      "capMs": 20,
+      "writers": 2,
+      "cores": 3,
+      "off": {
+        "starved": 0,
+        "maxEpisodeUs": 4330.6,
+        "totalEpisodeMs": 59.0,
+        "writerOpsPerMs": 347.8
+      },
+      "on": {
+        "starved": 0,
+        "maxEpisodeUs": 10090.8,
+        "totalEpisodeMs": 53.8,
+        "writerOpsPerMs": 333.3,
+        "deferrals": 242,
+        "maxDeferUs": 598.4
+      }
+    }
+  },
+  "hostTiming": {
+    "passed": true,
+    "episodes": 2000,
+    "capMs": 20,
+    "writers": 2,
+    "cores": 3,
+    "off": {
+      "starved": 2,
+      "maxEpisodeUs": 26391.2,
+      "totalEpisodeMs": 785.8,
+      "writerOpsPerMs": 427.6
+    },
+    "on": {
+      "starved": 0,
+      "maxEpisodeUs": 12132.0,
+      "totalEpisodeMs": 210.8,
+      "writerOpsPerMs": 351.3,
+      "deferrals": 754,
+      "maxDeferUs": 3618.0
+    }
+  },
+  "finding": "Optimized build on the 3-core Apple Silicon runner (2 writers): without the gate 2 of 2000 episodes hit the 20 ms cap, longest 26.4 ms, 786 ms in total; with it none, longest 12.1 ms, 211 ms in total; writer throughput -18 %.",
+  "placement": {
+    "waiterMarkedInIosEpisode": true,
+    "onlyRangeLockWritersDefer": true,
+    "vmCppOtherwiseIdentical": true,
+    "settingAndLogWired": true
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom569": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "harnessSHA256": "c10eea9a4bd9f2351d35c4ff6119ac1e51b888499f16897125178308b55fa0ad",
+  "inputsSHA256": {
+    "test/rpcs3_cell571_test.py": "0388f661a44b85c0fabf6f76c3c628d6e499de3cd7637ebbcdbe01182bbeb262",
+    "test/native/rpcs3_passive_gate571.inc": "24155de4c2403dcb5f44274411c3933dcd69100f09c7723738a6aad8bb65d4d2"
+  },
+  "scope": "The 571 host model (production gate header, vm.cpp lock-word protocol) on the Apple Silicon runner, and the iPhone Core built from the verified source. No iPhone FPS or stall result."
+}

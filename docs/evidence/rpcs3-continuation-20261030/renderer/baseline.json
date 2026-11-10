@@ -1,0 +1,30 @@
+{
+  "cases": 4608,
+  "mismatches": 112,
+  "stale_native_cases": 112,
+  "sequence_draws": 20000,
+  "sequence_mismatches": 13333,
+  "warm_extra_lookups": 0,
+  "clean_native_lookups": 0,
+  "late_texture_mismatch": 1,
+  "source_sha256": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
+  "function_sha256": "495e7673bbe62dd2366c231ae4c044b950ac5d038421cf16b551a8a257e05000",
+  "draw_source_sha256": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+  "begin_sha256": "02676691d35761f9ceabff4570efd679632d5aa1ee6455bf08a98a9ab4d084aa",
+  "late_texture_block_sha256": "f59ca001759acea199dc53458d7ffa6578b959398921ab9ed5e34e4686cb5a82",
+  "harness_sha256": "7f877f9ba7a2c6b88759330df1366293f2d79ec7f4ee2c76be71ca310cdf191d",
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/baseline.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/baseline.exe"
+  ],
+  "sanitized": false,
+  "scope": "Full production load_program and begin, late texture-class invalidation block; deterministic shader/cache/upload stubs; no Vulkan execution"
+}

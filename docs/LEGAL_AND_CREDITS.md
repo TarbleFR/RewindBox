@@ -15,7 +15,13 @@ Binary-source, funding and combined-license findings remain open.
 
 ## Current release and license review
 
-The latest published GitHub release is
+The current public baseline is [**0.0.10 / Build 559**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10).
+Its [delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json)
+and recipe `fb0a80e7da6ecade04f0503a48ffaab507263dc4` identify that package.
+The Build 530 source records below and the linked historical audits remain
+release-specific and do not attest complete source or rights clearance for later builds.
+
+The earlier published GitHub release remains available:
 [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1),
 with the [published IPA](https://github.com/TarbleFR/RewindBox/releases/download/0.0.9-fix.1/RewindBox-Build530.ipa).
 Its [release-specific source and package manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
@@ -111,7 +117,7 @@ MIT/GPL declarations, and the reconstructed LibHac package is not asserted to
 be byte-equivalent to the historical unavailable NuGet package. The complete
 native dependency/source and combined-work license evidence remains subject
 to the [corresponding-source audit](ENGINE_CORRESPONDING_SOURCES.md) and
-[current Build 530 release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+[historical Build 530 release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
 An embedded runtime and copied notices are **not** a blanket grant of
 redistribution rights.
 
@@ -121,6 +127,15 @@ The following applications/services are **not claimed as RewindBox-owned
 software** merely because RewindBox interoperates with them:
 
 - **ScreenScraper** — https://www.screenscraper.fr/
+- **GameTDB** — https://www.gametdb.com/ — box scans of PS3, Switch, Wii,
+  GameCube, Wii U, DS and 3DS games, looked up by the game's product code
+  (docs/game-box-3d.md § 14, § 25).
+- **MobyGames** — https://www.mobygames.com/ — box scans, only with the
+  player's own API key.
+- **Internet Archive** — https://archive.org/ — French game manuals of its
+  manual collections, when scraping in French (docs/game-box-3d.md § 26).
+- **Nintendo Europe** — https://www.nintendo.com/eu/ — Nintendo's own French
+  PDF manuals of DS games, when scraping in French (§ 26).
 - **RetroAchievements** — https://retroachievements.org/
 - **LocalDevVPN** — user-installed external application when that route is used.
 
@@ -232,7 +247,7 @@ RewindBox release documentation therefore identifies:
 4. the license and notice documents associated with those components.
 
 See the [Build 530 source manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
-for the current public IPA, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
+for that historical IPA, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
 and [the initial source manifest](RELEASE_0.0.1_SOURCE_MANIFEST.md) for their
 historical builds, and the [current/historical engine source inventory](EMBEDDED_RUNTIME_PROVENANCE.md)
 for later rebuilt components. The RPCS3 source record retains both original
@@ -330,7 +345,7 @@ The reviewed catalogue snapshot had 2,395,541 programs/edition variants in 50,28
 groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
 excluded references, which are not counted among the 50 active profiles.
 That historical source-audit update did not itself publish or change an IPA.
-The latest published release is now **fix 0.0.9 / Build 530**; unchanged
+The **fix 0.0.9 / Build 530** release remains a historical baseline; unchanged
 historical catalogue statistics must not be interpreted as a new count.
 
 ## HD texture catalogue — expanded since Build 486

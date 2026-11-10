@@ -3,8 +3,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/widgets/game_box/game_box_geometry.dart';
+import 'package:neostation/widgets/game_box/game_box_spine_design.dart';
 import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 
 /// Images and texts shown on a box.
@@ -12,6 +14,12 @@ import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 /// Providers are owned by the caller (sizes for browsing or inspection, cache
 /// eviction). A null provider means the scan is not available: the scene then
 /// draws a neutral surface instead, never another face's scan.
+///
+/// A face image is placed by what it is ([frontNature], [backNature]) and by
+/// its proportions ([frontAspect], [backAspect]): a flat scan fills the
+/// printed area of the case without being distorted (docs/game-box-3d.md
+/// § 13), a window of a full cover sheet shows only its own part, and
+/// catalogue art (logo, icon, 3D render) is shown small on a neutral cover.
 class GameBoxArt {
   const GameBoxArt({
     required this.title,
@@ -25,15 +33,55 @@ class GameBoxArt {
     this.frontFallback,
     this.backUnavailable = '',
     this.gloss = true,
+    this.glossStrength = 1,
     this.bookletCover,
     this.compact = false,
+    this.frontAspect,
+    this.frontNature = GameBoxArtNature.scan,
+    this.frontWindow = GameBoxArtLayout.full,
+    this.backNature = GameBoxArtNature.scan,
+    this.backWindow = GameBoxArtLayout.full,
+    this.spineWindow = GameBoxArtLayout.full,
+    this.frontBand,
+    this.backBand,
+    this.composedBack,
+    this.composedBackLabel = '',
+    this.spineAspect,
+    this.spineFit = GameBoxSpineFit.trimFold,
+    this.gameLogo,
   });
 
   final String title;
+
+  /// The game's own logo (the scraped "wheel"), printed on a spine drawn
+  /// from its platform's template when that template takes it (§ 27).
+  final ImageProvider? gameLogo;
   final ImageProvider? front;
   final ImageProvider? back;
   final ImageProvider? spine;
   final ImageProvider? support;
+
+  /// Width / height of the front image file (null: unknown, filled as is).
+  final double? frontAspect;
+
+  /// What the front and back images are (a scan, a cover sheet, catalogue
+  /// art…).
+  final GameBoxArtNature frontNature;
+  final GameBoxArtNature backNature;
+
+  /// Part of the front, back or spine image that is this face (a window of
+  /// a full cover sheet; the whole image otherwise).
+  final Rect frontWindow;
+  final Rect backWindow;
+  final Rect spineWindow;
+
+  /// Colour of the neutral bands left around a print whose proportions
+  /// differ from the printed area (sampled from the image's border).
+  final Color? frontBand;
+  final Color? backBand;
+
+  /// 0..1: fades the sleeve reflection continuously (zoom, back turned).
+  final double glossStrength;
 
   /// The spine scan is stored lying down (text left to right): it is turned a
   /// quarter clockwise to run along the spine.
@@ -55,6 +103,20 @@ class GameBoxArt {
   /// Discreet notice on a neutral back ("Back not available").
   final String backUnavailable;
 
+  /// Width / height of the spine strip cut from a full cover sheet, when
+  /// known: it is drawn with its own proportions (§ 23).
+  final double? spineAspect;
+
+  /// How that strip sits on the spine.
+  final GameBoxSpineFit spineFit;
+
+  /// Verified details for a reconstructed back, shown when no authentic back
+  /// can be drawn (docs/game-box-3d.md § 21); null keeps the neutral back.
+  final GameBoxBackDetails? composedBack;
+
+  /// « Verso reconstitué » in the player's language.
+  final String composedBackLabel;
+
   /// Faint reflection of the clear plastic sleeve. The inspector turns it
   /// off while the back is read or zoomed, so that it never covers print.
   final bool gloss;
@@ -71,9 +133,17 @@ class GameBoxArt {
 
   bool get backHasJewelSpines => (backAspect ?? 0) >= 1.22;
 
-  GameBoxArt copyWith({bool? gloss, ui.Image? bookletCover, ImageProvider? back}) => GameBoxArt(
+  GameBoxArt copyWith({
+    bool? gloss,
+    ui.Image? bookletCover,
+    ImageProvider? back,
+    ImageProvider? front,
+    Rect? backWindow,
+    Rect? frontWindow,
+  }) =>
+      GameBoxArt(
         title: title,
-        front: front,
+        front: front ?? this.front,
         back: back ?? this.back,
         spine: spine,
         support: support,
@@ -83,9 +153,35 @@ class GameBoxArt {
         frontFallback: frontFallback,
         backUnavailable: backUnavailable,
         gloss: gloss ?? this.gloss,
+        glossStrength: glossStrength,
         bookletCover: bookletCover ?? this.bookletCover,
         compact: compact,
+        frontAspect: frontAspect,
+        frontNature: frontNature,
+        frontWindow: frontWindow ?? this.frontWindow,
+        backNature: backNature,
+        backWindow: backWindow ?? this.backWindow,
+        spineWindow: spineWindow,
+        frontBand: frontBand,
+        backBand: backBand,
+        composedBack: composedBack,
+        composedBackLabel: composedBackLabel,
+        spineAspect: spineAspect,
+        spineFit: spineFit,
+        gameLogo: gameLogo,
       );
+
+  /// Proportions of the part of the front image that is the front.
+  double? get frontPartAspect => _part(frontAspect, frontWindow);
+
+  /// Proportions of the part of the back image that is the back.
+  double? get backPartAspect => _part(backAspect, backWindow);
+
+  static double? _part(double? aspect, Rect window) {
+    if (aspect == null || !aspect.isFinite || aspect <= 0) return null;
+    if (window.height <= 0) return null;
+    return aspect * window.width / window.height;
+  }
 }
 
 /// Paints a [GameBoxModel] at a [BoxPose], optionally open.
@@ -146,7 +242,7 @@ class GameBoxScene extends StatelessWidget {
                   child: SizedBox(
                     width: f.width,
                     height: f.height,
-                    child: _shaded(_surface(f), f.shade),
+                    child: _lit(f, _surface(f)),
                   ),
                 ),
               ),
@@ -178,14 +274,89 @@ class GameBoxScene extends StatelessWidget {
     );
   }
 
-  Widget _shaded(Widget child, double shade) {
-    if (shade >= 0.995) return child;
+  /// [child] under the light of its face (docs/game-box-3d.md § 20).
+  Widget _lit(ProjectedFace f, Widget child) {
+    final light = lightOf(f);
+    if (light.isEmpty) return child;
     return Stack(fit: StackFit.expand, children: [
       child,
-      IgnorePointer(
-        child: ColoredBox(color: Colors.black.withValues(alpha: (1 - shade).clamp(0.0, 0.5))),
-      ),
+      IgnorePointer(child: CustomPaint(painter: light)),
     ]);
+  }
+
+  /// Light on [f]: the shade of its orientation, then, on the outside of
+  /// the box, what its material does with the light. A side of dark plastic
+  /// is darkened less and catches a sheen, so it never melts into a dark
+  /// background; gloss grows at grazing angles; every fold or rounded edge
+  /// between two sides catches a thin line of light, so the top, the
+  /// bottom, the spine and the opening side read as solid panels while the
+  /// box turns. A face seen straight on keeps its print untouched.
+  @visibleForTesting
+  GameBoxFaceLight lightOf(ProjectedFace f) {
+    final surface = f.face.surface;
+    final darkenBase = (1 - f.shade).clamp(0.0, 0.5).toDouble();
+    if (!_outside(surface)) return GameBoxFaceLight(darken: darkenBase);
+    final side = surface != BoxSurface.front && surface != BoxSurface.back;
+    final tone = _materialTone(f);
+    final dark = tone == null ? 0.0 : ((0.3 - tone.computeLuminance()) / 0.3).clamp(0.0, 1.0).toDouble();
+    final oblique = (1 - f.facing).clamp(0.0, 1.0).toDouble();
+    final glossy = !_cardboard;
+    final scale = art.compact ? 0.6 : 1.0;
+    final double sheen, rim;
+    if (side) {
+      sheen = (glossy ? 0.025 + 0.08 * oblique : 0.01 + 0.035 * oblique) + 0.085 * dark;
+      rim = ((glossy ? 0.24 : 0.17) + 0.16 * dark) * scale;
+    } else {
+      sheen = 0;
+      // The plastic around the print of a dark case keeps a faint outline.
+      final caseDark = _cardboard || _clear
+          ? 0.0
+          : ((0.3 - _profile.caseColor.computeLuminance()) / 0.3).clamp(0.0, 1.0).toDouble();
+      rim = (0.26 * oblique + 0.08 * caseDark) * scale;
+    }
+    // Which borders meet another side: across the depth always, the others
+    // only on a box with sharp corners (rounded corners carry their own).
+    final depthAlongU = f.face.u.z.abs() > 0.9;
+    final depthAlongV = f.face.v.z.abs() > 0.9;
+    final sharp = _profile.cornerRadius <= 0.01;
+    return GameBoxFaceLight(
+      darken: darkenBase * (1 - 0.55 * dark),
+      sheen: sheen,
+      rim: rim,
+      rimWidth: (f.pxPerMm * 0.45).clamp(0.7, 2.2).toDouble(),
+      rimVertical: !side || sharp || depthAlongU,
+      rimHorizontal: !side || sharp || depthAlongV,
+      radius: side ? 0 : f.face.cornerRadius * f.pxPerMm,
+    );
+  }
+
+  /// Faces on the outside of a closed box.
+  static bool _outside(BoxSurface s) =>
+      s == BoxSurface.front ||
+      s == BoxSurface.back ||
+      s == BoxSurface.spine ||
+      s == BoxSurface.spineRight ||
+      s == BoxSurface.top ||
+      s == BoxSurface.bottom ||
+      s == BoxSurface.edge;
+
+  /// Colour of the material a side shows, or null when it shows a print.
+  Color? _materialTone(ProjectedFace f) {
+    switch (f.face.surface) {
+      case BoxSurface.top:
+      case BoxSurface.bottom:
+      case BoxSurface.edge:
+        if (_jewel) return _clearEdgeColor;
+        if (_cardboard) return art.spine == null ? _design.background : null;
+        return _clear ? _clearPlastic : _edge;
+      case BoxSurface.spine:
+        if (_jewel) return _tray;
+        return art.spine == null ? _design.background : null;
+      case BoxSurface.spineRight:
+        return _tray;
+      default:
+        return null;
+    }
   }
 
   GameBoxProfile get _profile => model.profile;
@@ -194,7 +365,34 @@ class GameBoxScene extends StatelessWidget {
   bool get _plasticCase =>
       _profile.caseKind == GameBoxCaseKind.keepCase || _profile.caseKind == GameBoxCaseKind.clamshell;
 
+  /// Clear plastic case: the printed cover is seen through the sleeve, the
+  /// plastic only adds a faint rim and reflection.
+  bool get _clear => _plasticCase && _profile.isClear;
+
   Color get _edge => _cardboard ? (art.edgeColor ?? _profile.caseColor) : _profile.caseColor;
+
+  /// Neutral print of a missing spine: the platform's cover tone under a
+  /// clear case, the plastic colour otherwise.
+  Color get _neutralSpine => _clear ? _profile.resolvedInsertColor : _edge;
+
+  /// The platform's spine, for the sides no scan shows (§ 27). Templates of
+  /// game cases are their own; other boxes take the colour of their print.
+  GameBoxSpineDesign get _design => GameBoxSpineDesign.of(_profile, print: art.edgeColor);
+
+  /// A spine drawn from [_design], [heightMm] long.
+  Widget _designedSpine(double heightMm) => GameBoxDesignedSpine(
+        design: _design,
+        title: art.title,
+        gameLogo: art.compact ? null : art.gameLogo,
+        heightMm: heightMm,
+        compact: art.compact,
+      );
+
+  /// The spine standing (top at the top): its scan, else its template.
+  Widget _standingSpine() => art.spine != null ? _spineImage(art.spine!) : _designedSpine(_profile.height);
+
+  /// A missing or rejected back: plain, clearly not a print.
+  static const Color _neutralBack = Color(0xFF2B2D33);
 
   /// Tray seen through a jewel case's clear plastic.
   Color get _tray => _profile.resolvedInteriorColor;
@@ -213,10 +411,27 @@ class GameBoxScene extends StatelessWidget {
       case BoxSurface.top:
       case BoxSurface.bottom:
         if (_jewel) return _clearEdge(mm);
+        if (_cardboard) {
+          // The title flap shows the spine lying along it, as on a real box;
+          // the bottom flap keeps the print's colour and the platform mark.
+          return GameBoxCardboardFlap(
+            design: _design,
+            spine: _standingSpine(),
+            spineAspect: _profile.height > 0 ? _profile.depth / _profile.height : 0.15,
+            top: f.face.surface == BoxSurface.top,
+            compact: art.compact,
+          );
+        }
         return _plasticEdge(seam: _plasticCase, mm: mm);
       case BoxSurface.edge:
         if (_jewel) return _clearEdge(mm);
-        final ridged = _plasticCase && f.face.id.endsWith('.right') && f.face.width > 6;
+        if (_cardboard && f.face.id.endsWith('.right')) {
+          // A cardboard box prints its spine on both long sides: the spine
+          // scan (or its template) shows here too.
+          return _standingSpine();
+        }
+        // Grip ridges are moulded in the opaque DVD-family cases only.
+        final ridged = _plasticCase && !_clear && f.face.id.endsWith('.right') && f.face.width > 6;
         return _plasticEdge(ridged: ridged, mm: mm);
       case BoxSurface.interior:
         return CustomPaint(
@@ -271,18 +486,80 @@ class GameBoxScene extends StatelessWidget {
     if (_jewel) {
       return _jewelFront(f, mm, front);
     }
-    final Widget picture = front == null
-        ? (art.frontFallback ?? GameBoxNeutralFace(color: _profile.caseColor, notice: art.title))
-        : _image(front, BoxFit.fill);
+    final Widget picture;
+    if (front == null) {
+      picture = art.frontFallback ??
+          GameBoxNeutralFace(color: _clear ? _neutralBack : _profile.caseColor, notice: art.title);
+    } else if (art.frontNature == GameBoxArtNature.promo || art.frontNature == GameBoxArtNature.render3d) {
+      // Catalogue art is never the print of a case: a neutral cover shows it
+      // small and whole, with the title in plain type.
+      picture = GameBoxNeutralCover(
+        art: _crop(front, art.frontWindow),
+        artAspect: art.frontPartAspect,
+        title: art.title,
+        color: _clear ? _neutralBack : _profile.caseColor,
+        compact: art.compact,
+      );
+    } else if (_cardboard) {
+      // The box follows its art's proportions.
+      picture = _crop(front, art.frontWindow);
+    } else {
+      picture = _printed(front, art.frontWindow, art.frontPartAspect, art.frontBand);
+    }
     if (_cardboard) return picture;
-    // Keep case: the cover sits under a clear sleeve, inside a thin rim of the
-    // case's plastic.
-    final rim = 1.4 * mm;
+    return _sleeved(picture, mm, gloss: art.gloss && !art.compact);
+  }
+
+  /// A printed cover under the sleeve of a plastic case: inside a thin rim of
+  /// coloured plastic, or seen through clear plastic up to the case's edge.
+  Widget _sleeved(Widget picture, double mm, {required bool gloss}) {
+    final rim = _profile.printInset * mm;
+    final rimY = _profile.printInsetY * mm;
+    final strength = art.glossStrength.clamp(0.0, 1.0).toDouble();
+    if (_clear) {
+      return Stack(fit: StackFit.expand, children: [
+        ColoredBox(color: _profile.resolvedInteriorColor),
+        Padding(padding: EdgeInsets.symmetric(horizontal: rim * 0.45, vertical: rimY * 0.45), child: picture),
+        if (!art.compact) _ClearSleeve(rim: rim),
+        if (gloss && strength > 0.01) _SleeveGloss(strength: strength),
+      ]);
+    }
     return Stack(fit: StackFit.expand, children: [
       ColoredBox(color: _profile.caseColor),
-      Padding(padding: EdgeInsets.all(rim), child: picture),
-      if (art.gloss && !art.compact) const _SleeveGloss(),
+      Padding(padding: EdgeInsets.symmetric(horizontal: rim, vertical: rimY), child: picture),
+      if (gloss && strength > 0.01) _SleeveGloss(strength: strength),
     ]);
+  }
+
+  /// [provider]'s [window] placed on the printed area without distortion
+  /// (docs/game-box-3d.md § 13): close proportions fill it, scan margins are
+  /// trimmed, any remaining difference leaves neutral bands.
+  Widget _printed(ImageProvider provider, Rect window, double? aspect, Color? band) {
+    return LayoutBuilder(builder: (context, c) {
+      final w = c.maxWidth, h = c.maxHeight;
+      if (aspect == null || !w.isFinite || !h.isFinite || w <= 0 || h <= 0) {
+        return _crop(provider, window);
+      }
+      final layout = GameBoxArtFit.fit(aspect, w / h);
+      final source = Rect.fromLTWH(
+        window.left + layout.source.left * window.width,
+        window.top + layout.source.top * window.height,
+        layout.source.width * window.width,
+        layout.source.height * window.height,
+      );
+      if (layout.target == GameBoxArtLayout.full) return _crop(provider, source);
+      final t = layout.target;
+      return Stack(children: [
+        Positioned.fill(child: ColoredBox(color: band ?? _neutralBack)),
+        Positioned(
+          left: t.left * w,
+          top: t.top * h,
+          width: t.width * w,
+          height: t.height * h,
+          child: _crop(provider, source),
+        ),
+      ]);
+    });
   }
 
   /// The lid of a jewel case: clear plastic over the black tray, the hinge
@@ -316,9 +593,13 @@ class GameBoxScene extends StatelessWidget {
 
   Widget _back(ProjectedFace f, double mm) {
     final back = art.back;
-    if (back == null) {
+    if (back == null ||
+        art.backNature == GameBoxArtNature.promo ||
+        art.backNature == GameBoxArtNature.render3d) {
+      final details = art.composedBack;
+      if (details != null) return _composedBack(details, mm);
       return GameBoxNeutralFace(
-        color: _jewel ? _tray : _edge,
+        color: _jewel ? _tray : (_clear ? _neutralBack : _edge),
         notice: art.backUnavailable.isEmpty ? null : art.backUnavailable,
         icon: Icons.image_not_supported_outlined,
       );
@@ -336,11 +617,30 @@ class GameBoxScene extends StatelessWidget {
         if (!art.compact) const _ClearRim(),
       ]);
     }
-    if (_cardboard) return _image(back, BoxFit.fill);
-    return Stack(fit: StackFit.expand, children: [
-      ColoredBox(color: _profile.caseColor),
-      Padding(padding: EdgeInsets.all(1.4 * mm), child: _image(back, BoxFit.fill)),
-    ]);
+    final printed = _printed(back, art.backWindow, art.backPartAspect, art.backBand);
+    if (_cardboard) return printed;
+    return _sleeved(printed, mm, gloss: false);
+  }
+
+  /// No authentic back: one composed from the game's verified details,
+  /// labelled as a reconstruction (docs/game-box-3d.md § 21), printed where a
+  /// back would be.
+  Widget _composedBack(GameBoxBackDetails details, double mm) {
+    final composed = GameBoxComposedBack(
+      color: art.edgeColor ?? _profile.resolvedInsertColor,
+      details: details,
+      label: art.composedBackLabel,
+      compact: art.compact,
+    );
+    if (_jewel) {
+      return Stack(fit: StackFit.expand, children: [
+        ColoredBox(color: _tray),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 2 * mm, vertical: 3.5 * mm), child: composed),
+        if (!art.compact) const _ClearRim(),
+      ]);
+    }
+    if (_cardboard) return composed;
+    return _sleeved(composed, mm, gloss: false);
   }
 
   // Spines --------------------------------------------------------------------
@@ -359,19 +659,27 @@ class GameBoxScene extends StatelessWidget {
         // side unchanged.
         strip = _crop(art.back!, const Rect.fromLTRB(1 - GameBoxArt.jewelSpineFraction, 0, 1, 1));
       }
-      return _jewelSide(mm, strip ?? GameBoxTitleSpine(color: _profile.caseColor, title: art.title), hinge: true);
+      return _jewelSide(mm, strip ?? _designedSpine(_profile.height), hinge: true);
     }
-    final Widget full = spine == null
-        ? GameBoxTitleSpine(color: _edge, title: art.title)
-        : _spineImage(spine);
-    final Widget printed = _plasticCase
-        ? Stack(fit: StackFit.expand, children: [
-            ColoredBox(color: _profile.caseColor),
-            // The spine of the cover, under the sleeve, between the plastic of
-            // the front and back panels.
-            Padding(padding: EdgeInsets.symmetric(horizontal: 0.9 * mm), child: full),
-          ])
-        : full;
+    final Widget full = spine == null ? _designedSpine(_profile.height) : _spineImage(spine);
+    final Widget printed;
+    if (_clear) {
+      // The spine of the cover seen through the clear plastic, with the
+      // two bright edges of the panels.
+      printed = Stack(fit: StackFit.expand, children: [
+        full,
+        if (!art.compact) _ClearSpineEdges(mm: mm),
+      ]);
+    } else if (_plasticCase) {
+      printed = Stack(fit: StackFit.expand, children: [
+        ColoredBox(color: _profile.caseColor),
+        // The spine of the cover, under the sleeve, between the plastic of
+        // the front and back panels.
+        Padding(padding: EdgeInsets.symmetric(horizontal: 0.9 * mm), child: full),
+      ]);
+    } else {
+      printed = full;
+    }
     return _window(printed, f.face.source, f.width, f.height);
   }
 
@@ -396,26 +704,53 @@ class GameBoxScene extends StatelessWidget {
     ]);
   }
 
-  Widget _spineImage(ImageProvider spine) => art.spineLandscape
-      ? RotatedBox(quarterTurns: 1, child: _image(spine, BoxFit.fill))
-      : _image(spine, BoxFit.fill);
+  Widget _spineImage(ImageProvider spine) {
+    final window = art.spineWindow;
+    if (window != GameBoxArtLayout.full) {
+      // The spine strip of a full cover sheet: standing, top at the top,
+      // laid as its template asks (§ 24): never squeezed unless the
+      // template's spine is far wider than the case's.
+      final aspect = art.spineAspect;
+      if (aspect == null || !aspect.isFinite || aspect <= 0 || art.spineFit == GameBoxSpineFit.stretch) {
+        return _crop(spine, window);
+      }
+      final strip = SizedBox(width: aspect * 1000, height: 1000, child: _crop(spine, window));
+      if (art.spineFit == GameBoxSpineFit.trimFold) {
+        return ClipRect(child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge, child: strip));
+      }
+      return ColoredBox(
+        color: Color.lerp(_neutralSpine, Colors.white, 0.7)!,
+        child: FittedBox(fit: BoxFit.contain, child: strip),
+      );
+    }
+    return art.spineLandscape
+        ? RotatedBox(quarterTurns: 1, child: _image(spine, BoxFit.fill))
+        : _image(spine, BoxFit.fill);
+  }
 
   // Edges ---------------------------------------------------------------------
 
   Widget _plasticEdge({bool ridged = false, bool seam = false, required double mm}) {
     return CustomPaint(
       painter: GameBoxEdgePainter(
-        color: _edge,
+        color: _clear ? _clearPlastic : _edge,
         ridged: ridged,
         seam: seam,
         cardboard: _cardboard,
+        clear: _clear,
         pxPerMm: mm,
       ),
     );
   }
 
+  /// A clear case seen on its edge: the plastic's own tint over the white
+  /// inner side of the cover sheet.
+  Color get _clearPlastic => Color.lerp(_profile.caseColor, const Color(0xFF9AA3AB), 0.28)!;
+
+  Color get _clearEdgeColor => Color.lerp(_tray, const Color(0xFF8A8F96), 0.22)!;
+
   Widget _clearEdge(double mm) => Stack(fit: StackFit.expand, children: [
-        ColoredBox(color: Color.lerp(_tray, const Color(0xFF8A8F96), 0.22)!),
+        ColoredBox(color: _clearEdgeColor),
         if (!art.compact) const _ClearRim(),
       ]);
 
@@ -510,6 +845,55 @@ class _SleeveGloss extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The clear sleeve of a clear plastic case, over the printed cover: a faint
+/// bright rim where the plastic turns, and a slightly darker line inside it.
+/// It covers no more than the case's printing margin.
+class _ClearSleeve extends StatelessWidget {
+  const _ClearSleeve({required this.rim});
+  final double rim;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = rim.clamp(0.6, 6.0).toDouble();
+    return IgnorePointer(
+      child: Stack(fit: StackFit.expand, children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white.withValues(alpha: 0.20), width: w),
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.all(w),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black.withValues(alpha: 0.10), width: math.max(0.5, w * 0.35)),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// The two long edges of a clear case's spine, where the front and back
+/// panels meet the spine.
+class _ClearSpineEdges extends StatelessWidget {
+  const _ClearSpineEdges({required this.mm});
+  final double mm;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = (0.55 * mm).clamp(0.5, 4.0).toDouble();
+    return IgnorePointer(
+      child: Row(children: [
+        Container(width: w, color: Colors.white.withValues(alpha: 0.22)),
+        const Spacer(),
+        Container(width: w, color: Colors.white.withValues(alpha: 0.16)),
+      ]),
     );
   }
 }

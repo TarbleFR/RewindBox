@@ -1,0 +1,121 @@
+{
+  "result": "passed",
+  "build": 554,
+  "version": "0.0.8",
+  "source": "9f6892b9422aa584e4949680adaa01180458c401",
+  "fixSource": "410678b7b2d383c83fd60886333c48c4d977a361",
+  "run": 40360743251,
+  "jobs": {
+    "checks": 121705165760,
+    "cold": 121707639295
+  },
+  "artifact": {
+    "id": 12667899580,
+    "name": "RewindBox-Build554-9f6892b9422aa584e4949680adaa01180458c401-cold",
+    "bytes": 188592541,
+    "zipSHA256": "d2975fb62df35868f1e5a0e061d07be7539059cbc0d3fe4f7dac48e5d9ecc480",
+    "recipient": "build-utils/delivery-554-rpcs3-recipient.pem",
+    "cipher": "AES-256-CBC PBKDF2 200000 + RSA OAEP SHA256",
+    "expires": "2026-11-09T16:53:57Z",
+    "transportPieces": 4,
+    "recoveryPieces": 4
+  },
+  "ipa": {
+    "name": "RewindBox-Build554-9f6892b9422aa584e4949680adaa01180458c401-cold.ipa",
+    "bytes": 188012202,
+    "sha256": "51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4",
+    "sha256sumsMatched": true,
+    "signedPayloadIdentityMatched": true,
+    "cfBundleShortVersion": "0.0.8",
+    "cfBundleVersion": "554",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "members": 5358
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source552": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "sourceParity": "62626c0fa0263c8ce29671bf060c9bc7d746c1a0",
+    "source554": "410678b7b2d383c83fd60886333c48c4d977a361",
+    "productTrees": {
+      "lib": "ed42340e67f5fbfc5082eccd1fb9eb4638cd38de",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees553": {
+      "lib": "4ac259a923b8625ba350eb731f057aa823cc6739",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees553EqualsDelivered553": true
+  },
+  "importChanged": [
+    "lib/l10n/rpcs3_library_file_locale.dart",
+    "lib/screens/game_screen/my_games_list/launch_flow.dart",
+    "lib/services/game/game_launch_service.dart",
+    "lib/services/rpcs3_content_import_service.dart",
+    "lib/services/rpcs3_disc_image.dart",
+    "lib/services/rpcs3_library_file_service.dart",
+    "lib/services/rpcs3_library_service.dart",
+    "lib/widgets/rpcs3_library_file_install_dialog.dart"
+  ],
+  "tests": {
+    "discImage": 11,
+    "libraryFile": 16,
+    "dialogs": 18,
+    "library": 6
+  },
+  "analyzerIssues": 108,
+  "core": {
+    "source": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "run": 40247161327,
+    "dylibSHA256": "f25822a943c08054d26059c91dd08606494a0beb5a979f431e104464c4e1b3a2",
+    "sameAs552And553": true
+  },
+  "ciValidation": {
+    "rpcs3Import": {
+      "result": "passed",
+      "build": 554,
+      "ipaSHA256": "51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4"
+    },
+    "rpcs3": {
+      "result": "passed",
+      "build": 554,
+      "ipaSHA256": "51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4"
+    },
+    "liquidGlass": {
+      "result": "passed",
+      "build": 554,
+      "ipaSHA256": "51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4"
+    },
+    "melonx": {
+      "result": "passed",
+      "build": 554,
+      "ipaSHA256": "51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4"
+    }
+  },
+  "localRevalidation": {
+    "ipaDigestRecomputed": true,
+    "infoPlistRead": true,
+    "embeddedReceipt": "RPCS3-import554-identity.json build 554, source 410678b, tests 11/16/18/6",
+    "dartImageChecked": true,
+    "coreComparedWith552": true
+  },
+  "installsOver": [
+    547,
+    548,
+    549,
+    550,
+    551,
+    552,
+    553
+  ],
+  "physicalDeviceTested": false,
+  "importFixDeviceVerified": false,
+  "scope": "Delivered 553 product tree with the RPCS3 library-file import of 410678b (8 shipped Dart files); same 551 Core. Host tests and CI validators only; no iPhone run."
+}

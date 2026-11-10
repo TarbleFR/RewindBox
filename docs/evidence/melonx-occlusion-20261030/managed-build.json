@@ -1,0 +1,14 @@
+{
+  "result": "passed",
+  "sdk": "10.0.100",
+  "configuration": "Release",
+  "runtime": "linux-x64",
+  "nativeAot": false,
+  "physicalDeviceTested": false,
+  "errors": 0,
+  "warnings": 27,
+  "elapsedSeconds": 184.79,
+  "logSha256": "a0286bb57c737e96dd63a9c518b55570a16ceafabbc17ae9f6c9169259844163",
+  "preparedPostimagesMatched": 147,
+  "initialParallelFailuresRetained": true
+}

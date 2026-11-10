@@ -1,0 +1,131 @@
+{
+  "baseline": "a363d923",
+  "scope": "RSX submission, asynchronous streaming, vertex coherence and neighbouring GPU lifetimes",
+  "investigations": [
+    {
+      "id": "RS1",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKCommandStream.cpp:queue_submit_impl",
+        "rpcs3/Emu/RSX/VK/vkutils/commands.cpp:command_buffer::submit",
+        "rpcs3/Emu/RSX/VK/VKGSRender.cpp:close_and_submit_command_buffer"
+      ],
+      "hypothesis": "Batch successive submissions to reduce MoltenVK encoding overhead.",
+      "potential": "High if submission-bound, unmeasured on the new source.",
+      "feasibility": "Requires fence and dependency redesign, not just combining VkSubmitInfo arrays.",
+      "evidence": "Every command buffer receives a separate fence. command_buffer reuse, ZCULL and completion lifetimes consume those individual signals. Vulkan queue order alone is not a memory dependency.",
+      "status": "not implemented",
+      "risk": "Combining submissions under one fence changes completion observability and resource lifetime. No independent GPU timing or replay is available to validate a redesigned dependency graph.",
+      "nextProof": "A captured command stream with fence consumers and Metal timestamps, followed by equivalent GPU replay.",
+      "references": [
+        "https://github.khronos.org/Vulkan-Site/refpages/latest/refpages/source/vkQueueSubmit.html",
+        "https://github.khronos.org/Vulkan-Site/spec/latest/chapters/synchronization.html"
+      ]
+    },
+    {
+      "id": "RS2",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp:delayed_init",
+        "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp:get_sema",
+        "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp:insert_sync_event"
+      ],
+      "hypothesis": "First streaming use creates thousands of driver objects that are not yet needed.",
+      "potential": "Lower first-use allocation burst and lower retained objects in short sessions. AC has async streaming enabled in build595; BO2/GOW3 do not.",
+      "feasibility": "High; preserve 16,384 slots and lazily populate each once.",
+      "evidence": "The complete source previously constructed 16,384 semaphores or events in delayed_init. It now reserves the same pointer slots and constructs only the selected object.",
+      "status": "implemented",
+      "verification": "Plain and ASan/UBSan: 99,000 matching selected-slot identities across fast/safe/strict modes and more than two wraps, unchanged flushes and exactly-once destruction, exact desktop implementation preserved.",
+      "risk": "Each slot still pays vkCreate* at first access. Total creations after a full cycle are unchanged; this moves cost out of initialization and has no proven gameplay or driver-time gain.",
+      "nextProof": "Apple/Metal first-use versus steady-state timing; no permanent telemetry added."
+    },
+    {
+      "id": "RS3",
+      "paths": [
+        "rpcs3/Emu/RSX/rsx_cache.h:vertex_cache::weak_vertex_cache",
+        "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp:upload_vertex_data",
+        "rpcs3/Emu/RSX/VK/VKPresent.cpp:purge vertex cache"
+      ],
+      "hypothesis": "In-place vertex changes beyond the fingerprint can reuse stale uploaded data.",
+      "potential": "Possible visual correctness link to changing geometry; link to BO2 unproved.",
+      "feasibility": "A full-range verification is possible but increases guest-memory reads on cache hits.",
+      "evidence": "The weak cache deliberately compares only the first eight bytes and clears every frame. A change at byte8 of a larger range preserves key and fingerprint. The graphics path caches only a single interleaved block.",
+      "status": "limitation confirmed; no blind replacement",
+      "risk": "Replacing the fingerprint with a full hash adds O(range length) work to every hit and still needs a coherent concurrent snapshot. Per-page invalidation must cover all CPU/SPU/DMA writes, not just one notification source.",
+      "nextProof": "Identify actual changing vertex ranges from an RSX capture, or establish a complete write-generation protocol before changing the cache.",
+      "references": [
+        "https://github.com/RPCS3/rpcs3/issues/15397"
+      ],
+      "referenceCaveat": "That upstream issue concerns BO1, not BO2. It is context only, not evidence for this user's glitch."
+    },
+    {
+      "id": "RS4",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKGSRender.cpp:on_semaphore_acquire_wait",
+        "rpcs3/Emu/RSX/VK/VKGSRender.cpp:release_GCM_label",
+        "rpcs3/Emu/RSX/RSXOffload.cpp:dma_manager::sync"
+      ],
+      "hypothesis": "An RSX acquire stops the thread needed to complete another producer.",
+      "potential": "High for persistent GOW3 label wait.",
+      "feasibility": "Follow producer protocol rather than force the label.",
+      "evidence": "Current iOS wait services pending flushes, deadlock recovery, ZCULL and host DMA. It throttles host updates and prevents recursive submission. The captured wait value remains one behind, but does not identify the producer instruction.",
+      "status": "existing mitigations verified; missing producer remains open",
+      "risk": "Force-writing the label or dropping barriers can unstick the wait while exposing incomplete data.",
+      "nextProof": "An affected SPU/PPU state or deterministic replay showing the producer path. New SNR and MFC corrections have separate source reproductions and are not claimed as this scene's fix."
+    },
+    {
+      "id": "RS5",
+      "paths": [
+        "rpcs3/Emu/RSX/RSXThread.cpp:get_framebuffer_layout",
+        "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp:set_zcull_pixel_count_enable"
+      ],
+      "hypothesis": "Discarding depth with ZPASS enabled can suppress occlusion queries and flicker lights.",
+      "potential": "High visual relevance but not shown for AC torch scene.",
+      "feasibility": "An upstream merged change exists, with an unresolved regression in its discussion.",
+      "evidence": "Local layout drops depth when depth/stencil/bounds do not require it. Upstream PR19608 retains it for ZPASS and dirties contested framebuffer state. Review also records dark regions/aliasing with broad retention; the query-only restriction was rejected as a workaround.",
+      "status": "compared; not backported blindly",
+      "risk": "Binding an otherwise unused depth buffer changes pitch/aliasing validation and can discard legitimate color draws.",
+      "nextProof": "Relevant RSX capture and hardware-consistent ZPASS behavior for the conflicting state combination. No game-specific state override added.",
+      "references": [
+        "https://github.com/RPCS3/rpcs3/pull/19608",
+        "https://github.com/RPCS3/rpcs3/issues/18827"
+      ]
+    },
+    {
+      "id": "RS6",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp:get_current",
+        "rpcs3/Emu/RSX/VK/VKAsyncScheduler.h:m_async_command_queue"
+      ],
+      "hypothesis": "Growing the command-buffer vector invalidates retained pointers.",
+      "potential": "Correctness concern under initial streaming growth.",
+      "feasibility": "Call-graph/lifetime review before introducing stable-address storage.",
+      "evidence": "get_current returns immediately while a current buffer exists; only a later cycle appends another buffer. m_last_used_cb is assigned but has no dereference in the current tree. Slot reuse is guarded by command_buffer::begin and its fence.",
+      "status": "no reachable use-after-reallocation found",
+      "risk": "A future use of m_last_used_cb would need stable storage or reserve; changing storage now has no demonstrated current benefit.",
+      "nextProof": "Any new dereferencing caller must revalidate vector growth lifetime."
+    },
+    {
+      "id": "RS7",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKResourceManager.h:eid_completed",
+        "rpcs3/Emu/RSX/VK/VKResourceManager.h:dispose",
+        "rpcs3/Emu/RSX/VK/VKCommandStream.cpp:driver_manager_t::operator()"
+      ],
+      "hypothesis": "Destruction under the resource-manager lock stalls rendering.",
+      "potential": "High if Vulkan object destruction holds the RSX-facing mutex.",
+      "feasibility": "Inspection of exact lifetime boundaries.",
+      "evidence": "eid_completed already splices expired list nodes into a local list under lock, then destroys them outside the lock. flush uses the same pattern. A proposed generic move-out optimization would duplicate what is already present.",
+      "status": "rejected: existing code already avoids the suspected lock scope",
+      "risk": "Unlocking before ownership transfer would race disposal and completion.",
+      "nextProof": "Need contention samples identifying another lock, not this already-separated destructor phase."
+    }
+  ],
+  "limitations": [
+    "No iPhone execution of these new sources.",
+    "No persistent instrumentation added.",
+    "No GPU barriers or semaphore waits removed.",
+    "The lazy-pool harness models Vulkan object APIs; it does not execute MoltenVK or a concurrent driver."
+  ],
+  "knownTestDevelopmentFailures": [
+    "The first async-pool harness failed -Werror on a signed/unsigned test assertion; the literal was corrected to unsigned. Production sources did not change for this correction."
+  ]
+}

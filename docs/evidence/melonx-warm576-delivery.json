@@ -1,0 +1,89 @@
+{
+  "result": "passed",
+  "build": 576,
+  "version": "0.0.8",
+  "source": "460c5b9b9c9b4c2486f9a69653e03c66e41af0bc",
+  "recipeSource": "50d15eb1d5846b9ab933b39fd05ab75c83f16fbb",
+  "run": 40596334529,
+  "base": "delivered private 575 (RPCS3 Core 575 ddf7342, MeloNX engine 8cc2348, God of War III frame limit Auto, MeloNX keyboard and L3/R3)",
+  "headNote": "dispatched on Claude at 460c5b9b (a 577 recipe commit of another session, later reverted by b597325f); the 576 tree pin removed its unowned recipe files",
+  "artifact": {
+    "id": 12777729764,
+    "name": "RewindBox-Build576-460c5b9b9c9b4c2486f9a69653e03c66e41af0bc-cold",
+    "zipSHA256": "1411608db5d928bcb6cb5dddc80afc4ffa1940877c51bd46b23f36a6b8c929ae",
+    "recipient": "build-utils/delivery-576-recipient.pem",
+    "privateKeyInGit": false
+  },
+  "ipa": {
+    "name": "RewindBox-Build576-460c5b9b9c9b4c2486f9a69653e03c66e41af0bc-cold.ipa",
+    "bytes": 188095770,
+    "sha256": "f9ee961340d8802835d41fa3505e1e687f920b667024e2ff9e216f920fed8f3b",
+    "equalsSHA256SUMS": true,
+    "members": 5363
+  },
+  "melonxEngine": {
+    "source": "301e0f86020696a9e26e626d28b9078ae678f1d5",
+    "run": 40591863306,
+    "artifact": 12774198978,
+    "artifactSHA256": "f5502a45adae30ea6d20a92c282d0139f61fe37d779b04b26840530d91157354",
+    "identitySHA256": "0340528a01b3038ea7bac43b1886e0a94650b2382937c688a4cd95cd9d4931c4",
+    "changes": [
+      "adapt_shader_warmup: a cached program is ready once its shader modules are; its initial pipeline warm-up keeps compiling in the background, a draw that needs a queued warm-up promotes it, Dispose cancels one no worker took",
+      "adapt_attachmentless_framebuffer: a pass without attachments covers its viewports (device limit) instead of 1x1",
+      "adapt_fft_boot_trace (TEMPORARY, 010038b015560000 only): first 300 service calls at Info level and the HleProcessDebugger minidump at close"
+    ],
+    "previous": "8cc2348037890adb7b8eef8adde3cd5e4a57c8d2"
+  },
+  "applicationChanges": {
+    "stikDebugFallbackRemoval": "504f9c087999a0dbcc9b2aa62c2bfd49c7bee7bf",
+    "interfaceFixes": "48b9865a3a305b4ed9e9cc2f6e45a15ce8d8a728",
+    "storageContractTest": "bfbb806705efbc3398bef9e1cb85ea4cfbd9f01a",
+    "productTreesChanged": [
+      "lib",
+      "packages"
+    ]
+  },
+  "rpcsCore": {
+    "source": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+    "run": 40589313705
+  },
+  "validators": {
+    "hd-textures-ipa-validation.json": "passed",
+    "liquid-glass-ui576-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-input576-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-jit576-ipa-validation.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "melonx-perf576-ipa-validation.json": "passed",
+    "melonx-switch576-ipa-validation.json": "passed",
+    "melonx-texture576-ipa-validation.json": "passed",
+    "melonx-warm576-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "reused-validation576.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "rpcs3-library-files576-ipa-validation.json": "passed",
+    "rpcs3-memory-audit-ipa.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "buildNumber": "576",
+    "engineHost": "301e0f86",
+    "stikDebugStringsInDart": false,
+    "systemBubblesOptionInDart": true
+  },
+  "localChecks": {
+    "flutterAnalyzeErrors": 0,
+    "checksJobFlutterTests": 570,
+    "fixTestsDart": 32,
+    "fixTestsPython": 16
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "launchTimeMeasured": false,
+  "fpsGainMeasured": false
+}

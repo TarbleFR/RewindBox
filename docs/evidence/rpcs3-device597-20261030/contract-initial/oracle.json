@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "name": "positive",
+      "returncode": 0,
+      "accepted": true,
+      "expectedFailure": null,
+      "actualFailure": null,
+      "reportSHA256": "4627a736ac00a752b46fea3e74fba01812f76fd8e57d2b21488db71dcd52228c"
+    },
+    {
+      "name": "tampered-delta",
+      "returncode": 1,
+      "accepted": false,
+      "expectedFailure": "Inverse delta SHA-256 mismatch",
+      "actualFailure": "Inverse delta SHA-256 mismatch",
+      "reportSHA256": "869dd952bd118080032da7adbdc5c08270983ca29f9c188f9add5a6005d0b2ab",
+      "mutatedCopy": "app/test/rpcs3_device597/core-delta.patch"
+    },
+    {
+      "name": "tampered-new-source",
+      "returncode": 1,
+      "accepted": false,
+      "expectedFailure": "Current Core postimage mismatch: rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp",
+      "actualFailure": "Current Core postimage mismatch: rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp",
+      "reportSHA256": "f9115b2b1c659d3f2b774533a8ca0b057bfe602f9be148ed1041dfa1df9298ec",
+      "mutatedCopy": "core/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp"
+    },
+    {
+      "name": "tampered-repository-input",
+      "returncode": 1,
+      "accepted": false,
+      "expectedFailure": "Repository input mismatch: .github/workflows/rpcs3-runtime592-core.yml",
+      "actualFailure": "Repository input mismatch: .github/workflows/rpcs3-runtime592-core.yml",
+      "reportSHA256": "e07532ff74bbba18ea4c185cd8d540e5451be0b85be12435f5357f704109b202",
+      "mutatedCopy": "app/.github/workflows/rpcs3-runtime592-core.yml"
+    }
+  ],
+  "positiveSource": "/workspace/scratch/82df14a3df84/device597-core-integrated",
+  "positiveRepo": "/workspace/scratch/82df14a3df84/device597-work",
+  "scriptSHA256": "328942b73b58c531c71837702b9c8ba71077c64bfef3610250b6dfc62102cd13",
+  "originalInputsMutated": false,
+  "compilerInvoked": false,
+  "nativeTestsExecuted": false,
+  "appleBuild": false,
+  "physicalDeviceTested": false
+}

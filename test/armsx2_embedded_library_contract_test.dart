@@ -79,7 +79,7 @@ void main() {
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
 
-    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 8u'));
+    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 9u'));
     // ABI 8 (Build 485): HD replacement textures of the running game.
     expect(abi, contains('get_texture_replacements_json'));
     expect(abi, contains('set_texture_replacements'));
@@ -108,9 +108,17 @@ void main() {
     expect(abi, contains('save_state'));
     expect(abi, contains('load_state'));
     expect(abi, contains('get_retroachievements_state_json'));
-    expect(abi, contains('set_retroachievements_option'));
-    expect(abi, contains('login_retroachievements'));
-    expect(abi, contains('logout_retroachievements'));
+    for (final retired in const [
+      'set_retroachievements_option',
+      'login_retroachievements',
+      'logout_retroachievements',
+    ]) {
+      expect(abi, isNot(contains(retired)));
+      expect(plugin, isNot(contains(retired)));
+      expect(core, isNot(contains(retired)));
+    }
+    expect(abi, contains('NeoARMSX2RALaunchConfiguration'));
+    expect(abi, contains('const NeoARMSX2RALaunchConfiguration* achievements'));
     expect(abi, contains('get_graphics_hacks_json'));
     expect(abi, contains('set_graphics_hack'));
 
@@ -139,25 +147,42 @@ void main() {
     expect(core, contains('loadStateFromSlot'));
   });
 
-  test('ARMSX2 exit is host-safe and RetroAchievements uses Dolphin-style native UI', () {
+  test('ARMSX2 exit is host-safe and RA uses the central immutable launch policy', () {
     final core = File(
       'packages/armsx2_internal_bridge/core/ARMSX2Core.mm',
     ).readAsStringSync();
     final plugin = File(
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm',
     ).readAsStringSync();
-    final raMenu = File(
-      'packages/armsx2_internal_bridge/ios/Classes/Armsx2RetroAchievementsMenu.mm',
+    final sessionMenu = File(
+      'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
+    final policy = File(
+      'packages/armsx2_internal_bridge/core/ARMSX2RALaunchSettings.h',
+    ).readAsStringSync();
+    expect(File(
+      'packages/armsx2_internal_bridge/ios/Classes/Armsx2RetroAchievementsMenu.mm',
+    ).existsSync(), isFalse);
 
     expect(core, contains('r.phase=Phase::Stopping'));
     expect(core, contains('VMManager::SetState(VMState::Stopping)'));
     expect(core, contains('initialize_sdl=!r.sdl_initialized'));
     expect(core, isNot(contains('SDL_QuitSubSystem(')));
-    expect(core, contains('if (!si.ContainsValue("Achievements","Enabled"))'));
+    expect(core, isNot(contains('if (!si.ContainsValue("Achievements","Enabled"))')));
+    expect(core, contains('ARMSX2RALaunchPolicy::Copy(config->achievements)'));
+    expect(core, contains('LAYER_CMDLINE, r.achievement_launch.get()'));
+    expect(core, contains('r.achievements.Clear()'));
     expect(core, contains('parameters.disable_achievements_hardcore_mode=false'));
     expect(core, contains('[ARMSX2Bridge retroAchievementsState]'));
-    expect(core, contains('[ARMSX2Bridge loginRetroAchievementsWithUsername:'));
+    expect(core, isNot(contains('[ARMSX2Bridge loginRetroAchievementsWithUsername:')));
+    expect(plugin, contains('RBRATakeLaunchConfiguration(args, @"armsx2")'));
+    expect(plugin, contains('RBRAPublishSessionState(configuration'));
+    expect(plugin, contains('RBRAEndSession(configuration)'));
+    expect(plugin, contains('config.achievements = &ra'));
+    expect(policy, contains('policy.notifications = policy.enabled'));
+    expect(policy, contains('HardcoreGuard()'));
+    expect(plugin, contains('hardcoreGuardActive'));
+    expect(plugin, contains('gameLoaded && [state[@"hasAchievements"] boolValue]'));
 
     expect(plugin, contains('stopInProgress'));
     expect(plugin, contains('dismissGameControllerWithCompletion'));
@@ -167,12 +192,13 @@ void main() {
     expect(plugin, contains('invokeMethod:@"sessionEnded"'));
     expect(plugin, isNot(contains('showsMenuAsPrimaryAction = YES')));
 
-    expect(raMenu, contains('UITableViewStyleInsetGrouped'));
-    expect(raMenu, contains('UITableViewCellAccessoryCheckmark'));
-    expect(raMenu, contains('hardcore'));
-    expect(raMenu, contains('leaderboards'));
-    expect(raMenu, contains('overlays'));
-    expect(raMenu, contains('passwordField.text = @""'));
+    expect(sessionMenu, contains('UITableViewStyleInsetGrouped'));
+    expect(sessionMenu, isNot(contains('@"retroachievements"')));
+    expect(sessionMenu, isNot(contains('performRetroAchievementsCommand')));
+    expect(plugin, isNot(contains('performRetroAchievementsCommand')));
+    expect(plugin, contains('RBAchievementPresent(owner'));
+    expect(plugin, contains('active.achievementConfiguration == configuration'));
+    expect(sessionMenu, contains('RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier)'));
   });
 
   test('ARMSX2 launch teardown blocks duplicate play and AVPlayer audio leaks', () {

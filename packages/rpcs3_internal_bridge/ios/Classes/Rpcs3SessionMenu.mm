@@ -5,6 +5,7 @@
 #import "RPCS3UnifiedCheats.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import <neo_touch_layout/NeoTouchLayoutStrings.h>
+#import <retro_achievements_session/RBRASession.h>
 
 typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuRoot,
@@ -17,7 +18,100 @@ typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuLoadStates,
   // Build 484: editor and "hide with a controller" (texts: NeoTouchLayoutStrings).
   RPCS3MenuTouchControls,
+  // REWINDBOX_GRAPHICS_TESTS_612: per-game accuracy tests, one restart per choice.
+  RPCS3MenuAccuracy,
 };
+
+// REWINDBOX_GRAPHICS_TESTS_612: the levers of the accuracy test page. Values are
+// the Core's spellings; the bridge accepts only these (RPCS3TestSettingValues).
+static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
+  static NSArray<NSDictionary*>* levers;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSArray* onOff = @[@"false", @"true"];
+    // Yes/No, not Enabled/Disabled: a "Disable …" row would otherwise read as a double negative.
+    NSArray* onOffLabels = @[@"testNo", @"testYes"];
+    levers = @[
+      @{@"key": @"gpu.zcull_accuracy", @"title": @"testZcull",
+        @"values": @[@"Precise", @"Approximate", @"Relaxed"],
+        @"labels": @[@"zcullPrecise", @"zcullApproximate", @"zcullRelaxed"]},
+      @{@"key": @"debug.disable_occlusion", @"title": @"testOcclusionOff", @"field": @"zcull_queries_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"debug.emulate_depth_compare", @"title": @"testDepthCompare", @"field": @"depth_compare",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"advanced.disable_msl_fast_math", @"title": @"testFastMathOff", @"field": @"msl_fast_math_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"debug.disable_vertex_cache", @"title": @"testVertexCacheOff", @"field": @"vertex_cache_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"gpu.shader_precision", @"title": @"testShaderPrecision",
+        @"values": @[@"Low", @"High", @"Ultra"],
+        @"labels": @[@"precisionLow", @"precisionHigh", @"precisionUltra"]},
+      @{@"key": @"experimental.position_invariance", @"title": @"testInvariance", @"field": @"invariance",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.moltenvk_async_submits", @"title": @"testMvkAsync", @"field": @"mvk_async",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // REWINDBOX_GPU_TIMING_621: Disabled measures the cost of the GPU timestamp probe.
+      @{@"key": @"experimental.gpu_timing", @"title": @"testGpuTiming", @"field": @"gpu_timing",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // REWINDBOX_ZCULL_DEMAND_BO2_621: occlusion reports written when the game reads them
+      // (Automatic: Assassin's Creed and Black Ops II) against the upstream GPU waits.
+      @{@"key": @"experimental.zcull_on_demand", @"title": @"testZcullOnDemand", @"field": @"zcull_demand",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 627: per-game A/B tests of the optimizations. CONFIG_LAYERS part=rsx levers627= holds
+      // their resolved state, one digit per lever, in this order (the journal: Resolved title policy 627).
+      @{@"key": @"experimental.zcull_wait_guard", @"title": @"testZcullWaitGuard", @"field": @"levers627", @"bit": @0,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.zcull_cond_no_wait", @"title": @"testZcullCondNoWait", @"field": @"levers627", @"bit": @1,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.zcull_conservative_reports", @"title": @"testZcullConservative", @"field": @"levers627", @"bit": @2,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_noop_spin_wait", @"title": @"testSpuNoopSpinWait", @"field": @"levers627", @"bit": @3,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_qos_below_rsx", @"title": @"testSpuQos", @"field": @"levers627", @"bit": @4,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.fifo_nop_fast_path", @"title": @"testFifoNopFast", @"field": @"levers627", @"bit": @5,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.light_measurement", @"title": @"testLightMeasurement", @"field": @"levers627", @"bit": @6,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 630: the eighth digit of levers627=.
+      @{@"key": @"experimental.zcull_async_reads", @"title": @"testZcullAsyncReads", @"field": @"levers627", @"bit": @7,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 634: digits 9 to 13 of levers627=.
+      @{@"key": @"experimental.fast_jit_load", @"title": @"testFastJitLoad", @"field": @"levers627", @"bit": @8,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.jit_object_release", @"title": @"testJitObjectRelease", @"field": @"levers627", @"bit": @9,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spirv_disk_cache", @"title": @"testSpirvDiskCache", @"field": @"levers627", @"bit": @10,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.hardware_crypto", @"title": @"testHardwareCrypto", @"field": @"levers627", @"bit": @11,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_object_prefetch", @"title": @"testSpuObjectPrefetch", @"field": @"levers627", @"bit": @12,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 660: digits 14 to 16 of levers627=.
+      @{@"key": @"experimental.spu_direct_object_hits", @"title": @"testSpuDirectObjectHits", @"field": @"levers627", @"bit": @13,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.texture_lookup_memo", @"title": @"testTextureLookupMemo", @"field": @"levers627", @"bit": @14,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.zcull_depth_guard", @"title": @"testZcullDepthGuard", @"field": @"levers627", @"bit": @15,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 664: digit 17 of levers627=.
+      @{@"key": @"experimental.ppu_grace", @"title": @"testPpuGrace", @"field": @"levers627", @"bit": @16,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Metal branch: digit 18 of levers627= (the native Metal 4 renderer).
+      @{@"key": @"experimental.metal_renderer", @"title": @"testMetalRenderer", @"field": @"levers627", @"bit": @17,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 912: digits 19 to 21 of levers627=. A/B of the PUT horizon (Automatic: God of War III) and two bounded
+      // captures that start when the in-game menu is closed (off unless enabled).
+      @{@"key": @"experimental.put_epoch_horizon", @"title": @"testPutEpochHorizon", @"field": @"levers627", @"bit": @18,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.heavy_putllc_trace", @"title": @"testHeavyPutllcTrace", @"field": @"levers627", @"bit": @19,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.ppu_region_profile", @"title": @"testPpuRegionProfile", @"field": @"levers627", @"bit": @20,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+    ];
+  });
+  return levers;
+}
 
 static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (NSThread.isMainThread) block();
@@ -34,6 +128,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 @property(nonatomic, assign) BOOL suppressNextStateReload;
 @property(nonatomic, weak) Rpcs3SessionMenu* returnPage;
 @property(nonatomic, copy) NSString* statusMessage;
+@property(nonatomic, copy) NSDictionary<NSString*, NSString*>* accuracyState;
 @end
 
 @implementation Rpcs3SessionMenu
@@ -82,9 +177,22 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
              action:@selector(resumePressed)];
 }
 
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  // REWINDBOX_INCIDENT_REPORT_621: the whole menu went away, from whichever page
+  // was visible (a pushed or popped page alone does not count). Idempotent.
+  if (self.menuDismissed && (self.isBeingDismissed || self.navigationController.isBeingDismissed)) {
+    self.menuDismissed();
+  }
+}
+
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
   if (self.page == RPCS3MenuCheats) [self reloadCheats];
+  if (self.page == RPCS3MenuAccuracy) {
+    self.accuracyState = self.readAccuracy ? self.readAccuracy() : nil;
+    [self.tableView reloadData];
+  }
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates) {
     // UIAlertController dismissal can make this page appear again before its
     // action handler runs. A refresh would set `loading` and make the confirmed
@@ -99,6 +207,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
+  // REWINDBOX_INCIDENT_REPORT_621: "Report a problem" before resume and quit.
+  if (self.shareReport)
+    return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"touchControls", @"cheatsMenu",
+             @"createState", @"loadState", @"reportProblem", @"resumeGame", @"quitGame"];
   return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"touchControls", @"cheatsMenu",
            @"createState", @"loadState", @"resumeGame", @"quitGame"];
 }
@@ -125,6 +237,9 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   child.performStateOperation = self.performStateOperation;
   child.resumeGame = self.resumeGame;
   child.quitGame = self.quitGame;
+  child.readAccuracy = self.readAccuracy;
+  child.shareReport = self.shareReport;
+  child.menuDismissed = self.menuDismissed;
   child.returnPage = self;
   return child;
 }
@@ -175,7 +290,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   return @{@"identity":@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,@"regions":@[],@"languages":@[],
       @"identities":identities},@"items":items,
       @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),
-      @"help":[self text:[raw[@"conflict"] boolValue] ? @"cheatConflict" : (![raw[@"available"] boolValue] ? @"cheatFailed" : @"cheatNextBoot")]};
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the shared list keeps toggles off.
+      @"hardcore":@([raw[@"hardcore"] boolValue]),
+      @"help":[raw[@"hardcore"] boolValue] ? RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier ?: @"en")
+          : [self text:[raw[@"conflict"] boolValue] ? @"cheatConflict" : (![raw[@"available"] boolValue] ? @"cheatFailed" : @"cheatNextBoot")]};
 }
 - (UIViewController*)directCheats {
   NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.localeIdentifier;list.engine=@"rpcs3";
@@ -241,7 +359,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
   switch (self.page) {
     case RPCS3MenuRoot: return self.rootKeys.count;
-    case RPCS3MenuGraphics: return 3;
+    case RPCS3MenuGraphics: return 4;
+    case RPCS3MenuAccuracy: return RPCS3AccuracyLevers().count + 1;
     case RPCS3MenuSystem: return 1;
     case RPCS3MenuControls: return 1;
     case RPCS3MenuTouchControls: return 2;
@@ -256,6 +375,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
 - (NSString*)tableView:(UITableView*)tableView titleForFooterInSection:(NSInteger)section {
   if (self.page == RPCS3MenuGraphics) return [self text:@"graphicsHelp"];
+  if (self.page == RPCS3MenuAccuracy) return [self text:[self accuracyLegacy] ? @"accuracyLegacyHelp" : @"accuracyHelp"];
   if (self.page == RPCS3MenuSystem) return [self text:@"systemHelp"];
   if (self.page == RPCS3MenuControls) return [self text:@"controlsHelp"];
   if (self.page == RPCS3MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
@@ -265,6 +385,50 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates)
     return self.statusMessage;
   return nil;
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: "<effective value> · <profile|test>" from the
+// last boot's CONFIG_LAYERS part=rsx line.
+- (NSString*)accuracyDetail:(NSDictionary*)lever {
+  NSDictionary<NSString*, NSString*>* state = self.accuracyState;
+  if (!state.count) return [self text:@"testUnknown"];
+  NSString* key = lever[@"key"];
+  NSString* label = nil;
+  BOOL explicitValue = NO;
+  if ([key isEqual:@"gpu.zcull_accuracy"]) {
+    label = [state[@"relaxed_zcull"] isEqual:@"true"] ? @"zcullRelaxed"
+        : ([state[@"precise_zpass"] isEqual:@"true"] ? @"zcullPrecise" : @"zcullApproximate");
+  } else if ([key isEqual:@"gpu.shader_precision"]) {
+    NSString* precision = state[@"shader_precision"];
+    label = @{@"Low": @"precisionLow", @"High": @"precisionHigh", @"Ultra": @"precisionUltra"}[precision ?: @""];
+    if (!label) return precision.length ? precision : [self text:@"testUnknown"];
+  } else if (lever[@"bit"]) {
+    // Core 627: one digit of levers627= per lever: 1 when it is on, plus 2 for an explicit value.
+    NSString* digits = state[lever[@"field"]];
+    const NSUInteger bit = [lever[@"bit"] unsignedIntegerValue];
+    if (digits.length <= bit) return [self text:@"testUnknown"];
+    const NSInteger digit = [digits characterAtIndex:bit] - '0';
+    label = (digit & 1) ? @"enabled" : @"disabled";
+    explicitValue = (digit & 2) != 0;
+  } else {
+    NSString* value = state[lever[@"field"]];
+    if (!value.length) return [self text:@"testUnknown"];
+    // The detail uses the labels of the choice page: Yes/No for the "true"/"false" levers,
+    // Enabled/Disabled for the resolved policies reported as "1"/"0".
+    const NSUInteger index = [lever[@"values"] indexOfObject:value];
+    label = index != NSNotFound ? lever[@"labels"][index]
+        : (([value isEqual:@"true"] || [value isEqual:@"1"]) ? @"enabled" : @"disabled");
+  }
+  NSString* overrideKeys = state[@"overrides"] ?: @"";
+  NSArray<NSString*>* overrides = [overrideKeys componentsSeparatedByString:@","];
+  NSString* source = [self accuracyLegacy] ? @"testSourceCustom"
+      : ((explicitValue || [overrides containsObject:key]) ? @"testSourceTest" : @"testSourceProfile");
+  return [NSString stringWithFormat:@"%@ · %@", [self text:label], [self text:source]];
+}
+
+// The last boot applied a full custom configuration: tests would change it for good.
+- (BOOL)accuracyLegacy {
+  return [self.accuracyState[@"legacy_custom"] isEqualToString:@"1"];
 }
 
 - (UITableViewCell*)baseCell {
@@ -291,6 +455,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       cell.detailTextLabel.text = [self touchText:@"touchControlsDetail"];
       cell.accessibilityIdentifier = @"rpcs3.menu.touchControls";
     }
+    if ([key isEqual:@"reportProblem"]) {
+      cell.detailTextLabel.text = [self text:@"reportProblemDetail"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.reportProblem";
+    }
     NSDictionary* symbols = @{
       @"graphicsMenu": @"display",
       @"systemMenu": @"gearshape.2",
@@ -299,6 +467,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       @"cheatsMenu": @"bolt.shield",
       @"createState": @"square.and.arrow.down",
       @"loadState": @"square.and.arrow.up",
+      @"reportProblem": @"exclamationmark.bubble",
       @"resumeGame": @"play.fill",
       @"quitGame": @"xmark.circle",
     };
@@ -319,9 +488,27 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if (row == 1) {
       cell.textLabel.text = [self text:@"stretchTitle"];
       cell.detailTextLabel.text = [self text:@"perGameRestart"];
-    } else {
+    } else if (row == 2) {
       cell.textLabel.text = [self text:@"performanceOverlay"];
       cell.detailTextLabel.text = [self text:(self.performanceVisible ? @"enabled" : @"disabled")];
+      cell.accessoryType = UITableViewCellAccessoryNone;
+    } else {
+      cell.textLabel.text = [self text:@"accuracyMenu"];
+      cell.detailTextLabel.text = [self text:@"accuracyMenuDetail"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.accuracyTests";
+    }
+    return cell;
+  }
+
+  if (self.page == RPCS3MenuAccuracy) {
+    NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();
+    if (row < (NSInteger)levers.count) {
+      cell.textLabel.text = [self text:levers[row][@"title"]];
+      cell.detailTextLabel.text = [self accuracyDetail:levers[row]];
+    } else {
+      cell.textLabel.text = [self text:@"testReset"];
+      cell.detailTextLabel.text = [self text:@"testResetDetail"];
+      cell.textLabel.textColor = UIColor.systemOrangeColor;
       cell.accessoryType = UITableViewCellAccessoryNone;
     }
     return cell;
@@ -426,6 +613,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
         } else if ([command isEqual:@"touchHideWithController"]) {
           menu.touchHideWithController = [value boolValue];
           menu.returnPage.touchHideWithController = menu.touchHideWithController;
+        } else if ([command isEqual:@"testReset"]) {
+          menu.accuracyState = menu.readAccuracy ? menu.readAccuracy() : nil;
         }
         [menu.tableView reloadData];
         if (menu.page == RPCS3MenuChoices) [menu.navigationController popViewControllerAnimated:YES];
@@ -497,6 +686,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if ([key isEqual:@"loadState"]) {
       Rpcs3SessionMenu* child = [self child:RPCS3MenuLoadStates title:[self text:key]];
       [self.navigationController pushViewController:child animated:YES];
+    } else if ([key isEqual:@"reportProblem"]) {
+      if (self.shareReport) self.shareReport(self);
     } else if ([key isEqual:@"resumeGame"]) {
       [self resumePressed];
     } else if ([key isEqual:@"quitGame"]) {
@@ -529,9 +720,35 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
                         command:@"stretch"
                          values:@[@NO, @YES]
                          titles:@[[self text:@"normal"], [self text:@"stretched"]]];
-    } else {
+    } else if (row == 2) {
       [self performCommand:@"performance" value:@(!self.performanceVisible)];
+    } else {
+      [self.navigationController pushViewController:[self child:RPCS3MenuAccuracy title:[self text:@"accuracyMenu"]]
+                                           animated:YES];
     }
+    return;
+  }
+
+  if (self.page == RPCS3MenuAccuracy) {
+    NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();
+    if ([self accuracyLegacy]) {
+      [self showMessage:[self text:@"accuracyLegacyBlocked"]];
+      return;
+    }
+    if (row >= (NSInteger)levers.count) {
+      [self performCommand:@"testReset" value:nil];
+      return;
+    }
+    NSDictionary* lever = levers[row];
+    NSMutableArray* values = [NSMutableArray arrayWithObject:@{@"key": lever[@"key"], @"value": @"@inherit"}];
+    NSMutableArray<NSString*>* titles = [NSMutableArray arrayWithObject:[self text:@"testProfileDefault"]];
+    NSArray<NSString*>* choices = lever[@"values"];
+    NSArray<NSString*>* labels = lever[@"labels"];
+    for (NSUInteger i = 0; i < choices.count && i < labels.count; ++i) {
+      [values addObject:@{@"key": lever[@"key"], @"value": choices[i]}];
+      [titles addObject:[self text:labels[i]]];
+    }
+    [self pushChoiceWithTitle:[self text:lever[@"title"]] command:@"testSetting" values:values titles:titles];
     return;
   }
 

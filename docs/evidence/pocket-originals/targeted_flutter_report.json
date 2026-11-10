@@ -1,0 +1,989 @@
+{
+  "started": "2026-11-03T18:50:15.972869+00:00",
+  "finished": "2026-11-03T18:50:40.340215+00:00",
+  "command": [
+    "/workspace/scratch/9960148a81e3/recovery_host/flutter_sdk/bin/flutter",
+    "--no-version-check",
+    "--suppress-analytics",
+    "test",
+    "--no-pub",
+    "test/dolphin_pocket_test.dart",
+    "test/dolphin_skins_test.dart",
+    "test/dolphin_skin_preview_images_test.dart",
+    "test/bundled_controller_skins_test.dart",
+    "test/pocket_catalog_offline_ui_test.dart",
+    "test/libretro_skin_catalogs_test.dart",
+    "test/libretro_skin_catalog_test.dart",
+    "test/libretro_skin_service_test.dart",
+    "test/libretro_skin_manager_test.dart",
+    "--reporter",
+    "json"
+  ],
+  "cwd": "/workspace/scratch/9960148a81e3/RewindBox",
+  "exitCode": 0,
+  "success": true,
+  "sourceSHA256": {
+    "test/dolphin_pocket_test.dart": "67bd371c33d377cb4095b05b6bc0947615df49cc4a0d83af158bbdc9dec478ee",
+    "test/dolphin_skins_test.dart": "60366b79237b6eb32bcdbc3cd5da08a65179ea00c7d0e0f160a971010bb32649",
+    "test/dolphin_skin_preview_images_test.dart": "0a73284974d876af0268d88ee11f1d6b13fa5e01e4d3ba0783836939dcb74b1f",
+    "test/bundled_controller_skins_test.dart": "4e3a5074f63f2e828b2cee73987608c2f8d653ae8dce9ca7ed7e9cb6a4405c35",
+    "test/pocket_catalog_offline_ui_test.dart": "68ef0fae0ea016aeb3188c0f79bd2c8b681b645e514e2506b832ac31554efb65",
+    "test/libretro_skin_catalogs_test.dart": "1be395f186c0f31a8a1de78c99c6469f86f405bfa1b9749f4c1153a1f44132c3",
+    "test/libretro_skin_catalog_test.dart": "938812d11a5e6afdc913824475501841bc822ceffb8a72f58056a0807cf49153",
+    "test/libretro_skin_service_test.dart": "b222b87a083cf25f59eafc426fae6049cf240210192456a6c9dd6f0f94f4cd9b",
+    "test/libretro_skin_manager_test.dart": "be47f831f96fa90a547747d7dd601a23f3104b50a84a0f8636034c4d658ae2ef",
+    "lib/services/bundled_controller_skins.dart": "ef4b59891574ae1d86c6c89f0ae767dd5a174eea3e3640d3a65fc6959ce304ac",
+    "lib/services/dolphin_skins.dart": "04752b9513637d566f26cdae7dfcc9dfa4b14578b13aefefff56ee013895598f",
+    "lib/services/libretro_skin_catalogs.dart": "4ae82417fc723ce610157734773d89d9a066dc9faf4bad229eed50b980d8722f",
+    "lib/services/libretro_skin_remote_inspector.dart": "70542ab43a2b178f6922c0ab02720ed309dc106e442538d7d5e72891aa0579c7",
+    "lib/screens/libretro/libretro_skin_catalog_screen.dart": "0a6021063ca874fc15bc3d95db62757442f2c952b7e55ecfbbfa639d046bd2a6",
+    "lib/services/libretro_skin_service.dart": "a99bb87580c0a42f096007316da89b8c93925bccd80e633d7db121581c2055c7",
+    "lib/services/libretro_core_catalog.dart": "3e5d7e11242aa2082c98ba31f20764ed5bdd1633d236d4ef73f379fb83ebc225",
+    "lib/services/libretro_skin_compatibility.dart": "0754ec9caaf58220555e0c1cccdf34185230da933f2bf6b7c2e8b4740fb63fba",
+    "pubspec.yaml": "1fd6b643e164e475070ea29d7fc887bec17c70cb6276452d7b0cd50fc81c3d06",
+    "pubspec.lock": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+    "packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.mm": "7ac30fb74fcaac7fcc6b9d6f689fc8cae4767dddd48885b7a15f9fdaf846c4f8",
+    "packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.h": "0ae660fab1f3ebe593430c230ebcecbeec519e83722826f8278e3fb31f80c596"
+  },
+  "archivesSHA256": {
+    "wii-pocket": "5a8a4db1d7480269c8011939a3dc6d288bd05687f21f24d8d503972aa9c2b9d5",
+    "gamecube-pocket": "d37fbd2138c47a271f37e8b352b76b04624abc8b45e8996ea87dd5886316b13b"
+  },
+  "visibleTestCount": 126,
+  "passed": 126,
+  "skipped": 0,
+  "failed": 0,
+  "testResults": [
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/dolphin_pocket_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior (setUpAll)",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/dolphin_skins_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior real ZIP importer and directory inspector retain full compatibility",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/dolphin_skin_preview_images_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "game types: the GameCube and Wii identifiers of Manic and Delta, nothing else",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "input names: the GameCube conventions of Manic, Wii adaptations reported",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "prefers the complete PNG to the distinct layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a GameCube Pocket layout: playable upright and sideways, a missing picture is a remark",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "parent, absolute and backslash preview paths fall back to the background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an oversized optional preview falls back to the background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "without Start a GameCube skin cannot be played; without art either",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a PNG extension with a JPEG signature falls back to the background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a missing optional preview falls back to the background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a Wii skin drawn for a pad with Select and Start is adapted, an iPad-only one too",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior real remote ZIP reader and classification with HTTP 200 fallback",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "does not return an optional preview for an absent orientation layout",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an optional symlink escaping the skin falls back to the background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an invalid optional preview preserves a PDF background as no bitmap",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "preview: the PNG of the orientation, never a PDF background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior real remote ZIP reader and classification with HTTP 206 ranges",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "import and choice go through the skin service, without the libretro parser",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "catalogs: the Dart reader classifies GameCube skins; RetroArch overlays are not offered",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the native overlay reads the same input table and sends the DolphiniOS ids",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the overlay header is safe in the pod umbrella; the reviewed podspec is untouched",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the session reads the files the skin screens write",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/bundled_controller_skins_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "manifest accepts its declared metadata without loading the archives",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "manifest rejects wrong schema, bad rows and duplicate ids",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "manifest never accepts paths outside the bundled skin directory",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior installed manager portrait preview is declared complete art",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "shipped catalog contains exactly Wii and GameCube with intact archives and PNG previews",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior installed manager landscape preview is declared complete art",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior all normal and pressed control assets exist and differ",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview missing safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/pocket_catalog_offline_ui_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview invalid-image safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview parent-traversal safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_catalogs_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion pages, D-pad, buttons, combos, decoration, commands and the game area",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion page rectangles move every image and touch area together",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion untrusted counts and nonfinite geometry fail before allocation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion RetroPad names become the console buttons they press",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion pages meant for no orientation: the first one, in the orientation its path names",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion sticks, Nintendo 64 C buttons, the DS screens and iPad layouts",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "RetroArch overlay conversion overlays NeoStation cannot reproduce faithfully are refused with their reason",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview absolute safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "remote skin inspection reads info.json and the file list with a few kilobytes of range requests",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "remote skin inspection a host ignoring ranges sends the whole archive, read the same way",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "remote skin inspection a ZIP wrapping one skin, and a skin inside a single folder",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "remote skin inspection an unreachable host is a network failure, a file that is not a skin is not",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "remote skin inspection the inspection folder holds info.json and image signatures only",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "bundled entries classify and install offline through normal import without changing selection",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs Provenance entries are attributed to the site they list",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs a download link is the same whatever its spelling",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs links with non-ASCII characters or a literal percent sign never throw",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalog keeps both originals when remote catalogs are offline",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a bundled archive cannot be classified or installed for another console",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs one unusable catalog entry never takes the other entries and sources down",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs the Delta Skins site cards",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs the bundled overlay index: pinned sources, iPhone candidates, exclusions by path",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview backslash safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs sources merged without duplicates, unreachable sources reported",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs verdicts from the real info.json, cached, refreshed when stale or unreachable",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs an overlay is converted, judged by the native filter and installed with its images and license",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview symlink-outside safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "size mismatch refuses bundled classification and import before installation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs composite previews use native layouts, both orientations, cache and no installation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs missing descriptor images never produce a partial preview or installation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs checks cut by closing the catalogs are not cached as unreachable",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unified catalogs favorites persist in Documents/Libretro",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior preview legacy safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior missing A in every device/display/orientation is refused by actual parser",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "digest mismatch refuses bundled classification and import before installation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior alien gameType is rejected, then unsafe/corrupt ZIPs are refused by importer",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket wii production behavior (tearDownAll)",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior (setUpAll)",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior real ZIP importer and directory inspector retain full compatibility",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior real remote ZIP reader and classification with HTTP 200 fallback",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior real remote ZIP reader and classification with HTTP 206 ranges",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "bundled art decodes before remote completion and a favorite survives offline completion",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_catalog_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "catalog entries are parsed, with optional fields left empty",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior installed manager portrait preview is declared complete art",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "entries are filtered by NeoStation console through the catalog system codes",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "search looks at names and authors",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "only links to skin files are direct downloads",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the catalog is fetched once a day, from GitHub when the site fails, and cached",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a link that is not a skin archive is refused before the import",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "store pages, failed requests and oversized files are refused",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a download whose body stops arriving fails after the inactivity limit and leaves nothing",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_service_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior installed manager landscape preview is declared complete art",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior all normal and pressed control assets exist and differ",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "existing painted imports show animation limits without rewriting their metadata",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a valid skin is unpacked, parsed natively and described next to its files",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "importing the same archive again changes nothing",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "unsafe paths and links are refused before anything is written",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a remembered remote source falls back offline and returns when that source is available",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview missing safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "archives with too many entries are refused",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an archive without info.json at its root or in a single folder is refused",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "info.json inside one top-level folder becomes the skin root",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "macOS resource entries are ignored",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview invalid-image safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "size, expansion and image limits are enforced with translated messages",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "files that are not zip archives are refused",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a body that keeps arriving is not cut by the inactivity limit",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a downloaded skin is installed with its link and catalog author",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "native parser codes become translated messages and nothing is installed",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a skin with the same identifier is replaced only after confirmation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a cancelled replacement leaves the installed skin untouched",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview parent-traversal safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a replacement whose new skin cannot be installed keeps the old skin and its selections",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a replacement whose selections cannot move takes the new skin back out",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an archive cannot provide the metadata file NeoStation writes at the skin root",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a .zip wrapping one skin archive installs that skin, with the id of the skin archive",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview absolute safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a .zip of several skins is refused as a pack, and a wrapped skin meets every check",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "deleting a skin makes the native store forget it first",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "selections are stored per console and orientation through the native store",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "every native skin code has a translated message",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview backslash safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "loading /workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_manager_test.dart",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview symlink-outside safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior preview legacy safely falls back to layout background",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior missing A in every device/display/orientation is refused by actual parser",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior alien gameType is rejected, then unsafe/corrupt ZIPs are refused by importer",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Pocket gc production behavior (tearDownAll)",
+      "result": "success",
+      "hidden": true,
+      "skipped": false
+    },
+    {
+      "name": "production canonicalizer maps published GC/Wii controls and rejects unsupported raw names",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a console without imported skin shows the default skin and both choices",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the preview selector shows one orientation larger, whatever the device (Build 448)",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "an installed skin shows its credits and remarks and can be chosen for one orientation",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "deleting a skin asks first, then forgets it natively and removes its folder",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "arrow keys move the focus, Enter activates once and Backspace leaves the page",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "the catalogs hide a skin declaring another console with its reason and install the others",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "Provenance PS1 filter retains DeltaStyles attribution and never appears without candidates",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "on a phone in landscape the filters fold, and the page comes back where it was left (Build 448)",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    },
+    {
+      "name": "a skin imported from Files for another console is announced as such on this page",
+      "result": "success",
+      "hidden": false,
+      "skipped": false
+    }
+  ],
+  "errors": [],
+  "eventLog": "/workspace/scratch/9960148a81e3/recovery_host/targeted_flutter.events.jsonl",
+  "runtime": {
+    "frameworkVersion": "3.47.2",
+    "channel": "stable",
+    "repositoryUrl": "https://github.com/flutter/flutter.git",
+    "frameworkRevision": "d3b14c876900e553bc736ca19295fc09e3853e8e",
+    "frameworkCommitDate": "2026-08-26 16:07:51 -0700",
+    "engineRevision": "a804b261645ef8c13eb3d5c44a5c2fb0340c5539",
+    "engineCommitDate": "2026-08-26 18:46:13.000Z",
+    "engineContentHash": "1cf1c4773fb941c4c74a7f8bb144a8837596c0f4",
+    "engineBuildDate": "2026-08-26 12:23:07.677",
+    "dartSdkVersion": "3.13.2",
+    "devToolsVersion": "2.60.0",
+    "flutterVersion": "3.47.2",
+    "flutterRoot": "/workspace/scratch/9960148a81e3/recovery_host/flutter_sdk"
+  },
+  "nativeUIKitExecuted": false,
+  "iPhoneTested": false,
+  "note": "New execution of reconstructed tests; no claim about the deleted 67-check harness.",
+  "suiteResults": {
+    "/workspace/scratch/9960148a81e3/RewindBox/test/dolphin_pocket_test.dart": {
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/dolphin_skins_test.dart": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/dolphin_skin_preview_images_test.dart": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/bundled_controller_skins_test.dart": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_catalogs_test.dart": {
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/pocket_catalog_offline_ui_test.dart": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_catalog_test.dart": {
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_service_test.dart": {
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0
+    },
+    "/workspace/scratch/9960148a81e3/RewindBox/test/libretro_skin_manager_test.dart": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "runtimeAssets": {
+    "catalog.json": {
+      "size": 1148,
+      "sha256": "3233be3f5b1e43fec996bee08c1f32ff90a07502a2db1d32e45148301081cbb3"
+    },
+    "gamecube-pocket-landscape.png": {
+      "size": 1487399,
+      "sha256": "83cf69978be9df24af2146e75f5c86f0f6cd470b28d3254339f2d32575679956"
+    },
+    "gamecube-pocket-portrait.png": {
+      "size": 1381298,
+      "sha256": "72aa3d6c14dc3240107225e84195c493092d645b5f93524be0b6f64d846dc13e"
+    },
+    "gamecube-pocket.manicskin": {
+      "size": 6053003,
+      "sha256": "d37fbd2138c47a271f37e8b352b76b04624abc8b45e8996ea87dd5886316b13b"
+    },
+    "wii-pocket-landscape.png": {
+      "size": 1412878,
+      "sha256": "29001454b0cd88949f5b31b1a518ca14b5ebfd4050aaac8343f3bf62cca296aa"
+    },
+    "wii-pocket-portrait.png": {
+      "size": 1293204,
+      "sha256": "2f3b53d483a25aa22abbcba91571964f683060a1544b65ea0ea7962cbcea4f09"
+    },
+    "wii-pocket.manicskin": {
+      "size": 5760549,
+      "sha256": "5a8a4db1d7480269c8011939a3dc6d288bd05687f21f24d8d503972aa9c2b9d5"
+    }
+  }
+}

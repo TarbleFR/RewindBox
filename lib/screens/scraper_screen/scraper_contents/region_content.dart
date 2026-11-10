@@ -5,7 +5,9 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/services/screenscraper/scrape_choices.dart';
 import '../../settings_screen/new_settings_options/settings_title.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class RegionContent extends StatefulWidget {
   final bool isContentFocused;
@@ -150,7 +152,9 @@ class RegionContentState extends State<RegionContent> {
   }
 
   Future<void> _saveRegionPriority() async {
-    final success = await ScraperRepository.saveRegionPriority(_orderedRegions);
+    // Another order can choose other pictures: completed games are looked
+    // at again by "New content only" (docs/game-box-3d.md § 18).
+    final success = await ScrapeChoices.saveRegionPriority(_orderedRegions);
     if (success && mounted) {
       widget.onRegionPriorityChanged(_orderedRegions);
     }
@@ -308,7 +312,7 @@ class RegionContentState extends State<RegionContent> {
           decoration: BoxDecoration(
             color: isMovingItem
                 ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                : theme.cardColor.withValues(alpha: 0.25),
+                : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
             borderRadius: BorderRadius.circular(8.r),
             border: Border.all(
               color: isMovingItem

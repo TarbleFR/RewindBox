@@ -1,0 +1,87 @@
+diff --git a/rpcs3/Emu/RSX/Common/simple_array.hpp b/rpcs3/Emu/RSX/Common/simple_array.hpp
+--- a/rpcs3/Emu/RSX/Common/simple_array.hpp
++++ b/rpcs3/Emu/RSX/Common/simple_array.hpp
+@@ -162,6 +162,31 @@
+ 				return;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (_this_is_local != _that_is_local)
++			{
++				// Transfer the heap allocation instead of copying it into the
++				// inline array (including moves into an empty destination).
++				// Only the bounded inline payload needs to change address.
++				auto& local = _this_is_local ? *this : that;
++				auto& heap = _this_is_local ? that : *this;
++				auto* heap_data = heap._data;
++				const u32 heap_capacity = heap._capacity;
++				const u32 heap_size = heap._size;
++				if (local._size)
++				{
++					std::memcpy(heap._local_storage, local._data, local.size_bytes());
++				}
++				heap._data = reinterpret_cast<Ty*>(heap._local_storage);
++				heap._capacity = _local_capacity;
++				heap._size = local._size;
++				local._data = heap_data;
++				local._capacity = heap_capacity;
++				local._size = heap_size;
++				return;
++			}
++#endif
++
+ 			if (!_size)
+ 			{
+ 				*this = that;
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -666,7 +666,25 @@
+ 
+ 		shared_mutex m_cache_mutex;
+ 		ranged_storage m_storage;
++#ifdef RPCS3_IOS
++		// The cache only consumes the encoded identity and invalidation range.
++		// Copy/gather recipes are used from the current request, never the cached
++		// entry. Do not retain and deep-copy their section arrays for every image.
++		static_assert(std::is_pointer_v<image_resource_type>);
++		struct temporary_subresource_key
++		{
++			u64 properties;
++			address_range32 cache_range;
++
++			temporary_subresource_key(const deferred_subresource& desc)
++				: properties(desc.encoded_properties()), cache_range(desc.cache_range) {}
++
++			u64 encoded_properties() const { return properties; }
++		};
++		std::unordered_multimap<u32, std::pair<temporary_subresource_key, image_view_type>> m_temporary_subresource_cache;
++#else
+ 		std::unordered_multimap<u32, std::pair<deferred_subresource, image_view_type>> m_temporary_subresource_cache;
++#endif
+ 		std::vector<image_view_type> m_uncached_subresources;
+ 		predictor_type m_predictor;
+ 
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -392,7 +392,18 @@
+ 		{
+ 			const auto first = std::lower_bound(m_address_index.begin(), m_address_index.end(), address,
+ 				[](const address_entry& entry, u32 value) { return entry.address < value; });
+-			const auto last = std::upper_bound(first, m_address_index.end(), address,
++			if (first == m_address_index.end() || first->address != address)
++			{
++				return {first, first};
++			}
++			// Most addresses name one section. Avoid a second binary search for
++			// that case; duplicate addresses retain their exact ordered range.
++			const auto next = first + 1;
++			if (next == m_address_index.end() || next->address != address)
++			{
++				return {first, next};
++			}
++			const auto last = std::upper_bound(next + 1, m_address_index.end(), address,
+ 				[](u32 value, const address_entry& entry) { return value < entry.address; });
+ 			return {first, last};
+ 		}

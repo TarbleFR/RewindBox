@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "phase": "reboot-timer-feedback",
+  "baseline_local_commit": "b9346b59ee53",
+  "original_compiled_core": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
+  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8",
+  "canonical_postimages": 326,
+  "changed_since_previous_local_commit": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c"
+    },
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": {
+      "before": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "after": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
+    },
+    "rpcs3/ios/IOSRestoreExecutor.h": {
+      "before": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
+      "after": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456"
+    },
+    "rpcs3/ios/NeoStationSavestateStatus.h": {
+      "before": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692",
+      "after": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+    },
+    "rpcs3/ios/RPCS3IOS.cpp": {
+      "before": "f10ba0eb66a08a1b0254e1f64103a23cc35942c6cec23defe2641ec539a26a0d",
+      "after": "8b233678d5ae264444cbef28d6e03e61c60d9e87089ec417b9aa57a137c87651"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+      "after": "e75e91136414e7a28be5edb209ff3b0df13bfcf85bb4409171cec591ae03e58e"
+    },
+    "rpcs3/Emu/Cell/lv2/sys_process.cpp": {
+      "before": null,
+      "after": "4dfc45d978c42b8615eae6a36fecd44ec84547e3e2d838ff0c561f7b40a0005e"
+    }
+  },
+  "unchanged_postimages_since_previous_local_commit": 319,
+  "fresh_materialization_verified": true,
+  "abi_version": 30,
+  "export_count": 88,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "workflow_changed": false,
+  "core_build_recipe_changed": false,
+  "core_compiled": false,
+  "ipa_built": false,
+  "ci_dispatched": false,
+  "pushed": false,
+  "release_published": false,
+  "physical_device_tested": false,
+  "game_fix_or_fps_gain_claimed": false,
+  "known_cost": "One additional copy per newly covered single-TEX attachment-feedback draw; actual GPU cost unmeasured."
+}

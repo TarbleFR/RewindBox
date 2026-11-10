@@ -1,0 +1,83 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "scenarios": 500,
+      "assertions": 22464,
+      "digest": -357844444713196487,
+      "measurements": [
+        {
+          "name": "attachment-first",
+          "iterations": 100000,
+          "allocatedBytes": 8800000,
+          "nanoseconds": 58.47129
+        },
+        {
+          "name": "attachment-last",
+          "iterations": 100000,
+          "allocatedBytes": 8800000,
+          "nanoseconds": 49.26659
+        },
+        {
+          "name": "attachment-miss",
+          "iterations": 100000,
+          "allocatedBytes": 8800000,
+          "nanoseconds": 39.25619
+        },
+        {
+          "name": "fence-duplicate",
+          "iterations": 100000,
+          "allocatedBytes": 8800000,
+          "nanoseconds": 18.03575
+        }
+      ]
+    },
+    "candidate": {
+      "scenarios": 500,
+      "assertions": 22464,
+      "digest": -357844444713196487,
+      "measurements": [
+        {
+          "name": "attachment-first",
+          "iterations": 100000,
+          "allocatedBytes": 0,
+          "nanoseconds": 4.91946
+        },
+        {
+          "name": "attachment-last",
+          "iterations": 100000,
+          "allocatedBytes": 0,
+          "nanoseconds": 13.29633
+        },
+        {
+          "name": "attachment-miss",
+          "iterations": 100000,
+          "allocatedBytes": 0,
+          "nanoseconds": 14.32605
+        },
+        {
+          "name": "fence-duplicate",
+          "iterations": 100000,
+          "allocatedBytes": 0,
+          "nanoseconds": 4.08253
+        }
+      ]
+    }
+  },
+  "completeProductionClass": true,
+  "gpuDispatchDoubled": true,
+  "gpuResourcesDoubled": true,
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_renderpass_queries.py": "cae8145f832ee6a4159d03a41d2e6817e0f4fa72e58cf3d0804e345a3a38bf49",
+    "test/melonx_renderpass_queries_test.py": "a5597cae6953b7451d8cbf57b509b49a9560a83e076af55b354351338469fd95",
+    "test/melonx_renderpass_queries/Program.cs": "8228c1d7bd510a324787df0fb2148d98174b1ac526bdf1c64c0a3bbcd462d8c3",
+    "test/melonx_renderpass_queries/Boundaries.cs": "35f6b6a9534777b096c3aec813ed78d74b1e090111f246fa9ba14817ffcc9ba4"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/RenderPassHolder.cs": "1cfd52e088a74d4eaa2f3035ae6c2c14abd026d51b645cca6ab2b4b1cbae9684"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/RenderPassHolder.cs": "a3b2cdb55d2a22ca1aa6564b6e3220cc8c7c7b360353eadfca3c247a3d5040d6"
+  }
+}

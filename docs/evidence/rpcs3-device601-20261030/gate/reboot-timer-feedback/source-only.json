@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "phase": "reboot-timer-feedback",
+  "current_postimages": 326,
+  "changed_paths": [
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+    "rpcs3/Emu/Cell/SPUThread.cpp",
+    "rpcs3/Emu/Cell/lv2/sys_process.cpp",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+    "rpcs3/Emu/RSX/rsx_cache.h",
+    "rpcs3/ios/IOSRestoreExecutor.h",
+    "rpcs3/ios/NeoStationSavestateStatus.h",
+    "rpcs3/ios/RPCS3IOS.cpp"
+  ],
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "abi_exports": 88,
+  "historical_receipt_authenticated": true,
+  "historical_archives_authenticated": false,
+  "native_executed_now": 0,
+  "apple_executed_now": 0
+}

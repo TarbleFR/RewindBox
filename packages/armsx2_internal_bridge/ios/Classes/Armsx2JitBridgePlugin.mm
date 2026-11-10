@@ -21,7 +21,11 @@ static void ARMSX2Diagnostic(NSString* stage, NSString* message) {
     NSURL* documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
         inDomains:NSUserDomainMask].firstObject;
     if (documents == nil) return;
-    NSString* path = [documents URLByAppendingPathComponent:@"armsx2_jit_debug.log"].path;
+    NSURL* diagnostics = [[documents URLByAppendingPathComponent:@"Diagnostics" isDirectory:YES]
+        URLByAppendingPathComponent:@"PS2" isDirectory:YES];
+    [NSFileManager.defaultManager createDirectoryAtURL:diagnostics
+        withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString* path = [diagnostics URLByAppendingPathComponent:@"armsx2_jit_debug.log"].path;
     FILE* file = fopen(path.fileSystemRepresentation, "a");
     if (file == NULL) return;
     fseek(file, 0, SEEK_END);

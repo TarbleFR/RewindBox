@@ -6,6 +6,7 @@ import '../repositories/retro_achievements_repository.dart';
 import '../repositories/system_repository.dart';
 import '../utils/optimized_md5_utils.dart';
 import 'archive_service.dart';
+import 'retro_achievements_identity.dart';
 
 /// Service responsible for generating system-specific hashes required by
 /// RetroAchievements (RA) for game identification.
@@ -20,36 +21,82 @@ class RetroAchievementsHashService {
 
   static final _log = LoggerService.instance;
 
+  /// Where identification results are kept (application database; tests
+  /// replace it with a memory store).
+  static RetroAchievementsIdentityStore identityStore = const SqlRetroAchievementsIdentityStore();
+
+  /// Replaces the bundled hash list (application database) in tests.
+  @visibleForTesting
+  static Future<int?> Function(String hash, String consoleId)? bundledLookupOverride;
+
+  /// RetroAchievements console id of a library system (its `ra_id`).
+  @visibleForTesting
+  static Future<int?> Function(String systemFolderName)? consoleIdOverride;
+  static final Map<String, int?> _consoleIds = {};
+
+  static Future<int?> raConsoleId(String? systemFolderName) async {
+    if (systemFolderName == null || systemFolderName.isEmpty) return null;
+    final override = consoleIdOverride;
+    if (override != null) return override(systemFolderName);
+    if (_consoleIds.containsKey(systemFolderName)) return _consoleIds[systemFolderName];
+    int? id;
+    try {
+      final system = await SystemRepository.getSystemByFolderName(systemFolderName);
+      id = int.tryParse(system?.raId ?? '');
+    } catch (e) {
+      _log.w('RetroAchievements console id unavailable for $systemFolderName: $e');
+      return null;
+    }
+    _consoleIds[systemFolderName] = id;
+    return id;
+  }
+
   /// Generates the appropriate RA hash for a specific game if not already present.
   ///
-  /// Checks local cache (SQLite) before attempting generation. Handles temporary
-  /// extraction for compressed files and offloads the MD5 calculation to an
-  /// isolate via [compute].
+  /// On iOS the hash is computed by rcheevos itself, with the same code and
+  /// the same .chd/.cso reader as the emulators (NEOSTATION_RA_DISC_READER_V1):
+  /// discs (PlayStation, Saturn, Dreamcast...) are hashed the way
+  /// RetroAchievements expects, whatever their size. Hashes computed by the
+  /// older Dart code are recomputed once. Elsewhere, the Dart implementation
+  /// is used (cartridge rules; discs fall back to a whole-file MD5).
   static Future<String?> generateHashForGame(GameModel game) async {
     try {
-      if (game.raHash != null && game.raHash!.isNotEmpty) {
+      final romPath = game.romPath;
+      if (romPath == null) return null;
+      final consoleId = await raConsoleId(game.systemFolderName);
+      final native = RetroAchievementsNativeHash.available && consoleId != null && consoleId > 0;
+
+      if (native) {
+        RomIdentityRecord? record;
+        try {
+          record = await identityStore.rom(romPath);
+        } catch (e) {
+          _log.w('RetroAchievements identity unavailable: $e');
+        }
+        final stored = record?.hash;
+        if (stored != null && stored.isNotEmpty && record!.algorithm >= RetroAchievementsNativeHash.algorithm) {
+          return stored;
+        }
+      } else if (game.raHash != null && game.raHash!.isNotEmpty) {
         return game.raHash;
       }
 
-      if (game.romPath == null) return null;
-
-      if (!await OptimizedMd5Utils.fileExists(game.romPath!)) {
+      if (!await OptimizedMd5Utils.fileExists(romPath)) {
         return null;
       }
 
-      final existingHash = await RetroAchievementsRepository.getRomRaHash(
-        game.romPath!,
-      );
-      if (existingHash != null && existingHash.isNotEmpty) {
-        return existingHash;
+      if (!native) {
+        final existingHash = await RetroAchievementsRepository.getRomRaHash(romPath);
+        if (existingHash != null && existingHash.isNotEmpty) {
+          return existingHash;
+        }
+        final fileSize = await OptimizedMd5Utils.getFileSize(romPath);
+        if (fileSize > maxFileSizeBytes) {
+          return null;
+        }
       }
 
-      final fileSize = await OptimizedMd5Utils.getFileSize(game.romPath!);
-      if (fileSize > maxFileSizeBytes) {
-        return null;
-      }
-
-      String romPathToProcess = game.romPath!;
+      String romPathToProcess = romPath;
       final bool isArchive =
           (romPathToProcess.toLowerCase().endsWith('.zip') ||
               romPathToProcess.toLowerCase().endsWith('.7z')) &&
@@ -70,33 +117,38 @@ class RetroAchievementsHashService {
         }
       }
 
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      final isolateToken = RootIsolateToken.instance!;
-      final hash = await compute(_generateHashForSystemIsolate, {
-        'romPath': romPathToProcess,
-        'systemFolderName': game.systemFolderName,
-        'gameName': game.name,
-        'token': isolateToken,
-      });
-
-      if (isArchive) {
-        await ArchiveService.cleanupTempFolder(
-          game.systemFolderName ?? 'unknown',
-          game.romPath!,
-        );
+      String? hash;
+      try {
+        if (native) {
+          hash = await RetroAchievementsNativeHash.hash(romPathToProcess, consoleId);
+        } else {
+          await Future.delayed(const Duration(milliseconds: 500));
+          final isolateToken = RootIsolateToken.instance!;
+          hash = await compute(_generateHashForSystemIsolate, {
+            'romPath': romPathToProcess,
+            'systemFolderName': game.systemFolderName,
+            'gameName': game.name,
+            'token': isolateToken,
+          });
+        }
+      } finally {
+        if (isArchive) {
+          await ArchiveService.cleanupTempFolder(
+            game.systemFolderName ?? 'unknown',
+            romPath,
+          );
+        }
       }
 
       if (hash != null && hash.isNotEmpty) {
-        await RetroAchievementsRepository.updateRomRaHash(game.romPath!, hash);
-
-        if (game.systemFolderName != null) {
-          final system = await SystemRepository.getSystemByFolderName(
-            game.systemFolderName!,
-          );
-          if (system != null && system.raId != null) {
-            await _lookupAndSaveGameIdByHash(hash, system.raId!, game);
-          }
+        if (native) {
+          await identityStore.saveHash(romPath, hash, consoleId: consoleId,
+            algorithm: RetroAchievementsNativeHash.algorithm);
+        } else {
+          await RetroAchievementsRepository.updateRomRaHash(romPath, hash);
+        }
+        if (consoleId != null) {
+          await _lookupAndSaveGameIdByHash(hash, consoleId.toString(), game);
         }
       }
 
@@ -107,79 +159,18 @@ class RetroAchievementsHashService {
     }
   }
 
-  /// Batch processes hashes for a list of games in the background.
-  ///
-  /// Skips games with existing hashes or those exceeding the size limit.
+  /// Batch processes hashes for a list of games in the background, with the
+  /// same rules (and cache) as [generateHashForGame].
   static Future<int> processGamesHashesInBackground(
     List<GameModel> games,
   ) async {
     int hashesGenerated = 0;
-
-    try {
-      for (final game in games) {
-        if (game.raHash != null && game.raHash!.isNotEmpty) {
-          continue;
-        }
-
-        if (!await OptimizedMd5Utils.fileExists(game.romPath!)) {
-          _log.w('File not found: ${game.romPath}');
-          continue;
-        }
-
-        final fileSize = await OptimizedMd5Utils.getFileSize(game.romPath!);
-        if (fileSize > maxFileSizeBytes) {
-          continue;
-        }
-
-        String romPathToProcess = game.romPath!;
-        final bool isArchive =
-            (romPathToProcess.toLowerCase().endsWith('.zip') ||
-                romPathToProcess.toLowerCase().endsWith('.7z')) &&
-            !isArcadeSystem(game.systemFolderName);
-
-        if (isArchive) {
-          final extractedPath = await ArchiveService.extractRom(
-            romPathToProcess,
-            game.systemFolderName ?? 'unknown',
-          );
-          if (extractedPath != null) {
-            romPathToProcess = extractedPath;
-          } else {
-            continue;
-          }
-        }
-
-        String? hash;
-        try {
-          hash = await _generateHashForSystem(
-            game,
-            overrideRomPath: romPathToProcess,
-          );
-        } catch (e) {
-          _log.e('Error generating hash for ${game.name}: $e');
-        } finally {
-          if (isArchive) {
-            await ArchiveService.cleanupTempFolder(
-              game.systemFolderName ?? 'unknown',
-              game.romPath!,
-            );
-          }
-        }
-
-        if (hash == null) continue;
-
-        if (hash.isNotEmpty) {
-          await RetroAchievementsRepository.updateRomRaHash(
-            game.romPath!,
-            hash,
-          );
-          hashesGenerated++;
-        }
-      }
-    } catch (e) {
-      _log.e('Error in processGamesHashesInBackground: $e');
+    for (final game in games) {
+      if (game.romPath == null) continue;
+      final before = game.raHash;
+      final hash = await generateHashForGame(game);
+      if (hash != null && hash.isNotEmpty && hash != before) hashesGenerated++;
     }
-
     return hashesGenerated;
   }
 
@@ -272,8 +263,15 @@ class RetroAchievementsHashService {
     try {
       String? hash;
 
-      if (systemFolder == 'nes' || systemFolder == 'fc') {
+      if (systemFolder == 'nes' || systemFolder == 'fc' ||
+          systemFolder == 'famicom' || systemFolder == 'fds') {
         hash = await OptimizedMd5Utils.calculateNesMd5(romPath);
+      } else if (systemFolder == 'pcengine' || systemFolder == 'pce' ||
+          systemFolder == 'tg16' || systemFolder == 'sgx' ||
+          systemFolder == 'supergrafx') {
+        // Same rule as rcheevos: a copier header makes the size 512 bytes
+        // over a multiple of 1 KiB.
+        hash = await OptimizedMd5Utils.calculatePceMd5(romPath);
       } else if (systemFolder == 'ds') {
         hash = await OptimizedMd5Utils.calculateDsMd5(romPath);
       } else if (systemFolder == 'arc' ||
@@ -311,60 +309,6 @@ class RetroAchievementsHashService {
     }
   }
 
-  /// Resolves the specific hashing algorithm for a system and executes it.
-  static Future<String?> _generateHashForSystem(
-    GameModel game, {
-    String? overrideRomPath,
-  }) async {
-    final systemFolder = game.systemFolderName?.toLowerCase() ?? '';
-    final romPath = overrideRomPath ?? game.romPath!;
-
-    try {
-      String? hash;
-
-      if (systemFolder == 'nes' ||
-          systemFolder == 'famicom' ||
-          systemFolder == 'fds') {
-        hash = await OptimizedMd5Utils.calculateNesMd5(romPath);
-      } else if (systemFolder == 'ds') {
-        hash = await OptimizedMd5Utils.calculateDsMd5(romPath);
-      } else if (systemFolder == 'arc' ||
-          systemFolder == 'fbneo' ||
-          systemFolder == 'neogeo' ||
-          systemFolder == 'mame') {
-        hash = OptimizedMd5Utils.calculateArcadeMd5(romPath);
-      } else if (systemFolder == 'snes' ||
-          systemFolder == 'sfc' ||
-          systemFolder == 'satellaview') {
-        hash = await OptimizedMd5Utils.calculateSnesMd5(romPath);
-      } else if (systemFolder == '7800') {
-        hash = await OptimizedMd5Utils.calculateAtari7800Md5(romPath);
-      } else if (systemFolder == 'lynx') {
-        hash = await OptimizedMd5Utils.calculateLynxMd5(romPath);
-      } else if (systemFolder == 'ard') {
-        hash = await OptimizedMd5Utils.calculateArduboyMd5(romPath);
-      } else if (systemFolder == 'n64') {
-        hash = await OptimizedMd5Utils.calculateN64Md5(romPath);
-      } else {
-        hash = await OptimizedMd5Utils.calculateFileMd5(romPath);
-      }
-
-      final system = await SystemRepository.getSystemByFolderName(
-        game.systemFolderName!,
-      );
-      if (system == null) return hash;
-      final raId = system.raId;
-      if (raId != null) {
-        await _lookupAndSaveGameIdByHash(hash, raId, game);
-      }
-
-      return hash;
-    } catch (e) {
-      _log.e('Error generating hash for system $systemFolder: $e');
-      return null;
-    }
-  }
-
   /// Searches for the RetroAchievements Game ID in the local database using the
   /// generated hash and updates the game metadata.
   static Future<void> _lookupAndSaveGameIdByHash(
@@ -373,6 +317,11 @@ class RetroAchievementsHashService {
     GameModel game,
   ) async {
     try {
+      final override = bundledLookupOverride;
+      if (override != null) {
+        await override(raHash, raConsoleId);
+        return;
+      }
       final gameId = await RetroAchievementsRepository.getGameIdByHash(
         raHash,
         raConsoleId,

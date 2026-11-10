@@ -5,6 +5,7 @@
 #import <objc/runtime.h>
 #import "NeoUnifiedCheatBrowser.h"
 #import "Public/NeoUnifiedCheatCatalog.h"
+#import "Public/RBLiquidProgressView.h"
 #import "LibretroCheatMenu.h"
 #import "LibretroCheats.h"
 #import "LibretroSessionMenu.h"
@@ -282,7 +283,7 @@ static void NUCBExchangeSingleton(void) {
     [self selectSection:0 row:0]; [self selectSection:0 row:0]; XCTAssertEqual(self.catalog.installs, 1U);
     self.catalog.installProgress(@{@"total_packs": @2, @"completed_packs": @1, @"failed_packs": @0, @"total_bytes": @1000, @"completed_bytes": @250});
     UITableViewCell *progress = [self.browser tableView:self.browser.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:0]];
-    UIProgressView *progressView = [progress valueForKey:@"progressView"];
+    RBLiquidProgressView *progressView = [progress valueForKey:@"progressView"];
     UILabel *progressLabel = [progress valueForKey:@"progressLabel"];
     XCTAssertEqualWithAccuracy(progressView.progress, 0.25, 0.001);
     XCTAssertTrue([progressLabel.text containsString:@"1 / 2"]);
@@ -1063,7 +1064,10 @@ static void NUCBExchangeSingleton(void) {
     NeoUnifiedCheatList *list=[self directListWithItems:@[]];self.catalog.holdCheats=YES;
     __block NSUInteger mutations=0;list.install=^(NSDictionary *g,NSArray *p,void (^done)(NSDictionary*,NSError*)){mutations++;};list.setEnabled=^(NSDictionary *i,BOOL e,void (^done)(BOOL)){mutations++;};
     [list reloadCheats];[self waitFor:^BOOL{return self.catalog.cheatsCompletion!=nil;}];void (^late)(NSArray*,NSError*)=self.catalog.cheatsCompletion;
-    [self.navigation popViewControllerAnimated:NO];NSUInteger oldRows=[[list valueForKey:@"rows"] count];late(@[[self program:@"late" dependencies:@[]]],nil);
+    // UIKit may finish a non-animated pop on the next layout pass: deliver the
+    // late parts once the list has really closed.
+    [self.navigation popViewControllerAnimated:NO];[self waitFor:^BOOL{return [[list valueForKey:@"closed"] boolValue];}];
+    NSUInteger oldRows=[[list valueForKey:@"rows"] count];late(@[[self program:@"late" dependencies:@[]]],nil);
     [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.1]];
     XCTAssertEqual([[list valueForKey:@"rows"] count],oldRows);XCTAssertEqual(mutations,0U);
 }

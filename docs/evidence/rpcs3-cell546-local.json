@@ -1,0 +1,211 @@
+{
+  "result": "passed",
+  "source": "343649293c6c0d3b945dd9c1dd9a42090a385066",
+  "executors": {
+    "linux-x86_64-local": {
+      "compiler": "g++ (ASan+UBSan)",
+      "corpus": {
+        "path": "/usr/libexec/gcc/x86_64-linux-gnu/13/cc1plus",
+        "bytes": 32675168,
+        "sampleOffset": 8168792,
+        "sampleBytes": 6665088,
+        "sampleSHA256": "db7622b06b3b80e236172d4b99c6a7207806e7747716718cc6e4115d5674df81",
+        "kind": "host machine code; timings are host timings, not iPhone ones"
+      },
+      "scenarios": {
+        "ios": {
+          "failures": 0,
+          "platform": "ios",
+          "sampleBytes": 6665088,
+          "jitObject": {
+            "after": {
+              "level": 1,
+              "bytes": 2980674,
+              "bestMs": 119.83,
+              "productionReaderRoundTrip": true
+            },
+            "before": {
+              "level": 9,
+              "bytes": 2768418,
+              "bestMs": 687.489,
+              "productionReaderRoundTrip": true
+            },
+            "speedup": 5.737,
+            "sizeRatio": 1.0767
+          },
+          "threadedLargeBuffer": {
+            "afterLevel": 1,
+            "beforeLevel": 8
+          },
+          "restoreTrace": {
+            "withoutRestoreAfter": 0,
+            "withoutRestoreBefore": 3,
+            "beforeElapsedWasUptime": true,
+            "restoreFxoLines": 512,
+            "restoreFsLines": 256,
+            "limitsLogged": true,
+            "maxElapsedUs": 43520,
+            "sameAsBefore": true,
+            "otherThreadAfterRestore": 0
+          }
+        },
+        "other": {
+          "failures": 0,
+          "platform": "other",
+          "sampleBytes": 6665088,
+          "jitObject": {
+            "after": {
+              "level": 9,
+              "bytes": 2768418,
+              "bestMs": 638.041,
+              "productionReaderRoundTrip": true
+            },
+            "before": {
+              "level": 9,
+              "bytes": 2768418,
+              "bestMs": 672.301,
+              "productionReaderRoundTrip": true
+            },
+            "speedup": 1.054,
+            "sizeRatio": 1.0
+          },
+          "threadedLargeBuffer": {
+            "afterLevel": 8,
+            "beforeLevel": 8
+          },
+          "restoreTrace": {
+            "withoutRestoreAfter": 0,
+            "withoutRestoreBefore": 3,
+            "beforeElapsedWasUptime": true,
+            "restoreFxoLines": 512,
+            "restoreFsLines": 256,
+            "limitsLogged": true,
+            "maxElapsedUs": 43520,
+            "sameAsBefore": true,
+            "otherThreadAfterRestore": 0
+          }
+        }
+      }
+    },
+    "macos-15-arm64-ci": {
+      "run": 40230183096,
+      "artifact": 12612733671,
+      "artifactSHA256": "4f7dc97dc6d90cf88cb981250e6634ff54512b2d9b80a90221fa7bded28b7649",
+      "corpus": {
+        "path": "/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+        "bytes": 264942528,
+        "sampleOffset": 66235632,
+        "sampleBytes": 6665088,
+        "sampleSHA256": "bd8053d50c302a1b59541d4cf2e3445d1660fd14322058770cf55955d33ccbca",
+        "kind": "host machine code; timings are host timings, not iPhone ones"
+      },
+      "scenarios": {
+        "ios": {
+          "failures": 0,
+          "platform": "ios",
+          "sampleBytes": 6665088,
+          "jitObject": {
+            "after": {
+              "level": 1,
+              "bytes": 3720818,
+              "bestMs": 128.183,
+              "productionReaderRoundTrip": true
+            },
+            "before": {
+              "level": 9,
+              "bytes": 3477677,
+              "bestMs": 565.675,
+              "productionReaderRoundTrip": true
+            },
+            "speedup": 4.413,
+            "sizeRatio": 1.0699
+          },
+          "threadedLargeBuffer": {
+            "afterLevel": 1,
+            "beforeLevel": 8
+          },
+          "restoreTrace": {
+            "withoutRestoreAfter": 0,
+            "withoutRestoreBefore": 3,
+            "beforeElapsedWasUptime": true,
+            "restoreFxoLines": 512,
+            "restoreFsLines": 256,
+            "limitsLogged": true,
+            "maxElapsedUs": 43520,
+            "sameAsBefore": true,
+            "otherThreadAfterRestore": 0
+          }
+        },
+        "other": {
+          "failures": 0,
+          "platform": "other",
+          "sampleBytes": 6665088,
+          "jitObject": {
+            "after": {
+              "level": 9,
+              "bytes": 3477677,
+              "bestMs": 534.836,
+              "productionReaderRoundTrip": true
+            },
+            "before": {
+              "level": 9,
+              "bytes": 3477677,
+              "bestMs": 561.586,
+              "productionReaderRoundTrip": true
+            },
+            "speedup": 1.05,
+            "sizeRatio": 1.0
+          },
+          "threadedLargeBuffer": {
+            "afterLevel": 8,
+            "beforeLevel": 8
+          },
+          "restoreTrace": {
+            "withoutRestoreAfter": 0,
+            "withoutRestoreBefore": 3,
+            "beforeElapsedWasUptime": true,
+            "restoreFxoLines": 512,
+            "restoreFsLines": 256,
+            "limitsLogged": true,
+            "maxElapsedUs": 43520,
+            "sameAsBefore": true,
+            "otherThreadAfterRestore": 0
+          }
+        }
+      },
+      "coreProofAllTestsPassed": true
+    }
+  },
+  "foundationLogger": {
+    "run": "40230183096",
+    "source": "343649293c6c0d3b945dd9c1dd9a42090a385066",
+    "results": {
+      "after": {
+        "returncode": 0,
+        "stdout": "milestones current=251 previous=451\ntimeline row bytes=1909\n"
+      },
+      "before": {
+        "returncode": -6,
+        "stdout": "milestones current=250 previous=0\n"
+      }
+    },
+    "scope": "Actual Foundation logger: 701 milestones across a 512 KiB rotation with the earlier record kept (545 control loses it), 1000 restore steps in their own bounded file without touching the diagnostic or milestone files, reopen after export, compact timeline rows (complete and incomplete)."
+  },
+  "buildLogEvidence": {
+    "build": "541",
+    "pid": 31545,
+    "title": "BLES01658",
+    "session4": {
+      "ppu_cache_write": "1:3578.573:3578.573:6665088",
+      "ppu_codegen": "1:6927.308:6927.308:0",
+      "note": "JITPROF phases are exclusive (JITPhaseProfile.h subtracts nested scopes): the cache write runs during generateCodeForModule but its 3578.573 ms add to the 6927.308 ms of ppu_codegen (~10.5 s for the module)"
+    },
+    "session2": {
+      "ppu_cache_write": "21:8502.708:573.797:18451224",
+      "ppu_codegen": "21:178766.993:11302.733:0",
+      "note": "exclusive phase times; ppu_codegen is summed over compile threads"
+    }
+  },
+  "physicalDeviceTested": false,
+  "fpsClaimed": false
+}

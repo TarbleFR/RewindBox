@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "sanitized": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "results": {
+    "beforeLookupSHA256": "834e8cf3904ce88ee458477e21620c075719c6b2721e8619b32a089e4a6509e7",
+    "beforeDirtyBlockSHA256": "efff8a51f88143707b2bba1f17bfdd676cf5f1308f52f9d6e6c2c7e96c6b2cce",
+    "afterLookupSHA256": "a5c42d2d32987fb180ce1307357589620d48ce6da40b0a9b5af88e8483b419d4",
+    "afterDirtyBlockSHA256": "00847a6d0f878ace4f212a3479e8fdb0ebd294626e5a727e153353a9ad0f2b43",
+    "beforeHashSHA256": "096df7690f09bf56996bc76792cbf780ab103a1a495b3ebb009222f0d61912a2",
+    "afterHashSHA256": "065ec1b52ffc2b69bef18d66c6cb02d3bcc124048759ee697aa80a1cd8888913",
+    "fixture": {
+      "beforePipelineBuilds": 8,
+      "afterPipelineBuilds": 1,
+      "requests": 1000,
+      "beforeRepeatedDecodes": 1000,
+      "afterRepeatedDecodes": 1
+    },
+    "pipelineHashCases": {
+      "deterministicCollisionsBefore": 4,
+      "deterministicCollisionsAfter": 0,
+      "equalMaskVariants": 4096,
+      "legacyPropertiesLayoutPreserved": true
+    }
+  },
+  "scope": "Actual production lookup, Vulkan output-mask validation and dirty-state block; portable compiler/GPU adapters. Constructed equivalent-mask sequence, not a replay of device draw calls or a measured FPS gain."
+}

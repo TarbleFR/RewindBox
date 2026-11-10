@@ -1,0 +1,15 @@
+{
+  "canonical_patch_sha256": "5ba1424bcd40afc96f3263e236d84ed643cb7aac15cbcd1fb513e85d24e27ec8",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonical_postimages_verified": 319,
+  "fresh_materialization_passed": true,
+  "host_loaded_exports_passed": true,
+  "source_recipe_abi_contract_passed": true,
+  "binary_pin_checked": false,
+  "inverse_delta_matches_baseline": true,
+  "native_or_cmake_reexecuted_by_integration": false,
+  "python_syntax_files": 13,
+  "deep_contract_sha256": "895362255530de79ac66ba1bf5c8a814921789ce54e3d299e612eed3f7d93cf6",
+  "deep_contract_report_sha256": "1b9ed2fc19fc2c1319ffa9c2ea7470e99767be8c9ff014a5d82dc19da0722448",
+  "scope": "Source integration and recorded evidence authentication only; no Apple, full LLVM, GPU or device execution."
+}

@@ -4,6 +4,7 @@
 Exercises an original non-graphical homebrew in Simulator only.
 No physical-device signing, helper, personal content or gameplay proof is inferred.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -15,10 +16,51 @@ import tempfile
 import time
 import uuid
 
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--require-performance-diagnostics',action='store_true',
+                    help='Require final schema-1 collector metrics for both fresh NativeAOT sessions.')
+args=parser.parse_args()
+
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'dist/melonx-smoke';OUT.mkdir(parents=True,exist_ok=True)
 def run(*args): return subprocess.check_output(list(map(str,args)),text=True,stderr=subprocess.STDOUT,timeout=300).strip()
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+
+def retain_runtime_evidence(result,container,runtime,core,sources,pid,device):
+ # Persist the primary app outcome before optional diagnostics can time out.
+ missing=not result.exists()
+ if not missing:
+  raw=result.read_bytes();(OUT/'smoke-raw.json').write_bytes(raw)
+  try:report=json.loads(raw)
+  except (ValueError,UnicodeError):report={'result':'failed','diagnostic':'Actual NativeAOT app wrote an invalid smoke report'}
+ else:report={'result':'failed','diagnostic':'Actual NativeAOT bootstrap did not report completion'}
+ report['runtime']=runtime;report['coreSha256']=sha(core)
+ report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in sources}
+ target=OUT/'actual-runtime.json'
+ target.write_text(json.dumps(report,indent=2)+'\n')
+ diagnostics=[]
+ for name in ('native-runtime.log','app.log'):
+  try:
+   path=container/'Documents'/name
+   if path.exists():
+    text=path.read_text(errors='replace')[-1000000:];(OUT/name).write_text(text)
+    if name=='native-runtime.log':print(text[-20000:],flush=True)
+  except OSError as error:diagnostics.append(name+': '+type(error).__name__)
+ if report.get('result')!='passed':
+  try:
+   sampled=subprocess.run(['sample',pid,'1','1','-file',str(OUT/'native-stacks.txt')],capture_output=True,text=True,timeout=20)
+   diagnostics.append('sample exit '+str(sampled.returncode))
+   if (OUT/'native-stacks.txt').exists():print((OUT/'native-stacks.txt').read_text(errors='replace')[:70000],flush=True)
+  except (subprocess.TimeoutExpired,OSError) as error:diagnostics.append('sample: '+type(error).__name__)
+  if missing:
+   try:
+    logged=subprocess.run(['xcrun','simctl','spawn',device,'log','show','--last','5m','--predicate','process == "MeloNXSmoke"'],capture_output=True,text=True,timeout=20)
+    (OUT/'simulator.log').write_text(logged.stdout);diagnostics.append('simulator log exit '+str(logged.returncode))
+   except (subprocess.TimeoutExpired,OSError) as error:diagnostics.append('simulator log: '+type(error).__name__)
+ if diagnostics:
+  report['diagnosticCollection']=diagnostics;target.write_text(json.dumps(report,indent=2)+'\n')
+ return report
+
 core=ROOT/'dist/melonx/iossimulator-arm64/Ryujinx.Library.dylib'
 identity=json.loads(core.with_name('identity.json').read_text());assert sha(core)==identity['sha256']
 deps=ROOT/'dist/melonx-native';native=json.loads((deps/'identity.json').read_text())
@@ -45,6 +87,8 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
      let log=documents.appendingPathComponent("native-runtime.log")
      log.path.withCString { _ = freopen($0,"w",stderr) }
      var report:[String:Any]=["actualNativeAOT":true,"gameplayTested":false,"jitTested":false]
+     let requirePerformanceDiagnostics = __REQUIRE_PERFORMANCE_DIAGNOSTICS__
+     if requirePerformanceDiagnostics {report["performanceDiagnosticsRequired"]=true}
      var observedRuntime:MeloNXRuntimeAPI?
      do {
        let frameworks=Bundle.main.privateFrameworksURL!
@@ -134,6 +178,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          try runtime.prepareGraphics(["aspectRatio":ratio,"hostMemoryBudget":true,"textureRecompression":true,"showRamGraph":true],universalJit:false)
        }
        guard !runtime.setAspectRatio(5,generation:12345) else {throw NSError(domain:"stale-display-generation",code:20)}
+       // The RAM overlay's game FPS export: resolved in the actual image and
+       // refused for a generation that is not live.
+       guard runtime.providesPerformanceSnapshot,runtime.performanceSnapshot(generation:12345).isEmpty else {throw NSError(domain:"performance-snapshot-export",code:24)}
        NSLog("SMOKE boundary 118")
        try runtime.prepareGraphics(["aspectRatio":1],universalJit:false)
        report["displayAndMemoryConfigurationAccepted"]=true
@@ -151,14 +198,21 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let events=diagnostics["events"] as? [[String:Any]] ?? []
        guard events.contains(where:{$0["stage"] as? String == "jitArena" && $0["status"] as? String == "passed"}) else {throw NSError(domain:"actual-jit-arena",code:7)}
        report["actualSimulatorCodeArenaVerified"]=true;report["missingKeysRejectedBeforeGuest"]=true
-       // Original, unencrypted ARM64 homebrew: branch over its NRO header and
-       // issue SVC ExitProcess. This is CPU/session proof, not a graphical game.
+       // Original, unencrypted ARM64 homebrew: branch over its NRO header,
+       // call a function whose return lands on a frame-opening STP (the JIT
+       // ends that unit after the call and translates the continuation when
+       // the call returns), tail-jump past another frame opening, jump past 67
+       // undefined words (that unit ends at the jump, as a switch case does),
+       // then issue SVC ExitProcess. This is CPU/session proof, not a graphical game.
        let homebrew=root.appendingPathComponent("RewindBox-owned-exit.nro")
        var nro=Data(repeating:0,count:0x3000)
        func word(_ offset:Int,_ value:UInt32) {var little=value.littleEndian;withUnsafeBytes(of:&little){nro.replaceSubrange(offset..<offset+4,with:$0)}}
        word(0,0x14000020);word(0x10,0x304f524e);word(0x18,0x3000)
        word(0x20,0);word(0x24,0x1000);word(0x28,0x1000);word(0x2c,0x1000);word(0x30,0x2000);word(0x34,0x1000);word(0x38,0x1000)
-       word(0x80,0xd2800000);word(0x84,0xd40000e1);word(0x88,0x14000000)
+       word(0x80,0x94000020);word(0x84,0xa9bf7bfd);word(0x88,0xa8c17bfd);word(0x8c,0x14000021);word(0x90,0xa9bf7bfd)
+       word(0x100,0xd65f03c0)
+       word(0x110,0x14000044)
+       word(0x220,0xd2800000);word(0x224,0xd40000e1);word(0x228,0x14000000)
        try nro.write(to:homebrew)
        NSLog("SMOKE boundary 142")
        let hb=try runtime.content(path:homebrew.path,operation:8)
@@ -170,14 +224,28 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        // it is explicitly NOT a donor process or reduced iPhone footprint proof.
        defer { if runtime.withdrawMemory() { munmap(donation,donationBytes) } }
        var donatedSessions=0
-       for _ in 0..<2 {
+       var livePerformanceSessions=0
+       var guestSvcSessions:[[String:Any]]=[]
+       var performanceFinalSessions:[[String:Any]]=[]
+       for sessionIndex in 1...2 {
+         // The diagnostic ring retains earlier sessions and may evict them.
+         // Bind this proof to events produced after this session's start.
+         let beforeEvents=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
+         let beforeSequence=beforeEvents.compactMap { ($0["sequence"] as? NSNumber)?.int64Value }.max() ?? 0
+         // A cold simulator GPU can initialize after the former 30-second
+         // deadline. Bound startup separately from the mandatory clean stop.
+         let guestDeadline=DispatchTime.now()+90
          guard runtime.offerMemory(donation,bytes:UInt64(donationBytes)) else {throw NSError(domain:"actual-memory-offer",code:22)}
          var borrowedWhileRunning=false
          var liveWithdrawalRefused=false
+         var liveGeneration:Int64=0
+         var livePerformance:[String:Any]=[:]
          let ended=DispatchSemaphore(value:0)
          var outcome:Result<Void,MeloNXHostError>?
          var owner:MeloNXSessionHost?
          var surface:ProbeView?
+         var guestSvcSequence:Int64?
+         var sessionEnded=false
          DispatchQueue.main.sync {
            let view=ProbeView(frame:self.window!.rootViewController!.view.bounds)
            let layer=view.layer as! CAMetalLayer
@@ -186,29 +254,111 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
            self.window!.rootViewController!.view.addSubview(view);surface=view
            let host=MeloNXSessionHost(api:runtime.session);owner=host
            do {
-             try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),beforeRun:{true}) {result in outcome=result;ended.signal()}
-             DispatchQueue.main.asyncAfter(deadline:.now()+2) {
-               let memory=runtime.memorySnapshot()
-               borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
-               liveWithdrawalRefused = !runtime.withdrawMemory()
-               host.requestStop()
-             }
+             try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),prepared:{liveGeneration=$0},beforeRun:{true}) {result in outcome=result;ended.signal()}
            } catch {outcome = .failure(error as? MeloNXHostError ?? .load(String(describing:error)));ended.signal()}
          }
-         guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+         // Prepared/Running precede GPU readiness. A fixed-delay stop can
+         // correctly cancel a cold startup before any guest CPU instruction.
+         // Wait off the main queue for this session's actual SVC instead.
+         while DispatchTime.now() < guestDeadline {
+           let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
+           if let event=execution.first(where: {
+             $0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed" &&
+             (($0["sequence"] as? NSNumber)?.int64Value ?? 0) > beforeSequence
+           }) {
+             guestSvcSequence=(event["sequence"] as? NSNumber)?.int64Value
+             break
+           }
+           if ended.wait(timeout:.now()+0.05) == .success {sessionEnded=true;break}
+         }
+         DispatchQueue.main.sync {
+           if guestSvcSequence != nil {
+             livePerformance=runtime.performanceSnapshot(generation:liveGeneration)
+             let memory=runtime.memorySnapshot()
+             borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
+             liveWithdrawalRefused = !runtime.withdrawMemory()
+           }
+           // Also stop on a missing-SVC deadline so the failure can drain. No
+           // delayed callback survives this session or can stop the next one.
+           owner?.requestStop()
+         }
+         if !sessionEnded {
+           guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+         }
          guard let completedOutcome=outcome else {throw NSError(domain:"homebrew-result",code:12)}
          if case .failure(let error)=completedOutcome {throw error}
+         guard let svcSequence=guestSvcSequence else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11,userInfo:["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence])}
+         guestSvcSessions.append(["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence,"svcSequence":svcSequence])
          guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
+         if requirePerformanceDiagnostics {
+           // Read off the main queue after Run/Stop, including a short session's
+           // final partial window. A concurrent snapshot may finish publishing
+           // the final event just after Stop returns; bound that drain to 2 s.
+           let metricsDeadline=DispatchTime.now()+2
+           var finalEvent:[String:Any]?
+           repeat {
+             let snapshot=runtime.diagnostics()
+             if let event=snapshot["performance"] as? [String:Any],
+                event["status"] as? String == "final",
+                (event["generation"] as? NSNumber)?.int64Value == liveGeneration {
+               finalEvent=event;break
+             }
+             Thread.sleep(forTimeInterval:0.01)
+           } while DispatchTime.now() < metricsDeadline
+           guard let event=finalEvent,
+                 event["stage"] as? String == "performance",
+                 ((event["sequence"] as? NSNumber)?.int64Value ?? 0) > svcSequence,
+                 (event["pid"] as? NSNumber)?.int32Value == getpid(),
+                 let timestamp=event["timestamp"] as? String,!timestamp.isEmpty,
+                 let raw=event["diagnostic"] as? String,let bytes=raw.data(using:.utf8),
+                 let metrics=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],
+                 (metrics["schema"] as? NSNumber)?.intValue == 1,
+                 (metrics["generation"] as? NSNumber)?.int64Value == liveGeneration,
+                 metrics["final"] as? Bool == true,
+                 let window=(metrics["windowMs"] as? NSNumber)?.doubleValue,window.isFinite,window >= 0,
+                 let phases=metrics["phases"] as? [String:[NSNumber]],!phases.isEmpty,
+                 phases.values.allSatisfy({$0.count == 3 && $0.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0})}),
+                 let counts=metrics["counts"] as? [String:NSNumber],!counts.isEmpty,
+                 counts.values.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0}),
+                 let managed=metrics["managed"] as? [String:Any],
+                 ["allocatedBytesApprox","gcPauseMs","lastGcIndex","lastGcHeapBytes","lastGcCommittedBytes","lastGcFragmentedBytes"].allSatisfy({key in
+                   (managed[key] as? NSNumber).map {$0.doubleValue.isFinite && $0.doubleValue >= 0} ?? false
+                 }),
+                 let collections=managed["collections"] as? [NSNumber],collections.count == 3,
+                 collections.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0})
+           else {throw NSError(domain:"actual-performance-final",code:27,userInfo:["session":sessionIndex,"generation":liveGeneration])}
+           performanceFinalSessions.append(["session":sessionIndex,"generation":liveGeneration,"event":event])
+           // Retain the first session's evidence even if rebootstrap later fails.
+           report["performanceDiagnosticsFinalSessions"]=performanceFinalSessions
+         }
          DispatchQueue.main.sync {surface?.removeFromSuperview()}
+         // Homebrew presents no frames, so a live snapshot (when the window is
+         // already initialized) is well-formed zeros; it proves the gated path,
+         // not a game frame rate. The ended generation must be refused.
+         if !livePerformance.isEmpty {
+           guard ["gameFps","gameFrameTimeMs","fifoPercent"].allSatisfy({ key in (livePerformance[key] as? Double).map { $0.isFinite && $0 >= 0 } ?? false }) else {throw NSError(domain:"live-performance-snapshot",code:25)}
+           livePerformanceSessions += 1
+         }
+         guard liveGeneration > 0,runtime.performanceSnapshot(generation:liveGeneration).isEmpty else {throw NSError(domain:"ended-performance-generation",code:26)}
          guard borrowedWhileRunning,liveWithdrawalRefused,
                (runtime.memorySnapshot()["donorUsedBytes"] as? NSNumber)?.uint64Value == 0,
                runtime.withdrawMemory() else {throw NSError(domain:"actual-donation-lifetime",code:23)}
          donatedSessions += 1
          sessions += 1
        }
-       let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
-       guard execution.filter({$0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed"}).count >= 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       guard guestSvcSessions.count == 2,
+             Set(guestSvcSessions.compactMap { $0["svcSequence"] as? Int64 }).count == 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       if requirePerformanceDiagnostics {
+         let finalSequences=performanceFinalSessions.compactMap {($0["event"] as? [String:Any])?["sequence"] as? NSNumber}.map {$0.int64Value}
+         guard performanceFinalSessions.count == 2,finalSequences.count == 2,
+               finalSequences[1] > finalSequences[0],
+               Set(performanceFinalSessions.compactMap {$0["generation"] as? Int64}).count == 2
+         else {throw NSError(domain:"actual-performance-rebootstrap",code:28)}
+       }
+       report["homebrewGuestSvcSessions"]=guestSvcSessions
        report["actualCoreDonatedBackingSessions"]=donatedSessions
+       report["performanceSnapshotStaleAndEndedRefused"]=true
+       report["livePerformanceSnapshotSessions"]=livePerformanceSessions
        report["donorProcessUsedInSmoke"]=false
        report["originalHomebrewGuestSvcConfirmed"]=true;report["homebrewSimulatorSessions"]=sessions
        report["homebrewProducesVideo"]=false;report["iphoneGuestExecutionTested"]=false
@@ -217,7 +367,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
      try? JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]).write(to:documents.appendingPathComponent("smoke.json"),options:.atomic)
    };return true
  }
-}''')
+}'''.replace('__REQUIRE_PERFORMANCE_DIAGNOSTICS__','true' if args.require_performance_diagnostics else 'false'))
  sdk=run('xcrun','--sdk','iphonesimulator','--show-sdk-path')
  sources=[ROOT/'packages/melonx_internal_bridge/ios/Classes'/name for name in ['MeloNXSessionHost.swift','MeloNXRuntimeAPI.swift']]
  run('xcrun','swiftc','-swift-version','5','-target','arm64-apple-ios18.0-simulator','-sdk',sdk,'-framework','UIKit','-Xlinker','-rpath','-Xlinker','@executable_path/Frameworks',*sources,swift,'-o',app/'MeloNXSmoke')
@@ -231,21 +381,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
   launched=run('xcrun','simctl','launch',device,bundle)
   pid=launched.rsplit(':',1)[-1].strip();assert pid.isdigit(),launched
   container=Path(run('xcrun','simctl','get_app_container',device,bundle,'data'));result=container/'Documents/smoke.json'
-  deadline=time.monotonic()+120
+  deadline=time.monotonic()+300
   while not result.exists() and time.monotonic()<deadline:time.sleep(1)
-  native_log=container/'Documents/native-runtime.log'
-  if native_log.exists():
-   text=native_log.read_text(errors='replace');(OUT/'native-runtime.log').write_text(text[-1000000:]);print(text[-20000:],flush=True)
-  if not result.exists() or json.loads(result.read_text()).get('result') != 'passed':
-   sampled=subprocess.run(['sample',pid,'1','1','-file',str(OUT/'native-stacks.txt')],capture_output=True,text=True,timeout=20)
-   print('Native process stack sampling:',sampled.returncode,flush=True)
-   if (OUT/'native-stacks.txt').exists():print((OUT/'native-stacks.txt').read_text(errors='replace')[:70000],flush=True)
-  if not result.exists():
-   (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
-   raise RuntimeError('Actual NativeAOT bootstrap did not report completion')
-  report=json.loads(result.read_text());report['runtime']=runtime;report['coreSha256']=sha(core)
-  report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in [*sources,Path(__file__)]}
-  (OUT/'actual-runtime.json').write_text(json.dumps(report,indent=2)+'\n')
+  report=retain_runtime_evidence(result,container,runtime,core,[*sources,Path(__file__)],pid,device)
   print(json.dumps(report,indent=2));assert report['result']=='passed',report
  finally:
   subprocess.run(['xcrun','simctl','shutdown',device],check=False);subprocess.run(['xcrun','simctl','delete',device],check=False)

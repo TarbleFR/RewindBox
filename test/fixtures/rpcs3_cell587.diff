@@ -1,0 +1,1159 @@
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index acad04983..284e6e196 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -28,6 +28,7 @@
+ #include "ios/IOSDeferredCommit.h"
+ #include "ios/IOSEarlySubmit.h"
+ #include "ios/IOSRsxIdlePark.h"
++#include "ios/RPCS3IOSExperimentalPolicy.h"
+ #endif
+ 
+ #include "../Program/SPIRVCommon.h"
+@@ -831,6 +832,8 @@ VKGSRender::~VKGSRender()
+ {
+ #ifdef RPCS3_IOS
+ 	rpcs3::ios::shader_timing::configuration.end(this);
++	// CELL587_MVK_ASYNC_CANARY: the renderer shuts down without a crash.
++	rpcs3::ios::confirm_moltenvk_async_boot("renderer shutdown");
+ #endif
+ 	if (m_device == VK_NULL_HANDLE)
+ 	{
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index 20aa0dcd3..f70ed70e2 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -201,6 +201,11 @@ private:
+ 	u32 m_ios_draws_since_submit = 0;
+ 	u32 m_ios_early_submits_this_frame = 0;
+ 	vk::command_buffer_chunk* m_ios_last_primary_submit = nullptr;
++	// CELL587_MVK_ENCODE_BARRIER: the marker ticket of the last queued present
++	// (ios/IOSMoltenVKExec.h); 0 with synchronous MoltenVK submits.
++	u64 m_ios_last_present_ticket = 0;
++	void ios_wait_for_queued_present();
++	void ios_drain_queued_submissions();
+ #endif
+ 
+ 	// Offloader thread deadlock recovery
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index 48be5063a..0fe2c5508 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -17,6 +17,8 @@
+ // CELL555_READBACK_INCLUDE
+ #include "ios/IOSReadbackProfile.h"
+ #include "ios/IOSTextureResidency.h"
++#include "ios/IOSMoltenVKExec.h"
++#include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "Emu/RSX/Common/sampler_invalidation.h"
+ #endif
+ 
+@@ -171,6 +173,12 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+ 		const u64 ios_present_begin = utils::get_tsc();
+ 		const VkResult ios_present_result = m_swapchain->present(ctx->present_wait_semaphore, ctx->present_image);
+ 		rpcs3::ios::rsx_sync::present_ticks.record(utils::get_tsc() - ios_present_begin);
++		// CELL587_MVK_ENCODE_BARRIER: a marker behind the present, still queued for
++		// encoding with asynchronous MoltenVK submits (ios/IOSMoltenVKExec.h).
++		if (const u64 ticket = rpcs3::ios::moltenvk_exec::mark_present())
++		{
++			m_ios_last_present_ticket = ticket;
++		}
+ 		switch (VkResult error = ios_present_result)
+ #else
+ 		switch (VkResult error = m_swapchain->present(ctx->present_wait_semaphore, ctx->present_image))
+@@ -198,6 +206,54 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+ 	// Presentation image released; reset value
+ 	ctx->present_image = -1;
+ }
++#ifdef RPCS3_IOS
++
++// CELL587_MVK_ENCODE_BARRIER (ios/IOSMoltenVKExec.h): with asynchronous MoltenVK
++// submits, vkAcquireNextImageKHR must not overtake a present that MoltenVK's
++// encoding queue has not run yet: it releases the drawable that present and
++// the render before it use. Synchronous submits encode inside the call; there
++// is nothing to wait for.
++void VKGSRender::ios_wait_for_queued_present()
++{
++	if (!rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
++	{
++		return;
++	}
++
++	if (rpcs3::ios::moltenvk_exec::barrier_missing.load(std::memory_order_relaxed))
++	{
++		ios_drain_queued_submissions();
++		return;
++	}
++
++	rpcs3::ios::moltenvk_exec::wait_for_present(m_ios_last_present_ticket);
++}
++
++// Everything submitted so far is encoded and committed to the Metal queue.
++void VKGSRender::ios_drain_queued_submissions()
++{
++	if (!rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
++	{
++		return;
++	}
++
++	if (!rpcs3::ios::moltenvk_exec::barrier_missing.load(std::memory_order_relaxed))
++	{
++		rpcs3::ios::moltenvk_exec::drain();
++		return;
++	}
++
++	// No recorded encoding queue (the build did not rename the MoltenVK reference):
++	// wait for the device queue instead, which is slower but keeps the order.
++	const auto begin = std::chrono::steady_clock::now();
++	vk::acquire_global_submit_lock();
++	vkQueueWaitIdle(m_device->get_present_queue());
++	vk::release_global_submit_lock();
++	rpcs3::ios::moltenvk_exec::drains.fetch_add(1, std::memory_order_relaxed);
++	rpcs3::ios::moltenvk_exec::drain_us.fetch_add(static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++		std::chrono::steady_clock::now() - begin).count()), std::memory_order_relaxed);
++}
++#endif
+ 
+ void VKGSRender::advance_queued_frames()
+ {
+@@ -667,6 +723,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
+ 	u32 out_of_date_rebuilds = 0;
+ #ifdef RPCS3_IOS
++	// CELL587_MVK_ENCODE_BARRIER: the last queued present runs before this acquisition.
++	// The loop below acquires again only after VK_TIMEOUT or VK_NOT_READY, which present
++	// nothing, or after a swapchain rebuild, which waits for the device.
++	ios_wait_for_queued_present();
+ 	// REWINDBOX_RSX_SYNC_PROFILE_V1: CAMetalLayer may block here for a drawable.
+ 	const u64 ios_acquire_begin = utils::get_tsc();
+ #endif
+@@ -959,12 +1019,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 			metal_fx_input->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
+ 			metal_fx_output->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
+ 
++			// CELL587_MVK_ENCODE_BARRIER: MetalFX commits its own command buffer on the same
++			// MTLCommandQueue, so the blit above must be committed first. The RSX offloader
++			// may still hold this submission, and asynchronous MoltenVK submits keep it on
++			// their encoding queue: wait for both before encoding MetalFX.
++			vk::command_buffer_chunk* const metal_fx_handoff = m_current_command_buffer;
+ 			close_and_submit_command_buffer(
+ 				nullptr,
+ 				m_current_frame->acquire_signal_semaphore,
+ 				VK_NULL_HANDLE,
+ 				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
+ 			acquire_consumed_before_present = true;
++			metal_fx_handoff->flush();
++			ios_drain_queued_submissions();
+ 
+ 			m_current_command_buffer = m_primary_cb_list.next();
+ 			m_current_command_buffer->reset();
+@@ -1139,6 +1206,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 	}
+ 
+ 	queue_swap_request(!acquire_consumed_before_present);
++#ifdef RPCS3_IOS
++	// CELL587_MVK_ASYNC_CANARY: guest flips presented by this boot (ios/IOSMoltenVKAsyncCanary.h).
++	if (info.emu_flip)
++	{
++		rpcs3::ios::note_moltenvk_async_flip();
++	}
++#endif
+ 
+ 	m_frame_stats.flip_time = m_profiler.duration();
+ 
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+index 261d0b243..d0e70318b 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+@@ -7,6 +7,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSBootProgress.h"
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "ios/IOSMoltenVKExec.h"
+ #include "Emu/cache_utils.hpp"
+ #endif
+ #include <vulkan/vulkan_core.h>
+@@ -1138,11 +1139,36 @@ namespace vk
+ 			device.pNext = &provoking_vertex_info;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL587_MVK_ENCODE_BARRIER: the queues MoltenVK creates for this device
++		// replace those of the previous one (ios/IOSMoltenVKExec.h).
++		rpcs3::ios::moltenvk_exec::begin_device();
++#endif
+ 		if (auto error = vkCreateDevice(*pgpu, &device, nullptr, &dev))
+ 		{
+ 			dump_debug_info(requested_extensions, enabled_features);
+ 			vk::die_with_error(error);
+ 		}
++#ifdef RPCS3_IOS
++		if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
++		{
++			// One queue family with one queue on MoltenVK: exactly one encoding queue.
++			const u32 exec_queues = rpcs3::ios::moltenvk_exec::queue_count();
++			rpcs3::ios::moltenvk_exec::barrier_missing.store(exec_queues != 1, std::memory_order_relaxed);
++			if (exec_queues == 1)
++			{
++				rsx_log.notice("MoltenVK asynchronous submits: encoding queue recorded; acquisitions wait for the last queued present");
++			}
++			else
++			{
++				rsx_log.error("MoltenVK asynchronous submits: %u encoding queues recorded instead of 1; acquisitions drain the device queue", exec_queues);
++			}
++		}
++		else
++		{
++			rpcs3::ios::moltenvk_exec::barrier_missing.store(false, std::memory_order_relaxed);
++		}
++#endif
+ 
+ 		// Dump some diagnostics to the log
+ 		rsx_log.notice("%u extensions loaded:", ::size32(requested_extensions));
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
+index 490e61a28..dd1aefbbc 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
+@@ -150,7 +150,9 @@ namespace vk
+ 				// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: vkQueueSubmit returns once the
+ 				// submission is queued; MoltenVK encodes the Metal commands on its
+ 				// queue thread. Fences, semaphores and submission order are unchanged.
+-				if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
++				// CELL587_MVK_ASYNC_CANARY: the boot is recorded as armed first
++				// (ios/IOSMoltenVKAsyncCanary.h); without that record it stays synchronous.
++				if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits && rpcs3::ios::arm_moltenvk_async_boot())
+ 				{
+ 					mvk_settings.push_back(VkLayerSettingEXT{ kMVKMoltenVKDriverLayerName, "MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &setting_false });
+ 					rsx_log.notice("MoltenVK asynchronous submits enabled for this boot");
+diff --git a/rpcs3/ios/IOSMoltenVKAsyncCanary.h b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+new file mode 100644
+index 000000000..3acfa4662
+--- /dev/null
++++ b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+@@ -0,0 +1,218 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++#include <string>
++#include <string_view>
++#include <vector>
++
++// CELL587_MVK_ASYNC_CANARY: asynchronous MoltenVK submits run only for titles
++// whose last asynchronous boot finished. A boot that turns them on first
++// records the title as armed, durably; it becomes ok after confirm_presents
++// presents or when the renderer shuts down cleanly. A boot that finds its title
++// still armed knows the previous asynchronous boot ended without either (a
++// crash, or the process being killed): the title is marked failed and keeps
++// synchronous submits from then on. The record file carries the Core cell in
++// its name, so a later Core tries again once.
++namespace rpcs3::ios::mvk_async_canary
++{
++inline constexpr std::string_view file_name = "rewindbox-mvk-async-587.txt";
++inline constexpr std::uint32_t confirm_presents = 900;
++
++enum class state : std::uint8_t
++{
++	armed,
++	ok,
++	failed,
++};
++
++struct record
++{
++	std::string title;
++	state value = state::ok;
++};
++
++constexpr std::string_view state_name(state value) noexcept
++{
++	switch (value)
++	{
++	case state::armed: return "armed";
++	case state::ok: return "ok";
++	case state::failed: return "failed";
++	}
++
++	return "ok";
++}
++
++// Title IDs are 4 upper-case letters and 5 digits; anything else in the file is ignored.
++constexpr bool valid_title(std::string_view title) noexcept
++{
++	if (title.size() != 9)
++	{
++		return false;
++	}
++
++	for (std::size_t i = 0; i < title.size(); i++)
++	{
++		const char c = title[i];
++		if (i < 4 ? !(c >= 'A' && c <= 'Z') : !(c >= '0' && c <= '9'))
++		{
++			return false;
++		}
++	}
++
++	return true;
++}
++
++// One "<title> <state>" line per title; the last line of a title wins.
++inline std::vector<record> parse(std::string_view text)
++{
++	std::vector<record> records;
++	while (!text.empty())
++	{
++		const std::size_t end = text.find('\n');
++		std::string_view line = text.substr(0, end);
++		text = end == std::string_view::npos ? std::string_view{} : text.substr(end + 1);
++
++		const std::size_t space = line.find(' ');
++		if (space == std::string_view::npos)
++		{
++			continue;
++		}
++
++		const std::string_view title = line.substr(0, space);
++		const std::string_view name = line.substr(space + 1);
++		state value;
++		if (name == "armed") value = state::armed;
++		else if (name == "ok") value = state::ok;
++		else if (name == "failed") value = state::failed;
++		else continue;
++
++		if (!valid_title(title))
++		{
++			continue;
++		}
++
++		bool replaced = false;
++		for (auto& existing : records)
++		{
++			if (existing.title == title)
++			{
++				existing.value = value;
++				replaced = true;
++			}
++		}
++
++		if (!replaced)
++		{
++			records.push_back({std::string(title), value});
++		}
++	}
++
++	return records;
++}
++
++inline std::string serialize(const std::vector<record>& records)
++{
++	std::string text;
++	for (const auto& entry : records)
++	{
++		text += entry.title;
++		text += ' ';
++		text += state_name(entry.value);
++		text += '\n';
++	}
++
++	return text;
++}
++
++inline record* find(std::vector<record>& records, std::string_view title) noexcept
++{
++	for (auto& entry : records)
++	{
++		if (entry.title == title)
++		{
++			return &entry;
++		}
++	}
++
++	return nullptr;
++}
++
++enum class verdict : std::uint8_t
++{
++	off,                  // not requested: the records are unchanged
++	run,                  // requested and allowed: the title is now armed
++	failed_before,        // an earlier asynchronous boot of the title failed
++	previous_boot_failed, // this boot found the title armed: now failed
++	invalid_title,        // no usable title ID: synchronous
++	record_failed,        // the armed record could not be written: synchronous
++};
++
++constexpr std::string_view verdict_name(verdict value) noexcept
++{
++	switch (value)
++	{
++	case verdict::off: return "off";
++	case verdict::run: return "armed";
++	case verdict::failed_before: return "failed_before";
++	case verdict::previous_boot_failed: return "previous_boot_failed";
++	case verdict::invalid_title: return "invalid_title";
++	case verdict::record_failed: return "record_failed";
++	}
++
++	return "off";
++}
++
++// At boot, before the Vulkan instance exists. Returns whether this boot may use
++// asynchronous submits; records receives the state to write before it continues.
++inline verdict on_boot(std::vector<record>& records, std::string_view title, bool requested)
++{
++	record* entry = find(records, title);
++	if (entry && entry->value == state::armed)
++	{
++		entry->value = state::failed;
++		return verdict::previous_boot_failed;
++	}
++
++	if (!requested)
++	{
++		return verdict::off;
++	}
++
++	if (!valid_title(title))
++	{
++		return verdict::invalid_title;
++	}
++
++	if (entry && entry->value == state::failed)
++	{
++		return verdict::failed_before;
++	}
++
++	if (entry)
++	{
++		entry->value = state::armed;
++	}
++	else
++	{
++		records.push_back({std::string(title), state::armed});
++	}
++
++	return verdict::run;
++}
++
++// After confirm_presents presents, or at a clean renderer shutdown. Returns true when
++// the title was armed and is now ok.
++inline bool on_confirm(std::vector<record>& records, std::string_view title)
++{
++	record* entry = find(records, title);
++	if (!entry || entry->value != state::armed)
++	{
++		return false;
++	}
++
++	entry->value = state::ok;
++	return true;
++}
++}
+diff --git a/rpcs3/ios/IOSMoltenVKExec.h b/rpcs3/ios/IOSMoltenVKExec.h
+new file mode 100644
+index 000000000..4067a67cb
+--- /dev/null
++++ b/rpcs3/ios/IOSMoltenVKExec.h
+@@ -0,0 +1,143 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++#include <string_view>
++
++// CELL587_MVK_ENCODE_BARRIER: with MVK_CONFIG_SYNCHRONOUS_QUEUE_SUBMITS=0,
++// MoltenVK 1.4.2 returns from vkQueueSubmit and vkQueuePresentKHR once the
++// submission is queued on the serial GCD queue of the VkQueue
++// (MVKQueue::submit, MVKQueue.mm:87); the Metal commands are encoded later on
++// that queue. RPCS3 was written for synchronous submits, where everything that
++// follows vkQueueSubmit follows the encoding. MoltenVK itself breaks with
++// that order at one point: vkAcquireNextImageKHR releases the drawable of the
++// image it returns (MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable,
++// MVKImage.mm:1569), without a lock, while the queue thread fetches the same
++// drawable when it encodes a render into that image or its present
++// (getCAMetalDrawable, MVKImage.mm:1608). An acquisition that overtakes a
++// queued present either releases the drawable that holds the frame, so the
++// present takes a new drawable and the next render of the image draws into an
++// already presented one, or races with the queue thread on the same pointer.
++// The native shader cache dialog flips frames back to back, so the window is
++// widest in the first second of a boot, when every 551 boot ended.
++//
++// The build renames the MoltenVK archive's only dispatch_queue_create
++// reference (MVKQueue::initExecQueue) to rbx_mvk_exec_q_create
++// (RPCS3IOSPlatform.mm), which records the queue. After each present the RSX
++// thread queues a marker behind it; before the next acquisition it waits for
++// the marker of the last present. Command buffers submitted since that present
++// keep encoding while the RSX thread records.
++namespace rpcs3::ios::moltenvk_exec
++{
++// MVKQueue::initName and initExecQueue: "MoltenVKQueue-<family>-<index>-<priority>-Dispatch".
++constexpr bool is_exec_queue_label(std::string_view label) noexcept
++{
++	constexpr std::string_view prefix = "MoltenVKQueue-";
++	constexpr std::string_view suffix = "-Dispatch";
++	return label.size() > prefix.size() + suffix.size() && label.starts_with(prefix) && label.ends_with(suffix);
++}
++
++// A waiter gives up after this long and acquires as before (a stalled queue thread is a
++// GPU or driver failure that the fence timeouts of RPCS3 report).
++constexpr std::chrono::milliseconds wait_limit{2000};
++
++// Present tickets: issued in order on the presenting thread, completed in order by the
++// marker that runs behind each present on MoltenVK's serial queue. Tickets never
++// restart, so a marker left on the queue of a destroyed device cannot complete a newer
++// ticket of the next device's queue.
++class present_tracker
++{
++	std::mutex m_mutex;
++	std::condition_variable m_cv;
++	std::uint64_t m_issued = 0;
++	std::uint64_t m_completed = 0;
++	std::array<std::uint64_t, 16> m_issue_us{};
++
++public:
++	std::uint64_t issue(std::uint64_t now_us) noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		const std::uint64_t ticket = ++m_issued;
++		m_issue_us[ticket % m_issue_us.size()] = now_us;
++		return ticket;
++	}
++
++	// Returns the microseconds the ticket spent queued behind earlier work, or 0 for a
++	// ticket that a later one already completed.
++	std::uint64_t complete(std::uint64_t ticket, std::uint64_t now_us) noexcept
++	{
++		std::uint64_t lag = 0;
++		{
++			std::lock_guard lock(m_mutex);
++			if (ticket <= m_completed)
++			{
++				return 0;
++			}
++
++			m_completed = ticket;
++			const std::uint64_t issued = m_issue_us[ticket % m_issue_us.size()];
++			lag = now_us > issued ? now_us - issued : 0;
++		}
++
++		m_cv.notify_all();
++		return lag;
++	}
++
++	bool completed(std::uint64_t ticket) noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		return m_completed >= ticket;
++	}
++
++	enum class wait_result : std::uint8_t
++	{
++		ready,     // already completed: no wait
++		waited,    // completed while waiting
++		timed_out, // wait_limit elapsed
++	};
++
++	wait_result wait(std::uint64_t ticket, std::chrono::milliseconds limit = wait_limit) noexcept
++	{
++		std::unique_lock lock(m_mutex);
++		if (m_completed >= ticket)
++		{
++			return wait_result::ready;
++		}
++
++		return m_cv.wait_for(lock, limit, [&] { return m_completed >= ticket; }) ? wait_result::waited : wait_result::timed_out;
++	}
++};
++
++// Profile counters, read and cleared by the 5 s performance window (COREPROF OPT587).
++inline std::atomic<std::uint32_t> exec_queues{0};
++inline std::atomic<bool> barrier_missing{false};
++inline std::atomic<std::uint64_t> presents_marked{0}, marker_lag_us{0}, marker_lag_max_us{0};
++inline std::atomic<std::uint64_t> acquire_waits{0}, acquire_wait_us{0}, acquire_wait_max_us{0}, acquire_timeouts{0};
++inline std::atomic<std::uint64_t> drains{0}, drain_us{0};
++
++inline void record_max(std::atomic<std::uint64_t>& maximum, std::uint64_t value) noexcept
++{
++	std::uint64_t current = maximum.load(std::memory_order_relaxed);
++	while (value > current && !maximum.compare_exchange_weak(current, value, std::memory_order_relaxed))
++	{
++	}
++}
++
++// Implemented in RPCS3IOSPlatform.mm.
++// Forget the queues of the previous device; called before vkCreateDevice.
++void begin_device() noexcept;
++// Queues recorded since begin_device (0 with synchronous submits).
++std::uint32_t queue_count() noexcept;
++// After vkQueuePresentKHR: queue a marker behind the present. Returns its ticket, or 0
++// when there is no single recorded queue (synchronous submits).
++std::uint64_t mark_present() noexcept;
++// Before vkAcquireNextImageKHR: wait until the marker of ticket has run.
++void wait_for_present(std::uint64_t ticket) noexcept;
++// Wait until everything queued so far on every recorded queue has been encoded.
++void drain() noexcept;
++}
+diff --git a/rpcs3/ios/IOSMoltenVKExecQueue.h b/rpcs3/ios/IOSMoltenVKExecQueue.h
+new file mode 100644
+index 000000000..d2d0c2916
+--- /dev/null
++++ b/rpcs3/ios/IOSMoltenVKExecQueue.h
+@@ -0,0 +1,188 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSMoltenVKExec.h"
++
++#include <dispatch/dispatch.h>
++
++#include <array>
++#include <chrono>
++#include <cstdint>
++#include <mutex>
++
++// CELL587_MVK_ENCODE_BARRIER: the GCD side of ios/IOSMoltenVKExec.h. Included
++// by RPCS3IOSPlatform.mm, which forwards rbx_mvk_exec_q_create and the
++// moltenvk_exec functions to registry::instance(), and by the host test that
++// runs it against the real libdispatch on macOS.
++namespace rpcs3::ios::moltenvk_exec::gcd
++{
++inline std::uint64_t now_us() noexcept
++{
++	return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
++		std::chrono::steady_clock::now().time_since_epoch()).count());
++}
++
++// Replaces the queue held by slot, keeping one reference to the new one.
++inline void hold(dispatch_queue_t& slot, dispatch_queue_t queue) noexcept
++{
++#if defined(__OBJC__) && __has_feature(objc_arc)
++	slot = queue;
++#else
++	if (queue)
++	{
++		dispatch_retain(queue);
++	}
++	if (slot)
++	{
++		dispatch_release(slot);
++	}
++	slot = queue;
++#endif
++}
++
++class registry
++{
++	std::mutex m_mutex;
++	std::array<dispatch_queue_t, 4> m_queues{};
++	std::uint32_t m_count = 0;
++	present_tracker m_presents;
++
++	static void present_marker(void* context) noexcept
++	{
++		const std::uint64_t lag = instance().m_presents.complete(reinterpret_cast<std::uintptr_t>(context), now_us());
++		marker_lag_us.fetch_add(lag, std::memory_order_relaxed);
++		record_max(marker_lag_max_us, lag);
++	}
++
++	static void drain_marker(void*) noexcept
++	{
++	}
++
++	// The single recorded queue with a reference for the caller, or null.
++	dispatch_queue_t single_queue() noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		dispatch_queue_t queue = nullptr;
++		if (m_count == 1)
++		{
++			hold(queue, m_queues[0]);
++		}
++
++		return queue;
++	}
++
++public:
++	static registry& instance() noexcept
++	{
++		static registry s_registry;
++		return s_registry;
++	}
++
++	// rbx_mvk_exec_q_create: a queue MoltenVK created for a VkQueue.
++	void record(dispatch_queue_t queue, const char* label) noexcept
++	{
++		if (!queue || !label || !is_exec_queue_label(label))
++		{
++			return;
++		}
++
++		std::lock_guard lock(m_mutex);
++		if (m_count < m_queues.size())
++		{
++			hold(m_queues[m_count++], queue);
++		}
++
++		exec_queues.store(m_count, std::memory_order_relaxed);
++	}
++
++	void begin_device() noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		for (auto& slot : m_queues)
++		{
++			hold(slot, nullptr);
++		}
++
++		m_count = 0;
++		exec_queues.store(0, std::memory_order_relaxed);
++	}
++
++	std::uint32_t queue_count() noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		return m_count;
++	}
++
++	std::uint64_t mark_present() noexcept
++	{
++		dispatch_queue_t queue = single_queue();
++		if (!queue)
++		{
++			return 0;
++		}
++
++		const std::uint64_t ticket = m_presents.issue(now_us());
++		// A serial queue runs the marker right after the present queued before it.
++		dispatch_async_f(queue, reinterpret_cast<void*>(static_cast<std::uintptr_t>(ticket)), present_marker);
++		presents_marked.fetch_add(1, std::memory_order_relaxed);
++		hold(queue, nullptr);
++		return ticket;
++	}
++
++	void wait_for_present(std::uint64_t ticket) noexcept
++	{
++		if (!ticket)
++		{
++			return;
++		}
++
++		const std::uint64_t begin = now_us();
++		switch (m_presents.wait(ticket))
++		{
++		case present_tracker::wait_result::ready:
++			return;
++		case present_tracker::wait_result::waited:
++			break;
++		case present_tracker::wait_result::timed_out:
++			acquire_timeouts.fetch_add(1, std::memory_order_relaxed);
++			break;
++		}
++
++		const std::uint64_t waited = now_us() - begin;
++		acquire_waits.fetch_add(1, std::memory_order_relaxed);
++		acquire_wait_us.fetch_add(waited, std::memory_order_relaxed);
++		record_max(acquire_wait_max_us, waited);
++	}
++
++	void drain() noexcept
++	{
++		std::array<dispatch_queue_t, 4> queues{};
++		{
++			std::lock_guard lock(m_mutex);
++			for (std::uint32_t i = 0; i < m_count; i++)
++			{
++				hold(queues[i], m_queues[i]);
++			}
++		}
++
++		const std::uint64_t begin = now_us();
++		bool any = false;
++		for (auto& queue : queues)
++		{
++			if (queue)
++			{
++				// A serial queue runs this after everything queued on it before.
++				dispatch_sync_f(queue, nullptr, drain_marker);
++				hold(queue, nullptr);
++				any = true;
++			}
++		}
++
++		if (any)
++		{
++			drains.fetch_add(1, std::memory_order_relaxed);
++			drain_us.fetch_add(now_us() - begin, std::memory_order_relaxed);
++		}
++	}
++};
++}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 540e2d565..6327e8557 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -21,6 +21,12 @@
+ // frame (one READBACK555 fault_read per frame, 3.69 MB each) and waits for the
+ // GPU, 2.1-6.7 ms per frame and 0.8-1.06 s per 5 s window in the ~700-draw
+ // scenes, with Multithreaded RSX on.
++//
++// CELL587_MVK_ENCODE_BARRIER: God of War III is the Automatic title of
++// asynchronous MoltenVK submits (ios/IOSMoltenVKExec.h, IOSMoltenVKAsyncCanary.h).
++// Its build 583 logs spend 490-640 ms per 5 s window in vkQueueSubmit (1,200-2,500
++// submits, RSXSYNC551 submit=), the Metal encoding of synchronous submits, on the
++// RSX offloader thread that the RSX thread waits for at each submission.
+ namespace rpcs3::ios::title_levers
+ {
+ constexpr bool is_black_ops_ii_title(std::string_view title_id) noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 3dd5e6fbb..2859f095c 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -16,9 +16,16 @@
+ #include "IOSTextureResidency.h"
+ #include "IOSTitleLevers.h"
+ #include "IOSThreadQoS.h"
++#include "IOSMoltenVKAsyncCanary.h"
++#include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+ 
++#include <cerrno>
++#include <fcntl.h>
++#include <mutex>
++#include <unistd.h>
++
+ LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
+ 
+ namespace rpcs3::ios
+@@ -27,6 +34,122 @@ namespace
+ {
+ experimental_policy s_policy{};
+ 
++// CELL587_MVK_ASYNC_CANARY (ios/IOSMoltenVKAsyncCanary.h): this boot's title, verdict and state.
++std::mutex s_mvk_canary_mutex;
++std::string s_mvk_canary_title;
++mvk_async_canary::verdict s_mvk_canary_verdict = mvk_async_canary::verdict::off;
++bool s_mvk_canary_armed = false;
++std::atomic<bool> s_mvk_canary_confirmed{false};
++std::atomic<u32> s_mvk_canary_flips{0};
++
++std::string mvk_canary_path()
++{
++	return fs::get_config_dir() + std::string(mvk_async_canary::file_name);
++}
++
++std::vector<mvk_async_canary::record> read_mvk_canary()
++{
++	const fs::file file(mvk_canary_path());
++	return file ? mvk_async_canary::parse(file.to_string()) : std::vector<mvk_async_canary::record>{};
++}
++
++// Written to a temporary file, flushed to storage and renamed: a crash at any point
++// leaves the previous or the new records whole.
++bool write_mvk_canary(const std::vector<mvk_async_canary::record>& records)
++{
++	const std::string path = mvk_canary_path();
++	const std::string temp = path + ".tmp";
++	const std::string text = mvk_async_canary::serialize(records);
++	const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
++	if (fd < 0)
++	{
++		return false;
++	}
++
++	usz written = 0;
++	while (written < text.size())
++	{
++		const ssize_t count = ::write(fd, text.data() + written, text.size() - written);
++		if (count < 0 && errno == EINTR)
++		{
++			continue;
++		}
++
++		if (count <= 0)
++		{
++			::close(fd);
++			return false;
++		}
++
++		written += static_cast<usz>(count);
++	}
++
++	const bool synced = ::fsync(fd) == 0;
++	::close(fd);
++	if (!synced || ::rename(temp.c_str(), path.c_str()) != 0)
++	{
++		return false;
++	}
++
++	if (const int directory = ::open(fs::get_config_dir().c_str(), O_RDONLY | O_CLOEXEC); directory >= 0)
++	{
++		::fsync(directory);
++		::close(directory);
++	}
++
++	return true;
++}
++
++// At policy resolution: a title still armed failed its last asynchronous boot. Arming
++// itself waits for the Vulkan instance (arm_moltenvk_async_boot), so a boot that never
++// creates the renderer leaves no record.
++bool resolve_mvk_async(std::string_view title, bool requested)
++{
++	std::lock_guard lock(s_mvk_canary_mutex);
++	s_mvk_canary_title = title;
++	s_mvk_canary_armed = false;
++	s_mvk_canary_confirmed.store(false, std::memory_order_relaxed);
++	s_mvk_canary_flips.store(0, std::memory_order_relaxed);
++
++	// For verdict::run the armed record is not written here (arm_moltenvk_async_boot).
++	auto records = read_mvk_canary();
++	const auto verdict = mvk_async_canary::on_boot(records, title, requested);
++	if (verdict == mvk_async_canary::verdict::previous_boot_failed)
++	{
++		if (!write_mvk_canary(records))
++		{
++			ios_experimental_log.error("MoltenVK asynchronous submits: could not record that the last asynchronous boot of %s did not finish", s_mvk_canary_title);
++		}
++
++		ios_experimental_log.warning("MoltenVK asynchronous submits stay off for %s: its last asynchronous boot did not finish (crash or forced exit)", s_mvk_canary_title);
++	}
++	else if (verdict == mvk_async_canary::verdict::failed_before)
++	{
++		ios_experimental_log.warning("MoltenVK asynchronous submits stay off for %s: an earlier asynchronous boot did not finish", s_mvk_canary_title);
++	}
++
++	s_mvk_canary_verdict = verdict;
++	return verdict == mvk_async_canary::verdict::run;
++}
++
++void confirm_mvk_async_locked(const char* reason)
++{
++	if (!s_mvk_canary_armed || s_mvk_canary_confirmed.load(std::memory_order_relaxed))
++	{
++		return;
++	}
++
++	auto records = read_mvk_canary();
++	if (mvk_async_canary::on_confirm(records, s_mvk_canary_title) && !write_mvk_canary(records))
++	{
++		ios_experimental_log.error("MoltenVK asynchronous submits: could not confirm the boot of %s", s_mvk_canary_title);
++		return;
++	}
++
++	s_mvk_canary_confirmed.store(true, std::memory_order_relaxed);
++	ios_experimental_log.notice("MoltenVK asynchronous submits: boot of %s confirmed (%s)", s_mvk_canary_title, reason);
++}
++
+ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+ {
+ 	switch (mode)
+@@ -211,7 +334,12 @@ void resolve_experimental_policy() noexcept
+ 	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
+ 	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
+ 	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, false);
+-	resolved.moltenvk_async_submits = resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits, false);
++	// CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: Automatic is God of War III, whose
++	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
++	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
++	// last asynchronous boot finished (ios/IOSMoltenVKAsyncCanary.h).
++	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
++		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits, is_god_of_war_iii_title(title_id)));
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
+ 	resolve_spu_spin_timing(resolved);
+@@ -266,6 +394,61 @@ void apply_spu_spin_timing_policy() noexcept
+ 		s_policy.spu_spin.getllar_refail_ticks, s_policy.spu_spin.getllar_spin_window_ticks, s_policy.spu_spin.getllar_forced_sleep_ticks);
+ }
+ 
++bool arm_moltenvk_async_boot() noexcept
++{
++	std::lock_guard lock(s_mvk_canary_mutex);
++	if (!s_policy.moltenvk_async_submits)
++	{
++		return false;
++	}
++
++	if (s_mvk_canary_armed)
++	{
++		return true;
++	}
++
++	auto records = read_mvk_canary();
++	if (mvk_async_canary::on_boot(records, s_mvk_canary_title, true) != mvk_async_canary::verdict::run || !write_mvk_canary(records))
++	{
++		s_policy.moltenvk_async_submits = false;
++		s_mvk_canary_verdict = mvk_async_canary::verdict::record_failed;
++		ios_experimental_log.error("MoltenVK asynchronous submits off for this boot: the boot record of %s could not be written", s_mvk_canary_title);
++		return false;
++	}
++
++	s_mvk_canary_armed = true;
++	return true;
++}
++
++void note_moltenvk_async_flip() noexcept
++{
++	if (s_mvk_canary_confirmed.load(std::memory_order_relaxed) ||
++		s_mvk_canary_flips.fetch_add(1, std::memory_order_relaxed) + 1 != mvk_async_canary::confirm_presents)
++	{
++		return;
++	}
++
++	std::lock_guard lock(s_mvk_canary_mutex);
++	confirm_mvk_async_locked("guest flips");
++}
++
++void confirm_moltenvk_async_boot(const char* reason) noexcept
++{
++	std::lock_guard lock(s_mvk_canary_mutex);
++	confirm_mvk_async_locked(reason);
++}
++
++const char* moltenvk_async_canary_verdict() noexcept
++{
++	std::lock_guard lock(s_mvk_canary_mutex);
++	return mvk_async_canary::verdict_name(s_mvk_canary_verdict).data();
++}
++
++bool moltenvk_async_boot_confirmed() noexcept
++{
++	return s_mvk_canary_confirmed.load(std::memory_order_relaxed);
++}
++
+ u32 get_spu_gateway_scratch_size() noexcept
+ {
+ 	return s_policy.expanded_spu_scratch ? 256 * 1024 : 8 * 1024;
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 858c04289..ca8c10d46 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -85,6 +85,20 @@ static_assert(fifo_idle_bounded_sleep_microseconds <= 250);
+ const experimental_policy& get_experimental_policy() noexcept;
+ void resolve_experimental_policy() noexcept;
+ 
++// CELL587_MVK_ASYNC_CANARY (ios/IOSMoltenVKAsyncCanary.h). Called where the Vulkan
++// instance turns asynchronous MoltenVK submits on: records the title as armed,
++// durably, before any submission. Returns false, and turns them off for this
++// boot, when the record cannot be written.
++bool arm_moltenvk_async_boot() noexcept;
++// A guest flip presented with them; the boot is confirmed after
++// mvk_async_canary::confirm_presents of them.
++void note_moltenvk_async_flip() noexcept;
++// A clean renderer shutdown confirms the boot too.
++void confirm_moltenvk_async_boot(const char* reason) noexcept;
++// For the performance window: the canary verdict name of this boot, and whether it is confirmed.
++const char* moltenvk_async_canary_verdict() noexcept;
++bool moltenvk_async_boot_confirmed() noexcept;
++
+ // The generated ARM64 SPU gateways are process-lifetime functions, while the
+ // effective experimental policy is resolved once per boot. Keep the immediate
+ // choice behind this tiny accessor so a later boot can return to the upstream
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index d5cc17862..62486d1b4 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -17,6 +17,7 @@
+ #include "IOSFullOverwrite.h"
+ #include "IOSDeferredCommit.h"
+ #include "IOSEarlySubmit.h"
++#include "IOSMoltenVKExec.h"
+ #include "IOSCompileAdmission.h"
+ #include "IOSRuntimeMetrics.h"
+ #include "IOSShaderTiming.h"
+@@ -1109,6 +1110,25 @@ private:
+                 early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
+                 early::min_draws, early::max_per_frame);
+         }
++        // CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: asynchronous MoltenVK submits
++        // of this boot (canary verdict, confirmation), the encoding queues recorded for the
++        // device, the presents marked, how long their markers waited behind earlier work on
++        // the encoding queue (lag), and the acquisitions that had to wait for one. With
++        // asynchronous submits RSXSYNC551 submit= times the queueing only.
++        {
++            namespace exec = rpcs3::ios::moltenvk_exec;
++            const auto take = [](std::atomic<u64>& value) { return value.exchange(0, std::memory_order_relaxed); };
++            const u64 marked = take(exec::presents_marked), lag = take(exec::marker_lag_us), lag_max = take(exec::marker_lag_max_us);
++            const u64 waits = take(exec::acquire_waits), wait_us = take(exec::acquire_wait_us), wait_max = take(exec::acquire_wait_max_us);
++            const u64 timeouts = take(exec::acquire_timeouts), drains = take(exec::drains), drain_us = take(exec::drain_us);
++            ios_core_profiler.notice("COREPROF OPT587 session=%llu window=%llu mvk_async=%u canary=%s confirmed=%u exec_queues=%u "
++                "barrier_missing=%u presents_marked=%llu marker_lag_ms=%.3f marker_lag_max_ms=%.3f acquire_waits=%llu:%.3f:%.3f "
++                "acquire_timeouts=%llu drains=%llu:%.3f scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().moltenvk_async_submits ? 1u : 0u,
++                rpcs3::ios::moltenvk_async_canary_verdict(), rpcs3::ios::moltenvk_async_boot_confirmed() ? 1u : 0u,
++                exec::exec_queues.load(std::memory_order_relaxed), exec::barrier_missing.load(std::memory_order_relaxed) ? 1u : 0u,
++                marked, lag / 1000.0, lag_max / 1000.0, waits, wait_us / 1000.0, wait_max / 1000.0, timeouts, drains, drain_us / 1000.0);
++        }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+         ios_core_profiler.notice(
+diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
+index 84f56e786..895e98afc 100644
+--- a/rpcs3/ios/RPCS3IOSPlatform.mm
++++ b/rpcs3/ios/RPCS3IOSPlatform.mm
+@@ -12,8 +12,10 @@
+ #include <mach/thread_switch.h>
+ #include <pthread/qos.h>
+ 
++#include <cstdint>
+ #include <thread>
+ 
++#include "IOSMoltenVKExecQueue.h"
+ #include "IOSReservationLockPolicy.h"
+ #include "IOSRsxSyncProfile.h"
+ 
+@@ -40,6 +42,49 @@ extern "C" __attribute__((visibility("hidden"))) dispatch_queue_t rbx_mvk_compil
+ 	return dispatch_get_global_queue(identifier, flags);
+ }
+ 
++// REWINDBOX_MOLTENVK_EXEC_BARRIER_V1 / CELL587_MVK_ENCODE_BARRIER
++// (ios/IOSMoltenVKExec.h): MoltenVK 1.4.2 creates one serial GCD queue per
++// VkQueue when submits are asynchronous (MVKQueue::initExecQueue,
++// MVKQueue.mm:324), and encodes every submission and present on it. That
++// call is the archive's only reference to dispatch_queue_create; the build
++// renames it to this function (build-utils/rpcs3/patch_moltenvk_exec_queue.py),
++// which creates the queue unchanged and records it
++// (ios/IOSMoltenVKExecQueue.h). Synchronous submits create no queue.
++extern "C" __attribute__((visibility("hidden"))) dispatch_queue_t rbx_mvk_exec_q_create(const char* label, dispatch_queue_attr_t attr)
++{
++	dispatch_queue_t queue = dispatch_queue_create(label, attr);
++	rpcs3::ios::moltenvk_exec::gcd::registry::instance().record(queue, label);
++	return queue;
++}
++
++namespace rpcs3::ios::moltenvk_exec
++{
++void begin_device() noexcept
++{
++	gcd::registry::instance().begin_device();
++}
++
++std::uint32_t queue_count() noexcept
++{
++	return gcd::registry::instance().queue_count();
++}
++
++std::uint64_t mark_present() noexcept
++{
++	return gcd::registry::instance().mark_present();
++}
++
++void wait_for_present(std::uint64_t ticket) noexcept
++{
++	gcd::registry::instance().wait_for_present(ticket);
++}
++
++void drain() noexcept
++{
++	gcd::registry::instance().drain();
++}
++}
++
+ namespace rpcs3::ios
+ {
+ void reservation_lock_yield() noexcept

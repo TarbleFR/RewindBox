@@ -1,0 +1,82 @@
+[
+  {
+    "python": "Python 3.12.14",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "suite": "rewind608_delivery_contract_test",
+    "exitCode": 0,
+    "tests": 36,
+    "seconds": 0.358,
+    "log": "3.12-rewind608_delivery_contract_test.log",
+    "logSHA256": "8f7cda49d6a3915943b146737161f6d5145c7650ee79b500d0d46a181651462f"
+  },
+  {
+    "python": "Python 3.13.16",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.13",
+    "suite": "rewind608_delivery_contract_test",
+    "exitCode": 0,
+    "tests": 36,
+    "seconds": 1.03,
+    "log": "3.13-rewind608_delivery_contract_test.log",
+    "logSHA256": "388c37b6557cfc0bb0b455449e3b60db67bc63072e90bcb5a0de17252933dfaa"
+  },
+  {
+    "python": "Python 3.14.8",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.14",
+    "suite": "rewind608_delivery_contract_test",
+    "exitCode": 0,
+    "tests": 36,
+    "seconds": 0.993,
+    "log": "3.14-rewind608_delivery_contract_test.log",
+    "logSHA256": "92f3c760d0ca8dc9415fa3e70fa47674fe22f582d9380ef21eb3810362708201"
+  },
+  {
+    "python": "Python 3.15.0",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.15",
+    "suite": "rewind608_delivery_contract_test",
+    "exitCode": 0,
+    "tests": 36,
+    "seconds": 0.761,
+    "log": "3.15-rewind608_delivery_contract_test.log",
+    "logSHA256": "5fdc49272a94231f511e984134b534805d5521df3d5b4a90adac8c8d8e6a7c78"
+  },
+  {
+    "python": "Python 3.12.14",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "suite": "rewind608_reuse_test",
+    "exitCode": 0,
+    "tests": 32,
+    "seconds": 0.483,
+    "log": "3.12-rewind608_reuse_test-final.log",
+    "logSHA256": "4011db4857d59132043a2a121749f4c64c73341f1905b665953a734264509576"
+  },
+  {
+    "python": "Python 3.13.16",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.13",
+    "suite": "rewind608_reuse_test",
+    "exitCode": 0,
+    "tests": 32,
+    "seconds": 0.891,
+    "log": "3.13-rewind608_reuse_test-final.log",
+    "logSHA256": "af6918605c9cacc5f2610c988c853bc7554f255bafa2abf84f914eb8f5b1a5f2"
+  },
+  {
+    "python": "Python 3.14.8",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.14",
+    "suite": "rewind608_reuse_test",
+    "exitCode": 0,
+    "tests": 32,
+    "seconds": 1.033,
+    "log": "3.14-rewind608_reuse_test-final.log",
+    "logSHA256": "7631cc21c4c4f9927e7c124b23611b0832d2b6aa95f9540c881450de07d04633"
+  },
+  {
+    "python": "Python 3.15.0",
+    "executable": "/workspace/scratch/c5e4042e4ea8/ra-work/python-ast-bin/python3.15",
+    "suite": "rewind608_reuse_test",
+    "exitCode": 0,
+    "tests": 32,
+    "seconds": 2.294,
+    "log": "3.15-rewind608_reuse_test-final.log",
+    "logSHA256": "5c34e92870f54506f0d5c9e245b39e1def83100bc63cbd86f896fdfea91edd5d"
+  }
+]

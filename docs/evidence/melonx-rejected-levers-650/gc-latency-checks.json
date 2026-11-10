@@ -1,0 +1,1606 @@
+{
+  "result": "passed",
+  "verdict": "withdrawn: no effect on the device configuration (the app sets DOTNET_GCgen0size 64 MiB since IPA 621; System.GC.Gen0MaxBudget 64 MiB yields the same gen0 budget)",
+  "adopted": false,
+  "checks": 201,
+  "finalPreparationBound": false,
+  "sourceKind": "pinnedPreparation",
+  "postimages": {},
+  "sourceBaseline": {
+    "src/Ryujinx.Library/Ryujinx.Library.csproj": "90efb63fec94331a7c78936a765d227967a08b870b58eb65c2d3743a6b954199"
+  },
+  "evaluatedGcKnobs": {
+    "control": {
+      "System.GC.ConserveMemory": "5",
+      "System.GC.HighMemoryPercent": "99"
+    },
+    "candidate": {
+      "System.GC.ConserveMemory": "5",
+      "System.GC.HighMemoryPercent": "99",
+      "System.GC.Gen0MaxBudget": "67108864"
+    }
+  },
+  "hostRuntime": "NativeAOT linux-x64 (same gc.cpp and RhConfig knob path as ios-arm64)",
+  "deviceGen0SizeFromApp": 67108864,
+  "pre621Gen0Reference": 8388608,
+  "repetitions": 3,
+  "scenarios": {
+    "transition": [],
+    "deviceLikeTransition": [
+      "--pace-ms",
+      "33",
+      "--large-share",
+      "0.3",
+      "--retain",
+      "0.01",
+      "--cycles",
+      "3"
+    ],
+    "fragmented": [
+      "--unload",
+      "0.85",
+      "--no-large-objects"
+    ]
+  },
+  "measurements": {
+    "transition": {
+      "control": {
+        "totalPauseMs": {
+          "median": 1527.6,
+          "min": 1388,
+          "max": 1568.9,
+          "perSeed": [
+            1527.6,
+            1388,
+            1568.9
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 1488.6,
+          "min": 1361.1,
+          "max": 1509.7,
+          "perSeed": [
+            1488.6,
+            1361.1,
+            1509.7
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 38.9,
+          "min": 26.9,
+          "max": 59.2,
+          "perSeed": [
+            38.9,
+            26.9,
+            59.2
+          ]
+        },
+        "maxPauseMs": {
+          "median": 114.22,
+          "min": 111.52,
+          "max": 136.96,
+          "perSeed": [
+            136.96,
+            111.52,
+            114.22
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 9,
+          "min": 9,
+          "max": 9,
+          "perSeed": [
+            9,
+            9,
+            9
+          ]
+        },
+        "frameP99Ms": {
+          "median": 27.04,
+          "min": 22.89,
+          "max": 36.1,
+          "perSeed": [
+            36.1,
+            27.04,
+            22.89
+          ]
+        },
+        "frameMaxMs": {
+          "median": 126.04,
+          "min": 124.86,
+          "max": 143.02,
+          "perSeed": [
+            143.02,
+            124.86,
+            126.04
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 13,
+          "min": 11,
+          "max": 15,
+          "perSeed": [
+            15,
+            11,
+            13
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 1,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            1,
+            0,
+            1
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 36.1,
+          "min": 15.46,
+          "max": 40.95,
+          "perSeed": [
+            36.1,
+            15.46,
+            40.95
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 12,
+          "min": 11,
+          "max": 14,
+          "perSeed": [
+            14,
+            11,
+            12
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.77,
+          "min": 1.65,
+          "max": 2.08,
+          "perSeed": [
+            2.08,
+            1.65,
+            1.77
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1348,
+          "min": 1333,
+          "max": 1358,
+          "perSeed": [
+            1333,
+            1348,
+            1358
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5047,
+          "min": 5039,
+          "max": 5057,
+          "perSeed": [
+            5047,
+            5057,
+            5039
+          ]
+        },
+        "gen0": {
+          "median": 60,
+          "min": 59,
+          "max": 60,
+          "perSeed": [
+            60,
+            60,
+            59
+          ]
+        },
+        "gen1": {
+          "median": 59,
+          "min": 59,
+          "max": 60,
+          "perSeed": [
+            59,
+            60,
+            59
+          ]
+        },
+        "gen2": {
+          "median": 10,
+          "min": 9,
+          "max": 10,
+          "perSeed": [
+            10,
+            10,
+            9
+          ]
+        }
+      },
+      "candidate": {
+        "totalPauseMs": {
+          "median": 1812.7,
+          "min": 1350.3,
+          "max": 1911.5,
+          "perSeed": [
+            1812.7,
+            1350.3,
+            1911.5
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 1747.8,
+          "min": 1324.9,
+          "max": 1814.2,
+          "perSeed": [
+            1747.8,
+            1324.9,
+            1814.2
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 64.9,
+          "min": 25.4,
+          "max": 97.3,
+          "perSeed": [
+            64.9,
+            25.4,
+            97.3
+          ]
+        },
+        "maxPauseMs": {
+          "median": 127.13,
+          "min": 94.12,
+          "max": 159.13,
+          "perSeed": [
+            159.13,
+            94.12,
+            127.13
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 9,
+          "min": 9,
+          "max": 9,
+          "perSeed": [
+            9,
+            9,
+            9
+          ]
+        },
+        "frameP99Ms": {
+          "median": 38.06,
+          "min": 26.07,
+          "max": 47.55,
+          "perSeed": [
+            38.06,
+            26.07,
+            47.55
+          ]
+        },
+        "frameMaxMs": {
+          "median": 135.32,
+          "min": 108.76,
+          "max": 171.03,
+          "perSeed": [
+            171.03,
+            108.76,
+            135.32
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 14,
+          "min": 11,
+          "max": 16,
+          "perSeed": [
+            14,
+            11,
+            16
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 1,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            1,
+            0,
+            1
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 55.31,
+          "min": 14.51,
+          "max": 62.65,
+          "perSeed": [
+            62.65,
+            14.51,
+            55.31
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 13,
+          "min": 11,
+          "max": 15,
+          "perSeed": [
+            13,
+            11,
+            15
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.91,
+          "min": 1.56,
+          "max": 2.2,
+          "perSeed": [
+            1.91,
+            1.56,
+            2.2
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1349,
+          "min": 1332,
+          "max": 1388,
+          "perSeed": [
+            1332,
+            1349,
+            1388
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5047,
+          "min": 5039,
+          "max": 5057,
+          "perSeed": [
+            5047,
+            5057,
+            5039
+          ]
+        },
+        "gen0": {
+          "median": 60,
+          "min": 59,
+          "max": 60,
+          "perSeed": [
+            60,
+            60,
+            59
+          ]
+        },
+        "gen1": {
+          "median": 59,
+          "min": 59,
+          "max": 60,
+          "perSeed": [
+            59,
+            60,
+            59
+          ]
+        },
+        "gen2": {
+          "median": 10,
+          "min": 9,
+          "max": 10,
+          "perSeed": [
+            10,
+            10,
+            9
+          ]
+        }
+      },
+      "pre621Control": {
+        "totalPauseMs": {
+          "median": 3014.2,
+          "min": 2519.2,
+          "max": 3081,
+          "perSeed": [
+            3081,
+            2519.2,
+            3014.2
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 2757.3,
+          "min": 2499.4,
+          "max": 2791.2,
+          "perSeed": [
+            2757.3,
+            2499.4,
+            2791.2
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 223,
+          "min": 19.7,
+          "max": 323.7,
+          "perSeed": [
+            323.7,
+            19.7,
+            223
+          ]
+        },
+        "maxPauseMs": {
+          "median": 156.94,
+          "min": 115.64,
+          "max": 165.36,
+          "perSeed": [
+            165.36,
+            115.64,
+            156.94
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 11,
+          "min": 11,
+          "max": 11,
+          "perSeed": [
+            11,
+            11,
+            11
+          ]
+        },
+        "frameP99Ms": {
+          "median": 96.06,
+          "min": 75.78,
+          "max": 96.45,
+          "perSeed": [
+            96.45,
+            75.78,
+            96.06
+          ]
+        },
+        "frameMaxMs": {
+          "median": 162.67,
+          "min": 122.62,
+          "max": 169.1,
+          "perSeed": [
+            169.1,
+            122.62,
+            162.67
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 22,
+          "min": 22,
+          "max": 22,
+          "perSeed": [
+            22,
+            22,
+            22
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 2,
+          "min": 0,
+          "max": 3,
+          "perSeed": [
+            3,
+            0,
+            2
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 105.44,
+          "min": 3.76,
+          "max": 111.04,
+          "perSeed": [
+            111.04,
+            3.76,
+            105.44
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 20,
+          "min": 19,
+          "max": 22,
+          "perSeed": [
+            19,
+            22,
+            20
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 2.88,
+          "min": 2.62,
+          "max": 2.99,
+          "perSeed": [
+            2.88,
+            2.62,
+            2.99
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1319,
+          "min": 1303,
+          "max": 1365,
+          "perSeed": [
+            1319,
+            1303,
+            1365
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5047,
+          "min": 5040,
+          "max": 5057,
+          "perSeed": [
+            5047,
+            5057,
+            5040
+          ]
+        },
+        "gen0": {
+          "median": 416,
+          "min": 416,
+          "max": 417,
+          "perSeed": [
+            416,
+            417,
+            416
+          ]
+        },
+        "gen1": {
+          "median": 144,
+          "min": 143,
+          "max": 144,
+          "perSeed": [
+            143,
+            144,
+            144
+          ]
+        },
+        "gen2": {
+          "median": 11,
+          "min": 11,
+          "max": 11,
+          "perSeed": [
+            11,
+            11,
+            11
+          ]
+        }
+      }
+    },
+    "deviceLikeTransition": {
+      "control": {
+        "totalPauseMs": {
+          "median": 683.1,
+          "min": 590.1,
+          "max": 815,
+          "perSeed": [
+            815,
+            683.1,
+            590.1
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 627.7,
+          "min": 556.7,
+          "max": 763.8,
+          "perSeed": [
+            763.8,
+            627.7,
+            556.7
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 42.1,
+          "min": 25,
+          "max": 48,
+          "perSeed": [
+            42.1,
+            48,
+            25
+          ]
+        },
+        "maxPauseMs": {
+          "median": 78.55,
+          "min": 67.97,
+          "max": 101.53,
+          "perSeed": [
+            101.53,
+            67.97,
+            78.55
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 11,
+          "min": 11,
+          "max": 11,
+          "perSeed": [
+            11,
+            11,
+            11
+          ]
+        },
+        "frameP99Ms": {
+          "median": 30.41,
+          "min": 27.39,
+          "max": 35.91,
+          "perSeed": [
+            35.91,
+            30.41,
+            27.39
+          ]
+        },
+        "frameMaxMs": {
+          "median": 82.19,
+          "min": 71.3,
+          "max": 109.78,
+          "perSeed": [
+            109.78,
+            71.3,
+            82.19
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 6,
+          "min": 4,
+          "max": 11,
+          "perSeed": [
+            11,
+            6,
+            4
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            1,
+            0,
+            0
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 25.31,
+          "min": 25.23,
+          "max": 42.33,
+          "perSeed": [
+            42.33,
+            25.31,
+            25.23
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 6,
+          "min": 4,
+          "max": 10,
+          "perSeed": [
+            10,
+            6,
+            4
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 2.16,
+          "min": 1.94,
+          "max": 2.28,
+          "perSeed": [
+            2.28,
+            2.16,
+            1.94
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1020,
+          "min": 1005,
+          "max": 1021,
+          "perSeed": [
+            1005,
+            1020,
+            1021
+          ]
+        },
+        "allocatedMiB": {
+          "median": 3032,
+          "min": 3026,
+          "max": 3048,
+          "perSeed": [
+            3032,
+            3048,
+            3026
+          ]
+        },
+        "gen0": {
+          "median": 34,
+          "min": 34,
+          "max": 34,
+          "perSeed": [
+            34,
+            34,
+            34
+          ]
+        },
+        "gen1": {
+          "median": 33,
+          "min": 33,
+          "max": 34,
+          "perSeed": [
+            33,
+            34,
+            33
+          ]
+        },
+        "gen2": {
+          "median": 11,
+          "min": 11,
+          "max": 11,
+          "perSeed": [
+            11,
+            11,
+            11
+          ]
+        }
+      },
+      "candidate": {
+        "totalPauseMs": {
+          "median": 589.5,
+          "min": 521.9,
+          "max": 640.6,
+          "perSeed": [
+            589.5,
+            640.6,
+            521.9
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 528.5,
+          "min": 492.5,
+          "max": 573,
+          "perSeed": [
+            528.5,
+            573,
+            492.5
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 25.8,
+          "min": 22,
+          "max": 54.5,
+          "perSeed": [
+            25.8,
+            54.5,
+            22
+          ]
+        },
+        "maxPauseMs": {
+          "median": 45.45,
+          "min": 36.5,
+          "max": 66.24,
+          "perSeed": [
+            66.24,
+            45.45,
+            36.5
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 11,
+          "min": 10,
+          "max": 11,
+          "perSeed": [
+            11,
+            10,
+            11
+          ]
+        },
+        "frameP99Ms": {
+          "median": 27.96,
+          "min": 26.76,
+          "max": 31.55,
+          "perSeed": [
+            27.96,
+            31.55,
+            26.76
+          ]
+        },
+        "frameMaxMs": {
+          "median": 47.86,
+          "min": 42.82,
+          "max": 72.15,
+          "perSeed": [
+            72.15,
+            47.86,
+            42.82
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 3,
+          "min": 3,
+          "max": 6,
+          "perSeed": [
+            3,
+            6,
+            3
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 26.04,
+          "min": 22.08,
+          "max": 28.75,
+          "perSeed": [
+            26.04,
+            28.75,
+            22.08
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 3,
+          "min": 3,
+          "max": 6,
+          "perSeed": [
+            3,
+            6,
+            3
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.92,
+          "min": 1.72,
+          "max": 2.76,
+          "perSeed": [
+            1.72,
+            2.76,
+            1.92
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1020,
+          "min": 999,
+          "max": 1023,
+          "perSeed": [
+            999,
+            1020,
+            1023
+          ]
+        },
+        "allocatedMiB": {
+          "median": 3032,
+          "min": 3026,
+          "max": 3048,
+          "perSeed": [
+            3032,
+            3048,
+            3026
+          ]
+        },
+        "gen0": {
+          "median": 34,
+          "min": 34,
+          "max": 34,
+          "perSeed": [
+            34,
+            34,
+            34
+          ]
+        },
+        "gen1": {
+          "median": 33,
+          "min": 33,
+          "max": 34,
+          "perSeed": [
+            33,
+            34,
+            33
+          ]
+        },
+        "gen2": {
+          "median": 11,
+          "min": 11,
+          "max": 11,
+          "perSeed": [
+            11,
+            11,
+            11
+          ]
+        }
+      }
+    },
+    "fragmented": {
+      "control": {
+        "totalPauseMs": {
+          "median": 2836.6,
+          "min": 2760.6,
+          "max": 2875.7,
+          "perSeed": [
+            2836.6,
+            2875.7,
+            2760.6
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 2739.3,
+          "min": 2686.6,
+          "max": 2755,
+          "perSeed": [
+            2755,
+            2739.3,
+            2686.6
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 81.6,
+          "min": 73.9,
+          "max": 136.4,
+          "perSeed": [
+            81.6,
+            136.4,
+            73.9
+          ]
+        },
+        "maxPauseMs": {
+          "median": 178.79,
+          "min": 151.59,
+          "max": 493.92,
+          "perSeed": [
+            493.92,
+            178.79,
+            151.59
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            1,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 493.9,
+          "perSeed": [
+            493.9,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 7,
+          "min": 6,
+          "max": 7,
+          "perSeed": [
+            6,
+            7,
+            7
+          ]
+        },
+        "frameP99Ms": {
+          "median": 37.72,
+          "min": 33.16,
+          "max": 45.69,
+          "perSeed": [
+            33.16,
+            45.69,
+            37.72
+          ]
+        },
+        "frameMaxMs": {
+          "median": 195.63,
+          "min": 160.85,
+          "max": 496.02,
+          "perSeed": [
+            496.02,
+            195.63,
+            160.85
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 17,
+          "min": 13,
+          "max": 18,
+          "perSeed": [
+            13,
+            18,
+            17
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            0,
+            1,
+            0
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 32.63,
+          "min": 24.1,
+          "max": 83.37,
+          "perSeed": [
+            32.63,
+            83.37,
+            24.1
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 17,
+          "min": 13,
+          "max": 17,
+          "perSeed": [
+            13,
+            17,
+            17
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.26,
+          "min": 1.25,
+          "max": 1.27,
+          "perSeed": [
+            1.26,
+            1.25,
+            1.27
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1499,
+          "min": 1208,
+          "max": 1543,
+          "perSeed": [
+            1208,
+            1543,
+            1499
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5697,
+          "min": 5697,
+          "max": 5700,
+          "perSeed": [
+            5697,
+            5700,
+            5697
+          ]
+        },
+        "gen0": {
+          "median": 96,
+          "min": 95,
+          "max": 96,
+          "perSeed": [
+            95,
+            96,
+            96
+          ]
+        },
+        "gen1": {
+          "median": 96,
+          "min": 94,
+          "max": 96,
+          "perSeed": [
+            94,
+            96,
+            96
+          ]
+        },
+        "gen2": {
+          "median": 7,
+          "min": 7,
+          "max": 7,
+          "perSeed": [
+            7,
+            7,
+            7
+          ]
+        }
+      },
+      "candidate": {
+        "totalPauseMs": {
+          "median": 2893.3,
+          "min": 2775.3,
+          "max": 2922.6,
+          "perSeed": [
+            2775.3,
+            2922.6,
+            2893.3
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 2823.8,
+          "min": 2715.4,
+          "max": 2858.3,
+          "perSeed": [
+            2715.4,
+            2858.3,
+            2823.8
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 64.4,
+          "min": 59.9,
+          "max": 69.4,
+          "perSeed": [
+            59.9,
+            64.4,
+            69.4
+          ]
+        },
+        "maxPauseMs": {
+          "median": 224.81,
+          "min": 163.88,
+          "max": 468.83,
+          "perSeed": [
+            468.83,
+            224.81,
+            163.88
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 1,
+          "perSeed": [
+            1,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 468.8,
+          "perSeed": [
+            468.8,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 7,
+          "min": 6,
+          "max": 7,
+          "perSeed": [
+            6,
+            7,
+            7
+          ]
+        },
+        "frameP99Ms": {
+          "median": 37.12,
+          "min": 34.78,
+          "max": 39.79,
+          "perSeed": [
+            34.78,
+            37.12,
+            39.79
+          ]
+        },
+        "frameMaxMs": {
+          "median": 249.93,
+          "min": 176.53,
+          "max": 470.56,
+          "perSeed": [
+            470.56,
+            249.93,
+            176.53
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 19,
+          "min": 15,
+          "max": 21,
+          "perSeed": [
+            15,
+            21,
+            19
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 20.92,
+          "min": 18.51,
+          "max": 21.9,
+          "perSeed": [
+            18.51,
+            21.9,
+            20.92
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 19,
+          "min": 15,
+          "max": 21,
+          "perSeed": [
+            15,
+            21,
+            19
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.23,
+          "min": 1.2,
+          "max": 1.24,
+          "perSeed": [
+            1.2,
+            1.24,
+            1.23
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1460,
+          "min": 1213,
+          "max": 1495,
+          "perSeed": [
+            1213,
+            1460,
+            1495
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5697,
+          "min": 5697,
+          "max": 5700,
+          "perSeed": [
+            5697,
+            5700,
+            5697
+          ]
+        },
+        "gen0": {
+          "median": 96,
+          "min": 95,
+          "max": 96,
+          "perSeed": [
+            95,
+            96,
+            96
+          ]
+        },
+        "gen1": {
+          "median": 96,
+          "min": 94,
+          "max": 96,
+          "perSeed": [
+            94,
+            96,
+            96
+          ]
+        },
+        "gen2": {
+          "median": 7,
+          "min": 7,
+          "max": 7,
+          "perSeed": [
+            7,
+            7,
+            7
+          ]
+        }
+      },
+      "controlSustained": {
+        "totalPauseMs": {
+          "median": 2747.9,
+          "min": 2682,
+          "max": 2874,
+          "perSeed": [
+            2874,
+            2747.9,
+            2682
+          ]
+        },
+        "transitionPauseMs": {
+          "median": 2680.1,
+          "min": 2607.2,
+          "max": 2804.1,
+          "perSeed": [
+            2804.1,
+            2680.1,
+            2607.2
+          ]
+        },
+        "steadyPauseMs": {
+          "median": 69.9,
+          "min": 67.8,
+          "max": 74.8,
+          "perSeed": [
+            69.9,
+            67.8,
+            74.8
+          ]
+        },
+        "maxPauseMs": {
+          "median": 175.14,
+          "min": 159.86,
+          "max": 177.64,
+          "perSeed": [
+            177.64,
+            175.14,
+            159.86
+          ]
+        },
+        "blockingGen2": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "blockingGen2PauseMs": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "backgroundGen2": {
+          "median": 7,
+          "min": 7,
+          "max": 7,
+          "perSeed": [
+            7,
+            7,
+            7
+          ]
+        },
+        "frameP99Ms": {
+          "median": 34.62,
+          "min": 34.24,
+          "max": 36.24,
+          "perSeed": [
+            34.24,
+            34.62,
+            36.24
+          ]
+        },
+        "frameMaxMs": {
+          "median": 186.83,
+          "min": 168.53,
+          "max": 194.38,
+          "perSeed": [
+            194.38,
+            186.83,
+            168.53
+          ]
+        },
+        "framesOver33Ms": {
+          "median": 15,
+          "min": 15,
+          "max": 15,
+          "perSeed": [
+            15,
+            15,
+            15
+          ]
+        },
+        "steadyOver33Ms": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "perSeed": [
+            0,
+            0,
+            0
+          ]
+        },
+        "steadyFrameMaxMs": {
+          "median": 22.02,
+          "min": 18.66,
+          "max": 24.65,
+          "perSeed": [
+            22.02,
+            18.66,
+            24.65
+          ]
+        },
+        "transitionOver33Ms": {
+          "median": 15,
+          "min": 15,
+          "max": 15,
+          "perSeed": [
+            15,
+            15,
+            15
+          ]
+        },
+        "transitionFrameP50Ms": {
+          "median": 1.25,
+          "min": 1.16,
+          "max": 1.26,
+          "perSeed": [
+            1.25,
+            1.16,
+            1.26
+          ]
+        },
+        "peakCommittedMiB": {
+          "median": 1460,
+          "min": 1456,
+          "max": 1499,
+          "perSeed": [
+            1460,
+            1456,
+            1499
+          ]
+        },
+        "allocatedMiB": {
+          "median": 5697,
+          "min": 5697,
+          "max": 5700,
+          "perSeed": [
+            5697,
+            5700,
+            5697
+          ]
+        },
+        "gen0": {
+          "median": 96,
+          "min": 96,
+          "max": 96,
+          "perSeed": [
+            96,
+            96,
+            96
+          ]
+        },
+        "gen1": {
+          "median": 96,
+          "min": 95,
+          "max": 96,
+          "perSeed": [
+            95,
+            96,
+            96
+          ]
+        },
+        "gen2": {
+          "median": 7,
+          "min": 7,
+          "max": 7,
+          "perSeed": [
+            7,
+            7,
+            7
+          ]
+        }
+      }
+    },
+    "deviceLikeMiBPerCollection": 89.2
+  },
+  "evaluation": {
+    "gen0MaxBudget64MiB": "withdrawn: same GCGen0MaxBudget (67108864) and same collections as the control",
+    "sustainedLowLatency": "not adopted: see measurements.fragmented.controlSustained (blocking gen2 and pause within the control's seed-to-seed range)"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionLibraryBuilt": true,
+  "inputs": {
+    "build-utils/melonx/adapt_gc_latency.py": "675ab825e31e470cf6f29e123e945ab1ee9598057dee052f357e299869471f88",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_gc_latency_test.py": "9d00842d98276103cdf22bcce76d479ee94d2692232dd3f7f89fd4cb59e89ef3",
+    "test/melonx_gc_latency/Program.cs": "2bf6f03f16beb798d612361d275f5226446a787c54600ff377ab7bca0ecb053a",
+    "test/melonx_adapter_control.py": "9ed8261b7a5840df58d4abf0634eeec74231a65b14d4055acf2cad34280f5df3",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "7689006612b4d24bafda11aa73bdbaedbc4b76db8a5bbe5607c3b64044772a90"
+  },
+  "limitation": "Host measurement (NativeAOT linux-x64, synthetic single-threaded workload, a cgroup heap limit the device does not have). The device's long collections (24-40 ms each in transition windows, a 756 ms blocking compacting gen2) are not changed by any gen0 budget knob; the lever there is fewer allocations at the source. The blocking gen2 of the fragmenting unload is timing-dependent (some seeds only, in every variant): perSeed values are kept."
+}

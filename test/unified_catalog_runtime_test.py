@@ -100,6 +100,20 @@ class PackContractTests(unittest.TestCase):
                                 '--expected-games', str(len(published['games'])),
                                 '--expected-packs', str(len(published['packs']))], check=True, timeout=90)
 
+    @unittest.skipUnless(platform.system() == 'Darwin', 'Apple Foundation runtime requires macOS')
+    def test_origin_publication_foundation_runtime(self):
+        with tempfile.TemporaryDirectory(prefix='neostation-cheat-origin-') as folder:
+            executable = str(Path(folder) / 'origin')
+            subprocess.run([
+                'xcrun', '--sdk', 'macosx', 'clang', '-fobjc-arc', '-fblocks',
+                '-Wno-deprecated-declarations', '-framework', 'Foundation', '-lz',
+                '-I', str(PACKAGE / 'ios/Classes/Public'),
+                str(ROOT / 'test/unified_catalog_origin_native.m'),
+                str(PACKAGE / 'ios/Classes/NeoUnifiedCheatCatalog.m'),
+                '-o', executable,
+            ], check=True)
+            subprocess.run([executable], check=True, timeout=120)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

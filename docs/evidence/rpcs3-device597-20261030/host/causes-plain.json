@@ -1,0 +1,45 @@
+{
+  "scope": "new compact cause history admission and wiring",
+  "sourceContract": {
+    "passed": true,
+    "existingRuntimeAdmissionUnchanged": true,
+    "publicHeaderUnchanged": true,
+    "additionalQueues": 0,
+    "additionalFsyncCalls": 0,
+    "completeCauseMessageKept": true,
+    "causeCurrentAndPreviousLimitBytes": 8388608
+  },
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fno-omit-frame-pointer"
+  ],
+  "sanitizer": "",
+  "admissionCaseCount": 85,
+  "inputsSHA256": {
+    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm": "134862d8fd6ab9dd68ded1cb6b9c358890f7b9c1c1c27045cc19d61b31a322d8",
+    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.h": "2f1d57c5b5ac9206ba6dd9c2901d65053febffc19abc53ec519cc694f7bc7ad3",
+    "test/native/rpcs3_causes_history_test.mm": "c6ad3e06ac56015031fad836c852895e26d480031bfa355b96a0ab063213da51"
+  },
+  "baselineLoggerSHA256": "1bfbab2e7b07c78f17981f03aabb88f8c477b4ce44badf3275ab59bf6c202f98",
+  "admissionHarnessSHA256": "67ea6fbbf754a6b1e00030900c416bb6221e577217ccacd14630f8cfafc803cd",
+  "physicalIPhoneTested": false,
+  "fpsGainClaimed": false,
+  "buildReturnCode": 0,
+  "foundation": {
+    "executed": false,
+    "reason": "macOS Foundation unavailable on this host"
+  },
+  "passed": true,
+  "runReturnCode": 0,
+  "admission": {
+    "passed": true,
+    "cases": 85
+  }
+}

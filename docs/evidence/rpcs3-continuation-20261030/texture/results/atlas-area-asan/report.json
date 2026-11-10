@@ -1,0 +1,32 @@
+{
+  "case": "atlas_area",
+  "cases": 117756,
+  "checks": 117757,
+  "baseline_mismatches": 0,
+  "unchanged_safe_cases": 0,
+  "baseline_signed_overflow_detected": true,
+  "command": [
+    "g++",
+    "-DVERIFY_CANDIDATE_ONLY",
+    "-fsanitize=address,undefined",
+    "-fno-sanitize-recover=undefined",
+    "-fno-omit-frame-pointer",
+    "-std=c++20",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-asan/atlas_area.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-asan/atlas_area"
+  ],
+  "source_sha256": "51963efe0db3e04719a18c8c11bb8b169d49846773339e7d20c5f3a4bbf1919c",
+  "baseline_sha256": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+  "program_sha256": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+  "sanitizers": true,
+  "limitations": [
+    "Extracted area decision and width/height box arithmetic; no GPU execution.",
+    "Large-field bounds stress is distinct from the generated 256 MiB volume set.",
+    "No device performance or game-specific visual result."
+  ]
+}

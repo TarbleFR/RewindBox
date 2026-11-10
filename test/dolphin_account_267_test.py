@@ -30,7 +30,6 @@ CATALOGUE_CLASSES = ROOT / 'packages/neo_cheat_catalog/ios/Classes'
 CATALOGUE_SOURCES = sorted(path for path in CATALOGUE_CLASSES.glob('*.m') if path.name != 'NeoCheatCatalogPlugin.m')
 CATALOGUE_SDKS = ('libz.tbd', 'UniformTypeIdentifiers.framework')
 sys.path.insert(0, str(ROOT / 'test'))
-from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 
 TESTS = r'''
 #import <XCTest/XCTest.h>
@@ -38,56 +37,47 @@ TESTS = r'''
 #import "DolphinRetroAchievementsAccount.h"
 
 @interface DolphinSessionMenu (AccountTesting)
+- (NSArray<NSString*>*)rootKeys;
 - (void)apply:(NSDictionary*)request thenReturn:(BOOL)returnToBindings;
 @end
 @interface DolphinAccountTests : XCTestCase
 @end
 @implementation DolphinAccountTests
-- (DolphinSessionMenu*)accountMenu {
+- (DolphinSessionMenu*)rootMenu {
   DolphinSessionMenu* menu = [DolphinSessionMenu new];
-  menu.labels = @{@"raAccount": @"Account", @"resume": @"Resume", @"back": @"Back"};
-  [menu setValue:@3 forKey:@"page"];
-  [menu setValue:@{@"achievements": @{@"enabled": @NO, @"username": NSNull.null,
-      @"gameLoaded": @NO, @"hardcore": @NO}} forKey:@"snapshot"];
+  menu.labels = @{@"resume": @"Resume", @"back": @"Back", @"settingsFailed": @"Failed", @"close": @"Close"};
   [menu loadViewIfNeeded];
   return menu;
 }
-- (void)testAccountTapOpensDedicatedScreenAndNeverAppliesSettings {
-  DolphinSessionMenu* menu = [self accountMenu];
+- (void)testRootKeepsGameControlsAndHasNoEngineAccountEntry {
+  DolphinSessionMenu* menu = [self rootMenu];
+  NSArray* keys = [menu rootKeys];
+  for (NSString* key in @[@"graphics", @"hacks", @"cheats", @"controls", @"console", @"saveState", @"loadState", @"resume", @"quit"])
+    XCTAssertTrue([keys containsObject:key], @"%@", key);
+  XCTAssertFalse([keys containsObject:@"achievements"]);
+  XCTAssertFalse([keys containsObject:@"raAccount"]);
+}
+- (void)testFormerAccountControllerAndHandlersAreAbsent {
+  XCTAssertNil(NSClassFromString(@"DolphinRetroAchievementsAccount"));
+  DolphinSessionMenu* menu = [self rootMenu];
+  XCTAssertFalse([menu respondsToSelector:NSSelectorFromString(@"linkAccount")]);
+  XCTAssertFalse([menu respondsToSelector:NSSelectorFromString(@"unlinkAccount")]);
+}
+- (void)testRetiredPageAndOutOfRangeTapsCannotOpenAccountOrApplySettings {
+  DolphinSessionMenu* menu = [self rootMenu];
   __block NSUInteger calls = 0;
   menu.applySettings = ^(NSDictionary* request, void (^done)(BOOL)) { ++calls; done(YES); };
   UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:menu];
   [navigation loadViewIfNeeded];
-  NSIndexPath* account = [NSIndexPath indexPathForRow:0 inSection:0];
-  XCTAssertNoThrow([menu tableView:menu.tableView didSelectRowAtIndexPath:account]);
-  XCTAssertTrue([navigation.topViewController isKindOfClass:DolphinRetroAchievementsAccount.class]);
-  XCTAssertEqual(navigation.viewControllers.count, 2U);
-  XCTAssertNoThrow([navigation.topViewController loadViewIfNeeded]);
-  // A repeated tap from the old page must not open a second form.
-  [menu tableView:menu.tableView didSelectRowAtIndexPath:account];
-  XCTAssertEqual(navigation.viewControllers.count, 2U);
-  XCTAssertEqual(calls, 0U);
-}
-- (void)testStatusAndModeAreReadOnly {
-  DolphinSessionMenu* menu = [self accountMenu];
-  __block NSUInteger calls = 0;
-  menu.applySettings = ^(NSDictionary* request, void (^done)(BOOL)) { ++calls; done(YES); };
-  for (NSInteger row = 1; row <= 2; ++row) {
-    NSIndexPath* index = [NSIndexPath indexPathForRow:row inSection:0];
-    UITableViewCell* cell = [menu tableView:menu.tableView cellForRowAtIndexPath:index];
-    XCTAssertFalse(cell.userInteractionEnabled);
-    XCTAssertEqual(cell.selectionStyle, UITableViewCellSelectionStyleNone);
-    XCTAssertNoThrow([menu tableView:menu.tableView didSelectRowAtIndexPath:index]);
+  for (NSNumber* page in @[@4, @99]) { // 4 was the removed achievements/account page.
+    [menu setValue:page forKey:@"page"];
+    XCTAssertEqual([menu tableView:menu.tableView numberOfRowsInSection:0], 0);
+    for (NSNumber* row in @[@0, @99])
+      XCTAssertNoThrow([menu tableView:menu.tableView didSelectRowAtIndexPath:
+          [NSIndexPath indexPathForRow:row.integerValue inSection:0]]);
   }
+  XCTAssertEqual(navigation.viewControllers.count, 1U);
   XCTAssertEqual(calls, 0U);
-}
-- (void)testOutOfRangeAndUnknownPageTapsDoNothing {
-  DolphinSessionMenu* menu = [self accountMenu];
-  XCTAssertNoThrow([menu tableView:menu.tableView didSelectRowAtIndexPath:
-      [NSIndexPath indexPathForRow:99 inSection:0]]);
-  [menu setValue:@99 forKey:@"page"];
-  XCTAssertNoThrow([menu tableView:menu.tableView didSelectRowAtIndexPath:
-      [NSIndexPath indexPathForRow:0 inSection:0]]);
 }
 - (void)testSerializerRejectsNilNullWrongKindsAndNonJSONValues {
   XCTAssertNil(DOLSerializeMenuRequest(nil));
@@ -100,41 +90,46 @@ TESTS = r'''
   XCTAssertNotNil(DOLSerializeMenuRequest(@{@"kind": @"hack", @"key": @"viSkip", @"value": @NO}));
 }
 - (void)testNilRequestCannotReachNativeSettingsCallback {
-  DolphinSessionMenu* menu = [self accountMenu];
+  DolphinSessionMenu* menu = [self rootMenu];
   __block NSUInteger calls = 0;
   menu.applySettings = ^(NSDictionary* request, void (^done)(BOOL)) { ++calls; done(YES); };
   XCTAssertNoThrow([menu apply:(id)nil thenReturn:NO]);
   XCTAssertEqual(calls, 0U);
 }
-- (void)testPasswordIsPOSTEncodedNotAddedToURL {
-  NSURLRequest* request = [DolphinRetroAchievementsAccount loginRequestForUsername:@" User " password:@" p+&%=é "];
-  XCTAssertEqualObjects(request.URL.absoluteString, @"https://retroachievements.org/dorequest.php");
-  XCTAssertEqualObjects(request.HTTPMethod, @"POST");
-  XCTAssertEqualObjects([[NSString alloc] initWithData:request.HTTPBody encoding:NSUTF8StringEncoding],
-      @"r=login2&u=User&p=%20p%2B%26%25%3D%C3%A9%20");
-  XCTAssertNil([DolphinRetroAchievementsAccount loginRequestForUsername:@" " password:@"x"]);
-  XCTAssertNil([DolphinRetroAchievementsAccount loginRequestForUsername:@"User" password:@""]);
+- (void)testValidRequestStillReachesNativeSettingsCallback {
+  DolphinSessionMenu* menu = [self rootMenu];
+  __block NSUInteger calls = 0;
+  NSDictionary* request = @{@"kind": @"hack", @"key": @"viSkip", @"value": @NO};
+  menu.applySettings = ^(NSDictionary* received, void (^done)(BOOL)) {
+    XCTAssertEqualObjects(received, request); ++calls; done(YES);
+  };
+  [menu apply:request thenReturn:NO];
+  XCTAssertEqual(calls, 1U);
 }
-- (void)testLoginResponseRequiresSuccessUsernameAndEmulatorToken {
-  NSArray<NSString*>* rejected = @[@"", @"null", @"[]", @"{}", @"<html>offline</html>",
-    @"{\"Success\":false,\"User\":\"u\",\"Token\":\"t\"}",
-    @"{\"Success\":true,\"User\":null,\"Token\":\"t\"}",
-    @"{\"Success\":true,\"User\":\"u\",\"Token\":\"\"}",
-    @"{\"Success\":true,\"User\":\"u\",\"Token\":17}"];
-  for (NSString* json in rejected)
-    XCTAssertNil([DolphinRetroAchievementsAccount credentialsFromResponse:[json dataUsingEncoding:NSUTF8StringEncoding]]);
-  NSData* valid = [@"{\"Success\":true,\"User\":\"Player\",\"Token\":\"test-token\"}"
-      dataUsingEncoding:NSUTF8StringEncoding];
-  XCTAssertEqualObjects([DolphinRetroAchievementsAccount credentialsFromResponse:valid],
-      (@{@"username": @"Player", @"token": @"test-token"}));
+- (void)testHardcoreBlockedLoadCannotReachStateOperation {
+  DolphinSessionMenu* menu = [self rootMenu];
+  [menu setValue:@11 forKey:@"page"]; // DOLMenuLoadStates retains its prior value.
+  NSDictionary* slot = @{@"slot": @1, @"exists": @YES, @"loadable": @NO,
+      @"modified": @0, @"filename": @"GAME01.s01"};
+  [menu setValue:@{@"slots": @[slot]} forKey:@"snapshot"];
+  __block NSUInteger calls = 0;
+  menu.performStateOperation = ^(NSInteger number, BOOL load, void (^done)(BOOL)) { ++calls; done(YES); };
+  [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+  XCTAssertEqual(calls, 0U);
 }
-- (void)testRedirectIsRefused {
-  DolphinRetroAchievementsAccount* controller = [[DolphinRetroAchievementsAccount alloc] initWithLabels:@{}];
-  __block BOOL completed = NO;
-  [controller URLSession:(id)nil task:(id)nil willPerformHTTPRedirection:(id)nil
-      newRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:@"http://example.invalid"]]
-      completionHandler:^(NSURLRequest* redirected) { XCTAssertNil(redirected); completed = YES; }];
-  XCTAssertTrue(completed);
+- (void)testCreatingAStateRemainsAvailableWhenLoadingIsBlocked {
+  DolphinSessionMenu* menu = [self rootMenu];
+  [menu setValue:@10 forKey:@"page"]; // DOLMenuSaveStates.
+  NSDictionary* snapshot = @{@"slots": @[@{@"slot": @1, @"exists": @NO,
+      @"loadable": @NO, @"modified": @0, @"filename": @"GAME01.s01"}]};
+  [menu setValue:snapshot forKey:@"snapshot"];
+  menu.readStates = ^(void (^done)(NSDictionary*)) { done(snapshot); };
+  __block NSUInteger calls = 0;
+  menu.performStateOperation = ^(NSInteger slot, BOOL load, void (^done)(BOOL)) {
+    XCTAssertEqual(slot, 1); XCTAssertFalse(load); ++calls; done(YES);
+  };
+  [menu tableView:menu.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+  XCTAssertEqual(calls, 1U);
 }
 @end
 '''
@@ -170,32 +165,27 @@ int main(int argc, char** argv) {
 
 def contracts():
     paths = [CLASSES / 'DolphinSessionMenu.mm', CLASSES / 'DolphinInternalBridgePlugin.mm',
-             CLASSES / 'DolphinRetroAchievementsAccount.mm', CLASSES / 'DolphinRetroAchievementsAccount.h',
-             ROOT / 'lib/l10n/dolphin_import_locale.dart']
+             CLASSES / 'DolphinRetroAchievementsAccount.mm', CLASSES / 'DolphinRetroAchievementsAccount.h']
     before = [p.read_bytes() for p in paths]
-    subprocess.run(['python3', str(ROOT / 'build-utils/patch_dolphin_build267_account.py')], check=True)
-    assert before == [p.read_bytes() for p in paths], 'Patch must be idempotent'
-    menu, host, account, header, locale = [p.read_text() for p in paths]
-    assert 'NEOSTATION_DOLPHIN_ACCOUNT_267' in menu
+    for _ in range(2):
+        subprocess.run(['python3', str(ROOT / 'build-utils/patch_dolphin_build267_account.py')], check=True)
+        assert before == [p.read_bytes() for p in paths], 'Compatibility build hook must not rewrite sources'
+    menu, host, account, header = [p.read_text() for p in paths]
+    assert 'DOLMenuAchievements' not in menu and '@"raAccount"' not in menu
     assert 'else if (self.page == DOLMenuChoices)' in menu
     assert 'if (!DOLSerializeMenuRequest(request))' in menu
     assert 'NSData* data = DOLSerializeMenuRequest(request)' in host
-    assert 'raCredentials[@"token"]' in host
-    assert 'NSString* raApiToken = [arguments[' not in host
-    for token in ['secureTextEntry = YES', 'ephemeralSessionConfiguration', 'requestGeneration',
-                  'credentialsFromResponse', 'SecItemUpdate', 'SecItemDelete', 'completionHandler(nil)']:
-        assert token in account, token
-    block = locale.split('static const _accountMenu = <String, Map<String, String>>', 1)[1].split(';', 1)[0]
-    translations = json.loads(block)
-    assert len(translations) == 12
-    all_keys = set(translations['en'])
-    for language, values in translations.items():
-        assert set(values) == all_keys and all(values.values()), language
-    assert {'raAccount', 'raUsername', 'raPassword', 'raLinked', 'raRestartRequired'} <= all_keys
-    print('Dolphin account Build 267 source contracts: OK', flush=True)
+    assert 'RBRATakeLaunchConfiguration' in host
+    assert '[DolphinRetroAchievementsAccount credentials]' not in host
+    for forbidden in ('SecItem', 'NSURLSession', 'linkAccount', 'unlinkAccount', 'loginRequestForUsername',
+                      'credentialsFromResponse', '@interface DolphinRetroAchievementsAccount'):
+        assert forbidden not in account + header, forbidden
+    assert 'DOLSerializeMenuRequest' in account and 'DOLSerializeMenuRequest' in header
+    print('Dolphin central account ownership, retired UI and retained menu validation: source contracts passed', flush=True)
 
 
 def native():
+    from libretro_ios_syntax_test import stage_dependency_headers
     # Do not select the newest installed OS: newer Xcode runtimes coexist on
     # hosted runners and can fail to connect to the older XCTest manager.
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version'], text=True).strip()
@@ -221,7 +211,7 @@ def native():
             sdk_dependencies += [{'sdk': name} for name in CATALOGUE_SDKS if {'sdk': name} not in sdk_dependencies]
         project = {
             'name': 'DolphinAccount267',
-            'options': {'deploymentTarget': {'iOS': '17.4'}},
+            'options': {'deploymentTarget': {'iOS': '18.0'}},
             'settings': {'base': {'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES',
                                   'CODE_SIGNING_ALLOWED': 'YES', 'CODE_SIGN_IDENTITY': '-',
                                   'GENERATE_INFOPLIST_FILE': 'YES',
@@ -229,7 +219,9 @@ def native():
             'targets': {
                 'DolphinAccountHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
-                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm')]
+                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm'),
+                                # Skins orientation (705e90c7): the session menu reads the session mask (DOLOrientation).
+                                str(CLASSES / 'DOLOrientation.mm')]
                                + [str(source) for source in EXTERNAL_SOURCES]
                                + [str(source) for source in CATALOGUE_SOURCES],
                     'dependencies': sdk_dependencies,

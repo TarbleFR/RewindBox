@@ -9,6 +9,8 @@ run-name: MeloNX host • ${{ github.sha }}
     - .github/workflows/melonx-host.yml
     - packages/melonx_internal_bridge/**
     - test/melonx_session_host_test.py
+    - test/melonx_audio_ownership_test.py
+    - packages/external_folder_access/ios/Classes/**
     - test/melonx_memory_graph_test.py
     - test/melonx_memory_lease_test.py
     - test/melonx_memory_extension_test.py
@@ -19,11 +21,20 @@ run-name: MeloNX host • ${{ github.sha }}
     - build-utils/melonx/vendor_controller.py
     - build-utils/melonx/generate_ui_strings.py
     - build-utils/melonx/ui-strings.json
+    - test/melonx_perf_journal_test.py
+    - test/melonx_standalone_parity_test.py
+    - test/melonx_text_input_test.py
+    - test/melonx_text_input/**
+    - native/melonx/EmbeddedAudioPacing.cs
+    - native/melonx/EmbeddedAudioPacingExport.cs
+    - build-utils/melonx/build_core.sh
   workflow_dispatch: null
 permissions:
   contents: read
 jobs:
   host:
+    # The completion push reruns the changed plugin's actual UIKit presentation
+    # fixture in melonx-completion-host and retains unchanged host scopes.
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -45,9 +56,13 @@ jobs:
 
         git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
 
-        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67 || git -C .native-sources/MeloNX fetch --depth 1 https://github.com/AzureDominus/melonx.git 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
 
         git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+
+        test "$(git -C .native-sources/MeloNX rev-parse HEAD)" = 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+
+        test "$(git -C .native-sources/MeloNX rev-parse HEAD^{tree})" = 82a29e6f593f6244869481e9a489b8d5154175fe
 
         git init .native-sources/Melo-Controller
 
@@ -61,9 +76,17 @@ jobs:
 
         '
     - name: Compile the iPhone host and execute its native ABI scenarios
-      run: python3 test/melonx_session_host_test.py ${{ contains(github.event.head_commit.message, '[melonx-display]') && '--sdk-only' || '' }}
+      run: python3 test/melonx_session_host_test.py ${{ (contains(github.event.head_commit.message, '[melonx-display]') || contains(github.event.head_commit.message, '[melonx-audio-update]')) && '--sdk-only' || '' }}
+    - name: Exercise audio ownership, route changes and presentation handoff
+      run: python3 test/melonx_audio_ownership_test.py
     - name: Exercise registered plugin presentation and retry in actual UIKit
       run: python3 test/melonx_presentation_test.py
+    - name: Execute the per-second performance journal in Swift (threads, pause, line limit, summary, ports)
+      run: python3 test/melonx_perf_journal_test.py
+    - name: Execute the stderr capture, repeated stubs, emulation priority and MoltenVK preference in Swift
+      run: python3 test/melonx_standalone_parity_test.py
+    - name: Answer the Switch keyboard in UIKit and check the L3/R3 toggle wiring
+      run: python3 test/melonx_text_input_test.py
     - name: Compile the original donor extension and validate target packaging
       if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
       run: python3 test/melonx_memory_extension_test.py
@@ -80,5 +103,5 @@ jobs:
         path: dist/melonx-host/
         if-no-files-found: ignore
         retention-days: 14
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
-      && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[melonx-completion-host]')) && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+      && !contains(github.event.head_commit.message, '[melonx-validated-integration]'))) }}

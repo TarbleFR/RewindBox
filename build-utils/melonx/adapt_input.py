@@ -28,4 +28,41 @@ def apply(source):
     once(driver, '                    return gamepad;', '                    return new EmbeddedNativeGamepadLease(gamepad);')
     once(driver, '                return _gamepads.Values.FirstOrDefault(g => g.Id == id);', '''                var pad = _gamepads.Values.FirstOrDefault(g => g.Id == id);
                 return pad == null ? null : new EmbeddedNativeGamepadLease(pad);''')
-    return [driver]
+    pad = source / 'src/Ryujinx.Input.Native/NativeGamepad.cs'
+    once(pad, '''        public GamepadStateSnapshot GetStateSnapshot()
+        {
+            return IGamepad.GetStateSnapshot(this);
+        }''', '''        public GamepadStateSnapshot GetStateSnapshot()
+        {
+            // NpadManager polls this up to once per millisecond. Copy the state
+            // under one lock instead of reacquiring it for every button/axis;
+            // an input update cannot split the snapshot across two states.
+            lock (_stateLock)
+            {
+                GamepadStateSnapshot snapshot = default;
+                snapshot.SetStick(StickInputId.Left, _stickStates[0], _stickStates[1]);
+                snapshot.SetStick(StickInputId.Right, _stickStates[2], _stickStates[3]);
+
+                for (GamepadButtonInputId inputId = GamepadButtonInputId.A; inputId < GamepadButtonInputId.Count; inputId++)
+                {
+                    snapshot.SetPressed(inputId, _buttonStates[(int)inputId]);
+                }
+
+                return snapshot;
+            }
+        }''')
+    once(pad, '''                int size = Marshal.SizeOf(typeof(RumbleData));
+                nint ptr = Marshal.AllocHGlobal(size);
+                try\x20
+                {
+                    Marshal.StructureToPtr(rumbleData, ptr, false);
+                    CallbackRegistry.Invoke($"rumble-{Id}", (byte*)ptr, size);
+                }\x20
+                finally
+                {
+                    Marshal.FreeHGlobal(ptr);
+                }''', '''                // CallbackRegistry consumes this borrowed buffer synchronously
+                // (and copies it for a managed callback). RumbleData is packed
+                // and unmanaged, so its stack bytes are already the native ABI.
+                CallbackRegistry.Invoke($"rumble-{Id}", (byte*)&rumbleData, sizeof(RumbleData));''')
+    return [driver, pad]

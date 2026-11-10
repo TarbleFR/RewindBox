@@ -1,0 +1,8 @@
+{
+  "returncode": 1,
+  "symlink_tmp": "/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias",
+  "resolved_tmp": "/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/real",
+  "reproduced_git_symlink_failure": true,
+  "output_sha256": "b6c51b080d8e3c79a99627d78b166da879aa6b3fbc6b77740bd2a8e4161673f9",
+  "compiler_executed": false
+}

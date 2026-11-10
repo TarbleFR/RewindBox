@@ -66,6 +66,11 @@ public class GamepadsIosPlugin: NSObject, FlutterPlugin {
             // notification while NeoStation was launching or inactive.
             gamepads.rescanConnectedControllers()
             result(listGamepads())
+        case "reclaimGamepads":
+            // Sent by the frontend when a game session has ended, so the
+            // menu gets the controller back from the engine that used it.
+            gamepads.reclaimHandlers()
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }

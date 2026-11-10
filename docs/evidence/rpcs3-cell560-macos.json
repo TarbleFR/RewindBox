@@ -1,0 +1,97 @@
+{
+  "build": 560,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "cba3fa9f98e38b2e90156ef5a255d35ec4849185",
+  "run": 40420391683,
+  "workflow": ".github/workflows/rpcs3-cell560-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12698001069,
+      "name": "RPCS3Core-cba3fa9f98e38b2e90156ef5a255d35ec4849185",
+      "bytes": 29069058,
+      "digest": "sha256:107397fafcbc31bd1873e60842ecbde0c4ca021a21834191a546da459e8153fe"
+    },
+    "diagnostics": {
+      "id": 12698765197,
+      "bytes": 204509,
+      "digest": "sha256:5ccb7078f7d43d602eaee765ca2159000a4ba8ff0cb1d570e2b9b30e45ef4c49"
+    }
+  },
+  "core": {
+    "sha256": "84e4e21c7ce52539959caae5cd46733319ede964de6547460b8847e2b72678cf",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "af53dc2368a7e458081824dfd6dafc3f2ad992674d3f7aeccbf697626f4d8b69",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom559": true,
+    "coldCompileRequiredByThisChange": false,
+    "replaces": {
+      "source": "07c76ec11f4000247f908b792f53b304c91c8bcd",
+      "run": 40403710130,
+      "sha256": "1b490126c9a9c8fcdc2cdaaabd39fa6131573ef68e4492551593f117355a25d0"
+    }
+  },
+  "sanitizers": {
+    "addressUndefined": true,
+    "thread": true
+  },
+  "results": {
+    "deferredCommit": {
+      "passed": true,
+      "scenarios": 12,
+      "observedIdentical": 12,
+      "disabledIdenticalTo559": true,
+      "gpuWaitsBefore": 17,
+      "gpuWaitsAfter": 3,
+      "deferrals": 15,
+      "dropped": 5,
+      "forcedWritebacks": 4,
+      "unsubmittedWaitsWithoutSubmit": 1,
+      "unsubmittedWaits": 0,
+      "pagesReleasedOwingBytes": 0
+    },
+    "threadIdentical": true,
+    "renderer": {
+      "commitsSubmittedAfterDeferral": 3,
+      "faultOriginsAttributed": true,
+      "nonIosRendererUnchanged": true
+    },
+    "exportLine": {
+      "line": "COREPROF OPT560",
+      "automaticTitles": [
+        "BLES01658"
+      ],
+      "readbackOriginsAppended": [
+        "fbo_commit",
+        "fault_read",
+        "fault_write"
+      ]
+    }
+  },
+  "harnessSHA256": "de592c22c70083d6cea8052eda55d24b8dff8c9575a7bfcc41d440f924052809",
+  "harnessIdenticalToLinuxRun": true,
+  "inputsSHA256": {
+    "test/rpcs3_cell560_test.py": "6443710dc0e52d165c580174cb5d822c01807c90a48777789bd69dd0cf329bad",
+    "test/native/rpcs3_deferred560.inc": "ec02d53adb0427e5d4e2ebfa810a0623aceef1cc7f9bbe8af927e07c78ef5ccf"
+  },
+  "diagnosticsResultSHA256": "d4939f2255b9561b43540af75a4c17df482fe070b1de8989d86c2bf30632685a",
+  "scope": "Host correctness of the 560 production bodies against their exact 559 preimages under sanitizers; no iPhone FPS, frame time, Metal rendering, thermal or memory-pressure result."
+}

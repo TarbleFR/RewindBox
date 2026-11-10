@@ -177,7 +177,9 @@ extension _GamepadGridNav on _SystemCardGridViewState {
     if (selectedRow == -1) return;
 
     final selectedCard = cards[widget.selectedIndex];
-    final spanH = (selectedCard.isGame && cols >= 3) ? 2 : 1;
+    final spanH = (!widget.glacier && selectedCard.isGame && cols >= 3)
+        ? 2
+        : 1;
 
     final dimensions = _calculateGridDimensions();
     final rowHeight = dimensions['rowHeight']!;

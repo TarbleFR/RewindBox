@@ -135,10 +135,21 @@ class ControllerContracts(unittest.TestCase):
         self.assertIn('@property(nonatomic, strong) Armsx2ExternalRenderHost* externalRenderHost;', self.plugin)
 
     def test_layout_pass_does_not_resize_the_core_view_while_attached(self) -> None:
+        # Controller skins (docs/dolphin-skins.md, PS2): the iPhone frame of the core view is the
+        # view's bounds, or the skin's 4:3 game window while a skin is drawn. ARMSX2GameView
+        # resizes its drawable on every layout pass (upstream ios_main.mm layoutSubviews), as
+        # for a rotation. Exactly one assignment in the whole bridge, in placeRenderSurface,
+        # which returns while the external display owns the view; the layout pass calls it.
         layout = code(method_body(self.plugin, '- (void)viewDidLayoutSubviews {'))
-        self.assertIn('if (!self.externalRenderHost.attached) self.coreView.frame = self.view.bounds;', layout)
-        self.assertEqual(layout.count('coreView.frame'), 1, 'no unguarded resize of the core view')
+        self.assertIn('[self placeRenderSurface];', layout)
+        self.assertNotIn('coreView.frame', layout, 'the layout pass resizes only through placeRenderSurface')
         self.assertIn('\n  self.controlsView.frame = self.view.bounds;', layout, 'the controls always follow the iPhone')
+        place = code(method_body(self.plugin, '- (void)placeRenderSurface {'))
+        self.assertTrue(place.split('{', 1)[1].lstrip().startswith('if (self.externalRenderHost.attached) return;'),
+                        'nothing moves while the coordinator owns the core view')
+        self.assertEqual(self.stripped.count('coreView.frame'), 1, 'no other resize of the core view')
+        self.assertIn('self.coreView.frame = inScreen ? CGRectIntegral([skin convertRect:skin.screenFrame toView:self.view])'
+                      ' : self.view.bounds;', place, 'only the bounds or the skin window')
 
     def test_bridge_never_moves_or_transforms_the_core_view_itself(self) -> None:
         for forbidden in ('coreView.transform', 'coreView.bounds', 'coreView.center', 'removeFromSuperview',

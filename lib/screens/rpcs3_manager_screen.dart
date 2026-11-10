@@ -11,6 +11,8 @@ import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_save_exchange_service.dart';
 import '../widgets/rpcs3_firmware_preflight_dialog.dart';
 import '../widgets/rpcs3_save_exchange_dialogs.dart';
+import '../widgets/glass/glass_banner.dart';
+import '../widgets/glass/glass_button.dart';
 
 /// User-facing management surface for the embedded RPCS3 engine.
 ///
@@ -55,9 +57,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
         // helper detaches. Do not regress the UI to Inactive on a later state
         // event that only describes the Core handshake phase.
         _jitReady =
-            _jitReady ||
-            state.jitReady ||
-            Rpcs3InternalService.jitPrepared;
+            _jitReady || state.jitReady || Rpcs3InternalService.jitPrepared;
         _coreReady = state.coreReady;
         _statusMessage = switch (state.phase) {
           Rpcs3RuntimePhase.checkingJit ||
@@ -77,7 +77,9 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
             state.phase == Rpcs3RuntimePhase.initializingCore;
       });
     });
-    _contentProgressSubscription = Rpcs3ContentImportService.progress.listen((event) {
+    _contentProgressSubscription = Rpcs3ContentImportService.progress.listen((
+      event,
+    ) {
       if (!mounted || !_busy) return;
       setState(() => _contentProgress = event);
     });
@@ -94,8 +96,9 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
 
   void _notice(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _readDiagnostics() async {
@@ -208,15 +211,11 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
       final result = await Rpcs3ContentImportService.importGames();
       if (result.imported > 0) {
         await widget.onLibraryChanged();
-        _notice(
-          _tf('gamesImported', {'count': result.imported}),
-        );
+        _notice(_tf('gamesImported', {'count': result.imported}));
       }
       if (result.rejected > 0) {
         _notice(
-          result.errors.isNotEmpty
-              ? result.errors.first
-              : _t('importRejected'),
+          result.errors.isNotEmpty ? result.errors.first : _t('importRejected'),
         );
       }
       await _readDiagnostics();
@@ -247,9 +246,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     try {
       if (await Rpcs3ContentImportService.importExtractedGameFolder()) {
         await widget.onLibraryChanged();
-        _notice(
-          _t('folderImported'),
-        );
+        _notice(_t('folderImported'));
       }
       await _readDiagnostics();
     } on Rpcs3InternalException catch (error) {
@@ -435,9 +432,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          _t('embeddedDesc'),
-                        ),
+                        Text(_t('embeddedDesc')),
                         const SizedBox(height: 16),
                         _statusRow(
                           icon: _jitReady
@@ -462,9 +457,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                               ? Icons.check_circle
                               : Icons.pause_circle_outline,
                           label: 'RPCS3 Core',
-                          value: _coreReady
-                              ? _t('coreReady')
-                              : _t('onDemand'),
+                          value: _coreReady ? _t('coreReady') : _t('onDemand'),
                           color: _coreReady
                               ? scheme.primary
                               : scheme.onSurfaceVariant,
@@ -543,25 +536,15 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
-                  Card(
-                    color: scheme.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _error!,
-                            style: TextStyle(color: scheme.onErrorContainer),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton.icon(
-                            onPressed: _busy ? null : _bootstrap,
-                            icon: const Icon(Icons.refresh),
-                            label: Text(_t('retry')),
-                          ),
-                        ],
-                      ),
+                  GlassBanner(
+                    kind: GlassBannerKind.error,
+                    message: _error!,
+                    action: GlassButton(
+                      label: _t('retry'),
+                      icon: Icons.refresh,
+                      size: GlassButtonSize.small,
+                      variant: GlassButtonVariant.destructive,
+                      onPressed: _busy ? null : _bootstrap,
                     ),
                   ),
                 ],

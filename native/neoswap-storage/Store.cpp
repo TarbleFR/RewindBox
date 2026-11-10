@@ -77,11 +77,15 @@ struct Store::Impl {
     Config config; int fd=-1; uint64_t session=next_session.fetch_add(1),next_id=1,clock=0,tail=0,loading=0;
     mutable std::mutex mu,tm; std::condition_variable cv; std::thread worker;
     std::unordered_map<uint64_t,Entry> entries;
+    // Preallocated outside memory pressure. Bulk trimming revisits pinned
+    // candidates in priority order because leases can be released without mu.
+    // The ordinal preserves unordered-map traversal order when stamps tie.
+    std::vector<std::pair<Entry*,size_t>> trim_candidates;
     struct Extent {uint64_t offset, size;};
     // Reserved once. At most one free interval between each live record and
     // one inflight write, so erasing a record never allocates metadata.
     std::vector<Extent> free_extents;
-    std::deque<std::unique_ptr<Job>> queue; bool stopping=false;
+    std::deque<std::unique_ptr<Job>> queue; bool stopping=false,discarded_pending=false;
     std::atomic<Pressure> pressure{Pressure::normal}; std::atomic<uint64_t> transitions{0};
     std::unique_ptr<Bytes> codec_scratch;
     Stats stats; Histogram reads,writes,queues,restores; Clock::time_point write_after{};
@@ -115,7 +119,8 @@ struct Store::Impl {
                 else if(scratch){try {codec_scratch=std::make_unique<Bytes>(scratch);}
                     catch(const std::exception&){config.compression=false;}}
             }
-            entries.reserve(c.max_entries);free_extents.reserve(c.max_entries+2);worker=std::thread([this]{run();});}
+            entries.reserve(c.max_entries);free_extents.reserve(c.max_entries+2);
+            trim_candidates.reserve(c.max_entries);worker=std::thread([this]{run();});}
         catch(...){::close(fd);fd=-1;throw;}
     }
     ~Impl(){
@@ -127,17 +132,51 @@ struct Store::Impl {
     uint64_t target() const {const auto p=pressure.load();return p==Pressure::critical?0:p==Pressure::warning?config.ram_bytes/2:config.ram_bytes;}
     void peak(){std::lock_guard t(tm);stats.managed_ram_peak=std::max(stats.managed_ram_peak,ram());}
     bool trim_to(uint64_t limit,uint64_t except=0){
-        while(ram()>limit){
+        // mu protects entry ownership and loading throughout this sweep.
+        // Removing a victim is the only change to the accounted byte total.
+        uint64_t remaining=ram();
+        if(remaining<=limit)return true;
+        unsigned victims=0;
+        size_t first_candidate=0;
+        trim_candidates.clear();
+        while(remaining>limit){
             Entry* victim=nullptr;
-            for(auto& [id,e]:entries){
-                if(id==except || e.busy || !e.disk || (!e.raw&&!e.warm) || (e.raw&&e.raw.use_count()!=1))continue;
-                if(!victim || (e.heat==Heat::cold&&victim->heat==Heat::hot) ||
-                   (e.heat==victim->heat&&e.stamp<victim->stamp))victim=&e;
+            if(victims<8){
+                // Keep small, routine evictions on their existing linear path.
+                for(auto& [id,e]:entries){
+                    if(id==except || e.busy || !e.disk || (!e.raw&&!e.warm) || (e.raw&&e.raw.use_count()!=1))continue;
+                    if(!victim || (e.heat==Heat::cold&&victim->heat==Heat::hot) ||
+                       (e.heat==victim->heat&&e.stamp<victim->stamp))victim=&e;
+                }
+            }else{
+                if(trim_candidates.empty()){
+                    size_t ordinal=0;
+                    for(auto& [id,e]:entries){
+                        if(id!=except && !e.busy && e.disk && (e.raw||e.warm))
+                            trim_candidates.emplace_back(&e,ordinal);
+                        ++ordinal;
+                    }
+                    std::sort(trim_candidates.begin(),trim_candidates.end(),[](const auto& a,const auto& b){
+                        if(a.first->heat!=b.first->heat)return a.first->heat==Heat::cold;
+                        if(a.first->stamp!=b.first->stamp)return a.first->stamp<b.first->stamp;
+                        return a.second<b.second;
+                    });
+                }
+                while(first_candidate<trim_candidates.size()&&!trim_candidates[first_candidate].first)
+                    ++first_candidate;
+                for(size_t i=first_candidate;i<trim_candidates.size();++i){
+                    auto*& candidate=trim_candidates[i].first;
+                    if(!candidate || (candidate->raw&&candidate->raw.use_count()!=1))continue;
+                    victim=candidate;candidate=nullptr;break;
+                }
             }
             if(!victim)return false;
             {std::lock_guard t(tm);stats.evicted_logical_bytes+=victim->size;
              if(victim->prefetched){++stats.prefetch_wasted;victim->prefetched=false;}}
+            if(victim->raw)remaining-=victim->raw->mapped_size();
+            if(victim->warm)remaining-=victim->warm->mapped_size();
             victim->raw.reset();victim->warm.reset();
+            ++victims;
         }return true;
     }
     Submission submit(Kind k,uint64_t id){
@@ -170,10 +209,16 @@ struct Store::Impl {
         free_extents.insert(it,{offset,span});
     }
     void collect_discarded(){
+        // The worker runs this before every job and on idle wakeups. No entry
+        // can become discarded without Store::discard holding the same mutex.
+        // Keep the flag set while a retired entry is pinned, queued or busy.
+        if(!discarded_pending)return;
+        discarded_pending=false;
         for(auto it=entries.begin();it!=entries.end();){
             auto& e=it->second;
+            if(!e.discarded){++it;continue;}
             const bool queued=std::any_of(queue.begin(),queue.end(),[&](const auto& j){return j->id==e.id;});
-            if(!e.discarded||e.busy||queued||(e.raw&&e.raw.use_count()!=1)){++it;continue;}
+            if(e.busy||queued||(e.raw&&e.raw.use_count()!=1)){discarded_pending=true;++it;continue;}
             return_extent(e.offset,e.span);it=entries.erase(it);
             std::lock_guard t(tm);++stats.discarded_entries;
         }
@@ -245,11 +290,17 @@ struct Store::Impl {
         uint64_t offset=0;const uint64_t span=aligned(sizeof(head)+payload->size());int err=allocate_extent(span,offset);
         const bool reserved=!err;
         if(!err){err=transfer(&head,sizeof(head),offset,true);if(!err)err=transfer(payload->data(),payload->size(),offset+sizeof(head),true);}
-        if(!err){
+        if(!err && config.sync_writes){
+            const auto sync_begin=Clock::now();
 #ifdef NEOSWAP_STORAGE_TESTING
             if(hit(Fault::sync_error))err=EIO;else
 #endif
             {int ret;do{ret=::fsync(fd);}while(ret<0&&errno==EINTR);if(ret<0)err=errno;}
+            const auto elapsed=us(sync_begin);
+            std::lock_guard t(tm);++stats.sync_calls;stats.sync_us+=elapsed;
+            stats.sync_max_us=std::max(stats.sync_max_us,elapsed);
+        }else if(!err){
+            std::lock_guard t(tm);++stats.sync_skipped;
         }
         struct stat st{};const bool stat_ok=::fstat(fd,&st)==0;
         {std::lock_guard t(tm);writes.add(us(begin));stats.reserved_file_bytes=tail;if(stat_ok)stats.allocated_file_bytes=uint64_t(st.st_blocks)*512;}
@@ -395,7 +446,7 @@ Code Store::erase(Handle h){
 Code Store::discard(Handle h){
     std::lock_guard l(p_->mu);if(h.session!=p_->session)return Code::missing;
     auto it=p_->entries.find(h.id);if(it==p_->entries.end())return Code::missing;
-    it->second.discarded=true;p_->cv.notify_one();return Code::ok;
+    it->second.discarded=true;p_->discarded_pending=true;p_->cv.notify_one();return Code::ok;
 }
 void Store::set_pressure(Pressure level) noexcept {if(p_->pressure.exchange(level)!=level)p_->transitions.fetch_add(1);p_->cv.notify_one();}
 Stats Store::snapshot() const {

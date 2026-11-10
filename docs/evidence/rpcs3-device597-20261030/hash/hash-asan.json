@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "host": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wno-unknown-pragmas",
+    "-fno-omit-frame-pointer",
+    "-pthread",
+    "-O1",
+    "-I/tmp/rpcs3-cancel-hash-e9qrdxoj",
+    "-I/workspace/scratch/82df14a3df84/device597-core-memory",
+    "-I/workspace/scratch/82df14a3df84/device597-upstream",
+    "-fsanitize=address,undefined",
+    "-g"
+  ],
+  "sanitizer": "address,undefined",
+  "baselineSHA256": "561c3a31438f3c492493c778bbeebba8291e180a29defab75a34c86b45688e72",
+  "sourceSHA256": {
+    "rpcs3/ios/IOSTextureHash.cpp": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc",
+    "rpcs3/ios/IOSTextureHash.h": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816"
+  },
+  "xxhashSHA256": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+  "adapterSHA256": "352aad79f76eb3647ccbe93c191120ef94e3f7941b0e3117489e6e9c7b885f91",
+  "harnessSHA256": "f531630ff9774e52921cde4e1c15a0d23fdce6cfa51ea94af5fe1f3fa6661f7a",
+  "foregroundFunctionUnchanged": true,
+  "physicalIPhoneTested": false,
+  "gameplayMeasured": false,
+  "fullCoreBuilt": false,
+  "nativeARM64Executed": false,
+  "results": {
+    "passed": true,
+    "hashEquivalenceCases": 2340,
+    "cancelledCases": 52,
+    "guardPageCases": 8,
+    "maximumGroupBytes": 65536,
+    "benchmark": []
+  }
+}

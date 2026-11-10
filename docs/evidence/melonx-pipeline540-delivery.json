@@ -1,0 +1,319 @@
+{
+  "downloadedIPA": {
+    "result": "passed",
+    "file": "RewindBox-Build540.ipa",
+    "bytes": 186338636,
+    "sha256": "ccdaa9a1991e98004e80289bb8bda93a444de68f1a1e50df0b8b3bb11d071fe3",
+    "build": "540",
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "source": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765",
+    "coreSource": "97915e506fa71be02ab38794529e81fad6780803",
+    "coreSHA256": "5cf5deac13ffeecc2908954bd50699275fd188626885a06f6fb831f678411b69",
+    "verifiedSignatureCount": 87,
+    "signing": "SideStore re-signing",
+    "physicalDeviceTested": false
+  },
+  "deliveryRun": 40196217049,
+  "source": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765",
+  "rpcCoreSource": "cd85227e95b75284f25308a753060ad622719489",
+  "actualSimulatorSessions": 2,
+  "physicalDeviceTested": false,
+  "personaVisualFixConfirmed": false,
+  "localVerificationNote": "Structure, RPCS3, MeloNX runtime and key ABI checks passed before a missing generated RamDonor receipt interrupted the remaining validator. The receipt was then regenerated using the unchanged production vendor_memory.py against the pinned upstream. The affected pipeline/audio/display validator completed successfully; completed checks were not repeated. The structure report is the authenticated CI report for the same IPA hash.",
+  "locallyPassedBeforeMissingGeneratedFixture": [
+    "structure",
+    "rpcs3",
+    "melonx",
+    "keys"
+  ],
+  "signatureVerification": {
+    "count": 87,
+    "allVerified": true,
+    "installationMethod": "SideStore re-signing",
+    "build": "540",
+    "architectures": [
+      "arm64"
+    ]
+  },
+  "packageReports": {
+    "environment.json": {
+      "sha256": "d7699a5a49b5489f57e25957d559ae732aa765f24371b14c8d8d279e7d20b584",
+      "bytes": 1010
+    },
+    "final-structure.json": {
+      "sha256": "41b2997d430bd2a63a4f35adc00e0a95bef9c2553f2ba3dcc762e253f1221c68",
+      "bytes": 174284
+    },
+    "hd-textures-ipa-validation.json": {
+      "sha256": "c5fd5c7cfc9cc20da790d0b8ad692d8ed5517e147eb7975cb87eeddd4851051a",
+      "bytes": 919
+    },
+    "local-verification.json": {
+      "sha256": "7b6371eb8d8425bc349dd4f619d367b75fc9099e4546acda79c97cf30bdd69c9",
+      "bytes": 214188
+    },
+    "melonx-delete509-embedded.json": {
+      "sha256": "46454926604292eca972b7f0d790c9dc109bc551fea4ec74a9ec72e0141d4425",
+      "bytes": 995
+    },
+    "melonx-delete509-ipa.json": {
+      "sha256": "439f482e0ddff77d7f104d5e3eeaeacaae8d48aa2aaa1f49f59a029f5b803b47",
+      "bytes": 1078
+    },
+    "melonx-header-sdk.json": {
+      "sha256": "8ccbb5f0af54acc58f05e1a1fbfd431b2512575da82115314ebd240b797a8f7f",
+      "bytes": 5197
+    },
+    "melonx-import537-tests.json": {
+      "sha256": "e36ba513e6688d1b0089eb2731ac2fa8792c2f41599b48da4543e6a58bb50937",
+      "bytes": 12930
+    },
+    "melonx-ipa.json": {
+      "sha256": "1268525ef3f9ff31fc2167786b92f96f4f21cff76cc7c822757aca4ea7c48942",
+      "bytes": 362
+    },
+    "melonx-keys517-ipa-validation.json": {
+      "sha256": "282484fe9fd3d56f9fe719d77fbc8be67959c73596868ace75559aa48561e8a2",
+      "bytes": 575
+    },
+    "melonx-launch514-ipa-validation.json": {
+      "sha256": "84713d7283fea7eccde5f65829b90feb6c84896304563204165a319d52feee92",
+      "bytes": 815
+    },
+    "melonx-memory519-ipa-validation.json": {
+      "sha256": "b5d6cdba177f8b1f0de0be1a700a8f9cdf0cbacb60de69d09747689b70b2adba",
+      "bytes": 27146
+    },
+    "motion507-ipa-validation.json": {
+      "sha256": "34a03a40155316db914b5ae1456f792d0d642059874946f09105d3713c61452c",
+      "bytes": 793
+    },
+    "navigation512-ipa-validation.json": {
+      "sha256": "f3b1aee108874d44383cb55190c766bcbf27ea90ddd1872dd95131adb468113e",
+      "bytes": 387
+    },
+    "observed-timings.json": {
+      "sha256": "cb1cf64b27a6702384e60bbabf13899adf130d7d8ae05559e5527ab8ca917f15",
+      "bytes": 4821
+    },
+    "retention536-tests.json": {
+      "sha256": "528a6343ed88cb6b4a896eef9e42423fb96a5e201cab55aa147ac8b0f2fd7d5d",
+      "bytes": 1675
+    },
+    "reused-validation540.json": {
+      "sha256": "d68f2ea022f29526f75afe4e652418e53a695e32e3318370c5020750a43408d8",
+      "bytes": 568
+    },
+    "rpcs3-diag487-ipa-validation.json": {
+      "sha256": "7f683e95e84596efbbdc3b323e7d7e869239e515a643d89e79ab7e75a643c4bb",
+      "bytes": 373
+    },
+    "rpcs3-memory-audit-ipa.json": {
+      "sha256": "1a689c5e08ed0f3ace852804e38bfefe1fccc950d2de94d571a7f55c6a2de591",
+      "bytes": 641
+    },
+    "rpcs3-memory-embedded.json": {
+      "sha256": "bcaa0aa0639ebe442369080ee6dd8374ebafb1ecab4ac421d0419d0a3fbc7fbf",
+      "bytes": 223
+    },
+    "signature.json": {
+      "sha256": "51198829ef3c00bbf5783161dda15d302d1a685642cd893aa49ca388d24a0bc1",
+      "bytes": 15175
+    },
+    "signed-payload-identity.json": {
+      "sha256": "a3c72bc095b807947ecb929247d68ba06a636e2b0c748bfee912ac1e02b4d9b1",
+      "bytes": 11125
+    },
+    "skin-session-evidence.json": {
+      "sha256": "cfb21e9d6b44560b250784f19d6c3db4c356dbf63394cc7de1b6711b03e0596b",
+      "bytes": 1340
+    },
+    "ui-correction511-ipa-validation.json": {
+      "sha256": "4edeecb9e997ead689ee5082435ec5f9245be22600cb9b656bc7d974741e2346",
+      "bytes": 399
+    },
+    "unified-cheats-ipa-validation.json": {
+      "sha256": "f00038cacc12922bf780ca47153133b3cac6e6f1d499496958d599c7317f819f",
+      "bytes": 906
+    }
+  },
+  "transportParts": [
+    {
+      "id": 12599963218,
+      "name": "RewindBox-Build540-8e4c773fe70daf6ab94c1baabf79ebbd1e65d765-cold-part00",
+      "size_in_bytes": 46660078,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599963218",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599963218/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:25:47Z",
+      "expires_at": "2026-11-08T13:25:46Z",
+      "updated_at": "2026-10-25T13:25:47Z",
+      "digest": "sha256:00a96e42e5e6e004c33b8adaf93656ce8a50c54e3c4c9eae99b324a68021a00b",
+      "workflow_run": {
+        "id": 40196217049,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765"
+      }
+    },
+    {
+      "id": 12599903326,
+      "name": "RewindBox-Build540-8e4c773fe70daf6ab94c1baabf79ebbd1e65d765-cold-part01",
+      "size_in_bytes": 46660078,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599903326",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599903326/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:25:48Z",
+      "expires_at": "2026-11-08T13:25:47Z",
+      "updated_at": "2026-10-25T13:25:48Z",
+      "digest": "sha256:0eaee36993739882ff770da5405134ddf5fb46c642ad6583b2d63e3fbb8743be",
+      "workflow_run": {
+        "id": 40196217049,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765"
+      }
+    },
+    {
+      "id": 12599718634,
+      "name": "RewindBox-Build540-8e4c773fe70daf6ab94c1baabf79ebbd1e65d765-cold-part02",
+      "size_in_bytes": 46660078,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599718634",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599718634/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:25:50Z",
+      "expires_at": "2026-11-08T13:25:49Z",
+      "updated_at": "2026-10-25T13:25:50Z",
+      "digest": "sha256:5e584d9842370b96084f2facac828649812edb28b2486205c430ff8c77bb6d21",
+      "workflow_run": {
+        "id": 40196217049,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765"
+      }
+    },
+    {
+      "id": 12600092854,
+      "name": "RewindBox-Build540-8e4c773fe70daf6ab94c1baabf79ebbd1e65d765-cold-part03",
+      "size_in_bytes": 46660078,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12600092854",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12600092854/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:25:52Z",
+      "expires_at": "2026-11-08T13:25:50Z",
+      "updated_at": "2026-10-25T13:25:52Z",
+      "digest": "sha256:cdcbdcc10e8371266ba71bd463e023af0808357779d50f6e71c9c3775f895efa",
+      "workflow_run": {
+        "id": 40196217049,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "8e4c773fe70daf6ab94c1baabf79ebbd1e65d765"
+      }
+    }
+  ],
+  "ciJobs": [
+    {
+      "id": 121177497478,
+      "name": "checks",
+      "status": "completed",
+      "conclusion": "success",
+      "passedSteps": [
+        "Set up job",
+        "Run actions/checkout@v4",
+        "Retain final highlighted-game import checks and successful RPCS3 logger evidence",
+        "Retain exact input-bound test receipts",
+        "Post Run actions/checkout@v4",
+        "Complete job"
+      ]
+    },
+    {
+      "id": 121177595943,
+      "name": "Release device build • cold",
+      "status": "completed",
+      "conclusion": "success",
+      "passedSteps": [
+        "Set up job",
+        "Checkout exact candidate",
+        "Load exact local import and historical Foundation receipts",
+        "Select Xcode 26.3 for NeoPlay and Google Cast",
+        "Set up Flutter 3.47.2",
+        "Record exact build environment and start measurement",
+        "Record empty device build cache",
+        "Resolve locked Dart dependencies",
+        "Prepare lightweight build tools",
+        "Generate iOS host",
+        "Download last published RewindBox IPA 527 (release 0.0.9)",
+        "Reuse verified components and resources from published IPA 527",
+        "Restore unchanged canonical StikJIT compilation interfaces",
+        "Install verified cached StikJIT interfaces",
+        "Require completed exact NeoSwap Core before artifact download",
+        "Wait for the exact source-built539 RPCS3 Core",
+        "Download pinned passive RPCS3 Core",
+        "Verify and install passive RPCS3 Core",
+        "Verify retained Dolphin Core from IPA 527",
+        "Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap",
+        "Download pinned ARMSX2 2.6 Core",
+        "Verify pinned ARMSX2 Core identity",
+        "Require the completed pinned libretro cores",
+        "Download pinned libretro cores",
+        "Verify pinned libretro cores identity",
+        "Require successful exact MeloNX engine and iPhone host before packaging",
+        "Download the exact source-built MeloNX engine",
+        "Download successful exact audio ownership and UIKit host proofs",
+        "Download the source-built private MeloNX dependencies",
+        "Verify and materialize the six private MeloNX frameworks and original controls",
+        "Retain already compiled exact iPhone host evidence",
+        "Prepare emulator build definitions",
+        "Configure release host",
+        "Align application and extension versions to the pubspec version",
+        "Compile Release device binary with measured AOT and Xcode phases",
+        "Embed NeoPlay source identity and dependency acknowledgements",
+        "Embed verified RPCS3 Core and signing metadata",
+        "Bind audited RPCS3 binary provenance and verify the linked host compiler broker",
+        "Bind the compiled Switch retirement and deletion fix to its exact app sources",
+        "Embed exact donor/display source and test identity",
+        "Embed lazy-loaded ARMSX2 Core framework",
+        "Embed lazy-loaded libretro cores, MoltenVK and system assets",
+        "Embed legal, license and source notices",
+        "Embed verified MeloNX runtime and actual build-source notices",
+        "Package and validate RewindBox IPA",
+        "Seal every executable, framework and extension for SideStore",
+        "Preserve sealed IPA and source receipts before final compatibility validators",
+        "Preserve sealed recovery piece 1 of 4",
+        "Preserve sealed recovery piece 2 of 4",
+        "Preserve sealed recovery piece 3 of 4",
+        "Preserve sealed recovery piece 4 of 4",
+        "Verify actual packaged MeloNX exports, helper identity and native notices",
+        "Verify final signed motion assets and linked native and Dart components",
+        "Verify final signed GoW3 Core identity and compiler broker",
+        "Verify the final signed Switch retirement and deletion fix",
+        "Verify complete selection tracks and compiled Cover Flow and header correction",
+        "Verify final signed direct Switch playlist and compact header",
+        "Verify the actual MeloNX launch ABI and signed memory entitlements",
+        "Verify the exact packaged key import correction",
+        "Verify the compiled foreground presentation correction",
+        "Finalize observed timings and artifact identity",
+        "Prepare encrypted delivery and evidence",
+        "Upload encrypted IPA and verification reports",
+        "Prepare bounded encrypted transport pieces",
+        "Upload encrypted transport piece 1 of 4",
+        "Upload encrypted transport piece 2 of 4",
+        "Upload encrypted transport piece 3 of 4",
+        "Upload encrypted transport piece 4 of 4",
+        "Collect diagnostic evidence",
+        "Upload diagnostics",
+        "Remove temporary secrets",
+        "Post Restore unchanged canonical StikJIT compilation interfaces",
+        "Post Set up Flutter 3.47.2",
+        "Post Checkout exact candidate",
+        "Complete job"
+      ]
+    }
+  ]
+}

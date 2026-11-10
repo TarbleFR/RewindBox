@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/4e89feaca92b/RewindBox/.github/diagnostics/rpcs3runtime592_core.py", line 341, in <module>
+    global_main(a)
+  File "/workspace/scratch/4e89feaca92b/RewindBox/.github/diagnostics/rpcs3runtime_global_core.py", line 465, in main
+    pipeline.verify(args.verify_reuse, args.source, gate=gate)
+  File "/workspace/scratch/4e89feaca92b/RewindBox/.github/diagnostics/rpcs3runtime_bo2_warm_core.py", line 407, in verify
+    assert state['command'] == gate.runner_command(name, mode, Path(proof['source_root']),
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

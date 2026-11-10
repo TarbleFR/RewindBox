@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "build": 557,
+  "source": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+  "pinnedHead": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+  "executor": "local Linux",
+  "flutter": "3.47.2",
+  "pinReceipt": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source552": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "sourceParity": "62626c0fa0263c8ce29671bf060c9bc7d746c1a0",
+    "source554": "410678b7b2d383c83fd60886333c48c4d977a361",
+    "source557": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+    "replaced": [
+      "lib/l10n/rpcs3_library_file_locale.dart",
+      "lib/screens/search_screen/search_screen.dart",
+      "lib/services/game/game_launch_service.dart",
+      "lib/services/rpcs3_library_file_service.dart",
+      "lib/services/rpcs3_library_service.dart",
+      "lib/widgets/rpcs3_library_file_install_dialog.dart",
+      "test/rpcs3_library_file_dialog_test.dart",
+      "test/rpcs3_library_file_route_contract_test.py",
+      "test/rpcs3_library_file_service_test.dart"
+    ],
+    "restored": {
+      "6c6c624179540b860de16eab9c08323efaf12683": [
+        "build-utils/melonx/prepare_embedded.py",
+        "lib/services/logger_service.dart"
+      ],
+      "4e5bf59b29c3aed8c3680b8b987aa586a52069c0": [
+        ".github/workflows/rpcs3-core.yml",
+        "build-utils/build_rpcs3_embedded_core.sh",
+        "build-utils/rpcs3/canonical-source.json",
+        "build-utils/rpcs3/embedded-core.patch",
+        "test/neo_swap_core_pin_test.py"
+      ],
+      "62626c0fa0263c8ce29671bf060c9bc7d746c1a0": [
+        "build-utils/melonx/build_core.sh",
+        "build-utils/melonx/ui-strings.json",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h"
+      ],
+      "a4872682f487c622fa1093eb40d3d9280e20cca0": [
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift",
+        "test/melonx_standalone_parity_test.py"
+      ]
+    },
+    "removed": [
+      ".github/diagnostics/melonxparity552_delivery.py",
+      ".github/diagnostics/melonxparity552_tree.py",
+      ".github/diagnostics/rpcs3cell555_core.py",
+      ".github/workflows/melonx-parity552-delivery.yml",
+      ".github/workflows/rpcs3-cell554-bench.yml",
+      ".github/workflows/rpcs3-cell555-core.yml",
+      "build-utils/analyze_rpcs3_cell555_logs.py",
+      "build-utils/delivery-552-recipient.pem",
+      "build-utils/melonx/adapt_audio_pacing.py",
+      "build-utils/validate_liquid_glass552_ipa.py",
+      "build-utils/validate_melonx_parity552_ipa.py",
+      "docs/evidence/liquid-glass-ui548-delivery.json",
+      "docs/evidence/liquid-glass-ui550-delivery.json",
+      "docs/evidence/melonx-audio-pacing-local.json",
+      "docs/evidence/melonx-parity552-local.json",
+      "docs/evidence/melonx-parity553-delivery.json",
+      "docs/evidence/melonx-threading549-delivery.json",
+      "docs/evidence/rpcs3-cell551-delivery.json",
+      "docs/evidence/rpcs3-cell555-dbz-observed.json",
+      "docs/evidence/rpcs3-cell555-hash-selection.json",
+      "docs/evidence/rpcs3-cell555-host-linux.json",
+      "docs/evidence/rpcs3-cell555-observed.json",
+      "docs/evidence/rpcs3-fix552-delivery.json",
+      "docs/evidence/rpcs3-import554-delivery.json",
+      "docs/rpcs3-cell555-dbz.md",
+      "docs/rpcs3-cell555.md",
+      "native/melonx/EmbeddedAudioPacing.cs",
+      "native/melonx/EmbeddedAudioPacingExport.cs",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift",
+      "test/fixtures/rpcs3_cell555.diff",
+      "test/logger_append_test.dart",
+      "test/melonx_audio_pacing/Program.cs",
+      "test/melonx_audio_pacing_test.py",
+      "test/melonx_perf_journal_test.py",
+      "test/native/rpcs3_cell555.inc",
+      "test/native/rpcs3_fingerprint553.inc",
+      "test/native/rpcs3_readback555.inc",
+      "test/native/rpcs3_shader555.inc",
+      "test/native/rpcs3_texture_hash554.inc",
+      "test/native/rpcs3_texture_hash554_group4.inc",
+      "test/native/rpcs3_texture_hash554_hybrid4.inc",
+      "test/native/rpcs3_texture_hash554_pair.inc",
+      "test/native/rpcs3_texture_hash554_twins6.inc",
+      "test/native/rpcs3_texture_hash554_twins8.inc",
+      "test/rpcs3_cell555_test.py",
+      "test/rpcs3_readback555_test.py",
+      "test/rpcs3_shader555_test.py",
+      "test/rpcs3_texture_hash554_test.py"
+    ]
+  },
+  "productTrees": {
+    "lib": "d0559c36091f69749c2c5c9e6928a7c496b18926",
+    "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+    "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTrees554": {
+    "lib": "ed42340e67f5fbfc5082eccd1fb9eb4638cd38de",
+    "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+    "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "inputs": {
+    "lib/data/datasources/sqlite_database_service.dart": "08ff85f001cdd6b201edef65c617a76f018a7da467a5a4a18a5d2c758c637a63",
+    "lib/data/datasources/sqlite_service.dart": "74b9f7a835d2186736f048e34e65fce1c3bca1c985994a109435c8538ae98e29",
+    "lib/l10n/rpcs3_library_file_locale.dart": "3ece43eb70630287056e2907078507929962b7426028516b2fe41432f0702d4d",
+    "lib/repositories/game_repository.dart": "8d6a7f612b692196bca6ace67933747ecc08b7012db8f95bc992982ddfa9f145",
+    "lib/screens/search_screen/search_screen.dart": "b1ab3c03f671939b25257ffcf9422841ebb257eac6d7f36cf77def1012351b76",
+    "lib/services/game/game_launch_service.dart": "96e151dc8eefdc8f3fad90282d6045ea4817d29cec7912ca7fad628078aaf726",
+    "lib/services/game_file_deletion.dart": "edafc976166185e37c77fa3008664af31e9902c19b3a7fdbc6ce8edddd932861",
+    "lib/services/rpcs3_disc_image.dart": "6f21f8c9aa4a7d317b559cfff58ee19d11690cb010321b23566dab6055c96bc2",
+    "lib/services/rpcs3_library_file_deletion.dart": "8331d93fdc90a81a68673e310ef11d0815f214fa495b244d37b930309d2356b1",
+    "lib/services/rpcs3_library_file_service.dart": "3f7f4acb28239a607755d9a73b267d5afdf46b7c9fedabd99b8549a0868fc35c",
+    "lib/services/rpcs3_library_service.dart": "7b7e486b4dab9de12e3af198558d67288554e00048d807b3be5edc381e5097d3",
+    "lib/services/rpcs3_param_sfo.dart": "b6a40f72971e7e3113c38b8724deaae1b98774afefaafe6e2b929949eb96454a",
+    "lib/services/rpcs3_save_exchange_service.dart": "3d4f24de24b2235c1fce823735d03b03be9d777884f99e78f0cf1a5002293258",
+    "lib/services/storage/storage_import_activity.dart": "53e316fdc83b9fdf1de2d87585ed55602069b33ab98ec791f489a22bffc691e7",
+    "lib/utils/log_redaction.dart": "5b482754001304103fc9e57443a84c5e935b1ff0518292c79c1e900ae00cb00f",
+    "lib/widgets/library_focus_gamepad_layer.dart": "7777dc29a2ca03f7a0565b39589cf9297444a3106676b06f3a9f0d360599f488",
+    "lib/widgets/rpcs3_library_file_install_dialog.dart": "3dd6db3b77f9938b42afa43b16d62832c5690e946efd381ce2f2335f315552c2",
+    "lib/widgets/rpcs3_multi_delete_dialog.dart": "43669633eeef9ee0c1bd85a3f899dd309943769a851d99b9d9a32d87b97a168b",
+    "packages/rpcs3_internal_bridge/lib/rpcs3_internal_bridge.dart": "2970cbd4b1d010b0bc4bc4bfb8d5c2d96b32cd518a6564b019b3493129a5dbc3",
+    "test/database_test_helper.dart": "4b2867dc1d201289c8b3a683e49c3f45ba1cec6d0d4cf9c0ab2e96854d57e9aa",
+    "test/ps3_disc_image_builder.dart": "d9b4857c2542cd4d982af74f53700b8f825869d675a864263d96f8c2eabf9639",
+    "test/retroarch_baseline_scope_test.py": "74a62bb97b076f9d7fd500f3d12390e102edcebe1aa94225c5e768f5979264df",
+    "test/rom_folder_registration_test.dart": "ad713bf783bade1f38e7ffe85a9d7a5dfc2dc3e62bb1f79f29a67355fb96d027",
+    "test/rom_folders_concurrent_save_test.dart": "03938d924ff16b12db820bf7481415a2048737aa73ca53aba1a14e7849eebd7c",
+    "test/rpcs3_disc_image_test.dart": "906d97fdb30055c75c6e6d893324f8c32fbdbd5d304b8f5344117bcb5fa4091d",
+    "test/rpcs3_library_file_dialog_test.dart": "0458fbe08d00ddb75114da4c1ff0af68918208fa960beca64757214b9c9bcddd",
+    "test/rpcs3_library_file_route_contract_test.py": "2476c108d27dc66403af3a22df6de3903831a163045fbbd8c5a04fe1e3753c50",
+    "test/rpcs3_library_file_rows_test.dart": "bc16c13db68cee79a6f26076a06f95d44c2060975fbbf814956e8859ac0a069f",
+    "test/rpcs3_library_file_service_test.dart": "b497dd0a4f15bc7f3abe1349b43727728133fb2e38c5a0c67dcb9e1f161bc8f2",
+    "test/rpcs3_library_service_test.dart": "45c69c2d51e12b742db7511bafc7dd9c433f1a57348e7e651fe19891a9c90616"
+  },
+  "tests": {
+    "concurrentSaves": {
+      "test": "test/rom_folders_concurrent_save_test.dart",
+      "passedTests": 5,
+      "failed": 0,
+      "log": "   Woah! You appear to be trying to run flutter as root.\n   We strongly recommend running the flutter tool without superuser privileges.\n  /\n📎\n00:00 +0: loading /tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt557/test/rom_folders_concurrent_save_test.dart\n00:00 +0: concurrent saves of the same folders no longer collide\n00:00 +1: concurrent saves keep the last call, in call order\n00:00 +2: a folder listed twice is stored once\n00:00 +3: the list is read when the save is called, not when it runs\n00:00 +4: a failed save is reported and the next saves still run\n00:00 +5: All tests passed!\n"
+    },
+    "libraryFileRows": {
+      "test": "test/rpcs3_library_file_rows_test.dart",
+      "passedTests": 16,
+      "failed": 0,
+      "log": "installed as BLUS30591; row linked.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Black Ops (USA) (En,Fr) 2.iso is gone; its row joined Black Ops (USA) (En,Fr).iso (BLUS30591).\n00:00 +4: RPCS3 synchronization a deleted installed disc stands for its title\n00:00 +5: RPCS3 synchronization two deleted copies of one title become one row\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Black Ops copy.iso is gone; its row joined Black Ops.iso (BLUS30591).\n00:00 +6: RPCS3 synchronization once RPCS3 no longer holds the title, a live synchronization removes the row; one from the cache does not\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Black Ops.iso is gone and RPCS3 no longer holds BLUS30591; row removed.\n00:00 +7: RPCS3 synchronization a folder that cannot be seen is left to the library scan\n00:00 +8: RPCS3 synchronization a disc RPCS3 does not hold stays as it is\n00:00 +9: deletion a disc RPCS3 never installed: its file, its key, its row\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Never installed.iso.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Never installed.dkey.\n00:00 +10: deletion an installed disc: its file, its key, RPCS3's copy, its row\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.iso.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.KEY.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted the installation of BLUS30591.\n00:00 +11: deletion an installed disc deleted earlier to free space\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.iso.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted the installation of BLUS30591.\n00:00 +12: deletion a refused file deletion leaves everything in place\n00:00 +13: deletion a key that cannot be deleted does not stop the rest\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.iso.\n\u001b[38;5;208m[W]\u001b[0m  RPCS3 library file: Black Ops.dkey kept; its deletion failed: FileSystemException: denied, path = '/tmp/rpcs3-library-rows-RMCWPJ/roms/ps3/Black Ops.dkey'\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted the installation of BLUS30591.\n00:00 +14: deletion freeing space removes the original and its key only\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.iso after its installation.\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: deleted Black Ops.dkey.\n00:00 +15: deletion a refused removal keeps the original and its key\n\u001b[38;5;208m[W]\u001b[0m  RPCS3 library file: Black Ops.iso kept; its deletion failed: FileSystemException: denied, path = '/tmp/rpcs3-library-rows-VZZSDI/roms/ps3/Black Ops.iso'\n00:00 +16: All tests passed!\n"
+    },
+    "libraryFile": {
+      "test": "test/rpcs3_library_file_service_test.dart",
+      "passedTests": 18,
+      "failed": 0,
+      "log": "least 4.2 GB more)\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Game.iso needs installation (titleId=BLUS30591 category=DG size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Game.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: installation of Game.iso failed: The selected image is not a bootable PlayStation 3 game ISO. Encrypted Redump images require their matching .dkey or .key file\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Game.iso needs installation (titleId=BLUS30591 category=DG size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Game.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: installation of Game.iso failed: The selected image is truncated or corrupt: USRDIR/EBOOT.BIN\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Game.iso needs installation (titleId=BLUS30591 category=DG size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Game.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: installation of Game.iso failed: The selected file is not a valid ISO 9660 disc image\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Game.iso needs installation (titleId=BLUS30591 category=DG size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Game.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: installation of Game.iso failed: Unable to finalize the ISO installation\n00:00 +12: install RPCS3 that cannot start (JIT) is an installation failure\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Game.iso needs installation (titleId=BLUS30591 category=DG size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Game.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: RPCS3 could not start for Game.iso: JIT is not enabled.\n00:00 +13: install an installed title that cannot be identified is not linked\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: Odd.iso needs installation (titleId=unreadable category=- size=49152 discKey=none).\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 library file: installing Odd.iso (discKey=none).\n\u001b[38;5;196m[E]\u001b[0m  RPCS3 library file: Odd.iso was installed but its title could not be identified; it is listed by RPCS3 itself.\n00:00 +14: the disc key name survives the redaction of app.log\n00:00 +15: linkLibraryFile sets the title ID of the scanned row\n00:00 +16: linkLibraryFile carries the RPCS3 row of the same title over, once\n00:00 +17: linkLibraryFile an older RPCS3 play does not replace a newer one\n00:00 +18: (tearDownAll)\n00:00 +18: All tests passed!\n"
+    },
+    "dialogs": {
+      "test": "test/rpcs3_library_file_dialog_test.dart",
+      "passedTests": 19,
+      "failed": 0,
+      "log": "dialog_test.dart\n00:00 +0: twelve-language catalogue covers exactly the twelve RewindBox languages\n00:00 +1: twelve-language catalogue en: complete, placeholders kept, translated\n00:00 +2: twelve-language catalogue fr: complete, placeholders kept, translated\n00:00 +3: twelve-language catalogue de: complete, placeholders kept, translated\n00:00 +4: twelve-language catalogue es: complete, placeholders kept, translated\n00:00 +5: twelve-language catalogue it: complete, placeholders kept, translated\n00:00 +6: twelve-language catalogue pt: complete, placeholders kept, translated\n00:00 +7: twelve-language catalogue ru: complete, placeholders kept, translated\n00:00 +8: twelve-language catalogue id: complete, placeholders kept, translated\n00:00 +9: twelve-language catalogue ja: complete, placeholders kept, translated\n00:00 +10: twelve-language catalogue ko: complete, placeholders kept, translated\n00:00 +11: twelve-language catalogue zh: complete, placeholders kept, translated\n00:00 +12: twelve-language catalogue zh_Hant: complete, placeholders kept, translated\n00:00 +13: twelve-language catalogue every failure has its own text\n00:00 +14: twelve-language catalogue script and regional Chinese settings select Traditional Chinese\n00:00 +15: prompt names the file, its size, the disc and its key; Install keeps the file\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Pushing layer: library_focus_rpcs3_library_file_prompt_370208466 (modal: true)\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Popping layer: library_focus_rpcs3_library_file_prompt_370208466\n00:01 +16: prompt Cancel declines; no identity or key line when unknown\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Pushing layer: library_focus_rpcs3_library_file_prompt_262834027 (modal: true)\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Popping layer: library_focus_rpcs3_library_file_prompt_262834027\n00:01 +17: prompt the ticked option installs, then frees the space\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Pushing layer: library_focus_rpcs3_library_file_prompt_175580158 (modal: true)\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Popping layer: library_focus_rpcs3_library_file_prompt_175580158\n00:01 +18: progress follows RPCS3 and closes with the task\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Pushing layer: library_focus_rpcs3_library_file_progress_257178881 (modal: true)\n\u001b[38;5;12m[I]\u001b[0m  [GamepadNavigationManager] Popping layer: library_focus_rpcs3_library_file_progress_257178881\n00:01 +19: All tests passed!\n"
+    },
+    "discImage": {
+      "test": "test/rpcs3_disc_image_test.dart",
+      "passedTests": 11,
+      "failed": 0,
+      "log": "   Woah! You appear to be trying to run flutter as root.\n   We strongly recommend running the flutter tool without superuser privileges.\n  /\n📎\n00:00 +0: loading /tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt557/test/rpcs3_disc_image_test.dart\n00:00 +0: readIdentity reads PS3_GAME/PARAM.SFO past the padding of a directory sector\n00:00 +1: readIdentity names are matched without case, version or trailing dot\n00:00 +2: readIdentity an image without PS3_GAME is not a PS3 game disc\n00:00 +3: readIdentity an unreadable descriptor (encrypted region) gives no identity\n00:00 +4: readIdentity a descriptor without a valid title ID gives no identity\n00:00 +5: readIdentity not an ISO 9660 image, short files and missing files\n00:00 +6: readIdentity a directory extent pointing past the image is refused\n00:00 +7: findDiscKey finds the .dkey or .key of the same name in any case\n00:00 +8: findDiscKey ignores the keys of other discs\n00:00 +9: sameImage equal size and first mebibyte\n00:00 +10: only .iso rows are disc images of the PS3 system\n00:00 +11: All tests passed!\n"
+    },
+    "romFolders": {
+      "test": "test/rom_folder_registration_test.dart",
+      "passedTests": 3,
+      "failed": 0,
+      "log": "   Woah! You appear to be trying to run flutter as root.\n   We strongly recommend running the flutter tool without superuser privileges.\n  /\n📎\n00:00 +0: loading /tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt557/test/rom_folder_registration_test.dart\n00:00 +0: seven old roots do not block a new RetroArch folder or its games\n00:00 +1: each additional console root persists without a fixed count limit\n00:00 +2: failed persistence cannot masquerade as an active folder\n\u001b[38;5;196m[E]\u001b[0m  Error saving config to SQLite: SqliteException(1811): while executing statement, fixture_write_failure, constraint failed (code 1811)\n  Causing statement: INSERT OR IGNORE INTO user_rom_folders (path) VALUES (?), parameters: /tmp/retroarch-registration-BUZVSP/rejected\n\u001b[38;5;196m[E]\u001b[0m  Error adding ROM folder: SqliteException(1811): while executing statement, fixture_write_failure, constraint failed (code 1811)\n  Causing statement: INSERT OR IGNORE INTO user_rom_folders (path) VALUES (?), parameters: /tmp/retroarch-registration-BUZVSP/rejected\n00:00 +3: All tests passed!\n"
+    },
+    "library": {
+      "test": "test/rpcs3_library_service_test.dart",
+      "passedTests": 6,
+      "failed": 0,
+      "log": "   Woah! You appear to be trying to run flutter as root.\n   We strongly recommend running the flutter tool without superuser privileges.\n  /\n📎\n00:00 +0: loading /tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt557/test/rpcs3_library_service_test.dart\n00:00 +0: Rpcs3LibraryService parses PARAM.SFO string and integer entries\n00:00 +1: Rpcs3LibraryService parses RPCS3 games.yml scalar mapping\n00:00 +2: Rpcs3LibraryService normalizes either RPCS3 root or Data folder\n00:00 +3: Rpcs3LibraryService uses physical folders and ignores cross-linked games.yml history\n00:00 +4: Rpcs3LibraryService ignores stale games.yml registrations whose target is gone\n00:00 +5: Rpcs3LibraryService normalizes GameDB serial keys and applies fallback titles\n00:00 +6: All tests passed!\n"
+    }
+  },
+  "contracts": {
+    "rpcs3_library_file_route_contract_test.py": {
+      "exitCode": 0,
+      "log": "RPCS3 library file route contract: ok\n"
+    },
+    "localization_12_locale_coverage_test.py": {
+      "exitCode": 0,
+      "log": "PASS: 12 locales, 917 AppLocale keys\n"
+    },
+    "retroarch_baseline_scope_test.py": {
+      "failures": [
+        "FAIL: test_library_is_the_recorded_build419_reference (path='lib/main.dart')",
+        "FAIL: test_library_is_the_recorded_build419_reference (path='lib/screens/systems_screen/system_content.dart')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/FrameClient.h')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/SourceArchive.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/SourceClient.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/Store.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/Store.h')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/frame_archive_test.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/source_archive_test.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/source_work_test.cpp')"
+      ],
+      "failures554": [
+        "FAIL: test_library_is_the_recorded_build419_reference (path='lib/main.dart')",
+        "FAIL: test_library_is_the_recorded_build419_reference (path='lib/screens/systems_screen/system_content.dart')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/FrameClient.h')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/SourceArchive.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/SourceClient.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/Store.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/Store.h')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/frame_archive_test.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/source_archive_test.cpp')",
+        "FAIL: test_native_sources_keep_their_existing_identity (path='native/neoswap-storage/tests/source_work_test.cpp')"
+      ],
+      "log": "nError: '0721a65eab63429af6f9ab8d26a6ff3f526ae3be7747e421ca7efc946102ae4b' != '5d03238a89447d1434173835580f96dd0e1971f2165426a509a4f351d508f717'\n- 0721a65eab63429af6f9ab8d26a6ff3f526ae3be7747e421ca7efc946102ae4b\n+ 5d03238a89447d1434173835580f96dd0e1971f2165426a509a4f351d508f717\n\n\n======================================================================\nFAIL: test_native_sources_keep_their_existing_identity (__main__.RetroArchBaselineScope.test_native_sources_keep_their_existing_identity) (path='native/neoswap-storage/tests/source_work_test.cpp')\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt557/test/retroarch_baseline_scope_test.py\", line 429, in test_native_sources_keep_their_existing_identity\n    self.assertEqual(hashlib.sha256(restore_rewindbox_branding((ROOT / name).read_bytes(), name)).hexdigest(), reviewed)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '3595af83a8c9b9bc88fcd0d20f22352a77ac410873d8313ccf09e2ac7955a29d' != '5d39bba8d6703489364cf7388bfea8f55990f803f86e984e9386580cd7b82800'\n- 3595af83a8c9b9bc88fcd0d20f22352a77ac410873d8313ccf09e2ac7955a29d\n+ 5d39bba8d6703489364cf7388bfea8f55990f803f86e984e9386580cd7b82800\n\n\n----------------------------------------------------------------------\nRan 3 tests in 0.027s\n\nFAILED (failures=10)\n"
+    }
+  },
+  "fullSuite": {
+    "passed": 3551,
+    "failed": 23,
+    "failedTests": [
+      "test/dolphin_import_ui_test.dart: import shares the pill without covering any media tab at width 220.0",
+      "test/dolphin_import_ui_test.dart: import shares the pill without covering any media tab at width 430.0",
+      "test/external_display_locale_test.dart: the texts say that the TV mirrors the iPhone outside a game",
+      "test/library_ui_details_screen_test.dart: an error is explained by kind, with its detail and a retry",
+      "test/library_ui_hub_favorites_test.dart: X asks before removing a favourite and keeps its progress",
+      "test/library_ui_hub_favorites_test.dart: a local book opens from its card: the box, image, hinge side and thickness of the volume on screen; online titles have none",
+      "test/library_ui_hub_favorites_test.dart: cancelling the confirmation keeps the favourite",
+      "test/library_ui_hub_favorites_test.dart: cards are book volumes: estimated for a local book, fixed and hinged on the right for online titles, selected with the controller",
+      "test/library_ui_hub_favorites_test.dart: fits an iPhone in landscape",
+      "test/library_ui_hub_favorites_test.dart: the technical details of an error close with B",
+      "test/library_ui_hub_test.dart: unavailable sources are counted and explained",
+      "test/library_ui_local_view_test.dart: reading progress is shown on the tile",
+      "test/library_ui_local_view_test.dart: the end of an import closes its overlay, not a later route",
+      "test/library_ui_local_view_test.dart: the tile is read exactly as before the volume",
+      "test/libretro_3ds_system_screen_test.dart: system Indonesian announces its English fallback; French names itself",
+      "test/libretro_skin_manager_test.dart: on a phone in landscape the filters fold, and the page comes back where it was left (Build 448)",
+      "test/melonx_transfer_test.dart: shared Import segment explicitly applies the theme foreground in both placements",
+      "test/neo_glass_bubble_test.dart: rapid focus changes retarget the moving lens without a position jump",
+      "test/neoplay_locale_test.dart: the Apple TV card says the game is full screen and the menu mirrored, in all twelve languages",
+      "test/rpcs3_firmware_preflight_test.dart: twelve-language catalogue the French lead is the maintainer's sentence",
+      "test/rpcs3_import_spu_build230_contract_test.dart: RPCS3 Build 231 import, boot and deletion contracts PS3 long press opens native RPCS3 multi-delete",
+      "test/rpcs3_import_spu_build230_contract_test.dart: RPCS3 Build 231 import, boot and deletion contracts iOS boot profile is selected by serial and covers PPU stalls",
+      "test/rpcs3_saves_locale_test.dart: the export report names the Files location and the archive"
+    ],
+    "passed554": 3527,
+    "failed554": 23,
+    "failedTests554": [
+      "test/dolphin_import_ui_test.dart: import shares the pill without covering any media tab at width 220.0",
+      "test/dolphin_import_ui_test.dart: import shares the pill without covering any media tab at width 430.0",
+      "test/external_display_locale_test.dart: the texts say that the TV mirrors the iPhone outside a game",
+      "test/library_ui_details_screen_test.dart: an error is explained by kind, with its detail and a retry",
+      "test/library_ui_hub_favorites_test.dart: X asks before removing a favourite and keeps its progress",
+      "test/library_ui_hub_favorites_test.dart: a local book opens from its card: the box, image, hinge side and thickness of the volume on screen; online titles have none",
+      "test/library_ui_hub_favorites_test.dart: cancelling the confirmation keeps the favourite",
+      "test/library_ui_hub_favorites_test.dart: cards are book volumes: estimated for a local book, fixed and hinged on the right for online titles, selected with the controller",
+      "test/library_ui_hub_favorites_test.dart: fits an iPhone in landscape",
+      "test/library_ui_hub_favorites_test.dart: the technical details of an error close with B",
+      "test/library_ui_hub_test.dart: unavailable sources are counted and explained",
+      "test/library_ui_local_view_test.dart: reading progress is shown on the tile",
+      "test/library_ui_local_view_test.dart: the end of an import closes its overlay, not a later route",
+      "test/library_ui_local_view_test.dart: the tile is read exactly as before the volume",
+      "test/libretro_3ds_system_screen_test.dart: system Indonesian announces its English fallback; French names itself",
+      "test/libretro_skin_manager_test.dart: on a phone in landscape the filters fold, and the page comes back where it was left (Build 448)",
+      "test/melonx_transfer_test.dart: shared Import segment explicitly applies the theme foreground in both placements",
+      "test/neo_glass_bubble_test.dart: rapid focus changes retarget the moving lens without a position jump",
+      "test/neoplay_locale_test.dart: the Apple TV card says the game is full screen and the menu mirrored, in all twelve languages",
+      "test/rpcs3_firmware_preflight_test.dart: twelve-language catalogue the French lead is the maintainer's sentence",
+      "test/rpcs3_import_spu_build230_contract_test.dart: RPCS3 Build 231 import, boot and deletion contracts PS3 long press opens native RPCS3 multi-delete",
+      "test/rpcs3_import_spu_build230_contract_test.dart: RPCS3 Build 231 import, boot and deletion contracts iOS boot profile is selected by serial and covers PPU stalls",
+      "test/rpcs3_saves_locale_test.dart: the export report names the Files location and the archive"
+    ]
+  },
+  "analyzerIssues": 108,
+  "analyzerLog": "s in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_internal_playlist_actions.dart:66:7 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_internal_playlist_actions.dart:112:7 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_internal_playlist_actions.dart:151:27 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_internal_playlist_actions.dart:277:9 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_multi_delete_dialog.dart:151:11 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_multi_delete_dialog.dart:157:11 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_multi_delete_dialog.dart:159:11 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:195:9 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:239:9 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:260:9 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:268:11 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:271:11 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:438:5 • curly_braces_in_flow_control_structures\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/widgets/melonx_transfer_dialog.dart:444:5 • curly_braces_in_flow_control_structures\n   info • The imported package 'battery_plus_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'battery_plus_platform_interface' in the 'pubspec.yaml' file • test/header_one_line_test.dart:3:8 • depend_on_referenced_packages\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/melonx_import_completion_test.dart:129:11 • curly_braces_in_flow_control_structures\n   info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • test/melonx_import_completion_test.dart:183:9 • curly_braces_in_flow_control_structures\n   info • The imported package 'path_provider_platform_interface' isn't a dependency of the importing package. Try adding a dependency for 'path_provider_platform_interface' in the 'pubspec.yaml' file • test/melonx_key_file_test.dart:4:8 • depend_on_referenced_packages\n   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/melonx_library_files_test.dart:223:11 • curly_braces_in_flow_control_structures\n   info • Statements in a for should be enclosed in a block. Try wrapping the statement in a block • test/melonx_transfer_test.dart:565:9 • curly_braces_in_flow_control_structures\n\n108 issues found. (ran in 5.0s)\n",
+  "negativeControl": {
+    "tree": "554",
+    "productTrees": {
+      "lib": "ed42340e67f5fbfc5082eccd1fb9eb4638cd38de",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "concurrentSaves": {
+      "exitCode": 1,
+      "log": "UNIQUE constraint failed: user_rom_folders.path, constraint failed (code 2067)\n    Causing statement: INSERT  INTO user_rom_folders (path) VALUES (?), parameters: /var/mobile/Containers/Data/Application/A/Documents/roms\n  package:sqlite3/src/implementation/exception.dart 101:3          throwException\n  package:sqlite3/src/implementation/statement.dart 52:5           StatementImplementation.throwSt"
+    },
+    "routeContract": {
+      "exitCode": 1,
+      "log": "RPCS3 library file route contract: one guard for installed discs whose file is gone\n"
+    }
+  },
+  "physicalDeviceTested": false,
+  "libraryFileFixDeviceVerified": false,
+  "scope": "Pinned 557 tree: the analyzer over the whole application, the 557 tests (concurrent ROM folder saves, library-file rows, service, dialogs) with the disc-image, ROM folder and RPCS3 library tests, the route contract and the 12-locale coverage; the whole Dart suite and the Build 419 contract on the 557 tree and on the delivered 554 tree (same failures, 557 adds passing tests); negative controls on the 554 tree. No iPhone."
+}

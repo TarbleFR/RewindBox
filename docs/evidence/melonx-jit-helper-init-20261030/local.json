@@ -1,0 +1,34 @@
+{
+  "result": "passed",
+  "baseline": "d042eefbaf5544e58faac91bf1680f7ff2f6dc93",
+  "baselineScriptSHA256": "879df6151e9b292b5c8dab7f8a88634aa92a3f25518d080c68722d243adaf0b3",
+  "currentScriptSHA256": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
+  "exactBlockRelocation": true,
+  "wholeScript": {
+    "result": "passed",
+    "checks": 99,
+    "completePackagedScript": true,
+    "debugserverAndVmDoubled": true,
+    "physicalDeviceTested": false
+  },
+  "isolatedProtocol": {
+    "checks": 101,
+    "result": "passed",
+    "nativeDebugserverDoubled": true,
+    "stagedPreparationFailureNeverRetried": true
+  },
+  "originalFailure": "ReferenceError: Cannot access 'rewindboxSizedArenaV1' before initialization",
+  "appleJavaScriptCore": null,
+  "nativeVMAndDebugserverDoubled": true,
+  "physicalDeviceTested": false,
+  "coreRecompiled": false,
+  "inputs": {
+    "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
+    "build-utils/melonx/helper_initialization.py": "51da4f34f3c70cfab6f645b17214d8655fb767b1cbfb273e6df4386ea1b1b58e",
+    "test/melonx_jit_helper_initialization_test.py": "442166609faf78fe5483355bd1a28d0f130245758fc436b334e84776542fe790",
+    "test/melonx_sized_jit_session_test.js": "c57d5721d05de8d5a9f873283f041217f5cce41dfd49835f32bb73adb7910341",
+    "test/melonx_sized_jit/Session.js": "95d29122789f699c7407ee06b8d468014e5977f1e8a056058cc355eac405ead0",
+    "test/melonx_sized_jit/Session.swift": "551e1558c4a915b028093816534c1cc2f3cb5453c2c34f198e9fa61b601993b8",
+    "test/melonx_sized_jit/Protocol.js": "43c1e91463d9faec892930a122402940b190816a3d60bbd31c5a1a0d26ba97cb"
+  }
+}

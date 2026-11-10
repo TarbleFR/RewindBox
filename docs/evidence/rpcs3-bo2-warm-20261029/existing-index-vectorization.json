@@ -1,0 +1,31 @@
+{
+  "sourceSHA256": "271b827c3dba1558a0b4f50766954f3c94254792847768795d79a313d8bec13c",
+  "extractedBodySHA256": "5524310f145e2b616462dfc31170455c160dbf8b559a8c6dd4fcd65ec948b4ca",
+  "harnessSHA256": "d0124e5428e5d16877b2ca787d471b457047a6278689f6ec68205d418f41613e",
+  "compilerCommand": [
+    "/tmp/accespc-zig/ziglang/zig",
+    "c++",
+    "-target",
+    "aarch64-linux-gnu",
+    "-mcpu=apple_a18",
+    "-std=c++20",
+    "-O3",
+    "-S",
+    "-fno-exceptions",
+    "-Rpass=loop-vectorize",
+    "-Rpass-missed=loop-vectorize",
+    "/tmp/rpcs3-bo2-cycle2/index-vectorization.cpp",
+    "-o",
+    "/tmp/rpcs3-bo2-cycle2/index-vectorization.s"
+  ],
+  "returncode": 0,
+  "scope": "Actual non-restart upload body with equivalent unsigned big-endian adapter; assembly inspection only.",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "compilerRemarks": "zig: warning: argument unused during compilation: '-c' [-Wunused-command-line-argument]\n/tmp/rpcs3-bo2-cycle2/index-vectorization.cpp:32:4: remark: vectorized loop (vectorization width: 8, interleaved count: 4) [-Rpass=loop-vectorize]\n   32 |                         while (count--)\n      |                         ^\n/tmp/rpcs3-bo2-cycle2/index-vectorization.cpp:32:4: remark: vectorized loop (vectorization width: 4, interleaved count: 4) [-Rpass=loop-vectorize]\n",
+  "harness": "using u16 = unsigned short;\nusing u32 = unsigned int;\nusing u64 = unsigned long long;\ntemplate<typename T> struct be_t {\n    T data;\n    constexpr operator T() const noexcept {\n        if constexpr(sizeof(T) == 2) return __builtin_bswap16(data);\n        else return __builtin_bswap32(data);\n    }\n};\n\ttemplate <typename T>\n\tconst T& min_max(T& min, T& max, const T& value)\n\t{\n\t\tif (value < min)\n\t\t\tmin = value;\n\n\t\tif (value > max)\n\t\t\tmax = value;\n\n\t\treturn value;\n\t}\n\n\tstruct untouched_impl\n\t{\n\t\ttemplate <typename T>\n\t\tstatic u64 upload_untouched_naive(const be_t<T>* src, T* dst, u32 count)\n\t\t{\n\t\t\tu32 written = 0;\n\t\t\tT max_index = 0;\n\t\t\tT min_index = -1;\n\n\t\t\twhile (count--)\n\t\t\t{\n\t\t\t\tT index = src[written];\n\t\t\t\tdst[written++] = min_max(min_index, max_index, index);\n\t\t\t}\n\n\t\t\treturn (u64{max_index} << 32) | u64{min_index};\n\t\t}\n\n};\n\nextern \"C\" u64 upload16(const be_t<u16>* src, u16* dst, u32 n) {\n    return untouched_impl::upload_untouched_naive(src, dst, n);\n}\nextern \"C\" u64 upload32(const be_t<u32>* src, u32* dst, u32 n) {\n    return untouched_impl::upload_untouched_naive(src, dst, n);\n}\n",
+  "assemblySHA256": "c74440c512e877fa3b84a35f4668c381814d95baf57bdd1fbb8433780818d0e3",
+  "endianHeaderSHA256": "c0a145f7ba5a1f23ac513b429dcb389f9cc3b9c4acdbbfefc8f029f1ae9535c8",
+  "assemblyVectorExcerpt": "upload16:                               // @upload16\n\tldp\tq16, q17, [x10, #-32]\n\trev16\tv16.16b, v16.16b\n\trev16\tv17.16b, v17.16b\n\tldp\tq18, q19, [x10], #64\n\trev16\tv18.16b, v18.16b\n\trev16\tv19.16b, v19.16b\n\tumin\tv0.8h, v16.8h, v0.8h\n\tumin\tv2.8h, v17.8h, v2.8h\n\tumin\tv3.8h, v18.8h, v3.8h\n\tumin\tv4.8h, v19.8h, v4.8h\n\tumax\tv1.8h, v16.8h, v1.8h\n\tumax\tv5.8h, v17.8h, v5.8h\n\tumax\tv6.8h, v18.8h, v6.8h\n\tstp\tq16, q17, [x11, #-32]\n\tumax\tv7.8h, v19.8h, v7.8h\n\tstp\tq18, q19, [x11], #64\n\tumax\tv1.8h, v1.8h, v5.8h\n\tumax\tv1.8h, v1.8h, v6.8h\n\tumax\tv1.8h, v1.8h, v7.8h\n\tumaxv\th1, v1.8h\n\tumin\tv0.8h, v0.8h, v2.8h\n\tumin\tv0.8h, v0.8h, v3.8h\n\tumin\tv0.8h, v0.8h, v4.8h\n\tuminv\th0, v0.8h\n\trev16\tv2.8b, v2.8b\n\tumin\tv0.4h, v2.4h, v0.4h\n\tumax\tv1.4h, v2.4h, v1.4h\n\tumaxv\th1, v1.4h\n\tuminv\th0, v0.4h\nupload32:                               // @upload32\n\tldp\tq16, q17, [x10, #-32]\n\trev32\tv16.16b, v16.16b\n\trev32\tv17.16b, v17.16b\n\tldp\tq18, q19, [x10], #64\n\trev32\tv18.16b, v18.16b\n\trev32\tv19.16b, v19.16b\n\tumin\tv0.4s, v16.4s, v0.4s\n\tumin\tv2.4s, v17.4s, v2.4s\n\tumin\tv3.4s, v18.4s, v3.4s\n\tumin\tv4.4s, v19.4s, v4.4s\n\tumax\tv1.4s, v16.4s, v1.4s\n\tumax\tv5.4s, v17.4s, v5.4s\n\tumax\tv6.4s, v18.4s, v6.4s\n\tstp\tq16, q17, [x11, #-32]\n\tumax\tv7.4s, v19.4s, v7.4s\n\tstp\tq18, q19, [x11], #64\n\tumax\tv1.4s, v1.4s, v5.4s\n\tumax\tv1.4s, v1.4s, v6.4s\n\tumax\tv1.4s, v1.4s, v7.4s\n\tumaxv\ts1, v1.4s\n\tumin\tv0.4s, v0.4s, v2.4s\n\tumin\tv0.4s, v0.4s, v3.4s\n\tumin\tv0.4s, v0.4s, v4.4s\n\tuminv\ts0, v0.4s\n\trev32\tv2.16b, v2.16b\n\tumin\tv0.4s, v2.4s, v0.4s\n\tumax\tv1.4s, v2.4s, v1.4s\n\tumaxv\ts1, v1.4s\n\tuminv\ts0, v0.4s",
+  "decision": "No new manual NEON kernel: the extracted existing non-restart loop is already vectorized for the A18 target. Adapter assembly is not an Apple Core build or device performance proof."
+}

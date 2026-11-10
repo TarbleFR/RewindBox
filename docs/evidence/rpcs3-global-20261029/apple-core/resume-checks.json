@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "reusedModes": [
+    "fifo-partial-plain",
+    "fifo-partial-asan-ubsan",
+    "texture-lifecycle-address-plain",
+    "texture-lifecycle-address-asan-ubsan"
+  ],
+  "rejectedInvalidEvidence": [
+    "command",
+    "provenance-source",
+    "provenance-run",
+    "pretended-new-execution",
+    "state-report-digest",
+    "failed-mode",
+    "native_source_sha256",
+    "supplemental_native_sha256",
+    "unreviewed-input-change",
+    "codegen-change",
+    "compiler-change",
+    "native-program-change",
+    "proof-digest",
+    "metadata-digest",
+    "report-bytes",
+    "output-bytes",
+    "failure-output-bytes",
+    "different-sdk"
+  ],
+  "rejectedCount": 18,
+  "nativeTestsExecuted": false,
+  "compilerExecuted": false,
+  "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+  "partialProofSHA256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+  "helperSHA256": "8f3ea7faf98b45555be579e0551ed59c097399909677b6d78dae349c588650f7",
+  "pipelineSHA256": "3c7df8082d7d838764daa651c56ec104d2996d26d47fe07c06672ef7ea801cc7",
+  "authenticatedOriginalInputs": 225,
+  "currentInputCount": 237,
+  "nativeProgramSHA256": {
+    "fifo-partial": "0fef927a1955736eda3d9003a1b499ecbb02d7bbe5da45b6f697f43e79e4fe01",
+    "texture-lifecycle-address": {
+      "combined": "cbb45191b7c3481eb236e8e4791d9a09f47be77ebe7a95e184e7d3315f8a9c31"
+    }
+  }
+}

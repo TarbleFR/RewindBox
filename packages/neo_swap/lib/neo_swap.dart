@@ -17,6 +17,17 @@ class NeoSwap {
   /// Compatibility alias for the production broker's measured diagnostics.
   static Future<Map<String, dynamic>> getMemoryStats() => snapshot();
 
+  /// RPCS3 launch: prepare the guest page relay before the boot maps its
+  /// preallocated guest blocks (Build 610). Waits natively off the main thread,
+  /// at most [timeoutMs] (capped at 10 s); never allocates and never changes a
+  /// budget. `ok` is true only when the relay is ready for RPCS3 guest data.
+  static Future<Map<String, dynamic>> prepareGuestRelay({int timeoutMs = 10000}) {
+    if (timeoutMs < 0 || timeoutMs > 10000) {
+      throw ArgumentError.value(timeoutMs, 'timeoutMs');
+    }
+    return _call('prepareGuestRelay', {'timeoutMs': timeoutMs});
+  }
+
   /// Optional regenerable shader cache; applies on the next game launch.
   static Future<Map<String, dynamic>> setShaderStorage(bool enabled) =>
       _call('setShaderStorage', {'enabled': enabled});

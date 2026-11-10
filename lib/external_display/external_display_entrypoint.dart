@@ -1,3 +1,4 @@
+import 'package:achievement_translation/achievement_translation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
@@ -57,6 +58,7 @@ Future<void> externalDisplayMain(List<String> args) async {
     '--- [EXTERNAL DISPLAY ENGINE] externalDisplayMain started '
     '(language ${menuArgs.languageCode}, theme ${menuArgs.themeName}) ---',
   );
+  AchievementTranslationClient.shared.followAppLanguage(menuArgs.languageCode);
   await initializeExternalDisplayLocalization(menuArgs.languageCode);
   runApp(
     ExternalMenuApp(

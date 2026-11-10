@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee"
+  },
+  "harnessSHA256": "1b86396e262009ed64c5c82ce10e016bb4d1413f993e75f60a4df8d6c8af4b17",
+  "adapterSHA256": "af8cae6aa9b154d306d0cb5b543bdcb818928b8cfdb7457c76a6eda2b2cd6175",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG"
+  ],
+  "host": "x86_64",
+  "results": {
+    "checks": 7680,
+    "baselineShaderReadScopesWithoutVertex": 1152,
+    "candidateShaderReadScopesWithoutVertex": 0,
+    "sameImageAccessRangesQueueFamiliesAndBarrierCounts": true,
+    "computeScopeChanged": false
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Compile exact Vulkan image barrier selection before/after with a recording API.\n\nThe host boundary records vkCmdPipelineBarrier; there is no Vulkan device or\ndriver execution. Graphics stages are tested; compute callers have explicit\nbarriers and are not made safe by this test or by adding vertex stage bits.\n"
+}

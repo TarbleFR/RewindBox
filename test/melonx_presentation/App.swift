@@ -16,6 +16,27 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
     var started=false
     let old=Bundle.main.object(forInfoDictionaryKey:"OldControl") as? Bool == true
     var game=""
+    var legacy:URL!
+    var diagnostics:URL!
+    func performanceText()->String {
+        guard let diagnostics else {return ""}
+        return (try? String(contentsOf:diagnostics.appendingPathComponent("MeloNX-performance.log"),encoding:.utf8)) ?? ""
+    }
+    func performanceRows()->[[String:Any]] {
+        performanceText().split(separator:"\n").compactMap { line -> [String:Any]? in
+            let prefix="[MeloNX:core-performance] "
+            guard line.hasPrefix(prefix) else {return nil}
+            return try? JSONSerialization.jsonObject(with:Data(line.dropFirst(prefix.count).utf8)) as? [String:Any]
+        }
+    }
+    func awaitDiagnostic(_ label:String,until deadline:Date = Date().addingTimeInterval(5),
+                         condition:@escaping()->Bool,then:@escaping()->Void) {
+        if condition() {checks += 1;then();return}
+        guard Date() < deadline else {finish(false,label);return}
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.05) {
+            self.awaitDiagnostic(label,until:deadline,condition:condition,then:then)
+        }
+    }
     func scene(_ scene:UIScene,willConnectTo session:UISceneSession,options:UIScene.ConnectionOptions) {
         guard let scene=scene as? UIWindowScene else { return }
         // The exact registration ordering that the previous code mishandled.
@@ -24,6 +45,9 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
         plugin=registrar.plugin as? MeloNXInternalBridgePlugin
         window=UIWindow(windowScene:scene);window?.rootViewController=UIViewController()
         let docs=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+        legacy=docs.appendingPathComponent("app.log")
+        diagnostics=docs.appendingPathComponent("Diagnostics/Switch",isDirectory:true)
+        try! Data("legacy fixture\n".utf8).write(to:legacy)
         game=docs.appendingPathComponent("original-probe.nro").path
         try! Data([1,2,3,4]).write(to:URL(fileURLWithPath:game))
     }
@@ -33,7 +57,14 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
             window?.makeKeyAndVisible()
             registrar.viewController=window?.rootViewController
         }
-        DispatchQueue.main.asyncAfter(deadline:.now()+0.1) { self.noWindow() }
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.1) {
+            if self.old { self.noWindow();return }
+            self.call("configureLaunchJournal",["path":self.legacy.path]) { result in
+                self.check(result["success"] as? Bool == true,"journal configuration through actual plugin")
+                self.check(Probe.journalPath == self.diagnostics.appendingPathComponent("MeloNX-core.log").path,"native Core canonical path")
+                self.noWindow()
+            }
+        }
     }
     func check(_ value:Bool,_ message:String) {
         guard value else { finish(false,message);return };checks += 1
@@ -67,7 +98,42 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
             self.check(result["success"] as? Bool == true,"late registrar attachment launches")
             self.check(Probe.detachCalls == 1 && Probe.handshakes == 1,"no second one-time handshake")
             self.check(self.window?.rootViewController?.presentedViewController?.viewIfLoaded?.window === self.window,"actual UIKit presentation")
-            self.close { self.fallback() }
+            self.performanceRouting()
+        }
+    }
+    func performanceRouting() {
+        // The engine snapshot is an explicit boundary double. The actual Swift
+        // plugin polls, orders, deduplicates, enriches and writes these events.
+        let initialPolls=Probe.pollCount
+        Probe.setReport(["events":[],"performance":["sequence":101,"stage":"performance","status":"sample",
+            "generation":1,"nativeStatus":0,"diagnostic":"{\"schema\":1}",
+            "timestampUTC":"2026-10-31T00:00:00Z","pid":ProcessInfo.processInfo.processIdentifier]])
+        // Utility queues need not run before a fixed wall-clock delay on a
+        // freshly booted simulator. Observe the actual persisted sample and
+        // multiple subsequent snapshots before asking the session to finish.
+        awaitDiagnostic("sample persisted while repeated snapshots remain deduplicated",condition:{
+            Probe.pollCount >= initialPolls + 3 &&
+                self.performanceRows().contains { ($0["sequence"] as? Int) == 101 }
+        }) {
+            self.check(self.performanceRows().count == 1,"repeated sample polls persist one row")
+            self.close {
+              self.awaitDiagnostic("final performance persisted after native run",condition:{
+                self.performanceRows().contains { ($0["sequence"] as? Int) == 102 }
+              }) {
+                let rows=self.performanceRows()
+                self.check(rows.count == 2,"native performance sample/final persisted exactly once")
+                self.check(rows.compactMap {$0["sequence"] as? Int} == [101,102],"preceding/current sequence order")
+                self.check(rows.compactMap {$0["status"] as? String} == ["sample","final"],"post-run final drain")
+                self.check(rows.allSatisfy { row in
+                    let context=row["context"] as? [String:String] ?? [:]
+                    return context["generation"] == "1" && context["titleId"] == "0100AAAA00000000" &&
+                        context["build"] == "1" && context["pid"] == String(ProcessInfo.processInfo.processIdentifier) &&
+                        context["coreSource"] != nil && context["session"] != nil
+                },"immutable native performance context")
+                self.check((try? String(contentsOf:self.legacy,encoding:.utf8)) == "legacy fixture\n","legacy journal retained")
+                self.fallback()
+              }
+            }
         }
     }
     func close(_ next:@escaping()->Void) {
@@ -118,6 +184,8 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
         let result:[String:Any]=["result":success ? "passed":"failed","oldControl":old,
             "checks":checks,"detail":detail,"actualUIKit":true,"actualFlutterFramework":true,
             "registrarBoundaryDouble":true,"engineAndJitDouble":true,"guestFrameDouble":true,
+            "nativeDiagnosticsBoundaryDouble":true,"actualPluginDiagnosticsRouting":!old,
+            "diagnosticPollCount":Probe.pollCount,"performanceJournal":performanceText(),
             "physicalDeviceTested":false,"gameplayTested":false,"detachCalls":Probe.detachCalls,"presentedSessions":Probe.starts]
         let docs=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
         try! JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:docs.appendingPathComponent("presentation.json"),options:.atomic)

@@ -10,6 +10,7 @@ import 'package:neostation/services/library_source_catalog_service.dart';
 import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 
 import 'library_sources_view.dart';
+import '../../widgets/glass/glass_banner.dart';
 
 /// Preview of a catalogue before anything is installed (Build 437): one row
 /// per source with its icon, languages, version, rating and whether
@@ -463,33 +464,10 @@ class _LibraryCatalogPreviewScreenState
   Widget _buildTachiyomiBanner(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(
-                Icons.info_outline,
-                color: theme.colorScheme.onSecondaryContainer,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  _t('tachiyomiBanner'),
-                  key: const ValueKey<String>('tachiyomi-banner'),
-                  style: TextStyle(
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      child: GlassBanner(
+        key: const ValueKey<String>('tachiyomi-banner'),
+        kind: GlassBannerKind.info,
+        message: _t('tachiyomiBanner'),
       ),
     );
   }

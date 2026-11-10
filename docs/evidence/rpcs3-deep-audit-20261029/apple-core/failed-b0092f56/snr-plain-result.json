@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "program_sha256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/gow3-snr-plain.json",
+  "canonical_program_sha256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "matrixCases": 768,
+    "baselineMissingEvents": 256,
+    "baselineSpuriousEvents": 512,
+    "candidateEventMismatches": 0,
+    "payloadComparisons": 1280,
+    "postponedAndJostlingCases": 8,
+    "deterministicCasRetryCases": 4,
+    "repeatPopRepushCycles": 512,
+    "sameChannelPayloadAndNotify": true,
+    "eventLocksReleased": true
+  },
+  "mode": "plain",
+  "output_sha256": "ca0a38e05a303901b0efcb3779366a9428a043ac9010e0404794a604403d4f5e",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

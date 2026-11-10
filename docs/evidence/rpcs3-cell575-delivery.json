@@ -1,0 +1,68 @@
+{
+  "build": 575,
+  "result": "delivered",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "f9bedd760c2db8e7dade84c03524c292ca1522da",
+  "run": 40591563881,
+  "workflow": ".github/workflows/rpcs3-cell575-delivery.yml",
+  "event": "workflow_dispatch",
+  "artifact": {
+    "id": 12776007264,
+    "name": "RewindBox-Build575-f9bedd760c2db8e7dade84c03524c292ca1522da-cold",
+    "bytes": 189320733,
+    "digest": "sha256:000e3274b57945ab8b8465cf39b04eef9baba554be33c59ef95832361a906573",
+    "encryption": "AES-256-CBC PBKDF2 200000, key RSA OAEP SHA256 (build-utils/delivery-575-recipient.pem)"
+  },
+  "ipa": {
+    "version": "0.0.8",
+    "build": 575,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "bytes": 188094296,
+    "sha256": "85b2efeb78ed89f913e6a98d1218e77f90170b9dd3c59fa8c0124af8590d3b54",
+    "entries": 5362,
+    "installsOver": "private 573 (d1f61ee0..., run 40581439146)"
+  },
+  "contents": {
+    "rpcs3Core": {
+      "source": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+      "run": 40589313705,
+      "sha256": "90275c29d52109a0e4be60246053b56a127a5307302ed459097a8ef0a7690638",
+      "replaces": {
+        "source": "92074e51b9e7216902c57fd5ae099d8aa3caea63",
+        "sha256": "2d80a2beee8ed53ce083961f08b1605983c28751a98d1edade6d30969d8faacc"
+      },
+      "includes": [
+        "569 iOS QoS kept",
+        "571 passive-lock fairness",
+        "573 texture residency cap",
+        "573 scoped texture revalidation",
+        "575 title levers (Black Ops II, Bladestorm)"
+      ]
+    },
+    "melonxEngine": "8cc2348037890adb7b8eef8adde3cd5e4a57c8d2 (572, unchanged, run 40570622034)",
+    "gow3Profile": "frame limit Auto (c5ba917, unchanged)",
+    "markersInSignedCore": [
+      "Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm;",
+      "Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II;",
+      "Automatic enables it for Dragon Ball Z Budokai HD Collection, God of War III and Bladestorm;"
+    ],
+    "validators": [
+      "validate_rpcs3_575_ipa",
+      "validate_liquid_glass575_ipa",
+      "validate_melonx_perf575_ipa",
+      "validate_rpcs3_library_files575_ipa",
+      "validate_melonx_input575_ipa",
+      "validate_melonx_texture575_ipa",
+      "validate_melonx_jit575_ipa",
+      "validate_melonx_switch575_ipa"
+    ]
+  },
+  "durations": {
+    "checksMinutes": 5.8,
+    "macosJobMinutes": 32.5,
+    "endToEndMinutes": 38.4
+  },
+  "independentCheck": "decrypted with the private 575 key; IPA SHA-256 equals SHA256SUMS; Info.plist build 575; RPCS3-cell575-identity.json build 575, Core ddf73420 (90275c29...); MeloNX-switch575-identity.json engine 8cc2348; the 575 Automatic texts in the signed Core",
+  "scope": "CI build, signature and validators only; no iPhone run, no FPS or memory measured."
+}

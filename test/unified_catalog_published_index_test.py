@@ -19,6 +19,8 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / 'native/cheats/catalogue/manifest.json.gz'
+# The app bundles the origin publication (v2); older apps keep reading v1.
+BUNDLED = ROOT / 'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz'
 PACKAGE = ROOT / 'packages/neo_cheat_catalog/ios'
 NATIVE_FIXTURE = ROOT / 'test/unified_catalog_runtime_native.m'
 COMPRESSED_LIMIT = 12 * 1024 * 1024
@@ -106,10 +108,15 @@ def run_published_gate(manifest: Path, result_path: Path | None = None) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    parser.add_argument('--manifest', type=Path, default=MANIFEST)
+    parser.add_argument('--manifest', type=Path)
     parser.add_argument('--result', type=Path)
     args = parser.parse_args()
-    run_published_gate(args.manifest, args.result)
+    if args.manifest:
+        run_published_gate(args.manifest, args.result)
+        return
+    run_published_gate(MANIFEST, args.result)
+    if BUNDLED.read_bytes() != MANIFEST.read_bytes():
+        run_published_gate(BUNDLED)
 
 
 if __name__ == '__main__':

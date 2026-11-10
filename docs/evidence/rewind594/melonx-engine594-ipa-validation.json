@@ -1,0 +1,223 @@
+{
+  "result": "passed",
+  "build": 594,
+  "baseline": 593,
+  "ipaSHA256": "714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63",
+  "identity": {
+    "build": 594,
+    "baseline": 593,
+    "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+    "engineRun": 40841402428,
+    "engineCompileRun": 40837997888,
+    "engineValidationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+    "originalCompileConclusion": "failure",
+    "originalFailedSmokePreserved": true,
+    "engineArtifact": 12883480724,
+    "engineArchiveSHA256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+    "engineCommits": [
+      "a33eee843956a2607754a7c8d601ea62439e4bee",
+      "9dd570ee71c5df9edb5a593c90e1757e17f57d93",
+      "ebcee3529645a781311429a869434005e76d6275"
+    ],
+    "evidence": {
+      "result": "passed",
+      "source": "ebcee3529645a781311429a869434005e76d6275",
+      "run": 40841402428,
+      "compileRun": 40837997888,
+      "originalRunConclusion": "failure",
+      "originalFailedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "validationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+      "metadata": {
+        "result": "passed",
+        "source": "ebcee3529645a781311429a869434005e76d6275",
+        "run": 40841402428,
+        "compileRun": 40837997888,
+        "originalRunConclusion": "failure",
+        "originalFailedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+        "validationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+        "artifact": 12883480724,
+        "artifactSHA256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+        "reusedCompilationSteps": [
+          "Compile NativeAOT library and verify exported ABI",
+          "Verify cached shader startup preserves synchronous draws and fatal errors",
+          "Verify launch firmware discovery scans once and preserves failures",
+          "Verify renderer failures wake waiting threads and preserve teardown",
+          "Verify failed GPU initialization releases guest startup without executing guest code",
+          "Verify shader cache translation workers drain before failed startup returns"
+        ],
+        "validationSteps": [
+          "Authenticate and restore unchanged engine 82",
+          "Validate the existing engine with the corrected ARM64 simulator smoke",
+          "Retain the original failure and new runtime proof"
+        ],
+        "engineRecompiled": false,
+        "priorGatesReexecuted": false
+      },
+      "artifact": 12883480724,
+      "expectedArchiveSHA256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+      "images": {
+        "ios-arm64": {
+          "sha256": "f7efba4e5025be2147f8a47fe4de9b2eba2df63537aaa2c496e74b57413af2e5",
+          "bytes": 37585008,
+          "identitySHA256": "00c93bc5edcc9bced729709b1c4be21728f3c5f1fe2e43c490db91b7611c3bf6",
+          "platform": 2,
+          "requiredExports": 47
+        },
+        "iossimulator-arm64": {
+          "sha256": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968",
+          "bytes": 37895272,
+          "identitySHA256": "48fc86b70e5ab20b2c096c56f74bd7c762b475e6152f494b806c2ca139f8ee04",
+          "platform": 7,
+          "requiredExports": 47
+        }
+      },
+      "adaptationInputs": 74,
+      "buildRecipeInputs": 4,
+      "runtimeInputs": 3,
+      "retainedReceipts": {
+        "cached-shader-startup-checks.json": "edba300536c94855e2dec4934f408f4006be7018512822ab8863ebcfe1dca29f",
+        "embedded-adapted-source.zip": "d8e476d9c4d04800332de658740a470858aa7ab5b4ff272da1c18795563226ef",
+        "embedded-inputs.json": "ca2760f7d7e147bc6867e96e9815c8ea337d44103ea968a2450f1fe04f70d4de",
+        "gpu-startup-failure-checks.json": "318b74505fcf225545b851842e36e290e70ed51f0f69eeba5b249aa8f51e92e2",
+        "ios-arm64/identity.json": "00c93bc5edcc9bced729709b1c4be21728f3c5f1fe2e43c490db91b7611c3bf6",
+        "iossimulator-arm64/identity.json": "48fc86b70e5ab20b2c096c56f74bd7c762b475e6152f494b806c2ca139f8ee04",
+        "launch-firmware-checks.json": "6a9c92c9e3b67be3a6d772ea7b05d5b2de30664af334c0e771e4baefdf1b54fe",
+        "runtime-smoke-engine82-original-failure/actual-runtime.json": "aaa4fa29ae22b3c5e388598e168dc38d0fdb4617d44bc5e77251a6210bc7fbda",
+        "runtime-smoke/actual-runtime.json": "de4edc64a8300e713197a7d35a00d480f2ca28729d0804319ef092558c0a5895",
+        "runtime-validation/original-artifact.json": "5584966db4bc07042fe0d61962d35baee40219b3588fb070679696ca7e9247d8",
+        "runtime-validation/original-job.json": "7d6fc665c70075ee67e7c08906615a440952f0fdd4b2b14337176d1c1d7738bc",
+        "runtime-validation/original-run.json": "49a71a5293fd4170fc0f2bb0d84efc6def30dae4384284f4dea33bf05314e8cb",
+        "runtime-validation/preparation.json": "77e0128e23338f33bba71d987eccd95a3ae5437ccce555257170e3691b8a3a21",
+        "runtime-validation/result.json": "6619a8805d945e9134d57069c6eb38abbb05d40c3f84fcdce2e4e1226da253a1",
+        "shader-loader-lifetime-checks.json": "af08399136e183020203650b6f4d8dd705a43b494ebea141510716889cb6032d",
+        "threaded-renderer-failures-checks.json": "d1257f6ff48564462d0c1ce6906a4868f1d10a6cba28c361ebce99c694a26b7b"
+      },
+      "simulatorHomebrewSessions": 2,
+      "homebrewGuestSvcSessions": [
+        {
+          "afterSequence": 23,
+          "generation": 1,
+          "session": 1,
+          "svcSequence": 39
+        },
+        {
+          "afterSequence": 40,
+          "generation": 2,
+          "session": 2,
+          "svcSequence": 56
+        }
+      ],
+      "runtimeValidation": {
+        "result": "passed",
+        "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+        "originalRun": 40837997888,
+        "originalJob": 123327250278,
+        "originalArtifact": 12882675844,
+        "archiveSha256": "94794155b1743800c8724a744db353df6d5d019891f2ff0091ebfdec4de8d0f6",
+        "originalRunConclusion": "failure",
+        "originalFailedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+        "originalSmoke": "runtime-smoke-engine82-original-failure/actual-runtime.json",
+        "priorSuccessfulStepsReused": [
+          "Compile NativeAOT library and verify exported ABI",
+          "Verify cached shader startup preserves synchronous draws and fatal errors",
+          "Verify launch firmware discovery scans once and preserves failures",
+          "Verify renderer failures wake waiting threads and preserve teardown",
+          "Verify failed GPU initialization releases guest startup without executing guest code",
+          "Verify shader cache translation workers drain before failed startup returns"
+        ],
+        "engine": {
+          "identitySha256": {
+            "ios-arm64": "00c93bc5edcc9bced729709b1c4be21728f3c5f1fe2e43c490db91b7611c3bf6",
+            "iossimulator-arm64": "48fc86b70e5ab20b2c096c56f74bd7c762b475e6152f494b806c2ca139f8ee04"
+          },
+          "binarySha256": {
+            "ios-arm64": "f7efba4e5025be2147f8a47fe4de9b2eba2df63537aaa2c496e74b57413af2e5",
+            "iossimulator-arm64": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968"
+          },
+          "adaptationCount": 74,
+          "adaptationsSha256": "ca2760f7d7e147bc6867e96e9815c8ea337d44103ea968a2450f1fe04f70d4de"
+        },
+        "buildRecipeSource": "ebcee3529645a781311429a869434005e76d6275",
+        "unchangedBuildInputs": {
+          "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+          "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+          "build-utils/melonx/build_libhac.py": "8477b495ad4a88855d73e847c74ac976ef9621b8536dd3ac1d539381cd79d677",
+          "build-utils/melonx/libhac-reuse.json": "191996e92d52adcd1ecb3c5821904df8f3188fa2d34836e667d9da23c292df8f"
+        },
+        "nativeDependencies": {
+          "run": 39854858591,
+          "artifactName": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+          "identitySha256": "fe29682a474fb91b337b258ff1a7d71704f1915313739879a7af271e7ef7bbd9",
+          "binaries": {
+            "ios/MeloNXAvCodec.framework/MeloNXAvCodec": "c2ed66ef5c05e268ef0118999a3f221bddeb42a8ca17d23c9b7400a072a85fbb",
+            "ios/MeloNXAvUtil.framework/MeloNXAvUtil": "0dc8e62c0140accda5dc0b20c5d9cd0b6afac6e2c82dfaabf0a470798067df95",
+            "ios/MeloNXJitSupport.framework/MeloNXJitSupport": "fc73f141f982626d3814f617b744dfba2c70ee7157018ec1b629c57150cbdbae",
+            "ios/MeloNXMoltenVK.framework/MeloNXMoltenVK": "d1c94d5d7585ead56379cc2ba0de274dfb9a556974bfbb3ab4fff421abd17d25",
+            "ios/MeloNXSDL3.framework/MeloNXSDL3": "e7edab1b651e96a0da7ee6389d84750d41269e516ab7e363db0747017956d3d5",
+            "iossimulator/MeloNXAvCodec.framework/MeloNXAvCodec": "14ad7be6aa477e3cb2f36681c8293f19b7d2ec0b14bb1616716ed29f5c243747",
+            "iossimulator/MeloNXAvUtil.framework/MeloNXAvUtil": "1c6c7d05b8eaae7bdbf13183831909aeb84a6a7ce4cbc0c1d114a4a7d107e187",
+            "iossimulator/MeloNXJitSupport.framework/MeloNXJitSupport": "d4fb6d808342e4fa903038e8cb9a702dfcb16e234729535796cb31a62002be2f",
+            "iossimulator/MeloNXMoltenVK.framework/MeloNXMoltenVK": "283e7575aaa7df50319ef0dd31b4162832d73a2e96abc4bf10d4a9af4563a85c",
+            "iossimulator/MeloNXSDL3.framework/MeloNXSDL3": "c4acafdf9816c690e982c0b5a1ff77c1e88ca82115d771f8adfea6c3cb4d8d10"
+          }
+        },
+        "validation": {
+          "source": "e46ace78c0232864764009c5506bb1041bc1eddd",
+          "run": 40841402428,
+          "runAttempt": 1,
+          "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40841402428",
+          "purpose": "runtime validation only; original engine was not recompiled"
+        },
+        "engineRecompiled": false,
+        "nativeDependenciesRecompiled": false,
+        "priorGatesReexecuted": false,
+        "inputs": {
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+          "test/melonx_runtime_smoke.py": "135f825f8e51fc399e67df5bda0fea6ee752ffd69aa59d33d4b90845c09b314b",
+          "build-utils/melonx/validate_runtime_reuse.py": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
+          "build-utils/melonx/runtime-validation.json": "440770309ad25c62e1fa097f42bdf89de14bcd76abb68019fac18cbb8a0931c7",
+          ".github/workflows/melonx-runtime-validation.yml": "16d2b25ec8350f1af93227888592b49ad005b3865ddef488c035eac976296233",
+          "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+          "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+          "build-utils/melonx/build_libhac.py": "8477b495ad4a88855d73e847c74ac976ef9621b8536dd3ac1d539381cd79d677",
+          "build-utils/melonx/libhac-reuse.json": "191996e92d52adcd1ecb3c5821904df8f3188fa2d34836e667d9da23c292df8f"
+        },
+        "smokeStepOutcome": "success",
+        "validationError": null,
+        "correctedSmoke": "runtime-smoke/actual-runtime.json",
+        "correctedSmokeSha256": "de4edc64a8300e713197a7d35a00d480f2ca28729d0804319ef092558c0a5895",
+        "physicalDeviceTested": false,
+        "gameplayTested": false,
+        "newArtifactPurpose": "unchanged engine 82 plus a separate runtime validation; original source identities preserved"
+      },
+      "authoritativePayload": "ios-arm64/Ryujinx.Library.dylib",
+      "originalPayloadFingerprint": "c9f7cd6fe45b0e349c76841095854f1f445395e8305df754ac23a5f2c2e56e67",
+      "originalCompileIdentitiesPreserved": true,
+      "originalFailedSmokePreserved": true,
+      "engineRecompiled": false,
+      "priorGatesReexecuted": false,
+      "rootPayloadUsed": false,
+      "physicalDeviceTested": false,
+      "gameTested": false,
+      "fpsGainMeasured": false
+    },
+    "physicalDeviceTested": false,
+    "gameTested": false,
+    "fpsGainMeasured": false
+  },
+  "engine": {
+    "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+    "engineRun": 40841402428,
+    "engineCompileRun": 40837997888,
+    "engineValidationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+    "originalCoreSHA256": "f7efba4e5025be2147f8a47fe4de9b2eba2df63537aaa2c496e74b57413af2e5",
+    "packagedCoreFingerprint": "c9f7cd6fe45b0e349c76841095854f1f445395e8305df754ac23a5f2c2e56e67",
+    "originalPayloadMatched": true,
+    "requiredExports": 47,
+    "signatureCryptographicallyVerifiedHere": false
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false
+}

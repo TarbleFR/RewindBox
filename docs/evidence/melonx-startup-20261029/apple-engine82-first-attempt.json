@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-29T08:16:01+00:00",
+  "scope": "First Apple validation of the SSBU startup candidate; engine compilation and targeted checks passed, original simulator smoke failed.",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+  "run": {
+    "id": 40837997888,
+    "number": 82,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40837997888",
+    "conclusion": "failure"
+  },
+  "job": {
+    "id": 123327250278,
+    "startedAt": "2026-10-29T07:50:22Z",
+    "completedAt": "2026-10-29T08:07:47Z",
+    "conclusion": "failure"
+  },
+  "relevantSteps": [
+    {
+      "name": "Verify cached shader startup preserves synchronous draws and fatal errors",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 40,
+      "started_at": "2026-10-29T07:56:16Z",
+      "completed_at": "2026-10-29T07:56:24Z"
+    },
+    {
+      "name": "Verify launch firmware discovery scans once and preserves failures",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 41,
+      "started_at": "2026-10-29T07:56:24Z",
+      "completed_at": "2026-10-29T07:56:30Z"
+    },
+    {
+      "name": "Verify renderer failures wake waiting threads and preserve teardown",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 42,
+      "started_at": "2026-10-29T07:56:30Z",
+      "completed_at": "2026-10-29T07:56:37Z"
+    },
+    {
+      "name": "Verify failed GPU initialization releases guest startup without executing guest code",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 43,
+      "started_at": "2026-10-29T07:56:37Z",
+      "completed_at": "2026-10-29T07:56:46Z"
+    },
+    {
+      "name": "Verify shader cache translation workers drain before failed startup returns",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 44,
+      "started_at": "2026-10-29T07:56:46Z",
+      "completed_at": "2026-10-29T07:56:51Z"
+    },
+    {
+      "name": "Compile NativeAOT library and verify exported ABI",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 50,
+      "started_at": "2026-10-29T07:57:37Z",
+      "completed_at": "2026-10-29T08:02:33Z"
+    },
+    {
+      "name": "Audit patched SDL3 audio callback in exact NativeAOT source receipt",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 51,
+      "started_at": "2026-10-29T08:02:33Z",
+      "completed_at": "2026-10-29T08:02:33Z"
+    },
+    {
+      "name": "Run actions/download-artifact@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 52,
+      "started_at": "2026-10-29T08:02:33Z",
+      "completed_at": "2026-10-29T08:02:37Z"
+    },
+    {
+      "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 53,
+      "started_at": "2026-10-29T08:02:37Z",
+      "completed_at": "2026-10-29T08:07:26Z"
+    },
+    {
+      "name": "Retain actual runtime evidence",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 54,
+      "started_at": "2026-10-29T08:07:26Z",
+      "completed_at": "2026-10-29T08:07:27Z"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 55,
+      "started_at": "2026-10-29T08:07:27Z",
+      "completed_at": "2026-10-29T08:07:39Z"
+    }
+  ],
+  "artifact": {
+    "id": 12882675844,
+    "name": "MeloNX-engine-ebcee3529645a781311429a869434005e76d6275",
+    "size_in_bytes": 102735327,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882675844",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882675844/zip",
+    "expired": false,
+    "created_at": "2026-10-29T08:07:39Z",
+    "expires_at": "2026-11-12T08:07:28Z",
+    "updated_at": "2026-10-29T08:07:39Z",
+    "digest": "sha256:94794155b1743800c8724a744db353df6d5d019891f2ff0091ebfdec4de8d0f6",
+    "workflow_run": {
+      "id": 40837997888,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "ebcee3529645a781311429a869434005e76d6275"
+    }
+  },
+  "simulatorCoreSha256": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968",
+  "jobLogSha256": "03716a6d4910879272c922dfd7be55165951f63142be8eab587b7a2029965a34",
+  "originalSmoke": {
+    "result": "failed",
+    "diagnostic": "Error Domain=homebrew-guest-svc-unconfirmed Code=11 \"(null)\"",
+    "nativeSessionState": 0,
+    "sessions": [
+      {
+        "session": 1,
+        "preparedUtc": "2026-10-29T08:06:55.917Z",
+        "stopRequestedUtc": "2026-10-29T08:06:58.018Z",
+        "vulkanCacheInitializedUtc": "2026-10-29T08:06:59.449Z",
+        "getCapabilitiesUtc": "2026-10-29T08:07:00.037Z",
+        "closedUtc": "2026-10-29T08:07:00.169Z",
+        "journalBeginSequence": 24,
+        "journalClosedSequence": 39,
+        "guestSvcSequence": null
+      },
+      {
+        "session": 2,
+        "preparedUtc": "2026-10-29T08:07:00.180Z",
+        "stopRequestedUtc": "2026-10-29T08:07:02.279Z",
+        "vulkanCacheInitializedUtc": "2026-10-29T08:07:00.830Z",
+        "getCapabilitiesUtc": "2026-10-29T08:07:01.338Z",
+        "closedUtc": "2026-10-29T08:07:02.661Z",
+        "journalBeginSequence": 40,
+        "journalClosedSequence": 56,
+        "guestSvcSequence": 55
+      }
+    ],
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+      "test/melonx_runtime_smoke.py": "ec5bdb5dcb6ac5a870804d5db56601a9f219be29003c0ed859142be8ed95bdbd"
+    },
+    "cause": "The smoke unconditionally requested Stop two seconds after host.start, before the first cold session reached GPU readiness. Cancellation correctly prevented guest execution. Only the warm second session produced SVC ExitProcess. The final two-SVC assertion correctly failed.",
+    "eventCount": 56,
+    "eventRingCapacity": 64,
+    "eventEvictionExplainsMissingSvc": false
+  },
+  "correction": {
+    "engineRecompiled": false,
+    "productionChanges": false,
+    "changedTest": "test/melonx_runtime_smoke.py",
+    "testSha256": "135f825f8e51fc399e67df5bda0fea6ee752ffd69aa59d33d4b90845c09b314b",
+    "behavior": "Wait outside the main queue for a new guestExecution/passed sequence after each session baseline, retain two distinct session/generation proofs, then request Stop. Enforce a 30-second guest-execution budget and 45-second total session deadline. Stop and drain before reporting an absent SVC.",
+    "retainedChecks": [
+      "Two distinct guest SVC proofs",
+      "Memory backing borrowed during each live session",
+      "Live backing withdrawal refused",
+      "No donated bytes retained after close",
+      "Closed session generation rejected by performance snapshot"
+    ],
+    "validation": "Python syntax and independent review passed; corrected Apple runtime validation is pending."
+  },
+  "limitations": [
+    "This run remains failed overall.",
+    "No physical-device startup time, FPS, gameplay or process-memory gain measured.",
+    "Native libraries must be reused with their original compile identities; a later runtime-only validation has a distinct run and provenance."
+  ]
+}

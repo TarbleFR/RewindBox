@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/game_box_locale.dart';
+import 'package:neostation/services/screenscraper/scrape_choices.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/services/screenscraper_service.dart';
@@ -22,6 +24,8 @@ import 'scraper_contents/scrape_mode_content.dart';
 import 'scraper_contents/scraping_content.dart';
 import 'scraper_contents/systems_content.dart';
 import 'scraper_contents/media_content.dart';
+import '../../widgets/glass/glass_surface.dart';
+import '../../widgets/neo_glass_bubble.dart';
 
 /// New scraper options screen with left menu and right content panel
 class NewScraperOptionsScreen extends StatefulWidget {
@@ -363,7 +367,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
   int _getContentItemCount() {
     final selectedKey = _menuItems[_selectedMenuIndex].localeKey;
     if (selectedKey == AppLocale.scraping) return 1;
-    if (selectedKey == AppLocale.scrapeMode) return 2;
+    if (selectedKey == AppLocale.scrapeMode) return ScrapeModeContent.itemCount;
     if (selectedKey == AppLocale.media) return MediaContentState.itemCount;
     if (selectedKey == AppLocale.region) {
       return _regionKey.currentState?.getItemCount ?? 0;
@@ -435,9 +439,11 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
       if (success) {
         await _loadCurrentScrapeMode();
         if (!mounted) return;
-        final modeName = newMode == 'new_only'
-            ? AppLocale.newContentOnly.getString(context)
-            : AppLocale.allContent.getString(context);
+        final modeName = switch (newMode) {
+          'new_only' => AppLocale.newContentOnly.getString(context),
+          'faces_only' => GameBoxLocale.text(context, GameBoxLocale.scrapeModeFacesOnly),
+          _ => AppLocale.allContent.getString(context),
+        };
         AppNotification.showNotification(
           context,
           '${AppLocale.scrapeModeUpdated.getString(context)} $modeName',
@@ -455,6 +461,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
 
   Future<void> _handleLanguageChange(String newLanguage) async {
     if (_userInfo == null) return;
+    final previousLanguage = _currentLanguage;
 
     final success = await ScreenScraperService.saveCredentials(
       _userInfo!['username']!,
@@ -462,6 +469,10 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
       _userInfo,
       newLanguage, // Pasar como cuarto parámetro
     );
+
+    // Texts and pictures follow the language: completed games are looked at
+    // again by "New content only" (docs/game-box-3d.md § 18).
+    if (success) await ScrapeChoices.languageChanged(previousLanguage, newLanguage);
 
     if (mounted) {
       if (success) {
@@ -521,21 +532,29 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
   }
 
   Widget _buildLeftMenu(ThemeData theme) {
-    return Container(
+    final glass = LiquidGlassTheme.of(context);
+    final bubbleGap = glass.gap * 0.75;
+    // Floating bubbles by default: the rail's panel is only drawn when the
+    // user asks for it (Settings › Themes › User interface).
+    final panel = glass.settings.showSideMenuPanel;
+    return GlassSurface(
+      key: const ValueKey('side-menu-rail'),
+      role: GlassRole.rail,
+      radius: BorderRadius.zero,
+      borderWidth: 0,
+      rimColor: Colors.transparent,
+      showSheen: false,
+      fillColor: panel ? null : Colors.transparent,
+      shadow: panel ? null : GlassShadow.none,
       width: MediaQuery.of(context).size.width * 0.25,
-      decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
-        border: Border(
-          right: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            width: 1.r,
-          ),
-        ),
-      ),
       child: ListView.builder(
         // Only seven categories exist; caching the whole side menu guarantees
         // the newly selected item has a context before ensureVisible runs.
         scrollCacheExtent: ScrollCacheExtent.pixels(1000.r),
+        padding: EdgeInsets.symmetric(
+          horizontal: glass.margin * 0.45,
+          vertical: bubbleGap,
+        ),
         itemCount: _menuItems.length,
         itemBuilder: (context, index) {
           final item = _menuItems[index];
@@ -543,59 +562,56 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
 
           final isSelected = _selectedMenuIndex == index;
 
-          return Material(
-            key: isSelected ? _selectedMenuItemKey : null,
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                SfxService().playNavSound();
-                _onMenuItemSelected(index);
-              },
-              canRequestFocus: false,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              splashColor: Colors.transparent,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 12.r),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  border: Border(
-                    left: BorderSide(
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : Colors.transparent,
-                      width: 3.r,
-                    ),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == _menuItems.length - 1 ? 0 : bubbleGap,
+            ),
+            child: Material(
+              key: isSelected ? _selectedMenuItemKey : null,
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  SfxService().playNavSound();
+                  _onMenuItemSelected(index);
+                },
+                canRequestFocus: false,
+                focusColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                child: NeoGlassBubble(
+                  selected: isSelected,
+                  radius: 22.r,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.r,
+                    vertical: 12.r,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
-                      size: 20.r,
-                    ),
-                    SizedBox(width: 12.r),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isSelected && _focusOnMenu
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          fontSize: 14.r,
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        color: isSelected && _focusOnMenu
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                        size: 20.r,
+                      ),
+                      SizedBox(width: 12.r),
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: isSelected && _focusOnMenu
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            fontSize: 14.r,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -1,0 +1,484 @@
+{
+  "name": "RPCS3 texture continuation: retired allocations, atlas correctness, GPU clear suppression and DMA synchronization",
+  "baseline": {
+    "rewindbox_commit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+    "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "canonical_patch_sha256": "5ba1424bcd40afc96f3263e236d84ed643cb7aac15cbcd1fb513e85d24e27ec8"
+  },
+  "patch": {
+    "path": "texture-delta.patch",
+    "sha256": "f6a1391a385d6c490dbeb6db0f0e04bcb49ddfcf9166e788d3ab73a6727d0702"
+  },
+  "source_files": [
+    {
+      "path": "rpcs3/Emu/RSX/Common/texture_cache.h",
+      "baseline_sha256": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+      "candidate_sha256": "51963efe0db3e04719a18c8c11bb8b169d49846773339e7d20c5f3a4bbf1919c"
+    },
+    {
+      "path": "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "baseline_sha256": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+      "candidate_sha256": "4d60f83651755a4a60abeacb6e345d0e78a6ae41fd49759d3392aa5ac1f22a7a"
+    },
+    {
+      "path": "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+      "baseline_sha256": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4",
+      "candidate_sha256": "b1aba39cc7525244f01df1b680bef2fddc12a92b28dd52899ed84eed7d077314"
+    }
+  ],
+  "source_scopes": [
+    {
+      "name": "pressure-candidate",
+      "report": "results/pressure-final/report.json",
+      "report_sha256": "b3a3d298fb06bdd396ddcf782265c32e59ef8662dd45e53d37b3133864aef992",
+      "program": "results/guard-final-generated/lifetimes/pressure.cpp",
+      "program_sha256": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "retired_image_pressure",
+        "checks": 6429,
+        "completed_pool_bytes": 268435456,
+        "active_temporary_bytes": 2097152,
+        "retained_after_pressure": 2097152,
+        "late_driver_returns": 1000,
+        "program_sha256": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+        "command": [
+          "g++",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final/pressure.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final/pressure"
+        ]
+      }
+    },
+    {
+      "name": "pressure-candidate-sanitized",
+      "report": "results/pressure-final-asan/report.json",
+      "report_sha256": "81d554bf3bd9b77caf8c48565ee5a13af0e9e0459fe55562c40e952a7d993f22",
+      "program": "results/guard-final-generated/lifetimes/pressure.cpp",
+      "program_sha256": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "retired_image_pressure",
+        "checks": 6429,
+        "completed_pool_bytes": 268435456,
+        "active_temporary_bytes": 2097152,
+        "retained_after_pressure": 2097152,
+        "late_driver_returns": 1000,
+        "program_sha256": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+        "command": [
+          "g++",
+          "-fsanitize=address,undefined",
+          "-fno-omit-frame-pointer",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final-asan/pressure.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final-asan/pressure"
+        ]
+      }
+    },
+    {
+      "name": "pressure-baseline",
+      "report": "results/pressure-baseline-final/report.json",
+      "report_sha256": "d4b0510107d2834a2ed4317ae2c30a4c9e6d1ce2fe2ee21d94476f56e8f85967",
+      "program": "results/final-generated/baseline/pressure.cpp",
+      "program_sha256": "1c20df059b34b98e3b269b952236b298e9a0af42c3b0af48bb44ef2cfdd165ca",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "retired_image_pressure",
+        "checks": 6429,
+        "completed_pool_bytes": 268435456,
+        "active_temporary_bytes": 2097152,
+        "retained_after_pressure": 270532608,
+        "late_driver_returns": 1000,
+        "program_sha256": "1c20df059b34b98e3b269b952236b298e9a0af42c3b0af48bb44ef2cfdd165ca",
+        "command": [
+          "g++",
+          "-DEXPECT_BASELINE",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-baseline-final/pressure.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/pressure-baseline-final/pressure"
+        ]
+      }
+    },
+    {
+      "name": "depth-candidate",
+      "report": "results/candidate/report.json",
+      "report_sha256": "8c266900c42899676a3a2eee4f0942f642cb8f534b44c435c3defb0351b72555",
+      "program": "results/guard-final-generated/lifetimes/depth.cpp",
+      "program_sha256": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "unnormalized_depth",
+        "cases": 69120,
+        "bad_depth_scales": 0,
+        "program_sha256": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+        "command": [
+          "g++",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/candidate/depth.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/candidate/depth"
+        ]
+      }
+    },
+    {
+      "name": "depth-candidate-sanitized",
+      "report": "results/candidate-asan/report.json",
+      "report_sha256": "bc51f7ecd21d24bd8771800b5dc248fe8c22d03412196a1617fe7246787febac",
+      "program": "results/guard-final-generated/lifetimes/depth.cpp",
+      "program_sha256": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "unnormalized_depth",
+        "cases": 69120,
+        "bad_depth_scales": 0,
+        "program_sha256": "5bc4fcd16b244e76bab46e556b308e93e74fdfcd9908412ba95ef767501ec7ba",
+        "command": [
+          "g++",
+          "-fsanitize=address,undefined",
+          "-fno-omit-frame-pointer",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/candidate-asan/depth.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/candidate-asan/depth"
+        ]
+      }
+    },
+    {
+      "name": "depth-baseline",
+      "report": "results/baseline/report.json",
+      "report_sha256": "23567c338bbe2a0644c02d595453fcc1948c1f6f09157566c65005edba727ac7",
+      "program": "results/final-generated/baseline/depth.cpp",
+      "program_sha256": "0138b0ea1145a5f1e27efc962bf19bb5dda89995894ac36ff15b3aff85a65d1b",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "unnormalized_depth",
+        "cases": 69120,
+        "bad_depth_scales": 15120,
+        "program_sha256": "0138b0ea1145a5f1e27efc962bf19bb5dda89995894ac36ff15b3aff85a65d1b",
+        "command": [
+          "g++",
+          "-DEXPECT_BASELINE",
+          "-std=c++20",
+          "-O2",
+          "-pthread",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "-DRPCS3_IOS",
+          "/workspace/scratch/144c744e94bb/texture-review/results/baseline/depth.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/baseline/depth"
+        ]
+      }
+    },
+    {
+      "name": "atlas-candidate",
+      "report": "results/atlas-final/report.json",
+      "report_sha256": "75033824153ae8e854501c0f9d85f56e79ada4cc39f636cfa4199459066fc4b9",
+      "program": "results/guard-final-generated/atlas/atlas.cpp",
+      "program_sha256": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "atlas_coverage",
+        "cases": 84000,
+        "checks": 694279,
+        "newly_omitted_color_clears": 22263,
+        "unchanged_clear_cases": 61737,
+        "unsafe_fallbacks": 14,
+        "helper_allocations": 0,
+        "command": [
+          "g++",
+          "-std=c++20",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final/atlas.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final/atlas"
+        ],
+        "program_sha256": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+        "source_sha256": "ebbacda18e8dcc94da5dc288116a96b7a52f441dbaf897036cffd83f0770f273",
+        "baseline_sha256": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+        "sanitizers": false,
+        "limitations": [
+          "Recorded Vulkan APIs and independent texel painter, not GPU execution.",
+          "No driver timing, Metal execution or iPhone FPS claim."
+        ]
+      }
+    },
+    {
+      "name": "atlas-candidate-sanitized",
+      "report": "results/atlas-final-asan/report.json",
+      "report_sha256": "3e44187b532946c584d367e816410ec00b3484196d70ddd9b4c9873f331c1852",
+      "program": "results/guard-final-generated/atlas/atlas.cpp",
+      "program_sha256": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "atlas_coverage",
+        "cases": 84000,
+        "checks": 694279,
+        "newly_omitted_color_clears": 22263,
+        "unchanged_clear_cases": 61737,
+        "unsafe_fallbacks": 14,
+        "helper_allocations": 0,
+        "command": [
+          "g++",
+          "-fsanitize=address,undefined",
+          "-fno-omit-frame-pointer",
+          "-std=c++20",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final-asan/atlas.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-final-asan/atlas"
+        ],
+        "program_sha256": "d28ee5e5e151884f55099643ae4fce7ded49af2157e3d4e2b6695756fd4fdf88",
+        "source_sha256": "ebbacda18e8dcc94da5dc288116a96b7a52f441dbaf897036cffd83f0770f273",
+        "baseline_sha256": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+        "sanitizers": true,
+        "limitations": [
+          "Recorded Vulkan APIs and independent texel painter, not GPU execution.",
+          "No driver timing, Metal execution or iPhone FPS claim."
+        ]
+      }
+    },
+    {
+      "name": "area-candidate",
+      "report": "results/atlas-area-plain/report.json",
+      "report_sha256": "15bb37abf91d9b8dae430f9ee2417145456879619570b42af5f13e43d2a8adc0",
+      "program": "results/guard-final-generated/area/atlas_area.cpp",
+      "program_sha256": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "atlas_area",
+        "cases": 117756,
+        "checks": 217686,
+        "baseline_mismatches": 11591,
+        "unchanged_safe_cases": 99928,
+        "command": [
+          "g++",
+          "-std=c++20",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-plain/atlas_area.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-plain/atlas_area"
+        ],
+        "source_sha256": "51963efe0db3e04719a18c8c11bb8b169d49846773339e7d20c5f3a4bbf1919c",
+        "baseline_sha256": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+        "program_sha256": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+        "sanitizers": false,
+        "limitations": [
+          "Extracted area decision and width/height box arithmetic; no GPU execution.",
+          "Large-field bounds stress is distinct from the generated 256 MiB volume set.",
+          "No device performance or game-specific visual result."
+        ]
+      }
+    },
+    {
+      "name": "area-candidate-sanitized",
+      "report": "results/atlas-area-asan/report.json",
+      "report_sha256": "e4cd7376f8188be22c5f5d7c49dfa9793e6b8cb023453f661bb3fb5087024843",
+      "program": "results/guard-final-generated/area/atlas_area.cpp",
+      "program_sha256": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+      "source_scope_authenticated": true,
+      "result": {
+        "case": "atlas_area",
+        "cases": 117756,
+        "checks": 117757,
+        "baseline_mismatches": 0,
+        "unchanged_safe_cases": 0,
+        "baseline_signed_overflow_detected": true,
+        "command": [
+          "g++",
+          "-DVERIFY_CANDIDATE_ONLY",
+          "-fsanitize=address,undefined",
+          "-fno-sanitize-recover=undefined",
+          "-fno-omit-frame-pointer",
+          "-std=c++20",
+          "-O2",
+          "-Wall",
+          "-Wextra",
+          "-Werror",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-asan/atlas_area.cpp",
+          "-o",
+          "/workspace/scratch/144c744e94bb/texture-review/results/atlas-area-asan/atlas_area"
+        ],
+        "source_sha256": "51963efe0db3e04719a18c8c11bb8b169d49846773339e7d20c5f3a4bbf1919c",
+        "baseline_sha256": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+        "program_sha256": "c8da5b208c127f3c7649d1c0ac2b070f3ff0a8eb8b21919c29b81c132bc85372",
+        "sanitizers": true,
+        "limitations": [
+          "Extracted area decision and width/height box arithmetic; no GPU execution.",
+          "Large-field bounds stress is distinct from the generated 256 MiB volume set.",
+          "No device performance or game-specific visual result."
+        ]
+      }
+    }
+  ],
+  "reused_proof_note": "Final production extraction regenerates the identical tested program bytes. Depth proofs precede an unrelated atlas-area edit in the same header; only their depth record is reused. Pressure and atlas proofs use final reviewed versions. Generation itself does not rerun or compile tests. The final DMA changes affect other functions; all four texture test programs were regenerated and hash-checked without rerunning their suites.",
+  "claims": {
+    "immediate_release_synthetic_retired_bytes": 268435456,
+    "active_temporary_bytes_preserved": 2097152,
+    "pressure_checks": 6429,
+    "late_driver_returns": 1000,
+    "depth_cases": 69120,
+    "depth_baseline_mismatches": 15120,
+    "depth_candidate_mismatches": 0,
+    "atlas_cases": 84000,
+    "atlas_checks": 694279,
+    "atlas_synthetic_clear_calls_removed": 22263,
+    "atlas_unchanged_clear_cases": 61737,
+    "atlas_unsafe_fallbacks": 14,
+    "atlas_helper_allocations": 0,
+    "area_cases": 117756,
+    "area_baseline_mismatches": 11591,
+    "area_unchanged_safe_cases": 99928,
+    "baseline_signed_overflow_reproduced": true,
+    "dma_error_cases_per_variant": 64,
+    "dma_success_cases_per_variant": 20,
+    "dma_baseline_unsafe_resets": 24,
+    "dma_baseline_pending_fence_destructions": 24,
+    "dma_baseline_incomplete_readbacks": 8,
+    "dma_candidate_unsafe_resets": 0,
+    "dma_candidate_pending_fence_destructions": 0,
+    "dma_candidate_incomplete_readbacks": 0,
+    "dma_success_local_fence_create_destroy_pairs_removed": 8
+  },
+  "limitations": [
+    "Host C++ tests compile extracted production scopes with recorded Vulkan/API substitutes, not the whole Core.",
+    "Pressure bytes describe modeled image allocation lifetime and do not measure physical memory on an iPhone.",
+    "Atlas copy painter confirms command order and destination coverage; native Vulkan/Metal execution remains untested.",
+    "Area sanitizers run the candidate matrix and one intentionally failing baseline overflow probe; zero baseline_mismatches in the sanitized matrix means baseline comparison is disabled there.",
+    "No measured FPS, frame-time, physical memory reduction or game-specific visual/crash resolution.",
+    "Owned-fence reuse removes local fence create/destroy calls but retains begin() status-check of an already-signaled fence. Failure handling is not GPU hang recovery or a demonstrated game-freeze fix."
+  ],
+  "deferred": [
+    "Temporary subresource identity lacks some layout/recipe fields; no reachability-complete failing sequence validated.",
+    "CPU invalidation versus cached composite lifetime requires a safe RSX-thread invalidation design; no speculative concurrent-cache edit.",
+    "Layer count omitted from recyclable image key does not yield a demonstrated alias for the current one-layer/cube callsites."
+  ],
+  "previous_patch": {
+    "path": "texture-four-fixes.patch",
+    "sha256": "c738fc407d8768e5f8bd93c35240834af527c1ddb8f5d32778a3b6ae28fe0d71"
+  },
+  "incremental_patch": {
+    "path": "texture-dma-extension.patch",
+    "sha256": "915befc781bb8d3b2207c30bb7722c317eaba0356cba8281998ab6ab39c0f9b9"
+  },
+  "dma_validation_status": "Passed independent production-extracted comparison under AddressSanitizer and UndefinedBehaviorSanitizer; original timed waits preserved, no device execution.",
+  "dma_proof": {
+    "report": "results/dma-independent/report.json",
+    "report_sha256": "8a7452c5df6f5424cd26c1b314526c407d2035f47848aaa3c6a9ed3e25de78b2",
+    "original_report": "/workspace/scratch/144c744e94bb/renderer-review/portable/evidence/dma-wait-comparison.json",
+    "program": "results/dma-independent/dma-wait-comparison.cpp",
+    "program_sha256": "4f5cf93e58a1116fc4e8ab09ae47e9d66d266bd6f490db33c30837fa1d8619ae",
+    "runner": "/workspace/scratch/144c744e94bb/renderer-review/portable/test_dma_wait_ownership.py",
+    "fixtures": "/workspace/scratch/144c744e94bb/renderer-review/portable/fixtures",
+    "source_files_authenticated": true,
+    "baseline": {
+      "fence_failure_cases": 32,
+      "event_failure_cases": 32,
+      "success_cases": 20,
+      "mismatches": 0,
+      "unsafe_resets": 24,
+      "unsafe_fence_destructions": 24,
+      "unsafe_readbacks": 8,
+      "success_local_fence_creates": 8,
+      "success_local_fence_destroys": 8
+    },
+    "candidate": {
+      "fence_failure_cases": 32,
+      "event_failure_cases": 32,
+      "success_cases": 20,
+      "mismatches": 0,
+      "unsafe_resets": 0,
+      "unsafe_fence_destructions": 0,
+      "unsafe_readbacks": 0,
+      "success_local_fence_creates": 0,
+      "success_local_fence_destroys": 0
+    },
+    "extracted_sha256": {
+      "ERROR_HANDLER": "d7e7fe3646aa525d7ca0f2d558ad84dcee15c6e40bf9b5382ddbf12714eacd00",
+      "FENCE_CREATE": "4af71a7d9ecb4f1784af7835adef43691b634f8fe26ee8b8f3a43b6cd1c9e662",
+      "FENCE_DESTROY": "1f02a8eb2c06b1cb930e3b6834f28f314b9b19cebe353c6a61eba014c6ffde45",
+      "COMMAND_CREATE": "1ec981573cf6774d5126854ef12722ae618a7dd522589fbfe1347c80989f387c",
+      "COMMAND_DESTROY": "70a6e42900b20a7d4a917c3488914c5a75a8361f6ae97b0eebae00056695875d",
+      "COMMAND_RESET": "5f8cd8f567a8d6093b2d225b0e1f3764ef2ebad1cd9170f78914b9dcc380bc0b",
+      "COMMAND_BEGIN": "1f5e5fa3187303efc5d1730bd8291168530b3e06f59fc2dc19c46ed59ac86b9f",
+      "COMMAND_END": "21081eb8428af3629847a442ace2d30eb6a5ad5b8f4e1a71b7fd8d0f43aaea5d",
+      "COMMAND_SUBMIT": "f9e64f2e5c5e0fe3f27fec78f684d308fb23bef2e97acd085bfe240b7755f443",
+      "COMMAND_CHUNK": "6816eed970077d4598109c4a81152ba3e9e0a2896933bdf5d1355dd17130dc68",
+      "FLUSH_ALL": "d926cb49c896e4404044e96d5aed7cd00e66d2d291909db570ea30d9b70dfe37",
+      "CLEANUP": "955bc069cb860094f031f3793e79d154729ebf0bcad2965821b11a813f7d49d5",
+      "IMP_FLUSH": "da88f59b8ba434584227ad5e25bccc9b7763533648881dc21489c2508313567d"
+    },
+    "support_source_sha256": {
+      "commands.cpp": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea",
+      "sync.cpp": "c7bf51f5b9941a5f2fff792a61e284b967fa727e0743c5d904d01e6b16200517",
+      "VKGSRenderTypes.hpp": "7da9a0b9c8a0d79d3748c9234fbee02f0b914a964480ceb9c2ed59c1d8342cdb",
+      "Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+      "shared.cpp": "0c992efd6bab0ce4d91dee598f480753163eedcc020dc5b84099a2fcd2050040"
+    },
+    "command": [
+      "g++",
+      "-std=c++20",
+      "-DRPCS3_IOS",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-O2",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "renderer-review/portable/evidence/dma-wait-comparison.cpp",
+      "-o",
+      "renderer-review/portable/evidence/dma-wait-comparison.exe"
+    ],
+    "sanitized": true,
+    "scope": "Exact production DMA cleanup/imp_flush, command-buffer create/destroy/begin/end/reset/submit/chunk, fence constructor/destructor, flush_all lock and existing error handler; driver/scheduler/guest-copy shims, no GPU execution"
+  },
+  "patch_validation": {
+    "git_apply_check": true,
+    "incremental_git_apply_check": true,
+    "isolated_final_apply_byte_matches": true,
+    "files": 3
+  }
+}

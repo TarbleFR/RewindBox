@@ -1,0 +1,109 @@
+--- a/rpcs3/Emu/RSX/rsx_cache.h
++++ b/rpcs3/Emu/RSX/rsx_cache.h
+@@ -13,7 +13,9 @@
+ #include "Overlays/Shaders/shader_loading_dialog.h"
+ #include "Common/deferred_publisher.h"
+ 
++#include <array>
+ #include <chrono>
++#include <mutex>
+ #ifdef RPCS3_IOS
+ #include "ios/IOSShaderTiming.h"
+ #endif
+@@ -94,6 +96,24 @@
+ 		// cache entry or the new complete entry, never a zero-byte destination.
+ 		static constexpr u64 maximum_raw_shader_size = 0x100000;
+ 
++#ifdef RPCS3_IOS
++		// Private to one joined preload pass. Each slot borrows bytes owned by
++		// fragment_program_data until all pipeline workers have finished.
++		// Bound the index; unrelated hashes need not serialize their file reads.
++		struct raw_fragment_cache
++		{
++			struct entry
++			{
++				std::mutex mutex;
++				u64 hash = 0;
++				void* data = nullptr;
++				u32 length = 0;
++			};
++			std::array<entry, 64> slots;
++		};
++#endif
++
++
+ 		static bool write_atomically(const std::string& path, const void* data, usz size)
+ 		{
+ 			if (!size)
+@@ -121,6 +141,9 @@
+ 		    shader_loading_dialog* dlg)
+ 		{
+ 			atomic_t<u32> processed(0);
++#ifdef RPCS3_IOS
++			raw_fragment_cache fragments;
++#endif
+ 
+ 			std::function<void(u32)> shader_load_worker = [&](u32 stop_at)
+ 			{
+@@ -155,7 +178,11 @@
+ 						continue;
+ 					}
+ 
++#ifdef RPCS3_IOS
++					auto entry = unpack(pdata, &fragments);
++#else
+ 					auto entry = unpack(pdata);
++#endif
+ 
+ 					if (std::get<1>(entry).data.empty() || !std::get<2>(entry).ucode_length)
+ 					{
+@@ -541,13 +568,48 @@
+ 			return fp;
+ 		}
+ 
+-		std::tuple<pipeline_storage_type, RSXVertexProgram, RSXFragmentProgram> unpack(pipeline_data &data)
++#ifdef RPCS3_IOS
++		RSXFragmentProgram load_fp_raw_cached(u64 program_hash, raw_fragment_cache& cache)
++		{
++			auto& entry = cache.slots[(program_hash ^ (program_hash >> 32)) & (cache.slots.size() - 1)];
++			std::lock_guard lock(entry.mutex);
++			if (entry.data && entry.hash == program_hash)
++			{
++				RSXFragmentProgram fp{};
++				fp.data = entry.data;
++				fp.ucode_length = entry.length;
++				return fp;
++			}
++
++			auto fp = load_fp_raw(program_hash);
++			// Never retain a missing/truncated file or a payload that does not
++			// match its name. Each unpack still validates its full record below.
++			if (fp.ucode_length && m_storage.get_hash(fp) == program_hash)
++			{
++				entry.hash = program_hash;
++				entry.data = fp.get_data();
++				entry.length = fp.ucode_length;
++			}
++			return fp;
++		}
++#endif
++
++		std::tuple<pipeline_storage_type, RSXVertexProgram, RSXFragmentProgram> unpack(pipeline_data &data
++#ifdef RPCS3_IOS
++			, raw_fragment_cache* fragments = nullptr
++#endif
++		)
+ 		{
+ 			std::tuple<pipeline_storage_type, RSXVertexProgram, RSXFragmentProgram> result;
+ 			auto& [pipeline, vp, fp] = result;
+ 
+ 			vp = load_vp_raw(data.vertex_program_hash);
++#ifdef RPCS3_IOS
++			fp = fragments ? load_fp_raw_cached(data.fragment_program_hash, *fragments)
++				: load_fp_raw(data.fragment_program_hash);
++#else
+ 			fp = load_fp_raw(data.fragment_program_hash);
++#endif
+ 			pipeline = data.pipeline_properties;
+ 
+ 			vp.ctrl = data.vp_ctrl0;

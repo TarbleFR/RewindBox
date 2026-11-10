@@ -1,0 +1,28 @@
+{
+  "result": "passed",
+  "checks": 27,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/Window.cs": "ba3a2c8500460695747eb80a94c14eaf0cb0e1bbcf62c1bdf98f4a82aee3403a"
+  },
+  "moltenVkSourceChecked": true,
+  "moltenVkSources": {
+    "GPUObjects/MVKPipeline.mm": "ed60a03a3e6d79220303e3b470da837909973d4f80686fec33e9f5e5cef6964f",
+    "GPUObjects/MVKDevice.mm": "e93c8fe096d9c9f8c0b02da6443bc820dc42ca4340b122cc8dd11721ad7e9b8d",
+    "GPUObjects/MVKQueue.mm": "7a6228015634567e6fe7425f95358430e64022ca71946bbfc0cba566444d242e",
+    "GPUObjects/MVKImage.mm": "55639a1dd7c55a58f26c3ed4cab6f461dd12f8ef18fee2954712361f7c428adf"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/Window.cs": "a6bb8b91e396028561ce74f76b29cfb34a1f995e86a99dec29afeea81f63174e"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_present_drawable_residency.py": "9b39ed046bf94b703f62a13096affb204cd06c2319d2739c7ffddead4bb2f4cc",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_present_drawable_residency_test.py": "fc4509e520f4237730ed2bf6dfd96cf8105bd0b0606ae390bff303d1ed5a4f0a"
+  },
+  "limitation": "Whether the image comes back on iOS 18 and later is known only from a device run."
+}

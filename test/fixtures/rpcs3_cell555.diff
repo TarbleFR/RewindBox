@@ -1,0 +1,436 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index a85692e..8c78dde 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -12,6 +12,11 @@
+ 
+ #include <unordered_map>
+ 
++#ifdef RPCS3_IOS
++// CELL555_READBACK_INCLUDE
++#include "ios/IOSReadbackProfile.h"
++#endif
++
+ #define RSX_GCM_FORMAT_IGNORED 0
+ 
+ namespace rsx
+@@ -821,6 +826,17 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// CELL555_READBACK_BATCH: parent duration includes the nested GPU fence
++			// and subsequent flushes/inheritance. Confirmed bytes are requested
++			// ranges, not exact DMA traffic (pitch, tiling and overlaps can differ).
++			u64 ios_readback_confirmed_bytes = 0;
++			for (const auto* surface : sections_to_transfer)
++				ios_readback_confirmed_bytes += surface->get_confirmed_range().length();
++			const rpcs3::ios::readback::BatchScope ios_readback_batch(
++				sections_to_transfer.size(), ios_readback_confirmed_bytes);
++#endif
++
+ 			if (!sections_to_transfer.empty())
+ 			{
+ 				// Batch all hard faults together
+@@ -1644,6 +1660,11 @@ namespace rsx
+ 
+ 					lock.upgrade();
+ 
++#ifdef RPCS3_IOS
++					// CELL555_READBACK_ORIGIN
++					const rpcs3::ios::readback::OriginScope ios_readback_origin(
++						rpcs3::ios::readback::Origin::blit_source_cpu);
++#endif
+ 					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
+ 
+ 					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
+@@ -1734,6 +1755,11 @@ namespace rsx
+ 				{
+ 					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
+ 					// NOTE: This step can potentially invalidate the newly created src image as well.
++#ifdef RPCS3_IOS
++					// CELL555_READBACK_ORIGIN
++					const rpcs3::ios::readback::OriginScope ios_readback_origin(
++						rpcs3::ios::readback::Origin::blit_destination_dma);
++#endif
+ 					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
+ 
+ 					bool force_dma_load = false;
+@@ -3332,6 +3358,11 @@ namespace rsx
+ 
+ 			// Invalidate
+ 			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
++#ifdef RPCS3_IOS
++			// CELL555_READBACK_ORIGIN
++			const rpcs3::ios::readback::OriginScope ios_readback_origin(
++				rpcs3::ios::readback::Origin::texture_cpu);
++#endif
+ 			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
+ 
+ 			// Upload from CPU. Note that sRGB conversion is handled in the FS
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index a10770d..e644370 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -11,6 +11,10 @@
+ 
+ #include <list>
+ #include <unordered_set>
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h"
++#include "util/tsc.hpp"
++#endif
+ 
+ namespace rsx
+ {
+@@ -610,6 +614,13 @@ namespace rsx
+ 
+ 		void trim_sections()
+ 		{
++#ifdef RPCS3_IOS
++			// One timer pair per maintenance pass, never per texture. On-demand
++			// validation remains unchanged; these observations distinguish it
++			// from the full maintenance walk before changing its memory policy.
++			const auto trim_begin = utils::get_tsc();
++			u64 observed_sections = 0, observed_bytes = 0;
++#endif
+ 			for (auto it = m_in_use.begin(); it != m_in_use.end(); it++)
+ 			{
+ 				auto* block = *it;
+@@ -619,11 +630,21 @@ namespace rsx
+ 					{
+ 						if (tex.is_locked() && !tex.is_locked(true))
+ 						{
++#ifdef RPCS3_IOS
++							++observed_sections;
++							observed_bytes += tex.get_confirmed_range().length();
++#endif
+ 							tex.sync_protection();
+ 						}
+ 					}
+ 				}
+ 			}
++#ifdef RPCS3_IOS
++			rpcs3::ios::texture_validation::trim_calls.fetch_add(1, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_sections.fetch_add(observed_sections, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_bytes.fetch_add(observed_bytes, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_ticks.fetch_add(utils::get_tsc() - trim_begin, std::memory_order_relaxed);
++#endif
+ 		}
+ 
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index 2f11990..1dbf949 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -14,6 +14,8 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSRsxSyncProfile.h"
++// CELL555_READBACK_INCLUDE
++#include "ios/IOSReadbackProfile.h"
+ #endif
+ 
+ extern atomic_t<bool> g_user_asked_for_screenshot;
+@@ -417,6 +419,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+ 			flush_command_queue();
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL555_READBACK_ORIGIN
++		const rpcs3::ios::readback::OriginScope ios_readback_origin(
++			rpcs3::ios::readback::Origin::presentation_cpu);
++#endif
+ 		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
+ 		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
+ 	}
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+index e98454b..49a383f 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
++++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+@@ -454,7 +454,7 @@ namespace vk
+                 if (result == VK_SUCCESS)
+                 {
+                     pipeline_profile.live.fetch_add(1, std::memory_order_relaxed);
+-                    pipeline_profile.fingerprints.record(FingerprintTable::fingerprint(context), static_cast<u64>(
++                    pipeline_profile.fingerprints.record(context, static_cast<u64>(
+                         std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - wall_before).count()));
+                 }
+ #else
+diff --git a/rpcs3/ios/IOSReadbackProfile.h b/rpcs3/ios/IOSReadbackProfile.h
+new file mode 100644
+index 0000000..afd1835
+--- /dev/null
++++ b/rpcs3/ios/IOSReadbackProfile.h
+@@ -0,0 +1,78 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++#include "util/tsc.hpp"
++
++// CELL555: identify synchronous GPU-to-guest transfers without recording guest
++// addresses or changing their ordering. Five fixed counters; two clock reads
++// only for a nonempty DMA batch, never for an ordinary draw/cache hit.
++namespace rpcs3::ios::readback
++{
++enum class Origin : unsigned
++{
++    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu, count
++};
++inline constexpr unsigned origin_count = static_cast<unsigned>(Origin::count);
++inline constexpr std::array<const char*, origin_count> names{
++    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu"};
++inline thread_local Origin current_origin = Origin::unknown;
++
++class OriginScope final
++{
++    Origin previous_;
++public:
++    explicit OriginScope(Origin value) noexcept : previous_(current_origin) { current_origin = value; }
++    ~OriginScope() noexcept { current_origin = previous_; }
++    OriginScope(const OriginScope&) = delete;
++    OriginScope& operator=(const OriginScope&) = delete;
++};
++
++struct Counter
++{
++    diagnostics::EventCost duration_ticks;
++    std::atomic<std::uint64_t> sections{0}, confirmed_bytes{0};
++    struct Sample
++    {
++        diagnostics::EventCost::Sample duration_ticks;
++        std::uint64_t sections = 0, confirmed_bytes = 0;
++    };
++    Sample take() noexcept
++    {
++        return {duration_ticks.take(), sections.exchange(0, std::memory_order_relaxed),
++            confirmed_bytes.exchange(0, std::memory_order_relaxed)};
++    }
++};
++inline std::array<Counter, origin_count> counters{};
++
++class BatchScope final
++{
++    unsigned origin_;
++    std::uint64_t sections_, bytes_, begin_;
++public:
++    BatchScope(std::uint64_t sections, std::uint64_t confirmed_bytes) noexcept
++        : origin_(static_cast<unsigned>(current_origin)), sections_(sections), bytes_(confirmed_bytes),
++          begin_(sections ? utils::get_tsc() : 0)
++    {
++        if (origin_ >= origin_count) origin_ = 0;
++    }
++    ~BatchScope() noexcept
++    {
++        if (!sections_) return;
++        const auto end = utils::get_tsc();
++        auto& counter = counters[origin_];
++        counter.sections.fetch_add(sections_, std::memory_order_relaxed);
++        counter.confirmed_bytes.fetch_add(bytes_, std::memory_order_relaxed);
++        counter.duration_ticks.record(end >= begin_ ? end - begin_ : 0);
++    }
++    BatchScope(const BatchScope&) = delete;
++    BatchScope& operator=(const BatchScope&) = delete;
++};
++
++inline auto take() noexcept
++{
++    std::array<Counter::Sample, origin_count> result{};
++    for (unsigned i = 0; i < origin_count; ++i) result[i] = counters[i].take();
++    return result;
++}
++}
+diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
+index 3dc88bc..e4b2379 100644
+--- a/rpcs3/ios/IOSShaderTiming.h
++++ b/rpcs3/ios/IOSShaderTiming.h
+@@ -214,11 +214,12 @@ struct PublicationProfile
+ };
+ inline PublicationProfile publication;
+ 
+-// CELL543: bounded per-fingerprint build aggregation. A fingerprint mixes the
+-// complete key hash, render pass and both process-local module handles of one
+-// actual construction. With exact single-flight lookup a repeat should stay 0;
+-// a repeat exposes an identity defect or an abandoned build. Fixed storage,
+-// try-lock producers, saturation counted, reset only for a new renderer.
++// CELL555: bounded recent-key observations, not a pipeline cache. The old table
++// permanently filled during warm-up, losing every later unknown key. Retain
++// the latest 64 admitted identities with FIFO replacement and explicit eviction
++// counts. Repeats are a lifetime lower bound: an evicted identity may return.
++// Raw/UI pipelines lack a complete context and are counted as unattributed,
++// never merged into the all-zero fingerprint. Their timing remains recorded.
+ class FingerprintTable final
+ {
+ public:
+@@ -227,6 +228,7 @@ public:
+     struct Snapshot
+     {
+         std::uint64_t distinct = 0, repeated_builds = 0, dropped = 0;
++        std::uint64_t tracked = 0, evicted = 0, unattributed = 0;
+         std::array<Entry, 3> costliest{}, repeated{};
+         bool captured = false;
+     };
+@@ -240,6 +242,15 @@ public:
+         const auto result = mix(mix(mix(mix(mix(0x51ed270b27aeb4ffull, c.properties), c.renderpass), c.vertex_module), c.fragment_module), c.flags);
+         return result ? result : 1;
+     }
++    void record(const PipelineContext& context, std::uint64_t duration_us) noexcept
++    {
++        if (!context.vertex_module || !context.fragment_module)
++        {
++            unattributed_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        record(fingerprint(context), duration_us);
++    }
+     void record(std::uint64_t key, std::uint64_t duration_us) noexcept
+     {
+         std::unique_lock lock(mutex_, std::try_to_lock);
+@@ -250,15 +261,22 @@ public:
+         }
+         for (std::size_t i = 0; i < capacity; ++i)
+         {
+-            auto& entry = entries_[(key + i) % capacity];
++            auto& entry = entries_[i];
+             if (entry.fingerprint && entry.fingerprint != key) continue;
++            tracked_++;
++            repeated_builds_ += entry.fingerprint ? 1 : 0;
+             entry.fingerprint = key;
+             entry.builds++;
+             entry.total_us += duration_us;
+             entry.max_us = std::max(entry.max_us, duration_us);
+             return;
+         }
+-        dropped_.fetch_add(1, std::memory_order_relaxed);
++        // Full table: replace one observation, never an actual GPU pipeline.
++        // No allocation, no waiting and no increase in the 64-entry capacity.
++        entries_[next_replacement_] = {key, 1, duration_us, duration_us};
++        next_replacement_ = (next_replacement_ + 1) % capacity;
++        tracked_++;
++        evicted_++;
+     }
+     Snapshot snapshot() noexcept
+     {
+@@ -267,11 +285,14 @@ public:
+         if (!lock) return result;
+         result.captured = true;
+         result.dropped = dropped_.load(std::memory_order_relaxed);
++        result.unattributed = unattributed_.load(std::memory_order_relaxed);
++        result.tracked = tracked_;
++        result.evicted = evicted_;
++        result.repeated_builds = repeated_builds_;
+         for (const auto& entry : entries_)
+         {
+             if (!entry.fingerprint) continue;
+             result.distinct++;
+-            result.repeated_builds += entry.builds - 1;
+             auto insert = [&entry](std::array<Entry, 3>& list, auto&& better)
+             {
+                 for (auto& slot : list)
+@@ -294,11 +315,17 @@ public:
+         std::lock_guard lock(mutex_);
+         entries_ = {};
+         dropped_.store(0, std::memory_order_relaxed);
++        unattributed_.store(0, std::memory_order_relaxed);
++        tracked_ = repeated_builds_ = evicted_ = 0;
++        next_replacement_ = 0;
+     }
+ private:
+     std::mutex mutex_;
+     std::array<Entry, capacity> entries_{};
+     std::atomic<std::uint64_t> dropped_{0};
++    std::atomic<std::uint64_t> unattributed_{0};
++    std::uint64_t tracked_ = 0, repeated_builds_ = 0, evicted_ = 0;
++    std::size_t next_replacement_ = 0;
+ };
+ 
+ // CELL543: single-flight, origin and MoltenVK cache attribution counters.
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+new file mode 100644
+index 0000000..7861c6f
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++namespace rpcs3::ios::texture_validation
++{
++// Fixed 32-byte observations, outside all PPU/SPU code-generation inputs.
++// Frame-end maintenance covers all validation sizes; its time overlaps the
++// existing hash measurements, not an extra cost. No new per-hash observation.
++inline std::atomic<std::uint64_t> trim_calls{0}, trim_sections{0};
++inline std::atomic<std::uint64_t> trim_bytes{0}, trim_ticks{0};
++}
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 15ffa11..2986992 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -11,6 +11,8 @@
+ #include "Emu/system_config.h"
+ #include "Utilities/JITPhaseProfile.h"
+ #include "Utilities/JITMemoryProfile.h"
++#include "IOSTextureValidationProfile.h"
++#include "IOSReadbackProfile.h"
+ #include "IOSCompileAdmission.h"
+ #include "IOSRuntimeMetrics.h"
+ #include "IOSShaderTiming.h"
+@@ -897,12 +899,14 @@ private:
+                 "COREPROF SHADERPIPE543 session=%llu window=%llu new_vertex=%llu new_fragment=%llu state_only=%llu "
+                 "abandoned=%llu pending_wait=%llu:%llu:%llu feedback=%llu vs_cached=%llu vs_compiled=%llu "
+                 "fs_cached=%llu fs_compiled=%llu cache_additions=%llu live_pipelines=%lld "
+-                "fingerprints_captured=%u distinct=%llu repeated_builds=%llu fingerprint_dropped=%llu",
++                "fingerprints_captured=%u distinct=%llu repeated_builds=%llu fingerprint_dropped=%llu "
++                "fingerprint_tracked=%llu fingerprint_evicted=%llu fingerprint_unattributed=%llu fingerprint_scope=recent64 repeats_lower_bound=1",
+                 profile_session, profile_window, pipe.new_vertex, pipe.new_fragment, pipe.state_only,
+                 pipe.abandoned, pipe.pending_wait.count, pipe.pending_wait.total, pipe.pending_wait.maximum,
+                 pipe.feedback, pipe.vertex_cached, pipe.vertex_compiled, pipe.fragment_cached, pipe.fragment_compiled,
+                 pipe.cache_additions, static_cast<long long>(pipe.live), prints.captured ? 1u : 0u,
+-                prints.distinct, prints.repeated_builds, prints.dropped);
++                prints.distinct, prints.repeated_builds, prints.dropped,
++                prints.tracked, prints.evicted, prints.unattributed);
+             for (const auto& entry : prints.costliest)
+             {
+                 if (!entry.fingerprint) continue;
+@@ -1021,6 +1025,20 @@ private:
+                 d[wait::event_waits], milliseconds(d[wait::event_wait_ticks]),
+                 d[wait::putllc_ok], d[wait::putllc_fail], d[wait::putllc_heavy]);
+         }
++        // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
++        {
++            const auto batches = rpcs3::ios::readback::take();
++            std::string line = fmt::format("COREPROF READBACK555 session=%llu window=%llu tuple=batches:sections:confirmed_bytes:total_ms:max_ms",
++                profile_session, profile_window);
++            for (unsigned i = 0; i < batches.size(); ++i)
++            {
++                const auto& batch = batches[i];
++                fmt::append(line, " %s=%llu:%llu:%llu:%.3f:%.3f", rpcs3::ios::readback::names[i],
++                    batch.duration_ticks.count, batch.sections, batch.confirmed_bytes,
++                    milliseconds(batch.duration_ticks.total), milliseconds(batch.duration_ticks.maximum));
++            }
++            ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
++        }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+         ios_core_profiler.notice(
+@@ -1114,12 +1132,15 @@ private:
+ 		const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();
+ 		const auto vma_memory = rpcs3::ios::vma_profile.capture();
+ 		const auto texture_memory = rpcs3::ios::texture_profile.capture();
+-		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu vma_snapshot_valid=%u vma_owner_live=%u vma_sample_valid=%u vma_generation=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram texture_snapshot_valid=%u texture_owner_live=%u texture_sample_valid=%u texture_generation=%llu texture_recyclable_images=%llu texture_recyclable_bytes=%llu texture_sample_scope=last_frame_end texture_pending_scope=unmeasured",
++		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu texture_hash_counter_hz=%llu texture_hash_scope=hybrid_ge4096 texture_trim_calls=%llu texture_trim_sections=%llu texture_trim_bytes=%llu texture_trim_ticks=%llu texture_trim_scope=frame_end_all_sizes vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu vma_snapshot_valid=%u vma_owner_live=%u vma_sample_valid=%u vma_generation=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram texture_snapshot_valid=%u texture_owner_live=%u texture_sample_valid=%u texture_generation=%llu texture_recyclable_images=%llu texture_recyclable_bytes=%llu texture_sample_scope=last_frame_end texture_pending_scope=unmeasured",
+ 			jit_memory::active.load(), jit_memory::peak_active.exchange(0), jit_memory::samples.exchange(0),
+ 			static_cast<double>(jit_memory::footprint_peak.exchange(0)) / 0x100000,
+ 			static_cast<double>(jit_memory::headroom_min.load() == UINT64_MAX ? 0 : jit_memory::headroom_min.exchange(UINT64_MAX)) / 0x100000,
+ 			jit_memory::cache_index_hits.exchange(0), jit_memory::cache_buffer_hits.exchange(0),
+ 			jit_memory::texture_hash_bytes.exchange(0), jit_memory::texture_hash_ticks.exchange(0),
++			frequency,
++			rpcs3::ios::texture_validation::trim_calls.exchange(0), rpcs3::ios::texture_validation::trim_sections.exchange(0),
++			rpcs3::ios::texture_validation::trim_bytes.exchange(0), rpcs3::ios::texture_validation::trim_ticks.exchange(0),
+ 			vma_memory.block_bytes, vma_memory.allocated, vma_memory.unused,
+ 			vma_memory.captured ? 1u : 0u, vma_memory.owner_live ? 1u : 0u,
+ 			vma_memory.sampled ? 1u : 0u, vma_memory.generation,

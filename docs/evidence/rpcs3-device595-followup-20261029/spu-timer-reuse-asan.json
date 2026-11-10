@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "harnessSHA256": "1aa656f1d5924dcb7e8dc9901b6f00f4db4369d4f7aa5bcac1b81eb0afac837b",
+  "timingHarnessSHA256": "c810f0d15150a22c3974aa2474815be7c84eabc9086efbd4d6c6f13012e89c26",
+  "adapterSHA256": {
+    "test/native/rpcs3_spu_timer_runtime.inc": "d6eeef7602fff8d28bedf9a72c77bc9bc4a64b35d1f3955cc24d4c1bbbdbfc14",
+    "test/native/rpcs3_spu_timer_reuse.inc": "f3606e975376f778416069e701659621607b69077f32c2ebe1e7ed8af0656d56"
+  },
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "matrixCases": 210,
+    "reentrantCases": 1,
+    "shutdownCases": 1,
+    "firstAllocationFailureCases": 2,
+    "laterGrowthFailureCases": 1,
+    "stableWakes": 128,
+    "baselineStableAllocations": 128,
+    "candidateStableAllocations": 1,
+    "variableWakes": 1024,
+    "baselineVariableAllocations": 768,
+    "candidateVariableAllocations": 4,
+    "obsoleteTokensRejected": 6145,
+    "notifications": 47752,
+    "pendingOrderComparisons": 1793,
+    "waitDeadlineComparisons": 1793,
+    "callbacksWhileLocked": 0,
+    "samePublicationAndWaitOrder": true,
+    "reentrantRetainedUntilCallbackReturned": true
+  },
+  "hostSweepTiming": null,
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "sanitizer": "address,undefined",
+  "host": "x86_64",
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "concurrentMemoryOrderingTested": false
+}

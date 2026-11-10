@@ -1,0 +1,292 @@
+#!/usr/bin/env python3
+"""Reject stale or mis-scoped bindless array-delta Core receipts, source contracts and routes.
+
+While the Core workflow routes verify_arrays_core.py, the contract's inputs must match
+the checkout. Once a successor route replaces it (the Hogwarts DMA-copy Core,
+verify_dma_core.py), this contract is historical: those inputs legitimately moved on,
+so the contract is authenticated by its delivered pin digest and every recorded input
+against the producer commit instead, and the files whose checks describe the producing
+route (the workflow, the array-delta adapter, the native collector, the performance
+contract) are read at that commit; all other checks are unchanged.
+"""
+import argparse
+import copy
+import hashlib
+import io
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+import types
+import zipfile
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+import verify_arrays_core as verify
+from freeze_performance_core import changed_dependencies
+
+# The route decides whether this contract is current or historical; the successor's contract test owns the checkout.
+ROUTED = 'python3 build-utils/melonx/verify_arrays_core.py run_gates\n' in (ROOT / '.github/workflows/melonx-core.yml').read_text()
+HISTORICAL_REASON = None if ROUTED else ('Superseded by the Hogwarts DMA-copy Core route (verify_dma_core.py), '
+                                         'which uses this delivered Core as its baseline: inputs are checked at the producer commit.')
+PIN = json.loads((ROOT / 'build-utils/melonx/arrays-core-pin.json').read_bytes())
+
+
+def git(*arguments):
+    return subprocess.run(['git', '-C', str(ROOT), *arguments], capture_output=True, check=True, timeout=120).stdout
+
+
+def route_bytes(path):
+    """A file of the producing route: the checkout while routed, the producer commit once historical."""
+    return (ROOT / path).read_bytes() if ROUTED else git('show', PIN['source'] + ':' + path)
+
+
+def route_adapter():
+    if ROUTED:
+        import adapt_bindless_array_deltas
+        return adapt_bindless_array_deltas
+    module = types.ModuleType('adapt_bindless_array_deltas_at_producer')
+    path = 'build-utils/melonx/adapt_bindless_array_deltas.py'
+    exec(compile(route_bytes(path), PIN['source'][:8] + ':' + path, 'exec'), module.__dict__)
+    return module
+
+
+ADAPTER = route_adapter()
+COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES, WORK_ROWS = (
+    ADAPTER.COUNTERS, ADAPTER.DIAGNOSTIC_EDITS, ADAPTER.DIAGNOSTICS, ADAPTER.NAMES, ADAPTER.WORK_ROWS)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--helpers-only', action='store_true')
+parser.add_argument('--archive', type=Path, help='Delivered 611 Core artifact (reads Core b99e754d)')
+parser.add_argument('--ada-archive', type=Path, help='ae78b4b finalization artifact')
+args = parser.parse_args()
+checks = 0
+ARGS = ['{baseline}', '--candidate-source', '{candidate}']
+CONTROLS = {'bindless-array-deltas': 'delivered', 'fragmented-reads': 'delivered609', 'pipeline-checkpoint': 'ada',
+            'counter-report-compaction': 'ada', 'single-virtual-dependency': 'ada', 'performance-diagnostics': 'ada',
+            'binding-data-snapshots': 'delivered'}
+
+
+def check(ok, message):
+    global checks
+    assert ok, message
+    checks += 1
+
+
+def rejects(function, message):
+    global checks
+    try:
+        function()
+    except (AssertionError, ValueError, KeyError, TypeError, RuntimeError):
+        checks += 1
+        return
+    raise AssertionError(message)
+
+
+check(verify.liveness.value_at({'compiled': {'name.cs': 'hash'}}, ['compiled', 'name.cs']) == 'hash', 'Filename dots lost')
+rejects(lambda: verify.liveness.value_at({'compiled': {}}, ['compiled', 'missing.cs']), 'Missing binding accepted')
+old = {'src/Changed.cs': 'a' * 64, 'native/melonx/Changed.cs': 'b' * 64}
+check(changed_dependencies({'upstreamInputs': {'src/Changed.cs': 'a' * 64}}, old) == {'src/Changed.cs'}, 'Source path overlap missing')
+check(changed_dependencies({'compiled': {'Changed.cs': 'b' * 64}}, old) == {'native/melonx/Changed.cs'}, 'Basename dependency missed')
+check(changed_dependencies({'unchanged': 'c' * 64}, old) == set(), 'Unchanged dependency invalidated')
+for bad in ('../escape.cs', '/src/root.cs', 'src/../escape.cs', 'native/unexpected.cs'):
+    raw = io.BytesIO()
+    with zipfile.ZipFile(raw, 'w') as z: z.writestr(bad, 'x')
+    with zipfile.ZipFile(raw) as z: rejects(lambda: verify.liveness.inventory(z), 'Unsafe prepared path accepted: ' + bad)
+
+# The verifier requires exactly what the prepared collector emits: the native collector plus this adapter's names.
+prepared = route_bytes('native/melonx/EmbeddedPerformanceDiagnostics.cs').decode('utf-8-sig')
+for before, after in DIAGNOSTIC_EDITS:
+    check(prepared.count(before) == 1, 'Collector anchor drift')
+    prepared = prepared.replace(before, after)
+
+
+def listed(pattern):
+    match = re.search(pattern, prepared, re.S)
+    check(bool(match), 'Missing collector declaration: ' + pattern)
+    return match.group(1)
+
+
+work_names = tuple(re.findall(r'"([^"]+)"', listed(r'WorkNames = \{([^}]*)\}')))
+counter_names = tuple(re.findall(r'"([^"]+)"', listed(r'CounterNames = \{([^}]*)\}')))
+work_enum = [name.strip() for name in listed(r'public enum Work \{([^}]*)\}').split(',')]
+counter_enum = [name.strip() for name in listed(r'public enum Counter \{([^}]*)\}').split(',')]
+check(work_names == verify.GPU_WORK and verify.GPU_WORK[-len(WORK_ROWS):] == WORK_ROWS, 'GPU work rows differ from the prepared collector')
+check(work_enum[-1] == 'Count' and len(work_enum) - 1 == len(work_names), 'Work enum and names differ')
+check([name[0].lower() + name[1:] for name in work_enum[-1 - len(WORK_ROWS):-1]] == list(WORK_ROWS), 'New work rows out of order')
+# Delivered counters are named after their enum member; the four new ones use short names (payload bound).
+new_counters = ['ArrayFullElements', 'ArrayDeltaElements', 'ArrayDeltaChanged', 'ArrayBufferElements']
+check(counter_enum[-1] == 'Count' and len(counter_enum) - 1 == len(counter_names) and
+      counter_enum[-1 - len(COUNTERS):-1] == new_counters and
+      [name[0].lower() + name[1:] for name in counter_enum[:-1 - len(COUNTERS)]] == list(counter_names[:-len(COUNTERS)]),
+      'Counter enum and names differ')
+check(verify.ARRAY_COUNTERS == COUNTERS and counter_names[-len(COUNTERS):] == COUNTERS and
+      set(verify.READ_COUNTERS) <= set(counter_names), 'Read or array counters missing from the prepared collector')
+
+managed = dict(allocatedBytesApprox=0, gcPauseMs=0.0, lastGcIndex=7, lastGcHeapBytes=62493616,
+               lastGcCommittedBytes=71598080, lastGcFragmentedBytes=57056, lastGcGeneration=2, lastGcConcurrent=1,
+               lastGcCompacted=0, lastGcPromotedBytes=4096, lastGcMemoryLoadBytes=7516192768,
+               lastGcHighMemoryLoadThresholdBytes=8503270604, lastGcTotalAvailableMemoryBytes=8589934592,
+               lastBackgroundGcIndex=7, lastFullBlockingGcIndex=3, collections=[6, 4, 3])
+smoke = {'performanceDiagnosticsRequired': True, 'homebrewGuestSvcSessions': [], 'performanceDiagnosticsFinalSessions': []}
+for index in (1, 2):
+    generation = index + 100
+    smoke['homebrewGuestSvcSessions'].append(dict(session=index, generation=generation, svcSequence=index * 10))
+    payload = dict(schema=1, generation=generation, final=True, windowMs=1.5, phases={'phase': [0, 0.0, 0]},
+                   counts={'counter': 0, **{name: 0 for name in verify.READ_COUNTERS + verify.ARRAY_COUNTERS}},
+                   gpuWork={name: [0, 0.0, 0] for name in verify.GPU_WORK},
+                   gpuWorkColumns='completedCalls,wallMs,allocatedKiB', managed=copy.deepcopy(managed))
+    event = dict(sequence=index * 10 + 1, generation=generation, pid=42, timestamp='2026-11-02T00:00:00Z',
+                 stage='performance', status='final', nativeStatus=0, diagnostic=json.dumps(payload))
+    smoke['performanceDiagnosticsFinalSessions'].append(dict(session=index, generation=generation, event=event))
+check(verify.verify_diagnostics_smoke(smoke) == 2, 'Valid actual-runtime diagnostic schema rejected')
+for mutation in ('missingRequired', 'staleGeneration', 'nonfinite', 'missingWork', 'missingArrayWork', 'reorderedWork',
+                 'previousRowsOnly', 'negativeWork', 'fractionalCalls', 'shortWorkRow', 'wrongColumns', 'missingReadCounter',
+                 'missingArrayCounter', 'booleanArrayCounter', 'negativeArrayCounter', 'fractionalArrayCounter',
+                 'missingMemoryLoad'):
+    invalid = copy.deepcopy(smoke)
+    event = invalid['performanceDiagnosticsFinalSessions'][1]['event']
+    if mutation == 'missingRequired': invalid.pop('performanceDiagnosticsRequired')
+    elif mutation == 'staleGeneration': event['generation'] = 101
+    else:
+        payload = json.loads(event['diagnostic'])
+        if mutation == 'nonfinite': payload['managed']['allocatedBytesApprox'] = float('nan')
+        elif mutation == 'missingWork': payload['gpuWork'].pop('bufLoad')
+        elif mutation == 'missingArrayWork': payload['gpuWork'].pop('arrayDelta')
+        elif mutation == 'reorderedWork': payload['gpuWork'] = dict(reversed(list(payload['gpuWork'].items())))
+        elif mutation == 'previousRowsOnly': payload['gpuWork'] = {name: [0, 0.0, 0] for name in verify.reads.GPU_WORK}
+        elif mutation == 'negativeWork': payload['gpuWork']['arrayDelta'][1] = -1.0
+        elif mutation == 'fractionalCalls': payload['gpuWork']['arrayDelta'][0] = 1.5
+        elif mutation == 'shortWorkRow': payload['gpuWork']['arrayDelta'] = [0, 0.0]
+        elif mutation == 'wrongColumns': payload['gpuWorkColumns'] = 'calls,ms,bytes'
+        elif mutation == 'missingReadCounter': payload['counts'].pop('pooledReads')
+        elif mutation == 'missingArrayCounter': payload['counts'].pop('arrDeltaChanged')
+        elif mutation == 'booleanArrayCounter': payload['counts']['arrBufElems'] = True
+        elif mutation == 'negativeArrayCounter': payload['counts']['arrFullElems'] = -4
+        elif mutation == 'fractionalArrayCounter': payload['counts']['arrDeltaElems'] = 2.5
+        else: payload['managed'].pop('lastGcMemoryLoadBytes')
+        event['diagnostic'] = json.dumps(payload)
+    rejects(lambda: verify.verify_diagnostics_smoke(invalid), 'Invalid actual-runtime diagnostics accepted: ' + mutation)
+
+# The Core route runs this increment's verifier only, under its marker, with a build-agnostic artifact name
+# (the producing route; a successor route keeps the marker).
+workflow = route_bytes('.github/workflows/melonx-core.yml').decode()
+check("contains(github.event.head_commit.message, '[melonx-arrays-core]')" in (ROOT / '.github/workflows/melonx-core.yml').read_text(),
+      'Arrays Core marker dropped by the successor route')
+check("contains(github.event.head_commit.message, '[melonx-arrays-core]')" in workflow, 'Missing arrays Core marker')
+for phase in ('prepare_dependencies', 'preflight', 'run_gates', 'compiled', 'finalize'):
+    check(workflow.count('python3 build-utils/melonx/verify_arrays_core.py ' + phase + '\n') == 1, 'Arrays Core phase not routed: ' + phase)
+check(workflow.count('python3 test/melonx_arrays_core_contract_test.py\n') == 1, 'Contract test not routed')
+check(not re.search(r'python3 build-utils/melonx/verify_(reads|liveness|performance|guard)_core\.py', workflow), 'An earlier Core verifier is still routed')
+check('python3 test/melonx_runtime_smoke.py --require-performance-diagnostics\n' in workflow, 'Diagnostics smoke not required')
+check(workflow.count('name: MeloNX-engine-${{ github.sha }}\n') == 1, 'Artifact name is not build-agnostic')
+paths = set(re.findall(r'^    - (\S+)$', workflow.split('workflow_dispatch')[0], re.M))
+route_inputs = {'build-utils/melonx/verify_arrays_core.py', 'build-utils/melonx/freeze_arrays_core.py',
+                'build-utils/melonx/arrays-core-plan.json', 'build-utils/melonx/arrays-core-contract.json',
+                'test/melonx_arrays_core_contract_test.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
+                'test/melonx_bindless_array_deltas/**', 'test/melonx_binding_data_snapshots/**',
+                'build-utils/melonx/reads-core-pin.json'}
+check(route_inputs <= paths, 'Arrays Core inputs do not trigger the route: ' + str(sorted(route_inputs - paths)))
+
+
+
+def historical_contract():
+    """The delivered contract: its pin digest, the checks of verify.contract(), and every input at the producer commit."""
+    raw = verify.CONTRACT.read_bytes()
+    check(PIN['status'] == 'verified' and hashlib.sha256(raw).hexdigest() == PIN['contractSha256'], 'Arrays contract differs from its delivered pin')
+    check(subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', PIN['source'], 'HEAD'], timeout=120).returncode == 0,
+          'Producer commit is not in this history')
+    value = json.loads(raw)
+    check(value['schemaVersion'] == 1 and value['baseline'] == verify.BASELINE, 'Wrong arrays contract baseline')
+    check(value['freshAppleGates'] == len(value['gates']) == verify.FRESH_GATES, 'Wrong fresh gate scope')
+    check(len(value['baselineReceipts']) == value['historicalAppleReceipts'] == verify.HISTORICAL_RECEIPTS, 'Wrong historical receipt inventory')
+    check(all(gate['control'] in verify.CONTROLS for gate in value['gates']), 'Unknown gate control tree')
+    verify.check_control_inventories(value)
+    for inventory in (value['inputs'], value['preparationInputs']):
+        check(bool(inventory), 'Empty input inventory')
+        for path, expected in inventory.items():
+            check(not Path(path).is_absolute() and '..' not in Path(path).parts, 'Unsafe input path')
+            check(hashlib.sha256(git('show', PIN['source'] + ':' + path)).hexdigest() == expected, 'Producer input differs: ' + path)
+    return value
+
+
+if args.archive:
+    before, members, gates, liveness_members = verify.authenticate_archive(args.archive)
+    check(len(before) == 128 and len(members) == 171 and len(liveness_members) == 163, 'Wrong real 611 composition')
+    check(len({**gates['receipts'], **gates['retainedReceipts']}) == verify.HISTORICAL_RECEIPTS, 'Wrong real 611 receipts')
+if args.ada_archive:
+    _, _, _, ada = verify.liveness.authenticate_archive(args.ada_archive, verify.reads.liveness_contract())
+    check(len(ada) == 160, 'Wrong real Ada control composition')
+if not args.helpers_only:
+    frozen = verify.contract() if ROUTED else historical_contract()
+    reads_frozen, _ = verify.reads_contract()
+    check(frozen['freshAppleGates'] == verify.FRESH_GATES and
+          {gate['name']: gate['control'] for gate in frozen['gates']} == CONTROLS, 'Wrong fresh gate set or control trees')
+    covered = set().union(*(set(g['requiredPostimages']) for g in frozen['gates']))
+    check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
+    check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
+    check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
+    check(set(frozen['productionChanges']) == set(NAMES) and not frozen['productionAdditions'], 'Unexpected production scope')
+    check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_bindless_array_deltas.py'} and
+          set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py'}, 'Unexpected preparation scope')
+    check(hashlib.sha256(prepared.encode('utf-8')).hexdigest() == frozen['preparedMembers'][DIAGNOSTICS],
+          'Frozen collector is not the native collector with this adapter')
+    check(frozen['baselinePreparationInputs'] == reads_frozen['preparationInputs'] and
+          frozen['baselinePreparedMembers'] == reads_frozen['preparedMembers'] and
+          frozen['livenessControlMembers'] == reads_frozen['baselinePreparedMembers'] and
+          frozen['adaControlMembers'] == reads_frozen['adaControlMembers'] == verify.reads.liveness_contract()['adaControlMembers'],
+          'Control trees differ from the reads contract')
+    check(len(frozen['preparationInputs']) == 129 and len(frozen['preparedMembers']) == 171, 'Wrong final composition')
+    for gate in frozen['gates']:
+        check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
+        check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False,
+              'Empty gate proof: ' + gate['name'])
+        for binding in gate.get('compiledBindings', []):
+            check(isinstance(binding['reportPath'], list) and binding['productionPath'] in {**frozen['preparedMembers'], **frozen['untouchedFixtureMembers']}, 'Unbound compiled source')
+    # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
+    unadapted = frozen['controlUnadaptedMembers']
+    check({name: len(paths) for name, paths in unadapted.items()} == {'delivered': 0, 'delivered609': 8, 'ada': 2},
+          'Wrong control-only upstream inventories')
+    check(unadapted['delivered609'] == reads_frozen['baselineUnadaptedMembers'], '609 control upstream files differ from the reads contract')
+    performance = json.loads(route_bytes('build-utils/melonx/performance-core-contract.json'))
+    check(unadapted['ada'] == performance['baselineUnadaptedMembers'], 'Ada control upstream files differ from the performance contract')
+    rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
+            'Missing control inventory accepted')
+    overlapping = copy.deepcopy(frozen)
+    overlapping['controlUnadaptedMembers']['ada'].update(dict([next(iter(frozen['adaControlMembers'].items()))]))
+    rejects(lambda: verify.check_control_inventories(overlapping), 'Overlay file accepted as control-only upstream')
+    fragmented_gate = next(gate for gate in frozen['gates'] if gate['name'] == 'fragmented-reads')
+    read_upstream = dict(unadapted['delivered609'])
+    verify.require_control_coverage({'preimages': read_upstream, 'upstreamInputs': read_upstream}, fragmented_gate, frozen)
+    checks += 1
+    name = sorted(read_upstream)[0]
+    dropped = copy.deepcopy(frozen)
+    dropped['controlUnadaptedMembers']['delivered609'].pop(name)
+    rejects(lambda: verify.require_control_coverage({'preimages': read_upstream}, fragmented_gate, dropped), 'Uninventoried control file accepted')
+    rejects(lambda: verify.require_control_coverage({'upstreamInputs': {name: '0' * 64}}, fragmented_gate, frozen), 'Wrong control digest accepted')
+    rejects(lambda: verify.require_control_coverage({'preimages': {'src/Unlisted.cs': 'a' * 64}}, fragmented_gate, frozen), 'Unlisted control file accepted')
+    ada_gate = next(gate for gate in frozen['gates'] if gate['control'] == 'ada')
+    foreign = next(path for path in sorted(read_upstream) if path not in verify.control_inventory(frozen, 'ada'))
+    rejects(lambda: verify.require_control_coverage({'preimages': {foreign: read_upstream[foreign]}}, ada_gate, frozen),
+            'Another control tree inventory accepted')
+    arrays = next(gate for gate in frozen['gates'] if gate['name'] == 'bindless-array-deltas')
+    check(set(arrays['requiredPostimages']) == set(NAMES), 'Array delta gate does not bind every change')
+    # A receipt that was a current proof and declares a changed production file is rerun, never reused.
+    reports = {gate['report'] for gate in frozen['gates']}
+    for name, deps in frozen['retainedChangedDependencies'].items():
+        disposition = frozen['retainedDisposition'][name]
+        if disposition == 'unchanged-scoped-proof-not-reexecuted':
+            check(not deps, 'Reused receipt declares a changed dependency: ' + name)
+        elif disposition == 'historical-only-changed-declared-dependency' and set(deps) & set(NAMES):
+            check(Path(name).name in reports, 'Changed production dependency without a rerun: ' + name)
+    check(len(frozen['retainedDisposition']) == len(frozen['baselineReceipts']) == verify.HISTORICAL_RECEIPTS, 'Wrong historical disposition inventory')
+    changed = copy.deepcopy(frozen)
+    name = next(iter(changed['preparationInputs']))
+    changed['preparationInputs'][name] = '0' * 64
+    rejects(lambda: verify.common.inputs_match(changed['preparationInputs']), 'Changed prepared input accepted')
+print(json.dumps(dict(result='passed', checks=checks, helpersOnly=args.helpers_only,
+    currentContractVerified=not args.helpers_only and ROUTED,
+    historicalContractVerified=not args.helpers_only and not ROUTED, historicalReason=HISTORICAL_REASON,
+    actualBaselineArchiveVerified=bool(args.archive),
+    actualAdaArchiveVerified=bool(args.ada_archive), historicalSuitesReexecuted=False, physicalDeviceTested=False)))

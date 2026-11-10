@@ -233,8 +233,11 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
       await tester.pumpAndSettle();
       expect(key.currentState!.selected, NavTab.airplay);
+      // Past the 128 ms keyboard throttle, so the second press is a second
+      // dispatch rather than a dropped repeat; 75 ms only passed when the
+      // frames pumped in between took long enough in real time.
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 75)),
+        () => Future<void>.delayed(const Duration(milliseconds: 150)),
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
       await tester.pumpAndSettle();

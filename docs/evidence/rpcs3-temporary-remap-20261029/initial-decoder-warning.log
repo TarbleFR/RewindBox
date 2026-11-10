@@ -1,0 +1,14 @@
+/tmp/rpcs3-temporary-remap-cyptwfq5/test.cpp: In function ‘rsx::texture_channel_remap_t rsx::decode_remap_encoding(u32)’:
+/tmp/rpcs3-temporary-remap-cyptwfq5/test.cpp:1349:17: error: missing initializer for member ‘rsx::texture_channel_remap_t::control_map’ [-Werror=missing-field-initializers]
+ 1349 |                 };
+      |                 ^
+/tmp/rpcs3-temporary-remap-cyptwfq5/test.cpp:1349:17: error: missing initializer for member ‘rsx::texture_channel_remap_t::channel_map’ [-Werror=missing-field-initializers]
+cc1plus: all warnings being treated as errors
+Traceback (most recent call last):
+  File "/workspace/scratch/479e2052a078/RewindBox/test/rpcs3_temporary_remap_test.py", line 124, in <module>
+    main()
+  File "/workspace/scratch/479e2052a078/RewindBox/test/rpcs3_temporary_remap_test.py", line 105, in main
+    subprocess.run(compiler + flags + [str(cpp), '-o', str(exe)], check=True)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['c++', '-std=c++20', '-Wall', '-Wextra', '-Werror', '-UNDEBUG', '-g', '-O3', '/tmp/rpcs3-temporary-remap-cyptwfq5/test.cpp', '-o', '/tmp/rpcs3-temporary-remap-cyptwfq5/test']' returned non-zero exit status 1.

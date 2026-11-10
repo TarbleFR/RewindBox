@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "case": "array",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "0bfc08b1aa55827758c6d985fe4af2ad129942c8b0c55c1daed00f81cc3ab2e6"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "76018074bea16510ba2453e0ec785967387b2890e63b69a3f62334ea8e407d36"
+  },
+  "harnessSHA256": "4126d098f68533944a65a78bcc975e4761372b194e42689093cfdf0a83dcc18d",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "results": {
+    "contentAndAlignmentChecks": 726336,
+    "doubleFreeOrLeak": false,
+    "candidateSwapOrMoveAllocations": 0,
+    "baseline4096RegionMoveAllocations": 1,
+    "baseline4096RegionMoveBytes": 163840,
+    "candidate4096RegionMoveAllocations": 0,
+    "candidate4096RegionMoveBytes": 0,
+    "heapOwnershipTransferred": true
+  },
+  "leakSanitizerEnabled": false,
+  "cacheVariantsUseCandidateArray": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

@@ -1,0 +1,257 @@
+{
+  "result": "passed",
+  "build": 595,
+  "baseline": 594,
+  "ipaSHA256": "cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e",
+  "identity": {
+    "build": 595,
+    "baseline": 594,
+    "engineSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "engineRun": 40906908049,
+    "engineCompileRun": 40906908049,
+    "engineValidationSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "originalCompileConclusion": "success",
+    "engineArtifact": 12912462226,
+    "engineArchiveSHA256": "defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912",
+    "engineCommits": [
+      "7ffdbaaecced8ebf5884b89f67e3279d5752a2e6",
+      "5045889ff9f1a872d238435293c50cacd7c127b5",
+      "3c0997d91ebfb5554656076a93a1f167ec948c67"
+    ],
+    "evidence": {
+      "result": "passed",
+      "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+      "run": 40906908049,
+      "job": 123564059910,
+      "compileRun": 40906908049,
+      "originalRunConclusion": "success",
+      "validationSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+      "metadata": {
+        "result": "passed",
+        "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+        "run": 40906908049,
+        "job": 123564059910,
+        "runAttempt": 1,
+        "compileRun": 40906908049,
+        "originalRunConclusion": "success",
+        "validationSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+        "artifact": 12912462226,
+        "artifactSHA256": "defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912",
+        "successfulSteps": [
+          "Verify Apple ARM64, exact SDK and reviewed preparation inputs",
+          "Verify strict Core84 receipt reuse and changed-input rejection",
+          "Reuse twelve unchanged Core84 Apple gates",
+          "Verify timer arm identity, cancellation and zero-allocation reuse",
+          "Verify GPU sync ownership, callback allocation and bitmap queries",
+          "Authenticate all new gate receipts before compilation",
+          "Compile NativeAOT library and verify exported ABI",
+          "Bind both new libraries to reviewed sources and gate receipts",
+          "Authenticate unchanged native frameworks",
+          "Exercise this exact rebuilt engine in an ARM64 iOS app",
+          "Preserve the current runtime result including failures",
+          "Verify fresh guest execution, teardown and backing release"
+        ],
+        "engineRecompiled": false,
+        "priorGatesReexecuted": false
+      },
+      "artifact": 12912462226,
+      "expectedArchiveSHA256": "defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912",
+      "images": {
+        "ios-arm64": {
+          "sha256": "68fe61ddd412788d7dadc12e5e6226421f91c7354a3f61bfc0738b6635508588",
+          "bytes": 37585128,
+          "identitySHA256": "72860e08fd3c1836ab11beda15598d73cb57a8ac83583ebf82d9033ce0d26034",
+          "platform": 2,
+          "requiredExports": 47
+        },
+        "iossimulator-arm64": {
+          "sha256": "6aa6c69423286b3a4567eecf02445412fc562421b1ff331a3df83db6144e84f3",
+          "bytes": 37911912,
+          "identitySHA256": "b34a6fe4b467f6a81195d2d29caf73ae83acc58e4dae92902881bc1ba844a3d3",
+          "platform": 7,
+          "requiredExports": 47
+        }
+      },
+      "adaptationInputs": 87,
+      "buildRecipeInputs": 9,
+      "runtimeInputs": 3,
+      "retainedReceipts": {
+        "allocator-blocks-checks.json": "3676e8d1fd2e510a165841bb88f1a480ff5a23722c6e4eb4f1035679f61fbe04",
+        "auto-ownership-checks.json": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+        "baseline-engine82/authentication/result.json": "e691a8497b1ea387cbd8913128da8059f6e99ed7304b28e28254f177944bca88",
+        "baseline-engine82/runtime-smoke-engine82-original-failure/actual-runtime.json": "aaa4fa29ae22b3c5e388598e168dc38d0fdb4617d44bc5e77251a6210bc7fbda",
+        "baseline-engine82/runtime-validation/result.json": "6619a8805d945e9134d57069c6eb38abbb05d40c3f84fcdce2e4e1226da253a1",
+        "converted-cache-checks.json": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+        "core-validation/compiled.json": "856904a2eba32daa6fff9e852daef1e3084970f4094d902289ca31c3ad4cf297",
+        "core-validation/gates.json": "8fe61ebaf7aa284fe0fc456668150260063366fdaff9b6f1d562d37a2070232a",
+        "core-validation/preflight.json": "e39394b8549a463c205e4d7e167fc3606a46d56db6450542d6e28926347a616d",
+        "core-validation/result.json": "67bc86851fcffb432e6cf644a2eee8818a4c19863872bd53d42c5ae4defbb1cb",
+        "core-validation/reused-core84-gates.json": "0a14786969d78e96ab04d5f6dd450d7da4d529494c559902eb2d131f12f824c3",
+        "embedded-adapted-source.zip": "7ca3e18fbe63485f5ff756bf1f32358f81b7c5d4c79e207e1deafcf6cb19e7cd",
+        "embedded-inputs.json": "8c28cc952f290a102c550e2969eed08de3189b1e3c0cca73d8405865f74bc82f",
+        "fragmented-upload-slice-checks.json": "5de548a53e8d48247946dcae1ec0add1f8ee83421c8c849b6e5cf8b02a9f7f61",
+        "indirect-cache-key-checks.json": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+        "ios-arm64/identity.json": "72860e08fd3c1836ab11beda15598d73cb57a8ac83583ebf82d9033ce0d26034",
+        "iossimulator-arm64/identity.json": "b34a6fe4b467f6a81195d2d29caf73ae83acc58e4dae92902881bc1ba844a3d3",
+        "ipc-request-lifetime-checks.json": "be093a2461fbc2bde760cb1ab24561421c1b5a6aa03d2a8e0d5735e1fe409d61",
+        "kernel-timer-allocations-checks.json": "ffaf7e4195aff17dfaf594d2a56cb10af6c694ea5f8743d72c8af02595069796",
+        "kernel-wait-lifetime-checks.json": "c0970b5484fb08cab76bfab96d227cc682ef7a9ab853344bc24e282ee297203a",
+        "libhac-authenticated-reuse.json": "77ada960f7b6f7e4ae4654e29daab7400da97a72a340683b73ed3c67b35bf369",
+        "multirange-slice-checks.json": "ab71bda569e09264d17dc8206318412f0651db1c8d2bb2dc2f8c959405b4b512",
+        "native-dependencies-reused.json": "c1fcb34886a3b5afb8a8337406a9c395303f0311f71fd15f23578b157cde0810",
+        "runtime-smoke/actual-runtime.json": "4308248da9bf20cb6f69d93d0a1775b8df3b9bbfbe4d7ade7037470ed23c759f",
+        "sync-allocation-checks.json": "b43e5a7f577e5ba5ff8512bf42304048a41a5da88680d8c0d63ea8a0bef72d72",
+        "texture-group-callbacks-checks.json": "550e5327571cd6efcd1ddc7f4346e0c48bc1b01d37ea419066ab5d32ac4b06e2",
+        "texture-handle-dependencies-checks.json": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+        "texture-region-cursor-checks.json": "12a7fef54e1940fc78f7a95865c43069dc51549c43b96da528a1cf3c5bec2b84",
+        "tracking-snapshot-checks.json": "114a4f0a83ffaeae5f90fed6325cdd7db5400e7ae025fa1bd6600599573e48bf"
+      },
+      "simulatorHomebrewSessions": 2,
+      "homebrewGuestSvcSessions": [
+        {
+          "afterSequence": 23,
+          "generation": 1,
+          "session": 1,
+          "svcSequence": 39
+        },
+        {
+          "afterSequence": 40,
+          "generation": 2,
+          "session": 2,
+          "svcSequence": 56
+        }
+      ],
+      "runtimeValidation": {
+        "result": "passed",
+        "execution": {
+          "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+          "run": 40906908049,
+          "attempt": 1,
+          "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40906908049"
+        },
+        "identities": {
+          "ios-arm64": "72860e08fd3c1836ab11beda15598d73cb57a8ac83583ebf82d9033ce0d26034",
+          "iossimulator-arm64": "b34a6fe4b467f6a81195d2d29caf73ae83acc58e4dae92902881bc1ba844a3d3"
+        },
+        "binaries": {
+          "ios-arm64": {
+            "sha256": "68fe61ddd412788d7dadc12e5e6226421f91c7354a3f61bfc0738b6635508588",
+            "bytes": 37585128
+          },
+          "iossimulator-arm64": {
+            "sha256": "6aa6c69423286b3a4567eecf02445412fc562421b1ff331a3df83db6144e84f3",
+            "bytes": 37911912
+          }
+        },
+        "adaptationCount": 87,
+        "reviewedChangedSources": 19,
+        "verifiedGatePostimages": 24,
+        "compositionExceptions": [
+          {
+            "receipt": "converted-cache-checks.json",
+            "path": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+            "fixturePostimage": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+            "finalPostimage": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+            "explanation": "The later indirect-key adapter removes two readonly qualifiers; its control hash matches this postimage."
+          },
+          {
+            "receipt": "kernel-wait-lifetime-checks.json",
+            "path": "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs",
+            "fixturePostimage": "ad697837ea5adb7e0aeea347830d4fd174b445ebc175788247505e443044d47b",
+            "finalPostimage": "12f1d70303a7cbed4d49c3021043163f5d7e76e199d4d88d75b66f902e754539",
+            "explanation": "Existing engine82 ExitProcess diagnostics differ; the entire tested WaitSynchronization method matches exactly."
+          },
+          {
+            "receipt": "texture-group-callbacks-checks.json",
+            "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+            "fixturePostimage": "ad3325098f23f5ae36632db8fddb88241b689b1ea10e6cf820935008c7195fd8",
+            "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+            "explanation": "Existing engine82 lifetime changes and the later dependency adapter affect other members; all eleven tested methods match."
+          },
+          {
+            "receipt": "texture-handle-dependencies-checks.json",
+            "path": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+            "fixturePostimage": "ed73d3f6e19fc5e9ad809bf99695fa6becc501a07cdbe131779601b976bf2166",
+            "finalPostimage": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+            "explanation": "The callback adapter and previous engine82 members affect other sections; the entire tested inheritance and replacement methods match."
+          },
+          {
+            "receipt": "texture-region-cursor-checks.json",
+            "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+            "fixturePostimage": "50187e4802e2486ef6eb7bfe9db2fcfbe45bb50244dbf5090d6b56425cf0e082",
+            "finalPostimage": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017",
+            "explanation": "Existing engine82 lifetime changes affect other members; all five tested initialization and overlap methods match."
+          }
+        ],
+        "embeddedArchiveSha256": "7ca3e18fbe63485f5ff756bf1f32358f81b7c5d4c79e207e1deafcf6cb19e7cd",
+        "physicalDeviceTested": false,
+        "gameplayTested": false,
+        "runtimeSmokeSha256": "4308248da9bf20cb6f69d93d0a1775b8df3b9bbfbe4d7ade7037470ed23c759f",
+        "guestSvcSessions": [
+          {
+            "afterSequence": 23,
+            "generation": 1,
+            "session": 1,
+            "svcSequence": 39
+          },
+          {
+            "afterSequence": 40,
+            "generation": 2,
+            "session": 2,
+            "svcSequence": 56
+          }
+        ],
+        "homebrewSimulatorSessions": 2,
+        "releasedBackingSessions": 2,
+        "gateReceiptSha256": "8fe61ebaf7aa284fe0fc456668150260063366fdaff9b6f1d562d37a2070232a",
+        "reusedEvidenceSha256": {
+          "baseline-engine82/authentication/result.json": "e691a8497b1ea387cbd8913128da8059f6e99ed7304b28e28254f177944bca88",
+          "libhac-authenticated-reuse.json": "77ada960f7b6f7e4ae4654e29daab7400da97a72a340683b73ed3c67b35bf369",
+          "native-dependencies-reused.json": "c1fcb34886a3b5afb8a8337406a9c395303f0311f71fd15f23578b157cde0810"
+        },
+        "historicalGatesReexecuted": false,
+        "nativeDependenciesRecompiled": false,
+        "status": "compiled-and-simulator-validated-not-gameplay-tested",
+        "inputs": {
+          ".github/workflows/melonx-core.yml": "5799f111c8173a3bd4993276b25e5dfebc3b754d20714796b9f1b654c691be4b",
+          "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+          "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
+          "build-utils/melonx/reuse_core_baseline.py": "9638b84da0f4e6ac5514b12d4169820e4d0c10465e4467326caff3d00d1f8a73",
+          "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
+          "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9"
+        }
+      },
+      "freshAppleGates": 2,
+      "reusedAppleGates": 12,
+      "verifiedPreparedSourceMembers": 129,
+      "changedSourceMembersFromCore84": 3,
+      "authoritativePayload": "ios-arm64/Ryujinx.Library.dylib",
+      "originalPayloadFingerprint": "4d14565f04801f3adb8238db5d9c33c86b107933b8a711216610bd655c42e3cc",
+      "originalCompileIdentitiesPreserved": true,
+      "engine82HistoricalFailurePreserved": true,
+      "engineRecompiled": false,
+      "priorGatesReexecuted": false,
+      "rootPayloadUsed": false,
+      "physicalDeviceTested": false,
+      "gameTested": false,
+      "fpsGainMeasured": false
+    },
+    "physicalDeviceTested": false,
+    "gameTested": false,
+    "fpsGainMeasured": false
+  },
+  "engine": {
+    "engineSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "engineRun": 40906908049,
+    "engineCompileRun": 40906908049,
+    "engineValidationSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "originalCoreSHA256": "68fe61ddd412788d7dadc12e5e6226421f91c7354a3f61bfc0738b6635508588",
+    "packagedCoreFingerprint": "4d14565f04801f3adb8238db5d9c33c86b107933b8a711216610bd655c42e3cc",
+    "originalPayloadMatched": true,
+    "requiredExports": 47,
+    "signatureCryptographicallyVerifiedHere": false
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false
+}

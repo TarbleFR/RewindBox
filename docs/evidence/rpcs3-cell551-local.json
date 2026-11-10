@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "cell": "551",
+  "date": "2026-10-25",
+  "host": "Linux x86-64 (g++ ASan+UBSan, TSan); Xcode clang on the macOS runner in CI",
+  "report": {
+    "result": "passed",
+    "passed": true,
+    "static": {
+      "noExceptionsAdded": true,
+      "noWaitAdded": true,
+      "codegenFilesChanged": [
+        "rpcs3/Emu/Cell/SPUThread.cpp"
+      ],
+      "identities": {
+        "PPU": "a987639e9f838d1c",
+        "SPU": "d070cb361bdef607"
+      },
+      "iosOnlyLines": true
+    },
+    "scenarios": {
+      "sanitized": {
+        "observedSnapshot": {
+          "inherited": 19,
+          "kept": 0
+        },
+        "userChange": {
+          "inherited": 18,
+          "kept": 1
+        },
+        "spuWait": {
+          "threads": 120,
+          "slots": 32
+        },
+        "failures": 0
+      },
+      "thread": {
+        "observedSnapshot": {
+          "inherited": 19,
+          "kept": 0
+        },
+        "userChange": {
+          "inherited": 18,
+          "kept": 1
+        },
+        "spuWait": {
+          "threads": 120,
+          "slots": 32
+        },
+        "failures": 0
+      },
+      "configLayers": "PASS Build 487 boot diagnostics helpers: 55 checks"
+    },
+    "harnessSHA256": "20fd142e695f0999ca94ccedb9b180e8275bc7b5d3bf5854994ad5d1edc503c4",
+    "gow3DatabaseSHA256": "fc4a37c381e871f2e774212bcab9e158e76be950321e188382e9f3e892c1415a",
+    "gow3DatabaseLeaves": 19,
+    "sanitizers": "ASan+UBSan, then TSan",
+    "yamlCpp": "/tmp/claude-0/-home-user-RewindBox/d9055cd2-3201-5dea-b8cc-82ee8e370fd2/scratchpad/deps/yaml-cpp",
+    "cpuCount": 4,
+    "sourceSHA256": {
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "6856d1e681a624269ccd0a92a4af8cba439902872ba82cc917876e92d9bc32dc",
+      "rpcs3/Emu/Cell/SPUThread.cpp": "23b66d39ba7cffc1574bf62aa91438dfd8fe188a2749d66bc29ff8a7d8afe032",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp": "8419154b8e5069a39526ff2beff5a0ef5b4a1b8eca5450053ccb7241389f1314",
+      "rpcs3/Emu/RSX/RSXThread.cpp": "7b8c83384668f602e93ddfcc10d53b4f5d203bbcecfc33896b2506619157319c",
+      "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "fdc0b583b609006f59e2e8123a6c522c3b76cd518244b98e20c41662375fd568",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "0e8c2d2d7b4b22fd3d1e33cc56812ea83c1b98176cd7e365cf5efb7e3d175b62",
+      "rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp": "972966edf09811b4f7e4ef7fbb1bd92ec12974f4e8aa03e4680575f23007072e",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp": "dadac00185ac425ad18039f33aa8d8338ecec0c08f2bfcdb0a540480bbb25046",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "7810685acc56d8e6bbca3eaf4a3363e138e7b9b5c0ec4bd7105a4823fb9d4d54",
+      "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "8d35fab2d1abc889bb52f23ff983ddfc146292350933ae6dd58ee59104736a00",
+      "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "9f9c53c6224490590ec467cd7d5b66180b21f0651261ab746574c853138e691f",
+      "rpcs3/Emu/RSX/VK/vkutils/device.h": "e2654bd1d93c8d6b3fded4ea2c7e21f6686730496ebf49997bcb2dbeb8778bcb",
+      "rpcs3/Emu/RSX/VK/vkutils/instance.cpp": "444c11f6e2b9d21d71e5fe789357b868ba53c676b98bc6e9bc49788a4e7ac0d2",
+      "rpcs3/Emu/RSX/VK/vkutils/sync.cpp": "c7bf51f5b9941a5f2fff792a61e284b967fa727e0743c5d904d01e6b16200517",
+      "rpcs3/Emu/System.cpp": "8fc4dc4b64f45920c521c827c398ff8f1bef730e6e87cd28d807d1bc2c320b85",
+      "rpcs3/Emu/system_config.h": "0a676a6de66bc0391f4d2cbba00314d5aaa79a027587f5cf259f7878aba8190e",
+      "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "f0bd30d340be710c1abf5d3db2fa50fd6bf325e7906b73e140527821c7ce7e72",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "90acfa4eb46434134d2733248626b3400e07cf5f5abba899e084fed73b1e932f",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "936231289c73197351d1e96a3b2696eea7bd77de001b48d471a0f0d60a6f45eb",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "c5c38640078118182f1591f4e2bca65df2d6de0557ceeb2866f064c372573085",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "0bf916781c63a3c33ef1a0cd0a9f6098845c832b496dc264e42dcd95fc788036",
+      "rpcs3/ios/IOSRsxSyncProfile.h": "1c5c9f29739196f736c9ca3bb65763280326485feff07fe39742813d36b66efe",
+      "rpcs3/ios/IOSSpuWaitProfile.h": "9e7c76711bc02c9f73e1eec01d6a05dbe06cf5a413060f48bae4d6776b8bb4ea",
+      "rpcs3/ios/RPCS3IOSConfigInheritance.h": "e66620753281aaaa8e267b9f922308ec76f0abe18c3021bfa6f80a1d5ad3e883"
+    },
+    "inputs": {
+      "test/rpcs3_cell551_test.py": "ece4cd9749e1e256b1bce31f386f5141100d71a5cba9b22df0749da765da6487",
+      "test/native/rpcs3_cell551.inc": "36f9366c5094d0af5ffb2d828d91f67ea7e8fe638cb88d12652dc32afc1c5bea",
+      "test/fixtures/rpcs3_cell551.diff": "d9ca1230b4422a855fa00d724e4b076a1dee5cf34e008663618c4f71c9ab6315",
+      "test/native/rpcs3_build487_boot_diagnostics_test.cpp": "3f61bbf86af16481f1466d73a8a8dd2a06a845b3253a1e5259027438319dd78d",
+      "lib/services/rpcs3_game_profile_service.dart": "2b9a0153a120173b879c115963ddce96466afe9beafa71db474e254c0788e366",
+      "assets/data/rpcs3_ios_profiles.json": "f224cb0cf7aedafec728c8543465d483d0a5e40ce91013f3546170cb554c9378"
+    },
+    "physicalDeviceTested": false,
+    "scope": "configuration layering, counters and wait attribution on the host; not MoltenVK, Metal or the iPhone"
+  },
+  "moltenvk": {
+    "archive": "MoltenVK-ios.tar v1.4.2 sha256 b5d947b1660e6e9fed40b9cd2387e160aaab9e80b775c0cef7e14059405178c1",
+    "staticLibrary": "245e7e05926c55ae97ace1b1822190139d87bda5aaefbcfd2f5156e1287f448b",
+    "patched": "b91a46f74456949aa2a6cb73de9696d0b5508efe3a7c30041e0ff07232fc9de4",
+    "relocations": "exactly one BR26 relocation to _dispatch_get_global_queue at section offset 0xd2750, inside MVKMetalCompiler::compile(unique_lock&, block); after the patch it targets _rbx_mvk_compile_qos_queue",
+    "bytesChanged": 19
+  },
+  "logs": {
+    "gow3Process": 32208,
+    "dbzProcess": 32192,
+    "build545Process": 31897,
+    "performanceLogRotated": true,
+    "facts": [
+      "32208 heavy scene: 9-16 fps, SPU 3.4 cores, wl_putllc 0.4-0.56 M per 5 s window, PPU range waits 1.5-6.4 s per window, RSX FIFO busy 85-97 %, no GPU wait",
+      "32208 windows 19-25: 25 draw-blocking pipeline builds of 0.6-4 s",
+      "God of War III boots of builds 412-547: CONFIG_LAYERS legacy_custom=1 database=0 (profile never applied)",
+      "DBZ: 31-35 fps, unimodal 22-36 ms frames; RSX 21 ms CPU + two GPU waits (7.3 ms) per frame; 547 fence counters 0"
+    ]
+  },
+  "physicalDeviceTested": false,
+  "fpsClaimed": false
+}

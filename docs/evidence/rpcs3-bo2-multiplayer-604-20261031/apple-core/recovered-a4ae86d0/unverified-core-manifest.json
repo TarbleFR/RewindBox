@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "collector_source_sha256": "dd95e2bb80c58599d6dbb57b88403a35759eab85153fc748b121fa05a19ce0ff",
+  "source_commit": "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+  "run_id": "41243687649",
+  "validation_status": "unverified",
+  "prior_job_status": "failure",
+  "gate_identity_present": false,
+  "status": "unverified_capture_due_to_job_failure",
+  "full_dist_copied": true,
+  "files": {
+    "RPCS3_SOURCE_COMMIT.txt": {
+      "bytes": 41,
+      "sha256": "53b29e1e6ee68cc9a67052ba4f20bb519b52bc5f4f381cb1d5cfb160422992a5"
+    },
+    "libRPCS3Core.dylib.sha256": {
+      "bytes": 135,
+      "sha256": "add91f9635e25eb7777b96d5d334f6b719d0e61f945ff0a2d78bce87f6113603"
+    },
+    "libRPCS3Core.dylib": {
+      "bytes": 77422944,
+      "sha256": "f512e6c4a6a2bf3b2ff6f41a2f2e2f6b966240ec2295a35e31f406a36229001f"
+    },
+    "RPCS3_IOS_ABI.txt": {
+      "bytes": 3,
+      "sha256": "f4ccd05b3271c386ee55d9876c7450012a3b361e5065c09dc22075e38b3cc35c"
+    }
+  },
+  "captured_build_inputs": {
+    "git-version.h": {
+      "bytes": 249,
+      "sha256": "1b5a7e82ba37f2b11817a532d78e49d4f5e187c540ee3f2ec6348bcd4c5f8ab3",
+      "source_path": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/git-version.h"
+    },
+    "link-response/3rdparty/SoundTouch/CMakeFiles/soundtouch.dir/CXX.dd.rsp": {
+      "bytes": 989,
+      "sha256": "33d889277b24a61c6f93657c18d9d12f307a5a3fd708126a6c93f699cf3569cd",
+      "source_path": "/Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/SoundTouch/CMakeFiles/soundtouch.dir/CXX.dd.rsp"
+    },
+    "link-response/3rdparty/asmjit/CMakeFiles/asmjit.dir/CXX.dd.rsp": {
+      "bytes": 4672,
+      "sha256": "a8d980b984c18cc8b082bc683360fe590e55e66b9e1e3625fb26d47d19499b62",
+      "source_path": "/Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/asmjit/CMakeFiles/asmjit.dir/CXX.dd.rsp"
+    },
+    "link-response/3rdparty/yaml-cpp/yaml-cpp/CMakeFiles/yaml-cpp.dir/CXX.dd.rsp": {
+      "bytes": 2230,
+      "sha256": "40f73a2ee503ed0cc86342b6c7a8a2285c979fbd88c1c4965f6f24f63d7f8b4e",
+      "source_path": "/Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/yaml-cpp/yaml-cpp/CMakeFiles/yaml-cpp.dir/CXX.dd.rsp"
+    },
+    "link-response/3rdparty/pugixml/CMakeFiles/pugixml-static.dir/CXX.dd.rsp": {
+      "bytes": 68,
+      "sha256": "f23e90b7c01459a3c6d591a7ab07fe222dba3bff58fa8016af6cda5719f46677",
+      "source_path": "/Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/pugixml/CMakeFiles/pugixml-static.dir/CXX.dd.rsp"
+    }
+  },
+  "warnings": [],
+  "native_compilation_by_collector": false,
+  "binary_modified": false,
+  "verified_core_claimed": false,
+  "device_tested": false,
+  "fps_gain_claimed": false,
+  "core": {
+    "bytes": 77422944,
+    "sha256": "f512e6c4a6a2bf3b2ff6f41a2f2e2f6b966240ec2295a35e31f406a36229001f"
+  },
+  "captured_response_files": 4,
+  "captured_response_bytes": 7959
+}

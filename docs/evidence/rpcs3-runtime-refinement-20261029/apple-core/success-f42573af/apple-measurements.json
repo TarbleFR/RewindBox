@@ -1,0 +1,942 @@
+{
+  "schema": 1,
+  "kind": "retained-refinement-apple-microbenchmarks",
+  "passed": true,
+  "cases": [
+    {
+      "family": "timer",
+      "case": "6/all_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          60.4568,
+          56.5774,
+          57.2395,
+          58.1817,
+          56.0378,
+          55.8949,
+          59.9405
+        ],
+        "median": 57.2395,
+        "minimum": 55.8949,
+        "maximum": 60.4568,
+        "firstQuartile": 56.307599999999994,
+        "thirdQuartile": 59.061099999999996,
+        "interquartileRange": 2.7535000000000025
+      },
+      "candidate": {
+        "samples": [
+          55.9503,
+          57.5808,
+          80.6878,
+          63.7819,
+          58.1787,
+          58.5287,
+          57.365
+        ],
+        "median": 58.1787,
+        "minimum": 55.9503,
+        "maximum": 80.6878,
+        "firstQuartile": 57.4729,
+        "thirdQuartile": 61.1553,
+        "interquartileRange": 3.682399999999994
+      },
+      "medianDurationChangePercent": 1.6408249547952058,
+      "slowerMedian": true,
+      "sampleRangesOverlap": true,
+      "entries": 6,
+      "pattern": "all_due",
+      "iterationsPerSample": 14285
+    },
+    {
+      "family": "timer",
+      "case": "6/alternating",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          59.3747,
+          59.7714,
+          54.7748,
+          57.9221,
+          56.1049,
+          58.6017,
+          108.22
+        ],
+        "median": 58.6017,
+        "minimum": 54.7748,
+        "maximum": 108.22,
+        "firstQuartile": 57.0135,
+        "thirdQuartile": 59.573049999999995,
+        "interquartileRange": 2.5595499999999944
+      },
+      "candidate": {
+        "samples": [
+          59.1733,
+          59.4388,
+          58.2371,
+          77.2168,
+          56.0466,
+          55.6907,
+          129.372
+        ],
+        "median": 59.1733,
+        "minimum": 55.6907,
+        "maximum": 129.372,
+        "firstQuartile": 57.14185,
+        "thirdQuartile": 68.3278,
+        "interquartileRange": 11.185949999999998
+      },
+      "medianDurationChangePercent": 0.9753983246219677,
+      "slowerMedian": true,
+      "sampleRangesOverlap": true,
+      "entries": 6,
+      "pattern": "alternating",
+      "iterationsPerSample": 14285
+    },
+    {
+      "family": "timer",
+      "case": "6/none_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          69.5514,
+          68.8076,
+          100.963,
+          50.9188,
+          57.1083,
+          29.9177,
+          29.9527
+        ],
+        "median": 57.1083,
+        "minimum": 29.9177,
+        "maximum": 100.963,
+        "firstQuartile": 40.43575,
+        "thirdQuartile": 69.17949999999999,
+        "interquartileRange": 28.74374999999999
+      },
+      "candidate": {
+        "samples": [
+          54.6348,
+          76.4701,
+          32.8375,
+          44.8431,
+          32.5049,
+          42.813,
+          30.2007
+        ],
+        "median": 42.813,
+        "minimum": 30.2007,
+        "maximum": 76.4701,
+        "firstQuartile": 32.6712,
+        "thirdQuartile": 49.73895,
+        "interquartileRange": 17.067750000000004
+      },
+      "medianDurationChangePercent": -25.03191304941663,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 6,
+      "pattern": "none_due",
+      "iterationsPerSample": 14285
+    },
+    {
+      "family": "timer",
+      "case": "32/all_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          148.006,
+          150.468,
+          145.668,
+          146.04,
+          161.702,
+          168.468,
+          167.822
+        ],
+        "median": 150.468,
+        "minimum": 145.668,
+        "maximum": 168.468,
+        "firstQuartile": 147.023,
+        "thirdQuartile": 164.762,
+        "interquartileRange": 17.739000000000004
+      },
+      "candidate": {
+        "samples": [
+          158.746,
+          148.914,
+          173.378,
+          156.449,
+          157.247,
+          155.432,
+          147.25
+        ],
+        "median": 156.449,
+        "minimum": 147.25,
+        "maximum": 173.378,
+        "firstQuartile": 152.173,
+        "thirdQuartile": 157.99650000000003,
+        "interquartileRange": 5.823500000000024
+      },
+      "medianDurationChangePercent": 3.9749315469070012,
+      "slowerMedian": true,
+      "sampleRangesOverlap": true,
+      "entries": 32,
+      "pattern": "all_due",
+      "iterationsPerSample": 3030
+    },
+    {
+      "family": "timer",
+      "case": "32/alternating",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          119.142,
+          116.213,
+          116.928,
+          132.178,
+          117.89,
+          300.756,
+          252.544
+        ],
+        "median": 119.142,
+        "minimum": 116.213,
+        "maximum": 300.756,
+        "firstQuartile": 117.40899999999999,
+        "thirdQuartile": 192.361,
+        "interquartileRange": 74.952
+      },
+      "candidate": {
+        "samples": [
+          110.891,
+          112.803,
+          110.726,
+          148.583,
+          114.893,
+          124.835,
+          110.561
+        ],
+        "median": 112.803,
+        "minimum": 110.561,
+        "maximum": 148.583,
+        "firstQuartile": 110.80850000000001,
+        "thirdQuartile": 119.864,
+        "interquartileRange": 9.055499999999995
+      },
+      "medianDurationChangePercent": -5.3205418744019735,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 32,
+      "pattern": "alternating",
+      "iterationsPerSample": 3030
+    },
+    {
+      "family": "timer",
+      "case": "32/none_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          52.1865,
+          51.4851,
+          52.929,
+          51.0865,
+          51.4439,
+          58.031,
+          51.3201
+        ],
+        "median": 51.4851,
+        "minimum": 51.0865,
+        "maximum": 58.031,
+        "firstQuartile": 51.382,
+        "thirdQuartile": 52.55775,
+        "interquartileRange": 1.1757500000000007
+      },
+      "candidate": {
+        "samples": [
+          48.336,
+          47.3736,
+          55.1568,
+          47.3736,
+          47.6898,
+          47.6347,
+          48.4462
+        ],
+        "median": 47.6898,
+        "minimum": 47.3736,
+        "maximum": 55.1568,
+        "firstQuartile": 47.50415,
+        "thirdQuartile": 48.391099999999994,
+        "interquartileRange": 0.8869499999999917
+      },
+      "medianDurationChangePercent": -7.371647330975373,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 32,
+      "pattern": "none_due",
+      "iterationsPerSample": 3030
+    },
+    {
+      "family": "timer",
+      "case": "128/all_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          535.375,
+          385.214,
+          386.236,
+          396.236,
+          523.279,
+          444.839,
+          594.086
+        ],
+        "median": 444.839,
+        "minimum": 385.214,
+        "maximum": 594.086,
+        "firstQuartile": 391.236,
+        "thirdQuartile": 529.327,
+        "interquartileRange": 138.091
+      },
+      "candidate": {
+        "samples": [
+          393.119,
+          387.365,
+          390.859,
+          391.881,
+          572.043,
+          504.732,
+          451.774
+        ],
+        "median": 393.119,
+        "minimum": 387.365,
+        "maximum": 572.043,
+        "firstQuartile": 391.37,
+        "thirdQuartile": 478.25300000000004,
+        "interquartileRange": 86.88300000000004
+      },
+      "medianDurationChangePercent": -11.62667841623598,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 128,
+      "pattern": "all_due",
+      "iterationsPerSample": 775
+    },
+    {
+      "family": "timer",
+      "case": "128/alternating",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          384.301,
+          442.795,
+          401.183,
+          232.419,
+          232.795,
+          233.387,
+          235.968
+        ],
+        "median": 235.968,
+        "minimum": 232.419,
+        "maximum": 442.795,
+        "firstQuartile": 233.091,
+        "thirdQuartile": 392.74199999999996,
+        "interquartileRange": 159.65099999999995
+      },
+      "candidate": {
+        "samples": [
+          328.764,
+          253.119,
+          235.592,
+          253.226,
+          231.236,
+          232.312,
+          235.054
+        ],
+        "median": 235.592,
+        "minimum": 231.236,
+        "maximum": 328.764,
+        "firstQuartile": 233.683,
+        "thirdQuartile": 253.1725,
+        "interquartileRange": 19.48950000000002
+      },
+      "medianDurationChangePercent": -0.15934363981555677,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 128,
+      "pattern": "alternating",
+      "iterationsPerSample": 775
+    },
+    {
+      "family": "timer",
+      "case": "128/none_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          152.365,
+          152.419,
+          152.796,
+          153.012,
+          150.915,
+          153.71,
+          151.397
+        ],
+        "median": 152.419,
+        "minimum": 150.915,
+        "maximum": 153.71,
+        "firstQuartile": 151.881,
+        "thirdQuartile": 152.904,
+        "interquartileRange": 1.0229999999999961
+      },
+      "candidate": {
+        "samples": [
+          144.462,
+          144.302,
+          144.085,
+          144.248,
+          142.366,
+          142.419,
+          143.603
+        ],
+        "median": 144.085,
+        "minimum": 142.366,
+        "maximum": 144.462,
+        "firstQuartile": 143.01100000000002,
+        "thirdQuartile": 144.27499999999998,
+        "interquartileRange": 1.2639999999999532
+      },
+      "medianDurationChangePercent": -5.467822253131171,
+      "slowerMedian": false,
+      "sampleRangesOverlap": false,
+      "entries": 128,
+      "pattern": "none_due",
+      "iterationsPerSample": 775
+    },
+    {
+      "family": "timer",
+      "case": "1024/all_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          3048.54,
+          2982.82,
+          2876.72,
+          2928.27,
+          2978.96,
+          2872.86,
+          2874.14
+        ],
+        "median": 2928.27,
+        "minimum": 2872.86,
+        "maximum": 3048.54,
+        "firstQuartile": 2875.43,
+        "thirdQuartile": 2980.8900000000003,
+        "interquartileRange": 105.46000000000049
+      },
+      "candidate": {
+        "samples": [
+          2862.11,
+          2893.47,
+          2873.29,
+          3274.05,
+          2902.92,
+          2893.9,
+          2881.02
+        ],
+        "median": 2893.47,
+        "minimum": 2862.11,
+        "maximum": 3274.05,
+        "firstQuartile": 2877.1549999999997,
+        "thirdQuartile": 2898.41,
+        "interquartileRange": 21.25500000000011
+      },
+      "medianDurationChangePercent": -1.1884150027149154,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 1024,
+      "pattern": "all_due",
+      "iterationsPerSample": 97
+    },
+    {
+      "family": "timer",
+      "case": "1024/alternating",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          1582.91,
+          1682.99,
+          1584.2,
+          1604.81,
+          1609.97,
+          1586.34,
+          1593.65
+        ],
+        "median": 1593.65,
+        "minimum": 1582.91,
+        "maximum": 1682.99,
+        "firstQuartile": 1585.27,
+        "thirdQuartile": 1607.3899999999999,
+        "interquartileRange": 22.11999999999989
+      },
+      "candidate": {
+        "samples": [
+          1579.9,
+          1589.78,
+          1578.19,
+          1679.56,
+          1590.21,
+          1581.61,
+          1572.6
+        ],
+        "median": 1581.61,
+        "minimum": 1572.6,
+        "maximum": 1679.56,
+        "firstQuartile": 1579.045,
+        "thirdQuartile": 1589.995,
+        "interquartileRange": 10.949999999999818
+      },
+      "medianDurationChangePercent": -0.7554983842123497,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 1024,
+      "pattern": "alternating",
+      "iterationsPerSample": 97
+    },
+    {
+      "family": "timer",
+      "case": "1024/none_due",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          1055.85,
+          1059.28,
+          1066.58,
+          1056.27,
+          1152.06,
+          1060.14,
+          1079.9
+        ],
+        "median": 1060.14,
+        "minimum": 1055.85,
+        "maximum": 1152.06,
+        "firstQuartile": 1057.775,
+        "thirdQuartile": 1073.24,
+        "interquartileRange": 15.464999999999918
+      },
+      "candidate": {
+        "samples": [
+          1048.97,
+          1046.82,
+          1044.67,
+          1043.38,
+          1061.86,
+          1049.4,
+          1070.88
+        ],
+        "median": 1048.97,
+        "minimum": 1043.38,
+        "maximum": 1070.88,
+        "firstQuartile": 1045.745,
+        "thirdQuartile": 1055.63,
+        "interquartileRange": 9.885000000000218
+      },
+      "medianDurationChangePercent": -1.0536344256419028,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "entries": 1024,
+      "pattern": "none_due",
+      "iterationsPerSample": 97
+    },
+    {
+      "family": "descriptor",
+      "case": "graphics_hits",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          2.292292,
+          2.278875,
+          2.284375,
+          2.283771,
+          2.635354,
+          2.402625,
+          2.256854
+        ],
+        "median": 2.284375,
+        "minimum": 2.256854,
+        "maximum": 2.635354,
+        "firstQuartile": 2.2813230000000004,
+        "thirdQuartile": 2.3474585,
+        "interquartileRange": 0.06613549999999968
+      },
+      "candidate": {
+        "samples": [
+          2.4665,
+          2.4355415,
+          2.4209165,
+          2.6188545,
+          2.4235415,
+          2.435417,
+          2.434146
+        ],
+        "median": 2.435417,
+        "minimum": 2.4209165,
+        "maximum": 2.6188545,
+        "firstQuartile": 2.42884375,
+        "thirdQuartile": 2.4510207499999996,
+        "interquartileRange": 0.02217699999999967
+      },
+      "medianDurationChangePercent": 6.611961696306445,
+      "slowerMedian": true,
+      "sampleRangesOverlap": true,
+      "operationsPerSample": 2000000,
+      "driverCallsPerSample": 1,
+      "checksum": 114
+    },
+    {
+      "family": "descriptor",
+      "case": "changing_sets",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          4.2240625,
+          4.2077085,
+          4.285625,
+          4.2415,
+          4.232021,
+          4.242292,
+          4.9611875
+        ],
+        "median": 4.2415,
+        "minimum": 4.2077085,
+        "maximum": 4.9611875,
+        "firstQuartile": 4.228041749999999,
+        "thirdQuartile": 4.263958499999999,
+        "interquartileRange": 0.035916750000000164
+      },
+      "candidate": {
+        "samples": [
+          4.343458,
+          4.148417,
+          4.1185,
+          4.1450625,
+          4.1545,
+          4.1167915,
+          4.120854
+        ],
+        "median": 4.1450625,
+        "minimum": 4.1167915,
+        "maximum": 4.343458,
+        "firstQuartile": 4.119676999999999,
+        "thirdQuartile": 4.1514585,
+        "interquartileRange": 0.03178150000000102
+      },
+      "medianDurationChangePercent": -2.273664977012857,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "operationsPerSample": 2000000,
+      "driverCallsPerSample": 2000000,
+      "checksum": 2000227000000
+    },
+    {
+      "family": "descriptor",
+      "case": "alternating_bind_points",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          2.3223125,
+          2.3196455,
+          2.2816665,
+          3.621771,
+          3.6630835,
+          2.2759165,
+          2.7236665
+        ],
+        "median": 2.3223125,
+        "minimum": 2.2759165,
+        "maximum": 3.6630835,
+        "firstQuartile": 2.300656,
+        "thirdQuartile": 3.17271875,
+        "interquartileRange": 0.87206275
+      },
+      "candidate": {
+        "samples": [
+          2.539375,
+          2.524729,
+          2.469875,
+          2.531396,
+          2.495771,
+          3.9035,
+          3.352042
+        ],
+        "median": 2.531396,
+        "minimum": 2.469875,
+        "maximum": 3.9035,
+        "firstQuartile": 2.51025,
+        "thirdQuartile": 2.9457085000000003,
+        "interquartileRange": 0.4354585000000002
+      },
+      "medianDurationChangePercent": 9.003245687219108,
+      "slowerMedian": true,
+      "sampleRangesOverlap": true,
+      "operationsPerSample": 2000000,
+      "driverCallsPerSample": 2,
+      "checksum": 339
+    },
+    {
+      "family": "lookup",
+      "case": "hit",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          2.87904,
+          2.88729,
+          3.1256,
+          2.89615,
+          2.85229,
+          2.8776,
+          3.11035
+        ],
+        "median": 2.88729,
+        "minimum": 2.85229,
+        "maximum": 3.1256,
+        "firstQuartile": 2.87832,
+        "thirdQuartile": 3.00325,
+        "interquartileRange": 0.12492999999999999
+      },
+      "candidate": {
+        "samples": [
+          2.85712,
+          2.86125,
+          2.92031,
+          2.913,
+          2.88579,
+          2.99192,
+          2.86956
+        ],
+        "median": 2.88579,
+        "minimum": 2.85712,
+        "maximum": 2.99192,
+        "firstQuartile": 2.865405,
+        "thirdQuartile": 2.916655,
+        "interquartileRange": 0.05125000000000002
+      },
+      "medianDurationChangePercent": -0.05195183026298622,
+      "slowerMedian": false,
+      "sampleRangesOverlap": true,
+      "operationsPerSample": 2000000
+    },
+    {
+      "family": "lookup",
+      "case": "epoch_miss",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          3.11994,
+          2.83496,
+          3.04694,
+          2.78929,
+          2.76242,
+          2.85335,
+          2.78138
+        ],
+        "median": 2.83496,
+        "minimum": 2.76242,
+        "maximum": 3.11994,
+        "firstQuartile": 2.785335,
+        "thirdQuartile": 2.950145,
+        "interquartileRange": 0.16481000000000012
+      },
+      "candidate": {
+        "samples": [
+          2.10562,
+          2.18698,
+          2.30027,
+          2.17371,
+          2.1581,
+          2.16625,
+          2.15675
+        ],
+        "median": 2.16625,
+        "minimum": 2.10562,
+        "maximum": 2.30027,
+        "firstQuartile": 2.157425,
+        "thirdQuartile": 2.180345,
+        "interquartileRange": 0.02292000000000005
+      },
+      "medianDurationChangePercent": -23.58798713209359,
+      "slowerMedian": false,
+      "sampleRangesOverlap": false,
+      "operationsPerSample": 2000000
+    },
+    {
+      "family": "lookup",
+      "case": "key_miss",
+      "unit": "ns/operation",
+      "baseline": {
+        "samples": [
+          2.74094,
+          2.758,
+          2.93458,
+          3.01196,
+          3.01475,
+          3.0235,
+          3.0321
+        ],
+        "median": 3.01196,
+        "minimum": 2.74094,
+        "maximum": 3.0321,
+        "firstQuartile": 2.8462899999999998,
+        "thirdQuartile": 3.019125,
+        "interquartileRange": 0.17283500000000007
+      },
+      "candidate": {
+        "samples": [
+          1.50242,
+          1.5214,
+          1.47544,
+          1.56592,
+          1.57117,
+          1.56581,
+          1.57717
+        ],
+        "median": 1.56581,
+        "minimum": 1.47544,
+        "maximum": 1.57717,
+        "firstQuartile": 1.51191,
+        "thirdQuartile": 1.5685449999999999,
+        "interquartileRange": 0.05663499999999977
+      },
+      "medianDurationChangePercent": -48.013585837793336,
+      "slowerMedian": false,
+      "sampleRangesOverlap": false,
+      "operationsPerSample": 2000000
+    }
+  ],
+  "caseCount": 18,
+  "slowerMedianCount": 5,
+  "samplesPerCase": 7,
+  "provenance": {
+    "timer": {
+      "path": "docs/evidence/rpcs3-runtime-refinement-20261029/apple-core/failed-5796e165/diagnostics/refined-timer-plain-result.json",
+      "sha256": "2b0c697d07a988c1619b693c2eab43ab12206148aed7f55f0e14edfa1caaaa1a",
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "runId": 40914849302,
+      "overallRunConclusion": "failure",
+      "individualModePassed": true,
+      "compiler": "Homebrew clang version 22.1.8",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64"
+      },
+      "programSHA256": {
+        "functional": "56730d6dd27b72fb6b3e621516fac35bc85c3e093995aed633b30ada196075e1",
+        "timing": "2c8dab30e49ca1c2ee50afb550e8154c3bd8c8ec319c0ab542e23e479644b809"
+      },
+      "compilerFlags": [
+        "-std=c++20",
+        "-O3",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-UNDEBUG",
+        "-pthread",
+        "-DRPCS3_IOS=1",
+        "-isysroot",
+        "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+      ],
+      "functional": {
+        "passed": true,
+        "assertionsActive": true,
+        "matrixCases": 210,
+        "reentrantCases": 1,
+        "shutdownCases": 1,
+        "firstAllocationFailureCases": 2,
+        "baselineNonemptyErases": 277,
+        "candidateNonemptyErases": 277,
+        "baselineShiftedSlots": 0,
+        "candidateShiftedSlots": 0,
+        "baselineDueAllocations": 277,
+        "candidateDueAllocations": 277,
+        "obsoleteTokensRejected": 6145,
+        "notifications": 2172,
+        "pendingOrderComparisons": 636,
+        "waitDeadlineComparisons": 636,
+        "arithmeticEdgeCases": 1792,
+        "callbacksWhileLocked": 0,
+        "reentrantRetainedUntilCallbackReturned": true
+      }
+    },
+    "descriptor": {
+      "path": "docs/evidence/rpcs3-runtime-refinement-20261029/apple-core/failed-5796e165/diagnostics/refined-descriptor-plain-result.json",
+      "sha256": "edd3bed8ae39c64b3f9814e022ba221a7d5634092f6535acfc230ff4ee0b802e",
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "runId": 40914849302,
+      "overallRunConclusion": "failure",
+      "individualModePassed": true,
+      "compiler": "Homebrew clang version 22.1.8",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64"
+      },
+      "programSHA256": {
+        "baseline": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2",
+        "candidate": "161fa25dab6f96608dd406cb802268d64e607a972a34690082e6a9f833ab4b7f"
+      },
+      "compilerFlags": [
+        "-std=c++20",
+        "-O3",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-UNDEBUG",
+        "-pthread",
+        "-DRPCS3_IOS=1",
+        "-isysroot",
+        "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+      ],
+      "semanticCases": 20,
+      "commandBufferBytes": 336,
+      "driverCallsPreserved": true
+    },
+    "lookup": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/preflight/refined-lookup-plain-result.json",
+      "sha256": "0c4972664daf6cb029ffb0583bbcc66eecb31463e0342946a9e7f9d80f194f78",
+      "runId": 40917423708,
+      "individualModePassed": true,
+      "compiler": "Homebrew clang version 22.1.8",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64"
+      },
+      "programSHA256": {
+        "baseline": "f7fd0528b64c49819159b3c977203742c2aed272342903c385ede4c99d376bfe",
+        "candidate": "0fd612201c9bb01836264c70fec2fa827a4b3b36157bf2b6c57a99b6d03a2e96"
+      },
+      "compilerFlags": [
+        "-std=c++20",
+        "-O3",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-UNDEBUG",
+        "-pthread",
+        "-DRPCS3_IOS=1",
+        "-isysroot",
+        "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+      ]
+    }
+  },
+  "timingsExecutedDuringSummary": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "limitations": [
+    "Apple ARM64 macOS host microbenchmarks, not iPhone or gameplay measurements.",
+    "Timer includes production sweep, host mutex/vector/lifetime costs; not complete emulation scheduling.",
+    "Descriptor uses mocked driver boundary; no Vulkan/MoltenVK execution or GPU work is timed.",
+    "Lookup uses publication/race adapter; it does not time a texture hash or an emulated frame.",
+    "Seven series are retained with dispersion; no host affinity or cross-session confidence interval.",
+    "Every case and slower median is retained. Overlap of sample ranges is descriptive only.",
+    "The fixed-test retry does not rerun the retained timer or descriptor programs."
+  ],
+  "scriptSHA256": "bd49ea03859a1867c9d678fb25e32eb41e02e174775de7baa26a686571ffb246"
+}

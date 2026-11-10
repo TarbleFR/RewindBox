@@ -200,12 +200,58 @@ void main() {
       }
     });
 
-    test('a render is never wider than its scan, and small gestures reuse it', () {
+    // Since 2 November 2026 (docs/game-box-3d.md § 19), at the maintainer's
+    // request for legible zoomed covers, a closer look than the scan holds is
+    // a bicubic enlargement (at most 2.5 times) instead of the screen's
+    // bilinear stretch of the scan at its own size.
+    test('a render is at most 2.5 times its scan, and small gestures reuse it', () {
       expect(GameBoxSharpScan.targetWidth(2400, 870), 896, reason: 'rounded up to 64 px');
-      expect(GameBoxSharpScan.targetWidth(1000, 2600), 1000, reason: 'never enlarged');
+      expect(GameBoxSharpScan.targetWidth(1000, 2000), 2048, reason: 'enlarged for a closer look');
+      expect(GameBoxSharpScan.targetWidth(1000, 6000), 2500, reason: 'at most 2.5 times the scan');
       expect(GameBoxSharpScan.targetWidth(9000, 8000), GameBoxSharpScan.maxWidth);
       expect(GameBoxSharpScan.closeEnough(896, 960), isTrue);
       expect(GameBoxSharpScan.closeEnough(896, 1280), isFalse);
+    });
+  });
+
+  group('enlargement', () {
+    test('the sharpening grows with the enlargement, within bounds', () {
+      final one = GameBoxSharpScan.sharpeningFor(1);
+      final two = GameBoxSharpScan.sharpeningFor(2);
+      final far = GameBoxSharpScan.sharpeningFor(10);
+      expect(one.amount, GameBoxSharpScan.sharpenAmount);
+      expect(one.sigma, GameBoxSharpScan.sharpenSigma);
+      expect(two.sigma, greaterThan(one.sigma));
+      expect(two.amount, greaterThan(one.amount));
+      expect(far.sigma, lessThanOrEqualTo(GameBoxSharpScan.sharpenSigma * 2));
+      expect(far.amount, lessThanOrEqualTo(GameBoxSharpScan.sharpenAmount + 0.1 * (GameBoxSharpScan.maxUpscale - 1)));
+    });
+
+    test('a bicubic enlargement, sharpened, keeps print edges crisper than a bilinear stretch', () {
+      // Small dark print on paper, 40 x 20, enlarged 2.5 times.
+      final w = 40, h = 20;
+      final src = _solid(w, h, [236, 228, 206, 255]);
+      for (var y = 4; y < 16; y++) {
+        for (final x in [8, 9, 18, 19, 20, 30]) {
+          src.rgba.setRange((y * w + x) * 4, (y * w + x) * 4 + 4, [24, 22, 30, 255]);
+        }
+      }
+      final tw = 100, th = 50;
+      final tuning = GameBoxSharpScan.sharpeningFor(tw / w);
+      final ours = GameBoxSharpScan.sharpenLuma(
+        GameBoxSharpScan.resample(src, tw, th),
+        amount: tuning.amount,
+        sigma: tuning.sigma,
+      );
+      final stretched = _bilinearStretch(src, tw, th);
+      expect(_acutance(ours), greaterThan(_acutance(stretched) * 1.15));
+      // No colour fringes and nothing out of range on the way.
+      for (var i = 0; i < tw * th; i++) {
+        final a = ours.rgba[i * 4 + 3];
+        for (var c = 0; c < 3; c++) {
+          expect(ours.rgba[i * 4 + c], lessThanOrEqualTo(a));
+        }
+      }
     });
   });
 
@@ -310,4 +356,25 @@ void main() {
       expect(watch.elapsed, lessThan(const Duration(seconds: 20)));
     });
   });
+}
+
+/// The screen's own stretch of a picture (bilinear), for comparison.
+GameBoxPixels _bilinearStretch(GameBoxPixels src, int tw, int th) {
+  final out = Uint8List(tw * th * 4);
+  for (var y = 0; y < th; y++) {
+    final fy = ((y + 0.5) * src.height / th - 0.5).clamp(0.0, src.height - 1.0);
+    final y0 = fy.floor(), y1 = math.min(y0 + 1, src.height - 1);
+    final wy = fy - y0;
+    for (var x = 0; x < tw; x++) {
+      final fx = ((x + 0.5) * src.width / tw - 0.5).clamp(0.0, src.width - 1.0);
+      final x0 = fx.floor(), x1 = math.min(x0 + 1, src.width - 1);
+      final wx = fx - x0;
+      for (var c = 0; c < 4; c++) {
+        double at(int xx, int yy) => src.rgba[(yy * src.width + xx) * 4 + c].toDouble();
+        final v = (at(x0, y0) * (1 - wx) + at(x1, y0) * wx) * (1 - wy) + (at(x0, y1) * (1 - wx) + at(x1, y1) * wx) * wy;
+        out[(y * tw + x) * 4 + c] = v.round().clamp(0, 255);
+      }
+    }
+  }
+  return GameBoxPixels(tw, th, out);
 }

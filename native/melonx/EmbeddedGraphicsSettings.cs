@@ -12,10 +12,19 @@ internal sealed class EmbeddedGraphicsSettings
     internal bool? HostMemoryBudget;
     internal bool? TextureRecompression;
     internal float Resolution = 1;
-    internal bool ShaderCache;
-    internal bool AsyncShaders = true;
+    // iOS compatibility default: never skip a draw while compiling its pipeline.
+    // Persist completed shaders where the engine cache budget allows it.
+    // Explicit per-game values still override these conservative defaults.
+    internal bool ShaderCache = true;
+    internal bool AsyncShaders = false;
     internal VSyncMode Vsync = VSyncMode.Switch;
     internal ScalingFilter Filter = ScalingFilter.Bilinear;
+    // Null leaves the base default (On, matching standalone). An explicit
+    // per-game value is the escape hatch for a title that misbehaves threaded.
+    internal BackendThreading? Threading;
+    // Core-only experimental controls, off for every fresh configuration.
+    internal bool OcclusionQuerySync;
+    internal bool RelaxQueryFlushing;
 
     internal static EmbeddedGraphicsSettings Parse(string text)
     {
@@ -27,6 +36,8 @@ internal sealed class EmbeddedGraphicsSettings
         {
             switch (property.Name)
             {
+                case "occlusionQuerySync": settings.OcclusionQuerySync = property.Value.GetBoolean(); break;
+                case "relaxQueryFlushing": settings.RelaxQueryFlushing = property.Value.GetBoolean(); break;
                 case "aspectRatio":
                     settings.Aspect = (AspectRatio)property.Value.GetInt32();
                     if (!Enum.IsDefined(settings.Aspect.Value)) throw new ArgumentException("Unsupported aspect ratio.");
@@ -37,6 +48,7 @@ internal sealed class EmbeddedGraphicsSettings
                 case "shaderCache": settings.ShaderCache = property.Value.GetBoolean(); break;
                 case "asyncShaders": settings.AsyncShaders = property.Value.GetBoolean(); break;
                 case "vsync": settings.Vsync = property.Value.GetBoolean() ? VSyncMode.Switch : VSyncMode.Unbounded; break;
+                case "backendThreading": settings.Threading = property.Value.GetBoolean() ? BackendThreading.On : BackendThreading.Off; break;
                 case "filter":
                     settings.Filter = property.Value.GetString() switch
                     {
@@ -63,6 +75,10 @@ internal sealed class EmbeddedGraphicsSettings
         options.EnableAsyncShaderCompilation = AsyncShaders;
         options.VSyncMode = Vsync;
         options.ScalingFilter = Filter;
+        // The standalone app forces BackendThreading.On before every launch and
+        // never applies its saved value (default Off), so an imported personal
+        // config must not turn it off here either: only this per-game switch can.
+        options.BackendThreading = Threading ?? BackendThreading.On;
         return options;
     }
 }
@@ -70,6 +86,20 @@ internal sealed class EmbeddedGraphicsSettings
 partial class Library
 {
     private static EmbeddedGraphicsSettings EmbeddedGraphics = new();
+
+    private static bool EmbeddedIsHogwarts(string path)
+    {
+        // Read the actual launched content, not a stale preflight or UI id.
+        // A failed identity check disables both experiments for this session.
+        try
+        {
+            using var stream = System.IO.File.OpenRead(path);
+            string extension = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+            string title = GameInfoLoader.GetGameInfo(_virtualFileSystem, stream, extension)?.TitleId?.TrimEnd('\0');
+            return string.Equals(title, "0100F7E00C70E000", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
 
     // Uses the engine's existing SurfaceFlinger crop/ratio path. The session
     // gate rejects delayed UI callbacks after stop or for a different game.

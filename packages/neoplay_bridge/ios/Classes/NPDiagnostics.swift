@@ -6,7 +6,10 @@ enum NPLog {
     static func record(_ event: String, _ fields: [String: Any] = [:]) {
         queue.async {
             do {
-                guard let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+                guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+                let root = documents.appendingPathComponent("Diagnostics",isDirectory:true)
+                    .appendingPathComponent("System",isDirectory:true).appendingPathComponent("NeoPlay",isDirectory:true)
+                try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
                 let file = root.appendingPathComponent("NeoPlay.jsonl"), previous = root.appendingPathComponent("NeoPlay.jsonl.previous")
                 if let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > 512 * 1024 {
                     if FileManager.default.fileExists(atPath: previous.path) { try FileManager.default.removeItem(at: previous) }

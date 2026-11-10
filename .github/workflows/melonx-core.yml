@@ -6,17 +6,267 @@ run-name: MeloNX engine • ${{ github.sha }}
     - Claude
     - work/melonx-embedded-20261022
     paths:
+    - build-utils/melonx/verify_dma_core.py
+    - build-utils/melonx/freeze_dma_core.py
+    - build-utils/melonx/dma-core-plan.json
+    - build-utils/melonx/dma-core-contract.json
+    - test/melonx_dma_core_contract_test.py
+    - build-utils/melonx/adapt_hogwarts_dma_copies.py
+    - test/melonx_hogwarts_dma_copies_test.py
+    - build-utils/melonx/arrays-core-pin.json
+    - build-utils/melonx/verify_arrays_core.py
+    - build-utils/melonx/freeze_arrays_core.py
+    - build-utils/melonx/arrays-core-plan.json
+    - build-utils/melonx/arrays-core-contract.json
+    - test/melonx_arrays_core_contract_test.py
+    - build-utils/melonx/adapt_bindless_array_deltas.py
+    - test/melonx_bindless_array_deltas_test.py
+    - test/melonx_bindless_array_deltas/**
+    - build-utils/melonx/adapt_binding_data_snapshots.py
+    - test/melonx_binding_data_snapshots_test.py
+    - test/melonx_binding_data_snapshots/**
+    - build-utils/melonx/reads-core-pin.json
+    - build-utils/melonx/verify_reads_core.py
+    - build-utils/melonx/freeze_reads_core.py
+    - build-utils/melonx/reads-core-plan.json
+    - build-utils/melonx/reads-core-contract.json
+    - test/melonx_reads_core_contract_test.py
+    - build-utils/melonx/adapt_fragmented_reads.py
+    - build-utils/melonx/adapt_gpu_work_diagnostics.py
+    - test/melonx_fragmented_reads_test.py
+    - test/melonx_fragmented_reads/**
+    - build-utils/melonx/verify_liveness_core.py
+    - build-utils/melonx/freeze_liveness_core.py
+    - build-utils/melonx/liveness-core-plan.json
+    - build-utils/melonx/liveness-core-contract.json
+    - test/melonx_liveness_core_contract_test.py
+    - build-utils/melonx/adapt_register_liveness.py
+    - test/melonx_register_liveness_test.py
+    - test/melonx_register_liveness/**
+    - native/melonx/EmbeddedPerformanceDiagnostics.cs
+    - build-utils/melonx/verify_performance_core.py
+    - build-utils/melonx/freeze_performance_core.py
+    - build-utils/melonx/performance-core-plan.json
+    - build-utils/melonx/performance-core-contract.json
+    - test/melonx_performance_core_contract_test.py
+    - build-utils/melonx/adapt_pipeline_checkpoint_pacing.py
+    - build-utils/melonx/adapt_counter_report_compaction.py
+    - build-utils/melonx/adapt_single_virtual_dependency.py
+    - build-utils/melonx/adapt_performance_diagnostics.py
+    - test/melonx_pipeline_checkpoint_test.py
+    - test/melonx_pipeline_checkpoint/**
+    - test/melonx_counter_report_compaction_test.py
+    - test/melonx_counter_report_compaction/**
+    - test/melonx_single_virtual_dependency_test.py
+    - test/melonx_single_virtual_dependency/**
+    - test/melonx_performance_diagnostics_test.py
+    - test/melonx_performance_diagnostics/**
     - .github/workflows/melonx-core.yml
     - build-utils/melonx/source.json
     - build-utils/melonx/build_core.sh
+    - build-utils/melonx/fetch_nativeaot_gc.py
+    - build-utils/melonx/nativeaot_gc_archive.py
+    - build-utils/melonx/nativeaot-gc-rebuild.json
+    - build-utils/melonx/nativeaot-gc-rebuild-pin.json
+    - build-utils/melonx/adapt_nativeaot_gc_runtime.py
     - build-utils/melonx/collect_managed_notices.py
     - build-utils/melonx/build_libhac.py
     - build-utils/melonx/libhac-reuse.json
+    - build-utils/melonx/reuse_core_baseline.py
+    - build-utils/melonx/core-baseline.json
+    - build-utils/melonx/verify_core_candidate.py
+    - build-utils/melonx/verify_gpu_core.py
+    - build-utils/melonx/gpu-core-contract.json
+    - build-utils/melonx/verify_hogwarts_launch_core.py
+    - build-utils/melonx/continuation-core-contract.json
+    - build-utils/melonx/hogwarts-launch-core-contract.json
+    - build-utils/melonx/verify_guard_core.py
+    - build-utils/melonx/freeze_guard_core.py
+    - build-utils/melonx/guard-core-contract.json
+    - build-utils/melonx/adapt_vector_register_masks.py
+    - build-utils/melonx/adapt_guard_context.py
+    - build-utils/melonx/adapt_occlusion_completion.py
+    - test/melonx_guard_core_contract_test.py
+    - test/melonx_vector_register_masks_test.py
+    - test/melonx_vector_register_masks/**
+    - test/melonx_guard_context_test.py
+    - test/melonx_guard_context/**
+    - test/melonx_occlusion_completion_test.py
+    - test/melonx_occlusion_completion/**
+    - build-utils/melonx/adapt_literal_memory.py
+    - build-utils/melonx/adapt_startup_trace.py
+    - native/melonx/EmbeddedStartupTrace.cs
+    - test/melonx_literal_memory_test.py
+    - test/melonx_literal_memory/**
+    - test/melonx_startup_trace_test.py
+    - build-utils/melonx/adapt_sized_jit.py
+    - build-utils/melonx/sized-jit-adapter-contract.json
+    - build-utils/melonx/adapt_texture_readback_bounds.py
+    - build-utils/melonx/texture-readback-bounds-contract.json
+    - test/melonx_sized_jit_test.py
+    - test/melonx_sized_jit/**
+    - test/melonx_texture_readback_bounds_test.py
+    - test/melonx_unreal_probe_test.py
+    - packages/melonx_jit_helper/ios/Resources/melonx-universal.js
+    - build-utils/melonx/occlusion-core-contract.json
+    - build-utils/melonx/adapt_occlusion_reports.py
+    - build-utils/melonx/occlusion-adapter-contract.json
+    - build-utils/melonx/adapt_query_batching.py
+    - build-utils/melonx/query-batching-adapter-contract.json
+    - build-utils/melonx/adapt_jit_single_attempt.py
+    - build-utils/melonx/jit-single-attempt-adapter-contract.json
+    - test/melonx_occlusion_test.py
+    - test/melonx_occlusion/**
+    - test/melonx_query_policy_test.py
+    - test/melonx_hogwarts_launch_contract_test.py
+    - test/melonx_core84_reuse_test.py
+    - build-utils/melonx/adapt_sync_allocations.py
+    - test/melonx_sync_allocations_test.py
+    - test/melonx_sync_allocations/**
+    - docs/evidence/melonx-hogwarts-timer-20261029/candidate.json
+    - docs/evidence/melonx-hogwarts-timer-20261029/embedded-inputs.json
+    - test/melonx_fragmented_upload_slice_test.py
+    - test/melonx_fragmented_uploads_slice/**
     - build-utils/melonx/prepare_embedded.py
     - build-utils/melonx/adapt_session.py
     - build-utils/melonx/adapt_input.py
     - build-utils/melonx/adapt_memory.py
     - build-utils/melonx/adapt_runtime.py
+    - build-utils/melonx/adapt_pipeline.py
+    - test/melonx_pipeline_failure_test.py
+    - test/melonx_pipeline/**
+    - build-utils/melonx/adapt_gpu_lifetime.py
+    - test/melonx_gpu_teardown_test.py
+    - test/melonx_gpu_teardown/**
+    - build-utils/melonx/adapt_texture_pool.py
+    - test/melonx_texture_pool_test.py
+    - test/melonx_texture_pool/**
+    - test/melonx_engine_journal_test.py
+    - build-utils/melonx/adapt_jit_decoder.py
+    - build-utils/melonx/adapt_jit_context.py
+    - build-utils/melonx/adapt_jit_dataflow.py
+    - build-utils/melonx/adapt_upload_lifetime.py
+    - build-utils/melonx/adapt_texture_uploads.py
+    - build-utils/melonx/adapt_pipeline_recycle.py
+    - build-utils/melonx/adapt_fragmented_uploads.py
+    - build-utils/melonx/adapt_texture_ownership.py
+    - build-utils/melonx/adapt_bindless_allocations.py
+    - build-utils/melonx/adapt_array_barriers.py
+    - test/melonx_texture_ownership_test.py
+    - test/melonx_texture_ownership/**
+    - test/melonx_bindless_allocations_test.py
+    - test/melonx_bindless_allocations/**
+    - test/melonx_array_barriers_test.py
+    - test/melonx_array_barriers/**
+    - build-utils/melonx/adapt_pipeline_lookup.py
+    - test/melonx_pipeline_lookup_test.py
+    - test/melonx_pipeline_lookup/**
+    - build-utils/melonx/adapt_binding_lookup.py
+    - test/melonx_binding_lookup_test.py
+    - test/melonx_binding_lookup/**
+    - build-utils/melonx/adapt_descriptor_updates.py
+    - test/melonx_descriptor_updates_test.py
+    - test/melonx_descriptor_updates/**
+    - build-utils/melonx/adapt_memory_tracking.py
+    - test/melonx_memory_tracking_test.py
+    - test/melonx_memory_tracking/**
+    - build-utils/melonx/adapt_texture_overlap.py
+    - test/melonx_texture_overlap_test.py
+    - test/melonx_texture_overlap/**
+    - build-utils/melonx/adapt_tracking_snapshots.py
+    - test/melonx_tracking_snapshots_test.py
+    - test/melonx_tracking_snapshots/**
+    - build-utils/melonx/adapt_multirange_slice.py
+    - test/melonx_multirange_slice_test.py
+    - test/melonx_multirange_slice/**
+    - build-utils/melonx/adapt_texture_group_callbacks.py
+    - test/melonx_texture_group_callbacks_test.py
+    - test/melonx_texture_group_callbacks/**
+    - build-utils/melonx/adapt_texture_region_cursor.py
+    - test/melonx_texture_region_cursor_test.py
+    - test/melonx_texture_region_cursor/**
+    - build-utils/melonx/adapt_auto_ownership.py
+    - test/melonx_auto_ownership_test.py
+    - test/melonx_auto_ownership/**
+    - build-utils/melonx/adapt_converted_cache.py
+    - test/melonx_converted_cache_test.py
+    - test/melonx_converted_cache/**
+    - build-utils/melonx/adapt_kernel_wait_lifetime.py
+    - test/melonx_kernel_wait_lifetime_test.py
+    - test/melonx_kernel_wait_lifetime/**
+    - build-utils/melonx/adapt_ipc_request_lifetime.py
+    - test/melonx_ipc_request_lifetime_test.py
+    - test/melonx_ipc_request_lifetime/**
+    - build-utils/melonx/adapt_kernel_timer_allocations.py
+    - test/melonx_kernel_timer_allocations_test.py
+    - test/melonx_kernel_timer_allocations/**
+    - build-utils/melonx/adapt_allocator_blocks.py
+    - test/melonx_allocator_blocks_test.py
+    - test/melonx_allocator_blocks/**
+    - build-utils/melonx/adapt_indirect_cache_key.py
+    - test/melonx_indirect_cache_key_test.py
+    - test/melonx_indirect_cache_key/**
+    - build-utils/melonx/adapt_texture_handle_dependencies.py
+    - test/melonx_texture_handle_dependencies_test.py
+    - test/melonx_texture_handle_dependencies/**
+    - build-utils/melonx/adapt_cached_shader_startup.py
+    - test/melonx_cached_shader_startup_test.py
+    - test/melonx_cached_shader_startup/**
+    - test/melonx_launch_firmware_test.py
+    - test/melonx_launch_firmware/**
+    - build-utils/melonx/adapt_threaded_renderer_failures.py
+    - test/melonx_threaded_renderer_failures_test.py
+    - test/melonx_threaded_renderer_failures/**
+    - build-utils/melonx/adapt_gpu_startup_failure.py
+    - test/melonx_gpu_startup_failure_test.py
+    - test/melonx_gpu_startup_failure/**
+    - build-utils/melonx/adapt_shader_loader_lifetime.py
+    - test/melonx_shader_loader_lifetime_test.py
+    - test/melonx_shader_loader_lifetime/**
+    - test/melonx_jit_dataflow_test.py
+    - test/melonx_jit_dataflow/**
+    - test/melonx_jit_dataflow_codegen_test.py
+    - test/melonx_jit_dataflow_codegen/**
+    - test/melonx_upload_lifetime_test.py
+    - test/melonx_upload_lifetime/**
+    - test/melonx_texture_uploads_test.py
+    - test/melonx_texture_uploads/**
+    - test/melonx_pipeline_recycle_test.py
+    - test/melonx_fragmented_uploads_test.py
+    - test/melonx_fragmented_uploads/**
+    - build-utils/melonx/adapt_jit_block_split.py
+    - build-utils/melonx/adapt_buffer_views.py
+    - build-utils/melonx/adapt_memory_queries.py
+    - build-utils/melonx/adapt_gpu_allocations.py
+    - build-utils/melonx/adapt_shader_waits.py
+    - test/melonx_jit_context_test.py
+    - test/melonx_jit_context/**
+    - test/melonx_jit_block_split_test.py
+    - test/melonx_jit_block_split/**
+    - test/melonx_buffer_views_test.py
+    - test/melonx_buffer_views/**
+    - test/melonx_memory_queries_test.py
+    - test/melonx_gpu_allocations_test.py
+    - test/melonx_gpu_allocations/**
+    - test/melonx_pipeline_cache_test.py
+    - test/melonx_pipeline_cache/**
+    - test/melonx_program_queue_test.py
+    - test/melonx_warmup_close_test.py
+    - test/melonx_warmup_close/**
+    - build-utils/melonx/adapt_gc.py
+    - build-utils/melonx/adapt_shader_warmup.py
+    - build-utils/melonx/adapt_attachmentless_framebuffer.py
+    - build-utils/melonx/adapt_kernel_sync.py
+    - build-utils/melonx/adapt_jit_arena.py
+    - build-utils/melonx/adapt_pipeline_cache.py
+    - test/melonx_jit_decoder_test.py
+    - test/melonx_jit_decoder/**
+    - build-utils/melonx/adapt_audio.py
+    - build-utils/melonx/adapt_apple_audio.py
+    - test/melonx_apple_audio_test.py
+    - test/melonx_apple_audio/**
+    - test/melonx_ios_audio_underrun_test.py
+    - test/melonx_runtime_regressions_test.py
     - build-utils/melonx/reuse_keys_validation.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
@@ -45,7 +295,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-dma-core]') || contains(github.event.head_commit.message, '[melonx-arrays-core]') || contains(github.event.head_commit.message, '[melonx-reads-core]') || contains(github.event.head_commit.message, '[melonx-liveness-core]') || contains(github.event.head_commit.message, '[hogwarts606-checks]') || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
       && !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
       '[melonx-validated-integration]')) }}
     runs-on: macos-26
@@ -58,88 +308,90 @@ jobs:
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.100
-    - uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-    - uses: actions/download-artifact@v4
-      with:
-        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
-        run-id: 39858967222
-        github-token: ${{ github.token }}
-        path: dist/melonx
-    - name: Execute the embedded storage boundary
+    - name: Pin the selected SDK for all new Apple gates
+      run: |
+        python3 - <<'PY_SDK'
+        import json,pathlib
+        path=pathlib.Path('global.json')
+        assert not path.exists(), 'Review the existing repository SDK selection'
+        path.write_text(json.dumps({'sdk':{'version':'10.0.100','rollForward':'disable'}})+'\n')
+        PY_SDK
+        test "$(dotnet --version)" = '10.0.100'
+    - name: Authenticate engine82 evidence and reuse unchanged LibHac
       env:
         GH_TOKEN: ${{ github.token }}
-        MELONX_REUSE_SESSION_RUN: '39577903252'
-      run: python3 build-utils/melonx/check_bootstrap.py
-    - name: Execute session ownership and render teardown
-      env:
-        GH_TOKEN: ${{ github.token }}
-        MELONX_REUSE_SESSION_RUN: '39577903252'
-      run: python3 build-utils/melonx/check_session.py
-    - name: Reuse unchanged successful firmware and game header checks
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_library_validation.py
-    - name: Reuse unchanged firmware archive proof
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_launch_library.py --firmware-only
-    - name: Verify iOS Vulkan host-import fallback contract
-      run: python3 test/melonx_ios_vulkan_host_import_test.py
+      run: python3 build-utils/melonx/verify_dma_core.py prepare_dependencies
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
-        import subprocess,time
-        sources=[('MeloNX','https://starforgejo.dev/projects/MeloNX.git','13700519f3abc4e6d7ed8a065b118b2cc59bcd67'),
-          ('LibHac','https://starforgejo.dev/archive/LibHac_Ryubing.git','23e402ebb6dedc517e34a98a033078dc0f6fd478')]
-        for name,url,revision in sources:
-            path='.native-sources/'+name
-            subprocess.run(['git','init',path],check=True)
-            subprocess.run(['git','-C',path,'remote','add','origin',url],check=True)
-            for attempt in range(1,4):
-                try:
-                    subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30','fetch','--depth','1','origin',revision],check=True,timeout=120)
-                    break
-                except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
-                    if attempt==3:raise
-                    print(name,'source transfer failed; retrying exact commit',revision,flush=True)
-                    time.sleep(5)
-            subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
-            assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
+        import json,pathlib,subprocess
+        pin=json.loads(pathlib.Path('build-utils/melonx/source.json').read_text())
+        path='.native-sources/MeloNX'
+        subprocess.run(['git','init',path],check=True)
+        # Both transports must return the same authentic commit and tree.
+        urls=[pin['repository'],'https://github.com/AzureDominus/melonx.git']
+        for url in urls:
+            try:
+                subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30',
+                    'fetch','--depth','1',url,pin['revision']],check=True,timeout=120)
+                break
+            except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
+                if url==urls[-1]:raise
+                print('Primary source transfer failed; retrying identical commit via verified mirror',flush=True)
+        subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
         PY_FETCH
-    - name: Reuse exact successful Darwin and homebrew proofs
+    - name: Verify Apple ARM64, exact SDK and reviewed Hogwarts DMA-copy Core inputs
+      run: |
+        python3 test/melonx_dma_core_contract_test.py
+        python3 build-utils/melonx/verify_dma_core.py preflight
+    - name: Run five affected final-source gates and authenticate the delivered 614 Core evidence
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_keys_validation.py
-    - name: Reuse exact successful key, personal configuration and launch validation
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_display_validation.py
-    - name: Execute production input driver ownership
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
-    - name: Exercise display ratios, existing memory settings and stale-session refusal
-      run: python3 test/melonx_display_native_test.py .native-sources/MeloNX
+      run: python3 build-utils/melonx/verify_dma_core.py run_gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
-        MELONX_REUSE_LIBHAC: '1'
-        MELONX_BUILD_SIMULATOR: '1'
         GH_TOKEN: ${{ github.token }}
+        MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
+        MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
-    - uses: actions/download-artifact@v4
-      with:
-        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
-        run-id: 39854858591
-        github-token: ${{ github.token }}
-        path: dist/melonx-native
+    - name: Bind both new libraries to reviewed sources and gate receipts
+      run: python3 build-utils/melonx/verify_dma_core.py compiled
+    - name: Fetch the unchanged native frameworks through their pinned republication
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        python3 - <<'PY_NATIVE'
+        # The original artifact (run 39854858591, 14-day retention) expired; the standard delivery authenticates its
+        # producer and republishes the exact archive. Same spec and same function as delivery 666 (build-utils/delivery
+        # /666.json); the next step still authenticates every byte against the engine82 baseline.
+        import json,pathlib,sys
+        sys.path.insert(0,'.github/diagnostics')
+        import retained_components
+        spec=json.loads(pathlib.Path('build-utils/delivery/666.json').read_text())['components']['melonx-dependencies']
+        assert spec['destination']=='dist/melonx-native' and spec['origin']['run']==39854858591
+        assert spec['origin']['sha256']=='12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261'
+        print(json.dumps(retained_components.download_archive('melonx-dependencies',spec)))
+        PY_NATIVE
+    - name: Authenticate unchanged native frameworks
+      run: python3 build-utils/melonx/reuse_core_baseline.py dependencies
     - name: Exercise this exact rebuilt engine in an ARM64 iOS app
-      run: python3 test/melonx_runtime_smoke.py
+      run: python3 test/melonx_runtime_smoke.py --require-performance-diagnostics
+    - name: Preserve the current runtime result including failures
+      if: ${{ always() }}
+      run: |
+        python3 - <<'PY_SMOKE'
+        import pathlib,shutil
+        source=pathlib.Path('dist/melonx-smoke')
+        if source.exists():shutil.copytree(source,'dist/melonx/runtime-smoke')
+        PY_SMOKE
+    - name: Verify fresh guest execution, teardown and backing release
+      run: python3 build-utils/melonx/verify_dma_core.py finalize
     - uses: actions/upload-artifact@v4
-      if: always()
+      if: ${{ always() }}
       with:
         name: MeloNX-engine-${{ github.sha }}
-        path: dist/melonx/
-        if-no-files-found: ignore
+        path: dist/melonx
+        if-no-files-found: error
         retention-days: 14

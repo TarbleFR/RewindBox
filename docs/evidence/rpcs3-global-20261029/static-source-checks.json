@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "canonicalPatchSHA256": "454fafaa9060ccf7e600594d9db5a486135c79048c1f97044b0df99c1cd547f2",
+  "coreSourceRecipeAndABI": true,
+  "abi": 30,
+  "exports": 88,
+  "preprocessorFilesChecked": 264,
+  "materializedSource": "/workspace/scratch/4e89feaca92b/rpcs3-global-verify",
+  "commands": [
+    "python3 test/neo_swap_core_pin_test.py --source-only --source-root /workspace/scratch/4e89feaca92b/rpcs3-global-verify",
+    "python3 test/rpcs3_preprocessor_balance_test.py /workspace/scratch/4e89feaca92b/rpcs3-global-verify"
+  ],
+  "binaryPinChecked": false,
+  "coreBuilt": false,
+  "physicalDeviceTested": false
+}

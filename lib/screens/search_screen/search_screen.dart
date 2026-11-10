@@ -24,6 +24,7 @@ import 'package:neostation/utils/game_launch_utils.dart';
 import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/screens/game_screen/my_games_list.dart';
 import 'package:neostation/screens/app_screen.dart';
+import '../../widgets/glass/glass_surface.dart';
 
 /// Library-wide ROM search & filter overlay.
 ///
@@ -730,7 +731,9 @@ class _SearchScreenState extends State<SearchScreen> {
       },
       onLaunchFailed: (ctx, result) async {
         _achievementsController.stop(hidePanel: true);
-        if (mounted) {
+        // Build 557: a launch the user cancelled (RPCS3's installation of a
+        // library-folder disc declined) is not an error.
+        if (mounted && !result.cancelled) {
           AppNotification.showNotification(
             context,
             AppLocale.errorLaunchingGame
@@ -785,7 +788,12 @@ class _SearchScreenState extends State<SearchScreen> {
         : Stack(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(12.r + safeLeft, 0, 12.r + safeRight, 0),
+                padding: EdgeInsets.fromLTRB(
+                  12.r + safeLeft,
+                  0,
+                  12.r + safeRight,
+                  0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -823,12 +831,17 @@ class _SearchScreenState extends State<SearchScreen> {
                 width: 320.r,
                 padding: EdgeInsets.all(16.r),
                 decoration: BoxDecoration(
-                  color: scheme.surface,
+                  color: LiquidGlassTheme.of(
+                    context,
+                  ).fill(context, GlassRole.menu),
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.4),
                     width: 1.r,
                   ),
+                  boxShadow: LiquidGlassTheme.of(
+                    context,
+                  ).shadows(context, GlassShadow.high),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -881,7 +894,7 @@ class _SearchScreenState extends State<SearchScreen> {
         decoration: BoxDecoration(
           color: isFocused
               ? scheme.primary.withValues(alpha: 0.18)
-              : scheme.surface.withValues(alpha: 0.5),
+              : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isFocused ? scheme.primary : Colors.transparent,
@@ -995,7 +1008,9 @@ class _SearchScreenState extends State<SearchScreen> {
               ? scheme.primary.withValues(alpha: 0.18)
               : (count > 0
                     ? scheme.primary.withValues(alpha: 0.10)
-                    : scheme.surface.withValues(alpha: 0.5)),
+                    : LiquidGlassTheme.of(
+                        context,
+                      ).fill(context, GlassRole.bubble)),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: focused
@@ -1083,12 +1098,16 @@ class _SearchScreenState extends State<SearchScreen> {
             vertical: 10.r,
           ),
           filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.5,
-          ),
+          fillColor: LiquidGlassTheme.of(
+            context,
+          ).fill(context, GlassRole.control),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12.r),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(
+              color: LiquidGlassTheme.of(
+                context,
+              ).rim(context, GlassRole.control),
+            ),
           ),
         ),
       ),
@@ -1152,7 +1171,9 @@ class _SearchScreenState extends State<SearchScreen> {
               ? scheme.primary.withValues(alpha: 0.18)
               : (active
                     ? scheme.primary.withValues(alpha: 0.10)
-                    : scheme.surface.withValues(alpha: 0.5)),
+                    : LiquidGlassTheme.of(
+                        context,
+                      ).fill(context, GlassRole.bubble)),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isFocused
@@ -1220,7 +1241,7 @@ class _SearchScreenState extends State<SearchScreen> {
         decoration: BoxDecoration(
           color: isFocused
               ? scheme.primary.withValues(alpha: 0.18)
-              : scheme.surface.withValues(alpha: 0.5),
+              : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: isFocused ? scheme.primary : Colors.transparent,
@@ -1283,12 +1304,17 @@ class _SearchScreenState extends State<SearchScreen> {
                 width: 320.r,
                 padding: EdgeInsets.all(12.r),
                 decoration: BoxDecoration(
-                  color: scheme.surface,
+                  color: LiquidGlassTheme.of(
+                    context,
+                  ).fill(context, GlassRole.menu),
                   borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.4),
                     width: 1.r,
                   ),
+                  boxShadow: LiquidGlassTheme.of(
+                    context,
+                  ).shadows(context, GlassShadow.high),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1469,7 +1495,7 @@ class _SearchScreenState extends State<SearchScreen> {
           decoration: BoxDecoration(
             color: isFocused
                 ? scheme.primary.withValues(alpha: 0.18)
-                : scheme.surface.withValues(alpha: 0.5),
+                : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
               color: isFocused ? scheme.primary : Colors.transparent,

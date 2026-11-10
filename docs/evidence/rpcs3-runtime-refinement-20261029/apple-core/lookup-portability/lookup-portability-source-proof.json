@@ -1,0 +1,106 @@
+{
+  "passed": true,
+  "scope": "Lookup-only test portability; no runtime source edit or native suite replay",
+  "sourceCommit": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+  "oldScriptSHA256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+  "newScriptSHA256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+  "generatedPrograms": {
+    "timer": {
+      "functional": {
+        "beforeSHA256": "56730d6dd27b72fb6b3e621516fac35bc85c3e093995aed633b30ada196075e1",
+        "afterSHA256": "56730d6dd27b72fb6b3e621516fac35bc85c3e093995aed633b30ada196075e1",
+        "unchanged": true
+      },
+      "timing": {
+        "beforeSHA256": "2c8dab30e49ca1c2ee50afb550e8154c3bd8c8ec319c0ab542e23e479644b809",
+        "afterSHA256": "2c8dab30e49ca1c2ee50afb550e8154c3bd8c8ec319c0ab542e23e479644b809",
+        "unchanged": true
+      }
+    },
+    "descriptor": {
+      "baseline": {
+        "beforeSHA256": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2",
+        "afterSHA256": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2",
+        "unchanged": true
+      },
+      "candidate": {
+        "beforeSHA256": "161fa25dab6f96608dd406cb802268d64e607a972a34690082e6a9f833ab4b7f",
+        "afterSHA256": "161fa25dab6f96608dd406cb802268d64e607a972a34690082e6a9f833ab4b7f",
+        "unchanged": true
+      }
+    },
+    "hash": {
+      "baseline": {
+        "beforeSHA256": "bb0f5661ad1e5112ac602b248b78dad00d6fbacc4a47562eb7473651187bb737",
+        "afterSHA256": "bb0f5661ad1e5112ac602b248b78dad00d6fbacc4a47562eb7473651187bb737",
+        "unchanged": true
+      },
+      "candidate": {
+        "beforeSHA256": "d2c49693b91b4a5fb88165945cc355d987966879f0602a8912790c90f68f211b",
+        "afterSHA256": "d2c49693b91b4a5fb88165945cc355d987966879f0602a8912790c90f68f211b",
+        "unchanged": true
+      }
+    },
+    "hash-benchmark": {
+      "baseline": {
+        "beforeSHA256": "864cc81ddff7776afacfd8d30a3cc4705cd2d16ec3aadd1f9649b7617d434cbf",
+        "afterSHA256": "864cc81ddff7776afacfd8d30a3cc4705cd2d16ec3aadd1f9649b7617d434cbf",
+        "unchanged": true
+      },
+      "candidate": {
+        "beforeSHA256": "8213ea63a230d238643d5404e9bee59b2305c78905c552742be0e6b4dfbe6e87",
+        "afterSHA256": "8213ea63a230d238643d5404e9bee59b2305c78905c552742be0e6b4dfbe6e87",
+        "unchanged": true
+      }
+    },
+    "lookup": {
+      "baseline": {
+        "beforeSHA256": "20e1f555244d2b86f96e1e58f5f37c620acbd1051ccbc64a0900bed9b0948e48",
+        "afterSHA256": "f7fd0528b64c49819159b3c977203742c2aed272342903c385ede4c99d376bfe",
+        "unchanged": false
+      },
+      "candidate": {
+        "beforeSHA256": "5accb6523dc6b0049b00a239b97b21086ee42564926d4cd21ce2212727e1cf77",
+        "afterSHA256": "0fd612201c9bb01836264c70fec2fa827a4b3b36157bf2b6c57a99b6d03a2e96",
+        "unchanged": false
+      }
+    }
+  },
+  "preliminarySyntaxOnlyCheck": {
+    "returncode": 0,
+    "errors": 0,
+    "expectedFailureObserved": false,
+    "reason": "GCC does not emit these unused-variable warnings in -fsyntax-only mode; object compilation is required"
+  },
+  "negativeControl": {
+    "command": [
+      "g++",
+      "-std=c++20",
+      "-O3",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-Wunused-const-variable=2",
+      "-UNDEBUG",
+      "-pthread",
+      "-DRPCS3_IOS=1",
+      "-c",
+      "/workspace/scratch/4e89feaca92b/core-build-refinement/lookup-fix/old-baseline.cpp",
+      "-o",
+      "/workspace/scratch/4e89feaca92b/core-build-refinement/lookup-fix/old-baseline.o"
+    ],
+    "returncode": 1,
+    "errors": 3,
+    "expectedConstants": [
+      "min_bytes",
+      "max_sequence",
+      "lookahead"
+    ],
+    "outputSHA256": "1b808c85a0240afaa64872d67dab05ca6dadbaf894b4b4033fc558442fd9c559"
+  },
+  "unaffectedAppleModes": 7,
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false,
+  "physicalDeviceTested": false
+}

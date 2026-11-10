@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "mutation": "ambiguous-notify",
+  "mutationRejected": true,
+  "compilationReturncode": 1,
+  "compilerDiagnostics": "/tmp/rpcs3-mfc-decrementer-xc_es7mm/probe.cpp: In function \u2018void after::publish_timer(named_thread<spu_thread>&, u64)\u2019:\n/tmp/rpcs3-mfc-decrementer-xc_es7mm/probe.cpp:1761:54: error: request for member \u2018notify\u2019 is ambiguous\n 1761 |                                                 spu->notify();\n      |                                                      ^~~~~~\n/tmp/rpcs3-mfc-decrementer-xc_es7mm/probe.cpp:82:6: note: candidates are: \u2018void thread_base::notify()\u2019\n   82 | void thread_base::notify()\n      |      ^~~~~~~~~~~\n/tmp/rpcs3-mfc-decrementer-xc_es7mm/probe.cpp:1144:6: note:                 \u2018void after::cpu_thread::notify()\u2019\n 1144 | void cpu_thread::notify()\n      |      ^~~~~~~~~~\n",
+  "generatedSHA256": "465e52a3e4e87837278952000095a289392fdcc90ff0dd15187c798e5f48c418",
+  "runnerSHA256": "7fede7d73a95fa629a54d12960c4c83793b6542a8b58368b8184206ba8abe154",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "native_program_executed": false
+}

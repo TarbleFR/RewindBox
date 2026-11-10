@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "source": "6c03067cc766b09c71186240d789a3cb5d69c6c2",
+  "run": 41241336642,
+  "job": 124655695238,
+  "run_conclusion": "failure",
+  "native_build_and_link_completed": true,
+  "final_identity_gate_passed": false,
+  "core_artifact_uploaded": false,
+  "dylib_sha256_from_build_log": "f512e6c4a6a2bf3b2ff6f41a2f2e2f6b966240ec2295a35e31f406a36229001f",
+  "error": "Unreviewed source files outside canonical patch: ['rpcs3/git-version.h']",
+  "diagnostic_artifact": {
+    "id": 13058401055,
+    "bytes": 22279322,
+    "sha256": "17bc97b32f1471a7a6bde5ce9f39abbb82307f070cc28b1bb18b33e3944f3a42"
+  },
+  "downloaded_diagnostics_size_sha256_and_crc_verified": true,
+  "dylib_absent_from_diagnostics": true,
+  "unchanged_cpu_modes_replayed": 0,
+  "fps_gain_claimed": false
+}

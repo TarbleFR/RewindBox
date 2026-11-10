@@ -49,6 +49,25 @@ class GamepadsListener {
         refreshPlayerIndices()
     }
 
+    /// Puts RewindBox's handler back on every connected pad.
+    ///
+    /// `valueChangedHandler` holds a single handler. Embedded engines take it
+    /// over while a game runs (RPCS3's input bridge, SDL-based or prebuilt
+    /// cores) and can leave it nil, or pointing at their finished session, when
+    /// the game closes. The pad stays "known" here, so a rescan alone never
+    /// reinstalled the handler and the menu stopped receiving the controller
+    /// until it was reconnected. Called once the game session has ended; never
+    /// while an engine owns the controller.
+    func reclaimHandlers() {
+        rescanConnectedControllers()
+        for gamepad in gamepads {
+            // Handlers must run on the main queue: they forward each event to
+            // Flutter's channel, which only accepts platform-thread calls.
+            gamepad.controller?.handlerQueue = .main
+            installHandler(on: gamepad)
+        }
+    }
+
     @objc private func joystickDidConnect(notification: NSNotification) {
         guard let controller = notification.object as? GCController else { return }
         register(controller)
@@ -68,7 +87,10 @@ class GamepadsListener {
 
         gamepads.append(gamepad)
         refreshPlayerIndices()
+        installHandler(on: gamepad)
+    }
 
+    private func installHandler(on gamepad: GCExtendedGamepad) {
         // Resolve the index at event time instead of capturing the connection
         // index forever. If controller 1 disconnects, the remaining controllers
         // are re-indexed and continue reporting the same IDs as listGamepads().

@@ -1,0 +1,170 @@
+diff --git a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
+index 9ada142..1d76a6c 100644
+--- a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
+@@ -6,6 +6,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSShaderTiming.h"
+ #endif
+ 
+ // NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
+@@ -99,6 +100,11 @@ namespace vk
+ 		const std::vector<glsl::program_input>& fs_inputs,
+ 		op_flags flags)
+ 	{
++#ifdef RPCS3_IOS
++        rpcs3::ios::shader_timing::PipelineContextScope context({
++            rpcs3::hash_struct(create_info), create_info.renderpass_key,
++            reinterpret_cast<u64>(modules[0]), reinterpret_cast<u64>(modules[1]), flags});
++#endif
+ 		VkPipelineShaderStageCreateInfo shader_stages[2] = {};
+ 		shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+ 		shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+index ad7d5a0..c1c23b9 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
++++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+@@ -2,6 +2,7 @@
+ #include "VKVertexProgram.h"
+ #include "VKFragmentProgram.h"
+ #include "VKPipelineCompiler.h"
++#include "vkutils/pipeline_key_normalization.h"
+ #include "../Program/ProgramStateCache.h"
+ 
+ namespace vk
+@@ -38,6 +39,10 @@ namespace vk
+ 			properties.state.att_state[1].colorWriteMask &= fp.output_color_masks[1];
+ 			properties.state.att_state[2].colorWriteMask &= fp.output_color_masks[2];
+ 			properties.state.att_state[3].colorWriteMask &= fp.output_color_masks[3];
++			// Normalize only this private key, after the effective output mask.
++			// Guest state, actual render passes and image barriers stay intact.
++			properties.renderpass_key = compatible_pipeline_renderpass_key(properties.renderpass_key);
++			normalize_pipeline_blending(properties.state);
+ 		}
+ 
+ 		static
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
+new file mode 100644
+index 0000000..95b4aff
+--- /dev/null
++++ b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "graphics_pipeline_state.hpp"
++
++namespace vk
++{
++    // CELL542: a pipeline may be used with a compatible render pass. The
++    // current encoder stores five 3-bit layouts at bits 22..36. General and
++    // attachment-optimal layouts do not change compatibility. Preserve slot
++    // presence, formats, samples, input references, reserved bits and the
++    // feedback-loop encoding (4). Never use this key to begin a render pass or
++    // transition an image: only normalize the private compiled-pipeline key.
++    constexpr u64 compatible_pipeline_renderpass_key(u64 key) noexcept
++    {
++        for (u32 shift = 22; shift < 37; shift += 3)
++        {
++            const u64 layout = (key >> shift) & 7;
++            if (layout == 2 || layout == 3)
++                key = (key & ~(7ull << shift)) | (1ull << shift);
++        }
++        return key;
++    }
++
++    inline void normalize_pipeline_blending(graphics_pipeline_state& state) noexcept
++    {
++        for (u32 i = 0; i < state.cs.attachmentCount; ++i)
++        {
++            auto& a = state.att_state[i];
++            if (!a.colorWriteMask || state.cs.logicOpEnable)
++                a.blendEnable = VK_FALSE;
++
++            const bool rgb_unused = !a.blendEnable ||
++                !(a.colorWriteMask & (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT));
++            const bool alpha_unused = !a.blendEnable || !(a.colorWriteMask & VK_COLOR_COMPONENT_A_BIT);
++            if (rgb_unused) a.colorBlendOp = VK_BLEND_OP_ADD;
++            if (alpha_unused) a.alphaBlendOp = VK_BLEND_OP_ADD;
++
++            // MIN/MAX do not multiply by the factors. Masked alpha blending
++            // does not remove the shader's alpha output: RGB may still use it.
++            if (rgb_unused || a.colorBlendOp == VK_BLEND_OP_MIN || a.colorBlendOp == VK_BLEND_OP_MAX)
++            {
++                a.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
++                a.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
++            }
++            if (alpha_unused || a.alphaBlendOp == VK_BLEND_OP_MIN || a.alphaBlendOp == VK_BLEND_OP_MAX)
++            {
++                a.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
++                a.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
++            }
++        }
++    }
++}
+diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
+index 14e25b0..330f4cf 100644
+--- a/rpcs3/ios/IOSShaderTiming.h
++++ b/rpcs3/ios/IOSShaderTiming.h
+@@ -19,7 +19,29 @@ inline std::array<diagnostics::EventCost, static_cast<std::size_t>(Stage::count)
+ // CELL538: operation boundaries permit alignment with guest-flip intervals.
+ // Fixed 32-entry storage; producers never wait for the reporter or each other.
+ // Slow startup bursts may overflow: every rejected record is counted.
+-struct SlowOperation { Stage stage{}; std::uint64_t begin_us = 0, end_us = 0; };
++struct PipelineContext
++{
++    std::uint64_t properties = 0, renderpass = 0, vertex_module = 0, fragment_module = 0, flags = 0;
++};
++inline thread_local PipelineContext pipeline_context;
++// Set once per actual pipeline construction, never per draw or SPU operation.
++// RAII restores nested contexts, exceptions and worker reuse without retaining
++// pointers to a renderer or a previous session. Handles are process-local IDs.
++class PipelineContextScope final
++{
++    PipelineContext previous_ = pipeline_context;
++public:
++    explicit PipelineContextScope(PipelineContext value) noexcept { pipeline_context = value; }
++    ~PipelineContextScope() noexcept { pipeline_context = previous_; }
++    PipelineContextScope(const PipelineContextScope&) = delete;
++    PipelineContextScope& operator=(const PipelineContextScope&) = delete;
++};
++struct SlowOperation
++{
++    Stage stage{};
++    std::uint64_t begin_us = 0, end_us = 0;
++    PipelineContext pipeline{};
++};
+ class SlowOperations final
+ {
+     std::mutex mutex_;
+@@ -43,7 +65,8 @@ public:
+             dropped_.fetch_add(1, std::memory_order_relaxed);
+             return;
+         }
+-        events_[size_++] = {stage, begin_us, end_us};
++        events_[size_++] = {stage, begin_us, end_us,
++            stage == Stage::graphics ? pipeline_context : PipelineContext{}};
+     }
+     Snapshot take() noexcept
+     {
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 5af51e8..67dc622 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -860,9 +860,12 @@ private:
+                 const auto& event = slow.events[i];
+                 ios_core_profiler.notice(
+                     "COREPROF SHADERSTALL538_EVENT stage=%u begin_us=%llu end_us=%llu duration_us=%llu "
+-                    "scope=process_operation report_session=%llu report_window=%llu",
++                    "scope=process_operation report_session=%llu report_window=%llu "
++                    "context542=1 properties=%llx renderpass=%llx vp_module=%llx fp_module=%llx pipeline_flags=%llu",
+                     static_cast<u32>(event.stage), event.begin_us, event.end_us,
+-                    event.end_us - event.begin_us, profile_session, profile_window);
++                    event.end_us - event.begin_us, profile_session, profile_window,
++                    event.pipeline.properties, event.pipeline.renderpass, event.pipeline.vertex_module,
++                    event.pipeline.fragment_module, event.pipeline.flags);
+             }
+         }
+         // Fence scope excludes wait_flush(); range scope is one whole episode;

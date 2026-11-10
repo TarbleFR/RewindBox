@@ -17,6 +17,7 @@ import 'cyberpunk_theme.dart' as cyberpunk;
 import 'aqua_theme.dart' as aqua;
 import 'palenight_theme.dart' as palenight;
 import 'horizon_theme.dart' as horizon;
+import 'glacier_theme.dart' as glacier;
 
 class AppThemes {
   // References to individual themes
@@ -34,6 +35,7 @@ class AppThemes {
   static ThemeData get aquaTheme => aqua.aquaTheme;
   static ThemeData get palenightTheme => palenight.palenightTheme;
   static ThemeData get horizonTheme => horizon.horizonTheme;
+  static ThemeData get glacierTheme => glacier.glacierTheme;
 
   // References to custom colors for each theme
 
@@ -78,6 +80,8 @@ class AppThemes {
           return palenight.PalenightCustomColors();
         case 'horizon':
           return horizon.HorizonCustomColors();
+        case 'glacier':
+          return glacier.GlacierCustomColors();
         default:
           return dark.DarkCustomColors();
       }
@@ -164,6 +168,8 @@ class AppThemes {
         return palenightTheme;
       case 'horizon':
         return horizonTheme;
+      case 'glacier':
+        return glacierTheme;
       default:
         return darkTheme;
     }

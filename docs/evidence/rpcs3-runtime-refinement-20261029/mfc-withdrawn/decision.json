@@ -1,0 +1,16 @@
+{
+  "retained": false,
+  "reason": "No useful measured host gain and extra ARM64 branch; retain verified production mask unchanged",
+  "baseline": "conditional mask in verified 5b2a5614",
+  "candidate": "check shuffle_limit/size before computing minimum",
+  "functionalPassed": true,
+  "maskCases": 18939904,
+  "queueCalls": 235008,
+  "host": "Linux x86_64, GCC 13.3.0",
+  "scope": "Timing only masks; executor decisions checked with DMA/channel adapters. No full executor timing or Apple runtime timing.",
+  "testAdaptation": "Both snapshots already skip ineffective timestamp reads; update old historical one-read assertions to the verified conditional control. First unadapted queue assertion failed; corrected assertions require zero for both sides.",
+  "firstFailure": {
+    "returncode": 134,
+    "stderr": "mfc: mfc.cpp:648: void compare(before::spu_thread&, after::spu_thread&, u64, bool, bool): Assertion `old.clock_reads == 1 && fresh.clock_reads == 0' failed."
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "originalProducer": {
+    "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+    "run": 41239330287,
+    "job": 124649711327,
+    "attempt": 1,
+    "workflow": ".github/workflows/melonx-core.yml",
+    "artifact": 13056718455,
+    "name": "MeloNX-engine-ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+    "bytes": 88253940,
+    "sha256": "c5baa6c2a0765ffedfdb0440d8f5e1604190cb6232f0d544e5f38b4c72c63182"
+  },
+  "originalFailedStep": "Verify fresh guest execution, teardown and backing release",
+  "originalFailure": "Invalid final managed metrics",
+  "contractPath": "build-utils/melonx/performance-core-contract.json",
+  "contractSha256": "8ce7bd8dad3cabd739772fd4e099c24a6d45b09e895d984bdbdcb3417dbdfcbf",
+  "verifierChanges": {
+    "build-utils/melonx/verify_performance_core.py": {
+      "before": "e53ba23693b9e386fabbe8b99ed7b5b90aa04f347380261ffed79edf97514e50",
+      "after": "691bd3b01ceffdc9a473f42055e9aef971a37e48c4b4d21124d3c30adf6acac2"
+    },
+    "test/melonx_performance_core_contract_test.py": {
+      "before": "56a021c8274d9f424381bb8cd94f1fc8a1ad7906b258ee14632225ef58f5492a",
+      "after": "e083077db50bc8e85bc2039425266421473def93055faba79678781277516689"
+    }
+  },
+  "compileProofSha256": {
+    "core-validation/preflight.json": "a0c26a86f84f158d19cf7d1657e691b8a9abc16150c41f28f812c9425b02f7c0",
+    "core-validation/compiled.json": "992a0aec23980a9b06a3f789ec3811d8e76e0fd8ffb0a35dd8f801ff4ed53bc8",
+    "core-validation/gates.json": "f52a69733d59d93714d9b9fd9cd90c2461e109a87e82658cc21f736e6991b7b8",
+    "runtime-smoke/actual-runtime.json": "7b4d336215844cd12a754875c2449e472da32c2c57bcfd24b8b522f0e0a4481c",
+    "embedded-inputs.json": "c36ae921f5cfdef5e1b366179465d1fedd213c867469c0716ccefc46577973be",
+    "embedded-adapted-source.zip": "74538dbe07223af6f6e7e97fb236888e4a54f20ecf87f1a44afda644f0a6affd"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "a1a0068db8d7c80f4522a6199226409b92d14c60a229455167bac0a5d52f39c5",
+      "bytes": 37716528
+    },
+    "iossimulator-arm64": {
+      "sha256": "6e78b88871d6bfe190606b28330947dcdb6aba93c4b3083f6318c2bebc94e449",
+      "bytes": 38027816
+    }
+  },
+  "identities": {
+    "ios-arm64": "efcfa8a4d055897cf7e3016b298dd2c1cd6df64bff780a03f4f1b3337b1cba6f",
+    "iossimulator-arm64": "67a95f64c94472f37b1af4db1de3ca0d0c7017d8a0b337f7fef8499597874348"
+  },
+  "currentContractSha256": "084739480a8877ed8ffbdca92ba3fb350863d641b8d766421ee4c3286cfc2a7c"
+}

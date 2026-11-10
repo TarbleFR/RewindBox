@@ -1,0 +1,13 @@
+{
+  "decision": "rejected",
+  "production_changed": false,
+  "host": "Linux-6.18.57-x86_64-with-glibc2.39",
+  "files": {
+    "bench.cpp": "1a003cf531a34586689f86c8e5a4d3781fe7e968521e9d3e4438ff1ec4c51714",
+    "bench.json": "e81431d4b94f78501b4af93746f3cd9435209240648a972eac03dfdce2a15b0c"
+  },
+  "limits": [
+    "Synthetic zlib/in-memory reader benchmark, not filesystem or iPhone measurement.",
+    "No codegen cache alias or compression format change retained."
+  ]
+}

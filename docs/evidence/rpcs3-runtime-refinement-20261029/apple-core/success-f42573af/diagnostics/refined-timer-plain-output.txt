@@ -1,0 +1,1 @@
+{"passed": true, "case": "timer", "sanitizer": "", "report": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/refined-timer-plain-result.json"}

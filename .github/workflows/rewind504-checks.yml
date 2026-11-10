@@ -28,10 +28,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, persist-credentials: false}
+      # The startup files keep their Build 419 reference plus the reviewed
+      # presentation edits (retroarch_baseline_scope_test.py). The Build 504
+      # delivery's own comparison with 654263ac stays in
+      # .github/diagnostics/rewind504_delivery.py; every later delivery
+      # changed native, packages and pubspec, so it cannot gate each push
+      # (maintainer authorisation, 28 October 2026).
       - name: Preserve initialization, engines, scan, imports, artwork and twelve languages
         run: |
           git diff --check
-          git diff --exit-code 654263ac09ad192360064f92dedcb4f9442bde38 -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
           python3 test/retroarch_baseline_scope_test.py
           python3 test/rewindbox_branding_test.py
       - name: Reuse unchanged successful native launch proof
@@ -45,7 +50,8 @@ jobs:
           mkdir -p build/startup-review
           dart format lib/widgets/rewind_startup.dart lib/widgets/rewind_mark_path.dart lib/widgets/permission_check_wrapper.dart lib/screens/systems_screen/system_content.dart lib/main.dart test/rewind_startup_test.dart
           git diff -- '*.dart' > build/startup-review/format.patch
-      - run: flutter analyze --no-pub
+      # Errors and warnings fail; infos are reported (as in the other workflows).
+      - run: flutter analyze --no-pub --no-fatal-infos
       - name: Exercise real readiness, fast and slow startup, retry, lifecycle and Reduce Motion
         if: ${{ !cancelled() }}
         run: flutter test --no-pub --reporter expanded test/rewind_startup_test.dart test/startup_locale_test.dart

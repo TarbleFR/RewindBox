@@ -1,0 +1,108 @@
+{
+  "passed": true,
+  "baselineCommit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+  "baselineSHA256": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+  "sourceSHA256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+  "fixtureSHA256": "215b870606e961c6c68aea9eaa66c84ccb8f01f6d7893b6617e8b1ac0ced9440",
+  "programSHA256": "c66a4d71b42dfb37a14b943093dede018d89093094b9346264b528a29a645676",
+  "methodSHA256": {
+    "before": {
+      "trim": "bd17b23aaeb8cd3296b9a2cc6af95850e8ea5bf2748b15866e81331fe759fd6b",
+      "ram": "0771082fbc5bf32074f48c6109849b1cdd0bd3fcb713030cb4ceaf33ab918e45"
+    },
+    "after": {
+      "trim": "94129631a322056b4fcf5d542d77efa2ac34f1af39c140ed350b3ed2b04ce00b",
+      "ram": "0771082fbc5bf32074f48c6109849b1cdd0bd3fcb713030cb4ceaf33ab918e45"
+    }
+  },
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "flags": [
+    "-std=c++20",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Wno-misleading-indentation",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "commands": [
+    [
+      "g++",
+      "-std=c++20",
+      "-pthread",
+      "-UNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Wno-misleading-indentation",
+      "-O1",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-Werror",
+      "-Wno-mismatched-new-delete",
+      "/tmp/neoswap-bulk-trim-fxeukwn2/trim.cpp",
+      "-o",
+      "/tmp/neoswap-bulk-trim-fxeukwn2/trim"
+    ],
+    [
+      "/tmp/neoswap-bulk-trim-fxeukwn2/trim"
+    ],
+    [
+      "g++",
+      "-std=c++20",
+      "-pthread",
+      "-UNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Wno-misleading-indentation",
+      "-O1",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-I",
+      "/workspace/scratch/144c744e94bb/memory-review/include",
+      "-DNEOSWAP_STORAGE_TESTING",
+      "-I",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/Store.cpp",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/tests/store_test.cpp",
+      "-l:liblz4.so.1",
+      "-lz",
+      "-o",
+      "/tmp/neoswap-bulk-trim-fxeukwn2/store-tests"
+    ],
+    [
+      "/tmp/neoswap-bulk-trim-fxeukwn2/store-tests",
+      "/tmp/neoswap-bulk-trim-fxeukwn2/private-cache"
+    ]
+  ],
+  "sanitizer": "address,undefined",
+  "leakSanitizer": false,
+  "lz4HeaderSHA256": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6",
+  "lz4Library": "-l:liblz4.so.1",
+  "results": {
+    "passed": true,
+    "cases": 2400,
+    "sweeps": 12000,
+    "baselineRamScans": 12000,
+    "candidateRamScans": 12000,
+    "baselineSelectionVisits": 46712043,
+    "candidateSelectionVisits": 14367269,
+    "dynamicUnpinCases": 16,
+    "trimAllocations": 0,
+    "benchmarks": []
+  },
+  "completeStoreResult": "PASS: real POSIX file round trips, larger-than-RAM working set, hot/cold, compression, lease safety, pressure, eligible prefetch and measured-latency refusal with demand fallback, read priority, quotas, short I/O, ENOSPC, sync/read failures, corruption, truncation, concurrency, teardown, reusable extents, coalescing, stale IDs, deferred ownership retirement",
+  "preallocatedCandidateBytesAtMaximumEntries": 65536,
+  "preallocatedCandidateBytesAtDefaultEntries": 16384,
+  "deviceTest": false,
+  "fpsClaim": false,
+  "concurrencyScope": "Controlled release points, including a separate thread; not every possible interleaving."
+}

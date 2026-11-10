@@ -1,0 +1,71 @@
+{
+  "result": "passed",
+  "checks": 24,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "0a4d0890895e13073f7d72a2303008243cd2b2028c0daeaa85503646d52a8930",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "49e8b44c517bbfd21f6a2c3931084d601582a89ac7c83eb88f8e0911d93490f0"
+  },
+  "testedPostimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "4ff755fcc9917f1e74b377fba8931a92902eba3472a785ded0298a8a470c7a81",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "49e8b44c517bbfd21f6a2c3931084d601582a89ac7c83eb88f8e0911d93490f0"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "duringCheckpoint": {
+        "blockingWaitMs": 412.2,
+        "blockingIntoMain": true,
+        "blockingCreated": true,
+        "tryOnlyWaitMs": 0,
+        "tryOnlyIntoMain": true,
+        "tryOnlyCreated": true,
+        "mergeAfterSave": false,
+        "mergeLine": null,
+        "mainGrowthBytes": 131072,
+        "checkpointInProgressAfter": false
+      },
+      "noCheckpoint": {
+        "tryOnlyCreated": false,
+        "blockingWaitMs": 200,
+        "blockingIntoMain": true
+      },
+      "warnings": 0
+    },
+    "candidate": {
+      "variant": "candidate",
+      "duringCheckpoint": {
+        "blockingWaitMs": 2.9,
+        "blockingIntoMain": false,
+        "blockingCreated": true,
+        "tryOnlyWaitMs": 0,
+        "tryOnlyIntoMain": false,
+        "tryOnlyCreated": true,
+        "mergeAfterSave": true,
+        "mergeLine": "merge into main 1 lockHeld=True",
+        "mainGrowthBytes": 131072,
+        "checkpointInProgressAfter": false
+      },
+      "noCheckpoint": {
+        "tryOnlyCreated": false,
+        "blockingWaitMs": 199.8,
+        "blockingIntoMain": true
+      },
+      "warnings": 0
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_checkpoint_side_cache.py": "18f067bcf91b4f0828600c84d5e581b85cb46f57fc321c485342a052b4dcca06",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_checkpoint_side_cache_test.py": "b8fc8926b5fb25a1501c20ab1e9ee4d589b62e8fc93ad016e33c2c3b083dd0f9",
+    "test/melonx_main_cache_checkpoint/Double.cs": "67c84f00443a26a6d62d00aeca3f68978ed467b58083e70e2a83dfd416cd9f59",
+    "test/melonx_checkpoint_side_cache/Program.cs": "7184056f3a1485e95fc340fb16b39fd19e422db47e2712f253d5bedd00505172",
+    "test/melonx_adapter_control.py": "816807e009a9e6dce14b49c597b2a745c50312f4b1f5f433c0d111d91c7e1610"
+  },
+  "limitation": "Host fixture of the real cache manager with a Vulkan double. The stutter at checkpoints on an iPhone is known only from a device run."
+}

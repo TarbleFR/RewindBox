@@ -1,0 +1,27 @@
+{
+  "commit": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "build": "605",
+  "mode": "cold",
+  "xcode": "Xcode 26.3\nBuild version 17C529",
+  "flutter": {
+    "frameworkVersion": "3.47.2",
+    "channel": "stable",
+    "repositoryUrl": "https://github.com/flutter/flutter.git",
+    "frameworkRevision": "d3b14c876900e553bc736ca19295fc09e3853e8e",
+    "frameworkCommitDate": "2026-08-26 16:07:51 -0700",
+    "engineRevision": "a804b261645ef8c13eb3d5c44a5c2fb0340c5539",
+    "engineCommitDate": "2026-08-26 18:46:13.000Z",
+    "engineContentHash": "1cf1c4773fb941c4c74a7f8bb144a8837596c0f4",
+    "engineBuildDate": "2026-08-26 12:23:07.677",
+    "dartSdkVersion": "3.13.2",
+    "devToolsVersion": "2.60.0",
+    "flutterVersion": "3.47.2",
+    "flutterRoot": "/Users/runner/hostedtoolcache/flutter/stable-3.47.2-arm64/flutter"
+  },
+  "sdk": "26.2",
+  "cpu": "3",
+  "ramBytes": "7516192768",
+  "macOS": "15.8.2",
+  "cocoaPods": "1.17.0",
+  "ruby": "ruby 3.3.13 (2026-10-23 revision af48f08f21) [arm64-darwin24]"
+}

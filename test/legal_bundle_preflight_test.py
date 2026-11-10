@@ -43,6 +43,7 @@ class LegalBundlePreflightTests(unittest.TestCase):
             "docs/evidence/engine-source-license-audit-2026-10-21.json",
             "docs/evidence/ppsspp-source-license-audit-2026-10-21.json",
             "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json",
+            "docs/evidence/achievement-translation-declarations-2026-10-31.json",
             "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt",
             "packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt",
         ):
@@ -51,6 +52,8 @@ class LegalBundlePreflightTests(unittest.TestCase):
             shutil.copy2(ROOT / name, target)
         package_audit = json.loads((ROOT / "docs/evidence/package-sources-license-audit-2026-10-21.json").read_text())
         originals = set(package_audit["source_declaration_sha256"])
+        followup = json.loads((ROOT / "docs/evidence/achievement-translation-declarations-2026-10-31.json").read_text())
+        originals.update(followup["declarations"])
         for manifest in (ROOT / "assets/legal").glob("*/license-sources.json"):
             for component in json.loads(manifest.read_text()).get("components", []):
                 for entry in component.get("files", []):

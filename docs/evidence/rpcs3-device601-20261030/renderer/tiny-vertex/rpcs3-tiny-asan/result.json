@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "sanitizer": true,
+  "gpu_executed": false,
+  "results": [
+    {
+      "name": "baseline-ios",
+      "result": {
+        "checks": 191,
+        "stale_short": 28,
+        "guard_page_lengths": 7,
+        "gpu_executed": false
+      },
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/tmp/rpcs3-tiny-asan/baseline-ios.cpp",
+        "-o",
+        "/tmp/rpcs3-tiny-asan/baseline-ios",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-fno-sanitize=alignment",
+        "-no-pie"
+      ],
+      "program_sha256": "95ea6eda0abd01941c4693dcc7705b23d79ffe133c624edfe524e74f117f75eb",
+      "source_sha256": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573"
+    },
+    {
+      "name": "candidate-ios",
+      "result": {
+        "checks": 219,
+        "stale_short": 0,
+        "guard_page_lengths": 7,
+        "gpu_executed": false
+      },
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "-DCANDIDATE_IOS",
+        "/tmp/rpcs3-tiny-asan/candidate-ios.cpp",
+        "-o",
+        "/tmp/rpcs3-tiny-asan/candidate-ios",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-fno-sanitize=alignment",
+        "-no-pie"
+      ],
+      "program_sha256": "8abf44f0414b9589bc7fd95ae2a738417417da61b95ef09815fa018cbfa19db8",
+      "source_sha256": "546e6f2b0519cd9b6fb1cc9c5502939177960dfe832865ed3a447c6095e8f7cd"
+    },
+    {
+      "name": "candidate-other",
+      "result": {
+        "checks": 191,
+        "stale_short": 28,
+        "guard_page_lengths": 7,
+        "gpu_executed": false
+      },
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-tiny-asan/candidate-other.cpp",
+        "-o",
+        "/tmp/rpcs3-tiny-asan/candidate-other",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-fno-sanitize=alignment",
+        "-no-pie"
+      ],
+      "program_sha256": "8abf44f0414b9589bc7fd95ae2a738417417da61b95ef09815fa018cbfa19db8",
+      "source_sha256": "546e6f2b0519cd9b6fb1cc9c5502939177960dfe832865ed3a447c6095e8f7cd"
+    }
+  ]
+}

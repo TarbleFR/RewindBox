@@ -1,0 +1,57 @@
+{
+  "build": 595,
+  "baseline": 594,
+  "engine": {
+    "result": "passed",
+    "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "run": 40906908049,
+    "job": 123564059910,
+    "runAttempt": 1,
+    "compileRun": 40906908049,
+    "originalRunConclusion": "success",
+    "validationSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "artifact": 12912462226,
+    "artifactSHA256": "defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912",
+    "successfulSteps": [
+      "Verify Apple ARM64, exact SDK and reviewed preparation inputs",
+      "Verify strict Core84 receipt reuse and changed-input rejection",
+      "Reuse twelve unchanged Core84 Apple gates",
+      "Verify timer arm identity, cancellation and zero-allocation reuse",
+      "Verify GPU sync ownership, callback allocation and bitmap queries",
+      "Authenticate all new gate receipts before compilation",
+      "Compile NativeAOT library and verify exported ABI",
+      "Bind both new libraries to reviewed sources and gate receipts",
+      "Authenticate unchanged native frameworks",
+      "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "Preserve the current runtime result including failures",
+      "Verify fresh guest execution, teardown and backing release"
+    ],
+    "engineRecompiled": false,
+    "priorGatesReexecuted": false
+  },
+  "rpcCoreRun": {
+    "run": 40917423708,
+    "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "path": ".github/workflows/rpcs3-runtime592-core.yml",
+    "status": "completed",
+    "conclusion": "success",
+    "requiredSteps": {
+      "Authenticate historical Core and execute only the candidate delta on ARM64": 123601264700,
+      "Compile actual iPhone Core from the verified source": 123601264700,
+      "Verify source candidate, exact exports, passive loading and source identity": 123601264700,
+      "Upload source candidate without a delivery number": 123601264700
+    },
+    "artifact": {
+      "id": 12917652510,
+      "name": "RPCS3Core-f42573afc25842ca9a0068f4ad505bbfe5342623",
+      "bytes": 29118830,
+      "digest": "sha256:4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad"
+    },
+    "diagnosticsArtifact": {
+      "id": 12917722288,
+      "name": "RPCS3Core-diagnostics-f42573afc25842ca9a0068f4ad505bbfe5342623",
+      "bytes": 207828,
+      "digest": "sha256:0c0e01d4a75affd50dc209223f6f974c31021658db7ae62fb59a356080b6d745"
+    }
+  }
+}

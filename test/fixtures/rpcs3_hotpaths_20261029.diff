@@ -1,0 +1,217 @@
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -2845,6 +2845,29 @@
+ 
+ 			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
+ 			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_EXACT_HIT: visit candidates in the same order as
++			// find_texture_from_range, but stop at the first valid exact match.
++			// Common hits need neither a heap array nor a walk of all overlaps.
++			const u32 candidate_contexts = lookup_mask & options.lookup_mask;
++			const u32 required_pitch = attr.height > 1 ? attr.pitch : 0;
++			bool search_exact = true;
++			for (auto It = m_storage.range_begin(memory_range, full_range, true); It != m_storage.range_end(); It++)
++			{
++				auto* cached_texture = &*It;
++				if (cached_texture->is_dirty() || !(candidate_contexts & static_cast<u32>(cached_texture->get_context())) ||
++					(required_pitch && !rsx::pitch_compatible<false>(cached_texture, required_pitch, -1)))
++				{
++					continue;
++				}
++				// Retain the ordered merge candidates as we go. A miss still walks
++				// the range once; a swizzle mismatch stops only the exact search.
++				overlapping_locals.push_back(cached_texture);
++				if (!search_exact)
++				{
++					continue;
++				}
++#else
+ 			// Collect candidates without validating their contents yet. An exact hit
+ 			// needs only its own validation; otherwise only blit destinations can
+ 			// contribute to the merge below. Hashing unrelated overlaps is expensive
+@@ -2854,6 +2877,7 @@
+ 			// Search for exact match if possible
+ 			for (auto& cached_texture : overlapping_locals)
+ 			{
++#endif
+ 				if (cached_texture->matches(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth, 0) &&
+ 					cached_texture->sync_protection())
+ 				{
+@@ -2873,7 +2897,12 @@
+ 						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
+ 						cached_texture->unprotect();
+ 						cached_texture->set_dirty(true);
++#ifdef RPCS3_IOS
++						search_exact = false;
++						continue;
++#else
+ 						break;
++#endif
+ 					}
+ 
+ 					return
+--- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
++++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+@@ -44,6 +44,9 @@
+ 			properties.renderpass_key = compatible_pipeline_renderpass_key(properties.renderpass_key);
+ 			normalize_pipeline_blending(properties.state);
+ 			normalize_pipeline_depth_stencil(properties.state, properties.renderpass_key);
++#ifdef RPCS3_IOS
++			normalize_pipeline_dynamic_state(properties.state);
++#endif
+ 		}
+ 
+ 		static
+--- a/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
+@@ -5,6 +5,27 @@
+ 
+ namespace vk
+ {
++#ifdef RPCS3_IOS
++    // REWINDBOX_PIPELINE_DYNAMIC_KEY: these values are supplied by commands,
++    // not by the compiled pipeline. int_compile_graphics_pipe always declares
++    // them dynamic (depth bounds is either dynamic or unsupported/disabled).
++    // Normalize only the private key; update_draw_state still emits the guest
++    // values, and static enable bits/operations remain part of the key.
++    inline void normalize_pipeline_dynamic_state(graphics_pipeline_state& state) noexcept
++    {
++        state.rs.lineWidth = 1.f;
++        state.rs.depthBiasConstantFactor = 0.f;
++        state.rs.depthBiasClamp = 0.f;
++        state.rs.depthBiasSlopeFactor = 0.f;
++        state.ds.minDepthBounds = 0.f;
++        state.ds.maxDepthBounds = 1.f;
++        state.ds.front.compareMask = state.ds.back.compareMask = 0;
++        state.ds.front.writeMask = state.ds.back.writeMask = 0;
++        state.ds.front.reference = state.ds.back.reference = 0;
++        for (auto& value : state.cs.blendConstants)
++            value = 0.f;
++    }
++#endif
+     // CELL542: a pipeline may be used with a compatible render pass. The
+     // current encoder stores five 3-bit layouts at bits 22..36. General and
+     // attachment-optimal layouts do not change compatibility. Preserve slot
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+@@ -16,6 +16,8 @@
+ #include <unordered_set>
+ 
+ #ifdef RPCS3_IOS
++#include <array>
++#include <atomic>
+ #include "ios/IOSShaderTiming.h"
+ #include "ios/IOSCompilePressure.h"
+ #endif
+@@ -231,6 +233,14 @@
+ 	binary_to_vertex_program m_vertex_shader_cache;
+ 	binary_to_fragment_program m_fragment_shader_cache;
+ 	std::unordered_map<pipeline_key, pipeline_storage_type, pipeline_key_hash, pipeline_key_compare> m_storage;
++#ifdef RPCS3_IOS
++	// REWINDBOX_PIPELINE_RECENT: node addresses survive unordered_map rehash.
++	// Only completed entries are remembered; erases invalidate their hint.
++	// The existing pipeline mutex protects node/handle lifetime. Atomic hints
++	// let simultaneous readers remember different hits without a writer lock.
++	using stored_pipeline = typename decltype(m_storage)::value_type;
++	std::array<std::atomic<const stored_pipeline*>, 64> m_recent_pipelines{};
++#endif
+ 
+ 	decompiler_callback_t notify_pipeline_compiled;
+ 
+@@ -398,12 +408,23 @@
+ 		// may write channels the current shader does not define.
+ 		pipeline_key key = { vertex_program.id, fragment_program.id, pipeline_properties };
+ 		backend_traits::validate_pipeline_properties(vertex_program, fragment_program, key.properties);
++#ifdef RPCS3_IOS
++		// A recent exact match needs no hash of the full pipeline state.
++#else
+ 		key.hash = pipeline_key_hash::compute(key);
++#endif
+ 
+ 		m_cache_miss_flag = true;
+ 
+ 		if (already_existing_vertex_program && already_existing_fragment_program)
+ 		{
++#ifdef RPCS3_IOS
++			if (auto* pipeline = find_cached_pipeline(key))
++			{
++				m_cache_miss_flag = false;
++				return { pipeline, &vertex_program, &fragment_program };
++			}
++#else
+ 			// There is a high chance the pipeline object was compiled if the two shaders already existed before
+ 			reader_lock lock(m_pipeline_mutex);
+ 			if (const auto I = m_storage.find(key); I != m_storage.end() && I->second)
+@@ -411,7 +432,14 @@
+ 				m_cache_miss_flag = false;
+ 				return { I->second.get(), &vertex_program, &fragment_program };
+ 			}
+-		}
++#endif
++		}
++#ifdef RPCS3_IOS
++		else
++		{
++			key.hash = pipeline_key_hash::compute(key);
++		}
++#endif
+ 
+ 		// Draw requests need this exact pipeline. Cached-shader preload requests
+ 		// (no notification) do not use the result and move on to their next entry.
+@@ -520,6 +548,28 @@
+ 	}
+ 
+ private:
++#ifdef RPCS3_IOS
++	pipeline_type* find_cached_pipeline(pipeline_key& key)
++	{
++		reader_lock lock(m_pipeline_mutex);
++		auto& recent = m_recent_pipelines[(key.vertex_program_id ^ (key.fragment_program_id * 0x9e3779b9u)) & 63];
++		if (const auto* entry = recent.load(std::memory_order_relaxed);
++			entry && entry->second && entry->first.vertex_program_id == key.vertex_program_id &&
++			entry->first.fragment_program_id == key.fragment_program_id &&
++			entry->first.properties == key.properties)
++		{
++			return entry->second.get();
++		}
++
++		key.hash = pipeline_key_hash::compute(key);
++		if (const auto I = m_storage.find(key); I != m_storage.end() && I->second)
++		{
++			recent.store(std::addressof(*I), std::memory_order_relaxed);
++			return I->second.get();
++		}
++		return nullptr;
++	}
++#endif
+ 	// CELL543_SINGLE_FLIGHT: returns the published pipeline, or nullptr for a
+ 	// pending build, or claims the build (claimed = true). With wait_for_inline,
+ 	// a key another thread builds inline is awaited instead of returning null.
+@@ -586,6 +636,13 @@
+ 			std::lock_guard lock(m_pipeline_mutex);
+ 			if (const auto I = m_storage.find(key); I != m_storage.end() && !I->second)
+ 			{
++#ifdef RPCS3_IOS
++				auto& recent = m_recent_pipelines[(key.vertex_program_id ^ (key.fragment_program_id * 0x9e3779b9u)) & 63];
++				if (recent.load(std::memory_order_relaxed) == std::addressof(*I))
++				{
++					recent.store(nullptr, std::memory_order_relaxed);
++				}
++#endif
+ 				m_storage.erase(I);
+ 			}
+ 
+@@ -629,6 +686,12 @@
+ 		notify_pipeline_compiled = {};
+ 		m_fragment_shader_cache.clear();
+ 		m_vertex_shader_cache.clear();
++#ifdef RPCS3_IOS
++		for (auto& recent : m_recent_pipelines)
++		{
++			recent.store(nullptr, std::memory_order_relaxed);
++		}
++#endif
+ 		m_storage.clear();
+ 		m_inline_builds.clear();
+ 	}

@@ -1,0 +1,84 @@
+{
+  "build": 569,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "e70fa381297f53808db3e136ae9df65718daca3a",
+  "run": 40566094740,
+  "workflow": ".github/workflows/rpcs3-cell569-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12762649897,
+      "name": "RPCS3Core-e70fa381297f53808db3e136ae9df65718daca3a",
+      "bytes": 29072990,
+      "digest": "sha256:9a49849c63e7ab0e94539fcea076cb843d0e607cd0b75126b223892b0a705be8"
+    },
+    "diagnostics": {
+      "id": 12762744843,
+      "bytes": 203119,
+      "digest": "sha256:b0ef9f5293b3abc337d5528e20cee2c14a1b380ce9ca0881e37a4b3afbaeb897"
+    }
+  },
+  "core": {
+    "sha256": "7fd4739453c5aba9f638ee33e413d5abea584cef5087b4b8079860c1d06b2537",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "ceb2d48ba9838984fe902d274ffde85f08d2858f1a4c21b96186633519d7e316",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom567": true,
+    "coldCompileRequiredByThisChange": false,
+    "replaces": {
+      "source": "67dd222bdbc8dbfefa6a666560e56672346f1521",
+      "run": 40547296252,
+      "sha256": "51273092cf5b62fc9b17372bbd339020eb08ce7096b20c5fab4a5a5f4403c984"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell569"
+    ]
+  },
+  "darwin": {
+    "addressUndefined": {
+      "passed": true,
+      "darwinKernel": 1,
+      "rawAffinityThenRaiseErr": 1,
+      "rawRelativeZeroErr": 0
+    },
+    "thread": {
+      "passed": true,
+      "darwinKernel": 1,
+      "rawAffinityThenRaiseErr": 1,
+      "rawRelativeZeroErr": 0
+    }
+  },
+  "darwinFinding": "On the Apple Silicon runner: relative priority -2, THREAD_AFFINITY_POLICY, then raising returns EPERM (1); the same with relative priority 0 returns 0; the 569 sequence keeps the QoS and raises the thread.",
+  "placement": {
+    "iosBranchAppliesNoPolicy": true,
+    "threadCppOtherwiseIdentical": true,
+    "callersUnchanged": 4
+  },
+  "harnessSHA256": "b99eb5546efaa5b65bef6937a1e7af2d251c609f4a88882304c3b292f433ab01",
+  "inputsSHA256": {
+    "test/rpcs3_cell569_test.py": "74fa86bb24cf28093bd3b0b7ea497b507e8088b9ca3cf37d5efa6cba80d13f33",
+    "test/native/rpcs3_qos_keep569.inc": "a553dfb3cb66a323b10dcd2f35988665719dbe7945f97db8471d8622027cb798"
+  },
+  "scope": "The 569 tests and the real Darwin QoS/affinity calls on the Apple Silicon runner, and the iPhone Core built from the verified source. No iPhone FPS or scheduling result."
+}

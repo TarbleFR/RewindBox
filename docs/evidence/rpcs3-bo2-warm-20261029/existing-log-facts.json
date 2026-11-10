@@ -1,0 +1,394 @@
+{
+  "schema": 1,
+  "scope": "Existing BO2 IPA 593, PID 47785 extractions only; no new raw-log parse, telemetry or native execution",
+  "inputsSHA256": {
+    "windows.json": "76a1b62ce2d57eeec73b4d966b386bef4c837defb81771f73e3e625a30f948f1",
+    "bo2-correlation.json": "9bd7199d0d5267a7d4ab8a366aa299bc8b6ca29c021d250e901fa15cba32b196"
+  },
+  "denseRenderingWindows": [
+    {
+      "session": 2,
+      "window": 9,
+      "rsxFrames": 214,
+      "sampledFrames": 26,
+      "rsxDraws": 644680,
+      "rsxFrameSubmitCount": 1332,
+      "timedSubmitCount": 1328,
+      "timedSubmitMs": 765.68,
+      "timedSubmitMaxMs": 13.406,
+      "textureSampledMeanMs": 4.569,
+      "epochSkips": 110716,
+      "epochAdvanceCount": 2685,
+      "epochSkipSectionBytes": 16380181646,
+      "trimCalls": 214,
+      "trimSectionsValidated": 0,
+      "trimMs": 4.059855,
+      "gpuTexturesRequestedBytes": 115352320,
+      "gpuSamplerSnapshot": 627,
+      "vertexCacheRaw": "535931:397220",
+      "fifoIdleEntries": 1288011,
+      "programLookupsRaw": "0:0",
+      "shaderWork": {
+        "session": 2,
+        "window": 9,
+        "tuple": "count:total_us:max_us",
+        "source": "1:40257:40257",
+        "module": "1:6:6",
+        "graphics": "0:0:0",
+        "compute": "1:414:414",
+        "debug_source": "0:0:0",
+        "scope": "process_window",
+        "sync_and_async": 1,
+        "overlaps_pipeline_callback": 1,
+        "window_boundary_approximate": 1
+      },
+      "refs": {
+        "RSXFRAME551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 272,
+          "utc": "2026-10-29T05:02:24.679227Z"
+        },
+        "RSXSYNC551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 271,
+          "utc": "2026-10-29T05:02:24.674390Z"
+        },
+        "OPT559": {
+          "file": "RPCS3-performance(4).log",
+          "line": 275,
+          "utc": "2026-10-29T05:02:24.699758Z"
+        },
+        "OPT581": {
+          "file": "RPCS3-performance(4).log",
+          "line": 276,
+          "utc": "2026-10-29T05:02:24.701309Z"
+        },
+        "READBACK555": {
+          "file": "RPCS3-performance(4).log",
+          "line": 274,
+          "utc": "2026-10-29T05:02:24.698397Z"
+        },
+        "JITMEM": {
+          "file": "RPCS3-performance(4).log",
+          "line": 286,
+          "utc": "2026-10-29T05:02:24.753581Z"
+        },
+        "COREPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 288,
+          "utc": "2026-10-29T05:02:24.767943Z"
+        },
+        "SHADERCOST534": {
+          "file": "RPCS3-performance(4).log",
+          "line": 262,
+          "utc": "2026-10-29T05:02:24.644697Z"
+        },
+        "JITPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 285,
+          "utc": "2026-10-29T05:02:24.751832Z"
+        }
+      }
+    },
+    {
+      "session": 2,
+      "window": 11,
+      "rsxFrames": 195,
+      "sampledFrames": 25,
+      "rsxDraws": 470777,
+      "rsxFrameSubmitCount": 1203,
+      "timedSubmitCount": 1203,
+      "timedSubmitMs": 854.988,
+      "timedSubmitMaxMs": 7.613,
+      "textureSampledMeanMs": 5.717,
+      "epochSkips": 70593,
+      "epochAdvanceCount": 2319,
+      "epochSkipSectionBytes": 14812629723,
+      "trimCalls": 201,
+      "trimSectionsValidated": 0,
+      "trimMs": 6.083722,
+      "gpuTexturesRequestedBytes": 164084352,
+      "gpuSamplerSnapshot": 635,
+      "vertexCacheRaw": "372740:279440",
+      "fifoIdleEntries": 996833,
+      "programLookupsRaw": "0:0",
+      "shaderWork": {
+        "session": 2,
+        "window": 11,
+        "tuple": "count:total_us:max_us",
+        "source": "0:0:0",
+        "module": "0:0:0",
+        "graphics": "0:0:0",
+        "compute": "0:0:0",
+        "debug_source": "0:0:0",
+        "scope": "process_window",
+        "sync_and_async": 1,
+        "overlaps_pipeline_callback": 1,
+        "window_boundary_approximate": 1
+      },
+      "refs": {
+        "RSXFRAME551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 332,
+          "utc": "2026-10-29T05:02:35.240229Z"
+        },
+        "RSXSYNC551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 331,
+          "utc": "2026-10-29T05:02:35.229190Z"
+        },
+        "OPT559": {
+          "file": "RPCS3-performance(4).log",
+          "line": 335,
+          "utc": "2026-10-29T05:02:35.297989Z"
+        },
+        "OPT581": {
+          "file": "RPCS3-performance(4).log",
+          "line": 336,
+          "utc": "2026-10-29T05:02:35.301652Z"
+        },
+        "READBACK555": {
+          "file": "RPCS3-performance(4).log",
+          "line": 334,
+          "utc": "2026-10-29T05:02:35.258557Z"
+        },
+        "JITMEM": {
+          "file": "RPCS3-performance(4).log",
+          "line": 346,
+          "utc": "2026-10-29T05:02:35.410653Z"
+        },
+        "COREPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 348,
+          "utc": "2026-10-29T05:02:35.425053Z"
+        },
+        "SHADERCOST534": {
+          "file": "RPCS3-performance(4).log",
+          "line": 322,
+          "utc": "2026-10-29T05:02:35.144562Z"
+        },
+        "JITPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 345,
+          "utc": "2026-10-29T05:02:35.408884Z"
+        }
+      }
+    },
+    {
+      "session": 2,
+      "window": 12,
+      "rsxFrames": 173,
+      "sampledFrames": 21,
+      "rsxDraws": 495007,
+      "rsxFrameSubmitCount": 1057,
+      "timedSubmitCount": 1059,
+      "timedSubmitMs": 781.752,
+      "timedSubmitMaxMs": 7.827,
+      "textureSampledMeanMs": 5.532,
+      "epochSkips": 53372,
+      "epochAdvanceCount": 2052,
+      "epochSkipSectionBytes": 10601296694,
+      "trimCalls": 167,
+      "trimSectionsValidated": 0,
+      "trimMs": 5.22626,
+      "gpuTexturesRequestedBytes": 181540608,
+      "gpuSamplerSnapshot": 639,
+      "vertexCacheRaw": "386029:267216",
+      "fifoIdleEntries": 960703,
+      "programLookupsRaw": "0:0",
+      "shaderWork": {
+        "session": 2,
+        "window": 12,
+        "tuple": "count:total_us:max_us",
+        "source": "1:6470:6470",
+        "module": "1:88:88",
+        "graphics": "1:1860:1860",
+        "compute": "0:0:0",
+        "debug_source": "0:0:0",
+        "scope": "process_window",
+        "sync_and_async": 1,
+        "overlaps_pipeline_callback": 1,
+        "window_boundary_approximate": 1
+      },
+      "refs": {
+        "RSXFRAME551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 362,
+          "utc": "2026-10-29T05:02:40.377450Z"
+        },
+        "RSXSYNC551": {
+          "file": "RPCS3-performance(4).log",
+          "line": 361,
+          "utc": "2026-10-29T05:02:40.374232Z"
+        },
+        "OPT559": {
+          "file": "RPCS3-performance(4).log",
+          "line": 365,
+          "utc": "2026-10-29T05:02:40.389255Z"
+        },
+        "OPT581": {
+          "file": "RPCS3-performance(4).log",
+          "line": 366,
+          "utc": "2026-10-29T05:02:40.390332Z"
+        },
+        "READBACK555": {
+          "file": "RPCS3-performance(4).log",
+          "line": 364,
+          "utc": "2026-10-29T05:02:40.383552Z"
+        },
+        "JITMEM": {
+          "file": "RPCS3-performance(4).log",
+          "line": 376,
+          "utc": "2026-10-29T05:02:40.418641Z"
+        },
+        "COREPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 378,
+          "utc": "2026-10-29T05:02:40.439185Z"
+        },
+        "SHADERCOST534": {
+          "file": "RPCS3-performance(4).log",
+          "line": 352,
+          "utc": "2026-10-29T05:02:40.337056Z"
+        },
+        "JITPROF": {
+          "file": "RPCS3-performance(4).log",
+          "line": 375,
+          "utc": "2026-10-29T05:02:40.413171Z"
+        }
+      }
+    }
+  ],
+  "aggregate": {
+    "rsxFrames": 582,
+    "sampledFrames": 72,
+    "rsxDraws": 1610464,
+    "rsxFrameSubmitCount": 3592,
+    "timedSubmitCount": 3590,
+    "timedSubmitMs": 2402.42,
+    "epochSkips": 234681,
+    "epochAdvanceCount": 7056,
+    "epochSkipSectionBytes": 41794108063,
+    "trimCalls": 582,
+    "trimSectionsValidated": 0,
+    "trimMs": 15.369837,
+    "fifoIdleEntries": 3245547,
+    "submitsPerRSXFrameSameCounterFamily": 6.171821305841925,
+    "drawsPerRSXFrame": 2767.1202749140894,
+    "meanTimedSubmitMs": 0.6691977715877437,
+    "trimMeanMicroseconds": 26.408654639175257
+  },
+  "lightWindows": [
+    {
+      "session": 1,
+      "window": 2,
+      "rsxFrames": 317,
+      "drawsPerFrame": 1.3,
+      "textureSampledMeanMs": 0.057,
+      "frameRef": {
+        "file": "RPCS3-performance.1.log",
+        "line": 3537,
+        "utc": "2026-10-29T05:01:16.494839Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    },
+    {
+      "session": 1,
+      "window": 3,
+      "rsxFrames": 319,
+      "drawsPerFrame": 1.0,
+      "textureSampledMeanMs": 0.16,
+      "frameRef": {
+        "file": "RPCS3-performance.1.log",
+        "line": 3567,
+        "utc": "2026-10-29T05:01:21.814203Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    },
+    {
+      "session": 2,
+      "window": 2,
+      "rsxFrames": 245,
+      "drawsPerFrame": 7.5,
+      "textureSampledMeanMs": 0.081,
+      "frameRef": {
+        "file": "RPCS3-performance(4).log",
+        "line": 62,
+        "utc": "2026-10-29T05:01:48.480126Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    },
+    {
+      "session": 2,
+      "window": 3,
+      "rsxFrames": 304,
+      "drawsPerFrame": 37.0,
+      "textureSampledMeanMs": 0.167,
+      "frameRef": {
+        "file": "RPCS3-performance(4).log",
+        "line": 92,
+        "utc": "2026-10-29T05:01:53.566137Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    },
+    {
+      "session": 2,
+      "window": 4,
+      "rsxFrames": 307,
+      "drawsPerFrame": 31.8,
+      "textureSampledMeanMs": 0.141,
+      "frameRef": {
+        "file": "RPCS3-performance(4).log",
+        "line": 122,
+        "utc": "2026-10-29T05:01:58.698136Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    },
+    {
+      "session": 2,
+      "window": 5,
+      "rsxFrames": 284,
+      "drawsPerFrame": 10.2,
+      "textureSampledMeanMs": 0.08,
+      "frameRef": {
+        "file": "RPCS3-performance(4).log",
+        "line": 152,
+        "utc": "2026-10-29T05:02:03.834752Z"
+      },
+      "classification": "light rendering; scene not identified; excluded from dense-render comparison"
+    }
+  ],
+  "interpretation": {
+    "strictlyNoSourceModuleGraphicsComputeOrSpuCodegen": [
+      {
+        "session": 2,
+        "window": 11
+      }
+    ],
+    "warmSelectionMeaning": "No cold VS/FS or SPU codegen. W9 still has one compute and source generation; W12 has one graphics call reusing VS/FS plus source generation. SPU object reads remain in all three.",
+    "submitCounters": "RSXFRAME 3592 and RSXSYNC 3590 drain independently. Use 3592 / 582 for the within-family ratio. No queue/type/reason or command-payload count.",
+    "epochSkips": "Repeated validation avoided within epoch; no denominator for a general texture hit rate. Bytes count section ranges, not transfers.",
+    "hashScope": "hybrid_ge4096=0 and prehash disabled do not establish zero ordinary BO2 hashing.",
+    "trimScope": "Maintenance validation: zero inspected sections, not an eviction counter.",
+    "unavailable": [
+      "general texture cache hits/misses",
+      "CPU-to-GPU upload count or bytes",
+      "viewport/scissor/dynamic-state command counts",
+      "renderpass/descriptor binding counts",
+      "submit reasons or redundant/empty submit count",
+      "GPU execution duration"
+    ],
+    "priorities": [
+      "Preserve content validation and scoped CPU-write invalidation while reducing repeated texture searches/bind preparation.",
+      "Inspect command recording/submission bookkeeping; existing counts do not justify dropping synchronization or globally enabling async.",
+      "Trim and texture residency pressure are low-priority here; requested texture bytes are allocation snapshots, not physical GPU RAM."
+    ],
+    "historicalGuards": [
+      "AGENTS.md 65-106: preserve device593 CPU-write and bound-sampler correctness fixes.",
+      "AGENTS.md 209-227: exact texture lookup and descriptor pooling already optimized.",
+      "AGENTS.md 548-562 and 1213-1235: epochs/scoped validation remain authoritative; deferred readback/early submit signature absent.",
+      "AGENTS.md 662-700: preserve async encode barrier/canary; earlier BO2 0.15-0.18 RSX core observations are not this 593 window.",
+      "AGENTS.md 774-800: ordinary BO2 hashes unmeasured by hybrid counter; prehash Automatic remains GoW3 only."
+    ]
+  }
+}

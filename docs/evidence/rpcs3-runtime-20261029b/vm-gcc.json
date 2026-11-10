@@ -1,0 +1,24 @@
+{
+  "source_sha256": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc",
+  "before_sha256": "d6ffd3817287d0ea05dbe3c68bee1793392f2582fced963c9e5339de498d28f2",
+  "fixture_sha256": "e32c2692dd8f742d6366128f47aab32230837895b8e4054a4855f18528bf6b39",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sanitizers": [],
+  "asan_options": null,
+  "assertionsActives": true,
+  "leakSanitizer": false,
+  "harness_sha256": "7ba19dd3fa16dcffa2fca5bdd656c2640e2d60e7a3a752bda602e3a6cb054bfa",
+  "stdout": "first-probe-empty: page reads 1 -> 1, first-fit address 536870912\nfirst-probe-empty: page reads 16 -> 16, first-fit address 536870912\n128MiB-prefix: page reads 32784 -> 17, first-fit address 671088640\nforeign-pages-only: page reads 5 -> 5, first-fit address 536879104\nmixed-map-and-foreign: page reads 23 -> 20, first-fit address 536952832\ndense-mixed-map-keeps-original-scan: page reads 40 -> 40, first-fit address 538443776\ndense-map-2GiB-alignment: page reads 2 -> 2, first-fit address 2147483648\nguards: page reads 12 -> 5, first-fit address 536907776\nlast-page-at-4GiB: page reads 16 -> 2, first-fit address 4294963200\nskip-past-4GiB: page reads 16 -> 1, first-fit address 0\nPASS 20068 exact-first-fit cases; identical mapping/constructor/lock events, protection bytes, shared-memory ownership and guards. Page reads: 3275240 -> 1109939\nSynthetic host median ns/alloc+reset, first-probe-empty: 37.7634 -> 34.4415 (20000 iterations/sample)\nSynthetic host median ns/alloc+reset, first-probe-before-2048-map-entries: 53.9413 -> 52.38 (20000 iterations/sample)\nSynthetic host median ns/alloc+reset, 128MiB-prefix: 106618 -> 54.33 (200 iterations/sample)\nSynthetic host median ns/alloc+reset, 2048-occupied-islands: 217784 -> 15971.5 (200 iterations/sample)\nDense host median ns/alloc+reset, dense-interval-4096-align-4096: 6908.77 -> 8510.64\nDense host median ns/alloc+reset, dense-interval-4096-align-65536: 512.732 -> 453.345\nDense host median ns/alloc+reset, dense-interval-4096-align-1048576: 287.35 -> 293.76\nDense host median ns/alloc+reset, dense-interval-8192-align-4096: 13831.3 -> 13708\nDense host median ns/alloc+reset, dense-interval-8192-align-65536: 942.67 -> 865.003\nDense host median ns/alloc+reset, dense-interval-8192-align-1048576: 309.985 -> 318.522\nDense host median ns/alloc+reset, dense-interval-16384-align-4096: 28834.2 -> 11031.2\nDense host median ns/alloc+reset, dense-interval-16384-align-65536: 1732.84 -> 1858.25\nDense host median ns/alloc+reset, dense-interval-16384-align-1048576: 378.935 -> 360.132\nDense host median ns/alloc+reset, dense-interval-65536-align-4096: 108112 -> 11386.8\nDense host median ns/alloc+reset, dense-interval-65536-align-65536: 6648.38 -> 6919.38\nDense host median ns/alloc+reset, dense-interval-65536-align-1048576: 647.508 -> 651.615\n",
+  "scope": "Production alloc/try_alloc with host page/lock/mapping adapters; no iPhone execution",
+  "passed": true,
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O3",
+    "-UNDEBUG"
+  ],
+  "adapter_sha256": "b8d78fccaa93ee6ce4e1ffcb31d7489fea4177c98c855dc8110288c969140e56"
+}

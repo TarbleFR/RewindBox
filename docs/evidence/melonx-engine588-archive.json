@@ -1,0 +1,63 @@
+{
+  "result": "passed",
+  "source": "7be2a83bd2b5b6938560c520783584f9b8e9e9ff",
+  "run": 40794453036,
+  "artifact": 12864051465,
+  "expectedArchiveSHA256": "f48f6972e62186880813f939e819b8d7433aa02ffa9b4046bf9a4d9197a49efe",
+  "images": {
+    "ios-arm64": {
+      "sha256": "d3fd895bf87964ada9d93ea2fab0380b4fbd607568bb3b995bc2a30594ebb549",
+      "bytes": 37568584,
+      "platform": 2,
+      "requiredExports": 47
+    },
+    "iossimulator-arm64": {
+      "sha256": "87ef8c2355be6d8604518a426292b8f34428606a937472845bd02ae1d181abec",
+      "bytes": 37878712,
+      "platform": 7,
+      "requiredExports": 47
+    }
+  },
+  "adaptationInputs": 57,
+  "adaptedSourceGroups": [
+    "buffer-views",
+    "cancel-warmups",
+    "controller-snapshot",
+    "fifo-ownership",
+    "linear-blocks",
+    "paired-neon",
+    "pipeline-snapshots",
+    "program-wait",
+    "pte-reads",
+    "stack-rumble",
+    "two-page-reader",
+    "upload-pool"
+  ],
+  "newCheckReceipts": {
+    "jit-context": "8eb122bdb6206af02cf38241aa59efb2ae6ce4da85b91c64d7a233a6d6e68822",
+    "jit-block-split": "6cca9d91c9c03e85d791ffdc2a680929378f6e8070fa351fab7c7ffa2334b536",
+    "buffer-view": "e2588f41eac974cc898fe39b5539e90d4dee0dd21223fcd4004c498de7a1985f",
+    "pipeline-cache": "5d34dc53b30f2c0a5999f6d842309c71fdc6a5b778974ae1741ebf1739ccd2cf",
+    "input": "bf704d57365dae38d43f49aeb6f288285b0cd6efd14c179da2648a21a8c2a43a",
+    "program-queue": "a396010e4ce5dbe940675b3c10bfd19c1c0f0e6cc61e0a0dc3556d2a714125a9",
+    "warmup-close": "184da7bf9ea0b645245bb9933fcf1bd43fbe298e26e28428e7b9578878d1da7b"
+  },
+  "simulatorHomebrewSessions": 2,
+  "stdoutOnlyChecks": {
+    "tests": [
+      "gpu-allocation",
+      "memory-query"
+    ],
+    "run": 40794453036,
+    "step": "Verify pooled allocation ownership and GPU contiguous-range reads",
+    "result": "passed"
+  },
+  "originalPayloadFingerprint": "55ffe5dcf33d1533aba6c68a0f7a5b05c3a70924923ee746a22d80c07eef4d34",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false,
+  "actualArchiveVerified": true,
+  "archiveSHA256": "f48f6972e62186880813f939e819b8d7433aa02ffa9b4046bf9a4d9197a49efe",
+  "archiveBytes": 102558011,
+  "metadataTransport": "Official GitHub connector metadata; production artifact checks unchanged"
+}

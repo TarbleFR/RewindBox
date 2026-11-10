@@ -1,0 +1,215 @@
+{
+  "passed": true,
+  "build": 583,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "03956454afc710cb55901c74108b88fbb03dec5d",
+    "fixtureSHA256": "d0a2ad60b9615a4b35130b305c595fe7d6fc85d520aea20386669bce85fc2e6d",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp": "b0227f95e0032956fd28fca3bed92b097910fd43cb25cf9ef38e7f776da25311",
+      "rpcs3/ios/IOSTexturePrehash.h": "9a91a05ccb795e406b7bd4a3418e6ea4182bcb0f9238ad2ea605f1d46cac943e",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "f983dc903996945fa93f15024e332c30ad9ff020f7d3ccf24da82aa565e95de5",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "53c03577dd943661b0f146c388a70fe94d8b4d514566a2b5a20b3174f2b322be",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "3804e2fb8a09b5e87dac6187b314cf85c8ba94c490c29035283e28696c5455b5"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 297
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom581": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "offIOS": {
+    "sharedFiles": [
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp"
+    ],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTexturePrehash.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "prehashPacing": {
+    "worker581": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 178,
+        "misses": 74,
+        "hitRate": 0.706,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 199,
+        "workerPassed": 0,
+        "workerRefills": 0
+      },
+      "tightLoop": {
+        "hits": 37,
+        "misses": 89,
+        "staleAccepted": 0,
+        "workerHashes": 116,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 102,
+        "misses": 24,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 453,
+        "workerSkips": 6,
+        "workerHashes": 6
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "3e1988ece076142d72e7874d149333c5c35a339cd6e54ded16cda0c41b6c4b94"
+    },
+    "plain": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 210,
+        "misses": 42,
+        "hitRate": 0.833,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 237,
+        "workerPassed": 1,
+        "workerRefills": 132
+      },
+      "tightLoop": {
+        "hits": 84,
+        "misses": 42,
+        "staleAccepted": 0,
+        "workerHashes": 123,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 95,
+        "misses": 31,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 801,
+        "workerSkips": 6,
+        "workerHashes": 6
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "8a5bc47cf84e734e22adf10538dfdf6f516c0919c5ad9984eeb39da94bceb62f"
+    },
+    "asanUbsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 203,
+        "misses": 49,
+        "hitRate": 0.806,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 239,
+        "workerPassed": 0,
+        "workerRefills": 126
+      },
+      "tightLoop": {
+        "hits": 73,
+        "misses": 53,
+        "staleAccepted": 0,
+        "workerHashes": 121,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 105,
+        "misses": 21,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 241,
+        "workerSkips": 6,
+        "workerHashes": 3
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "8a5bc47cf84e734e22adf10538dfdf6f516c0919c5ad9984eeb39da94bceb62f"
+    },
+    "tsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 200,
+        "misses": 52,
+        "hitRate": 0.794,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 252,
+        "workerPassed": 0,
+        "workerRefills": 108
+      },
+      "tightLoop": {
+        "hits": 94,
+        "misses": 32,
+        "staleAccepted": 0,
+        "workerHashes": 126,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 99,
+        "misses": 27,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 8,
+        "workerSkips": 23,
+        "workerHashes": 1
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "8a5bc47cf84e734e22adf10538dfdf6f516c0919c5ad9984eeb39da94bceb62f"
+    },
+    "mutations": {
+      "no_epoch_check": {
+        "rejected": true
+      },
+      "no_bypass": {
+        "rejected": true
+      }
+    }
+  },
+  "policy": {
+    "automatic": "God of War III",
+    "enabled": "any title with Texture Validation Per FIFO Batch",
+    "disabled": "hashes on the RSX thread as in 579",
+    "profileLines": [
+      "COREPROF OPT581",
+      "COREPROF OPT583"
+    ]
+  },
+  "inputs": {
+    "test/rpcs3_cell583_test.py": "4483487f2e32f1cae16c72f897aa8c38640328f53a6de91b1709056087be2e42",
+    "test/native/rpcs3_prehash583.inc": "e78ce921f683842311d1115efea5d00f24f4452d7e9fa7edbf4d21330f34056f",
+    "test/fixtures/rpcs3_cell581.diff": "2960004550815b7c9b638260209766377ddfcf35cdbab0e6b82e7a03c0a70127"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 583 production code (and the 581 worker beside it) compiled in a host model; no iPhone FPS, frame time or memory result."
+}

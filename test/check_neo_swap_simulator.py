@@ -38,7 +38,7 @@ try:
         while not result.exists() and time.monotonic()<deadline: time.sleep(1)
         assert result.exists(),'Native control probe did not produce a result (crash or timeout)'
         report=json.loads(result.read_text());shutil.copy2(result,OUT/f'simulator-{label}-control.json')
-        log=container/'Documents/Diagnostics/NeoSwap-v1.jsonl'
+        log=container/'Documents/Diagnostics/System/NeoSwap/NeoSwap-v1.jsonl'
         if log.exists(): shutil.copy2(log,OUT/f'simulator-{label}-neoswap.jsonl')
         shutil.copy2(container/'Documents/memory-samples.jsonl',OUT/f'simulator-{label}-memory-samples.jsonl')
         assert report['success'] and report['checks']>=30,report

@@ -1,0 +1,15 @@
+{
+  "result": "passed",
+  "build": 595,
+  "source": "d2e5029f8d7ca33eec279546d64a7f908285e804",
+  "ipa": {
+    "name": "RewindBox-Build595-d2e5029f8d7ca33eec279546d64a7f908285e804-cold.ipa",
+    "sha256": "cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e",
+    "bytes": 188331345,
+    "zipEntries": 5350,
+    "crcValid": true
+  },
+  "actualMachOImages": 88,
+  "signingReportRecords": 88,
+  "signatureCryptographicallyVerifiedHere": false
+}

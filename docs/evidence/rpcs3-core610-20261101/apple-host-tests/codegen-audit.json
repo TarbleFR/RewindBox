@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "source_sha256": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
+  "baseline_sha256": "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309",
+  "compatibility_sha256": "aa61e1d64363dc98c19a16150bc12c8add3850862847b21df3c9948f2e31e787",
+  "baseline_compatibility_sha256": "ae6f9965a8202725a2bf4d42bf04f3ec2c29a27af8c382aa96639ac1a5baad9a",
+  "addition_sha256": "805f584d50f46a155a62e3c4cc7fc72b64c7d5d72864905a9234904a23743322",
+  "existing_aliases_preserved": 7,
+  "new_exact_aliases": 1,
+  "changed_host_bodies": {
+    "process_mfc_cmd": {
+      "before": "50f212be2cbad8eb54e42feea00255ad5d3e6f54c1b2e66827bfa3b6f2ff4dec",
+      "after": "b7d517eabfcd1160e701dda307db187ced91d46b37683edeccf06fd3fe0c27e0"
+    }
+  },
+  "codegen": {
+    "PPU": {
+      "candidate": "a987639e9f838d1c",
+      "delivered_baseline": "a987639e9f838d1c",
+      "without_new_alias": "a987639e9f838d1c",
+      "future_unknown_source": "a987639e9f838d1c"
+    },
+    "SPU": {
+      "candidate": "477a3fa442d27917",
+      "delivered_baseline": "477a3fa442d27917",
+      "without_new_alias": "020e4dd2003fe76f",
+      "future_unknown_source": "05d9c1229fff94bb"
+    }
+  },
+  "inputs": {
+    "PPU": {
+      "count": 21,
+      "changed": []
+    },
+    "SPU": {
+      "count": 33,
+      "changed": [
+        "Cell/SPUThread.cpp"
+      ]
+    }
+  },
+  "external_llvm_inputs_reused": [
+    "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp"
+  ],
+  "compiler_executed": false,
+  "cmake_executed": false,
+  "emitted_objects_compared": false,
+  "scope": "Exact host-body restoration and the ordered CMake identity recipe; no gameplay claim"
+}

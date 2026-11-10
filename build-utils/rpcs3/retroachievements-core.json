@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "marker": "NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1",
+  "status": "folded into the canonical delta for RPCS3 Core 611 (canonical patch a63b9643 plus this patch); Core 611 not built yet, no IPA, no iPhone validation",
+  "fold_consequence": "Every IPA workflow (for example ios-ci.yml) requires canonical-source.json, embedded-core.patch and Rpcs3CoreABI.h to equal the commit of the prebuilt Core it installs: from this fold until a Core 611 built from this delta is pinned, no IPA can install the prebuilt Core 610.",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
+  "patch": "build-utils/rpcs3/retroachievements-core.patch",
+  "patch_sha256": "518dc4a0740a4041a7ee2356f5728c19bb4068ebcfff13673e946a1269ee1682",
+  "abi_version": 30,
+  "abi_version_changed": false,
+  "ra_api_version": 1,
+  "exports_added": [
+    "rpcs3_ios_ra_api_version",
+    "rpcs3_ios_ra_set_frame_callback",
+    "rpcs3_ios_ra_read_memory",
+    "rpcs3_ios_ra_get_session_info"
+  ],
+  "files_before_sha256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "68b8481d7516510606bf33c35bee3b2cc90510dc4536d4f648fe2350202d0dfc",
+    "rpcs3/ios/RPCS3IOS.cpp": "53907df407b06f3059b75518017d1ae854b7a2625454759a215c43afcef7c309",
+    "rpcs3/ios/RPCS3IOS.exports": "dda56154fb677379f9abc8638b98be5d7c16bb02011f458cbb57d780aa9004ce",
+    "rpcs3/ios/RPCS3IOS.h": "2315d68838552d9d6bc3bfd94b74513c364431b546c4d4d7f31b3f35cfc8b16d"
+  },
+  "files_after_sha256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "2b8c3fd1cb2b0431cdd464efa9836133f3cab4ede4b45c0553bd5129a466ace4",
+    "rpcs3/ios/RPCS3IOS.cpp": "555421727765f101434617714365d3a59fa88816af3559225cb0ff3703243889",
+    "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
+    "rpcs3/ios/RPCS3IOS.h": "2e159116a7bd8ba19c44d141d2ff1babb43c369101d4606e2c6df072fe6134ea",
+    "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399"
+  },
+  "new_files": [
+    "rpcs3/ios/RPCS3IOSAchievements.h"
+  ],
+  "behaviour": {
+    "frame": "rsx::thread::post_vblank_event calls the optional host callback after the guest VBlank event (RSX VBlank thread, 60 Hz, none while paused or stopped; it starts only once the game initialized RSX). One atomic load when nothing is attached; try_lock, never blocking the emulator.",
+    "memory": "vm::try_access page by page (4 KiB); unmapped or protected pages zero-filled; only while running or paused; never writes guest memory; exceptions contained.",
+    "session_info": "Effective Vblank Rate, Clocks scale and Frame limit (Hardcore-compatible only at 60 Hz, 100 %, bounded limit) and the base library entry of the last rpcs3_ios_boot_game (ISO or directory, never an update or a savestate).",
+    "locks": "No hook takes g_api_mutex or calls set_error()."
+  },
+  "fold": "python3 build-utils/rpcs3/fold_retroachievements_core_patch.py <materialized canonical tree> (then the authorized Core build)",
+  "folded_into_canonical_delta": true,
+  "core_build_run": false,
+  "ios_build_run": false,
+  "iphone_validation_run": false,
+  "rebased_on": "core610_20261101 (canonical patch a63b9643): RSXThread.cpp and RPCS3IOS.cpp changed upstream; the same 376 added lines re-applied",
+  "revised_before_fold": "copy_text() calls memcpy only for a non-empty view: copy_text(..., {}) passed the empty view's null data() to memcpy (GCC UBSan: null pointer passed as argument 2, RPCS3IOSAchievements.h:152). Behaviour unchanged; RPCS3IOSAchievements.h 210 -> 215 lines, 381 added lines; only that file's postimage changed."
+}

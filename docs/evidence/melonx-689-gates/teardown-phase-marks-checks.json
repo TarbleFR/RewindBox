@@ -1,0 +1,23 @@
+{
+  "result": "passed",
+  "checks": 10,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Library/Window/WindowBase.cs": "4aef1042198769fb746e5b752cad7d601c49eef9035f14773a782efb1b0d5705",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "16b7141983efcc0ab7909f345da41a1d0ffa91306c81c7368b9725ee67ae19c6"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionLibraryBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/Window/WindowBase.cs": "b49beb7f8cee379c590ae227098255873a000e5cfd33ea5164c5ae3497635489",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "7c1b77f9c296514c11601e4dea4a60a6fc185fea3566996d343212ec1ad92a82"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_teardown_phase_marks.py": "0b56a91af51a4aa4bdcc23e53a3e090d523137ac82f58b88dd7c4975dd6f8852",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_teardown_phase_marks_test.py": "1beb1dbe42762fa0e5a5795a6f297b5973be086d7d38673600c2051c594e4423"
+  },
+  "limitation": "Journal only; which phase holds the SSBU close while recording is known only from a device run."
+}

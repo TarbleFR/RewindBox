@@ -7,6 +7,8 @@ import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
+import 'package:neostation/services/game_box/game_box_enhance.dart';
+import 'package:neostation/widgets/game_box/game_box_defects_text.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
 import 'package:neostation/utils/gamepad_nav.dart';
 
@@ -17,9 +19,11 @@ import 'package:neostation/utils/gamepad_nav.dart';
 /// The decode already made for the box is shown at once; the full scan (up to
 /// [fullWidth] px wide) replaces it when ready. At each zoom the scan is then
 /// shown as made for that exact size, lightly sharpened unless "Sharp text"
-/// is off (docs/game-box-3d.md § 12). A scan is never enlarged past what it
-/// holds: the zoom stops at about two and a half screen pixels per pixel of
-/// the scan, and a low-resolution scan is said to be one.
+/// is off (docs/game-box-3d.md § 12). The zoom stops at about two and a half
+/// screen pixels per pixel of the scan; up to there a closer look is drawn
+/// from a bicubic enlargement with a matching sharpening instead of the
+/// screen's bilinear stretch (§ 19), and a low-resolution scan is said to be
+/// one.
 class GameBoxScanViewer extends StatefulWidget {
   const GameBoxScanViewer({super.key, required this.path, required this.title, this.preview});
 
@@ -41,8 +45,12 @@ class GameBoxScanViewer extends StatefulWidget {
 class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
   final TransformationController _transform = TransformationController();
   late final GamepadNavigation _gamepadNav;
-  late final ImageProvider _full =
-      ResizeImage(FileImage(File(widget.path)), width: GameBoxScanViewer.fullWidth, allowUpscaling: false);
+  /// The scan, or its enlargement once ready (docs/game-box-3d.md § 22).
+  ImageProvider get _full => ResizeImage(
+        FileImage(File(GameBoxEnhance.sourceOf(widget.path))),
+        width: GameBoxScanViewer.fullWidth,
+        allowUpscaling: false,
+      );
   Size _viewport = Size.zero;
   double _maxScale = 4;
   bool _fullReady = false;
@@ -73,6 +81,12 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
     GameBoxPreferences.sharpText().then((v) {
       if (!mounted || v == _sharpText) return;
       setState(() => _sharpText = v);
+      _requestSharp();
+    });
+    // A degraded scan is enlarged once (cached), then shown from it.
+    GameBoxEnhance.prepare(widget.path).then((enlarged) {
+      if (!mounted || enlarged == null) return;
+      setState(() => _fullReady = false);
       _requestSharp();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -178,6 +192,19 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
+        if (GameBoxEnhance.of(widget.path) case final enlarged?)
+          Padding(
+            key: const ValueKey('game_box_scan_enlarged'),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            child: Text(
+              GameBoxLocale.format(context, GameBoxLocale.correctedScan, {
+                'defects': gameBoxDefectsText(context, enlarged.defects),
+                'width': enlarged.width.toString(),
+                'height': enlarged.height.toString(),
+              }),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
         Expanded(
           child: LayoutBuilder(builder: (context, c) {
             _viewport = c.biggest;
@@ -235,10 +262,13 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
                         builder: (context, m, _) {
                           final sharp = _sharp.providerFor(widget.path, sharpen: _sharpText);
                           if (sharp == null) return const SizedBox.shrink();
-                          // Hidden while it would be enlarged: the full scan
-                          // shows meanwhile, until the closer one is ready.
+                          // Hidden while narrower than the zoom asks: the
+                          // full scan shows meanwhile, until the closer one
+                          // (enlarged up to 2.5 times, § 19) is ready.
                           final shown = math.min(_shownWidthPx * m.getMaxScaleOnAxis(),
-                              math.min(size.width, GameBoxSharpScan.maxWidth.toDouble()));
+                              GameBoxSharpScan.maxRenderWidth(
+                                (GameBoxImageSize.of(GameBoxEnhance.sourceOf(widget.path)) ?? size).width,
+                              ).toDouble());
                           if (sharp.width < shown * 0.85) return const SizedBox.shrink();
                           return Image(
                             key: const ValueKey('game_box_scan_sharp'),

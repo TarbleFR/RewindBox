@@ -1,0 +1,212 @@
+{
+  "passed": true,
+  "sanitized": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 2.87062,
+        "afterMedianMs": 2.86042
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 11.4282,
+        "afterMedianMs": 11.1395
+      }
+    ],
+    "hardwareConcurrency": 3,
+    "steadyState": [
+      {
+        "threads": 1,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          21.6035,
+          14.1018,
+          15.7338,
+          14.4523,
+          27.2945,
+          16.6064,
+          20.9677
+        ],
+        "afterSamplesMs": [
+          18.253,
+          24.4509,
+          30.9965,
+          34.2862,
+          25.888,
+          10.9849,
+          18.7736
+        ],
+        "beforeMedianMs": 16.6064,
+        "afterMedianMs": 24.4509
+      },
+      {
+        "threads": 4,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          39.0148,
+          37.5093,
+          34.7298,
+          40.9191,
+          65.2408,
+          27.4518,
+          25.8753
+        ],
+        "afterSamplesMs": [
+          38.2548,
+          29.6275,
+          51.5182,
+          31.0855,
+          112.912,
+          30.689,
+          41.5543
+        ],
+        "beforeMedianMs": 37.5093,
+        "afterMedianMs": 38.2548
+      },
+      {
+        "threads": 8,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          54.7298,
+          78.8577,
+          67.8672,
+          120.123,
+          90.4721,
+          58.7918,
+          48.2594
+        ],
+        "afterSamplesMs": [
+          58.9002,
+          83.3232,
+          68.5166,
+          46.6099,
+          53.4163,
+          132.776,
+          54.9039
+        ],
+        "beforeMedianMs": 67.8672,
+        "afterMedianMs": 58.9002
+      }
+    ]
+  },
+  "optimized": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 0.88375,
+        "afterMedianMs": 0.669833
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 3.29433,
+        "afterMedianMs": 2.245
+      }
+    ],
+    "hardwareConcurrency": 3,
+    "steadyState": [
+      {
+        "threads": 1,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          3.65525,
+          4.83633,
+          7.09329,
+          17.7027,
+          40.8728,
+          33.1674,
+          20.6104
+        ],
+        "afterSamplesMs": [
+          6.31288,
+          6.88012,
+          7.29362,
+          8.15708,
+          23.6404,
+          16.894,
+          49.9821
+        ],
+        "beforeMedianMs": 17.7027,
+        "afterMedianMs": 8.15708
+      },
+      {
+        "threads": 4,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          11.1015,
+          93.6661,
+          13.9471,
+          9.06342,
+          11.3362,
+          28.4932,
+          37.2368
+        ],
+        "afterSamplesMs": [
+          27.686,
+          57.3663,
+          12.2147,
+          12.071,
+          28.7361,
+          34.6576,
+          67.8835
+        ],
+        "beforeMedianMs": 13.9471,
+        "afterMedianMs": 28.7361
+      },
+      {
+        "threads": 8,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          14.02,
+          180.428,
+          161.987,
+          14.2285,
+          23.1668,
+          16.8497,
+          11.8873
+        ],
+        "afterSamplesMs": [
+          47.7469,
+          104.383,
+          59.8238,
+          13.4189,
+          17.0615,
+          15.2088,
+          8.06279
+        ],
+        "beforeMedianMs": 16.8497,
+        "afterMedianMs": 17.0615
+      }
+    ]
+  },
+  "assemblySHA256": "616d9b3f550f6d44139454670bbeb78db461ddb8137aef4a496a66b7a5d2fb56",
+  "counterSourceSHA256": "9c3b1f4e94ae3249e298df84bf026931330f19d37452076cf709e29739666beb",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Actual header, 96 live writers and two reporters, exact aggregate counts/times/maxima, slot retirement, object recreation and unsigned wrap. Five-trial short host benchmark and seven-trial warmed persistent-worker benchmark with raw samples; not guest reservation or iPhone frame time."
+}

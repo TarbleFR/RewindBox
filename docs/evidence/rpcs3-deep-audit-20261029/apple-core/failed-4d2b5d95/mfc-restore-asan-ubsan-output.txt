@@ -1,0 +1,1 @@
+{"cases":144,"baselineStalledWaits":72,"candidateCompletedWaits":72,"stalledListsRequireAck":36,"emptyQueueCases":24,"disabledShufflingCases":48,"queueRoundtripPreserved":true,"interruptsDisabled":true,"timeoutIndependentChannelDrain":true}

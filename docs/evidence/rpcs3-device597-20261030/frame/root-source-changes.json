@@ -1,0 +1,79 @@
+[
+  {
+    "file": "rpcs3/ios/RPCS3IOSPerformance.cpp",
+    "sha256": "cc7a7d2871f498439eaad41fbacfce1928fa4f89e38d05a8efb448022b9ef1cb",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 105349
+  },
+  {
+    "file": "rpcs3/ios/IOSRsxSyncProfile.h",
+    "sha256": "d87c8394ed4772255edf01a592b9ad08eed4dd79295886f569894f56cb14c04c",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 3884
+  },
+  {
+    "file": "rpcs3/ios/IOSFrameTrace.h",
+    "sha256": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 7387
+  },
+  {
+    "file": "rpcs3/ios/IOSTexturePrehash.h",
+    "sha256": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 6919
+  },
+  {
+    "file": "rpcs3/ios/IOSTextureHash.cpp",
+    "sha256": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 5390
+  },
+  {
+    "file": "rpcs3/ios/IOSCompilePressure.h",
+    "sha256": "b45b0415882dce357734d04495948b6815dcf3e8a1683bfaca02b37f5856548f",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 3370
+  },
+  {
+    "file": "rpcs3/ios/IOSTextureHash.h",
+    "sha256": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 1592
+  },
+  {
+    "file": "rpcs3/Emu/RSX/RSXThread.cpp",
+    "sha256": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 121994
+  },
+  {
+    "file": "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+    "sha256": "85c75155f09f2ffd0554fadfbaf9987510173323e008ad09edb70cd6809707ed",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 28612
+  },
+  {
+    "file": "rpcs3/Emu/RSX/VK/VKCommandStream.cpp",
+    "sha256": "2a3c919ec0f6dd8743b7705085d1231e093bfc07fc2a42356b433bfb3a0fe731",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 4281
+  },
+  {
+    "file": "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+    "sha256": "afadbb3088f709382b5e7fb4217d2cd038a608972f648063c94b66152d6919ab",
+    "oldCRLF": 0,
+    "newCRLF": 0,
+    "bytes": 46574
+  }
+]

@@ -1,0 +1,94 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "authenticatedFullProofs": {
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-plain.json": "a86d739ad4fe4b4cafee661b40aae189b3ca4f1fb6397bc590c27fee822853e2",
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-asan.json": "49f04487576bc8cffb8a6d47a9c7080f43de95c89c6c8ae702aabcfaf10ec252"
+  },
+  "authenticatedFullHarnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1",
+  "historicalScope": {
+    "intermediateSourceSHA256": "2ff386b14bcc2ab4f32f6c3d8f7cfd295b1faaa31523f79d6702caef673850dc",
+    "authenticatedTagProofs": {
+      "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-plain.json": "23f48657d6e1f40f3950452e808da85c27c5115bc52028608aace2a6f27a48df",
+      "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-asan.json": "1bb3e54184348fe0158dc07f68304e00b880b546344242c87b03059033d82710"
+    },
+    "fullQueuePrefixSHA256": "8050bbb235f75e5063f2937c2e490e14b47e207809a491fd5e209660d517cc91",
+    "helperBodiesSHA256": "27df27498200b2c7c6e14165f9df0547554e7f7434594a6ca7fd5168380b31f5",
+    "guardSHA256": "f010c0335586cdc754c0ec1711f3605e1544e2b15f20e5fb0b4c1f3e4351a18b"
+  },
+  "previousFullQueuePrefixSHA256": "8050bbb235f75e5063f2937c2e490e14b47e207809a491fd5e209660d517cc91",
+  "fullQueuePrefixSHA256": "7d2359ef1e873e24401bfc06727ff85a304005017af586a0270a3e14ad0ea80f",
+  "iretBodySHA256": "da23deebc18539b7671195c294f161bfb0c198e48bbc99010b871a7cc25a5182",
+  "unstallBodySHA256": "52a65b7c836c0fcf139c42654831698c0c4c064084b41ce3ed2f0c9578516450",
+  "results": {
+    "tagRegression": {
+      "passed": true,
+      "scenarios": 49152,
+      "baselinePrematureCompletions": 47616,
+      "candidatePrematureCompletions": 0,
+      "candidateMatchesReference": 49152,
+      "staleSlotCases": 48960,
+      "fullQueueGuards": 3,
+      "unchangedDMAEncodings": 192,
+      "barriersPreservedUntilListAck": true,
+      "publicationOrderPreserved": true
+    },
+    "fullQueue": {
+      "baselineHalts": 96,
+      "recovered": 96,
+      "stopBeforeDrain": 96,
+      "successfulRetries": 96,
+      "againEscapes": 96,
+      "stalledListWaits": 96,
+      "interruptDrainEscapes": 96,
+      "noDoubleEnqueue": true,
+      "currentPCPreservedOnStop": true
+    },
+    "preAcceptanceInterrupt": {
+      "historicalSkippedWRCH": 96,
+      "currentPCRetries": 96,
+      "stalledListIRQAcks": 96,
+      "multipleMaskPasses": 96,
+      "commandsAcceptedExactlyOnce": 192,
+      "stepsDisabled": true,
+      "eventPendingBeforeDrain": true
+    }
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/Emu/Cell/SPUInterpreter.cpp": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3"
+  },
+  "runtimeBodySHA256": {
+    "bool spu_thread::do_mfc(bool can_escape, bool must_finish)": "2e3117ce0acc168d58beabdf379d1dc97f0d2a776fc0730527bcdd3dcb722df8",
+    "u32 spu_thread::get_mfc_completed() const": "770f42f87539f1818021aa6f12e461570994b9197156e712bb3150d800d2eaeb",
+    "bool spu_thread::check_mfc_interrupts(u32 next_pc)": "ecbcf18c0505089205ee56117e3896a4508c93d3a51fc175e5630bde6c8e1283",
+    "tagUpdate": "114d770c52255bf8f79a19cdc925c217e9742accf99daa278e77e1ae23bc19e4",
+    "referenceBarrierEnqueue": "4930c989e15584934912ba64d44312496be2a9353ad6f9da786da3fd55c364fd"
+  },
+  "harnessSHA256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71",
+  "scriptSHA256": "41c302e6fced41bcba6801f62967224280d23aa55c5e9b91821a5a294137ef6f",
+  "adapterSHA256": "9be9c6a032ebe53df511fa6d1692d67408a524484f2e9c97fadb18c7f22a02ee",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "sanitizer": null,
+  "llvmCompiled": false,
+  "aarch64Executed": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "realDMATransfersTested": false,
+  "concurrentMemoryOrderingTested": false,
+  "leakSanitizer": false,
+  "interruptControlFlagsEmulated": false,
+  "scope": "Verify MFC full-queue interrupts retry the unaccepted WRCH instruction.\n\nAuthenticates the preceding tag and full-queue proof stages without rerunning\ntheir binaries, then exercises the final emitted CFG and real drain/interrupt/\nIRET bodies. DMA, clock, CPU flags and interrupt-handler effects are explicit\nhost adapters; this does not compile LLVM or execute guest machine code.\n"
+}

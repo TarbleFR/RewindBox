@@ -1,0 +1,183 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "scenarioCount": 8577,
+      "assertions": 1356,
+      "exceptions": 15,
+      "semantics": "C11CECF9A1A9A2D8341C02406507B8493F0153E9C30F2C612FEE4FF490B9B9E5",
+      "allocations": [
+        {
+          "name": "check",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "consume",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "discard",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "sync",
+          "iterations": 20000,
+          "bytes": 1920000
+        },
+        {
+          "name": "dependents",
+          "iterations": 20000,
+          "bytes": 1280000
+        },
+        {
+          "name": "flush",
+          "iterations": 20000,
+          "bytes": 2080000
+        },
+        {
+          "name": "flush-tracked",
+          "iterations": 20000,
+          "bytes": 2080000
+        },
+        {
+          "name": "modified",
+          "iterations": 20000,
+          "bytes": 1280000
+        },
+        {
+          "name": "unbound",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "bound",
+          "iterations": 20000,
+          "bytes": 0
+        }
+      ],
+      "groupConstructionIterations": 20000,
+      "groupConstructionBytes": 6720000
+    },
+    "candidate": {
+      "variant": "candidate",
+      "scenarioCount": 8577,
+      "assertions": 1356,
+      "exceptions": 15,
+      "semantics": "C11CECF9A1A9A2D8341C02406507B8493F0153E9C30F2C612FEE4FF490B9B9E5",
+      "allocations": [
+        {
+          "name": "check",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "consume",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "discard",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "sync",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "dependents",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "flush",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "flush-tracked",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "modified",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "unbound",
+          "iterations": 20000,
+          "bytes": 0
+        },
+        {
+          "name": "bound",
+          "iterations": 20000,
+          "bytes": 0
+        }
+      ],
+      "groupConstructionIterations": 20000,
+      "groupConstructionBytes": 2400000
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionRangeWalkers": true,
+  "completeProductionVisitorMethods": true,
+  "textureRegionGpuBoundariesDoubled": true,
+  "timingGate": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "inputs": {
+    "build-utils/melonx/adapt_texture_group_callbacks.py": "f5688dca3d74e1e3a00acefe2deb758d4e6f4d1a0a1e7b083e524652da692ee2",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_texture_group_callbacks_test.py": "0126f4aced27736fc2dfc0ce874afd5d6a0a0c232f80ac18c77837e97cb62f97",
+    "test/melonx_texture_group_callbacks/Program.cs": "88580e8b121d22e98ba038a3376792094f6eeefb3e9520ba1f7d29845c1e618e"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "ad3325098f23f5ae36632db8fddb88241b689b1ea10e6cf820935008c7195fd8"
+  },
+  "extraction": {
+    "control": {
+      "completeClassHeaderAndConstructor": true,
+      "compiledExtractSha256": "c64bcb371d9a6d9f44a179351d45dd40859384d7572c418f81ad6fcd96c35a2d",
+      "completeMethods": {
+        "public bool CheckDirty(": "a3c60d4748e81b1243311d2c90ceb28c306ffe091582d580c493ce2db07555a5",
+        "public void DiscardData(": "291d3dd88405081c1c09eeb361cb080aa7a785b45595f55e5ecb6181a0673af7",
+        "public void SynchronizeMemory(": "46f0dd5b42bf24f0b2aecfd8dc0a138b79502a6e7d843ffb088b12a83375bdd4",
+        "public void SynchronizeDependents(": "5b55b423e71fc2444fbfe565db2caae9a369c97dfb12ed3409e9bd4215ad7448",
+        "public bool FlushModified(": "ecc5f5263d06471bcb61ced3aa5f015d3704ba49dd104d4056f819cae9aeb539",
+        "public void SignalModified(": "6d93c43872fe17d4cabdc21ee493a572fe037883d31f00a00cf9a3241379e1aa",
+        "public void SignalModifying(": "b9f83412bdb9e6061fe2ff37f0e5252c4b2f622dab300edbd1abb469bd006f89",
+        "private (int Index, int Count) Get3DLevelRange(": "7bc29cf832f0a1a320ef20b9db47a6c7edcf3d9dabac1cb357ac4afe1825c346",
+        "public void CreateCopyDependency(Texture other,": "651b9f20ddb0745b8f297ce219c9fe118f98d5f9e14449471243d8f5d8bff759",
+        "private void EvaluateRelevantHandles0": "e2a6fc7a2cd1da2a2e241de995d90bbfea92e1efb5e0e2d2f9430b2c2cc60cbd",
+        "private void EvaluateRelevantHandles1": "6f786d0c3c948af0f823c027a9fd2d35951ad7ad519a79b5a3be54b520ff9ba1"
+      }
+    },
+    "candidate": {
+      "completeClassHeaderAndConstructor": true,
+      "compiledExtractSha256": "abc6c1e3c36547baceac4a7422e2f0347f47233319ec32d8ddc7aa00b5ba4630",
+      "completeMethods": {
+        "public bool CheckDirty(": "b3d204f58fedbb2da180caf7a20a2348c6c0d5f765b6c208864918a27d2b64b6",
+        "public void DiscardData(": "983b0b23c83f0405c6210ffd619321af7f314763d5e2bd25cbea5db5693bfc4b",
+        "public void SynchronizeMemory(": "d8e1a1b43aafc79eaae1eef34022059cbf5cc9c2b955e493d7b39903cbb68224",
+        "public void SynchronizeDependents(": "30284176b45e3284f07b108506c0a50408dbceba357f11e27b3c8499d72e3761",
+        "public bool FlushModified(": "cc3a9f2410f4b43c17e5c181b02e1d27e3ddab2b405ed8ea5ad073aa77dbbcf0",
+        "public void SignalModified(": "9b0ac93115af6d7f3de869f7b7699423201fce78a8b43c576c750050798705da",
+        "public void SignalModifying(": "0f1313c93f4e5641ce1f4dfbda674f09287c5fd11f2d7081dc30a0618b2a07ae",
+        "private (int Index, int Count) Get3DLevelRange(": "7bc29cf832f0a1a320ef20b9db47a6c7edcf3d9dabac1cb357ac4afe1825c346",
+        "public void CreateCopyDependency(Texture other,": "6734d27c7d1441ecf4faf28eac004f989d42cbc2d9e1f5b666852b89b445efa7",
+        "private void EvaluateRelevantHandles0": "c1c7905b6cb012e8ae907e9dceca754215b80b1278562a5df787a6bc72cbbb4b",
+        "private void EvaluateRelevantHandles1": "90aba9645b87ca43cf1ab62c83f4c70b549e9f18a2302a0606930c693a00c323"
+      }
+    }
+  }
+}

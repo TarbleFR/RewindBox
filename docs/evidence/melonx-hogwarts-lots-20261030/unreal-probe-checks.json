@@ -1,0 +1,10 @@
+{
+  "result": "passed",
+  "checks": 14,
+  "physicalGameDataRead": false,
+  "configurationLoadVerified": false,
+  "inputs": {
+    "native/melonx/EmbeddedUnrealProjectProbe.cs": "acb035903fa7be136e5a4063d40954a258867028d673a5da3bc7d35b3bc3c797",
+    "test/melonx_unreal_probe_test.py": "cb7787186a5d10ec41082c3d65c501639b30301227dc304b49c18579966a4f73"
+  }
+}

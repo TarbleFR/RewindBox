@@ -115,6 +115,8 @@ def build(sources, flutter_slice, sdk, work, log):
     # Every bridge source, the plugin included (the probe leaves it out: it
     # has no Flutter.framework).
     units = sorted((sources / 'Classes').glob('*.m'))
+    from libretro_ios_syntax_test import achievement_boundary_units
+    units += achievement_boundary_units(sources)
     units += cheat_catalog_units(sources)
     if not any(unit.name == 'LibretroInternalBridgePlugin.m' for unit in units):
         raise SystemExit(f'{sources}: no LibretroInternalBridgePlugin.m')

@@ -1,0 +1,91 @@
+{
+  "baseEngine": 81,
+  "baseSource": "9dd570ee71c5df9edb5a593c90e1757e17f57d93",
+  "sourceAndProjectFilesCompared": 4095,
+  "unchanged": 4080,
+  "changed": [
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/BufferMap.cs",
+      "beforeSha256": "d382e0f3150cc0383972d7439d4eff6ed1684ad3ea1143bd8284d6693b5dc9b2",
+      "sha256": "7c3be0c40d1fcaf1f41a2e8be3a4137b8a0738725fccd3f11f9f6e6f5a1bf206"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/CommandHelper.cs",
+      "beforeSha256": "50f4890a0081bb447f92fc9a03d5f244818ce73e9ab940655938ce385a21211c",
+      "sha256": "d3f0d090ecefd5aecc8fb20818e5a1e9d4335058fc066d682e4aa452c098d429"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedCounterEvent.cs",
+      "beforeSha256": "afa55bad7d89aac269d8bfdd3656a4aab6a2d6610a19cad7a514159d6354f286",
+      "sha256": "536815aa552b6d26f3bf6fb07d306ce997ccc4854a16d11720935a61595d9db9"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTexture.cs",
+      "beforeSha256": "f332c29af532288ce067faf6c056249b5335ffcd4c7dd6f418dfb3639677bc15",
+      "sha256": "cda37819ccf791403e5a93e5138caa9c396043b17290d1f7f43d6f222230692e"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/SyncMap.cs",
+      "beforeSha256": "50463427144b27d437608f317b1b7f0d44415f623f51576b659264f979f1e0a7",
+      "sha256": "db9f32728fbba061aa16ab6d2021c0c5ba4d4f1c97bb501e38f57cced689bcb8"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedHelpers.cs",
+      "beforeSha256": "f6770237d21fcad32d771a40604d6f2e71b8d5242683504fe0aa483e1b00f252",
+      "sha256": "f4461d704e335701d2872304b164b28de083165af9299554e983b7f0b70495ca"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+      "beforeSha256": "0bb45c762eb54dfeb6007c69088c6c766382af9c3fe1bc6cfc3ce05241772f75",
+      "sha256": "6a5a3368d5a2987f997145f2edb16929499736985df32b48cf1481d2f27e4ac0"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+      "beforeSha256": "194ca019672e8e5fcc37bbb32db3cb2adc206a13cad70a5d6beef8aeed3c3dfc",
+      "sha256": "2c534bf24cb156d5cfc4cdc20446f1ef8b38fb91e58221c6360bd5160b321a76"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+      "beforeSha256": "477fe022ac61f0acddeaa2c3becff3f7d1ff153209f3a63b88e0ce6b0e3b4fc2",
+      "sha256": "e5b62f19602d02246cabe8b3aab7e46c3871ce1354ed2194151105f513944d1c"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+      "beforeSha256": "252f575c9481ce1a813e08245ee5ea5fc537c7defd053c87c9f9e5cbc9eecd40",
+      "sha256": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+      "beforeSha256": "21836d79b26f8c5d69bfa43ac6e617057e5b37a3e58dabb2849140c650503094",
+      "sha256": "79462a4a7f95680dc963b69c30c91ffb9c0f848445e2f3225972b2d33f708bae"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
+      "beforeSha256": "8636bc114c4d2f1d03e35c0c9f6b4dbb1729cec8849ba40cf4d97b6e515d156c",
+      "sha256": "cd7d0baa5aa49cc244022ff18482706b5243c8206530bde93f02e97997b70576"
+    },
+    {
+      "path": "src/Ryujinx.HLE/HOS/ArmProcessContext.cs",
+      "beforeSha256": "a455fdf4f321c709accc58584dab97ac5b48b93d67762d39c07c579b57dd8204",
+      "sha256": "181ace86bf35ee4fce3d961bacdfceb780c8e02552839b407d112c0e934ceffd"
+    },
+    {
+      "path": "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs",
+      "beforeSha256": "f25feee30e1ee6c523c6e617997074e43c43eae4a3eb5e7352b529e01c602120",
+      "sha256": "07beeeefccb9638b668a94fc4645a12b499706269cd177b9672ba9eca6bd7755"
+    },
+    {
+      "path": "src/Ryujinx.Library/Window/WindowBase.cs",
+      "beforeSha256": "e749709340545e03dea3548f8c5cb59d3c8f85dfe1de29bbb8732d7fa0d43def",
+      "sha256": "b49beb7f8cee379c590ae227098255873a000e5cfd33ea5164c5ae3497635489"
+    }
+  ],
+  "updatedSinceInitialManagedBuild": [
+    "src/Ryujinx.Graphics.GAL/Multithreading/CommandHelper.cs",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+    "src/Ryujinx.HLE/HOS/ArmProcessContext.cs",
+    "src/Ryujinx.Library/Window/WindowBase.cs"
+  ],
+  "incrementalBuildWorkspaceUpdatedOnlyChangedSources": true
+}

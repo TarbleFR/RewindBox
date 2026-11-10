@@ -1,0 +1,76 @@
+{
+  "result": "passed",
+  "passed": true,
+  "static": {
+    "noExceptionsAdded": true,
+    "codegenFilesChanged": [
+      "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp"
+    ],
+    "spuCommonRecompiler": {
+      "before": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0",
+      "after": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "aliasedToBefore": true
+    }
+  },
+  "scenarios": {
+    "pkg": {
+      "cases": 9,
+      "passed": 9,
+      "installDirCases": 5,
+      "installDirPassed": 5,
+      "controlTraversalLeavesHdd0": true,
+      "controlPath": "/Library/Preferences/app.plist"
+    },
+    "spuWarmup": {
+      "input": 592,
+      "compiled": 400,
+      "controlCompiled": 592,
+      "unique": true,
+      "biggestFirst": true,
+      "everyProgramKept": true
+    },
+    "savedata": {
+      "cases": 5,
+      "passed": 5
+    },
+    "savestate": {
+      "flushedShortRead": true,
+      "flushedFullRead": true,
+      "unflushedShortRead": true,
+      "unflushedFullRead": true,
+      "controlUnflushedLayoutValid": false,
+      "controlFlushedOutOfBounds": true
+    },
+    "logs": {
+      "calls": 1000,
+      "allocations": 0,
+      "controlAllocations": 1000,
+      "threadExitSafe": true
+    },
+    "sceKeyIndex": {
+      "ivIndexEqualKeyCountRejected": true,
+      "controlAcceptsOutOfRange": true
+    },
+    "failures": 0
+  },
+  "harnessSHA256": "32161130d68573614454ad34f2a8e0406d69d74f172e8d864eafaa953c9aafbe",
+  "sanitizers": "ASan+UBSan, standard library bounds assertions",
+  "sourceSHA256": {
+    "rpcs3/Crypto/unpkg.cpp": "5bd8624b147f895afcbbc198110e91eb008cf046615ce925c6e52d5b37e249e4",
+    "rpcs3/Crypto/unself.cpp": "cdfb6b31972519c2b9903891ac71cde48280c16e7eee6cecd4142902f8950f53",
+    "rpcs3/Crypto/unself.h": "ae278701a8f4895018243ea0023cd662d6bea9d7cc0316d39d0458dfbe42d59a",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "5e9212dfe40a42cc66370ec75b59b5b831f6974727c51ce051cbc47cc9faf2d4",
+    "rpcs3/Emu/Cell/Modules/cellSaveData.cpp": "d248b872fed757455f676bd18fe39062317686785ca89600b9166c40a45c24d0",
+    "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+    "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "de1fddfb476e3c028a6f9bebd6a024011074ed52b9a8be33250141e83ef910f2",
+    "rpcs3/util/logs.cpp": "9e78d6644e60595ab82473aa2f3efba8f153ccf1e32bba24c9265ac82ca4f774",
+    "rpcs3/util/serialization.hpp": "f4abf27993a67aa5e0d03a32bde2101b7ab5d07945ef5d9405b529125a95057d"
+  },
+  "inputs": {
+    "test/rpcs3_cell545_test.py": "b50d86ab3034c0e26595ef246ab2484b51fd20daa7216219ad33263acdb04ca3",
+    "test/native/rpcs3_cell545.inc": "5a641ddb831f728a86a5380b166481573b14f8528ab84d41a03ac9472b716734",
+    "test/fixtures/rpcs3_cell545.diff": "8826495a32354c864604ee933af3a32b9855c7c7a1a00f458424845f90a41889"
+  },
+  "debugSelfDecryptionExecuted": false,
+  "physicalDeviceTested": false
+}

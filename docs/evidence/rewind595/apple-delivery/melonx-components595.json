@@ -1,0 +1,13 @@
+{
+  "build": 595,
+  "baseline": 594,
+  "downloads": [
+    {
+      "artifact": 12912462226,
+      "archiveSHA256": "defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912",
+      "bytes": 87451078,
+      "target": "dist/melonx",
+      "rebuilt": false
+    }
+  ]
+}

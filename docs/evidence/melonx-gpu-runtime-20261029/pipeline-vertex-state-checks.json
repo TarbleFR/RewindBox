@@ -1,0 +1,44 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "variant": "control",
+      "checks": 88788,
+      "scenarios": 5766,
+      "strideMismatches": 1200,
+      "firstDrawPipelineCacheMisses": 1200,
+      "oneBufferStride": 0,
+      "expectedOneBufferStride": 8,
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false,
+      "strideOracleScope": "fresh bindings; no historical unused-buffer alignment"
+    },
+    {
+      "variant": "candidate",
+      "checks": 88788,
+      "scenarios": 5766,
+      "strideMismatches": 0,
+      "firstDrawPipelineCacheMisses": 0,
+      "oneBufferStride": 8,
+      "expectedOneBufferStride": 8,
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false,
+      "strideOracleScope": "fresh bindings; no historical unused-buffer alignment"
+    }
+  ],
+  "physicalDeviceTested": false,
+  "nativeCallsUsed": false,
+  "fullProductionVulkanAssembly": true,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_vertex_state.py": "e24c071e154d15173e376b0134c1ccf8aa7c51379dcf26163a28f9770ac0e5ab",
+    "test/melonx_pipeline_vertex_state_test.py": "e1eee7434ca62725e1f81b6dd5c37b61d66387b1fe24b463a577a64fafdf16ec",
+    "test/melonx_pipeline_vertex_state/Program.cs": "aaf67e68ea022c1bd3b2fe95938ae980ec420da281bd4570cabb5a95923f586e"
+  },
+  "converterInput": "041966bf0cff2fa9e8d1743c8a53b93affca271b279586b25515623dee98b61b",
+  "runtimeOracleSources": {
+    "PipelineBase.cs": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+    "VertexBufferState.cs": "55ded45736d7e8f2a220493d00b38f1f2428005cfc567a48e90f8d6653e86555",
+    "VulkanRenderer.cs": "cd7d0baa5aa49cc244022ff18482706b5243c8206530bde93f02e97997b70576"
+  },
+  "limitation": "Oracle covers fresh bindings, not retained scalar alignment on historically unused buffers; no device FPS measured."
+}

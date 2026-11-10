@@ -29,9 +29,22 @@ def validate(ipa, build):
             raise ValueError('Packaged index differs from the Apple-tested final index')
         manifest = json.loads(gzip.decompress(data))
         if build >= 480:
-            receipt=json.loads((ROOT/'docs/evidence/source-rights-withdrawal.json').read_bytes())
+            # From 586 the hosted index is the one left after the 28 October withdrawal of the unlicensed
+            # 60 FPS programs, and the app bundles its origin publication (v2): same games and chunks.
+            withdrawal='source-rights-withdrawal-fps478.json' if build >= 586 else 'source-rights-withdrawal.json'
+            receipt=json.loads((ROOT/'docs/evidence'/withdrawal).read_bytes())
             counts=(receipt['totals']['games'],receipt['preservedPacks']+len(receipt['replacedPacks']),receipt['totals']['programs'])
-            if hashlib.sha256(data).hexdigest()!=receipt['manifestSHA256']:
+            hosted=data
+            if build >= 586:
+                origin=json.loads((ROOT/'native/cheats/catalogue/v2/VALIDATION.json').read_bytes())
+                if data!=(ROOT/'native/cheats/catalogue/v2/manifest.json.gz').read_bytes() or (
+                        hashlib.sha256(data).hexdigest(),len(data))!=(origin['manifest_sha256'],origin['manifest_bytes']):
+                    raise ValueError('Packaged index differs from the origin publication')
+                hosted=(ROOT/'native/cheats/catalogue/manifest.json.gz').read_bytes()
+                strip=lambda game:{k:v for k,v in game.items() if k!='pack_id'}
+                if [strip(g) for g in manifest['games']]!=[strip(g) for g in json.loads(gzip.decompress(hosted))['games']]:
+                    raise ValueError('Origin publication lists other games or chunks than the hosted index')
+            if hashlib.sha256(hosted).hexdigest()!=receipt['manifestSHA256']:
                 raise ValueError('Packaged index differs from exact source-rights proof')
             aot=z.read(root+'Frameworks/App.framework/App')
             for marker in (b'[ScrapingMD5] start file=',b'[ScrapingMD5] completed file=',b'[ScrapingMD5] failed file='):
@@ -82,6 +95,10 @@ def validate(ipa, build):
                         raise ValueError('Packaged compatible discovery/streaming fix is missing '+marker.decode())
             if name == 'neo_cheat_catalog' and build >= 480 and b'pokemonfrance' not in binary:
                 raise ValueError('Withheld-source cache guard missing')
+            if name == 'neo_cheat_catalog' and build >= 586:
+                for marker in (b'resolveOriginPack', b'native/cheats/catalogue/v2/manifest.json.gz', b'Origin downloads are unavailable'):
+                    if marker not in binary:
+                        raise ValueError('Packaged origin publication is missing '+marker.decode())
             binaries[name] = hashlib.sha256(binary).hexdigest()
         if any('/packs/pack-' in n and n.endswith('.json.gz') for n in names):
             raise ValueError('Downloadable full packs must not inflate the IPA')

@@ -40,6 +40,14 @@ def main():
     engine = Path(sys.argv[1]).resolve()
     source = Path(sys.argv[2]).resolve()
     lock = json.loads((root / 'build-utils/melonx/source.json').read_text())['libHac']
+    if os.environ.get('MELONX_AUTHENTICATED_BASELINE'):
+        # The exact engine82 envelope already contains the source-built package,
+        # corresponding source and successful layout proof. Its authenticated
+        # reuse does not need another checkout, generator run or old job lookup.
+        from reuse_core_baseline import reuse_libhac
+        feed, package = reuse_libhac(engine, source)
+        configure_feed(engine, feed, package)
+        return
     actual = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     assert actual == lock['revision'], (actual, lock['revision'])
     assert not subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True).strip()

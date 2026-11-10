@@ -50,6 +50,7 @@ abstract final class Rpcs3LaunchService {
       return await Rpcs3InternalService.launchTitle(
         titleId,
         uiLocale: uiLocale,
+        contentPath: sourcePath,
       );
     } on Rpcs3InternalException catch (error, stackTrace) {
       _lastError = error.message;

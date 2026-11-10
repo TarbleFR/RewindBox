@@ -14,9 +14,11 @@ import 'neo_glass.dart';
 
 /// Vertical action button column shared by the game list, grid, and carousel.
 ///
-/// Normally renders back, view-mode, favorite, the game-settings shortcut and
-/// the game-settings shortcut. While Select (View) is held it swaps to the
-/// chord shortcuts it unlocks — A scrapes and Y picks a random game.
+/// Normally renders back, view-mode, favorite and the game-settings shortcut.
+/// While Select (View) is held, or once the `⋯` menu is opened with a Select
+/// tap or a touch, it swaps to the shortcuts that layer unlocks — A scrapes,
+/// X runs the context action (preview sound or achievements refresh) and Y
+/// picks a random game.
 class GameActionButtons extends StatelessWidget {
   final SystemModel system;
   final GameModel? selectedGame;
@@ -31,6 +33,14 @@ class GameActionButtons extends StatelessWidget {
   /// Select + A — scrape the highlighted game. Optional (list view only).
   final VoidCallback? onScrape;
 
+  /// Select + X — the view's context action (mute the preview video, or
+  /// refresh achievements on that tab). Optional.
+  final VoidCallback? onContextAction;
+
+  /// Icon of [onContextAction], read when the layer opens so it follows the
+  /// view's current state (e.g. the selected details tab).
+  final IconData Function()? contextActionIcon;
+
   const GameActionButtons({
     super.key,
     required this.system,
@@ -41,6 +51,8 @@ class GameActionButtons extends StatelessWidget {
     required this.onSettings,
     this.onRandom,
     this.onScrape,
+    this.onContextAction,
+    this.contextActionIcon,
   });
 
   /// Whether the Select (View) chord layer has any shortcuts to reveal.
@@ -87,8 +99,9 @@ class GameActionButtons extends StatelessWidget {
     );
   }
 
-  /// The tappable Select (View) pill. Latches the shared [selectHeldNotifier]
-  /// so both this column and the footer legend flip to the chord layer.
+  /// The tappable Select (View) pill. Latches the shared chord layer (the same
+  /// one a Select tap opens on a gamepad) so both this column and the footer
+  /// legend flip to it.
   Widget _buildViewToggle(BuildContext context, {required bool active}) {
     final scheme = Theme.of(context).colorScheme;
     return GameActionButton(
@@ -97,7 +110,7 @@ class GameActionButtons extends StatelessWidget {
       color: active ? scheme.primary : scheme.tertiaryFixed,
       foregroundColor: active ? scheme.onPrimary : scheme.onTertiaryFixed,
       sound: GameActionButtonSound.nav,
-      onTap: () => GamepadNavigation.selectHeldNotifier.value = !active,
+      onTap: GamepadNavigation.toggleSelectLayer,
     );
   }
 
@@ -106,8 +119,8 @@ class GameActionButtons extends StatelessWidget {
   VoidCallback? _withRevert(VoidCallback? action) {
     if (action == null) return null;
     return () {
+      GamepadNavigation.closeSelectLayer();
       action();
-      GamepadNavigation.selectHeldNotifier.value = false;
     };
   }
 
@@ -152,7 +165,6 @@ class GameActionButtons extends StatelessWidget {
         sound: GameActionButtonSound.nav,
         onTap: selectedGame != null ? onSettings : null,
       ),
-
     ];
   }
 
@@ -173,6 +185,18 @@ class GameActionButtons extends StatelessWidget {
         onTap: selectedGame != null ? _withRevert(onScrape) : null,
       ),
       SizedBox(height: 8.r),
+      if (onContextAction != null) ...[
+        // X — the view's context action (sound of the preview, refresh).
+        GameActionButton(
+          iconPath: 'assets/images/gamepad/Xbox_X_button.png',
+          symbol: contextActionIcon?.call() ?? Symbols.volume_up_rounded,
+          color: scheme.tertiaryFixed,
+          foregroundColor: scheme.onTertiaryFixed,
+          sound: GameActionButtonSound.nav,
+          onTap: _withRevert(onContextAction),
+        ),
+        SizedBox(height: 8.r),
+      ],
       // Y — random game.
       GameActionButton(
         iconPath: 'assets/images/gamepad/Xbox_Y_button.png',

@@ -1,0 +1,23 @@
+{
+  "result": "passed",
+  "reusedAppleGates": 12,
+  "historicalTestsExecuted": 0,
+  "negativeControls": [
+    "independent proof",
+    "gate digest index",
+    "gate receipt",
+    "unchanged adapter",
+    "unchanged fixture",
+    "upstream source",
+    "foreign historical source",
+    "second preparation change",
+    "existing output"
+  ],
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
+    "test/melonx_core84_reuse_test.py": "27ba8dd69b7fe74792fcdd72357d3539eefd95210c15fe1654f8553f51387abf",
+    "docs/evidence/melonx-hogwarts-timer-20261029/candidate.json": "edd5eb178e996be66997db909c803803c7a3f24ab8c9792558516a3894b62535",
+    "docs/evidence/melonx-hogwarts-timer-20261029/embedded-inputs.json": "8c28cc952f290a102c550e2969eed08de3189b1e3c0cca73d8405865f74bc82f"
+  }
+}

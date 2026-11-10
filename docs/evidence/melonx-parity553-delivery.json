@@ -1,0 +1,151 @@
+{
+  "result": "passed",
+  "build": 553,
+  "version": "0.0.8",
+  "source": "4a4d0fc6d8a06d0ddb1a4a821f774757ae84b8cb",
+  "run": 40342988817,
+  "jobs": {
+    "checks": "success",
+    "Release device build \u2022 cold": "success"
+  },
+  "artifact": {
+    "id": 12661083441,
+    "sha256": "35b77944a0167167e252d066dcab8172d122752c094d63696d652948c227e304",
+    "name": "RewindBox-Build553-4a4d0fc6d8a06d0ddb1a4a821f774757ae84b8cb-cold",
+    "expires": "2026-11-09T15:08:32Z",
+    "recipient": "build-utils/delivery-553-recipient.pem",
+    "privateKeyInGit": false,
+    "cipher": "RSA-OAEP-SHA256 envelope, AES-256-CBC PBKDF2 200000"
+  },
+  "ipa": {
+    "name": "RewindBox-Build553-4a4d0fc6d8a06d0ddb1a4a821f774757ae84b8cb-cold.ipa",
+    "bytes": 187987716,
+    "sha256": "82abd2480f6a7e1d666088262dbe985b596ebd51be2f8b232bfad2a004e1997a",
+    "bundleVersion": "553",
+    "gameMode": {
+      "LSSupportsGameMode": true,
+      "GCSupportsGameMode": true,
+      "LSApplicationCategoryType": "public.app-category.games"
+    },
+    "sha256SumsPathNote": "SHA256SUMS lists the CI path build/delivery-artifact/...; the decrypted file hash was compared to it directly."
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source551": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "source552": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "sourceParity": "62626c0fa0263c8ce29671bf060c9bc7d746c1a0",
+    "sourceHost": "a4872682f487c622fa1093eb40d3d9280e20cca0",
+    "sourceDart": "6633588a23fbc5c1c4663514edca9b4f9e88f097",
+    "productTrees": {
+      "lib": "4ac259a923b8625ba350eb731f057aa823cc6739",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees552": {
+      "lib": "cdf88dda580afea06bc0690122e4b98663c91852",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "8925c7c23af47e10306836ac213d512b9f33861d",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees551": {
+      "lib": "0dbd5db92a7de3dac11983b67d0092f757c82e3e",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "26776d4bb632215d78b1bc0bc7aaa548f2533ae0",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees550": {
+      "lib": "6d7d826dc950e9ce018d74538b0ccc9d37f79856",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "b3b03d3be2f2d0a5bef2408823cbec1de25ac090",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "equalities": "productTrees552 = delivered 552 receipt; productTrees551/550 = delivered 551/550 receipts"
+  },
+  "engine": {
+    "source": "62626c0fa0263c8ce29671bf060c9bc7d746c1a0",
+    "run": 40328874348,
+    "artifact": 12654516832
+  },
+  "host": {
+    "source": "a4872682f487c622fa1093eb40d3d9280e20cca0",
+    "run": 40339415828,
+    "artifact": 12658953626
+  },
+  "rpcs3": {
+    "core": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "coreRun": 40247161327,
+    "fix": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "fixDelivery": 40335530316
+  },
+  "standaloneMoltenVk": {
+    "name": "MeloNXMoltenVKStandalone",
+    "repository": "https://starforgejo.dev/projects/MeloNX.git",
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "path": "src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib",
+    "sourceSha256": "5735ca4aee60ed7e0475b80b8ecdcfc952e4e0b7d49018f11781e51e5106bfa5",
+    "packagedSha256": "991acaa33faf56941468388c01295882c627635f5254393641b5baad20d1c9d7",
+    "installName": "@rpath/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+    "systemDependencies": [
+      "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+      "/System/Library/Frameworks/UIKit.framework/UIKit",
+      "/System/Library/Frameworks/Foundation.framework/Foundation",
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      "/System/Library/Frameworks/Metal.framework/Metal",
+      "/usr/lib/libc++.1.dylib",
+      "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit",
+      "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+      "/usr/lib/libSystem.B.dylib",
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      "/usr/lib/libobjc.A.dylib"
+    ],
+    "sourceBuilt": false,
+    "exception": "maintainer-approved Persona flicker A/B",
+    "gameplayTested": false,
+    "physicalDeviceTested": false,
+    "license": {
+      "sourceArchive": "MoltenVK-49b97f26ae013b9e5bfb3098ee5dea5e4f58e9e8.tar.gz",
+      "sourcePath": "MoltenVK/LICENSE",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    "shippedPayloadFingerprint": "03a50b7516b57540f05d9a0239959537c8676f097e76218732057584a2ca1f3c",
+    "sectionsMatchingSource": 28,
+    "upstreamNote": "MVK_GIT_REV 85d607a1 is not a KhronosGroup/MoltenVK commit (fetch: not our ref): a fork build reporting 1.4.0."
+  },
+  "ciValidation": {
+    "parity": "melonx-parity553-ipa-validation.json",
+    "interface": "liquid-glass-ui553-ipa-validation.json",
+    "rpcs3": "rpcs3-memory-audit-ipa.json"
+  },
+  "localRevalidation": {
+    "worktree": "4a4d0fc pinned with melonxparity553_tree.py",
+    "parityReportIdenticalToCI": true,
+    "interfaceReportIdenticalToCI": true,
+    "note": "Local standalone packaging used llvm-install-name-tool; only its pre-signing packagedSha256 differs from CI (Apple install_name_tool); the payload fingerprint is identical; the embedded CI receipt was then validated against the IPA."
+  },
+  "installsOver": [
+    547,
+    548,
+    549,
+    550,
+    551,
+    552
+  ],
+  "dryRun": {
+    "run": 40331958399,
+    "tree": "551 tree",
+    "delivered": false
+  },
+  "physicalDeviceTested": false,
+  "standaloneMoltenVkDeviceTested": false,
+  "flickerFixClaimed": false,
+  "scope": "552 product tree with the MeloNX standalone parity (selectable MoltenVK with the standalone binary by default, stderr journal, Game Mode, present target, engine options journal, threading import fix and residue cleanup). Host tests and CI validators only; no iPhone run."
+}

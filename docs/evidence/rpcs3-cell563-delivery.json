@@ -1,0 +1,117 @@
+{
+  "result": "passed",
+  "build": 563,
+  "version": "0.0.8",
+  "source": "0bf5854a9566596304a987aff82ca6a2c9afa7de",
+  "run": 40501404250,
+  "mode": "full Xcode build on the delivered 562 tree",
+  "jobs": {
+    "checks": {
+      "id": 122179711334,
+      "conclusion": "success"
+    },
+    "Release device build • cold": {
+      "id": 122183035893,
+      "conclusion": "success"
+    }
+  },
+  "artifact": {
+    "id": 12735616104,
+    "name": "RewindBox-Build563-0bf5854a9566596304a987aff82ca6a2c9afa7de-cold",
+    "bytes": 189056029,
+    "sha256": "0d56953a4cd087507626ed30dd6609117e608802ad15375dd43435eb9915a3ed",
+    "expires": "2026-11-10T12:48:11Z",
+    "recipient": "build-utils/delivery-563-recipient.pem",
+    "privateKeyInGit": false,
+    "cipher": "RSA-OAEP-SHA256 envelope, AES-256-CBC PBKDF2 200000"
+  },
+  "ipa": {
+    "name": "RewindBox-Build563-0bf5854a9566596304a987aff82ca6a2c9afa7de-cold.ipa",
+    "bytes": 188074851,
+    "sha256": "d23c6b7885d94bbfd97c9571fd1519fd126e5c83f5ccac1a5d24f85934119319",
+    "bundleVersion": "563",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "minimumOS": "18.0",
+    "sha256SumsMatches": true,
+    "signedPayloadIdentitySHA256": "d23c6b7885d94bbfd97c9571fd1519fd126e5c83f5ccac1a5d24f85934119319",
+    "sideStoreAppleReSigningRequired": true
+  },
+  "base562": {
+    "receipt": "docs/evidence/melonx-input562-delivery.json",
+    "run": 40490382532,
+    "note": "563 ships the delivered 562 product trees (lib, native, packages, assets, pubspec: identical Git trees); only the RPCS3 Core changes."
+  },
+  "comparedWith561Ipa": {
+    "files": [
+      4599,
+      4600
+    ],
+    "machOByteIdentical": 72,
+    "machOSignatureOnly": 10,
+    "machOCodeDataAbiChanged": {
+      "libRPCS3Core.dylib": "the 563 Core",
+      "melonx_internal_bridge": "the 562 MeloNX keyboard and L3/R3 host",
+      "Runner": "relinked by the full Xcode build"
+    },
+    "identityReceipts": "the four 561 receipts become 563, plus MeloNX-input563-identity.json"
+  },
+  "productTrees": {
+    "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+    "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+    "packages": "d88f20ab17f075804d021c8d2c9b86d8046c6bc7",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTreesEqual562": true,
+  "rpcs3Core": {
+    "source": "dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+    "run": 40500425037,
+    "artifact": 12732947797,
+    "sha256": "7e3ef6ad788d522810bd6b24b28abdb769b298b05c3394402a917f231c408447",
+    "abi": 30,
+    "exports": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "codegenUnchangedSince551": true,
+    "ipaCoreFingerprintEqualsCiCore": true,
+    "replaces": {
+      "source": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+      "run": 40486026315
+    },
+    "contains": [
+      "561 Core",
+      "563 per-window A/B of the 561 early submission (Automatic: BLES01658 only)"
+    ],
+    "evidence": [
+      "docs/evidence/rpcs3-cell563-host-linux.json",
+      "docs/evidence/rpcs3-cell563-macos.json"
+    ]
+  },
+  "ciValidation": {
+    "rpcs3": "rpcs3-memory-audit-ipa.json",
+    "interface": "liquid-glass-ui563-ipa-validation.json",
+    "libraryFiles": "rpcs3-library-files563-ipa-validation.json",
+    "melonxPerf": "melonx-perf563-ipa-validation.json",
+    "melonxInput": "melonx-input563-ipa-validation.json"
+  },
+  "localRevalidation": {
+    "worktree": "0bf5854 pinned with rpcs3cell563_tree.py",
+    "rpcs3ReportIdenticalToCI": true,
+    "interfaceReportIdenticalToCI": true,
+    "libraryFilesReportIdenticalToCI": true,
+    "melonxNotRerunLocally": "their engine and host evidence needs the macOS job materialization; passed on CI"
+  },
+  "installsOver": [
+    559,
+    560,
+    561,
+    562
+  ],
+  "physicalDeviceTested": false,
+  "fpsGainMeasured": false,
+  "githubRelease": false,
+  "scope": "Delivered 562 product with the RPCS3 Core 563 (a measurement build). Host and CI evidence only; no iPhone FPS, frame time, stall, thermal or memory result."
+}

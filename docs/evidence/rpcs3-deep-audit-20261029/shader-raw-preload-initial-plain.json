@@ -1,0 +1,138 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/rsx_cache.h": "90b9f4360b3c6aa125f013b853c5b5f40ab13b56b6d714ba2e36200c2fdb1b1f",
+    "rpcs3/Emu/RSX/Program/RSXFragmentProgram.h": "783a1d7b9f68dc6262c08dfa5aefd7563a9478b8b78ecb132e5d4dfab2ed20e5",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "Utilities/lockless.h": "4060ce2ce9fb635aee6e7832a2f9e306c6338de4baf4c78f77c092f73ae831f7"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/rsx_cache.h": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573",
+    "rpcs3/Emu/RSX/Program/RSXFragmentProgram.h": "783a1d7b9f68dc6262c08dfa5aefd7563a9478b8b78ecb132e5d4dfab2ed20e5",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "Utilities/lockless.h": "4060ce2ce9fb635aee6e7832a2f9e306c6338de4baf4c78f77c092f73ae831f7"
+  },
+  "harnessSHA256": "b1346f6ef37bcc505e2a2a3549aacb67e25925903c552f99e74a73d0c26e1052",
+  "adapterSHA256": "8203fd35216f8e5639349c563f938a57c5bcfbf8a22384cccda44a9432ce2639",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-pthread",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "results": {
+    "cases": [
+      {
+        "name": "identical",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 1,
+        "beforeBytes": 2097152,
+        "afterBytes": 8192,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 8192,
+        "beforeUs": 5517.12,
+        "afterUs": 2886.47
+      },
+      {
+        "name": "identical",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 1,
+        "beforeBytes": 2097152,
+        "afterBytes": 8192,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 8192,
+        "beforeUs": 2870.28,
+        "afterUs": 1416.03
+      },
+      {
+        "name": "distinct_slots",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 8,
+        "beforeBytes": 2097152,
+        "afterBytes": 65536,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 65536,
+        "beforeUs": 5049.7,
+        "afterUs": 2514.93
+      },
+      {
+        "name": "distinct_slots",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 8,
+        "beforeBytes": 2097152,
+        "afterBytes": 65536,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 65536,
+        "beforeUs": 1350.59,
+        "afterUs": 894.693
+      },
+      {
+        "name": "collisions",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 6376.37,
+        "afterUs": 3801.47
+      },
+      {
+        "name": "collisions",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 196,
+        "beforeBytes": 2097152,
+        "afterBytes": 1605632,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 1605632,
+        "beforeUs": 1078.86,
+        "afterUs": 3358.92
+      },
+      {
+        "name": "unique",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 3934,
+        "afterUs": 5271.06
+      },
+      {
+        "name": "unique",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 1470.78,
+        "afterUs": 1855.51
+      }
+    ],
+    "recordsVerified": 4096,
+    "errorRecoveryCases": 4,
+    "passLifetimeChecked": true,
+    "collisionLifetimeChecked": true,
+    "cancellationChecked": true,
+    "desktopUnchanged": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Execute exact raw FP loading, hash validation, unpacking and preload worker.\n\nUses real temporary files and production lf_fifo/FP ownership. Only the worker\nlauncher, filesystem facade, vertex hash and shader compiler are host adapters.\n"
+}

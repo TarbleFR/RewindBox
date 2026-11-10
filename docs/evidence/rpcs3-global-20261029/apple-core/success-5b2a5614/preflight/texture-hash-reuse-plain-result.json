@@ -1,0 +1,635 @@
+{
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/ios/IOSTexturePrehash.h": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "rpcs3/ios/IOSTexturePrehash.h": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+  },
+  "harnessesSHA256": {
+    "baseline": "ee78a8d2497964ff4d9dc5d2161ceebe589fcd96f5e28094a154c51874655f10",
+    "candidate": "bb0f5661ad1e5112ac602b248b78dad00d6fbacc4a47562eb7473651187bb737"
+  },
+  "adapterSHA256": "f7e96f6ab360df6c14d0e015e3a6ea5a8cb648d174e70ac1c09c03490d9ea070",
+  "retainedAdapterSHA256": "134e0629e2e7e44e0c2e43117b5c30356b35da1cc224bce631c615d323197ac6",
+  "nonIosSourceIdentical": true,
+  "workerLookupBeforeHashPreserved": true,
+  "slotStorageUnchanged": true,
+  "publicationTryOnce": true,
+  "passed": true,
+  "compiler": "Homebrew clang version 22.1.8",
+  "host": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "sanitizer": "",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fullCoreBuilt": false,
+  "hashCountersSource": "harness observer; disabled during timing",
+  "existingPrehashHitsCanIncludeSynchronousProducers": true,
+  "hybridHashExecuted": false,
+  "hashImplementation": "production XXH3 with cached seeded secret; host SIMD",
+  "tsanSuppressions": [],
+  "baseline": {
+    "passed": true,
+    "candidate": false,
+    "repeatedQueries": 96,
+    "repeatedHashes": 96,
+    "repeatedBytes": 6291456,
+    "distinctQueries": 32,
+    "distinctHashes": 32,
+    "overlapWriteHashes": 3,
+    "overlapChangedRejected": 3,
+    "confirmedRangeReuse": true,
+    "cacheReset": true,
+    "oldWorkerAfterScopedWrite": true,
+    "epochDuringHash": true,
+    "oldPublisherAfterNewEpoch": true,
+    "disabledControls": true,
+    "collisionChecks": 64,
+    "heldSlotNoWait": false,
+    "stressWrites": 250000,
+    "stressReads": 500000,
+    "stressAcceptedMatches": 17,
+    "multiWriterTested": false,
+    "workerPredictionHashes": 3,
+    "workerPredictionBytes": 196608,
+    "workerSynchronousHashes": 1,
+    "guestMemoryMappingModeled": true,
+    "gpuExecuted": false,
+    "benchmarks": [
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 956.2988281,
+        "seriesNsPerValidation": [
+          940.4296875,
+          951.0898438,
+          956.2988281,
+          957.1132812,
+          1036.296875,
+          953.6953125,
+          978.515625
+        ]
+      },
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 962.4824219,
+        "seriesNsPerValidation": [
+          970.296875,
+          951.8242188,
+          1048.259766,
+          962.4824219,
+          949.625,
+          949.3007812,
+          965.8203125
+        ]
+      },
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 989.9101562,
+        "seriesNsPerValidation": [
+          958.7402344,
+          996.09375,
+          1022.787109,
+          956.9511719,
+          989.9101562,
+          983.96875,
+          990.5585938
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 1953.613281,
+        "seriesNsPerValidation": [
+          2346.027344,
+          1945.148438,
+          1906.085938,
+          1931.640625,
+          1991.535156,
+          1953.613281,
+          1995.765625
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 1946.613281,
+        "seriesNsPerValidation": [
+          2268.554688,
+          1946.613281,
+          2213.054688,
+          1926.433594,
+          1944.984375,
+          1918.621094,
+          1974.121094
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 1957.84375,
+        "seriesNsPerValidation": [
+          2196.613281,
+          1957.84375,
+          2046.875,
+          2004.230469,
+          1950.519531,
+          1930.5,
+          1927.898438
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 7710.9375,
+        "seriesNsPerValidation": [
+          7835.9375,
+          7621.734375,
+          7710.9375,
+          7867.84375,
+          7606.765625,
+          7616.53125,
+          8347.65625
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 7597,
+        "seriesNsPerValidation": [
+          8080.734375,
+          7511.0625,
+          7623.046875,
+          7597,
+          7503.90625,
+          7524.09375,
+          7670.5625
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 7778.65625,
+        "seriesNsPerValidation": [
+          8139.328125,
+          7778.65625,
+          7823.578125,
+          7726.5625,
+          7467.453125,
+          7873.6875,
+          7585.9375
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 31233.0625,
+        "seriesNsPerValidation": [
+          31233.0625,
+          30411.46875,
+          31359.375,
+          31367.1875,
+          30434.90625,
+          30619.78125,
+          91036.4375
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 37178.375,
+        "seriesNsPerValidation": [
+          77221.34375,
+          37178.375,
+          36231.78125,
+          47151.03125,
+          78208.34375,
+          33149.71875,
+          35623.6875
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 31588.53125,
+        "seriesNsPerValidation": [
+          40691.40625,
+          103558.5938,
+          32078.125,
+          31588.53125,
+          31016.90625,
+          31303.375,
+          31135.40625
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 112283.8438,
+        "seriesNsPerValidation": [
+          112283.8438,
+          116897.125,
+          324401.0312,
+          111486.9688,
+          145824.2188,
+          106704.4375,
+          109358.0938
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 120091.1562,
+        "seriesNsPerValidation": [
+          119739.5938,
+          126687.5,
+          117692.6875,
+          121431,
+          131686.2188,
+          120091.1562,
+          117403.6562
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 109445.3125,
+        "seriesNsPerValidation": [
+          109692.6875,
+          107235.6875,
+          109445.3125,
+          109804.6875,
+          114990.9062,
+          107769.5312,
+          108466.125
+        ]
+      }
+    ],
+    "compilerFlags": [
+      "-std=c++20",
+      "-O2",
+      "-UNDEBUG",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-exceptions",
+      "-fno-omit-frame-pointer",
+      "-pthread",
+      "-DRPCS3_IOS=1",
+      "-I/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/runtime-bo2-warm-before-6fvvjpn1/beforeGlobal/rpcs3",
+      "-I/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/runtime-bo2-warm-before-6fvvjpn1/beforeGlobal",
+      "-isysroot",
+      "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+    ]
+  },
+  "candidate": {
+    "passed": true,
+    "candidate": true,
+    "repeatedQueries": 96,
+    "repeatedHashes": 12,
+    "repeatedBytes": 786432,
+    "distinctQueries": 32,
+    "distinctHashes": 32,
+    "overlapWriteHashes": 3,
+    "overlapChangedRejected": 3,
+    "confirmedRangeReuse": true,
+    "cacheReset": true,
+    "oldWorkerAfterScopedWrite": true,
+    "epochDuringHash": true,
+    "oldPublisherAfterNewEpoch": true,
+    "disabledControls": true,
+    "collisionChecks": 64,
+    "heldSlotNoWait": true,
+    "stressWrites": 500000,
+    "stressReads": 500000,
+    "stressAcceptedMatches": 61,
+    "multiWriterTested": true,
+    "workerPredictionHashes": 2,
+    "workerPredictionBytes": 131072,
+    "workerSynchronousHashes": 1,
+    "guestMemoryMappingModeled": true,
+    "gpuExecuted": false,
+    "benchmarks": [
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 929.9316406,
+        "seriesNsPerValidation": [
+          934.4882812,
+          928.7929688,
+          929.9316406,
+          929.7695312,
+          928.3867188,
+          936.7675781,
+          950.3574219
+        ]
+      },
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 969.8886719,
+        "seriesNsPerValidation": [
+          947.5917969,
+          969.8886719,
+          947.9160156,
+          1026.123047,
+          974.2851562,
+          922.1191406,
+          981.9335938
+        ]
+      },
+      {
+        "bytes": 32768,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 64,
+        "medianNsPerValidation": 956.3808594,
+        "seriesNsPerValidation": [
+          961.1015625,
+          990.5605469,
+          979.7363281,
+          956.3808594,
+          931.3144531,
+          931.9667969,
+          930.2558594
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 281.5742188,
+        "seriesNsPerValidation": [
+          494.953125,
+          266.9257812,
+          324.8671875,
+          247.0703125,
+          347.0039062,
+          281.5742188,
+          247.71875
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 1794.921875,
+        "seriesNsPerValidation": [
+          3080.566406,
+          1833.660156,
+          1795.082031,
+          1791.503906,
+          1793.457031,
+          1794.921875,
+          1794.757812
+        ]
+      },
+      {
+        "bytes": 65536,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 32,
+        "medianNsPerValidation": 1788.085938,
+        "seriesNsPerValidation": [
+          2042.644531,
+          1788.085938,
+          1787.433594,
+          1787.109375,
+          1787.273438,
+          1789.226562,
+          1794.105469
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 903.65625,
+        "seriesNsPerValidation": [
+          1207.03125,
+          966.796875,
+          904.296875,
+          902.34375,
+          903.65625,
+          903,
+          903.640625
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 7112.625,
+        "seriesNsPerValidation": [
+          7477.859375,
+          7112.625,
+          7111.96875,
+          7111.984375,
+          7113.9375,
+          7111.96875,
+          7630.859375
+        ]
+      },
+      {
+        "bytes": 262144,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 8,
+        "medianNsPerValidation": 7626.296875,
+        "seriesNsPerValidation": [
+          7741.53125,
+          7559.890625,
+          8113.9375,
+          7285.15625,
+          7793.625,
+          7570.3125,
+          7626.296875
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 3802.09375,
+        "seriesNsPerValidation": [
+          4320.3125,
+          3802.09375,
+          3701.84375,
+          3769.53125,
+          4048.1875,
+          3708.34375,
+          4058.59375
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 33156.25,
+        "seriesNsPerValidation": [
+          35442.71875,
+          30744.8125,
+          31763.03125,
+          31929.6875,
+          33156.25,
+          35402.34375,
+          34752.59375
+        ]
+      },
+      {
+        "bytes": 1048576,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 31058.59375,
+        "seriesNsPerValidation": [
+          32269.53125,
+          33479.1875,
+          29783.875,
+          36376.3125,
+          29733.0625,
+          29852.84375,
+          31058.59375
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "identical",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 13234.375,
+        "seriesNsPerValidation": [
+          14251.3125,
+          13234.375,
+          13039.0625,
+          13093.75,
+          13118.46875,
+          13696.625,
+          13557.3125
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "distinct",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 125218.75,
+        "seriesNsPerValidation": [
+          125218.75,
+          122484.375,
+          132158.8438,
+          136208.3125,
+          133381.5,
+          122335.9375,
+          117558.5938
+        ]
+      },
+      {
+        "bytes": 3686400,
+        "sections": 8,
+        "pattern": "scoped_bypass",
+        "iterationsPerSeries": 4,
+        "medianNsPerValidation": 111509.125,
+        "seriesNsPerValidation": [
+          109700.5312,
+          129212.25,
+          317406.25,
+          110636.7188,
+          109377.625,
+          112238.2812,
+          111509.125
+        ]
+      }
+    ],
+    "compilerFlags": [
+      "-std=c++20",
+      "-O2",
+      "-UNDEBUG",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-exceptions",
+      "-fno-omit-frame-pointer",
+      "-pthread",
+      "-DRPCS3_IOS=1",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight",
+      "-isysroot",
+      "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+    ]
+  },
+  "mutations": {
+    "no_reuse": {
+      "rejected": true,
+      "assertion": "repeated_hashes =="
+    },
+    "no_bypass": {
+      "rejected": true,
+      "assertion": "!s.sync()"
+    },
+    "no_epoch": {
+      "rejected": true,
+      "assertion": "out.repeated_hashes =="
+    },
+    "single_writer": {
+      "rejected": true,
+      "assertion": "slot.seq.load() == seq"
+    }
+  }
+}

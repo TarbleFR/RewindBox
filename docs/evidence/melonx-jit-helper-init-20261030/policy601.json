@@ -1,0 +1,13 @@
+{
+  "result": "passed",
+  "swiftExecuted": true,
+  "swiftChecks": 3342,
+  "sourceScopeOnly": false,
+  "gameplayMeasured": false,
+  "coreRebuilt": false,
+  "inputs": {
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXHogwartsGraphics.swift": "c9ccc867ef1aaecc8fa734ab69e382f3c561760518a165b1ae94c4c40dca5c2a",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "39d0f538181126f6fbb08068187edd480405cdd4b32dea8b3fcf009116b4727b",
+    "test/melonx_hogwarts_graphics_test.py": "64f5c72d937c50e86c54db69c700f57dc1384a0e29836047c87d6d1ac8e15c3f"
+  }
+}

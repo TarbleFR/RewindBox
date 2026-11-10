@@ -1,0 +1,28 @@
+{
+  "mode": "plain",
+  "status": "generated",
+  "executed": false,
+  "baseline": "/workspace/scratch/144c744e94bb/rpcs3-baseline",
+  "source": "/workspace/scratch/144c744e94bb/rpcs3-full",
+  "program_sha256": "99948de731c66e846211cb68e95ef521ef63420b6c6a3e3f6291b7770820e5fd",
+  "sources": {
+    "old": {
+      "slow": "4ef3223097da48cc035d6ec7f28936e55139b1a76028967380a67fc369ddb051",
+      "fast": "0c563f94902933ad6ed5c4cbfb18b6eb02815eee9cfd82951c7f43cd186c22b9",
+      "sweep": "cf57b24e675e1a08d10c862ffe4a91683ecb5cc6655b31944c2045fd29671257"
+    },
+    "new": {
+      "slow": "d5502890ace3bb19c650d5cce8d59d84830871db91ac835d6715b1bb26fc6839",
+      "fast": "0c563f94902933ad6ed5c4cbfb18b6eb02815eee9cfd82951c7f43cd186c22b9",
+      "sweep": "cf57b24e675e1a08d10c862ffe4a91683ecb5cc6655b31944c2045fd29671257"
+    }
+  },
+  "scope": "Complete production range_lock, range_lock_internal and lock sweep, with deterministic atomic/VM page and scheduler adapters; no native race or iPhone claim.",
+  "limitations": [
+    "Conflicting-lock release is a deterministic scheduler callback, not a native race test.",
+    "Guest page state and write-page faults are bounded adapters.",
+    "No FPS, device RSS, or game-scene resolution claim."
+  ],
+  "reference_result": "/workspace/scratch/144c744e94bb/cpu-review/evidence/vm-asan-ubsan-result.json",
+  "matches_reference_program": true
+}

@@ -1,0 +1,65 @@
+name: MeloNX completion host and presentation checks
+run-name: MeloNX translated dialog and game presentation - ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-completion-host.yml
+      - .github/diagnostics/melonx_unreal_completion_host.py
+      - lib/l10n/melonx_unreal_profile_locale.dart
+      - lib/widgets/melonx_unreal_profile_dialog.dart
+      - lib/widgets/melonx_internal_playlist_actions.dart
+      - test/melonx_unreal_profile_dialog_test.dart
+      - test/melonx_unreal_profile_locale_test.dart
+      - packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift
+      - test/melonx_presentation_test.py
+      - test/melonx_presentation/**
+permissions:
+  contents: read
+jobs:
+  host:
+    if: ${{ contains(github.event.head_commit.message, '[melonx-completion-host]') }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact completion source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Set up pinned Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Resolve locked host dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Pin affected host inputs before execution
+        run: python3 .github/diagnostics/melonx_unreal_completion_host.py --prepare
+      - name: Test translated consent and error presentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter test --concurrency=1 --machine \
+            test/melonx_unreal_profile_dialog_test.dart \
+            test/melonx_unreal_profile_locale_test.dart \
+            | tee build/melonx-completion-host/flutter-tests.jsonl
+      - name: Analyze the changed dialog, catalogue and entry point
+        run: python3 .github/diagnostics/melonx_unreal_completion_host.py --analyze
+      - name: Prepare the pinned iOS simulator Flutter framework
+        run: flutter precache --ios
+      - name: Exercise the changed presentation in actual UIKit
+        run: |
+          python3 test/melonx_presentation_test.py --current-only
+          cp dist/melonx-host/presentation.json build/melonx-completion-host/presentation.json
+      - name: Bind fresh host results to exact source inputs
+        run: python3 .github/diagnostics/melonx_unreal_completion_host.py --finalize
+      - name: Preserve actual targeted host results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-completion-host-${{ github.sha }}
+          path: build/melonx-completion-host
+          if-no-files-found: error
+          retention-days: 14

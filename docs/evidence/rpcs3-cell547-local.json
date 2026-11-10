@@ -1,0 +1,435 @@
+{
+ "result": "passed",
+ "source": "1b5c278c2f86c55bc626911124975a2bbb09dc2c",
+ "executors": {
+  "linux-x86_64-local-4cpu": {
+   "compiler": "g++",
+   "scenarios": {
+    "sanitized": {
+     "mode": "sanitized",
+     "waits": [
+      {
+       "gpu_us": 20,
+       "reps": 8,
+       "after": {
+        "cpu_us": 117.5,
+        "wall_us": 226.5,
+        "wake_p50_us": 16.2,
+        "wake_p95_us": 75.8,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 5221
+       },
+       "before": {
+        "cpu_us": 128.8,
+        "wall_us": 158.1,
+        "wake_p50_us": 1.5,
+        "wake_p95_us": 4.0,
+        "status_calls": 7736
+       }
+      },
+      {
+       "gpu_us": 300,
+       "reps": 8,
+       "after": {
+        "cpu_us": 128.6,
+        "wall_us": 458.3,
+        "wake_p50_us": 60.6,
+        "wake_p95_us": 216.2,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 3699
+       },
+       "before": {
+        "cpu_us": 342.6,
+        "wall_us": 407.4,
+        "wake_p50_us": 2.8,
+        "wake_p95_us": 41.9,
+        "status_calls": 34396
+       }
+      },
+      {
+       "gpu_us": 2000,
+       "reps": 8,
+       "after": {
+        "cpu_us": 137.8,
+        "wall_us": 2211.6,
+        "wake_p50_us": 93.1,
+        "wake_p95_us": 114.8,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 6024
+       },
+       "before": {
+        "cpu_us": 1695.0,
+        "wall_us": 2162.9,
+        "wake_p50_us": 4.3,
+        "wake_p95_us": 183.8,
+        "status_calls": 294390
+       }
+      },
+      {
+       "gpu_us": 8000,
+       "reps": 8,
+       "after": {
+        "cpu_us": 149.4,
+        "wall_us": 8240.7,
+        "wake_p50_us": 102.7,
+        "wake_p95_us": 123.0,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 7372
+       },
+       "before": {
+        "cpu_us": 8087.8,
+        "wall_us": 8171.0,
+        "wake_p50_us": 4.1,
+        "wake_p95_us": 10.2,
+        "status_calls": 1467590
+       }
+      }
+     ],
+     "slowerThanSlice": {
+      "wall_us": 106613,
+      "waitCalls": 2
+     },
+     "pressure": {
+      "scopes": 106664,
+      "activeAfter": false
+     },
+     "failures": 0
+    },
+    "timing": {
+     "mode": "timing",
+     "waits": [
+      {
+       "gpu_us": 20,
+       "reps": 40,
+       "after": {
+        "cpu_us": 15.8,
+        "wall_us": 34.8,
+        "wake_p50_us": 0.5,
+        "wake_p95_us": 3.5,
+        "spin_completed": 39,
+        "blocked": 1,
+        "status_calls": 10291
+       },
+       "before": {
+        "cpu_us": 22.6,
+        "wall_us": 39.6,
+        "wake_p50_us": 0.4,
+        "wake_p95_us": 1.7,
+        "status_calls": 35497
+       }
+      },
+      {
+       "gpu_us": 300,
+       "reps": 40,
+       "after": {
+        "cpu_us": 108.1,
+        "wall_us": 428.2,
+        "wake_p50_us": 31.7,
+        "wake_p95_us": 70.6,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 75814
+       },
+       "before": {
+        "cpu_us": 355.4,
+        "wall_us": 396.9,
+        "wake_p50_us": 0.8,
+        "wake_p95_us": 2.2,
+        "status_calls": 581786
+       }
+      },
+      {
+       "gpu_us": 2000,
+       "reps": 40,
+       "after": {
+        "cpu_us": 117.0,
+        "wall_us": 2179.5,
+        "wake_p50_us": 74.4,
+        "wake_p95_us": 143.0,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 70684
+       },
+       "before": {
+        "cpu_us": 2084.2,
+        "wall_us": 2116.8,
+        "wake_p50_us": 1.7,
+        "wake_p95_us": 4.9,
+        "status_calls": 3181906
+       }
+      },
+      {
+       "gpu_us": 8000,
+       "reps": 40,
+       "after": {
+        "cpu_us": 129.2,
+        "wall_us": 8206.4,
+        "wake_p50_us": 84.6,
+        "wake_p95_us": 127.9,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 71417
+       },
+       "before": {
+        "cpu_us": 8067.0,
+        "wall_us": 8120.5,
+        "wake_p50_us": 2.1,
+        "wake_p95_us": 3.7,
+        "status_calls": 12985825
+       }
+      }
+     ],
+     "slowerThanSlice": {
+      "wall_us": 106112,
+      "waitCalls": 2
+     },
+     "contention": {
+      "workers": 4,
+      "workMsWhileSpinning": [
+       123.657156,
+       135.436392
+      ],
+      "workMsWhileBlocked": [
+       95.60899,
+       91.029268
+      ]
+     },
+     "pressure": {
+      "scopes": 106664,
+      "activeAfter": false
+     },
+     "failures": 0
+    }
+   }
+  },
+  "macos-15-arm64-ci-3cpu": {
+   "run": 40232640441,
+   "artifact": 12613479035,
+   "artifactSHA256": "bbeebab70f87070cb8fb6cc6f90191b934ae8893b1525b568115ff25240ae356",
+   "scenarios": {
+    "sanitized": {
+     "mode": "sanitized",
+     "waits": [
+      {
+       "gpu_us": 20,
+       "reps": 8,
+       "after": {
+        "cpu_us": 26.9,
+        "wall_us": 50.7,
+        "wake_p50_us": 0.5,
+        "wake_p95_us": 45.8,
+        "spin_completed": 8,
+        "blocked": 0,
+        "status_calls": 4256
+       },
+       "before": {
+        "cpu_us": 23.9,
+        "wall_us": 45.9,
+        "wake_p50_us": 7.4,
+        "wake_p95_us": 38.2,
+        "status_calls": 14210
+       }
+      },
+      {
+       "gpu_us": 300,
+       "reps": 8,
+       "after": {
+        "cpu_us": 111.9,
+        "wall_us": 1819.9,
+        "wake_p50_us": 27.2,
+        "wake_p95_us": 71.0,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 18295
+       },
+       "before": {
+        "cpu_us": 1917.6,
+        "wall_us": 1943.4,
+        "wake_p50_us": 13.1,
+        "wake_p95_us": 68.3,
+        "status_calls": 1460488
+       }
+      },
+      {
+       "gpu_us": 2000,
+       "reps": 8,
+       "after": {
+        "cpu_us": 124.0,
+        "wall_us": 10349.6,
+        "wake_p50_us": 81.1,
+        "wake_p95_us": 120.9,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 16296
+       },
+       "before": {
+        "cpu_us": 8676.1,
+        "wall_us": 8729.9,
+        "wake_p50_us": 31.1,
+        "wake_p95_us": 96.8,
+        "status_calls": 6940592
+       }
+      },
+      {
+       "gpu_us": 8000,
+       "reps": 8,
+       "after": {
+        "cpu_us": 163.4,
+        "wall_us": 31769.0,
+        "wake_p50_us": 75.4,
+        "wake_p95_us": 158.7,
+        "spin_completed": 0,
+        "blocked": 8,
+        "status_calls": 15524
+       },
+       "before": {
+        "cpu_us": 23794.9,
+        "wall_us": 23894.5,
+        "wake_p50_us": 6.0,
+        "wake_p95_us": 181.8,
+        "status_calls": 13262167
+       }
+      }
+     ],
+     "slowerThanSlice": {
+      "wall_us": 119088,
+      "waitCalls": 2
+     },
+     "pressure": {
+      "scopes": 106664,
+      "activeAfter": false
+     },
+     "failures": 0
+    },
+    "timing": {
+     "mode": "timing",
+     "waits": [
+      {
+       "gpu_us": 20,
+       "reps": 40,
+       "after": {
+        "cpu_us": 17.0,
+        "wall_us": 31.2,
+        "wake_p50_us": 0.7,
+        "wake_p95_us": 32.2,
+        "spin_completed": 40,
+        "blocked": 0,
+        "status_calls": 13641
+       },
+       "before": {
+        "cpu_us": 24.3,
+        "wall_us": 41.3,
+        "wake_p50_us": 4.2,
+        "wake_p95_us": 58.6,
+        "status_calls": 63793
+       }
+      },
+      {
+       "gpu_us": 300,
+       "reps": 40,
+       "after": {
+        "cpu_us": 117.7,
+        "wall_us": 1276.5,
+        "wake_p50_us": 33.3,
+        "wake_p95_us": 86.2,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 73954
+       },
+       "before": {
+        "cpu_us": 1796.5,
+        "wall_us": 1816.3,
+        "wake_p50_us": 0.9,
+        "wake_p95_us": 26.5,
+        "status_calls": 7300580
+       }
+      },
+      {
+       "gpu_us": 2000,
+       "reps": 40,
+       "after": {
+        "cpu_us": 126.0,
+        "wall_us": 11238.2,
+        "wake_p50_us": 56.1,
+        "wake_p95_us": 118.6,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 61960
+       },
+       "before": {
+        "cpu_us": 9222.7,
+        "wall_us": 9265.0,
+        "wake_p50_us": 2.6,
+        "wake_p95_us": 90.6,
+        "status_calls": 35071161
+       }
+      },
+      {
+       "gpu_us": 8000,
+       "reps": 40,
+       "after": {
+        "cpu_us": 115.9,
+        "wall_us": 31456.1,
+        "wake_p50_us": 31.3,
+        "wake_p95_us": 47.1,
+        "spin_completed": 0,
+        "blocked": 40,
+        "status_calls": 87564
+       },
+       "before": {
+        "cpu_us": 30638.1,
+        "wall_us": 30694.4,
+        "wake_p50_us": 4.2,
+        "wake_p95_us": 75.4,
+        "status_calls": 122966201
+       }
+      }
+     ],
+     "slowerThanSlice": {
+      "wall_us": 130108,
+      "waitCalls": 2
+     },
+     "contention": {
+      "workers": 3,
+      "workMsWhileSpinning": [
+       194.284333,
+       193.84375
+      ],
+      "workMsWhileBlocked": [
+       161.151541,
+       156.735834
+      ]
+     },
+     "pressure": {
+      "scopes": 106664,
+      "activeAfter": false
+     },
+     "failures": 0
+    }
+   },
+   "coreProofAllTestsPassed": true
+  }
+ },
+ "failedFirstRun": {
+  "run": 40232300288,
+  "cause": "simulated GPU slept 387 ms instead of 250 ms under ASan on the runner; the slow-fence case now waits for the second slice instead of wall time"
+ },
+ "static": {
+  "noExceptionsAdded": true,
+  "codegenFilesChanged": [
+   "rpcs3/Emu/Cell/SPUThread.cpp"
+  ],
+  "spuThread": {
+   "before": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c",
+   "after": "b1c3ff504e20c90ae69f9072fdb2409be69db7206a8783d10f6b79321c7d6ebe",
+   "aliasedToBefore": true
+  }
+ },
+ "physicalDeviceTested": false,
+ "fpsClaimed": false,
+ "scope": "production vk::wait_for_fence bodies (546, 547) against a MoltenVK-shaped fence; host schedulers, not the iPhone; the SPU decision is checked as an exact source delta"
+}

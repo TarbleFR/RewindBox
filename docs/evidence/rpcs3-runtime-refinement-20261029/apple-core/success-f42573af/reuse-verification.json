@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "kind": "portable-full-refinement-core-source-and-receipt-reverification",
+  "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/tmp/refinement-verify-receipts-portable.py",
+    "--repo",
+    "/workspace/scratch/4e89feaca92b/RewindBox",
+    "--source",
+    "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "--source-tree",
+    "/workspace/scratch/4e89feaca92b/rpcs3-refinement-verify",
+    "--proof",
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/diagnostics/runtime592-proof.json",
+    "--artifact-verification",
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/artifact-verification.json",
+    "--output",
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/reuse-verification.json"
+  ],
+  "elapsedSeconds": 2.522155817998282,
+  "proofSHA256": "fc81d6c5f1dac37f1c2cadfcfbacd3a8972af222949e063b3b1ffec275ed3b03",
+  "verificationScriptSHA256": "b8e570be8cbc6c02840493173fc77080dd1565b14cc2d1e18a40832fee7aab3f",
+  "artifactVerificationSHA256": "1b9c30c05f7b905f04962d144efe7b9ede19f7c90bed6646623636b850f9ec25",
+  "runtimeInputs": 349,
+  "nativePostimages": 313,
+  "nativeSupplements": 97,
+  "appleModes": 11,
+  "reusedModesFromPartialRuns": 7,
+  "onlyRecordedOutputDirectoryRelocatedForCommandComparison": {
+    "refined-lookup-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/refined-lookup-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/refined-lookup-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "refined-lookup-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/refined-lookup-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/refined-lookup-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "rsx-write-sampler-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "rsx-write-sampler-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    }
+  },
+  "fullRecordedCommandsAndSemanticCountersAuthenticated": true,
+  "materializedSourceAuthenticated": true,
+  "originalPipelineVerifierCalled": true,
+  "originalSourcesAndProofUnmodified": true,
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false,
+  "nativeBinaryExecuted": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "verifiedUTC": "2026-10-29T17:16:47.868678+00:00"
+}

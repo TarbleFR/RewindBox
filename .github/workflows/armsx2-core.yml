@@ -41,6 +41,7 @@ jobs:
           import json, os, re
           from pathlib import Path
           source = json.loads(Path('build-utils/armsx2/source.json').read_text())
+          assert source['abi_version'] == 9
           assert source['repository'] == 'https://github.com/ARMSX2/ARMSX2.git'
           assert re.fullmatch('[0-9a-f]{40}', source['revision'])
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
@@ -64,17 +65,22 @@ jobs:
           path: ${{ runner.temp }}/armsx2-host-source/
           if-no-files-found: error
           retention-days: 3
+      - name: Select Xcode26.3 for ARMSX2 native ABI9
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
       - name: Select Xcode and validate scripts
         run: |
           set -euo pipefail
-          sudo xcode-select -switch /Applications/Xcode.app
           xcodebuild -version
           python3 -m py_compile build-utils/armsx2/*.py
           bash -n build-utils/armsx2/build_core.sh
           git diff --check
+      - name: Verify central launch settings, Hardcore and immutable credentials
+        run: python3 -B test/armsx2_ra_launch_settings_test.py
       - name: Verify patch selection and activation with Foundation
         run: python3 test/armsx2_patch_catalog_test.py
-      - name: HD texture packs (ABI 8) - files, host store and Core adapter with Foundation
+      - name: HD texture packs (ABI 9) - files, host store and Core adapter with Foundation
         run: |
           set -euo pipefail
           python3 tools/armsx2_textures/generate_strings.py --check
@@ -95,7 +101,8 @@ jobs:
           from libretro_ios_syntax_test import stage_dependency_headers
           from touch_layout_support import stage_touch_layout
           # Since Build 484 the menu also imports <neo_touch_layout/...>.
-          stage_touch_layout(stage_dependency_headers(Path(sys.argv[1])))
+          include = stage_touch_layout(stage_dependency_headers(Path(sys.argv[1])))
+          assert (include / 'retro_achievements_session/RBRASession.h').is_file()
           PY
           for source in Armsx2SessionMenu.mm ARMSX2TexturePage.mm ARMSX2TexturePackStore.mm; do
             xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -I "$STAGE/include" "packages/armsx2_internal_bridge/ios/Classes/$source"
@@ -158,24 +165,24 @@ jobs:
           cache: true
       - run: flutter precache --ios
       - run: flutter pub get --enforce-lockfile
-      - name: Compile actual embedded host against Flutter and ABI 8
+      - name: Compile actual embedded host against Flutter and ABI 9
         run: |
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           FLUTTER_FRAMEWORK=$(find "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios" -path '*/Flutter.framework' -type d | head -1)
           test -n "$FLUTTER_FRAMEWORK"
-          # Build 447: the bridge imports <external_display/NeoExternalDisplayCoordinator.h>.
-          # Stage the headers the external_display pod publishes (public_header_files),
-          # and only those, as the framework exposes them: the same staging as the
-          # libretro iPhone check, so an unpublished import fails here too.
+          # Stage the public headers of every host dependency, including the
+          # achievement presentation facade, as CocoaPods exposes them. The
+          # syntax check must reject imports of unpublished headers.
           STAGE="$RUNNER_TEMP/external-display-stage"
           python3 - "$STAGE" <<'PY'
           import sys
           from pathlib import Path
           sys.path.insert(0,'test')
-          from libretro_ios_syntax_test import stage_external_display
+          from libretro_ios_syntax_test import stage_dependency_headers
           from touch_layout_support import stage_touch_layout
           # Since Build 484 the plugin's touch controls import <neo_touch_layout/...>.
-          stage_touch_layout(stage_external_display(Path(sys.argv[1])))
+          include = stage_touch_layout(stage_dependency_headers(Path(sys.argv[1])))
+          assert (include / 'retro_achievements_session/RBRASession.h').is_file()
           PY
           for source in Armsx2InternalBridgePlugin.mm Armsx2TextureBridge.mm; do
             xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" -I packages/armsx2_jit_helper/ios/Classes -I "$STAGE/include" "packages/armsx2_internal_bridge/ios/Classes/$source"

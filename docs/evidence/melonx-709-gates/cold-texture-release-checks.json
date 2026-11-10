@@ -1,0 +1,456 @@
+{
+  "result": "passed",
+  "checks": 131,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "0a480f36de42cfda0a750fd93aafc17229b23e5de9ed58aa7a8517aefdf51253",
+    "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs": "01a50bf34d5eb49ead967ccd58f49a1d061b97aad624678411cfd162d79ce153",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "185177cf3d69b78a5b59a7d886daee8b1645e8346149ae162e6034d9a783ac90"
+  },
+  "lifetimeProof": {
+    "samplerTexturesOutsideAutoDeleteCache": "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs:1141",
+    "poolSlotDropsOnlyOnDescriptorChange": "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs:606",
+    "poolFetchCreatesFromGuestMemory": "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs:211",
+    "boundRenderTargetHoldsReference": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs:1606",
+    "gpuWriteLiftsIntoAutoDeleteCache": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs:1588",
+    "viewHoldsReference": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs:403",
+    "lastReferenceDisposes": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs:1849",
+    "disposalMovesSequenceAndReleasesHost": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs:1987",
+    "deferredCopyClearsModified": "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs:476",
+    "untrackedFlushKeepsModified": "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs:223",
+    "cachedBindingSynchronisesAndRevalidates": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs:497",
+    "bindlessArraySynchronisesAndRevalidates": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs:465",
+    "checkHostMemoryBetweenCommandLists": "src/Ryujinx.HLE/Switch.cs:134",
+    "processFrameOnGpuThread": "src/Ryujinx.Library/Window/WindowBase.cs:255",
+    "releaseQueuedInOrder": "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTexture.cs:140",
+    "vulkanViewReleaseDropsAuto": "src/Ryujinx.Graphics.Vulkan/TextureView.cs:1126",
+    "imageHoldsAllocation": "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs:193",
+    "commandBufferHoldsReference": "src/Ryujinx.Graphics.Vulkan/Auto.cs:117",
+    "destroyedAtLastReference": "src/Ryujinx.Graphics.Vulkan/Auto.cs:165",
+    "releasedAfterFence": "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs:337",
+    "memoryReturned": "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs:376",
+    "vulkanArrayDetectsDestroyedView": "src/Ryujinx.Graphics.Vulkan/TextureArray.cs:605"
+  },
+  "fixture": {
+    "releaseAndRecreate": {
+      "passRan": true,
+      "measuredBefore": {
+        "poolOnly": 3,
+        "poolOnlyBytes": 786432,
+        "cold": 1,
+        "coldBytes": 262144,
+        "released": 0,
+        "releasedBytes": 0,
+        "gpuData": 0,
+        "gpuDataBytes": 0,
+        "kept": 0
+      },
+      "pass": {
+        "poolOnly": 3,
+        "poolOnlyBytes": 786432,
+        "cold": 1,
+        "coldBytes": 262144,
+        "released": 1,
+        "releasedBytes": 262144,
+        "gpuData": 0,
+        "gpuDataBytes": 0,
+        "kept": 0
+      },
+      "passLines": [
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 3 (0 MiB), unused for 60 s 1 (0 MiB), released 1 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 0); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 0; 5.9 ms (adapt_cold_texture_release)"
+      ],
+      "released": true,
+      "deltaLogged": 1,
+      "boundOnlyAndFetchedStay": true,
+      "recreated": true,
+      "sameInfo": true,
+      "firstUploadIsGuest": true,
+      "secondUploadIsGuest": true,
+      "uploadBytes": 262144,
+      "sameOnNextFetch": true,
+      "lateReloadCounted": 0,
+      "pinnedAfterLateReload": 0,
+      "measuredAfter": {
+        "poolOnly": 3,
+        "poolOnlyBytes": 786432,
+        "cold": 2,
+        "coldBytes": 524288,
+        "released": 0,
+        "releasedBytes": 0,
+        "gpuData": 0,
+        "gpuDataBytes": 0,
+        "kept": 0
+      }
+    },
+    "modifiedKept": {
+      "liftedOnGpuWrite": true,
+      "poolOnlyWithGpuData": true,
+      "passes": [
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        }
+      ],
+      "stillInPool": true,
+      "hostReleases": 0,
+      "hostReads": 0,
+      "stillModified": true
+    },
+    "noLoop": {
+      "firstPass": {
+        "poolOnly": 1,
+        "poolOnlyBytes": 262144,
+        "cold": 1,
+        "coldBytes": 262144,
+        "released": 1,
+        "releasedBytes": 262144,
+        "gpuData": 0,
+        "gpuDataBytes": 0,
+        "kept": 0
+      },
+      "reloads": 1,
+      "pinnedSlots": 1,
+      "measuredAfterReload": {
+        "poolOnly": 1,
+        "poolOnlyBytes": 262144,
+        "cold": 0,
+        "coldBytes": 0,
+        "released": 0,
+        "releasedBytes": 0,
+        "gpuData": 0,
+        "gpuDataBytes": 0,
+        "kept": 0
+      },
+      "laterPasses": [
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 1
+        }
+      ],
+      "laterLines": [
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 1 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.1 ms (adapt_cold_texture_release)",
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.0 ms (adapt_cold_texture_release)",
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.0 ms (adapt_cold_texture_release)",
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.0 ms (adapt_cold_texture_release)",
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.0 ms (adapt_cold_texture_release)",
+        "Gpu ReleaseColdTextures: Cold texture release: device 8% available; pool-only textures 1 (0 MiB), unused for 120 s 0 (0 MiB), released 0 (0 MiB; at most 256 or 64 MiB a pass); reloads of recently released 0 (pinned slots 1); skipped holding GPU-written data or copy-linked 0 (0 MiB), kept 1; 0.0 ms (adapt_cold_texture_release)"
+      ],
+      "stillInPool": true,
+      "hostTexturesCreatedForSlot": 2,
+      "ageBefore": 60,
+      "ageAfter": 120
+    },
+    "notShort": {
+      "ranOrReleasedPerDevice": {
+        "-1": false,
+        "11": false,
+        "12": false,
+        "27": false,
+        "50": false,
+        "100": false
+      },
+      "linesWhileNotShort": 0,
+      "untouchedWhileNotShort": true,
+      "ranAtThreshold10": true,
+      "releasedAtThreshold10": 2,
+      "ranWithin10s": false,
+      "releasedWithin10s": 0,
+      "ranAfter10s": true,
+      "releasedAfter10s": 1
+    },
+    "aliasKept": {
+      "aliasCreated": true,
+      "passes": [
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        },
+        {
+          "poolOnly": 1,
+          "poolOnlyBytes": 262144,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 1,
+          "gpuDataBytes": 262144,
+          "kept": 0
+        }
+      ],
+      "stillInPool": true,
+      "hostReleases": 0
+    },
+    "scanCost": {
+      "slots": 524288,
+      "textures": 2000,
+      "poolOnly": 2000,
+      "released": 0,
+      "measureMs": 1.21,
+      "passMs": 1.288
+    },
+    "byteBound": {
+      "textures": 100,
+      "bytesEach": 1048576,
+      "passes": [
+        {
+          "poolOnly": 100,
+          "poolOnlyBytes": 104857600,
+          "cold": 100,
+          "coldBytes": 104857600,
+          "released": 64,
+          "releasedBytes": 67108864,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 36,
+          "poolOnlyBytes": 37748736,
+          "cold": 36,
+          "coldBytes": 37748736,
+          "released": 36,
+          "releasedBytes": 37748736,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 0,
+          "poolOnlyBytes": 0,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 0,
+          "poolOnlyBytes": 0,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        }
+      ],
+      "lines": 4,
+      "remainingInPool": 0,
+      "hostReleases": 100
+    },
+    "countBound": {
+      "textures": 300,
+      "bytesEach": 16384,
+      "passes": [
+        {
+          "poolOnly": 300,
+          "poolOnlyBytes": 4915200,
+          "cold": 300,
+          "coldBytes": 4915200,
+          "released": 256,
+          "releasedBytes": 4194304,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 44,
+          "poolOnlyBytes": 720896,
+          "cold": 44,
+          "coldBytes": 720896,
+          "released": 44,
+          "releasedBytes": 720896,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 0,
+          "poolOnlyBytes": 0,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        },
+        {
+          "poolOnly": 0,
+          "poolOnlyBytes": 0,
+          "cold": 0,
+          "coldBytes": 0,
+          "released": 0,
+          "releasedBytes": 0,
+          "gpuData": 0,
+          "gpuDataBytes": 0,
+          "kept": 0,
+          "ran": true
+        }
+      ],
+      "lines": 4,
+      "remainingInPool": 0,
+      "hostReleases": 300
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "galDoubled": true,
+  "productionGpuAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "9ee9ce1c4346489f8b589827d27b9a969e4dc6b6ca02d65aa0b8c7fc4148ecbe",
+    "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs": "bb2049ad8a5af038076958926b51b2e4fa3f0608ac5a289a43678d44772d7f1a",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "1a99f074c951c51f7369802f078b30779bece3266c427db1492995904656a283"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_cold_texture_release.py": "78b68f9ec483bc0fe7bd3729286a8fc6dc04da84e035aeb5c422763c17d27153",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_cold_texture_release_test.py": "a571c8da48aa42776f5108b093e0777687ae19192f3539d607b4632f7106fc25",
+    "test/melonx_cold_texture_release/Program.cs": "4e3eba909f6685e8477c9ee851c8b526c4924698594356249d60d6203fc2eee9",
+    "test/melonx_gpu_teardown/Fakes.cs": "03cd63fdfbae9f8745f8a58fed05ecbb6434acfc48d737261a45a8be1d06519a",
+    "test/melonx_adapter_control.py": "c7c16aead26d317099b1fd6199316c42b97d46b0c603380f90e7903502025364"
+  },
+  "limitation": "Real engine with a recording GAL renderer: the Vulkan deferred release is proven by source, not executed; how many MiB are cold in Hogwarts (bindless pool arrays synchronise every texture they bind at each use) and the Metal memory effect are known only from a device run."
+}

@@ -14,14 +14,16 @@ def main() -> None:
         assert not obsolete.search(file.read_text()), str(file)
     screen = (ROOT / 'lib/screens/settings_screen/new_settings_options/themes_settings_content.dart').read_text()
     provider = (ROOT / 'lib/providers/theme_provider.dart').read_text()
-    assert 'getThemeList().length + 3' in screen
-    assert 'final itemCount = allThemes.length + 2;' in screen
+    # System, palettes, background, music, interface style, RewindBox Glacier.
+    assert 'getThemeList().length + 5' in screen
+    assert 'final itemCount = allThemes.length + 4;' in screen
     assert 'if (index < 0 || index >= getItemCount(context)) return;' in screen
-    for token in ('_CustomBackgroundCard(', '_HomeMusicCard(', '_pickCustomBackground()', '_pickHomeMusic()', 'HomeMusicService'):
+    for token in ('_CustomBackgroundCard(', '_HomeMusicCard(', '_pickCustomBackground()', '_pickHomeMusic()', 'HomeMusicService', '_GlacierPresetCard('):
         assert token in screen, token
     assert 'falling back to system' in provider
     assert 'resolvePersistedCustomBackgroundForTesting' in provider
-    assert len(re.findall(r"^    '[^']+': AppThemes\.", provider, re.M)) == 14
+    # Fourteen palettes plus RewindBox Glacier.
+    assert len(re.findall(r"^    '[^']+': AppThemes\.", provider, re.M)) == 15
     assert '## System Art' in (ROOT / 'THEMES.md').read_text()
     main_dart = (ROOT / 'lib/main.dart').read_text()
     assert "['full_themes', 'custom_themes']" in main_dart

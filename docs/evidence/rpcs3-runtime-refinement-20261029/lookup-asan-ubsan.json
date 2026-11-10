@@ -1,0 +1,86 @@
+{
+  "passed": true,
+  "case": "lookup",
+  "sourceSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "49de1afd2abe5bff86989e2200ef0c05a283d891f384cd0877fb4b7d0996b9da",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "baselineSHA256": {
+    "Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "8d0f19e0468686a7e893f81f9c9c106b409925f93e550e64df83084345286fa6",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache_protection_policy.h": "a91b3ebb1b55b6e6cb1ffd988507d4afa45ced74331119515a936e3de5d55ebe",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSTexturePrehash.h": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+  },
+  "programSHA256": {
+    "baseline": "20e1f555244d2b86f96e1e58f5f37c620acbd1051ccbc64a0900bed9b0948e48",
+    "candidate": "5accb6523dc6b0049b00a239b97b21086ee42564926d4cd21ce2212727e1cf77"
+  },
+  "scriptSHA256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+  "timerEdgesSHA256": "6ab124fe84a0c569f47e0464a66840e1a7fa32102de5c3ee326547784860ce8f",
+  "results": {
+    "baseline": {
+      "passed": true,
+      "interleavedEpochRejected": true,
+      "samples": []
+    },
+    "candidate": {
+      "passed": true,
+      "interleavedEpochRejected": true,
+      "samples": []
+    }
+  },
+  "compilerFlags": [
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-DRPCS3_IOS=1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sanitizer": "address,undefined",
+  "benchmark": false,
+  "host": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "coreBuilt": false,
+  "tsanSuppressions": [],
+  "leakSanitizer": false
+}

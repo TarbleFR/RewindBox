@@ -1,0 +1,284 @@
+{
+  "id": 123523168026,
+  "run_id": 40895446303,
+  "workflow_name": "MeloNX engine \u2022 5045889ff9f1a872d238435293c50cacd7c127b5",
+  "head_branch": "Claude",
+  "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/40895446303",
+  "run_attempt": 1,
+  "node_id": "CR_kwDOTzduBs8AAAAcwo33Gg",
+  "head_sha": "5045889ff9f1a872d238435293c50cacd7c127b5",
+  "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/123523168026",
+  "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/40895446303/job/123523168026",
+  "status": "completed",
+  "conclusion": "success",
+  "created_at": "2026-10-29T14:50:09Z",
+  "started_at": "2026-10-29T14:50:14Z",
+  "completed_at": "2026-10-29T15:01:56Z",
+  "name": "core",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-10-29T14:50:15Z",
+      "completed_at": "2026-10-29T14:50:18Z"
+    },
+    {
+      "name": "Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-10-29T14:50:18Z",
+      "completed_at": "2026-10-29T14:51:04Z"
+    },
+    {
+      "name": "Run actions/setup-dotnet@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-10-29T14:51:04Z",
+      "completed_at": "2026-10-29T14:51:17Z"
+    },
+    {
+      "name": "Pin the selected SDK for all new Apple gates",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-10-29T14:51:17Z",
+      "completed_at": "2026-10-29T14:51:18Z"
+    },
+    {
+      "name": "Authenticate engine82 evidence and reuse unchanged LibHac",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 5,
+      "started_at": "2026-10-29T14:51:18Z",
+      "completed_at": "2026-10-29T14:51:31Z"
+    },
+    {
+      "name": "Fetch exact MeloNX source",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 6,
+      "started_at": "2026-10-29T14:51:31Z",
+      "completed_at": "2026-10-29T14:51:39Z"
+    },
+    {
+      "name": "Verify Apple ARM64, exact SDK and reviewed preparation inputs",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 7,
+      "started_at": "2026-10-29T14:51:39Z",
+      "completed_at": "2026-10-29T14:51:42Z"
+    },
+    {
+      "name": "Verify private tracking snapshots, reentrance and bounded pool lifetime",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 8,
+      "started_at": "2026-10-29T14:51:42Z",
+      "completed_at": "2026-10-29T14:52:02Z"
+    },
+    {
+      "name": "Verify single-fragment range slices preserve holes and byte mappings",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 9,
+      "started_at": "2026-10-29T14:52:02Z",
+      "completed_at": "2026-10-29T14:52:08Z"
+    },
+    {
+      "name": "Verify texture-group visitor order and explicit per-call state",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 10,
+      "started_at": "2026-10-29T14:52:08Z",
+      "completed_at": "2026-10-29T14:52:14Z"
+    },
+    {
+      "name": "Verify composed texture-region cursors and new range slices",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 11,
+      "started_at": "2026-10-29T14:52:14Z",
+      "completed_at": "2026-10-29T14:52:23Z"
+    },
+    {
+      "name": "Verify inline command-buffer ownership and concurrent resource references",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 12,
+      "started_at": "2026-10-29T14:52:23Z",
+      "completed_at": "2026-10-29T14:52:29Z"
+    },
+    {
+      "name": "Verify missing converted-buffer lookups do not create cache entries",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 13,
+      "started_at": "2026-10-29T14:52:29Z",
+      "completed_at": "2026-10-29T14:52:33Z"
+    },
+    {
+      "name": "Verify kernel wait references release completed participants",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 14,
+      "started_at": "2026-10-29T14:52:33Z",
+      "completed_at": "2026-10-29T14:52:39Z"
+    },
+    {
+      "name": "Verify pooled IPC requests release completed participants",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 15,
+      "started_at": "2026-10-29T14:52:39Z",
+      "completed_at": "2026-10-29T14:52:45Z"
+    },
+    {
+      "name": "Verify timer arm identity, cancellation and zero-allocation reuse",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 16,
+      "started_at": "2026-10-29T14:52:45Z",
+      "completed_at": "2026-10-29T14:52:49Z"
+    },
+    {
+      "name": "Verify dedicated allocation retirement and failed mapping cleanup",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 17,
+      "started_at": "2026-10-29T14:52:49Z",
+      "completed_at": "2026-10-29T14:53:01Z"
+    },
+    {
+      "name": "Verify indirect conversion keys invalidate the actual bound buffer",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 18,
+      "started_at": "2026-10-29T14:53:01Z",
+      "completed_at": "2026-10-29T14:53:06Z"
+    },
+    {
+      "name": "Verify retired texture dependency links preserve pending GPU copies",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 19,
+      "started_at": "2026-10-29T14:53:06Z",
+      "completed_at": "2026-10-29T14:53:11Z"
+    },
+    {
+      "name": "Verify fragmented uploads with the new range slices",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 20,
+      "started_at": "2026-10-29T14:53:11Z",
+      "completed_at": "2026-10-29T14:53:16Z"
+    },
+    {
+      "name": "Authenticate all new gate receipts before compilation",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 21,
+      "started_at": "2026-10-29T14:53:16Z",
+      "completed_at": "2026-10-29T14:53:16Z"
+    },
+    {
+      "name": "Compile NativeAOT library and verify exported ABI",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 22,
+      "started_at": "2026-10-29T14:53:16Z",
+      "completed_at": "2026-10-29T14:57:30Z"
+    },
+    {
+      "name": "Bind both new libraries to reviewed sources and gate receipts",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 23,
+      "started_at": "2026-10-29T14:57:30Z",
+      "completed_at": "2026-10-29T14:57:30Z"
+    },
+    {
+      "name": "Run actions/download-artifact@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 24,
+      "started_at": "2026-10-29T14:57:30Z",
+      "completed_at": "2026-10-29T14:57:36Z"
+    },
+    {
+      "name": "Authenticate unchanged native frameworks",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 25,
+      "started_at": "2026-10-29T14:57:36Z",
+      "completed_at": "2026-10-29T14:57:36Z"
+    },
+    {
+      "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 26,
+      "started_at": "2026-10-29T14:57:36Z",
+      "completed_at": "2026-10-29T15:01:37Z"
+    },
+    {
+      "name": "Preserve the current runtime result including failures",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 27,
+      "started_at": "2026-10-29T15:01:37Z",
+      "completed_at": "2026-10-29T15:01:38Z"
+    },
+    {
+      "name": "Verify fresh guest execution, teardown and backing release",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 28,
+      "started_at": "2026-10-29T15:01:38Z",
+      "completed_at": "2026-10-29T15:01:39Z"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 29,
+      "started_at": "2026-10-29T15:01:39Z",
+      "completed_at": "2026-10-29T15:01:48Z"
+    },
+    {
+      "name": "Post Run actions/setup-dotnet@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 57,
+      "started_at": "2026-10-29T15:01:48Z",
+      "completed_at": "2026-10-29T15:01:49Z"
+    },
+    {
+      "name": "Post Run actions/checkout@v4",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 58,
+      "started_at": "2026-10-29T15:01:49Z",
+      "completed_at": "2026-10-29T15:01:50Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 59,
+      "started_at": "2026-10-29T15:01:50Z",
+      "completed_at": "2026-10-29T15:01:54Z"
+    }
+  ],
+  "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/123523168026",
+  "labels": [
+    "macos-26"
+  ],
+  "runner_id": 1000012191,
+  "runner_name": "GitHub Actions 1000012191",
+  "runner_group_id": 0,
+  "runner_group_name": "GitHub Actions"
+}

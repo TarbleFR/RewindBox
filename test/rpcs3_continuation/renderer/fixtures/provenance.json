@@ -1,0 +1,35 @@
+[
+  {
+    "file": "RSXDriverState.h",
+    "repository": "XITRIX/rpcs3",
+    "commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "upstream_path": "rpcs3/Emu/RSX/Core/RSXDriverState.h",
+    "upstream_url": "https://github.com/XITRIX/rpcs3/blob/22f1152783cef1f7e04af7b1c895173e28fd5b03/rpcs3/Emu/RSX/Core/RSXDriverState.h",
+    "upstream_git_blob_sha1": "b95bafb7d26f84002dab73a335b29aa93e566378",
+    "upstream_sha256": "5b52c1e88d91fd605a27fef486850152ba8811272b630c1aa5748f9fdc2c6088",
+    "fixture_sha256": "321b4b487575f422ae3c1c0252233a534663e594dcb5627496735a02735e5ac7",
+    "normalization": "Only CRLF/LF and final newline normalization; exact read_text fixture used by the recorded harness retained."
+  },
+  {
+    "file": "shared.cpp",
+    "repository": "XITRIX/rpcs3",
+    "commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "upstream_path": "rpcs3/Emu/RSX/VK/vkutils/shared.cpp",
+    "upstream_url": "https://github.com/XITRIX/rpcs3/blob/22f1152783cef1f7e04af7b1c895173e28fd5b03/rpcs3/Emu/RSX/VK/vkutils/shared.cpp",
+    "upstream_git_blob_sha1": "c4a0219e6864d03b8b7cedce9bc47a01bad6d08c",
+    "upstream_sha256": "082bd9dab39106a3a12fe8121f80ea489a836e9509ec96a55aa8c852deb874a8",
+    "fixture_sha256": "0c992efd6bab0ce4d91dee598f480753163eedcc020dc5b84099a2fcd2050040",
+    "normalization": "Only CRLF/LF and final newline normalization; exact read_text fixture used by the recorded harness retained."
+  },
+  {
+    "file": "shared.h",
+    "repository": "XITRIX/rpcs3",
+    "commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "upstream_path": "rpcs3/Emu/RSX/VK/vkutils/shared.h",
+    "upstream_url": "https://github.com/XITRIX/rpcs3/blob/22f1152783cef1f7e04af7b1c895173e28fd5b03/rpcs3/Emu/RSX/VK/vkutils/shared.h",
+    "upstream_git_blob_sha1": "f8ffcc103ab5a0254df1b1035dafb5dffd2f9e03",
+    "upstream_sha256": "d34619937f204ffbd031d101005e4a43265e33f5c976a17cc0013d4255e5e042",
+    "fixture_sha256": "58395f55c6545b34dc26f6001b86d547e6820f2a7824ae892f1c9f7e077bcf22",
+    "normalization": "Only CRLF/LF and final newline normalization; exact read_text fixture used by the recorded harness retained."
+  }
+]

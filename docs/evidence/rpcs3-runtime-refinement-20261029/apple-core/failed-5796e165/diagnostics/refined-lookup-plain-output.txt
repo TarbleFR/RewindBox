@@ -1,0 +1,21 @@
+/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-refinement-vln3opnz/baseline.cpp:48:25: error: unused variable 'min_bytes' [-Werror,-Wunused-const-variable]
+   48 | constexpr std::uint32_t min_bytes = 64u << 10;
+      |                         ^~~~~~~~~
+/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-refinement-vln3opnz/baseline.cpp:50:23: error: unused variable 'max_sequence' [-Werror,-Wunused-const-variable]
+   50 | constexpr std::size_t max_sequence = 2048;
+      |                       ^~~~~~~~~~~~
+/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-refinement-vln3opnz/baseline.cpp:52:23: error: unused variable 'lookahead' [-Werror,-Wunused-const-variable]
+   52 | constexpr std::size_t lookahead = 64;
+      |                       ^~~~~~~~~
+3 errors generated.
+Traceback (most recent call last):
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_runtime_refinement_test.py", line 288, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_runtime_refinement_test.py", line 254, in main
+    subprocess.run(compiler+flags+['-I'+str(source/'rpcs3'),'-I'+str(source),str(cpp),'-o',str(exe)],check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 692, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command ['/opt/homebrew/opt/llvm@22/bin/clang++', '-std=c++20', '-O3', '-g', '-Wall', '-Wextra', '-Werror', '-UNDEBUG', '-pthread', '-DRPCS3_IOS=1', '-isysroot', '/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk', '-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3', '-I/Users/runner/work/_temp/runtime592-source-preflight', '/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-refinement-vln3opnz/baseline.cpp', '-o', '/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-refinement-vln3opnz/baseline'] returned non-zero exit status 1.

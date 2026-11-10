@@ -1,0 +1,97 @@
+{
+  "build": 575,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+  "run": 40589313705,
+  "workflow": ".github/workflows/rpcs3-cell575-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12772544622,
+      "name": "RPCS3Core-ddf734206dfc5aee950c1538f13d13b5532bbb93",
+      "bytes": 29081095,
+      "digest": "sha256:8c2be1f690e6a149ccc74852f0482027a82b08d975d2031f77ec1cde1838f36f"
+    },
+    "diagnostics": {
+      "id": 12774405548,
+      "bytes": 203596,
+      "digest": "sha256:c2ca8fc72311048d11ccf6646ef55e15a18bb104f81c5a6736631562faf32712"
+    }
+  },
+  "core": {
+    "sha256": "90275c29d52109a0e4be60246053b56a127a5307302ed459097a8ef0a7690638",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "d6ff2bb200b253d359210c02d3bde6094380082947cbf49b8698ea077a4f3a10",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 137,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom573": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers575": [
+      "Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm;",
+      "Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II;",
+      "Automatic enables it for Dragon Ball Z Budokai HD Collection, God of War III and Bladestorm;"
+    ],
+    "replaces": {
+      "source": "92074e51b9e7216902c57fd5ae099d8aa3caea63",
+      "run": 40578797847,
+      "sha256": "2d80a2beee8ed53ce083961f08b1605983c28751a98d1edade6d30969d8faacc"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell575"
+    ]
+  },
+  "policy": {
+    "passed": true,
+    "cases": 42
+  },
+  "placement": {
+    "policyOtherwiseIdentical": true,
+    "settingTextsChanged": [
+      "noop_putllc_keeps_reservations",
+      "rsx_idle_park",
+      "scoped_texture_revalidation",
+      "texture_validation_epoch"
+    ],
+    "serials": {
+      "blackOpsII": [
+        "BLES01717"
+      ],
+      "bladestorm": [
+        "BLES00113",
+        "BLUS30070"
+      ]
+    }
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom573": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell575_test.py": "e1aa84101baf7f0ef29d672bf0f0a8d6e51deae8d20f851ca5cedc6c706bd168"
+  },
+  "scope": "The 575 policy blocks compiled verbatim for every title and mode on the Apple Silicon runner, and the iPhone Core built from the verified source. No iPhone FPS, frame time or memory result."
+}

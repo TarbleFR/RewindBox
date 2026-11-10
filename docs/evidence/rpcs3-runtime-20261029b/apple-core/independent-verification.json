@@ -1,0 +1,30 @@
+{
+  "source": "c143be63f95751616f98d7bf9f1f34f297862df2",
+  "coreBytes": 77249112,
+  "coreSHA256": "0966c03dcd264fdbcf813f9a7af320434c5dac0f555c1460c917358394b1f0ac",
+  "identitySHA256": "5e0d00e1918be9f3a472ca7dc2fc3fa845128a18c7902316728cddbc45b5dc65",
+  "proofSHA256": "df1f6d90c76c5eeeb546ad21c4e83b12f5cfb7187680ebe8450c4dbab196de19",
+  "artifactIdentitiesAgree": true,
+  "inputCount": 161,
+  "postimages": 308,
+  "exportedSymbols": 88,
+  "platform": 2,
+  "architecture": "arm64",
+  "minimumOS": "16.3.0",
+  "parserSHA256": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
+  "abi": 30,
+  "tests": [
+    "dynamic-asan-ubsan",
+    "dynamic-plain",
+    "prehash-asan-ubsan",
+    "prehash-plain",
+    "shader-asan-ubsan",
+    "shader-plain",
+    "vm-asan-ubsan",
+    "vm-plain"
+  ],
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "localBinaryExecution": false,
+  "result": "passed"
+}

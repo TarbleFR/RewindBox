@@ -1,0 +1,22 @@
+{
+  "result": "passed",
+  "report": {
+    "checks": 16,
+    "sameSizeChangedBlobPersisted": true,
+    "cleanSnapshotsSkipped": true,
+    "failedMergeAndSaveRetried": true,
+    "sharedSnapshotPreserved": true,
+    "physicalDeviceTested": false
+  },
+  "physicalDeviceTested": false,
+  "vulkanDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_cache.py": "77d7ff19cc0ed9b7afcc1d28ec4a55b0409e3c7a770df38c1604e7783f0796e3",
+    "test/melonx_pipeline_cache_test.py": "5fa4258864d73a38023a8ea8c017ec4f39c596a7c0fc7bda68b40e26be426833",
+    "test/melonx_pipeline_cache/Double.cs": "b68744d0c4bc2cabc3b3641f4765c9ead1fcb3fa0f66b9c9dc4743f168189cc6",
+    "test/melonx_pipeline_cache/Program.cs": "a079f46c149b879cce9650f5a605fbad2c97d8fd6731ce00fa7865c138db631f"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "48dc8d422dbb9922d521895e92797cdba5a94f1a3dd3d8404dee6356f92dd29c"
+  }
+}

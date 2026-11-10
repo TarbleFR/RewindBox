@@ -1,0 +1,312 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "sdk": "10.0.100",
+  "reports": {
+    "control": {
+      "checks": 120566,
+      "scenarios": 219,
+      "functionalDigest": "E481F97142EBB875F96D4A34B293E83D4D5134EE06956408B90C113E02D95D56",
+      "allocation": [
+        {
+          "mode": "absent",
+          "calls": 20000,
+          "allocatedBytes": 640000
+        },
+        {
+          "mode": "retired",
+          "calls": 20000,
+          "allocatedBytes": 640000
+        },
+        {
+          "mode": "signaled",
+          "calls": 20000,
+          "allocatedBytes": 640000
+        },
+        {
+          "mode": "interrupt",
+          "calls": 20000,
+          "allocatedBytes": 1920000
+        }
+      ],
+      "cleanup": [
+        {
+          "count": 1,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 100,
+          "samplesNanoseconds": [
+            0,
+            0,
+            100,
+            100,
+            100,
+            100,
+            200
+          ]
+        },
+        {
+          "count": 32,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 2100,
+          "samplesNanoseconds": [
+            1900,
+            1900,
+            2000,
+            2100,
+            2300,
+            2500,
+            2600
+          ]
+        },
+        {
+          "count": 256,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 21500,
+          "samplesNanoseconds": [
+            21000,
+            21000,
+            21100,
+            21500,
+            21700,
+            21800,
+            26400
+          ]
+        },
+        {
+          "count": 4096,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 1830800,
+          "samplesNanoseconds": [
+            1640500,
+            1656200,
+            1820100,
+            1830800,
+            1875200,
+            1963800,
+            2256300
+          ]
+        }
+      ],
+      "bitmap": [
+        {
+          "slot": -1,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 61.5975,
+          "samplesNanoseconds": [
+            59.752,
+            60.0205,
+            60.5365,
+            61.5975,
+            64.884,
+            65.844,
+            118.055
+          ]
+        },
+        {
+          "slot": 0,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 3.5475,
+          "samplesNanoseconds": [
+            3.312,
+            3.36,
+            3.4975,
+            3.5475,
+            3.7375,
+            3.766,
+            3.8865
+          ]
+        },
+        {
+          "slot": 15,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 62.2745,
+          "samplesNanoseconds": [
+            58.4805,
+            60.605,
+            61.3055,
+            62.2745,
+            64.419,
+            77.614,
+            94.001
+          ]
+        }
+      ],
+      "physicalDeviceTested": false,
+      "sink": 2804000
+    },
+    "candidate": {
+      "checks": 120566,
+      "scenarios": 219,
+      "functionalDigest": "E481F97142EBB875F96D4A34B293E83D4D5134EE06956408B90C113E02D95D56",
+      "allocation": [
+        {
+          "mode": "absent",
+          "calls": 20000,
+          "allocatedBytes": 0
+        },
+        {
+          "mode": "retired",
+          "calls": 20000,
+          "allocatedBytes": 0
+        },
+        {
+          "mode": "signaled",
+          "calls": 20000,
+          "allocatedBytes": 0
+        },
+        {
+          "mode": "interrupt",
+          "calls": 20000,
+          "allocatedBytes": 1920000
+        }
+      ],
+      "cleanup": [
+        {
+          "count": 1,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 0,
+          "samplesNanoseconds": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            100
+          ]
+        },
+        {
+          "count": 32,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 1200,
+          "samplesNanoseconds": [
+            1100,
+            1100,
+            1100,
+            1200,
+            1200,
+            1200,
+            1200
+          ]
+        },
+        {
+          "count": 256,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 9400,
+          "samplesNanoseconds": [
+            9200,
+            9300,
+            9300,
+            9400,
+            9400,
+            9400,
+            9500
+          ]
+        },
+        {
+          "count": 4096,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 157700,
+          "samplesNanoseconds": [
+            155900,
+            156600,
+            157600,
+            157700,
+            261000,
+            275400,
+            347000
+          ]
+        }
+      ],
+      "bitmap": [
+        {
+          "slot": -1,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 38.0025,
+          "samplesNanoseconds": [
+            34.7045,
+            37.128,
+            37.8425,
+            38.0025,
+            39.0815,
+            40.2385,
+            41.265
+          ]
+        },
+        {
+          "slot": 0,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 4.9735,
+          "samplesNanoseconds": [
+            4.7525,
+            4.7855,
+            4.9605,
+            4.9735,
+            5.0715,
+            5.3755,
+            6.486
+          ]
+        },
+        {
+          "slot": 15,
+          "calls": 200000,
+          "allocatedBytes": 0,
+          "medianNanoseconds": 37.276,
+          "samplesNanoseconds": [
+            35.6425,
+            36.28,
+            37.0475,
+            37.276,
+            38.6725,
+            38.6975,
+            39.853
+          ]
+        }
+      ],
+      "physicalDeviceTested": false,
+      "sink": 2804000
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionSyncAndBitmapClasses": true,
+  "nativeFenceAndCommandBufferBoundariesDoubled": true,
+  "tieredCompilation": false,
+  "inputs": {
+    "build-utils/melonx/adapt_sync_allocations.py": "6897cb02848b7814768edb96a57a8c227559eb7a00707c6324eed4be016f54ab",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_sync_allocations_test.py": "dab176433f435fb75d235d0ff3434dc7b6da302c98665e8301c08941d3e2af8e",
+    "test/melonx_sync_allocations/Program.cs": "01eb73cd109d412a1927a3af4c01eb4e8aa4dfcd60e2ff8ccca435af12230397",
+    "test/melonx_sync_allocations/Boundaries.cs": "75534395f70b5460a27161c57d8ad7cfb828e8282984c28838bdb50c883ba35e"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "fcbee4e89cf44eba0b4a39fbd5b6331d29b25126a3dd9a0ed17ab9cd095bdfec",
+    "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": "f205e7787ecd8699117bc32771218191c3617861888afda260c1bf28411ea663",
+    "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "b55b9c3c1fb941198d0240172dc205d8c916c6d38be82649c9e703c1c79bd6b3",
+    "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": "a9d8acbb38e4bdc23fc3ee39c9635159b08197e3857955798e9a1917694bba44"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Boundaries.cs": "75534395f70b5460a27161c57d8ad7cfb828e8282984c28838bdb50c883ba35e",
+      "Program.cs": "01eb73cd109d412a1927a3af4c01eb4e8aa4dfcd60e2ff8ccca435af12230397",
+      "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": "f205e7787ecd8699117bc32771218191c3617861888afda260c1bf28411ea663",
+      "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+      "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "fcbee4e89cf44eba0b4a39fbd5b6331d29b25126a3dd9a0ed17ab9cd095bdfec"
+    },
+    "candidate": {
+      "Boundaries.cs": "75534395f70b5460a27161c57d8ad7cfb828e8282984c28838bdb50c883ba35e",
+      "Program.cs": "01eb73cd109d412a1927a3af4c01eb4e8aa4dfcd60e2ff8ccca435af12230397",
+      "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": "a9d8acbb38e4bdc23fc3ee39c9635159b08197e3857955798e9a1917694bba44",
+      "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+      "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": "b55b9c3c1fb941198d0240172dc205d8c916c6d38be82649c9e703c1c79bd6b3"
+    }
+  }
+}

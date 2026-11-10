@@ -235,6 +235,11 @@ ALLOWED_CALLERS = {
         'Future<Rpcs3SaveImportReport?> importGuarded(',),
     'lib/services/dolphin_smart_import_service.dart': (
         'static Future<DolphinSmartImportResult> importGames(',),
+    # Embedded MeloNX (Builds 553-558): a game and an update/DLC file, each
+    # discarded after its verified copy, inside importGame/importAddon.
+    'lib/services/melonx_embedded_library_service.dart': (
+        'static Future<bool> importGame(',
+        'static Future<String?> _importAddonFile(',),
 }
 
 
@@ -409,13 +414,13 @@ class LogsBoundedAtTheirPoints(unittest.TestCase):
         # Only _launch names a session log, once the native side reported no
         # running session: never ensureLayout, the scanner or startup.
         launch = Span(source, 'static Future<DolphinLaunchReport> _launch(')
-        at = source.masked.find('_sessionLogPath()')
+        at = source.masked.find('_sessionLogPath(system: system)')
         calls = 0
         while at >= 0:
             if not span.start - len('static Future<String> _sessionLogPath(') <= at < span.end:
-                self.assertTrue(launch.start <= at < launch.end, f'_sessionLogPath() at line {source.line(at)}')
+                self.assertTrue(launch.start <= at < launch.end, f'_sessionLogPath(system: system) at line {source.line(at)}')
                 calls += 1
-            at = source.masked.find('_sessionLogPath()', at + 1)
+            at = source.masked.find('_sessionLogPath(system: system)', at + 1)
         self.assertGreater(calls, 0)
         session = Span(source, 'static Future<DolphinLaunchReport> _launchSession(')
         self.assertLess(session.find("invokeMethod<bool>('isRunning')", original=True),
@@ -571,7 +576,7 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
                       'StorageMaintenanceRepository', 'storage_maintenance_repository', 'StorageReport',
                       'StorageLocale', 'storage_locale', 'StorageImportActivity', 'storage_import_activity'):
             self.assertNotIn(token, main.text, token)
-        # The fifth Tools row is the only way in.
+        # The storage Tools row (the fourth on iOS) is the only way in.
         for path in dart_files():
             relative = str(path.relative_to(ROOT))
             if relative.startswith(PAGES + '/') or relative == TOOLS:
@@ -582,9 +587,10 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
         tools = Source(TOOLS)
         self.assertEqual(tools.masked.count('StorageAuditScreen('), 1)
         self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', tools.masked)
-        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 3;', tools.masked)
+        # Fifth row: the Cheats & Enhancements catalogue (docs/ENHANCEMENTS.md).
+        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 2;', tools.masked)
         select = Span(tools, 'void selectItem(')
-        self.assertLess(select.find('if (index == 4 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
+        self.assertLess(select.find('if (index == 3 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
 
     def test_every_key_the_pages_use_exists_in_the_twelve_languages(self) -> None:
         constants, languages = catalog()
@@ -659,6 +665,10 @@ IMPORT_SITES = {
     'lib/services/rpcs3_content_import_service.dart': (
         'static Future<Rpcs3ImportResult> importGames(',
         'static Future<bool> importExtractedGameFolder(',),
+    # Build 554: the RPCS3 installation of a library-folder PS3 disc, started
+    # from its launch (no pick: the file is already in the library folder).
+    'lib/services/rpcs3_library_file_service.dart': (
+        'static Future<Rpcs3LibraryFileOutcome> install(',),
     'lib/services/rpcs3_save_exchange_service.dart': (
         'Future<Rpcs3SaveImportReport?> importGuarded(',),
     'lib/services/rpcs3_rap_licence_service.dart': (
@@ -677,9 +687,24 @@ IMPORT_SITES = {
         'Future<void> _pickCustomBackground(',),
     'lib/screens/game_screen/game_settings_dialog/game_settings_scrapping_tab.dart': (
         'Future<void> _replaceImage(',),
+    # A box face imported by hand (docs/game-box-3d.md § 14).
+    'lib/screens/game_box/game_box_media_sheet.dart': (
+        'Future<GameBoxAdoption?> _importPicked(',),
+    # The player's own back, from Photos or Files (docs/game-box-3d.md § 21).
+    'lib/screens/game_box/game_box_back_editor.dart': (
+        'Future<Uint8List?> _pickBack(',),
     'lib/widgets/system_emulator_settings_dialog/tabs.dart': (
         'Future<void> _pickAndSaveImage(',
         'Future<void> _pickAndSaveLogoImage(',),
+    # Embedded MeloNX: game, firmware, keys, update/DLC and the standalone
+    # app's data transfer, each wholly inside StorageImportActivity.run.
+    'lib/services/melonx_embedded_library_service.dart': (
+        'static Future<bool> importGame(',
+        'static Future<bool> importFirmware(',
+        'static Future<MelonxKeysReport> importKeys(',
+        'static Future<MelonxAddonReport> importAddon(',),
+    'lib/widgets/melonx_transfer_dialog.dart': (
+        'Future<bool> showMelonxTransfer(',),
 }
 
 # Dolphin's system files (IPL, Wii keys, system folders): every body given
@@ -693,6 +718,10 @@ PICK_HELPERS = {
     'lib/screens/libretro/libretro_3ds_system_screen.dart': {
         'Future<List<String>?> _pickFiles(': ('_pickFiles()', 'Future<void> _import('),
         'Future<String?> _pickFolder(': ('_pickFolder()', 'Future<void> _import('),
+    },
+    'lib/services/melonx_embedded_library_service.dart': {
+        'static Future<File?> pick(': ('await pick(', ('static Future<bool> importGame(',
+                                                     'static Future<bool> importFirmware(')),
     },
     # The default `_picker` of the service.
     'lib/services/library_local_library_service.dart': {
@@ -768,11 +797,18 @@ class ImportsInProgress(unittest.TestCase):
         self.assertLess(check.find('final reason = _state.wholeCleanupReason;'),
                         check.find('if (reason != null && !_stopped) {'))
         self.assertLess(check.find('if (reason != null && !_stopped) {'), check.find('_stopped = true;'))
-        # Read by the guard only; reset by the tests only.
+        # Read by the guard only; reset by the tests only. Contract extended
+        # (6ddf9d7c, embedded MeloNX): the Switch playlist also reads it, to
+        # skip its library discovery while an import runs; it never writes it.
+        melonx_reader = 'lib/widgets/melonx_internal_playlist_actions.dart'
+        discover = Span(Source(melonx_reader), 'Future<void> _discover(')
+        self.assertEqual(Source(melonx_reader).masked.count('StorageImportActivity.active'), 1)
+        self.assertEqual(discover.count('StorageImportActivity.active'), 1)
+        self.assertLess(discover.find('StorageImportActivity.active'), discover.find('return;'))
         for path in dart_files():
             relative = str(path.relative_to(ROOT))
             masked = Source(relative).masked
-            if relative not in (ACTIVITY, PLANNER):
+            if relative not in (ACTIVITY, PLANNER, melonx_reader):
                 self.assertNotIn('StorageImportActivity.active', masked, relative)
             if relative != ACTIVITY:
                 self.assertNotIn('StorageImportActivity.reset(', masked, relative)
@@ -815,9 +851,10 @@ class ImportsInProgress(unittest.TestCase):
         for relative, helpers in PICK_HELPERS.items():
             source = Source(relative)
             importer = None
-            for helper, (call, owner) in helpers.items():
+            for helper, (call, owners) in helpers.items():
                 span = Span(source, helper)
-                importer = Span(source, owner)
+                owners = (owners,) if isinstance(owners, str) else owners
+                importers = [Span(source, owner) for owner in owners]
                 name = call[:-1]
                 declaration = source.masked.find(helper) + helper.index(name) if name in helper else -1
                 calls = [m.start() for m in re.finditer(re.escape(call), source.masked) if m.start() != declaration]
@@ -825,8 +862,22 @@ class ImportsInProgress(unittest.TestCase):
                 for at in calls:
                     if span.start <= at < span.end:
                         continue
-                    self.assertTrue(importer.start <= at < importer.end, f'{relative}: {call} outside {owner}')
+                    self.assertTrue(any(importer.start <= at < importer.end for importer in importers),
+                                    f'{relative}: {call} outside {owners}')
                 covered.setdefault(relative, []).append(span)
+        # The MeloNX pick helper is public: its only other caller is the
+        # wrapped standalone-data transfer.
+        transfer = Source('lib/widgets/melonx_transfer_dialog.dart')
+        transfer_import = Span(transfer, 'Future<bool> showMelonxTransfer(')
+        outside = [m.start() for m in re.finditer(re.escape('MelonxEmbeddedLibraryService.pick('), transfer.masked)]
+        self.assertTrue(outside)
+        for at in outside:
+            self.assertTrue(transfer_import.start <= at < transfer_import.end, 'MeloNX pick outside its transfer')
+        for path in dart_files():
+            relative = str(path.relative_to(ROOT))
+            if relative not in ('lib/services/melonx_embedded_library_service.dart',
+                                'lib/widgets/melonx_transfer_dialog.dart'):
+                self.assertNotIn('MelonxEmbeddedLibraryService.pick(', Source(relative).masked, relative)
         # The book picker is reached through `_picker` only.
         library = Source('lib/services/library_local_library_service.dart')
         self.assertIn('_picker = picker ?? libraryPickBookFiles,', library.masked)

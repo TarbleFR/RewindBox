@@ -1,0 +1,19 @@
+{
+  "status" : "passed",
+  "iphone_tested" : false,
+  "real_metal_execution" : true,
+  "limits" : "macOS compute cache probe only; no game, iPhone recovery, visual correctness or speedup measurement",
+  "concurrent_threads" : 8,
+  "imported_shader_entries" : 1,
+  "schema" : 1,
+  "first_demand_library_compiles" : 1,
+  "seed_library_compiles" : 1,
+  "fps_gain_claimed" : false,
+  "serialized_cache_bytes" : 452,
+  "concurrent_library_compiles" : 1,
+  "metal_device" : "Apple Paravirtual device",
+  "vulkan_device" : "Apple Paravirtual device",
+  "queue_hooks" : "test executable adapters using real dispatch; product hooks unchanged",
+  "import_library_compiles" : 0,
+  "concurrent_pipeline_failures" : 0
+}

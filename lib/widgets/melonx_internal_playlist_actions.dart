@@ -1,6 +1,10 @@
 import '../l10n/melonx_transfer_locale.dart';
+import '../l10n/melonx_unreal_profile_locale.dart';
 import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
+import 'melonx_hogwarts_graphics_options.dart';
+import 'melonx_unreal_profile_dialog.dart';
+
 import 'dart:io';
 import 'dart:async';
 
@@ -8,13 +12,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/libretro_locale.dart';
 import '../l10n/melonx_library_locale.dart';
 import '../providers/sqlite_config_provider.dart';
+import '../screens/libretro/libretro_skin_manager_screen.dart';
+import '../services/frontend_media_gate.dart';
 import '../services/logger_service.dart';
 import '../services/melonx_internal_service.dart';
 import '../services/melonx_embedded_library_service.dart';
 import '../services/melonx_library_scanner.dart';
 import '../services/melonx_file_transaction.dart';
+import '../services/melonx_import_progress.dart';
+import '../services/storage/storage_import_activity.dart';
 
 class MelonxInternalPlaylistActions extends StatefulWidget {
   const MelonxInternalPlaylistActions({
@@ -42,11 +51,28 @@ class _MelonxInternalPlaylistActionsState
     with WidgetsBindingObserver {
   bool _busy = false;
   bool _interacting = false;
+  Future<void>? _recovering;
+  Timer? _afterGame;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    MelonxInternalService.libraryEditing.addListener(_libraryActivityChanged);
+    FrontendMediaGate.instance.addListener(_frontendGateChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_discover()));
+  }
+
+  // Discovery does not run while a game holds the frontend. Once it is
+  // released, look again when the menu has been idle a moment; a new hold
+  // cancels the wait.
+  void _frontendGateChanged() {
+    _afterGame?.cancel();
+    _afterGame = null;
+    if (!FrontendMediaGate.instance.blocked && mounted)
+      _afterGame = Timer(const Duration(seconds: 15), () {
+        _afterGame = null;
+        if (!_busy) unawaited(_discover());
+      });
   }
 
   @override
@@ -55,13 +81,22 @@ class _MelonxInternalPlaylistActionsState
   }
 
   Future<void> _discover() async {
-    if (!mounted) return;
+    if (!mounted ||
+        MelonxInternalService.libraryEditing.value ||
+        StorageImportActivity.active)
+      return;
     try {
-      await MelonxInternalService.editLibrary(() async {
+      final recovery = MelonxInternalService.editLibrary(() async {
         await MelonxFileTransaction.recover(
           await MelonxInternalService.rootDirectory(),
         );
       });
+      _recovering = recovery;
+      try {
+        await recovery;
+      } finally {
+        _recovering = null;
+      }
       if (!mounted) return;
       final changed = await MelonxLibraryScanner.refresh(
         context.read<SqliteConfigProvider>(),
@@ -74,6 +109,10 @@ class _MelonxInternalPlaylistActionsState
 
   String _text(String key) =>
       MelonxLibraryLocale.text(Localizations.localeOf(context), key);
+  void _libraryActivityChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _interaction(bool value) {
     _interacting = value;
     widget.onInteractionChanged?.call(value);
@@ -82,27 +121,59 @@ class _MelonxInternalPlaylistActionsState
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    MelonxInternalService.libraryEditing.removeListener(
+      _libraryActivityChanged,
+    );
+    FrontendMediaGate.instance.removeListener(_frontendGateChanged);
+    _afterGame?.cancel();
     if (_interacting) widget.onInteractionChanged?.call(false);
     super.dispose();
   }
 
   void _notice(String message) {
     if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Nintendo Switch controller skins (docs/dolphin-skins.md): the same manager
+  /// as the GameCube, Wii, PS2 and libretro consoles. Its choices go to
+  /// `Config/Frontend/switch.json`, read by MeloNXSkinOverlay at the next launch.
+  Future<void> _openSkins() async {
+    _interaction(true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const LibretroSkinManagerScreen(console: 'switch')),
+      );
+    } finally {
+      if (mounted) _interaction(false);
+    }
   }
 
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'skins') {
+      await _openSkins();
+      return;
+    }
     setState(() => _busy = true);
     try {
+      // Recovery is short and owned by this menu. Do not race its launch gate.
+      await _recovering;
+      if (!mounted) return;
       final config = context.read<SqliteConfigProvider>();
       bool changed = false;
+      bool discoverAfterImport = false;
       switch (action) {
         case 'games':
-          changed = await MelonxEmbeddedLibraryService.importGame(config);
+          changed = await _withImportProgress(
+            (progress) => MelonxEmbeddedLibraryService.importGame(
+              config,
+              onProgress: progress,
+            ),
+          );
         case 'firmware':
+          discoverAfterImport = true;
           changed = await MelonxEmbeddedLibraryService.importFirmware(
             install: (source) async {
               if (!mounted) return;
@@ -149,6 +220,7 @@ class _MelonxInternalPlaylistActionsState
             },
           );
         case 'keys':
+          discoverAfterImport = true;
           final report = await MelonxEmbeddedLibraryService.importKeys();
           if (!mounted) return;
           await showDialog<void>(
@@ -181,26 +253,29 @@ class _MelonxInternalPlaylistActionsState
         case 'saves':
           changed = await showMelonxTransfer(context, config, savesOnly: true);
         case 'migration':
+          discoverAfterImport = true;
           changed = await showMelonxTransfer(context, config, savesOnly: false);
         case 'discover':
           await _discover();
         case 'delete':
           await widget.onDelete?.call();
         case 'update':
-          changed = await MelonxEmbeddedLibraryService.importAddon(
-            widget.titleId!,
-            dlc: false,
-          );
         case 'dlc':
-          changed = await MelonxEmbeddedLibraryService.importAddon(
-            widget.titleId!,
-            dlc: true,
+          final report = await _withImportProgress(
+            (progress) => MelonxEmbeddedLibraryService.importAddon(
+              // Playlist menus also receive the merely highlighted game.
+              // Updates identify their own installed base from the NSP.
+              action == 'dlc' ? widget.titleId : null,
+              dlc: action == 'dlc',
+              onProgress: progress,
+            ),
           );
+          if (mounted && !report.isEmpty) await _showAddonReport(report);
         case 'graphics':
           if (!mounted) return;
           await showDialog<void>(
             context: context,
-            builder: (_) => _MelonxGraphicsDialog(gamePath: widget.gamePath!),
+            builder: (_) => _MelonxGraphicsDialog(gamePath: widget.gamePath!, titleId: widget.titleId),
           );
         case 'status':
           final status = await MelonxInternalService.content('firmwareInfo');
@@ -224,14 +299,21 @@ class _MelonxInternalPlaylistActionsState
       if (changed && mounted) {
         final completedMessage = _text('Import completed');
         final onLibraryChanged = widget.onLibraryChanged;
-        await MelonxLibraryScanner.refresh(config);
-        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        // Games are already committed to SQLite. Updates/DLC have no game-row
+        // changes. Never wait for a whole-library SHA-256 scan to finish them.
         await onLibraryChanged();
-        if (!mounted) return;
-        _notice(completedMessage);
+        if (messenger.mounted) {
+          messenger.showSnackBar(SnackBar(content: Text(completedMessage)));
+        }
+        if (discoverAfterImport && mounted) unawaited(_discover());
       }
-    } catch (error) {
-      LoggerService.instance.w('MeloNX library action failed: $error');
+    } catch (error, stack) {
+      LoggerService.instance.e(
+        'MeloNX library action failed: $error',
+        error: error,
+        stackTrace: stack,
+      );
       if (mounted)
         _notice(
           MelonxTransferLocale.text(
@@ -257,6 +339,58 @@ class _MelonxInternalPlaylistActionsState
     }
   }
 
+  Future<T> _withImportProgress<T>(
+    Future<T> Function(MelonxImportObserver) operation,
+  ) => runMelonxProgress(
+    context,
+    MelonxTransferControl(),
+    (progress) => operation((state) {
+      progress.value = MelonxProgress(
+        state.phase,
+        state.done,
+        state.total,
+        state.name.isEmpty
+            ? ''
+            : '${state.fileIndex} / ${state.fileCount} · ${state.name}',
+      );
+    }),
+    cancellable: false,
+  );
+
+  Future<void> _showAddonReport(MelonxAddonReport report) => showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(
+        report.refused.isEmpty
+            ? _text('Import completed')
+            : MelonxTransferLocale.text(ctx, 'importResults'),
+      ),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Text(
+            [
+              '${MelonxTransferLocale.text(ctx, 'imported')}: ${report.imported.length}',
+              for (final name in report.imported)
+                report.targets.containsKey(name) ? '${report.targets[name]} — $name' : name,
+              if (report.refused.isNotEmpty) ...[
+                '${MelonxTransferLocale.text(ctx, 'rejected')}: ${report.refused.length}',
+                for (final entry in report.refused.entries)
+                  '${entry.key}: ${MelonxTransferLocale.text(ctx, entry.value)}',
+              ],
+            ].join('\n'),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(_text('Done')),
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (defaultTargetPlatform != TargetPlatform.iOS) {
@@ -268,7 +402,7 @@ class _MelonxInternalPlaylistActionsState
     return PlaylistImportButton(
       menuKey: const ValueKey('melonx-import-menu'),
       tooltip: _text('Import'),
-      busy: _busy,
+      busy: _busy || MelonxInternalService.libraryEditing.value,
       embedded: widget.embedded,
       onOpened: () => _interaction(true),
       onCanceled: () => _interaction(false),
@@ -294,14 +428,19 @@ class _MelonxInternalPlaylistActionsState
           value: 'keys',
           child: Text(_text('Import personal keys')),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'update', child: Text(_text('Import update'))),
         if (validTitle) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(value: 'update', child: Text(_text('Import update'))),
           PopupMenuItem(value: 'dlc', child: Text(_text('Import DLC'))),
         ],
         if (widget.gamePath != null)
           PopupMenuItem(value: 'graphics', child: Text(_text('Game graphics'))),
         const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const ValueKey('melonx-skins'),
+          value: 'skins',
+          child: Text(LibretroLocale.text(context, 'skins')),
+        ),
         PopupMenuItem(value: 'status', child: Text(_text('Engine status'))),
       ],
     );
@@ -309,27 +448,40 @@ class _MelonxInternalPlaylistActionsState
 }
 
 class _MelonxGraphicsDialog extends StatefulWidget {
-  const _MelonxGraphicsDialog({required this.gamePath});
+  const _MelonxGraphicsDialog({required this.gamePath, this.titleId});
   final String gamePath;
+  final String? titleId;
   @override
   State<_MelonxGraphicsDialog> createState() => _MelonxGraphicsDialogState();
 }
 
 class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
   Map<String, dynamic>? _settings;
+  String? _titleId;
   String? _failure;
   String _text(String key) =>
       MelonxLibraryLocale.text(Localizations.localeOf(context), key);
   @override
   void initState() {
     super.initState();
-    MelonxInternalService.graphicsForGame(widget.gamePath)
-        .then((value) {
-          if (mounted) setState(() => _settings = value);
-        })
-        .catchError((Object error) {
-          if (mounted) setState(() => _failure = error.toString());
-        });
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final settings = await MelonxInternalService.graphicsForGame(widget.gamePath);
+      var titleId = widget.titleId;
+      // Metadata is read only while editing; launches keep their one native preflight.
+      try {
+        final metadata = await MelonxInternalService.content('metadata', filePath: widget.gamePath);
+        titleId = metadata['titleId'] as String?;
+      } catch (_) {
+        // Keep the row's editor escape hatch when metadata is unavailable.
+      }
+      if (mounted) setState(() { _settings = settings; _titleId = titleId; });
+    } catch (error) {
+      if (mounted) setState(() => _failure = error.toString());
+    }
   }
 
   @override
@@ -360,6 +512,14 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                       onChanged: (value) => setState(() => settings['showRamGraph'] = value),
                     ),
                     Text(_text('Memory settings apply on the next launch.')),
+                    if (_titleId?.toUpperCase() == '0100F7E00C70E000')
+                      MelonxHogwartsGraphicsOptions(settings: settings, onChanged: () => setState(() {})),
+                    if (_titleId?.toUpperCase() == '0100F7E00C70E000')
+                      TextButton(
+                        onPressed: () => showDialog<void>(context: context,
+                          builder: (_) => MelonxUnrealProfileDialog(gamePath: widget.gamePath)),
+                        child: Text(MelonxUnrealProfileLocale.text(context, 'title')),
+                      ),
                     for (final item in [('donateMemory', 'Use RamDonor'), ('hostMemoryBudget', 'Track available memory'), ('textureRecompression', 'Texture recompression')])
                       SwitchListTile(
                         title: Text(_text(item.$2)),
@@ -385,9 +545,10 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                           setState(() => settings['resolution'] = value),
                     ),
                     for (final item in [
-                      ('shaderCache', 'Shader cache', false),
-                      ('asyncShaders', 'Async shaders', true),
+                      ('shaderCache', 'Shader cache', true),
+                      ('asyncShaders', 'Async shaders', false),
                       ('vsync', 'VSync', true),
+                      ('backendThreading', 'Backend threading', true),
                     ])
                       SwitchListTile(
                         title: Text(_text(item.$2)),

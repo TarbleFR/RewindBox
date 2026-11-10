@@ -1,0 +1,37 @@
+{
+ "input": {
+  "name": "ScreenRecording_11-04-2026_19-03-01_1.mp4",
+  "bytes": 11094898,
+  "sha256": "7ea18bee6e7f2830504e3f160d7d05fe6d4bff6e808685c0ddb1948b3dabd2ca",
+  "video": "HEVC 1320x2868 stored, displayed landscape 2868x1320 (956x440 pt at 3x), 60 fps, 925 frames, 15.46 s",
+  "privacy": "device recording kept private; only crops of the skin controls are stored here"
+ },
+ "observed": {
+  "skin": "GameCube Pocket — Original, landscape, Fire Emblem: Path of Radiance boot screens, then the session menu (about 10.5 s)",
+  "touchTimeline": "per-frame difference of the control areas against frames 120-160 at rest: main stick 0.13-1.50 s; A 2.72-5.23 s; X 5.55-6.03 s; Y 6.28-6.53 and 7.18-7.77 s; R 6.70-6.78 s; L 8.30-8.63 s; D-pad 9.00-9.48 s; Menu 10.28 s",
+  "pressed": "every pressed control is drawn as a darker rectangle around it (device-press-crops.png: A, X, Y, R, D-pad), the opaque-rectangle sprite of the archive before PR157",
+  "sticks": "at rest the main-stick cap sits right of its socket centre and the C cap off its octagonal gate; the C knob sprite carried part of the base (the maintainer: the base moves), as in the pre-PR157 archive (touch-fix/stick-gamecube-landscape.png, top row)",
+  "islandInThisRotation": "recording start shows the island pill at x 13-50 pt, y 157-282 pt, clear of every control"
+ },
+ "archiveVersionMatch": {
+  "method": "each archive composed like DOLSkinOverlay at 2868x1320 (aspect fit, scale 3.3662 px per mapping pt, y offset 22.5 px) against frame 150 at rest",
+  "meanAbsDiffOutsideGameScreen": {
+   "f61e10dd (PR155, IPA 643)": 5.25,
+   "ec382133 (PR157, IPA 650)": 5.91
+  },
+  "stickRegions": {
+   "f61e10dd main/C": [
+    7.92,
+    6.77
+   ],
+   "ec382133 main/C": [
+    11.37,
+    14.14
+   ]
+  },
+  "conclusion": "the device draws the pre-PR157 archive f61e10dd"
+ },
+ "cause": "a bundled pack is imported once into Documents/Libretro/Skins/<first 16 hex of its SHA-256>; an app update never refreshed that copy, the catalog did not show that a newer archive shipped, and reinstalling needed a replace confirmation. IPA 650 ships ec382133 (PR157) while a GameCube Original installed under 643 keeps f61e10dd. The native drawn-shape hit test of 650 falls back to rectangles on those opaque sprites.",
+ "notEstablished": "which IPA was installed at 18:03 UTC is not visible in the recording; under 643 the same frames are expected, under 650 only the stale installed copy explains them. Either way the device needs the refresh below plus a build that ships it.",
+ "fix": "LibretroSkinCatalogs.refreshInstalledBundledSkins (app start on iOS and the skin page): an installed skin with a bundled org.rewindbox.* identifier whose SHA-256 is not the shipped one is replaced through LibretroSkinService.replace (new copy first, selections moved, old copy deleted; rollback on failure); nothing else installed or touched."
+}

@@ -1,0 +1,55 @@
+{
+  "build": 594,
+  "baseline": 593,
+  "engine": {
+    "result": "passed",
+    "source": "ebcee3529645a781311429a869434005e76d6275",
+    "run": 40841402428,
+    "compileRun": 40837997888,
+    "originalRunConclusion": "failure",
+    "originalFailedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+    "validationSource": "e46ace78c0232864764009c5506bb1041bc1eddd",
+    "artifact": 12883480724,
+    "artifactSHA256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+    "reusedCompilationSteps": [
+      "Compile NativeAOT library and verify exported ABI",
+      "Verify cached shader startup preserves synchronous draws and fatal errors",
+      "Verify launch firmware discovery scans once and preserves failures",
+      "Verify renderer failures wake waiting threads and preserve teardown",
+      "Verify failed GPU initialization releases guest startup without executing guest code",
+      "Verify shader cache translation workers drain before failed startup returns"
+    ],
+    "validationSteps": [
+      "Authenticate and restore unchanged engine 82",
+      "Validate the existing engine with the corrected ARM64 simulator smoke",
+      "Retain the original failure and new runtime proof"
+    ],
+    "engineRecompiled": false,
+    "priorGatesReexecuted": false
+  },
+  "rpcCoreRun": {
+    "run": 40839976736,
+    "source": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+    "path": ".github/workflows/rpcs3-runtime592-core.yml",
+    "status": "completed",
+    "conclusion": "success",
+    "requiredSteps": {
+      "Authenticate historical Core and execute only the candidate delta on ARM64": 123333717115,
+      "Compile actual iPhone Core from the verified source": 123333717115,
+      "Verify source candidate, exact exports, passive loading and source identity": 123333717115,
+      "Upload source candidate without a delivery number": 123333717115
+    },
+    "artifact": {
+      "id": 12883027017,
+      "name": "RPCS3Core-fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "bytes": 29108511,
+      "digest": "sha256:93c79e3eac60300711755400b3e7a9efb9c87f3c48f487a3c4fff68ca64cdd44"
+    },
+    "diagnosticsArtifact": {
+      "id": 12882299916,
+      "name": "RPCS3Core-diagnostics-fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "bytes": 227238,
+      "digest": "sha256:48911f1655444c35a3850fb569a595f936d89b0fae7c6fb251843747d98fcafc"
+    }
+  }
+}

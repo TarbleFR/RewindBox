@@ -1,0 +1,95 @@
+{
+  "files": {
+    "RPCS3-performance.1.log": {
+      "bytes": 2096915,
+      "sha256": "c2dcc52399e563aaf2553e557b172d057647a31331862b246e3bbac115c4ed1e",
+      "lines": 3502
+    },
+    "RPCS3-performance.log": {
+      "bytes": 550410,
+      "sha256": "9b16d90fa12c53c0dcdb4b68869f83dc231d43e29f25f097281f74b61e89ff69",
+      "lines": 916
+    },
+    "RPCS3-timeline.1.log": {
+      "bytes": 2097110,
+      "sha256": "04144884a3498a924db4fbd2eaf5b92c84d29f58e3976764a4ee9095ce23e2c0",
+      "lines": 659
+    },
+    "RPCS3-restore-trace.1.log": {
+      "bytes": 1048474,
+      "sha256": "88449183936c901548e0da5f0101ac1c63296b02c0cdc942ce0f086ff7455686",
+      "lines": 2378
+    },
+    "RPCS3-restore-trace.log": {
+      "bytes": 198857,
+      "sha256": "a096a67db17621e774aa4b69310f26c0f7c858a084d9787e7f8e8ca59eb0075f",
+      "lines": 453
+    }
+  },
+  "windows_with_readback": 161,
+  "first_window": 12,
+  "last_window": 172,
+  "bytes_per_readback": 3686400,
+  "surface": "1280x720x4 bytes",
+  "all_origin_unknown": true,
+  "opt559_all_zero": true,
+  "readbacks_minus_rsx_waits_per_frame": [
+    1
+  ],
+  "classes": {
+    "2_readbacks_per_frame": {
+      "windows": 92,
+      "frames": 18991,
+      "fps_median": 40.6,
+      "fps_range": [
+        30.316,
+        46.847
+      ],
+      "frametime_ms_median": 24.63,
+      "readback_ms_per_frame": 8.83,
+      "rsx_texture_waits_per_frame": 1.0,
+      "rsx_texture_wait_ms_per_frame": 4.01,
+      "readback_max_ms": 13.522,
+      "draws_per_frame_range": [
+        5.1,
+        257.2
+      ],
+      "rsx_fifo_busy_median": 45.7
+    },
+    "3_readbacks_per_frame": {
+      "windows": 69,
+      "frames": 14489,
+      "fps_median": 42.2,
+      "fps_range": [
+        31.974,
+        44.851
+      ],
+      "frametime_ms_median": 23.71,
+      "readback_ms_per_frame": 14.16,
+      "rsx_texture_waits_per_frame": 1.99,
+      "rsx_texture_wait_ms_per_frame": 8.66,
+      "readback_max_ms": 11.798,
+      "draws_per_frame_range": [
+        166.9,
+        261
+      ],
+      "rsx_fifo_busy_median": 72.6
+    }
+  },
+  "build_observed": 559,
+  "title": "BLES01658",
+  "process_pid": 36124,
+  "period_utc": "2026-10-26 22:28:50 to 22:44:46 (performance 22:30:00-22:44:46)",
+  "scope": "Logs supplied by the maintainer after installing private 559. Restore traces are builds 547/553 and the 553 timeline part is Bladestorm BLES00113; neither describes the 559 DBZ process.",
+  "interpretation": {
+    "readbacks": "Every READBACK555 batch in session 2 transfers one 1280x720 32-bit section (3,686,400 bytes); all are attributed to origin unknown.",
+    "rsx_waits": "RSX texture-site fence waits (cleanup_after_dma_transfers on the primary buffer) are one fewer per frame than readback batches in every window.",
+    "code_path_hypothesis": "With Write Color Buffers off, VKGSRender::prepare_rtts commits each bound framebuffer (committed_as_fbo). That cause does not skip flushes, so a GPU-resident framebuffer_storage section starting at the framebuffer address (a blit target, protected regardless of WCB) is read back synchronously on the RSX thread: one wait per frame in light scenes, two in battles. The remaining readback per frame has no RSX wait: the guest CPU fault path on the secondary buffer.",
+    "not_proven_by_logs": "The logs carry no origin for these batches; the 560 Core attributes them (fbo_commit, fault_read, fault_write) and counts the deferrals.",
+    "opt559": "OPT559 counters are zero in every window: none of the 559 paths is on this path."
+  },
+  "physicalDeviceTested": true,
+  "gameplayMeasured": true,
+  "measuredBuild": 559,
+  "gainClaimed": false
+}

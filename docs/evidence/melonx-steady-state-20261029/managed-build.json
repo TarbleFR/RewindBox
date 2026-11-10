@@ -1,0 +1,21 @@
+{
+  "result": "passed",
+  "sdk": "10.0.100",
+  "runtime": "linux-x64",
+  "configuration": "Release",
+  "incremental": true,
+  "nativeAot": false,
+  "appleBuild": false,
+  "physicalDeviceTested": false,
+  "elapsed": "00:00:33.89",
+  "warnings": 23,
+  "errors": 0,
+  "logSha256": "f7bd00bf18698cbc34fc2076de3379e3ffdd119e625eab46e33cfcd0fffd6361",
+  "compiledSourceResourceFilesMatchingFreshPreparation": 4966,
+  "assemblies": {
+    "Ryujinx.Library": "1158e13ac90e699f39a3535b84316034ba18b284f61b5da246bd29ce8079fe0d",
+    "Ryujinx.Graphics.Vulkan": "5c685ae1a0597c00bb5e12be0f3ff388d9d3aa3d50caf19ac7d10a9165f09104",
+    "Ryujinx.Graphics.GAL": "385f9488ce7dd720292a6064ce6f40e5e1601b1cc3f8c6dfde333d04aa826b91",
+    "Ryujinx.Graphics.Gpu": "f35760ce65903e717b27576558e7300870a20441af4c8ebf1b5c87ab32032a7b"
+  }
+}

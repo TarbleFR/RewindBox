@@ -700,9 +700,13 @@ class _GamesGridState extends State<GamesGrid> {
       onLeftStickClick: widget.onRandom,
       // Box style: the right stick examines the selected box.
       onRightStickClick: _inspectSelected,
+      // Select tap opens the ⋯ menu of the action rail and keeps it open; it
+      // mutes the preview only when the rail has no menu to open.
+      latchSelectLayer: true,
       onSelectButton: _toggleVideoMute, // Select tap - Mute preview video.
       onSelectModifierA: widget.onScrape, // Select + A - Scrape.
       onSelectModifierB: _toggleLegend, // Select + B - Hide/show legend.
+      onSelectModifierX: _toggleVideoMute, // Select + X - Mute preview video.
       onSelectModifierY: widget.onRandom, // Select + Y - Random game.
       onSettings: widget.onSettings,
     );
@@ -1021,16 +1025,18 @@ class _GamesGridState extends State<GamesGrid> {
             Icon(
               Icons.videogame_asset_rounded,
               size: 64.r,
-              color: Theme.of(context).colorScheme.onSurface
-                  .withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
             ),
             SizedBox(height: 16.r),
             Text(
               AppLocale.selectAGame.getString(context),
               style: TextStyle(
                 fontSize: 18.r,
-                color: Theme.of(context).colorScheme.onSurface
-                    .withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -1138,7 +1144,9 @@ class _GamesGridState extends State<GamesGrid> {
                           // Box style: no glowing halo around the boxes;
                           // the selected one stands a little larger.
                           cell = AnimatedScale(
-                            key: ValueKey('grid-box-${widget.games[idx].romname}'),
+                            key: ValueKey(
+                              'grid-box-${widget.games[idx].romname}',
+                            ),
                             scale: idx == _selectedIndex ? 1.07 : 1.0,
                             duration: const Duration(milliseconds: 140),
                             curve: Curves.easeOut,
@@ -1333,15 +1341,16 @@ class _GamesGridState extends State<GamesGrid> {
     // Positioning/visibility is applied at the Stack level (AnimatedPositioned)
     // so Select + B can animate it without invalidating this memoized subtree.
     _chromeLegend = GameActionButtons(
-        system: widget.system,
-        selectedGame: settledGame,
-        onBack: widget.onBack,
-        onFavorite: widget.onFavorite,
-        onViewMode: () =>
-            GameViewModeDropdown.globalKey.currentState?.showDropdown(),
-        onSettings: widget.onSettings ?? () {},
-        onRandom: widget.onRandom,
-        onScrape: widget.onScrape,
+      system: widget.system,
+      selectedGame: settledGame,
+      onBack: widget.onBack,
+      onFavorite: widget.onFavorite,
+      onViewMode: () =>
+          GameViewModeDropdown.globalKey.currentState?.showDropdown(),
+      onSettings: widget.onSettings ?? () {},
+      onRandom: widget.onRandom,
+      onScrape: widget.onScrape,
+      onContextAction: _toggleVideoMute,
     );
   }
 
@@ -1404,7 +1413,9 @@ class _GamesGridState extends State<GamesGrid> {
               // decoded at the size the flat cover used.
               Positioned.fill(
                 child: GameBoxCard(
-                  key: ValueKey('box3d_${game.romname}_${widget.artworkVersion}'),
+                  key: ValueKey(
+                    'box3d_${game.romname}_${widget.artworkVersion}',
+                  ),
                   frontPath: boxFront,
                   title: game.name,
                   systemId: _boxSystemId(game),
@@ -1444,7 +1455,10 @@ class _GamesGridState extends State<GamesGrid> {
                 left: 4.r,
                 bottom: 4.r,
                 child: Tooltip(
-                  message: GameBoxLocale.text(context, GameBoxLocale.inspectHint),
+                  message: GameBoxLocale.text(
+                    context,
+                    GameBoxLocale.inspectHint,
+                  ),
                   child: Semantics(
                     button: true,
                     label: GameBoxLocale.text(context, GameBoxLocale.inspect),
@@ -1456,7 +1470,11 @@ class _GamesGridState extends State<GamesGrid> {
                           color: Colors.black.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Symbols.threed_rotation_rounded, size: 13.r, color: Colors.white),
+                        child: Icon(
+                          Symbols.threed_rotation_rounded,
+                          size: 13.r,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -1496,7 +1514,11 @@ class _GamesGridState extends State<GamesGrid> {
   // 3D box ------------------------------------------------------------------
 
   String? _boxSystemId(GameModel game) {
-    final id = GameBoxLibrary.systemIdFor(game, widget.system, isAllMode: _isAllMode);
+    final id = GameBoxLibrary.systemIdFor(
+      game,
+      widget.system,
+      isAllMode: _isAllMode,
+    );
     GameBoxLibrary.ensureProfile(id, () {
       if (mounted) setState(() => _boxProfileGen++);
     });
@@ -1872,8 +1894,9 @@ class _Placeholder extends StatelessWidget {
             Icon(
               Icons.videogame_asset_rounded,
               size: 32.r,
-              color: Theme.of(context).colorScheme.onSurface
-                  .withValues(alpha: 0.4),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             SizedBox(height: 4.r),
             Padding(
@@ -1887,8 +1910,9 @@ class _Placeholder extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 7.r,
-                  color: Theme.of(context).colorScheme.onSurface
-                      .withValues(alpha: 0.5),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
             ),

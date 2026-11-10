@@ -1,0 +1,343 @@
+{
+  "passed": true,
+  "cause": "Unspecified unordered_set pointer order changes the rank of the first matching unowned section; historical Clang and GCC totals differ while per-query semantics agree.",
+  "physicalDeviceTested": false,
+  "appleCandidateTested": false,
+  "controlledCases": {
+    "baseline": {
+      "rotations": 24,
+      "ranks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "nativeQueries": 323808
+    },
+    "candidate": {
+      "rotations": 24,
+      "ranks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "nativeQueries": 323808
+    }
+  },
+  "controlledProbeSourceSHA256": {
+    "baseline": "44e286e115ba6a1515d2e025211d559adcade3a6d9a1471793dcf10e38163fcc",
+    "candidate": "3380d29574403eb874e047603ec82cbc00be252456380429c8f295d37328b668"
+  },
+  "controlledProbeCompiler": [
+    "g++",
+    "-std=c++20",
+    "-O3",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-UNDEBUG"
+  ],
+  "controlledProbeCompilerVersion": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "controlledRowsSHA256": "97f139de0dd0a9f0f3077d018b3ac73a4f73d4bd54c8e9d70237010a1c2fe805",
+  "programHashesBefore": {
+    "address": {
+      "combined": "cbb45191b7c3481eb236e8e4791d9a09f47be77ebe7a95e184e7d3315f8a9c31"
+    },
+    "exact": {
+      "baseline": "1d6d3f409d040caf3a87899f1905c14f9af25d123db19334120ad2a7d41d9bbb",
+      "candidate": "621c759fe00bb0c6388b03898900b9d7f4c186257f120933202bcdf6f2ad88df"
+    }
+  },
+  "programHashesAfter": {
+    "address": {
+      "combined": "cbb45191b7c3481eb236e8e4791d9a09f47be77ebe7a95e184e7d3315f8a9c31"
+    },
+    "exact": {
+      "baseline": "12f54d6a578127105a00de0fe3dde44f09f13288547948da2e1bc9e5832dadc7",
+      "candidate": "09d247362b3ee392dfbf472781aa68f3bcdbf0eeef1870ea7b8597e6c81cb8c0"
+    }
+  },
+  "scriptSHA256": "34ccd7c55e304588f37652277bc13ad641fb8e51e372562ce4cd7906e94db623",
+  "reports": {
+    "plain": {
+      "path": "/tmp/rpcs3-lifecycle-order-probe/exact-fixed-plain.json",
+      "sha256": "f61ad7513e02c4607b5d4f4d6853aab7ab5483a9b12c6378e65ea5fcde2891fb",
+      "passed": true,
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "rankByVersion": {
+        "baseline": 12,
+        "candidate": 12
+      }
+    },
+    "asan-ubsan": {
+      "path": "/tmp/rpcs3-lifecycle-order-probe/exact-fixed-asan-ubsan.json",
+      "sha256": "569c33c5fdfcd48db736397d573f0b261d9907270a4e5c2a5063cabd59a9b8a0",
+      "passed": true,
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "rankByVersion": {
+        "baseline": 12,
+        "candidate": 12
+      }
+    }
+  },
+  "negativeReceiptControls": 42,
+  "rejected": [
+    [
+      "baseline",
+      "queries",
+      13493
+    ],
+    [
+      "baseline",
+      "debugQueries",
+      3366
+    ],
+    [
+      "baseline",
+      "mutations",
+      4037
+    ],
+    [
+      "baseline",
+      "rangePredicateCallsBefore",
+      3279643
+    ],
+    [
+      "baseline",
+      "rangePredicateCallsAfter",
+      3200653
+    ],
+    [
+      "baseline",
+      "dirtyPredicateCallsBefore",
+      12723
+    ],
+    [
+      "baseline",
+      "dirtyPredicateCallsAfter",
+      18066
+    ],
+    [
+      "baseline",
+      "arrayAllocationsBefore",
+      36
+    ],
+    [
+      "baseline",
+      "arrayAllocationsAfter",
+      33
+    ],
+    [
+      "baseline",
+      "unownedPrefixEntries",
+      25
+    ],
+    [
+      "baseline",
+      "sameFirstMatch",
+      false
+    ],
+    [
+      "baseline",
+      "sameValidationOrder",
+      false
+    ],
+    [
+      "baseline",
+      "sameMergeOrder",
+      false
+    ],
+    [
+      "baseline",
+      "sameMutationState",
+      false
+    ],
+    [
+      "baseline",
+      "sameInvalidViewSelection",
+      false
+    ],
+    [
+      "baseline",
+      "confirmedRangeDebugCovered",
+      false
+    ],
+    [
+      "baseline",
+      "realStorageAndPitch",
+      false
+    ],
+    [
+      "baseline",
+      "unownedPrefixRank",
+      0
+    ],
+    [
+      "baseline",
+      "unownedPrefixRank",
+      25
+    ],
+    [
+      "baseline",
+      "unownedPrefixRank",
+      true
+    ],
+    [
+      "baseline",
+      "unownedPrefixRank",
+      13
+    ],
+    [
+      "candidate",
+      "queries",
+      13493
+    ],
+    [
+      "candidate",
+      "debugQueries",
+      3366
+    ],
+    [
+      "candidate",
+      "mutations",
+      4037
+    ],
+    [
+      "candidate",
+      "rangePredicateCallsBefore",
+      3279643
+    ],
+    [
+      "candidate",
+      "rangePredicateCallsAfter",
+      3200653
+    ],
+    [
+      "candidate",
+      "dirtyPredicateCallsBefore",
+      12723
+    ],
+    [
+      "candidate",
+      "dirtyPredicateCallsAfter",
+      18066
+    ],
+    [
+      "candidate",
+      "arrayAllocationsBefore",
+      36
+    ],
+    [
+      "candidate",
+      "arrayAllocationsAfter",
+      33
+    ],
+    [
+      "candidate",
+      "unownedPrefixEntries",
+      25
+    ],
+    [
+      "candidate",
+      "sameFirstMatch",
+      false
+    ],
+    [
+      "candidate",
+      "sameValidationOrder",
+      false
+    ],
+    [
+      "candidate",
+      "sameMergeOrder",
+      false
+    ],
+    [
+      "candidate",
+      "sameMutationState",
+      false
+    ],
+    [
+      "candidate",
+      "sameInvalidViewSelection",
+      false
+    ],
+    [
+      "candidate",
+      "confirmedRangeDebugCovered",
+      false
+    ],
+    [
+      "candidate",
+      "realStorageAndPitch",
+      false
+    ],
+    [
+      "candidate",
+      "unownedPrefixRank",
+      0
+    ],
+    [
+      "candidate",
+      "unownedPrefixRank",
+      25
+    ],
+    [
+      "candidate",
+      "unownedPrefixRank",
+      true
+    ],
+    [
+      "candidate",
+      "unownedPrefixRank",
+      13
+    ]
+  ],
+  "addressProgramReexecuted": false,
+  "otherPassedSuitesReexecuted": false,
+  "productionOrderModified": false
+}

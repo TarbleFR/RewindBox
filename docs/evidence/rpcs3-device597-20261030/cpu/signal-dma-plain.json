@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "mode": "dma",
+  "sanitizer": null,
+  "results": {
+    "completeDmaFunctionExtracted": true,
+    "beforeAfterCopyCases": 320,
+    "observedCommitRecords": 44,
+    "failedCopyNoCommit": true,
+    "inFlightSessionResetDropsOldCommit": true,
+    "getAndUnwatchedPathsNoCommit": true,
+    "noAdditionalGuestRead": true,
+    "dmaValueExplicitlyUnknown": true
+  },
+  "sourceBodies": {
+    "old_void spu_thread::do_dma_transfer(": "4ee8d0d77f084b1f79b1c0f7700da411ecf3c360448ab423657f442c05e3914b",
+    "new_void spu_thread::do_dma_transfer(": "0df21d763e8b71c6d25ad25e983df04736457103e2c876af7409177b1bfeda84"
+  },
+  "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+  "programSHA256": "83baebf8333ed07ea74891584a2a3cb7933feb5b5e4d9364994d0e010bb94e22",
+  "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-g",
+    "-O3",
+    "-DRPCS3_IOS",
+    "-I",
+    "/workspace/scratch/82df14a3df84/device597-core-cpu/rpcs3"
+  ],
+  "host": "x86_64",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "platformAtomicWaitBackendExecuted": false,
+  "scope": "Real bounded trace header; complete acquire/release/write_gcm_label bodies for rsx mode; complete do_dma_transfer/do_list_transfer for dma/list modes. Guest memory, atomic reservation/locks, GPU backend, log formatting, clock and wait pump are explicit host adapters."
+}

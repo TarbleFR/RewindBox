@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "branch": "Claude",
+  "starting_source": "487dd628cdd4776c4f892cab8c315aa21e4840e6",
+  "translation_source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "swift": {
+    "result": "passed",
+    "run": 41216465837,
+    "job": 124581910401,
+    "xcode": "16.4",
+    "swift": "6.1.2",
+    "swift_language_mode": "6",
+    "deployment_target": "18.0",
+    "simulator_sdk": "18.5",
+    "tests": 33,
+    "failures": 0,
+    "test_suites": {
+      "AchievementTranslationTests": 17,
+      "AchievementTranslationConcurrencyTests": 14,
+      "AchievementToastPresentationTests": 2
+    },
+    "strict_concurrency": "complete",
+    "swift_warnings_as_errors": true,
+    "remaining_warnings": "External Flutter quoted-header includes and AppIntents metadata extraction; no translation Swift concurrency/API diagnostic",
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "reported_test_seconds": 3.844,
+    "reported_test_wall_seconds": 4.316
+  },
+  "flutter": {
+    "result": "passed",
+    "run": 41216465837,
+    "job": 124581910595,
+    "version": "3.47.2",
+    "tests": 70,
+    "analysis": "No issues found",
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d"
+  },
+  "dolphin": {
+    "result": "passed",
+    "run": 41209480072,
+    "job": 124561269736,
+    "producer_source": "af5b18e67864e6555f54b7b4b6f1452ed82f6982",
+    "upstream_source": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "artifact_id": 13046204173,
+    "artifact_bytes": 11004545,
+    "artifact_digest": "sha256:fdd13623b859dbd57315974c47c8fb06916a5b141c93f7fe8d464b4486bb86fb",
+    "new_presenter_export_verified": true,
+    "device_runtime_tested": false
+  },
+  "libretro_native": {
+    "result": "passed",
+    "run": 41216465841,
+    "job": 124581910381,
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "compiled_iphone_sources": 78,
+    "real_flutter_codec_states": 4,
+    "xcode": "26.3",
+    "evidence_reused_for_unchanged_native_inputs": false,
+    "achievement_presentation_exercised": false,
+    "external_symbols_left_for_final_app": true,
+    "final_app_link_validation": "passed"
+  },
+  "local_executions": [
+    {
+      "command": "python3 test/achievement_translation_contract_test.py",
+      "result": "passed",
+      "tests": 6
+    },
+    {
+      "command": "python3 test/achievement_translation_native_test.py --upstream <pinned upstream fixture>",
+      "result": "passed",
+      "checks": "Real C++17 compile/runtime, copied payload, callback removal, concurrent callback/session pairing, idempotent patch"
+    },
+    {
+      "command": "python3 test/build_source_evidence_test.py",
+      "result": "passed",
+      "tests": 10
+    },
+    {
+      "command": "python3 test/legal_bundle_preflight_test.py",
+      "result": "passed",
+      "tests": 8
+    },
+    {
+      "command": "python3 test/libretro_external_surface_test.py",
+      "result": "passed",
+      "tests": 19
+    },
+    {
+      "command": "python3 test/external_display_scope_test.py",
+      "result": "passed",
+      "tests": 15
+    },
+    {
+      "command": "Python syntax, workflow YAML duplicate-key validation, bash -n, git diff --check",
+      "result": "passed"
+    }
+  ],
+  "full_ipa": {
+    "build": 605,
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "run": 41216465880,
+    "result": "passed",
+    "downloaded_and_verified": true,
+    "job": 124584748706,
+    "release_device_compilation": "passed",
+    "ipa_bytes": 189643236,
+    "ipa_sha256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+    "xcode": "26.3",
+    "sdk": "26.2",
+    "actual_executables": 89,
+    "native_consumer_minimum_ios": {
+      "armsx2_internal_bridge": "18.0.0",
+      "dolphin_internal_bridge": "18.0.0",
+      "libretro_internal_bridge": "18.0.0"
+    },
+    "translation_linker_warnings": 0,
+    "translation_swift_warnings": 0,
+    "other_full_app_warning_lines": 444,
+    "independent_signature_cryptography_verified": false,
+    "signatures_verified_on_mac_ci": true,
+    "delivered": true,
+    "library_file_id": "libfile_70c40307f99481919fc12d98995ae387",
+    "recipient_private_key_deleted": true
+  },
+  "known_separate_failures": [
+    {
+      "run": 41211300687,
+      "job": 124566753295,
+      "reason": "Historical source contract compares game_launch_manager.dart with eabc057f; file unchanged from starting source",
+      "reproduced_on": {
+        "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+        "run": 41216465841,
+        "job": 124581910297
+      }
+    },
+    {
+      "run": 41211300664,
+      "reason": "Several simulator jobs cannot download LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258 from run38638115521; scenarios not executed",
+      "reproduced_on": {
+        "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+        "run": 41216465841,
+        "job": 124581910453
+      }
+    }
+  ],
+  "corrected_failed_runs": [
+    {
+      "run": 41209480077,
+      "reason": "Flutter lint and preconcurrency conformance warnings"
+    },
+    {
+      "run": 41209670513,
+      "reason": "Preconcurrency inherited Flutter conformance warnings"
+    },
+    {
+      "run": 41210106826,
+      "reason": "UIKit local helpers missing MainActor"
+    },
+    {
+      "run": 41211936797,
+      "reason": "Duplicate workflow env mapping"
+    },
+    {
+      "run": 41211938046,
+      "reason": "Non-Sendable FlutterResult captured across actor boundary"
+    },
+    {
+      "run": 41212518380,
+      "reason": "Generated Swift header imported without framework path"
+    }
+  ],
+  "physical_device_tested": false,
+  "apple_model_translation_executed": false,
+  "official_translation_source_configured": false,
+  "superseded_successful_ipa": {
+    "source": "30fe8cc6c5df86886ac3d0a6d1844558b944ea34",
+    "run": 41214452757,
+    "job": 124577455242,
+    "result": "passed",
+    "delivered": false,
+    "ipa_bytes": 189642810,
+    "ipa_sha256": "f7017b2220dbd8439fc01bbceaf13a6f2679a5f386121763b4f62195794da184",
+    "reason": "Three native consumer targets were still iOS17.4, producing linker warnings against the iOS18 translation framework. Corrected in 5de45109; new full build required."
+  },
+  "replacement_translation_validation": {
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "run": 41216465837,
+    "swift_job": 124581910401,
+    "flutter_job": 124581910595,
+    "result": "passed",
+    "flutter_result": "passed",
+    "swift_result": "passed"
+  }
+}

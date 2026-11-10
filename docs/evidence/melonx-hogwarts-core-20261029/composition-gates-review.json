@@ -1,0 +1,91 @@
+{
+  "result": "passed",
+  "scope": "Two new composition gates executed; three HLE runner selections corrected without replay.",
+  "sdk": "10.0.100",
+  "runtime": "Linux x64 JIT net10.0",
+  "mainRepositoryModified": false,
+  "remoteWrites": false,
+  "commandsExecuted": [
+    "python3 test/melonx_texture_region_cursor_test.py /workspace/scratch/90582008c087/MeloNX-pristine",
+    "python3 test/melonx_fragmented_upload_slice_test.py /workspace/scratch/90582008c087/MeloNX-pristine"
+  ],
+  "testsReplayedOutsideChangedComposition": false,
+  "hleCorporaReplayed": false,
+  "patch": {
+    "path": "/workspace/scratch/90582008c087/cpu-composition-work/composition-fixtures.patch",
+    "sha256": "237392f9756018ec4def2e7cd84a87864c55a01315907e5ce85e19dacece6033",
+    "files": 7
+  },
+  "changes": {
+    "test/melonx_texture_region_cursor_test.py": {
+      "beforeSha256": "7a780d0b6b8bbce874849580b22151ff87b997fb88fad676320d976f362251f8",
+      "afterSha256": "5272fa1419dc07d091dfbc2f1831cb45f95181c6fad2a149fe18da4309560a56"
+    },
+    "test/melonx_fragmented_uploads_test.py": {
+      "beforeSha256": "0eb0f22410c2d851be3f88c7f626144cfaba87173a9d65262d9513f6af948791",
+      "afterSha256": "64cd53e05a2d721ba7d16c7458f9a88f022203fa7aebb7a9335d048a7f2a1dde"
+    },
+    "test/melonx_fragmented_upload_slice_test.py": {
+      "beforeSha256": null,
+      "afterSha256": "cbfbfe8151ea2492e47f9f51d08d02e654d01a1d30beb75f2f8cfbaa2611fbad"
+    },
+    "test/melonx_fragmented_uploads_slice/CompositionProbe.cs": {
+      "beforeSha256": null,
+      "afterSha256": "a123e87708dce3f56b3ea80ba174635fef1dd10b8d6b242cfa6c3a9531705954"
+    },
+    "test/melonx_kernel_wait_lifetime_test.py": {
+      "beforeSha256": "d0b16713ab92b342faf6bab1ddaec72f698c7db0cbc913297a09c9859a108746",
+      "afterSha256": "7536a5fd5d9aef83104d2ca36037611bbac514c1264d9d5cfb63b7488be1eb2f"
+    },
+    "test/melonx_ipc_request_lifetime_test.py": {
+      "beforeSha256": "5a85b28e6bdbba12e55360d98eeabc9f985ccbb2d2ce1c07b3ff02448750d1a2",
+      "afterSha256": "7c2ad35017f98a0d41a6a27bb62368c3d77ed7e7c8c4fd1578798dfe8408ce00"
+    },
+    "test/melonx_kernel_timer_allocations_test.py": {
+      "beforeSha256": "a1003a77372e4ecd54e99a8cdceb87b301152f750ad9883e068c1fe8211d5b61",
+      "afterSha256": "778e91a49cb377e33486da92e82bb7a92571d3ac571f932b20aea1766d56b2ce"
+    }
+  },
+  "receipts": {
+    "texture-region-cursor-checks.json": {
+      "sha256": "a013c0cd26808d6b9582ac23d4fd153bf891d2609cd22543fb62f4f0a5805a87",
+      "path": "/workspace/scratch/90582008c087/cpu-composition-work/dist/melonx/texture-region-cursor-checks.json"
+    },
+    "fragmented-upload-slice-checks.json": {
+      "sha256": "5de548a53e8d48247946dcae1ec0add1f8ee83421c8c849b6e5cf8b02a9f7f61",
+      "path": "/workspace/scratch/90582008c087/cpu-composition-work/dist/melonx/fragmented-upload-slice-checks.json"
+    },
+    "hle-sdk-selection-review.json": {
+      "sha256": "1cd776da53a8de57df829e0ba39de56c3bf22fb39acc3b696694679a92545b0c",
+      "path": "/workspace/scratch/90582008c087/cpu-composition-work/dist/melonx/hle-sdk-selection-review.json"
+    }
+  },
+  "fragmentedProductionMethodsMatchingFinal": {
+    "physicalGetSpan": {
+      "finalSource": "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
+      "sha256": "05e84f5fe2eb8ea9a4607e44c7cc123eb64be5704347802307d4634503dc5297",
+      "exactCompiledExtractionMatchesFinalSource": true
+    },
+    "physicalGetReadOnlyRegion": {
+      "finalSource": "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
+      "sha256": "4b33331df9f4c1c752f5a80f730b87e0ba96a968f6ea6dc512d0212a37ccac5e",
+      "exactCompiledExtractionMatchesFinalSource": true
+    },
+    "groupSynchronizePartial": {
+      "finalSource": "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+      "sha256": "9bc91d695faac776cb75443320ba7f98e22042fbbe2f8e01573c0fa1927a2145",
+      "exactCompiledExtractionMatchesFinalSource": true
+    },
+    "textureSynchronizeFull": {
+      "finalSource": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "sha256": "1eda9a93778bcb0787120baf9fb9fbad2abe45c6119c772eeccfda83f4d8e6c3",
+      "exactCompiledExtractionMatchesFinalSource": true
+    }
+  },
+  "limitations": [
+    "The two fixtures are host JIT checks with native boundaries doubled, not NativeAOT Apple or physical-device results.",
+    "Conversion payload equality uses a deterministic 64-bit digest of all observed bytes and existing behavioral checks; native conversion remains doubled.",
+    "Historical unpooled fragmented-upload control was not replayed.",
+    "HLE changes affect SDK invocation only; original runtime receipts stay historical and are linked by hle-sdk-selection-review.json."
+  ]
+}

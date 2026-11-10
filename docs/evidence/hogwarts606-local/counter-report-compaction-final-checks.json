@@ -1,0 +1,154 @@
+{
+  "result": "passed",
+  "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+  "physicalDeviceTested": false,
+  "fpsGainProven": false,
+  "gcReductionClaimed": false,
+  "completeProductionClasses": true,
+  "adapterIdempotent": true,
+  "sourceDriftControlsPassed": 2,
+  "reports": {
+    "control": {
+      "checks": 10171,
+      "costs": [
+        {
+          "count": 0,
+          "medianNanoseconds": 89,
+          "allocatedBytes": 0
+        },
+        {
+          "count": 64,
+          "medianNanoseconds": 2697,
+          "allocatedBytes": 536
+        },
+        {
+          "count": 1024,
+          "medianNanoseconds": 137227,
+          "allocatedBytes": 8216
+        },
+        {
+          "count": 4096,
+          "medianNanoseconds": 2036662,
+          "allocatedBytes": 32792
+        }
+      ],
+      "scenarios": 28,
+      "semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da"
+    },
+    "candidate": {
+      "checks": 10171,
+      "costs": [
+        {
+          "count": 0,
+          "medianNanoseconds": 199,
+          "allocatedBytes": 0
+        },
+        {
+          "count": 64,
+          "medianNanoseconds": 1114,
+          "allocatedBytes": 536
+        },
+        {
+          "count": 1024,
+          "medianNanoseconds": 17377,
+          "allocatedBytes": 8216
+        },
+        {
+          "count": 4096,
+          "medianNanoseconds": 90676,
+          "allocatedBytes": 32792
+        }
+      ],
+      "scenarios": 28,
+      "semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da"
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_counter_report_compaction.py": "95f180ca8dd1ceb05e06c8a95565d986c668c508e092aa63a16f23e8630db13b",
+    "test/melonx_counter_report_compaction_test.py": "ba7336dfb562fffc639d5daa6ebebed903967ace49041f3966cf68343039d8e5",
+    "test/melonx_counter_report_compaction/Program.cs": "6cab4be70aaefdac06f8f62abc31994ceb6a789322b7ddd7d3168f3ec087dcaa",
+    "test/melonx_counter_report_compaction/JournalBoundary.cs": "67d8abd715be2c434e8b5054f613bad51bd15e9bf9283f401430af4c1563abc5"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+    "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs": "007328000761c5bd82b57873f03bb746c3a1232595461067146bb7080a108742",
+    "src/Ryujinx.Graphics.GAL/ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "e47ea79ee8f46da21bee2e83dfd812ae505b031adb0f4579d02a6e6512bfbf41",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+    "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs": "007328000761c5bd82b57873f03bb746c3a1232595461067146bb7080a108742",
+    "src/Ryujinx.Graphics.GAL/ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Program.cs": "6cab4be70aaefdac06f8f62abc31994ceb6a789322b7ddd7d3168f3ec087dcaa",
+      "src/Ryujinx.Graphics.GAL/ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702",
+      "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+      "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+      "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs": "007328000761c5bd82b57873f03bb746c3a1232595461067146bb7080a108742"
+    },
+    "candidate": {
+      "Program.cs": "6cab4be70aaefdac06f8f62abc31994ceb6a789322b7ddd7d3168f3ec087dcaa",
+      "EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+      "JournalBoundary.cs": "67d8abd715be2c434e8b5054f613bad51bd15e9bf9283f401430af4c1563abc5",
+      "src/Ryujinx.Graphics.GAL/ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702",
+      "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+      "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "e47ea79ee8f46da21bee2e83dfd812ae505b031adb0f4579d02a6e6512bfbf41",
+      "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs": "007328000761c5bd82b57873f03bb746c3a1232595461067146bb7080a108742"
+    }
+  },
+  "compiledBindings": [
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "EmbeddedPerformanceDiagnostics.cs"
+      ],
+      "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
+    }
+  ],
+  "timingScope": "Independent host processes; timing observations only, not an iOS benchmark"
+}

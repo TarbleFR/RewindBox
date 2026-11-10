@@ -1,0 +1,75 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "checks": 1177,
+      "lifecycleCases": 75,
+      "missedBoundIndexInvalidations": 75,
+      "shaderHelperDoubled": true,
+      "nativeDriverTested": false
+    },
+    "candidate": {
+      "checks": 1177,
+      "lifecycleCases": 75,
+      "missedBoundIndexInvalidations": 0,
+      "shaderHelperDoubled": true,
+      "nativeDriverTested": false
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionIndirectCaller": true,
+  "completeProductionCacheAndKeys": true,
+  "productionInvalidationAndEqualityMethods": true,
+  "graphicsBoundariesDoubled": true,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f"
+  },
+  "callerInputs": {
+    "src/Ryujinx.Graphics.Vulkan/BufferManager.cs": "73bb8f6d328039d495a4944be52dfb6b1b1dfcb661198e05a74fcd3084b05d36",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "2382603b280d31a3cb96be0340930a61a72af8a4b12e7fe8e8ecd3a6f39943d2",
+    "src/Ryujinx.Graphics.Vulkan/IndexBufferState.cs": "804a97614c0ac1645b25eb03eb6afb2e3755a0a016c1c7839192b797b0fdbfef"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_converted_cache.py": "01ded0fb3f24a539d39c2eb617231f15f4751a593f6fbbb8b52b917d851b8859",
+    "build-utils/melonx/adapt_indirect_cache_key.py": "ae54b52bd436453fbb7e3d8cb35fa4bda07668bbfb8876987692ca33d49953b2",
+    "test/melonx_indirect_cache_key_test.py": "170dbd1fe327156163c9bc0e0756ee227d9c5c3bb0d4609e81c6124800f00042",
+    "test/melonx_indirect_cache_key/Program.cs": "7dc9fa7c69a35df0de852d65a7209540db4ecf81ff067d9c5abf037e0e860727",
+    "test/melonx_indirect_cache_key/Boundaries.cs": "f7d6a91076602222e1e68f02677ace23359e406afce3d81d07d8b7d2eb2268de"
+  },
+  "controlCacheSha256": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f"
+  },
+  "compiledSources": {
+    "control": {
+      "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+      "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+      "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+      "Program.cs": "7dc9fa7c69a35df0de852d65a7209540db4ecf81ff067d9c5abf037e0e860727",
+      "Boundaries.cs": "dadf02ddeb2d773180a07c2176b3588bd8690f5074dcac4204aaec0bd1aa55d9"
+    },
+    "candidate": {
+      "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+      "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+      "Program.cs": "7dc9fa7c69a35df0de852d65a7209540db4ecf81ff067d9c5abf037e0e860727",
+      "Boundaries.cs": "dadf02ddeb2d773180a07c2176b3588bd8690f5074dcac4204aaec0bd1aa55d9"
+    }
+  },
+  "extractedMethodSha256": {
+    "PRODUCTION_INDIRECT_CONVERSION": "f2ae27ff4041f2dee251b1d197489baffb48295d8ccc12aea3330717ea45361c",
+    "PRODUCTION_DIRTY_INDEX": "c53030cdfa57c27ab0811f078474fd6a95316f3b7ab9f8d2f48c2e337731fdc7",
+    "PRODUCTION_BOUND_EQUALS": "ed173ff929ef98223fe76c937b78c22fb71cd54a9e2e4e1d40889381d7f23abc",
+    "PRODUCTION_CACHE_WRAPPERS": "3dbb18df45d11f08510c224096cfd9fc17b93f7fdd17d4d934fea84e732a78a5"
+  },
+  "wrapperMethodSha256": {
+    "        public bool TryGetCachedConvertedBuffer(int offset, int size, ICacheKey key, out BufferHolder holder)": "6ad8db9302db350c380bca70d7d0acb690becdb0c1d829fb063065e957a56545",
+    "        public void AddCachedConvertedBuffer(int offset, int size, ICacheKey key, BufferHolder holder)": "ce4a0b6bc07b5805f504ba9c684fb96579942c5e13fd91b309cc4a37742bb945",
+    "        public void AddCachedConvertedBufferDependency(int offset, int size, ICacheKey key, Dependency dependency)": "0b7685f6a10e3672b765fc3351d9b9d3f28784f51cf5e87d4dd3d7cd865d9c12",
+    "        public void RemoveCachedConvertedBuffer(int offset, int size, ICacheKey key)": "8b0f280c116dc75f886d90a0425d05d3e240d1318ebbf4d8d10a6329050806ef"
+  }
+}

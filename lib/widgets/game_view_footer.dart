@@ -103,9 +103,7 @@ class GameViewFooter extends StatelessWidget {
                 // re-centers the rating/RA pill + PLAY row upward. The empty
                 // string still lays out a full line box via the forced strut.
                 Text(
-                  showTitle && game.showRomFileNameSubtitle
-                      ? game.romname
-                      : '',
+                  showTitle && game.showRomFileNameSubtitle ? game.romname : '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   strutStyle: StrutStyle(
@@ -502,7 +500,7 @@ class _CompactAchievementsIndicator extends StatelessWidget {
   }
 }
 
-/// Select-tap hint + current sound state for the preview video, tappable for
+/// Select + X hint + current sound state for the preview video, tappable for
 /// touchscreen users. Watches the config provider on its own so the memoized
 /// footer instance around it never has to rebuild when sound is toggled.
 class _MuteHintPill extends StatelessWidget {
@@ -539,6 +537,14 @@ class _MuteHintPill extends StatelessWidget {
                 children: [
                   Image.asset(
                     'assets/images/gamepad/Xbox_View_button.png',
+                    width: 15.r,
+                    height: 15.r,
+                    color: scheme.onSurface,
+                  ),
+                  // A Select tap opens the ⋯ menu; the sound is its X action.
+                  SizedBox(width: 2.r),
+                  Image.asset(
+                    'assets/images/gamepad/Xbox_X_button.png',
                     width: 15.r,
                     height: 15.r,
                     color: scheme.onSurface,

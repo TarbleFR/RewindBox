@@ -1,0 +1,106 @@
+{
+  "result": "passed",
+  "sourceKind": "baselinePrepared",
+  "physicalDeviceTested": false,
+  "nativeQueryBoundariesDoubled": true,
+  "commandTransportDoubled": true,
+  "hogwartsCrashCauseProven": false,
+  "reports": {
+    "control": {
+      "checks": 528,
+      "scenarios": 75,
+      "lateSyncReproduced": 12,
+      "falseHostReproduced": 6,
+      "leakedReservationReproduced": 4
+    },
+    "candidate": {
+      "checks": 528,
+      "scenarios": 75,
+      "lateSyncReproduced": 0,
+      "falseHostReproduced": 0,
+      "leakedReservationReproduced": 0
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_occlusion_completion.py": "ebd53d77d150083b5dccdbb64b50731bbae119106c92789cb606ef12c601c566",
+    "test/melonx_occlusion_completion_test.py": "16c387c76193c5f58cf82059ee384b226bdb4a23b562efb0c5e33bf069e0241c",
+    "test/melonx_occlusion_completion/Program.cs": "e29d4ca8ecafb5d01bf379ca77158c0cbebcadad7b431b101c401181c96d4325",
+    "test/melonx_occlusion_completion/Boundaries.cs": "878cb2219f632618c08b14901f4df54419b42d1ba5327fcf23d0b8b140a9bebd"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.GAL/ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/CounterEvent/CounterEventDisposeCommand.cs": "b53e91a31b201d8830592a4a60182af6d218018d2d92a53e121354c188e4df3b",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/Renderer/ActionCommand.cs": "c54845b0ea0ca636fb338d5072e14f1cafd74ef55bb003897c49606b6904b41b",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TryHostConditionalRenderingCommand.cs": "884b748635ae941d977169ee68d33157eed809e6834b8c8d09d789e4cc62e039",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TryHostConditionalRenderingFlushCommand.cs": "e70c84a1e961ec863a8e48cff41233d46d02107ce293ab05c55bfffa3182c140",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/ResultBox.cs": "5eb42ebce3a83bf73854bffe4f481883e355075fced5812eb85b9b4dbd3c2e79",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedCounterEvent.cs": "536815aa552b6d26f3bf6fb07d306ce997ccc4854a16d11720935a61595d9db9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedPipeline.cs": "458670db0d490e788cd3be78ce34c254de3ec8e53ae9835bd160991393b11b5c",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "6a5a3368d5a2987f997145f2edb16929499736985df32b48cf1481d2f27e4ac0",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs": "43643f71982b450397a001ea08065a303004517c5ff3150882404804b4a94b6d",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ConditionalRendering.cs": "ee8b10c085361885ef90a724d8fee41aee351bd1aea71823f6322d76c1d558c5",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs": "0ab8c62dbeb47d28914b6bc1d517eac172a3b6c75b9b57d7fae41b6ad8c64232",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "906f19669ebfb4abc1e41595b30b2c172432949f7481261e5268b82a4d74b243",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+    "src/Ryujinx.Graphics.OpenGL/Pipeline.cs": "78a747de1d1010e342d9e0ff6adec090431b2a38d6f4d76094bb5514196df767",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "0e9cd10f392b9c2f66c7236280bcd50cddd5bdcda229e066dcd3a11c8a56b8ef"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs": "0ab8c62dbeb47d28914b6bc1d517eac172a3b6c75b9b57d7fae41b6ad8c64232",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedPipeline.cs": "458670db0d490e788cd3be78ce34c254de3ec8e53ae9835bd160991393b11b5c",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TryHostConditionalRenderingCommand.cs": "884b748635ae941d977169ee68d33157eed809e6834b8c8d09d789e4cc62e039"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs": "3629751b69d21efac406d46980fdd076e2919cb21ab17545125a2a27352070b6",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedPipeline.cs": "0a0d717b34a646dd744e110c1a08f05b65e5ba2ccbbd15b5f7f613103f1caf07",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TryHostConditionalRenderingCommand.cs": "0677dd4012a9f915b7af4c579c87c4d0724acd851e285d644de8158417406e01"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "TryHostConditionalRenderingFlushCommand.cs": "e70c84a1e961ec863a8e48cff41233d46d02107ce293ab05c55bfffa3182c140",
+      "Syncpoints.cs": "d3337e22c2e34996f045946cc560000a65db3200a0e1ccfb528333960aa585a6",
+      "ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702",
+      "ActionCommand.cs": "c54845b0ea0ca636fb338d5072e14f1cafd74ef55bb003897c49606b6904b41b",
+      "ConditionalRendering.cs": "ee8b10c085361885ef90a724d8fee41aee351bd1aea71823f6322d76c1d558c5",
+      "VulkanConditional.cs": "eebfca4fea191a8ee2025df37f7a24ec40405b528e21d0bb05ef833bb71300fa",
+      "ResultBox.cs": "5eb42ebce3a83bf73854bffe4f481883e355075fced5812eb85b9b4dbd3c2e79",
+      "TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+      "Context.cs": "691c024e575ec9834c1b9fdf441f00e6ac50a3007b10d25d63d55cea0292c572",
+      "ThreadedCounterEvent.cs": "536815aa552b6d26f3bf6fb07d306ce997ccc4854a16d11720935a61595d9db9",
+      "CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+      "OpenGLConditional.cs": "65b5b883d01956328dab27269cb7fe3a0d95faf7b3e136a751b921e6a6c1e9fc",
+      "ThreadedPipeline.cs": "beadb7aa515a0c2e9328fe769c8c4067007aece35543780b75c01442975a122e",
+      "Program.cs": "e29d4ca8ecafb5d01bf379ca77158c0cbebcadad7b431b101c401181c96d4325",
+      "Threed.cs": "4c72857576c3ed33dc5c416914f4a4c2f1e17d66f73ef4c8ed1c7eda698f5a21",
+      "TryHostConditionalRenderingCommand.cs": "884b748635ae941d977169ee68d33157eed809e6834b8c8d09d789e4cc62e039",
+      "CounterEventDisposeCommand.cs": "b53e91a31b201d8830592a4a60182af6d218018d2d92a53e121354c188e4df3b",
+      "DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+      "ThreadedInvokes.cs": "d4d313491b0ccd9ccfccccd3900fe9888bda3f1cd2d2d1816b122c4f036a3183",
+      "Boundaries.cs": "878cb2219f632618c08b14901f4df54419b42d1ba5327fcf23d0b8b140a9bebd"
+    },
+    "candidate": {
+      "TryHostConditionalRenderingFlushCommand.cs": "e70c84a1e961ec863a8e48cff41233d46d02107ce293ab05c55bfffa3182c140",
+      "Syncpoints.cs": "d3337e22c2e34996f045946cc560000a65db3200a0e1ccfb528333960aa585a6",
+      "ICounterEvent.cs": "8df6a75cf3d290e27ed5fb5ffd12ec40d298bb22eb8e0ce19c69ebc7b0250702",
+      "ActionCommand.cs": "c54845b0ea0ca636fb338d5072e14f1cafd74ef55bb003897c49606b6904b41b",
+      "ConditionalRendering.cs": "ee8b10c085361885ef90a724d8fee41aee351bd1aea71823f6322d76c1d558c5",
+      "VulkanConditional.cs": "eebfca4fea191a8ee2025df37f7a24ec40405b528e21d0bb05ef833bb71300fa",
+      "ResultBox.cs": "5eb42ebce3a83bf73854bffe4f481883e355075fced5812eb85b9b4dbd3c2e79",
+      "TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+      "Context.cs": "691c024e575ec9834c1b9fdf441f00e6ac50a3007b10d25d63d55cea0292c572",
+      "ThreadedCounterEvent.cs": "536815aa552b6d26f3bf6fb07d306ce997ccc4854a16d11720935a61595d9db9",
+      "CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+      "OpenGLConditional.cs": "65b5b883d01956328dab27269cb7fe3a0d95faf7b3e136a751b921e6a6c1e9fc",
+      "ThreadedPipeline.cs": "aa7bb4adaa97ee5159e903863aa284e63e39d304effcb4cd5201d02d7f1a7aaa",
+      "Program.cs": "e29d4ca8ecafb5d01bf379ca77158c0cbebcadad7b431b101c401181c96d4325",
+      "Threed.cs": "6466583f5c383a65735007c1b93309df2f29d4039340f2b381ce22ebc706788a",
+      "TryHostConditionalRenderingCommand.cs": "0677dd4012a9f915b7af4c579c87c4d0724acd851e285d644de8158417406e01",
+      "CounterEventDisposeCommand.cs": "b53e91a31b201d8830592a4a60182af6d218018d2d92a53e121354c188e4df3b",
+      "DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+      "ThreadedInvokes.cs": "d4d313491b0ccd9ccfccccd3900fe9888bda3f1cd2d2d1816b122c4f036a3183",
+      "Boundaries.cs": "878cb2219f632618c08b14901f4df54419b42d1ba5327fcf23d0b8b140a9bebd"
+    }
+  }
+}

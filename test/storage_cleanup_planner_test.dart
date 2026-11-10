@@ -7,6 +7,7 @@ import 'package:neostation/l10n/storage_locale.dart';
 import 'package:neostation/services/libretro_3ds_system_data_service.dart';
 import 'package:neostation/services/library_source_files.dart';
 import 'package:neostation/services/storage/storage_cleanup_planner.dart';
+import 'package:neostation/services/storage/storage_deletion_manager.dart';
 import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/storage/storage_orphan_detector.dart';
 import 'package:neostation/services/storage/storage_roots.dart';
@@ -1006,6 +1007,128 @@ void main() {
       containsAll([tmp('picked.zip'), doc('Diagnostics/x.txt')]),
     );
   }
+
+  test('canonical complete journals supersede legacy interruption without altering it', () async {
+    final legacy = await write(doc('Libretro/Logs/session.log'));
+    const legacyText = 'legacy session\ncore loaded\n';
+    await legacy.writeAsString(legacyText);
+    Future<bool> busy() =>
+        StorageSessionGuard.anyLibretroJournalUnfinished(containers.documents);
+    expect(await busy(), isTrue);
+    final current = await write(doc('Diagnostics/PS1/Libretro/session.log'), length: 0);
+    expect(await busy(), isTrue, reason: 'empty canonical is not completion evidence');
+    await current.writeAsString('current session\ncore loaded\n');
+    expect(await busy(), isTrue);
+    await current.writeAsString('current session\nEND closed\n');
+    expect(await busy(), isFalse);
+    expect(await legacy.readAsString(), legacyText);
+    final other = await write(doc('Diagnostics/SNES/Libretro/session.log'), length: 0);
+    expect(await busy(), isTrue, reason: 'one complete console cannot hide another empty current journal');
+    await other.writeAsString('other session\ncore loaded\n');
+    expect(await busy(), isTrue);
+    await other.writeAsString('other session\nEND closed\n');
+    expect(await busy(), isFalse);
+    final active = await StorageSessionGuard(
+      containers: containers,
+      launchActive: () => false,
+      libretroActive: () async => true,
+      dolphinMarkerPresent: () async => false,
+      importActive: () => false,
+      libraryScanActive: () => false,
+    ).check();
+    expect(active.libretroUnfinishedJournal, isFalse);
+    expect(active.libretroBusy, isTrue, reason: 'the native activity gate still wins');
+    await current.delete();
+    await other.delete();
+    expect(await busy(), isTrue, reason: 'absent canonical files are not completion evidence');
+  });
+
+  for (final relative in [
+    'Diagnostics', 'Diagnostics/PS1', 'Diagnostics/PS1/Libretro',
+    'Diagnostics/PS1/Libretro/session.log', 'Libretro', 'Libretro/Logs',
+    'Libretro/Logs/session.log',
+  ]) {
+    test('journal guard fails closed on a link at $relative', () async {
+      final target = await write(p.join(home.path, 'outside-session.log'));
+      await target.writeAsString('session\nEND closed\n');
+      final link = Link(doc(relative));
+      await link.parent.create(recursive: true);
+      await link.create(target.path);
+      expect(await StorageSessionGuard.anyLibretroJournalUnfinished(containers.documents), isTrue);
+      expect(await target.readAsString(), 'session\nEND closed\n');
+    });
+  }
+
+  test('non-regular current or legacy journal fails closed despite a completed console', () async {
+    final complete = await write(doc('Diagnostics/PS1/Libretro/session.log'));
+    await complete.writeAsString('session\nEND closed\n');
+    final invalid = Directory(doc('Diagnostics/SNES/Libretro/session.log'));
+    await invalid.create(recursive: true);
+    expect(await StorageSessionGuard.anyLibretroJournalUnfinished(containers.documents), isTrue);
+    await invalid.delete();
+    await Directory(doc('Libretro/Logs/session.log')).create(recursive: true);
+    expect(await StorageSessionGuard.anyLibretroJournalUnfinished(containers.documents), isTrue);
+  });
+
+  for (final relative in [
+    'Diagnostics/SNES/Libretro/session.log', 'Libretro/Logs/session.log',
+  ]) {
+    test('unreadable journal fails closed at $relative', () async {
+      final complete = await write(doc('Diagnostics/PS1/Libretro/session.log'));
+      await complete.writeAsString('session\nEND closed\n');
+      final locked = await write(doc(relative));
+      await locked.writeAsString('session\nEND closed\n');
+      final permission = await Process.run('chmod', ['000', locked.path]);
+      expect(permission.exitCode, 0);
+      try {
+        expect(await StorageSessionGuard.anyLibretroJournalUnfinished(containers.documents), isTrue);
+      } finally {
+        await Process.run('chmod', ['600', locked.path]);
+      }
+    }, skip: Platform.isWindows ||
+        Process.runSync('id', ['-u']).stdout.toString().trim() == '0'
+        ? 'POSIX unreadability requires a non-root runner' : false);
+  }
+
+  test('active application log never enters a cleanup candidate', () async {
+    final active = await write(doc('Diagnostics/System/Application/app.log'));
+    final archive = await write(doc('Diagnostics/System/Application/app.log.old'));
+    final (plan, _) = await planFor(StorageCleanupLevel.confirmed);
+    final entries = plan.candidates.expand((value) => value.entries).map((entry) => entry.path).toSet();
+    expect(entries, isNot(contains(active.path)));
+    expect(entries, contains(archive.path));
+  });
+
+  test('classified console journals are excluded while their native engine is active', () async {
+    final consoleLog = await write(doc('Diagnostics/PS1/Libretro/session.log'));
+    final dolphinLog = await write(doc('Diagnostics/GameCube/Dolphin/session.log'));
+    final unrelated = await write(doc('Diagnostics/Switch/MeloNX-performance.log'));
+    var (plan, _) = await planFor(StorageCleanupLevel.confirmed, sessions: guard(libretro: true));
+    expect(plan.candidates.expand((value) => value.entries).map((entry) => entry.path), isNot(contains(consoleLog.path)));
+    expect(plan.refusals.any((value) => value.reason == StorageRefusalReason.sessionActive && inside(value.path, consoleLog.path)), isTrue);
+    (plan, _) = await planFor(StorageCleanupLevel.confirmed, sessions: guard(dolphinMarker: true));
+    final entries = plan.candidates.expand((value) => value.entries).map((entry) => entry.path).toSet();
+    expect(entries, isNot(contains(dolphinLog.path)));
+    expect(entries, contains(unrelated.path));
+  });
+
+  test('deletion rechecks classified logs when Libretro starts after the preview', () async {
+    final log = await write(doc('Diagnostics/PS1/Libretro/session.log'));
+    final original = await log.readAsBytes();
+    final (plan, registry) = await planFor(StorageCleanupLevel.confirmed);
+    final selected = plan.candidates.where((value) => value.entries.any((entry) => entry.path == log.path)).map((value) => value.path).toSet();
+    expect(selected, isNotEmpty, reason: 'the idle preview actually offered the journal');
+    final result = await StorageDeletionManager(
+      registry: registry,
+      guard: guard(libretro: true),
+      journalDirectory: () async => doc('Diagnostics/System/Storage'),
+      now: () => now,
+      rpcs3Redirected: () async => false,
+    ).execute(plan, selectedPaths: selected);
+    expect(result.deletedFiles, 0);
+    expect(result.refusals.any((value) => value.reason == StorageRefusalReason.sessionActive), isTrue);
+    expect(await log.readAsBytes(), original);
+  });
 
   test('F — a libretro session excludes INV-14 and INV-25', () async {
     await writeLibretroAndOthers();

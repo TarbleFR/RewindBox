@@ -1,0 +1,59 @@
+{
+  "passed": true,
+  "build": 567,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "f903a76e81317fe6801bc99f876d7548f23ec4b6",
+    "fixtureSHA256": "a28bd7731c12ca94386056d7031a919d8c1416b69bf3e20d3107054a5794a8e2",
+    "manifestSHA256": "739d90d10110f0e9198b06a802dd7af8fd1b7816d5b1cea936fe0330b7d7debc",
+    "sourceSHA256": {
+      "Utilities/Thread.cpp": "d2d90c8c95f29cc10e13c78684d329eef928e1e456a6a4892877b28e04467fb0",
+      "rpcs3/Emu/system_config.h": "371e0066fcf3602412e9eb2b0f6ff1aa2ffc91505ad73fa449acc4568d982ee3",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "7894fada5e32fd669d8fddf95e3be021bb32731bfaaba0c7e32ba398bb95c166",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "1aa13bfd8b0f30925868ab58a2a3ceddc89b02a46f6c15d280441cfd8af46e2c",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "d711a3e7935aa52716c8d1c0deca3b789c766cd044e1a425ed5ae56d794515c8",
+      "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb"
+    },
+    "otherCoreSourcesUnchanged": 285
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom565": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "placement": {
+    "resetBeforeEveryJob": true,
+    "singleMappingPath": true,
+    "callersUnchanged": true,
+    "threadCppOtherwiseIdentical": true
+  },
+  "experiment": {
+    "addressUndefined": {
+      "passed": true,
+      "modes": 3,
+      "darwinKernelModes": 0,
+      "loweredRelativePriority": -2,
+      "harnessSHA256": "95693af3d99ddffd711ae948b317009ffae8066c4e06adf82fb3a7c98f28e76b"
+    },
+    "thread": {
+      "passed": true,
+      "modes": 3,
+      "darwinKernelModes": 0,
+      "loweredRelativePriority": -2,
+      "harnessSHA256": "95693af3d99ddffd711ae948b317009ffae8066c4e06adf82fb3a7c98f28e76b"
+    }
+  },
+  "inputs": {
+    "test/rpcs3_cell567_test.py": "2172224db45635fd3b1132fdc29b9979e7bd81034f91577730e47154328bfbdc",
+    "test/native/rpcs3_thread_qos567.inc": "8edcc7fd01743d7a2d56a4dcc0b800ec7b1bb66a02c546846d3467b5791fc58c"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Host behaviour of the 567 production bodies: policy resolution, the priority mapping, the reset of a reused worker (real QoS calls on Apple hosts); no iPhone FPS or scheduling result."
+}

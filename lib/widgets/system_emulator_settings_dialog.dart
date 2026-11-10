@@ -45,6 +45,7 @@ import '../services/storage/storage_import_activity.dart';
 import 'dolphin_wii_motion_panel.dart';
 import 'embedded_touch_controls_panel.dart';
 import 'libretro_engine_panel.dart';
+import 'glass/glass_surface.dart';
 
 part 'system_emulator_settings_dialog/gamepad_nav.dart';
 part 'system_emulator_settings_dialog/row_builders.dart';
@@ -889,23 +890,10 @@ class _SystemEmulatorSettingsDialogState
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 16.r),
-      child: Container(
+      child: GlassSurface(
+        role: GlassRole.modal,
+        radius: BorderRadius.circular(12.r),
         constraints: BoxConstraints(maxWidth: 640.r, maxHeight: 480.r),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.shadow
-                  .withValues(alpha: 0.5),
-              blurRadius: 10.r,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

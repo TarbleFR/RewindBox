@@ -1,0 +1,229 @@
+{
+  "game": "Hogwarts Legacy v1.0.5",
+  "sourceAttachmentSha256": "4f46d5ddc066d4d99af87d9a341b8df401dc06ec3f0cd0f1912c3f559c4c76db",
+  "sessionStartUtc": "2026-10-29T04:54:28Z",
+  "samplesTotal": 136,
+  "samplesUnpausedWithNumericFps": 132,
+  "samplesPausedOrClosing": 4,
+  "reportedSessionAverageFps": 6.0,
+  "presentedFrames": 651,
+  "applicationBuildIdentifiedByLog": false,
+  "engineCommitIdentifiedByLog": false,
+  "units": {
+    "memory": "MiB",
+    "deviceAvailable": "percent reported by the device memory indicator",
+    "bgcCpu": "percent of one CPU core, only when present among the six busiest threads",
+    "ranges": "inclusive minimum and maximum"
+  },
+  "phases": [
+    {
+      "elapsedSeconds": [
+        1,
+        21
+      ],
+      "samples": 21,
+      "fpsMedian": 0.0,
+      "fpsRange": [
+        0.0,
+        30.1
+      ],
+      "footprintMiBRange": [
+        1987,
+        2632
+      ],
+      "headroomMiBRange": [
+        4023,
+        4668
+      ],
+      "deviceAvailablePercentRange": [
+        19,
+        33
+      ],
+      "bgcVisibleSamples": 6,
+      "bgcMedianVisibleCpuPercent": 5.0,
+      "bgcMaximumCpuPercent": 10,
+      "fifoMedianPercent": 0.0
+    },
+    {
+      "elapsedSeconds": [
+        22,
+        30
+      ],
+      "samples": 9,
+      "fpsMedian": 2.5,
+      "fpsRange": [
+        0.0,
+        3.8
+      ],
+      "footprintMiBRange": [
+        2894,
+        3267
+      ],
+      "headroomMiBRange": [
+        3388,
+        3761
+      ],
+      "deviceAvailablePercentRange": [
+        12,
+        15
+      ],
+      "bgcVisibleSamples": 9,
+      "bgcMedianVisibleCpuPercent": 49,
+      "bgcMaximumCpuPercent": 65,
+      "fifoMedianPercent": 100.0
+    },
+    {
+      "elapsedSeconds": [
+        31,
+        73
+      ],
+      "samples": 43,
+      "fpsMedian": 3.4,
+      "fpsRange": [
+        2.5,
+        30.1
+      ],
+      "footprintMiBRange": [
+        3277,
+        3342
+      ],
+      "headroomMiBRange": [
+        3313,
+        3378
+      ],
+      "deviceAvailablePercentRange": [
+        10,
+        12
+      ],
+      "bgcVisibleSamples": 38,
+      "bgcMedianVisibleCpuPercent": 61.5,
+      "bgcMaximumCpuPercent": 78,
+      "fifoMedianPercent": 100.0
+    },
+    {
+      "elapsedSeconds": [
+        74,
+        81
+      ],
+      "samples": 8,
+      "fpsMedian": 27.75,
+      "fpsRange": [
+        3.2,
+        30.2
+      ],
+      "footprintMiBRange": [
+        3342,
+        3363
+      ],
+      "headroomMiBRange": [
+        3292,
+        3313
+      ],
+      "deviceAvailablePercentRange": [
+        11,
+        12
+      ],
+      "bgcVisibleSamples": 2,
+      "bgcMedianVisibleCpuPercent": 36.0,
+      "bgcMaximumCpuPercent": 64,
+      "fifoMedianPercent": 3.5
+    },
+    {
+      "elapsedSeconds": [
+        82,
+        132
+      ],
+      "samples": 51,
+      "fpsMedian": 2.6,
+      "fpsRange": [
+        1.1,
+        3.9
+      ],
+      "footprintMiBRange": [
+        3645,
+        3812
+      ],
+      "headroomMiBRange": [
+        2843,
+        3010
+      ],
+      "deviceAvailablePercentRange": [
+        8,
+        10
+      ],
+      "bgcVisibleSamples": 51,
+      "bgcMedianVisibleCpuPercent": 59,
+      "bgcMaximumCpuPercent": 95,
+      "fifoMedianPercent": 100.0
+    }
+  ],
+  "hostMemorySamples": [
+    {
+      "footprint": 2295,
+      "headroom": 4360,
+      "device": 29,
+      "textures": 0,
+      "textures_limit": 768,
+      "buffers": 0,
+      "buffers_limit": 554,
+      "managed": 573,
+      "line": 5411
+    },
+    {
+      "footprint": 3306,
+      "headroom": 3349,
+      "device": 11,
+      "textures": 136,
+      "textures_limit": 768,
+      "buffers": 19,
+      "buffers_limit": 554,
+      "managed": 680,
+      "line": 5555
+    },
+    {
+      "footprint": 3339,
+      "headroom": 3316,
+      "device": 11,
+      "textures": 143,
+      "textures_limit": 768,
+      "buffers": 24,
+      "buffers_limit": 554,
+      "managed": 682,
+      "line": 5596
+    },
+    {
+      "footprint": 3708,
+      "headroom": 2947,
+      "device": 8,
+      "textures": 197,
+      "textures_limit": 768,
+      "buffers": 61,
+      "buffers_limit": 554,
+      "managed": 719,
+      "line": 5638
+    },
+    {
+      "footprint": 3798,
+      "headroom": 2857,
+      "device": 9,
+      "textures": 199,
+      "textures_limit": 768,
+      "buffers": 69,
+      "buffers_limit": 554,
+      "managed": 764,
+      "line": 5670
+    }
+  ],
+  "slowPhaseFrameMedianMs": 384.7,
+  "slowPhaseRenderThreadMedianCpuPercent": 42,
+  "slowPhaseGpuMainThreadMedianCpuPercent": 61,
+  "thermalState": "fair",
+  "interpretation": {
+    "memoryPressureCorrelatesWithSomeSlowPhases": true,
+    "memoryFootprintAloneExplainsSlowdown": false,
+    "allocationAndGcCostIsAnInvestigationTarget": true,
+    "specificAllocationSiteProvenByThisLog": false,
+    "physicalDeviceGainFromNewChangesMeasured": false
+  },
+  "privacy": "Raw log, user paths and process identifiers omitted."
+}

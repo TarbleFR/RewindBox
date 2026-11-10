@@ -1,0 +1,62 @@
+{
+  "passed": true,
+  "program_sha256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-full-irq-plain.json",
+  "canonical_program_sha256": "8aba880ab40122909304d50fc64a94d97681f6a6ca48c58ea9b17e05185d6b71",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "results": {
+    "tagRegression": {
+      "passed": true,
+      "scenarios": 49152,
+      "baselinePrematureCompletions": 47616,
+      "candidatePrematureCompletions": 0,
+      "candidateMatchesReference": 49152,
+      "staleSlotCases": 48960,
+      "fullQueueGuards": 3,
+      "unchangedDMAEncodings": 192,
+      "barriersPreservedUntilListAck": true,
+      "publicationOrderPreserved": true
+    },
+    "fullQueue": {
+      "baselineHalts": 96,
+      "recovered": 96,
+      "stopBeforeDrain": 96,
+      "successfulRetries": 96,
+      "againEscapes": 96,
+      "stalledListWaits": 96,
+      "interruptDrainEscapes": 96,
+      "noDoubleEnqueue": true,
+      "currentPCPreservedOnStop": true
+    },
+    "preAcceptanceInterrupt": {
+      "historicalSkippedWRCH": 96,
+      "currentPCRetries": 96,
+      "stalledListIRQAcks": 96,
+      "multipleMaskPasses": 96,
+      "commandsAcceptedExactlyOnce": 192,
+      "stepsDisabled": true,
+      "eventPendingBeforeDrain": true
+    }
+  },
+  "mode": "asan-ubsan",
+  "output_sha256": "156ab767e5283d984127ea57099e7640cb75cf0aab8cb48e4aefa7e64672a247",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

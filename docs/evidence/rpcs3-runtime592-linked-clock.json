@@ -1,0 +1,977 @@
+{
+  "binary": "/workspace/scratch/74519aac7c37/core592-built/libRPCS3Core.dylib",
+  "binarySHA256": "436830efb07b1204f57713dfd1ecd242d7f36bed3f55aea01a25cc0ff6a7a8ac",
+  "binaryBytes": 77232008,
+  "disassembler": "/lib/x86_64-linux-gnu/libLLVM.so.20.1 LLVM C disassembler API",
+  "disassemblerVersion": "20.1.2",
+  "triple": "aarch64-apple-ios18.0",
+  "functions": [
+    {
+      "name": "__Z18get_timebased_timev",
+      "symbolType": 30,
+      "address": 41415172,
+      "fileOffset": 41415172,
+      "bytes": 368,
+      "instructionSHA256": "7fa1f1de905227fd808960a839684627677c33d94a26f98da68538c2f4ef4c1d",
+      "instructions": [
+        {
+          "address": 41415172,
+          "word": 3506504703,
+          "assembly": "sub\tsp, sp, #64"
+        },
+        {
+          "address": 41415176,
+          "word": 2835437558,
+          "assembly": "stp\tx22, x21, [sp, #16]"
+        },
+        {
+          "address": 41415180,
+          "word": 2835501044,
+          "assembly": "stp\tx20, x19, [sp, #32]"
+        },
+        {
+          "address": 41415184,
+          "word": 2835577853,
+          "assembly": "stp\tx29, x30, [sp, #48]"
+        },
+        {
+          "address": 41415188,
+          "word": 2432746493,
+          "assembly": "add\tx29, sp, #48"
+        },
+        {
+          "address": 41415192,
+          "word": 2952952392,
+          "assembly": "adrp\tx8, #83136512"
+        },
+        {
+          "address": 41415196,
+          "word": 2433310984,
+          "assembly": "add\tx8, x8, #600"
+        },
+        {
+          "address": 41415200,
+          "word": 4181721353,
+          "assembly": "ldr\tx9, [x8]"
+        },
+        {
+          "address": 41415204,
+          "word": 3019899625,
+          "assembly": "cbz\tx9, #92"
+        },
+        {
+          "address": 41415208,
+          "word": 3577471048,
+          "assembly": "mrs\tx8, CNTVCT_EL0"
+        },
+        {
+          "address": 41415212,
+          "word": 1385775114,
+          "assembly": "mov\tw10, #51712"
+        },
+        {
+          "address": 41415216,
+          "word": 1923576650,
+          "assembly": "movk\tw10, #15258, lsl #16"
+        },
+        {
+          "address": 41415220,
+          "word": 3943301439,
+          "assembly": "cmp\tx9, x10"
+        },
+        {
+          "address": 41415224,
+          "word": 1409287777,
+          "assembly": "b.ne\t#204"
+        },
+        {
+          "address": 41415228,
+          "word": 3533030057,
+          "assembly": "mov\tx9, #44565"
+        },
+        {
+          "address": 41415232,
+          "word": 4072417513,
+          "assembly": "movk\tx9, #57671, lsl #16"
+        },
+        {
+          "address": 41415236,
+          "word": 4072836937,
+          "assembly": "movk\tx9, #5242, lsl #32"
+        },
+        {
+          "address": 41415240,
+          "word": 4075353545,
+          "assembly": "movk\tx9, #18350, lsl #48"
+        },
+        {
+          "address": 41415244,
+          "word": 2613673225,
+          "assembly": "umulh\tx9, x8, x9"
+        },
+        {
+          "address": 41415248,
+          "word": 3406364938,
+          "assembly": "sub\tx10, x8, x9"
+        },
+        {
+          "address": 41415252,
+          "word": 2336884009,
+          "assembly": "add\tx9, x9, x10, lsr #1"
+        },
+        {
+          "address": 41415256,
+          "word": 3544513833,
+          "assembly": "lsr\tx9, x9, #4"
+        },
+        {
+          "address": 41415260,
+          "word": 1384121130,
+          "assembly": "mov\tw10, #25"
+        },
+        {
+          "address": 41415264,
+          "word": 2601165096,
+          "assembly": "msub\tx8, x9, x10, x8"
+        },
+        {
+          "address": 41415268,
+          "word": 4043321631,
+          "assembly": "cmp\tx8, #12"
+        },
+        {
+          "address": 41415272,
+          "word": 446666728,
+          "assembly": "cset\tw8, hi"
+        },
+        {
+          "address": 41415276,
+          "word": 2952927722,
+          "assembly": "adrp\tx10, #70504448"
+        },
+        {
+          "address": 41415280,
+          "word": 2434007370,
+          "assembly": "add\tx10, x10, #1280"
+        },
+        {
+          "address": 41415284,
+          "word": 2852717832,
+          "assembly": "orr\tx8, x8, x9, lsl #1"
+        },
+        {
+          "address": 41415288,
+          "word": 2436788553,
+          "assembly": "add\tx9, x10, #3996"
+        },
+        {
+          "address": 41415292,
+          "word": 335544364,
+          "assembly": "b\t#176"
+        },
+        {
+          "address": 41415296,
+          "word": 2432697313,
+          "assembly": "mov\tx1, sp"
+        },
+        {
+          "address": 41415300,
+          "word": 1384120512,
+          "assembly": "mov\tw0, #6"
+        },
+        {
+          "address": 41415304,
+          "word": 2484923250,
+          "assembly": "bl\t#7581128"
+        },
+        {
+          "address": 41415308,
+          "word": 889193248,
+          "assembly": "cbnz\tw0, #100"
+        },
+        {
+          "address": 41415312,
+          "word": 1385594899,
+          "assembly": "mov\tw19, #46080"
+        },
+        {
+          "address": 41415316,
+          "word": 1923127443,
+          "assembly": "movk\tw19, #1220, lsl #16"
+        },
+        {
+          "address": 41415320,
+          "word": 3532343924,
+          "assembly": "mov\tx20, #23123"
+        },
+        {
+          "address": 41415324,
+          "word": 4071887732,
+          "assembly": "movk\tx20, #41115, lsl #16"
+        },
+        {
+          "address": 41415328,
+          "word": 4074178036,
+          "assembly": "movk\tx20, #47151, lsl #32"
+        },
+        {
+          "address": 41415332,
+          "word": 4074768532,
+          "assembly": "movk\tx20, #68, lsl #48"
+        },
+        {
+          "address": 41415336,
+          "word": 2952927720,
+          "assembly": "adrp\tx8, #70504448"
+        },
+        {
+          "address": 41415340,
+          "word": 2434007304,
+          "assembly": "add\tx8, x8, #1280"
+        },
+        {
+          "address": 41415344,
+          "word": 2436788501,
+          "assembly": "add\tx21, x8, #3996"
+        },
+        {
+          "address": 41415348,
+          "word": 2839554024,
+          "assembly": "ldp\tx8, x9, [sp]"
+        },
+        {
+          "address": 41415352,
+          "word": 2601745672,
+          "assembly": "mul\tx8, x8, x19"
+        },
+        {
+          "address": 41415356,
+          "word": 2601745705,
+          "assembly": "mul\tx9, x9, x19"
+        },
+        {
+          "address": 41415360,
+          "word": 3544841513,
+          "assembly": "lsr\tx9, x9, #9"
+        },
+        {
+          "address": 41415364,
+          "word": 2614394153,
+          "assembly": "umulh\tx9, x9, x20"
+        },
+        {
+          "address": 41415368,
+          "word": 2336828680,
+          "assembly": "add\tx8, x8, x9, lsr #11"
+        },
+        {
+          "address": 41415372,
+          "word": 2296381097,
+          "assembly": "ldar\tw9, [x21]"
+        },
+        {
+          "address": 41415376,
+          "word": 2470477097,
+          "assembly": "sxtw\tx9, w9"
+        },
+        {
+          "address": 41415380,
+          "word": 2601090312,
+          "assembly": "mul\tx8, x8, x9"
+        },
+        {
+          "address": 41415384,
+          "word": 4043411743,
+          "assembly": "cmp\tx8, #100"
+        },
+        {
+          "address": 41415388,
+          "word": 1409286882,
+          "assembly": "b.hs\t#92"
+        },
+        {
+          "address": 41415392,
+          "word": 2432697313,
+          "assembly": "mov\tx1, sp"
+        },
+        {
+          "address": 41415396,
+          "word": 1384120512,
+          "assembly": "mov\tw0, #6"
+        },
+        {
+          "address": 41415400,
+          "word": 2484923226,
+          "assembly": "bl\t#7581032"
+        },
+        {
+          "address": 41415404,
+          "word": 889192000,
+          "assembly": "cbz\tw0, #-56"
+        },
+        {
+          "address": 41415408,
+          "word": 2415961920,
+          "assembly": "adrp\tx0, #21921792"
+        },
+        {
+          "address": 41415412,
+          "word": 2433802240,
+          "assembly": "add\tx0, x0, #1080"
+        },
+        {
+          "address": 41415416,
+          "word": 3531603969,
+          "assembly": "mov\tx1, #0"
+        },
+        {
+          "address": 41415420,
+          "word": 3531603970,
+          "assembly": "mov\tx2, #0"
+        },
+        {
+          "address": 41415424,
+          "word": 2549255162,
+          "assembly": "bl\t#-3526680"
+        },
+        {
+          "address": 41415428,
+          "word": 2596866314,
+          "assembly": "udiv\tx10, x8, x9"
+        },
+        {
+          "address": 41415432,
+          "word": 1385594891,
+          "assembly": "mov\tw11, #46080"
+        },
+        {
+          "address": 41415436,
+          "word": 1923127435,
+          "assembly": "movk\tw11, #1220, lsl #16"
+        },
+        {
+          "address": 41415440,
+          "word": 2601099592,
+          "assembly": "msub\tx8, x10, x9, x8"
+        },
+        {
+          "address": 41415444,
+          "word": 2601221384,
+          "assembly": "mul\tx8, x8, x11"
+        },
+        {
+          "address": 41415448,
+          "word": 2596866312,
+          "assembly": "udiv\tx8, x8, x9"
+        },
+        {
+          "address": 41415452,
+          "word": 2952927721,
+          "assembly": "adrp\tx9, #70504448"
+        },
+        {
+          "address": 41415456,
+          "word": 2434007337,
+          "assembly": "add\tx9, x9, #1280"
+        },
+        {
+          "address": 41415460,
+          "word": 2601197896,
+          "assembly": "madd\tx8, x10, x11, x8"
+        },
+        {
+          "address": 41415464,
+          "word": 2436788521,
+          "assembly": "add\tx9, x9, #3996"
+        },
+        {
+          "address": 41415468,
+          "word": 2296380713,
+          "assembly": "ldar\tw9, [x9]"
+        },
+        {
+          "address": 41415472,
+          "word": 2470477097,
+          "assembly": "sxtw\tx9, w9"
+        },
+        {
+          "address": 41415476,
+          "word": 2601090312,
+          "assembly": "mul\tx8, x8, x9"
+        },
+        {
+          "address": 41415480,
+          "word": 3544382728,
+          "assembly": "lsr\tx8, x8, #2"
+        },
+        {
+          "address": 41415484,
+          "word": 3533617257,
+          "assembly": "mov\tx9, #62915"
+        },
+        {
+          "address": 41415488,
+          "word": 4071326985,
+          "assembly": "movk\tx9, #23592, lsl #16"
+        },
+        {
+          "address": 41415492,
+          "word": 4074263017,
+          "assembly": "movk\tx9, #49807, lsl #32"
+        },
+        {
+          "address": 41415496,
+          "word": 4075101865,
+          "assembly": "movk\tx9, #10485, lsl #48"
+        },
+        {
+          "address": 41415500,
+          "word": 2613673224,
+          "assembly": "umulh\tx8, x8, x9"
+        },
+        {
+          "address": 41415504,
+          "word": 3544382728,
+          "assembly": "lsr\tx8, x8, #2"
+        },
+        {
+          "address": 41415508,
+          "word": 4026697673,
+          "assembly": "adrp\tx9, #84914176"
+        },
+        {
+          "address": 41415512,
+          "word": 4181870889,
+          "assembly": "ldr\tx9, [x9, #1168]"
+        },
+        {
+          "address": 41415516,
+          "word": 3406364928,
+          "assembly": "sub\tx0, x8, x9"
+        },
+        {
+          "address": 41415520,
+          "word": 2839772157,
+          "assembly": "ldp\tx29, x30, [sp, #48]"
+        },
+        {
+          "address": 41415524,
+          "word": 2839695348,
+          "assembly": "ldp\tx20, x19, [sp, #32]"
+        },
+        {
+          "address": 41415528,
+          "word": 2839631862,
+          "assembly": "ldp\tx22, x21, [sp, #16]"
+        },
+        {
+          "address": 41415532,
+          "word": 2432762879,
+          "assembly": "add\tsp, sp, #64"
+        },
+        {
+          "address": 41415536,
+          "word": 3596551104,
+          "assembly": "ret"
+        }
+      ],
+      "frequencySymbol": {
+        "name": "__ZN5utils10s_tsc_freqE",
+        "address": 124551768,
+        "register": "x9"
+      },
+      "frequencyCompare": {
+        "address": 41415220,
+        "value": 1000000000,
+        "branchAddress": 41415224
+      },
+      "verifiedNonzeroFrequencyPaths": {
+        "1000000000": {
+          "dynamicUDIV": 0,
+          "UDIVAddresses": [],
+          "executedInstructions": 49,
+          "pathAddresses": [
+            41415172,
+            41415176,
+            41415180,
+            41415184,
+            41415188,
+            41415192,
+            41415196,
+            41415200,
+            41415204,
+            41415208,
+            41415212,
+            41415216,
+            41415220,
+            41415224,
+            41415228,
+            41415232,
+            41415236,
+            41415240,
+            41415244,
+            41415248,
+            41415252,
+            41415256,
+            41415260,
+            41415264,
+            41415268,
+            41415272,
+            41415276,
+            41415280,
+            41415284,
+            41415288,
+            41415292,
+            41415468,
+            41415472,
+            41415476,
+            41415480,
+            41415484,
+            41415488,
+            41415492,
+            41415496,
+            41415500,
+            41415504,
+            41415508,
+            41415512,
+            41415516,
+            41415520,
+            41415524,
+            41415528,
+            41415532,
+            41415536
+          ]
+        },
+        "24000000": {
+          "dynamicUDIV": 2,
+          "UDIVAddresses": [
+            41415428,
+            41415448
+          ],
+          "executedInstructions": 42,
+          "pathAddresses": [
+            41415172,
+            41415176,
+            41415180,
+            41415184,
+            41415188,
+            41415192,
+            41415196,
+            41415200,
+            41415204,
+            41415208,
+            41415212,
+            41415216,
+            41415220,
+            41415224,
+            41415428,
+            41415432,
+            41415436,
+            41415440,
+            41415444,
+            41415448,
+            41415452,
+            41415456,
+            41415460,
+            41415464,
+            41415468,
+            41415472,
+            41415476,
+            41415480,
+            41415484,
+            41415488,
+            41415492,
+            41415496,
+            41415500,
+            41415504,
+            41415508,
+            41415512,
+            41415516,
+            41415520,
+            41415524,
+            41415528,
+            41415532,
+            41415536
+          ]
+        }
+      }
+    },
+    {
+      "name": "__Z15get_system_timev",
+      "symbolType": 30,
+      "address": 41415540,
+      "fileOffset": 41415540,
+      "bytes": 228,
+      "instructionSHA256": "64c5e31e967d4b1cf2348a53bbaa072035c31ad394e733f3d9f18eb79980807d",
+      "instructions": [
+        {
+          "address": 41415540,
+          "word": 3506488319,
+          "assembly": "sub\tsp, sp, #48"
+        },
+        {
+          "address": 41415544,
+          "word": 2835435508,
+          "assembly": "stp\tx20, x19, [sp, #16]"
+        },
+        {
+          "address": 41415548,
+          "word": 2835512317,
+          "assembly": "stp\tx29, x30, [sp, #32]"
+        },
+        {
+          "address": 41415552,
+          "word": 2432730109,
+          "assembly": "add\tx29, sp, #32"
+        },
+        {
+          "address": 41415556,
+          "word": 2952952392,
+          "assembly": "adrp\tx8, #83136512"
+        },
+        {
+          "address": 41415560,
+          "word": 2433310984,
+          "assembly": "add\tx8, x8, #600"
+        },
+        {
+          "address": 41415564,
+          "word": 4181721352,
+          "assembly": "ldr\tx8, [x8]"
+        },
+        {
+          "address": 41415568,
+          "word": 3019899432,
+          "assembly": "cbz\tx8, #68"
+        },
+        {
+          "address": 41415572,
+          "word": 3577471049,
+          "assembly": "mrs\tx9, CNTVCT_EL0"
+        },
+        {
+          "address": 41415576,
+          "word": 1385775114,
+          "assembly": "mov\tw10, #51712"
+        },
+        {
+          "address": 41415580,
+          "word": 1923576650,
+          "assembly": "movk\tw10, #15258, lsl #16"
+        },
+        {
+          "address": 41415584,
+          "word": 3943301407,
+          "assembly": "cmp\tx8, x10"
+        },
+        {
+          "address": 41415588,
+          "word": 1409287073,
+          "assembly": "b.ne\t#116"
+        },
+        {
+          "address": 41415592,
+          "word": 3544448296,
+          "assembly": "lsr\tx8, x9, #3"
+        },
+        {
+          "address": 41415596,
+          "word": 3533634025,
+          "assembly": "mov\tx9, #63439"
+        },
+        {
+          "address": 41415600,
+          "word": 4072434281,
+          "assembly": "movk\tx9, #58195, lsl #16"
+        },
+        {
+          "address": 41415604,
+          "word": 4073944233,
+          "assembly": "movk\tx9, #39845, lsl #32"
+        },
+        {
+          "address": 41415608,
+          "word": 4075034761,
+          "assembly": "movk\tx9, #8388, lsl #48"
+        },
+        {
+          "address": 41415612,
+          "word": 2613673224,
+          "assembly": "umulh\tx8, x8, x9"
+        },
+        {
+          "address": 41415616,
+          "word": 3544513792,
+          "assembly": "lsr\tx0, x8, #4"
+        },
+        {
+          "address": 41415620,
+          "word": 2839706621,
+          "assembly": "ldp\tx29, x30, [sp, #32]"
+        },
+        {
+          "address": 41415624,
+          "word": 2839629812,
+          "assembly": "ldp\tx20, x19, [sp, #16]"
+        },
+        {
+          "address": 41415628,
+          "word": 2432746495,
+          "assembly": "add\tsp, sp, #48"
+        },
+        {
+          "address": 41415632,
+          "word": 3596551104,
+          "assembly": "ret"
+        },
+        {
+          "address": 41415636,
+          "word": 1384663059,
+          "assembly": "mov\tw19, #16960"
+        },
+        {
+          "address": 41415640,
+          "word": 1923088883,
+          "assembly": "movk\tw19, #15, lsl #16"
+        },
+        {
+          "address": 41415644,
+          "word": 3533634036,
+          "assembly": "mov\tx20, #63439"
+        },
+        {
+          "address": 41415648,
+          "word": 4072434292,
+          "assembly": "movk\tx20, #58195, lsl #16"
+        },
+        {
+          "address": 41415652,
+          "word": 4073944244,
+          "assembly": "movk\tx20, #39845, lsl #32"
+        },
+        {
+          "address": 41415656,
+          "word": 4075034772,
+          "assembly": "movk\tx20, #8388, lsl #48"
+        },
+        {
+          "address": 41415660,
+          "word": 2432697313,
+          "assembly": "mov\tx1, sp"
+        },
+        {
+          "address": 41415664,
+          "word": 1384120512,
+          "assembly": "mov\tw0, #6"
+        },
+        {
+          "address": 41415668,
+          "word": 2484923159,
+          "assembly": "bl\t#7580764"
+        },
+        {
+          "address": 41415672,
+          "word": 889193056,
+          "assembly": "cbnz\tw0, #76"
+        },
+        {
+          "address": 41415676,
+          "word": 2839554024,
+          "assembly": "ldp\tx8, x9, [sp]"
+        },
+        {
+          "address": 41415680,
+          "word": 2601745672,
+          "assembly": "mul\tx8, x8, x19"
+        },
+        {
+          "address": 41415684,
+          "word": 3544448297,
+          "assembly": "lsr\tx9, x9, #3"
+        },
+        {
+          "address": 41415688,
+          "word": 2614394153,
+          "assembly": "umulh\tx9, x9, x20"
+        },
+        {
+          "address": 41415692,
+          "word": 2873692416,
+          "assembly": "adds\tx0, x8, x9, lsr #4"
+        },
+        {
+          "address": 41415696,
+          "word": 1426063072,
+          "assembly": "b.eq\t#-36"
+        },
+        {
+          "address": 41415700,
+          "word": 402653164,
+          "assembly": "b\t#-80"
+        },
+        {
+          "address": 41415704,
+          "word": 2596800810,
+          "assembly": "udiv\tx10, x9, x8"
+        },
+        {
+          "address": 41415708,
+          "word": 1384663051,
+          "assembly": "mov\tw11, #16960"
+        },
+        {
+          "address": 41415712,
+          "word": 1923088875,
+          "assembly": "movk\tw11, #15, lsl #16"
+        },
+        {
+          "address": 41415716,
+          "word": 2601035081,
+          "assembly": "msub\tx9, x10, x8, x9"
+        },
+        {
+          "address": 41415720,
+          "word": 2601221417,
+          "assembly": "mul\tx9, x9, x11"
+        },
+        {
+          "address": 41415724,
+          "word": 2596800808,
+          "assembly": "udiv\tx8, x9, x8"
+        },
+        {
+          "address": 41415728,
+          "word": 2601197888,
+          "assembly": "madd\tx0, x10, x11, x8"
+        },
+        {
+          "address": 41415732,
+          "word": 2839706621,
+          "assembly": "ldp\tx29, x30, [sp, #32]"
+        },
+        {
+          "address": 41415736,
+          "word": 2839629812,
+          "assembly": "ldp\tx20, x19, [sp, #16]"
+        },
+        {
+          "address": 41415740,
+          "word": 2432746495,
+          "assembly": "add\tsp, sp, #48"
+        },
+        {
+          "address": 41415744,
+          "word": 3596551104,
+          "assembly": "ret"
+        },
+        {
+          "address": 41415748,
+          "word": 2415961920,
+          "assembly": "adrp\tx0, #21921792"
+        },
+        {
+          "address": 41415752,
+          "word": 2433826816,
+          "assembly": "add\tx0, x0, #1104"
+        },
+        {
+          "address": 41415756,
+          "word": 3531603969,
+          "assembly": "mov\tx1, #0"
+        },
+        {
+          "address": 41415760,
+          "word": 3531603970,
+          "assembly": "mov\tx2, #0"
+        },
+        {
+          "address": 41415764,
+          "word": 2549255077,
+          "assembly": "bl\t#-3527020"
+        }
+      ],
+      "frequencySymbol": {
+        "name": "__ZN5utils10s_tsc_freqE",
+        "address": 124551768,
+        "register": "x8"
+      },
+      "frequencyCompare": {
+        "address": 41415584,
+        "value": 1000000000,
+        "branchAddress": 41415588
+      },
+      "verifiedNonzeroFrequencyPaths": {
+        "1000000000": {
+          "dynamicUDIV": 0,
+          "UDIVAddresses": [],
+          "executedInstructions": 24,
+          "pathAddresses": [
+            41415540,
+            41415544,
+            41415548,
+            41415552,
+            41415556,
+            41415560,
+            41415564,
+            41415568,
+            41415572,
+            41415576,
+            41415580,
+            41415584,
+            41415588,
+            41415592,
+            41415596,
+            41415600,
+            41415604,
+            41415608,
+            41415612,
+            41415616,
+            41415620,
+            41415624,
+            41415628,
+            41415632
+          ]
+        },
+        "24000000": {
+          "dynamicUDIV": 2,
+          "UDIVAddresses": [
+            41415704,
+            41415724
+          ],
+          "executedInstructions": 24,
+          "pathAddresses": [
+            41415540,
+            41415544,
+            41415548,
+            41415552,
+            41415556,
+            41415560,
+            41415564,
+            41415568,
+            41415572,
+            41415576,
+            41415580,
+            41415584,
+            41415588,
+            41415704,
+            41415708,
+            41415712,
+            41415716,
+            41415720,
+            41415724,
+            41415728,
+            41415732,
+            41415736,
+            41415740,
+            41415744
+          ]
+        }
+      }
+    }
+  ],
+  "compiled": false,
+  "toolInstalled": false,
+  "gameplayMeasured": false,
+  "linkedBinarySpecializationVerified": true,
+  "limits": "Static control-flow inspection of the exact linked raw Core592. No execution, FPS or device timing measurement."
+}

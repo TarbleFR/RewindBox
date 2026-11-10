@@ -1,0 +1,27 @@
+{
+  "result": "passed",
+  "checks": 39,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Library/Ryujinx.Library.csproj": "1e2dd8bdffb460b8f58f345100fa94cfcc76c20cb1430b231aef840238730b2c"
+  },
+  "physicalDeviceTested": false,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/Ryujinx.Library.csproj": "90efb63fec94331a7c78936a765d227967a08b870b58eb65c2d3743a6b954199"
+  },
+  "patchedLibraries": {
+    "ios-arm64": "c27b51068db26880474526516e64cccaff466167a28f30d7673a104417a75484",
+    "iossimulator-arm64": "07e1a86284febf20ec46ffb4400deaac2c98d93505e1f27a28fdcbc69653af90"
+  },
+  "run": 41988362179,
+  "inputs": {
+    "build-utils/melonx/adapt_nativeaot_gc_runtime.py": "4c83bf616a1f17c28845d6172d690cc89d4131d431e1e7d5ab590a9fe859328d",
+    "build-utils/melonx/nativeaot-gc-rebuild.json": "6a7754e049e4dbc1a2dddfe669448bf0bef30dc821942b70f7d8cb055ce4e701",
+    "build-utils/melonx/nativeaot-gc-rebuild-pin.json": "b7444866dc8a2922f7f46ace604ea8fe9be822fe88cb820ed010bc70b2dbdc3d",
+    "build-utils/melonx/build_core.sh": "dfbe6b7080081872b88baaeb28d36024b5d2adf13c64aa24b96cc37eb41d0a2d",
+    "build-utils/melonx/fetch_nativeaot_gc.py": "01f9d02a4363908e474ebfca04a69608c2b638a51b60f7cee2b6fbf65e172419",
+    "build-utils/melonx/nativeaot-gc/wks-bgc-thread-running.patch": "018214fb546d305f729f60d6895f94b0d3c6fe76af14f1d5fb2b061f52ba3824",
+    "test/melonx_nativeaot_gc_runtime_gate_test.py": "eb98c889c1ea0855ff98ec2b6ae2cce80e4fe6210bf060e151f5610615a2c5a2"
+  }
+}

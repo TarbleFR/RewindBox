@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/workspace/scratch/144c744e94bb/RewindBox/build-utils/materialize_rpcs3_core.py",
+    "/workspace/scratch/144c744e94bb/rpcs3-materialized-check"
+  ],
+  "exit_code": 0,
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonical_patch_sha256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
+  "postimages_verified": 319,
+  "stdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported\n",
+  "stderr": "/workspace/scratch/144c744e94bb/RewindBox/build-utils/rpcs3/embedded-core.patch:3443: trailing whitespace.\n\t\t\n/workspace/scratch/144c744e94bb/RewindBox/build-utils/rpcs3/embedded-core.patch:3449: trailing whitespace.\n\t\t\t\n/workspace/scratch/144c744e94bb/RewindBox/build-utils/rpcs3/embedded-core.patch:11078: trailing whitespace.\n\t\n/workspace/scratch/144c744e94bb/RewindBox/build-utils/rpcs3/embedded-core.patch:11080: trailing whitespace.\n\t\n/workspace/scratch/144c744e94bb/RewindBox/build-utils/rpcs3/embedded-core.patch:41161: new blank line at EOF.\n+\nwarning: 5 lines add whitespace errors.\n",
+  "apple_build": false,
+  "device_test": false
+}

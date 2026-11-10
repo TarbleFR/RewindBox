@@ -1,0 +1,99 @@
+{
+  "build": 567,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "67dd222bdbc8dbfefa6a666560e56672346f1521",
+  "run": 40547296252,
+  "workflow": ".github/workflows/rpcs3-cell567-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12755060708,
+      "name": "RPCS3Core-67dd222bdbc8dbfefa6a666560e56672346f1521",
+      "bytes": 29072232,
+      "digest": "sha256:89a71e39ebce4fd6e70dbfca9c01bac3b23b08f349c22d9b30dbe9c2863415fc"
+    },
+    "diagnostics": {
+      "id": 12754292320,
+      "bytes": 203372,
+      "digest": "sha256:d9823d381e487548c459fb3b470987ceaad326d6b46135333a405875efa68beb"
+    }
+  },
+  "core": {
+    "sha256": "51273092cf5b62fc9b17372bbd339020eb08ce7096b20c5fab4a5a5f4403c984",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "596b288f6dc46d44e32f6a7bc3bca102592e9d0bc567d3e41cbbe8a99389e786",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom565": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers567": [
+      "RSX Thread Priority",
+      "experimental.rsx_thread_priority",
+      "RSX thread priority",
+      "noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d"
+    ],
+    "replaces": {
+      "source": "07e416c42bbdfaede2df1870ccd7fda91d97abce",
+      "run": 40533429692,
+      "sha256": "428b11e6bc51a283fd1ff2ffcc3fe7307a3dba44461a9f170005752c8db15ca5"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell567"
+    ]
+  },
+  "darwinKernelModes": 3,
+  "results": {
+    "addressUndefined": {
+      "passed": true,
+      "modes": 3,
+      "darwinKernelModes": 3,
+      "loweredRelativePriority": -2
+    },
+    "thread": {
+      "passed": true,
+      "modes": 3,
+      "darwinKernelModes": 3,
+      "loweredRelativePriority": -2
+    }
+  },
+  "placement": {
+    "resetBeforeEveryJob": true,
+    "singleMappingPath": true,
+    "callersUnchanged": true,
+    "threadCppOtherwiseIdentical": true
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom565": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "harnessSHA256": "95693af3d99ddffd711ae948b317009ffae8066c4e06adf82fb3a7c98f28e76b",
+  "inputsSHA256": {
+    "test/rpcs3_cell567_test.py": "2172224db45635fd3b1132fdc29b9979e7bd81034f91577730e47154328bfbdc",
+    "test/native/rpcs3_thread_qos567.inc": "8edcc7fd01743d7a2d56a4dcc0b800ec7b1bb66a02c546846d3467b5791fc58c"
+  },
+  "scope": "The 567 tests on the Apple Silicon runner, with the real Darwin QoS calls (lowered to utility, reset as a new job, raised), and the iPhone Core built from the verified source. No iPhone FPS, scheduling or thermal result."
+}

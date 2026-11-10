@@ -34,13 +34,22 @@ ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 # Pods the bridge depends on: name -> folder of its podspec.
 DEPENDENCY_PODS = {
+    'achievement_translation': ROOT / 'packages/achievement_translation/ios',
+    'retro_achievements_session': ROOT / 'packages/retro_achievements_session/ios',
     'external_display': ROOT / 'packages/external_display/ios',
     'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
     'neo_cheat_catalog': ROOT / 'packages/neo_cheat_catalog/ios',
 }
-TARGET = 'arm64-apple-ios17.4'
+TARGET = 'arm64-apple-ios18.0'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
-           'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
+           'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1', 'CHDR_SYSTEM_ZLIB=1', 'ZSTD_DISABLE_ASM=1')
+# NEOSTATION_RA_DISC_READER_V1: the C sources the podspec compiles besides
+# rcheevos (the .chd/.cso reader and the pinned libchdr).
+LIBCHDR = BRIDGE / 'ThirdParty/libchdr'
+DISC_READER_SOURCES = (sorted((BRIDGE / 'Classes').glob('*.c')) + sorted((LIBCHDR / 'src').glob('*.c'))
+                       + [LIBCHDR / 'deps/lzma-26.02/src/LzmaDec.c', LIBCHDR / 'deps/zstd-1.5.7/zstddeclib.c'])
+# Symbols of the reader and of libchdr that must be defined by these sources.
+DISC_READER_SYMBOLS = ('rb_hash_', 'chd_open', 'chd_read', 'chd_get_metadata')
 # The podspec's frameworks, plus ImageIO and CoreGraphics used by the skin
 # code. Modules imported by the Objective-C sources are also auto-linked.
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
@@ -91,6 +100,22 @@ def stage_external_display(directory):
     return include
 
 
+def achievement_boundary_units(sources):
+    """Codec/gameplay fixtures do not exercise achievements. Fail explicitly if
+    they unexpectedly cross that boundary; the real Swift plugin is built and
+    tested by achievement-translation.yml and the full application recipe.
+    Historical source checkouts without this dependency need no such unit.
+    """
+    files = list((sources / 'Classes').glob('*.[mM]'))
+    contents = [path.read_text() for path in files]
+    units = []
+    if any('<achievement_translation/' in text for text in contents):
+        units.append(ROOT / 'test/achievement_translation_test_boundary.m')
+    if any('<retro_achievements_session/' in text for text in contents):
+        units.append(ROOT / 'test/retro_achievements_session_test_boundary.m')
+    return units
+
+
 def stage_dependency_headers(directory):
     """A search path where <pod/Name.h> resolves exactly as the bridge sees
     the pods it depends on: a folder named after each pod holding copies of
@@ -111,7 +136,7 @@ def compile_sources(sdk, sources, directory, include):
     includes = [
         BRIDGE / 'Classes', BRIDGE / 'ThirdParty/include', BRIDGE / 'ThirdParty/include/libretro',
         BRIDGE / 'ThirdParty/rcheevos/include', BRIDGE / 'ThirdParty/rcheevos/src',
-        ROOT / 'test/libretro_host/stubs', include,
+        LIBCHDR / 'include', ROOT / 'test/libretro_host/stubs', include,
     ]
     base = ['xcrun', '--sdk', 'iphoneos', 'clang', '-target', TARGET, '-isysroot', sdk,
             '-Wall', '-Wno-unused-function']
@@ -174,6 +199,7 @@ def main():
     sdk = subprocess.run(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], check=True,
                          capture_output=True, text=True).stdout.strip()
     sources = sorted((BRIDGE / 'Classes').glob('*.m')) + sorted((BRIDGE / 'ThirdParty/rcheevos/src').rglob('*.c'))
+    sources += DISC_READER_SOURCES
     sources += sorted(path for path in (DEPENDENCY_PODS['neo_cheat_catalog'] / 'Classes').glob('*.m')
                       if path.name != 'NeoCheatCatalogPlugin.m')
     with tempfile.TemporaryDirectory(prefix='libretro-ios-') as temporary:
@@ -186,7 +212,8 @@ def main():
         library = directory / 'liblibretro_internal_bridge.dylib'
         link(sdk, objects, library)
         undefined = undefined_symbols(library)
-    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name or 'NeoUnifiedCheat' in name)
+    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name or 'NeoUnifiedCheat' in name
+                     or any(prefix in name for prefix in DISC_READER_SYMBOLS))
     if missing:
         print('Bridge symbols used but defined by no source:', flush=True)
         for name in missing:

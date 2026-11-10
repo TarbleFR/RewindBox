@@ -25,6 +25,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy) NSArray<NSDictionary *> *coreSettings;
 @property(nonatomic, assign) BOOL achievementsAllowed;
 @property(nonatomic, assign) unsigned achievementsConsoleId;
+/// Taken once by the native bridge from the central one-use launch ticket.
+/// Contains the immutable account/mode snapshot for this game only.
+@property(nonatomic, copy) NSDictionary *achievementSession;
 /// RETRO_HW_CONTEXT_* answered to GET_PREFERRED_HW_RENDER for this core.
 @property(nonatomic, assign) unsigned preferredHardwareContext;
 /// NeoStation console of the game ("gba", "psp", "3ds"...): key of skins,
@@ -50,7 +53,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// citra_render_3d=off). Applied before retro_init and read-only in the
 /// menu.
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *lockedOptions;
-/// Documents/Libretro/Logs: the session journal (LibretroSessionJournal);
+/// Diagnostics/<console>/Libretro: the session journal (LibretroSessionJournal);
 /// empty for none.
 @property(nonatomic, copy) NSString *logsDirectory;
 /// NeoStation core id ("ppsspp", "azahar"): names the core's resolution

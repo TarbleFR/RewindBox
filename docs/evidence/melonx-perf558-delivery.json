@@ -1,0 +1,139 @@
+{
+  "result": "passed",
+  "build": 558,
+  "version": "0.0.8",
+  "source": "7b4d0020f7ba55dcad3da26156151fc2a28ed0df",
+  "run": 40397869535,
+  "jobs": {
+    "Release device build \u2022 cold": {
+      "id": 121838229273,
+      "conclusion": "success"
+    },
+    "checks": {
+      "id": 121835613852,
+      "conclusion": "success"
+    }
+  },
+  "artifact": {
+    "id": 12688109052,
+    "sha256": "41d10d1e7cb23dbb9e8e85aa45af4210c9dde5ae1421b3469a938738893cd214",
+    "name": "RewindBox-Build558-7b4d0020f7ba55dcad3da26156151fc2a28ed0df-cold",
+    "expires": "2026-11-09T21:08:17Z",
+    "recipient": "build-utils/delivery-558-recipient.pem",
+    "privateKeyInGit": false,
+    "cipher": "RSA-OAEP-SHA256 envelope, AES-256-CBC PBKDF2 200000"
+  },
+  "ipa": {
+    "name": "RewindBox-Build558-7b4d0020f7ba55dcad3da26156151fc2a28ed0df-cold.ipa",
+    "bytes": 188054032,
+    "sha256": "7a9964f55bb490ae4c3bd813d45c2c3b19bacfad04af49a8be4427f567446e5a",
+    "bundleVersion": "558",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "signedPayloadIdentity": {
+      "ipaSha256": "7a9964f55bb490ae4c3bd813d45c2c3b19bacfad04af49a8be4427f567446e5a",
+      "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+      "sideStoreAppleReSigningRequired": true
+    },
+    "sha256SumsPathNote": "SHA256SUMS lists the CI path build/delivery-artifact/...; the decrypted file hash was compared to it directly."
+  },
+  "base557": {
+    "delivered": "b71a046ce178b02dce5718c75aa241aa9d2a36aa",
+    "fix": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+    "run": 40389098711,
+    "ipaSha256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01",
+    "receiptCommit": "e4ef0c3",
+    "note": "558 is the delivered 557 product tree with the files of cfce9f6: productTrees557 equals the 557 receipt product trees."
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source557": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+    "source558": "cfce9f6e82c23a2420f002ca155f829226f4f122",
+    "replaced": [
+      "build-utils/melonx/build_core.sh",
+      "build-utils/melonx/ui-strings.json",
+      "docs/melonx-persona-performance-2026-10-25.md",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift",
+      "test/melonx_standalone_parity_test.py"
+    ],
+    "productTrees": {
+      "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+      "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+      "packages": "43b727081425755a2102f3dcf32c1b6438e208eb",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees557": {
+      "lib": "d0559c36091f69749c2c5c9e6928a7c496b18926",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    }
+  },
+  "engine": {
+    "source": "8f83748bd91fc759f4b199613225bfb4272c4574",
+    "run": 40376664278,
+    "artifact": 12676781705
+  },
+  "host": {
+    "source": "e2c9437843fb6db900e6680f02125c08bf27058f",
+    "run": 40385961915,
+    "artifact": 12682240349
+  },
+  "graph": {
+    "source": "a4872682f487c622fa1093eb40d3d9280e20cca0",
+    "run": 40339415828,
+    "artifact": 12658953626,
+    "note": "RAM graph proof of the 553 host; its inputs are unchanged."
+  },
+  "standaloneMoltenVk": {
+    "packagedSha256": "991acaa33faf56941468388c01295882c627635f5254393641b5baad20d1c9d7",
+    "note": "Same packaged binary as 553."
+  },
+  "ciValidation": {
+    "melonx": "melonx-perf558-ipa-validation.json",
+    "interface": "liquid-glass-ui558-ipa-validation.json",
+    "libraryFiles": "rpcs3-library-files558-ipa-validation.json",
+    "keys": "melonx-keys517-ipa-validation.json"
+  },
+  "localRevalidation": {
+    "worktree": "7b4d002 pinned with melonxperf558_tree.py",
+    "melonxReportIdenticalToCI": true,
+    "interfaceReportIdenticalToCI": true,
+    "libraryFilesReportIdenticalToCI": true,
+    "note": "Local standalone MoltenVK packaging used llvm-install-name-tool; only its pre-signing packagedSha256 differs from CI (Apple install_name_tool), as for 553; the CI value from the IPA was substituted for that one field, every other value was recomputed locally."
+  },
+  "localEvidence": {
+    "receipt": "docs/evidence/melonx-perf558-local.json",
+    "fullSuitePassed": 3560,
+    "fullSuiteFailed": 24,
+    "passed557": 3551,
+    "failed557": 23,
+    "timingDependent": "test/melonx_presentation_widgets_test.dart (import completes when playlist refresh disposes its menu) fails at :81:7 with the same Expected/Actual on the delivered 557 tree and on 558; the test file is identical on both."
+  },
+  "reviews": {
+    "recipe556": "3 confirmed findings: the changed-set equality (fixed in d89072c), the behavioural negative control (required in 558), 556 on the 554 tree (replaced by 558 on 557).",
+    "recipe558": "No blocking or wrong-acceptance defect against the IPA. Open, evidence-level: the 557 proof of a timing-dependent test is not tied to product trees in the validator (checked by hand: same failure line, identical test file); the append negative control is a compile failure on 557; the test plan is read from the receipt (CI runs the tests itself).",
+    "integration": "No finding (migration x 557 data, logger x callers, tree composition and Swift compile)."
+  },
+  "notDelivered": {
+    "build": 556,
+    "reason": "Prepared on the 554 tree (640ff06), never armed; rebuilt as 558 on the delivered 557 tree. Do not reuse 556."
+  },
+  "installsOver": [
+    553,
+    554,
+    557
+  ],
+  "physicalDeviceTested": false,
+  "measurementOnly": true,
+  "stutterFixClaimed": false,
+  "githubRelease": false,
+  "scope": "Delivered 557 product tree with the MeloNX measurement (per-second [MeloNX:perf] journal, engine audio pacing counters, emulation priority A/B, repeated NSLog stubs once) and the Dart log fixes (O_APPEND writes, the live log follows a user-data migration). Host tests and CI validators only; no iPhone run."
+}

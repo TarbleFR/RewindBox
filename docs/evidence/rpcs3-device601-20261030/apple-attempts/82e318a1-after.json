@@ -1,0 +1,76 @@
+{
+  "symlink_tmp": "/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/alias",
+  "resolved_tmp": "/workspace/scratch/e5c0462e637a/recovered/symlink-tmp-probe/real",
+  "results": [
+    {
+      "name": "after-source-only",
+      "returncode": 0,
+      "output_sha256": "31a07b167d617eaf9518b468db067b3ce0c46ccabb01f24482152c33a00cee53",
+      "result": {
+        "passed": true,
+        "phase": "reboot-timer-feedback",
+        "current_postimages": 326,
+        "changed_paths": [
+          "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+          "rpcs3/Emu/Cell/SPUThread.cpp",
+          "rpcs3/Emu/Cell/lv2/sys_process.cpp",
+          "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+          "rpcs3/Emu/RSX/rsx_cache.h",
+          "rpcs3/ios/IOSRestoreExecutor.h",
+          "rpcs3/ios/NeoStationSavestateStatus.h",
+          "rpcs3/ios/RPCS3IOS.cpp"
+        ],
+        "codegen": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "477a3fa442d27917"
+        },
+        "abi_exports": 88,
+        "historical_receipt_authenticated": true,
+        "historical_archives_authenticated": false,
+        "native_executed_now": 0,
+        "apple_executed_now": 0
+      }
+    },
+    {
+      "name": "after-negative-controls",
+      "returncode": 0,
+      "output_sha256": "a1085fbb9efdd4e132b9825fa32d695a8034f26a5292847843b6bc7468b64c5b",
+      "result": {
+        "passed": true,
+        "phase": "reboot-timer-feedback",
+        "compiler_executed": false,
+        "apple_executed": false,
+        "changed_paths": [
+          "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+          "rpcs3/Emu/Cell/SPUThread.cpp",
+          "rpcs3/Emu/Cell/lv2/sys_process.cpp",
+          "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+          "rpcs3/Emu/RSX/rsx_cache.h",
+          "rpcs3/ios/IOSRestoreExecutor.h",
+          "rpcs3/ios/NeoStationSavestateStatus.h",
+          "rpcs3/ios/RPCS3IOS.cpp"
+        ],
+        "postimages_checked": 326,
+        "preserved_postimages": 318,
+        "negative_controls_rejected": [
+          "canonical-bytes",
+          "native-manifest",
+          "missing-native-change",
+          "runner-input",
+          "recipe",
+          "dispatcher",
+          "historical-receipt",
+          "codegen-evidence",
+          "inverse-delta"
+        ],
+        "native_jobs_scheduled": 12,
+        "historical_native_modes_replayed": 0,
+        "historical_archives_verified_locally": false,
+        "abi_exports": 88
+      }
+    }
+  ],
+  "compiler_executed": false,
+  "apple_executed": false,
+  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8"
+}

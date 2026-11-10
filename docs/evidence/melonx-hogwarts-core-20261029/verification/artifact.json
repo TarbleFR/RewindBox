@@ -1,0 +1,20 @@
+{
+  "id": 12907831125,
+  "node_id": "MDg6QXJ0aWZhY3QxMjkwNzgzMTEyNQ==",
+  "name": "MeloNX-engine-5045889ff9f1a872d238435293c50cacd7c127b5",
+  "size_in_bytes": 87444668,
+  "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12907831125",
+  "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12907831125/zip",
+  "expired": false,
+  "digest": "sha256:03d98461351141dbc32a407591081a775c4c5298ab1df7ae8b72f39e6cf20493",
+  "created_at": "2026-10-29T15:01:48Z",
+  "updated_at": "2026-10-29T15:01:48Z",
+  "expires_at": "2026-11-12T15:01:40Z",
+  "workflow_run": {
+    "id": 40895446303,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "5045889ff9f1a872d238435293c50cacd7c127b5"
+  }
+}

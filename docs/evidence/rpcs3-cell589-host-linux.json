@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "build": 589,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+    "fixtureSHA256": "d631922c2c1eb22e43bb96197d21141486659dd8b72a469ece3ab8cd9be42519",
+    "sourceSHA256": {
+      "rpcs3/ios/IOSTitleLevers.h": "c291afdcb87c0ffb7a79cc38984424208c3ad756dbd0a20eb362e48b52f7f22b",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "cf958f5d6fea3702d95c00dfd23de35ba7b944411a8a7621f9b8bc3c222fd06d",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "66d0486830e52b3a162cee774915d453ac68d4f40a9b57d2ab9127fb5f305221"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 302
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom587": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "offIOS": {
+    "sharedFiles": [],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTitleLevers.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "placement": {
+    "policyOtherwiseIdentical": true,
+    "settingTextsChanged": [
+      "scoped_texture_revalidation",
+      "texture_validation_epoch"
+    ],
+    "leversOtherwiseIdentical": true,
+    "serials": [
+      "BLES00158",
+      "BLUS30089"
+    ]
+  },
+  "policy": {
+    "passed": true,
+    "cases": 33,
+    "harnessSHA256": "48d762a013b0ee5843c4d75af8404ab8612afa834fc5ea34475852a17c8dc015",
+    "before587": {
+      "passed": true,
+      "cases": 33
+    },
+    "newlyAutomatic": [
+      "BLES00158",
+      "BLUS30089"
+    ],
+    "prehashUnchanged": true
+  },
+  "inputs": {
+    "test/rpcs3_cell589_test.py": "3d231d56091c2f61b87e0d89be09e3eaaff8186e8ca8816e5a980ba40299af61"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 589 policy blocks compiled verbatim for every title and mode; the 559 and 573 mechanisms are unchanged. No iPhone FPS, frame time or memory result."
+}

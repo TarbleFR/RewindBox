@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "deliveryRun": 40181996501,
+  "deliveryRunURL": "https://github.com/TarbleFR/RewindBox/actions/runs/40181996501",
+  "source": "b2598823eb3c3b3752f786730b97f35bb93f1dab",
+  "build": 534,
+  "conclusion": "success",
+  "ipaBytes": 186307806,
+  "ipaSHA256": "5bb87bcd6e94446b2b68c2524c12b70c2cccd8f9a94cf35df056119030a44650",
+  "independentDownloadedIPAValidation": {
+    "result": "passed",
+    "build": 534,
+    "ipaSHA256": "5bb87bcd6e94446b2b68c2524c12b70c2cccd8f9a94cf35df056119030a44650",
+    "coreSource": "2fa4ad668446b9166017b434e302836287d015b0",
+    "coreRun": 40181634906,
+    "sourceArtifactSHA256": "fff5f8473684bffcbc8618b11a0356c7be2471c36a5fb549a2963ad57a259519",
+    "compiledCorePayloadFingerprint": "2a42ded6a42a669538ef09416d1338f768279418336a2100d5cdd04589b7ba70",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "gow3BootAndVmaSourceVerified": true
+  },
+  "localZipCRCPassed": true,
+  "mainAndSevenExtensionBuildsVerified": "534",
+  "structure": {
+    "zipIntegrity": "passed",
+    "mainApplicationCount": 1,
+    "embeddedExtensions": [
+      "ARMSX2JITHelper.appex",
+      "DolphinJITHelper.appex",
+      "MeloNXJITHelper.appex",
+      "MeloNXRamDonor.appex",
+      "NeoSwapDonor.appex",
+      "NeoSwapPageRelay.appex",
+      "RPCS3JITHelper.appex"
+    ],
+    "structuralValidation": "passed",
+    "deviceLaunchValidated": false
+  },
+  "signature": {
+    "count": 87,
+    "allVerifiedByMacOSCI": true,
+    "installationMethod": "SideStore re-signing",
+    "directAppleInstallationReady": false,
+    "deviceInstallationTested": false
+  },
+  "preservedMeloNX": {
+    "result": "passed",
+    "coreSource": "77388b61cbd265559ae79f4748fdf7b12df33928",
+    "coreRun": 40179193884
+  },
+  "components": {
+    "source": "b2598823eb3c3b3752f786730b97f35bb93f1dab",
+    "baseline": "a1c7ab9bebf763b034c522363c29ce6dee6c4594",
+    "build": 534,
+    "coreSource": "2fa4ad668446b9166017b434e302836287d015b0",
+    "coreRun": 40181634906,
+    "hostCompilation": "Current native source rebuilt by the cold Xcode delivery; compiled policy markers required in signed IPA",
+    "unavailableHistoricalCacheRun": 40181634909,
+    "preservedMeloNXSource": "77388b61cbd265559ae79f4748fdf7b12df33928",
+    "preservedMeloNXRun": 40179193884,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false
+  },
+  "transportArtifacts": [
+    {
+      "id": 12595028307,
+      "name": "RewindBox-Build534-b2598823eb3c3b3752f786730b97f35bb93f1dab-cold-part00",
+      "size_in_bytes": 46643566,
+      "digest": "sha256:dce6d2852616e0b38abcf1605a97ba2439e10818daae9a311853b7952b0be21b"
+    },
+    {
+      "id": 12594688965,
+      "name": "RewindBox-Build534-b2598823eb3c3b3752f786730b97f35bb93f1dab-cold-part01",
+      "size_in_bytes": 46643566,
+      "digest": "sha256:5ecd7e562a00fbd0917e810822a3416acecbd7ab7410930675ba2f931f55a64c"
+    },
+    {
+      "id": 12595222664,
+      "name": "RewindBox-Build534-b2598823eb3c3b3752f786730b97f35bb93f1dab-cold-part02",
+      "size_in_bytes": 46643566,
+      "digest": "sha256:c60ff1481b758a24df4b8bc938040d2cbe22adeb872b6787f7eed628aa7f341d"
+    },
+    {
+      "id": 12594773727,
+      "name": "RewindBox-Build534-b2598823eb3c3b3752f786730b97f35bb93f1dab-cold-part03",
+      "size_in_bytes": 46643566,
+      "digest": "sha256:86ef52b385b6be8cdd626a69cc184cda9167415c9827402797e81527a2c80058"
+    }
+  ],
+  "jobs": [
+    {
+      "id": 121134800606,
+      "name": "checks",
+      "conclusion": "success"
+    },
+    {
+      "id": 121134800718,
+      "name": "native",
+      "conclusion": "success"
+    },
+    {
+      "id": 121136673365,
+      "name": "Release device build • cold",
+      "conclusion": "success"
+    }
+  ],
+  "physicalDeviceTested": false,
+  "physicalPerformanceMeasured": false,
+  "realGameStateRestored": false
+}

@@ -1,0 +1,231 @@
+{
+  "build": 536,
+  "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+  "run": {
+    "id": 40186697206,
+    "head_sha": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/40186697206",
+    "created_at": "2026-10-25T10:54:45Z",
+    "updated_at": "2026-10-25T11:09:24Z"
+  },
+  "jobs": [
+    {
+      "id": 121148902870,
+      "name": "checks",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 121148960169,
+      "name": "Release device build \u2022 cold",
+      "conclusion": "success",
+      "failedSteps": []
+    }
+  ],
+  "transportParts": [
+    {
+      "artifact_id": 12596865687,
+      "name": "RewindBox-Build536-5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c-cold-part00",
+      "localZip": "part0.zip",
+      "sha256": "ad514bfab9dd8140228a4214ea0c5e5c5e8b53c90ad64642007f840c9b34f5cc"
+    },
+    {
+      "artifact_id": 12596447211,
+      "name": "RewindBox-Build536-5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c-cold-part01",
+      "localZip": "part1.zip",
+      "sha256": "f4832ce48bdaff7dc41e256103251b276eb73be633c8e6b6579e77014ee31324"
+    },
+    {
+      "artifact_id": 12596611011,
+      "name": "RewindBox-Build536-5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c-cold-part02",
+      "localZip": "part2.zip",
+      "sha256": "fe182d85732a515c19bdd8b7d1dc76b3b168b814722f9efd7c993f839c1ea506"
+    },
+    {
+      "artifact_id": 12596725835,
+      "name": "RewindBox-Build536-5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c-cold-part03",
+      "localZip": "part3.zip",
+      "sha256": "69f009e911bba66b60b66dbb789ccbf3d0cb2576dee1d44ff8425e414a909bcb"
+    }
+  ],
+  "decryptedIPA": {
+    "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+    "run": 40186697206,
+    "build": 536,
+    "bytes": 186318090,
+    "sha256": "a51334d3b990eee0111f48e2ce2627591a08e38057e5fd01c8507ae2fa88b921",
+    "zipCRCVerified": true,
+    "machoSlices": 87,
+    "allObservedCryptIDsZero": true,
+    "versions": {
+      "PlugIns/DolphinJITHelper.appex/Info.plist": "536",
+      "PlugIns/NeoSwapPageRelay.appex/Info.plist": "536",
+      "PlugIns/NeoSwapDonor.appex/Info.plist": "536",
+      "PlugIns/MeloNXJITHelper.appex/Info.plist": "536",
+      "PlugIns/ARMSX2JITHelper.appex/Info.plist": "536",
+      "PlugIns/RPCS3JITHelper.appex/Info.plist": "536",
+      "PlugIns/MeloNXRamDonor.appex/Info.plist": "536",
+      "Info.plist": "536"
+    },
+    "coreSource": "d712d5e9cbac256c6677adf7c161ea36b69ba835",
+    "coreSHA256": "eeca76e114e8c8a6c848ce758f0f02f73237bb52885766292894bb11b010b169",
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false
+  },
+  "localRPCS3Validation": {
+    "result": "passed",
+    "build": 536,
+    "ipaSHA256": "a51334d3b990eee0111f48e2ce2627591a08e38057e5fd01c8507ae2fa88b921",
+    "coreSource": "d712d5e9cbac256c6677adf7c161ea36b69ba835",
+    "coreRun": 40185694306,
+    "sourceArtifactSHA256": "eeca76e114e8c8a6c848ce758f0f02f73237bb52885766292894bb11b010b169",
+    "compiledCorePayloadFingerprint": "5396abd679194bd173e09c484ba95ef242df050f9e33e96d62e86da96ad2161e",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "gow3BootAndVmaSourceVerified": true
+  },
+  "localMeloNXFullValidator": {
+    "status": "not_completed",
+    "reason": "Generated packages/melonx_internal_bridge/ios/Memory/adaptation.json is absent locally. The same full validator passed in CI on the exact final IPA; no local full-pass claim."
+  },
+  "ciValidation": {
+    "retention536-tests.json": {
+      "passed": true,
+      "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+      "run": "40186697206",
+      "inputs": {
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm": "ac19be14d7fe4e7c5956840fff4b59f4d64519746bf63172b6c670ec71b1ca7a",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.h": "0fb24aacdaed388e0680c3fdbaa8ac3ef4f794092d9ef3798f41063c5fbad6a1",
+        "test/rpcs3_retention536_test.py": "c49723c592ddf297e3446bbb3e6a9907d7a5da74952126a5f390a480e6cc9b8c",
+        "test/rpcs3_diagnostics_native_test.py": "d59b11553745e6b5b9a9c4a055ef4cb186d9400291b84a3c4cf583006c013634",
+        "test/native/rpcs3_diagnostics_test.mm": "99d91efa07ea8a264738f7df32d85629c77c7e04f1213dd1d1f83868da5bf09d",
+        "test/native/rpcs3_diagnostics_core_writer.mm": "24bb224bbd51d05bbafe6dabbf22e83ce183a5e6cdee860c4c1392c07cf5447b",
+        "test/native/rpcs3_diagnostics_jit_writer.mm": "6b2a3f080dbce5e5997b0e4fa3e522869ee45154716a67d3ce065c1bd296bb90"
+      },
+      "results": {
+        "before": {
+          "returncode": -6,
+          "loggerSHA256": "137d81cef4ef408a01d4a6b4fba0b8f6909f69a24db97f4bc3e30cda7acc0ad5",
+          "expectedOutcome": true
+        },
+        "after": {
+          "returncode": 0,
+          "loggerSHA256": "ac19be14d7fe4e7c5956840fff4b59f4d64519746bf63172b6c670ec71b1ca7a",
+          "expectedOutcome": true
+        }
+      },
+      "generatedHarnessSHA256": "75c6895298cd586519aa38dfc10265bd8365da99dc95bf9b2f707cfe4d483cfb",
+      "physicalDeviceTested": false,
+      "scope": "Actual Foundation logger, two producers, rotation/reopen, 1300 verbose restore records followed by missing-resource error. Both attribution records survive in the bounded performance history; old source loses them."
+    },
+    "rpcs3-memory-audit-ipa.json": {
+      "result": "passed",
+      "build": 536,
+      "ipaSHA256": "a51334d3b990eee0111f48e2ce2627591a08e38057e5fd01c8507ae2fa88b921",
+      "coreSource": "d712d5e9cbac256c6677adf7c161ea36b69ba835",
+      "coreRun": 40185694306,
+      "sourceArtifactSHA256": "eeca76e114e8c8a6c848ce758f0f02f73237bb52885766292894bb11b010b169",
+      "compiledCorePayloadFingerprint": "5396abd679194bd173e09c484ba95ef242df050f9e33e96d62e86da96ad2161e",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true
+    },
+    "melonx-ipa.json": {
+      "result": "passed",
+      "build": "536",
+      "engineExportsVerified": 43,
+      "privateFrameworks": [
+        "MeloNXAvCodec",
+        "MeloNXAvUtil",
+        "MeloNXCore",
+        "MeloNXJitSupport",
+        "MeloNXMoltenVK",
+        "MeloNXSDL3"
+      ],
+      "nativeSourceNoticesVerified": 26,
+      "registeredFlutterBridge": true,
+      "gameplayTested": false,
+      "deviceInstallationTested": false
+    },
+    "reused-validation536.json": {
+      "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+      "build": 536,
+      "hostBaseline": "35ed01854848d51a0b3f0b0f1c40a29960ad3331",
+      "hostChanged": [
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm"
+      ],
+      "otherEmulatorsUnchanged": true,
+      "coreSource": "d712d5e9cbac256c6677adf7c161ea36b69ba835",
+      "coreRun": 40185694306,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false
+    },
+    "final-structure.json": {
+      "ipa": "NeoStation.ipa",
+      "bytes": 186318090,
+      "sha256": "a51334d3b990eee0111f48e2ce2627591a08e38057e5fd01c8507ae2fa88b921",
+      "zipIntegrity": "passed",
+      "mainApplicationCount": 1,
+      "embeddedExtensions": 7,
+      "networkExtensionDependencyPresent": false,
+      "requiredBridgeExports": 23,
+      "machOImages": 87,
+      "resolvedDependencies": 83,
+      "systemDependencies": 129,
+      "systemDependenciesOnDevice": "OS-provided; runtime dyld validation still requires an iOS device",
+      "signatureState": "main contains a code signature; certificate trust not tested",
+      "deviceLaunchValidated": false,
+      "structuralValidation": "passed",
+      "collectionValuesAreCounts": true
+    }
+  },
+  "ciMeloNXRetainedValidation": {
+    "result": "passed",
+    "build": 536,
+    "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+    "ipaSHA256": "a51334d3b990eee0111f48e2ce2627591a08e38057e5fd01c8507ae2fa88b921",
+    "actualExtensionIncluded": true,
+    "compiledBridgeAndCoreExportsVerified": true,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "compiledImportMarkersVerified": true
+  },
+  "signing": {
+    "installationMethod": "SideStore re-signing",
+    "directAppleInstallationReady": false,
+    "deviceInstallationTested": false,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "build": "536",
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "architectures": [
+      "arm64"
+    ]
+  },
+  "signedMachOImages": 87,
+  "compiledPayloadsVerifiedAcrossSigning": 84,
+  "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+  "abiMetadataUnchangedBySigning": true,
+  "reportSHA256": {
+    "retention536-tests.json": "528a6343ed88cb6b4a896eef9e42423fb96a5e201cab55aa147ac8b0f2fd7d5d",
+    "rpcs3-memory-audit-ipa.json": "b60cfeaa033d4a695576e93780049eaf07a114cffd9f5ba8eeb7a61571af2da3",
+    "melonx-memory519-ipa-validation.json": "9904f445d677bc8875b8ec9d6af770af26972e12054b5029b4c624d0f14ff7ab",
+    "melonx-ipa.json": "9d235ae265ab36221f9d4e4ae4845d0d3764b2ad4e3e9594e843b935ceb12a90",
+    "reused-validation536.json": "9ee1be0156ef2b155de2495e3adade402613b068ed01d2452b67889e055c22ef",
+    "final-structure.json": "485bd5e2fe71ea68dd2e14e1eb0eb36483a77b46057fb2439ecd65c85d4eabc5",
+    "signature.json": "71161be10292c3d5a5f435cc220cf6e9db9137f1d388328895507bd3c44ea61b",
+    "signed-payload-identity.json": "92015bfaad39f6ebe33b0710824472bf008458aa07d868666d6af34054580300"
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "saveStateCopyTested": false,
+  "publication": "Private encrypted GitHub CI artifacts; decrypted IPA provided privately. No release and no main changes."
+}

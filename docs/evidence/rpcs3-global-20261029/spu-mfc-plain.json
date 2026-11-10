@@ -1,0 +1,171 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "maskCases": 18939904,
+    "noShuffleOrEmptyMaskCases": 2162688,
+    "enabledNonemptyMaskCases": 16777216,
+    "baselineMaskClockReads": 18939904,
+    "candidateMaskClockReads": 16777216,
+    "queueScenarios": 78336,
+    "queueCalls": 235008,
+    "baselineZeroLimitQueueClockReads": 13824,
+    "candidateZeroLimitQueueClockReads": 0,
+    "emptyQueueInterruptEscapes": 4944,
+    "deliveredTags": 48960,
+    "executedBarriers": 113832,
+    "stepDeferrals": 12450,
+    "listResumptions": 85779
+  },
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O3"
+  ],
+  "sanitizer": null,
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/util/tsc.hpp": "40500f148c7ea7db14a28c3554e97ac413dde5afd5bdcc3a5c36a4350b41fa1a",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/util/tsc.hpp": "40500f148c7ea7db14a28c3554e97ac413dde5afd5bdcc3a5c36a4350b41fa1a",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "harnessSHA256": "ccc2ea95830a5df3d0b4f6146b9a19ded294c68001f7e094738cee59e9cc3ccb",
+  "timingHarnessSHA256": "ce30e94708f50aa183668e225fd8d2cbbf27608c741aee0b5385dbbf0b2d03d6",
+  "adapterSHA256": {
+    "test/native/rpcs3_spu_mfc_runtime.inc": "6f8dee2ac9ac26b4c299f3a37f01a7ac06fd150888ec1948ee6bea3184351395"
+  },
+  "productionMethods": [
+    "bool spu_thread::do_mfc(bool can_escape, bool must_finish)",
+    "u32 spu_thread::get_mfc_completed() const",
+    "bool spu_thread::check_mfc_interrupts(u32 next_pc)"
+  ],
+  "defaultShuffleLimit": 0,
+  "host": {
+    "system": "Linux",
+    "machine": "x86_64"
+  },
+  "hostMaskTiming": {
+    "iterationsPerSample": 1000000,
+    "samples": 7,
+    "cases": [
+      {
+        "shuffle": 0,
+        "queueSize": 16,
+        "baselineNs": [
+          12.8635,
+          10.8414,
+          11.7295,
+          11.1192,
+          11.3598,
+          11.6806,
+          11.6084
+        ],
+        "candidateNs": [
+          1.59634,
+          1.83954,
+          1.48236,
+          1.5111,
+          1.66292,
+          1.62423,
+          1.84826
+        ],
+        "baselineMedianNs": 11.6084,
+        "candidateMedianNs": 1.62423
+      },
+      {
+        "shuffle": 0,
+        "queueSize": 0,
+        "baselineNs": [
+          10.9152,
+          11.6238,
+          11.2961,
+          12.4271,
+          11.7408,
+          18.1815,
+          10.5396
+        ],
+        "candidateNs": [
+          1.69349,
+          1.73519,
+          1.60135,
+          1.83293,
+          5.5631,
+          1.51778,
+          1.63018
+        ],
+        "baselineMedianNs": 11.6238,
+        "candidateMedianNs": 1.69349
+      },
+      {
+        "shuffle": 1,
+        "queueSize": 16,
+        "baselineNs": [
+          10.9758,
+          11.0295,
+          10.6003,
+          11.5022,
+          11.3958,
+          11.0034,
+          11.8727
+        ],
+        "candidateNs": [
+          10.9884,
+          10.0931,
+          11.0745,
+          10.2501,
+          10.8881,
+          10.7719,
+          11.2208
+        ],
+        "baselineMedianNs": 11.0295,
+        "candidateMedianNs": 10.8881
+      },
+      {
+        "shuffle": 16,
+        "queueSize": 16,
+        "baselineNs": [
+          11.2372,
+          15.6812,
+          11.5504,
+          14.5105,
+          10.8306,
+          14.6044,
+          11.8739
+        ],
+        "candidateNs": [
+          10.6991,
+          11.9475,
+          10.545,
+          12.0388,
+          10.4653,
+          13.2727,
+          11.2821
+        ],
+        "baselineMedianNs": 11.8739,
+        "candidateMedianNs": 11.2821
+      }
+    ],
+    "sink": 3211415710041
+  },
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "realDMATransfersTested": false,
+  "concurrentMemoryOrderingTested": false,
+  "scope": "Compare the production MFC executor and mask with the device594 baseline.\n\nThe executor, mask, tag completion and interrupt bodies and MFC declarations\nare extracted verbatim. DMA/list transfers, channel delivery and escapes are\nexplicit deterministic adapters; their calls and order are compared. An\noptional plain-mode timing uses the actual host timestamp intrinsic and only\nmeasures mask generation, not DMA, guest execution or iPhone performance.\n"
+}

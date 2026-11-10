@@ -1,0 +1,32 @@
+{
+  "limits": [
+    "No Metal compilation, GPU execution, game, iPhone or frame measurement.",
+    "Programs A/B are composed around the real generated prologue; the full decompiler is not run."
+  ],
+  "schema": 1,
+  "shader_chain": "skipped: glslang, MoltenVK, SPIRV-Cross and its build are all required",
+  "source_contract": {
+    "levers_sha256": "42dea18801bafe08dc96b50fae2a5003f492fb498b97ea264d67b673a414a144",
+    "non_ios_line_unchanged": true,
+    "policy_cpp_sha256": "6ab3f2a71783cce85eabd12d2477bf24ed6b2d6b5392149d6065d6e167eedb3d",
+    "policy_h_sha256": "e6556e47f85ff6863452df70c085806b8d1ee406a1e29cab58656e27dc89e081",
+    "vertex_sha256": "bcba0cbe6063f916b02041345059a0aa9eeff59c9f5e872f030cf9fa263f4c8a"
+  },
+  "title_predicate": {
+    "result": "pass",
+    "scoped": [
+      "BLES01717",
+      "BLES00158",
+      "BLUS30089"
+    ],
+    "unscoped_checked": [
+      "BCES00510",
+      "BCUS98111",
+      "BLES01658",
+      "BLES00113",
+      "BLUS30070",
+      "BLUS31011",
+      "NPEB00000"
+    ]
+  }
+}

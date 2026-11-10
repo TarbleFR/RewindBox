@@ -1,0 +1,262 @@
+{
+  "date": "2026-10-29",
+  "baseline": "rpcs3-followup-verify (a363d923 canonical postimages)",
+  "scope": "Textures, formats, temporary-image reuse, copy bookkeeping and image transitions; no game-specific settings, full Core build, IPA or release",
+  "evidenceLevels": {
+    "code": "Production control flow and extracted methods; final reports authenticate source and generated C++",
+    "host": "GCC 13.3 x86_64 plain and ASan/UBSan adapters, not a Vulkan driver",
+    "iphone": "No new device execution. BO2 artifacts, AC torch flicker and GOW3 freeze are not demonstrated fixed",
+    "timing": "Only copy-input CPU bookkeeping is timed; GPU commands are replaced by recording boundaries"
+  },
+  "investigations": [
+    {
+      "id": "texture-native-view-reuse",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+        "rpcs3/Emu/RSX/VK/vkutils/image.cpp",
+        "rpcs3/Emu/RSX/VK/VKFormats.cpp"
+      ],
+      "functions": [
+        "create_new_texture",
+        "set_native_component_layout",
+        "get_view",
+        "get_component_mapping"
+      ],
+      "impact": "Correct channel/alpha interpretation when the same Vulkan storage is recycled across guest formats",
+      "evidence": "A8R8G8B8 and D8R8G8B8 map to B8G8R8A8_UNORM but have different native alpha mappings. Direct assignment previously left views and m_last_view intact. 6,095 stale selections among exhaustive remaps before, zero after",
+      "change": "Use the existing native-layout setter, which retires old views safely and invalidates last-view only if layout changes",
+      "risk": "Necessary view replacement when mapping changes; deferred retirement must remain. Unchanged mapping preserves pointer and allocation count",
+      "status": "implemented_verified_host",
+      "deviceStatus": "BO2/AC causality not established"
+    },
+    {
+      "id": "texture-pool-depth-mip-alias",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp"
+      ],
+      "functions": [
+        "hash_image_properties",
+        "find_cached_image"
+      ],
+      "impact": "Reject incompatible 3D allocations after collisions in the compact pool key",
+      "evidence": "The key uses depth starting at bit40 and mipmaps at bit48. For example depth512/mips1 and depth256/mips3 collide; both fit valid 3D geometry. The previous lookup checked only hash and usages",
+      "change": "Compare actual depth and mipmap count on a candidate hash hit",
+      "risk": "Additional scalar comparisons only on pool candidates; correct collisions become misses and may require another image",
+      "status": "implemented_verified_host",
+      "verification": "90,005 pool cases jointly cover depth/mips/classes, rejection without removal, bytes and lock lifetime"
+    },
+    {
+      "id": "texture-depth-format-class-alias",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+        "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+        "rpcs3/Emu/RSX/VK/VKFormats.cpp",
+        "rpcs3/Emu/RSX/VK/VKTexture.cpp"
+      ],
+      "functions": [
+        "find_cached_image",
+        "create_temporary_subresource_storage",
+        "create_new_texture",
+        "formats_are_bitcast_compatible",
+        "copy_image_to_buffer"
+      ],
+      "impact": "Preserve PS3 normalized-versus-float depth semantics when Vulkan format is identical",
+      "evidence": "DEPTH24_D8 on a device lacking D24 and DEPTH24_D8_FLOAT both use D32_SFLOAT_S8_UINT. Vk image format_class is immutable after construction and selects different pack/unpack compute jobs. It was absent from pool matching",
+      "change": "Pass the requested format class at both pool callers and require an exact class match",
+      "risk": "Fewer cross-class reuses can increase allocation churn under mixed depth usage, within the existing bounded pool; avoids incorrect conversions",
+      "status": "implemented_verified_host",
+      "verification": "2,050 wrong selections in combined original depth/mip/class cases, zero after; mixed-class list keeps rejected candidate for its rightful consumer"
+    },
+    {
+      "id": "texture-framebuffer-depth-classification",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+        "rpcs3/Emu/RSX/Common/TextureUtils.cpp",
+        "rpcs3/Emu/RSX/gcm_enums.h",
+        "rpcs3/Emu/RSX/Common/surface_utils.h"
+      ],
+      "functions": [
+        "cached_texture_section::create(surface)",
+        "get_surface_depth_format",
+        "get_compatible_gcm_format(surface_depth_format2)"
+      ],
+      "impact": "Correct guest width and floating interpretation of cached framebuffer depth",
+      "evidence": "Original ternary maps non-z16 to DEPTH16 and z16 to DEPTH24, also drops float variants. The actual accessor returns surface_depth_format2 with four variants and an overloaded comparison to typeless format",
+      "change": "Reuse the existing depth-format conversion helper; retain its byte-swap policy",
+      "risk": "Changes previously incorrect depth metadata consumed by flush/conversion paths. Color branch, dimensions and ownership remain unchanged",
+      "status": "implemented_verified_host",
+      "verification": "Eight real enum2 depth/color cases; all four depth formats wrong before and correct after, including z16_float/z24s8_float"
+    },
+    {
+      "id": "texture-storage-usage-flags",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+        "rpcs3/Emu/RSX/VK/VKPresent.cpp"
+      ],
+      "functions": [
+        "create_temporary_subresource_storage",
+        "VKPresent.cpp presentation conversion branch"
+      ],
+      "impact": "Create presentation conversion storage with transfer-source permission as requested by its real caller",
+      "evidence": "VKPresent requests TRANSFER_SRC|SAMPLED, writes a converted image then reads it for presentation. The storage constructor ignored usage_flags and hardcoded only TRANSFER_DST|SAMPLED",
+      "change": "OR requested flags with intrinsic TRANSFER_DST|SAMPLED before both pool lookup and image construction",
+      "risk": "A fresh presentation image now receives the usage required by its subsequent copy. A pool candidate missing intrinsic DST must be rejected; a superset remains reusable",
+      "status": "implemented_verified_host",
+      "verification": "Ten cases cover usage combinations0..7 and both pool rejection/superset acceptance; four flag omissions before, zero after"
+    },
+    {
+      "id": "texture-copy-small-source-set",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp"
+      ],
+      "functions": [
+        "copy_transfer_regions_impl"
+      ],
+      "impact": "Remove transient hash nodes and bucket allocations from copies of up to eight sections",
+      "evidence": "Every previous nonempty copy constructed an unordered_set and allocated at least a bucket and node. The final generic lambda selects the container once before iteration, using existing inline simple_array for at most eight sections",
+      "change": "One written copy/cast/scale body instantiated with inline or unordered source collection; source push/copy order and per-image pop count preserved",
+      "risk": "Code size: extracted host bookkeeping grows from 781 to 1,736 bytes including cold paths (+955 B). Complete Vulkan-body and iOS instruction-cache costs are not measured. The final host sample retains an 8.7% regression at 9 distinct sections; all raw trials and previous rejected variants remain available.",
+      "status": "implemented_host_measured",
+      "verification": "13,000 generated source sequences; no allocations for at most8 sections; 7 alternating timing trials retained for every case",
+      "hostFinalSummary": "At most 8 sections: 2–9 allocations/call become zero; median bookkeeping time decreases 60–86% in final x86_64 sample. At 32/256 sections, final medians improve; no iPhone or total texture-time claim."
+    },
+    {
+      "id": "texture-copy-rejected-per-iteration-selection",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp"
+      ],
+      "functions": [
+        "copy_transfer_regions_impl"
+      ],
+      "impact": "Tested attempt to reduce set work without duplicating loop instantiations",
+      "evidence": "insert().second variant regressed some long repeated-source lists. Restoring contains+insert but retaining a runtime branch per iteration still measured a45% regression for256 repeated sections",
+      "change": "Both runtime-branch variants removed; source-selection moved outside the loop",
+      "risk": "Do not authenticate rejected reports as current production performance",
+      "status": "rejected_after_measurement",
+      "reports": [
+        "texture-experimental-set.json",
+        "texture-branch-plain.json",
+        "texture-branch-asan.json"
+      ]
+    },
+    {
+      "id": "texture-cube-volume-redundant-clear",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+        "rpcs3/Emu/RSX/Common/texture_cache.h"
+      ],
+      "functions": [
+        "generate_cubemap_from_images",
+        "generate_3d_from_2d_images",
+        "copy_transfer_regions_fully_cover_image",
+        "expand_cube_unwrap_sections",
+        "expand_3d_unwrap_sections"
+      ],
+      "impact": "Avoid a GPU color-clear command when the following copies overwrite every mip and face/depth slice",
+      "evidence": "Cube unwrap explicitly supplies every face/mip yet generation always clears. Existing optimization only covered2D mip gathering. Coverage can be proven from full destination rectangles and distinct level/slice identities",
+      "change": "A bounded2048-bit coverage check skips the color clear only for complete copies; duplicate, missing, partial, offset, null, depth and oversized cases retain it. force_bg_load and barriers retain their exact order",
+      "risk": "Coverage model does not execute GPU typeless/scaled/MSAA copy operations. Their unchanged source bodies were compared and independently reviewed; real Metal behavior needs device execution",
+      "status": "implemented_verified_host",
+      "verification": "3,692 cases,657 complete-color cases omit a clear; independently painted destination texels match cleared-then-copied output"
+    },
+    {
+      "id": "texture-graphics-stage-scope",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp",
+        "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+        "rpcs3/Emu/RSX/VK/VKRenderTargets.cpp"
+      ],
+      "functions": [
+        "change_image_layout",
+        "validate_image_layout_for_read_access",
+        "render_target::resolve"
+      ],
+      "impact": "Include vertex texture reads in generic GENERAL and feedback transition scopes",
+      "evidence": "The renderer binds vertex textures; SHADER_READ_ONLY and explicit color-resolve barriers already cover vertex+fragment. Four generic GENERAL/feedback branches carried SHADER_READ with only fragment shader stage. Vulkan access scopes are limited by their stage masks",
+      "change": "Add VERTEX_SHADER at those four shader-read stage masks; preserve barriers, access flags, queue indices, ranges and renderpass order",
+      "risk": "Broader valid graphics synchronization can reduce overlap in those transitions; no throughput gain claimed. No broad compute stage or shader-write flag added",
+      "status": "implemented_verified_host",
+      "verification": "7,680 exact barrier-builder calls;1,152 absent vertex scopes before, zero after. Recorded Vulkan API boundary only",
+      "primarySource": "https://docs.vulkan.org/spec/latest/chapters/synchronization.html"
+    },
+    {
+      "id": "texture-compute-general-synchronization",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKRenderTargets.cpp",
+        "rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp",
+        "rpcs3/Emu/RSX/VK/VKTexture.cpp",
+        "rpcs3/Emu/RSX/VK/VKPresent.cpp"
+      ],
+      "functions": [
+        "resolve",
+        "unresolve",
+        "fsr_upscale_pass",
+        "copy_scaled_image",
+        "MetalFX presentation handoff"
+      ],
+      "impact": "Potential compute read/write hazards around GENERAL layout",
+      "evidence": "Color resolve/unresolve uses explicit compute read/write barriers. FSR1 input/intermediate/output and restore barriers are already explicit and byte-identical to baseline. Typeless transport uses transfer barriers. External MetalFX submits and drains the Vulkan/Metal queue handoff",
+      "change": "No blanket COMPUTE_SHADER addition to generic transitions",
+      "risk": "A broad stage flag would not repair missing SHADER_WRITE access semantics and may be invalid on a noncompute queue. This audit does not prove every future caller safe",
+      "status": "reviewed_no_new_change",
+      "nextEvidence": "A specific uncovered compute image producer/consumer sequence, not merely GENERAL layout, is required before changing these barriers"
+    },
+    {
+      "id": "texture-cpu-format-conversion-vectorization",
+      "paths": [
+        "rpcs3/Emu/RSX/Common/TextureUtils.cpp",
+        "rpcs3/Emu/RSX/VK/VKFormats.cpp"
+      ],
+      "functions": [
+        "convert_16_block_32",
+        "convert_16_block_32_swizzled",
+        "upload_texture_subresource",
+        "get_compatible_sampler_format"
+      ],
+      "impact": "Possible CPU conversion savings or accuracy defects in packed16-bit-to-BGRA converters",
+      "evidence": "The BGRA fallback converter block is selected only by __APPLE__ && ARCH_X64. The iOS ARM64 path selects native16-bit formats instead; optimizing that fallback would not accelerate this target",
+      "change": "No change to the inactive x64 fallback; native and hardware-upload paths preserved",
+      "risk": "BC decoding/CPU swizzle may still matter when relevant hardware capabilities are absent, but existing traces do not identify the active format distribution",
+      "status": "inactive_target_path_rejected",
+      "nextEvidence": "Existing device capability/format data or a focused capture proving a specific CPU conversion path is frequent"
+    },
+    {
+      "id": "texture-dynamic-native-mapping-invalidation",
+      "paths": [
+        "rpcs3/Emu/RSX/Common/texture_cache.h",
+        "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+        "rpcs3/Emu/RSX/VK/VKRenderTargets.h"
+      ],
+      "functions": [
+        "create_temporary_subresource",
+        "update_image_contents",
+        "notify_surface_changed",
+        "clone_surface"
+      ],
+      "impact": "A dynamic copy could theoretically retain destination native mapping if its source mapping changes without invalidation",
+      "evidence": "Dynamic cache hits update payload only, while clone_surface uses the proper native-layout setter. Normal surface-change notification invalidates overlapping temporary entries; no surviving real sequence was demonstrated where source mapping changes but invalidation is bypassed",
+      "change": "No speculative view mutation that could invalidate the common cache's original owning view",
+      "risk": "Changing the cached owning view requires accounting for its deferred lifetime; the prior remap wrapper intentionally retains ownership",
+      "status": "open_not_reproduced",
+      "nextEvidence": "A concrete source replacement/native-layout mutation and deferred descriptor sequence surviving notify_surface_changed"
+    }
+  ],
+  "finalReports": [
+    "texture-plain.json",
+    "texture-asan.json",
+    "texture-barriers.json"
+  ],
+  "limitations": [
+    "No iOS/ARM64/Core/IPA compilation, GPU validation layer or gameplay measurement",
+    "ASan/UBSan do not model GPU retirement; recorded view lifetimes supplement but do not replace device validation",
+    "LeakSanitizer disabled in the host environment; explicit constructed/destroyed view counts match",
+    "No claim that any specific BO2, AC or GOW3 symptom is solved",
+    "Historical pool527 fixture authenticates its old source/API; new tests replace affected lookup proof rather than replaying that fixed historical fixture"
+  ],
+  "independentReview": {
+    "reviewer": "cpu_native",
+    "initialStableCacheReview": "No blocking defect; typeless/scaled/MSAA GPU execution explicitly outside coverage proof",
+    "rootAdditionalReview": "Depth enum2 helper and preservation of intrinsic DST/SAMPLED usage checked",
+    "finalCacheReview": "CPU agent reviewed enum2 depth conversion, intrinsic/requested usage union, template selection and vertex scopes favorably. Template may duplicate the full GPU copy body; bookkeeping size is not a bound on full native code size."
+  }
+}

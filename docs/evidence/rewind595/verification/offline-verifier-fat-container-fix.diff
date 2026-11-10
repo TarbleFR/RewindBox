@@ -1,0 +1,131 @@
+--- verify_ipa595_offline.initial.py
++++ verify_ipa595_offline.py
+@@ -16,6 +16,7 @@
+ from pathlib import Path, PurePosixPath
+ import plistlib
+ import re
++import struct
+ import subprocess
+ import sys
+ import tempfile
+@@ -32,6 +33,18 @@
+ CORE_ZIP = (29118830, '4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad')
+ CORE_DIAGNOSTICS = (207828, '0c0e01d4a75affd50dc209223f6f974c31021658db7ae62fb59a356080b6d745')
+ MELONX_ZIP = (87451078, 'defa8224442ccd455c7fa0542702abd2711294461818664ef168711f4baff912')
++# These exact post-signing containers were observed in the authenticated IPA.
++# delivery_benchmark.seal() fingerprints only thin images before/after signing;
++# these hashes must not be represented as evidence of pre-signing equality.
++FAT_CONTAINERS = {
++    'Frameworks/App.framework/App': (23762512, '04b9a2b8ac4471a5704ae32645bc02a1ee7b981049f77370cd443b93065a05fd'),
++    'Frameworks/objective_c.framework/objective_c': (165392, '76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d'),
++    'Frameworks/sqlite3.framework/sqlite3': (1648496, 'b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3'),
++}
++MACHO_MAGICS = {
++    b'\xcf\xfa\xed\xfe', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xfe\xed\xfa\xce',
++    b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf', b'\xbe\xba\xfe\xca', b'\xbf\xba\xfe\xca',
++}
+ CODE_SHA256 = {
+     '.github/diagnostics/rpcs3runtime595_delivery_core.py': '3d972046396da51ed2f5a4e418ac113d902bfee92c70c42246de3b7604c53ee3',
+     '.github/diagnostics/rewind595_engine.py': 'e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a',
+@@ -268,6 +281,33 @@
+     return data
+ 
+ 
++def fat_image(data, name, benchmark):
++    """Account for each exact mono-ARM64 fat file, without inventing a CI seal."""
++    require(name in FAT_CONTAINERS, 'Unexpected fat Mach-O location: ' + name)
++    expected_size, expected_sha = FAT_CONTAINERS[name]
++    require(len(data) == expected_size and sha(data) == expected_sha,
++            'Post-signing fat Mach-O differs from the authenticated IPA: ' + name)
++    magic, count, cpu, subtype, offset, length, alignment = struct.unpack_from('>7I', data)
++    require((magic, count, cpu, subtype, offset, alignment) ==
++            (0xcafebabe, 1, 0x0100000c, 0, 16384, 14) and
++            offset + length == len(data) and data[28:offset] == bytes(offset - 28),
++            'Unexpected fat Mach-O architecture table or padding: ' + name)
++    payload = data[offset:offset + length]
++    require(payload[:4] == b'\xcf\xfa\xed\xfe', 'Fat slice is not thin ARM64: ' + name)
++    image = importlib.import_module('verify_ipa').macho(data)
++    require(image['architecture'] == 'arm64' and image['fileType'] == 6 and
++            image['platform'] == 2 and image['codeSignature'] is True and
++            image['id'] == '@rpath/' + name.removeprefix('Frameworks/'),
++            'Unexpected fat slice identity, platform or signature payload: ' + name)
++    return dict(container='fat32', bytes=len(data), sha256=sha(data),
++                architectureCount=count, architecture='arm64', cpuSubtype=subtype,
++                sliceOffset=offset, sliceBytes=length, sliceAlignmentExponent=alignment,
++                sliceSHA256=sha(payload), paddingZero=True, trailingBytes=0,
++                postSigningPayloadFingerprint=benchmark.payload_fingerprint(payload),
++                codeSignaturePayloadPresent=True, preSigningComparisonAvailable=False,
++                coveredByCISigningPreservationReport=False)
++
++
+ def verify_payload(args, mirror, rpc, melon, identity, source_hashes, transport):
+     artifact = args.artifact_root
+     report_hashes = {}
+@@ -309,16 +349,25 @@
+                 'Signing preservation receipt does not match this IPA')
+         benchmark = importlib.import_module('delivery_benchmark')
+         actual_images = {}
++        fat_images = {}
+         for name in names:
+             if name.endswith('/'):
+                 continue
+             with archive.open(name) as stream:
+                 magic = stream.read(4)
+-            if magic in (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf'):
+-                require(name.startswith(root) and magic == b'\xcf\xfa\xed\xfe', 'Unexpected Mach-O type/location')
+-                actual_images[name[len(root):]] = benchmark.payload_fingerprint(archive.read(name))
++            if magic in MACHO_MAGICS:
++                require(name.startswith(root), 'Unexpected Mach-O location: ' + name)
++                relative = name[len(root):]
++                if magic == b'\xcf\xfa\xed\xfe':
++                    actual_images[relative] = benchmark.payload_fingerprint(archive.read(name))
++                else:
++                    require(magic == b'\xca\xfe\xba\xbe', 'Unexpected Mach-O format: ' + name)
++                    fat_images[relative] = fat_image(archive.read(name), relative, benchmark)
+         require(len(actual_images) == 85 and actual_images == signed['images'],
+-                'Actual signed Mach-O payloads differ from the CI preservation report')
++                'Actual signed thin Mach-O payloads differ from the CI preservation report')
++        require(set(fat_images) == set(FAT_CONTAINERS) and not set(fat_images) & set(actual_images),
++                'Unexpected inventory of the three post-signing fat containers')
++        actual_image_paths = set(actual_images) | set(fat_images)
+         signatures = evidence_report(artifact, 'signature.json', report_hashes)
+         require(str(signatures['build']) == str(BUILD) and signatures['version'] == VERSION and
+                 signatures['bundleIdentifier'] == main['CFBundleIdentifier'] and
+@@ -365,15 +414,20 @@
+     require({k: v for k, v in structural.items() if k != 'ipa'} ==
+             {k: v for k, v in ci_structure.items() if k != 'ipa'},
+             'Actual IPA structure differs from the CI receipt')
+-    require(len(structural['machOImages']) == 85 and all(
+-        value['codeSignature'] is True for value in structural['machOImages'].values()),
+-        'A packaged Mach-O image has no signature payload')
++    require(len(structural['machOImages']) == 88 and
++            set(structural['machOImages']) == {root + name for name in actual_image_paths} and all(
++                value['codeSignature'] is True and value['architecture'] == 'arm64'
++                for value in structural['machOImages'].values()),
++            'The exhaustive 88-image inventory, architecture or signature payload differs')
+     return dict(result='passed', build=BUILD, version=VERSION, source=SOURCE, run=RUN, job=JOB,
+                 ipa=dict(name=args.ipa.name, sha256=ipa_sha, bytes=ipa_bytes, zipEntries=len(names), crcValid=True),
+                 transport=transport, applicationAndExtensions={name:dict(build=str(info['CFBundleVersion']),
+                     version=info['CFBundleShortVersionString']) for name, info in infos.items()},
+-                actualMachOImages=85, signingReportRecords=88,
+-                actualPayloadsMatchCISigningPreservationReport=True,
++                actualMachOImages=88, thinMachOImages=85, fatMachOContainers=3, signingReportRecords=88,
++                thinImagesFingerprint=actual_images, fatImages=fat_images,
++                actualThinPayloadsMatchCISigningPreservationReport=True,
++                signingPreservationCoverage=dict(thinImagesComparedBeforeAfterSigning=85,
++                                                fatImagesWithoutBeforeAfterFingerprints=3),
+                 signaturesReportedVerifiedByAppleCI=True, signatureCryptographicallyVerifiedHere=False,
+                 rpcS3=rpc_result, melonx=melon_result, hostStore=store,
+                 structuralValidation=structural['structuralValidation'],
+@@ -383,7 +437,10 @@
+                 nativeBinaryExecuted=False, compilerExecuted=False, physicalDeviceTested=False,
+                 gameplayMeasured=False, publicRelease=False,
+                 scope='Actual IPA structure and both signed cores compared with authenticated original archives. '
+-                      'All 85 code/data/ABI fingerprints match the Apple preservation receipt. '
++                      'All 85 thin-image code/data/ABI fingerprints match the Apple preservation receipt. '
++                      'The three exact fat containers have one ARM64 slice each and are included in the '
++                      'exhaustive 88-image structural inventory; their post-signing hashes and fingerprints '
++                      'are recorded, but no before/after-signing comparison exists for them. '
+                       'The 88 ad hoc signature checks remain Apple CI evidence; no local cryptographic codesign claim.')
+ 
+ 

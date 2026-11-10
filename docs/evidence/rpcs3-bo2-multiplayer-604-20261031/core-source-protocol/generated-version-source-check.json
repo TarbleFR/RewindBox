@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "status": "source-only protocol passed",
+  "generated_build_inputs": {
+    "rpcs3/git-version.h": {
+      "sha256": "1b5a7e82ba37f2b11817a532d78e49d4f5e187c540ee3f2ec6348bcd4c5f8ab3",
+      "bytes": 249,
+      "content": "// This is a generated file.\n\n#define RPCS3_GIT_VERSION \"1-22f11527\"\n#define RPCS3_GIT_BRANCH \"HEAD\"\n#define RPCS3_GIT_FULL_BRANCH \"local_build\"\n\n// If you don't want this file to update/recompile, change to 1.\n#define RPCS3_GIT_VERSION_NO_UPDATE 0\n",
+      "category": "generated build input; outside canonical native postimages",
+      "generator": {
+        "path": "rpcs3/git-version.cmake",
+        "sha256": "ff5ab78fe7e35c78f4fd7efe49d13e4bd5b85b99ff9070a36f74080f913696f0",
+        "git_blob": "51c41da9d7fe3aed7cffcd49d895a8c11030cd2a",
+        "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
+      },
+      "git_context": {
+        "head": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+        "count": "1",
+        "short": "22f11527",
+        "branch": "HEAD",
+        "generator_blob": "51c41da9d7fe3aed7cffcd49d895a8c11030cd2a"
+      },
+      "cmake_log_values": {
+        "RPCS3_GIT_VERSION": [
+          "1-22f11527"
+        ],
+        "RPCS3_GIT_BRANCH": [
+          "HEAD"
+        ],
+        "RPCS3_GIT_FULL_BRANCH": [
+          "local_build"
+        ]
+      }
+    }
+  },
+  "ordinary_files_preserved": 1860,
+  "symlink_map_preserved": true,
+  "submodule_pins_preserved": 28,
+  "canonical_postimages_unchanged": 326,
+  "cmake_version": "cmake version 4.4.4",
+  "actual_iphone_tested": false,
+  "core_built_by_this_check": false,
+  "native_harness_replayed": false,
+  "generated_header_modified_or_removed_after_audit": false
+}

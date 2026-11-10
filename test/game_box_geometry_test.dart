@@ -93,6 +93,78 @@ void main() {
     });
   });
 
+  group('one axis (docs/game-box-3d.md § 20)', () {
+    // Outline of every visible face at [pose], on screen.
+    (Offset, double) outline(GameBoxModel model, BoxPose pose) {
+      final pr = BoxProjector(model: model, viewport: const Size(400, 600), pose: pose);
+      var minX = double.infinity, maxX = -double.infinity;
+      var minY = double.infinity, maxY = -double.infinity;
+      for (final f in pr.project()) {
+        // A rounded front or back reaches its outline at the ends of its
+        // straight edges, not at the corners of its rectangle.
+        final r = f.face.surface == BoxSurface.front || f.face.surface == BoxSurface.back ? f.face.cornerRadius : 0.0;
+        final w = f.face.width, h = f.face.height;
+        final points = [
+          for (final (x, y) in [(r, 0.0), (w - r, 0.0), (w, r), (w, h - r), (w - r, h), (r, h), (0.0, h - r), (0.0, r)])
+            pr.screenPoint(f.part.id, f.face.origin + f.face.u * x + f.face.v * y)!,
+        ];
+        for (final o in points) {
+          minX = math.min(minX, o.dx);
+          maxX = math.max(maxX, o.dx);
+          minY = math.min(minY, o.dy);
+          maxY = math.max(maxY, o.dy);
+        }
+      }
+      return (Offset((minX + maxX) / 2, (minY + maxY) / 2), maxX - minX);
+    }
+
+    const families = ['ps3', 'switch', 'ds', '3ds', 'ps2', 'ps1', 'psp', 'vita', 'n64', 'snes', 'nes', 'gba', 'md', 'gc', 'wii'];
+
+    // Before the outline was centred, the box drifted about 17 px sideways
+    // and 15 px up on its way to the back (400 × 600 viewport).
+    test('turning to the back keeps the box on the same vertical axis', () {
+      for (final id in families) {
+        final model = GameBoxModel(GameBoxProfile.forSystem(id));
+        for (final (from, target) in [(BoxPose.rest, BoxPose.back), (BoxPose.back, BoxPose.front)]) {
+          final to = target.copyWith(yaw: from.yaw + BoxPose.shortestAngle(from.yaw, target.yaw));
+          for (var i = 0; i <= 40; i++) {
+            final (c, _) = outline(model, BoxPose.lerp(from, to, i / 40));
+            expect((c.dx - 200).abs(), lessThan(0.5), reason: '$id step $i: ${c.dx}');
+            expect((c.dy - 300).abs(), lessThan(0.5), reason: '$id step $i: ${c.dy}');
+          }
+        }
+      }
+    });
+
+    test('a full turn stays centred, tilted or not', () {
+      for (final id in families) {
+        final model = GameBoxModel(GameBoxProfile.forSystem(id));
+        for (final pitch in [0.0, 0.12, 0.6, -0.6]) {
+          for (var k = 0; k < 72; k++) {
+            final (c, w) = outline(model, BoxPose(yaw: k * math.pi / 36, pitch: pitch));
+            expect(w, greaterThan(4), reason: '$id: the box never vanishes');
+            expect((c - const Offset(200, 300)).distance, lessThan(1.0), reason: '$id ${k * 5}° pitch $pitch');
+          }
+        }
+      }
+    });
+
+    test('the back reached by the turn reads the right way up, not mirrored', () {
+      for (final id in families) {
+        final model = GameBoxModel(GameBoxProfile.forSystem(id));
+        final to = BoxPose.back.copyWith(yaw: BoxPose.rest.yaw + BoxPose.shortestAngle(BoxPose.rest.yaw, math.pi));
+        final faces = BoxProjector(model: model, viewport: const Size(400, 600), pose: to).project();
+        final back = faces.firstWhere((f) => f.face.surface == BoxSurface.back && !f.face.id.contains('corner'));
+        final topLeft = _project(back, 0, 0);
+        final topRight = _project(back, back.width, 0);
+        final bottomLeft = _project(back, 0, back.height);
+        expect(topRight.dx, greaterThan(topLeft.dx), reason: '$id: not mirrored');
+        expect(bottomLeft.dy, greaterThan(topLeft.dy), reason: '$id: upright');
+        expect((topRight.dy - topLeft.dy).abs(), lessThan(0.5), reason: '$id: level');
+      }
+    });
+  });
+
   group('opening', () {
     test('a keep case lid opens to the left of its hinge, the disc stays in its slot', () {
       final open = ps2.parts(const BoxOpening(lid: 1, support: 1));

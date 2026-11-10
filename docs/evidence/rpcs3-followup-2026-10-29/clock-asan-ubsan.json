@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "host": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "sourceBeforeSHA256": "d6e7b64c587189bc5ea7521ddafb106159cf65d8c23415211a3833c7dabd14e3",
+  "sourceAfterSHA256": "d51c354aa7958e5a2ffdda4457d38e5ed9201ddb3113a1828356c9ef0eec264f",
+  "harnessSHA256": "e495b88d70df504caa986828518868275724636e6591cec2e7d0ea3a5c389c5f",
+  "sanitized": true,
+  "leakSanitizer": false,
+  "hostFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-g",
+    "-UNDEBUG",
+    "-DRPCS3_IOS",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer"
+  ],
+  "offIOSUnchanged": true,
+  "results": {
+    "arithmeticCases": 459200,
+    "clockScaleOverflowCases": 271291,
+    "genericFrequencyCases": 291023,
+    "zeroFrequencyFallbackCases": 6
+  },
+  "physicalDeviceTested": false,
+  "coreCompiled": false,
+  "gameplayMeasured": false,
+  "scope": "Actual native sys_time.cpp helper bodies; runtime counter/config adapters; uint128 arithmetic oracle. Synthetic helper CPU timing only.",
+  "inputs": {
+    "test/rpcs3_clock_scale_test.py": "68c0f6e42a729370ec7e3826350d9ffb54d3ce2b9e96108659b3193c7a1bcaf4",
+    "test/native/rpcs3_clock_scale.inc": "6ddaf8a5f4040d18c938adb441725efce31d45ca88e19ce7b74c55a93357bc14"
+  }
+}

@@ -1,0 +1,15 @@
+/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-descriptor-bind-d2ey053n/baseline.cpp:160:19: error: unused variable 'cb_reuse' [-Werror,-Wunused-const-variable]
+  160 |     constexpr int cb_reuse = 1;
+      |                   ^~~~~~~~
+1 error generated.
+Traceback (most recent call last):
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_descriptor_bind_cache_test.py", line 196, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_descriptor_bind_cache_test.py", line 166, in main
+    subprocess.run(compiler + compile_flags + [str(cpp), '-o', str(exe)], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 692, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command ['/opt/homebrew/opt/llvm@22/bin/clang++', '-std=c++20', '-g', '-Wall', '-Wextra', '-Werror', '-UNDEBUG', '-isysroot', '/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk', '-O3', '/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-descriptor-bind-d2ey053n/baseline.cpp', '-o', '/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/rpcs3-descriptor-bind-d2ey053n/baseline-desktop'] returned non-zero exit status 1.

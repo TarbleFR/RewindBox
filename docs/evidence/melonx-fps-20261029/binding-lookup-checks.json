@@ -1,0 +1,271 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "adapted": false,
+      "checks": 15531,
+      "collisionCases": [
+        {
+          "kind": "buffer",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 32,
+          "comparisonsPerHit": 16.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 128,
+          "comparisonsPerHit": 64.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 512,
+          "comparisonsPerHit": 256.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 32,
+          "comparisonsPerHit": 16.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 128,
+          "comparisonsPerHit": 64.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 512,
+          "comparisonsPerHit": 256.5,
+          "distinctHashes": 1
+        }
+      ],
+      "behavior": {
+        "bufferEntriesAfterEviction": 1,
+        "poolEntriesAfterRemoval": 0,
+        "textureSinks": 4,
+        "imageSinks": 2,
+        "textureDisposals": 3,
+        "imageDisposals": 2,
+        "bindingCalls": 20083
+      },
+      "warmedCacheHits": [
+        {
+          "count": 1,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 91.1238,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 32,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 135.3438,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 128,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 266.35882,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 512,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 811.52988,
+          "bytesPerHit": 0
+        }
+      ],
+      "tieredCompilation": "0",
+      "physicalDeviceTested": false
+    },
+    "candidate": {
+      "adapted": true,
+      "checks": 15531,
+      "collisionCases": [
+        {
+          "kind": "buffer",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 32,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 32
+        },
+        {
+          "kind": "buffer",
+          "count": 128,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 128
+        },
+        {
+          "kind": "buffer",
+          "count": 512,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 512
+        },
+        {
+          "kind": "pool",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 32,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 32
+        },
+        {
+          "kind": "pool",
+          "count": 128,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 128
+        },
+        {
+          "kind": "pool",
+          "count": 512,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 512
+        }
+      ],
+      "behavior": {
+        "bufferEntriesAfterEviction": 1,
+        "poolEntriesAfterRemoval": 0,
+        "textureSinks": 4,
+        "imageSinks": 2,
+        "textureDisposals": 3,
+        "imageDisposals": 2,
+        "bindingCalls": 20083
+      },
+      "warmedCacheHits": [
+        {
+          "count": 1,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 110.16076,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 32,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 112.81348,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 128,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 116.08774,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 512,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 114.55526,
+          "bytesPerHit": 0
+        }
+      ],
+      "tieredCompilation": "0",
+      "physicalDeviceTested": false
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionCache": true,
+  "completeProductionKeysAndBounds": true,
+  "gpuBoundaryDoubles": true,
+  "timingGate": false,
+  "inputs": {
+    "build-utils/melonx/adapt_binding_lookup.py": "e665fca9e2947fa204777e7484c0e8a2cbf2bcf19be88864d1144586968d094a",
+    "build-utils/melonx/adapt_bindless_allocations.py": "22b9e06b1f1d8461c29bb03957315c44ba887290a8073d51dc6df33e587baca2",
+    "test/melonx_binding_lookup_test.py": "faa420a4a6d1c1b7803e6a78d1510414512579f7b16b757ce89d4b6b0e6c6d25",
+    "test/melonx_binding_lookup/Program.cs": "7f9e780636090ca8a09412ae83335c628dba934c7f236b51255b05e6f8b4f2fb",
+    "test/melonx_bindless_allocations/Program.cs": "33eb6c5407357d886554b32109b4fc482b3b34d687b6f4073bf510352833816e"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "98091c9d255bb7b37c17cd9aa0bf70465f165647d0c54c960dae49636b6ea08e",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingInfo.cs": "40b2bfc915ba2cbfaa8feab47ea94d9b457ea1d25e66bca3c6ba483e5be49111",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferBounds.cs": "5bdb7da532d62b8975c703e5384bee3fd4041fdbf083ccb115b54cfa65b957e3",
+    "src/Ryujinx.Graphics.Gpu/Engine/Types/SamplerIndex.cs": "3a2bfb55d0f7bb4e5bb29c32259d87f7bbfaa6808c780e8e467b39cb6600c335",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Graphics.Shader/TextureHandle.cs": "e72ac096d6dddcb57db0831fbf2e6d1269708f6e08446cc5f0ac5b9815c931d3",
+    "src/Ryujinx.Graphics.Shader/TextureUsageFlags.cs": "4526e5f4fa048afdc1b7c3da31d4c4c89f32b52f75858a5676842774b1340c1d",
+    "src/Ryujinx.Graphics.Shader/BufferUsageFlags.cs": "e02fbe338d658331ddccd46181c65f9cb6b1c89043c8fd027795cc18641e233f",
+    "src/Ryujinx.Graphics.Shader/ShaderStage.cs": "bbf921732d94ce25c928a9e7ea955bcb60e26245b150046869f939940e2a25d8",
+    "src/Ryujinx.Graphics.GAL/Target.cs": "efd7e8d90b9613b320051106f0c25fa3441ecc9490fd2eb11d9f01a1280dab4a",
+    "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "5dd236e731089d04967d4c6ba7551a7b69450154e4800d925dc022c01883f3db",
+    "src/Ryujinx.Graphics.GAL/IImageArray.cs": "9f030d7bbe15ed180d92b1f588635100a7e9ffff040f6450df24bf08d7f778ea",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/IGALCommand.cs": "eaa488cca3edf751a90bc88c82542970150e0bcf3317f779e085a660168ac8ec",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs": "28d25c638e21ee2d8073a20098c7457e702f991ff044165fd299c5953fd73884",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs": "3a4dd3e3160276f2ff1357231917f0f85d6b73a415bfe0362f51f7e23747bd10",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetTexturesCommand.cs": "22301eaa20d9d27ee7050256d3b25e6e4f2c7f60eda4e2175c2d5bdeaf7e1733",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetSamplersCommand.cs": "60fa23b67669ee91a43dc1c79bbccc13ebcf5c7b0746d303de571079a774c438",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArrayDisposeCommand.cs": "99447090c4a79a7a0a766a49de05d283a4bbc55a4e91d7158837c172b2a1ff50",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArraySetImagesCommand.cs": "de871d1c8fc9eaf6796fbc1d841698e15194ef6ad9932d340125befac7d4960a",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArrayDisposeCommand.cs": "f8e139f1db1c81ec0df9ce7205e21ccf9a691bef4ab6aea06644d1b74740c3d4"
+  },
+  "baselinePreparation": {
+    "inputCacheSha256": "98091c9d255bb7b37c17cd9aa0bf70465f165647d0c54c960dae49636b6ea08e",
+    "allocationsAdapterApplied": true,
+    "controlCacheSha256": "8f2ff30af6f8577e3c8102118543ac52915d62c80eeee134f2eec7866f4dde6a"
+  },
+  "preparedBaselineInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "8f2ff30af6f8577e3c8102118543ac52915d62c80eeee134f2eec7866f4dde6a",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingInfo.cs": "40b2bfc915ba2cbfaa8feab47ea94d9b457ea1d25e66bca3c6ba483e5be49111",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferBounds.cs": "5bdb7da532d62b8975c703e5384bee3fd4041fdbf083ccb115b54cfa65b957e3",
+    "src/Ryujinx.Graphics.Gpu/Engine/Types/SamplerIndex.cs": "3a2bfb55d0f7bb4e5bb29c32259d87f7bbfaa6808c780e8e467b39cb6600c335",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Graphics.Shader/TextureHandle.cs": "e72ac096d6dddcb57db0831fbf2e6d1269708f6e08446cc5f0ac5b9815c931d3",
+    "src/Ryujinx.Graphics.Shader/TextureUsageFlags.cs": "4526e5f4fa048afdc1b7c3da31d4c4c89f32b52f75858a5676842774b1340c1d",
+    "src/Ryujinx.Graphics.Shader/BufferUsageFlags.cs": "e02fbe338d658331ddccd46181c65f9cb6b1c89043c8fd027795cc18641e233f",
+    "src/Ryujinx.Graphics.Shader/ShaderStage.cs": "bbf921732d94ce25c928a9e7ea955bcb60e26245b150046869f939940e2a25d8",
+    "src/Ryujinx.Graphics.GAL/Target.cs": "efd7e8d90b9613b320051106f0c25fa3441ecc9490fd2eb11d9f01a1280dab4a",
+    "src/Ryujinx.Graphics.GAL/ITextureArray.cs": "5dd236e731089d04967d4c6ba7551a7b69450154e4800d925dc022c01883f3db",
+    "src/Ryujinx.Graphics.GAL/IImageArray.cs": "9f030d7bbe15ed180d92b1f588635100a7e9ffff040f6450df24bf08d7f778ea",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/IGALCommand.cs": "eaa488cca3edf751a90bc88c82542970150e0bcf3317f779e085a660168ac8ec",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedTextureArray.cs": "13f0a8514b2bca94c6bdb4fac560b6fea6551459b7f0f035db75411d03e01c03",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedImageArray.cs": "2280f3d9484e932f1927605847e14e9b9dd105291dd727321b0c6006b47fb2b2",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetTexturesCommand.cs": "a0e10d0d5a315d4fbd7e43351cf9e7c5bd3832ee4fbc7bac2567ce0770b91428",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArraySetSamplersCommand.cs": "646a37b792bec9a4db04ce4a9d9d9eab162d37cad91cb61c4a52853f2fc3afe0",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/TextureArray/TextureArrayDisposeCommand.cs": "99447090c4a79a7a0a766a49de05d283a4bbc55a4e91d7158837c172b2a1ff50",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArraySetImagesCommand.cs": "ef59fcd001f339e97d4c575c425b36a18f26d09906f17e1601998245933b47f9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArrayDisposeCommand.cs": "f8e139f1db1c81ec0df9ce7205e21ccf9a691bef4ab6aea06644d1b74740c3d4"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "b27962d8c7fcb4316ac45be63a91525f58e8215808b8a78c9dbcef6c897217d3"
+  }
+}

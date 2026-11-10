@@ -1,0 +1,36 @@
+{
+  "result": "passed",
+  "sourceBaseCommit": "571dbc0849caa55c76be797b649c8abf79de5053",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "sdk": "10.0.100",
+  "configuration": "Release",
+  "target": "src/Ryujinx.Library",
+  "platform": "Linux x64 managed compilation only",
+  "testOnlyMsbuildProperties": {
+    "BuildInParallel": false,
+    "PublishAot": false,
+    "UseNativeAOTRuntime": false,
+    "RuntimeIdentifier": "linux-x64",
+    "RuntimeIdentifiers": "linux-x64",
+    "SelfContained": false,
+    "NuGetAudit": false
+  },
+  "nuget": "Offline cached packages and existing LibHac feed",
+  "completeBuild": {
+    "elapsedSeconds": 103.74,
+    "warnings": 27,
+    "errors": 0,
+    "logSha256": "dd8f22ff3ba262eb88b1e11f63f8b52ecd30bf02689f5f9c1f706972835e7f18"
+  },
+  "finalIncrementalBuild": {
+    "elapsedSeconds": 10.26,
+    "warnings": 2,
+    "errors": 0,
+    "logSha256": "42fb087043dd9ca27fc576132f75f43d20dedecc587a68a8567d3862d1620c12"
+  },
+  "compiledSourceMatchesFreshPreparation": true,
+  "sourceAndProjectFilesCompared": 4095,
+  "embeddedInputsSha256": "06dfbf6f9dce609a1e2faa462d3f4c47e1e7ca1c13c929f86ad434a9481a20a6",
+  "physicalDeviceTested": false,
+  "appleNativeAotTestedByThisReceipt": false
+}

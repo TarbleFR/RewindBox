@@ -1,3 +1,4 @@
+import '../../widgets/glass/glass_surface.dart';
 import '../../widgets/neo_glass_bubble.dart';
 import 'dart:io';
 
@@ -447,18 +448,28 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
   }
 
   Widget _buildLeftMenu(ThemeData theme) {
-    return Container(
+    final glass = LiquidGlassTheme.of(context);
+    // Category rail: the standard gap between its independent bubbles; its
+    // optional translucent panel never blurs such a large area.
+    final bubbleGap = glass.gap * 0.75;
+    // Floating bubbles by default: the rail's panel is only drawn when the
+    // user asks for it (Settings › Themes › User interface).
+    final panel = glass.settings.showSideMenuPanel;
+    return GlassSurface(
+      key: const ValueKey('side-menu-rail'),
+      role: GlassRole.rail,
+      radius: BorderRadius.zero,
+      borderWidth: 0,
+      rimColor: Colors.transparent,
+      showSheen: false,
+      fillColor: panel ? null : Colors.transparent,
+      shadow: panel ? null : GlassShadow.none,
       width: MediaQuery.of(context).size.width * 0.25,
-      decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
-        border: Border(
-          right: BorderSide(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-            width: 1.r,
-          ),
-        ),
-      ),
       child: ListView.builder(
+        padding: EdgeInsets.symmetric(
+          horizontal: glass.margin * 0.45,
+          vertical: bubbleGap,
+        ),
         itemCount: _menuItems.length,
         itemBuilder: (context, index) {
           final item = _menuItems[index];
@@ -466,44 +477,52 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
 
           final isSelected = _selectedMenuIndex == index;
 
-          return Material(
-            key: isSelected ? _selectedMenuItemKey : null,
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                SfxService().playNavSound();
-                _onMenuItemSelected(index);
-              },
-              canRequestFocus: false,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              splashColor: Colors.transparent,
-              child: NeoGlassBubble(
-                selected: isSelected,
-                radius: 22.r,
-                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 12.r),
-                child: Row(
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: theme.colorScheme.onSurface,
-                      size: 20.r,
-                    ),
-                    SizedBox(width: 12.r),
-                    Expanded(
-                      child: Text(
-                        item.localeKey.getString(context),
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          fontSize: 14.r,
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == _menuItems.length - 1 ? 0 : bubbleGap,
+            ),
+            child: Material(
+              key: isSelected ? _selectedMenuItemKey : null,
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  SfxService().playNavSound();
+                  _onMenuItemSelected(index);
+                },
+                canRequestFocus: false,
+                focusColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                child: NeoGlassBubble(
+                  selected: isSelected,
+                  radius: 22.r,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.r,
+                    vertical: 12.r,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        color: theme.colorScheme.onSurface,
+                        size: 20.r,
+                      ),
+                      SizedBox(width: 12.r),
+                      Expanded(
+                        child: Text(
+                          item.localeKey.getString(context),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            fontSize: 14.r,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -514,10 +533,10 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
   }
 
   Widget _buildRightContent(ThemeData theme) {
+    final glass = LiquidGlassTheme.of(context);
     return Expanded(
-      child: Container(
-        color: Colors.transparent,
-        padding: EdgeInsets.all(16.r),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(glass.margin, glass.gap, glass.margin, 0),
         child: _buildContentForSelectedMenu(theme),
       ),
     );

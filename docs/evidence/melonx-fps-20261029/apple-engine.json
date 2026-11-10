@@ -1,0 +1,982 @@
+{
+  "result": "passed",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "sourceCommit": "9dd570ee71c5df9edb5a593c90e1757e17f57d93",
+  "sourceTree": "6da9529ee77447cdd63fbd51e970c09e99c076a0",
+  "runId": 40827952992,
+  "runNumber": 81,
+  "runAttempt": 1,
+  "runUrl": "https://github.com/TarbleFR/RewindBox/actions/runs/40827952992",
+  "jobId": 123295238079,
+  "startedAt": "2026-10-29T06:13:52Z",
+  "completedAt": "2026-10-29T06:28:39Z",
+  "artifact": {
+    "id": 12878071074,
+    "name": "MeloNX-engine-9dd570ee71c5df9edb5a593c90e1757e17f57d93",
+    "sizeBytes": 102641031,
+    "digest": "sha256:157d76bd129af0c1e04acc878259c795c4982d188a340101b1b4e2b9f7b4eb52",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40827952992/artifacts/12878071074",
+    "expiresAt": "2026-11-12T06:28:24Z",
+    "digestSource": "GitHub upload log and artifact API agree",
+    "downloadedAndRehashedInThisSession": false
+  },
+  "relevantSteps": [
+    {
+      "name": "Verify exact pipeline hashes, amortized cache growth and lookup behavior",
+      "result": "success",
+      "startedAt": "2026-10-29T06:18:09Z",
+      "completedAt": "2026-10-29T06:18:20Z"
+    },
+    {
+      "name": "Verify bindless cache hash distribution and identical binding decisions",
+      "result": "success",
+      "startedAt": "2026-10-29T06:18:20Z",
+      "completedAt": "2026-10-29T06:18:26Z"
+    },
+    {
+      "name": "Verify unchanged buffer assignments preserve descriptor invalidation",
+      "result": "success",
+      "startedAt": "2026-10-29T06:18:26Z",
+      "completedAt": "2026-10-29T06:18:30Z"
+    },
+    {
+      "name": "Verify memory tracking locality and callback topology changes",
+      "result": "success",
+      "startedAt": "2026-10-29T06:18:30Z",
+      "completedAt": "2026-10-29T06:18:41Z"
+    },
+    {
+      "name": "Verify ordered texture-region intersection and fragmented fallbacks",
+      "result": "success",
+      "startedAt": "2026-10-29T06:18:41Z",
+      "completedAt": "2026-10-29T06:18:48Z"
+    },
+    {
+      "name": "Compile NativeAOT library and verify exported ABI",
+      "result": "success",
+      "startedAt": "2026-10-29T06:19:26Z",
+      "completedAt": "2026-10-29T06:23:57Z"
+    },
+    {
+      "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+      "result": "success",
+      "startedAt": "2026-10-29T06:24:01Z",
+      "completedAt": "2026-10-29T06:28:23Z"
+    }
+  ],
+  "pipelineLookup": {
+    "result": "passed",
+    "reports": [
+      {
+        "result": "passed",
+        "mode": "control",
+        "checks": 11355,
+        "removedValueRetained": true,
+        "insertionAllocatedBytes": 8519680,
+        "insertionBuckets": 16,
+        "insertionLargestBucket": 256,
+        "insertionAndLookupHashCalls": 12288,
+        "pipelineCount": 512,
+        "pipelineUidBytes": 1280,
+        "pipelineInsertionAllocatedBytes": 170213376,
+        "pipelineDistinctHashes": 1,
+        "pipelineEqualityChecks": 131328,
+        "lookupIterations": 8192,
+        "medianWarmLookupMilliseconds": 24.6535,
+        "physicalDeviceTested": false,
+        "distributedCaches": [
+          {
+            "count": 1,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4012
+          },
+          {
+            "count": 4,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.408
+          },
+          {
+            "count": 16,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.9967
+          },
+          {
+            "count": 64,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 1.2166
+          },
+          {
+            "count": 512,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 1.4097
+          }
+        ],
+        "warmupIterations": 8192,
+        "timingSamples": 5,
+        "tieredCompilation": false,
+        "sink": 27107328
+      },
+      {
+        "result": "passed",
+        "mode": "table",
+        "checks": 11355,
+        "removedValueRetained": false,
+        "insertionAllocatedBytes": 259448,
+        "insertionBuckets": 512,
+        "insertionLargestBucket": 8,
+        "insertionAndLookupHashCalls": 8192,
+        "pipelineCount": 512,
+        "pipelineUidBytes": 1280,
+        "pipelineInsertionAllocatedBytes": 1825344,
+        "pipelineDistinctHashes": 1,
+        "pipelineEqualityChecks": 131328,
+        "lookupIterations": 8192,
+        "medianWarmLookupMilliseconds": 14.9814,
+        "physicalDeviceTested": false,
+        "distributedCaches": [
+          {
+            "count": 1,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.3857
+          },
+          {
+            "count": 4,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4033
+          },
+          {
+            "count": 16,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4215
+          },
+          {
+            "count": 64,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4597
+          },
+          {
+            "count": 512,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.5671
+          }
+        ],
+        "warmupIterations": 8192,
+        "timingSamples": 5,
+        "tieredCompilation": false,
+        "sink": 27107328
+      },
+      {
+        "result": "passed",
+        "mode": "candidate",
+        "checks": 11355,
+        "removedValueRetained": false,
+        "insertionAllocatedBytes": 259448,
+        "insertionBuckets": 512,
+        "insertionLargestBucket": 8,
+        "insertionAndLookupHashCalls": 8192,
+        "pipelineCount": 512,
+        "pipelineUidBytes": 1280,
+        "pipelineInsertionAllocatedBytes": 2685288,
+        "pipelineDistinctHashes": 512,
+        "pipelineEqualityChecks": 512,
+        "lookupIterations": 8192,
+        "medianWarmLookupMilliseconds": 0.5533,
+        "physicalDeviceTested": false,
+        "distributedCaches": [
+          {
+            "count": 1,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.3982
+          },
+          {
+            "count": 4,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4334
+          },
+          {
+            "count": 16,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4581
+          },
+          {
+            "count": 64,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.4904
+          },
+          {
+            "count": 512,
+            "iterations": 8192,
+            "medianWarmLookupMilliseconds": 0.7214
+          }
+        ],
+        "warmupIterations": 8192,
+        "timingSamples": 5,
+        "tieredCompilation": false,
+        "sink": 27107328
+      }
+    ],
+    "physicalDeviceTested": false,
+    "completeProductionClasses": true,
+    "nativeCallsUsed": false,
+    "silkVulkanVersion": "2.22.0",
+    "runtimeEnvironment": {
+      "DOTNET_TieredCompilation": "0"
+    },
+    "inputs": {
+      "build-utils/melonx/adapt_pipeline_lookup.py": "ea3973a7f9b3e6ce642e193b630939a3e0f7a316e30038d25d2b14c9e7a2e912",
+      "test/melonx_pipeline_lookup_test.py": "ff235457dec56cbeed9f96c44b0cee623e561450919dcd986c74b5a3f64691bc",
+      "test/melonx_pipeline_lookup/Program.cs": "955fb91cc08c3dc41719154b68157ee8871762937efb16ffd0025ed830446c73"
+    },
+    "upstreamInputs": {
+      "src/Ryujinx.Graphics.Vulkan/HashTableSlim.cs": "22f8a03d266f8e6f8107559de967d6e3f5d56dd023635691427f697a3576ade8",
+      "src/Ryujinx.Graphics.Vulkan/PipelineUid.cs": "86f9ee7b54de323f80da642276262d1c1906a385dc7b0e7089b3755b3afa9ff3",
+      "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+      "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b"
+    }
+  },
+  "bindingLookup": {
+    "control": {
+      "adapted": false,
+      "checks": 15531,
+      "collisionCases": [
+        {
+          "kind": "buffer",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 32,
+          "comparisonsPerHit": 16.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 128,
+          "comparisonsPerHit": 64.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 512,
+          "comparisonsPerHit": 256.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 32,
+          "comparisonsPerHit": 16.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 128,
+          "comparisonsPerHit": 64.5,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 512,
+          "comparisonsPerHit": 256.5,
+          "distinctHashes": 1
+        }
+      ],
+      "behavior": {
+        "bufferEntriesAfterEviction": 1,
+        "poolEntriesAfterRemoval": 0,
+        "textureSinks": 4,
+        "imageSinks": 2,
+        "textureDisposals": 3,
+        "imageDisposals": 2,
+        "bindingCalls": 20083
+      },
+      "warmedCacheHits": [
+        {
+          "count": 1,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 96.29084,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 32,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 175.28084,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 128,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 383.64666,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 512,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 1158.0175,
+          "bytesPerHit": 0
+        }
+      ],
+      "tieredCompilation": "0",
+      "physicalDeviceTested": false
+    },
+    "candidate": {
+      "adapted": true,
+      "checks": 15531,
+      "collisionCases": [
+        {
+          "kind": "buffer",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "buffer",
+          "count": 32,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 32
+        },
+        {
+          "kind": "buffer",
+          "count": 128,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 128
+        },
+        {
+          "kind": "buffer",
+          "count": 512,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 512
+        },
+        {
+          "kind": "pool",
+          "count": 1,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 1
+        },
+        {
+          "kind": "pool",
+          "count": 32,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 32
+        },
+        {
+          "kind": "pool",
+          "count": 128,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 128
+        },
+        {
+          "kind": "pool",
+          "count": 512,
+          "comparisonsPerHit": 1,
+          "distinctHashes": 512
+        }
+      ],
+      "behavior": {
+        "bufferEntriesAfterEviction": 1,
+        "poolEntriesAfterRemoval": 0,
+        "textureSinks": 4,
+        "imageSinks": 2,
+        "textureDisposals": 3,
+        "imageDisposals": 2,
+        "bindingCalls": 20083
+      },
+      "warmedCacheHits": [
+        {
+          "count": 1,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 87.3,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 32,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 100.76334,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 128,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 102.59666,
+          "bytesPerHit": 0
+        },
+        {
+          "count": 512,
+          "warmup": 20000,
+          "iterations": 50000,
+          "samples": 5,
+          "medianNanosecondsPerHit": 117.50084,
+          "bytesPerHit": 0
+        }
+      ],
+      "tieredCompilation": "0",
+      "physicalDeviceTested": false
+    }
+  },
+  "descriptorUpdates": {
+    "control": {
+      "adapted": false,
+      "checks": 44,
+      "measurements": [
+        {
+          "kind": "uniform",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 29.87334,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "storage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 31.70666,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "directStorage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 0,
+          "medianNanosecondsPerAssignmentAndDraw": 28.89668,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "uniformPush",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 250000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 21.65334,
+          "bytesPerIteration": 0
+        }
+      ],
+      "productionMethodsVerbatim": true,
+      "nativeVulkanCallsDoubled": true,
+      "tieredCompilation": "0"
+    },
+    "candidate": {
+      "adapted": true,
+      "checks": 44,
+      "measurements": [
+        {
+          "kind": "uniform",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 9.32582,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "storage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 11.47584,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "directStorage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 0,
+          "medianNanosecondsPerAssignmentAndDraw": 12.5875,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "uniformPush",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 16.81334,
+          "bytesPerIteration": 0
+        }
+      ],
+      "productionMethodsVerbatim": true,
+      "nativeVulkanCallsDoubled": true,
+      "tieredCompilation": "0"
+    }
+  },
+  "memoryTracking": {
+    "control": {
+      "ownership": {
+        "adapted": false,
+        "checks": 28,
+        "semanticTrace": "09A3050C23F853A9AB5642B0F2B6897814E36BCEC13691422DBF64CE95D8A625",
+        "traceEvents": 26820,
+        "ownership": {
+          "hotSearches": 1000,
+          "hotRents": 1000,
+          "changingRents": 1000,
+          "exceptionRents": 1,
+          "exceptionReturns": 0
+        },
+        "physicalDeviceTested": false,
+        "nativeMemoryProtectionDoubled": true
+      },
+      "timing": {
+        "adapted": false,
+        "checks": 1,
+        "benchmark": {
+          "regionCount": 4096,
+          "signals": 3120000,
+          "measurements": [
+            {
+              "mode": "same-region",
+              "nanosecondsPerEvent": 173.43133333333333,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            },
+            {
+              "mode": "changing-region",
+              "nanosecondsPerEvent": 391.09066666666666,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            },
+            {
+              "mode": "multi-region",
+              "nanosecondsPerEvent": 524.5713333333333,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            }
+          ]
+        },
+        "physicalDeviceTested": false,
+        "uninstrumentedProductionBodies": true
+      }
+    },
+    "candidate": {
+      "ownership": {
+        "adapted": true,
+        "checks": 726,
+        "semanticTrace": "09A3050C23F853A9AB5642B0F2B6897814E36BCEC13691422DBF64CE95D8A625",
+        "traceEvents": 26820,
+        "ownership": {
+          "hotSearches": 2,
+          "hotRents": 0,
+          "changingRents": 0,
+          "exceptionRents": 1,
+          "exceptionReturns": 1
+        },
+        "physicalDeviceTested": false,
+        "nativeMemoryProtectionDoubled": true
+      },
+      "timing": {
+        "adapted": true,
+        "checks": 1,
+        "benchmark": {
+          "regionCount": 4096,
+          "signals": 3120000,
+          "measurements": [
+            {
+              "mode": "same-region",
+              "nanosecondsPerEvent": 28.374666666666666,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            },
+            {
+              "mode": "changing-region",
+              "nanosecondsPerEvent": 383.738,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            },
+            {
+              "mode": "multi-region",
+              "nanosecondsPerEvent": 546.2126666666667,
+              "allocatedBytes": 0,
+              "iterations": 150000,
+              "repeats": 5
+            }
+          ]
+        },
+        "physicalDeviceTested": false,
+        "uninstrumentedProductionBodies": true
+      }
+    }
+  },
+  "textureOverlap": {
+    "control": {
+      "mode": "control",
+      "checks": 12170,
+      "resultDigest": "a7f9059e5b001b77",
+      "covered": {
+        "padded-disjoint-data": 1,
+        "first-region-match": 1,
+        "last-layer-match": 1,
+        "touching-last-end": 1,
+        "one-byte-overlap": 1,
+        "separate-allocations": 1,
+        "linear-vs-array": 1,
+        "linear-in-padding": 1,
+        "single-touching": 1,
+        "zero-sized-existing-semantics": 1,
+        "high-valid-address": 1,
+        "overflowing-address-fallback": 1,
+        "unmapped-fallback": 1,
+        "short-mapping-wrapped-region": 1,
+        "short-mapping-first-match": 1,
+        "short-mapping-slice-exception": 1,
+        "layout-validation-initial": 1,
+        "invalid-layout-first-pair-match": 1,
+        "validated-layout-remapped-short": 1,
+        "overflow-layout-original-exception": 1,
+        "layout-validation-reinitialized": 1,
+        "3d-identical": 216,
+        "3d-layout-exception": 216,
+        "3d-last-byte": 216,
+        "3d-touching": 216,
+        "contiguous-contiguous": 100,
+        "random-layout-compatibility": 2500,
+        "remapped-contiguous": 100,
+        "remapped-fragmented": 100,
+        "fragmented-contiguous": 100,
+        "reversed-contiguous": 100,
+        "holes-contiguous": 100,
+        "alias-contiguous": 100,
+        "contiguous-fragmented": 100,
+        "fragmented-fragmented": 100,
+        "reversed-fragmented": 100,
+        "holes-fragmented": 100,
+        "alias-fragmented": 100,
+        "contiguous-reversed": 100,
+        "fragmented-reversed": 100,
+        "reversed-reversed": 100,
+        "holes-reversed": 100,
+        "alias-reversed": 100,
+        "contiguous-holes": 100,
+        "fragmented-holes": 100,
+        "reversed-holes": 100,
+        "holes-holes": 100,
+        "alias-holes": 100,
+        "contiguous-alias": 100,
+        "fragmented-alias": 100,
+        "reversed-alias": 100,
+        "holes-alias": 100,
+        "alias-alias": 100
+      },
+      "benchmarks": [
+        {
+          "name": "padded-32-regions",
+          "result": false,
+          "regionsPerTexture": 32,
+          "iterationsPerBatch": 3204,
+          "batches": 5,
+          "medianNanosecondsPerCall": 16847.248439450686,
+          "medianProcessCpuNanosecondsPerCall": 16852.684144818977,
+          "bytesPerCall": 2856
+        },
+        {
+          "name": "padded-256-regions",
+          "result": false,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 64,
+          "batches": 5,
+          "medianNanosecondsPerCall": 1005671.21875,
+          "medianProcessCpuNanosecondsPerCall": 995687.5,
+          "bytesPerCall": 18984
+        },
+        {
+          "name": "last-layer-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 64,
+          "batches": 5,
+          "medianNanosecondsPerCall": 1041521.484375,
+          "medianProcessCpuNanosecondsPerCall": 1014703.125,
+          "bytesPerCall": 18768
+        },
+        {
+          "name": "first-region-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 152.23083,
+          "medianProcessCpuNanosecondsPerCall": 152.23,
+          "bytesPerCall": 624
+        },
+        {
+          "name": "fragmented-first-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 227.5575,
+          "medianProcessCpuNanosecondsPerCall": 222.11,
+          "bytesPerCall": 864
+        },
+        {
+          "name": "single-subresource",
+          "result": true,
+          "regionsPerTexture": 1,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 9.49667,
+          "medianProcessCpuNanosecondsPerCall": 9.51,
+          "bytesPerCall": 48
+        }
+      ],
+      "firstComparisons": [
+        {
+          "name": "first-match-256-regions",
+          "result": true,
+          "regionsPerTexture": 256,
+          "freshPairsPerBatch": 4096,
+          "batches": 5,
+          "medianNanosecondsPerFirstComparison": 174.3671875,
+          "bytesPerFirstComparison": 624,
+          "constructionIncluded": false
+        },
+        {
+          "name": "padded-256-regions",
+          "result": false,
+          "regionsPerTexture": 256,
+          "freshPairsPerBatch": 64,
+          "batches": 5,
+          "medianNanosecondsPerFirstComparison": 1062751.296875,
+          "bytesPerFirstComparison": 18984,
+          "constructionIncluded": false
+        }
+      ]
+    },
+    "candidate": {
+      "mode": "candidate",
+      "checks": 12170,
+      "resultDigest": "a7f9059e5b001b77",
+      "covered": {
+        "padded-disjoint-data": 1,
+        "first-region-match": 1,
+        "last-layer-match": 1,
+        "touching-last-end": 1,
+        "one-byte-overlap": 1,
+        "separate-allocations": 1,
+        "linear-vs-array": 1,
+        "linear-in-padding": 1,
+        "single-touching": 1,
+        "zero-sized-existing-semantics": 1,
+        "high-valid-address": 1,
+        "overflowing-address-fallback": 1,
+        "unmapped-fallback": 1,
+        "short-mapping-wrapped-region": 1,
+        "short-mapping-first-match": 1,
+        "short-mapping-slice-exception": 1,
+        "layout-validation-initial": 1,
+        "invalid-layout-first-pair-match": 1,
+        "validated-layout-remapped-short": 1,
+        "overflow-layout-original-exception": 1,
+        "layout-validation-reinitialized": 1,
+        "3d-identical": 216,
+        "3d-layout-exception": 216,
+        "3d-last-byte": 216,
+        "3d-touching": 216,
+        "contiguous-contiguous": 100,
+        "random-layout-compatibility": 2500,
+        "remapped-contiguous": 100,
+        "remapped-fragmented": 100,
+        "fragmented-contiguous": 100,
+        "reversed-contiguous": 100,
+        "holes-contiguous": 100,
+        "alias-contiguous": 100,
+        "contiguous-fragmented": 100,
+        "fragmented-fragmented": 100,
+        "reversed-fragmented": 100,
+        "holes-fragmented": 100,
+        "alias-fragmented": 100,
+        "contiguous-reversed": 100,
+        "fragmented-reversed": 100,
+        "reversed-reversed": 100,
+        "holes-reversed": 100,
+        "alias-reversed": 100,
+        "contiguous-holes": 100,
+        "fragmented-holes": 100,
+        "reversed-holes": 100,
+        "holes-holes": 100,
+        "alias-holes": 100,
+        "contiguous-alias": 100,
+        "fragmented-alias": 100,
+        "reversed-alias": 100,
+        "holes-alias": 100,
+        "alias-alias": 100
+      },
+      "benchmarks": [
+        {
+          "name": "padded-32-regions",
+          "result": false,
+          "regionsPerTexture": 32,
+          "iterationsPerBatch": 97455,
+          "batches": 5,
+          "medianNanosecondsPerCall": 587.1641578164281,
+          "medianProcessCpuNanosecondsPerCall": 585.7062233851522,
+          "bytesPerCall": 304
+        },
+        {
+          "name": "padded-256-regions",
+          "result": false,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 8377,
+          "batches": 5,
+          "medianNanosecondsPerCall": 4111.008356213441,
+          "medianProcessCpuNanosecondsPerCall": 4102.662050853528,
+          "bytesPerCall": 304
+        },
+        {
+          "name": "last-layer-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 24335,
+          "batches": 5,
+          "medianNanosecondsPerCall": 2288.428888432299,
+          "medianProcessCpuNanosecondsPerCall": 2285.5146907746043,
+          "bytesPerCall": 304
+        },
+        {
+          "name": "first-region-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 82.0825,
+          "medianProcessCpuNanosecondsPerCall": 82.11,
+          "bytesPerCall": 304
+        },
+        {
+          "name": "fragmented-first-match",
+          "result": true,
+          "regionsPerTexture": 256,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 223.04375,
+          "medianProcessCpuNanosecondsPerCall": 220.71,
+          "bytesPerCall": 864
+        },
+        {
+          "name": "single-subresource",
+          "result": true,
+          "regionsPerTexture": 1,
+          "iterationsPerBatch": 100000,
+          "batches": 5,
+          "medianNanosecondsPerCall": 4.53292,
+          "medianProcessCpuNanosecondsPerCall": 4.55,
+          "bytesPerCall": 0
+        }
+      ],
+      "firstComparisons": [
+        {
+          "name": "first-match-256-regions",
+          "result": true,
+          "regionsPerTexture": 256,
+          "freshPairsPerBatch": 4096,
+          "batches": 5,
+          "medianNanosecondsPerFirstComparison": 78.216552734375,
+          "bytesPerFirstComparison": 304,
+          "constructionIncluded": false
+        },
+        {
+          "name": "padded-256-regions",
+          "result": false,
+          "regionsPerTexture": 256,
+          "freshPairsPerBatch": 64,
+          "batches": 5,
+          "medianNanosecondsPerFirstComparison": 7899.734375,
+          "bytesPerFirstComparison": 608,
+          "constructionIncluded": false
+        }
+      ]
+    }
+  },
+  "runtimeSmoke": {
+    "actualCoreDonatedBackingSessions": 2,
+    "actualDarwinThreeArgumentHandlersVerified": true,
+    "actualKeyImportABIValidated": true,
+    "actualNativeAOT": true,
+    "actualNativeLaunchJournalWritten": true,
+    "actualSimulatorCodeArenaVerified": true,
+    "displayAndMemoryConfigurationAccepted": true,
+    "donorProcessUsedInSmoke": false,
+    "gameplayTested": false,
+    "graphicsAccepted": true,
+    "homebrewProducesVideo": false,
+    "homebrewSimulatorSessions": 2,
+    "initializationAndIdempotency": true,
+    "invalidContentRejected": true,
+    "invalidGraphicsCodePreserved": true,
+    "invalidGuestRejected": true,
+    "invalidSaveAssociationRejected": true,
+    "iphoneGuestExecutionTested": false,
+    "jitTested": false,
+    "keyRefusalCodePreserved": true,
+    "keyUnknownEntryAccepted": true,
+    "livePerformanceSnapshotSessions": 2,
+    "missingKeysRejectedBeforeGuest": true,
+    "mixedInvalidKeySizeAccepted": true,
+    "originalHomebrewGuestSvcConfirmed": true,
+    "performanceSnapshotStaleAndEndedRefused": true,
+    "personalKeysUsed": false,
+    "result": "passed",
+    "storageProfilesRecognized": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "coreSha256": "9181688313618dbe54c05e825bffb21ee6ef88b9868188f5080481e19116d08a",
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+      "test/melonx_runtime_smoke.py": "ec5bdb5dcb6ac5a870804d5db56601a9f219be29003c0ed859142be8ed95bdbd"
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "measuredGameFpsGain": null,
+  "wholeApplicationMemoryGain": null,
+  "sourceAndEvidenceBlobsVerified": 27,
+  "note": "New targeted tests execute on the macOS ARM64 CI host. Native calls and GPU/native-protection boundaries are doubled where declared by the test harnesses. Simulator homebrew sessions do not render Hogwarts or measure physical-device FPS."
+}

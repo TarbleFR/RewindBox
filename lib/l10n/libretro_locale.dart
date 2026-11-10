@@ -18,10 +18,6 @@ abstract final class LibretroLocale {
     'cheatCatalog', 'cheatSources', 'cheatSearch', 'cheatSearchGames', 'cheatImport', 'cheatRemember', 'cheatRestore', 'cheatPreferencesHelp', 'cheatSaveWarning', 'cheatActivate', 'cheatFailed', 'cheatBusy', 'cheatManual', 'cheatMatches', 'cheatHashMatch', 'cheatHashMismatch', 'cheatVersionUncertain', 'cheatMemoryUnsupported', 'cheatCodeUnsupported', 'cheatCatalogHelp', 'cheatSourceHelp', 'cheatInstall', 'cheatUpdate', 'cheatCheckUpdates', 'cheatUpdateAvailable', 'cheatRemoveData', 'cheatDownload',
     'cheatDetails', 'cheatVersionBadge', 'cheatFormatBadge', 'cheatMemoryBadge', 'cheatDetailsHint', 'biosDetails',
     'cheats', 'addCheat', 'cheatName', 'cheatCode', 'cheatsHelp',
-    'achievements', 'achievementsEnabled', 'achievementsLogin',
-    'achievementsLogout', 'achievementsUser', 'achievementsPassword',
-    'achievementsLoggedIn', 'achievementsUnlocked',
-    'achievementsLoginFailed', 'achievementsNone', 'achievementsHelp',
     'quit', 'quitConfirm', 'cancel', 'add',
     // Skins, screen format, screen layout, shaders and controls pages.
     'skins', 'screenFormat', 'shaders', 'controls', 'scopeSection',

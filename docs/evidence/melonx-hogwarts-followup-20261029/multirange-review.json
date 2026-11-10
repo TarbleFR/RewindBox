@@ -1,0 +1,2511 @@
+{
+  "postimage": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+  "adapterSha256": "7d02e2b2bb5b23f146d48d44facf81b875c15be5156e900ab127429a2920c5fa",
+  "benchInputs": {
+    "ArrayMemoryRange.cs": "f603e4893c2eab6842b10ffe372469cc3555935e976ab6e5a2458cba9c0ac721",
+    "ArrayMultiRange.cs": "e99c392807d9cade46295e274f4174ac3d7bbcf660c7e4014fa9486f79a89149",
+    "ControlMemoryRange.cs": "684ffcc4d90035f8c80302de4dbd29a3d14ad23bf16307ee1a395963b00892ce",
+    "ControlMultiRange.cs": "0291b2f96c3c2c5d303f426e79e82363e0387791a250ab76727a01e52dc8ec5b",
+    "Program.cs": "f1d4ba4e05b40b0d9cdb7c66afcf1e544d856edc5da5dddbd949560397e3147e",
+    "SpanMemoryRange.cs": "473da06a65005819cb99191744ec990e45e0c81dd9eca65c2d2e5fa5107044ab",
+    "SpanMultiRange.cs": "56eaa81cb74f98a3c7993e04ef3b3e0f7319a6c6169e8f390accb5aae5eded13",
+    "TwoPassMemoryRange.cs": "b108c80b56bf9f14e465a23bd190ae9f56a8ca94ce583c33a9e331b69b5567cc",
+    "TwoPassMultiRange.cs": "748b74ab8c5227eedc3142dadd97716377f7f1ba7ce5c0d9750c68dadb0e92b8"
+  },
+  "policy": "12 interleaved rounds per scenario, rotating order, one executable, tiered compilation disabled",
+  "nativeNamespaceRewriteOnly": true,
+  "summary": {
+    "single-first": {
+      "Control": {
+        "medianNanoseconds": 24.4069,
+        "bytesPerSlice": 120
+      },
+      "Span": {
+        "medianNanoseconds": 5.2476,
+        "bytesPerSlice": 0
+      },
+      "Array": {
+        "medianNanoseconds": 4.5316,
+        "bytesPerSlice": 0
+      },
+      "TwoPass": {
+        "medianNanoseconds": 4.4521,
+        "bytesPerSlice": 0
+      }
+    },
+    "single-middle": {
+      "Control": {
+        "medianNanoseconds": 287.836,
+        "bytesPerSlice": 120
+      },
+      "Span": {
+        "medianNanoseconds": 243.41649999999998,
+        "bytesPerSlice": 0
+      },
+      "Array": {
+        "medianNanoseconds": 240.45749999999998,
+        "bytesPerSlice": 0
+      },
+      "TwoPass": {
+        "medianNanoseconds": 245.24200000000002,
+        "bytesPerSlice": 0
+      }
+    },
+    "single-last": {
+      "Control": {
+        "medianNanoseconds": 524.762,
+        "bytesPerSlice": 120
+      },
+      "Span": {
+        "medianNanoseconds": 505.67150000000004,
+        "bytesPerSlice": 0
+      },
+      "Array": {
+        "medianNanoseconds": 529.8720000000001,
+        "bytesPerSlice": 0
+      },
+      "TwoPass": {
+        "medianNanoseconds": 480.267,
+        "bytesPerSlice": 0
+      }
+    },
+    "two": {
+      "Control": {
+        "medianNanoseconds": 48.457499999999996,
+        "bytesPerSlice": 176
+      },
+      "Span": {
+        "medianNanoseconds": 46.836,
+        "bytesPerSlice": 176
+      },
+      "Array": {
+        "medianNanoseconds": 50.342333333333336,
+        "bytesPerSlice": 176
+      },
+      "TwoPass": {
+        "medianNanoseconds": 19.085,
+        "bytesPerSlice": 56
+      }
+    },
+    "whole": {
+      "Control": {
+        "medianNanoseconds": 3675.37,
+        "bytesPerSlice": 24760
+      },
+      "Span": {
+        "medianNanoseconds": 3752.825,
+        "bytesPerSlice": 24760
+      },
+      "Array": {
+        "medianNanoseconds": 3630.605,
+        "bytesPerSlice": 24760
+      },
+      "TwoPass": {
+        "medianNanoseconds": 1720.87,
+        "bytesPerSlice": 8216
+      }
+    },
+    "middle-16": {
+      "Control": {
+        "medianNanoseconds": 518.6725,
+        "bytesPerSlice": 1384
+      },
+      "Span": {
+        "medianNanoseconds": 486.0775,
+        "bytesPerSlice": 1384
+      },
+      "Array": {
+        "medianNanoseconds": 468.8225,
+        "bytesPerSlice": 1384
+      },
+      "TwoPass": {
+        "medianNanoseconds": 293.6325,
+        "bytesPerSlice": 296
+      }
+    },
+    "middle-half": {
+      "Control": {
+        "medianNanoseconds": 2631.465,
+        "bytesPerSlice": 20680
+      },
+      "Span": {
+        "medianNanoseconds": 2675.66,
+        "bytesPerSlice": 20680
+      },
+      "Array": {
+        "medianNanoseconds": 2561.165,
+        "bytesPerSlice": 20680
+      },
+      "TwoPass": {
+        "medianNanoseconds": 1200.655,
+        "bytesPerSlice": 4136
+      }
+    }
+  },
+  "measurements": {
+    "data": [
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 0,
+        "ns": 55.8938,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 0,
+        "ns": 5.6898,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 0,
+        "ns": 5.7894,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 0,
+        "ns": 6.2242,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 1,
+        "ns": 4.5218,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 1,
+        "ns": 4.6044,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 1,
+        "ns": 4.256,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 1,
+        "ns": 24.6774,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 2,
+        "ns": 5.1534,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 2,
+        "ns": 5.4794,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 2,
+        "ns": 26.6634,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 2,
+        "ns": 5.9896,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 3,
+        "ns": 3.888,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 3,
+        "ns": 24.1364,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 3,
+        "ns": 5.51,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 3,
+        "ns": 3.8682,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 4,
+        "ns": 22.7914,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 4,
+        "ns": 5.2632,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 4,
+        "ns": 4.4534,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 4,
+        "ns": 4.529,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 5,
+        "ns": 4.4,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 5,
+        "ns": 4.6528,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 5,
+        "ns": 4.2984,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 5,
+        "ns": 25.4528,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 6,
+        "ns": 4.395,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 6,
+        "ns": 4.458,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 6,
+        "ns": 23.382,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 6,
+        "ns": 3.8406,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 7,
+        "ns": 4.1666,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 7,
+        "ns": 23.358,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 7,
+        "ns": 5.4608,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 7,
+        "ns": 4.4588,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 8,
+        "ns": 25.5666,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 8,
+        "ns": 6.1408,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 8,
+        "ns": 4.1668,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 8,
+        "ns": 5.3902,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 9,
+        "ns": 5.232,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 9,
+        "ns": 5.3896,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 9,
+        "ns": 4.7424,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 9,
+        "ns": 25.0734,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 10,
+        "ns": 4.039,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 10,
+        "ns": 4.4462,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 10,
+        "ns": 23.3604,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 10,
+        "ns": 4.1546,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-first",
+        "repeat": 11,
+        "ns": 3.9038,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-first",
+        "repeat": 11,
+        "ns": 22.0262,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-first",
+        "repeat": 11,
+        "ns": 4.1434,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-first",
+        "repeat": 11,
+        "ns": 4.6638,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 0,
+        "ns": 267.007,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 0,
+        "ns": 243.897,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 0,
+        "ns": 250.853,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 0,
+        "ns": 224.289,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 1,
+        "ns": 229.401,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 1,
+        "ns": 225.937,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 1,
+        "ns": 227.355,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 1,
+        "ns": 272.086,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 2,
+        "ns": 230.672,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 2,
+        "ns": 240.835,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 2,
+        "ns": 298.063,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 2,
+        "ns": 225.017,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 3,
+        "ns": 249.649,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 3,
+        "ns": 336.668,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 3,
+        "ns": 333.656,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 3,
+        "ns": 389.188,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 4,
+        "ns": 450.552,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 4,
+        "ns": 315.411,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 4,
+        "ns": 219.108,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 4,
+        "ns": 258.271,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 5,
+        "ns": 233.286,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 5,
+        "ns": 228.778,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 5,
+        "ns": 217.694,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 5,
+        "ns": 256.98,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 6,
+        "ns": 231.469,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 6,
+        "ns": 238.801,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 6,
+        "ns": 316.166,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 6,
+        "ns": 249.575,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 7,
+        "ns": 285.847,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 7,
+        "ns": 270.606,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 7,
+        "ns": 242.936,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 7,
+        "ns": 245.185,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 8,
+        "ns": 278.125,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 8,
+        "ns": 262.713,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 8,
+        "ns": 299.97,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 8,
+        "ns": 269.018,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 9,
+        "ns": 239.964,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 9,
+        "ns": 235.73,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 9,
+        "ns": 295.173,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 9,
+        "ns": 304.64,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 10,
+        "ns": 277.476,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 10,
+        "ns": 275.367,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 10,
+        "ns": 263.352,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 10,
+        "ns": 286.736,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-middle",
+        "repeat": 11,
+        "ns": 223.666,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-middle",
+        "repeat": 11,
+        "ns": 297.547,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-middle",
+        "repeat": 11,
+        "ns": 223.946,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-middle",
+        "repeat": 11,
+        "ns": 275.264,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 0,
+        "ns": 514.486,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 0,
+        "ns": 485.382,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 0,
+        "ns": 595.079,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 0,
+        "ns": 685.014,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 1,
+        "ns": 708.865,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 1,
+        "ns": 576.42,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 1,
+        "ns": 426.721,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 1,
+        "ns": 473.577,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 2,
+        "ns": 417.337,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 2,
+        "ns": 415.135,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 2,
+        "ns": 460.133,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 2,
+        "ns": 402.701,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 3,
+        "ns": 405.236,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 3,
+        "ns": 453.487,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 3,
+        "ns": 402.982,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 3,
+        "ns": 404.739,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 4,
+        "ns": 453.135,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 4,
+        "ns": 408.253,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 4,
+        "ns": 411.734,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 4,
+        "ns": 450.016,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 5,
+        "ns": 547.145,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 5,
+        "ns": 533.642,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 5,
+        "ns": 540.012,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 5,
+        "ns": 541.704,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 6,
+        "ns": 485.597,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 6,
+        "ns": 481.19,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 6,
+        "ns": 535.038,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 6,
+        "ns": 531.904,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 7,
+        "ns": 479.129,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 7,
+        "ns": 504.764,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 7,
+        "ns": 532.309,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 7,
+        "ns": 578.435,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 8,
+        "ns": 585.859,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 8,
+        "ns": 506.963,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 8,
+        "ns": 583.396,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 8,
+        "ns": 572.677,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 9,
+        "ns": 602.712,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 9,
+        "ns": 526.102,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 9,
+        "ns": 488.582,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 9,
+        "ns": 619.541,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 10,
+        "ns": 562.824,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 10,
+        "ns": 479.344,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 10,
+        "ns": 571.433,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 10,
+        "ns": 489.228,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "single-last",
+        "repeat": 11,
+        "ns": 589.917,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "single-last",
+        "repeat": 11,
+        "ns": 655.354,
+        "bytesPerCall": 120
+      },
+      {
+        "variant": "Span",
+        "scenario": "single-last",
+        "repeat": 11,
+        "ns": 504.38,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Array",
+        "scenario": "single-last",
+        "repeat": 11,
+        "ns": 507.434,
+        "bytesPerCall": 0
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 0,
+        "ns": 38.622,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 0,
+        "ns": 45.159666666666666,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 0,
+        "ns": 48.962,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 0,
+        "ns": 16.343666666666667,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 1,
+        "ns": 50.748666666666665,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 1,
+        "ns": 47.483333333333334,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 1,
+        "ns": 26.999,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 1,
+        "ns": 48.75366666666667,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 2,
+        "ns": 51.72266666666667,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 2,
+        "ns": 21.344,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 2,
+        "ns": 49.62733333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 2,
+        "ns": 68.91766666666666,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 3,
+        "ns": 42.567,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 3,
+        "ns": 60.456,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 3,
+        "ns": 92.928,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 3,
+        "ns": 81.892,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 4,
+        "ns": 75.131,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 4,
+        "ns": 56.273,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 4,
+        "ns": 69.551,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 4,
+        "ns": 16.202666666666666,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 5,
+        "ns": 46.38633333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 5,
+        "ns": 66.42,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 5,
+        "ns": 28.741,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 5,
+        "ns": 60.25666666666667,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 6,
+        "ns": 62.015,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 6,
+        "ns": 28.013333333333332,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 6,
+        "ns": 59.739,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 6,
+        "ns": 52.615,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 7,
+        "ns": 15.325666666666667,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 7,
+        "ns": 36.88133333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 7,
+        "ns": 38.85,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 7,
+        "ns": 47.42933333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 8,
+        "ns": 48.16133333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 8,
+        "ns": 47.285666666666664,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 8,
+        "ns": 69.446,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 8,
+        "ns": 21.057333333333332,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 9,
+        "ns": 39.885,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 9,
+        "ns": 40.160666666666664,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 9,
+        "ns": 17.112666666666666,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 9,
+        "ns": 38.95066666666666,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 10,
+        "ns": 41.28766666666667,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 10,
+        "ns": 16.72,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 10,
+        "ns": 40.203,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 10,
+        "ns": 39.30433333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "two",
+        "repeat": 11,
+        "ns": 15.593333333333334,
+        "bytesPerCall": 56
+      },
+      {
+        "variant": "Control",
+        "scenario": "two",
+        "repeat": 11,
+        "ns": 39.88333333333333,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Span",
+        "scenario": "two",
+        "repeat": 11,
+        "ns": 41.419,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Array",
+        "scenario": "two",
+        "repeat": 11,
+        "ns": 40.15266666666667,
+        "bytesPerCall": 176
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 0,
+        "ns": 2694.29,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 0,
+        "ns": 2540.16,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 0,
+        "ns": 2437.69,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 0,
+        "ns": 1482.36,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 1,
+        "ns": 2607.04,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 1,
+        "ns": 2547.06,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 1,
+        "ns": 1536.6,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 1,
+        "ns": 3046.82,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 2,
+        "ns": 3308.05,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 2,
+        "ns": 1596.97,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 2,
+        "ns": 3377.74,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 2,
+        "ns": 4091.61,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 3,
+        "ns": 1735.13,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 3,
+        "ns": 3321.72,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 3,
+        "ns": 3575.64,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 3,
+        "ns": 3681.44,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 4,
+        "ns": 3758.79,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 4,
+        "ns": 4454.39,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 4,
+        "ns": 3403.58,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 4,
+        "ns": 1906.71,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 5,
+        "ns": 3809.43,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 5,
+        "ns": 3521.46,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 5,
+        "ns": 1701.35,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 5,
+        "ns": 3397.53,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 6,
+        "ns": 3579.77,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 6,
+        "ns": 1791.08,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 6,
+        "ns": 4238.41,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 6,
+        "ns": 4191.9,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 7,
+        "ns": 1878.49,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 7,
+        "ns": 3733.54,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 7,
+        "ns": 3975.74,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 7,
+        "ns": 4225.51,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 8,
+        "ns": 3785.54,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 8,
+        "ns": 3537.33,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 8,
+        "ns": 4163.56,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 8,
+        "ns": 2066.62,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 9,
+        "ns": 3602.27,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 9,
+        "ns": 3924.68,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 9,
+        "ns": 1833.41,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 9,
+        "ns": 3940.01,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 10,
+        "ns": 3719.6,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 10,
+        "ns": 1706.61,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 10,
+        "ns": 4736.79,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 10,
+        "ns": 3696.22,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "whole",
+        "repeat": 11,
+        "ns": 1705.5,
+        "bytesPerCall": 8216
+      },
+      {
+        "variant": "Control",
+        "scenario": "whole",
+        "repeat": 11,
+        "ns": 3617.2,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Span",
+        "scenario": "whole",
+        "repeat": 11,
+        "ns": 4161.83,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Array",
+        "scenario": "whole",
+        "repeat": 11,
+        "ns": 4055.3,
+        "bytesPerCall": 24760
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 0,
+        "ns": 487.745,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 0,
+        "ns": 559.455,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 0,
+        "ns": 466.065,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 0,
+        "ns": 274.66,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 1,
+        "ns": 462.025,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 1,
+        "ns": 503.065,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 1,
+        "ns": 291.11,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 1,
+        "ns": 509.86,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 2,
+        "ns": 477.985,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 2,
+        "ns": 306.515,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 2,
+        "ns": 540.6,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 2,
+        "ns": 473.875,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 3,
+        "ns": 339.88,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 3,
+        "ns": 507.68,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 3,
+        "ns": 564.4,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 3,
+        "ns": 433.2,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 4,
+        "ns": 488.105,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 4,
+        "ns": 480.14,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 4,
+        "ns": 469.435,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 4,
+        "ns": 362.31,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 5,
+        "ns": 573.22,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 5,
+        "ns": 454.045,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 5,
+        "ns": 267.6,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 5,
+        "ns": 632.43,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 6,
+        "ns": 452.11,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 6,
+        "ns": 272.685,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 6,
+        "ns": 477.98,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 6,
+        "ns": 463.745,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 7,
+        "ns": 264.405,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 7,
+        "ns": 552.62,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 7,
+        "ns": 492.015,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 7,
+        "ns": 468.21,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 8,
+        "ns": 526.635,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 8,
+        "ns": 428.015,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 8,
+        "ns": 454.34,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 8,
+        "ns": 296.155,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 9,
+        "ns": 503.705,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 9,
+        "ns": 486.855,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 9,
+        "ns": 319.745,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 9,
+        "ns": 668.48,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 10,
+        "ns": 774.495,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 10,
+        "ns": 335.575,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 10,
+        "ns": 551.88,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 10,
+        "ns": 507.745,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-16",
+        "repeat": 11,
+        "ns": 290.53,
+        "bytesPerCall": 296
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-16",
+        "repeat": 11,
+        "ns": 510.71,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-16",
+        "repeat": 11,
+        "ns": 470.6,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-16",
+        "repeat": 11,
+        "ns": 480.74,
+        "bytesPerCall": 1384
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 0,
+        "ns": 3182.59,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 0,
+        "ns": 2322.3,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 0,
+        "ns": 2718.16,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 0,
+        "ns": 1414.76,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 1,
+        "ns": 2694.98,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 1,
+        "ns": 2395.89,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 1,
+        "ns": 1111.65,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 1,
+        "ns": 2597.51,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 2,
+        "ns": 2605.9,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 2,
+        "ns": 1197.05,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 2,
+        "ns": 2392.01,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 2,
+        "ns": 2524.96,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 3,
+        "ns": 1165.21,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 3,
+        "ns": 2561.84,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 3,
+        "ns": 2487.98,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 3,
+        "ns": 2224.57,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 4,
+        "ns": 2352.78,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 4,
+        "ns": 2922.66,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 4,
+        "ns": 2442.34,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 4,
+        "ns": 1197.72,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 5,
+        "ns": 2595.98,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 5,
+        "ns": 2516.43,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 5,
+        "ns": 1203.59,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 5,
+        "ns": 2411.99,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 6,
+        "ns": 2219.56,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 6,
+        "ns": 1097.9,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 6,
+        "ns": 2734.44,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 6,
+        "ns": 2846.62,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 7,
+        "ns": 1226.08,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 7,
+        "ns": 2725.57,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 7,
+        "ns": 2559.83,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 7,
+        "ns": 3165.56,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 8,
+        "ns": 2665.42,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 8,
+        "ns": 2961.83,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 8,
+        "ns": 2746.75,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 8,
+        "ns": 1423.04,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 9,
+        "ns": 2691.28,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 9,
+        "ns": 2406.63,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 9,
+        "ns": 1156.95,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 9,
+        "ns": 3010.02,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 10,
+        "ns": 2815.48,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 10,
+        "ns": 1203.63,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 10,
+        "ns": 2702.85,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 10,
+        "ns": 2660.04,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "TwoPass",
+        "scenario": "middle-half",
+        "repeat": 11,
+        "ns": 1393.98,
+        "bytesPerCall": 4136
+      },
+      {
+        "variant": "Control",
+        "scenario": "middle-half",
+        "repeat": 11,
+        "ns": 2583.78,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Span",
+        "scenario": "middle-half",
+        "repeat": 11,
+        "ns": 2815.59,
+        "bytesPerCall": 20680
+      },
+      {
+        "variant": "Array",
+        "scenario": "middle-half",
+        "repeat": 11,
+        "ns": 2676.1,
+        "bytesPerCall": 20680
+      }
+    ],
+    "sink": 33339859500000
+  },
+  "callerArrayOwnershipAudit": {
+    "preparedSource": "MeloNX-engine82",
+    "files": {
+      "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "5e75a7ef5644ca7a16a676deb5b70e07117bedfc1f37b38e9e2fa6866ab35596",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferManager.cs": "ff4806b498b540a78bc1fee4793d0ddeb297e0b18b560fffe2d078230ba8540a",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "b164837dc4320cab56ef58ea9c0cd1a70a35a95a43f25d7a408c7200c063e06f"
+    },
+    "finding": "Array constructors receive fresh arrays. Producers fill them before publishing MultiRange and do not mutate them afterwards. MultiRange exposes no backing array. External concurrent mutation is not a snapshot guarantee."
+  }
+}

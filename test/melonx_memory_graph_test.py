@@ -1,4 +1,4 @@
-"""Run the production bounded memory graph and OS footprint sampler in UIKit."""
+"""Run the production bounded memory graph, FPS label and OS footprint sampler in UIKit."""
 import hashlib,json,plistlib,subprocess,tempfile,time,uuid
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];CLASSES=ROOT/'packages/melonx_internal_bridge/ios/Classes'
@@ -38,11 +38,16 @@ func check(_ view:UIViewController) {
  let actual=MeloNXMemorySnapshot();check((actual["footprintBytes"] as? NSNumber)?.uint64Value ?? 0 > 0)
  let graph=MeloNXMemoryGraph(frame:CGRect(x:20,y:80,width:240,height:152))
  var samples=0
+ var fps:Any?=59.94 // MeloNXRuntimeAPI.performanceSnapshot reports a Swift Double
  graph.now = { Double(samples)/2 }
- graph.sample = {samples += 1;return ["footprintBytes":NSNumber(value:UInt64(512+samples*2)*1048576),"availableBytes":NSNumber(value:UInt64(768)*1048576),"donorMappedBytes":NSNumber(value:UInt64(4096)*1048576),"donorUsedBytes":NSNumber(value:UInt64(3072)*1048576),"donorState":"offered"]}
+ graph.sample = {samples += 1;var values:[String:Any]=["footprintBytes":NSNumber(value:UInt64(512+samples*2)*1048576),"availableBytes":NSNumber(value:UInt64(768)*1048576),"donorMappedBytes":NSNumber(value:UInt64(4096)*1048576),"donorUsedBytes":NSNumber(value:UInt64(3072)*1048576),"donorState":"offered"];values["gameFps"]=fps;return values}
  view.view.addSubview(graph);graph.setSampling(true);check(graph.isSampling && samples==1)
  graph.setSampling(true);check(samples==1)
  for _ in 0..<120 {graph.observe()};check(graph.history.points.count==120)
+ check(graph.fpsText=="60 FPS" && graph.accessibilityLabel?.contains("60 FPS")==true)
+ // No live session (or an older engine): the title row shows no counter.
+ fps=nil;graph.observe();check(graph.fpsText.isEmpty && graph.accessibilityLabel?.contains("FPS")==false)
+ fps=29.97;graph.observe();check(graph.fpsText=="30 FPS" && graph.history.points.count==120)
  graph.setSampling(false);check(!graph.isSampling)
  graph.layoutIfNeeded()
  let renderer=UIGraphicsImageRenderer(bounds:graph.bounds)
@@ -53,7 +58,7 @@ func check(_ view:UIViewController) {
  autoreleasepool {let temporary=MeloNXMemoryGraph();temporary.setSampling(true);released=temporary}
  check(released==nil)
  DispatchQueue.main.asyncAfter(deadline:.now()+0.7){
-  check(samples==121)
+  check(samples==123)
   let report:[String:Any] = ["result":"passed","cases":count,"actualFootprintBytes":actual["footprintBytes"]!,"gameplayTested":false]
   try! JSONSerialization.data(withJSONObject:report,options:.prettyPrinted).write(to:root.appendingPathComponent("memory.json"))
  }
@@ -69,6 +74,7 @@ func check(_ view:UIViewController) {
    print(run('xcrun','simctl','spawn',device,'log','show','--last','2m','--predicate','process == "Memory"')[-12000:]);raise AssertionError('No memory report')
   report=json.loads((container/'memory.json').read_text());assert report['result']=='passed';print(json.dumps(report),flush=True)
   report['inputs']={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [CLASSES/'MeloNXMemoryGraph.swift',CLASSES/'MeloNXJitBridgePlugin.mm',Path(__file__)]}
+  report['fpsLabelTested']=True
   report['runtime']=runtime
   (OUT/'memory.json').write_text(json.dumps(report,indent=2)+'\n');(OUT/'memory.png').write_bytes((container/'memory.png').read_bytes())
 finally:

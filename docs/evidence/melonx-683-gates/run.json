@@ -1,0 +1,117 @@
+{
+ "schema": 1,
+ "date": "2026-11-07",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 683,
+ "base": "Core 681 (8bb0f3b9, queued in CI)",
+ "finding": {
+  "input": "IPA 676 private journals, Hogwarts player 1, pid 24714 (Core 677); IPA 674 pids 21216, 21727, 23682; not in the repository",
+  "result": "25 % of seconds below 15 fps (674: 37 %); the 6134 ms play-time checkpoint no longer stops the image; render-thread builds of new pipelines at 0.5-1 s each (12 in 6.9 s, 8 in 5.0 s, 2 in 1.9 s) between 01:00:58 and 01:02:29",
+  "defect": "no Hogwarts session writes the main cache at close (they end in the background or a crash) and each has exactly one checkpoint, about 3 min in: CheckpointMainIfDue runs only after a worker pipeline, every 180 s at most after 64 main pipelines; render-thread builds never trigger it and nothing writes the cache on the host pause (24714 paused at 01:02:31, after its only checkpoint at 01:00:32), so the pipelines built late in a session are compiled again in the next"
+ },
+ "change": "adapt_pipeline_cache_persist (PipelineCacheManager.cs, VulkanRenderer.cs, Library.cs, every title): the host pause queues a main-cache write on the thread pool; play-time checkpoints every 90 s after 8 main pipelines, also queued from render-thread pipelines; Dispose takes the main cache lock",
+ "probe": {
+  "control": {
+   "variant": "control",
+   "pausedAfterNewPipelines": {
+    "mainFileMiB": 10
+   },
+   "pausedAgainUnchanged": {
+    "extraWrites": 0
+   },
+   "renderThreadTrigger": {
+    "afterSevenMiB": 10,
+    "afterEightMiB": 10,
+    "writtenOffTheCreatingThread": true
+   },
+   "withinInterval": {
+    "mainFileMiB": 10
+   },
+   "errors": 0,
+   "pauseLine": null
+  },
+  "candidate": {
+   "variant": "candidate",
+   "pausedAfterNewPipelines": {
+    "mainFileMiB": 10.75
+   },
+   "pausedAgainUnchanged": {
+    "extraWrites": 0
+   },
+   "renderThreadTrigger": {
+    "afterSevenMiB": 10,
+    "afterEightMiB": 12,
+    "writtenOffTheCreatingThread": true
+   },
+   "withinInterval": {
+    "mainFileMiB": 10
+   },
+   "disposeDuringPauseWrite": {
+    "disposeWaitedMs": 414,
+    "writeCompleted": true,
+    "mainFileMiB": 10.5
+   },
+   "errors": 0,
+   "pauseLine": "Vulkan main pipeline cache checkpointed on pause in 16 ms, 3 main pipelines since the previous checkpoint (adapt_pipeline_cache_persist)."
+  }
+ },
+ "sharedGateAdjustments": "test/melonx_adapter_control.postimage: a gate tests its adapter's own postimage with the later adapters sharing its files reversed, and checks that re-applying them gives the final preparation (moltenvk-stage-ordering, main-cache-checkpoint, checkpoint-side-cache, pipeline-cache-room); hogwarts-dma-copies lists the composition files of the new adapter",
+ "compiled": "Ryujinx.Graphics.Vulkan and Ryujinx.Library build with the final preparation (dotnet build, Release)",
+ "gatesRun": {
+  "binder-teardown-checks.json": "7fafb3337028f03a231d7f3c212b8700561b5cc5583c79425cfdd5b00419590d",
+  "checkpoint-side-cache-checks.json": "9bae9c417754f8f35cf22f3c462bbc4368d2df207553e48215a025cd00171ac4",
+  "descriptor-scratch-all-titles-checks.json": "04ea05d8a8467ee5364c13ca8f028bb54c3eb3a2b855865c38e3eb2a35a13fb2",
+  "forced-syncpoint-wait-checks.json": "40d2c3767908aed86fd6f02af2e443172a5b5e5423128d75042a187697c13c7a",
+  "fragmented-reads-checks.json": "0e85c93fafac130bf25284992f317b278fca4b64e966c07f085e6863be4f730a",
+  "hogwarts-dma-copies-checks.json": "5714cd0d498aa6f3be0896de32f0cdb02a9f859a06608d342bcbe5432c5c687c",
+  "main-cache-checkpoint-checks.json": "d0a389e7fc36a1d79a3a523a11177099aaef271e4fa355f5e86858d23fa36791",
+  "moltenvk-barrier-ordering-checks.json": "1193a93c93e47adb9bf716043e39f77994427ea98d5111d3b7d59642bb2d974c",
+  "moltenvk-stage-ordering-checks.json": "f9fa0fd094c2e2d3e9c74f4ef98ddc4054d70d402337691ad9b7e63b1cc71622",
+  "performance-diagnostics-checks.json": "b74dc89b83ca86e2295fafade6f0094f6e46d89b97bdd5cbf5dfed9c2b120592",
+  "pipeline-cache-persist-checks.json": "0586d3168e4b0b975038c2f9f3c9a146d59d453bf6f87007f9b4ee6902f6d537",
+  "pipeline-cache-room-checks.json": "1c85e07eb1295a0be36342302c95db20732d27175e683a3427fdd585ddf7bfe3",
+  "pipeline-checkpoint-checks.json": "781562ec21ea011c308f3ae4bb9c1dcc423b7e5bd65697262df32d36d4f70a09",
+  "present-pacing-checks.json": "28f18de0ef84fb5994b28d557cfb0982d8489c429468b5e835617e1214c47606",
+  "safe-point-compaction-checks.json": "b971c1d6f937655fc8f3121abc4e062fe38ba25dc25c7a719c64d2996e0e4f3c",
+  "session-retention-checks.json": "f8d25142c94083f9e056ffd27b3d23e78151ac273f28ab16ee12d4290f963cf3",
+  "setprogram-warmup-checks.json": "9e73d29ea7d126eecc70a7e6d2bccf93f7527ef93765a0647efc9de2251bdc31",
+  "teardown-cache-checks.json": "75def0197d9a58e36e8442e5e95789265a33f7466b0e97cd404c8523c8371a41",
+  "teardown-compile-cancel-checks.json": "c5f4bbf946e57a40fae50d77b7c498a7a1a18d1ae8adfd11b0539d49cdeafc62",
+  "teardown-phase-marks-checks.json": "b7f32e3044afd54cbc741cb83e520ba750c7c58347c97e0f109b95338cf02135"
+ },
+ "contract": {
+  "sha256": "f5d160f6f89aed3a018406632475112002f067eef6e328044e6232832dc76029",
+  "freshAppleGates": 54,
+  "contractTest": "398 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42320919401 (8c3e5723, Core 679)": "passed",
+  "42322682655 (8bb0f3b9, Core 681)": "passed",
+  "42324442423 attempt 1 (c41b7a51, Core 683)": "passed: 54 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42324442423,
+  "attempt": 1,
+  "job": 128262080204,
+  "source": "c41b7a517033a9d0c516b04661550216c23014be",
+  "artifact": 13556034535,
+  "artifactBytes": 90678200,
+  "artifactSha256": "4de8b806d0aef02208b692fbbb6ee6d44e66680a924f9b489634b0f12ec26b8c",
+  "expiresAt": "2026-11-21T02:17:46Z",
+  "iphoneBinarySha256": "794888c495b471d8a9580d03c31806e181d6eae50b79bc4472ab9b72829f9515",
+  "iphoneBinaryBytes": 38160256,
+  "packagedFingerprint": "181a9994b4fe0d3de8166baca427ce50ee41ae6f6467472367a4ed7fdacbe8c5",
+  "resultSha256": "f6beda16c4f425650b1b68e32912252fe2441858c47a70184fe1c96cd3b1f40e",
+  "contractSha256": "f5d160f6f89aed3a018406632475112002f067eef6e328044e6232832dc76029",
+  "iphoneBinaryMarkers": [
+   "checkpointed on pause",
+   "adapt_pipeline_cache_room",
+   "adapt_pipeline_cache_persist",
+   "startDeferred",
+   "EnterMainCreation"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 677 (5c76b8e0, pin 87948fb5, fingerprint 5e375677)"
+ }
+}

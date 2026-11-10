@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import '../services/neo_assets_service.dart';
+import '../services/system_art/bundled_system_art.dart';
+import '../services/system_art/system_art_alias_table.dart';
 import '../repositories/config_repository.dart';
 import '../services/logger_service.dart';
 
@@ -39,13 +43,39 @@ class NeoAssetsProvider extends ChangeNotifier {
   bool get hasActiveTheme => _activeThemeFolder.isNotEmpty;
 
   /// Initializes the theme cache directory and loads the active theme from the database.
+  ///
+  /// The System Art pack embedded in the app (RewindBox Glacier) is
+  /// installed or confirmed here, without network. When it is the active
+  /// pack, the selection is published only once its files are in place, so
+  /// no card resolves its art against a missing folder; otherwise it is
+  /// installed in the background, ready for the picker and offline use.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
     await NeoAssetsService.ensureCacheDirInitialized();
-    _activeThemeFolder = await ConfigRepository.getActiveTheme();
+    final saved = await ConfigRepository.getActiveTheme();
+    if (BundledSystemArt.isBundled(saved)) {
+      await _ensureBundledPack();
+    } else {
+      unawaited(_ensureBundledPack());
+    }
+    _activeThemeFolder = saved;
     notifyListeners();
     await loadThemes();
+  }
+
+  Future<bool> _ensureBundledPack() async {
+    final installed = await BundledSystemArt.ensureInstalled();
+    // Forget a table read before (or during) the installation.
+    SystemArtAliasTable.invalidate();
+    return installed;
+  }
+
+  /// Test hook: selects [folder] as the active pack without the database.
+  @visibleForTesting
+  void debugSetActiveTheme(String folder) {
+    _activeThemeFolder = folder;
+    notifyListeners();
   }
 
   /// Fetches the list of available themes from the remote server.
@@ -81,6 +111,12 @@ class NeoAssetsProvider extends ChangeNotifier {
     String themeFolder,
     List<String> systemFolderNames,
   ) async {
+    // The embedded pack never touches the network: it is installed from the
+    // application, and the previous selection stays if that fails.
+    if (BundledSystemArt.isBundled(themeFolder)) {
+      await applyBundledTheme();
+      return;
+    }
     try {
       final plan = await NeoAssetsService.buildThemeDownloadPlan(
         themeFolder,
@@ -144,6 +180,28 @@ class NeoAssetsProvider extends ChangeNotifier {
       }
     } catch (e) {
       _log.e('Error downloading theme: $e');
+    } finally {
+      _downloading = false;
+      _downloadProgress = 0.0;
+      notifyListeners();
+    }
+  }
+
+  /// Installs (or confirms) RewindBox Glacier from the application and
+  /// makes it the active System Art. Returns false, keeping the current
+  /// selection, when the embedded pack could not be installed.
+  Future<bool> applyBundledTheme() async {
+    _downloading = true;
+    _downloadProgress = 0.0;
+    notifyListeners();
+    try {
+      if (!await _ensureBundledPack()) return false;
+      _activeThemeFolder = BundledSystemArt.folder;
+      await ConfigRepository.updateActiveTheme(BundledSystemArt.folder);
+      return true;
+    } catch (e) {
+      _log.e('Error applying the embedded System Art: $e');
+      return _activeThemeFolder == BundledSystemArt.folder;
     } finally {
       _downloading = false;
       _downloadProgress = 0.0;

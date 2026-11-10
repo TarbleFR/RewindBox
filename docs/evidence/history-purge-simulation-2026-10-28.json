@@ -1,0 +1,1109 @@
+{
+ "schema": 1,
+ "date": "2026-10-28",
+ "force_push_performed": false,
+ "mirror": {
+  "source": "https://github.com/TarbleFR/RewindBox (git clone --mirror)",
+  "size_pack_MiB": 391.15,
+  "commits": 5130
+ },
+ "post_push_state": "the 3 local commits of 28 October (catalogue withdrawals) added as the Claude tip 053dbd17 before simulating",
+ "strip_blobs": [
+  {
+   "blob": "06c868ff312444b43fb6fdc3d8628d998cdae52e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-01.json.gz"
+  },
+  {
+   "blob": "09990bfbc5cc85caa3b9a5f5784e12de70b543ca",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-14.json.gz"
+  },
+  {
+   "blob": "09c3d2311fa07cd0c70449d29106b05053854e72",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-05.json.gz"
+  },
+  {
+   "blob": "0b39c3c0d20f74c40659212719b52baf4da8675b",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-3bd6eac814ef1552f2eabd0d.json.gz"
+  },
+  {
+   "blob": "0b736123e7026655fe9c92d975b280ae1bb68efd",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-78192a2309c3b9204bcaa2bb.json.gz"
+  },
+  {
+   "blob": "11296fe1f4f706cb684a17aadfe020a060fd1027",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-24.json.gz"
+  },
+  {
+   "blob": "127dd744d8e7b8071bbc360f07e0b25810089dc2",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-24.json.gz"
+  },
+  {
+   "blob": "12a677e0f6b241bdb6c6bcbad2f9c52c4372d7eb",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-0f408796d13074dde1051b27.json.gz"
+  },
+  {
+   "blob": "13f0d3cfdfdc7d9df3d4c08b1100ba8d76305088",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-06.json.gz"
+  },
+  {
+   "blob": "1516b056b5df11744195e3c65f480e2ec6f2b36e",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-c1da52479e3e229c8b057a24.json.gz"
+  },
+  {
+   "blob": "16943730075579d578607d4517da49a8a6eb5113",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-20.json.gz"
+  },
+  {
+   "blob": "16b89a4ee66c531e381801b120e9e8551aa8b499",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-02.json.gz"
+  },
+  {
+   "blob": "17263c4d678d9d6f1c77dd3dee486a0f50ba5061",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-15.json.gz"
+  },
+  {
+   "blob": "1aad940c2cbb130ace8e8fdfa325a87b1288aa9f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-01.json.gz"
+  },
+  {
+   "blob": "1ffe9d90a9e4a65df2d2a9771a2b5cb3e0ee3485",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-15.json.gz"
+  },
+  {
+   "blob": "23ccb3b1367563a1d20350169faaecffb7185d2a",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-06.json.gz"
+  },
+  {
+   "blob": "2435f14a895cf32860871a4bd7ae3c693edbbd2c",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-04.json.gz"
+  },
+  {
+   "blob": "2acfc61fd3f8933fd427aa4c26d150de7e9d2c3a",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-14739ad5ba66ed69ff1a9dc4.json.gz"
+  },
+  {
+   "blob": "2b4d9c16b2174fde9efbd51141f0237c691138d8",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-20.json.gz"
+  },
+  {
+   "blob": "2bd410782c2659761822b0e100dea1e70bb54417",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-23.json.gz"
+  },
+  {
+   "blob": "2d68495c071f4dcbd9785aef05f02b97f47a5f43",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-21.json.gz"
+  },
+  {
+   "blob": "2e47862a6b2bd65654d1d6f9d5389c7b4f7cf8d3",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-30.json.gz"
+  },
+  {
+   "blob": "345e0cf6ef35621346ab4aae51a1fa282997c83c",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-04.json.gz"
+  },
+  {
+   "blob": "35ee5de7ac3ab48afda0b1d252fd098490a46334",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-25.json.gz"
+  },
+  {
+   "blob": "37cfa113118209e2458f2fe75d861c11910ca40e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-14.json.gz"
+  },
+  {
+   "blob": "38ad9d08048d26c0a97b0add7502ea7ec6b1bd4d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-03.json.gz"
+  },
+  {
+   "blob": "3a1be50cb65fea82a3d5028e058336e2b837b921",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-31.json.gz"
+  },
+  {
+   "blob": "3a4669a7246d61a6f684fe1fa9234ccd4b7fbc7e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-11.json.gz"
+  },
+  {
+   "blob": "3ae5f7245e9fb9c524cd79f8e5ac055f17029a99",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-0509f49514cde143470501b5.json.gz"
+  },
+  {
+   "blob": "3b58bfcf7cdae7ae7d8fe375c73e23012bd4bb62",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-12.json.gz"
+  },
+  {
+   "blob": "3b710129a6d41086a42412af3691f175a8f95f1d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-28.json.gz"
+  },
+  {
+   "blob": "3bda2e9781c5ff2ad52a7dcb953301775f8c0954",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-06.json.gz"
+  },
+  {
+   "blob": "3c5d2be71937f8cf8442921164d65a7683115489",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-07.json.gz"
+  },
+  {
+   "blob": "3fdd1f43c8a4ab3e297980d82acb95ee49d35b41",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-17.json.gz"
+  },
+  {
+   "blob": "4249e3c2794be01107a27f980d284e8f1abcbe36",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-04.json.gz"
+  },
+  {
+   "blob": "428bbaaa33cd628804fb81a068008874fc3aa7a4",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-11.json.gz"
+  },
+  {
+   "blob": "44903f741bda0893385bd462fba94ecf25860362",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-09.json.gz"
+  },
+  {
+   "blob": "4675763cbf52b6ae777812a7c256401ce7b7b682",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-27.json.gz"
+  },
+  {
+   "blob": "475610716bc1b651bcfbb97d571cf1ee3a0172c0",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-22.json.gz"
+  },
+  {
+   "blob": "493c0a9ca64dcf8c48d9626356598d5f7a2e27af",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-397ea94a7da1d144ea8f24a3.json.gz"
+  },
+  {
+   "blob": "495e5d49562ba9094a6fb08b0947895f834d6895",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-14.json.gz"
+  },
+  {
+   "blob": "4ad4121b0e1b9bc1eb86ad1d5e37298fd0341857",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-23.json.gz"
+  },
+  {
+   "blob": "4da7189edf629665a5034ac7d9b69ddddc9ceca2",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-12.json.gz"
+  },
+  {
+   "blob": "4e5facca9f33b844a446f443776dab810c1d0d29",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-18.json.gz"
+  },
+  {
+   "blob": "50081011d9c4660d24ac65efeccb154d90d6ab45",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-00.json.gz"
+  },
+  {
+   "blob": "507a575c140f38460b5c446c91f9a0d0fc901759",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-04.json.gz"
+  },
+  {
+   "blob": "5450895759e2484246103cc2c88f232d8a0fc83e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-02.json.gz"
+  },
+  {
+   "blob": "5475e105a411be8272541247aab620a08ea0e464",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-11.json.gz"
+  },
+  {
+   "blob": "57a2d377a6ca777cb307e83d82cd7b8e11ed7e17",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-fb30c7c24a97601034994cc5.json.gz"
+  },
+  {
+   "blob": "57c2746704ca91a69140e3a64b6d8ecbe49db82f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-20.json.gz"
+  },
+  {
+   "blob": "57e5b5a8f80707b3294bfdd543cc5480719a7773",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-05.json.gz"
+  },
+  {
+   "blob": "58168a80fa30bdaf8b471fa0f5790d516ff7bae9",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-30.json.gz"
+  },
+  {
+   "blob": "59ec52f54cb4a9764172f7db37c89fbc196ecaca",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-10.json.gz"
+  },
+  {
+   "blob": "5d8896d7b59b0435545ec4b3988627494854193a",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-23.json.gz"
+  },
+  {
+   "blob": "5e0a53004bba08e9a8504f6b68c6cd7fbf88ffe5",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-06.json.gz"
+  },
+  {
+   "blob": "5fe6fdf94eefbc8135862ac7382b14536117ec38",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-03.json.gz"
+  },
+  {
+   "blob": "6157e62e556bb98276be85b50e740dad0a1935b4",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-187eea5367ef8f6a22a89ee8.json.gz"
+  },
+  {
+   "blob": "6266b2839e155ef4afd968f0fd11eddf2f23c66b",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-26.json.gz"
+  },
+  {
+   "blob": "626aa461dae4dffb42d30bc7b563e5f2b4cac9af",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-1903bf75f52fa3d87777dbb3.json.gz"
+  },
+  {
+   "blob": "63db2ef5583e7a7ad05cf49f831f0bc01cb87525",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-44ba94152c85f2696dff0fef.json.gz"
+  },
+  {
+   "blob": "6c0c489d1d1c6a4b71204578791f11a3ebccdffd",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-16.json.gz"
+  },
+  {
+   "blob": "7077ac9ea0cc27c42beea388a32a42305f7be7e1",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-02.json.gz"
+  },
+  {
+   "blob": "709fcde615ad33a906e4e0e718a3deb13bc90c70",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-1038a1837606398a8a58ef4b.json.gz"
+  },
+  {
+   "blob": "7150fff7a0d244c8314d3c78d77660217d02eb83",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-21.json.gz"
+  },
+  {
+   "blob": "72c61a6602fb264b9dd0f7a62497120d7f585f45",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-21.json.gz"
+  },
+  {
+   "blob": "7357955f20e24890f78361c39c891eeed0ec20f4",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-07.json.gz"
+  },
+  {
+   "blob": "74a86ace1d96fd2e3f40d14b8aa3ec4739c923f1",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-19.json.gz"
+  },
+  {
+   "blob": "77258f3fd4dcff8e2b7ca9e606fc979d93e8f6dd",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-cdbe34c7759fc24c4051e06a.json.gz"
+  },
+  {
+   "blob": "78ddc7e5ea598bea13c569e6cf583088d4a2c838",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-05.json.gz"
+  },
+  {
+   "blob": "78e90279688e58ae88a87a948babe56e9da14196",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-17.json.gz"
+  },
+  {
+   "blob": "7aacd1df0531e94dd3607eca70e87020b111a913",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-25.json.gz"
+  },
+  {
+   "blob": "7bd4e885450e22960acbaa9cc14a77d06dae4924",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-20.json.gz"
+  },
+  {
+   "blob": "7be4502c2c8ade2660b07f0012300d0768d95cce",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-19.json.gz"
+  },
+  {
+   "blob": "7c05b7b54ee134f5fd66c3520bc6fb4cc61612e1",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-fcd49cc8630cf9dcacdc4ca5.json.gz"
+  },
+  {
+   "blob": "80afe7d5b3b5b4ce468cace1583c5750af681dbb",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-24.json.gz"
+  },
+  {
+   "blob": "8322190d0198df210e75905cfc2d3b6c935a9589",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-22.json.gz"
+  },
+  {
+   "blob": "84cab3d1627107edf92808efe3b2cc2882370536",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-b094871fe914a85b81f17489.json.gz"
+  },
+  {
+   "blob": "861cc83c78dbe57465f39ad46417872aaa95e3c8",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-a93181c53138c9cf53322b7d.json.gz"
+  },
+  {
+   "blob": "864aa4a8ebc7128c952cd8785459df93a08819bd",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-19.json.gz"
+  },
+  {
+   "blob": "866960aeb89ee4db12678ca367d1bd8e4c9d3b92",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-26.json.gz"
+  },
+  {
+   "blob": "8bb3d53c43667b4db8b2af8ee954015349487149",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-26.json.gz"
+  },
+  {
+   "blob": "8bbb51e43c5401062e83f99fa241de2a347c26b8",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-26.json.gz"
+  },
+  {
+   "blob": "8be5cd7aa044b72850ea49451122901d88a02c04",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-15.json.gz"
+  },
+  {
+   "blob": "8c0e4ef9e1453a619466be47309cf47c8fcf157d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-13.json.gz"
+  },
+  {
+   "blob": "8c6c6d5349850ba8abd4cb74ed55406dff7b10b5",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-25.json.gz"
+  },
+  {
+   "blob": "8e9cadb0ac37333e5310967d27cbd6de489d69bf",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-56c7fe4f13cbfcf571aa9dec.json.gz"
+  },
+  {
+   "blob": "8ecaac33693611db0068bf8e7422571a3f3a0f8d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-13.json.gz"
+  },
+  {
+   "blob": "8ef3dda6cc02c4f93e521b666b9f1e0dd7cd484c",
+   "kind": "file",
+   "path": "tools/cheats/unified-curated.json"
+  },
+  {
+   "blob": "8f0dbda19b61886fef95f43bff855131789f2e9f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-30.json.gz"
+  },
+  {
+   "blob": "901ad579ce325ae03c183fe6b44c7460c26f846e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-09.json.gz"
+  },
+  {
+   "blob": "92bf7e4650edf6382c188757c1d2267c5c585dde",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-18.json.gz"
+  },
+  {
+   "blob": "9489fc516be988ae2642f9fc227120f0dd0ea99f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-12.json.gz"
+  },
+  {
+   "blob": "94da8051e2bca0052f47b26576b65b4f7d08ac69",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-01.json.gz"
+  },
+  {
+   "blob": "95e3a08f1bf34686102c9530ddc100d1d4f000d1",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-03.json.gz"
+  },
+  {
+   "blob": "98060a57e819448c7bc7e328e1f98b18efb2f933",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-16.json.gz"
+  },
+  {
+   "blob": "9bc240eb2f8e7da6dfaada712e84f9d873c253ea",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-28.json.gz"
+  },
+  {
+   "blob": "9d2cebfcb7d1ef5bc96fbe3c9115ea47bb96cb02",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-a0a577560bb7fc62f92b9b52.json.gz"
+  },
+  {
+   "blob": "9e4184d1cc6ad5ab7770d3721064ea693b5ae13d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-13.json.gz"
+  },
+  {
+   "blob": "a1fc6592c4da3b3ce376cc710ad1a761cd9b290a",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-25.json.gz"
+  },
+  {
+   "blob": "a468865df65eb8de8fc0822e1c22af2301a98c9f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-11.json.gz"
+  },
+  {
+   "blob": "a5a0fb7b7e29f7cc7552bd0982db9aaa30c5de66",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-a063af6203252f4b5411df2f.json.gz"
+  },
+  {
+   "blob": "a65762085d0ef4c7c4e7fa98e8d60f5d14353ffc",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-30.json.gz"
+  },
+  {
+   "blob": "a7d67f6eff375470ed60251d4429890030880948",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-28.json.gz"
+  },
+  {
+   "blob": "a85f2ab7a0d9b0177d6afdee192aabd3e3e9ba0e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-29.json.gz"
+  },
+  {
+   "blob": "ac7f3d0ddbf0571de15cf392e74b226882a211df",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-19.json.gz"
+  },
+  {
+   "blob": "ad113e3f1b34a2253ab8d1bdf422adbf8cec4632",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-4fe0562e46ceef26911c2384.json.gz"
+  },
+  {
+   "blob": "af2734b12a6fd9fa84115b8865d8dac3c8f25b35",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-23.json.gz"
+  },
+  {
+   "blob": "affa2cd3057efbb5a40c435f82759670804aa64d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-27.json.gz"
+  },
+  {
+   "blob": "b355c1ea4e99570d8b134d7fdc6e8dfdeffc4bba",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-15.json.gz"
+  },
+  {
+   "blob": "b4dfa5dc3a38645b27e0d16abfef9c57492f7b78",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-09.json.gz"
+  },
+  {
+   "blob": "b6b21ef163d283aba55ce390552bd06fd319335a",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-008f3cb72455f2644c4dab68.json.gz"
+  },
+  {
+   "blob": "b72e1a0b1f6f8ef9142ce8b92724600f5404cba2",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-16.json.gz"
+  },
+  {
+   "blob": "b838a46ac7e653a2b581c93fbafc83bfeaf23a8b",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-cc4e2c9b71a950d56f9fab15.json.gz"
+  },
+  {
+   "blob": "b9c1d580b9d4d3014532f1acdb69be3da2d323ab",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-16.json.gz"
+  },
+  {
+   "blob": "baedc1c8b496c76667b8e5ffc2ad6007fde540d9",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-00.json.gz"
+  },
+  {
+   "blob": "bcbe6647fdaf86217d5e43fadb5c14b88c5f2053",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-29.json.gz"
+  },
+  {
+   "blob": "bd7156f797886cb439e622f2d908ccc5a24fbc8e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-14.json.gz"
+  },
+  {
+   "blob": "be9ef85fe9d7881b2df9b2f99dd3b1d1855cca9e",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-08.json.gz"
+  },
+  {
+   "blob": "bff6850fb77367865ea8743ffbd2b8f8bb1c0c20",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-21.json.gz"
+  },
+  {
+   "blob": "c11d2f8e4033cb750c920c551d748bce72ac5297",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-09.json.gz"
+  },
+  {
+   "blob": "c2100b2b2d4328fb8b17088f9e32a412f8ed00bd",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-29.json.gz"
+  },
+  {
+   "blob": "c27639fe84fb20d9981eb19d3f5cde9118f1eb84",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-22.json.gz"
+  },
+  {
+   "blob": "c3526fdbe2e826d562e5ebcee35ffe5a6291d87f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-00.json.gz"
+  },
+  {
+   "blob": "c3f7fc3d3e276e4dec922a7909856a12d9be7698",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-31.json.gz"
+  },
+  {
+   "blob": "c5660b7daa41e534a8684a54ffadc19062c24e53",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-07.json.gz"
+  },
+  {
+   "blob": "c5673be99a18bc4bbaa0216c437ddb423a97c9e9",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-dddf676f7034df17fc012a58.json.gz"
+  },
+  {
+   "blob": "c5a4550c8def482a37ee4bd62b9ea30fde7d0724",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-02.json.gz"
+  },
+  {
+   "blob": "c5ae3c6924d54c6e368e75f422890b9e7ca43afa",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-12.json.gz"
+  },
+  {
+   "blob": "c5b8bed6fc18c1900751010840e61bc522b3682d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-24.json.gz"
+  },
+  {
+   "blob": "c5d620b7cdab5c0f3bba7b5c93de5de5689a88f1",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-22.json.gz"
+  },
+  {
+   "blob": "c5e5e59cd046586b7fae433bc288a428632c87b1",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-10.json.gz"
+  },
+  {
+   "blob": "c8331f6c4798b571871f81daa5b68d2818f2d917",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-bb37ec3819ff0dd6aece3fad.json.gz"
+  },
+  {
+   "blob": "cdad4353672f84e641aac70dbb111d1071187252",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-31.json.gz"
+  },
+  {
+   "blob": "ce8d050dbbb1f92b2153feb7c51f93874e40ae7c",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-17.json.gz"
+  },
+  {
+   "blob": "cea2dcab0d2d55428bcffc9eb507f8ed5106ec35",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-7d1c22660bad9bcb60a3f66d.json.gz"
+  },
+  {
+   "blob": "d0545d0678b6a28120bb254590f156a7d112fda0",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-18.json.gz"
+  },
+  {
+   "blob": "d0de6ec49f2a3d04a51980392579d721015ce89f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-08.json.gz"
+  },
+  {
+   "blob": "d3a27d621231864c14b9fab2d4e61ceb12b73d8b",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-18.json.gz"
+  },
+  {
+   "blob": "d5689a4c803975ebcf0326162eeea3f502e02447",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-01.json.gz"
+  },
+  {
+   "blob": "d7f500dad0ad5ec206576e62f517345bbdf5ac5c",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-05.json.gz"
+  },
+  {
+   "blob": "ddfe6718bf8ab063b4ba2edb2453f1288f8cdf2d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-17.json.gz"
+  },
+  {
+   "blob": "e0366b93d9e46d49d79760fcd56e879a72aa6de8",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-07.json.gz"
+  },
+  {
+   "blob": "e0cf93ae30d9501d5d5cf45b632822c8f084986f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-10.json.gz"
+  },
+  {
+   "blob": "e3971eb5ffd78b4fbcc6981693ed559d143031c9",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-c698f8557a867e7729210684.json.gz"
+  },
+  {
+   "blob": "e3a43a449f837a5e11c684b6e2eace47507e57db",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-fea41b9319e4f0ec3ef0b9b2.json.gz"
+  },
+  {
+   "blob": "e7354f33885ff7e16e973c1ad9619600c891207f",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-03.json.gz"
+  },
+  {
+   "blob": "e769ecfbf0ad368543bcf66277a22821db5d404d",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-31.json.gz"
+  },
+  {
+   "blob": "e7d45c98e1fb5958a3f9656c203dee25a0367565",
+   "kind": "file",
+   "path": "tools/cheats/snapshots/nds-fps-478.json"
+  },
+  {
+   "blob": "ea335e5453895b7e6dae8cae6b19ba37135fa1b9",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-10.json.gz"
+  },
+  {
+   "blob": "eb0350bfdbf88bfa5b9d12a019cd40b9408791e7",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-13.json.gz"
+  },
+  {
+   "blob": "eb4d189072fde972b1f73db850692b4b5dda117c",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-27.json.gz"
+  },
+  {
+   "blob": "ecf047a572956d691668015fd1ea79274e565a81",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-ce7f175712da30283bedb2c1.json.gz"
+  },
+  {
+   "blob": "ed14ec4177d0e84647795044b4be59eebcc87633",
+   "kind": "file",
+   "path": "native/cheats/catalogue/supplement478-native-rejections.json.gz"
+  },
+  {
+   "blob": "ed48c73983534d84885691c0a7e418c8b608e9ce",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-08.json.gz"
+  },
+  {
+   "blob": "f059de74522a0f3a0818cdaba6f4d3956b8245e9",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-29.json.gz"
+  },
+  {
+   "blob": "f0966165957e768e06924779fb36c494865404cb",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-27.json.gz"
+  },
+  {
+   "blob": "f191b3908b4eb60edef6c27449e2590849a473b5",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-ead4b34e82e8924055f4349b.json.gz"
+  },
+  {
+   "blob": "f610eb3575a0a16e635a7ace8763a5ef01e9cdc2",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-28.json.gz"
+  },
+  {
+   "blob": "f69a3bd099157f6c387a910e8c2d606bd2baa293",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/armsx2-00.json.gz"
+  },
+  {
+   "blob": "ff1a3ebf64fc8cc2e0b4823784cc97dead1d8b15",
+   "kind": "pack",
+   "path": "native/cheats/catalogue/packs/pack-128933edd5aeab9aeb2f1853.json.gz"
+  },
+  {
+   "blob": "ff2605b01a7079f5e478e2e594e1e3af2f814431",
+   "kind": "shard",
+   "path": "native/enhancements/catalogue/shards/melonx-08.json.gz"
+  }
+ ],
+ "minimal_rewrite": {
+  "commits_with_stripped_blobs": 1025,
+  "commits_to_rewrite": 1026,
+  "commits_total": 5130,
+  "refs": {
+   "refs/heads/Claude": {
+    "tip": "842bdd8e2930",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/delivery529-chatgpt-20261025": {
+    "tip": "f52caafaa65e",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/dependabot/pub/pub-dependencies-c8cd421889": {
+    "tip": "419b1557f665",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/diag/melonx-ios-audio-20261025": {
+    "tip": "951f4edfc4c4",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/diag/melonx532-simulator-rerun": {
+    "tip": "9e1d8a35437c",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/docs/fix-009-build530-source-refresh": {
+    "tip": "11f170ded867",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/fix/melonx-ios-audio-buffer-underrun-532": {
+    "tip": "a1882e10aa11",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/fix/melonx-ios-vulkan-host-import-20261025": {
+    "tip": "39d35c2c5f96",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/fix/melonx-sync-shaders-cache-531": {
+    "tip": "9546bc6e44ff",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/main": {
+    "tip": "893179a55626",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/work/rpcs3-audit-20261023": {
+    "tip": "cfe92344e1b3",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/heads/work/rpcs3-audit-delivery-508": {
+    "tip": "0ae260d2966f",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/sim/Claude-after-push": {
+    "tip": "053dbd17f913",
+    "history_rewritten": true,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.1": {
+    "tip": "5e6dc00b35b7",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.10": {
+    "tip": "9e7bed794e71",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/0.0.2": {
+    "tip": "f4583c6a3083",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.3": {
+    "tip": "e71f89cd7272",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.4": {
+    "tip": "90a4e513e3a9",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.5": {
+    "tip": "79a5920af0f1",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.6": {
+    "tip": "af3cec8af0a3",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.7": {
+    "tip": "a12f075906ef",
+    "history_rewritten": false,
+    "tip_tree_loses_files": false
+   },
+   "refs/tags/0.0.8": {
+    "tip": "bcca4e4a4dc8",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/0.0.9": {
+    "tip": "6c6604a70a68",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/0.0.9-fix.1": {
+    "tip": "97d68263ed64",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/build-483": {
+    "tip": "2c0e022f8cf0",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/build-489": {
+    "tip": "a8065a993c0a",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/build-490": {
+    "tip": "d152e5a27003",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   },
+   "refs/tags/build-494": {
+    "tip": "f61e1b9ab41b",
+    "history_rewritten": true,
+    "tip_tree_loses_files": true
+   }
+  },
+  "pull_refs_affected": 11,
+  "pull_refs_total": 143
+ },
+ "trial_run_git_2_43": {
+  "stripped_blobs": 161,
+  "stripped_blobs_still_present": [],
+  "commits_rewritten": 4827,
+  "refs_changed_by_kind": {
+   "heads": 12,
+   "pull": 139,
+   "tags": 15
+  },
+  "pinned_test_commits": {
+   "d3d5681cc8b1": "rewritten \u2192 85f4259447f2",
+   "f4b65f09d5a7": "absent",
+   "fb744a8e5eb5": "rewritten \u2192 5734d92ffe9e",
+   "424a360348ae": "rewritten \u2192 7a0e993494cc",
+   "301ff56a6329": "rewritten \u2192 3c0967d81d09",
+   "8308865b8738": "rewritten \u2192 4abf7fdf3145",
+   "cb59a78472a9": "rewritten \u2192 9e772bb14173",
+   "b451b10256ac": "rewritten \u2192 3b84405956ad",
+   "1c1d1f7f4b3f": "rewritten \u2192 75962763402a"
+  },
+  "fsck_ok": true
+ },
+ "trial_run_ref_map": {
+  "refs/heads/Claude": [
+   "053dbd17f913f88b4940284a1e7ea8289d880d68",
+   "0c05959cfefff87bb6393c25c49bcf371f94a967"
+  ],
+  "refs/heads/delivery529-chatgpt-20261025": [
+   "f52caafaa65ec861e2ed0646101f1b46176ae976",
+   "f3f0036f625cd574c5be2ab3bb79038e979890a8"
+  ],
+  "refs/heads/dependabot/pub/pub-dependencies-c8cd421889": [
+   "419b1557f6653016ece9aadab740f86c8a9846ec",
+   "a5060e60af0e9ad2157eacbd18f31277e8f30103"
+  ],
+  "refs/heads/diag/melonx-ios-audio-20261025": [
+   "951f4edfc4c48957c2d2190ab2362c6c81c92be7",
+   "f0ab6c69b2b286d228ab0f9d231762f56cff2da5"
+  ],
+  "refs/heads/diag/melonx532-simulator-rerun": [
+   "9e1d8a35437cf080da361600b52622ec3949f4c6",
+   "03e7737e996cd2c93b4cd7b2be37673bb249a529"
+  ],
+  "refs/heads/docs/fix-009-build530-source-refresh": [
+   "11f170ded86760d67f4c000feef8627f5d7ce38f",
+   "3172992068d59f494ef1f96a227b71210d3d56f3"
+  ],
+  "refs/heads/fix/melonx-ios-audio-buffer-underrun-532": [
+   "a1882e10aa11f9d093e07ec2f84ee5ac56c08de9",
+   "4f29d635a02036958cd4693fac5bab5ca5727252"
+  ],
+  "refs/heads/fix/melonx-ios-vulkan-host-import-20261025": [
+   "39d35c2c5f96d9cf804f5eafba17f70d17129dca",
+   "675ce76d29c043fce17ea70cf72429e98499bcf6"
+  ],
+  "refs/heads/fix/melonx-sync-shaders-cache-531": [
+   "9546bc6e44ff96edf78120b567cd71f5f3318857",
+   "212b30affc564406f1fdcfe2c51f2fd3bbfdb888"
+  ],
+  "refs/heads/main": [
+   "893179a556260d6c9714ab8391b3c6bda97e8386",
+   "1e81e95c3ab86e378b6e88dfb46994d0456ecef2"
+  ],
+  "refs/heads/work/rpcs3-audit-20261023": [
+   "cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f",
+   "6e6516fbc1a756cb7de7be4c01dcc909527e477e"
+  ],
+  "refs/heads/work/rpcs3-audit-delivery-508": [
+   "0ae260d2966f209ebe06d3e37047d03dedc096ed",
+   "85b4d32cf231324879d56a726c464a30025a3c1c"
+  ],
+  "refs/tags/0.0.1": [
+   "5e6dc00b35b7bb7847c24198d9f4b08ade8ed9a0",
+   "cbcce4056f05bced70b551adb6b96ad100fa0ed2"
+  ],
+  "refs/tags/0.0.10": [
+   "9e7bed794e71afde8817c6201cfdf4c72b1ae761",
+   "090c6e9506a9526f012ff0330b84386f925058a7"
+  ],
+  "refs/tags/0.0.2": [
+   "f4583c6a3083b8aed358da28b2f8f849256e0e8b",
+   "94106a409c4acaa6e7742207e96fdcdc144768b6"
+  ],
+  "refs/tags/0.0.3": [
+   "e71f89cd72722ead301e152a760b0d871280cbe4",
+   "60f826cfb5cae850cbb548867b7ab412c0f09f7a"
+  ],
+  "refs/tags/0.0.4": [
+   "90a4e513e3a97f642bc45963bfb689f7c4677d46",
+   "6d3123d3065757ff1cf8c74abb5c0f01302d118c"
+  ],
+  "refs/tags/0.0.5": [
+   "79a5920af0f17b474bd8f1a0dcd88f798e2bede0",
+   "82583ff838f314e18f9feed5faf087b8fc034927"
+  ],
+  "refs/tags/0.0.6": [
+   "af3cec8af0a373641abbf0b11a286bf2c7d5cb03",
+   "b7cac690af12cc8cc3d877b872f64d3bdecedb80"
+  ],
+  "refs/tags/0.0.7": [
+   "a12f075906ef452885decbef78fefd6517ce0fe0",
+   "ea653b623ca05a09d7aa2b622f2c1b434cf9fd89"
+  ],
+  "refs/tags/0.0.8": [
+   "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
+   "5e2ce7f591e83411d1b97739fb14a7be54edb041"
+  ],
+  "refs/tags/0.0.9": [
+   "6c6604a70a6837b4d461618b90a791934d6c65b3",
+   "618d0d4e045d51c0e83e99064bd0cf69741f46cf"
+  ],
+  "refs/tags/0.0.9-fix.1": [
+   "97d68263ed64a7a7e38a715627a3851d40c679d9",
+   "b113071bf1d2fa5dbb2c594e8eb8ff0bfa902fda"
+  ],
+  "refs/tags/build-483": [
+   "26035e692dadf29541f3a1c21b4face8705e1046",
+   "2e20a0b797482621671970ff715012bdc28434b2"
+  ],
+  "refs/tags/build-489": [
+   "dd94796cd26103af48d894516158b5fd82450130",
+   "982eb9e1514197228f2020251668f8704e28e53a"
+  ],
+  "refs/tags/build-490": [
+   "9c9cec9784ad070635967913779eff4b06db21f2",
+   "1a1962d6b9136fd16a106c266990e3a8cb80a467"
+  ],
+  "refs/tags/build-494": [
+   "f61e1b9ab41bbf09eef478346b131890285f4700",
+   "ae46a2d6feb3f71c317e1dd789e59e1738ead72b"
+  ]
+ },
+ "trial_run_tip_trees": {
+  "refs/heads/Claude": [
+   "2e3b9ea6c63a5704941bd1d215289ccbc3709fc2",
+   "2e3b9ea6c63a5704941bd1d215289ccbc3709fc2"
+  ],
+  "refs/heads/main": [
+   "b932d60fb77cb553bd1bc3fc368c315562de49c9",
+   "38ff26babad2bb42569dc9cec9ffae0d0c518bc7"
+  ]
+ }
+}

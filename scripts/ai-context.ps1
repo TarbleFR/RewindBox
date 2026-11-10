@@ -24,11 +24,11 @@ try {
     & git diff --cached --stat
     Write-Output '--- Last three commits ---'
     & git log -3 --oneline
-    Write-Output '--- Handoff document ---'
-    if (Test-Path 'docs/AI_HANDOFF.md') {
-        Write-Output 'docs/AI_HANDOFF.md exists; read it before editing.'
+    Write-Output '--- Shared project contract ---'
+    if (Test-Path 'docs/AI_TASK_BOARD.md') {
+        Write-Output 'docs/AI_TASK_BOARD.md exists; read its shared rules and current task before editing.'
     } else {
-        Write-Output 'Missing handoff document; do not assume previous chat context.'
+        Write-Output 'Missing shared contract; verify the current task and Git state before editing.'
     }
 } finally {
     Pop-Location

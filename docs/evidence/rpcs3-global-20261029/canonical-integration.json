@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonicalPatchSHA256": "454fafaa9060ccf7e600594d9db5a486135c79048c1f97044b0df99c1cd547f2",
+  "canonicalPostimages": 313,
+  "canonicalPreimages": 178,
+  "newCanonicalFiles": 135,
+  "authenticatedUpstreamBlobs": 215,
+  "changedPostimages": 6,
+  "unchangedPostimages": 307,
+  "staticHostExportsChecked": true,
+  "coreBuilt": false,
+  "physicalDeviceTested": false
+}

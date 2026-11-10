@@ -1,0 +1,1089 @@
+{
+  "total_count": 5,
+  "jobs": [
+    {
+      "id": 125767745112,
+      "run_id": 41591090457,
+      "workflow_name": "RewindBox standard delivery - 8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41591090457",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdSFd-WA",
+      "head_sha": "8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/125767745112",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41591090457/job/125767745112",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-03T06:37:49Z",
+      "started_at": "2026-11-03T06:37:51Z",
+      "completed_at": "2026-11-03T06:38:32Z",
+      "name": "preflight",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-03T06:37:52Z",
+          "completed_at": "2026-11-03T06:37:52Z"
+        },
+        {
+          "name": "Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-03T06:37:52Z",
+          "completed_at": "2026-11-03T06:38:07Z"
+        },
+        {
+          "name": "Materialize the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-03T06:38:07Z",
+          "completed_at": "2026-11-03T06:38:09Z"
+        },
+        {
+          "name": "Run the delivery contract",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-03T06:38:09Z",
+          "completed_at": "2026-11-03T06:38:28Z"
+        },
+        {
+          "name": "Preserve the delivery contract log",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-03T06:38:28Z",
+          "completed_at": "2026-11-03T06:38:29Z"
+        },
+        {
+          "name": "Post Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-03T06:38:29Z",
+          "completed_at": "2026-11-03T06:38:29Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-03T06:38:29Z",
+          "completed_at": "2026-11-03T06:38:29Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/125767745112",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000012671,
+      "runner_name": "GitHub Actions 1000012671",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 125767976077,
+      "run_id": 41591090457,
+      "workflow_name": "RewindBox standard delivery - 8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41591090457",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdSFsEjQ",
+      "head_sha": "8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/125767976077",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41591090457/job/125767976077",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-03T06:38:32Z",
+      "started_at": "2026-11-03T06:38:34Z",
+      "completed_at": "2026-11-03T06:43:34Z",
+      "name": "flutter",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-03T06:38:34Z",
+          "completed_at": "2026-11-03T06:38:35Z"
+        },
+        {
+          "name": "Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-03T06:38:35Z",
+          "completed_at": "2026-11-03T06:38:49Z"
+        },
+        {
+          "name": "Materialize the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-03T06:38:49Z",
+          "completed_at": "2026-11-03T06:38:53Z"
+        },
+        {
+          "name": "Set up Flutter3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-03T06:38:53Z",
+          "completed_at": "2026-11-03T06:39:12Z"
+        },
+        {
+          "name": "Resolve exact workspace lock",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-03T06:39:12Z",
+          "completed_at": "2026-11-03T06:39:13Z"
+        },
+        {
+          "name": "Run source contracts and Flutter behavior",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-03T06:39:13Z",
+          "completed_at": "2026-11-03T06:43:30Z"
+        },
+        {
+          "name": "Preserve actual command results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-03T06:43:30Z",
+          "completed_at": "2026-11-03T06:43:31Z"
+        },
+        {
+          "name": "Post Set up Flutter3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-03T06:43:31Z",
+          "completed_at": "2026-11-03T06:43:32Z"
+        },
+        {
+          "name": "Post Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-03T06:43:32Z",
+          "completed_at": "2026-11-03T06:43:33Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-11-03T06:43:33Z",
+          "completed_at": "2026-11-03T06:43:33Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/125767976077",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000012673,
+      "runner_name": "GitHub Actions 1000012673",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 125767976087,
+      "run_id": 41591090457,
+      "workflow_name": "RewindBox standard delivery - 8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41591090457",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdSFsElw",
+      "head_sha": "8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/125767976087",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41591090457/job/125767976087",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-03T06:38:32Z",
+      "started_at": "2026-11-03T06:38:34Z",
+      "completed_at": "2026-11-03T06:53:07Z",
+      "name": "native",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-03T06:38:34Z",
+          "completed_at": "2026-11-03T06:38:36Z"
+        },
+        {
+          "name": "Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-03T06:38:36Z",
+          "completed_at": "2026-11-03T06:39:13Z"
+        },
+        {
+          "name": "Materialize the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-03T06:39:13Z",
+          "completed_at": "2026-11-03T06:39:24Z"
+        },
+        {
+          "name": "Select targeted Xcode16.4 and Swift6",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-03T06:39:24Z",
+          "completed_at": "2026-11-03T06:39:25Z"
+        },
+        {
+          "name": "Set up Flutter3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-03T06:39:25Z",
+          "completed_at": "2026-11-03T06:40:21Z"
+        },
+        {
+          "name": "Resolve exact workspace lock",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-03T06:40:21Z",
+          "completed_at": "2026-11-03T06:40:24Z"
+        },
+        {
+          "name": "Prepare real Flutter iOS headers and simulator project tool",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-03T06:40:24Z",
+          "completed_at": "2026-11-03T06:40:30Z"
+        },
+        {
+          "name": "Run actual Xcode16.4 tests and host compilation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-03T06:40:30Z",
+          "completed_at": "2026-11-03T06:52:52Z"
+        },
+        {
+          "name": "Preserve actual command results",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-03T06:52:52Z",
+          "completed_at": "2026-11-03T06:52:54Z"
+        },
+        {
+          "name": "Preserve real XCTest bundles and native diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-03T06:52:54Z",
+          "completed_at": "2026-11-03T06:52:55Z"
+        },
+        {
+          "name": "Post Set up Flutter3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-03T06:52:55Z",
+          "completed_at": "2026-11-03T06:52:57Z"
+        },
+        {
+          "name": "Post Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-03T06:52:57Z",
+          "completed_at": "2026-11-03T06:52:57Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-03T06:52:57Z",
+          "completed_at": "2026-11-03T06:53:05Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/125767976087",
+      "labels": [
+        "macos-15"
+      ],
+      "runner_id": 1000012675,
+      "runner_name": "GitHub Actions 1000012675",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 125767976108,
+      "run_id": 41591090457,
+      "workflow_name": "RewindBox standard delivery - 8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41591090457",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdSFsErA",
+      "head_sha": "8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/125767976108",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41591090457/job/125767976108",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-03T06:38:32Z",
+      "started_at": "2026-11-03T06:38:33Z",
+      "completed_at": "2026-11-03T06:39:27Z",
+      "name": "republish",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-03T06:38:34Z",
+          "completed_at": "2026-11-03T06:38:34Z"
+        },
+        {
+          "name": "Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-03T06:38:34Z",
+          "completed_at": "2026-11-03T06:38:46Z"
+        },
+        {
+          "name": "Materialize the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-03T06:38:46Z",
+          "completed_at": "2026-11-03T06:38:48Z"
+        },
+        {
+          "name": "Download and authenticate the replaced RPCS3 Core bytes",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-03T06:38:48Z",
+          "completed_at": "2026-11-03T06:38:53Z"
+        },
+        {
+          "name": "Download and authenticate the replaced MeloNX Core producer artifact",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-03T06:38:53Z",
+          "completed_at": "2026-11-03T06:38:57Z"
+        },
+        {
+          "name": "Download and authenticate the exact retained libretro runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-03T06:38:57Z",
+          "completed_at": "2026-11-03T06:39:02Z"
+        },
+        {
+          "name": "Download and authenticate the exact retained native MeloNX dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-03T06:39:02Z",
+          "completed_at": "2026-11-03T06:39:06Z"
+        },
+        {
+          "name": "Authenticate the retained Dolphin session Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-03T06:39:06Z",
+          "completed_at": "2026-11-03T06:39:09Z"
+        },
+        {
+          "name": "Authenticate the retained ARMSX2 ABI9 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-03T06:39:09Z",
+          "completed_at": "2026-11-03T06:39:12Z"
+        },
+        {
+          "name": "Stage the authenticated component archives for republication",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-03T06:39:12Z",
+          "completed_at": "2026-11-03T06:39:13Z"
+        },
+        {
+          "name": "Republish the authenticated rpcs3-core archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-03T06:39:13Z",
+          "completed_at": "2026-11-03T06:39:14Z"
+        },
+        {
+          "name": "Republish the authenticated rpcs3-host-tests archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-03T06:39:14Z",
+          "completed_at": "2026-11-03T06:39:16Z"
+        },
+        {
+          "name": "Republish the authenticated melonx-core archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-03T06:39:16Z",
+          "completed_at": "2026-11-03T06:39:18Z"
+        },
+        {
+          "name": "Republish the authenticated dolphin archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-03T06:39:18Z",
+          "completed_at": "2026-11-03T06:39:20Z"
+        },
+        {
+          "name": "Republish the authenticated armsx2 archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-11-03T06:39:20Z",
+          "completed_at": "2026-11-03T06:39:21Z"
+        },
+        {
+          "name": "Republish the authenticated libretro archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-11-03T06:39:21Z",
+          "completed_at": "2026-11-03T06:39:23Z"
+        },
+        {
+          "name": "Republish the authenticated melonx-dependencies archive",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-11-03T06:39:23Z",
+          "completed_at": "2026-11-03T06:39:25Z"
+        },
+        {
+          "name": "Post Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 34,
+          "started_at": "2026-11-03T06:39:25Z",
+          "completed_at": "2026-11-03T06:39:25Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35,
+          "started_at": "2026-11-03T06:39:25Z",
+          "completed_at": "2026-11-03T06:39:25Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/125767976108",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "runner_id": 1000012672,
+      "runner_name": "GitHub Actions 1000012672",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 125767976144,
+      "run_id": 41591090457,
+      "workflow_name": "RewindBox standard delivery - 8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41591090457",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdSFsE0A",
+      "head_sha": "8bad6a487c594839c992bbcc6af8d9220af6e940",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/125767976144",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41591090457/job/125767976144",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-03T06:38:32Z",
+      "started_at": "2026-11-03T06:38:36Z",
+      "completed_at": "2026-11-03T06:58:35Z",
+      "name": "application",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-03T06:38:37Z",
+          "completed_at": "2026-11-03T06:38:40Z"
+        },
+        {
+          "name": "Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-03T06:38:40Z",
+          "completed_at": "2026-11-03T06:39:13Z"
+        },
+        {
+          "name": "Materialize the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-03T06:39:13Z",
+          "completed_at": "2026-11-03T06:39:30Z"
+        },
+        {
+          "name": "Authenticate the delivered base and the frozen effective product tree",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-03T06:39:30Z",
+          "completed_at": "2026-11-03T06:39:41Z"
+        },
+        {
+          "name": "Select Xcode 26.3 for NeoPlay and Google Cast",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-03T06:39:41Z",
+          "completed_at": "2026-11-03T06:39:41Z"
+        },
+        {
+          "name": "Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-03T06:39:41Z",
+          "completed_at": "2026-11-03T06:40:58Z"
+        },
+        {
+          "name": "Record exact build environment and start measurement",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-11-03T06:40:58Z",
+          "completed_at": "2026-11-03T06:41:09Z"
+        },
+        {
+          "name": "Resolve locked Dart dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-11-03T06:41:09Z",
+          "completed_at": "2026-11-03T06:41:11Z"
+        },
+        {
+          "name": "Prepare lightweight build tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-11-03T06:41:11Z",
+          "completed_at": "2026-11-03T06:41:13Z"
+        },
+        {
+          "name": "Generate iOS host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-03T06:41:13Z",
+          "completed_at": "2026-11-03T06:41:15Z"
+        },
+        {
+          "name": "Download and authenticate the pinned donor release for unchanged native resources",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-03T06:41:15Z",
+          "completed_at": "2026-11-03T06:41:34Z"
+        },
+        {
+          "name": "Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-03T06:41:34Z",
+          "completed_at": "2026-11-03T06:41:36Z"
+        },
+        {
+          "name": "Build canonical StikJIT from pinned sources for iOS 18 26 and 27",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13,
+          "started_at": "2026-11-03T06:41:36Z",
+          "completed_at": "2026-11-03T06:41:36Z"
+        },
+        {
+          "name": "Install verified cached StikJIT interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-11-03T06:41:36Z",
+          "completed_at": "2026-11-03T06:42:04Z"
+        },
+        {
+          "name": "Download and authenticate the replaced RPCS3 Core bytes",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-11-03T06:42:04Z",
+          "completed_at": "2026-11-03T06:42:13Z"
+        },
+        {
+          "name": "Verify and install the authenticated RPCS3 Core with unchanged ABI checks",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-11-03T06:42:13Z",
+          "completed_at": "2026-11-03T06:42:23Z"
+        },
+        {
+          "name": "Authenticate and install the retained Dolphin session Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-11-03T06:42:23Z",
+          "completed_at": "2026-11-03T06:42:30Z"
+        },
+        {
+          "name": "Authenticate and install the retained ARMSX2 ABI9 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-03T06:42:30Z",
+          "completed_at": "2026-11-03T06:42:36Z"
+        },
+        {
+          "name": "Prepare the retained libretro artifact destination",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-03T06:42:36Z",
+          "completed_at": "2026-11-03T06:42:36Z"
+        },
+        {
+          "name": "Download and authenticate the exact retained libretro runtime",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-03T06:42:36Z",
+          "completed_at": "2026-11-03T06:42:45Z"
+        },
+        {
+          "name": "Verify retained libretro digests, source identity and exported ABI",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-03T06:42:45Z",
+          "completed_at": "2026-11-03T06:42:46Z"
+        },
+        {
+          "name": "Authenticate the replaced engine producer runs",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-11-03T06:42:46Z",
+          "completed_at": "2026-11-03T06:42:49Z"
+        },
+        {
+          "name": "Download the replaced MeloNX Core producer artifact",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-11-03T06:42:49Z",
+          "completed_at": "2026-11-03T06:43:00Z"
+        },
+        {
+          "name": "Authenticate the replaced MeloNX Core inputs, gates and runtime evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24,
+          "started_at": "2026-11-03T06:43:00Z",
+          "completed_at": "2026-11-03T06:43:08Z"
+        },
+        {
+          "name": "Download and authenticate the exact retained native MeloNX dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25,
+          "started_at": "2026-11-03T06:43:08Z",
+          "completed_at": "2026-11-03T06:43:16Z"
+        },
+        {
+          "name": "Verify and materialize the six private MeloNX frameworks and original controls",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-11-03T06:43:16Z",
+          "completed_at": "2026-11-03T06:43:27Z"
+        },
+        {
+          "name": "Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-11-03T06:43:27Z",
+          "completed_at": "2026-11-03T06:43:28Z"
+        },
+        {
+          "name": "Prepare emulator build definitions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28,
+          "started_at": "2026-11-03T06:43:28Z",
+          "completed_at": "2026-11-03T06:43:28Z"
+        },
+        {
+          "name": "Configure release host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29,
+          "started_at": "2026-11-03T06:43:28Z",
+          "completed_at": "2026-11-03T06:44:38Z"
+        },
+        {
+          "name": "Verify central session pod is in the actual generated host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 30,
+          "started_at": "2026-11-03T06:44:38Z",
+          "completed_at": "2026-11-03T06:44:39Z"
+        },
+        {
+          "name": "Align application and extension versions to the pubspec version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31,
+          "started_at": "2026-11-03T06:44:39Z",
+          "completed_at": "2026-11-03T06:44:39Z"
+        },
+        {
+          "name": "Verify the reviewed NeoSwap host source is the source CocoaPods will compile",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32,
+          "started_at": "2026-11-03T06:44:39Z",
+          "completed_at": "2026-11-03T06:44:39Z"
+        },
+        {
+          "name": "Compile Release device binary with measured AOT and Xcode phases",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33,
+          "started_at": "2026-11-03T06:44:39Z",
+          "completed_at": "2026-11-03T06:52:10Z"
+        },
+        {
+          "name": "Embed NeoPlay source identity and dependency acknowledgements",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 34,
+          "started_at": "2026-11-03T06:52:10Z",
+          "completed_at": "2026-11-03T06:52:10Z"
+        },
+        {
+          "name": "Embed verified RPCS3 Core and signing metadata",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35,
+          "started_at": "2026-11-03T06:52:10Z",
+          "completed_at": "2026-11-03T06:53:08Z"
+        },
+        {
+          "name": "Embed lazy-loaded ARMSX2 Core framework",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36,
+          "started_at": "2026-11-03T06:53:08Z",
+          "completed_at": "2026-11-03T06:53:11Z"
+        },
+        {
+          "name": "Embed lazy-loaded libretro cores, MoltenVK and system assets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37,
+          "started_at": "2026-11-03T06:53:11Z",
+          "completed_at": "2026-11-03T06:53:12Z"
+        },
+        {
+          "name": "Embed legal, license and source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 38,
+          "started_at": "2026-11-03T06:53:12Z",
+          "completed_at": "2026-11-03T06:53:13Z"
+        },
+        {
+          "name": "Embed the validated RPCS3 Core actual compiled-source snapshot",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 39,
+          "started_at": "2026-11-03T06:53:13Z",
+          "completed_at": "2026-11-03T06:53:21Z"
+        },
+        {
+          "name": "Embed verified MeloNX runtime and actual build-source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 40,
+          "started_at": "2026-11-03T06:53:21Z",
+          "completed_at": "2026-11-03T06:53:23Z"
+        },
+        {
+          "name": "Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 41,
+          "started_at": "2026-11-03T06:53:23Z",
+          "completed_at": "2026-11-03T06:53:23Z"
+        },
+        {
+          "name": "Wait for and authenticate the test jobs and the fresh delivery contract",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 42,
+          "started_at": "2026-11-03T06:53:23Z",
+          "completed_at": "2026-11-03T06:53:34Z"
+        },
+        {
+          "name": "Embed the build identity, the replaced Core proofs and exact retained provenance",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 43,
+          "started_at": "2026-11-03T06:53:34Z",
+          "completed_at": "2026-11-03T06:53:53Z"
+        },
+        {
+          "name": "Package the rebuilt application and retain current component identities",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 44,
+          "started_at": "2026-11-03T06:53:53Z",
+          "completed_at": "2026-11-03T06:56:14Z"
+        },
+        {
+          "name": "Seal every executable, framework and extension for SideStore",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 45,
+          "started_at": "2026-11-03T06:56:14Z",
+          "completed_at": "2026-11-03T06:57:14Z"
+        },
+        {
+          "name": "Preserve sealed IPA and source receipts before final compatibility validators",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 46,
+          "started_at": "2026-11-03T06:57:14Z",
+          "completed_at": "2026-11-03T06:57:17Z"
+        },
+        {
+          "name": "Preserve sealed recovery piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 47,
+          "started_at": "2026-11-03T06:57:17Z",
+          "completed_at": "2026-11-03T06:57:19Z"
+        },
+        {
+          "name": "Preserve sealed recovery piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 48,
+          "started_at": "2026-11-03T06:57:19Z",
+          "completed_at": "2026-11-03T06:57:22Z"
+        },
+        {
+          "name": "Preserve sealed recovery piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 49,
+          "started_at": "2026-11-03T06:57:22Z",
+          "completed_at": "2026-11-03T06:57:25Z"
+        },
+        {
+          "name": "Preserve sealed recovery piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 50,
+          "started_at": "2026-11-03T06:57:25Z",
+          "completed_at": "2026-11-03T06:57:28Z"
+        },
+        {
+          "name": "Verify actual packaged MeloNX exports, helper identity and native notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 51,
+          "started_at": "2026-11-03T06:57:28Z",
+          "completed_at": "2026-11-03T06:57:29Z"
+        },
+        {
+          "name": "Verify every signed image, the replaced Core payloads and the retained payloads",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 52,
+          "started_at": "2026-11-03T06:57:29Z",
+          "completed_at": "2026-11-03T06:57:49Z"
+        },
+        {
+          "name": "Verify that no retired KartPad or Dusklight runtime is packaged",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 53,
+          "started_at": "2026-11-03T06:57:49Z",
+          "completed_at": "2026-11-03T06:58:05Z"
+        },
+        {
+          "name": "Verify final signed legal bundle and application and extension versions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 54,
+          "started_at": "2026-11-03T06:58:05Z",
+          "completed_at": "2026-11-03T06:58:06Z"
+        },
+        {
+          "name": "Finalize observed timings and artifact identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 55,
+          "started_at": "2026-11-03T06:58:06Z",
+          "completed_at": "2026-11-03T06:58:06Z"
+        },
+        {
+          "name": "Prepare encrypted delivery and evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 56,
+          "started_at": "2026-11-03T06:58:06Z",
+          "completed_at": "2026-11-03T06:58:07Z"
+        },
+        {
+          "name": "Upload encrypted IPA and verification reports",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 57,
+          "started_at": "2026-11-03T06:58:07Z",
+          "completed_at": "2026-11-03T06:58:11Z"
+        },
+        {
+          "name": "Prepare bounded encrypted transport pieces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 58,
+          "started_at": "2026-11-03T06:58:11Z",
+          "completed_at": "2026-11-03T06:58:12Z"
+        },
+        {
+          "name": "Upload encrypted transport piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 59,
+          "started_at": "2026-11-03T06:58:12Z",
+          "completed_at": "2026-11-03T06:58:15Z"
+        },
+        {
+          "name": "Upload encrypted transport piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 60,
+          "started_at": "2026-11-03T06:58:15Z",
+          "completed_at": "2026-11-03T06:58:17Z"
+        },
+        {
+          "name": "Upload encrypted transport piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 61,
+          "started_at": "2026-11-03T06:58:17Z",
+          "completed_at": "2026-11-03T06:58:20Z"
+        },
+        {
+          "name": "Upload encrypted transport piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 62,
+          "started_at": "2026-11-03T06:58:20Z",
+          "completed_at": "2026-11-03T06:58:23Z"
+        },
+        {
+          "name": "Collect diagnostic evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 63,
+          "started_at": "2026-11-03T06:58:23Z",
+          "completed_at": "2026-11-03T06:58:23Z"
+        },
+        {
+          "name": "Upload diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 64,
+          "started_at": "2026-11-03T06:58:23Z",
+          "completed_at": "2026-11-03T06:58:25Z"
+        },
+        {
+          "name": "Remove temporary secrets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 65,
+          "started_at": "2026-11-03T06:58:25Z",
+          "completed_at": "2026-11-03T06:58:25Z"
+        },
+        {
+          "name": "Post Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 128,
+          "started_at": "2026-11-03T06:58:25Z",
+          "completed_at": "2026-11-03T06:58:26Z"
+        },
+        {
+          "name": "Post Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 129,
+          "started_at": "2026-11-03T06:58:26Z",
+          "completed_at": "2026-11-03T06:58:29Z"
+        },
+        {
+          "name": "Post Checkout the exact candidate and its history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 130,
+          "started_at": "2026-11-03T06:58:29Z",
+          "completed_at": "2026-11-03T06:58:29Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 131,
+          "started_at": "2026-11-03T06:58:29Z",
+          "completed_at": "2026-11-03T06:58:32Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/125767976144",
+      "labels": [
+        "macos-15"
+      ],
+      "runner_id": 1000012674,
+      "runner_name": "GitHub Actions 1000012674",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

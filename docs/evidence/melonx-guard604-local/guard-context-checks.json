@@ -1,0 +1,23 @@
+{
+  "result": "passed",
+  "checks": 557,
+  "threads": 4,
+  "productionNativeInterface": true,
+  "productionGuardBody": true,
+  "actualSignalHandlerExecuted": false,
+  "actualNativeContextExecuted": false,
+  "physicalDeviceTested": false,
+  "inputs": {
+    "test/melonx_guard_context_test.py": "fae70e0b28ba0726e20c38865fbfe64b664209c3f38f98cdbf9e9de141151a48",
+    "test/melonx_guard_context/Program.cs": "bc1bbbe0dc0cbc8e2348d7cdf575d61943c83950913c5fa0c89fca6c0e719f63",
+    "build-utils/melonx/adapt_guard_context.py": "f55ea4b50c8921a628fdc922d0a4c3b1888e15858bdabe64d720998b35848da3"
+  },
+  "preimages": {
+    "src/Ryujinx.Cpu/LightningJit/NativeInterface.cs": "4c423270fb160a904b027c848a4c4e80b2b5fc7930f10cdb233550c625e441cc",
+    "src/Ryujinx.Cpu/Jit/HostTracked/NativePageTable.cs": "8e5b11a0ab01023f2db03937b36883863060f0c96cb44dcd507258becda1ee30"
+  },
+  "postimages": {
+    "src/Ryujinx.Cpu/LightningJit/NativeInterface.cs": "1202cee894cdd8b746dd46aae2600a03c387637bfd8b3cfd79ee183b4c59bbc4",
+    "src/Ryujinx.Cpu/Jit/HostTracked/NativePageTable.cs": "790d1af6e7b2cb3f83a510b9370b591bd4c87c1841a2ef80b06201e5453d99f0"
+  }
+}

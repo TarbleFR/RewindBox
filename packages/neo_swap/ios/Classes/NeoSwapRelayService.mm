@@ -78,6 +78,7 @@ NSDictionary* capabilityCheck() {
 - (void)start;
 - (void)maintain;
 - (int)waitReady:(uint32_t)timeout;
+- (int)prepareForBoot:(uint32_t)timeout;
 - (NSDictionary*)diagnostics;
 - (void)consumeHandles:(NSArray<NeoSwapPageRelayHandle*>*)handles pid:(int32_t)pid
             generation:(uint64_t)generation expectedGeneration:(uint64_t)expected error:(NSError*)error;
@@ -117,6 +118,9 @@ NSDictionary* capabilityCheck() {
                 (DISPATCH_MEMORYPRESSURE_WARN | DISPATCH_MEMORYPRESSURE_CRITICAL)) != 0;
             [self->_lock lock];
             self->_memoryPressureRaised = raised;
+            // Build 610: start() refuses while pressure is raised, so a pending fast
+            // footprint retry could only make waitReady re-issue refused starts.
+            if (raised) self->_fastFootprintRetryPending = NO;
             [self->_lock unlock];
             neostation::relay::set_pressure(raised);
             if (raised) {
@@ -264,11 +268,13 @@ NSDictionary* capabilityCheck() {
     const uint32_t boundedTimeout = std::min(timeout, 10000u);
     const NSTimeInterval deadline = NSDate.date.timeIntervalSince1970 +
         (static_cast<NSTimeInterval>(boundedTimeout) / 1000.0);
+    BOOL retried = NO;
     for (;;) {
         [_lock lock];
         const BOOL ready = _ready;
         const BOOL running = _running;
         const BOOL fastRetryPending = _fastFootprintRetryPending;
+        const BOOL pressure = _memoryPressureRaised;
         const NSTimeInterval retryAfter = _retryAfter;
         dispatch_group_t pending = _pending;
         [_lock unlock];
@@ -283,13 +289,31 @@ NSDictionary* capabilityCheck() {
                 static_cast<int64_t>(remaining * NSEC_PER_SEC)));
             continue;
         }
+        // Build 610: one retry only. A retry start that opened no generation
+        // (memory pressure, retry window) would otherwise spin here until the
+        // deadline; a retry generation that finished without readiness is final.
+        if (retried) return pressure ? NEOSWAP_RELAY_PRESSURE : NEOSWAP_RELAY_DISABLED;
         if (!fastRetryPending || retryAfter > deadline) return NEOSWAP_RELAY_DISABLED;
         if (retryAfter > now) {
             [NSThread sleepForTimeInterval:std::min(retryAfter - now, deadline - now)];
             continue;
         }
+        retried = YES;
         [self start];
     }
+}
+// Build 610: called before every RPCS3 boot. A relay still ready from the previous
+// session keeps _sessionObserved=YES, so idle maintenance could shut it down after
+// this returns and before the new session is active, and the boot's first guest
+// maps would then stay file-backed. Clearing the observation (as a fresh start
+// does) keeps the relay until the next session is observed; maintain re-checks it
+// inside the critical section that clears _ready.
+- (int)prepareForBoot:(uint32_t)timeout {
+    if (!NeoSwapExperimentProfile().relay()) return NEOSWAP_RELAY_DISABLED;
+    [_lock lock];
+    if (_ready && !NeoSwap_OwnerSessionActive(kRPCS3)) _sessionObserved = NO;
+    [_lock unlock];
+    return [self waitReady:timeout];
 }
 - (void)maintain {
     if (!NeoSwapExperimentProfile().relay()) return;
@@ -317,7 +341,9 @@ NSDictionary* capabilityCheck() {
             stats.struct_size = sizeof(stats); stats.abi_version = NEOSWAP_RELAY_ABI;
             NeoSwap_GetRelayAPI(NEOSWAP_RELAY_ABI)->snapshot(&stats);
             [self->_lock lock];
-            const BOOL idle = !self->_running && !stats.object_count;
+            // Build 610: a boot preparation may have cleared the observation since
+            // it was read above; it then keeps the relay for the coming session.
+            const BOOL idle = self->_sessionObserved && !self->_running && !stats.object_count;
             if (idle) self->_ready = NO;
             [self->_lock unlock];
             if (idle) (void)neostation::relay::shutdown();
@@ -444,6 +470,7 @@ static NeoSwapRelayManager* manager() {
 extern "C" void NeoSwapRelay_Start(void) { [manager() start]; }
 extern "C" void NeoSwapRelay_Maintain(void) { [manager() maintain]; }
 extern "C" int NeoSwapRelay_WaitReady(uint32_t timeout_ms) { return [manager() waitReady:timeout_ms]; }
+extern "C" int NeoSwapRelay_PrepareForBoot(uint32_t timeout_ms) { return [manager() prepareForBoot:timeout_ms]; }
 extern "C" int NeoSwapRelay_SetHostLoanQuota(uint64_t bytes) {
     return neostation::relay::set_owner_quota(kHostLoans, bytes);
 }

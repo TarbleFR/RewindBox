@@ -1,0 +1,149 @@
+{
+  "passed": true,
+  "compiler": "Homebrew clang version 22.1.8",
+  "sanitizer": "address,undefined",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "candidate": {
+    "admission": {
+      "passed": true,
+      "candidate": true,
+      "frames": 12,
+      "rewrittenBytesPerFrame": 3686400,
+      "workerBytes": 786432,
+      "workerHashes": 12,
+      "changedTexturesRejected": 12,
+      "mixedEligibility": true,
+      "epochOrdinals": true,
+      "nextFrameReadmission": true,
+      "staleEpochRejected": true,
+      "scopedWriteRejected": true
+    },
+    "existingModel": {
+      "passed": true,
+      "disabledPrehashNoWorker": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 172,
+        "misses": 80,
+        "hitRate": 0.683,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 233
+      },
+      "tightLoop": {
+        "hits": 7,
+        "misses": 119,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 92,
+        "misses": 34,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 873,
+        "workerSkips": 5,
+        "workerHashes": 15
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "harnessSHA256": "67bd4e62a246ea9dca0afeabf5d4436b90fbe6014d13bbadd6dfcd4d0399e6f3",
+    "compilerFlags": [
+      "-std=c++20",
+      "-O2",
+      "-UNDEBUG",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-exceptions",
+      "-pthread",
+      "-fno-omit-frame-pointer",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight",
+      "-isysroot",
+      "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+      "-fsanitize=address,undefined"
+    ]
+  },
+  "baseline": {
+    "admission": {
+      "passed": true,
+      "candidate": false,
+      "frames": 12,
+      "rewrittenBytesPerFrame": 3686400,
+      "workerBytes": 45023232,
+      "workerHashes": 24,
+      "changedTexturesRejected": 12,
+      "mixedEligibility": true,
+      "epochOrdinals": true,
+      "nextFrameReadmission": true,
+      "staleEpochRejected": true,
+      "scopedWriteRejected": true
+    },
+    "existingModel": {
+      "passed": true,
+      "disabledPrehashNoWorker": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 162,
+        "misses": 90,
+        "hitRate": 0.643,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 237
+      },
+      "tightLoop": {
+        "hits": 14,
+        "misses": 112,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 83,
+        "misses": 43,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 166,
+        "workerSkips": 6,
+        "workerHashes": 7
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "harnessSHA256": "9b923cdfcc31833539e2a1276efe28c15f66c728f78b6e911b3103cb1d51199d",
+    "compilerFlags": [
+      "-std=c++20",
+      "-O2",
+      "-UNDEBUG",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fno-exceptions",
+      "-pthread",
+      "-fno-omit-frame-pointer",
+      "-I/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/rpcs3-prehash-admission-3apcucax/before/rpcs3",
+      "-I/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/rpcs3-prehash-admission-3apcucax/before",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3",
+      "-I/Users/runner/work/_temp/runtime592-source-preflight",
+      "-isysroot",
+      "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+      "-fsanitize=address,undefined"
+    ]
+  },
+  "speculativeBytesAvoided": 44236800,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "rpcs3/ios/IOSTexturePrehash.h": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c"
+  },
+  "followupFixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7"
+}

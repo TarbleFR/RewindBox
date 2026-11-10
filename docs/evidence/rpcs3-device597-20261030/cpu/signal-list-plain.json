@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "mode": "list",
+  "sanitizer": null,
+  "results": {
+    "completeListFunctionExtracted": true,
+    "beforeAfterCopyCases": 88,
+    "observedCommitRecords": 10,
+    "zeroElementsNoCommitCases": 8,
+    "getAndUnwatchedPathsNoCommit": true
+  },
+  "sourceBodies": {
+    "old_bool spu_thread::do_list_transfer(": "b8b339dc890128ebe6854adea7c6921f42d919f74c3f9078c5d9714e6aef295e",
+    "new_bool spu_thread::do_list_transfer(": "3367363e6e0200165077331e10337859d1f5536e2e3cf78fcf7ed9f975375f1c"
+  },
+  "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+  "programSHA256": "4f60257d59cadfed18aa76b59cecb0caa91ca6d4a8f100024b0a742884add962",
+  "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-g",
+    "-O3",
+    "-DRPCS3_IOS",
+    "-I",
+    "/workspace/scratch/82df14a3df84/device597-core-cpu/rpcs3"
+  ],
+  "host": "x86_64",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "platformAtomicWaitBackendExecuted": false,
+  "scope": "Real bounded trace header; complete acquire/release/write_gcm_label bodies for rsx mode; complete do_dma_transfer/do_list_transfer for dma/list modes. Guest memory, atomic reservation/locks, GPU backend, log formatting, clock and wait pump are explicit host adapters."
+}

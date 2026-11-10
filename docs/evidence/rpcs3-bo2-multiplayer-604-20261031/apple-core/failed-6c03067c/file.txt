@@ -1,0 +1,1 @@
+dist/rpcs3/libRPCS3Core.dylib: Mach-O 64-bit dynamically linked shared library arm64

@@ -1,0 +1,343 @@
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -2452,7 +2452,9 @@
+ 			}
+ 		}
+ 
+-		if (g_cfg.core.spu_accurate_dma) [[unlikely]]
++		// Accurate PUT stores resolve the effective address again. MMIO LS
++		// transfers must keep the pointer selected by the MMIO dispatcher.
++		if (eal < RAW_SPU_BASE_ADDR && g_cfg.core.spu_accurate_dma) [[unlikely]]
+ 		{
+ 			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
+ 			{
+@@ -2990,6 +2992,13 @@
+ 
+ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ {
++	// Deferred zero-length lists must complete without reading the list address.
++	// The immediate path already accepts them, but queued commands enter here.
++	if (!args.size)
++	{
++		return true;
++	}
++
+ 	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
+ 
+ 	// Amount of elements to fetch in one go
+@@ -3410,7 +3419,7 @@
+ 			arg_lsa += utils::align<u32>(size, 16);
+ 		}
+ 		// Avoid inlining huge transfers because it intentionally drops range lock unlock
+-		else if (optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
++		else if (size && optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
+ 		{
+ 			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
+ 			{
+diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -260,7 +260,10 @@
+ 
+ 			if (!busy) [[likely]]
+ 			{
+-				if (vm::check_addr(begin, vm::page_readable, size)) [[likely]]
++				// SPU MMIO DMA may already target a validated, redirected LS pointer.
++				// Its MMIO address is not a normal guest page; keep range exclusion
++				// above without faulting that synthetic address here.
++				if (begin >= RAW_SPU_BASE_ADDR || vm::check_addr(begin, vm::page_readable, size)) [[likely]]
+ 				{
+ 					break;
+ 				}
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -532,8 +532,10 @@
+ 			// Returns true if at least threshold% is covered in pixels
+ 			bool atlas_covers_target_area(int threshold) const
+ 			{
+-				const int target_area = (external_subresource_desc.width * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
+-				int covered_area = 0;
++				// Volume dimensions and the percentage multiply can exceed 32 bits
++				// even when the texture itself fits in RSX memory.
++				const u64 target_area = (u64{external_subresource_desc.width} * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
++				u64 covered_area = 0;
+ 				areai bbox{smax, smax, 0, 0};
+ 
+ 				for (const auto& section : external_subresource_desc.sections_to_copy)
+@@ -548,7 +550,7 @@
+ 					const auto dst_y = (section.dst_z * external_subresource_desc.height) + section.dst_y;
+ 
+ 					// Add this slice's dimensions to the total
+-					covered_area += section.dst_w * section.dst_h;
++					covered_area += u64{section.dst_w} * section.dst_h;
+ 
+ 					// Extend the covered bbox
+ 					bbox.x1 = std::min<int>(section.dst_x, bbox.x1);
+@@ -562,7 +564,7 @@
+ 					return false;
+ 				}
+ 
+-				if (const auto bounds_area = bbox.width() * bbox.height();
++				if (const auto bounds_area = static_cast<u64>(bbox.width()) * bbox.height();
+ 					bounds_area < target_area)
+ 				{
+ 					return false;
+@@ -3548,8 +3550,6 @@
+ 				{
+ 				case rsx::texture_dimension_extended::texture_dimension_3d:
+ 				case rsx::texture_dimension_extended::texture_dimension_cubemap:
+-					scale.depth /= attributes.depth;
+-					[[ fallthrough ]];
+ 				case rsx::texture_dimension_extended::texture_dimension_2d:
+ 					scale.height /= attributes.height;
+ 					[[ fallthrough ]];
+@@ -3620,6 +3620,16 @@
+ 					attributes.address, static_cast<s32>(extended_dimension),
+ 					attributes.width, attributes.height, attributes.depth);
+ 				return {};
++			}
++
++			// Depth is assigned by the dimension switch above. Normalizing it
++			// before that switch divides by the zero-initialized attributes.depth.
++			// Keep zero-pitch sampling's zero scale and 1D/2D coordinates intact.
++			if (is_unnormalized &&
++				(extended_dimension == rsx::texture_dimension_extended::texture_dimension_3d ||
++				 extended_dimension == rsx::texture_dimension_extended::texture_dimension_cubemap))
++			{
++				scale.depth /= attributes.depth;
+ 			}
+ 
+ 			if (options.is_compressed_format)
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -1906,7 +1906,10 @@
+ 	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
+ 	const auto vertex_state = vk::decode_vertex_input_assembly_state();
+ 
+-	if (m_graphics_state & rsx::pipeline_state::invalidate_pipeline_bits)
++	// Preserve shader invalidation before the resolved-program helpers consume
++	// it. Equal fixed-function properties do not imply the same shader program.
++	const bool program_state_dirty = !!(m_graphics_state & rsx::pipeline_state::invalidate_pipeline_bits);
++	if (program_state_dirty)
+ 	{
+ 		get_current_fragment_program(fs_sampler_state);
+ 		ensure(current_fragment_program.valid);
+@@ -1968,6 +1971,7 @@
+ 		m_graphics_state.clear(rsx::pipeline_state::pipeline_config_dirty);
+ 		if (m_program &&
+ 			!m_shader_interpreter.is_interpreter(m_program) &&
++			!program_state_dirty &&
+ 			m_pipeline_properties == properties)
+ 		{
+ 			// Nothing changed
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -861,6 +861,64 @@
+ 			desc.gcm_format, desc.width, desc.height, 1, 1, desc.remap, &section);
+ 	}
+ 
++	bool texture_cache::copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
++	{
++		// A small atlas often consists of strips/tiles that collectively replace
++		// every texel. Prove their union without a pixel-sized scratch allocation.
++		// Larger or non-color/2D requests keep the existing clear path.
++		if (dst->aspect() != VK_IMAGE_ASPECT_COLOR_BIT || dst->type() != VK_IMAGE_TYPE_2D ||
++			dst->mipmaps() != 1 || dst->layers() != 1 || !dst->width() || !dst->height() ||
++			sections.empty() || sections.size() > 8)
++		{
++			return false;
++		}
++
++		std::array<u32, 18> row_edges{};
++		u32 edge_count = 2;
++		row_edges[1] = dst->height();
++		for (const auto& section : sections)
++		{
++			if (!section.src || section.src == dst || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++				!section.src_w || !section.src_h || !section.dst_w || !section.dst_h ||
++				section.level || section.dst_z ||
++				u32{section.dst_x} + section.dst_w > dst->width() ||
++				u32{section.dst_y} + section.dst_h > dst->height())
++			{
++				return false;
++			}
++			row_edges[edge_count++] = section.dst_y;
++			row_edges[edge_count++] = u32{section.dst_y} + section.dst_h;
++		}
++		std::sort(row_edges.begin(), row_edges.begin() + edge_count);
++
++		for (u32 row = 1; row < edge_count; ++row)
++		{
++			const u32 y0 = row_edges[row - 1], y1 = row_edges[row];
++			if (y0 == y1)
++				continue;
++
++			// Each extension reaches an edge of one of the at most eight
++			// rectangles. Gaps stop immediately; overlaps never count twice.
++			u32 covered_x = 0;
++			while (covered_x < dst->width())
++			{
++				u32 next_x = covered_x;
++				for (const auto& section : sections)
++				{
++					if (section.dst_y <= y0 && u32{section.dst_y} + section.dst_h >= y1 &&
++						section.dst_x <= covered_x)
++					{
++						next_x = std::max(next_x, u32{section.dst_x} + section.dst_w);
++					}
++				}
++				if (next_x == covered_x)
++					return false;
++				covered_x = next_x;
++			}
++		}
++		return true;
++	}
++
+ 	bool texture_cache::copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
+ 	{
+ 		const u32 mipmaps = dst->mipmaps();
+@@ -1032,7 +1090,8 @@
+ 			// The memory load covers the whole image, no need to clear it first
+ 			initialize_subresource_from_memory(cmd, image, desc, rsx::texture_dimension_extended::texture_dimension_2d);
+ 		}
+-		else if (sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height)
++		else if ((sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height) &&
++			!copy_transfer_regions_fully_cover_2d_image(image, sections_to_copy))
+ 		{
+ 			if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 			{
+@@ -1610,9 +1669,9 @@
+ 				}
+ 			}
+ 
+-			// Primary access command queue, must restart it after
+-			vk::fence submit_fence(*m_device);
+-			vk::queue_submit_t submit_info{ m_submit_queue, &submit_fence };
++			// Use the command buffer-owned fence so a failed wait cannot destroy
++			// a fence still referenced by the queue. submit() also marks it pending.
++			vk::queue_submit_t submit_info{ m_submit_queue, nullptr };
+ 
+ 			if (async_sema)
+ 			{
+@@ -1633,9 +1692,10 @@
+ #ifdef RPCS3_IOS
+ 			const rpcs3::ios::rsx_sync::SiteScope ios_sync_site(rpcs3::ios::rsx_sync::texture, true);
+ #endif
+-			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
+-
+-			cmd.reset();
++			// A timeout leaves this command buffer pending; it must not be reset.
++			CHECK_RESULT(vk::wait_for_fence(submit_info.pfence, GENERAL_WAIT_TIMEOUT));
++
++			// begin() recycles the now-completed owned fence and resets the buffer.
+ 			cmd.begin();
+ 		}
+ 		else
+@@ -1736,7 +1796,11 @@
+ 		}
+ 
+ 		// Nuke temporary resources. They will still be visible to the GPU.
++		// Pooled images have already passed GPU retirement; active temporary
++		// views below still need the normal deferred-release path.
++#ifndef RPCS3_IOS
+ 		auto gc = vk::get_resource_manager();
++#endif
+ 		std::deque<cached_image_t> discarded_images;
+ 		{
+ 			// The driver thread returns completed images to this pool. Detach the
+@@ -1747,10 +1811,12 @@
+ 			m_cached_memory_size = 0;
+ 		}
+ 		any_released |= !discarded_images.empty();
++#ifndef RPCS3_IOS
+ 		for (auto& img : discarded_images)
+ 		{
+ 			gc->dispose(img.data);
+ 		}
++#endif
+ 
+ 		any_released |= !m_temporary_subresource_cache.empty();
+ 		for (auto& e : m_temporary_subresource_cache)
+@@ -1759,6 +1825,14 @@
+ 			release_temporary_subresource(e.second.second);
+ 		}
+ 		m_temporary_subresource_cache.clear();
++
++#ifdef RPCS3_IOS
++		// Re-enqueuing an already retired image under the current event would
++		// retain its allocation until another submission completes. Free this
++		// detached batch now, outside both cache locks, as on_frame_end does.
++		lock.unlock();
++		discarded_images.clear();
++#endif
+ 
+ 		return any_released;
+ 	}
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -307,7 +307,7 @@
+ 			AUDIT(synchronized);
+ 
+ 			// Synchronize, reset dma_fence after waiting
+-			vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT);
++			CHECK_RESULT(vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT));
+ 
+ 			// Calculate smallest range to flush - for framebuffers, the raster region is enough
+ 			const auto range = (context == rsx::texture_upload_context::framebuffer_storage) ? get_section_range() : get_confirmed_range();
+@@ -479,6 +479,7 @@
+ 
+ 		void copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 		bool copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
++		bool copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
+ 
+ 		vk::image* get_template_from_collection_impl(const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -37,6 +37,14 @@
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
++    # Runtime DMA continuation: only do_dma_transfer and do_list_transfer host
++    # bodies change. Emitters, helper signatures, SPU layout and constants are
++    # unchanged; cached relocatable objects bind the current host helpers again.
++    # Preserve the immediate Claude de816984 baseline for this exact file only,
++    # without admitting any older reservation/codegen implementation.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
+--- a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
+@@ -2,6 +2,7 @@
+ 
+ #include "vkutils/commands.h"
+ #include "vkutils/descriptors.h"
++#include "vkutils/shared.h"
+ #include "VKDataHeapManager.h"
+ #include "VKResourceManager.h"
+ 
+@@ -150,6 +151,13 @@
+ 			}
+ 
+ 			const auto ret = vk::wait_for_fence(m_submit_fence, timeout);
++			if (ret != VK_SUCCESS)
++			{
++				// A timed-out fence has not completed. Report the existing Vulkan
++				// error before callers can recycle this command buffer or its heaps.
++				vk::die_with_error(ret);
++				return ret;
++			}
+ 
+ 			lock.upgrade();
+ 

@@ -1,0 +1,88 @@
+diff --git a/rpcs3/Crypto/unzip.cpp b/rpcs3/Crypto/unzip.cpp
+index 6485e4d..0057235 100644
+--- a/rpcs3/Crypto/unzip.cpp
++++ b/rpcs3/Crypto/unzip.cpp
+@@ -141,7 +141,16 @@ bool zip(const void* src, usz size, fs::file& out, bool multi_thread_it)
+ 
+ 	utils::serial compressor;
+ 	compressor.set_expect_little_data(!multi_thread_it || size < 0x40'0000);
+-	compressor.m_file_handler = make_compressed_serialization_file_handler(out);
++	auto handler = make_compressed_serialization_file_handler(out);
++#ifdef RPCS3_IOS
++	// REWINDBOX_JIT_OBJECT_DEFLATE_LEVEL_V1: zip() stores the PPU/SPU LLVM
++	// objects on the compiling thread. Level 9 cost 3.58 s for one 6.66 MB PPU
++	// object on an iPhone (build 541), inside a 6.93 s code generation; level 1
++	// is 3.3x-9.5x faster on ARM64 code for 8-9% more bytes. The gzip stream
++	// stays readable by every Core, so no cache is invalidated.
++	handler->set_deflate_level(Z_BEST_SPEED);
++#endif
++	compressor.m_file_handler = std::move(handler);
+ 
+ 	std::string_view buffer_view{static_cast<const char*>(src), size};
+ 
+diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
+index d18da52..b6ca2d7 100644
+--- a/rpcs3/Emu/savestate_utils.cpp
++++ b/rpcs3/Emu/savestate_utils.cpp
+@@ -661,7 +661,11 @@ namespace stx
+ 	}
+ 	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept
+ 	{
+-		if (ar.is_writing()) return;
++		// REWINDBOX_RESTORE_TRACE_SCOPE_V1: only a thread that began a restore
++		// traces. A fresh boot builds id_map<lv2_memory_container> from a 4-byte
++		// in-memory archive; build 541 logged it as a restore whose elapsed_us
++		// was the device uptime.
++		if (ar.is_writing() || !s_restore_trace.started_us) return;
+ 		const u32 event = ++s_restore_trace.events;
+ 		if (event > 512)
+ 		{
+@@ -680,7 +684,7 @@ namespace stx
+ 	// This budget is independent of the enclosing FXO constructor trace.
+ 	extern void serial_restore_fs_trace(utils::serial& ar, std::string_view stage, u32 id, u32 type, u64 value) noexcept
+ 	{
+-		if (ar.is_writing()) return;
++		if (ar.is_writing() || !s_restore_trace.started_us) return;
+ 		const u32 event = ++s_restore_trace.fs_events;
+ 		if (event > 256)
+ 		{
+diff --git a/rpcs3/util/serialization_ext.cpp b/rpcs3/util/serialization_ext.cpp
+index e6901e4..288b9a6 100644
+--- a/rpcs3/util/serialization_ext.cpp
++++ b/rpcs3/util/serialization_ext.cpp
+@@ -214,7 +214,8 @@ void compressed_serialization_file_handler::initialize(utils::serial& ar)
+ 		}
+ 
+ 		m_zs = {};
+-		ensure(deflateInit2(&m_zs, ar.expect_little_data() ? 9 : 8, Z_DEFLATED, 16 + 15, 9, Z_DEFAULT_STRATEGY) == Z_OK);
++		const int level = m_deflate_level >= 0 ? m_deflate_level : (ar.expect_little_data() ? 9 : 8);
++		ensure(deflateInit2(&m_zs, level, Z_DEFLATED, 16 + 15, 9, Z_DEFAULT_STRATEGY) == Z_OK);
+ #ifndef _MSC_VER
+ #pragma GCC diagnostic pop
+ #endif
+diff --git a/rpcs3/util/serialization_ext.hpp b/rpcs3/util/serialization_ext.hpp
+index 5bdeab0..0ed624b 100644
+--- a/rpcs3/util/serialization_ext.hpp
++++ b/rpcs3/util/serialization_ext.hpp
+@@ -89,6 +89,13 @@ struct compressed_serialization_file_handler : utils::serialization_file_handler
+ 
+ 	void finalize(utils::serial& ar) override;
+ 
++	// REWINDBOX_JIT_OBJECT_DEFLATE_LEVEL_V1: zlib level for the next write
++	// stream; negative keeps the upstream choice (9 for little data, else 8).
++	void set_deflate_level(int level) noexcept
++	{
++		m_deflate_level = level;
++	}
++
+ private:
+ 	const std::unique_ptr<fs::file> m_file_storage;
+ 	const std::add_pointer_t<const fs::file> m_file;
+@@ -100,6 +107,7 @@ private:
+ 	bool m_write_inited = false;
+ 	bool m_read_inited = false;
+ 	bool m_errored = false;
++	int m_deflate_level = -1;
+ 	std::shared_ptr<compressed_stream_data> m_stream;
+ 	std::unique_ptr<named_thread<std::function<void()>>> m_stream_data_prepare_thread;
+ 	std::unique_ptr<named_thread<std::function<void()>>> m_file_writer_thread;

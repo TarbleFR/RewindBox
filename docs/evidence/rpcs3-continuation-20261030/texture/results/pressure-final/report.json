@@ -1,0 +1,44 @@
+{
+  "name": "pressure-final",
+  "source_hashes": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "ebbacda18e8dcc94da5dc288116a96b7a52f441dbaf897036cffd83f0770f273",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "51963efe0db3e04719a18c8c11bb8b169d49846773339e7d20c5f3a4bbf1919c"
+  },
+  "baseline_expected": false,
+  "generate_only": false,
+  "sanitizers": "none",
+  "reports": [
+    {
+      "case": "retired_image_pressure",
+      "checks": 6429,
+      "completed_pool_bytes": 268435456,
+      "active_temporary_bytes": 2097152,
+      "retained_after_pressure": 2097152,
+      "late_driver_returns": 1000,
+      "program_sha256": "e632253d765d8af45080c8bad64db177521df39a2ac21f7ce8e75bbc035ff763",
+      "command": [
+        "g++",
+        "-std=c++20",
+        "-O2",
+        "-pthread",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final/pressure.cpp",
+        "-o",
+        "/workspace/scratch/144c744e94bb/texture-review/results/pressure-final/pressure"
+      ]
+    }
+  ],
+  "limits": [
+    "GPU allocation/destruction APIs are recording substitutes.",
+    "Memory bytes are allocation lifetimes, not device RSS.",
+    "Texture prefix is extracted, not a complete Core compilation.",
+    "No iPhone or FPS measurement."
+  ],
+  "baseline_hashes": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c"
+  }
+}

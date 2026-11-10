@@ -1,0 +1,183 @@
+{
+  "passed": true,
+  "coreSource": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+  "source": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9",
+  "inputSHA256": {
+    "build-utils/rpcs3/canonical-source.json": "2042076d5aa7125cf32695bda3332dea5303f93bff9f3494c1bf7bd9ef96f6c5",
+    "test/fixtures/rpcs3_cell539.diff": "20cdda8503e809735b7d5eaf0919bc7c3f79ed77c8349e505d9517f5da068522",
+    "test/native/rpcs3_writer539.cpp": "9e1419b317b9fee6f3c5d1001cedc07929dd8910b2720ca305ba11e20cbcb579",
+    "test/rpcs3_writer539_cpu_test.py": "ce07301b5fa15238f059085d01012bef3a4294a150d5fcbef790f62af2a7be74",
+    ".github/workflows/rpcs3-writer539-cpu.yml": "c693e69c0f716489e56cf92e95cfe9afab1d7a183169e64aaa118ca8faedc577"
+  },
+  "counterSHA256": "9c3b1f4e94ae3249e298df84bf026931330f19d37452076cf709e29739666beb",
+  "beforeCounterSHA256": "8d45ea7c664c629bde484f1bd93ed10efe5c18798683e99cd4f48147c46a9548",
+  "generatedHarnessSHA256": "27b6189607e322c83257f6cc8a785a1ccdee544b2a66852026672fd5d2b49ad6",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "measurements": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 5.60245,
+        "afterMedianMs": 0.635414
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 15.2313,
+        "afterMedianMs": 2.04133
+      }
+    ],
+    "hardwareConcurrency": 9,
+    "steadyState": [
+      {
+        "threads": 1,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          19.9522,
+          22.0085,
+          23.9267,
+          20.8468,
+          21.1667,
+          23.5482,
+          24.2499
+        ],
+        "afterSamplesMs": [
+          2.24148,
+          2.25677,
+          2.48424,
+          5.50669,
+          3.03905,
+          2.42129,
+          2.72044
+        ],
+        "beforeCpuSamplesMs": [
+          19.856,
+          21.8731,
+          23.836,
+          20.6826,
+          21.0177,
+          23.3437,
+          24.1547
+        ],
+        "afterCpuSamplesMs": [
+          2.19356,
+          2.21846,
+          2.42235,
+          2.76829,
+          2.96676,
+          2.37824,
+          2.58069
+        ],
+        "beforeCpuMedianMs": 21.8731,
+        "afterCpuMedianMs": 2.42235,
+        "beforeMedianMs": 22.0085,
+        "afterMedianMs": 2.48424
+      },
+      {
+        "threads": 4,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          29.04,
+          24.1471,
+          27.001,
+          24.5119,
+          24.1621,
+          31.4242,
+          28.5706
+        ],
+        "afterSamplesMs": [
+          3.89101,
+          2.76729,
+          3.11897,
+          3.26307,
+          2.75008,
+          3.29278,
+          2.76835
+        ],
+        "beforeCpuSamplesMs": [
+          106.719,
+          90.2377,
+          98.296,
+          90.0095,
+          89.5398,
+          99.0393,
+          96.8989
+        ],
+        "afterCpuSamplesMs": [
+          10.0324,
+          9.40922,
+          10.8874,
+          10.5782,
+          9.79597,
+          10.4265,
+          9.82808
+        ],
+        "beforeCpuMedianMs": 96.8989,
+        "afterCpuMedianMs": 10.0324,
+        "beforeMedianMs": 27.001,
+        "afterMedianMs": 3.11897
+      },
+      {
+        "threads": 8,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          133.697,
+          173.987,
+          155.68,
+          78.5471,
+          49.591,
+          54.7815,
+          57.8022
+        ],
+        "afterSamplesMs": [
+          8.74722,
+          11.9215,
+          78.6928,
+          35.5183,
+          5.25656,
+          5.55283,
+          5.89359
+        ],
+        "beforeCpuSamplesMs": [
+          432.897,
+          463.107,
+          532.995,
+          381.566,
+          343.475,
+          374.174,
+          399.074
+        ],
+        "afterCpuSamplesMs": [
+          32.9862,
+          39.1168,
+          110.877,
+          66.1447,
+          35.3386,
+          37.8635,
+          34.4687
+        ],
+        "beforeCpuMedianMs": 399.074,
+        "afterCpuMedianMs": 37.8635,
+        "beforeMedianMs": 78.5471,
+        "afterMedianMs": 8.74722
+      }
+    ]
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Actual immutable before/after headers. Two CLOCK_THREAD_CPUTIME_ID calls per million-event worker loop, no timing in record. CPU samples sum all workers; wall windows still include scheduling. Original correctness/short benchmarks retained. CPU time does not measure gameplay or eliminate frequency/cache effects."
+}

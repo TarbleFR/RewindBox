@@ -1,0 +1,117 @@
+diff --git a/rpcs3/ios/IOSEarlySubmit.h b/rpcs3/ios/IOSEarlySubmit.h
+index e5df604df..3e85b64cd 100644
+--- a/rpcs3/ios/IOSEarlySubmit.h
++++ b/rpcs3/ios/IOSEarlySubmit.h
+@@ -17,6 +17,9 @@
+ namespace rpcs3::ios::early_submit
+ {
+ inline std::atomic<bool> enabled{false};
++// CELL563_EARLY_AB: set when the lever alternates per profiling window, so one
++// session measures both states under the same device conditions and scenes.
++inline std::atomic<bool> alternate{false};
+ 
+ // An early submission carries at least this many draws; a frame has at most this many.
+ constexpr std::uint32_t min_draws = 32;
+@@ -48,4 +51,18 @@ constexpr verdict decide(bool on, std::uint32_t draws, std::uint32_t this_frame,
+ 
+ 	return gpu_idle ? verdict::submit : verdict::gpu_busy;
+ }
++
++// CELL563_EARLY_AB: called once per profiling window, at its boundary. Returns the
++// state the ending window ran with; when alternating, the next window runs with the
++// other one. Each end of draw reads the state on its own, so a switch between draws
++// changes no command, only where later command buffer boundaries may fall.
++inline bool window_boundary() noexcept
++{
++	const bool state = enabled.load(std::memory_order_relaxed);
++	if (alternate.load(std::memory_order_relaxed))
++	{
++		enabled.store(!state, std::memory_order_relaxed);
++	}
++	return state;
++}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 3bacaee5d..b8c916beb 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -137,9 +137,15 @@ void resolve_experimental_policy() noexcept
+ 	// CELL561_EARLY_SUBMIT: Automatic is Dragon Ball Z Budokai HD Collection only, where
+ 	// build 560 read one render target back per frame and waited for the GPU to execute
+ 	// the draws it had recorded since the last submission.
+-	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit,
+-		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	const bool early_submit_title = rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID());
++	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit, early_submit_title);
+ 	rpcs3::ios::early_submit::enabled.store(resolved.early_submit, std::memory_order_relaxed);
++	// CELL563_EARLY_AB: build 562 measured no gain on that title, under session conditions
++	// that also slowed the frames the lever never touched. Automatic there alternates the
++	// lever per profiling window (on first), so one session compares both states; an
++	// explicit Enabled or Disabled keeps one state.
++	const bool early_submit_ab = g_cfg.ios_experimental.early_submit == ios_experimental_mode::automatic && early_submit_title;
++	rpcs3::ios::early_submit::alternate.store(early_submit_ab, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -172,9 +178,9 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d early_submit_ab=%d",
+ 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
+-		resolved.deferred_fbo_writeback, resolved.early_submit);
++		resolved.deferred_fbo_writeback, resolved.early_submit, early_submit_ab);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 542ca189b..e8ae9c011 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -730,6 +730,7 @@ private:
+         rpcs3::ios::diagnostics::ProcessMemoryWindow memory_window;
+         std::array<rpcs3::ios::diagnostics::EventCost::Sample, 7> costs{};
+         jit_publication::snapshot publication;
++        bool early_submit_state = false;
+ 
+ 		{
+ 			std::lock_guard lock(m_profile_mutex);
+@@ -742,6 +743,8 @@ private:
+             memory_window = m_process_memory;
+             for (usz index = 0; index < costs.size(); ++index) costs[index] = m_event_costs[index].take();
+             publication = jit_publication::metrics().exchange();
++            // CELL563_EARLY_AB: the state of the ending window, switched at the same boundary.
++            early_submit_state = rpcs3::ios::early_submit::window_boundary();
+ 			loading = m_spu_loading.take();
+ 			gameplay = m_spu_gameplay.take();
+ 			range = m_range_episodes.take();
+@@ -1079,12 +1082,12 @@ private:
+         {
+             namespace early = rpcs3::ios::early_submit;
+             ios_core_profiler.notice("COREPROF OPT561 session=%llu window=%llu early_submit=%u early_submits=%llu early_draws=%llu "
+-                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u "
++                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u ab=%u "
+                 "scope=process_window_counters window_boundary_approximate=1",
+-                profile_session, profile_window, early::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                profile_session, profile_window, early_submit_state ? 1u : 0u,
+                 early::submits.exchange(0, std::memory_order_relaxed), early::submitted_draws.exchange(0, std::memory_order_relaxed),
+                 early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
+-                early::min_draws, early::max_per_frame);
++                early::min_draws, early::max_per_frame, early::alternate.load(std::memory_order_relaxed) ? 1u : 0u);
+         }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index e68b2fdd9..d1035f909 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -128,7 +128,7 @@ const std::array catalog{
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
+ 	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
+-	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
++	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic alternates it every profiling window (about five seconds) for Dragon Ball Z Budokai HD Collection only, to measure its effect in one session; Enabled keeps it on; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

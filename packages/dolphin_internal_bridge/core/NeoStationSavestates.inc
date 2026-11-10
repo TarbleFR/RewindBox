@@ -66,7 +66,7 @@ char* neostation_dolphin_state_snapshot(void)
       const bool exists = attributes != nil;
       NSDate* modified = attributes[NSFileModificationDate];
       [slots addObject:@{@"slot": @(slot), @"exists": @(exists),
-          @"loadable": @(exists && DOLStatePathIsSafe(path) && DOLStateHeaderMatches(path)),
+          @"loadable": @(!DOLHardcorePolicyBlocksUnsafeActions() && exists && DOLStatePathIsSafe(path) && DOLStateHeaderMatches(path)),
           @"modified": @(modified ? modified.timeIntervalSince1970 : 0),
           @"filename": [DOLString(path) lastPathComponent]}];
     }
@@ -97,6 +97,7 @@ int32_t neostation_dolphin_state_operation(int32_t slot, int32_t load)
     auto& system = Core::System::GetInstance();
     if (load)
     {
+      if (DOLHardcorePolicyBlocksUnsafeActions()) return;
       if (!DOLStateHeaderMatches(path)) return;
       State::LoadAs(system, path); // Waits for CPU work; core checks version and undoes failed loads.
     }

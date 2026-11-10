@@ -1,0 +1,426 @@
+{
+  "passed": true,
+  "program_sha256": "2a229886dbdae698eba3ecff161a6429cc5d31718e1522cdf817eb2cc34766d7",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/texture-plain.json",
+  "canonical_program_sha256": "2a229886dbdae698eba3ecff161a6429cc5d31718e1522cdf817eb2cc34766d7",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "nativeChecks": 20739,
+    "baselineWrongNativeMappings": 6095,
+    "candidateWrongNativeMappings": 0,
+    "poolChecks": 90005,
+    "baselineWrongPoolSelections": 2050,
+    "candidateWrongPoolSelections": 0,
+    "depthChecks": 8,
+    "baselineWrongDepthFormats": 4,
+    "candidateWrongDepthFormats": 0,
+    "copyChecks": 13000,
+    "sameCopiesAndPerImageBarriers": true,
+    "coverageChecks": 3692,
+    "colorClearEliminationsInCases": 657,
+    "sameModeledDestinationTexels": true,
+    "viewsConstructed": 124419,
+    "viewsDestroyed": 124419,
+    "copyBenchmarks": [
+      {
+        "sections": 1,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 47.8319,
+        "afterMedianNs": 7.86943,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          49.3167,
+          47.2014,
+          47.8319,
+          70.9306,
+          112.737,
+          46.9694,
+          47.6125
+        ],
+        "afterTrialsNs": [
+          6.33333,
+          5.9889,
+          7.86943,
+          9.10557,
+          17.5639,
+          26.2333,
+          6.3889
+        ]
+      },
+      {
+        "sections": 1,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 48.5014,
+        "afterMedianNs": 6.39027,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          51.1764,
+          47.2764,
+          46.5153,
+          47.5653,
+          49.8875,
+          51.1042,
+          48.5014
+        ],
+        "afterTrialsNs": [
+          7.00557,
+          6.29027,
+          6.39027,
+          6.31807,
+          10.5695,
+          6.84583,
+          5.9514
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 85.5056,
+        "afterMedianNs": 12.9736,
+        "beforeAllocationsPerTrial": 90000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          85.5056,
+          95.475,
+          73.4917,
+          74.3583,
+          78.9764,
+          158.718,
+          120.689
+        ],
+        "afterTrialsNs": [
+          12.7167,
+          21.1486,
+          13.3444,
+          10.4555,
+          13.65,
+          11.4639,
+          12.9736
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 53.2847,
+        "afterMedianNs": 7.52363,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          51.9194,
+          54.6056,
+          53.4278,
+          52.0153,
+          54.0528,
+          51.8278,
+          53.2847
+        ],
+        "afterTrialsNs": [
+          9.17777,
+          7.49447,
+          7.3653,
+          7.52363,
+          7.22777,
+          9.5889,
+          7.65557
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 186.643,
+        "afterMedianNs": 20.1403,
+        "beforeAllocationsPerTrial": 180000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          186.643,
+          184.725,
+          178.924,
+          188.757,
+          184.218,
+          235.71,
+          196.986
+        ],
+        "afterTrialsNs": [
+          18.5778,
+          18.0528,
+          20.1403,
+          20.4764,
+          21.8875,
+          49.0445,
+          18.7278
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 63.7056,
+        "afterMedianNs": 12.025,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          66.6972,
+          65.2708,
+          59.0431,
+          59.1875,
+          57.6958,
+          63.7056,
+          64.9833
+        ],
+        "afterTrialsNs": [
+          12.4528,
+          12.6806,
+          11.2403,
+          12.025,
+          12.5486,
+          11.518,
+          11.2056
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 410.468,
+        "afterMedianNs": 43.7931,
+        "beforeAllocationsPerTrial": 330000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          409.939,
+          409.047,
+          447.461,
+          439.486,
+          373.726,
+          478.828,
+          410.468
+        ],
+        "afterTrialsNs": [
+          43.968,
+          50.3722,
+          40.2736,
+          43.7931,
+          39.1403,
+          36.4875,
+          45.15
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 88.1333,
+        "afterMedianNs": 23.0042,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          85.2792,
+          74.4028,
+          88.1333,
+          88.7931,
+          83.2597,
+          91.2833,
+          91.2792
+        ],
+        "afterTrialsNs": [
+          23.0042,
+          23.5708,
+          25.1819,
+          23.5319,
+          19.35,
+          19.3042,
+          20.8361
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 430.381,
+        "afterMedianNs": 519.065,
+        "beforeAllocationsPerTrial": 360000,
+        "afterAllocationsPerTrial": 360000,
+        "beforeTrialsNs": [
+          430.381,
+          515.181,
+          401.028,
+          479.294,
+          468.547,
+          425.913,
+          430.071
+        ],
+        "afterTrialsNs": [
+          470.25,
+          409.186,
+          618.299,
+          519.065,
+          565.04,
+          516.018,
+          577.731
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 108.564,
+        "afterMedianNs": 136.701,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 60000,
+        "beforeTrialsNs": [
+          150.186,
+          101.554,
+          93.4292,
+          97.0153,
+          182.293,
+          108.564,
+          111.003
+        ],
+        "afterTrialsNs": [
+          190.819,
+          146.025,
+          89.2611,
+          92.1458,
+          136.701,
+          146.706,
+          102.642
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": false,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 1010.18,
+        "afterMedianNs": 1054.86,
+        "beforeAllocationsPerTrial": 200000,
+        "afterAllocationsPerTrial": 200000,
+        "beforeTrialsNs": [
+          1028,
+          974.837,
+          1256.86,
+          757.712,
+          816.942,
+          1098.22,
+          1010.18
+        ],
+        "afterTrialsNs": [
+          1054.86,
+          1005.43,
+          966.625,
+          1065.27,
+          1495.4,
+          966.129,
+          1246.32
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": true,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 206.162,
+        "afterMedianNs": 278.375,
+        "beforeAllocationsPerTrial": 20000,
+        "afterAllocationsPerTrial": 20000,
+        "beforeTrialsNs": [
+          185.746,
+          187.171,
+          206.162,
+          235.208,
+          323.012,
+          262.212,
+          189.558
+        ],
+        "afterTrialsNs": [
+          361.438,
+          222.654,
+          227.271,
+          278.375,
+          482.454,
+          446.892,
+          199.733
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": false,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 1882.84,
+        "afterMedianNs": 2218.4,
+        "beforeAllocationsPerTrial": 35280,
+        "afterAllocationsPerTrial": 35280,
+        "beforeTrialsNs": [
+          1662.89,
+          1805.51,
+          2261.69,
+          1950.56,
+          1741.05,
+          1882.84,
+          2215.66
+        ],
+        "afterTrialsNs": [
+          3619.28,
+          2218.4,
+          1641.2,
+          2117.32,
+          2316.52,
+          1982.17,
+          3151.88
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": true,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 1318.29,
+        "afterMedianNs": 1223.64,
+        "beforeAllocationsPerTrial": 3528,
+        "afterAllocationsPerTrial": 3528,
+        "beforeTrialsNs": [
+          1082.55,
+          1693.24,
+          1928.88,
+          1014.24,
+          1515.78,
+          1318.29,
+          1211.19
+        ],
+        "afterTrialsNs": [
+          1403.39,
+          1223.64,
+          1501.09,
+          1091.65,
+          1583.12,
+          954.105,
+          1033.87
+        ]
+      }
+    ],
+    "storageChecks": 10,
+    "baselineWrongUsageFlags": 4,
+    "candidateWrongUsageFlags": 0
+  },
+  "mode": "plain",
+  "output_sha256": "2ca000baae99e5df48d9e950d319b64332f783bbf22190dc782ebaf8a9a5bc09",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

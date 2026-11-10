@@ -1,0 +1,22 @@
+{
+  "result": "passed",
+  "sdk": "10.0.100",
+  "runtime": "linux-x64",
+  "configuration": "Release",
+  "incremental": true,
+  "nativeAot": false,
+  "physicalDeviceTested": false,
+  "elapsed": "00:00:26.31",
+  "warnings": 21,
+  "errors": 0,
+  "logSha256": "17b8920cf33d875b71511a556153ab27419275357f5565719f5a6668e28cddf7",
+  "compiledSourceResourceFilesMatchingFreshPreparation": 4966,
+  "assemblies": {
+    "Ryujinx.Library": "aa1798d9764fd98d917c0ec8afb1e20090b502a8e5e021a88ca3b87c7ca4e78f",
+    "Ryujinx.Graphics.Vulkan": "c34010047b9fb5670c255ffa3d2a5a71e58525d8aa9f4617941461e9bcd231b1",
+    "Ryujinx.Graphics.Gpu": "46062361fd2dba42ca53316b5d64322fa01ba3f8298b703f8148e8ac924d57e9",
+    "Ryujinx.Memory": "b4fd25d8c3ad0e12897c19fe801802e01d7e7e5698b65b5587594d707c2215ac",
+    "Ryujinx.Common": "833623bbf68c2cca7aa3786ca39d43e73b0045c4e92bf37b7d2160553170cc93"
+  },
+  "supersededExperimentalBuildAccepted": false
+}

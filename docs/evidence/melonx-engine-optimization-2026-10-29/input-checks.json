@@ -1,0 +1,24 @@
+{
+  "productionInputs": {
+    "src/Ryujinx.Input.Native/NativeGamepad.cs": "ef4c63720ad867262f39a6d1931a549cee3e007c7698a3bb7d07b15b6fcbb900",
+    "src/Ryujinx.Input.Native/NativeGamepadDriver.cs": "681fea87a892fe9aba705c4d105d4bbb0652030bedb8cd972df1695fad982d92",
+    "src/Ryujinx.Input/IGamepad.cs": "762c02bcc3c7c2575421e250bcfcb211af121c36d8224ce8c14338c4d563e91f",
+    "src/Ryujinx.Input/IGamepadDriver.cs": "cf7f45c5de49f5acf193516b846f9a36f4a81baec6d85c57ce02b8fd759f840d",
+    "src/Ryujinx.Input/GamepadButtonInputId.cs": "894dd7cd75240d5466380674674739a14105bc363eb7f8c998e1efb71c1e803d",
+    "src/Ryujinx.Input/GamepadFeaturesFlag.cs": "361b13276e36c3a482d968d56d34c38cd4c1b82346465d809a96b4afb63a6b4b",
+    "src/Ryujinx.Input/StickInputId.cs": "0c28b289ba6dcc92bf0d04fffbe757d93689f196657e7075d99967b8e9885f6d",
+    "src/Ryujinx.Input/MotionInputId.cs": "befe72ec6c88a7f35e64a2d785ef179cccf27aae8234223143ad69282f1ed444",
+    "src/Ryujinx.Input/GamepadStateSnapshot.cs": "23807ce41ec6414a49e26570761a3b01d717057391f7c0aedb95fe67b5191160",
+    "src/Ryujinx.Input/HighDefinitionRumble.cs": "f8a659ca127bd80fddca3d3f1313c83e1437aeb69c9d512b1cb3cac1f152a3aa",
+    "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+    "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+    "src/Ryujinx.Common/Callbacks/CallbackRegistry.cs": "f944b5d5a7285924e697f526dccd84ac48d629110aa06479ffb8cdacaae66e7b"
+  },
+  "adapterInputs": {
+    "native/melonx/EmbeddedNativeGamepadLease.cs": "37d764bec6bc8de819c0d35aa63d5c7c9f76375f7149786f15950788abddc4b3",
+    "build-utils/melonx/adapt_input.py": "3be49cf1b8a657e40d82fc72c069e60643877249edd977a05a053e60caf5c568",
+    "test/melonx_input_test.py": "3bcc39035f1c4d9d72dc0031585a7bb1b234814aa44e9276b439b559c6907a68"
+  },
+  "result": "Host input snapshot, 200000 copies: interface 171.92 ms; native 119.21 ms.\nProduction native input ownership: 31034 cases passed.",
+  "gameplayTested": false
+}

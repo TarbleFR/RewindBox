@@ -64,6 +64,14 @@ partial class Library
                 EmbeddedPrepareFailure = "";
                 EmbeddedLaunchDiagnostics.Record("session", "begin");
                 Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
+                // Record effective values after personal/per-game overrides.
+                // No game path, personal profile or key material is included.
+                EmbeddedLaunchDiagnostics.Record("configuration", "effective", detail:
+                    FormattableString.Invariant($"Applied graphics: resolution={options.ResScale}; shaderCache={!options.DisableShaderCache}; asyncShaders={options.EnableAsyncShaderCompilation}; vsync={options.VSyncMode}; hostMemoryBudget={options.EnableHostMemoryBudgetTracking}; textureRecompression={options.EnableTextureRecompression}; threading={options.BackendThreading}"));
+                // Every other option the engine consumes, so a session can be
+                // compared field by field with the standalone app's config.
+                EmbeddedLaunchDiagnostics.Record("configuration", "engine", detail:
+                    FormattableString.Invariant($"Engine options: ptc={!options.DisablePTC}; macroHle={!options.DisableMacroHLE}; docked={!options.DisableDockedMode}; memoryManager={options.MemoryManagerMode}; aspect={options.AspectRatio}; anisotropy={options.MaxAnisotropy}; antiAliasing={options.AntiAliasing}; scaling={options.ScalingFilter}/{options.ScalingFilterLevel}; language={options.SystemLanguage}; region={options.SystemRegion}; ignoreMissingServices={options.IgnoreMissingServices}; customVsync={options.CustomVSyncInterval}; moltenVk={EmbeddedNativeLibraries.MoltenVk}"));
                 // Native Npad disposal disconnects its pad objects. A new
                 // host view reattaches fresh pads after this reservation.
                 foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())
@@ -91,6 +99,7 @@ partial class Library
             {
                 if (options == null || GetNativeMetalLayer() == nint.Zero)
                     throw new InvalidOperationException("No prepared game or CAMetalLayer.");
+                EmbeddedPerformanceDiagnostics.Start(generation);
                 try { Load(options); EmbeddedLaunchDiagnostics.Record("close", "passed"); return 0; }
                 catch (Exception error)
                 {
@@ -100,6 +109,7 @@ partial class Library
                 }
                 finally
                 {
+                    EmbeddedPerformanceDiagnostics.Stop(generation);
                     lock (metalLayerLock) nativeMetalLayer = nint.Zero;
                 }
             });
@@ -147,11 +157,19 @@ partial class Library
             InputPath = path, BaseDataDir = Ryujinx.Common.Configuration.AppDataManager.BaseDirPath,
             ExclusiveFullscreenWidth = width, ExclusiveFullscreenHeight = height,
             IsExclusiveFullscreen = true, IsFullscreen = true,
-            GraphicsBackend = GraphicsBackend.Vulkan, BackendThreading = BackendThreading.Off,
+            // Backend (GPU) threading on by default, matching the standalone
+            // MeloNX app, which forces BackendThreading.On before every launch.
+            // Off serialized guest FIFO, Vulkan->Metal submission, pipeline
+            // compilation and present on one thread and caused the slowdowns the
+            // standalone did not have. An explicit per-game value still overrides.
+            GraphicsBackend = GraphicsBackend.Vulkan, BackendThreading = BackendThreading.On,
             ResScale = 1, MaxAnisotropy = -1, AspectRatio = AspectRatio.Fixed16x9,
             ScalingFilter = ScalingFilter.Bilinear, ScalingFilterLevel = 60, MetalFxUpscaleFactor = 2,
             EnableHostMemoryBudgetTracking = true, EnableTextureRecompression = true,
-            DisableShaderCache = true, EnableAsyncShaderCompilation = true,
+            // Match EmbeddedGraphicsSettings defaults before saved per-game overrides.
+            // Async compilation skipped draws in Persona 5 Royal on MoltenVK;
+            // synchronous compilation may stall briefly, but keeps geometry intact.
+            DisableShaderCache = false, EnableAsyncShaderCompilation = false,
             DisableDockedMode = true, MemoryManagerMode = MemoryManagerMode.HostMappedUnsafe,
             AudioVolume = 1, SystemLanguage = systemLanguage, SystemRegion = RegionCode.USA,
             SystemTimeZone = "UTC", MultiplayerLanInterfaceId = "0", PreferredGPUVendor = "",

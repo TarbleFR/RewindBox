@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "phase": "source-only Core protocol",
+  "canonical_postimages": 326,
+  "frozen_repository_inputs": 38,
+  "current_core_inputs": 92,
+  "ordinary_native_files": 1860,
+  "native_submodule_pins": 28,
+  "exports": 88,
+  "negative_controls": [
+    {
+      "path": "rpcs3/ios/RPCS3IOS.h",
+      "rejected": true,
+      "reason": "native postimage changed: rpcs3/ios/RPCS3IOS.h"
+    },
+    {
+      "path": "README.md",
+      "rejected": true,
+      "reason": "Noncanonical source differs from pinned upstream: README.md"
+    }
+  ],
+  "native_compilations": 0,
+  "native_executions": 0,
+  "historical_archives_authenticated": false,
+  "apple_native_build": "not_run",
+  "candidate_core": "not_built",
+  "source_derived_common_abis": {
+    "neoswap_client_abi": 1,
+    "neoswap_client_stats_abi": 1,
+    "neoswap_relay_abi": 1,
+    "neoswap_prepared_relay_abi": 1,
+    "neoswap_relay_client_stats_abi": 1,
+    "neoswap_storage_abi": 1,
+    "neoswap_source_archive_abi": 1
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "result": "passed",
+  "checks": 10,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs": "7b426f54e7f0df3c7a0a677de2b684ec58963d7de990ab97edd7573169f68848",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs": "ad9902f978e3e8cf788ab5069c09e64fc91cf80231a81f109211f0555d58af2e",
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs": "21365f362b3e27fe75eb79cbc333600c035341087f9aae17083141a001666705",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs": "8fbf191bffab00046452d6c37edcf7ba0ae7ca526c652635587e43a969612088",
+    "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "35bbc463990a1922d47b96fdc98a04dc56d6b68723fbc13567605eb529362551",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "e1c2cadbdb525433a297781a585db068b14ddb3a89ef38b21d23d179f592152f",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "05a7151352f049d7c2f7b65803ae8d45581c96989fa02056446dc28de9000da0"
+  },
+  "reports": {
+    "control-vulkan": {
+      "variant": "control",
+      "checks": 8,
+      "warmUpHit": {
+        "none": true,
+        "alphaToCoverage": false,
+        "alphaToOne": false,
+        "both": false
+      },
+      "describedKeyProperties": 0,
+      "describedArrayCases": 0,
+      "alphaToCoverageMissText": null,
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    },
+    "control-gpu": {
+      "variant": "control",
+      "checks": 21,
+      "cacheEntrySha256": {
+        "off": "11a7cbee940162809b5f6cc0364283c7d4fcb20e8284ef78ee775868ed0ae63b",
+        "alphaToCoverage": "c0d716efa50c392aecf22f167e342cff2ca1ab9a1e4f2f128f00bc5d24687e9a",
+        "alphaToOne": "11a7cbee940162809b5f6cc0364283c7d4fcb20e8284ef78ee775868ed0ae63b",
+        "both": "c0d716efa50c392aecf22f167e342cff2ca1ab9a1e4f2f128f00bc5d24687e9a"
+      },
+      "structSize": 1456,
+      "persistedSize": 1456
+    },
+    "candidate-vulkan": {
+      "variant": "candidate",
+      "checks": 115,
+      "warmUpHit": {
+        "none": true,
+        "alphaToCoverage": true,
+        "alphaToOne": true,
+        "both": true
+      },
+      "describedKeyProperties": 49,
+      "describedArrayCases": 6,
+      "alphaToCoverageMissText": " Differs from warm-up: AlphaToCoverageEnable warm-up=False draw=True",
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    },
+    "candidate-gpu": {
+      "variant": "candidate",
+      "checks": 22,
+      "cacheEntrySha256": {
+        "off": "11a7cbee940162809b5f6cc0364283c7d4fcb20e8284ef78ee775868ed0ae63b",
+        "alphaToCoverage": "c0d716efa50c392aecf22f167e342cff2ca1ab9a1e4f2f128f00bc5d24687e9a",
+        "alphaToOne": "11a7cbee940162809b5f6cc0364283c7d4fcb20e8284ef78ee775868ed0ae63b",
+        "both": "c0d716efa50c392aecf22f167e342cff2ca1ab9a1e4f2f128f00bc5d24687e9a"
+      },
+      "structSize": 1460,
+      "persistedSize": 1456
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "nativeCallsUsed": false,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs": "36c60c35eef0a26949b6da4ad42364e6c614dac22c4e3e4e37ebbec56ab16f68",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs": "c02c198f832af9c5a6109f7e08cf9864041363590557dfad013e85281b97f083",
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs": "c7bd068b306f2db2bf18ad430b9e62a0146c7769505dfc4181d9fc78dd46f142",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs": "93e2c01d9158167d286bb8c98924818caae9a94f9b2c7c801d17ea6e12728653",
+    "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "d8d3533eb32f12a0778fde421041b4a0d56296adcc26cd5661f106eb07813920",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "f4eca4274ecfb8cf47fc88faa00289173de5ef4a3ecac8f3480b784c6421a97c",
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "795ac022b141eb1140a88d3cfdf551cff237dc1eb7fdeba3298b34d0d8b2c484"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_warmup_parity.py": "34de1f92584d1820cd3f7162244fc8025d241cf6eacccec5ea0ca39e59a9cca7",
+    "test/melonx_pipeline_warmup_parity_test.py": "47b1d14b498e4edbf5a0c5c36730c63dcbadbcd0912678975b88f0c6055d0ecd",
+    "test/melonx_pipeline_warmup_parity/vulkan/Program.cs": "95b43f44f01d0b6996e66640b561e0b997a3b907bd4b467a4287786e0d39fb04",
+    "test/melonx_pipeline_warmup_parity/gpu/Program.cs": "111136226606f0b99e3583dc2edf50f1a8023e06be7d8bd3f7f81c323f7099f9",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_adapter_control.py": "1ce6c11a3d6a566dd99a19f36f405045d4adfdfd399562b601f097d6ca576c5c"
+  },
+  "limitation": "Host fixture of the key, cache bytes and description; the frequency of alpha-to-coverage draws in Hogwarts Legacy and any FPS or stall change are not measured."
+}

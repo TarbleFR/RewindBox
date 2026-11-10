@@ -114,6 +114,43 @@ grep -q 'add_library(RPCS3Core SHARED' "$SRC/rpcs3/CMakeLists.txt" || die "ios-p
 log "Apply the single reviewed NeoStation Core source delta"
 python3 "$PWD/build-utils/materialize_rpcs3_core.py" "$SRC"
 python3 "$PWD/build-utils/apply_rpcs3_llvm_patch.py" "$SRC"
+# REWINDBOX_MOLTENVK_COMPILE_QOS_V1: a Core source that defines
+# rbx_mvk_compile_qos_queue (rpcs3/ios/RPCS3IOSPlatform.mm) links a copy of the
+# pinned archive whose single dispatch_get_global_queue reference
+# (MVKMetalCompiler::compile) is renamed to it. The cached pinned package stays
+# pristine for Core sources without that definition.
+if grep -q 'REWINDBOX_MOLTENVK_COMPILE_QOS_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  log "Link MoltenVK with Metal compiles in the waiting thread's QoS class"
+  MOLTENVK_QOS_ROOT="$WORK_ROOT/moltenvk-$MOLTENVK_VERSION-compile-qos"
+  rm -rf "$MOLTENVK_QOS_ROOT"
+  mkdir -p "$MOLTENVK_QOS_ROOT"
+  cp -R "$MOLTENVK_ROOT/." "$MOLTENVK_QOS_ROOT/"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" \
+    || die "MoltenVK compile QoS patch failed"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" --check \
+    || die "MoltenVK archive is not the pinned compile-QoS archive"
+  MOLTENVK_ROOT="$MOLTENVK_QOS_ROOT"
+  MOLTENVK_LIB="$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX"
+fi
+# REWINDBOX_MOLTENVK_EXEC_BARRIER_V1: a Core source that defines
+# rbx_mvk_exec_q_create (rpcs3/ios/RPCS3IOSPlatform.mm) also renames the
+# archive's single dispatch_queue_create reference (MVKQueue::initExecQueue,
+# the encoding queue of asynchronous submits) to it, on the compile-QoS copy.
+if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  [[ "${MOLTENVK_QOS_ROOT:-}" && "$MOLTENVK_LIB" = "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" ]] \
+    || die "the MoltenVK encoding-queue patch applies to the compile-QoS archive"
+  log "Link MoltenVK with its encoding queue visible to the Core"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" \
+    || die "MoltenVK encoding-queue patch failed"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" --check \
+    || die "MoltenVK archive is not the pinned encoding-queue archive"
+fi
+if [[ -n "${RPCS3_DEEP_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3deep_core.py" --source "$SRC" --verify-reuse "$RPCS3_DEEP_NATIVE_PROOF"
+elif [[ -n "${RPCS3_RUNTIME592_NATIVE_PROOF:-}" ]]; then
+  # The delivered Core591 authenticates unchanged history; only runtime592 is new.
+  python3 "$PWD/.github/diagnostics/rpcs3runtime592_core.py" --source "$SRC" --verify-reuse "$RPCS3_RUNTIME592_NATIVE_PROOF"
+else
 python3 "$PWD/test/rpcs3_preprocessor_balance_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build301_passive_dlopen_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_atomic_startup_test.py" "$SRC"
@@ -123,7 +160,63 @@ python3 "$PWD/test/rpcs3_build351_gow3_engine_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build352_gow3_memory_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build353_xitrix_v010_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_armsx3_performance_patch_test.py" "$SRC"
-if [[ -n "${RPCS3_CELL528_NATIVE_PROOF:-}" ]]; then
+if [[ -n "${RPCS3_CELL591_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell591_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL591_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL589_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell589_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL589_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL587_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell587_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL587_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL585_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell585_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL585_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL583_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell583_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL583_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL581_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell581_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL581_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL579_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell579_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL579_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL575_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell575_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL575_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL573_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell573_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL573_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL571_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell571_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL571_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL569_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell569_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL569_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL567_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell567_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL567_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL565_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell565_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL565_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL563_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell563_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL563_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL561_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell561_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL561_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL560_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell560_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL560_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL559_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell559_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL559_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL555_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell555_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL555_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL551_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell551_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL551_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL547_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell547_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL547_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL546_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell546_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL546_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL545_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell545_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL545_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL543_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell543_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL543_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL542_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell542_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL542_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL539_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell539_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL539_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL538_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell538_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL538_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL536_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell536_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL536_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL534_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell534_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL534_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL528_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell528_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL528_NATIVE_PROOF"
 elif [[ -n "${RPCS3_CELL527_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell527_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL527_NATIVE_PROOF"
@@ -188,6 +281,7 @@ env -u SDKROOT "$HOST_CXX" -isysroot "$HOST_MACOS_SDK" -std=c++20 -O2 -Wall -Wex
 "$WORK_ROOT/jit-arena-allocator-test"
 
 fi
+fi
 
 log "Configure RPCS3Core for iPhoneOS arm64 with macOS TableGen"
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
@@ -241,6 +335,20 @@ lipo -archs "$OUTPUT_DIR/libRPCS3Core.dylib"
 vtool -show-build "$OUTPUT_DIR/libRPCS3Core.dylib"
 otool -L "$OUTPUT_DIR/libRPCS3Core.dylib"
 nm -gU "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -E '_rpcs3_ios_(abi_version|build_info|initialize|boot_game|shutdown)$'
+if [[ -n "${MOLTENVK_QOS_ROOT:-}" ]]; then
+  # REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK's renamed reference resolved inside the Core.
+  if nm -u "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -q '_rbx_mvk_compile_qos_queue$'; then
+    die "MoltenVK compile QoS hook is unresolved in libRPCS3Core.dylib"
+  fi
+  log "MoltenVK compile QoS hook linked"
+fi
+if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  # REWINDBOX_MOLTENVK_EXEC_BARRIER_V1: MoltenVK's renamed queue creation resolved inside the Core.
+  if nm -u "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -q '_rbx_mvk_exec_q_create$'; then
+    die "MoltenVK encoding-queue hook is unresolved in libRPCS3Core.dylib"
+  fi
+  log "MoltenVK encoding-queue hook linked"
+fi
 shasum -a 256 "$OUTPUT_DIR/libRPCS3Core.dylib" | tee "$OUTPUT_DIR/libRPCS3Core.dylib.sha256"
 printf '%s\n' "$RPCS3_COMMIT" > "$OUTPUT_DIR/RPCS3_SOURCE_COMMIT.txt"
 printf '%s\n' "$RPCS3_IOS_ABI" > "$OUTPUT_DIR/RPCS3_IOS_ABI.txt"

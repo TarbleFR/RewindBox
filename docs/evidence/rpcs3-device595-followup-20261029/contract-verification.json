@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "canonicalPostimages": 314,
+  "unchangedPostimages": 309,
+  "newNativeModes": 6,
+  "reusedPreviousNativeModes": 6,
+  "authenticatedProofs": {
+    "docs/evidence/rpcs3-device595-followup-20261029/surface-coverage-plain.json": "2a7583d93b6168071772adca4fec66fce0e6cf6c88ccbb2b7464237b3cecbaa7",
+    "docs/evidence/rpcs3-device595-followup-20261029/surface-coverage-asan.json": "a37e473103c0e5bc7604791ac8a964bc11628a897c7e076c476970edba8edf54",
+    "docs/evidence/rpcs3-device595-followup-20261029/spu-timer-reuse-plain.json": "88c2045e9d4335a282147fe2eaa2b3c7b3b14a19888d8665d48856d06cd38320",
+    "docs/evidence/rpcs3-device595-followup-20261029/spu-timer-reuse-asan.json": "d545f2b565b0023e3ae854e5923bb58971a200a59259a3237a0d68ae156f49bb",
+    "docs/evidence/rpcs3-temporary-remap-20261029/plain.json": "e0fbf270fc2e0fc9952e54f114c1c17bb5c36bf015b21218220bf57d206c90da",
+    "docs/evidence/rpcs3-temporary-remap-20261029/asan.json": "a86b1f2f135940c8be47a3423794dafee0942d024a7405c43566dd6c565f3eae",
+    "docs/evidence/rpcs3-device595-20261029/array-plain.json": "6dc39573c98ecf0a919e6cd7bec7141c19a77c721446ee46fb0ea584f956d68d",
+    "docs/evidence/rpcs3-device595-20261029/array-asan.json": "98cd4f0d3373b14ded62db91dace8a239cef7ba6f16932e4e921fab3cb159f98",
+    "docs/evidence/rpcs3-device595-20261029/temporary-plain.json": "eb87dd73970cf67be8aee9de00b46810ce543d4d5eb6ba56c133112960eb62ce",
+    "docs/evidence/rpcs3-device595-20261029/temporary-asan.json": "53c8faa5f79555a8c766ddca3eee0588d0d3bb80f186c4a1e5d086f3dd0449e2",
+    "docs/evidence/rpcs3-device595-20261029/address-plain.json": "d30f98de0ae11a13813a4d006d0b26698cda0d78722b7c04348e45ff30aae4be",
+    "docs/evidence/rpcs3-device595-20261029/address-asan.json": "baf4826e91988ee125b4e045b8278764e0328650fb1ed83d802ad2726240ea5f",
+    "docs/evidence/rpcs3-device595-followup-20261029/spu-timer-reuse-codegen.json": "9193cb87cb2186f6aa797d7eca9c5b672d0c6552826986d7c284dbbf6e715152"
+  },
+  "codegenIdentity": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "nativeOrCmakeReexecuted": false,
+  "reverseDeltaMatchesBaseline": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

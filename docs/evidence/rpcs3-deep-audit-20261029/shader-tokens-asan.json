@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "ac64b689fd3809c1ca260904cd4f59572fcb388a47a055f8e314dd50fedc6339",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "6ce519f38f7dcc6525c5d7965f929c2920dc9e74c63e2b6f1fd0e22f520aeaff",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "3950bc618ec396d4651566ad99bcfd4eba287c9bbc382e08a7435ab30d24a98f",
+    "Utilities/StrUtil.h": "0d02bf3d7d2edef77ba61abc20cfd831bf4f5a1b3aa95bf675736843dad471a6"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "71328b5f1fc2357467035481ca93c3d8eb88f9d6944744a60d72d93c3b19cbe8",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "d341208c496a02a3db1988fa2c3dfe2a092d2ef0530f8bf581d73a29cdc03766",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "a97c1fa4ca12eaf8bb85dfb4a48da1b2fd5185c01d0b8602a5b090c32dace456",
+    "Utilities/StrUtil.h": "0d02bf3d7d2edef77ba61abc20cfd831bf4f5a1b3aa95bf675736843dad471a6"
+  },
+  "harnessSHA256": "2192b21868c74d7892aa0fbc360ca19afe7b264db82a81ce9e09c6ce46e11cad",
+  "adapterSHA256": "671964de5b41611e96e30e58e75f28ed360612f3aaca401221018a55bd605c56",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "results": {
+    "formatChecks": 76391,
+    "addCodeChecks": 10913,
+    "productionTokenLiterals": 91,
+    "identicalTextAndCallbackOrder": true,
+    "sameDeclarations": true,
+    "benchmarks": []
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Execute exact shader Format methods with host operand/declaration adapters.\n\nAll original literal strings and generated token edge cases are checked against\nbaseline. GPU execution and GLSL-to-SPIR-V compilation are not simulated.\n"
+}

@@ -22,6 +22,22 @@ class Rpcs3GameProfile {
   ) {
     final result = <List<String>, String>{};
     for (final entry in settings.entries) {
+      // One Core choice ("gpu.zcull_accuracy") is two RPCS3 booleans; the Core
+      // reads them back with the same table (RPCS3IOSZcullAccuracy.h), where
+      // Relaxed ZCULL Sync wins over Accurate ZCULL stats.
+      if (entry.key == 'gpu.zcull_accuracy') {
+        final (precise, relaxed) = switch (entry.value) {
+          'Precise' => ('true', 'false'),
+          'Approximate' => ('false', 'false'),
+          'Relaxed' => ('false', 'true'),
+          _ => throw StateError(
+            'Unsupported ZCULL accuracy for RPCS3: ${entry.value}',
+          ),
+        };
+        result[const <String>['Video', 'Accurate ZCULL stats']] = precise;
+        result[const <String>['Video', 'Relaxed ZCULL Sync']] = relaxed;
+        continue;
+      }
       final yamlPath = switch (entry.key) {
         'cpu.ppu_decoder' => const <String>['Core', 'PPU Decoder'],
         'cpu.spu_decoder' => const <String>['Core', 'SPU Decoder'],
@@ -84,6 +100,14 @@ class Rpcs3GameProfile {
           'iOS Experimental',
           'God of War III MLAA Bypass',
         ],
+        'experimental.moltenvk_async_submits' => const <String>[
+          'iOS Experimental',
+          'MoltenVK Asynchronous Submits',
+        ],
+        'experimental.spu_warmup_scope' => const <String>[
+          'iOS Experimental',
+          'SPU Warmup Scope',
+        ],
         _ => throw StateError(
           'Unsupported managed RPCS3 setting: ${entry.key}',
         ),
@@ -122,16 +146,25 @@ abstract final class Rpcs3GameProfileService {
   // This list remains intentionally small: it contains iOS evidence or a
   // platform-independent guest-timing fix, never speculative desktop tweaks.
   static const Map<String, Map<String, String>> _serialOverrides = {
-    // Dynasty Warriors 6: the iOS ARM64 PPU LLVM path terminated during boot.
+    // Dynasty Warriors 6: Build ~231 moved this title to the static PPU
+    // interpreter after the iOS ARM64 PPU LLVM path terminated during boot,
+    // while a host watchdog still stopped long 'ppu'/'applying' boot stages.
+    // Build 303 removed that watchdog and Builds 345+ fixed several ARM64 PPU
+    // LLVM paths; with the interpreter the title is reported as not starting
+    // (Build 610 request) and no record shows it ever reached gameplay.
+    // Build 610 returns the decoder to LLVM explicitly (an explicit value
+    // also replaces a cached interpreter entry) and keeps the other four
+    // values, so only one variable changes. CONFIG_LAYERS ppu_decoder and
+    // JITPROF_BOOT show the outcome; no iPhone result yet.
     'BLES00215': {
-      'cpu.ppu_decoder': 'Interpreter (static)',
+      'cpu.ppu_decoder': 'Recompiler (LLVM)',
       'advanced.llvm_precompilation': 'false',
       'emulator.max_llvm_threads': '0',
       'experimental.mobile_spu_scheduling': 'Automatic',
       'cpu.spu_block_size': 'Safe',
     },
     'BLUS30110': {
-      'cpu.ppu_decoder': 'Interpreter (static)',
+      'cpu.ppu_decoder': 'Recompiler (LLVM)',
       'advanced.llvm_precompilation': 'false',
       'emulator.max_llvm_threads': '0',
       'experimental.mobile_spu_scheduling': 'Automatic',
@@ -147,10 +180,130 @@ abstract final class Rpcs3GameProfileService {
     'BCAS25003': _godOfWarIII,
     'BCKS15003': _godOfWarIII,
 
+    // Dragon Ball Z HD Collection (BLES01658) has no title profile again.
+    // Build 551 gave it asynchronous MoltenVK submits, asynchronous texture
+    // streaming, the 4 KiB FIFO cache and the ARM64 batch, none of which had
+    // ever run on the iPhone: every 551 boot (Dragon Ball Z twice, God of War
+    // III once, 26 October 2026 logs) ended within 0.4 s of boot return,
+    // before the PPU modules were loaded, while 545 and 547 reached that point
+    // 0.40-0.44 s after boot return with the global profile. It runs the
+    // global profile it ran on 547 (31-35 fps, no crash); a lever comes back
+    // only alone and with device evidence.
+
+    // Call of Duty: Black Ops II (BLES01717). Build 587 relaxed its SPU
+    // reservations (build 583 logs: the writer lock of accurate PUTLLC parked
+    // the PPU threads 0.74-2.9 s per window). Build 657 iPhone logs (Core 655,
+    // pid 10471, 5 November 2026) show the cost of that choice:
+    // - session 3 stops producing frames for 40.8 s (FREEZE_EPISODE, then
+    //   stopped) while all six SPUs keep running (4.7 cores) and store 1.0-1.3
+    //   million PUTLLC per 5 s with no failure, the PPU Secondary thread spins
+    //   (0.99 core) on the job queue word 0x2e208a0, and main_thread and Stream
+    //   wait on semaphores. The same thread on the same word froze build 624.
+    //   The queue word holds an older tag (0x01396da5) than the one the
+    //   spinning thread carries (0x01396e2d): an update was lost or reverted.
+    // - relaxed mode keeps a data-changing PUTLLC atomic only for the 16-byte
+    //   lane it writes (range lock + lane compare-and-swap, no PPU pause), so a
+    //   plain PPU store elsewhere in the 128-byte line between the compare and
+    //   the swap goes unseen, which the Cell never allows; the Core default
+    //   (and RPCS3's own entry for this title) keeps the full-line guarantee.
+    // The per-window frame rate did not show a gain either (17-30 fps in 657
+    // against 24-29 fps around 1.2 million PUTLLC in 583). Accurate
+    // reservations come back; the 565 lever (no-op PUTLLC keeps reservations)
+    // is Automatic for this title and covers the polling SPUs.
+    //
+    // SPU warm-up: each boot of the title rebuilt 8,753-8,793 SPU programs at
+    // its first scene transition (all found in the object cache: 1.4-1.6 s of
+    // object loading and 1.6-1.7 s of builds summed over the SPU threads in one
+    // 5 s window, 0.8-1.3 s frames). The metadata of recorded programs is
+    // built before the guest starts instead (LLVM precompilation with the
+    // all-titles warm-up scope, as God of War III does), so play finds them
+    // ready. Measured on the next run: FREEZE_EPISODE, SPUWAIT551 putllc_heavy,
+    // RANGELOCKPROF wl_putllc, the frame rate of the same scenes, the boot time
+    // (SPUWARMUP) and the spu_blocks gameplay_attempts of the transition.
+    'BLES01717': {
+      'advanced.accurate_spu_reservations': 'true',
+      'advanced.llvm_precompilation': 'true',
+      'experimental.spu_warmup_scope': 'All titles with metadata',
+    },
+
+    // Assassin's Creed (BLES00158, BLUS30089), first build 585 run: in the
+    // steady game scene (12-29 fps) its SPUs store 0.87-1.03 million
+    // data-changing PUTLLC per 5 s window under the exclusive writer lock
+    // (RANGELOCKPROF wl_putllc 0.98-1.32 s per window), and its PPU threads
+    // wait 1.26-1.71 s per window in 19,500-32,100 range-lock episodes
+    // (WAITPROF527 vm_range_episode), beside an RSX thread at 0.54-0.80 core.
+    // Black Ops II's signature, with the same relaxed path: one 16-byte lane
+    // or the SPURS control block is stored without the writer lock. The
+    // official RPCS3 entry (Multithreaded RSX, asynchronous texture
+    // streaming, relaxed ZCULL) stays underneath and does not ask for
+    // accurate reservations. Measured on the next run by the same counters.
+    //
+    // Build 610: asynchronous texture streaming is turned off again, as for
+    // God of War III since Build 552. The desktop entry turns on, on
+    // MoltenVK, a second transfer queue synchronized with the graphics queue
+    // by semaphores; the 595 logs show this title as the only one running
+    // it (async_tex=true), with the torch flicker still reported on 608. The
+    // Core 610 also gives this title asynchronous MoltenVK submits
+    // (Automatic, behind the 587 encode barrier and boot canary): with
+    // streaming off, Assassin's Creed runs the combination God of War III
+    // runs on the iPhone (one queue, asynchronous encoding), not an untested
+    // pairing of both. No visual or frame-rate gain is established yet.
+    //
+    // Build 613: ZCULL accuracy Approximate (Accurate ZCULL stats false,
+    // Relaxed ZCULL Sync false) replaces the official entry's relaxed ZCULL.
+    // On the maintainer's iPhone, Build 612, BLES00158 (2 November 2026): the
+    // in-game test page set "ZCULL accuracy -> Approximate" (CONFIG_LAYERS
+    // part=rsx relaxed_zcull=false precise_zpass=false) and the torch and
+    // light flicker stopped; under the profile value (relaxed_zcull=true) it
+    // was present. BLUS30089 is the same game and gets the same value without
+    // its own device run. An explicit per-game choice still replaces it, and
+    // "Profile value" (@inherit) returns to it.
+    'BLES00158': _assassinsCreed,
+    'BLUS30089': _assassinsCreed,
+
+    // Assassin's Creed IV: Black Flag. The official RPCS3 entry stays
+    // underneath (Read and Write Color Buffers on, for the invisible ocean)
+    // except its PPU decoder, Interpreter (static).
+    // - IPA 666 iPhone logs (Core 665, BLES01882, session 5, 6 November 2026):
+    //   the official entry was applied (CONFIG_LAYERS database=1
+    //   ppu_decoder=Interpreter (static) rcb=true wcb=true). The intro ran at
+    //   37-60 fps (660 flips: legal notice, Ubisoft and Abstergo logos), then
+    //   the title-screen load froze: no flip for 85 s until the stop, all 26
+    //   PPU threads waiting (lwcond, event queues, semaphores, short usleep
+    //   polls), the six SPURS kernels idle with no workload ready or
+    //   signalled, the RSX FIFO empty, both audio ports still mixing
+    //   (FREEZE_DUMP). Build 643: no frame in 38 s under the same entry.
+    // - RPCS3's wiki gives the interpreter as its fix for freezes; RPCS3 issue
+    //   #12807 (open) reports Assassin's Creed III and IV freezing near the
+    //   start of a new game under PPU LLVM, a point past the title screen. On
+    //   the iPhone the interpreter stopped earlier than that.
+    // As for Dynasty Warriors 6 (Build 610), only the decoder returns to
+    // RPCS3's default, LLVM, the decoder the iPhone runs for every other
+    // title. CONFIG_LAYERS ppu_decoder, JITPROF_BOOT and FREEZE_EPISODE show
+    // the outcome; no iPhone result yet. Serials: BLES01882 (these logs),
+    // BLES01883 (unified cheat catalogue), BLUS31193, NPEB01396 and NPUB31246
+    // (RPCS3 forum threads of this game). BLES01884 carries the same official
+    // entry, but no source names its game: it keeps the entry unchanged.
+    'BLES01882': _assassinsCreedIV,
+    'BLES01883': _assassinsCreedIV,
+    'BLUS31193': _assassinsCreedIV,
+    'NPEB01396': _assassinsCreedIV,
+    'NPUB31246': _assassinsCreedIV,
+
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
     'BLES01935': {'gpu.frame_limit': 'PS3 Native'},
+  };
+
+  static const Map<String, String> _assassinsCreed = {
+    'advanced.accurate_spu_reservations': 'false',
+    'gpu.async_texture_uploads': 'false',
+    'gpu.zcull_accuracy': 'Approximate',
+  };
+
+  static const Map<String, String> _assassinsCreedIV = {
+    'cpu.ppu_decoder': 'Recompiler (LLVM)',
   };
 
   static const Map<String, String> _godOfWarIII = {
@@ -173,17 +326,37 @@ abstract final class Rpcs3GameProfileService {
     // no DMA lock. Hypothesis measured on the next run by RANGELOCKPROF
     // wl_putllc/wl_store128 and the PPU range-wait time, not proven here.
     'advanced.accurate_spu_reservations': 'false',
-    // The maintainer's target is a constant, measured 30 fps: the limiter
-    // stops the light scenes from spending CPU on 55 fps and the performance
-    // summary reports the hold ratio against this target.
-    'gpu.frame_limit': '30',
+    // Build 565 (maintainer decision, 27 October 2026): no 30 fps cap. The
+    // PS3 game is not locked to 30 fps; RPCS3 limits it to the 60 Hz vblank
+    // (Auto) like every other title, so it runs as fast as the device allows
+    // up to 60 fps with its own timing. Explicit, so a published GameDB entry
+    // cannot bring a lower limit back; a per-game user choice still wins.
+    'gpu.frame_limit': 'Auto',
     'gpu.resolution_scale': '75',
-    'gpu.shader_mode': 'Async Recompiler (multi-threaded)',
+    // Build 551: no shader mode is forced. "Async Recompiler" skips the draws
+    // whose pipeline is still compiling; the maintainer excludes skipped
+    // draws, so God of War III keeps the global (Legacy) mode.
     'gpu.multithreaded_rsx': 'true',
-    'gpu.async_texture_uploads': 'true',
+    // Build 552: asynchronous texture streaming stays off. In this RPCS3 it
+    // turns on asynchronous compute on MoltenVK, whose separate transfer
+    // queue keeps passthrough DMA (guest memory imported as Vulkan buffers)
+    // and synchronizes both queues with Vulkan events. None of it has run on
+    // the iPhone: every logged boot reports async_tex=false.
+    'gpu.async_texture_uploads': 'false',
     'experimental.fps_optimization_batch': 'Enabled',
     'experimental.fifo_cache_size': '4 KiB',
     'experimental.getllar_backoff': 'Enabled',
+    // Build 552 kept MoltenVK submits synchronous after the 551 boots ended
+    // within 0.4 s of boot return, while the RSX thread flipped the shader
+    // cache dialog. Build 587: the Core decides. With asynchronous submits,
+    // MoltenVK 1.4.2 encodes on its own queue thread after vkQueueSubmit has
+    // returned, and vkAcquireNextImageKHR releases, without a lock, the
+    // drawable that a still-queued present and the render before it use. The
+    // Core 587 now waits for the last queued present before every
+    // acquisition, and its Automatic mode turns them on for God of War III
+    // only while the title's last asynchronous boot finished (a boot that
+    // did not finish returns it to synchronous submits for good).
+    'experimental.moltenvk_async_submits': 'Automatic',
     // The Core recognizes only the two official MLAA SPU hashes for God of
     // War III 01.00/01.03. It cannot affect another SPU module or title.
     'experimental.gow3_mlaa_bypass': 'Enabled',
@@ -287,7 +460,7 @@ abstract final class Rpcs3GameProfileService {
   /// the background. Launch never waits on the network.
   static Future<void> publishDetectedProfilesIfReady() async {
     if (_detectedSerials.isEmpty) return;
-    await _publishDetected();
+    await _publishDetected(coreReady: false);
     unawaited(_refreshAndRepublish());
   }
 
@@ -295,9 +468,12 @@ abstract final class Rpcs3GameProfileService {
   /// initialized the Core and completed JIT handoff. No network refresh is
   /// started here; earlier publication may have found the Core still unloaded.
   static Future<void> publishDetectedProfilesForReadyRuntime() =>
-      _publishDetected();
+      _publishDetected(coreReady: true);
 
-  static Future<void> _publishDetected() async {
+  // Build 541 logs showed only "unavailable" lines: the library scan publishes
+  // before the Core is loaded (expected, retried after startup) and the later
+  // successful publication logged nothing. Both outcomes are now explicit.
+  static Future<void> _publishDetected({required bool coreReady}) async {
     try {
       final profiles = await Future.wait(_detectedSerials.map(resolveProfile));
       final managed = profiles
@@ -308,10 +484,18 @@ abstract final class Rpcs3GameProfileService {
       final report = await Rpcs3InternalBridge.updateConfigDatabase(
         _databasePayload(managed),
       );
-      if (report['success'] != true) {
+      final serials = managed.map((profile) => profile.serial).join(',');
+      if (report['success'] == true) {
         _log.i(
-          'RPCS3 GameDB publication unavailable: '
-          '${report['message'] ?? 'Core not ready'}',
+          'RPCS3 GameDB published: ${managed.length} profile(s) [$serials].',
+        );
+      } else {
+        final message = '${report['message'] ?? 'Core not ready'}';
+        final deferred = !coreReady && message.contains('must be initialized');
+        _log.i(
+          deferred
+              ? 'RPCS3 GameDB publication deferred until Core startup: $message'
+              : 'RPCS3 GameDB publication failed: $message',
         );
       }
     } catch (error) {
@@ -321,7 +505,7 @@ abstract final class Rpcs3GameProfileService {
 
   static Future<void> _refreshAndRepublish() async {
     if (await Rpcs3GameProfileDatabase.refreshIfStale()) {
-      await _publishDetected();
+      await _publishDetected(coreReady: false);
     }
   }
 }

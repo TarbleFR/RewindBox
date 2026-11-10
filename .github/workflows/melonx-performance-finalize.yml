@@ -1,0 +1,48 @@
+name: MeloNX unchanged performance evidence
+run-name: MeloNX finalization validation • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-performance-finalize.yml
+      - build-utils/melonx/validate_performance_finalization.py
+      - build-utils/melonx/finalization-recovery.json
+      - build-utils/melonx/verify_performance_core.py
+      - build-utils/melonx/performance-core-contract.json
+      - test/melonx_performance_core_contract_test.py
+      - test/melonx_performance_finalization_test.py
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: melonx-performance-finalize-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-finalize-only]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate original Core artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 build-utils/melonx/validate_performance_finalization.py prepare
+      - name: Validate final performance metrics regression
+        run: >-
+          python3 test/melonx_performance_finalization_test.py
+          dist/melonx-finalization/runtime-smoke/actual-runtime.json
+          --output dist/melonx-finalization/finalization-validation/regression.json
+      - name: Authenticate and finalize unchanged Core evidence
+        run: python3 build-utils/melonx/validate_performance_finalization.py finalize
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: MeloNX-ae78b4be-finalization-${{ github.run_id }}
+          path: dist/melonx-finalization
+          if-no-files-found: error
+          retention-days: 14

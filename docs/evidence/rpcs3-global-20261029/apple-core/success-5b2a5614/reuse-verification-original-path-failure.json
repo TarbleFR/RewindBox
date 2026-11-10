@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "kind": "original-off-runner-receipt-verification",
+  "source": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "returncode": 1,
+  "outputSHA256": "4f099b8caa0c0996952727ad13775c7f9f98835e4f62df63c60070b308a3b64a",
+  "cause": "Only the final --report absolute output directory differs between the original Apple runner and this local workspace, for all 12 newly executed modes. Other arguments match exactly. The original verifier already passed on the Apple runner.",
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false,
+  "coreBuildFailed": false
+}

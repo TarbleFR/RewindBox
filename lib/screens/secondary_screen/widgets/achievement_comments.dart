@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/translated_achievement_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -84,8 +85,8 @@ class AchievementCommentsPage extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            achievement.title,
+                          child: TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18.r,
@@ -115,8 +116,8 @@ class AchievementCommentsPage extends StatelessWidget {
                     ),
                     if (achievement.description.isNotEmpty) ...[
                       SizedBox(height: 4.r),
-                      Text(
-                        achievement.description,
+                      TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description, showDescription: true,
                         style: TextStyle(color: Colors.white60, fontSize: 12.r),
                       ),
                     ],

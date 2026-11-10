@@ -1,0 +1,99 @@
+{
+  "passed": true,
+  "baselineCommit": "66b819522872e1c63efff956bffd540f01a9ac0f",
+  "branchBaseCommit": "66b819522872e1c63efff956bffd540f01a9ac0f",
+  "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patchSHA256": "bf9a8d24b1d0ca6cb1d9bd1ef535ed4d03db1e2522e8469339c035498f2c2dbb",
+  "fixtureSHA256": "db285e30d79691e70f11ea927b8895b6f469992ade7c3816037a99410a917983",
+  "canonicalPostimagesVerified": 312,
+  "unchangedCanonicalPostimages": 304,
+  "modifiedCanonicalPostimages": 7,
+  "addedCanonicalPaths": [
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp"
+  ],
+  "preservedShaderFollowupPaths": [
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp"
+  ],
+  "sourceRawSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "17e08c8562b4e46972c997c6f60afeb1f60d11bbb078d0bbf424e3f24a6fadb9",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "afd51290efacad8fdb43947f4f4d9e4996fd3095356699f3d1804508a9a3513f",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp": "41a30e38f39e9cb361f3ce6e9f16e80fc8ab374de7eba0e42dea8581873ea5d3",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "70897f93822c06346bd5d2a2b2b1afcc643808a3254533b0285a9db7f29df116",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "fbc078ede7dc9cc93e129a79d9574d0bde9b4df0d8d2214fb6c4b07cb400fdb4",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611"
+  },
+  "reconstructedBaselineRawSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "033098b1bbfe968d1f550af8245f0fabb11c6bf1680304cc48e272414b900e60",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp": "ec5a218647633c950017b762284dd6df61b39005c8cc02f5e164086511e8c25e",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "c7dcaa6d23930a42edf8f34a91e14c0c9c1adeb65e5d91d78db84d00a321cad7",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "b855feb2bffe0de6de99a881d33d46f0eaf07cb5c99d4e362352939848d18654",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "be65c65b46c08254cccb900cde9d6e4a094548d6ebb2695d61125fa101d34829",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "fdc0b583b609006f59e2e8123a6c522c3b76cd518244b98e20c41662375fd568",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "4557a1872934d9968b3e0029ae64264b6086db93a24a9c2e7c853bcec343d970"
+  },
+  "pristineSource": "Fresh sparse upstream snapshot; original blobs, trees and upstream commit authenticated by Git object hashes. Not a Core build.",
+  "originalInputCount": 177,
+  "materializerStdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported\n",
+  "allFixturePreimagesByteIdenticalIncludingCRLF": true,
+  "offIOSSourceChecks": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "2fde98ac92154d48c2e66b9cd3bac5d99ca487eb7bf352eac090d180e7d7fa88"
+    },
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "04e54a7d0394a1b174c72b74befbdc7f1708623d380b93a3c983f761db370df3"
+    },
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "cbedf1b66e2afa365346066bf1fda5abfe2687b396c36bbde2202ddef4653b74"
+    },
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "071bde178a3178715b1bbd05fa5a2baa43fe4cf071bab2eea521f2ce827b3df1"
+    },
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "8796dd8c4e321d7ecba54c8918c9e843ce083d81f00157e5b173657f5f2de262"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "302bb96e9f7e788c424f8297126e648f24363e6f8b028f2b101ade71a5d184af"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": null,
+      "sha256": "705e15d78f53cc5c37f59d621fb701bceca056c94412403a4615b491d7262351"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": {
+      "sourceOutsideIOSGuardsIdenticalAfterNormalization": true,
+      "ignoredBlankLines": true,
+      "additionalWhitespaceNormalization": "Join the existing enum count sentinel onto its previous line.",
+      "sha256": "c0bd022a468dde5cb2342bf1392ead335248f6d837a2d10fbbb183e5ed02c1fa"
+    }
+  },
+  "sourceExportDeclarationsUnchanged": 88,
+  "sourceABIHeaderUnchanged": true,
+  "testsRecompiledOrExecuted": false,
+  "appleCoreBuilt": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

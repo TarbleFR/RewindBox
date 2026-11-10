@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/translated_achievement_text.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -6,6 +7,8 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/corner_radii.dart';
 import '../../../../models/retro_achievements_game_info.dart';
+import '../../../../services/retro_achievements_identity.dart';
+import 'ra_identity_note.dart';
 
 /// An overlay component that renders RetroAchievements progress, stats, and a navigable grid.
 ///
@@ -21,9 +24,14 @@ class GameDetailsAchievementsTab extends StatefulWidget {
   final double rightOffset;
   final Widget? headerAction;
 
+  /// How the game was identified (recognized file, title-only match, or not
+  /// recognized): shown with the achievements or in place of them.
+  final RetroAchievementsIdentity? identity;
+
   const GameDetailsAchievementsTab({
     super.key,
     this.gameInfo,
+    this.identity,
     required this.isLoading,
     required this.onRefresh,
     this.topOffset = 55.0,
@@ -242,6 +250,8 @@ class GameDetailsAchievementsTabState
                     fontSize: 14.r,
                   ),
                 ),
+                if (widget.identity != null)
+                  RetroAchievementsIdentityNote(identity: widget.identity!),
               ],
             ),
           ),
@@ -331,10 +341,22 @@ class GameDetailsAchievementsTabState
                           ),
                           SizedBox(width: 6.r),
                           HeaderActionButton(
-                            icon: Image.asset(
-                              'assets/images/gamepad/Xbox_View_button.png',
-                              width: 12.r,
-                              height: 12.r,
+                            // Select + X, or X in the open ⋯ menu.
+                            icon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'assets/images/gamepad/Xbox_View_button.png',
+                                  width: 12.r,
+                                  height: 12.r,
+                                ),
+                                SizedBox(width: 2.r),
+                                Image.asset(
+                                  'assets/images/gamepad/Xbox_X_button.png',
+                                  width: 12.r,
+                                  height: 12.r,
+                                ),
+                              ],
                             ),
                             label: AppLocale.refresh
                                 .getString(context)
@@ -355,6 +377,9 @@ class GameDetailsAchievementsTabState
                       ),
                     ],
                   ),
+                  // Found from the title only: this file may not track in game.
+                  if (RetroAchievementsIdentityNote.hasContent(widget.identity))
+                    RetroAchievementsIdentityNote(identity: widget.identity!, compact: true),
                   Divider(
                     color: Theme.of(
                       context,
@@ -479,8 +504,8 @@ class _SelectedAchievementInfo extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Center(
-          child: Text(
-            achievement.title,
+          child: TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description,
             style: TextStyle(
               color: isUnlocked
                   ? Colors.orange
@@ -494,8 +519,8 @@ class _SelectedAchievementInfo extends StatelessWidget {
         SizedBox(height: 4.r),
         Expanded(
           child: SingleChildScrollView(
-            child: Text(
-              achievement.description,
+            child: TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description, showDescription: true,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 9.r,

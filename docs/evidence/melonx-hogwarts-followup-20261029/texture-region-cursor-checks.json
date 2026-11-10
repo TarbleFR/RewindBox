@@ -1,0 +1,379 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "overlap": {
+        "mode": "control",
+        "checks": 12170,
+        "resultDigest": "a7f9059e5b001b77",
+        "covered": {
+          "padded-disjoint-data": 1,
+          "first-region-match": 1,
+          "last-layer-match": 1,
+          "touching-last-end": 1,
+          "one-byte-overlap": 1,
+          "separate-allocations": 1,
+          "linear-vs-array": 1,
+          "linear-in-padding": 1,
+          "single-touching": 1,
+          "zero-sized-existing-semantics": 1,
+          "high-valid-address": 1,
+          "overflowing-address-fallback": 1,
+          "unmapped-fallback": 1,
+          "short-mapping-wrapped-region": 1,
+          "short-mapping-first-match": 1,
+          "short-mapping-slice-exception": 1,
+          "layout-validation-initial": 1,
+          "invalid-layout-first-pair-match": 1,
+          "validated-layout-remapped-short": 1,
+          "overflow-layout-original-exception": 1,
+          "layout-validation-reinitialized": 1,
+          "3d-identical": 216,
+          "3d-layout-exception": 216,
+          "3d-last-byte": 216,
+          "3d-touching": 216,
+          "contiguous-contiguous": 100,
+          "random-layout-compatibility": 2500,
+          "remapped-contiguous": 100,
+          "remapped-fragmented": 100,
+          "fragmented-contiguous": 100,
+          "reversed-contiguous": 100,
+          "holes-contiguous": 100,
+          "alias-contiguous": 100,
+          "contiguous-fragmented": 100,
+          "fragmented-fragmented": 100,
+          "reversed-fragmented": 100,
+          "holes-fragmented": 100,
+          "alias-fragmented": 100,
+          "contiguous-reversed": 100,
+          "fragmented-reversed": 100,
+          "reversed-reversed": 100,
+          "holes-reversed": 100,
+          "alias-reversed": 100,
+          "contiguous-holes": 100,
+          "fragmented-holes": 100,
+          "reversed-holes": 100,
+          "holes-holes": 100,
+          "alias-holes": 100,
+          "contiguous-alias": 100,
+          "fragmented-alias": 100,
+          "reversed-alias": 100,
+          "holes-alias": 100,
+          "alias-alias": 100
+        },
+        "benchmarks": [
+          {
+            "name": "padded-32-regions",
+            "result": false,
+            "regionsPerTexture": 32,
+            "iterationsPerBatch": 57221,
+            "batches": 5,
+            "medianNanosecondsPerCall": 1043.4459027280195,
+            "medianProcessCpuNanosecondsPerCall": 1043.6203491725066,
+            "bytesPerCall": 304
+          },
+          {
+            "name": "padded-256-regions",
+            "result": false,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 8074,
+            "batches": 5,
+            "medianNanosecondsPerCall": 6762.509041367352,
+            "medianProcessCpuNanosecondsPerCall": 6763.685905375279,
+            "bytesPerCall": 304
+          },
+          {
+            "name": "last-layer-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 16444,
+            "batches": 5,
+            "medianNanosecondsPerCall": 3231.554183896862,
+            "medianProcessCpuNanosecondsPerCall": 3232.1819508635367,
+            "bytesPerCall": 304
+          },
+          {
+            "name": "first-region-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 88.72466,
+            "medianProcessCpuNanosecondsPerCall": 88.77,
+            "bytesPerCall": 304
+          },
+          {
+            "name": "fragmented-first-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 230.02832,
+            "medianProcessCpuNanosecondsPerCall": 230.1,
+            "bytesPerCall": 864
+          },
+          {
+            "name": "single-subresource",
+            "result": true,
+            "regionsPerTexture": 1,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 7.3674,
+            "medianProcessCpuNanosecondsPerCall": 7.37,
+            "bytesPerCall": 0
+          }
+        ],
+        "firstComparisons": [
+          {
+            "name": "first-match-256-regions",
+            "result": true,
+            "regionsPerTexture": 256,
+            "freshPairsPerBatch": 4096,
+            "batches": 5,
+            "medianNanosecondsPerFirstComparison": 98.923095703125,
+            "bytesPerFirstComparison": 304,
+            "constructionIncluded": false
+          },
+          {
+            "name": "padded-256-regions",
+            "result": false,
+            "regionsPerTexture": 256,
+            "freshPairsPerBatch": 64,
+            "batches": 5,
+            "medianNanosecondsPerFirstComparison": 11221.140625,
+            "bytesPerFirstComparison": 608,
+            "constructionIncluded": false
+          }
+        ]
+      },
+      "cursor": {
+        "cases": 1199,
+        "checks": 26311,
+        "digest": "30A9012CD96CEA2CFDAA8357C4BCC97CA8D1E7ECFDDE8EE73B63D58799FF3126",
+        "iterations": 20000,
+        "allocatedBytes": 3040000,
+        "oracleEnumerableUnchanged": true
+      }
+    },
+    "candidate": {
+      "overlap": {
+        "mode": "candidate",
+        "checks": 12170,
+        "resultDigest": "a7f9059e5b001b77",
+        "covered": {
+          "padded-disjoint-data": 1,
+          "first-region-match": 1,
+          "last-layer-match": 1,
+          "touching-last-end": 1,
+          "one-byte-overlap": 1,
+          "separate-allocations": 1,
+          "linear-vs-array": 1,
+          "linear-in-padding": 1,
+          "single-touching": 1,
+          "zero-sized-existing-semantics": 1,
+          "high-valid-address": 1,
+          "overflowing-address-fallback": 1,
+          "unmapped-fallback": 1,
+          "short-mapping-wrapped-region": 1,
+          "short-mapping-first-match": 1,
+          "short-mapping-slice-exception": 1,
+          "layout-validation-initial": 1,
+          "invalid-layout-first-pair-match": 1,
+          "validated-layout-remapped-short": 1,
+          "overflow-layout-original-exception": 1,
+          "layout-validation-reinitialized": 1,
+          "3d-identical": 216,
+          "3d-layout-exception": 216,
+          "3d-last-byte": 216,
+          "3d-touching": 216,
+          "contiguous-contiguous": 100,
+          "random-layout-compatibility": 2500,
+          "remapped-contiguous": 100,
+          "remapped-fragmented": 100,
+          "fragmented-contiguous": 100,
+          "reversed-contiguous": 100,
+          "holes-contiguous": 100,
+          "alias-contiguous": 100,
+          "contiguous-fragmented": 100,
+          "fragmented-fragmented": 100,
+          "reversed-fragmented": 100,
+          "holes-fragmented": 100,
+          "alias-fragmented": 100,
+          "contiguous-reversed": 100,
+          "fragmented-reversed": 100,
+          "reversed-reversed": 100,
+          "holes-reversed": 100,
+          "alias-reversed": 100,
+          "contiguous-holes": 100,
+          "fragmented-holes": 100,
+          "reversed-holes": 100,
+          "holes-holes": 100,
+          "alias-holes": 100,
+          "contiguous-alias": 100,
+          "fragmented-alias": 100,
+          "reversed-alias": 100,
+          "holes-alias": 100,
+          "alias-alias": 100
+        },
+        "benchmarks": [
+          {
+            "name": "padded-32-regions",
+            "result": false,
+            "regionsPerTexture": 32,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 427.2066,
+            "medianProcessCpuNanosecondsPerCall": 427.31,
+            "bytesPerCall": 0
+          },
+          {
+            "name": "padded-256-regions",
+            "result": false,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 16622,
+            "batches": 5,
+            "medianNanosecondsPerCall": 3302.3426783780533,
+            "medianProcessCpuNanosecondsPerCall": 3303.2126097942487,
+            "bytesPerCall": 0
+          },
+          {
+            "name": "last-layer-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 31119,
+            "batches": 5,
+            "medianNanosecondsPerCall": 1782.2814357787847,
+            "medianProcessCpuNanosecondsPerCall": 1782.5122915260772,
+            "bytesPerCall": 0
+          },
+          {
+            "name": "first-region-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 39.1953,
+            "medianProcessCpuNanosecondsPerCall": 39.21,
+            "bytesPerCall": 0
+          },
+          {
+            "name": "fragmented-first-match",
+            "result": true,
+            "regionsPerTexture": 256,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 234.43252,
+            "medianProcessCpuNanosecondsPerCall": 234.5,
+            "bytesPerCall": 864
+          },
+          {
+            "name": "single-subresource",
+            "result": true,
+            "regionsPerTexture": 1,
+            "iterationsPerBatch": 100000,
+            "batches": 5,
+            "medianNanosecondsPerCall": 7.80976,
+            "medianProcessCpuNanosecondsPerCall": 7.82,
+            "bytesPerCall": 0
+          }
+        ],
+        "firstComparisons": [
+          {
+            "name": "first-match-256-regions",
+            "result": true,
+            "regionsPerTexture": 256,
+            "freshPairsPerBatch": 4096,
+            "batches": 5,
+            "medianNanosecondsPerFirstComparison": 39.81494140625,
+            "bytesPerFirstComparison": 0,
+            "constructionIncluded": false
+          },
+          {
+            "name": "padded-256-regions",
+            "result": false,
+            "regionsPerTexture": 256,
+            "freshPairsPerBatch": 64,
+            "batches": 5,
+            "medianNanosecondsPerFirstComparison": 4481.015625,
+            "bytesPerFirstComparison": 0,
+            "constructionIncluded": false
+          }
+        ]
+      },
+      "cursor": {
+        "cases": 1199,
+        "checks": 26311,
+        "digest": "30A9012CD96CEA2CFDAA8357C4BCC97CA8D1E7ECFDDE8EE73B63D58799FF3126",
+        "iterations": 20000,
+        "allocatedBytes": 0,
+        "oracleEnumerableUnchanged": true
+      }
+    }
+  },
+  "physicalDeviceTested": false,
+  "unchangedEnumerableOracle": true,
+  "completeSizeInfo": true,
+  "productionOverlapBodiesVerbatim": true,
+  "gpuResourcesUsed": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "inputs": {
+    "build-utils/melonx/adapt_texture_region_cursor.py": "a702694a818e9638306fa45e80f9e4d0dfab33541d545e85d6228a53de9e4948",
+    "build-utils/melonx/adapt_texture_overlap.py": "33012abe655a8f6f37853299d07a188a44c1766b329c1f07463c82a4f73a40a8",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_texture_region_cursor_test.py": "7a780d0b6b8bbce874849580b22151ff87b997fb88fad676320d976f362251f8",
+    "test/melonx_texture_region_cursor/CursorProgram.cs": "34f5ee63a318a2840f74ba4a879c55d99d809b4dd666f1fcee27917917afb1e3",
+    "test/melonx_texture_overlap/Program.cs": "94335497a54a00ddf926e4b97dfd4dbf34f0859ec99aa79e4e304dfa8ef8f97b"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureViewCompatibility.cs": "47d65cd1027efd36bcfcd5aad479c948a681cad53a772d1627a3ae83f83bc2a4",
+    "src/Ryujinx.Graphics.Texture/SizeInfo.cs": "3e3bcadecbbe9c4fc629fa0aef6629c7b65e8affc7ebcf99dd09be1c016afa89",
+    "src/Ryujinx.Graphics.Texture/SizeCalculator.cs": "5eccd413aa26c6bb48ca2d1449998d8bf763a71d9f1e066b301e627f5bcccf8e",
+    "src/Ryujinx.Graphics.Texture/Size.cs": "49ca31348f73196428dfe74a7f27bf9fbdfb22896da4ab8416b76d2628592391",
+    "src/Ryujinx.Graphics.Texture/Region.cs": "c09bce72a70eac647f0be22ab3acfd2ab0315697d7daaa605d963be7cf472322",
+    "src/Ryujinx.Graphics.Texture/BlockLinearConstants.cs": "e9dba0f3ef2b704ccce34af1485c31b5e9cd79e5168b8cf7bd3a1f210a6acb50",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261"
+  },
+  "preparedBaselineInputs": {
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "27f13f9de15660af6f1d96037efe11ca1db229b5497e5652fdf95e47adb9e5cd",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureViewCompatibility.cs": "47d65cd1027efd36bcfcd5aad479c948a681cad53a772d1627a3ae83f83bc2a4",
+    "src/Ryujinx.Graphics.Texture/SizeInfo.cs": "3e3bcadecbbe9c4fc629fa0aef6629c7b65e8affc7ebcf99dd09be1c016afa89",
+    "src/Ryujinx.Graphics.Texture/SizeCalculator.cs": "5eccd413aa26c6bb48ca2d1449998d8bf763a71d9f1e066b301e627f5bcccf8e",
+    "src/Ryujinx.Graphics.Texture/Size.cs": "49ca31348f73196428dfe74a7f27bf9fbdfb22896da4ab8416b76d2628592391",
+    "src/Ryujinx.Graphics.Texture/Region.cs": "c09bce72a70eac647f0be22ab3acfd2ab0315697d7daaa605d963be7cf472322",
+    "src/Ryujinx.Graphics.Texture/BlockLinearConstants.cs": "e9dba0f3ef2b704ccce34af1485c31b5e9cd79e5168b8cf7bd3a1f210a6acb50",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Texture/SizeInfo.cs": "6ab5af6c11fda9574bebfd36344c7bfdf634e5ff90383ae2a299fa98db1933ed",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "50187e4802e2486ef6eb7bfe9db2fcfbe45bb50244dbf5090d6b56425cf0e082"
+  },
+  "extraction": {
+    "control": {
+      "compiledExtractSha256": "3f123214964eafb864a91438ba24498b7d6326a0856d836dab262108b6c10da3",
+      "completeMethods": {
+        "private void InitializeTexture(": "8833695e15390d9d04c7fbaf36628eabed856e97c12f32e8446b64a486c62179",
+        "public bool DataOverlaps(Texture texture, TextureViewCompatibility compatibility)": "e6456daf15449deb2ec60acdd83a9dea6507c0aa0ae49d639036fb1cbc077f63",
+        "private bool HasOrderedDataRegions()": "17934a239541f6c738b608150bbf740d490a9830e17cce56bd8b90d2000b4ccd",
+        "private bool DataOverlapsContiguous(Texture texture, MultiRange otherRange)": "24a5c3a3488dd041c7244ba1ccdbfae086181cf84bc6fc365827151250dc2f5d",
+        "private bool DataOverlapsUnordered(Texture texture, MultiRange otherRange)": "8976e547447b6cb1c67622360f2909b00491a5bb7b6c83cfe1203d9a15668f4f"
+      }
+    },
+    "candidate": {
+      "compiledExtractSha256": "0c3542e4b46b378b003ebfb802de86294f7171adc1cb069c65675c1239de03c9",
+      "completeMethods": {
+        "private void InitializeTexture(": "8833695e15390d9d04c7fbaf36628eabed856e97c12f32e8446b64a486c62179",
+        "public bool DataOverlaps(Texture texture, TextureViewCompatibility compatibility)": "e6456daf15449deb2ec60acdd83a9dea6507c0aa0ae49d639036fb1cbc077f63",
+        "private bool HasOrderedDataRegions()": "342b994d3feb2f9e23d33496c32541ad1c532d2488dcdd9f45f5ae376c4f696b",
+        "private bool DataOverlapsContiguous(Texture texture, MultiRange otherRange)": "2653ea20ec874fc0511323dc4f9e2ab76884e9b69c9565a51afcad4a4f422d33",
+        "private bool DataOverlapsUnordered(Texture texture, MultiRange otherRange)": "8976e547447b6cb1c67622360f2909b00491a5bb7b6c83cfe1203d9a15668f4f"
+      }
+    }
+  }
+}

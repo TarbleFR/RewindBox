@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/models/core_emulator_model.dart';
+import 'glass/glass_surface.dart';
 
 /// Generic settings row with icon, label, and custom trailing widget.
 ///
@@ -135,9 +136,7 @@ class EmulatorRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.secondary.withValues(alpha: 0.15)
-                : theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.1,
-                  ),
+                : LiquidGlassTheme.of(context).fill(context, GlassRole.control),
             borderRadius: BorderRadius.circular(6.r),
           ),
           child: Padding(

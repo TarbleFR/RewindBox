@@ -1,0 +1,131 @@
+{
+  "build": 604,
+  "core": {
+    "compiledPayloadFingerprint": "b68bdd203ee61cb769b07d0802a66898c034a641a25cba6e1b4373a79885ca42",
+    "definedSymbols": 88,
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "metadata": {
+      "alignmentPaddingDifference": 0,
+      "nonSignatureLinkeditSHA256": "c411949d41cdf97414ec4e9df20e672fc6d4f1b427398770e778c588f366fcf6",
+      "nonSignatureLinkeditUnchanged": true,
+      "nonSignatureLoadCommandsSHA256": "55c731fa3a9cfb102692e9cf30bfe351be36a11814623efa6a2edb343ad1de58",
+      "nonSignatureLoadCommandsUnchanged": true
+    },
+    "signed": true
+  },
+  "gameplayMeasured": false,
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "physicalDeviceTested": false,
+  "rawCoreSHA256": "f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a",
+  "receipt": {
+    "abiVersion": 30,
+    "appleModes": {
+      "executedNow": 2,
+      "historicalNativeModes": 28,
+      "historicalReplayed": false,
+      "reusedExactAppleModes": 10,
+      "sourceAudit": 1
+    },
+    "baseline": 603,
+    "build": 604,
+    "candidateTestsReplayed": false,
+    "canonicalPostimages": 326,
+    "changedPaths": [
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+      "rpcs3/Emu/Cell/SPUThread.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_process.cpp",
+      "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+      "rpcs3/Emu/RSX/rsx_cache.h",
+      "rpcs3/ios/IOSRestoreExecutor.h",
+      "rpcs3/ios/NeoStationSavestateStatus.h",
+      "rpcs3/ios/RPCS3IOS.cpp"
+    ],
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    },
+    "compatibility": {
+      "abiVersion": 30,
+      "brokerCompiledIntoHostOnly": true,
+      "hostCoreHeadersSHA256": {
+        "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+        "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+        "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+        "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+        "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+        "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+        "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+        "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
+        "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+        "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+        "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+        "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc"
+      },
+      "hostLoggerSHA256": "134862d8fd6ab9dd68ded1cb6b9c358890f7b9c1c1c27045cc19d61b31a322d8",
+      "neoswapStoreSHA256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+      "physicalDeviceTested": false
+    },
+    "compiledSourceArchive": "Legal/RPCS3-current-core/compiled-host-inputs.zip",
+    "compiledSourceInputsAreHistorical": true,
+    "coreArtifact": {
+      "bytes": 29263531,
+      "digest": "sha256:b260bb4fa48b72ff889d6e9c4eb061591676b18e12427c0160a44974c9ff2b07",
+      "id": 13007148559,
+      "name": "RPCS3Core-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a"
+    },
+    "coreInputCount": 92,
+    "coreNativeSource": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "corePayloadFingerprint": "b68bdd203ee61cb769b07d0802a66898c034a641a25cba6e1b4373a79885ca42",
+    "coreRun": 41117115264,
+    "coreSHA256": "f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a",
+    "coreSource": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "currentRpcCandidateCompiled": true,
+    "diagnosticsArtifact": {
+      "bytes": 152518949,
+      "digest": "sha256:3663b28d81f196509618a15a8cf18c61b39ac8d582ee800521a96f27f129284e",
+      "id": 13006694440,
+      "name": "RPCS3Core-diagnostics-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a"
+    },
+    "fpsGainMeasured": false,
+    "gameplayMeasured": false,
+    "historicalTestsReplayed": false,
+    "hostCommit": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "hostRuntime": {
+      "compiledIntoHostOnly": true,
+      "path": "native/neoswap-storage/Store.cpp",
+      "sha256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+      "testsReplayed": false
+    },
+    "identitySHA256": "9e4e50249aa5aa33c5e2d6a824fbca54cc5e315c67837cc0113110dce6b05296",
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "physicalDeviceTested": false,
+    "proofSHA256": "fcc51ecef5ad3b90ca11f1960080459871f70a4e1c0aef8b8079259aa326eb78",
+    "sourcePatchSHA256": "70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79",
+    "sourceReceipt": {
+      "artifact": 13007148559,
+      "commit": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+      "member": "runtime592-proof.json",
+      "sha256": "fcc51ecef5ad3b90ca11f1960080459871f70a4e1c0aef8b8079259aa326eb78"
+    },
+    "tests": [
+      "color-feedback-asan-ubsan",
+      "color-feedback-plain",
+      "exitspawn-worker-asan-ubsan",
+      "exitspawn-worker-plain",
+      "mfc-decrementer-asan-ubsan",
+      "mfc-decrementer-plain",
+      "savestate-completion-asan-ubsan",
+      "savestate-completion-plain",
+      "tiny-vertex-asan-ubsan",
+      "tiny-vertex-plain",
+      "vertex-range-asan-ubsan",
+      "vertex-range-plain"
+    ],
+    "type": "rpcs3-ios-device601-followup",
+    "validationInputCount": 41
+  },
+  "result": "passed",
+  "scope": "Authenticated runtime source candidate; compiled payload, ABI, non-signature load commands and LINKEDIT preserved. Full codesign, entitlements and other component checks belong to the delivery.",
+  "signedCoreSHA256": "31872b3285fe47534cf14c221d6cfa9a2b5def395cf0816f2e600d9d7843f04d"
+}

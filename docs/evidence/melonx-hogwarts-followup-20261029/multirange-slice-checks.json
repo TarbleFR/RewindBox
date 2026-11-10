@@ -1,0 +1,168 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "reports": {
+    "control": {
+      "cases": 25300,
+      "checks": 244461,
+      "semanticDigest": "4A5E751DC0B77D42C18A74ADDB7FE8307C519DF29247496BCC8B13BB72FE2C10",
+      "semanticBytes": 4218972,
+      "benchmark": [
+        {
+          "name": "single-input",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 4.092
+        },
+        {
+          "name": "fragmented-single-first",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 60000000,
+          "bytesPerSlice": 120,
+          "medianNanoseconds": 25.571
+        },
+        {
+          "name": "fragmented-single-middle",
+          "iterations": 20000,
+          "repeats": 5,
+          "allocatedBytes": 12000000,
+          "bytesPerSlice": 120,
+          "medianNanoseconds": 299.58
+        },
+        {
+          "name": "fragmented-single-last",
+          "iterations": 20000,
+          "repeats": 5,
+          "allocatedBytes": 12000000,
+          "bytesPerSlice": 120,
+          "medianNanoseconds": 528.325
+        },
+        {
+          "name": "fragmented-two",
+          "iterations": 50000,
+          "repeats": 5,
+          "allocatedBytes": 44000000,
+          "bytesPerSlice": 176,
+          "medianNanoseconds": 40.798
+        },
+        {
+          "name": "fragmented-whole",
+          "iterations": 2000,
+          "repeats": 5,
+          "allocatedBytes": 247600000,
+          "bytesPerSlice": 24760,
+          "medianNanoseconds": 3189.55
+        },
+        {
+          "name": "empty-input",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 16000000,
+          "bytesPerSlice": 32,
+          "medianNanoseconds": 10.503
+        }
+      ],
+      "sink": 644004464000,
+      "physicalDeviceTested": false
+    },
+    "candidate": {
+      "cases": 25300,
+      "checks": 244461,
+      "semanticDigest": "4A5E751DC0B77D42C18A74ADDB7FE8307C519DF29247496BCC8B13BB72FE2C10",
+      "semanticBytes": 4218972,
+      "benchmark": [
+        {
+          "name": "single-input",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 4.592
+        },
+        {
+          "name": "fragmented-single-first",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 4.06
+        },
+        {
+          "name": "fragmented-single-middle",
+          "iterations": 20000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 259.865
+        },
+        {
+          "name": "fragmented-single-last",
+          "iterations": 20000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 472.425
+        },
+        {
+          "name": "fragmented-two",
+          "iterations": 50000,
+          "repeats": 5,
+          "allocatedBytes": 14000000,
+          "bytesPerSlice": 56,
+          "medianNanoseconds": 19.42
+        },
+        {
+          "name": "fragmented-whole",
+          "iterations": 2000,
+          "repeats": 5,
+          "allocatedBytes": 82160000,
+          "bytesPerSlice": 8216,
+          "medianNanoseconds": 1809.35
+        },
+        {
+          "name": "empty-input",
+          "iterations": 100000,
+          "repeats": 5,
+          "allocatedBytes": 0,
+          "bytesPerSlice": 0,
+          "medianNanoseconds": 2.436
+        }
+      ],
+      "sink": 644004464000,
+      "physicalDeviceTested": false
+    }
+  },
+  "physicalDeviceTested": false,
+  "productionBodiesUninstrumented": true,
+  "independentOracle": true,
+  "inputs": {
+    "build-utils/melonx/adapt_multirange_slice.py": "7d02e2b2bb5b23f146d48d44facf81b875c15be5156e900ab127429a2920c5fa",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_multirange_slice_test.py": "ad9f78af2280e57e133dd3c9f82d5734f2263ad4eaf580ecf868753eaa244cec",
+    "test/melonx_multirange_slice/Program.cs": "c8ebb8cb0ad48a72a67e7ce3c7cfc54cb4b6c2aba4e66fa51e75ef3a9bd94eea"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0"
+  },
+  "postimages": {
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Program.cs": "c8ebb8cb0ad48a72a67e7ce3c7cfc54cb4b6c2aba4e66fa51e75ef3a9bd94eea",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767"
+    },
+    "candidate": {
+      "Program.cs": "c8ebb8cb0ad48a72a67e7ce3c7cfc54cb4b6c2aba4e66fa51e75ef3a9bd94eea",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+    }
+  }
+}

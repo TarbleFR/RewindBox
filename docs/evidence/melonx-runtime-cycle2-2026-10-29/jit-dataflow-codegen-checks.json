@@ -1,0 +1,21 @@
+{
+  "identicalArm64Fragments": 2000,
+  "identicalArm64Bytes": 64085248,
+  "beforeAllocatedBytes": 634853144,
+  "afterAllocatedBytes": 634779640,
+  "beforeMilliseconds": 824.867262,
+  "afterMilliseconds": 709.188545,
+  "sharedRealFunctionTable": true,
+  "result": "passed",
+  "generatedArm64Executed": false,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "build-utils/melonx/adapt_jit_decoder.py": "7e66f8de22be055fbe27982c9e09ad21e2ab2851aff73e2103e04b868a9bf1a5",
+    "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
+    "build-utils/melonx/adapt_jit_block_split.py": "0a1c60a92e0a49c5f93fea1a9848270dab5602b79bda16377b4813f219336769",
+    "build-utils/melonx/adapt_jit_dataflow.py": "959bdfc031a8616fad8dfd066cf9f349d6c4ed08bead451ac2e67bb388acc4e0",
+    "test/melonx_jit_dataflow_codegen_test.py": "c1abe5bf3c9ea87873f7b65f63a970b665c8c573f62fc60f69d6bad8df11ce25",
+    "test/melonx_jit_dataflow_codegen/Program.cs": "560f28ef5bcdc9c28c2476fa428e75ecfebfaee89e1795e07d1e0f48518e6a3d"
+  }
+}

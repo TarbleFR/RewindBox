@@ -1,0 +1,179 @@
+{
+ "schema": 1,
+ "date": "2026-11-10",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": 717,
+ "lot": "MeloNX lot 8: Metal library cost (worker libraries published to main)",
+ "base": {
+  "core": 715,
+  "contract": "ab0df1a5",
+  "validatedRun": 42722916222,
+  "iphoneBinary": "63653e357188d572049299d0761cad276ef124d6e3a655e45200d44e11cefafb"
+ },
+ "change": {
+  "adapt_worker_library_share": {
+   "files": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ],
+   "what": "after a creation compiled in its own cache, the worker merges that cache into main (library references copied, nothing compiled) under the main lock, announced as a holder (render-thread creations go to the side cache), never waiting; skipped when the lock is held, main Frozen, past main's estimated budget (checked before and under the lock) or under low device memory",
+   "protocol": "the checkpoint announcement is a count of holders for every holder of the file (load, play-time and pause checkpoints, shares)",
+   "budget": "an estimate: main's measured bytes + the credit of merges since its last measure + the worker's pipelines since its last share at its bytes per pipeline; bytes per pipeline learnt only from spans without merges; not native memory"
+  }
+ },
+ "realBackendDecision": {
+  "measure": "library-share-measure.json",
+  "mslCompiles": {
+   "none": 40,
+   "oneCacheLowerBound": 27,
+   "mergeAfterEachOwnCompile": 27,
+   "mergeThenResetWorker": 49,
+   "mergeEvery8": 40,
+   "concurrentFirstRequests": 40
+  },
+  "mergeCost": "24 merges in 0.16-0.23 ms total per session (longest 0.01-0.03 ms)",
+  "lockHeldByMainHits": "a variant served from main creates its pipeline state under the main lock: 166-185 ms per 60 requests (36 hits) against 4-6 ms without sharing; that creation was made before in the worker cache: moved, not added, but a render-thread creation meeting it waits",
+  "memory": "peak footprint +0.5 to +0.7 MiB on the runner (19.2-19.4 -> 19.9-20.1 MiB); the budget check is an estimate, not this measure",
+  "decision": "integrated: 13 of 40 MSL compiles and SPIR-V conversions removed in this pattern (the one-cache lower bound) for a merge cost under 0.3 ms; reset and batched strategies rejected; simultaneous first compilations of the same library are not removed"
+ },
+ "gatesRun": {
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "552e9f4719706b18869b08b1ac3283314621ae2503b94faa8e6b55161bd665b0",
+   "checks": 66
+  },
+  "performance-diagnostics": {
+   "report": "performance-diagnostics-checks.json",
+   "sha256": "52f007aae6519b11346fde0c1545b3fb47f306f71ce142474c7aa2fff9cb957f",
+   "checks": null
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "6f79c0a11669a05a4a40c7e0bfb193a87e281e11a882f81fef77cbd79543b0b8",
+   "checks": 172
+  },
+  "pipeline-checkpoint": {
+   "report": "pipeline-checkpoint-checks.json",
+   "sha256": "e1053c929b31a0504ef3c07037bcfc27dd0eee84c469e1ecb1f1d3e3e59ac15a",
+   "checks": null
+  },
+  "pipeline-warmup-parity": {
+   "report": "pipeline-warmup-parity-checks.json",
+   "sha256": "20c2025774a0900804864f794e82c65bf251a120a56a2d2948feac8135510865",
+   "checks": 10
+  },
+  "teardown-cache": {
+   "report": "teardown-cache-checks.json",
+   "sha256": "8afd710f1c52c38e2ed807d0269c915d2417e555ad49dfa28548b8ca8c3e3c62",
+   "checks": 53
+  },
+  "main-cache-checkpoint": {
+   "report": "main-cache-checkpoint-checks.json",
+   "sha256": "3f536b618848e9a916a22592016b4f233553dcf214ea2ea717e1c967f26f5cc6",
+   "checks": 29
+  },
+  "checkpoint-side-cache": {
+   "report": "checkpoint-side-cache-checks.json",
+   "sha256": "1ad63046b8f83508acef7eb4c2de4ce5c649564284d5e755a6ef9162066225f6",
+   "checks": 24
+  },
+  "pipeline-cache-room": {
+   "report": "pipeline-cache-room-checks.json",
+   "sha256": "89a921797292585c325e03c708f2938b514ff26c284f804d519ba2bd992b9d31",
+   "checks": 23
+  },
+  "pipeline-cache-persist": {
+   "report": "pipeline-cache-persist-checks.json",
+   "sha256": "0804fb357f2b0e8b49634ad84b90a46a0b5b8051fa959ed8342d886af49aba8e",
+   "checks": 30
+  },
+  "pipeline-build-journal": {
+   "report": "pipeline-build-journal-checks.json",
+   "sha256": "3d0acdadeb626b0593b3345b0188cff2d083b4c459ad5df9a3dde1d99ffe697e",
+   "checks": 30
+  },
+  "pipeline-cache-growth": {
+   "report": "pipeline-cache-growth-checks.json",
+   "sha256": "8896846bbdd3df6556f49c4755715425918c02d5092a6cb54f4e0d73b253d495",
+   "checks": 37
+  },
+  "pipeline-failure-identity": {
+   "report": "pipeline-failure-identity-checks.json",
+   "sha256": "14aba396e0a1cef38754b6ee88c3be66ee5f8272237ce11b967f271e62bfb6ae",
+   "checks": 16
+  },
+  "worker-main-cache-lookup": {
+   "report": "worker-main-cache-lookup-checks.json",
+   "sha256": "e72fb6c5feed87a6a8e99c92b98d05ccc6547a700579e43f51266aa4bce5fe17",
+   "checks": 19
+  },
+  "pipeline-cache-background": {
+   "report": "pipeline-cache-background-checks.json",
+   "sha256": "0c0fe569842573ab6c3323a4c45c70acf8d8a59c30cb7cd29e2273069485e469",
+   "checks": 34
+  },
+  "pipeline-variant-replay": {
+   "report": "pipeline-variant-replay-checks.json",
+   "sha256": "3baea3ef4d17191eae5b114346f0438e74a732000af504508771ecb8ac294183",
+   "checks": 107
+  },
+  "pipeline-snapshot-retire": {
+   "report": "pipeline-snapshot-retire-checks.json",
+   "sha256": "c1b554b5858613232edf3b2e3c0b5c75de34573d801b9c94ca5c1ac2c6ad2794",
+   "checks": 105
+  },
+  "worker-library-share": {
+   "report": "worker-library-share-checks.json",
+   "sha256": "a1c62df7202c1631f3cfadb12b7392f010efd1a939b3dd6946a9fe4e3255f0d9",
+   "checks": 63
+  }
+ },
+ "allGatesLocally": "75 of 75 green on the final preparation (10 Nov 00:26 UTC)",
+ "contract": {
+  "sha256": "f751f1f71f00e0bb40842da080f5801e7910037faa03aa6e47f6e558f0c5ceac",
+  "preparationInputs": 194,
+  "preparedMembers": 206,
+  "freshAppleGates": 75,
+  "contractTestChecks": 447
+ },
+ "reviews": [
+  "rb-core-review (source only): no proven correctness defect; budget estimate weakness (merge credit folded into measured bytes; worker growth from its estimate) fixed in 5f323df6; low: render-thread creations go to the side cache during each merge (older side-cache path, now more frequent)",
+  "maintainer review of e6ee4837: announcement flag cleared by another holder; budget not re-checked under the lock; Metal bench concurrent statistics unsynchronised: all fixed in 664bfddd"
+ ],
+ "physicalDeviceTested": false,
+ "ipa": "none (maintainer)",
+ "ciRuns": [
+  {
+   "commit": "45923d13",
+   "commitFull": "45923d133e5ec9325b6c64f44844f7dafba6f404",
+   "contract": "f751f1f7",
+   "contractSha256": "f751f1f71f00e0bb40842da080f5801e7910037faa03aa6e47f6e558f0c5ceac",
+   "run": 42728675479,
+   "attempt": 1,
+   "job": 129540815655,
+   "conclusion": "success",
+   "completedAt": "2026-11-10T01:13:53Z",
+   "artifact": {
+    "id": 13726531152,
+    "name": "MeloNX-engine-45923d133e5ec9325b6c64f44844f7dafba6f404",
+    "bytes": 91026547,
+    "sha256": "3fa1ace5637581632eec232de31daf1983061b25e2127b69966a5126594d4d22",
+    "expires": "2026-11-24T01:13:39Z"
+   },
+   "binaries": {
+    "ios-arm64": {
+     "sha256": "f565e10bba1e6373ecf7a13f95228dcccae028c42711b03e6526a419ec7b5dbd",
+     "bytes": 38423424
+    },
+    "iossimulator-arm64": {
+     "sha256": "377f7b8017af9381cd0d4571981d7302053f5b4540035c82886fa339c292ed36",
+     "bytes": 38740216
+    }
+   },
+   "freshAppleGates": 75,
+   "verified": "binaries hash to their identity; 194 inputs; worker-library-share 63, extra-set-binds 154, array-reference-deltas 46, cold-texture-release 131 passed; simulator runtime smoke passed",
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "note": "the Core of this lot to pin (main); Core 715 (run 42722916222, binary 63653e35) is the validated fallback"
+  }
+ ]
+}

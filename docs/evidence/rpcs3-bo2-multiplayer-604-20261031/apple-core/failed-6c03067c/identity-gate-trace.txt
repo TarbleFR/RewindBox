@@ -1,0 +1,32 @@
+2026-10-31T21:14:43.4398360Z Traceback (most recent call last):
+2026-10-31T21:14:43.4400410Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3_mvk_cache_core.py", line 444, in <module>
+2026-10-31T21:14:43.4403360Z     main()
+2026-10-31T21:14:43.4403910Z     ~~~~^^
+2026-10-31T21:14:43.4404850Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3_mvk_cache_core.py", line 438, in main
+2026-10-31T21:14:43.4405700Z     identity(args.write_core_identity.resolve())
+2026-10-31T21:14:43.4406290Z     ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T21:14:43.4407460Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3_mvk_cache_core.py", line 370, in identity
+2026-10-31T21:14:43.4409390Z     proof = verify_reuse(PROOF, Path(proof["compiled_source_root"]))
+2026-10-31T21:14:43.4411790Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3_mvk_cache_core.py", line 311, in verify_reuse
+2026-10-31T21:14:43.4413040Z     require(source_closure(source, identity, original) == proof["source_closure"], "materialized Core source closure changed")
+2026-10-31T21:14:43.4413880Z             ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T21:14:43.4414820Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3_mvk_cache_core.py", line 208, in source_closure
+2026-10-31T21:14:43.4415710Z     upstream = support.upstream_dependencies(source, manifest)
+2026-10-31T21:14:43.4476340Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3runtime_device597_core.py", line 312, in upstream_dependencies
+2026-10-31T21:14:43.4477750Z     require(untracked <= canonical, 'Unreviewed source files outside canonical patch: ' + repr(sorted(untracked - canonical)))
+2026-10-31T21:14:43.4479780Z     ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-31T21:14:43.4480690Z   File "/Users/runner/work/RewindBox/RewindBox/.github/diagnostics/rpcs3runtime_device597_core.py", line 107, in require
+2026-10-31T21:14:43.4481520Z     raise ValueError(message)
+2026-10-31T21:14:43.4482300Z ValueError: Unreviewed source files outside canonical patch: ['rpcs3/git-version.h']
+2026-10-31T21:14:43.4587390Z ##[error]Process completed with exit code 1.
+2026-10-31T21:14:43.4698040Z ##[group]Run set -euo pipefail
+2026-10-31T21:14:43.4698500Z [36;1mset -euo pipefail[0m
+2026-10-31T21:14:43.4698740Z [36;1mmkdir -p build/rpcs3-core-diagnostics[0m
+2026-10-31T21:14:43.4699090Z [36;1mif command -v ccache >/dev/null 2>&1; then[0m
+2026-10-31T21:14:43.4699510Z [36;1m  ccache --show-stats > build/rpcs3-core-diagnostics/ccache-after.txt[0m
+2026-10-31T21:14:43.4700130Z [36;1m  ccache --print-stats > build/rpcs3-core-diagnostics/ccache-after-counters.txt[0m
+2026-10-31T21:14:43.4700570Z [36;1mfi[0m
+2026-10-31T21:14:43.4700950Z [36;1mpython3 - <<'PYCODE'[0m
+2026-10-31T21:14:43.4701290Z [36;1mimport json, os, time[0m
+2026-10-31T21:14:43.4701560Z [36;1mfrom pathlib import Path[0m
+2026-10-31T21:14:43.4701890Z [36;1mout = Path('build/rpcs3-core-diagnostics')[0m

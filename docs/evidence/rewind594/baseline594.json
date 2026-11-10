@@ -1,0 +1,67 @@
+{
+  "build": 594,
+  "baseline": 593,
+  "contract": {
+    "build": 594,
+    "head": "97365ce57f17499101e88d50019b6c63be554b83",
+    "tree": "1d43bbac26b3146d5d24afff0553d0c18d5bc20e",
+    "baseline": {
+      "build": 593,
+      "ipaSHA256": "6d8fe2635ef793ac24a34d760771d726174313b22f2485b1b154698c79881806",
+      "run": 40818195216,
+      "source": "b13dc1155e5f4971ba9e32ea4a267f6e447ea1bf",
+      "tree": "bb3c99e15e52ac109d5eaf827c80cb8e5c7759c6"
+    },
+    "deltaFiles": 193,
+    "deltaCommits": [
+      "3e423605adbef1d7d2317377e76f069e307ec4b9",
+      "de4793c6996c10d4a9625fc5abde72f2a99205e3",
+      "e46ace78c0232864764009c5506bb1041bc1eddd",
+      "ebcee3529645a781311429a869434005e76d6275",
+      "fe587e27fcefadaa36315a3ddc7dc1edba17b825"
+    ],
+    "productTrees": {
+      "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+      "native": "4b6eb4c74a7448e407fdf86dad4c11a26acc7c47",
+      "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+      "assets": "fb15f670844075f22dd667b370961a69371d9589",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "unchangedProductTrees": [
+      "lib",
+      "packages",
+      "assets",
+      "pubspec.yaml",
+      "pubspec.lock"
+    ],
+    "reviewedNativeProductDelta": [
+      "native/melonx/EmbeddedLaunchPreflight.cs"
+    ],
+    "inputPins": {
+      "melonx": {
+        "source": "ebcee3529645a781311429a869434005e76d6275",
+        "count": 74,
+        "blobsAndSHA256Matched": true
+      },
+      "melonxRecipe": {
+        "source": "ebcee3529645a781311429a869434005e76d6275",
+        "count": 4,
+        "blobsAndSHA256Matched": true
+      },
+      "melonxRuntime": {
+        "source": "e46ace78c0232864764009c5506bb1041bc1eddd",
+        "count": 3,
+        "blobsAndSHA256Matched": true
+      },
+      "rpcs3": {
+        "source": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+        "count": 190,
+        "blobsAndSHA256Matched": true
+      }
+    },
+    "uniqueInputFilesChecked": 271,
+    "hostCompatibilityPaths": 14,
+    "historicalContractsReplayed": false
+  }
+}

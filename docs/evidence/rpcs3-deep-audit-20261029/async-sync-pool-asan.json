@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.h": "cf0ed68a0a44b38a9b43ffcc485bd97a86f8a6375d867409d49568371009be1f",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp": "2e369af95d2e00e889c3b91ad61c06412d7f8bc1fa298b3806943fdbe17c93e5"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.h": "cf0ed68a0a44b38a9b43ffcc485bd97a86f8a6375d867409d49568371009be1f",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp": "0469c328583e9fca06e94762a86a2b33c1cbd55aad7f2fde33005ec46a654ec6"
+  },
+  "harnessSHA256": "3a7dd421390e097b64bb052472be5fb4dc14428a05dd9d95cb58a83ea900247d",
+  "adapterSHA256": "954a8b6349993fbb1b0f7b6ea959c897df2ddd02c5f7fa7fe0b31be00de3d59d",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "results": {
+    "passed": true,
+    "sameSlotIdentityChecks": 99000,
+    "baselineStartupDriverObjects": 16384,
+    "candidateStartupDriverObjects": 0,
+    "candidateFirstUseObjects": 1,
+    "candidateAfterEightObjects": 8,
+    "fullCycleObjectsUnchanged": 16384,
+    "destroyedExactlyOnce": true,
+    "desktopUnchanged": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

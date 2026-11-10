@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "host": "x86_64",
+  "sanitized": true,
+  "leakSanitizer": false,
+  "threadSanitized": false,
+  "debugTexturePath": true,
+  "offIOSUnchanged": [
+    "rpcs3/Emu/RSX/Common/texture_cache.h",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h"
+  ],
+  "sourceBefore": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "77006008182feb4a494e6a5d21d3912d9c0520303ce87b03d954767e469be7d7",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "5e95a3647b7103e5431f20ab418ee45953874c9099b5e25beb513f045c368678",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h": "7d9abbedf29c32d5fa1c69f91975efaea8e5f0f98c733712b1c25c1feb9cd5f0",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "35dcb012c2c85fd8d89a3b9258aa1717cdb34836d83e4406dd870e4c55664a12"
+  },
+  "sourceAfter": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "69c8038541403bbe687c130caa7b7ea1b528fa16ea63b11adb4284b1967c9ae8",
+    "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "6e125eb9dfe1e73ff8675db7b3d6f3f202047298378c076f82642dfa1c0d3c74",
+    "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h": "184a98ccd0d724c476405f30c16d03838f3e59f61731979eaf4ce658f027c207",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "2025a7cbaa52bf0ff24fb2bed93f0fd3564d88895258fc58f30800fc8f33dacc"
+  },
+  "harnessSHA256": "eef76968809aacff5771e0991d0388bfdc552f0ab51d36ed7b246f8d3ea04511",
+  "results": {
+    "dynamicVariants": 512,
+    "beforePipelineKeys": 512,
+    "afterPipelineKeys": 1,
+    "staticDifferencesPreserved": 10,
+    "stencilCases": 200000,
+    "textureCases": 12003,
+    "recentPipelineHashBypasses": 10000,
+    "concurrentLookups": 80000,
+    "clearRehashAndPendingCasesPassed": true,
+    "firstHit128Overlaps": {
+      "beforeVisits": 128,
+      "afterVisits": 1,
+      "beforeAllocations": 9,
+      "afterAllocations": 0
+    }
+  },
+  "physicalDeviceTested": false,
+  "MetalCompiled": false,
+  "gameplayMeasured": false,
+  "scope": "Production pipeline structs/hash/normalization, production simple_array and texture selection; range storage and GPU are adapters. Synthetic CPU lookup timing only.",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "inputs": {
+    "test/rpcs3_hotpaths_test.py": "acecb9d57110dba5a4940fbfc07204cef3b64d33fb6e237d1f1447aad4e767e0",
+    "test/native/rpcs3_hotpaths.inc": "bb25cb9282e8b912c5bd000251c6b758a53a2bf27e8a1563fe080f144f79dcc8",
+    "test/native/rpcs3_recent_pipeline.inc": "9c6bd7bc608715a378292f2a09719761e9c738f3827459e4338a8eabc21044c6",
+    "test/fixtures/rpcs3_hotpaths_20261029.diff": "ae9689d8a7dde7dd11e13efeb9440e221aee4634c2897b19c96b6e23e46c2dd7",
+    "test/rpcs3_memory523_test.py": "01aada6342c9aaa07f2770a4cabfaddb52831c797455282033b72fa1af35d523",
+    "test/rpcs3_cell559_test.py": "fe24243af8be083ce52624e5dcc5d3b491446ea9485ad5fa93a91f481d246619"
+  }
+}

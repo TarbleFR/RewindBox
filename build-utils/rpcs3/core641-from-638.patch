@@ -1,0 +1,46 @@
+diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
+index 12aa8d6..a27d772 100644
+--- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
++++ b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
+@@ -279,6 +279,7 @@ void IOSAudioBackend::Pause()
+ 
+ void IOSAudioBackend::log_diagnostics(bool force)
+ {
++	// REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: COREPROF prefix (see cellAudio.cpp), values and cadence unchanged.
+ 	// Operational() is polled by cellAudio, never by the render callback.
+ 	std::unique_lock lock{m_diagnostics_log_mutex, std::try_to_lock};
+ 	if (!lock) return;
+@@ -288,7 +289,7 @@ void IOSAudioBackend::log_diagnostics(bool force)
+ 	const auto d = m_diagnostics.snapshot();
+ 	if (d.callbacks == m_reported_callbacks) return;
+ 	m_reported_callbacks = d.callbacks;
+-	IOSAudio.notice("RemoteIO diagnostics: cumulative callbacks=%llu requested_frames=%llu delivered_frames=%llu filler_frames=%llu short_reads=%llu zero_reads=%llu inactive=%llu lock_misses=%llu callback_frames=%llu..%llu max_gap_us=%llu late_callbacks=%llu",
++	IOSAudio.notice("COREPROF AUDIO641 part=remoteio cumulative callbacks=%llu requested_frames=%llu delivered_frames=%llu filler_frames=%llu short_reads=%llu zero_reads=%llu inactive=%llu lock_misses=%llu callback_frames=%llu..%llu max_gap_us=%llu late_callbacks=%llu",
+ 		d.callbacks, d.requested, d.delivered, d.filler, d.short_reads, d.zero_reads, d.inactive, d.lock_misses,
+ 		d.min_frames, d.max_frames, d.max_gap_us, d.late_callbacks);
+ }
+diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
+index 4ff7c51..9495fdf 100644
+--- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
++++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
+@@ -378,16 +378,18 @@ void audio_ringbuffer::update_tempo(u64 timestamp, u64 queued_us, bool active_po
+ 
+ void audio_ringbuffer::log_diagnostics(u64 timestamp, bool force)
+ {
++	// REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: COREPROF prefix, so the host log callback writes these cumulative
++	// counters (notice level, at most every 2 s) to the device logs; values and cadence unchanged.
+ 	if (!force && timestamp < m_next_diagnostics_us) return;
+ 	m_next_diagnostics_us = timestamp + 2'000'000;
+ 	const auto d = diagnostics.snapshot();
+ 	const u64 fill = cb_ringbuf.get_used_size() / (cfg.backend_ch_cnt * cfg.audio_sample_size);
+-	cellAudio.notice("cellAudio queue diagnostics: cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu",
++	cellAudio.notice("COREPROF AUDIO641 part=queue cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu",
+ 		d.requested, d.delivered, d.starved_frames, d.refill_frames, fill, d.min_fill, d.max_fill, d.recoveries, d.resumes, d.timeouts,
+ 		diagnostics.mix_blocks, diagnostics.silence_blocks, diagnostics.prefill_blocks, diagnostics.not_ready_blocks,
+ 		diagnostics.rejected_blocks, diagnostics.rejected_frames, diagnostics.untouched_waits, diagnostics.in_progress_waits,
+ 		diagnostics.timeout_advances, diagnostics.incomplete_mixes);
+-	cellAudio.notice("cellAudio producer diagnostics: cumulative no_port_silence=%llu untouched_silence=%llu active_ports=%u untouched_ports=%u target_us=%llu period_us=%llu tempo_ppm=%llu missing_blocks=%llu tempo_updates=%llu input_rate_ppm=%llu",
++	cellAudio.notice("COREPROF AUDIO641 part=producer cumulative no_port_silence=%llu untouched_silence=%llu active_ports=%u untouched_ports=%u target_us=%llu period_us=%llu tempo_ppm=%llu missing_blocks=%llu tempo_updates=%llu input_rate_ppm=%llu",
+ 		diagnostics.no_port_silence, diagnostics.untouched_silence,
+ 		diagnostics.active_ports, diagnostics.untouched_ports, diagnostics.target_us, diagnostics.period_us,
+ 		diagnostics.tempo_ppm, diagnostics.missing_blocks, diagnostics.tempo_updates, diagnostics.input_rate_ppm);

@@ -1,0 +1,112 @@
+{
+  "passed": true,
+  "kind": "portable-full-global-core-source-and-receipt-reverification",
+  "source": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "/tmp/verify_rpcs3_global_receipts_portable.py",
+    "--repo",
+    "/workspace/scratch/4e89feaca92b/RewindBox",
+    "--source-tree",
+    "/workspace/scratch/4e89feaca92b/rpcs3-global-verify",
+    "--proof",
+    "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/runtime592-proof.json",
+    "--artifact-verification",
+    "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/artifact-verification.json",
+    "--output",
+    "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/reuse-verification.json"
+  ],
+  "elapsedSeconds": 2.7037777149998874,
+  "proofSHA256": "fd8c79aa9bc31df71360e62c618c7e14e764a7f87797a9be70aad52b7a347a9b",
+  "verificationScriptSHA256": "40646e61f0c6630450eb450f5dc6f852b52f9598b093812e9713ccdd9bc6bcf4",
+  "artifactVerificationSHA256": "d75df0b49e4e22c144d47a4dc7fd0fa2a59e0fb0b2edc68f4dfa8c828a5e518c",
+  "runtimeInputs": 269,
+  "nativePostimages": 313,
+  "nativeSupplements": 97,
+  "appleModes": 26,
+  "reusedModesFromPartialRuns": 14,
+  "onlyRecordedOutputDirectoryRelocatedForCommandComparison": {
+    "descriptor-bind-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/descriptor-bind-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/descriptor-bind-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "descriptor-bind-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/descriptor-bind-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/descriptor-bind-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "texture-hash-reuse-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "texture-hash-reuse-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "texture-hash-reuse-tsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-tsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/texture-hash-reuse-tsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "neoswap-discard-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "neoswap-discard-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "neoswap-discard-tsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-tsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/neoswap-discard-tsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "viewport-scissor-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/viewport-scissor-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/viewport-scissor-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "viewport-scissor-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/viewport-scissor-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/viewport-scissor-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "rsx-write-sampler-plain": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-plain-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-plain-result.json",
+      "allOtherArgumentsExact": true
+    },
+    "rsx-write-sampler-asan-ubsan": {
+      "argument": "--report",
+      "local": "/workspace/scratch/4e89feaca92b/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-asan-ubsan-result.json",
+      "recordedApple": "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/rsx-write-sampler-asan-ubsan-result.json",
+      "allOtherArgumentsExact": true
+    }
+  },
+  "fullRecordedCommandsAndSemanticCountersAuthenticated": true,
+  "materializedSourceAuthenticated": true,
+  "originalPipelineVerifierCalled": true,
+  "originalSourcesAndProofUnmodified": true,
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false,
+  "nativeBinaryExecuted": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "verifiedUTC": "2026-10-29T15:56:57.173312+00:00"
+}

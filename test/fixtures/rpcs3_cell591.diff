@@ -1,0 +1,93 @@
+diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
+index f254747..f335731 100644
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -1374,6 +1374,11 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+ 		m_engine->generateCodeForModule(ptr);
+ 	}, error))
+ 	{
++#ifdef RPCS3_IOS
++		// CELL591_OBJECT_CACHE_LIFETIME: cache belongs to this stack frame.
++		// LLVM recovery must not leave the engine pointing at it after return.
++		m_engine->setObjectCache(nullptr);
++#endif
+ 		if (m_announcer) m_announcer->finalized(false);
+ 		return false;
+ 	}
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index db5a75f..c3e051b 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -1,3 +1,6 @@
++# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
++# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
++# Neither changes object emission, relocations or the callable ABI.
+ # CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
+ # cache probe after a validated miss. It changes neither generated objects nor
+ # their ABI. Preserve the 536 identity for this exact source snapshot only.
+@@ -5,7 +8,7 @@
+ # the cache normally. Never alias older reservation implementations to 536.
+ function(neostation_codegen_compatible_hash source actual output)
+     if(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
+-       actual STREQUAL "d7094a664f5b59510e518e09e115a01ec0c1cd899d2550dab324b5e925a02fc9")
++       actual STREQUAL "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d")
+         set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
+     # CELL545: spu_cache::initialize only drops duplicate programs and orders the
+     # warmup biggest first (RPCS3 4cf9ad1e7, d3ef196ff). Each program still goes
+@@ -31,7 +34,7 @@ function(neostation_codegen_compatible_hash source actual output)
+     # in the same order on the same IR; a hit generates no code. Generated
+     # objects are unchanged. Keep the 555 identity for this exact source snapshot only.
+     elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
+-           actual STREQUAL "6b5a1b8d42dc43de1eac71dc3f002921284788c4aee258c1a734e3d802d8951a")
++           actual STREQUAL "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3")
+         set(${output} "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7" PARENT_SCOPE)
+     else()
+         set(${output} "${actual}" PARENT_SCOPE)
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+index f23c2c6..71e1dbe 100644
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -4657,6 +4657,22 @@ public:
+ 
+ 			return nullptr;
+ 		}
++
++		// CELL591_RELEASE_SPU_IR: all relocations are finalized and the entry
++		// address above is native code. MCJIT retains its object buffers,
++		// RuntimeDyld allocations and symbol table independently of the Module.
++		// Bodies were already deleted by jit_compiler::try_add, but declarations
++		// and global initializers otherwise accumulate for every compiled block.
++		// No IR or Function pointer below this point is consulted again.
++		m_ir->ClearInsertionPoint();
++		if (m_engine->removeModule(m_module))
++		{
++			delete m_module;
++			m_module = nullptr;
++			m_function = nullptr;
++			m_test_state = nullptr;
++			m_dispatch = nullptr;
++		}
+ #endif
+ 
+ 		// Install unconditionally, possibly replacing existing one from spu_fast
+diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
+index 465461f..2fa3185 100644
+--- a/rpcs3/Emu/RSX/rsx_cache.h
++++ b/rpcs3/Emu/RSX/rsx_cache.h
+@@ -336,6 +336,16 @@ namespace rsx
+ 			entry_count = unpacked.size();
+ 
+ 			compile_shaders(nb_workers, unpacked, entry_count, dlg, std::forward<Args>(args)...);
++#ifdef RPCS3_IOS
++
++			// CELL591_SHADER_WARMUP_SCRATCH: both worker groups have joined. The
++			// program cache owns its fragment ucode (search_fragment_program clones
++			// it), and add_pipeline_entry builds inline without a disk callback.
++			// These unpacked raw-file buffers are no longer read, including when
++			// boot was cancelled. Do not keep one copy per pipeline during gameplay.
++			fragment_program_data.for_each([](std::unique_ptr<u8[]>& bytes) { bytes.reset(); });
++			fragment_program_data.pop_end(fragment_program_data.size());
++#endif
+ 
+ 			dlg->refresh();
+ 			dlg->close();

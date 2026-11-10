@@ -1,0 +1,11 @@
+{
+  "retainedFailures": [
+    {
+      "scope": "descriptor ARM64 and Linux Clang trial",
+      "reason": "Zig -O3 defaults to NDEBUG; test deliberately rejected disabled assertions",
+      "stderr": "error: Assertions must remain active",
+      "resolution": "Explicit -UNDEBUG in successful commands and all committed test invocations"
+    }
+  ],
+  "nativeSourceChanged": false
+}

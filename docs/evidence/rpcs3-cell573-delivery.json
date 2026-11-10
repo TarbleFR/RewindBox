@@ -1,0 +1,72 @@
+{
+  "build": 573,
+  "result": "delivered",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "d1f61ee0fe6de8d3d692b2e8bcd295057957ece6",
+  "run": 40581439146,
+  "workflow": ".github/workflows/rpcs3-cell573-delivery.yml",
+  "event": "workflow_dispatch",
+  "artifact": {
+    "id": 12771372912,
+    "name": "RewindBox-Build573-d1f61ee0fe6de8d3d692b2e8bcd295057957ece6-cold",
+    "bytes": 189278749,
+    "digest": "sha256:6fca03e9e88011902a555fcfa0f3e87fbd79f0d69da9ce783069c63ddb19ab68",
+    "encryption": "AES-256-CBC PBKDF2 200000, key RSA OAEP SHA256 (build-utils/delivery-573-recipient.pem)"
+  },
+  "ipa": {
+    "version": "0.0.8",
+    "build": 573,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "bytes": 188093650,
+    "sha256": "369d96cd7b4e22baf0ef17d12323e98b8a23b85ed431d57c881c5eb6a002b6b1",
+    "entries": 5362,
+    "installsOver": "private 572 (9ef839f4..., run 40578083074)"
+  },
+  "contents": {
+    "rpcs3Core": {
+      "source": "92074e51b9e7216902c57fd5ae099d8aa3caea63",
+      "run": 40578797847,
+      "sha256": "2d80a2beee8ed53ce083961f08b1605983c28751a98d1edade6d30969d8faacc",
+      "compiledPayloadFingerprint": "b3195f8671b82295922ab3de99c9819f6647890d6341a560eea8f0021f9916aa",
+      "replaces": {
+        "source": "67dd222bdbc8dbfefa6a666560e56672346f1521",
+        "sha256": "51273092cf5b62fc9b17372bbd339020eb08ce7096b20c5fab4a5a5f4403c984"
+      },
+      "includes": [
+        "569 iOS QoS kept",
+        "571 passive-lock fairness",
+        "573 texture residency cap",
+        "573 scoped texture revalidation"
+      ]
+    },
+    "melonxEngine": "8cc2348037890adb7b8eef8adde3cd5e4a57c8d2 (572, unchanged, run 40570622034)",
+    "gow3Profile": "frame limit Auto (c5ba917, unchanged)",
+    "markersInSignedCore": [
+      "Passive Lock Fairness",
+      "experimental.passive_lock_fairness",
+      "Texture Residency Cap",
+      "experimental.texture_residency",
+      "Scoped Texture Revalidation",
+      "experimental.scoped_texture_revalidation",
+      "rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d"
+    ],
+    "validators": [
+      "validate_rpcs3_573_ipa",
+      "validate_liquid_glass573_ipa",
+      "validate_melonx_perf573_ipa",
+      "validate_rpcs3_library_files573_ipa",
+      "validate_melonx_input573_ipa",
+      "validate_melonx_texture573_ipa",
+      "validate_melonx_jit573_ipa",
+      "validate_melonx_switch573_ipa"
+    ]
+  },
+  "durations": {
+    "checksMinutes": 6.9,
+    "macosJobMinutes": 26.3,
+    "endToEndMinutes": 33.6
+  },
+  "independentCheck": "decrypted with the private 573 key; IPA SHA-256 equals SHA256SUMS; Info.plist build 573; RPCS3-cell573-identity.json build 573, Core 92074e51 (2d80a2be...)",
+  "scope": "CI build, signature and validators only; no iPhone run, no FPS or memory measured."
+}

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../widgets/glass/glass_surface.dart';
+
 /// A single focus-bordered settings row: a title/subtitle block paired with a
 /// trailing control (toggle, dropdown, etc.).
 ///
-/// Encapsulates the shared chrome — surface background, rounded border that
-/// highlights in the theme's primary colour while focused, and the standard
-/// title/subtitle typography — so individual settings only declare their
-/// label, description, and trailing widget.
+/// The bubble is a [GlassSurface] of the bubble role, so its fill, rim,
+/// radius and inner padding follow the Liquid Glass settings; gamepad focus
+/// draws the accent ring. Individual settings only declare their label,
+/// description, and trailing widget. Spacing between rows is the caller's
+/// ([GlassGap]).
 class SettingRow extends StatelessWidget {
   /// Primary label text.
   final String title;
@@ -45,6 +48,7 @@ class SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final glass = LiquidGlassTheme.of(context);
 
     final titleColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,16 +77,10 @@ class SettingRow extends StatelessWidget {
       ],
     );
 
-    return Container(
-      padding: EdgeInsets.only(left: 12.r, right: 12.r, top: 6.r, bottom: 6.r),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(
-          color: focused ? theme.colorScheme.primary : Colors.transparent,
-          width: 2,
-        ),
-      ),
+    return GlassSurface(
+      role: GlassRole.bubble,
+      focused: focused,
+      padding: glass.bubblePadding,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

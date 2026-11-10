@@ -772,6 +772,948 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build297Translatio
   });
   return values;
 }
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translations() {
+  // REWINDBOX_GRAPHICS_TESTS_612: the accuracy test page of the in-game menu.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"accuracyMenu": @"Accuracy tests",
+        @"accuracyMenuDetail": @"Graphics diagnostics · one change per restart",
+        @"accuracyHelp": @"Each choice restarts the current title. Change one setting at a time and note what you see. “Profile default” removes the test value. The values shown are those of the last boot.",
+        @"testZcull": @"ZCULL accuracy",
+        @"testOcclusionOff": @"Disable ZCULL occlusion queries",
+        @"testDepthCompare": @"Emulate special depth comparison",
+        @"testFastMathOff": @"Disable Metal fast math",
+        @"testVertexCacheOff": @"Disable vertex cache",
+        @"testShaderPrecision": @"Shader precision",
+        @"testInvariance": @"Position invariance",
+        @"testMvkAsync": @"MoltenVK asynchronous submits",
+        @"zcullPrecise": @"Precise",
+        @"zcullApproximate": @"Approximate",
+        @"zcullRelaxed": @"Relaxed",
+        @"precisionLow": @"Low",
+        @"precisionHigh": @"High",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Profile default",
+        @"testSourceProfile": @"profile",
+        @"testSourceTest": @"test",
+        @"testUnknown": @"Shown after the next boot",
+        @"testReset": @"Reset all tests",
+        @"testResetDetail": @"Returns every setting above to the profile default · restarts the title",
+        @"testSourceCustom": @"custom configuration",
+        @"accuracyLegacyHelp": @"This game uses a full custom RPCS3 configuration. Accuracy tests are disabled because they would change it permanently; remove this game’s custom configuration to use them. The values shown are those of the last boot.",
+        @"accuracyLegacyBlocked": @"Tests are disabled for this game: it uses a full custom RPCS3 configuration.",
+        @"testNo": @"No",
+        @"testYes": @"Yes",
+      },
+      @"fr": @{
+        @"accuracyMenu": @"Tests de précision",
+        @"accuracyMenuDetail": @"Diagnostic graphique · un changement par redémarrage",
+        @"accuracyHelp": @"Chaque choix redémarre le titre actuel. Changez un seul réglage à la fois et notez ce que vous voyez. « Valeur du profil » retire la valeur de test. Les valeurs affichées sont celles du dernier démarrage.",
+        @"testZcull": @"Précision ZCULL",
+        @"testOcclusionOff": @"Désactiver les requêtes d’occlusion ZCULL",
+        @"testDepthCompare": @"Émuler la comparaison de profondeur spéciale",
+        @"testFastMathOff": @"Désactiver les maths rapides Metal",
+        @"testVertexCacheOff": @"Désactiver le cache de sommets",
+        @"testShaderPrecision": @"Précision des shaders",
+        @"testInvariance": @"Invariance de position",
+        @"testMvkAsync": @"Soumissions MoltenVK asynchrones",
+        @"zcullPrecise": @"Précise",
+        @"zcullApproximate": @"Approximative",
+        @"zcullRelaxed": @"Relâchée",
+        @"precisionLow": @"Basse",
+        @"precisionHigh": @"Haute",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Valeur du profil",
+        @"testSourceProfile": @"profil",
+        @"testSourceTest": @"test",
+        @"testUnknown": @"Affiché après le prochain démarrage",
+        @"testReset": @"Réinitialiser tous les tests",
+        @"testResetDetail": @"Remet tous les réglages ci-dessus à la valeur du profil · redémarre le titre",
+        @"testSourceCustom": @"configuration personnalisée",
+        @"accuracyLegacyHelp": @"Ce jeu utilise une configuration RPCS3 personnalisée complète. Les tests de précision sont désactivés, car ils la modifieraient définitivement ; supprimez la configuration personnalisée de ce jeu pour les utiliser. Les valeurs affichées sont celles du dernier démarrage.",
+        @"accuracyLegacyBlocked": @"Tests désactivés pour ce jeu : il utilise une configuration RPCS3 personnalisée complète.",
+        @"testNo": @"Non",
+        @"testYes": @"Oui",
+      },
+      @"de": @{
+        @"accuracyMenu": @"Genauigkeitstests",
+        @"accuracyMenuDetail": @"Grafikdiagnose · eine Änderung pro Neustart",
+        @"accuracyHelp": @"Jede Auswahl startet den aktuellen Titel neu. Ändere jeweils nur eine Einstellung und notiere, was du siehst. „Profilstandard“ entfernt den Testwert. Angezeigt werden die Werte des letzten Starts.",
+        @"testZcull": @"ZCULL-Genauigkeit",
+        @"testOcclusionOff": @"ZCULL-Okklusionsabfragen deaktivieren",
+        @"testDepthCompare": @"Spezielle Tiefenvergleiche emulieren",
+        @"testFastMathOff": @"Metal Fast Math deaktivieren",
+        @"testVertexCacheOff": @"Vertex-Cache deaktivieren",
+        @"testShaderPrecision": @"Shader-Präzision",
+        @"testInvariance": @"Positionsinvarianz",
+        @"testMvkAsync": @"Asynchrone MoltenVK-Übermittlung",
+        @"zcullPrecise": @"Präzise",
+        @"zcullApproximate": @"Ungefähr",
+        @"zcullRelaxed": @"Gelockert",
+        @"precisionLow": @"Niedrig",
+        @"precisionHigh": @"Hoch",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Profilstandard",
+        @"testSourceProfile": @"Profil",
+        @"testSourceTest": @"Test",
+        @"testUnknown": @"Wird nach dem nächsten Start angezeigt",
+        @"testReset": @"Alle Tests zurücksetzen",
+        @"testResetDetail": @"Setzt alle obigen Einstellungen auf den Profilstandard zurück · startet den Titel neu",
+        @"testSourceCustom": @"eigene Konfiguration",
+        @"accuracyLegacyHelp": @"Dieses Spiel verwendet eine vollständige eigene RPCS3-Konfiguration. Die Genauigkeitstests sind deaktiviert, weil sie diese dauerhaft ändern würden; entferne die eigene Konfiguration dieses Spiels, um sie zu nutzen. Angezeigt werden die Werte des letzten Starts.",
+        @"accuracyLegacyBlocked": @"Tests sind für dieses Spiel deaktiviert: Es verwendet eine vollständige eigene RPCS3-Konfiguration.",
+        @"testNo": @"Nein",
+        @"testYes": @"Ja",
+      },
+      @"es": @{
+        @"accuracyMenu": @"Pruebas de precisión",
+        @"accuracyMenuDetail": @"Diagnóstico gráfico · un cambio por reinicio",
+        @"accuracyHelp": @"Cada opción reinicia el título actual. Cambia un solo ajuste cada vez y anota lo que ves. «Valor del perfil» elimina el valor de prueba. Los valores mostrados son los del último arranque.",
+        @"testZcull": @"Precisión de ZCULL",
+        @"testOcclusionOff": @"Desactivar consultas de oclusión ZCULL",
+        @"testDepthCompare": @"Emular comparación de profundidad especial",
+        @"testFastMathOff": @"Desactivar matemáticas rápidas de Metal",
+        @"testVertexCacheOff": @"Desactivar caché de vértices",
+        @"testShaderPrecision": @"Precisión de sombreadores",
+        @"testInvariance": @"Invariancia de posición",
+        @"testMvkAsync": @"Envíos asíncronos de MoltenVK",
+        @"zcullPrecise": @"Precisa",
+        @"zcullApproximate": @"Aproximada",
+        @"zcullRelaxed": @"Relajada",
+        @"precisionLow": @"Baja",
+        @"precisionHigh": @"Alta",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Valor del perfil",
+        @"testSourceProfile": @"perfil",
+        @"testSourceTest": @"prueba",
+        @"testUnknown": @"Se mostrará tras el próximo arranque",
+        @"testReset": @"Restablecer todas las pruebas",
+        @"testResetDetail": @"Devuelve todos los ajustes anteriores al valor del perfil · reinicia el título",
+        @"testSourceCustom": @"configuración personalizada",
+        @"accuracyLegacyHelp": @"Este juego usa una configuración personalizada completa de RPCS3. Las pruebas de precisión están desactivadas porque la modificarían de forma permanente; elimina la configuración personalizada de este juego para usarlas. Los valores mostrados son los del último arranque.",
+        @"accuracyLegacyBlocked": @"Pruebas desactivadas para este juego: usa una configuración personalizada completa de RPCS3.",
+        @"testNo": @"No",
+        @"testYes": @"Sí",
+      },
+      @"it": @{
+        @"accuracyMenu": @"Test di precisione",
+        @"accuracyMenuDetail": @"Diagnostica grafica · una modifica per riavvio",
+        @"accuracyHelp": @"Ogni scelta riavvia il titolo corrente. Cambia un’impostazione alla volta e annota ciò che vedi. «Valore del profilo» rimuove il valore di test. I valori mostrati sono quelli dell’ultimo avvio.",
+        @"testZcull": @"Precisione ZCULL",
+        @"testOcclusionOff": @"Disattiva query di occlusione ZCULL",
+        @"testDepthCompare": @"Emula confronto di profondità speciale",
+        @"testFastMathOff": @"Disattiva matematica veloce Metal",
+        @"testVertexCacheOff": @"Disattiva cache dei vertici",
+        @"testShaderPrecision": @"Precisione shader",
+        @"testInvariance": @"Invarianza di posizione",
+        @"testMvkAsync": @"Invii asincroni MoltenVK",
+        @"zcullPrecise": @"Precisa",
+        @"zcullApproximate": @"Approssimata",
+        @"zcullRelaxed": @"Rilassata",
+        @"precisionLow": @"Bassa",
+        @"precisionHigh": @"Alta",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Valore del profilo",
+        @"testSourceProfile": @"profilo",
+        @"testSourceTest": @"test",
+        @"testUnknown": @"Mostrato dopo il prossimo avvio",
+        @"testReset": @"Ripristina tutti i test",
+        @"testResetDetail": @"Riporta tutte le impostazioni sopra al valore del profilo · riavvia il titolo",
+        @"testSourceCustom": @"configurazione personalizzata",
+        @"accuracyLegacyHelp": @"Questo gioco usa una configurazione RPCS3 personalizzata completa. I test di precisione sono disattivati perché la modificherebbero in modo permanente; rimuovi la configurazione personalizzata di questo gioco per usarli. I valori mostrati sono quelli dell’ultimo avvio.",
+        @"accuracyLegacyBlocked": @"Test disattivati per questo gioco: usa una configurazione RPCS3 personalizzata completa.",
+        @"testNo": @"No",
+        @"testYes": @"Sì",
+      },
+      @"pt": @{
+        @"accuracyMenu": @"Testes de precisão",
+        @"accuracyMenuDetail": @"Diagnóstico gráfico · uma alteração por reinício",
+        @"accuracyHelp": @"Cada opção reinicia o título atual. Altere uma definição de cada vez e anote o que vê. «Valor do perfil» remove o valor de teste. Os valores mostrados são os do último arranque.",
+        @"testZcull": @"Precisão ZCULL",
+        @"testOcclusionOff": @"Desativar consultas de oclusão ZCULL",
+        @"testDepthCompare": @"Emular comparação de profundidade especial",
+        @"testFastMathOff": @"Desativar matemática rápida do Metal",
+        @"testVertexCacheOff": @"Desativar cache de vértices",
+        @"testShaderPrecision": @"Precisão dos shaders",
+        @"testInvariance": @"Invariância de posição",
+        @"testMvkAsync": @"Envios assíncronos do MoltenVK",
+        @"zcullPrecise": @"Precisa",
+        @"zcullApproximate": @"Aproximada",
+        @"zcullRelaxed": @"Relaxada",
+        @"precisionLow": @"Baixa",
+        @"precisionHigh": @"Alta",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Valor do perfil",
+        @"testSourceProfile": @"perfil",
+        @"testSourceTest": @"teste",
+        @"testUnknown": @"Mostrado após o próximo arranque",
+        @"testReset": @"Repor todos os testes",
+        @"testResetDetail": @"Repõe todas as definições acima no valor do perfil · reinicia o título",
+        @"testSourceCustom": @"configuração personalizada",
+        @"accuracyLegacyHelp": @"Este jogo usa uma configuração personalizada completa do RPCS3. Os testes de precisão estão desativados porque a alterariam de forma permanente; remova a configuração personalizada deste jogo para os usar. Os valores mostrados são os do último arranque.",
+        @"accuracyLegacyBlocked": @"Testes desativados para este jogo: usa uma configuração personalizada completa do RPCS3.",
+        @"testNo": @"Não",
+        @"testYes": @"Sim",
+      },
+      @"id": @{
+        @"accuracyMenu": @"Uji akurasi",
+        @"accuracyMenuDetail": @"Diagnostik grafis · satu perubahan per mulai ulang",
+        @"accuracyHelp": @"Setiap pilihan memulai ulang judul saat ini. Ubah satu pengaturan setiap kali dan catat apa yang terlihat. “Nilai profil” menghapus nilai uji. Nilai yang ditampilkan berasal dari boot terakhir.",
+        @"testZcull": @"Akurasi ZCULL",
+        @"testOcclusionOff": @"Nonaktifkan kueri oklusi ZCULL",
+        @"testDepthCompare": @"Emulasikan perbandingan kedalaman khusus",
+        @"testFastMathOff": @"Nonaktifkan fast math Metal",
+        @"testVertexCacheOff": @"Nonaktifkan cache vertex",
+        @"testShaderPrecision": @"Presisi shader",
+        @"testInvariance": @"Invariansi posisi",
+        @"testMvkAsync": @"Pengiriman asinkron MoltenVK",
+        @"zcullPrecise": @"Presisi",
+        @"zcullApproximate": @"Perkiraan",
+        @"zcullRelaxed": @"Longgar",
+        @"precisionLow": @"Rendah",
+        @"precisionHigh": @"Tinggi",
+        @"precisionUltra": @"Ultra",
+        @"testProfileDefault": @"Nilai profil",
+        @"testSourceProfile": @"profil",
+        @"testSourceTest": @"uji",
+        @"testUnknown": @"Ditampilkan setelah boot berikutnya",
+        @"testReset": @"Atur ulang semua uji",
+        @"testResetDetail": @"Mengembalikan semua pengaturan di atas ke nilai profil · memulai ulang judul",
+        @"testSourceCustom": @"konfigurasi kustom",
+        @"accuracyLegacyHelp": @"Game ini memakai konfigurasi RPCS3 kustom lengkap. Uji akurasi dinonaktifkan karena akan mengubahnya secara permanen; hapus konfigurasi kustom game ini untuk menggunakannya. Nilai yang ditampilkan berasal dari boot terakhir.",
+        @"accuracyLegacyBlocked": @"Uji dinonaktifkan untuk game ini karena memakai konfigurasi RPCS3 kustom lengkap.",
+        @"testNo": @"Tidak",
+        @"testYes": @"Ya",
+      },
+      @"ru": @{
+        @"accuracyMenu": @"Тесты точности",
+        @"accuracyMenuDetail": @"Диагностика графики · одно изменение на перезапуск",
+        @"accuracyHelp": @"Каждый выбор перезапускает текущую игру. Меняйте по одной настройке и записывайте, что видите. «Значение профиля» удаляет тестовое значение. Показаны значения последнего запуска.",
+        @"testZcull": @"Точность ZCULL",
+        @"testOcclusionOff": @"Отключить запросы окклюзии ZCULL",
+        @"testDepthCompare": @"Эмулировать особое сравнение глубины",
+        @"testFastMathOff": @"Отключить быструю математику Metal",
+        @"testVertexCacheOff": @"Отключить кэш вершин",
+        @"testShaderPrecision": @"Точность шейдеров",
+        @"testInvariance": @"Инвариантность позиции",
+        @"testMvkAsync": @"Асинхронная отправка MoltenVK",
+        @"zcullPrecise": @"Точная",
+        @"zcullApproximate": @"Приблизительная",
+        @"zcullRelaxed": @"Ослабленная",
+        @"precisionLow": @"Низкая",
+        @"precisionHigh": @"Высокая",
+        @"precisionUltra": @"Ультра",
+        @"testProfileDefault": @"Значение профиля",
+        @"testSourceProfile": @"профиль",
+        @"testSourceTest": @"тест",
+        @"testUnknown": @"Будет показано после следующего запуска",
+        @"testReset": @"Сбросить все тесты",
+        @"testResetDetail": @"Возвращает все настройки выше к значению профиля · перезапускает игру",
+        @"testSourceCustom": @"своя конфигурация",
+        @"accuracyLegacyHelp": @"Эта игра использует полную пользовательскую конфигурацию RPCS3. Тесты точности отключены, так как они изменили бы её навсегда; удалите пользовательскую конфигурацию этой игры, чтобы их использовать. Показаны значения последнего запуска.",
+        @"accuracyLegacyBlocked": @"Тесты отключены для этой игры: она использует полную пользовательскую конфигурацию RPCS3.",
+        @"testNo": @"Нет",
+        @"testYes": @"Да",
+      },
+      @"ja": @{
+        @"accuracyMenu": @"精度テスト",
+        @"accuracyMenuDetail": @"グラフィック診断 · 再起動ごとに1つ変更",
+        @"accuracyHelp": @"選択するたびに現在のタイトルが再起動します。設定は1つずつ変更し、見えたことを記録してください。「プロファイルの既定値」はテスト値を削除します。表示される値は前回の起動時のものです。",
+        @"testZcull": @"ZCULL精度",
+        @"testOcclusionOff": @"ZCULLオクルージョンクエリを無効化",
+        @"testDepthCompare": @"特殊な深度比較をエミュレート",
+        @"testFastMathOff": @"Metal高速演算を無効化",
+        @"testVertexCacheOff": @"頂点キャッシュを無効化",
+        @"testShaderPrecision": @"シェーダー精度",
+        @"testInvariance": @"位置の不変性",
+        @"testMvkAsync": @"MoltenVK非同期送信",
+        @"zcullPrecise": @"正確",
+        @"zcullApproximate": @"近似",
+        @"zcullRelaxed": @"緩和",
+        @"precisionLow": @"低",
+        @"precisionHigh": @"高",
+        @"precisionUltra": @"最高",
+        @"testProfileDefault": @"プロファイルの既定値",
+        @"testSourceProfile": @"プロファイル",
+        @"testSourceTest": @"テスト",
+        @"testUnknown": @"次回の起動後に表示されます",
+        @"testReset": @"すべてのテストをリセット",
+        @"testResetDetail": @"上記の設定をすべてプロファイルの既定値に戻します · タイトルを再起動",
+        @"testSourceCustom": @"カスタム設定",
+        @"accuracyLegacyHelp": @"このゲームは完全なカスタム RPCS3 設定を使用しています。精度テストはこの設定を恒久的に変更してしまうため無効です。使用するには、このゲームのカスタム設定を削除してください。表示される値は前回の起動時のものです。",
+        @"accuracyLegacyBlocked": @"このゲームではテストを使用できません。完全なカスタム RPCS3 設定を使用しています。",
+        @"testNo": @"オフ",
+        @"testYes": @"オン",
+      },
+      @"ko": @{
+        @"accuracyMenu": @"정확도 테스트",
+        @"accuracyMenuDetail": @"그래픽 진단 · 재시작마다 하나씩 변경",
+        @"accuracyHelp": @"선택할 때마다 현재 타이틀이 다시 시작됩니다. 한 번에 하나의 설정만 바꾸고 보이는 내용을 기록하세요. “프로필 기본값”은 테스트 값을 제거합니다. 표시되는 값은 마지막 부팅의 값입니다.",
+        @"testZcull": @"ZCULL 정확도",
+        @"testOcclusionOff": @"ZCULL 오클루전 쿼리 비활성화",
+        @"testDepthCompare": @"특수 깊이 비교 에뮬레이션",
+        @"testFastMathOff": @"Metal 고속 연산 비활성화",
+        @"testVertexCacheOff": @"버텍스 캐시 비활성화",
+        @"testShaderPrecision": @"셰이더 정밀도",
+        @"testInvariance": @"위치 불변성",
+        @"testMvkAsync": @"MoltenVK 비동기 제출",
+        @"zcullPrecise": @"정밀",
+        @"zcullApproximate": @"근사",
+        @"zcullRelaxed": @"완화",
+        @"precisionLow": @"낮음",
+        @"precisionHigh": @"높음",
+        @"precisionUltra": @"울트라",
+        @"testProfileDefault": @"프로필 기본값",
+        @"testSourceProfile": @"프로필",
+        @"testSourceTest": @"테스트",
+        @"testUnknown": @"다음 부팅 후 표시됩니다",
+        @"testReset": @"모든 테스트 초기화",
+        @"testResetDetail": @"위의 모든 설정을 프로필 기본값으로 되돌립니다 · 타이틀을 다시 시작",
+        @"testSourceCustom": @"사용자 지정 구성",
+        @"accuracyLegacyHelp": @"이 게임은 전체 사용자 지정 RPCS3 구성을 사용합니다. 정확도 테스트는 이 구성을 영구적으로 바꾸므로 비활성화되어 있습니다. 사용하려면 이 게임의 사용자 지정 구성을 제거하세요. 표시되는 값은 마지막 부팅의 값입니다.",
+        @"accuracyLegacyBlocked": @"이 게임에서는 테스트를 사용할 수 없습니다. 전체 사용자 지정 RPCS3 구성을 사용합니다.",
+        @"testNo": @"꺼짐",
+        @"testYes": @"켜짐",
+      },
+      @"zh": @{
+        @"accuracyMenu": @"精度测试",
+        @"accuracyMenuDetail": @"图形诊断 · 每次重启只改一项",
+        @"accuracyHelp": @"每次选择都会重启当前游戏。一次只更改一项设置，并记录你看到的结果。“配置文件默认值”会移除测试值。显示的是上次启动时的值。",
+        @"testZcull": @"ZCULL 精度",
+        @"testOcclusionOff": @"禁用 ZCULL 遮挡查询",
+        @"testDepthCompare": @"模拟特殊深度比较",
+        @"testFastMathOff": @"禁用 Metal 快速数学",
+        @"testVertexCacheOff": @"禁用顶点缓存",
+        @"testShaderPrecision": @"着色器精度",
+        @"testInvariance": @"位置不变性",
+        @"testMvkAsync": @"MoltenVK 异步提交",
+        @"zcullPrecise": @"精确",
+        @"zcullApproximate": @"近似",
+        @"zcullRelaxed": @"宽松",
+        @"precisionLow": @"低",
+        @"precisionHigh": @"高",
+        @"precisionUltra": @"超高",
+        @"testProfileDefault": @"配置文件默认值",
+        @"testSourceProfile": @"配置文件",
+        @"testSourceTest": @"测试",
+        @"testUnknown": @"下次启动后显示",
+        @"testReset": @"重置所有测试",
+        @"testResetDetail": @"将以上所有设置恢复为配置文件默认值 · 重启游戏",
+        @"testSourceCustom": @"自定义配置",
+        @"accuracyLegacyHelp": @"此游戏使用完整的自定义 RPCS3 配置。精度测试会永久修改该配置，因此已停用；如需使用，请删除此游戏的自定义配置。显示的是上次启动时的值。",
+        @"accuracyLegacyBlocked": @"此游戏已停用测试：它使用完整的自定义 RPCS3 配置。",
+        @"testNo": @"否",
+        @"testYes": @"是",
+      },
+      @"zh_Hant": @{
+        @"accuracyMenu": @"精度測試",
+        @"accuracyMenuDetail": @"圖形診斷 · 每次重新啟動只改一項",
+        @"accuracyHelp": @"每次選擇都會重新啟動目前的遊戲。一次只變更一項設定，並記錄你看到的結果。「設定檔預設值」會移除測試值。顯示的是上次啟動時的值。",
+        @"testZcull": @"ZCULL 精度",
+        @"testOcclusionOff": @"停用 ZCULL 遮蔽查詢",
+        @"testDepthCompare": @"模擬特殊深度比較",
+        @"testFastMathOff": @"停用 Metal 快速數學",
+        @"testVertexCacheOff": @"停用頂點快取",
+        @"testShaderPrecision": @"著色器精度",
+        @"testInvariance": @"位置不變性",
+        @"testMvkAsync": @"MoltenVK 非同步提交",
+        @"zcullPrecise": @"精確",
+        @"zcullApproximate": @"近似",
+        @"zcullRelaxed": @"寬鬆",
+        @"precisionLow": @"低",
+        @"precisionHigh": @"高",
+        @"precisionUltra": @"超高",
+        @"testProfileDefault": @"設定檔預設值",
+        @"testSourceProfile": @"設定檔",
+        @"testSourceTest": @"測試",
+        @"testUnknown": @"下次啟動後顯示",
+        @"testReset": @"重設所有測試",
+        @"testResetDetail": @"將以上所有設定還原為設定檔預設值 · 重新啟動遊戲",
+        @"testSourceCustom": @"自訂設定",
+        @"accuracyLegacyHelp": @"此遊戲使用完整的自訂 RPCS3 設定。精度測試會永久修改該設定，因此已停用；如需使用，請刪除此遊戲的自訂設定。顯示的是上次啟動時的值。",
+        @"accuracyLegacyBlocked": @"此遊戲已停用測試：它使用完整的自訂 RPCS3 設定。",
+        @"testNo": @"否",
+        @"testYes": @"是",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build664Translations() {
+  // Core 664: the PPU grace after starvation of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testPpuGrace": @"PPU grace after starvation",
+      },
+      @"es": @{
+        @"testPpuGrace": @"Margen del PPU tras la inanición",
+      },
+      @"ru": @{
+        @"testPpuGrace": @"Пауза для PPU после голодания",
+      },
+      @"zh": @{
+        @"testPpuGrace": @"饥饿后给 PPU 的宽限",
+      },
+      @"zh_Hant": @{
+        @"testPpuGrace": @"飢餓後給 PPU 的寬限",
+      },
+      @"pt": @{
+        @"testPpuGrace": @"Folga do PPU após inanição",
+      },
+      @"fr": @{
+        @"testPpuGrace": @"Répit du PPU après famine",
+      },
+      @"de": @{
+        @"testPpuGrace": @"PPU-Schonfrist nach Aushungerung",
+      },
+      @"it": @{
+        @"testPpuGrace": @"Tregua per il PPU dopo l’inedia",
+      },
+      @"id": @{
+        @"testPpuGrace": @"Jeda PPU setelah kelaparan",
+      },
+      @"ja": @{
+        @"testPpuGrace": @"飢餓後の PPU 猶予",
+      },
+      @"ko": @{
+        @"testPpuGrace": @"기아 후 PPU 유예",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {
+  // Core 660: the SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testSpuDirectObjectHits": @"SPU direct object hits",
+        @"testTextureLookupMemo": @"Texture lookup memo",
+        @"testZcullDepthGuard": @"ZCULL queue-depth guard",
+      },
+      @"es": @{
+        @"testSpuDirectObjectHits": @"Enlace directo de objetos SPU",
+        @"testTextureLookupMemo": @"Memorización de búsquedas de texturas",
+        @"testZcullDepthGuard": @"Protección de profundidad de cola ZCULL",
+      },
+      @"ru": @{
+        @"testSpuDirectObjectHits": @"Прямая компоновка объектов SPU",
+        @"testTextureLookupMemo": @"Запоминание поиска текстур",
+        @"testZcullDepthGuard": @"Защита глубины очереди ZCULL",
+      },
+      @"zh": @{
+        @"testSpuDirectObjectHits": @"SPU 对象直接链接",
+        @"testTextureLookupMemo": @"纹理查找记忆化",
+        @"testZcullDepthGuard": @"ZCULL 队列深度保护",
+      },
+      @"zh_Hant": @{
+        @"testSpuDirectObjectHits": @"SPU 物件直接連結",
+        @"testTextureLookupMemo": @"材質查詢記憶化",
+        @"testZcullDepthGuard": @"ZCULL 佇列深度保護",
+      },
+      @"pt": @{
+        @"testSpuDirectObjectHits": @"Vinculação direta de objetos SPU",
+        @"testTextureLookupMemo": @"Memorização de buscas de texturas",
+        @"testZcullDepthGuard": @"Proteção de profundidade da fila ZCULL",
+      },
+      @"fr": @{
+        @"testSpuDirectObjectHits": @"Liens directs des objets SPU",
+        @"testTextureLookupMemo": @"Mémo des recherches de textures",
+        @"testZcullDepthGuard": @"Garde de profondeur de file ZCULL",
+      },
+      @"de": @{
+        @"testSpuDirectObjectHits": @"Direktes Linken der SPU-Objekte",
+        @"testTextureLookupMemo": @"Memo der Textursuchen",
+        @"testZcullDepthGuard": @"ZCULL-Warteschlangentiefenschutz",
+      },
+      @"it": @{
+        @"testSpuDirectObjectHits": @"Collegamento diretto degli oggetti SPU",
+        @"testTextureLookupMemo": @"Memorizzazione delle ricerche di texture",
+        @"testZcullDepthGuard": @"Protezione profondità coda ZCULL",
+      },
+      @"id": @{
+        @"testSpuDirectObjectHits": @"Penautan langsung objek SPU",
+        @"testTextureLookupMemo": @"Memo pencarian tekstur",
+        @"testZcullDepthGuard": @"Pelindung kedalaman antrean ZCULL",
+      },
+      @"ja": @{
+        @"testSpuDirectObjectHits": @"SPU オブジェクトの直接リンク",
+        @"testTextureLookupMemo": @"テクスチャ検索のメモ化",
+        @"testZcullDepthGuard": @"ZCULL キュー深度ガード",
+      },
+      @"ko": @{
+        @"testSpuDirectObjectHits": @"SPU 오브젝트 직접 링크",
+        @"testTextureLookupMemo": @"텍스처 조회 메모",
+        @"testZcullDepthGuard": @"ZCULL 큐 깊이 보호",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translations() {
+  // Core 634: the loading and memory levers of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testFastJitLoad": @"Fast JIT object loading",
+        @"testJitObjectRelease": @"Free JIT objects after linking",
+        @"testSpirvDiskCache": @"SPIR-V disk cache",
+        @"testHardwareCrypto": @"Hardware decryption and hashing",
+        @"testSpuObjectPrefetch": @"SPU object prefetch",
+      },
+      @"es": @{
+        @"testFastJitLoad": @"Carga rápida de objetos JIT",
+        @"testJitObjectRelease": @"Liberar objetos JIT tras enlazar",
+        @"testSpirvDiskCache": @"Caché de SPIR-V en disco",
+        @"testHardwareCrypto": @"Descifrado y hash por hardware",
+        @"testSpuObjectPrefetch": @"Precarga de objetos SPU",
+      },
+      @"ru": @{
+        @"testFastJitLoad": @"Быстрая загрузка объектов JIT",
+        @"testJitObjectRelease": @"Освобождать объекты JIT после компоновки",
+        @"testSpirvDiskCache": @"Дисковый кэш SPIR-V",
+        @"testHardwareCrypto": @"Аппаратная расшифровка и хеширование",
+        @"testSpuObjectPrefetch": @"Предзагрузка объектов SPU",
+      },
+      @"zh": @{
+        @"testFastJitLoad": @"快速加载 JIT 对象",
+        @"testJitObjectRelease": @"链接后释放 JIT 对象",
+        @"testSpirvDiskCache": @"SPIR-V 磁盘缓存",
+        @"testHardwareCrypto": @"硬件解密与哈希",
+        @"testSpuObjectPrefetch": @"SPU 对象预读取",
+      },
+      @"zh_Hant": @{
+        @"testFastJitLoad": @"快速載入 JIT 物件",
+        @"testJitObjectRelease": @"連結後釋放 JIT 物件",
+        @"testSpirvDiskCache": @"SPIR-V 磁碟快取",
+        @"testHardwareCrypto": @"硬體解密與雜湊",
+        @"testSpuObjectPrefetch": @"SPU 物件預先讀取",
+      },
+      @"pt": @{
+        @"testFastJitLoad": @"Carregamento rápido de objetos JIT",
+        @"testJitObjectRelease": @"Liberar objetos JIT após vincular",
+        @"testSpirvDiskCache": @"Cache de SPIR-V em disco",
+        @"testHardwareCrypto": @"Descriptografia e hash por hardware",
+        @"testSpuObjectPrefetch": @"Pré-carregamento de objetos SPU",
+      },
+      @"fr": @{
+        @"testFastJitLoad": @"Chargement rapide des objets JIT",
+        @"testJitObjectRelease": @"Libérer les objets JIT après le lien",
+        @"testSpirvDiskCache": @"Cache disque SPIR-V",
+        @"testHardwareCrypto": @"Déchiffrement et hachage matériels",
+        @"testSpuObjectPrefetch": @"Préchargement des objets SPU",
+      },
+      @"de": @{
+        @"testFastJitLoad": @"Schnelles Laden der JIT-Objekte",
+        @"testJitObjectRelease": @"JIT-Objekte nach dem Linken freigeben",
+        @"testSpirvDiskCache": @"SPIR-V-Datenträgercache",
+        @"testHardwareCrypto": @"Hardware-Entschlüsselung und -Hashing",
+        @"testSpuObjectPrefetch": @"SPU-Objekte vorab laden",
+      },
+      @"it": @{
+        @"testFastJitLoad": @"Caricamento rapido degli oggetti JIT",
+        @"testJitObjectRelease": @"Libera gli oggetti JIT dopo il collegamento",
+        @"testSpirvDiskCache": @"Cache SPIR-V su disco",
+        @"testHardwareCrypto": @"Decrittazione e hash hardware",
+        @"testSpuObjectPrefetch": @"Precaricamento oggetti SPU",
+      },
+      @"id": @{
+        @"testFastJitLoad": @"Pemuatan cepat objek JIT",
+        @"testJitObjectRelease": @"Bebaskan objek JIT setelah penautan",
+        @"testSpirvDiskCache": @"Cache disk SPIR-V",
+        @"testHardwareCrypto": @"Dekripsi dan hash perangkat keras",
+        @"testSpuObjectPrefetch": @"Pramuat objek SPU",
+      },
+      @"ja": @{
+        @"testFastJitLoad": @"JIT オブジェクトの高速読み込み",
+        @"testJitObjectRelease": @"リンク後に JIT オブジェクトを解放",
+        @"testSpirvDiskCache": @"SPIR-V ディスクキャッシュ",
+        @"testHardwareCrypto": @"ハードウェア復号とハッシュ",
+        @"testSpuObjectPrefetch": @"SPU オブジェクトの先読み",
+      },
+      @"ko": @{
+        @"testFastJitLoad": @"JIT 오브젝트 빠른 로드",
+        @"testJitObjectRelease": @"링크 후 JIT 오브젝트 해제",
+        @"testSpirvDiskCache": @"SPIR-V 디스크 캐시",
+        @"testHardwareCrypto": @"하드웨어 복호화 및 해시",
+        @"testSpuObjectPrefetch": @"SPU 오브젝트 미리 읽기",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build630Translations() {
+  // Core 630: the asynchronous ZCULL reads of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testZcullAsyncReads": @"ZCULL asynchronous reads",
+      },
+      @"es": @{
+        @"testZcullAsyncReads": @"Lecturas ZCULL asíncronas",
+      },
+      @"ru": @{
+        @"testZcullAsyncReads": @"Асинхронное чтение ZCULL",
+      },
+      @"zh": @{
+        @"testZcullAsyncReads": @"ZCULL 异步读取",
+      },
+      @"zh_Hant": @{
+        @"testZcullAsyncReads": @"ZCULL 非同步讀取",
+      },
+      @"pt": @{
+        @"testZcullAsyncReads": @"Leituras ZCULL assíncronas",
+      },
+      @"fr": @{
+        @"testZcullAsyncReads": @"Lectures ZCULL asynchrones",
+      },
+      @"de": @{
+        @"testZcullAsyncReads": @"Asynchrone ZCULL-Lesezugriffe",
+      },
+      @"it": @{
+        @"testZcullAsyncReads": @"Letture ZCULL asincrone",
+      },
+      @"id": @{
+        @"testZcullAsyncReads": @"Pembacaan ZCULL asinkron",
+      },
+      @"ja": @{
+        @"testZcullAsyncReads": @"ZCULL 非同期読み取り",
+      },
+      @"ko": @{
+        @"testZcullAsyncReads": @"ZCULL 비동기 읽기",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build627Translations() {
+  // Core 627: the optimization levers of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testZcullWaitGuard": @"ZCULL wait guard",
+        @"testZcullCondNoWait": @"ZCULL: draw without waiting",
+        @"testZcullConservative": @"ZCULL conservative reports",
+        @"testSpuNoopSpinWait": @"SPU: wait instead of polling",
+        @"testSpuQos": @"SPU priority below RSX and PPU",
+        @"testFifoNopFast": @"RSX FIFO: fast NOP path",
+        @"testLightMeasurement": @"Light measurement profile",
+      },
+      @"es": @{
+        @"testZcullWaitGuard": @"Protección de espera ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: dibujar sin esperar",
+        @"testZcullConservative": @"Informes ZCULL conservadores",
+        @"testSpuNoopSpinWait": @"SPU: esperar en lugar de sondear",
+        @"testSpuQos": @"Prioridad SPU por debajo de RSX y PPU",
+        @"testFifoNopFast": @"FIFO RSX: ruta rápida de NOP",
+        @"testLightMeasurement": @"Perfil de medición ligero",
+      },
+      @"ru": @{
+        @"testZcullWaitGuard": @"Защита ожидания ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: рисовать без ожидания",
+        @"testZcullConservative": @"Консервативные отчёты ZCULL",
+        @"testSpuNoopSpinWait": @"SPU: ждать вместо опроса",
+        @"testSpuQos": @"Приоритет SPU ниже RSX и PPU",
+        @"testFifoNopFast": @"FIFO RSX: быстрый путь NOP",
+        @"testLightMeasurement": @"Облегчённый профиль измерений",
+      },
+      @"zh": @{
+        @"testZcullWaitGuard": @"ZCULL 等待保护",
+        @"testZcullCondNoWait": @"ZCULL:不等待直接绘制",
+        @"testZcullConservative": @"ZCULL 保守报告",
+        @"testSpuNoopSpinWait": @"SPU:等待而非轮询",
+        @"testSpuQos": @"SPU 优先级低于 RSX 和 PPU",
+        @"testFifoNopFast": @"RSX FIFO:NOP 快速路径",
+        @"testLightMeasurement": @"轻量测量配置",
+      },
+      @"zh_Hant": @{
+        @"testZcullWaitGuard": @"ZCULL 等待保護",
+        @"testZcullCondNoWait": @"ZCULL:不等待直接繪製",
+        @"testZcullConservative": @"ZCULL 保守報告",
+        @"testSpuNoopSpinWait": @"SPU:等待而非輪詢",
+        @"testSpuQos": @"SPU 優先順序低於 RSX 和 PPU",
+        @"testFifoNopFast": @"RSX FIFO:NOP 快速路徑",
+        @"testLightMeasurement": @"輕量測量設定檔",
+      },
+      @"pt": @{
+        @"testZcullWaitGuard": @"Proteção de espera ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: desenhar sem esperar",
+        @"testZcullConservative": @"Relatórios ZCULL conservadores",
+        @"testSpuNoopSpinWait": @"SPU: aguardar em vez de sondar",
+        @"testSpuQos": @"Prioridade SPU abaixo de RSX e PPU",
+        @"testFifoNopFast": @"FIFO RSX: caminho rápido de NOP",
+        @"testLightMeasurement": @"Perfil de medição leve",
+      },
+      @"fr": @{
+        @"testZcullWaitGuard": @"Garde d'attente ZCULL",
+        @"testZcullCondNoWait": @"ZCULL : dessiner sans attendre",
+        @"testZcullConservative": @"Rapports ZCULL prudents",
+        @"testSpuNoopSpinWait": @"SPU : attendre au lieu de sonder",
+        @"testSpuQos": @"Priorité SPU sous RSX et PPU",
+        @"testFifoNopFast": @"FIFO RSX : chemin rapide des NOP",
+        @"testLightMeasurement": @"Profil de mesure allégé",
+      },
+      @"de": @{
+        @"testZcullWaitGuard": @"ZCULL-Warteschutz",
+        @"testZcullCondNoWait": @"ZCULL: ohne Warten zeichnen",
+        @"testZcullConservative": @"Konservative ZCULL-Berichte",
+        @"testSpuNoopSpinWait": @"SPU: warten statt abfragen",
+        @"testSpuQos": @"SPU-Priorität unter RSX und PPU",
+        @"testFifoNopFast": @"RSX-FIFO: schneller NOP-Pfad",
+        @"testLightMeasurement": @"Schlankes Messprofil",
+      },
+      @"it": @{
+        @"testZcullWaitGuard": @"Protezione attesa ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: disegna senza attendere",
+        @"testZcullConservative": @"Report ZCULL prudenti",
+        @"testSpuNoopSpinWait": @"SPU: attendi invece di interrogare",
+        @"testSpuQos": @"Priorità SPU sotto RSX e PPU",
+        @"testFifoNopFast": @"FIFO RSX: percorso rapido NOP",
+        @"testLightMeasurement": @"Profilo di misura leggero",
+      },
+      @"id": @{
+        @"testZcullWaitGuard": @"Pelindung tunggu ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: gambar tanpa menunggu",
+        @"testZcullConservative": @"Laporan ZCULL konservatif",
+        @"testSpuNoopSpinWait": @"SPU: tunggu alih-alih polling",
+        @"testSpuQos": @"Prioritas SPU di bawah RSX dan PPU",
+        @"testFifoNopFast": @"FIFO RSX: jalur cepat NOP",
+        @"testLightMeasurement": @"Profil pengukuran ringan",
+      },
+      @"ja": @{
+        @"testZcullWaitGuard": @"ZCULL 待機ガード",
+        @"testZcullCondNoWait": @"ZCULL: 待たずに描画",
+        @"testZcullConservative": @"ZCULL 保守的レポート",
+        @"testSpuNoopSpinWait": @"SPU: ポーリングの代わりに待機",
+        @"testSpuQos": @"SPU 優先度を RSX と PPU より下に",
+        @"testFifoNopFast": @"RSX FIFO: NOP 高速パス",
+        @"testLightMeasurement": @"軽量測定プロファイル",
+      },
+      @"ko": @{
+        @"testZcullWaitGuard": @"ZCULL 대기 보호",
+        @"testZcullCondNoWait": @"ZCULL: 기다리지 않고 그리기",
+        @"testZcullConservative": @"ZCULL 보수적 보고서",
+        @"testSpuNoopSpinWait": @"SPU: 폴링 대신 대기",
+        @"testSpuQos": @"SPU 우선순위를 RSX와 PPU보다 낮게",
+        @"testFifoNopFast": @"RSX FIFO: NOP 빠른 경로",
+        @"testLightMeasurement": @"경량 측정 프로필",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translations() {
+  // REWINDBOX_INCIDENT_REPORT_621: "Report a problem", the game-stopped alert,
+  // the previous-session alert and the GPU timing test lever.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"reportProblem": @"Report a problem",
+        @"reportProblemDetail": @"Share a diagnostic report of this session",
+        @"reportFailed": @"The report could not be created.",
+        @"gameStoppedTitle": @"The game stopped with an error",
+        @"gameStoppedMessage": @"The game cannot continue. You can close it and share a diagnostic report.",
+        @"closeAndReport": @"Close and report",
+        @"closeGame": @"Close the game",
+        @"previousEndedTitle": @"The last PS3 session ended unexpectedly",
+        @"previousEndedMessage": @"A diagnostic report was kept. Would you like to share it?",
+        @"shareReport": @"Share the report",
+        @"later": @"Later",
+        @"testGpuTiming": @"GPU timing probe",
+        @"testZcullOnDemand": @"ZCULL on-demand reads",
+      },
+      @"es": @{
+        @"reportProblem": @"Informar de un problema",
+        @"reportProblemDetail": @"Compartir un informe de diagnóstico de esta sesión",
+        @"reportFailed": @"No se pudo crear el informe.",
+        @"gameStoppedTitle": @"El juego se detuvo por un error",
+        @"gameStoppedMessage": @"El juego no puede continuar. Puedes cerrarlo y compartir un informe de diagnóstico.",
+        @"closeAndReport": @"Cerrar e informar",
+        @"closeGame": @"Cerrar el juego",
+        @"previousEndedTitle": @"La última sesión de PS3 terminó de forma inesperada",
+        @"previousEndedMessage": @"Se guardó un informe de diagnóstico. ¿Quieres compartirlo?",
+        @"shareReport": @"Compartir el informe",
+        @"later": @"Más tarde",
+        @"testGpuTiming": @"Medición de tiempo de GPU",
+        @"testZcullOnDemand": @"Lecturas ZCULL bajo demanda",
+      },
+      @"ru": @{
+        @"reportProblem": @"Сообщить о проблеме",
+        @"reportProblemDetail": @"Поделиться диагностическим отчётом этого сеанса",
+        @"reportFailed": @"Не удалось создать отчёт.",
+        @"gameStoppedTitle": @"Игра остановилась из-за ошибки",
+        @"gameStoppedMessage": @"Игра не может продолжиться. Вы можете закрыть её и поделиться диагностическим отчётом.",
+        @"closeAndReport": @"Закрыть и сообщить",
+        @"closeGame": @"Закрыть игру",
+        @"previousEndedTitle": @"Последний сеанс PS3 завершился неожиданно",
+        @"previousEndedMessage": @"Диагностический отчёт сохранён. Хотите поделиться им?",
+        @"shareReport": @"Поделиться отчётом",
+        @"later": @"Позже",
+        @"testGpuTiming": @"Замер времени GPU",
+        @"testZcullOnDemand": @"Чтение ZCULL по запросу",
+      },
+      @"zh": @{
+        @"reportProblem": @"报告问题",
+        @"reportProblemDetail": @"分享本次会话的诊断报告",
+        @"reportFailed": @"无法创建报告。",
+        @"gameStoppedTitle": @"游戏因错误而停止",
+        @"gameStoppedMessage": @"游戏无法继续。你可以关闭游戏并分享诊断报告。",
+        @"closeAndReport": @"关闭并报告",
+        @"closeGame": @"关闭游戏",
+        @"previousEndedTitle": @"上次 PS3 会话意外结束",
+        @"previousEndedMessage": @"已保留一份诊断报告。要分享吗？",
+        @"shareReport": @"分享报告",
+        @"later": @"稍后",
+        @"testGpuTiming": @"GPU 计时探针",
+        @"testZcullOnDemand": @"按需读取 ZCULL",
+      },
+      @"zh_Hant": @{
+        @"reportProblem": @"回報問題",
+        @"reportProblemDetail": @"分享此工作階段的診斷報告",
+        @"reportFailed": @"無法建立報告。",
+        @"gameStoppedTitle": @"遊戲因錯誤而停止",
+        @"gameStoppedMessage": @"遊戲無法繼續。你可以關閉遊戲並分享診斷報告。",
+        @"closeAndReport": @"關閉並回報",
+        @"closeGame": @"關閉遊戲",
+        @"previousEndedTitle": @"上次 PS3 工作階段意外結束",
+        @"previousEndedMessage": @"已保留一份診斷報告。要分享嗎？",
+        @"shareReport": @"分享報告",
+        @"later": @"稍後",
+        @"testGpuTiming": @"GPU 計時探針",
+        @"testZcullOnDemand": @"按需讀取 ZCULL",
+      },
+      @"pt": @{
+        @"reportProblem": @"Comunicar um problema",
+        @"reportProblemDetail": @"Partilhar um relatório de diagnóstico desta sessão",
+        @"reportFailed": @"Não foi possível criar o relatório.",
+        @"gameStoppedTitle": @"O jogo parou devido a um erro",
+        @"gameStoppedMessage": @"O jogo não pode continuar. Pode fechá-lo e partilhar um relatório de diagnóstico.",
+        @"closeAndReport": @"Fechar e comunicar",
+        @"closeGame": @"Fechar o jogo",
+        @"previousEndedTitle": @"A última sessão PS3 terminou de forma inesperada",
+        @"previousEndedMessage": @"Foi guardado um relatório de diagnóstico. Quer partilhá-lo?",
+        @"shareReport": @"Partilhar o relatório",
+        @"later": @"Mais tarde",
+        @"testGpuTiming": @"Medição de tempo da GPU",
+        @"testZcullOnDemand": @"Leituras ZCULL sob demanda",
+      },
+      @"fr": @{
+        @"reportProblem": @"Signaler un problème",
+        @"reportProblemDetail": @"Partager un rapport de diagnostic de cette session",
+        @"reportFailed": @"Le rapport n’a pas pu être créé.",
+        @"gameStoppedTitle": @"Le jeu s’est arrêté sur une erreur",
+        @"gameStoppedMessage": @"Le jeu ne peut pas continuer. Vous pouvez le fermer et partager un rapport de diagnostic.",
+        @"closeAndReport": @"Fermer et signaler",
+        @"closeGame": @"Fermer le jeu",
+        @"previousEndedTitle": @"La dernière session PS3 s’est terminée de façon inattendue",
+        @"previousEndedMessage": @"Un rapport de diagnostic a été conservé. Voulez-vous le partager ?",
+        @"shareReport": @"Partager le rapport",
+        @"later": @"Plus tard",
+        @"testGpuTiming": @"Sonde de temps GPU",
+        @"testZcullOnDemand": @"Lectures ZCULL à la demande",
+      },
+      @"de": @{
+        @"reportProblem": @"Problem melden",
+        @"reportProblemDetail": @"Diagnosebericht dieser Sitzung teilen",
+        @"reportFailed": @"Der Bericht konnte nicht erstellt werden.",
+        @"gameStoppedTitle": @"Das Spiel wurde wegen eines Fehlers angehalten",
+        @"gameStoppedMessage": @"Das Spiel kann nicht fortgesetzt werden. Du kannst es schließen und einen Diagnosebericht teilen.",
+        @"closeAndReport": @"Schließen und melden",
+        @"closeGame": @"Spiel schließen",
+        @"previousEndedTitle": @"Die letzte PS3-Sitzung wurde unerwartet beendet",
+        @"previousEndedMessage": @"Ein Diagnosebericht wurde aufbewahrt. Möchtest du ihn teilen?",
+        @"shareReport": @"Bericht teilen",
+        @"later": @"Später",
+        @"testGpuTiming": @"GPU-Zeitmessung",
+        @"testZcullOnDemand": @"ZCULL-Lesen bei Bedarf",
+      },
+      @"it": @{
+        @"reportProblem": @"Segnala un problema",
+        @"reportProblemDetail": @"Condividi un rapporto diagnostico di questa sessione",
+        @"reportFailed": @"Impossibile creare il rapporto.",
+        @"gameStoppedTitle": @"Il gioco si è interrotto per un errore",
+        @"gameStoppedMessage": @"Il gioco non può continuare. Puoi chiuderlo e condividere un rapporto diagnostico.",
+        @"closeAndReport": @"Chiudi e segnala",
+        @"closeGame": @"Chiudi il gioco",
+        @"previousEndedTitle": @"L’ultima sessione PS3 si è chiusa in modo imprevisto",
+        @"previousEndedMessage": @"È stato conservato un rapporto diagnostico. Vuoi condividerlo?",
+        @"shareReport": @"Condividi il rapporto",
+        @"later": @"Più tardi",
+        @"testGpuTiming": @"Misurazione dei tempi GPU",
+        @"testZcullOnDemand": @"Letture ZCULL su richiesta",
+      },
+      @"id": @{
+        @"reportProblem": @"Laporkan masalah",
+        @"reportProblemDetail": @"Bagikan laporan diagnostik sesi ini",
+        @"reportFailed": @"Laporan tidak dapat dibuat.",
+        @"gameStoppedTitle": @"Game berhenti karena kesalahan",
+        @"gameStoppedMessage": @"Game tidak dapat dilanjutkan. Anda dapat menutupnya dan membagikan laporan diagnostik.",
+        @"closeAndReport": @"Tutup dan laporkan",
+        @"closeGame": @"Tutup game",
+        @"previousEndedTitle": @"Sesi PS3 terakhir berakhir secara tidak terduga",
+        @"previousEndedMessage": @"Laporan diagnostik telah disimpan. Ingin membagikannya?",
+        @"shareReport": @"Bagikan laporan",
+        @"later": @"Nanti",
+        @"testGpuTiming": @"Pengukur waktu GPU",
+        @"testZcullOnDemand": @"Baca ZCULL sesuai permintaan",
+      },
+      @"ja": @{
+        @"reportProblem": @"問題を報告",
+        @"reportProblemDetail": @"このセッションの診断レポートを共有",
+        @"reportFailed": @"レポートを作成できませんでした。",
+        @"gameStoppedTitle": @"エラーによりゲームが停止しました",
+        @"gameStoppedMessage": @"ゲームを続行できません。ゲームを閉じて診断レポートを共有できます。",
+        @"closeAndReport": @"閉じて報告",
+        @"closeGame": @"ゲームを閉じる",
+        @"previousEndedTitle": @"前回のPS3セッションが予期せず終了しました",
+        @"previousEndedMessage": @"診断レポートが保存されています。共有しますか？",
+        @"shareReport": @"レポートを共有",
+        @"later": @"後で",
+        @"testGpuTiming": @"GPU時間計測",
+        @"testZcullOnDemand": @"ZCULL オンデマンド読み取り",
+      },
+      @"ko": @{
+        @"reportProblem": @"문제 신고",
+        @"reportProblemDetail": @"이 세션의 진단 보고서 공유",
+        @"reportFailed": @"보고서를 만들 수 없습니다.",
+        @"gameStoppedTitle": @"오류로 인해 게임이 중지되었습니다",
+        @"gameStoppedMessage": @"게임을 계속할 수 없습니다. 게임을 닫고 진단 보고서를 공유할 수 있습니다.",
+        @"closeAndReport": @"닫고 신고",
+        @"closeGame": @"게임 닫기",
+        @"previousEndedTitle": @"마지막 PS3 세션이 예기치 않게 종료되었습니다",
+        @"previousEndedMessage": @"진단 보고서가 보관되었습니다. 공유하시겠습니까?",
+        @"shareReport": @"보고서 공유",
+        @"later": @"나중에",
+        @"testGpuTiming": @"GPU 시간 측정",
+        @"testZcullOnDemand": @"ZCULL 필요 시 읽기",
+      },
+    };
+  });
+  return values;
+}
 }
 
 NSString* RPCS3CanonicalLocale(NSString* identifier) {
@@ -791,12 +1733,123 @@ NSString* RPCS3CanonicalLocale(NSString* identifier) {
   return [supported containsObject:language] ? language : @"en";
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* BuildMetalTranslations() {
+  // Metal branch: the native Metal 4 renderer of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testMetalRenderer": @"Native Metal 4 renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texture recheck at the PUT horizon",
+        @"testHeavyPutllcTrace": @"Capture: heavy PUTLLC (after closing the menu)",
+        @"testPpuRegionProfile": @"Capture: PPU regions (after closing the menu)",
+      },
+      @"es": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revisión de texturas en el horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (al cerrar el menú)",
+        @"testPpuRegionProfile": @"Captura: regiones PPU (al cerrar el menú)",
+      },
+      @"ru": @{
+        @"testMetalRenderer": @"Нативный рендерер Metal 4",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Проверка текстур на горизонте PUT",
+        @"testHeavyPutllcTrace": @"Захват: тяжёлые PUTLLC (после закрытия меню)",
+        @"testPpuRegionProfile": @"Захват: области PPU (после закрытия меню)",
+      },
+      @"zh": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 边界重新检查纹理",
+        @"testHeavyPutllcTrace": @"采集:重型 PUTLLC(关闭菜单后)",
+        @"testPpuRegionProfile": @"采集:PPU 区域(关闭菜单后)",
+      },
+      @"zh_Hant": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 邊界重新檢查紋理",
+        @"testHeavyPutllcTrace": @"擷取:重型 PUTLLC(關閉選單後)",
+        @"testPpuRegionProfile": @"擷取:PPU 區域(關閉選單後)",
+      },
+      @"pt": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Reverificação de texturas no horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (ao fechar o menu)",
+        @"testPpuRegionProfile": @"Captura: regiões PPU (ao fechar o menu)",
+      },
+      @"fr": @{
+        @"testMetalRenderer": @"Moteur Metal 4 natif",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revérification des textures à l’horizon PUT",
+        @"testHeavyPutllcTrace": @"Capture : PUTLLC lourds (à la fermeture du menu)",
+        @"testPpuRegionProfile": @"Capture : régions PPU (à la fermeture du menu)",
+      },
+      @"de": @{
+        @"testMetalRenderer": @"Nativer Metal-4-Renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texturprüfung am PUT-Horizont",
+        @"testHeavyPutllcTrace": @"Aufzeichnung: schwere PUTLLC (nach Schließen des Menüs)",
+        @"testPpuRegionProfile": @"Aufzeichnung: PPU-Bereiche (nach Schließen des Menüs)",
+      },
+      @"it": @{
+        @"testMetalRenderer": @"Renderer Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Riverifica delle texture all’orizzonte PUT",
+        @"testHeavyPutllcTrace": @"Cattura: PUTLLC pesanti (alla chiusura del menu)",
+        @"testPpuRegionProfile": @"Cattura: regioni PPU (alla chiusura del menu)",
+      },
+      @"id": @{
+        @"testMetalRenderer": @"Perender Metal 4 native",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Pemeriksaan ulang tekstur di batas PUT",
+        @"testHeavyPutllcTrace": @"Rekam: PUTLLC berat (setelah menu ditutup)",
+        @"testPpuRegionProfile": @"Rekam: wilayah PPU (setelah menu ditutup)",
+      },
+      @"ja": @{
+        @"testMetalRenderer": @"ネイティブ Metal 4 レンダラー",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 境界でのテクスチャ再検査",
+        @"testHeavyPutllcTrace": @"記録:重い PUTLLC(メニューを閉じた後)",
+        @"testPpuRegionProfile": @"記録:PPU 領域(メニューを閉じた後)",
+      },
+      @"ko": @{
+        @"testMetalRenderer": @"네이티브 Metal 4 렌더러",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 경계에서 텍스처 재검사",
+        @"testHeavyPutllcTrace": @"캡처: 무거운 PUTLLC(메뉴를 닫은 후)",
+        @"testPpuRegionProfile": @"캡처: PPU 영역(메뉴를 닫은 후)",
+      },
+    };
+  });
+  return values;
+}
+
 NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* all = Translations();
   NSDictionary* build256 = Build256Translations();
   NSDictionary* build297 = Build297Translations();
+  NSDictionary* build612 = Build612Translations();
+  NSDictionary* build621 = Build621Translations();
+  NSDictionary* build627 = Build627Translations();
+  NSDictionary* build630 = Build630Translations();
+  NSDictionary* build634 = Build634Translations();
+  NSDictionary* build660 = Build660Translations();
+  NSDictionary* build664 = Build664Translations();
+  NSDictionary* buildMetal = BuildMetalTranslations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build297[locale][key] ?: build297[@"en"][key] ?:
+  return buildMetal[locale][key] ?: buildMetal[@"en"][key] ?:
+      build664[locale][key] ?: build664[@"en"][key] ?:
+      build660[locale][key] ?: build660[@"en"][key] ?:
+      build634[locale][key] ?: build634[@"en"][key] ?:
+      build630[locale][key] ?: build630[@"en"][key] ?:
+      build627[locale][key] ?: build627[@"en"][key] ?:
+      build621[locale][key] ?: build621[@"en"][key] ?:
+      build612[locale][key] ?: build612[@"en"][key] ?:
+      build297[locale][key] ?: build297[@"en"][key] ?:
       build256[locale][key] ?: build256[@"en"][key] ?:
       all[locale][key] ?: all[@"en"][key] ?: key;
 }

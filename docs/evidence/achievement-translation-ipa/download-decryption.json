@@ -1,0 +1,50 @@
+{
+  "result": "passed",
+  "build": 605,
+  "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "run": 41216465880,
+  "encryptedPayload": {
+    "bytes": 190064672,
+    "sha256": "dce793f6b7de51869d8cb0d05dd40a5de37657c980c0bdfd7e18073b258c560b"
+  },
+  "transportParts": [
+    {
+      "artifactId": 13048956566,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:1aa82485cb182a5457f5051db87417081c5272aed4852cac6d9b1aca25716c90",
+      "index": 0,
+      "bytes": 47516168,
+      "sha256": "9b5b7046d72f64b9850b819b7c14eb6e5c8943415d0772b56939a0fe4afc83ea"
+    },
+    {
+      "artifactId": 13048793097,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:e7808cbff8aae4faee59ae0a5f511d340f923779ffdca5b9cc22622eb5deb16d",
+      "index": 1,
+      "bytes": 47516168,
+      "sha256": "0591302334b5db83a4aa8753cdf978e4be2f489f6023189b29396360e424180d"
+    },
+    {
+      "artifactId": 13047769678,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:b06a72b8a26fe862a89b1033557f9e91b51002c3000c0c4c714ae8628926dccb",
+      "index": 2,
+      "bytes": 47516168,
+      "sha256": "b216ae90e2138092cf55a18a081c7a160ea7e1bf5924e621bd7f37c7bce02072"
+    },
+    {
+      "artifactId": 13048179044,
+      "artifactBytes": 47518318,
+      "artifactDigest": "sha256:414ed94c877b88ec883f1f24ff4a87870168662dcf60abd89b00b1f7406d7d53",
+      "index": 3,
+      "bytes": 47516168,
+      "sha256": "8b00feecd18b5fa55421ddac82deed61090df9b8709bc1da5234b3b3f68b00bc"
+    }
+  ],
+  "finalArtifactTransport": true,
+  "ipaName": "RewindBox-605.ipa",
+  "ipaBytes": 189643236,
+  "ipaSHA256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+  "structuralValidationPending": true,
+  "verifiedUTC": "2026-10-31T16:14:43.334148+00:00"
+}

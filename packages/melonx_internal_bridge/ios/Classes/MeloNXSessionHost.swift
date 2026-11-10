@@ -7,11 +7,30 @@ enum MeloNXLaunchJournal {
     static var sink: (([String: Any]) -> Void)?
     private static let fileLock = NSLock()
     private static var fileURL: URL?
+    private static var categorized = false
 
     static func configure(path: String) {
         fileLock.lock(); defer { fileLock.unlock() }
         guard path.hasPrefix("/"), URL(fileURLWithPath:path).lastPathComponent == "app.log" else { return }
         fileURL = URL(fileURLWithPath:path)
+        categorized = false
+    }
+
+    static func configureDiagnostics(directory: URL) throws {
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        fileLock.lock(); defer { fileLock.unlock() }
+        fileURL = directory.appendingPathComponent("MeloNX-launch.log")
+        categorized = true
+    }
+
+    // Core events already have a native durable journal. Preserve the state
+    // transitions needed by Dart without duplicating all engine chatter.
+    static func relayCore(_ event: [String:Any]) {
+        let stage = event["stage"] as? String ?? "native"
+        let status = event["status"] as? String ?? "unknown"
+        guard (stage == "memory" && status == "retained") || status == "failed" ||
+              status == "fatal" || stage == "unhandledException" else { return }
+        DispatchQueue.main.async { sink?(event) }
     }
 
     // Use O_APPEND for each write: Dart's logger owns the same file and may
@@ -22,6 +41,11 @@ enum MeloNXLaunchJournal {
         guard let fileURL, let json = try? JSONSerialization.data(withJSONObject:event,options:[.sortedKeys]),
               var line = "[MeloNX:native] ".data(using:.utf8) else { return }
         line.append(json); line.append(0x0a)
+        if categorized,
+           let size = (try? FileManager.default.attributesOfItem(atPath:fileURL.path)[.size]) as? NSNumber,
+           size.int64Value + Int64(line.count) > 5 * 1024 * 1024 {
+            guard Darwin.rename(fileURL.path,fileURL.path + ".previous") == 0 else { return }
+        }
         let fd = Darwin.open(fileURL.path,O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR)
         guard fd >= 0 else { return }
         defer { Darwin.close(fd) }

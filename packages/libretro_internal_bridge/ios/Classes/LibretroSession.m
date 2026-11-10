@@ -1,3 +1,5 @@
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 #import "LibretroSession.h"
 
 #import "LibretroAchievements.h"
@@ -18,6 +20,8 @@
 #import "LibretroJit.h"
 #import "LibretroMetalPresenter.h"
 #import "LibretroOrientation.h"
+#import "LibretroOrientationPolicy.h"
+#import "LibretroOrientationSelection.h"
 #import "LibretroResolution.h"
 #import "LibretroSessionJournal.h"
 #import "LibretroSessionMenu.h"
@@ -112,6 +116,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   LibretroAudioOutput *_audio;
   LibretroCoreHost *_host;
   LibretroAchievements *_achievements;
+  NSDictionary *_achievementSession;
+  _Atomic bool _achievementSessionEnded;
   NSThread *_thread;
   NSCondition *_condition;
   NSMutableArray<dispatch_block_t> *_commands;
@@ -132,6 +138,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   uint64_t _ppssppCandidateBase;
   NSMutableArray<NSString *> *_ppssppMemoryLog;
   BOOL _menuPaused;
+  BOOL _menuPausePending;
   BOOL _backgroundPaused;
   _Atomic bool _fastForward;
   BOOL _loaded;
@@ -213,6 +220,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSUInteger _frameSizeNotes;
   BOOL _launchAccepted; // Main thread: a session object is single-use.
   BOOL _closing;        // Main thread: reject deferred layout/activation.
+  BOOL _legacyLandscapeOnly; // Main thread: legacy Vulkan picture keeps the game in landscape.
   NSUInteger _videoDiagnosticFrames; // Emulation thread only.
 }
 
@@ -220,6 +228,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   self = [super init];
   if (self) {
     _configuration = configuration;
+    _achievementSession = [configuration.achievementSession copy] ?: @{};
     _input = [LibretroInputState new];
     _condition = [NSCondition new];
     _commands = [NSMutableArray array];
@@ -277,6 +286,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 #pragma mark - Start and stop
 
 - (void)dealloc {
+  [self endAchievementSession];
   [NSNotificationCenter.defaultCenter removeObserver:self];
   [_journal note:[NSString stringWithFormat:@"session=%p deallocated", self]];
 }
@@ -298,7 +308,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   _launchAccepted = YES;
   _startCompletion = [completion copy];
-  _journal = [LibretroSessionJournal journalInDirectory:_configuration.logsDirectory ?: @""];
+  NSString *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
+      inDomains:NSUserDomainMask].firstObject.path;
+  NSString *crashDirectory = [documents stringByAppendingPathComponent:@"Diagnostics/System/Libretro"];
+  _journal = [LibretroSessionJournal journalInDirectory:_configuration.logsDirectory ?: @""
+                                      crashDirectory:crashDirectory ?: @""];
   [_journal note:[NSString stringWithFormat:@"launch: \"%@\" (%@) with %@, console %@, locale %@",
                                             _configuration.gameTitle ?: @"",
                                             _configuration.contentPath.lastPathComponent ?: @"",
@@ -324,7 +338,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.uiLocale = [self uiLocale];
   _controller.touchControlsEnabled = _touchControls;
   _controller.touchDiagnosticsEnabled = _touchDiagnostics;
-  _controller.allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
+  _controller.allowedOrientations = [self gameOrientationMask];
   _controller.layoutSource = self;
   __weak LibretroSession *weakSelf = self;
   _controller.menuHandler = ^{
@@ -358,9 +372,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.overlay.actionHandler = actions;
   _input.actionHandler = actions;
   [_controller setLoading:YES];
-  // Portrait and landscape while the game is shown; restored to the app's
-  // orientations only in the dismissal completion.
-  LibretroOrientationSetGameMask(UIInterfaceOrientationMaskAllButUpsideDown);
+  // The mask follows the skins chosen for this game (portrait only when the
+  // chosen skin has no playable landscape layout) and is set BEFORE the
+  // presentation, so a phone held sideways opens upright. Restored to the
+  // app's orientations only in the dismissal completion.
+  LibretroOrientationSetGameMask([self gameOrientationMask]);
   [presenter presentViewController:_controller
                           animated:NO
                         completion:^{
@@ -416,6 +432,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)finishStop {
+  [self endAchievementSession];
   _closing = YES;
   _thread = nil;
   // unloadCore retained the PSP ownership record outside the rolling log.
@@ -458,6 +475,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)failStartWithResult:(NSDictionary<NSString *, id> *)result {
+  [self endAchievementSession];
   _closing = YES;
   _thread = nil;
   _finalLog = result[@"log"];
@@ -725,6 +743,55 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
 }
 
+/// Quiet counterpart of the layout pass: does `skin` really give a layout in
+/// `orientation` on this device (layout present, not refused, playable by
+/// touch unless a controller or no touch is in use)?
+- (BOOL)skin:(LibretroSkin *)skin usableInOrientation:(LibretroSkinOrientation)orientation iPad:(BOOL)iPad {
+  if (skin == nil) return NO;
+  NSString *prefix = [skin.installedIdentifier stringByAppendingString:@"|"];
+  NSString *suffix = [@"|" stringByAppendingString:LibretroSkinOrientationName(orientation)];
+  for (NSString *key in _failedSkinRepresentations) {
+    if ([key hasPrefix:prefix] && [key hasSuffix:suffix]) return NO;
+  }
+  return LibretroSkinGivesLayout(skin, _skinReports[skin.installedIdentifier ?: @""], orientation, iPad,
+                                 _touchControls && !_input.hasPhysicalController);
+}
+
+/// Orientations of the game on screen, from the skins the player CHOSE
+/// (LibretroSelectedOrientationMask): only portrait chosen, portrait only; only
+/// landscape chosen, landscape only; both or none, the usual rotation.
+/// An orientation counts as chosen only when its skin is selected (game, else
+/// console), loads, is not refused and gives a layout there. The legacy
+/// Vulkan landscape exception wins. Main thread.
+- (UIInterfaceOrientationMask)gameOrientationMask {
+  if (_legacyLandscapeOnly) return UIInterfaceOrientationMaskLandscape;
+  BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+  __weak LibretroSession *weakSelf = self;
+  return (UIInterfaceOrientationMask)LibretroSelectedOrientationMask(
+      _store, _console, [self gameScopeKey],
+      ^LibretroSkin *(NSString *identifier) {
+        LibretroSession *session = weakSelf;
+        if (session == nil || [session->_failedSkins containsObject:identifier]) return nil;
+        return [session importedSkinWithIdentifier:identifier report:NO];
+      },
+      ^BOOL(LibretroSkin *skin, LibretroSkinOrientation orientation) {
+        return [weakSelf skin:skin usableInOrientation:orientation iPad:iPad];
+      });
+}
+
+/// Applies the mask after a skin change, a refused skin or a stop of the
+/// legacy picture, with the game on screen. Main thread.
+- (void)refreshOrientationLock {
+  LibretroGameViewController *controller = _controller;
+  if (controller == nil || _closing) return;
+  UIInterfaceOrientationMask mask = [self gameOrientationMask];
+  if (controller.allowedOrientations == mask && LibretroOrientationGameMask() == mask) return;
+  LibretroOrientationSetGameMask(mask);
+  controller.allowedOrientations = mask;
+  UIViewController *root = controller.view.window.rootViewController;
+  if (root != nil && root != controller) [root setNeedsUpdateOfSupportedInterfaceOrientations];
+}
+
 /// Main thread. The legacy Vulkan picture is aspect-fitted over the whole
 /// view whatever the skin says: in portrait the default skin's opaque panel
 /// would hide most of it, so the game stays in landscape, where the
@@ -733,6 +800,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   LibretroGameViewController *controller = _controller;
   if (controller == nil) return;
   UIInterfaceOrientationMask landscape = UIInterfaceOrientationMaskLandscape;
+  _legacyLandscapeOnly = YES;
   // The app's own mask is landscape: the two always have orientations in common.
   LibretroOrientationSetGameMask(landscape);
   controller.allowedOrientations = landscape;
@@ -784,6 +852,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                             language:configuration.retroLanguage
                                           jitCapable:LibretroJitUsableByCores()];
   _host.delegate = self;
+  _host.achievementsConsoleId = configuration.achievementsConsoleId;
+  _host.hardcoreRestrictionsEnabled = [_achievementSession[@"enabled"] boolValue] &&
+      [_achievementSession[@"supported"] boolValue] && [_achievementSession[@"hardcore"] boolValue] &&
+      configuration.achievementsAllowed && configuration.achievementsConsoleId > 0;
+  _host.hardcoreOptionAllowed = ^BOOL(NSString *library, unsigned consoleId, NSString *key, NSString *value) {
+    return [LibretroAchievements isHardcoreOptionAllowedForLibrary:library consoleId:consoleId key:key value:value];
+  };
   // Given to the option store before retro_set_environment and retro_init:
   // DeSmuME reads its options only in retro_init. Locked options (DS / 3DS
   // screen layout and pointer) win over everything and stay read-only.
@@ -900,15 +975,44 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [self loadCheats];
   [_journal note:@"services: cheats scheduled"];
   [self refreshDiskSnapshot];
-  if (configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
-    _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId host:_host];
+  [self registerAchievementStatusPresenter];
+  if ([_achievementSession[@"enabled"] boolValue] && [_achievementSession[@"supported"] boolValue] &&
+      configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
+    _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId
+                                                            host:_host configuration:_achievementSession];
     __weak LibretroSession *weakSelf = self;
-    _achievements.unlocked = ^(NSString *title) {
+    _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description,
+                               NSUInteger points) {
       LibretroSession *session = weakSelf;
-      if (session == nil) return;
-      [session showStatus:[session text:@"achievementsUnlocked" replacing:@"{title}" with:title]];
+      if (session == nil || session->_controller == nil ||
+          ![session->_achievementSession[@"notifications"] boolValue]) return;
+      __weak LibretroGameViewController *owner = session->_controller;
+      [session->_journal note:[NSString stringWithFormat:@"retroachievements: unlock %lu presented",
+                                                         (unsigned long)achievementID]];
+      // Title, description and points in the app language of this launch.
+      RBAchievementPresent(session->_controller, achievementID, title, description,
+                           RBRAPointsText(session->_achievementSession, points), 4.0, 1, ^UIView* {
+        UIViewController* controller = owner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
+        LibretroSession *active = weakSelf;
+        if (active == nil || owner == nil || active->_controller != owner ||
+            atomic_load(&active->_achievementSessionEnded) ||
+            ![active->_achievementSession[@"notifications"] boolValue]) return NO;
+        [active->_condition lock];
+        BOOL stopped = active->_stopRequested || active->_coreStopRequested;
+        [active->_condition unlock];
+        return !stopped;
+      });
     };
     [_achievements startWithContentPath:configuration.contentPath];
+  } else {
+    RBRAPublishSessionState(_achievementSession, @{@"active": @NO, @"gameLoaded": @NO,
+        @"hardcoreActive": @NO, @"errorCode": [_achievementSession[@"enabled"] boolValue] ? @"RA_UNSUPPORTED" : @""});
   }
   _loaded = YES;
   // Stored slang activation runs on the main queue and refuses an unloaded
@@ -1027,6 +1131,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
   [_achievements shutdown];
   _achievements = nil;
+  [self endAchievementSession];
   [_audio stop];
   _audio = nil;
   LibretroGLRenderer *gl = _gl;
@@ -1087,6 +1192,48 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_commands addObject:[command copy]];
   [_condition signal];
   [_condition unlock];
+}
+
+- (void)endAchievementSession {
+  if (!atomic_exchange(&_achievementSessionEnded, true)) RBRAEndSession(_achievementSession);
+}
+
+/// Display-only launch status for players who turned RetroAchievements on:
+/// signed in, game recognized and tracking active, or the precise reason it is
+/// not. The central hub derives it from the state this session publishes; the
+/// toast stays on this game view and never survives the session.
+- (void)registerAchievementStatusPresenter {
+  __weak LibretroSession *weakSelf = self;
+  __weak LibretroGameViewController *owner = _controller;
+  RBRASetStatusPresenter(_achievementSession, ^(NSString *key, NSString *title, NSString *message,
+                                                NSTimeInterval duration) {
+    LibretroSession *session = weakSelf;
+    LibretroGameViewController *controller = owner;
+    if (session == nil || controller == nil || session->_controller != controller) return;
+    [session->_journal note:[NSString stringWithFormat:@"retroachievements: status %@", key]];
+    RBAchievementPresent(controller, 0, title, message, @"", duration, 3, ^UIView* {
+      UIViewController* surfaceOwner = owner;
+      NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+      if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+          display.renderHost.renderView.window == display.window && display.window != nil)
+        return display.window.rootViewController.view;
+      return surfaceOwner.view;
+    }, ^BOOL {
+      LibretroSession *active = weakSelf;
+      if (active == nil || owner == nil || active->_controller != owner ||
+          atomic_load(&active->_achievementSessionEnded)) return NO;
+      [active->_condition lock];
+      BOOL stopped = active->_stopRequested || active->_coreStopRequested;
+      [active->_condition unlock];
+      return !stopped;
+    });
+  });
+}
+
+- (NSString *)achievementNotice:(NSString *)key {
+  NSString *language = [_achievementSession[@"language"] isKindOfClass:NSString.class]
+      ? _achievementSession[@"language"] : (_configuration.uiLocale ?: @"en");
+  return RBRALocalizedText(key, language);
 }
 
 #pragma mark - LibretroCoreHostDelegate (emulation thread)
@@ -1534,6 +1681,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [self showStatus:[self text:@"skinLoadFailed"]];
     _skinFailureShown = YES;
   }
+  // A refused portrait-only skin leaves the default controls: no more lock.
+  [self refreshOrientationLock];
   [_controller setNeedsSkinLayout];
 }
 
@@ -1917,6 +2066,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     }
   }
   _availableSkins = nil;
+  [self refreshOrientationLock];
   [_input setInputMap:_inputMap gamepadRemap:[self gamepadRemap]];
   // Layout, screens, format, touch remaps and opacity are resolved again by
   // the layout pass, which ends with a coalesced redraw.
@@ -2420,7 +2570,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   __weak LibretroSession *weakSelf = self;
   [self enqueue:^{
     NSString *key = nil;
-    if (!saving && ![NSFileManager.defaultManager fileExistsAtPath:[host statePathForSlot:kQuickSlot]]) {
+    BOOL hardcoreBlocked = !saving && host.hardcoreRestrictionsEnabled;
+    if (hardcoreBlocked) {
+      key = @"stateFailed";
+    } else if (!saving && ![NSFileManager.defaultManager fileExistsAtPath:[host statePathForSlot:kQuickSlot]]) {
       key = @"quickMissing";
     } else {
       NSError *error = nil;
@@ -2431,7 +2584,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     dispatch_async(dispatch_get_main_queue(), ^{
       LibretroSession *session = weakSelf;
       if (session == nil) return;
-      [session showStatus:[session text:key]];
+      [session showStatus:hardcoreBlocked ? [session achievementNotice:@"hardcoreBlocked"] : [session text:key]];
     });
   }];
 }
@@ -2906,7 +3059,30 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 #pragma mark - Menu (main thread)
 
 - (void)openMenu {
-  if (_menu != nil || !_loaded || _controller == nil || _editingControls) return;
+  if (_menu != nil || !_loaded || _controller == nil || _editingControls || _menuPausePending) return;
+  if (_controller.presentedViewController != nil) return;
+  // Ask rcheevos on the emulation thread so repeated menu pauses cannot act
+  // as frame advance in Hardcore. System backgrounding remains unconditional.
+  _menuPausePending = YES;
+  __weak LibretroSession *weakSelf = self;
+  __weak LibretroGameViewController *owner = _controller;
+  [self enqueue:^{
+    LibretroSession *session = weakSelf;
+    if (session == nil) return;
+    BOOL allowed = session->_achievements == nil || [session->_achievements canPause];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSession *active = weakSelf;
+      if (active == nil) return;
+      active->_menuPausePending = NO;
+      if (owner == nil || active->_controller != owner || active->_closing) return;
+      if (allowed) [active presentMenuAfterPauseApproval];
+      else [active showStatus:[active achievementNotice:@"hardcorePause"]];
+    });
+  }];
+}
+
+- (void)presentMenuAfterPauseApproval {
+  if (_menu != nil || !_loaded || _controller == nil || _editingControls || _closing) return;
   if (_controller.presentedViewController != nil) return;
   if (_fastForwardHeld) {
     _fastForwardHeld = NO;
@@ -2990,6 +3166,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                    [page push:[weakSelf statePage:NO]];
                                                  }];
   load.disclosure = YES;
+  load.enabled = !_host.hardcoreRestrictionsEnabled;
+  if (!load.enabled) load.detail = [self achievementNotice:@"hardcoreBlocked"];
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:@[ save, load ]]];
 
   if (_diskCount > 1) {
@@ -3049,23 +3227,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                      [page push:[weakSelf cheatsPage]];
                                                    }];
   cheats.disclosure = YES;
+  cheats.enabled = !_host.hardcoreRestrictionsEnabled;
+  if (!cheats.enabled) cheats.detail = [self achievementNotice:@"hardcoreBlocked"];
   NSUInteger enabledCheats = _cheatMenu.enabledCount;
   if (enabledCheats > 0) cheats.detail = @(enabledCheats).stringValue;
   [extras addObject:cheats];
   LibretroMenuRow *textures = [self hdTexturesRow];
   if (textures != nil) [extras addObject:textures];
-  if (_achievements != nil) {
-    LibretroMenuRow *achievements = [LibretroMenuRow rowWithTitle:[self text:@"achievements"]
-                                                           action:^(LibretroMenuPage *page) {
-                                                             [page push:[weakSelf achievementsPage]];
-                                                           }];
-    achievements.disclosure = YES;
-    if (_achievements.gameLoaded) {
-      achievements.detail = [NSString stringWithFormat:@"%u / %u", _achievements.unlockedCount,
-                                                       _achievements.totalCount];
-    }
-    [extras addObject:achievements];
-  }
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:extras]];
 
   // Developer diagnostics of the touch chain (finger, control, command sent,
@@ -3131,7 +3299,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                             [session performState:saving slot:slot];
                           }];
                 row.detail = date != nil ? [formatter stringFromDate:date] : [session text:@"emptySlot"];
-                row.enabled = saving || date != nil;
+                row.enabled = saving || (date != nil && !session->_host.hardcoreRestrictionsEnabled);
                 [rows addObject:row];
               }
               return @[ [LibretroMenuSection sectionWithTitle:nil rows:rows] ];
@@ -3143,6 +3311,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   __weak LibretroSession *weakSelf = self;
   [self enqueue:^{
     NSError *error = nil;
+    BOOL hardcoreBlocked = !saving && host.hardcoreRestrictionsEnabled;
     BOOL ok = saving ? [host saveStateToSlot:slot error:&error] : [host loadStateFromSlot:slot error:&error];
     if (!ok) NSLog(@"[Libretro] state %@ slot %ld failed: %@", saving ? @"save" : @"load", (long)slot, error);
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -3150,7 +3319,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       if (session == nil) return;
       NSString *number = @(slot).stringValue;
       NSString *message = ok ? [session text:saving ? @"stateSaved" : @"stateLoaded" replacing:@"{number}" with:number]
-                             : [session text:@"stateFailed"];
+                             : hardcoreBlocked ? [session achievementNotice:@"hardcoreBlocked"] : [session text:@"stateFailed"];
       [session closeMenu];
       [session showStatus:message];
     });
@@ -3427,81 +3596,6 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     };
   }
   return [_cheatMenu rootPage];
-}
-
-- (LibretroMenuPage *)achievementsPage {
-  __weak LibretroSession *weakSelf = self;
-  LibretroMenuPage *page = [[LibretroMenuPage alloc]
-      initWithTitle:[self text:@"achievements"]
-            builder:^NSArray<LibretroMenuSection *> * {
-              LibretroSession *session = weakSelf;
-              if (session == nil) return @[];
-              LibretroAchievements *achievements = session->_achievements;
-              if (achievements == nil) return @[];
-              NSMutableArray<LibretroMenuRow *> *rows = [NSMutableArray array];
-              [rows addObject:[LibretroMenuRow toggleWithTitle:[session text:@"achievementsEnabled"]
-                                                            on:[LibretroAchievements enabled]
-                                                        toggle:^(LibretroMenuPage *page, BOOL on) {
-                                                          [LibretroAchievements setEnabled:on];
-                                                          if (on) {
-                                                            NSString *path = session->_configuration.contentPath;
-                                                            [session enqueue:^{
-                                                              [achievements startWithContentPath:path];
-                                                            }];
-                                                          }
-                                                          [page rebuild];
-                                                        }]];
-              if (achievements.loggedIn) {
-                LibretroMenuRow *user = [LibretroMenuRow
-                    rowWithTitle:[session text:@"achievementsLoggedIn"
-                                     replacing:@"{user}"
-                                          with:achievements.username ?: @""]
-                          action:nil];
-                if (achievements.gameLoaded) {
-                  user.detail = [NSString stringWithFormat:@"%u / %u", achievements.unlockedCount,
-                                                           achievements.totalCount];
-                } else {
-                  user.detail = [session text:@"achievementsNone"];
-                }
-                [rows addObject:user];
-                LibretroMenuRow *logout = [LibretroMenuRow rowWithTitle:[session text:@"achievementsLogout"]
-                                                                 action:^(LibretroMenuPage *page) {
-                                                                   [achievements logout];
-                                                                   [page rebuild];
-                                                                 }];
-                logout.destructive = YES;
-                [rows addObject:logout];
-              } else {
-                [rows addObject:[LibretroMenuRow
-                                    rowWithTitle:[session text:@"achievementsLogin"]
-                                          action:^(LibretroMenuPage *page) {
-                                            [page askWithTitle:[session text:@"achievementsLogin"]
-                                                        fields:@[
-                                                          [session text:@"achievementsUser"],
-                                                          [session text:@"achievementsPassword"]
-                                                        ]
-                                                        secure:@[ @NO, @YES ]
-                                                        action:[session text:@"achievementsLogin"]
-                                                   cancelTitle:[session text:@"cancel"]
-                                                       handler:^(NSArray<NSString *> *values) {
-                                                         [achievements
-                                                             loginWithUsername:values.firstObject ?: @""
-                                                                      password:values.lastObject ?: @""
-                                                                    completion:^(BOOL success) {
-                                                                      if (!success) {
-                                                                        [session showStatus:[session
-                                                                                                text:@"achievementsLoginFailed"]];
-                                                                      }
-                                                                      [page rebuild];
-                                                                    }];
-                                                       }];
-                                          }]];
-              }
-              LibretroMenuSection *section = [LibretroMenuSection sectionWithTitle:nil rows:rows];
-              section.footer = [session text:@"achievementsHelp"];
-              return @[ section ];
-            }];
-  return page;
 }
 
 @end

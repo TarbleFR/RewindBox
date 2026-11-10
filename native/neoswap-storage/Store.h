@@ -56,8 +56,13 @@ struct Config {
     uint32_t prefetch_latency_limit_us = 8000;
     uint64_t max_write_bytes_per_second = 16ULL << 20;
     bool compression = true;
+    // Durable caches retain the historical default. Process-private source
+    // archives can use completed writes + verified readback: they are never
+    // reopened after a crash, and do not need a device flush per chunk.
+    bool sync_writes = true;
 };
 struct Stats {
+    uint64_t sync_calls = 0, sync_us = 0, sync_max_us = 0, sync_skipped = 0;
     uint64_t logical_bytes = 0, raw_ram_bytes = 0, compressed_ram_bytes = 0;
     uint64_t pinned_raw_bytes = 0, loading_reserved_bytes = 0;
     uint64_t disk_only_logical_bytes = 0, stored_payload_bytes = 0;

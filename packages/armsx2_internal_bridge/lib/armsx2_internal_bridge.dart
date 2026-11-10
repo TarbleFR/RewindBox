@@ -65,6 +65,7 @@ class Armsx2InternalBridge {
     String? biosFilename,
     bool bootBios = false,
     String uiLocale = 'en',
+    String? raSessionId,
   }) async {
     _ensureEventHandler();
     return Map<String, dynamic>.from(
@@ -75,6 +76,7 @@ class Armsx2InternalBridge {
             'dataPath': dataPath,
             'biosDirectory': biosDirectory,
             'uiLocale': uiLocale,
+            'raSessionId': ?raSessionId,
             'biosFilename': ?biosFilename,
           }) ??
           const <String, dynamic>{},

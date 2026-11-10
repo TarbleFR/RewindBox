@@ -1,0 +1,991 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-29T13:57:17.237096+00:00",
+  "reviewer": "/root/recover_melonx_source",
+  "result": "no_blocking_findings",
+  "scope": "Independent static review and evidence binding for four GPU follow-up adapters, not a review of all twelve follow-up adapters or a new runtime validation.",
+  "repository": "/workspace/scratch/90582008c087/RewindBox",
+  "reviewedFinalSource": "/workspace/scratch/90582008c087/MeloNX-followup-final",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "execution": {
+    "runtimeTestsReplayed": false,
+    "compilationPerformed": false,
+    "adapterAppliedToSourceDuringReview": false,
+    "repositoryModified": false,
+    "productionSourceModified": false,
+    "remoteWritesPerformed": false,
+    "operationsPerformed": [
+      "read code and existing receipts",
+      "compare SHA-256 file bindings",
+      "compare source deltas",
+      "extract production method text for hash comparison",
+      "reverse two cache-key edits in memory for composition verification",
+      "write this independent review record"
+    ]
+  },
+  "receipts": [
+    {
+      "gate": "auto-ownership",
+      "integratedReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/dist/melonx/auto-ownership-checks.json",
+        "sha256": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+        "bytes": 4474
+      },
+      "reviewedGpuWorkReceipt": {
+        "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/auto-ownership-checks.json",
+        "sha256": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+        "bytes": 4474
+      },
+      "identicalReceiptBytes": true,
+      "recordedResult": "passed",
+      "allDeclaredInputHashesMatchedIntegratedFiles": true,
+      "checkedInputPathsRelativeToRepository": [
+        "build-utils/melonx/adapt_auto_ownership.py",
+        "test/melonx_auto_ownership_test.py",
+        "test/melonx_auto_ownership/Program.cs",
+        "test/melonx_auto_ownership/Boundaries.cs"
+      ],
+      "runtimeResultsOrigin": "existing receipt; not independently rerun by this review"
+    },
+    {
+      "gate": "converted-cache",
+      "integratedReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/dist/melonx/converted-cache-checks.json",
+        "sha256": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+        "bytes": 3815
+      },
+      "reviewedGpuWorkReceipt": {
+        "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/converted-cache-checks.json",
+        "sha256": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+        "bytes": 3815
+      },
+      "identicalReceiptBytes": true,
+      "recordedResult": "passed",
+      "allDeclaredInputHashesMatchedIntegratedFiles": true,
+      "checkedInputPathsRelativeToRepository": [
+        "build-utils/melonx/adapt_converted_cache.py",
+        "test/melonx_converted_cache_test.py",
+        "test/melonx_converted_cache/Program.cs",
+        "test/melonx_converted_cache/Boundaries.cs"
+      ],
+      "runtimeResultsOrigin": "existing receipt; not independently rerun by this review"
+    },
+    {
+      "gate": "allocator-blocks",
+      "integratedReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/dist/melonx/allocator-blocks-checks.json",
+        "sha256": "b5fce53cd1c0e95b3d42f1ac669f57b570459f77aad4960374fa498f26b1a384",
+        "bytes": 23717
+      },
+      "reviewedGpuWorkReceipt": {
+        "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/allocator-blocks-checks.json",
+        "sha256": "b5fce53cd1c0e95b3d42f1ac669f57b570459f77aad4960374fa498f26b1a384",
+        "bytes": 23717
+      },
+      "identicalReceiptBytes": true,
+      "recordedResult": "passed",
+      "allDeclaredInputHashesMatchedIntegratedFiles": true,
+      "checkedInputPathsRelativeToRepository": [
+        "build-utils/melonx/adapt_allocator_blocks.py",
+        "test/melonx_allocator_blocks_test.py",
+        "test/melonx_allocator_blocks/Program.cs",
+        "test/melonx_allocator_blocks/Boundaries.cs"
+      ],
+      "runtimeResultsOrigin": "existing receipt; not independently rerun by this review"
+    },
+    {
+      "gate": "indirect-cache-key",
+      "integratedReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/dist/melonx/indirect-cache-key-checks.json",
+        "sha256": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+        "bytes": 4741
+      },
+      "reviewedGpuWorkReceipt": {
+        "path": "/workspace/scratch/90582008c087/gpu-followup-work/dist/melonx/indirect-cache-key-checks.json",
+        "sha256": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+        "bytes": 4741
+      },
+      "identicalReceiptBytes": true,
+      "recordedResult": "passed",
+      "allDeclaredInputHashesMatchedIntegratedFiles": true,
+      "checkedInputPathsRelativeToRepository": [
+        "build-utils/melonx/adapt_converted_cache.py",
+        "build-utils/melonx/adapt_indirect_cache_key.py",
+        "test/melonx_indirect_cache_key_test.py",
+        "test/melonx_indirect_cache_key/Program.cs",
+        "test/melonx_indirect_cache_key/Boundaries.cs"
+      ],
+      "runtimeResultsOrigin": "existing receipt; not independently rerun by this review"
+    }
+  ],
+  "verifiedAdaptersAndTestInputs": [
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_allocator_blocks.py",
+      "sha256": "adb3d761b7d03dbc445785e8ba16cf624a3b135024802150af2479487acc1f96",
+      "bytes": 7189,
+      "role": "adapter"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_auto_ownership.py",
+      "sha256": "ca49e50235f2e6117ded6c321b74f6ba8602e9a95f1e1b187ee66185199e8155",
+      "bytes": 1323,
+      "role": "adapter"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_converted_cache.py",
+      "sha256": "01ded0fb3f24a539d39c2eb617231f15f4751a593f6fbbb8b52b917d851b8859",
+      "bytes": 1524,
+      "role": "adapter"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_indirect_cache_key.py",
+      "sha256": "ae54b52bd436453fbb7e3d8cb35fa4bda07668bbfb8876987692ca33d49953b2",
+      "bytes": 882,
+      "role": "adapter"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_allocator_blocks/Boundaries.cs",
+      "sha256": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836",
+      "bytes": 5387,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_allocator_blocks/Program.cs",
+      "sha256": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+      "bytes": 14336,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_allocator_blocks_test.py",
+      "sha256": "ab1a6d3781d906f672a2d6a9f8e6e046bcf6d8b7650905e5c7a8f735d54c866c",
+      "bytes": 8954,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_auto_ownership/Boundaries.cs",
+      "sha256": "06236d90a3175e95a1967e69c1169b529e647c43cb4f08d97b5ca3a348883ee3",
+      "bytes": 2020,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_auto_ownership/Program.cs",
+      "sha256": "cd76a47dd96d6c30d6d859a83e445f7e98ba4f60247c771634c2c0d0583c7db7",
+      "bytes": 8058,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_auto_ownership_test.py",
+      "sha256": "93daa58f25710d0854b46a7941851eb1deeb7faeac7d80facf7cd879a568fac4",
+      "bytes": 6939,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_converted_cache/Boundaries.cs",
+      "sha256": "29ecb512b1a538bdf88276cd591c2ebc30b2b2e27717b38074762a43487dc58c",
+      "bytes": 1088,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_converted_cache/Program.cs",
+      "sha256": "21ccb02d347e8675285159d52b6273e8741e363095b00af58fc9694dd8916fea",
+      "bytes": 11354,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_converted_cache_test.py",
+      "sha256": "8104bdd62a66ad4af15c494922a8bfe0b2322f4b7a76a3ee483b0d4ae265dc03",
+      "bytes": 5039,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_indirect_cache_key/Boundaries.cs",
+      "sha256": "f7d6a91076602222e1e68f02677ace23359e406afce3d81d07d8b7d2eb2268de",
+      "bytes": 2833,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_indirect_cache_key/Program.cs",
+      "sha256": "7dc9fa7c69a35df0de852d65a7209540db4ecf81ff067d9c5abf037e0e860727",
+      "bytes": 5001,
+      "role": "fixture_or_test_harness"
+    },
+    {
+      "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_indirect_cache_key_test.py",
+      "sha256": "170dbd1fe327156163c9bc0e0756ee227d9c5c3bb0d4609e81c6124800f00042",
+      "bytes": 7836,
+      "role": "fixture_or_test_harness"
+    }
+  ],
+  "finalProductionSourceBindings": [
+    {
+      "relativePath": "src/Ryujinx.Common/Memory/IArray.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Common/Memory/IArray.cs",
+      "sha256": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+      "bytes": 709,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Common/Memory/StructArrayHelpers.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Common/Memory/StructArrayHelpers.cs",
+      "sha256": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+      "bytes": 23101,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Common/Utilities/BitUtils.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Common/Utilities/BitUtils.cs",
+      "sha256": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+      "bytes": 3080,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "upstreamInputs",
+          "recordedSha256": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.GAL/BufferHandle.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.GAL/BufferHandle.cs",
+      "sha256": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+      "bytes": 495,
+      "receiptBindings": [
+        {
+          "gate": "indirect-cache-key",
+          "kind": "upstreamInputs",
+          "recordedSha256": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.GAL/BufferRange.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.GAL/BufferRange.cs",
+      "sha256": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+      "bytes": 591,
+      "receiptBindings": [
+        {
+          "gate": "indirect-cache-key",
+          "kind": "upstreamInputs",
+          "recordedSha256": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/Auto.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/Auto.cs",
+      "sha256": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731",
+      "bytes": 6105,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "79ea043a3d71a72d08ef43eeef5452d2eb01192b38bc483469fda578811b8eb0",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/BitMap.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/BitMap.cs",
+      "sha256": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+      "bytes": 3725,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs",
+      "sha256": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+      "bytes": 7197,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "sha256": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+      "bytes": 32006,
+      "receiptBindings": [
+        {
+          "gate": "converted-cache",
+          "kind": "callerInputs",
+          "recordedSha256": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+          "finalFullFileMatchesRecordedInput": true
+        },
+        {
+          "gate": "indirect-cache-key",
+          "kind": "callerInputs",
+          "recordedSha256": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+      "sha256": "54482c170c881114719f3fdcacd06fa8fa4223c6f9c96834d812f4ff7dce8d92",
+      "bytes": 26903,
+      "receiptBindings": [
+        {
+          "gate": "converted-cache",
+          "kind": "callerInputs",
+          "recordedSha256": "73bb8f6d328039d495a4944be52dfb6b1b1dfcb661198e05a74fcd3084b05d36",
+          "finalFullFileMatchesRecordedInput": false
+        },
+        {
+          "gate": "indirect-cache-key",
+          "kind": "callerInputs",
+          "recordedSha256": "73bb8f6d328039d495a4944be52dfb6b1b1dfcb661198e05a74fcd3084b05d36",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "sha256": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "bytes": 11025,
+      "receiptBindings": [
+        {
+          "gate": "converted-cache",
+          "kind": "upstreamInputs",
+          "recordedSha256": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1",
+          "finalFullFileMatchesRecordedInput": false
+        },
+        {
+          "gate": "indirect-cache-key",
+          "kind": "upstreamInputs",
+          "recordedSha256": "4791ea9c7560be75dcb1be2cc08cf486bbde243b6bee920d721342b172baeca1",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
+      "sha256": "beb73c36e5ae5313781d224798375ff4870961b9777e608eb52205bdeb3f5cd5",
+      "bytes": 12096,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "beb73c36e5ae5313781d224798375ff4870961b9777e608eb52205bdeb3f5cd5",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs",
+      "sha256": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+      "bytes": 1019,
+      "receiptBindings": [
+        {
+          "gate": "auto-ownership",
+          "kind": "upstreamInputs",
+          "recordedSha256": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/DonatedBufferAllocator.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/DonatedBufferAllocator.cs",
+      "sha256": "0c84a345748de604d66c9d94adc4a4dcc7709832cddc416a7c755855406003ee",
+      "bytes": 11328,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "callerInputs",
+          "recordedSha256": "0c84a345748de604d66c9d94adc4a4dcc7709832cddc416a7c755855406003ee",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/IndexBufferState.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/IndexBufferState.cs",
+      "sha256": "804a97614c0ac1645b25eb03eb6afb2e3755a0a016c1c7839192b797b0fdbfef",
+      "bytes": 5613,
+      "receiptBindings": [
+        {
+          "gate": "indirect-cache-key",
+          "kind": "callerInputs",
+          "recordedSha256": "804a97614c0ac1645b25eb03eb6afb2e3755a0a016c1c7839192b797b0fdbfef",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs",
+      "sha256": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+      "bytes": 1555,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "upstreamInputs",
+          "recordedSha256": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs",
+      "sha256": "15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3",
+      "bytes": 4637,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "callerInputs",
+          "recordedSha256": "15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3",
+          "finalFullFileMatchesRecordedInput": true
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+      "sha256": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae",
+      "bytes": 14205,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "upstreamInputs",
+          "recordedSha256": "e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+      "sha256": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+      "bytes": 76214,
+      "receiptBindings": [
+        {
+          "gate": "indirect-cache-key",
+          "kind": "callerInputs",
+          "recordedSha256": "2382603b280d31a3cb96be0340930a61a72af8a4b12e7fe8e8ecd3a6f39943d2",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    },
+    {
+      "relativePath": "src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+      "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+      "sha256": "6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294",
+      "bytes": 992,
+      "receiptBindings": [
+        {
+          "gate": "allocator-blocks",
+          "kind": "upstreamInputs",
+          "recordedSha256": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+          "finalFullFileMatchesRecordedInput": false
+        }
+      ]
+    }
+  ],
+  "exactFinalPostimageMatches": [
+    {
+      "gate": "auto-ownership",
+      "source": "src/Ryujinx.Graphics.Vulkan/Auto.cs",
+      "sha256": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731",
+      "matchesRecordedPostimage": true
+    },
+    {
+      "gate": "allocator-blocks",
+      "source": "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+      "sha256": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae",
+      "matchesRecordedPostimage": true
+    },
+    {
+      "gate": "indirect-cache-key",
+      "source": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+      "sha256": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+      "matchesRecordedPostimage": true
+    }
+  ],
+  "cacheComposition": {
+    "source": "src/Ryujinx.Graphics.Vulkan/CacheByRange.cs",
+    "finalSha256": "d373e84ad9ca8d9d512588d79f45e2c7e9cbe82d8ec645dfa99e439929a3723f",
+    "convertedCacheRecordedPostimageSha256": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+    "indirectKeyRecordedControlSha256": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+    "reconstructedPreKeySha256": "173ce7955626cbcacd7da5944d0d7cafa590c9bad0ca5de259521f50b2602abb",
+    "inverseOperations": [
+      {
+        "final": "    struct TopologyConversionIndirectCacheKey : ICacheKey",
+        "prior": "    readonly struct TopologyConversionIndirectCacheKey : ICacheKey"
+      },
+      {
+        "final": "        private TopologyConversionCacheKey _baseKey;",
+        "prior": "        private readonly TopologyConversionCacheKey _baseKey;"
+      }
+    ],
+    "eachInversePatternOccursExactlyOnce": true,
+    "onlyTwoReadonlyChangesSeparateRecordedPostimages": true,
+    "checkPerformedInMemoryOnly": true
+  },
+  "extractedProductionMethods": [
+    {
+      "name": "PRODUCTION_INDIRECT_CONVERSION",
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+      "signature": "public (Auto<DisposableBuffer>, Auto<DisposableBuffer>) GetBufferTopologyConversionIndirect(",
+      "sha256": "f2ae27ff4041f2dee251b1d197489baffb48295d8ccc12aea3330717ea45361c",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "PRODUCTION_DIRTY_INDEX",
+      "source": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+      "signature": "public void DirtyIndexBuffer(Auto<DisposableBuffer> buffer)",
+      "sha256": "c53030cdfa57c27ab0811f078474fd6a95316f3b7ab9f8d2f48c2e337731fdc7",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "PRODUCTION_BOUND_EQUALS",
+      "source": "src/Ryujinx.Graphics.Vulkan/IndexBufferState.cs",
+      "signature": "public readonly bool BoundEquals(Auto<DisposableBuffer> buffer)",
+      "sha256": "ed173ff929ef98223fe76c937b78c22fb71cd54a9e2e4e1d40889381d7f23abc",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "CACHE_WRAPPER",
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public bool TryGetCachedConvertedBuffer(int offset, int size, ICacheKey key, out BufferHolder holder)",
+      "sha256": "6ad8db9302db350c380bca70d7d0acb690becdb0c1d829fb063065e957a56545",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "CACHE_WRAPPER",
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void AddCachedConvertedBuffer(int offset, int size, ICacheKey key, BufferHolder holder)",
+      "sha256": "ce4a0b6bc07b5805f504ba9c684fb96579942c5e13fd91b309cc4a37742bb945",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "CACHE_WRAPPER",
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void AddCachedConvertedBufferDependency(int offset, int size, ICacheKey key, Dependency dependency)",
+      "sha256": "0b7685f6a10e3672b765fc3351d9b9d3f28784f51cf5e87d4dd3d7cd865d9c12",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "CACHE_WRAPPER",
+      "source": "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+      "signature": "public void RemoveCachedConvertedBuffer(int offset, int size, ICacheKey key)",
+      "sha256": "8b0f280c116dc75f886d90a0425d05d3e240d1318ebbf4d8d10a6329050806ef",
+      "matchesExistingFixtureExtraction": true
+    },
+    {
+      "name": "AUTO_ADD_DEPENDANT",
+      "source": "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs",
+      "signature": "public void AddDependant(int cbIndex, IAuto dependant)",
+      "sha256": "5b1f8ef896f29f66d04813cc945ad05d4282eac64651d90476737c67530a2d9d",
+      "matchesExistingFixtureExtraction": true
+    }
+  ],
+  "combinedCacheWrapperSha256": "3dbb18df45d11f08510c224096cfd9fc17b93f7fdd17d4d934fea84e732a78a5",
+  "existingEngine82FileDifferences": {
+    "files": [
+      {
+        "source": "src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+        "final": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+          "sha256": "54482c170c881114719f3fdcacd06fa8fa4223c6f9c96834d812f4ff7dce8d92",
+          "bytes": 26903
+        },
+        "engine82Baseline": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Vulkan/BufferManager.cs",
+          "sha256": "54482c170c881114719f3fdcacd06fa8fa4223c6f9c96834d812f4ff7dce8d92",
+          "bytes": 26903
+        },
+        "identicalToExistingEngine82Baseline": true
+      },
+      {
+        "source": "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+        "final": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+          "sha256": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+          "bytes": 76214
+        },
+        "engine82Baseline": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+          "sha256": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+          "bytes": 76214
+        },
+        "identicalToExistingEngine82Baseline": true
+      },
+      {
+        "source": "src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+        "final": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-followup-final/src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+          "sha256": "6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294",
+          "bytes": 992
+        },
+        "engine82Baseline": {
+          "path": "/workspace/scratch/90582008c087/MeloNX-engine82/src/Ryujinx.Graphics.Vulkan/VulkanException.cs",
+          "sha256": "6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294",
+          "bytes": 992
+        },
+        "identicalToExistingEngine82Baseline": true
+      }
+    ],
+    "explanation": "Some full-file hashes differ from the pristine caller hashes in the receipts due to pre-existing engine82 adaptations. BufferManager and PipelineBase tested method bodies match exactly. VulkanException differs only by the pre-existing ResultCode property and assignment; removing those in memory recovers the exact fixture input hash.",
+    "vulkanExceptionOriginalSha256Recovered": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c"
+  },
+  "findings": [
+    {
+      "adapter": "adapt_auto_ownership.py",
+      "blocking": false,
+      "reviewedMechanism": "Mutable BitMapStruct<Array1<long>> field preserves Set/Clear effects without defensive copies; exact MaxCommandBuffers=16 guard fits the 64-bit field. Reference-count and dependency methods are unchanged.",
+      "productionProof": "Whole production Auto, bitmap implementations and scoped command-buffer type are used by the existing fixture; AddDependant is extracted verbatim and matches the final source.",
+      "limits": [
+        "Concurrent atomic refcounts are covered; concurrent ownership bitmap mutations are not claimed. The original bitmap mutations were also non-atomic.",
+        "Command transport and native completion are doubled."
+      ]
+    },
+    {
+      "adapter": "adapt_converted_cache.py",
+      "blocking": false,
+      "reviewedMechanism": "Absent-range lookup, remove and dependency-add return without creating dictionary/list entries. Existing-entry first-match, cached-null, key equality, disposal and dependency paths remain unchanged.",
+      "productionProof": "Whole production CacheByRange, key types and Dependency are compiled by the existing fixture. Final cache composes exactly with the indirect-key delta.",
+      "limits": [
+        "Inter-range Dictionary enumeration order is unspecified and can differ; tests do not claim preservation.",
+        "GPU payload and the invalidation boundary are doubled; no new thread-safety guarantee is claimed."
+      ]
+    },
+    {
+      "adapter": "adapt_indirect_cache_key.py",
+      "blocking": false,
+      "reviewedMechanism": "Making the indirect key and its nested base key mutable prevents SetBuffer from modifying a defensive copy, so disposal invalidates the stored converted index buffer. Structural equality criteria are unchanged.",
+      "productionProof": "The complete production indirect conversion caller constructs, sets and boxes the key. The actual cache, dirty-index method, bound-equality method and four cache wrappers are exercised by the existing fixture and match final method hashes.",
+      "limits": [
+        "Native allocation, shader conversion and graphics binding endpoints are doubled.",
+        "This is a cache-coherence correction; no direct performance improvement is asserted."
+      ]
+    },
+    {
+      "adapter": "adapt_allocator_blocks.py",
+      "blocking": false,
+      "reviewedMechanism": "The native allocation remains locally owned until InsertBlock succeeds. Failure cleanup unmaps only after a successful map and frees in a finally block. DedicatedIndex publication, swap removal and replacement-index updates use the existing write lock. Pooled and imported range bookkeeping is preserved.",
+      "productionProof": "Existing fixtures compile the complete production allocator, allocation handle and range bookkeeping, including threaded allocate/free workloads. Native calls are strict doubles. Managed setup and publication-boundary failures are injected explicitly.",
+      "limits": [
+        "Concurrent allocator Dispose versus active allocation/free remains outside the pre-existing contract.",
+        "Selection among equal-size pooled blocks may differ. The mixed pool=4096 workload peak rises from 251260 to 255356 bytes; the pool=16 dedicated-only workload preserves exact trace and native peak.",
+        "Timers are indicative and not a pass/fail gate. The recorded 32-block churn time rises from 3.649845 to 4.544984 ms, while 2048-block churn falls from 13.493069 to 4.765198 ms. Constant bounded visits, rather than universal elapsed-time improvement, are the deterministic evidence.",
+        "The bookkeeping measurement includes all allocations associated with construction: block construction stays at 176 bytes per instance and block-list construction rises by 8 bytes per instance in this host runtime.",
+        "The fixture does not use a physical Vulkan driver and injects managed setup/publication faults at explicit boundaries rather than forcing every possible runtime allocation failure."
+      ]
+    }
+  ],
+  "allocatorEvidenceCopiedFromExistingReceipt": {
+    "control": {
+      "randomLifetimeNativeMemory": [
+        {
+          "poolSize": 4096,
+          "peakNativeBytes": 251260,
+          "Allocations": 1870,
+          "Frees": 1870,
+          "Maps": 924,
+          "Unmaps": 924,
+          "traceSha256": "601176C820EC39C4DF1F395EB11F4B7D0CE92FE26DB4FD3AB6800992825C1735"
+        },
+        {
+          "poolSize": 16,
+          "peakNativeBytes": 226834,
+          "Allocations": 8035,
+          "Frees": 8035,
+          "Maps": 3929,
+          "Unmaps": 3929,
+          "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+        }
+      ],
+      "uninstrumentedChurnTimings": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 11.425077
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 3.649845
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 13.493069
+        }
+      ],
+      "instrumentedChurnWork": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 10000,
+          "comparisons": 0,
+          "elapsedMs": 11.137553
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 169998,
+          "comparisons": 10000,
+          "elapsedMs": 3.658245
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 10250093,
+          "comparisons": 10000,
+          "elapsedMs": 30.767235
+        }
+      ],
+      "bookkeepingAllocations": {
+        "count": 10000,
+        "blockBytes": 1760000,
+        "blockListBytes": 1840000
+      },
+      "failureCases": [
+        {
+          "mode": "map-result",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 16,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 0,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "map-throw",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 16,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 0,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "allocate-result",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 0,
+          "Frees": 0,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "block-setup",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 16,
+          "mappedLeaks": 16,
+          "Allocations": 16,
+          "Frees": 0,
+          "Maps": 16,
+          "Unmaps": 0
+        },
+        {
+          "mode": "publication",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 16,
+          "mappedLeaks": 16,
+          "Allocations": 16,
+          "Frees": 0,
+          "Maps": 16,
+          "Unmaps": 0
+        }
+      ]
+    },
+    "candidate": {
+      "randomLifetimeNativeMemory": [
+        {
+          "poolSize": 4096,
+          "peakNativeBytes": 255356,
+          "Allocations": 1870,
+          "Frees": 1870,
+          "Maps": 910,
+          "Unmaps": 910,
+          "traceSha256": "FC7D3299B084027511D705B067BDEFC4406A2CBF7E5F144A56ED2030B1440FB8"
+        },
+        {
+          "poolSize": 16,
+          "peakNativeBytes": 226834,
+          "Allocations": 8035,
+          "Frees": 8035,
+          "Maps": 3929,
+          "Unmaps": 3929,
+          "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+        }
+      ],
+      "uninstrumentedChurnTimings": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 10.897999
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 4.544984
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 4.765198
+        }
+      ],
+      "instrumentedChurnWork": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 10000,
+          "comparisons": 0,
+          "elapsedMs": 11.06227
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 20000,
+          "comparisons": 0,
+          "elapsedMs": 5.497134
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2160000,
+          "blockVisits": 20000,
+          "comparisons": 0,
+          "elapsedMs": 5.906372
+        }
+      ],
+      "bookkeepingAllocations": {
+        "count": 10000,
+        "blockBytes": 1760000,
+        "blockListBytes": 1920000
+      },
+      "failureCases": [
+        {
+          "mode": "map-result",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 16,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "map-throw",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 16,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "allocate-result",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 0,
+          "Frees": 0,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        {
+          "mode": "block-setup",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 16,
+          "Maps": 16,
+          "Unmaps": 16
+        },
+        {
+          "mode": "publication",
+          "attempts": 16,
+          "caught": 16,
+          "nativeLeaks": 0,
+          "mappedLeaks": 0,
+          "Allocations": 16,
+          "Frees": 16,
+          "Maps": 16,
+          "Unmaps": 16
+        }
+      ]
+    }
+  },
+  "globalLimitations": [
+    "This record documents a code/evidence review. It is not a new runtime test result, compiler result, or binary verification.",
+    "File hash binding does not mean every line of every bound caller file was independently audited. Code review scope is the changed paths, their ownership/refcount/concurrency interactions, and fixture coverage described above.",
+    "No physical-device execution, in-game RAM measurement, frame-time measurement, or Hogwarts Legacy FPS improvement is established by this review."
+  ],
+  "blockingFindings": []
+}

@@ -1,0 +1,23 @@
+{
+  "result": "authenticated",
+  "baselineArtifact": 12883480724,
+  "archiveSha256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+  "nativeDependencies": {
+    "run": 39854858591,
+    "artifactName": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+    "identitySha256": "fe29682a474fb91b337b258ff1a7d71704f1915313739879a7af271e7ef7bbd9",
+    "binaries": {
+      "ios/MeloNXAvCodec.framework/MeloNXAvCodec": "c2ed66ef5c05e268ef0118999a3f221bddeb42a8ca17d23c9b7400a072a85fbb",
+      "ios/MeloNXAvUtil.framework/MeloNXAvUtil": "0dc8e62c0140accda5dc0b20c5d9cd0b6afac6e2c82dfaabf0a470798067df95",
+      "ios/MeloNXJitSupport.framework/MeloNXJitSupport": "fc73f141f982626d3814f617b744dfba2c70ee7157018ec1b629c57150cbdbae",
+      "ios/MeloNXMoltenVK.framework/MeloNXMoltenVK": "d1c94d5d7585ead56379cc2ba0de274dfb9a556974bfbb3ab4fff421abd17d25",
+      "ios/MeloNXSDL3.framework/MeloNXSDL3": "e7edab1b651e96a0da7ee6389d84750d41269e516ab7e363db0747017956d3d5",
+      "iossimulator/MeloNXAvCodec.framework/MeloNXAvCodec": "14ad7be6aa477e3cb2f36681c8293f19b7d2ec0b14bb1616716ed29f5c243747",
+      "iossimulator/MeloNXAvUtil.framework/MeloNXAvUtil": "1c6c7d05b8eaae7bdbf13183831909aeb84a6a7ce4cbc0c1d114a4a7d107e187",
+      "iossimulator/MeloNXJitSupport.framework/MeloNXJitSupport": "d4fb6d808342e4fa903038e8cb9a702dfcb16e234729535796cb31a62002be2f",
+      "iossimulator/MeloNXMoltenVK.framework/MeloNXMoltenVK": "283e7575aaa7df50319ef0dd31b4162832d73a2e96abc4bf10d4a9af4563a85c",
+      "iossimulator/MeloNXSDL3.framework/MeloNXSDL3": "c4acafdf9816c690e982c0b5a1ff77c1e88ca82115d771f8adfea6c3cb4d8d10"
+    }
+  },
+  "nativeDependenciesRecompiled": false
+}

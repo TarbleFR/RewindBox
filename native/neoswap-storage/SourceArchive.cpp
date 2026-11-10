@@ -91,6 +91,11 @@ Config::Config(){
     managed.store.ram_bytes=1ULL<<20;managed.store.warm_bytes=0;
     managed.store.disk_bytes=128ULL<<20;managed.store.compression=true;
     managed.store.compression_budget_us=500;
+    // SourceArchive owns a session-private temporary file. Its records cannot
+    // survive process death; guest saves and persistent shader caches never use
+    // this policy. Preserve complete writes, CRC, byte-for-byte readback and
+    // the full staging snapshot until every chunk has passed verification.
+    managed.store.sync_writes=false;
 }
 Archive::Archive(const std::string& directory,uint64_t session,Config config)
     :config_(config),session_(session),manager_(directory,config.managed){

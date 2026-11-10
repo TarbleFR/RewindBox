@@ -1,0 +1,34 @@
+{
+  "baseline_commit": "543996ad1e79330fda81d086af27566dce0fd79e",
+  "baseline_branch": "Claude",
+  "baseline_patch_sha256": "33320812eccaf55ce7e834fe9a3a01da004e8323f0ad149cbf424a2ac3dcef9c",
+  "source_only": true,
+  "canonical_postimages_unchanged": 309,
+  "delta_fixture": "test/fixtures/rpcs3_device595_followup.diff",
+  "delta_sha256": "b56179059fa436b86a7db65cb9676c2554846ddc2b3c70b6f05f2064f21c1f48",
+  "files_before_sha256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac",
+    "rpcs3/Emu/RSX/Common/surface_store.h": "663ce011d1b06631b965ba323e49fda59c3280d6aa61ef5b56a7623f9ed68500",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c5ecab8364b42fb791fb9029d87348f7e0068c5990da3f3c0a3e787079f2059c",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "756c680bd2b3e5b327295db439412ea12447170838776399e873f5e4b03af846",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "49de1afd2abe5bff86989e2200ef0c05a283d891f384cd0877fb4b7d0996b9da"
+  },
+  "files_after_sha256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+    "rpcs3/Emu/RSX/Common/surface_store.h": "d7669020d8e962a025197b914c9013b6de7aa5c890ce2e2a3ea663e35a19e061",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "12f9772af3a1dbdcc10db2b2b95446f4fb278cd28b236788134ef44874d3c9a3",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "20eda27ec70aa0f15ae1e05b8ef1f84e22f104e102be29a0c738aa2a9717046e",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "32826f1eb03b2fa9eb4bf21523a6d9ab1f0acc3df146d0d573b84b210c999b93"
+  },
+  "affected_native_modes": 6,
+  "unchanged_previous_native_modes": 6,
+  "codegen_identity": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "ios_build_run": false,
+  "iphone_validation_run": false,
+  "fps_gain_claimed": false,
+  "game_visual_or_freeze_fix_claimed": false,
+  "existing_delivery_recipes_and_pins_preserved": true
+}

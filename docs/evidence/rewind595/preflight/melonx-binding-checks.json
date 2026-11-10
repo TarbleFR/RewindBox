@@ -1,0 +1,47 @@
+{
+  "actualBinaryFilesUsed": true,
+  "apiBoundary": "Exact previously downloaded public GitHub run/job/artifact JSON",
+  "authenticatedGitInputs": 141,
+  "bindingSHA256": "e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a",
+  "compilersExecuted": 0,
+  "exactSource": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+  "nativeTestsExecuted": 0,
+  "negativeControls": [
+    {
+      "name": "wrong run source",
+      "reason": "",
+      "rejected": true
+    },
+    {
+      "name": "failed job",
+      "reason": "",
+      "rejected": true
+    },
+    {
+      "name": "wrong artifact digest",
+      "reason": "",
+      "rejected": true
+    },
+    {
+      "name": "old Core84 preparation inventory",
+      "reason": "compiled adaptation map changed",
+      "rejected": true
+    },
+    {
+      "name": "changed current production adapter",
+      "reason": "engine, runtime or reviewed source contract changed: build-utils/melonx/adapt_sync_allocations.py",
+      "rejected": true
+    },
+    {
+      "name": "modified actual iPhone binary",
+      "reason": "",
+      "rejected": true
+    },
+    {
+      "name": "missing second guest SVC session",
+      "reason": "",
+      "rejected": true
+    }
+  ],
+  "result": "passed"
+}

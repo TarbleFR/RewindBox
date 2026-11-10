@@ -1,0 +1,148 @@
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -5679,6 +5679,9 @@
+ 	void operator()()
+ 	{
+ 		u64 sleep_us = umax;
++		// Reuse the worker's trivial expiry scratch across wakeups. Growing it
++		// still happens before queue compaction; no thread references are retained.
++		std::vector<entry> due_entries;
+ 		while (thread_ctrl::state() != thread_state::aborting)
+ 		{
+ 			thread_ctrl::wait_for(sleep_us);
+@@ -5686,7 +5689,6 @@
+ 				break;
+ 
+ 			const u64 now = get_timebased_time();
+-			std::vector<entry> due_entries;
+ 			sleep_us = umax;
+ 			{
+ 				std::lock_guard lock(mutex);
+@@ -5731,6 +5733,7 @@
+ 					}
+ 				}
+ 			}
++			due_entries.clear();
+ 		}
+ 	}
+ 
+diff --git a/rpcs3/Emu/RSX/Common/surface_store.h b/rpcs3/Emu/RSX/Common/surface_store.h
+--- a/rpcs3/Emu/RSX/Common/surface_store.h
++++ b/rpcs3/Emu/RSX/Common/surface_store.h
+@@ -752,6 +752,43 @@
+ 
+ 			// Generic painter's algorithm to detect obsolete sections
+ 			ensure(range.length() < 64 * 0x100000);
++#ifdef RPCS3_IOS
++			// Coverage is boolean per guest byte. A packed bitmap avoids clearing
++			// and streaming a full byte for every byte of the surface address span.
++			std::vector<u64> marker((range.length() + 63u) / 64u + 1u, 0);
++			marker.back() = overrun_cookie_value;
++			u32 removed_count = 0;
++			auto compare_and_tag_row = [&](u32 offset, u32 length) -> bool
++			{
++				ensure(offset <= range.length() && length <= range.length() - offset);
++				if (!length) return false;
++
++				const u32 first = offset / 64u;
++				const u32 last = (offset + length - 1u) / 64u;
++				const u64 first_mask = ~u64{0} << (offset & 63u);
++				const u64 last_mask = ~u64{0} >> ((64u - ((offset + length) & 63u)) & 63u);
++				u64 uncovered = 0;
++				auto tag = [&](u32 word, u64 mask)
++				{
++					uncovered |= ~marker[word] & mask;
++					marker[word] |= mask;
++				};
++				if (first == last)
++				{
++					tag(first, first_mask & last_mask);
++				}
++				else
++				{
++					tag(first, first_mask);
++					for (u32 word = first + 1u; word < last; ++word)
++					{
++						tag(word, ~u64{0});
++					}
++					tag(last, last_mask);
++				}
++				return uncovered != 0;
++			};
++#else
+ 			std::vector<u8> marker(range.length() + sizeof(overrun_cookie_value), 0);
+ 
+ 			// Tag end
+@@ -806,6 +843,7 @@
+ 
+ 				return !!mask;
+ 			};
++#endif
+ 
+ 			for (auto it = sections.crbegin(); it != sections.crend(); ++it)
+ 			{
+@@ -872,7 +910,11 @@
+ 			rsx_log.notice("rsx::surface_cache::check_for_duplicates_fallback analysed %u overlapping sections and removed %u", ::size32(sections), removed_count);
+ 
+ 			// Verify no OOB
++#ifdef RPCS3_IOS
++			ensure(marker.back() == overrun_cookie_value);
++#else
+ 			ensure(read_from_ptr<u32>(marker, range.length()) == overrun_cookie_value);
++#endif
+ 		}
+ 
+ 	protected:
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -804,6 +804,22 @@
+ 		image.release();
+ 		return view;
+ 	}
++
++#ifdef RPCS3_IOS
++	vk::image_view* texture_cache::create_temporary_subresource(vk::command_buffer& cmd, deferred_subresource& desc)
++	{
++		auto cached = baseclass::create_temporary_subresource(cmd, desc);
++		if (!cached)
++		{
++			return nullptr;
++		}
++
++		// The common cache keys image contents, not sampler channel remapping.
++		// Reuse that image but select the current request's view on every hit.
++		// get_view has a last-view fast path; as returns directly for its format.
++		return static_cast<vk::viewable_image*>(cached->image())->get_view(desc.remap)->as(cached->format());
++	}
++#endif
+ 
+ 	vk::image_view* texture_cache::create_temporary_subresource_view(vk::command_buffer& cmd, const deferred_subresource& desc)
+ 	{
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -526,6 +526,10 @@
+ 	public:
+ 		using baseclass::texture_cache;
+ 
++#ifdef RPCS3_IOS
++		vk::image_view* create_temporary_subresource(vk::command_buffer& cmd, deferred_subresource& desc);
++#endif
++
+ 		void initialize(vk::render_device& device, VkQueue submit_queue, vk::data_heap& upload_heap);
+ 
+ 		void destroy() override;
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -35,7 +35,7 @@
+     # decrementer timer worker change. SPU layout, translator, helper symbols,
+     # relocation targets and every other SPUThread.cpp body remain identical.
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+-           actual STREQUAL "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac")
++           actual STREQUAL "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes

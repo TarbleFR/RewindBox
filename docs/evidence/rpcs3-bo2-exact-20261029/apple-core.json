@@ -1,0 +1,253 @@
+{
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "source": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+  "workflow": ".github/workflows/rpcs3-runtime592-core.yml",
+  "run": {
+    "id": 40839976736,
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-10-29T08:08:09Z",
+    "run_started_at": "2026-10-29T08:08:09Z",
+    "updated_at": "2026-10-29T08:23:44Z",
+    "run_attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40839976736"
+  },
+  "jobs": [
+    {
+      "id": 123333717115,
+      "run_id": 40839976736,
+      "workflow_name": "RPCS3 runtime source candidate \u2022 fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/40839976736",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAct0Msew",
+      "head_sha": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/123333717115",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/40839976736/job/123333717115",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-29T08:08:11Z",
+      "started_at": "2026-10-29T08:08:14Z",
+      "completed_at": "2026-10-29T08:23:44Z",
+      "name": "RPCS3 runtime: targeted ARM64 regressions and source candidate",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-29T08:08:14Z",
+          "completed_at": "2026-10-29T08:08:15Z"
+        },
+        {
+          "name": "Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-29T08:08:15Z",
+          "completed_at": "2026-10-29T08:08:39Z"
+        },
+        {
+          "name": "Select Xcode16.4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-29T08:08:39Z",
+          "completed_at": "2026-10-29T08:08:39Z"
+        },
+        {
+          "name": "Restore pinned dependencies and exact compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-29T08:08:39Z",
+          "completed_at": "2026-10-29T08:08:49Z"
+        },
+        {
+          "name": "Authenticate historical Core and execute only the candidate delta on ARM64",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-29T08:08:49Z",
+          "completed_at": "2026-10-29T08:11:20Z"
+        },
+        {
+          "name": "Preserve native measurements before the single Core compilation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-29T08:11:20Z",
+          "completed_at": "2026-10-29T08:11:21Z"
+        },
+        {
+          "name": "Compile actual iPhone Core from the verified source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-29T08:11:21Z",
+          "completed_at": "2026-10-29T08:22:55Z"
+        },
+        {
+          "name": "Verify source candidate, exact exports, passive loading and source identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-29T08:22:55Z",
+          "completed_at": "2026-10-29T08:23:01Z"
+        },
+        {
+          "name": "Upload source candidate without a delivery number",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-29T08:23:01Z",
+          "completed_at": "2026-10-29T08:23:05Z"
+        },
+        {
+          "name": "Preserve verified dependencies and compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-29T08:23:05Z",
+          "completed_at": "2026-10-29T08:23:21Z"
+        },
+        {
+          "name": "Upload diagnostic results including partial failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-29T08:23:21Z",
+          "completed_at": "2026-10-29T08:23:22Z"
+        },
+        {
+          "name": "Post Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-10-29T08:23:22Z",
+          "completed_at": "2026-10-29T08:23:22Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-10-29T08:23:22Z",
+          "completed_at": "2026-10-29T08:23:26Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/123333717115",
+      "labels": [
+        "macos-15"
+      ],
+      "runner_id": 1000012188,
+      "runner_name": "GitHub Actions 1000012188",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 12883027017,
+      "name": "RPCS3Core-fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "size_in_bytes": 29108511,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12883027017",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12883027017/zip",
+      "expired": false,
+      "created_at": "2026-10-29T08:23:05Z",
+      "expires_at": "2026-11-28T08:23:02Z",
+      "updated_at": "2026-10-29T08:23:05Z",
+      "digest": "sha256:93c79e3eac60300711755400b3e7a9efb9c87f3c48f487a3c4fff68ca64cdd44",
+      "workflow_run": {
+        "id": 40839976736,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "fe587e27fcefadaa36315a3ddc7dc1edba17b825"
+      }
+    },
+    {
+      "id": 12882616700,
+      "name": "RPCS3Core-preflight-fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "size_in_bytes": 65703,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882616700",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882616700/zip",
+      "expired": false,
+      "created_at": "2026-10-29T08:11:21Z",
+      "expires_at": "2026-11-12T08:11:20Z",
+      "updated_at": "2026-10-29T08:11:21Z",
+      "digest": "sha256:235cdf4ab6613a2b17d0a6b6faa72bdd41ede107a88efe9529e1d8dbb80ad9fa",
+      "workflow_run": {
+        "id": 40839976736,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "fe587e27fcefadaa36315a3ddc7dc1edba17b825"
+      }
+    },
+    {
+      "id": 12882299916,
+      "name": "RPCS3Core-diagnostics-fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+      "size_in_bytes": 227238,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882299916",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12882299916/zip",
+      "expired": false,
+      "created_at": "2026-10-29T08:23:22Z",
+      "expires_at": "2026-11-12T08:23:21Z",
+      "updated_at": "2026-10-29T08:23:22Z",
+      "digest": "sha256:48911f1655444c35a3850fb569a595f936d89b0fae7c6fb251843747d98fcafc",
+      "workflow_run": {
+        "id": 40839976736,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "fe587e27fcefadaa36315a3ddc7dc1edba17b825"
+      }
+    }
+  ],
+  "core": {
+    "bytes": 77251592,
+    "sha256": "13b4c505434a7a0291abad47fa157ce0c9e20741e297f24dc2575e760e0e691b",
+    "abi": 30,
+    "architecture": "arm64",
+    "platform": "iOS",
+    "exportedSymbols": 88
+  },
+  "sourcePatchSHA256": "d7e8921e513dcb7caaf90ef6f903b1f9a28eb749b41fa668762304d90f876b2d",
+  "inputCount": 190,
+  "nativePostimageCount": 313,
+  "supplementalNativeCount": 42,
+  "appleModesPassed": 24,
+  "sanitizerModes": {
+    "plain": 10,
+    "asan-ubsan": 10,
+    "tsan": 4
+  },
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "filesSHA256": {
+    "artifact-verification.json": "43ace46b4a0f3362ec68235d89db935bc0fe9b4e5d067332dbe2ad62682eae45",
+    "identity.json": "442c435372aa5930389bd6700d4bb8064fa746ca499fa181a2f82c88731b7f2a",
+    "runtime592-proof.json": "f952000e1fec81251db9b95ddd9e4e3c1c59b567c25c5ce2c6c864a0c5f70a92"
+  },
+  "preflightArchiveSHA256": "235cdf4ab6613a2b17d0a6b6faa72bdd41ede107a88efe9529e1d8dbb80ad9fa",
+  "diagnosticsArchiveSHA256": "48911f1655444c35a3850fb569a595f936d89b0fae7c6fb251843747d98fcafc",
+  "allNativeReportAndOutputDigestsVerified": true,
+  "independentArtifactVerification": true,
+  "passiveDlopen": {
+    "staticMachOValidationPassed": true,
+    "forbiddenReachability": false,
+    "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+    "deviceRuntimeTested": false
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "ipaBuilt": false,
+  "publicRelease": false,
+  "historicalSuitesRerun": false,
+  "reusableArtifactId": 12883027017,
+  "scope": "Compiled and independently verified the iPhone Core from the exact source. Reuse this artifact for the next requested IPA; no physical-device FPS or runtime-loading claim."
+}

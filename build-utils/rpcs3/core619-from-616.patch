@@ -1,0 +1,1118 @@
+diff --git a/rpcs3/Emu/Cell/Modules/cellGcmSys.cpp b/rpcs3/Emu/Cell/Modules/cellGcmSys.cpp
+index 4c219b7..359c856 100644
+--- a/rpcs3/Emu/Cell/Modules/cellGcmSys.cpp
++++ b/rpcs3/Emu/Cell/Modules/cellGcmSys.cpp
+@@ -6,6 +6,9 @@
+ #include "Emu/Cell/lv2/sys_ppu_thread.h"
+ #include "Emu/Cell/lv2/sys_rsx.h"
+ #include "Emu/RSX/RSXThread.h"
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#endif
+ 
+ #include "cellGcmSys.h"
+ #include "sysPrxForUser.h"
+@@ -176,6 +179,13 @@ u64 cellGcmGetTimeStamp(u32 index)
+ 	}
+ 
+ 	const u32 address = rsx::get_current_renderer()->label_addr + ::offset32(&RsxReports::report) + index * 0x10;
++#ifdef RPCS3_IOS
++	if (rpcs3::ios::get_experimental_policy().zcull_on_demand)
++	{
++		// REWINDBOX_ZCULL_ON_DEMAND_619: through the protected view, so a pending report is written first.
++		return vm::_ref<u64>(address);
++	}
++#endif
+ 	return *vm::get_super_ptr<u64>(address);
+ }
+ 
+@@ -250,6 +260,13 @@ u64 cellGcmGetTimeStampLocation(ppu_thread& ppu, u32 index, u32 location)
+ 	vm::ptr<CellGcmReportData> report = cellGcmGetReportDataAddressLocation(ppu, index, location);
+ 
+ 	// Timestamp reports don't need host GPU access and are much faster to emulate
++#ifdef RPCS3_IOS
++	if (rpcs3::ios::get_experimental_policy().zcull_on_demand)
++	{
++		// REWINDBOX_ZCULL_ON_DEMAND_619: through the protected view, so a pending report is written first.
++		return report->timer;
++	}
++#endif
+ 	return vm::get_super_ptr<CellGcmReportData>(report.addr())->timer;
+ }
+ 
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+index c3f2716..6110c7b 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+@@ -38,7 +38,12 @@ namespace rsx
+ 			// Syncronization point, may be associated with memory changes without actually changing addresses
+ 			RSX(ctx)->m_graphics_state |= rsx::pipeline_state::fragment_program_needs_rehash;
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, label area through the unprotected view.
++			const auto& atomic_sema = *rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxSemaphore>>(RSX(ctx), addr);
++#else
+ 			const auto& atomic_sema = vm::_ref<atomic_t<RsxSemaphore>>(addr);
++#endif
+ 			RsxSemaphore observed = atomic_sema.load();
+ #ifdef RPCS3_IOS
+ 			// Retain the last non-flip address between acquires so preceding writes
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp b/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
+index c1b601d..10c87a6 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
+@@ -729,7 +729,12 @@ namespace rsx
+ 			// Notify ticks are strongly ordered
+ 			RSX(ctx)->sync();
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, notify area through the unprotected view.
++			rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxNotify>>(RSX(ctx), addr)->store(
++#else
+ 			vm::_ptr<atomic_t<RsxNotify>>(addr)->store(
++#endif
+ 			{
+ 				RSX(ctx)->timestamp(),
+ 				0
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp b/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
+index f34c65a..0a8631f 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
+@@ -5,6 +5,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/IOSSignalTrace.h"
+ #include "Emu/Cell/timers.hpp"
++#include "ios/IOSRsxLabelAccess.h" // REWINDBOX_ZCULL_ON_DEMAND_619
+ #endif
+ 
+ #include "context_accessors.define.h"
+@@ -33,7 +34,12 @@ namespace rsx
+ 						data, get_system_time(), address, 4, 0, 0, type);
+ #endif
+ 
++#ifdef RPCS3_IOS
++				// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, label area through the unprotected view.
++				if (*rpcs3::ios::zcull_on_demand::rsx_label_ptr<RsxSemaphore>(RSX(ctx), address) == data)
++#else
+ 				if (vm::_ref<RsxSemaphore>(address) == data)
++#endif
+ 				{
+ 					// It's a no-op to write the same value (although there is a delay in real-hw so it's more accurate to allow GPU label in this case)
+ 					// There is no possible way for the guest to know that the label has been processed so we can skip MM sync here.
+@@ -70,7 +76,11 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			*rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxSemaphore>>(RSX(ctx), address) = data; // REWINDBOX_ZCULL_ON_DEMAND_619
++#else
+ 			vm::write<atomic_t<RsxSemaphore>>(address, data);
++#endif
+ #ifdef RPCS3_IOS
+ 			if (label_trace)
+ 				rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::rsx_cpu_commit,
+diff --git a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
+index e20bcf6..e83ee87 100644
+--- a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
++++ b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
+@@ -306,6 +306,12 @@ namespace glsl
+ 						// REWINDBOX_ZCLIP_WINDOW_Z_616 (ios/IOSTitleLevers.h)
+ 						enabled_options.push_back("_EMULATE_ZCLIP_XFORM_FALLBACK_WINDOW_Z");
+ 					}
++
++					if (props.emulate_zclip_fallback_pinned_affine)
++					{
++						// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h)
++						enabled_options.push_back("_EMULATE_ZCLIP_XFORM_FALLBACK_PINNED_AFFINE");
++					}
+ 				}
+ 			}
+ 
+diff --git a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
+index a1051a1..90ad95c 100644
+--- a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
++++ b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
+@@ -36,6 +36,17 @@ vec4 apply_zclip_xform(
+ 	const in float far_plane)
+ {
+ 	float d = float(pos.z / pos.w);
++#ifdef _EMULATE_ZCLIP_XFORM_FALLBACK_PINNED_AFFINE
++	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: a clip range wholly above 1 maps every vertex
++	// with the same affine map of [near, far] onto [0.99, 1], unclamped beyond far, so
++	// the hardware clips where the RSX clips; (1, far] keeps the window Z value above.
++	if (pos.w != 0.f && near_plane >= 1.f && far_plane > near_plane)
++	{
++		const float compressed = 0.99 + (0.01 * (d - near_plane) / (far_plane - near_plane));
++		d = (d > 1.f && d <= far_plane) ? min(1., compressed) : compressed;
++		return vec4(pos.x, pos.y, d * pos.w, pos.w);
++	}
++#endif
+ 	if (d < 0.f && d >= near_plane)
+ 	{
+ 		// Clamp
+diff --git a/rpcs3/Emu/RSX/Program/GLSLTypes.h b/rpcs3/Emu/RSX/Program/GLSLTypes.h
+index e5e5945..eef1ef6 100644
+--- a/rpcs3/Emu/RSX/Program/GLSLTypes.h
++++ b/rpcs3/Emu/RSX/Program/GLSLTypes.h
+@@ -30,6 +30,7 @@ namespace glsl
+ 		bool emulate_zclip_transform : 1;
+ 		bool emulate_depth_clip_only : 1;
+ 		bool emulate_zclip_fallback_window_z : 1; // REWINDBOX_ZCLIP_WINDOW_Z_616
++		bool emulate_zclip_fallback_pinned_affine : 1; // REWINDBOX_ZCLIP_PINNED_AFFINE_619
+ 
+ 		// Only relevant for fragment programs
+ 		bool fp32_outputs : 1;
+diff --git a/rpcs3/Emu/RSX/RSXThread.h b/rpcs3/Emu/RSX/RSXThread.h
+index 041fbbf..b13decc 100644
+--- a/rpcs3/Emu/RSX/RSXThread.h
++++ b/rpcs3/Emu/RSX/RSXThread.h
+@@ -528,6 +528,15 @@ namespace rsx
+ 		{
+ 			return !!cpu_thread::get_current<rsx::thread>();
+ 		}
++
++#ifdef RPCS3_IOS
++		// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSRsxLabelAccess.h): ZCULL holds the page of
++		// this address locked (protected for the guest threads while a report is pending).
++		bool ios_zcull_page_locked(u32 address)
++		{
++			return zcull_ctrl && zcull_ctrl->ios_page_locked(address);
++		}
++#endif
+ 	};
+ 
+ 	inline thread* get_current_renderer()
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index e01e8ed..c1da43d 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -6,6 +6,8 @@
+ #ifdef RPCS3_IOS
+ #include "ios/IOSRsxIdlePark.h"
+ #include "ios/IOSRsxSyncProfile.h" // REWINDBOX_ZCULL_WAIT_PROBE_616
++#include "ios/RPCS3IOSExperimentalPolicy.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "Emu/System.h"
+ #endif
+ 
+ namespace rsx
+@@ -412,6 +414,12 @@ namespace rsx
+ 					// Eval was inserted while ZCULL was active but not enqueued to write to memory yet
+ 					// write(addr) -> enable_zpass_stats -> eval_condition -> write(addr)
+ 					// In this case, use what already exists in memory, not the current counter
++#ifdef RPCS3_IOS
++					// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, the page may be locked.
++					if (rpcs3::ios::get_experimental_policy().zcull_on_demand)
++						eval_failed = (vm::get_super_ptr<CellGcmReportData>(writer->sink)->value == 0u);
++					else
++#endif
+ 					eval_failed = (vm::_ref<CellGcmReportData>(writer->sink).value == 0u);
+ 				}
+ 
+@@ -421,24 +429,56 @@ namespace rsx
+ 
+ 		void ZCULL_control::sync(::rsx::thread* ptimer)
+ 		{
++#ifdef RPCS3_IOS
++			if (m_ios_in_pass)
++			{
++				// REWINDBOX_ZCULL_ON_DEMAND_619: reached again from inside a pass (an RSX wait in a
++				// report write services local tasks); the outer pass writes the reports.
++				return;
++			}
++
++			// REWINDBOX_ZCULL_ON_DEMAND_619: a guest thread waits for the reports of a page.
++			if (!m_ios_force_sync && m_ios_demand.pending() && rpcs3::ios::get_experimental_policy().zcull_on_demand)
++			{
++				ios_retire_claimed(ptimer);
++				return;
++			}
++
++#endif
+ 			if (m_pending_writes.empty())
+ 			{
+ 				// Nothing to do
+ 				return;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (!m_ios_force_sync) // REWINDBOX_ZCULL_ON_DEMAND_619: a forced pass writes them all
++#endif
+ 			if (!m_critical_reports_in_flight)
+ 			{
+ 				// Valid call, but nothing important queued up
+ 				return;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (!m_ios_force_sync) // REWINDBOX_ZCULL_ON_DEMAND_619
++#endif
+ 			if (g_cfg.video.relaxed_zcull_sync)
+ 			{
+ 				update(ptimer, 0, true);
+ 				return;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: mark the pass (lever only), cleared on every exit.
++			struct ios_pass_scope
++			{
++				bool& flag;
++				const bool set;
++				~ios_pass_scope() { if (set) flag = false; }
++			} const ios_pass{m_ios_in_pass, (m_ios_in_pass = rpcs3::ios::get_experimental_policy().zcull_on_demand)};
++
++#endif
+ 			// Quick reverse scan to push commands ahead of time
+ 			for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend(); ++It)
+ 			{
+@@ -537,6 +577,21 @@ namespace rsx
+ 
+ 		void ZCULL_control::update(::rsx::thread* ptimer, u32 sync_address, bool hint)
+ 		{
++#ifdef RPCS3_IOS
++			if (m_ios_in_pass)
++			{
++				// REWINDBOX_ZCULL_ON_DEMAND_619: reached from inside a pass (see sync()).
++				return;
++			}
++
++			struct ios_pass_scope
++			{
++				bool& flag;
++				const bool set;
++				~ios_pass_scope() { if (set) flag = false; }
++			} const ios_pass{m_ios_in_pass, (m_ios_in_pass = rpcs3::ios::get_experimental_policy().zcull_on_demand)};
++
++#endif
+ 			if (m_pending_writes.empty())
+ 			{
+ 				return;
+@@ -679,6 +734,24 @@ namespace rsx
+ 
+ 			AUDIT(memory_end >= memory_address);
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: the RSX thread copies report memory itself (NV0039,
++			// NV3089). When the range touches a page ZCULL holds locked, write every claimed report
++			// now, as sync() does, and unlock the pages of the range left without a pending report:
++			// the copy reads the final values through the protected view without faulting.
++			if (bool pending = false; ios_on_demand_enabled() && ios_range_locked(memory_address, memory_range, pending))
++			{
++				if (pending)
++				{
++					rpcs3::ios::zcull_on_demand::counters().rsx_reads.fetch_add(1, std::memory_order_relaxed);
++					ios_retire_claimed(ptimer);
++				}
++
++				ios_release_stale_pages(memory_address, memory_range);
++				return result_none;
++			}
++
++#endif
+ 			u32 sync_address = 0;
+ 			occlusion_query_info* query = nullptr;
+ 
+@@ -714,6 +787,14 @@ namespace rsx
+ 				return result_none;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: an RSX copy switches the location to the upstream mode.
++			if (!m_pages_accessed[rsx::classify_location(memory_address)] || !m_pages_accessed[rsx::classify_location(memory_end - 1)])
++			{
++				rpcs3::ios::zcull_on_demand::counters().upstream_rsx_read.fetch_add(1, std::memory_order_relaxed);
++			}
++
++#endif
+ 			// Disable optimizations across the accessed range if reports reside within
+ 			{
+ 				std::scoped_lock lock(m_pages_mutex);
+@@ -930,6 +1011,26 @@ namespace rsx
+ 				return false;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619: a PPU or SPU thread waits for the reports of the
++			// page; any other thread, a stopping emulator or a request that is not served
++			// takes the upstream path below.
++			if (ios_on_demand_enabled())
++			{
++				const auto cpu = get_current_cpu_thread();
++
++				if (cpu && (cpu->get_class() == thread_class::ppu || cpu->get_class() == thread_class::spu))
++				{
++					switch (ios_on_demand_fault(address, page_address, location))
++					{
++					case ios_fault::handled: return true;
++					case ios_fault::not_ours: return false;
++					case ios_fault::upstream: break;
++					}
++				}
++			}
++#endif
++
+ 			bool need_disable_optimizations = false;
+ 			{
+ 				reader_lock lock(m_pages_mutex);
+@@ -963,6 +1064,15 @@ namespace rsx
+ 			// Deadlock avoidance, do not pause RSX FIFO eng while holding the pages lock
+ 			if (need_disable_optimizations)
+ 			{
++#ifdef RPCS3_IOS
++				{
++					// REWINDBOX_ZCULL_ON_DEMAND_619: who sent the location to the upstream mode.
++					const auto cpu = get_current_cpu_thread();
++					auto& tally = rpcs3::ios::zcull_on_demand::counters();
++					((cpu && (cpu->get_class() == thread_class::ppu || cpu->get_class() == thread_class::spu)) ? tally.upstream_cell : tally.upstream_other)
++						.fetch_add(1, std::memory_order_relaxed);
++				}
++#endif
+ 				auto thr = rsx::get_current_renderer();
+ 				rsx::eng_lock rlock(thr);
+ 				std::scoped_lock lock(m_pages_mutex);
+@@ -979,6 +1089,241 @@ namespace rsx
+ 		}
+ 
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h)
++		bool ZCULL_control::ios_on_demand_enabled() const
++		{
++			// Accurate RSX reservation access makes report writes take the reservation lock a
++			// waiting SPU DMA may hold: the upstream mode keeps that combination.
++			return rpcs3::ios::get_experimental_policy().zcull_on_demand && !g_cfg.core.rsx_accurate_res_access && !m_ios_demand.tripped();
++		}
++
++		bool ZCULL_control::ios_page_locked(u32 address)
++		{
++			const u32 page_address = utils::page_start(address);
++			const auto location = rsx::classify_location(address);
++			reader_lock lock(m_pages_mutex);
++			const auto found = m_locked_pages[location].find(page_address);
++			return found != m_locked_pages[location].end() && found->second.prot != utils::protection::rw;
++		}
++
++		bool ZCULL_control::ios_range_locked(u32 memory_address, u32 memory_range, bool& pending)
++		{
++			// RSX thread: does [memory_address, +memory_range) touch a locked page, and does one
++			// of them still hold a pending report?
++			pending = false;
++
++			if (!memory_range)
++			{
++				return false;
++			}
++
++			bool locked = false;
++			const u32 page_size = static_cast<u32>(utils::get_page_size());
++			const u32 last = utils::page_start(memory_address + (memory_range - 1));
++			reader_lock lock(m_pages_mutex);
++
++			for (u32 page = utils::page_start(memory_address);; page += page_size)
++			{
++				const auto& block = m_locked_pages[rsx::classify_location(page)];
++
++				if (const auto found = block.find(page); found != block.end() && found->second.prot != utils::protection::rw)
++				{
++					locked = true;
++					pending = pending || found->second.has_refs();
++				}
++
++				if (page == last)
++				{
++					break;
++				}
++			}
++
++			return locked;
++		}
++
++		void ZCULL_control::ios_retire_claimed(::rsx::thread* ptimer)
++		{
++			// RSX thread. Every claimed report is written, as sync() does once reports are
++			// critical; the newest request read before it is served by these writes.
++			const u64 ticket = m_ios_demand.pending();
++
++			if (ticket)
++			{
++				m_ios_demand.pick(ticket);
++			}
++
++			{
++				struct force_scope
++				{
++					bool& flag;
++					~force_scope() { flag = false; }
++				} const force{m_ios_force_sync};
++
++				m_ios_force_sync = true;
++				sync(ptimer);
++			}
++
++			if (ticket)
++			{
++				rpcs3::ios::zcull_on_demand::counters().services.fetch_add(1, std::memory_order_relaxed);
++
++				if (m_ios_demand.serve(ticket, get_system_time()))
++				{
++					rsx_log.warning("ZCULL on-demand reads: more than %u requests in one second, upstream mode for the rest of this boot.",
++						rpcs3::ios::zcull_on_demand::storm_services);
++				}
++			}
++		}
++
++		void ZCULL_control::ios_release_stale_pages(u32 memory_address, u32 memory_range)
++		{
++			// RSX thread, after ios_retire_claimed(): the copy that follows reads these pages.
++			if (!memory_range)
++			{
++				return;
++			}
++
++			std::scoped_lock lock(m_pages_mutex);
++			const u32 page_size = static_cast<u32>(utils::get_page_size());
++			const u32 last = utils::page_start(memory_address + (memory_range - 1));
++
++			for (u32 page = utils::page_start(memory_address);; page += page_size)
++			{
++				auto& block = m_locked_pages[rsx::classify_location(page)];
++
++				if (auto found = block.find(page); found != block.end() && !found->second.has_refs())
++				{
++					if (found->second.prot != utils::protection::rw)
++					{
++						utils::memory_protect(vm::base(page), utils::get_page_size(), utils::protection::rw);
++					}
++
++					block.erase(found);
++				}
++
++				if (page == last)
++				{
++					break;
++				}
++			}
++		}
++
++		ZCULL_control::ios_fault ZCULL_control::ios_on_demand_fault(u32 address, u32 page_address, u32 location)
++		{
++			// PPU or SPU thread inside the access violation handler (vm::temporary_unlock done).
++			namespace od = rpcs3::ios::zcull_on_demand;
++			auto& tally = od::counters();
++			const u64 started = get_system_time();
++			bool requested = false;
++
++			const auto page_released = [&]()
++			{
++				reader_lock lock(m_pages_mutex);
++				const auto found = m_locked_pages[location].find(page_address);
++				return found == m_locked_pages[location].end() || !found->second.has_refs();
++			};
++
++			const auto finish = [&](ios_fault result)
++			{
++				if (requested && result == ios_fault::handled)
++				{
++					const u64 now = get_system_time();
++					tally.add_wait(now - started);
++
++					if (m_ios_demand.record_wait(now - started, now))
++					{
++						rsx_log.warning("ZCULL on-demand reads: guest threads waited more than %u ms in one second, upstream mode for the rest of this boot.",
++							static_cast<u32>(od::wait_budget_us / 1000));
++					}
++				}
++
++				return result;
++			};
++
++			while (true)
++			{
++				{
++					std::scoped_lock lock(m_pages_mutex);
++					auto& block = m_locked_pages[location];
++					const auto found = block.find(page_address);
++
++					if (found == block.end() || found->second.prot == utils::protection::rw)
++					{
++						// Not a ZCULL page (upstream returns false), or unlocked meanwhile
++						// (served, or the upstream mode of another access unlocked the location).
++						return finish((requested || m_pages_accessed[location]) ? ios_fault::handled : ios_fault::not_ours);
++					}
++
++					if (!m_pages_accessed[location] && !found->second.has_refs())
++					{
++						// Every report of the page is written: unlock it, the next report locks it again.
++						utils::memory_protect(vm::base(page_address), utils::get_page_size(), utils::protection::rw);
++						block.erase(found);
++
++						if (!requested)
++						{
++							tally.stale.fetch_add(1, std::memory_order_relaxed);
++						}
++
++						return finish(ios_fault::handled);
++					}
++				}
++
++				if (m_pages_accessed[location] && get_system_time() - started < od::pickup_deadline_us)
++				{
++					// Another access is switching the location to the upstream mode, which
++					// unlocks every page of it: wait for that instead of failing the access.
++					std::this_thread::yield();
++					continue;
++				}
++
++				if (m_pages_accessed[location] || m_ios_demand.tripped())
++				{
++					return finish(ios_fault::upstream);
++				}
++
++				if (!requested)
++				{
++					// Where the guest reached into the page: a GCM label or notify, a GCM report, other memory.
++					const u32 offset = address - rsx::get_current_renderer()->label_addr;
++					(offset < ::offset32(&RsxReports::report) ? tally.faults_label : offset < sizeof(RsxReports) ? tally.faults_report : tally.faults_other)
++						.fetch_add(1, std::memory_order_relaxed);
++				}
++
++				// Ask the RSX thread to write every claimed report (sync() through pipe_flush_interrupt).
++				const u64 ticket = m_ios_demand.request();
++				requested = true;
++
++				auto thr = rsx::get_current_renderer();
++				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
++				rpcs3::ios::rsx_idle_park::wake();
++
++				const auto result = od::wait_for(m_ios_demand, ticket, started, page_released,
++					[&]() { return Emu.IsStopped() || thr->is_stopped(); },
++					[]() { return get_system_time(); });
++
++				if (result == od::wait_result::stopped)
++				{
++					tally.stops.fetch_add(1, std::memory_order_relaxed);
++					return finish(ios_fault::upstream);
++				}
++
++				if (result == od::wait_result::timed_out)
++				{
++					tally.timeouts.fetch_add(1, std::memory_order_relaxed);
++					const bool picked = m_ios_demand.is_picked(ticket);
++					m_ios_demand.trip(picked ? od::trip_reason::hard : od::trip_reason::pickup);
++					rsx_log.error("ZCULL on-demand read of page 0x%x not %s in %u ms, upstream mode for the rest of this boot.",
++						page_address, picked ? "completed" : "picked up", static_cast<u32>((get_system_time() - started) / 1000));
++					return finish(ios_fault::upstream);
++				}
++
++				// served or released: check the page again
++			}
++		}
++#endif
++
+ 		// Conditional rendering helpers
+ 		void conditional_render_eval::reset()
+ 		{
+@@ -1045,6 +1390,15 @@ namespace rsx
+ 
+ 		void conditional_render_eval::eval_result(::rsx::thread* pthr)
+ 		{
++#ifdef RPCS3_IOS
++			if (rpcs3::ios::get_experimental_policy().zcull_on_demand)
++			{
++				// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, the report page may be locked.
++				set_eval_result(pthr, vm::get_super_ptr<CellGcmReportData>(eval_address)->value == 0u);
++				return;
++			}
++
++#endif
+ 			vm::ptr<CellGcmReportData> result = vm::cast(eval_address);
+ 			const bool failed = (result->value == 0u);
+ 			set_eval_result(pthr, failed);
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.h b/rpcs3/Emu/RSX/RSXZCULL.h
+index 8823905..08a769a 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.h
++++ b/rpcs3/Emu/RSX/RSXZCULL.h
+@@ -7,6 +7,9 @@
+ #include "Utilities/mutex.h"
+ 
+ #include "Utils/rsx_utils.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#endif
+ 
+ #include <vector>
+ #include <stack>
+@@ -106,6 +109,18 @@ namespace rsx
+ 			void on_report_enqueued(vm::addr_t address);
+ 			void on_report_completed(vm::addr_t address);
+ 			void disable_optimizations(class ::rsx::thread* ptimer, u32 location);
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h)
++			enum class ios_fault { handled, not_ours, upstream };
++			rpcs3::ios::zcull_on_demand::gate m_ios_demand;
++			bool m_ios_force_sync = false;
++			bool m_ios_in_pass = false; // a sync() or update() pass is running (RSX thread)
++			bool ios_on_demand_enabled() const;
++			ios_fault ios_on_demand_fault(u32 address, u32 page_address, u32 location);
++			bool ios_range_locked(u32 memory_address, u32 memory_range, bool& pending);
++			void ios_retire_claimed(class ::rsx::thread* ptimer);
++			void ios_release_stale_pages(u32 memory_address, u32 memory_range);
++#endif
+ 
+ 		protected:
+ 
+@@ -195,6 +210,11 @@ namespace rsx
+ 
+ 			// Check paging issues
+ 			bool on_access_violation(u32 address);
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSRsxLabelAccess.h): the page holding this
++			// address is locked by ZCULL (protected for the guest threads).
++			bool ios_page_locked(u32 address);
++#endif
+ 
+ 			// Optimization check
+ 			bool is_query_result_urgent(u32 address) const { return m_pages_accessed[rsx::classify_location(address)]; }
+diff --git a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
+index 89542b7..1b95d3f 100644
+--- a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
++++ b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
+@@ -352,6 +352,9 @@ void VKVertexDecompilerThread::insertMainStart(std::stringstream& OS)
+ 	// above 1, not clip-space Z. Title scoped, resolved before the renderer exists.
+ 	properties2.emulate_zclip_fallback_window_z = !properties2.emulate_depth_clip_only &&
+ 		rpcs3::ios::get_experimental_policy().zclip_fallback_window_z;
++	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: on top of it, clip ranges wholly above 1.
++	properties2.emulate_zclip_fallback_pinned_affine = properties2.emulate_zclip_fallback_window_z &&
++		rpcs3::ios::get_experimental_policy().zclip_pinned_affine;
+ #endif
+ 	properties2.low_precision_tests = vk::is_NVIDIA(vk::get_driver_vendor());
+ #ifdef RPCS3_IOS
+diff --git a/rpcs3/Emu/RSX/rsx_methods.cpp b/rpcs3/Emu/RSX/rsx_methods.cpp
+index ab99381..9aa065a 100644
+--- a/rpcs3/Emu/RSX/rsx_methods.cpp
++++ b/rpcs3/Emu/RSX/rsx_methods.cpp
+@@ -62,7 +62,12 @@ namespace rsx
+ 		RSX(ctx)->reset();
+ 		RSX(ctx)->on_frame_end(arg);
+ 		RSX(ctx)->request_emu_flip(arg);
++#ifdef RPCS3_IOS
++		// REWINDBOX_ZCULL_ON_DEMAND_619: RSX thread, flip label through the unprotected view.
++		rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<u128>>(RSX(ctx), RSX(ctx)->label_addr + 0x10)->store(u128{});
++#else
+ 		vm::_ptr<atomic_t<u128>>(RSX(ctx)->label_addr + 0x10)->store(u128{});
++#endif
+ 	}
+ 
+ 	void user_command(context* ctx, u32, u32 arg)
+diff --git a/rpcs3/ios/IOSRsxLabelAccess.h b/rpcs3/ios/IOSRsxLabelAccess.h
+new file mode 100644
+index 0000000..cd745c8
+--- /dev/null
++++ b/rpcs3/ios/IOSRsxLabelAccess.h
+@@ -0,0 +1,31 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "Emu/Memory/vm.h"
++#include "Emu/Cell/lv2/sys_rsx.h"
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++
++// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h): the RSX thread's own
++// reads and writes of GCM labels, notifies and flip semaphores. On a 16 KiB host
++// page the label area shares its page with local reports 0-703, which ZCULL
++// protects while one of them is pending: through the protected view, an RSX
++// label access would fault and switch the location to the upstream mode for the
++// rest of the boot. With the lever, the RSX thread reaches the GCM label/report
++// area, and any page ZCULL holds locked, through the unprotected view: the bytes
++// are the same, the page stays protected for the guest threads, whose accesses
++// are served on demand. Elsewhere, and without the lever, the protected view
++// (upstream) is kept.
++namespace rpcs3::ios::zcull_on_demand
++{
++template <typename T, typename Thread>
++auto rsx_label_ptr(Thread* rsx, u32 address)
++{
++	if (rpcs3::ios::get_experimental_policy().zcull_on_demand &&
++		(address - rsx->label_addr < sizeof(RsxReports) || rsx->ios_zcull_page_locked(address)))
++	{
++		return vm::get_super_ptr<T>(address);
++	}
++
++	return vm::_ptr<T>(address);
++}
++}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 419388c..1568b03 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -114,4 +114,39 @@ constexpr bool requires_spu_object_prefetch(std::string_view title_id) noexcept
+ {
+ 	return is_black_ops_ii_title(title_id);
+ }
++
++// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h): Assassin's Creed waits
++// 4.1-4.3 s of each 5 s window in ZCULL_control::sync() on the Build 617 logs
++// (2,200-2,900 waits, ~33 per frame at 14 FPS) once a report page was read.
++constexpr bool requires_zcull_on_demand(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
++// REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
++// fallback compresses only window Z in (1, far] and passes every other vertex
++// through unchanged. The pinned draws of the #13227 capture keep depth clip on
++// and clamp off (NV4097_SET_ZMIN_MAX_CONTROL = 1): a triangle with one vertex
++// beyond the RSX clip range (in front of the near plane, window Z > 1e19) then
++// mixes one unchanged vertex (Z/W of about 1e19) with compressed ones (about
++// 0.99), and Vulkan clips the edge almost at the compressed vertex: the part of
++// the first-person arm that crosses the near plane vanishes instead of being
++// clipped at the near plane. For a clip range wholly above 1, every vertex now
++// takes the same affine map of [near, far] onto [0.99, 1], unclamped, so the
++// hardware clips exactly where the RSX clips (window Z = far); vertices in
++// (1, far] keep the 616 formula.
++constexpr bool requires_zclip_pinned_affine(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
++
++// REWINDBOX_BO2_MVK_ASYNC_619: Black Ops II joins God of War III and Assassin's
++// Creed in the Automatic mode of asynchronous MoltenVK submits (CELL587, boot
++// canary kept). Build 617 multiplayer windows 18-28 (PID 65755, session 3, 30 fps,
++// mvk_async=0) spend 0.80 s per 5 s window inside vkQueueSubmit on the RSX thread
++// (RSXSYNC551 submit=1051:796.9 ms), 4-27 ms in the 45-120 ms frames.
++constexpr bool joins_mvk_async_automatic_619(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
+ }
+diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
+new file mode 100644
+index 0000000..39d0a5b
+--- /dev/null
++++ b/rpcs3/ios/IOSZcullOnDemand.h
+@@ -0,0 +1,232 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <chrono>
++#include <cstdint>
++#include <thread>
++
++// REWINDBOX_ZCULL_ON_DEMAND_619: Assassin's Creed (BLES00158, BLUS30089), Build
++// 617 iPhone logs (PID 65755, session 1, windows 17-28): 2,203-2,911 waits per
++// 5 s window, 4.15-4.32 s in all, every one of them inside ZCULL_control::sync()
++// (COREPROF ZCULLWAIT616 sync=, all other paths 0), 14-17 FPS. Once a report
++// page holding a pending report is touched, upstream marks the whole location
++// "accessed" for the rest of the boot (disable_optimizations): every report
++// becomes critical and every label write with a pipe flush, WAIT_FOR_IDLE or
++// NOTIFY waits for the GPU to retire all of them, about 33 times per frame.
++// On iOS the host page is 16 KiB: the GCM labels (4 KiB), the notifies (1 KiB)
++// and local reports 0-703 share one page, so the RSX thread's own label read or
++// write is enough to trigger it. With the lever the report pages stay
++// protected; the RSX thread reaches the label area and locked report pages
++// through the unprotected view (ios/IOSRsxLabelAccess.h); a PPU/SPU access to
++// a page that still holds a pending report asks the RSX thread to write every
++// claimed report (the writes sync() does), waits for them, then unprotects the
++// page. The guest reads the same values; the labels no longer wait. A request
++// not picked up within 2 s, guest waits above 400 ms per second or more than
++// 1,000 services per second return the boot to the upstream mode. Title scoped
++// (ios/IOSTitleLevers.h).
++namespace rpcs3::ios::zcull_on_demand
++{
++inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
++inline constexpr std::uint64_t hard_deadline_us = 5'000'000;    // the request never completed
++inline constexpr std::uint64_t window_us = 1'000'000;
++inline constexpr std::uint32_t storm_services = 1'000;          // services per window
++inline constexpr std::uint64_t wait_budget_us = 400'000;        // guest wait per window
++
++enum class trip_reason : std::uint32_t
++{
++	none = 0,
++	storm = 1,       // more than storm_services services in a window
++	wait_budget = 2, // guest threads waited more than wait_budget_us in a window
++	pickup = 3,      // a request was not picked up in time
++	hard = 4,        // a request picked up but not completed in time
++};
++
++// Process-wide counters of COREPROF ZCULLDEMAND619 (taken per window).
++struct tally
++{
++	std::atomic<std::uint64_t> faults_label{0};     // guest access at a label/notify offset of a page with a pending report
++	std::atomic<std::uint64_t> faults_report{0};    // ... at a report offset of the GCM report area
++	std::atomic<std::uint64_t> faults_other{0};     // ... elsewhere (main-memory reports)
++	std::atomic<std::uint64_t> stale{0};            // guest accesses to a page whose reports were all written
++	std::atomic<std::uint64_t> services{0};         // RSX thread: every claimed report written for a request
++	std::atomic<std::uint64_t> waits{0};            // guest waits that ended served or released
++	std::atomic<std::uint64_t> wait_us{0};
++	std::atomic<std::uint64_t> wait_max_us{0};
++	std::atomic<std::uint64_t> timeouts{0};
++	std::atomic<std::uint64_t> stops{0};
++	std::atomic<std::uint64_t> rsx_reads{0};        // RSX copies out of locked report pages, served by writing the reports
++	std::atomic<std::uint64_t> upstream_cell{0};    // upstream disable_optimizations after a PPU/SPU access
++	std::atomic<std::uint64_t> upstream_other{0};   // ... after an access by another thread
++	std::atomic<std::uint64_t> upstream_rsx_read{0};// ... after an RSX copy out of report memory
++	std::atomic<std::uint32_t> tripped{0};          // trip_reason of the current boot
++
++	void add_wait(std::uint64_t us) noexcept
++	{
++		waits.fetch_add(1, std::memory_order_relaxed);
++		wait_us.fetch_add(us, std::memory_order_relaxed);
++		std::uint64_t max = wait_max_us.load(std::memory_order_relaxed);
++		while (us > max && !wait_max_us.compare_exchange_weak(max, us, std::memory_order_relaxed)) {}
++	}
++};
++
++inline tally& counters() noexcept
++{
++	static tally s_tally;
++	return s_tally;
++}
++
++// Request/serve handshake between faulting guest threads and the RSX thread.
++class gate
++{
++	std::atomic<std::uint64_t> m_requested{0};
++	std::atomic<std::uint64_t> m_picked{0};          // newest ticket the RSX thread started
++	std::atomic<std::uint64_t> m_served{0};          // newest ticket whose reports are written
++	std::atomic<std::uint32_t> m_tripped{0};
++	std::uint64_t m_window_start_us = 0;             // RSX thread only
++	std::uint32_t m_window_services = 0;             // RSX thread only
++	std::atomic<std::uint64_t> m_wait_window_start_us{0};
++	std::atomic<std::uint64_t> m_wait_window_us{0};
++
++	static void raise(std::atomic<std::uint64_t>& value, std::uint64_t ticket) noexcept
++	{
++		std::uint64_t current = value.load(std::memory_order_relaxed);
++		while (current < ticket && !value.compare_exchange_weak(current, ticket, std::memory_order_acq_rel, std::memory_order_relaxed)) {}
++	}
++
++public:
++	gate() noexcept
++	{
++		// One gate per renderer, that is per boot: the process-wide flag follows it.
++		counters().tripped.store(0, std::memory_order_relaxed);
++	}
++
++	gate(const gate&) = delete;
++	gate& operator=(const gate&) = delete;
++
++	// Guest thread: a new ticket, served once the RSX thread wrote every claimed report after it.
++	std::uint64_t request() noexcept
++	{
++		return m_requested.fetch_add(1, std::memory_order_acq_rel) + 1;
++	}
++
++	// RSX thread: the newest ticket waiting to be served, 0 when none.
++	std::uint64_t pending() const noexcept
++	{
++		const std::uint64_t requested = m_requested.load(std::memory_order_acquire);
++		return requested != m_served.load(std::memory_order_relaxed) ? requested : 0;
++	}
++
++	// RSX thread, before the forced pass for `ticket`.
++	void pick(std::uint64_t ticket) noexcept
++	{
++		raise(m_picked, ticket);
++	}
++
++	// RSX thread, after every report claimed when `ticket` was read is written.
++	// Returns true when this service tripped the storm guard.
++	bool serve(std::uint64_t ticket, std::uint64_t now_us) noexcept
++	{
++		raise(m_picked, ticket);
++		raise(m_served, ticket);
++
++		if (now_us - m_window_start_us >= window_us)
++		{
++			m_window_start_us = now_us;
++			m_window_services = 0;
++		}
++
++		return ++m_window_services > storm_services && trip(trip_reason::storm);
++	}
++
++	// Guest thread, after a wait. Returns true when it tripped the wait budget.
++	bool record_wait(std::uint64_t us, std::uint64_t now_us) noexcept
++	{
++		std::uint64_t start = m_wait_window_start_us.load(std::memory_order_relaxed);
++		if (now_us - start >= window_us && m_wait_window_start_us.compare_exchange_strong(start, now_us, std::memory_order_relaxed))
++		{
++			m_wait_window_us.store(0, std::memory_order_relaxed);
++		}
++
++		return m_wait_window_us.fetch_add(us, std::memory_order_relaxed) + us > wait_budget_us && trip(trip_reason::wait_budget);
++	}
++
++	bool is_picked(std::uint64_t ticket) const noexcept
++	{
++		return m_picked.load(std::memory_order_acquire) >= ticket;
++	}
++
++	bool is_served(std::uint64_t ticket) const noexcept
++	{
++		return m_served.load(std::memory_order_acquire) >= ticket;
++	}
++
++	// The first reason wins; returns true for the call that tripped.
++	bool trip(trip_reason reason) noexcept
++	{
++		std::uint32_t expected = 0;
++		if (!m_tripped.compare_exchange_strong(expected, static_cast<std::uint32_t>(reason), std::memory_order_acq_rel))
++		{
++			return false;
++		}
++
++		counters().tripped.store(static_cast<std::uint32_t>(reason), std::memory_order_relaxed);
++		return true;
++	}
++
++	bool tripped() const noexcept
++	{
++		return m_tripped.load(std::memory_order_acquire) != 0;
++	}
++};
++
++enum class wait_result
++{
++	served,    // the RSX thread wrote every report claimed at the request
++	released,  // the page no longer holds a pending report (written meanwhile)
++	stopped,   // emulation or renderer stopping
++	timed_out, // not picked up by pickup_deadline, or not completed by hard_deadline
++};
++
++// Guest thread: waits for `ticket`, measured from `started_us`. `released()` checks
++// the page, `stopped()` the emulator, `now_us()` the clock. A request the RSX thread
++// has picked up is waited for up to the hard deadline (a long pipeline compile or GPU
++// backlog is not a failure); one never picked up fails at the pickup deadline.
++// Spins briefly, then sleeps 50 us steps: the request costs one GPU round trip.
++template <typename Released, typename Stopped, typename Now>
++wait_result wait_for(const gate& g, std::uint64_t ticket, std::uint64_t started_us, Released&& released, Stopped&& stopped, Now&& now_us)
++{
++	for (unsigned step = 0;; step++)
++	{
++		if (g.is_served(ticket))
++		{
++			return wait_result::served;
++		}
++
++		if (released())
++		{
++			return wait_result::released;
++		}
++
++		if (stopped())
++		{
++			return wait_result::stopped;
++		}
++
++		const std::uint64_t elapsed = now_us() - started_us;
++		if (elapsed >= hard_deadline_us || (elapsed >= pickup_deadline_us && !g.is_picked(ticket)))
++		{
++			return wait_result::timed_out;
++		}
++
++		if (step < 32)
++		{
++			std::this_thread::yield();
++		}
++		else
++		{
++			std::this_thread::sleep_for(std::chrono::microseconds(50));
++		}
++	}
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index d5fbbfb..8b1bed1 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -344,6 +344,7 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
+ 	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
+ 		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
++			rpcs3::ios::title_levers::joins_mvk_async_automatic_619(title_id) || // REWINDBOX_BO2_MVK_ASYNC_619
+ 			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));
+ 	// REWINDBOX_POSITION_INVARIANCE_610: Automatic is the title list.
+ 	// REWINDBOX_POSITION_INVARIANCE_612: Enabled/Disabled (a per-game override) test the
+@@ -354,6 +355,11 @@ void resolve_experimental_policy() noexcept
+ 	resolved.zclip_fallback_window_z = rpcs3::ios::title_levers::requires_zclip_fallback_window_z(title_id);
+ 	// REWINDBOX_SPU_OBJECT_PREFETCH_616: the title list, without a setting.
+ 	resolved.spu_object_prefetch = rpcs3::ios::title_levers::requires_spu_object_prefetch(title_id);
++	// REWINDBOX_ZCULL_ON_DEMAND_619: the title list, without a setting.
++	resolved.zcull_on_demand = rpcs3::ios::title_levers::requires_zcull_on_demand(title_id);
++	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
++	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
++		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
+ 	resolve_spu_spin_timing(resolved);
+@@ -401,6 +407,9 @@ void resolve_experimental_policy() noexcept
+ 		resolved.position_invariance, resolved.moltenvk_async_submits);
+ 	// REWINDBOX_ZCLIP_WINDOW_Z_616: its own line, the boot policy line keeps its fields.
+ 	ios_experimental_log.notice("Resolved title policy 616: zclip_window_z=%d spu_object_prefetch=%d", resolved.zclip_fallback_window_z, resolved.spu_object_prefetch);
++	// REWINDBOX_ZCULL_ON_DEMAND_619: its own line; mvk_async= is the policy request (the canary may turn it off).
++	ios_experimental_log.notice("Resolved title policy 619: zcull_on_demand=%d zclip_pinned_affine=%d mvk_async=%d",
++		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 4afac9c..6daefbf 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -57,6 +57,13 @@ struct experimental_policy
+ 	// REWINDBOX_SPU_OBJECT_PREFETCH_616 (ios/IOSSpuObjectPrefetch.h): the SPU
+ 	// object cache of the title is read into memory ahead of the compile threads.
+ 	bool spu_object_prefetch = false;
++	// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h): a guest access to a
++	// report page waits for its reports instead of every label waiting for all of
++	// them. Title scoped, without a setting; read by the RSX ZCULL unit.
++	bool zcull_on_demand = false;
++	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
++	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
++	bool zclip_pinned_affine = false;
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
+ 	// like the fields above; none of them enters an object-cache key.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 655eaa2..8e17534 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -24,6 +24,7 @@
+ #include "IOSCompilePressure.h"
+ #include "IOSRsxSyncProfile.h"
+ #include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
++#include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
+ #include "IOSFrameTrace.h"
+ #include "IOSFeedbackCensus.h"
+ #include "IOSRendererCausality.h"
+@@ -1243,6 +1244,28 @@ private:
+                 gathers[sync::zcull_poll], gathers[sync::zcull_forced], gathers[sync::zcull_cond_render], gathers[sync::zcull_sync_all],
+                 static_cast<unsigned long long>(sync::zcull_poll_deferred.exchange(0, std::memory_order_relaxed)));
+         }
++        // REWINDBOX_ZCULL_ON_DEMAND_619: guest accesses to report pages that held a
++        // pending report (faults, by GCM label/notify offset, GCM report offset, other
++        // memory) and the RSX services that wrote them, the guest waits, unserved
++        // requests, RSX copies out of locked report pages, the trip reason of the boot
++        // (0 none, 1 storm, 2 wait budget, 3 not picked up, 4 not completed) and the
++        // upstream "reports area accessed" switches by origin (every title).
++        {
++            auto& tally = rpcs3::ios::zcull_on_demand::counters();
++            const auto take = [](std::atomic<u64>& value) { return static_cast<unsigned long long>(value.exchange(0, std::memory_order_relaxed)); };
++            const unsigned long long label = take(tally.faults_label), report = take(tally.faults_report), other_faults = take(tally.faults_other);
++            const unsigned long long stale = take(tally.stale), services = take(tally.services);
++            const unsigned long long waits = take(tally.waits), wait_us = take(tally.wait_us), wait_max_us = take(tally.wait_max_us);
++            const unsigned long long timeouts = take(tally.timeouts), stops = take(tally.stops), rsx_reads = take(tally.rsx_reads);
++            const unsigned long long cell = take(tally.upstream_cell), other = take(tally.upstream_other), rsx_read = take(tally.upstream_rsx_read);
++            ios_core_profiler.notice(
++                "COREPROF ZCULLDEMAND619 session=%llu window=%llu tuple=count:total_ms:max_ms enabled=%u tripped=%u faults=%llu:%llu:%llu "
++                "faults_order=label:report:other stale=%llu services=%llu waits=%llu:%.3f:%.3f timeouts=%llu stops=%llu rsx_reads=%llu "
++                "upstream_disables=%llu:%llu:%llu upstream_order=cell:other:rsx_read scope=process_window window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_on_demand ? 1u : 0u,
++                static_cast<unsigned>(tally.tripped.load(std::memory_order_relaxed)), label, report, other_faults, stale, services,
++                waits, wait_us / 1000.0, wait_max_us / 1000.0, timeouts, stops, rsx_reads, cell, other, rsx_read);
++        }
+         // REWINDBOX_SPU_OBJECT_PREFETCH_616: SPU objects served from memory, the
+         // planned ones a compile thread read from disk first, and the store.
+         {

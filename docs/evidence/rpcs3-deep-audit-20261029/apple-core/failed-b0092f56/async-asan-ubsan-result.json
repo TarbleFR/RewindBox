@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "program_sha256": "3a7dd421390e097b64bb052472be5fb4dc14428a05dd9d95cb58a83ea900247d",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/async-sync-pool-plain.json",
+  "canonical_program_sha256": "3a7dd421390e097b64bb052472be5fb4dc14428a05dd9d95cb58a83ea900247d",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "results": {
+    "passed": true,
+    "sameSlotIdentityChecks": 99000,
+    "baselineStartupDriverObjects": 16384,
+    "candidateStartupDriverObjects": 0,
+    "candidateFirstUseObjects": 1,
+    "candidateAfterEightObjects": 8,
+    "fullCycleObjectsUnchanged": 16384,
+    "destroyedExactlyOnce": true,
+    "desktopUnchanged": true
+  },
+  "mode": "asan-ubsan",
+  "output_sha256": "9f7b6d97f597cedbbc7041b9d4c7807e9e5bb549a4dba01e58a579ec7769fd4f",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

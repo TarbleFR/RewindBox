@@ -68,6 +68,50 @@ class GameBoxPreferences {
     await prefs.setBool(sharpTextKey, value);
   }
 
+  static const mobyGamesKeyKey = 'NeoStation.GameBox.MobyGamesApiKey';
+
+  /// The player's own MobyGames API key (optional source of box scans,
+  /// docs/game-box-3d.md § 14), or null when none is set. It stays on the
+  /// device and is only sent to api.mobygames.com.
+  static Future<String?> mobyGamesKey() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getString(mobyGamesKeyKey)?.trim();
+      return (value == null || value.isEmpty) ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> setMobyGamesKey(String? key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = key?.trim() ?? '';
+    if (value.isEmpty) {
+      await prefs.remove(mobyGamesKeyKey);
+    } else {
+      await prefs.setString(mobyGamesKeyKey, value);
+    }
+  }
+
+  static const scrapeExtraSourcesKey = 'NeoStation.GameBox.ScrapeExtraSources';
+
+  /// The scraper's Start also looks for box faces still missing on GameTDB,
+  /// and on MobyGames with the player's key (docs/game-box-3d.md § 18).
+  /// On by default.
+  static Future<bool> scrapeExtraSources() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(scrapeExtraSourcesKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> setScrapeExtraSources(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(scrapeExtraSourcesKey, value);
+  }
+
   static Future<double> readerTextScale() async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -1,0 +1,127 @@
+{
+  "result": "passed",
+  "sourceKind": "finalPrepared",
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "sourceChecks": 22,
+  "resultDetails": {
+    "result": "passed",
+    "checks": 103,
+    "actualProductionCollector": true,
+    "actualProductionJournal": true,
+    "hotCounterAllocatedBytes": 0,
+    "hotScopeAllocatedBytes": 0,
+    "enabledCounterNs": 10.08599,
+    "enabledScopeNs": 115.86484,
+    "disabledCounterNs": 0.62617,
+    "disabledScopeNs": 2.191405,
+    "latestSnapshotBytes": 1854,
+    "latestSnapshotAllocatedBytes": 18544,
+    "fullOrdinaryRingSnapshotAllocatedBytes": 33200,
+    "maximumMetricCharacters": 2495,
+    "normalMetricsRetained": 1,
+    "finalMetricsRetained": 2,
+    "threadCounterSlots": 16,
+    "timingScope": "host-only microbenchmark, not Apple NativeAOT or game FPS",
+    "physicalDeviceTested": false
+  },
+  "inputs": {
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658",
+    "native/melonx/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba",
+    "build-utils/melonx/adapt_performance_diagnostics.py": "bf13c51022b0dfb9022c0a6f691d7d1446d141aca3960f3b26e18ea691733c7a",
+    "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py": "f49a83af2a580bac0f9a5965e24d538717c056e893b3a47ff4e81d093030c33d",
+    "build-utils/melonx/adapt_counter_report_compaction.py": "95f180ca8dd1ceb05e06c8a95565d986c668c508e092aa63a16f23e8630db13b",
+    "build-utils/melonx/adapt_single_virtual_dependency.py": "e4bfbfa23417570f9bb6af13cdd91b75694a858386a1cc03ea26a9f8b6763b34",
+    "test/melonx_performance_diagnostics_test.py": "fd20efaff2880d4c3a6972de4816ae7be290864506d61173a49f6fefb302fe0f",
+    "test/melonx_performance_diagnostics/Program.cs": "deb0891a978027c9a5cae047fe53abe8d73c94abe325e6bbb7d9e4da5d10a323"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "22dd582b9ee0f07ecf4660846333f833acb2f8f344368362a8aa12a80b2a4b0e",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "6a5a3368d5a2987f997145f2edb16929499736985df32b48cf1481d2f27e4ac0",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "1c579c9dcb357ccb7b9591282c4253086e1bb85baf59e9bd3bd4057e0747c90e",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "ac28ab85a4404c1622b9097470b5203cb47ebf5361a1ec60d81fc02ab767b397",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "929c07dd72c0102ccf30cc6e1f93cd33c6044418ff0dc59a684b2ceeeee536f8",
+    "src/Ryujinx.Library/EmbeddedSession.cs": "f08004f1e3a23e15c7d388502faab1785c65b740319f528853955bedd577d4ce",
+    "src/Ryujinx.Library/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "22dd582b9ee0f07ecf4660846333f833acb2f8f344368362a8aa12a80b2a4b0e",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "6a5a3368d5a2987f997145f2edb16929499736985df32b48cf1481d2f27e4ac0",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "1c579c9dcb357ccb7b9591282c4253086e1bb85baf59e9bd3bd4057e0747c90e",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "02781921cd7fbb4c51d8747532e0e98d4625f4ec8cb25c280f36ff35b97d1766",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "ac28ab85a4404c1622b9097470b5203cb47ebf5361a1ec60d81fc02ab767b397",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "929c07dd72c0102ccf30cc6e1f93cd33c6044418ff0dc59a684b2ceeeee536f8",
+    "src/Ryujinx.Library/EmbeddedSession.cs": "f08004f1e3a23e15c7d388502faab1785c65b740319f528853955bedd577d4ce",
+    "src/Ryujinx.Library/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "6d99ec3930dc69049fc102bb000ebda4056f1dcd578a0293b4330150d059dd7d",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "3c48fd19c14a5a592301e69c2c21bb7df10f77ad0949e89a3d9a0b4fe679070a",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "c167894bb19e2b431d2f611838e64a2ecd7b0d55a65dc2fb112765231cafeb81",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "e47ea79ee8f46da21bee2e83dfd812ae505b031adb0f4579d02a6e6512bfbf41",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "b3c0908334d675f9b951c3cc32beab4a74ca332cf22917de50feeca523bd5478",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "f4eca4274ecfb8cf47fc88faa00289173de5ef4a3ecac8f3480b784c6421a97c",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "7ec7139d5e35472abbba412ca679b5b51ad6a9ab9e5c17327e094ce3e6064fb2",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "ac92c02419acbeaa497fcba89d9e1a8b3a0195af12fd4a55a1f4512560863ef8",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "802f3ac51305acd2218a2f2b2e35d77c845d441c7f8ea93894762cb5b12e58cc",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1cebfcf85ed9c435d0ad3cbfc1739b023a5a2a20a7ce8b1b82e21df499332f9b",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658",
+    "src/Ryujinx.Library/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba",
+    "src/Ryujinx.Library/EmbeddedPerformance.cs": "f3851f58bab40654888faaf2e15c8d22a3b8d3bcdd5c8d6525252c19c49a4462",
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff"
+  },
+  "compiledSourceInputs": {
+    "EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+    "EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658",
+    "Program.cs": "deb0891a978027c9a5cae047fe53abe8d73c94abe325e6bbb7d9e4da5d10a323"
+  },
+  "compiledBindings": [
+    {
+      "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+      "reportPath": [
+        "compiledSourceInputs",
+        "EmbeddedPerformanceDiagnostics.cs"
+      ]
+    },
+    {
+      "productionPath": "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+      "reportPath": [
+        "compiledSourceInputs",
+        "EmbeddedLaunchDiagnostics.cs"
+      ]
+    }
+  ],
+  "sourceOnlyHooks": [
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs"
+  ],
+  "compilationScope": "Complete production collector and journal; other hook source composition verified, full NativeAOT compilation remains a separate gate.",
+  "hostRuntime": "dotnet-10.0.100 Release; tiered compilation disabled"
+}

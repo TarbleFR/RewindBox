@@ -24,6 +24,20 @@ enum GameBoxCaseKind {
   flat,
 }
 
+/// What the case is made of, seen from outside.
+///
+/// The colour of a case is a property of its plastic, not of the cover sheet
+/// slid under its sleeve: a Nintendo Switch case is clear and its red band is
+/// printed on the cover; a PlayStation 3 case is clear (translucent white) and
+/// its black "PS3" spine is printed too (docs/game-box-3d.md § 13).
+enum GameBoxCaseMaterial {
+  /// Coloured plastic (PS2 black, Wii white, Xbox 360 green…).
+  opaque,
+
+  /// Clear plastic: the printed cover sheet is what is seen through it.
+  clear,
+}
+
 /// The physical medium held in the box.
 enum GameBoxSupportKind {
   disc,
@@ -86,6 +100,12 @@ class GameBoxDiscStyle {
 }
 
 /// Everything the 3D box needs to know about one platform's packaging.
+///
+/// Three sizes are kept apart (docs/game-box-3d.md § 13): the physical case
+/// ([width] × [height] × [depth], fixed for rigid plastic cases), the printed
+/// area of its cover sheet ([printedAspect], the case face minus
+/// [printInset]) and the pixel size of whatever image is available, which
+/// never changes the case of a rigid family.
 class GameBoxProfile {
   const GameBoxProfile({
     required this.id,
@@ -100,7 +120,12 @@ class GameBoxProfile {
     this.disc,
     this.lidThickness = 1.6,
     this.cornerRadius = 0,
-  });
+    this.material = GameBoxCaseMaterial.opaque,
+    this.insertColor,
+    this.printInset = 1.4,
+    double? printInsetY,
+    this.identifiedCase,
+  }) : _printInsetY = printInsetY;
 
   final String id;
   final GameBoxCaseKind caseKind;
@@ -110,6 +135,8 @@ class GameBoxProfile {
   final double height;
   final double depth;
   final GameBoxSupportKind support;
+
+  /// Colour of the plastic (opaque cases) or its faint tint (clear cases).
   final Color caseColor;
   final Color? interiorColor;
   final GameBoxCartridgeStyle? cartridge;
@@ -122,43 +149,121 @@ class GameBoxProfile {
   /// jewel cases and cardboard boxes are square.
   final double cornerRadius;
 
+  /// Clear or coloured plastic.
+  final GameBoxCaseMaterial material;
+
+  /// Dominant print of the platform's standard cover sheet, used only for a
+  /// neutral spine or face drawn when no scan exists (Switch red, PS3 black).
+  /// It is never presented as a scan: the title is set in plain type.
+  final Color? insertColor;
+
+  /// Margin (mm) between the case outline and the printed cover under the
+  /// sleeve.
+  final double printInset;
+
+  /// Plastic between the printed cover and the top and bottom edges of the
+  /// case, when it differs from the sides ([printInset]): a DS or 3DS
+  /// cover is wider than tall inside a nearly square case.
+  double get printInsetY => _printInsetY ?? printInset;
+  final double? _printInsetY;
+
+  /// Source of a case variant identified for this game's edition (for
+  /// example a coloured case listed by GameTDB), null for the standard case.
+  final String? identifiedCase;
+
   bool get opens => caseKind != GameBoxCaseKind.flat;
+
+  bool get isClear => material == GameBoxCaseMaterial.clear;
 
   Color get resolvedInteriorColor => interiorColor ?? caseColor;
 
+  /// Tone of the cover sheet's neutral print (see [insertColor]).
+  Color get resolvedInsertColor => insertColor ?? caseColor;
+
+  /// Whether the case follows the proportions of its cover: cardboard boxes
+  /// (whose sizes vary per game and region) and flat cards. Rigid plastic
+  /// cases keep their physical size whatever image is shown on them.
+  bool get adaptsToArt =>
+      caseKind == GameBoxCaseKind.cardboard || caseKind == GameBoxCaseKind.flat;
+
+  /// Width / height of the printed cover on the front of a closed case.
+  double get printedAspect {
+    switch (caseKind) {
+      case GameBoxCaseKind.keepCase:
+      case GameBoxCaseKind.clamshell:
+        return (width - 2 * printInset) / (height - 2 * printInsetY);
+      case GameBoxCaseKind.jewelCase:
+        return (width - jewelHinge - 4) / (height - 5);
+      case GameBoxCaseKind.cardboard:
+      case GameBoxCaseKind.flat:
+        return width / height;
+    }
+  }
+
   /// The same profile with the front proportions of an actual box image.
   ///
-  /// The family keeps its thickness and its width class; the height follows
-  /// the image so that a landscape SNES box or a tall PAL Dreamcast box is not
-  /// stretched into the family's default. Ratios far outside the family
-  /// (corrupt or cropped images) are clamped.
+  /// Only families whose real boxes vary in size follow the image: a
+  /// cardboard box (a landscape SNES box, a tall US NES box) and a flat card,
+  /// with ratios far outside the family (corrupt or cropped images) clamped;
+  /// a jewel case only for a tall insert (long Saturn boxes, tall PAL
+  /// Dreamcast cases). A rigid keep case (PS3, Switch, PS2, DS…) keeps its
+  /// physical size: a horizontal logo, a square icon or an incomplete scan
+  /// never reshapes it (docs/game-box-3d.md § 13).
   GameBoxProfile withFrontAspect(double? aspect) {
     if (aspect == null || !aspect.isFinite || aspect <= 0) return this;
-    // A jewel case has one size whatever its insert: the square front
-    // booklet sits beside the hinge. Only tall inserts (long Saturn boxes,
-    // tall PAL Dreamcast cases) change the case.
-    if (caseKind == GameBoxCaseKind.jewelCase && aspect >= 0.8) return this;
+    if (caseKind == GameBoxCaseKind.jewelCase) {
+      // A jewel case has one size whatever its insert: the square front
+      // booklet sits beside the hinge. Only tall inserts change the case.
+      if (aspect >= 0.8) return this;
+    } else if (!adaptsToArt) {
+      return this;
+    }
     final clamped = aspect.clamp(0.45, 1.9);
     // Keep the area of the family's default front, so that a landscape box of
     // the same family does not become huge.
     final area = width * height;
     final newWidth = math.sqrt(area * clamped);
     final newHeight = newWidth / clamped;
-    return GameBoxProfile(
-      id: id,
-      caseKind: caseKind,
-      width: newWidth,
-      height: newHeight,
-      depth: depth,
-      support: support,
-      caseColor: caseColor,
-      interiorColor: interiorColor,
-      cartridge: cartridge,
-      disc: disc,
-      lidThickness: lidThickness,
-      cornerRadius: cornerRadius,
-    );
+    return _copy(width: newWidth, height: newHeight);
   }
+
+  /// The case of an identified edition whose plastic is coloured (for
+  /// example a red "Greatest Hits" case listed by GameTDB for this product
+  /// code). [source] says where the identification comes from.
+  GameBoxProfile withIdentifiedCase(Color color, {required String source}) => _copy(
+        caseColor: color,
+        interiorColor: color,
+        material: GameBoxCaseMaterial.opaque,
+        identifiedCase: source,
+      );
+
+  GameBoxProfile _copy({
+    double? width,
+    double? height,
+    Color? caseColor,
+    Color? interiorColor,
+    GameBoxCaseMaterial? material,
+    String? identifiedCase,
+  }) =>
+      GameBoxProfile(
+        id: id,
+        caseKind: caseKind,
+        width: width ?? this.width,
+        height: height ?? this.height,
+        depth: depth,
+        support: support,
+        caseColor: caseColor ?? this.caseColor,
+        interiorColor: interiorColor ?? this.interiorColor,
+        cartridge: cartridge,
+        disc: disc,
+        lidThickness: lidThickness,
+        cornerRadius: cornerRadius,
+        material: material ?? this.material,
+        insertColor: insertColor,
+        printInset: printInset,
+        printInsetY: _printInsetY,
+        identifiedCase: identifiedCase ?? this.identifiedCase,
+      );
 
   /// Front booklet area of a jewel case lid (mm, in the lid's front face):
   /// right of the hinge band, with the clear plastic margins of the real case.
@@ -296,12 +401,19 @@ class GameBoxProfile {
         caseColor: color, disc: disc, lidThickness: 2, cornerRadius: 4.5,
       );
 
-  static GameBoxProfile _bluRay(String id, Color color) => GameBoxProfile(
+  static GameBoxProfile _bluRay(String id, Color color,
+          {double height = 170,
+          double depth = 12,
+          GameBoxCaseMaterial material = GameBoxCaseMaterial.opaque,
+          Color? insertColor,
+          Color? interiorColor}) =>
+      GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.keepCase,
-        width: 135, height: 170, depth: 12,
+        width: 135, height: height, depth: depth,
         support: GameBoxSupportKind.disc, caseColor: color,
+        interiorColor: interiorColor,
         disc: const GameBoxDiscStyle(id: 'bd', diameter: 120), lidThickness: 2,
-        cornerRadius: 4,
+        cornerRadius: 4, material: material, insertColor: insertColor,
       );
 
   static GameBoxProfile _jewel(String id, {Color color = const Color(0xFF202024)}) =>
@@ -313,21 +425,34 @@ class GameBoxProfile {
         disc: const GameBoxDiscStyle(id: 'cd', diameter: 120), lidThickness: 2.4,
       );
 
+  // UMD case: the fronts measured on 30 scans (Europe, USA, Japan; libretro
+  // thumbnails, 2 Nov 2026) are 0.58 wide for 1 tall, a 103.2 × 177.2 mm
+  // print in a 106 × 180 mm case (docs/game-box-3d.md § 24).
   static GameBoxProfile _umd(String id) => GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.keepCase,
-        width: 104, height: 180, depth: 13,
+        width: 106, height: 180, depth: 13,
         support: GameBoxSupportKind.umd, caseColor: const Color(0xFF1D1D21),
         disc: const GameBoxDiscStyle(id: 'umd', diameter: 60, hole: 11, shell: true),
         lidThickness: 2, cornerRadius: 6,
       );
 
   static GameBoxProfile _handheld(String id, Color color, GameBoxCartridgeStyle card,
-          {double width = 125, double height = 137, double depth = 14, double radius = 7}) =>
+          {double width = 125,
+          double height = 137,
+          double depth = 14,
+          double radius = 7,
+          double printInset = 1.4,
+          double? printInsetY,
+          GameBoxCaseMaterial material = GameBoxCaseMaterial.opaque,
+          Color? insertColor,
+          Color? interiorColor}) =>
       GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.keepCase,
         width: width, height: height, depth: depth,
         support: GameBoxSupportKind.card, caseColor: color, cartridge: card,
-        lidThickness: 1.8, cornerRadius: radius,
+        interiorColor: interiorColor,
+        lidThickness: 1.8, cornerRadius: radius, material: material, insertColor: insertColor,
+        printInset: printInset, printInsetY: printInsetY,
       );
 
   static GameBoxProfile _cardboard(String id, GameBoxCartridgeStyle cart,
@@ -343,12 +468,14 @@ class GameBoxProfile {
 
   static GameBoxProfile _clamshell(String id, Color color, GameBoxCartridgeStyle cart,
           {GameBoxSupportKind support = GameBoxSupportKind.cartridge,
-          double width = 135, double height = 190, double depth = 27}) =>
+          double width = 135, double height = 190, double depth = 27,
+          double printInset = 1.4, double? printInsetY}) =>
       GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.clamshell,
         width: width, height: height, depth: depth,
         support: support, caseColor: color, cartridge: cart, lidThickness: 2.2,
         cornerRadius: width > 138 ? 0 : 3,
+        printInset: printInset, printInsetY: printInsetY,
       );
 
   static GameBoxProfile _computer(String id, GameBoxSupportKind support) => GameBoxProfile(
@@ -370,7 +497,14 @@ class GameBoxProfile {
   static final Map<String, GameBoxProfile> _bySystem = {
     // Discs in DVD/Blu-ray cases.
     'ps2': _dvd('ps2', const Color(0xFF141416)),
-    'ps3': _bluRay('ps3', const Color(0xFF1E3F7A)),
+    // Standard PS3 case: clear (translucent white) Blu-ray style case,
+    // 135 × 171.5 mm (Blu-ray keep case; a supplier's clear PS3 case lists a
+    // 14 mm spine). Its black spine and "PS3" band are printed on the cover
+    // sheet. Coloured cases (Greatest Hits red in the Americas…) are
+    // editions, applied only when identified (withIdentifiedCase).
+    'ps3': _bluRay('ps3', const Color(0xFFE3E8EC),
+        height: 171.5, depth: 14, material: GameBoxCaseMaterial.clear,
+        insertColor: const Color(0xFF141416), interiorColor: const Color(0xFFD9DEE2)),
     'xbox': _dvd('xbox', const Color(0xFF173A17)),
     'xbox360': _dvd('xbox360', const Color(0xFF2E7D32)),
     'wii': _dvd('wii', const Color(0xFFEDEDED)),
@@ -397,12 +531,27 @@ class GameBoxProfile {
     'jagcd': _jewel('jagcd'),
     'naomigd': _jewel('naomigd'),
     // Handheld card cases.
-    'ds': _handheld('ds', const Color(0xFFEEEEEE), _cardDs),
-    '3ds': _handheld('3ds', const Color(0xFFEDEDED), _card3ds, depth: 11),
-    'switch': _handheld('switch', const Color(0xFFD7262E), _cardSwitch,
-        width: 105, height: 170, depth: 11, radius: 4),
+    // DS and 3DS cases are wider than tall (docs/game-box-3d.md § 23): the
+    // GameTDB full-cover template of both (back 768 | spine 80 | front 768
+    // × 680 px; Mario Kart DS AMCP, Majora's Mask 3D AJRP) gives, with the
+    // 14 mm spine of a DS case, a 134.4 × 119 mm cover inside a 137 × 125 mm
+    // case. The NINTENDO DS / 3DS band is printed on the cover (left of a DS
+    // front, right of a 3DS front): the case adds none. 3DS cases are
+    // thinner (11 mm, as reported; not measured here).
+    'ds': _handheld('ds', const Color(0xFFEEEEEE), _cardDs,
+        width: 137, height: 125, depth: 14, printInset: 1.3, printInsetY: 3.0),
+    '3ds': _handheld('3ds', const Color(0xFFEDEDED), _card3ds,
+        width: 137, height: 125, depth: 11, printInset: 1.3, printInsetY: 3.0),
+    // Nintendo Switch game case: clear plastic, 170 × 104–105 mm, 10–11 mm
+    // thick (the GameTDB full-cover template gives an 11 mm spine). The red
+    // spine and corner/band are printed on the cover sheet, not the plastic.
+    'switch': _handheld('switch', const Color(0xFFE6EAED), _cardSwitch,
+        width: 105, height: 170, depth: 11, radius: 4,
+        material: GameBoxCaseMaterial.clear, insertColor: const Color(0xFFE60012),
+        interiorColor: const Color(0xFFDDE1E4)),
+    // PS Vita: fronts measured 0.78–0.79 (9 scans), a 103.7 × 132.2 mm print.
     'vita': _handheld('vita', const Color(0xFF2A4E9B), _cardVita,
-        width: 105, height: 135, depth: 12, radius: 5),
+        width: 106.5, height: 135, depth: 12, radius: 5),
     // Cartridges in plastic clamshells.
     'md': _clamshell('md', const Color(0xFF111111), _cartMd),
     'genesis': _clamshell('genesis', const Color(0xFF111111), _cartMd),
@@ -410,10 +559,14 @@ class GameBoxProfile {
     'sms': _clamshell('sms', const Color(0xFF111111), _cartSms),
     'mark3': _clamshell('mark3', const Color(0xFF111111), _cartSms),
     'pico': _clamshell('pico', const Color(0xFF111111), _cartMd),
+    // HuCard cases, Japanese PC Engine and American TurboGrafx-16 alike:
+    // CD-case sized, with a square cover (1.00, 20 scans), 120 × 120 mm.
     'pce': _clamshell('pce', const Color(0xFF1A1A1A), _hucard,
-        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10),
+        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10,
+        printInset: 11, printInsetY: 2.5),
     'tg16': _clamshell('tg16', const Color(0xFF1A1A1A), _hucard,
-        support: GameBoxSupportKind.hucard),
+        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10,
+        printInset: 11, printInsetY: 2.5),
     // Cartridges in cardboard boxes.
     'nes': _cardboard('nes', _cartNes, width: 127, height: 178, depth: 30),
     'fc': _cardboard('fc', _cartFc, width: 120, height: 170, depth: 25),
