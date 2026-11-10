@@ -25,6 +25,8 @@ import 'package:neostation/services/rpcs3_launch_service.dart';
 import 'package:neostation/services/rpcs3_library_file_service.dart';
 import 'package:neostation/widgets/rpcs3_library_file_install_dialog.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
+import '../xenia_internal_service.dart';
+import '../../l10n/xenia_locale.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
@@ -339,6 +341,41 @@ class GameLaunchService {
         return GameLaunchResult.success();
       }
       // DOLPHIN_ISOLATION_END: explicit_gc_wii_route
+
+      // XENIA_INTERNAL_BEGIN: explicit_xbox360_route
+      // Xbox 360 games run only in the embedded XeniOS engine. This block
+      // returns on success and failure alike: an Xbox 360 image never falls
+      // through to RetroArch, a deep link or the share sheet, and a missing
+      // engine or an iOS below 26 is said as such (docs/xenios-playlist.md).
+      if (Platform.isIOS &&
+          system.folderName.toLowerCase() ==
+              XeniaInternalService.systemFolder) {
+        final xeniaAllowed =
+            await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!xeniaAllowed) return _embeddedEngineOff(context, system);
+        final locale = Localizations.localeOf(context);
+        final outcome = await XeniaInternalService.launch(
+          romPath: game.romPath!,
+          title: game.name,
+          uiLocale: locale,
+        );
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!outcome.success) {
+          return GameLaunchResult.failure(
+            XeniaLocale.forLocale(locale, XeniaLocale.launchErrorKey(outcome.error)),
+            'XeniOS: ${outcome.error}\n${outcome.detail ?? ''}',
+          );
+        }
+        GameSessionManager.registerGameLaunch(
+          system,
+          game,
+          XeniaInternalService.sessionExecutable,
+        );
+        await FavoritesService.recordGamePlayed(game);
+        return GameLaunchResult.success();
+      }
+      // XENIA_INTERNAL_END: explicit_xbox360_route
 
       // The Ports playlist and its engines left NeoStation
       // (docs/ports-removal-2026-10-20.md). A game row kept while its

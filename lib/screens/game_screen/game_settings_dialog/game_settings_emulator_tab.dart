@@ -23,6 +23,9 @@ import 'package:neostation/services/libretro_engine_choices.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 import 'package:neostation/widgets/libretro_engine_panel.dart';
 import 'package:neostation/widgets/armsx2_texture_panel.dart';
+import 'package:neostation/l10n/xenia_locale.dart';
+import 'package:neostation/screens/xenia/xenia_settings_screen.dart';
+import 'package:neostation/services/xenia_settings_service.dart';
 
 /// Per-game emulator override tab for [GameSettingsDialog].
 ///
@@ -68,6 +71,7 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
       'switch' => 'MeloNX',
+      'xbox360' => 'XeniOS',
       _ => null,
     };
   }
@@ -224,7 +228,25 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
   int get _textureRows => _texturePanelKey.currentState?.rows.length ?? 0;
   // ARMSX2_HD_TEXTURES_END
 
+  // XENIA_INTERNAL_BEGIN: per-game settings entry
+  bool get _hasXeniaSettings =>
+      _iosEmbeddedEngineName == 'XeniOS' && widget.game.romPath != null;
+
+  Future<void> _openXeniaSettings() async {
+    final romPath = widget.game.romPath;
+    if (romPath == null) return;
+    final gameKey = await XeniaSettingsService.gameKeyForFile(romPath);
+    if (!mounted) return;
+    await XeniaSettingsScreen.open(
+      context,
+      gameKey: gameKey,
+      gameTitle: widget.game.name,
+    );
+  }
+  // XENIA_INTERNAL_END
+
   int get _totalItems {
+    if (_hasXeniaSettings) return 1;
     if (_hasTexturePanel) return _textureRows;
     if (_isLibretroSystem) return _libretroChoices.length;
     if (_availableEmulators.isEmpty) return 0;
@@ -278,6 +300,11 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
 
   void trigger() {
     if (_totalItems == 0) return;
+
+    if (_hasXeniaSettings) {
+      _openXeniaSettings();
+      return;
+    }
 
     if (_hasTexturePanel) {
       _texturePanelKey.currentState?.activateRow(_selectedIndex);
@@ -359,6 +386,27 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
           color: Theme.of(context).colorScheme.primary,
         ),
       );
+      if (_hasXeniaSettings) {
+        return Padding(
+          padding: EdgeInsets.all(12.r),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              identity,
+              EmulatorRow(
+                key: const ValueKey('xenia-game-settings'),
+                isSelected: _selectedIndex == 0,
+                label: XeniaLocale.text(context, 'gameSettings'),
+                isActive: false,
+                onTap: () {
+                  SfxService().playNavSound();
+                  _openXeniaSettings();
+                },
+              ),
+            ],
+          ),
+        );
+      }
       if (!_hasTexturePanel) {
         return Padding(padding: EdgeInsets.all(12.r), child: identity);
       }

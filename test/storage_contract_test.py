@@ -210,6 +210,13 @@ LOOP_SITES = (
      'verifiedCopies[sourcePath] = outputLength;',
      'for (final picked in files) {',
      ()),
+    # Xbox 360 playlist (docs/xenios-playlist.md § Import).
+    ('lib/services/xenia_internal_service.dart',
+     'static Future<XeniaImportResult> importFiles(',
+     'if (length <= 0 || length != outputLength) {',
+     'verifiedCopies[source.path] = outputLength;',
+     'for (var index = 0; index < sources.length; index++) {',
+     ()),
     # The Dolphin import the menu really uses (dolphin_internal_playlist_actions).
     ('lib/services/dolphin_smart_import_service.dart',
      'static Future<DolphinSmartImportResult> importGames(',
@@ -229,6 +236,8 @@ ALLOWED_CALLERS = {
         'static Future<String> _sessionLogPath(',),
     'lib/services/armsx2_internal_service.dart': (
         'static Future<Armsx2ImportResult> _copySelection(',),
+    'lib/services/xenia_internal_service.dart': (
+        'static Future<XeniaImportResult> importFiles(',),
     'lib/services/rpcs3_internal_service.dart': (
         'static Future<bool> importFirmware(',),
     'lib/services/rpcs3_save_exchange_service.dart': (
@@ -303,6 +312,7 @@ class NothingAtStartup(unittest.TestCase):
             'lib/services/libretro_internal_service.dart': (1, 0, 0),
             'lib/services/dolphin_internal_v2_service.dart': (1, 1, 1),
             'lib/services/armsx2_internal_service.dart': (1, 0, 0),
+            'lib/services/xenia_internal_service.dart': (1, 0, 0),
             'lib/services/rpcs3_internal_service.dart': (1, 0, 0),
             'lib/services/rpcs3_save_exchange_service.dart': (1, 0, 0),
             'lib/services/dolphin_smart_import_service.dart': (1, 0, 0),
@@ -658,6 +668,8 @@ IMPORT_SITES = {
     'lib/services/armsx2_internal_service.dart': (
         'static Future<Armsx2ImportResult> importGames(',
         'static Future<Armsx2ImportResult> importBios(',),
+    'lib/services/xenia_internal_service.dart': (
+        'static Future<XeniaImportResult?> importGames(',),
     'lib/services/rpcs3_internal_service.dart': (
         'static Future<bool> importFirmware(',
         'static Future<Rpcs3ImportResult> importGames(',

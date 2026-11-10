@@ -28,6 +28,14 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
       'neostation_use_embedded_emulators_v1';
   static const String disabledPreferenceKey = 'console_engines_disabled_v1';
 
+  /// Console ids of [defaultDisabledConsoles] the user switched on. Stored
+  /// apart from [disabledPreferenceKey] so neither list rewrites the other.
+  static const String enabledPreferenceKey = 'console_engines_enabled_v1';
+
+  /// Consoles whose built-in engine starts switched off until the user turns
+  /// it on (Xbox 360: docs/xenios-playlist.md § Consoles tab).
+  static const Set<String> defaultDisabledConsoles = <String>{'xbox360'};
+
   /// Embedded engines exist in the iOS app only.
   static bool get isSupportedPlatform =>
       defaultTargetPlatform == TargetPlatform.iOS;
@@ -38,6 +46,7 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
 
   bool _useEmbedded = true;
   Set<String> _disabled = const <String>{};
+  Set<String> _enabled = const <String>{};
   bool _loaded = false;
   Future<void>? _loading;
 
@@ -47,10 +56,18 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
   bool get useEmbedded => _useEmbedded;
 
   /// The console's own switch, whatever the global one says.
-  bool isConsoleEnabled(String consoleId) => !_disabled.contains(consoleId);
+  bool isConsoleEnabled(String consoleId) =>
+      defaultDisabledConsoles.contains(consoleId)
+      ? _enabled.contains(consoleId)
+      : !_disabled.contains(consoleId);
 
-  /// Console ids switched off by the user.
-  Set<String> get disabledConsoles => Set<String>.unmodifiable(_disabled);
+  /// Console ids switched off: by the user, or by default and not switched
+  /// on.
+  Set<String> get disabledConsoles => Set<String>.unmodifiable(<String>{
+    ..._disabled,
+    for (final id in defaultDisabledConsoles)
+      if (!_enabled.contains(id)) id,
+  });
 
   /// The embedded engine may run [consoleId]'s games.
   bool allows(String consoleId) =>
@@ -77,6 +94,10 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
       _useEmbedded = preferences.getBool(globalPreferenceKey) ?? true;
       _disabled = Set<String>.unmodifiable(
         preferences.getStringList(disabledPreferenceKey) ?? const <String>[],
+      );
+      _enabled = Set<String>.unmodifiable(
+        (preferences.getStringList(enabledPreferenceKey) ?? const <String>[])
+            .where(defaultDisabledConsoles.contains),
       );
       _loaded = true;
       notifyListeners();
@@ -105,6 +126,11 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
   Future<bool> setConsoleEnabled(String consoleId, bool enabled) async {
     await load();
     if (enabled == isConsoleEnabled(consoleId)) return true;
+    if (defaultDisabledConsoles.contains(consoleId)) {
+      final next = <String>{..._enabled};
+      enabled ? next.add(consoleId) : next.remove(consoleId);
+      return _writeEnabled(next);
+    }
     final next = <String>{..._disabled};
     if (enabled) {
       next.remove(consoleId);
@@ -114,12 +140,30 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
     return _writeDisabled(next);
   }
 
-  /// Every console's own switch back on (Consoles tab › Restore defaults);
-  /// the global switch is left as it is.
+  /// Every console's own switch back to its default (Consoles tab › Restore
+  /// defaults): on, except [defaultDisabledConsoles], which go back off. The
+  /// global switch is left as it is.
   Future<bool> enableAllConsoles() async {
     await load();
-    if (_disabled.isEmpty) return true;
-    return _writeDisabled(const <String>{});
+    final disabled = _disabled.isEmpty || await _writeDisabled(const <String>{});
+    final enabled = _enabled.isEmpty || await _writeEnabled(const <String>{});
+    return disabled && enabled;
+  }
+
+  Future<bool> _writeEnabled(Set<String> next) async {
+    final sorted = next.toList()..sort();
+    try {
+      final preferences = await _preferences();
+      if (!await preferences.setStringList(enabledPreferenceKey, sorted)) {
+        return false;
+      }
+    } catch (error) {
+      _log.w('Embedded engine default-off switches not saved: $error');
+      return false;
+    }
+    _enabled = Set<String>.unmodifiable(next);
+    notifyListeners();
+    return true;
   }
 
   Future<bool> _writeDisabled(Set<String> next) async {

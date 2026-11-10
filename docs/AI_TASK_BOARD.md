@@ -3725,6 +3725,43 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
 
+### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
+
+- **Owner/branch:** session 03, `work/playlists-xenios-20261110` (fast-forwarded to
+  `5738e4ff` before its first commit). Effort `/rb-effort-high`, reported high.
+- **Input:** owner IPA reconstructed outside Git, 49156698 B, SHA-256 `8ba4c18b…600b`,
+  CRCs valid; XeniOS 2.3.1 (11662), minos 26.0/SDK 27.2, embeds
+  `libmetalirconverter.dylib`. Upstream `xenios-jp/XeniOS` `cf7c7ee45231…` = IPA
+  attestation `commitShort` = upstream HEAD. Contract: [xenios-playlist.md](xenios-playlist.md).
+- **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
+  `xbox360` entry (existing system id); Consoles tab grouped by application, external-
+  RetroArch-only and missing-engine consoles removed from the tab only (maintainer
+  decision 10 Nov), Xbox 360 listed **off by default** (`console_engines_enabled_v1`);
+  playlist import button → Files → validated copy into `Documents/XeniOS/Games`
+  (duplicates, cancel, space, profiles/layouts/XEX refused) → targeted `xbox360` rescan;
+  global + per-game settings (10 cvars with verified core consumers, inherit/reset,
+  title-ID identity) incl. guest language/region; 12 locales; isolated launch route,
+  session-end monitoring; bridge `packages/xenia_internal_bridge` (ABI v1, dlopen on
+  iOS ≥ 26 only, transaction-guarded callbacks, shutdown quarantine).
+- **Shared-layer edits for main review:** `console_catalog.dart`,
+  `embedded_engine_policy.dart`, `libretro_consoles_screen.dart`,
+  `console_manager_locale.dart` (2 unused section keys removed),
+  `game_launch_service.dart`, `game_launch_manager.dart`, `scanning.dart`,
+  `sqlite_database_service.dart`, `config_service.dart`, `main.dart`, `my_games_list.dart`,
+  `game_settings_emulator_tab.dart`, `assets/systems/xbox360.json`, `pubspec.yaml`,
+  `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
+  tab rule), `docs/storage-audit-cleanup.md`.
+- **Validation (Flutter 3.47.2 host):** new XeniOS tests 22/22; console catalog +
+  Consoles tab 43/43; storage contract 24/24; 41 Dart suites touching changed files
+  373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
+  refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
+  failure set as HEAD (19, shallow-history/baseline). Analyzer: no new issue.
+- **Blockers:** XeniaCore.framework adapter + CI (macOS, Xcode iOS SDK 27.2, out-of-band
+  iPhoneOS `libmetalirconverter.dylib`); dedicated JIT helper; ObjC plugin compile.
+  Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
+- **Next:** Core adapter over `xe::Emulator` (`EmulatorThread` steps) exporting only
+  `NeoXenia_GetAPI`, component workflow like `armsx2-core.yml`; Core pin/CI/IPA with main.
+
 ### Codex orchestration — Codex
 
 - **Playlists/XeniOS routing — created and started (10 Nov).**

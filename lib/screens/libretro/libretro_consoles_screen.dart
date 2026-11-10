@@ -17,6 +17,9 @@ import '../../services/libretro_internal_service.dart';
 import '../../services/libretro_main_menu.dart';
 import '../../services/logger_service.dart';
 import '../../services/melonx_internal_service.dart';
+import '../../services/xenia_internal_service.dart';
+import '../../l10n/xenia_locale.dart';
+import 'package:xenia_internal_bridge/xenia_internal_bridge.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/horizontal_swipe.dart';
 import '../../widgets/libretro_engine_panel.dart';
@@ -95,6 +98,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   /// available.
   Set<String>? _bundled;
   bool _melonxAvailable = false;
+  bool _melonxProbed = false;
+
+  /// XeniOS on this device and build; null until known.
+  XeniaRuntimeAvailability? _xenia;
 
   /// Captured while the page is shown, so the outcome of an operation is
   /// still announced, in the user's language, after a tab switch disposed
@@ -135,7 +142,15 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       if (mounted && consoles != null) setState(() => _bundled = consoles);
     });
     MelonxInternalService.runtimeAvailable().then((available) {
-      if (mounted) setState(() => _melonxAvailable = available);
+      if (mounted) {
+        setState(() {
+          _melonxAvailable = available;
+          _melonxProbed = true;
+        });
+      }
+    });
+    XeniaInternalService.availability().then((availability) {
+      if (mounted) setState(() => _xenia = availability);
     });
   }
 
@@ -184,6 +199,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   /// A libretro console whose core is missing from this build.
   bool _unavailable(ConsoleEntry entry) {
     if (entry.engine == ConsoleEngine.melonx) return !_melonxAvailable;
+    if (entry.engine == ConsoleEngine.xenia) return !(_xenia?.ready ?? false);
     final bundled = _bundled;
     if (bundled == null || entry.engine != ConsoleEngine.libretro) return false;
     final console = entry.libretro;
@@ -192,6 +208,30 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     final binding = LibretroCoreCatalog.bindingFor(entry.importSystem);
     return binding == null || !bundled.contains(binding.console);
   }
+
+  /// A console whose engine is known to be missing from this build: not
+  /// listed (ConsoleCatalog.listed). A probe still running hides nothing.
+  bool _knownMissing(ConsoleEntry entry) {
+    if (entry.engine == ConsoleEngine.melonx) {
+      return _melonxProbed && !_melonxAvailable;
+    }
+    return _unavailable(entry);
+  }
+
+  /// Consoles of this tab, grouped by application.
+  List<ConsoleEntry> get _listed =>
+      ConsoleCatalog.listed(isMissing: _knownMissing);
+
+  /// Why the XeniOS engine cannot run, for the Xbox 360 row.
+  String _xeniaUnavailableLine() => XeniaLocale.forLocale(
+    _locale,
+    switch (_xenia?.state) {
+      XeniaRuntimeState.requiresIOS26 => 'requiresIOS26',
+      XeniaRuntimeState.abiMismatch => 'abiMismatch',
+      XeniaRuntimeState.unsupportedPlatform => 'unsupportedPlatform',
+      _ => 'engineMissing',
+    },
+  );
 
   /// The system games of [console] are imported into, from the provider's
   /// systems (the database when they are not loaded yet).
@@ -501,6 +541,18 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             'error': EmbeddedEnginePolicy.disabledPreferenceKey,
           }),
         );
+      } else if (enabled &&
+          EmbeddedEnginePolicy.defaultDisabledConsoles.contains(entry.id) &&
+          mounted) {
+        // Off by default, so absent from the main menu until switched on.
+        final provider = context.read<SqliteConfigProvider>();
+        if (LibretroMainMenu.stateOfEntry(
+          entry,
+          provider.detectedSystems,
+          provider.hiddenSystemFolders,
+        ).isAbsent) {
+          await _mainMenu.showAll(<ConsoleEntry>[entry], provider);
+        }
       }
     } finally {
       if (mounted) setState(() => _changing = null);
@@ -511,8 +563,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     if (_busy) return;
     final provider = context.read<SqliteConfigProvider>();
     final missing = <ConsoleEntry>[
-      for (final entry in ConsoleCatalog.entries)
-        if (!LibretroMainMenu.stateOfEntry(
+      for (final entry in _listed)
+        if ((entry.engine != ConsoleEngine.xenia ||
+                _policy.isConsoleEnabled(entry.id)) &&
+            !LibretroMainMenu.stateOfEntry(
           entry,
           provider.detectedSystems,
           provider.hiddenSystemFolders,
@@ -563,10 +617,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     if (!confirmed || !mounted) return;
     setState(() => _bulk = 'restore');
     try {
-      final result = await _mainMenu.restoreDefaults(
-        ConsoleCatalog.entries,
-        provider,
-      );
+      final result = await _mainMenu.restoreDefaults(_listed, provider);
       final engines = await _policy.enableAllConsoles();
       if (result.failed.isEmpty && engines) {
         _notice(_c(ConsoleManagerLocale.restoreDone));
@@ -619,22 +670,22 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final provider = context.watch<SqliteConfigProvider>();
+    final listed = _listed;
     final states = <ConsoleEntry, LibretroMainMenuState>{
-      for (final entry in ConsoleCatalog.entries)
+      for (final entry in listed)
         entry: LibretroMainMenu.stateOfEntry(
           entry,
           provider.detectedSystems,
           provider.hiddenSystemFolders,
         ),
     };
-    final embedded = <ConsoleEntry>[
-      for (final entry in ConsoleCatalog.entries)
-        if (entry.hasEmbeddedEngine && _matches(states[entry]!)) entry,
-    ];
-    final external = <ConsoleEntry>[
-      for (final entry in ConsoleCatalog.entries)
-        if (!entry.hasEmbeddedEngine && _matches(states[entry]!)) entry,
-    ];
+    // One section per emulator application (RetroArch and its cores,
+    // Dolphin, ARMSX2, RPCS3, MeloNX, XeniOS), in ConsoleCatalog order.
+    final groups = <String, List<ConsoleEntry>>{};
+    for (final entry in listed) {
+      if (!_matches(states[entry]!)) continue;
+      groups.putIfAbsent(entry.application, () => <ConsoleEntry>[]).add(entry);
+    }
     final list = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 920),
@@ -667,23 +718,15 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
               _buildToolbar(context),
               const SizedBox(height: 12),
               _buildLibrary(context),
-              if (embedded.isNotEmpty) ...[
-                _buildSection(
-                  context,
-                  _c(ConsoleManagerLocale.sectionEmbedded),
+              for (final group in groups.entries) ...[
+                KeyedSubtree(
+                  key: ValueKey('consoles-application-${group.key}'),
+                  child: _buildSection(context, group.key),
                 ),
-                for (final entry in embedded)
+                for (final entry in group.value)
                   _buildConsole(context, entry, states[entry]!),
               ],
-              if (external.isNotEmpty) ...[
-                _buildSection(
-                  context,
-                  _c(ConsoleManagerLocale.sectionExternal),
-                ),
-                for (final entry in external)
-                  _buildConsole(context, entry, states[entry]!),
-              ],
-              if (embedded.isEmpty && external.isEmpty)
+              if (groups.isEmpty)
                 Padding(
                   key: const ValueKey('consoles-no-match'),
                   padding: const EdgeInsets.all(24),
@@ -858,6 +901,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
       case ConsoleEngine.melonx:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'});
+      case ConsoleEngine.xenia:
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'XeniOS'});
       case ConsoleEngine.retroarch:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'RetroArch'});
     }
@@ -986,7 +1031,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         _buildStatus(
           context,
           Icons.block,
-          _c(ConsoleManagerLocale.unavailable),
+          entry.engine == ConsoleEngine.xenia
+              ? _xeniaUnavailableLine()
+              : _c(ConsoleManagerLocale.unavailable),
           key: ValueKey('console-unavailable-${entry.id}'),
         )
       else if (entry.hasEmbeddedEngine && !engineAllowed)

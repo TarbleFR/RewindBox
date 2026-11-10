@@ -56,6 +56,7 @@ import 'package:neostation/services/ios_library_root_relocation.dart';
 // LIBRARY_RELOCATION_END: imports
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
+import 'package:neostation/services/xenia_internal_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
@@ -404,6 +405,8 @@ void main() async {
     // Load the last exported emulator libraries so direct-launch matching
     // works immediately after a cold start without forcing a fresh sync.
     await RetroArchLibraryService.loadCachedLibrary();
+    // Xbox 360 playlist storage (folders only; nothing is scanned here).
+    await XeniaInternalService.ensureLayout();
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
 

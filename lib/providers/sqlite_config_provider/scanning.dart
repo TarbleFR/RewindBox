@@ -657,6 +657,29 @@ extension SqliteConfigScanning on SqliteConfigProvider {
     _notify();
   }
 
+  /// Refreshes only the Xbox 360 playlist: RewindBox's Files-visible
+  /// `XeniOS/Games` root plus the user's registered library folders
+  /// (docs/xenios-playlist.md § Library). No other system is scanned.
+  Future<void> refreshXeniaInternalLibrary() async {
+    if (!Platform.isIOS) {
+      throw StateError('Embedded XeniOS refresh is available on iOS only.');
+    }
+    await XeniaInternalService.ensureLayout();
+    if (_availableSystems.isEmpty) await _loadAvailableSystems();
+    final system = _availableSystems.firstWhere(
+      (candidate) =>
+          candidate.folderName == XeniaInternalService.systemFolder,
+    );
+    await SystemRepository.addDetectedSystem(system.id!, system.folderName);
+    if (!_detectedSystems.any((candidate) => candidate.id == system.id)) {
+      _detectedSystems = [..._detectedSystems, system];
+    }
+    await _scanSystemRoms(system);
+    await _refreshDetectedSystemsFromDatabase();
+    _sortDetectedSystems();
+    _notify();
+  }
+
   /// Performs an isolated scan for a specific system.
   Future<ScanSummary> _scanSystemRoms(
     SystemModel system, {
@@ -669,9 +692,13 @@ extension SqliteConfigScanning on SqliteConfigProvider {
           DolphinInternalV2Service.isDolphinSystem(system.folderName);
       final isArmsx2InternalSystem =
           Platform.isIOS && system.folderName.toLowerCase() == 'ps2';
+      final isXeniaInternalSystem =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == XeniaInternalService.systemFolder;
       final isNativeInternalSystem =
           isDolphinInternalSystem ||
-          isArmsx2InternalSystem;
+          isArmsx2InternalSystem ||
+          isXeniaInternalSystem;
       // Native embedded playlists scan their own roots even when no public ROM
       // folder exists. Every other system retains the original early return.
       if (_config.romFolders.isEmpty &&
@@ -698,6 +725,13 @@ extension SqliteConfigScanning on SqliteConfigProvider {
       } else if (isArmsx2InternalSystem) {
         nativeScanRoots = <String>[
           (await Armsx2InternalService.gamesDirectory()).path,
+        ];
+      } else if (isXeniaInternalSystem) {
+        // Imported games, then the user's own xbox360 library folders,
+        // which keep their paths, rows and media.
+        nativeScanRoots = <String>[
+          (await XeniaInternalService.gamesDirectory()).path,
+          ..._config.romFolders,
         ];
       } else {
         nativeScanRoots = _config.romFolders;

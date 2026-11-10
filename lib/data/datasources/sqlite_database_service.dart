@@ -205,7 +205,15 @@ class SqliteDatabaseService {
           system.folderName.toLowerCase() == 'ps2' &&
           armsx2GameDir != null &&
           path.normalize(romFolder) == path.normalize(armsx2GameDir);
-      if (isDirectArmsx2Ps2Root) {
+      // The Xbox 360 playlist's own XeniOS/Games root is scanned as is,
+      // like the ARMSX2 root (docs/xenios-playlist.md § Library).
+      final xeniaGameDir = ConfigService.linkedXeniaGameFolderPath;
+      final isDirectXeniaRoot =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == 'xbox360' &&
+          xeniaGameDir != null &&
+          path.normalize(romFolder) == path.normalize(xeniaGameDir);
+      if (isDirectArmsx2Ps2Root || isDirectXeniaRoot) {
         scanTargets.add((
           dirPath: romFolder,
           canonicalPath: await _canonicalScanPath(romFolder, useSaf: false),
