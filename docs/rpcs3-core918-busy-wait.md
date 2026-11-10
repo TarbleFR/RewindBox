@@ -139,3 +139,19 @@ sous `rsx::reservation_lock` (environ 3 µs) et le cas rare de synchronisation Z
    jouer cinq minutes ; recréer ensuite un état de sauvegarde. Un état créé avant le Core 916 garde la mémoire du
    démarrage sans le contournement MLAA.
 3. Quitter le jeu, exporter les journaux aussitôt, avec les fichiers `.1`.
+
+## 9. Compilation et épinglage
+
+| Élément | Valeur |
+|---|---|
+| Moteur | `cf850a8`, `d7695af`, `6d15a9a` sur le Core 917 (`921dbb5`) ; canonique `0f428497` (455 fichiers), delta `026f6841` |
+| Demande | `02b9bf22` (`[rpcs3-core-build]`), run `42776454670`, verte au premier essai |
+| Job Core | 129695964275 ; artefact 13745436352, 30 502 186 octets, empreinte API `f5478c38…80f4` |
+| Job hôte Apple | 129695963848 ; 15 commandes dont `core918` ; artefact 13745530407 |
+| Bibliothèque | `libRPCS3Core.dylib` 80 937 424 octets, SHA-256 `97b083c2…cb6f`, empreinte de charge `78f2defd…f9d3` |
+| Identités | type `rpcs3-ios-core918`, PPU `a987639e9f838d1c`, SPU `477a3fa442d27917` (inchangées) |
+| Pin | `3d8ec315…` ; vérificateur du dépôt : `verified`, aucune erreur, marqueurs présents |
+
+Le pilote local complet a échoué une fois dans `zcull630_plain` (banc chronométré de l'étape Core 630 sur l'arbre
+ramené en arrière, ligne 765) pendant que d'autres compilations chargeaient la machine ; le même pilote est vert dans
+le job hôte Apple de ce run.

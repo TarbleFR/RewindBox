@@ -35,6 +35,12 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   the game's main processor threads waits a little longer on its own core before it gives that core away; the
   performance report compares both behaviours in the same scene and collects its captures by itself when such stores
   come in a storm. Host tests only; no FPS claim.
+- RPCS3 Core 918 pinned on 10 November 2026 ([record](../rpcs3-core918-busy-wait.md); run `42776454670`, dylib `97b083c2…`,
+  pin `3d8ec315…`): on iPhones whose system counter runs at 1 GHz, the emulator's short active waits lasted 42 times less
+  than on the phones it was tuned on, so a thread waiting for a lock gave its core away almost at once; they now last
+  the same on every device (setting "Busy wait reference duration"). The performance report counts what the scheduler
+  did for the app in each window and, for the first minutes of a game, compares this setting and the Core 917 one by
+  alternating them between its windows. Host tests only; no FPS claim.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

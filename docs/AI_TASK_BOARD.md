@@ -1442,10 +1442,54 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Receipt of 718 is not a base:** it holds no signed image inventory (four proof files; recipient key deleted).
       IPA 719 is drafted on the base 694 with the classification of 718; `record` now refuses a receipt without the
       inventory (recipe § 3.5, 3.8).
-    - **Next:** Core 918, found while 917 compiled: build 718 journals show `cntfrq=1000000000 timer_scale=1` at every
-      boot, so `utils::busy_wait(300)` lasts 3 ns instead of the 125 ns of the 24 MHz reference counter (66 call sites:
-      SPU GETLLAR lock wait, DMA, PUTLLUC, vm reservation locks, shared_mutex spins) and the waiters fall into
-      `sched_yield` or kernel waits almost at once. Then the common private IPA 719.
+    - **Core 918 (10 Nov, BO2 and GOW3; [record](rpcs3-core918-busy-wait.md)).** Device evidence, build 718 journals,
+      all sixteen boots: `spin_timing=reference … cntfrq=1000000000 timer_scale=1`. `utils::busy_wait(n)` is
+      `(n / 100) * scale` counter ticks: 125 ns for `busy_wait(300)` on the 24 MHz counter the scale 1 was validated
+      on, 3 ns here, 42 times less, at 66 call sites. The wait of an SPU GETLLAR on a line a PUTLLC holds (24 times
+      `busy_wait(300)`, then `std::this_thread::yield()` at every turn) gives up within a fraction of a microsecond
+      while a heavy PUTLLC of BO2 holds its line 1.25-2.3 us; DMA, PUTLLUC, the vm reservation locks and every
+      shared_mutex/semaphore (ten `busy_wait()` before the kernel wait) behave alike. BO2 676 w12: six SPU threads at
+      0.53 core each with 407 event waits per window.
+      - `REWINDBOX_BUSY_WAIT_REFERENCE_918`: with SPU Spin Timing = Reference the scale is cntfrq / 24 MHz rounded (1
+        at 24 MHz, 42 at 1 GHz); Calibrated (33) and the three GETLLAR tick thresholds unchanged; setting "Busy wait
+        reference duration", Automatic = every title, Disabled = scale 1. The scale is an atomic on iOS. No wait
+        condition, lock or title setting changes; no codegen input (util/asm.hpp is not one).
+      - `COREPROF SCHED918`: context switches, Mach traps (a yield is one) and BSD system calls of the process per
+        window (task_info TASK_EVENTS_INFO), with the scale of the window.
+      - Comparison extended to every title: over running windows with frames, lead 6, then 16 windows by pairs through
+        (spin off, scale on), (spin on, scale 1), (both off), (both on), rest 22, three passes per boot, then both on.
+        The park spin alternates only in a window with >= 100,000 heavy PUTLLC. Explicit settings never alternate. The
+        analyzer prints the groups pass by pass. Visible effect: cadence may vary between pairs of windows during a
+        pass; Enabled on both settings plays without it.
+      - Tests: test/rpcs3_busy_wait918_test.py, 18 checks (scale and durations with the scale-1 control; the GETLLAR
+        wait loop on two real threads in the device's proportions: the waiter yields in 19,919-19,947 of 20,000 holds
+        with the previous duration, 7-18 with the reference one; a long hold still yields; the two-lever passes);
+        test/rpcs3_writer_park917_test.py 30 checks; analyzer test with a four-combination session. Host only.
+      - Not changed, on purpose: the yield primitive of the SPU wait loops (SPUThread.cpp is an SPU identity input:
+        alias and audit) — decided on the SCHED918 counts; the GETLLAR tick thresholds (1/5/400 us here against
+        41.7/208/16,700 us on the reference counter) — a decision that needs device data.
+      - Independent review (rb-core-review, read-only, partial): no defect in the atomic scale or the policy; its
+        remark (asm.hpp got <atomic> through other headers only) applied; two waits made under a lock now last their
+        reference duration (SPU GETLLAR under rsx::reservation_lock, about 3 us; the rare ZCULL hard sync of
+        VKGSRender.cpp, 1.25 us). Tracker arithmetic and report block covered by the executed tests.
+      - Packaging: engine cf850a8, d7695af, 6d15a9a over Core 917 (921dbb5); canonical 0f428497 (455), delta 026f6841,
+        increment core918-from-917 = metal-wip-from-917. Local: closure, codegen audit, fold chain, route, 13 host
+        guards, Core 916/917/918 tests (g++ and clang++), capture and analyzer tests PASS. The full local driver failed
+        once in `zcull630_plain` (a timed ZCULL fault harness of the Core 630 stage on the reverted tree, line 765)
+        while other compiles loaded the machine; the same driver is green in the Apple host job of the run.
+      - **Built and pinned:** request `02b9bf22`, run `42776454670` green first try (Core job 129695964275, Apple host
+        job 129695963848, 15 commands with `core918`); artifact 13745436352 (30,502,186 B, zip = API digest f5478c38);
+        dylib `97b083c2…cb6f` (80,937,424 B), fingerprint `78f2defd…f9d3`, identities PPU a987639e / SPU 477a3fa4 in
+        the built identity, every marker present; pin_errors and bundle clean, pin `3d8ec315`. Not run on the iPhone;
+        no FPS claim.
+      - **What the next export decides** (nothing to set; five minutes of play per game, fresh boot for GOW3):
+        SCHED918 Mach traps and SPU cores at scale 42 against scale 1; RANGELOCKPROF park histogram and acquisition
+        per lock with and without the park spin; the automatic heavy PUTLLC trace (job-queue work or reversible
+        polling writes) and PPU region profiles (BO2 storm, GOW3 main thread at 0.92 core); GOW3MLAA909
+        `ppu=applied ppu_patch=100`. Then, by result: the yield of the SPU wait loops without depression (SPUThread.cpp,
+        alias and audit), a directed hand-off to the awaited PPU thread, a bounded wait for net-zero heavy polls, the
+        GETLLAR tick thresholds at their reference durations.
+    - **Next:** the common private IPA 719 with Core 918 (base 694).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
