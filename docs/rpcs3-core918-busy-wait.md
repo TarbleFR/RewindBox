@@ -96,19 +96,25 @@ Activé.
   passage de boucle, un tour de référence en vaut 42 ; l'autre thread tient la ligne 2 à 6 fois les 24 tours d'avant
   et ne dort jamais) :
 
-| 20 000 tenues, trois exécutions | Durée d'avant (contrôle) | Durée de référence |
+| 20 000 tenues, neuf exécutions (g++ et clang++, machine chargée) | Durée d'avant (contrôle) | Durée de référence |
 |---|---|---|
-| Tenues où le thread en attente a cédé son cœur | 19 919 à 19 947 | 7 à 18 |
-| Cessions au total | 504 926 à 535 000 | 4 127 à 11 093 |
+| Tenues où le thread en attente a cédé son cœur | 19 919 à 19 957 | 1 à 24 |
+| Cessions au total | 482 865 à 535 000 | 122 à 13 226 |
 
-- une ligne tenue bien plus longtemps que toute la rotation (son détenteur n'est pas sur un cœur) : 200 sur 200
-  arrivent encore à la cession ;
+- une ligne tenue 6 à 8 fois plus longtemps que toute la rotation (son détenteur n'est pas sur un cœur) : 200 sur
+  200 arrivent encore à la cession ;
 - la comparaison : les quatre combinaisons, quatre fenêtres chacune, par paires ; une fenêtre sous la borne garde la
   rotation de l'écrivain active pendant que l'échelle alterne (God of War III) ; une fenêtre arrêtée ou sans image
   n'est pas comptée.
 
 Ces chiffres montrent le mécanisme sur un PC Linux ; ils ne mesurent pas l'iPhone, où le coût d'une cession
 (`swtch_pri`) est celui que les passes de la section 4 mesureront.
+
+Revue indépendante (lecture seule, partielle) : aucun défaut dans l'échelle atomique ni dans la politique ; sa
+remarque (`<atomic>` n'était inclus que par transitivité dans `asm.hpp`) est appliquée. Elle relève deux attentes
+faites sous un verrou, qui durent maintenant ce qu'elles durent sur l'appareil de référence : la lecture GETLLAR
+sous `rsx::reservation_lock` (environ 3 µs) et le cas rare de synchronisation ZCULL forcée de `VKGSRender.cpp`
+(1,25 µs). L'arithmétique des passes et le bloc du rapport sont couverts par les tests exécutés.
 
 ## 6. Ce que l'export suivant décidera
 
