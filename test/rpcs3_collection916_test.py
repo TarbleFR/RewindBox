@@ -126,7 +126,7 @@ def static_checks(source: Path) -> None:
     clear = capture[capture.index('inline void clear() noexcept'):capture.index('} // namespace start_request')]
     require('auto_ppu.store(false' in clear, 'a request of the previous boot is dropped')
     dump = (source / 'rpcs3/ios/RPCS3IOSFreezeDump.cpp').read_text('utf-8', 'surrogateescape')
-    require('capture::start_request::take(capture::start_request::auto_ppu, running)' in dump and '"menu_closed" : "auto_ppu_bound"' in dump,
+    require('capture::start_request::take(capture::start_request::auto_ppu, running)' in dump and 'start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound"' in dump,
             'the diagnostic thread serves it and names the trigger')
     require(dump.count('capture::admit_ppu(s_boot,') >= 3 and 'run->number = ++s_boot.ppu;' in dump, 'with the limits of an explicit request')
     require('trigger=menu_closed' not in dump.split('// PPU region profile.')[1], 'no PPU profile line names a fixed trigger')

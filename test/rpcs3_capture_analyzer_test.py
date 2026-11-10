@@ -78,6 +78,12 @@ def journal():
     a.append(record(500, 20.01, 'COREPROF SPUWAIT551 session=1 window=2 getllar_sleep=0:0.000 putllc_ok=0 putllc_fail=0 putllc_heavy=0 spurs_relaxed=0:0:0'))
     a.append(record(500, 30.0, 'COREPROF FRAMEPROF527 session=1 window=3 phase=stopped wall_guest_fps=0.000 p95_ms=0.0'))
     a.append(record(500, 30.01, 'COREPROF IDLE916 session=1 window=3 consecutive=2 detail=frameprof_only last_guest_flip_age_ms=15000.000 scope=stopped_windows_after_the_first'))
+    # Core 917: the park fields of the writer locks and the captures the report asks for on a heavy PUTLLC storm.
+    a.append(record(500, 10.04, 'RANGELOCKPROF session=1 episodes=3 wl_putllc=1109454:2793.174:13.494 wl_putllc_phases=300.1:120.2:2372.9 park_spin=1 '
+                    'wl_putllc_park_hist=900000:150000:40000:15000:3000:1000:400:54 wl_putllc_slow_park_ms=61.250 wl_putllc_over_budget=1454 '
+                    'ppu_parked=1200000:812.500 ppu_main_parked=700000:540.250'))
+    a.append(record(500, 10.06, 'COREPROF AUTOSTORM917 session=1 window=1 putllc_heavy=1109863 bound=100000 windows=2 request=heavy_putllc_trace+ppu_region_profile'))
+    a.append(record(500, 10.6, 'COREPROF PPUPROF912 session=1 capture=2 part=armed trigger=auto_heavy_putllc threads=3 max_samples=5000'))
     a.append(record(500, 12.0, 'FREEZE_DUMP snapshot\nFREEZE_DUMP begin dump=1 episode=1\nFREEZE_DUMP rsx present=1 get=0x10 put=0x10 in_begin_end=0\n'
                     'FREEZE_DUMP ppu id=0x1000000 name=main func=_sys_lwcond_queue_wait wait_s=9.6\n'
                     'FREEZE_DUMP lwcond id=0x97000100 name=_cnd1 lwmutex_id=0x95000200 control=0x10203040 control_data=0102 lwmutex=0x10203000 lwmutex_data=0304 '
@@ -188,7 +194,11 @@ def main() -> int:
         check('God of War III MLAA bypass (last report): executable=PPU-4d5c51503a81a327c2a99427390a395b8dcb3767 ppu=applied ppu_patch=100 '
               'ppu_call_word=0x4bfffa05 savestate_patched=-1' in core916, 'the MLAA plan applied to the executable')
         check('PPU region profile asked by the report at window 1: busiest_ppu_cores=0.931' in core916 and
-              'PPU region profile 1 [' in core916, 'the profile asked by the report and its capture')
+              'PPU region profile 1 [' in core916 and '(trigger auto_ppu_bound)' in core916, 'the profile asked by the report and its capture')
+        check(' 900000:150000:40000:15000:3000:1000:400:54 ' in rows[1] and ' 1200000:812.500 ' in rows[1] and ' 700000:540.250 ' in rows[1] and ' 1454 ' in rows[1],
+              'Core 917: the park histogram, the over-budget locks and the PPU parked time of a window')
+        check('captures asked by the report at window 1 (heavy PUTLLC storm): putllc_heavy=1109863 (bound 100000, 2 windows in a row)' in core916 and
+              '(trigger auto_heavy_putllc)' in core916, 'Core 917: the captures asked on a storm, and their trigger')
         a = data['100:1']
         check(a['title'] == 'AAAA00001' and a['title_origin'].startswith('RPCS3-performance.log:') and data['200:3']['title'] == 'BBBB00002', 'titles from CONFIG_LAYERS')
         check(data['300:1']['title'] == 'unknown', 'no CONFIG_LAYERS: unknown title')

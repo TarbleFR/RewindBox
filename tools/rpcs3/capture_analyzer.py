@@ -30,7 +30,7 @@ import sys
 LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET dropped=')
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
-                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916')
+                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -265,6 +265,7 @@ def analyse(lines: list, labels: dict) -> dict:
             capture = entry['ppu_profiles'].setdefault(data.get('capture', '?'), {'threads': [], 'origin': line.origin})
             if data.get('part') == 'armed':
                 capture['armed_after_window'] = launch['last_window'][1] if launch['last_window'] else None
+                capture['trigger'] = data.get('trigger')
             if data.get('part') == 'begin':
                 capture['begin'] = data
             elif data.get('part') == 'thread':
@@ -355,6 +356,8 @@ COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527',
            ('putllc_ok', 'SPUWAIT551', 'putllc_ok'), ('putllc_heavy', 'SPUWAIT551', 'putllc_heavy'), ('getllar_sleep', 'SPUWAIT551', 'getllar_sleep'),
            ('spurs_relaxed', 'SPUWAIT551', 'spurs_relaxed'),
            ('wl_putllc', 'RANGELOCKPROF', 'wl_putllc'), ('wl_phases', 'RANGELOCKPROF', 'wl_putllc_phases'),
+           ('park_spin', 'RANGELOCKPROF', 'park_spin'), ('park_hist', 'RANGELOCKPROF', 'wl_putllc_park_hist'), ('slow_park_ms', 'RANGELOCKPROF', 'wl_putllc_slow_park_ms'),
+           ('over_budget', 'RANGELOCKPROF', 'wl_putllc_over_budget'), ('ppu_parked', 'RANGELOCKPROF', 'ppu_parked'), ('ppu_main_parked', 'RANGELOCKPROF', 'ppu_main_parked'),
            ('epoch_put', 'EPOCH909', 'put'), ('put_deferred', 'EPOCH909', 'put_deferred'), ('put_patched', 'EPOCH909', 'put_patched'),
            ('lookahead', 'OPT583', 'lookahead'), ('worker_used', 'OPT583', 'worker_used'), ('worker_hashes', 'OPT581', 'worker_hashes'),
            ('memo_ways', 'TEXMEMO660', 'ways'), ('memo_lookups', 'TEXMEMO660', 'lookups'), ('memo_hits', 'TEXMEMO660', 'hits'),
@@ -385,7 +388,11 @@ UNITS = ('fps and cores are averages over the window; gpu_busy is a share of the
          'all SPU threads (thread time, not frame time); getllar_sleep is count:total_ms; pass, epoch and memo counters are per window; '
          'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count; '
          'spurs_relaxed is stored:undone:refused, the PUTLLC of SPU threads on SPURS header lines with relaxed reservations (Core 916), per '
-         'window: undone = interrupted by a guest store and taken back, refused = the line had changed since GETLLAR')
+         'window: undone = interrupted by a guest store and taken back, refused = the line had changed since GETLLAR; '
+         'park_hist is the park phase of the SPU PUTLLC writer locks by duration (upper bounds 0.5, 1, 2, 4, 8, 16, 50 us, then longer), '
+         'slow_park_ms the time of the parks of 50 us and more, over_budget the locks whose wait outlasted the spin budget (Core 917); '
+         'ppu_parked and ppu_main_parked are count:total_ms inside the wait of vm::passive_lock, spin included, for every PPU thread '
+         'and for the first one (thread time)')
 
 
 PUTLLC_RESULTS = {'1': 'stored', '2': 'failed_time', '3': 'failed_owner', '4': 'failed_precheck', '5': 'failed_compare',
@@ -543,6 +550,10 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
                        f"savestate_patched={last.get('savestate_patched', 'absent')} spu_matched={last.get('spu_matched')} unmatched_spu={last.get('unmatched_spu')} "
                        f"[{last.get('_origin')}]")
         for window, data in sorted(entry['windows'].items()):
+            if 'AUTOSTORM917' in data:
+                asked = data['AUTOSTORM917']
+                out.append(f"   captures asked by the report at window {window} (heavy PUTLLC storm): putllc_heavy={asked.get('putllc_heavy')} "
+                           f"(bound {asked.get('bound')}, {asked.get('windows')} windows in a row) [{asked.get('_origin')}]")
             if 'AUTOPPU916' in data:
                 asked = data['AUTOPPU916']
                 out.append(f"   PPU region profile asked by the report at window {window}: busiest_ppu_cores={asked.get('busiest_ppu_cores')} "
@@ -556,7 +567,8 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
                        + ''.join(f" [{r['kind']} {r['reason']} {r['origin']}]" for r in entry['capture_refusals']))
         for number_, capture in sorted(entry['putllc_traces'].items()):
             summary = putllc_summary(capture)
-            out.append(f"   heavy PUTLLC capture {number_} [{summary['origin']}] armed after window {summary['armed_after_window']}; complete={summary['complete']} "
+            out.append(f"   heavy PUTLLC capture {number_} [{summary['origin']}] armed after window {summary['armed_after_window']} "
+                       f"(trigger {capture.get('armed', {}).get('trigger', 'absent')}); complete={summary['complete']} "
                        f"(lines {summary['lines_received']}/{summary['lines_declared']}) end={summary['begin'].get('end')} generation={summary['generation']} "
                        f"threads_dropped={summary['threads_dropped']} after_full={summary['after_full']} "
                        f"events_of_an_earlier_capture_rejected={summary['stale_rejected']}")
@@ -569,7 +581,8 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             out.append('      note: ' + summary['note'])
         for number_, capture in sorted(entry['ppu_profiles'].items()):
             begin = capture.get('begin', {})
-            out.append(f"   PPU region profile {number_} [{capture['origin']}] armed after window {capture.get('armed_after_window')}; samples={begin.get('samples')} scope={begin.get('pc_scope')} (regions of {begin.get('region_bytes')} bytes; not exact instructions)")
+            out.append(f"   PPU region profile {number_} [{capture['origin']}] armed after window {capture.get('armed_after_window')} "
+                       f"(trigger {capture.get('trigger', 'absent')}); samples={begin.get('samples')} scope={begin.get('pc_scope')} (regions of {begin.get('region_bytes')} bytes; not exact instructions)")
             for thread in capture['threads']:
                 running, waiting = number(thread.get('running')) or 0, number(thread.get('waiting')) or 0
                 share = f'{100 * running / (running + waiting):.1f} %' if running + waiting else 'absent'
