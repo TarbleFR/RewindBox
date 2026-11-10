@@ -303,9 +303,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     tables equal). Outside the delivery groups: Dolphin session harness stale since 18 Oct (main, open);
     `test/melonx_capture_journal_test.py` red on Linux since before 719 (MeloNX owner told);
     `DolphinSkinOverlayTests testWiiButtonsLandscape` failed once in run `42795464202` on sources that passed in
-    `42787761020` (fixed 20 ms wait; skins owner told). The MeloNX owner keeps the keep-alive accounting ("gcKeepAlive
-    dormant" line, separate Missed count) for its next Core. "MeloNX Core 719" is the owner's frozen label; IPA 719
-    holds Core 717.
+    `42787761020`: the harness waited a fixed 20 ms for a Menu the overlay sends on a later turn of the main queue;
+    corrected in the tests by the skins owner's PR #168 (`c9e3f26c`, reviewed and merged by main as `11ee0f5a`, run
+    `42800736698` green: MeloNX 23/23, ARMSX2 13 and 13, Dolphin 36/36; one green run does not prove it gone). That
+    merge changes test paths: classify it in the next delivery manifest. The MeloNX owner keeps the keep-alive
+    accounting ("gcKeepAlive dormant" line, separate Missed count) for its next Core. "MeloNX Core 719" is the
+    owner's frozen label; IPA 719 holds Core 717.
   - **Next:** device journals. RPCS3: [Core 918 record](rpcs3-core918-busy-wait.md) § 8. MeloNX:
     [device protocol](evidence/melonx-719-gates/device-protocol.md). Skins: screen framing and pressed buttons on
     the rebuilt packs.

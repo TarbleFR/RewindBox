@@ -599,7 +599,11 @@ Core 918 inchangé (`unchangedFromBase`, charge `78f2defd…f9d3` retenue).
   1er novembre ; ouvert, propriétaire main. `test/melonx_capture_journal_test.py` : échec sous Linux, identique
   sur `3b4b4d02` ; signalé au propriétaire MeloNX. `DolphinSkinOverlayTests testWiiButtonsLandscape` : un échec au
   run `42795464202` (`DolphinSkinOverlayTests.mm:233`, compte du Menu 0 puis 2 au lieu de 1) sur des sources qui
-  passent au run `42787761020` (36/36) ; attente fixe de 20 ms ; signalé au propriétaire des skins.
+  passent au run `42787761020` (36/36) ; attente fixe de 20 ms ; signalé au propriétaire des skins, qui l'a
+  corrigée dans les trois bancs (PR #168, `c9e3f26c` : attente de l'événement bornée à 2 s, puis 30 ms pour qu'une
+  seconde livraison fasse encore échouer le « une fois ») ; relue et fusionnée par main (`11ee0f5a`), run
+  `42800736698` vert. Un run vert ne prouve pas la disparition de l'instabilité. Cette fusion touche des chemins
+  de test : elle se classe dans le manifeste de la build suivante.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP. IPA
   vérifiée hors ligne (`passed-offline-checks`), huit reçus copiés avant la suppression de la clé (§ 3.5), clé
   privée supprimée, envoi privé en fichier. Aucun test sur iPhone.
