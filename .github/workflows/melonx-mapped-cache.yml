@@ -10,7 +10,7 @@ run-name: Mapped pipeline cache memory • ${{ github.sha }}
     - .github/workflows/melonx-mapped-cache.yml
     - test/melonx_library_share/run_mapped_cache.py
     - test/melonx_library_share/mvk_library_share_test.cpp
-    - build-utils/melonx/moltenvk-candidates/**
+    - build-utils/melonx/moltenvk/**
 permissions:
   contents: read
 concurrency:

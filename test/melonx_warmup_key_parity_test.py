@@ -320,9 +320,9 @@ def shipped_patch_keeps_private_api_off(pin):
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
     return (hashlib.sha256((ROOT / pin['patch']).read_bytes()).hexdigest() == pin['patchSha256'] and
             'MVK_USE_METAL_PRIVATE_API' not in text and 'useMetalPrivateAPI' not in text and
-            files == ['MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+            files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h'])
+                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/Utility/MVKCodec.h'])
 
 
 build_script = (ROOT / 'build-utils/melonx/build_moltenvk_rebuild.py').read_text()

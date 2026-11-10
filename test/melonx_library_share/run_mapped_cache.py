@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
-CANDIDATE = ROOT / 'build-utils/melonx/moltenvk-candidates/rewindbox-moltenvk-mapped.patch'
+CANDIDATE = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'
 OUT = ROOT / 'dist/melonx-mapped-cache'
 WORK = ROOT / '.mapped-cache'
 SHADERS = ROOT / 'test/melonx_metal_binary_archive/shaders.spvz'

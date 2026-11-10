@@ -55,9 +55,9 @@ def check_patch():
     require(hashlib.sha256(PATCH.read_bytes()).hexdigest() == PIN['patchSha256'], 'the patch digest matches its pin')
     text = PATCH.read_text()
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
-    require(files == ['MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+    require(files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h'], files)
+                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/Utility/MVKCodec.h'], files)
     # Lot 9, second part: the size query counts each entry once (measured by test/melonx_library_share/run_cache_size.py).
     count = added_function(text, 'countData', 'MVKPipelineCache')
     require('if (entrySize == 0)' in count and 'entrySize = cb.buffSize;' in count and 'total += entrySize;' in count and

@@ -5,16 +5,17 @@ IPA 718, Hogwarts Legacy (pid 44597): the footprint reaches 5.4-5.5 GiB with 4 %
 (MappedSnapshot) and creates a staging cache from it, but MoltenVK v1.4.2 copies every library's compressed MSL out of the
 data into anonymous memory, the merge into main copies it again (most of the +650 MiB transient 5 s after launch:
 2 090 -> 4 256 -> 3 600 MiB), and the mapping is closed right after. With the RewindBox MoltenVK patch
-(build-utils/melonx/moltenvk-candidates/rewindbox-moltenvk-mapped.patch, third part) a private pNext structure of
+(build-utils/melonx/moltenvk/rewindbox-moltenvk.patch, third part) a private pNext structure of
 VkPipelineCacheCreateInfo (sType 0x52425831, 'RBX1') makes MoltenVK reference each compressed MSL in the caller's data
 instead: pages of a mapped file that are never written are not part of the footprint iOS limits, and the system can drop
 and read them back.
 
 Change (PipelineCacheManager.cs, every title):
 - the main snapshot's staging cache is created with that structure (worker snapshots are copied as before);
-- once the driver accepted it, the snapshot stays mapped while main can reference it: it is kept with the manager (under
-  the main lock, only if the manager is not disposed) and disposed after main is destroyed at the close; a snapshot the
-  driver did not accept, or a load the close overtook, is disposed as before;
+- once the driver accepted it (and kept something: a header of another driver identity keeps nothing), the snapshot stays
+  mapped while main can reference it: at the end of the load, whatever path it took, it is kept with the manager under
+  the main lock and disposed after main is destroyed at the close, or disposed then if the close already destroyed main;
+  a snapshot the driver did not accept is disposed as before;
 - main is never a merge source, never recycled, and its file is replaced by a new file (written beside it, then moved)
   or deleted, never rewritten in place, so the mapped bytes stay what MoltenVK read;
 - one journal line, pipelineCache mainDataMapped, with the size referenced.
@@ -100,8 +101,8 @@ DECLARE_OLD = '''            bool[] workerRefused = new bool[workerSnapshots.Len
             {
 '''
 DECLARE_NEW = '''            bool[] workerRefused = new bool[workerSnapshots.Length]; // RewindBox (adapt_pipeline_snapshot_retire)
-            // RewindBox (adapt_pipeline_cache_mapped_data): the driver accepted the snapshot and may reference its data; cleared
-            // once the snapshot is kept for main or released.
+            // RewindBox (adapt_pipeline_cache_mapped_data): the driver accepted the snapshot and may reference its data; the
+            // snapshot is then kept for main (or released after the close) at the end of the load.
             bool referenced = false;
 
             try
@@ -125,37 +126,13 @@ INNER_DISPOSE_NEW = '''                finally
 
                 // The worker snapshots load here too, outside the main lock.'''
 
-KEEP_OLD = '''                    if (staging.Handle != 0)
-                    {
-                        _api.DestroyPipelineCache(_device, staging, null);
-                    }
-
-                    foreach (PipelineCache workerCache in workerStaging)'''
-KEEP_NEW = '''                    if (staging.Handle != 0)
-                    {
-                        _api.DestroyPipelineCache(_device, staging, null);
-                    }
-
-                    // RewindBox (adapt_pipeline_cache_mapped_data): main may now reference the snapshot's data: it stays mapped
-                    // until main is destroyed (DisposeLocked). A close that overtook the load merged nothing into main.
-                    if (referenced)
-                    {
-                        if (!_disposed)
-                        {
-                            _mainDataSnapshot = snapshot;
-                            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record(
-                                "pipelineCache", "mainDataMapped", detail: $"main {FormatSize(length)} referenced in its mapped file, " +
-                                "not copied into memory (adapt_pipeline_cache_mapped_data)");
-                        }
-                        else
-                        {
-                            snapshot.Dispose();
-                        }
-
-                        referenced = false;
-                    }
-
-                    foreach (PipelineCache workerCache in workerStaging)'''
+IGNORED_OLD = '''                        accepted = false;
+                        ignored = true;
+'''
+IGNORED_NEW = '''                        accepted = false;
+                        ignored = true;
+                        referenced = false; // RewindBox (adapt_pipeline_cache_mapped_data): the driver kept nothing of it
+'''
 
 OUTER_OLD = '''            catch (Exception exception)
             {
@@ -171,10 +148,26 @@ OUTER_NEW = '''            catch (Exception exception)
             }
             finally
             {
-                // RewindBox (adapt_pipeline_cache_mapped_data): a load that failed before keeping the snapshot releases it.
+                // RewindBox (adapt_pipeline_cache_mapped_data): the driver accepted the snapshot, so main may reference its
+                // data from here on: it stays mapped until main is destroyed (DisposeLocked), or is released now if the close
+                // already destroyed main. Whatever path the load took (merged, merge failed, exception), never earlier.
                 if (referenced)
                 {
-                    snapshot.Dispose();
+                    lock (_mainCacheLock)
+                    {
+                        if (_disposed)
+                        {
+                            snapshot.Dispose();
+                        }
+                        else
+                        {
+                            _mainDataSnapshot = snapshot;
+                            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record(
+                                "pipelineCache", "mainDataMapped", detail: $"main {FormatSize(length)} referenced in its mapped file, " +
+                                "not copied into memory (adapt_pipeline_cache_mapped_data)");
+                        }
+                    }
+
                     referenced = false;
                 }
 
@@ -197,7 +190,7 @@ def apply(source):
         assert hashlib.sha256(paths[name].read_bytes()).hexdigest() == expected, name
     manager = paths[MANAGER]
     for old, new in ((FIELD_OLD, FIELD_NEW), (CREATE_OLD, CREATE_NEW), (RETRY_OLD, RETRY_NEW), (DECLARE_OLD, DECLARE_NEW),
-                     (STAGING_OLD, STAGING_NEW), (INNER_DISPOSE_OLD, INNER_DISPOSE_NEW), (KEEP_OLD, KEEP_NEW),
+                     (STAGING_OLD, STAGING_NEW), (IGNORED_OLD, IGNORED_NEW), (INNER_DISPOSE_OLD, INNER_DISPOSE_NEW),
                      (OUTER_OLD, OUTER_NEW), (DESTROY_OLD, DESTROY_NEW)):
         once(manager, old, new)
     return list(paths.values())
