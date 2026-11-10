@@ -308,7 +308,7 @@ struct Rendezvous {
 };
 
 int main(int argc, char** argv) {
-    if (argc < 5) fail("usage: mvk_library_share_test <shaders.spvz> <salt> <output.json> <none|one|merge|reset|every8|concurrent>");
+    if (argc < 5) fail("usage: mvk_library_share_test <shaders.spvz> <salt> <output.json> <none|one|merge|reset|every8|concurrent|sizeprobe>");
     uint32_t salt = (uint32_t)strtoul(argv[2], nullptr, 10);
     std::string output = argv[3], strategy = argv[4];
     bool merge = strategy != "none" && strategy != "one", reset = strategy == "reset", concurrent = strategy == "concurrent";
@@ -417,6 +417,86 @@ int main(int argc, char** argv) {
         else c.computes.push_back(module);
     }
     double footprintStart = footprintMiB();
+
+    // Lot 9 (strategy sizeprobe): RewindBox asks MoltenVK the main cache's data size during play (PipelineCacheManager
+    // GetCacheDataSize; IPA 718 Hogwarts 2 461 ms for 4 667 entries). Eight rounds of distinct shaders (salts) go into one
+    // cache; after every creation the size is asked and timed, as a checkpoint after growth does. At the end the data is
+    // written into a buffer of that size (VK_SUCCESS and every byte used), hashed, and loaded into a new cache, whose size
+    // must be the same. Two MoltenVK builds run it: the shipped one and the candidate; same bytes, cheaper probes.
+    if (strategy == "sizeprobe") {
+        Timing probes;
+        int pipelines = 0;
+        std::vector<VkPipeline> made;
+        for (uint32_t round = 0; round < 8; round++) {
+            if (round > 0) {
+                std::vector<Shader> more = loadShaders(argv[1], salt + 7919u * round);
+                c.fragments.clear();
+                for (auto& shader : more) {
+                    VkShaderModuleCreateInfo moduleInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+                    moduleInfo.codeSize = shader.words.size() * 4;
+                    moduleInfo.pCode = shader.words.data();
+                    VkShaderModule module;
+                    check(vkCreateShaderModule(c.device, &moduleInfo, nullptr, &module), "vkCreateShaderModule");
+                    c.modules.push_back(module);
+                    if (shader.name == "vertexIndex") c.vertexIndex = module;
+                    else if (shader.name == "vertexBuffer") c.vertexBuffer = module;
+                    else if (shader.name.compare(0, 8, "fragment") == 0) c.fragments.push_back(module);
+                }
+            }
+            for (int f = 0; f < (int)c.fragments.size(); f++) {
+                GraphicsVariant variants[5] = {{f, kFormats[0], false, false, 0}, {f, kFormats[1], false, false, 0},
+                                               {f, kFormats[0], true, false, 0}, {f, kFormats[1], true, false, 0},
+                                               {f, kFormats[0], false, true, 0}};
+                for (auto& v : variants) {
+                    VkPipeline pipeline = VK_NULL_HANDLE;
+                    check(createGraphics(c, mainCache, 0, v, &pipeline), "vkCreateGraphicsPipelines main");
+                    made.push_back(pipeline);
+                    pipelines++;
+                    double t = nowMs();
+                    size_t size = cacheSize(c.device, mainCache);
+                    probes.add(nowMs() - t);
+                    if (size == 0) fail("size query returned 0");
+                }
+            }
+        }
+        size_t size = cacheSize(c.device, mainCache);
+        std::vector<uint8_t> data(size);
+        size_t written = size;
+        VkResult wrote = vkGetPipelineCacheData(c.device, mainCache, &written, data.data());
+        std::vector<uint8_t> small(size > 16 ? size - 16 : 0);
+        size_t smallSize = small.size();
+        VkResult shortWrite = vkGetPipelineCacheData(c.device, mainCache, &smallSize, small.data());
+        VkPipelineCacheCreateInfo reload = cacheInfo;
+        reload.initialDataSize = written;
+        reload.pInitialData = data.data();
+        VkPipelineCache reloaded;
+        check(vkCreatePipelineCache(c.device, &reload, nullptr, &reloaded), "vkCreatePipelineCache reload");
+        size_t reloadedSize = cacheSize(c.device, reloaded);
+        std::ostringstream json;
+        json << "{\"strategy\": \"sizeprobe\", \"device\": \"" << properties.deviceName << "\", \"pipelines\": " << pipelines
+             << ", \"probes\": " << probes.json() << ", \"bytes\": " << size << ", \"written\": " << written
+             << ", \"writeResult\": " << (int)wrote << ", \"shortWriteResult\": " << (int)shortWrite << ", \"shortWritten\": " << smallSize
+             << ", \"dataHash\": \"" << std::hex << fnv(1469598103934665603ull, data.data(), written) << std::dec << "\""
+             << ", \"reloadedBytes\": " << reloadedSize;
+#ifdef __APPLE__
+        MVKPerformanceStatistics statistics{};
+        size_t statisticsSize = sizeof(statistics);
+        if (vkGetPerformanceStatisticsMVK(c.device, &statistics, &statisticsSize) == VK_SUCCESS) {
+            auto tracker = [&](const char* name, const MVKPerformanceTracker& t) {
+                json << ", \"" << name << "\": {\"count\": " << t.count << ", \"totalMs\": " << t.average * t.count << ", \"maxMs\": " << t.maximum << "}";
+            };
+            tracker("mvkSizePipelineCache", statistics.pipelineCache.sizePipelineCache);
+            tracker("mvkWritePipelineCache", statistics.pipelineCache.writePipelineCache);
+            tracker("mvkMslCompile", statistics.shaderCompilation.mslCompile);
+        }
+#endif
+        json << "}";
+        for (VkPipeline pipeline : made) vkDestroyPipeline(c.device, pipeline, nullptr);
+        vkDestroyPipelineCache(c.device, reloaded, nullptr);
+        std::ofstream(output) << json.str() << "\n";
+        printf("%s\n", json.str().c_str());
+        return 0;
+    }
 
     std::mutex mainLock;   // MeloNX's PipelineCreationLock: main cache creations and merges hold it
     std::vector<VkPipeline> created;

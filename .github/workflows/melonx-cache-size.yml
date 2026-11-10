@@ -1,0 +1,35 @@
+name: MeloNX pipeline cache size query measure
+run-name: Pipeline cache size query • ${{ github.sha }}
+# Lot 9. MoltenVK v1.4.2 with the shipped patch, against the candidate patch (entry sizes counted once), built for macOS
+# and exercised through Vulkan on the runner's real Metal device: the cost of the cache size query RewindBox asks during
+# play, and the identity of the written data. Nothing is packaged, pinned or delivered from here; no iOS binary.
+'on':
+  push:
+    branches:
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/melonx-cache-size.yml
+    - test/melonx_library_share/**
+    - build-utils/melonx/moltenvk/rewindbox-moltenvk.patch
+permissions:
+  contents: read
+concurrency:
+  group: melonx-cache-size-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  measure:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Build MoltenVK v1.4.2 twice for macOS (shipped and candidate patch) and measure the size query
+      run: python3 test/melonx_library_share/run_cache_size.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-cache-size-${{ github.sha }}
+        path: dist/melonx-cache-size
+        retention-days: 14
+        if-no-files-found: error

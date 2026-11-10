@@ -1,0 +1,282 @@
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
+index 45ddd3a..f31b2df 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKImage.h
+@@ -499,6 +499,8 @@ protected:
+ 	friend MVKSwapchain;
+ 
+ 	id<CAMetalDrawable> getCAMetalDrawable();
++	id<CAMetalDrawable> fetchCAMetalDrawable();
++	id<CAMetalDrawable> takeCAMetalDrawable();
+ 	void addPresentedHandler(id<CAMetalDrawable> mtlDrawable, MVKImagePresentInfo presentInfo, MVKSwapchainSignaler signaler);
+ 	void releaseMetalDrawable();
+ 	MVKSwapchainImageAvailability getAvailability();
+@@ -507,6 +509,7 @@ protected:
+ 	MVKSwapchainSignaler getPresentationSignaler();
+ 
+ 	id<CAMetalDrawable> _mtlDrawable = nil;
++	std::mutex _mtlDrawableLock;	// RewindBox: guards _mtlDrawable (read on the submission thread, released elsewhere)
+ 	id<MTLTexture> _mtlTextureHeadless = nil;
+ 	MVKSwapchainImageAvailability _availability;
+ 	MVKSmallVector<MVKSwapchainSignaler, 1> _availabilitySignalers;
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm b/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
+index ef8ca60..5115676 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm
+@@ -1564,9 +1564,12 @@ static void signalAndUntrack(const MVKSwapchainSignaler& signaler) {
+ 
+ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence) {
+ 
+-	// Now that this image is being acquired, release the existing drawable and its texture.
+-	// This is not done earlier so the texture is retained for any post-processing such as screen captures, etc.
+-	releaseMetalDrawable();
++	// RewindBox: the drawable is no longer released here. The image returned can still be in flight
++	// (acquireNextImage picks the image with the shortest wait, available or not), and with asynchronous
++	// queue submission its earlier present may still be reading _mtlDrawable on the submission thread:
++	// releasing it from this thread freed the drawable that present was capturing in its Metal handlers
++	// (SIGSEGV in objc_retain under _Block_copy; KhronosGroup/MoltenVK#2791). Each present now takes the
++	// drawable it shows (takeCAMetalDrawable), so a later acquisition starts without one.
+ 
+ 	lock_guard<mutex> lock(_availabilityLock);
+ 
+@@ -1602,32 +1605,69 @@ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphor
+ 	return getConfigurationResult();
+ }
+ 
++// RewindBox: marks the drawable ownership of this build (build_moltenvk_rebuild.py checks it is present).
++__attribute__((used)) static const char kRewindBoxDrawableOwnership[] =
++	"RewindBox drawable ownership: taken by each present, guarded by _mtlDrawableLock";
++
+ // Calling nextDrawable may result in a nil drawable, or a drawable with no pixel format.
+ // Attempt several times to retrieve a good drawable, and set an error to trigger the
+ // swapchain to be re-established if one cannot be retrieved.
++// Returns a retained drawable (or nil) owned by the caller; no lock is held across nextDrawable,
++// which can block until the display gives a drawable back.
++id<CAMetalDrawable> MVKPresentableSwapchainImage::fetchCAMetalDrawable() {
++	id<CAMetalDrawable> drawable = nil;
++	@autoreleasepool {
++		bool hasInvalidFormat = false;
++		uint32_t attemptCnt = _swapchain->getImageCount();	// Attempt a resonable number of times
++		for (uint32_t attemptIdx = 0; !drawable && attemptIdx < attemptCnt; attemptIdx++) {
++			uint64_t startTime = getPerformanceTimestamp();
++			drawable = [_swapchain->getCAMetalLayer().nextDrawable retain];	// retained
++			addPerformanceInterval(getPerformanceStats().queue.retrieveCAMetalDrawable, startTime);
++			hasInvalidFormat = drawable && !drawable.texture.pixelFormat;
++			if (hasInvalidFormat) { [drawable release]; drawable = nil; }
++		}
++		if (hasInvalidFormat) {
++			setConfigurationResult(reportError(VK_ERROR_OUT_OF_DATE_KHR, "CAMetalDrawable with valid format could not be acquired after %d attempts.", attemptCnt));
++		} else if ( !drawable ) {
++			setConfigurationResult(reportError(VK_ERROR_OUT_OF_POOL_MEMORY, "CAMetalDrawable could not be acquired after %d attempts.", attemptCnt));
++		}
++	}
++	return drawable;
++}
++
++// The drawable the image's current content is drawn into, fetched on first use. The image keeps it
++// until a present takes it (or the image is made available or destroyed).
+ id<CAMetalDrawable> MVKPresentableSwapchainImage::getCAMetalDrawable() {
+ 
+ 	if (_mtlTextureHeadless) { return nil; }	// If headless, there is no drawable.
+ 
+-	if ( !_mtlDrawable ) {
+-		@autoreleasepool {
+-			bool hasInvalidFormat = false;
+-			uint32_t attemptCnt = _swapchain->getImageCount();	// Attempt a resonable number of times
+-			for (uint32_t attemptIdx = 0; !_mtlDrawable && attemptIdx < attemptCnt; attemptIdx++) {
+-				uint64_t startTime = getPerformanceTimestamp();
+-				_mtlDrawable = [_swapchain->getCAMetalLayer().nextDrawable retain];	// retained
+-				addPerformanceInterval(getPerformanceStats().queue.retrieveCAMetalDrawable, startTime);
+-				hasInvalidFormat = _mtlDrawable && !_mtlDrawable.texture.pixelFormat;
+-				if (hasInvalidFormat) { releaseMetalDrawable(); }
+-			}
+-			if (hasInvalidFormat) {
+-				setConfigurationResult(reportError(VK_ERROR_OUT_OF_DATE_KHR, "CAMetalDrawable with valid format could not be acquired after %d attempts.", attemptCnt));
+-			} else if ( !_mtlDrawable ) {
+-				setConfigurationResult(reportError(VK_ERROR_OUT_OF_POOL_MEMORY, "CAMetalDrawable could not be acquired after %d attempts.", attemptCnt));
+-			}
+-		}
++	{
++		lock_guard<mutex> lock(_mtlDrawableLock);
++		if (_mtlDrawable) { return _mtlDrawable; }
++	}
++	id<CAMetalDrawable> fetched = fetchCAMetalDrawable();
++	id<CAMetalDrawable> unused = nil;
++	id<CAMetalDrawable> drawable = nil;
++	{
++		lock_guard<mutex> lock(_mtlDrawableLock);
++		if (_mtlDrawable) { unused = fetched; } else { _mtlDrawable = fetched; }
++		drawable = _mtlDrawable;
++	}
++	[unused release];	// Another fetch published first: give this one back, unpresented.
++	return drawable;
++}
++
++// For a present: the drawable moves, retained, from the image to the presentation (its Metal
++// handlers release it), in one step under the lock, so no other thread can release it in between.
++id<CAMetalDrawable> MVKPresentableSwapchainImage::takeCAMetalDrawable() {
++	if (_mtlTextureHeadless) { return nil; }
++	id<CAMetalDrawable> drawable = nil;
++	{
++		lock_guard<mutex> lock(_mtlDrawableLock);
++		drawable = _mtlDrawable;
++		_mtlDrawable = nil;
+ 	}
+-	return _mtlDrawable;
++	return drawable ? drawable : fetchCAMetalDrawable();	// Presented without being drawn into.
+ }
+ 
+ // If not headless, retrieve the MTLTexture directly from the CAMetalDrawable.
+@@ -1639,13 +1679,14 @@ id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
+ // Pass MVKImagePresentInfo by value because it may not exist when the callback runs.
+ VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffer> mtlCmdBuff,
+ 															  MVKImagePresentInfo presentInfo) {
+-	_swapchain->renderWatermark(getMTLTexture(0), mtlCmdBuff);
++	// RewindBox: this presentation owns the drawable it shows (retained, taken from the image under its lock).
++	id<CAMetalDrawable> mtlDrwbl = takeCAMetalDrawable();
++	_swapchain->renderWatermark(_mtlTextureHeadless ? _mtlTextureHeadless : mtlDrwbl.texture, mtlCmdBuff);
+ 
+ 	// According to Apple, it is more performant to call MTLDrawable present from within a
+ 	// MTLCommandBuffer scheduled-handler than it is to call MTLCommandBuffer presentDrawable:.
+ 	// But get current drawable now, intead of in handler, because a new drawable might be acquired by then.
+ 	// Attach present handler before presenting to avoid race condition.
+-	id<CAMetalDrawable> mtlDrwbl = getCAMetalDrawable();
+ 	MVKSwapchainSignaler signaler = getPresentationSignaler();
+ 	[mtlCmdBuff addScheduledHandler: ^(id<MTLCommandBuffer> mcb) {
+ 
+@@ -1670,7 +1711,7 @@ VkResult MVKPresentableSwapchainImage::presentCAMetalDrawable(id<MTLCommandBuffe
+ 	// from this callback, because the last one or two presentation completion
+ 	// callbacks can occasionally stall.
+ 	retain();
+-	[mtlDrwbl retain];
++	// The drawable's reference taken above is released by the completion handler.
+ 	auto* fence = presentInfo.fence;
+ 	if (fence) { fence->retain(); }
+ 	[mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mcb) {
+@@ -1760,8 +1801,13 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
+ 
+ // Releases the CAMetalDrawable underlying this image.
+ void MVKPresentableSwapchainImage::releaseMetalDrawable() {
+-    [_mtlDrawable release];
+-	_mtlDrawable = nil;
++	id<CAMetalDrawable> drawable = nil;
++	{
++		lock_guard<mutex> lock(_mtlDrawableLock);
++		drawable = _mtlDrawable;
++		_mtlDrawable = nil;
++	}
++	[drawable release];	// Outside the lock: the release may run a completion callback.
+ }
+ 
+ // Signal, untrack, and release any signalers that are tracking.
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
+index e385e9b..fb99f6c 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h
+@@ -510,6 +510,7 @@ protected:
+ 	MVKShaderLibraryCache* getShaderLibraryCache(MVKShaderModuleKey smKey);
+ 	void readData(const VkPipelineCacheCreateInfo* pCreateInfo);
+ 	void writeData(std::ostream& outstream, bool isCounting = false);
++	size_t countData();
+ 	MVKShaderLibrary* getShaderLibraryImpl(mvk::SPIRVToMSLConversionConfiguration* pContext,
+ 										   MVKShaderModule* shaderModule,
+ 										   MVKPipeline* pipeline,
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
+index 7eae64c..fe44922 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
+@@ -2630,6 +2630,7 @@ protected:
+ 	SPIRVToMSLConversionConfiguration& getShaderConversionConfig() { return _pSLCache->_shaderLibraries[_index].first; }
+ 	MVKCompressor<std::string>& getCompressedMSL() { return _pSLCache->_shaderLibraries[_index].second->getCompressedMSL(); }
+ 	SPIRVToMSLConversionResultInfo& getShaderConversionResultInfo() { return _pSLCache->_shaderLibraries[_index].second->_shaderConversionResultInfo; }
++	size_t& getEntrySize() { return _pSLCache->_shaderLibraries[_index].second->_pipelineCacheEntrySize; }
+ 	MVKShaderCacheIterator(MVKShaderLibraryCache* pSLCache) : _pSLCache(pSLCache) {}
+ 
+ 	MVKShaderLibraryCache* _pSLCache;
+@@ -2669,10 +2670,7 @@ VkResult MVKPipelineCache::writeDataImpl(size_t* pDataSize, void* pData) {
+ 			}
+ 		} else {
+ 			if (_dataSize == 0) {
+-				mvk::countbuf cb;
+-				ostream outStream(&cb);
+-				writeData(outStream, true);
+-				_dataSize = cb.buffSize;
++				_dataSize = countData();	// RewindBox: only entries not counted before are serialized
+ 			}
+ 			*pDataSize = _dataSize;
+ 			return VK_SUCCESS;
+@@ -2731,6 +2729,62 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
+ #endif
+ }
+ 
++// RewindBox: the size writeData() produces, without serializing again the entries already counted. A binary archive
++// writes its items one after the other with nothing between them, so the size is the header, plus each entry's own
++// size, plus the end marker. An entry's content is fixed once its library is in the cache (a merge copies a library
++// into a new object, counted again), so its size is counted once and kept on its library. Before, every size query
++// after any change serialized every entry again into a counting stream (IPA 718: 4 667 entries, 2 461 ms, under the
++// cache lock).
++__attribute__((used)) static const char kRewindBoxCacheEntrySizes[] =
++	"RewindBox cache size: entry sizes counted once and kept on each shader library";
++
++size_t MVKPipelineCache::countData() {
++#if MVK_USE_CEREAL
++	uint32_t cacheEntryType;
++	size_t total = 0;
++	{
++		mvk::countbuf cb;
++		ostream outStream(&cb);
++		cereal::BinaryOutputArchive writer(outStream);
++		auto& devProps = getDeviceProperties();
++		writer(NSSwapHostIntToLittle(kDataHeaderSize));
++		writer(NSSwapHostIntToLittle(VK_PIPELINE_CACHE_HEADER_VERSION_ONE));
++		writer(NSSwapHostIntToLittle(devProps.vendorID));
++		writer(NSSwapHostIntToLittle(devProps.deviceID));
++		writer(devProps.pipelineCacheUUID);
++		cacheEntryType = MVKPipelineCacheEntryTypeEOF;
++		writer(cacheEntryType);
++		total = cb.buffSize;
++	}
++	MVKPerformanceTracker& perfTracker = getPerformanceStats().pipelineCache.sizePipelineCache;
++	cacheEntryType = MVKPipelineCacheEntryTypeShaderLibrary;
++	for (auto& scPair : _shaderCache) {
++		MVKShaderModuleKey smKey = scPair.first;
++		MVKShaderCacheIterator cacheIter(scPair.second);
++		while (cacheIter.next()) {
++			size_t& entrySize = cacheIter.getEntrySize();
++			if (entrySize == 0) {
++				uint64_t startTime = getPerformanceTimestamp();
++				mvk::countbuf cb;
++				ostream outStream(&cb);
++				cereal::BinaryOutputArchive writer(outStream);
++				writer(cacheEntryType);
++				writer(smKey);
++				writer(cacheIter.getShaderConversionConfig());
++				writer(cacheIter.getShaderConversionResultInfo());
++				writer(cacheIter.getCompressedMSL());
++				entrySize = cb.buffSize;
++				addPerformanceInterval(perfTracker, startTime);
++			}
++			total += entrySize;
++		}
++	}
++	return total;
++#else
++	return 0;
++#endif
++}
++
+ // Loads any data indicated by the creation info.
+ // This is the compliment of the writeData() function. The two must be kept aligned.
+ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+index c5b7499..596d9ec 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+@@ -154,6 +154,7 @@ protected:
+ 	id<MTLLibrary> _mtlLibrary;
+ 	MVKCompressor<std::string> _compressedMSL;
+ 	mvk::SPIRVToMSLConversionResultInfo _shaderConversionResultInfo;
++	size_t _pipelineCacheEntrySize = 0;	// RewindBox: serialized size of this library's pipeline cache entry, 0 until counted
+ 
+ 	/** When true, representing a library created with source, but never specialized */
+ 	bool _maySpecializeWithMacro;
