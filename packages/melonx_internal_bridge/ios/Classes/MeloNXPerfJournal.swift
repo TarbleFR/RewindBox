@@ -7,6 +7,10 @@ import Darwin
 // interval since the previous one:
 //   t=     seconds since the game's controls were installed
 //   fps=   the engine's game FPS / frame time ms / FIFO %
+//   mgd=   how long that engine call took, ms: entering the managed engine waits
+//          while a GC suspends it, so a long value is a stop-the-world in progress
+//          (read with the .NET_BGC CPU of the same line: a background GC that
+//          marks shows its CPU; a suspension waiting for a thread shows none)
 //   pres=  frames presented / longest gap between two presentations ms /
 //          gaps over 20 ms / gaps over 40 ms (at 60 fps a gap over 20 ms is a
 //          held frame; at 30 fps every frame exceeds 20 ms, read over 40)
@@ -138,13 +142,16 @@ final class MeloNXPerfJournal {
         samples += 1
         var fields = ["t=" + String(Int((now - started).rounded()))]
 
+        let callStart = ProcessInfo.processInfo.systemUptime
         let engine = fps()
+        let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000
         if let rate = engine["gameFps"] as? Double {
             let time = engine["gameFrameTimeMs"] as? Double ?? 0, fifo = engine["fifoPercent"] as? Double ?? 0
             fields.append("fps=\(Self.decimal(rate))/\(Self.decimal(time))/\(Int(fifo.rounded()))")
             // Boot seconds before the first measured frame read 0.
             if !isPaused && rate > 0 { fpsTotal += rate; fpsCount += 1 }
         } else { fields.append("fps=-") }
+        fields.append("mgd=" + Self.decimal(callMs))
 
         let shown = presentation()
         let frames = shown.frames &- previousShown.frames

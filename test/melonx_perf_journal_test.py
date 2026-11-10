@@ -68,6 +68,9 @@ check('self.pacing.gapsMs.count < MeloNXPerfJournal.Presentation.gapLimit' in co
       'pacing.gapsMs.removeAll(keepingCapacity: true)' in controller and 'static let gapLimit = 240' in journal,
       'bounded gap list reset on read')
 check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.append("gaps=" + ' in journal, 'journal fields')
+# Lot 9: the engine call's own duration (a GC suspension in progress blocks it), timed around fps() only.
+check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
+      'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
 check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
 check(journal.count('MeloNXStdioCapture.appendLine(') == journal.count(', to:path, limit:Self.fileLimit)') == 4 and 'open(' not in journal, 'journal writes outside the shared writer or under the general cap')
 check('static let fileLimit: Int64 = 8 * 1024 * 1024' in journal and 'if !isPaused && rate > 0 {' in journal, 'journal cap or FPS average')
@@ -140,6 +143,7 @@ exit(2)
             fields = line.split(' ')
             check('fps=59.5/16.8/40' in fields and 'pres=60/34.5/2/0' in fields, line)
             check('long=1/0' in fields and 'gaps=17,34' in fields, line)
+            check(any(field.startswith('mgd=') for field in fields), line)
             check('dsp=200/3/7.5/3.1/1' in fields and 'out=200/1/12.0/12.0' in fields, line)
             check(re.search(r' th=(nominal|fair|serious|critical) lp=[01]( paused)?$', line), line)
             # The spinning thread is the busiest one listed (threads are sorted by CPU time). Its share of a

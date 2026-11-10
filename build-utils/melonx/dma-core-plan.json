@@ -73,7 +73,8 @@
   "build-utils/melonx/adapt_pipeline_snapshot_retire.py",
   "build-utils/melonx/adapt_extra_set_binds.py",
   "build-utils/melonx/adapt_array_reference_deltas.py",
-  "build-utils/melonx/adapt_worker_library_share.py"
+  "build-utils/melonx/adapt_worker_library_share.py",
+  "build-utils/melonx/adapt_bgc_fragmentation_guard.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -265,7 +266,8 @@
   "test/melonx_same_program_descriptors/Program.cs",
   "test/melonx_same_program_descriptors/Boundaries.cs",
   "test/melonx_retention_chain/Program.cs",
-  "test/melonx_texture_pool_allocations/Program.cs"
+  "test/melonx_texture_pool_allocations/Program.cs",
+  "test/melonx_bgc_fragmentation_guard/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -3693,6 +3695,32 @@
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ]
+  },
+  {
+   "name": "bgc-fragmentation-guard",
+   "script": "test/melonx_bgc_fragmentation_guard_test.py",
+   "report": "bgc-fragmentation-guard-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3000,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionLibraryAssemblyBuilt": true,
+    "comparison.controlRequestRanBlocking": true,
+    "comparison.candidateRequestsOnFragmentedHeap": 0,
+    "comparison.candidateBackgroundOnCompactHeap": true,
+    "comparison.elevatedRequestJournaled": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedSession.cs"
    ]
   }
  ]

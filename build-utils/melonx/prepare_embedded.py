@@ -162,6 +162,7 @@ from adapt_pipeline_snapshot_retire import apply as adapt_pipeline_snapshot_reti
 from adapt_extra_set_binds import apply as adapt_extra_set_binds
 from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
 from adapt_worker_library_share import apply as adapt_worker_library_share
+from adapt_bgc_fragmentation_guard import apply as adapt_bgc_fragmentation_guard
 
 
 def replace_once(path, old, new):
@@ -456,6 +457,9 @@ def main():
     # Core 717 (lot 8: a worker's Metal libraries reached the main cache only before a recycle or at the close, so another
     # worker compiled the same MSL again): published to main after each own compilation, bounded, never waiting.
     adapted += [source / name for name in adapt_worker_library_share(source)]
+    # Core 719 (lot 9: at a gen2 + LOH fragmentation above 0.5 the keep-alive's request was the blocking compacting gen2
+    # the conserve-memory rule makes, in play: SSBU 355.873 ms): no request above the limit; one that ran blocking journaled.
+    adapted += [source / name for name in adapt_bgc_fragmentation_guard(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -581,7 +585,8 @@ def main():
                  'adapt_pipeline_snapshot_retire.py',
                  'adapt_extra_set_binds.py',
                  'adapt_array_reference_deltas.py',
-                 'adapt_worker_library_share.py']:
+                 'adapt_worker_library_share.py',
+                 'adapt_bgc_fragmentation_guard.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

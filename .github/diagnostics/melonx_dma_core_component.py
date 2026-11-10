@@ -61,7 +61,7 @@ CONTROL_PREPARED = {
 # (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again); 74 with Core
 # 715 (lot 8: extra array sets kept bound on main-set-only updates; texture array references by delta); 75 with Core 717
 # (lot 8: a worker's Metal libraries published to the main cache during play).
-FRESH_GATES = 75
+FRESH_GATES = 76
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
