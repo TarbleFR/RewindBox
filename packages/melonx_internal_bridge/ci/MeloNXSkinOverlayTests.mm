@@ -1,5 +1,6 @@
 #import <XCTest/XCTest.h>
 #import "MeloNXSkinOverlay.h"
+#import "MeloNXSkinInteraction.h"
 
 // The production MeloNXSkinOverlay on the REAL shipped Switch Pocket archive
 // (unpacked by test_skin_overlay_ui.rb into MELONX_SKIN_FIXTURE), driven by touches
@@ -316,6 +317,154 @@
   [self layout:overlay portrait:NO];  // the surface turned: the other layout takes over
   XCTAssertTrue([_events containsObject:@"b0-"], @"the held button was released by the turn");
   XCTAssertTrue(CGRectGetWidth(overlay.screenFrame) > CGRectGetHeight(overlay.screenFrame) * 1.2);
+}
+
+#pragma mark Menu return (MeloNXMetalSessionViewController.applyPause, MeloNXSkinInteraction)
+
+/// MeloNXSkinSession.sync with the session's rule (skin.interactive): touches only
+/// with no presented controller and no pause; a pause releases every input.
+- (void)applySessionRuleTo:(MeloNXSkinOverlay*)overlay presenter:(UIViewController*)presenter paused:(BOOL)paused {
+  const BOOL interactive = presenter.presentedViewController == nil && !paused;
+  if (!interactive) [overlay releaseAllInputs];
+  overlay.userInteractionEnabled = interactive;
+}
+
+- (UIViewController*)presenter {
+  UIWindow* window = nil;
+  for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
+    if (![scene isKindOfClass:UIWindowScene.class]) continue;
+    for (UIWindow* candidate in ((UIWindowScene*)scene).windows) {
+      if (candidate.isKeyWindow) window = candidate;
+    }
+  }
+  if (window == nil) window = UIApplication.sharedApplication.delegate.window;
+  XCTAssertNotNil(window.rootViewController, @"the harness app shows its root controller");
+  return window.rootViewController;
+}
+
+- (BOOL)spinUntil:(BOOL (^)(void))condition seconds:(NSTimeInterval)seconds {
+  NSDate* end = [NSDate dateWithTimeIntervalSinceNow:seconds];
+  while (!condition() && end.timeIntervalSinceNow > 0) {
+    [NSRunLoop.mainRunLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+  }
+  return condition();
+}
+
+- (void)spin:(NSTimeInterval)seconds {
+  [self spinUntil:^BOOL { return NO; } seconds:seconds];
+}
+
+/// A real action sheet presented from the harness controller, as showMenu does.
+- (UIAlertController*)presentSheetFrom:(UIViewController*)presenter {
+  UIAlertController* sheet = [UIAlertController alertControllerWithTitle:@"game" message:nil
+                                                          preferredStyle:UIAlertControllerStyleActionSheet];
+  [sheet addAction:[UIAlertAction actionWithTitle:@"Resume" style:UIAlertActionStyleCancel handler:nil]];
+  [presenter presentViewController:sheet animated:YES completion:nil];
+  XCTAssertTrue([self spinUntil:^BOOL { return presenter.presentedViewController == sheet && !sheet.isBeingPresented; } seconds:5],
+                @"the sheet is presented");
+  return sheet;
+}
+
+/// The defect (maintainer, IPA 718): after the in-game menu the skin answered no
+/// touch until a rotation. The resume ran while the sheet was still being
+/// dismissed, so the one sync of the session still read "a controller is
+/// presented". Reproduced with a real sheet and a real dismissal: the previous
+/// code keeps the skin without touches; MeloNXSkinInteraction gives them back
+/// before the first contact, with a stick held when the menu opened.
+- (void)testMenuReturnGivesTouchesBackWhenTheResumeRunsDuringTheDismissal {
+  UIViewController* presenter = [self presenter];
+  MeloNXSkinOverlay* overlay = [self overlayPortrait:NO];
+  [presenter.view addSubview:overlay];
+  const CGPoint a = [self centerOf:[self itemNamed:@"a" portrait:NO] fx:0.5 fy:0.5];
+  NSDictionary* stick = nil;
+  for (NSDictionary* item in [self layoutForPortrait:NO][@"items"]) {
+    if ([item[@"inputs"] isKindOfClass:NSDictionary.class] && [item[@"inputs"][@"up"] isEqualToString:@"leftThumbstickUp"]) stick = item;
+  }
+  XCTAssertNotNil(stick, @"the left stick is drawn");
+  for (NSNumber* fixed in @[ @NO, @YES ]) {
+    for (int round = 0; round < (fixed.boolValue ? 4 : 1); round++) {
+      __block BOOL paused = NO;
+      [self applySessionRuleTo:overlay presenter:presenter paused:paused];
+      XCTAssertTrue(overlay.userInteractionEnabled);
+      // A stick held when the skin's Menu opens the session menu.
+      MLXFakeTouch* held = [self touchAt:[self centerOf:stick fx:0.5 fy:0.5]];
+      [self begin:held on:overlay];
+      [self move:held to:[self centerOf:stick fx:0.5 fy:0.05] on:overlay];
+      XCTAssertTrue(_sticks.count > 0 && _sticks.lastObject[1].floatValue < -0.5, @"the stick is pushed up");
+      paused = YES;  // setPause("menu", true): the skin lets go of everything
+      [self applySessionRuleTo:overlay presenter:presenter paused:paused];
+      XCTAssertEqualObjects(_sticks.lastObject, (@[ @0, @0, @0, @0 ]), @"the pause centres the held stick");
+      [self presentSheetFrom:presenter];
+      // "Resume": the action runs while UIKit is still dismissing its sheet.
+      [presenter dismissViewControllerAnimated:YES completion:nil];
+      XCTAssertNotNil(presenter.presentedViewController, @"the dismissal has not ended when the action runs");
+      paused = NO;
+      void (^sync)(void) = ^{ [self applySessionRuleTo:overlay presenter:presenter paused:paused]; };
+      if (fixed.boolValue) {
+        [MLXSkinInteraction syncNowAndWhenUncovered:presenter stillWanted:^BOOL { return !paused; } sync:sync];
+      } else {
+        sync();  // the previous applyPause: one sync, at the resume
+      }
+      XCTAssertTrue([self spinUntil:^BOOL { return presenter.presentedViewController == nil; } seconds:5], @"the sheet has gone");
+      if (!fixed.boolValue) {
+        [self spin:0.3];
+        XCTAssertFalse(overlay.userInteractionEnabled, @"previous code: the skin stays without touches after the menu");
+        XCTAssertNil([overlay hitTest:a withEvent:nil], @"previous code: the first contact reaches nothing");
+        [self end:held on:overlay];
+        continue;
+      }
+      XCTAssertTrue([self spinUntil:^BOOL { return overlay.userInteractionEnabled; } seconds:1],
+                    @"round %d: the skin takes touches again once the sheet has gone", round);
+      XCTAssertEqual([overlay hitTest:a withEvent:nil], overlay, @"round %d: the first contact reaches the skin", round);
+      // The finger held through the menu sends nothing more; the first new contact presses A.
+      const NSUInteger stickChanges = _sticks.count;
+      [self move:held to:[self centerOf:stick fx:0.95 fy:0.5] on:overlay];
+      XCTAssertEqual(_sticks.count, stickChanges, @"round %d: the finger held through the menu is not replayed", round);
+      [_events removeAllObjects];
+      MLXFakeTouch* first = [self touchAt:a];
+      [self begin:first on:overlay];
+      [self end:first on:overlay];
+      XCTAssertEqualObjects(_events, (@[ @"b0+", @"b0-" ]), @"round %d: the first contact presses and releases A", round);
+      [self end:held on:overlay];
+      XCTAssertEqual(_sticks.count, stickChanges, @"round %d: lifting the held finger moves no stick", round);
+    }
+  }
+  [overlay removeFromSuperview];
+}
+
+/// The usual order (the action after the dismissal) still gives the touches back at
+/// once; a pause again during the dismissal (another sheet, a close, another
+/// session) keeps them off and stops the follow-up.
+- (void)testMenuReturnFollowUpRespectsTheOrderAndStopsWhenNoLongerWanted {
+  UIViewController* presenter = [self presenter];
+  MeloNXSkinOverlay* overlay = [self overlayPortrait:NO];
+  [presenter.view addSubview:overlay];
+  __block BOOL paused = YES;
+  __block NSInteger syncs = 0;
+  void (^sync)(void) = ^{ syncs++; [self applySessionRuleTo:overlay presenter:presenter paused:paused]; };
+  [self presentSheetFrom:presenter];
+  XCTestExpectation* gone = [self expectationWithDescription:@"dismissed"];
+  [presenter dismissViewControllerAnimated:YES completion:^{ [gone fulfill]; }];
+  [self waitForExpectations:@[ gone ] timeout:5];
+  paused = NO;
+  [MLXSkinInteraction syncNowAndWhenUncovered:presenter stillWanted:^BOOL { return !paused; } sync:sync];
+  XCTAssertTrue(overlay.userInteractionEnabled, @"after the dismissal: touches at once");
+  XCTAssertEqual(syncs, 1, @"nothing presented: no follow-up");
+
+  paused = YES;
+  sync();
+  [self presentSheetFrom:presenter];
+  [presenter dismissViewControllerAnimated:YES completion:nil];
+  paused = NO;
+  syncs = 0;
+  [MLXSkinInteraction syncNowAndWhenUncovered:presenter stillWanted:^BOOL { return !paused; } sync:sync];
+  paused = YES;  // paused again before the sheet has gone
+  XCTAssertTrue([self spinUntil:^BOOL { return presenter.presentedViewController == nil; } seconds:5]);
+  [self spin:0.3];
+  XCTAssertEqual(syncs, 1, @"no sync once no longer wanted");
+  XCTAssertFalse(overlay.userInteractionEnabled, @"still paused: no touches");
+  XCTAssertTrue(MLXSkinInteraction.attemptLimit * 0.05 <= 2.0 + 1e-9, @"the follow-up is bounded to 2 s");
+  [overlay removeFromSuperview];
 }
 
 

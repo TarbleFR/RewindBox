@@ -332,7 +332,19 @@ final class MeloNXMetalSessionViewController: UIViewController {
         perf?.setPaused(!pauseReasons.isEmpty)
         surface.metalLayer.restartPacing()
         router?.suspend(!pauseReasons.isEmpty)
-        skinSession?.sync()
+        if let skinSession, pauseReasons.isEmpty {
+            // A menu action can run while its sheet is still being dismissed: the
+            // skin is synced again once the sheet has gone (MeloNXSkinInteraction.h),
+            // so its touches answer the first contact after the menu.
+            MLXSkinInteraction.syncNowAndWhenUncovered(self,
+                stillWanted:{ [weak self, weak skinSession] in
+                    guard let self, let skinSession, self.skinSession === skinSession else { return false }
+                    return !self.closing && self.pauseReasons.isEmpty
+                },
+                sync:{ [weak skinSession] in skinSession?.sync() })
+        } else {
+            skinSession?.sync()
+        }
         host.setPaused(!pauseReasons.isEmpty)
     }
     @objc private func showMenu() {
