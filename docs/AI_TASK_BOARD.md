@@ -1810,6 +1810,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Bottleneck = PPU/SPU contention on one reservation line without forward progress. Exact mechanism and a
       non-relaxed correction under study (research delegated); rejected as before: relaxed PUTLLC, GETLLAR thresholds,
       delays, fake success, SPU count or priority changes.
+    - **GOW3 device results, IPA 723 (BCES00510 01.00):** PID 48447 resumed from a savestate: `GOW3MLAA909 ppu=savestate_memory
+      savestate_patched=0`, READBACK555 fault_read 72-75 per window, 12-23 FPS. PID 48627 fresh boot: `ppu=applied`, fault_read 0,
+      menus 60 FPS, play windows 41-52 at 9-13 FPS with GPU busy 14-21 %: PPU main 0.8-0.85 core, five SPU threads 0.6-0.83 core
+      each (3.3-3.6), RSX 0.4-0.5 on a 2P+4E device; waits, compiles and syncs small. The frame is CPU-bound by SPU work; no SPU
+      attribution exists in the export (next: SPU sample profile, Core 923). Boot ran a legacy full custom file (75 %, relaxed
+      reservations, MT RSX; `legacy_custom=1 inherited=19`).
+    - **Core 922 ([record](rpcs3-core922-gow3-savestate-mlaa.md)), maintainer rules of 10 Nov ("la base RPCS3 doit être la
+      règle", "100 % par défaut", "supprime le profil"):** (1) `REWINDBOX_GOW3_MLAA_SAVESTATE_922` guarded 01.00 pair written
+      into restored savestate memory that lacks it; (2) `REWINDBOX_FREEZE_RESERVATION_922` freeze dump `res=`/`getllar_res=`
+      next to thread times (BO2 freeze: line words below held times with bit 64 set; static review of every writer found no
+      decreasing path, cause open); (3) `REWINDBOX_CONFIG_DATABASE_RULE_922` legacy full custom_configs no longer applied
+      (`CONFIG_DB922`), global < RPCS3 database < user per-game settings, MLAA Automatic = on for GOW3; app profile
+      `_godOfWarIII` removed. Engine `1402b86`, delta `2bfadf8c`, canonical `643905ef`; local closure, 922 tests, codegen
+      (identities unchanged), fold, route, guards, full driver pass; database rule test local only (yaml-cpp); Dart tests not run
+      locally (no Flutter). Source `e6510aeb`, request `367b8980`, run `42899482941` in progress. Risk: the database turns
+      Asynchronous Texture Streaming on for GOW3, never run on the device. MeloNX Core 723 pinned `249d287d` (run `42883532005`).
+      **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
