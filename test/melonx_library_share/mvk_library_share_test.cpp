@@ -36,6 +36,9 @@
 #ifdef __APPLE__
 #include <mach/mach.h>
 #endif
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 static double nowMs() {
     using namespace std::chrono;
@@ -423,6 +426,113 @@ int main(int argc, char** argv) {
     // cache; after every creation the size is asked and timed, as a checkpoint after growth does. At the end the data is
     // written into a buffer of that size (VK_SUCCESS and every byte used), hashed, and loaded into a new cache, whose size
     // must be the same. Two MoltenVK builds run it: the shipped one and the candidate; same bytes, cheaper probes.
+    // Lot 9 (strategies mapsave / mapload-copy / mapload-reference): MoltenVK copies every library's compressed MSL out of
+    // the cache data at load (IPA 718: the 790 MiB main cache stays in anonymous memory, counted in the footprint). With
+    // the candidate patch, a private pNext structure ('RBX1') makes the cache reference the data instead: RewindBox passes
+    // a read-only mapping of the file and keeps it mapped while the cache lives. mapsave builds the eight-round cache and
+    // writes it to <output>.bin; mapload-* (a new process) maps that file read-only, creates a cache from it (copying or
+    // referencing), creates every pipeline again in it with FAIL_ON_PIPELINE_COMPILE_REQUIRED (all must be found: no
+    // compilation), writes the cache data back (it must equal the file byte for byte), and reports the footprint before,
+    // after the creation and after the pipelines; the mapping is removed only after the cache is destroyed.
+    if (strategy == "mapsave" || strategy.compare(0, 8, "mapload-") == 0) {
+        bool save = strategy == "mapsave", reference = strategy == "mapload-reference";
+        auto loadRound = [&](uint32_t round) {
+            std::vector<Shader> more = loadShaders(argv[1], salt + 7919u * round);
+            c.fragments.clear();
+            for (auto& shader : more) {
+                VkShaderModuleCreateInfo moduleInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+                moduleInfo.codeSize = shader.words.size() * 4;
+                moduleInfo.pCode = shader.words.data();
+                VkShaderModule module;
+                check(vkCreateShaderModule(c.device, &moduleInfo, nullptr, &module), "vkCreateShaderModule");
+                c.modules.push_back(module);
+                if (shader.name == "vertexIndex") c.vertexIndex = module;
+                else if (shader.name == "vertexBuffer") c.vertexBuffer = module;
+                else if (shader.name.compare(0, 8, "fragment") == 0) c.fragments.push_back(module);
+            }
+        };
+        std::string dataPath = output + ".bin";
+        if (!save) {
+            size_t slash = output.rfind('/');
+            dataPath = (slash == std::string::npos ? std::string() : output.substr(0, slash + 1)) + "mapsave.json.bin";
+        }
+        VkPipelineCache cache = VK_NULL_HANDLE;
+        void* mapped = nullptr;
+        size_t mappedSize = 0;
+        double before = footprintMiB(), afterCreate = 0;
+        if (save) {
+            check(vkCreatePipelineCache(c.device, &cacheInfo, nullptr, &cache), "vkCreatePipelineCache save");
+        } else {
+            int fd = open(dataPath.c_str(), O_RDONLY);
+            if (fd < 0) fail("cannot open " + dataPath);
+            mappedSize = (size_t)lseek(fd, 0, SEEK_END);
+            mapped = mmap(nullptr, mappedSize, PROT_READ, MAP_PRIVATE, fd, 0);
+            close(fd);
+            if (mapped == MAP_FAILED) fail("mmap failed");
+            struct { VkStructureType sType; const void* pNext; } referenceInfo{(VkStructureType)0x52425831, nullptr};
+            VkPipelineCacheCreateInfo loadInfo = cacheInfo;
+            loadInfo.pNext = reference ? &referenceInfo : nullptr;
+            loadInfo.initialDataSize = mappedSize;
+            loadInfo.pInitialData = mapped;
+            before = footprintMiB();
+            check(vkCreatePipelineCache(c.device, &loadInfo, nullptr, &cache), "vkCreatePipelineCache load");
+            afterCreate = footprintMiB();
+        }
+        int pipelines = 0, missing = 0;
+        std::vector<VkPipeline> made;
+        double createMs = 0;
+        const char* roundsText = getenv("MVK_BENCH_ROUNDS");
+        uint32_t rounds = roundsText ? (uint32_t)strtoul(roundsText, nullptr, 10) : 8u;
+        for (uint32_t round = 0; round < rounds; round++) {
+            if (round > 0) loadRound(round);
+            for (int f = 0; f < (int)c.fragments.size(); f++) {
+                GraphicsVariant variants[5] = {{f, kFormats[0], false, false, 0}, {f, kFormats[1], false, false, 0},
+                                               {f, kFormats[0], true, false, 0}, {f, kFormats[1], true, false, 0},
+                                               {f, kFormats[0], false, true, 0}};
+                for (auto& v : variants) {
+                    VkPipeline pipeline = VK_NULL_HANDLE;
+                    double t = nowMs();
+                    VkResult result = createGraphics(c, cache, save ? 0 : VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT, v, &pipeline);
+                    createMs += nowMs() - t;
+                    if (result == VK_SUCCESS) made.push_back(pipeline); else missing++;
+                    pipelines++;
+                }
+            }
+        }
+        double afterPipelines = footprintMiB();
+        size_t size = cacheSize(c.device, cache);
+        std::vector<uint8_t> data(size);
+        size_t written = size;
+        VkResult wrote = vkGetPipelineCacheData(c.device, cache, &written, data.data());
+        bool sameAsFile = !save && written == mappedSize && memcmp(data.data(), mapped, written) == 0;
+        if (save) std::ofstream(dataPath, std::ios::binary).write((const char*)data.data(), (std::streamsize)written);
+        for (VkPipeline pipeline : made) vkDestroyPipeline(c.device, pipeline, nullptr);
+        vkDestroyPipelineCache(c.device, cache, nullptr);
+        if (mapped) munmap(mapped, mappedSize);
+        std::ostringstream json;
+        json << "{\"strategy\": \"" << strategy << "\", \"pipelines\": " << pipelines << ", \"missing\": " << missing
+             << ", \"bytes\": " << written << ", \"writeResult\": " << (int)wrote << ", \"sameAsFile\": " << (sameAsFile ? "true" : "false")
+             << ", \"footprintBeforeMiB\": " << before << ", \"footprintAfterCreateMiB\": " << afterCreate
+             << ", \"footprintAfterPipelinesMiB\": " << afterPipelines << ", \"createMs\": " << createMs
+             << ", \"dataHash\": \"" << std::hex << fnv(1469598103934665603ull, data.data(), written) << std::dec << "\"";
+#ifdef __APPLE__
+        MVKPerformanceStatistics statistics{};
+        size_t statisticsSize = sizeof(statistics);
+        if (vkGetPerformanceStatisticsMVK(c.device, &statistics, &statisticsSize) == VK_SUCCESS) {
+            auto tracker = [&](const char* name, const MVKPerformanceTracker& t) {
+                json << ", \"" << name << "\": {\"count\": " << t.count << ", \"totalMs\": " << t.average * t.count << ", \"maxMs\": " << t.maximum << "}";
+            };
+            tracker("mvkMslCompile", statistics.shaderCompilation.mslCompile);
+            tracker("mvkSpirvToMsl", statistics.shaderCompilation.spirvToMSL);
+            tracker("mvkReadPipelineCache", statistics.pipelineCache.readPipelineCache);
+        }
+#endif
+        json << "}";
+        std::ofstream(output) << json.str() << "\n";
+        printf("%s\n", json.str().c_str());
+        return 0;
+    }
+
     if (strategy == "sizeprobe") {
         Timing probes;
         int pipelines = 0;
