@@ -1682,7 +1682,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       correction depends on the pattern (pc, line, lanes) of these PUTLLC and on where the PPU main thread spins: the
       automatic storm capture (`AUTOSTORM917` -> `PUTLLCTRACE912`) and PPU region profile (`AUTOPPU916` -> `PPUPROF912`)
       of Cores 917+ record both; no BO2 export since build 694 holds them. Rejected without that data: delaying or
-      throttling an SPU PUTLLC (an arbitrary delay), relaxed PUTLLC, GETLLAR thresholds.
+      throttling an SPU PUTLLC (an arbitrary delay), relaxed PUTLLC, GETLLAR thresholds. Upstream checked (rb-research,
+      10 Nov): no exact non-TSX PUTLLC, per-range PPU exclusion or faster PPU parking exists upstream; its PUTLLC16 path
+      (one 16-byte chunk by u128 CAS under a range lock) is already in our base behind accurate reservations = off and
+      is a relaxation (not atomic over 128 bytes against PPU stores): rejected; the ARM64 GETLLAR snapshot fence
+      (upstream 4017ffc) is already in our base (`atomic_fence_acquire()` after `mov_rdata`, then the time re-check).
     - **Next:** IPA 722 (Core 920 with the MeloNX and skins lots); device question below. BO2 journals (nine minutes from
       launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
       `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
