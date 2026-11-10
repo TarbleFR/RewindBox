@@ -1621,9 +1621,34 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         `04f44a94…0913` (80,937,424 B), fingerprint `a74a9cf6…56e7`, identities PPU a987639e / SPU 477a3fa4
         unchanged, markers present; pin_errors verified, pin `44527c61`. Local: closure, codegen, fold, route, 13
         guards, the 912-918 tests and the full driver pass.
-    - **Next:** IPA 721 (delivered 10 Nov, run `42822649775`, holds Core 919); the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
-      `ZCULLWATCH660 slots=`/`taken=` and `ZCULLDEMAND619 waits` decide whether this lever acts; GOW3 from a fresh
-      boot as before.
+    - **Core 920 (10 Nov, formal maintainer instruction: no automatic alternation in ordinary play;
+      [record](rpcs3-core920-lever-comparison.md)).** Defect: Cores 917-919 switched Writer lock park spin and Busy wait
+      reference duration off and on between 5 s report windows whenever their settings were Automatic (the default):
+      three passes (counted windows 7-22, 45-60, 83-98 since boot) in heavy PUTLLC storms, up to 24 windows with the spin
+      off, 24 with the scale at 1, 36 (3 min) with at least one lever off per boot.
+      - `REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920`: new diagnostic setting Lever comparison between report windows
+        (default Automatic). Automatic/Disabled never alternate (levers as their own settings resolve: Automatic = on);
+        Enabled = the old bounded passes, only for an Automatic lever, logged (PARKCMP917), both on afterwards. Policy line
+        `Resolved title policy 920`. No app per-title profile writes these keys (searched); title levers do not touch them.
+      - `REWINDBOX_ZCULL_COST_920`: `COREPROF ZCULLCOST920 newest=` (age of the report each waiting read waits for
+        last; the watched flush learns from it, ZCULLLEAD659 only gives the oldest) and `watched_submit=` (RSX-thread
+        cost of the 919 watched submissions). Build 676 has no BO2 learning data: every session 3 `ZCULLWATCH660` line
+        is `enabled=0 slots=0:0:0:0:0`.
+      - Control (test/rpcs3_lever_comparison920_test.py, real header/report block/policy statements, Core 919 code as
+        control, g++ ASan+UBSan and clang): 919 defaults switch the spin 24x and the scale 12x (24+24 windows off, 48
+        PARKCMP steps); 920: 0 switches in 18 boots (comparison Automatic/Disabled x 9 lever combinations) and in boots
+        after a compared boot; Enabled switches only Automatic levers inside the passes and ends both on. ZCULL cost
+        (test/rpcs3_zcull_cost920_test.py): newest age recorded with every lead, watched submissions timed = taken (22
+        on bo2read), 0 with the lever off. Host model; no FPS claim.
+      - Engine `4c4961b` (base `8210faf`), increment 9 files, canonical `9377bd66`, delta `87c02e84`. Local: closure,
+        codegen (no input change), fold (0 tree changes), route, 912-920 tests, guards, pin `--source-only` pass. The
+        normal mode of test/neo_swap_core_pin_test.py fails on the old binary pin `cfe92344` (lacks
+        test/rpcs3_restore_eof_test.py) identically on a clean `ac788759` worktree: pre-existing, unrelated.
+      - **State:** local only until the source and request commits are pushed; then run, pin, common IPA 722.
+    - **Next:** Core 920 compile and pin, then IPA 722 (with the MeloNX and skins lots). BO2 journals (nine minutes from
+      launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
+      `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
+      decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

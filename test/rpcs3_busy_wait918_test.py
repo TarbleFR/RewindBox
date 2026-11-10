@@ -268,8 +268,13 @@ def static_checks(source: Path) -> None:
     require('utils::arm_timer_scale = 1;\n\tif (calibrated)\n\t{\n\t\tutils::init_arm_timer_scale();\n\t}\n\telse if (policy.busy_wait_reference)\n\t{\n'
             '\t\tutils::arm_timer_scale = policy.busy_wait_reference_scale;\n\t}\n\tpolicy.spu_spin_timer_scale = utils::arm_timer_scale;' in body,
             'Calibrated keeps upstream\'s scale, Disabled the scale 1')
-    require('policy.busy_wait_compare = !calibrated && policy.busy_wait_reference_scale > 1 &&\n'
-            '\t\tg_cfg.ios_experimental.busy_wait_reference.get() == ios_experimental_mode::automatic;' in body and
+    # REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920: from Core 920 the comparison also needs Lever Comparison Between Report
+    # Windows = Enabled (test/rpcs3_lever_comparison920_test.py executes both rules); before it, Automatic alone.
+    require(('policy.busy_wait_compare = !calibrated && policy.busy_wait_reference_scale > 1 &&\n'
+             '\t\tg_cfg.ios_experimental.busy_wait_reference.get() == ios_experimental_mode::automatic;' in body or
+             'policy.busy_wait_compare = !calibrated && policy.busy_wait_reference_scale > 1 &&\n'
+             '\t\tg_cfg.ios_experimental.busy_wait_reference.get() == ios_experimental_mode::automatic &&\n'
+             '\t\tg_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled;' in body) and
             'rpcs3::ios::writer_park::compare::busy_wait_allowed.store(policy.busy_wait_compare, std::memory_order_relaxed);' in body and
             'rpcs3::ios::writer_park::compare::busy_wait_scale_on.store(policy.busy_wait_reference_scale, std::memory_order_relaxed);' in body,
             'the comparison runs on Automatic only, and only where the scale differs from 1')

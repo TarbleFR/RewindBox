@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 919,
- "identity_type": "rpcs3-ios-core919",
- "summary": "RPCS3 Core 919 = Core 918 plus the ZCULL watched flush of Call of Duty: Black Ops II with its own budget. IPA 676 device journals (Core 905, PID 25658, session 3, gameplay windows 9 to 19): the PPU threads fault on pending ZCULL report slots 42 to 113 times per 5 s window and wait 205 to 1,165 ms for them, and the oldest pending report of each waited slot had been queued 5.0 to 15.0 ms before on average while a command buffer takes 2.2 ms on the GPU after 1.5 ms in its queue; the 561 early submissions are spent (5.9 of 6 per frame, 72,019 capped checks per window). REWINDBOX_ZCULL_WATCHED_BO2_919: Black Ops II joins the watched flush of Core 660 (a report queued into a slot a guest waited for at least 1 ms after its newest report arms the boundary submission of its command buffer). REWINDBOX_ZCULL_WATCHED_OWN_BUDGET_919: a watched arm is refused only by its own budget (2 per frame), no longer by the 561 cap, and a watched submission no longer counts in that cap. Only command buffer boundaries move: report values, their order and the moment the guest reads them are unchanged. Everything else is Core 918. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
+ "build": 920,
+ "identity_type": "rpcs3-ios-core920",
+ "summary": "RPCS3 Core 920 = Core 919 plus two corrections for the players of Call of Duty: Black Ops II. REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920: Cores 917 to 919 switched Writer Lock Park Spin and Busy Wait Reference Duration off and on again between 5 s report windows in three passes during the first minutes of every boot whenever their settings were Automatic, the default (host control on the real policy and report code: 24 park spin and 12 scale switches, 24 windows each with a lever off, in the first 120 windows); they now run only with the new diagnostic setting Lever Comparison Between Report Windows = Enabled, for a lever whose own setting is Automatic, bounded to the three passes and logged; Automatic and Disabled never alternate, and both levers stay as their settings resolve (Automatic: on). REWINDBOX_ZCULL_COST_920: COREPROF ZCULLCOST920 reports the age of the report each waiting ZCULL read waits for last and the RSX-thread time of the Core 919 watched submissions. Everything else is Core 919. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "38a1e6ead8299e624edc413c6bac5e9b37863470e7a04992a34e71accf4850da",
+  "patch_sha256": "9377bd66758e9481afd9ff5361e5ea1ad100efd99453a4d6af9d484c48b9a5cf",
   "postimages": 455,
   "records": [
    "core610_20261101",
@@ -64,7 +64,8 @@
    "core916_20261110",
    "core917_20261110",
    "core918_20261110",
-   "core919_20261110"
+   "core919_20261110",
+   "core920_20261110"
   ]
  },
  "reference": {
@@ -104,10 +105,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core919_20261110",
-  "manifest": "build-utils/rpcs3/core919-delta.json",
-  "patch": "build-utils/rpcs3/core919-delta.patch",
-  "patch_sha256": "b4665d28de140e4cdecd1ac0fd7214852cae3926fa1facf749f376167345674f"
+  "record": "core920_20261110",
+  "manifest": "build-utils/rpcs3/core920-delta.json",
+  "patch": "build-utils/rpcs3/core920-delta.patch",
+  "patch_sha256": "87c02e841ea76f3ebf32b610f14b5b4014acf11ba12ef24622b3b1cf45a6fba0"
  },
  "exports": 92,
  "core_inputs": {
@@ -249,7 +250,10 @@
   "Resolved title policy 918",
   "Busy wait reference duration",
   "next_window_busy_wait_scale=%u",
-  "Resolved title policy 919"
+  "Resolved title policy 919",
+  "Resolved title policy 920",
+  "COREPROF ZCULLCOST920",
+  "Lever Comparison Between Report Windows"
  ],
  "moltenvk_dependency": {
   "run": 42733987255,
@@ -456,28 +460,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core919_codegen_test.py",
+     "test/rpcs3_core920_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 919 changes no codegen input (the title list, the watched header, the Vulkan renderer and the policy are not inputs); Core 918 changes no codegen input (util/asm.hpp, the lever helpers, the settings, the policy and the report are not inputs); Core 917 changes no codegen input (vm.cpp, the settings, the policy, the report and the capture files are not inputs); Core 901 to 910 touch no codegen input; Core 911, Core 912, Core 914 and Core 916 each change one, SPUThread.cpp, in the host body of do_putllc() only (912 and 916 add one include each), each with one exact alias in JITCacheCompatibility.cmake (the Core 627 procedure, audited: process_mfc_cmd, get_ch_value, set_ch_value and SPUThread.h unchanged) (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp, RSXFIFO, the texture cache and the iOS profiler, memo, prehash, policy and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 920 changes no codegen input (the settings, the policy, the comparison and ZCULL headers, RSXZCULL.cpp, the Vulkan renderer and the report are not inputs); Core 919 changes no codegen input (the title list, the watched header, the Vulkan renderer and the policy are not inputs); Core 918 changes no codegen input (util/asm.hpp, the lever helpers, the settings, the policy and the report are not inputs); Core 917 changes no codegen input (vm.cpp, the settings, the policy, the report and the capture files are not inputs); Core 901 to 910 touch no codegen input; Core 911, Core 912, Core 914 and Core 916 each change one, SPUThread.cpp, in the host body of do_putllc() only (912 and 916 add one include each), each with one exact alias in JITCacheCompatibility.cmake (the Core 627 procedure, audited: process_mfc_cmd, get_ch_value, set_ch_value and SPUThread.h unchanged) (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp, RSXFIFO, the texture cache and the iOS profiler, memo, prehash, policy and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core919",
+    "name": "core920",
     "argv": [
      "python3",
-     "test/rpcs3_core919_test.py",
+     "test/rpcs3_core920_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core919.json"
+     "{out}/core920.json"
     ],
-    "reason": "Core 901 to 919 increments (913 and 915 are the witnesses of 912 and 914, not increments) reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); the Core 910 levers (memo capacity-miss counterexamples, the scoped revalidation executed on the real texture cache against a global-epoch witness, the PUT horizon model on the real decision, the prehash budget); the Core 911 levers (the accurate no-op PUTLLC wait executed on the real block, the prehash used-result count); the Core 912 and 914 captures (collectors executed, plain and with the sanitizers: sequences, capacity, concurrent publication, an event held between two captures, limits per boot) and the export analyzer; the Core 916 corrections (the SPURS header store executed, ordered and concurrent, with the previous store as negative control, plain and ASan/UBSan; the MLAA plan executed on images of both executables; the stall dump walks, the lever export, the compact windows and the profile request executed); the Core 917 writer park spin (the waiter executed on a counted clock and on two real threads against the previous wait, the park histogram, the PPU parked time, the storm tracker); the Core 918 busy wait reference duration (the scale and the durations, the wait loop of the SPU GETLLAR executed on two real threads against the previous duration, the two-lever comparison); the Core 919 ZCULL watched flush of Black Ops II with its own budget (the real ZCULL and renderer code on Black Ops II-shaped frames against the Core 918 code); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 920 increments (913 and 915 are the witnesses of 912 and 914, not increments) reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); the Core 910 levers (memo capacity-miss counterexamples, the scoped revalidation executed on the real texture cache against a global-epoch witness, the PUT horizon model on the real decision, the prehash budget); the Core 911 levers (the accurate no-op PUTLLC wait executed on the real block, the prehash used-result count); the Core 912 and 914 captures (collectors executed, plain and with the sanitizers: sequences, capacity, concurrent publication, an event held between two captures, limits per boot) and the export analyzer; the Core 916 corrections (the SPURS header store executed, ordered and concurrent, with the previous store as negative control, plain and ASan/UBSan; the MLAA plan executed on images of both executables; the stall dump walks, the lever export, the compact windows and the profile request executed); the Core 917 writer park spin (the waiter executed on a counted clock and on two real threads against the previous wait, the park histogram, the PPU parked time, the storm tracker); the Core 918 busy wait reference duration (the scale and the durations, the wait loop of the SPU GETLLAR executed on two real threads against the previous duration, the two-lever comparison); the Core 919 ZCULL watched flush of Black Ops II with its own budget (the real ZCULL and renderer code on Black Ops II-shaped frames against the Core 918 code); the Core 920 lever comparison on request (the real policy and report code against the Core 919 code) and ZCULL cost line; then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",
