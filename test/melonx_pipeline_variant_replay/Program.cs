@@ -666,7 +666,7 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
 }
 
 {
-    // Per-session cap: 600 planned states of 1 ms replay 512.
+    // Per-session cap: 600 planned states of 1 ms replay 512 (all 600 once adapt_variant_replay_all lifted the cap).
     var scheduler = NewScheduler();
     string name = "cap";
     var s1 = Open(name);
@@ -676,8 +676,38 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     var s2 = Open(name);
     for (int p = 0; p < 50; p++) s2.Offer(0xF000UL + (ulong)p, target);
     WaitUntil(() => s2.Replayed >= 512, 20000);
+    WaitUntil(() => s2.Replayed >= 600, 3000); // reached only without the cap
     Thread.Sleep(300);
     report["cap"] = new Dictionary<string, object> { ["planned"] = s2.Loaded, ["replayed"] = s2.Replayed, ["executed"] = target.Executions.Values.Sum() };
+    scheduler.Dispose();
+}
+
+{
+    // IPA 724's list: 1357 planned states over 97 programs, 1 ms each. With the 512 cap the replay stops there; without
+    // it every state runs once, never more than two in flight. Then the same list offered with the device's memory at
+    // 5 %: nothing starts, whatever the cap.
+    var scheduler = NewScheduler();
+    string name = "all";
+    var s1 = Open(name);
+    for (int v = 0; v < 1357; v++) s1.NoteLate(0xA000UL + (ulong)(v % 97), Variant(5000 + v), 5, false);
+    WaitFile(JournalPath(name), 16 + 1357L * 40);
+    var target = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = _ => (1, false) };
+    var s2 = Open(name);
+    for (int p = 0; p < 97; p++) s2.Offer(0xA000UL + (ulong)p, target);
+    WaitUntil(() => s2.Replayed >= 512, 30000);
+    WaitUntil(() => s2.Replayed >= 1357, 10000); // reached only without the cap
+    Thread.Sleep(300);
+    var heldTarget = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = _ => (1, false) };
+    var s3 = Open(name, () => 5);
+    for (int p = 0; p < 97; p++) s3.Offer(0xA000UL + (ulong)p, heldTarget);
+    Thread.Sleep(300);
+    report["all"] = new Dictionary<string, object>
+    {
+        ["planned"] = s2.Loaded, ["replayed"] = s2.Replayed, ["executed"] = target.Executions.Values.Sum(),
+        ["distinct"] = target.Executions.Count, ["mostExecutions"] = target.Executions.Values.DefaultIfEmpty(0).Max(),
+        ["maxInFlight"] = target.MaxInFlight, ["failed"] = s2.ReplayFailed,
+        ["heldPlanned"] = s3.Loaded, ["heldExecuted"] = heldTarget.Executions.Values.Sum(), ["heldReplayed"] = s3.Replayed, ["holds"] = s3.MemoryHolds,
+    };
     scheduler.Dispose();
 }
 
