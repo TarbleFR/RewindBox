@@ -3358,6 +3358,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     buffers per frame (texture-array reference passes 243.5 ms per 5 s, submits), the auto-flush timer on MoltenVK,
     the managed heap (LOH holes), `NS_SWIFT_NAME`, and `test/melonx_capture_journal_test.py` (red on Linux since before
     719).
+  - **Playability verdict (`2875cfe9`):** `tools/melonx/playability_verdict.py MeloNX-performance.log --pid N` judges a
+    session's warm pass against the maintainer's criteria (median/mean FPS >= 29.5, gaps p95 <= 40 and p99 <= 50 ms,
+    no gap over 1 s, footprint <= 4 GiB with slope <= 5 MiB/min, thermal never critical, >= 20 min, normal end); test
+    20 checks on synthetic sessions. IPA 718 Hogwarts: NOT PLAYABLE (median 10.0 FPS, p95 250, p99 550 ms, 5 526 MiB).
   - **Mirror pending pages, parked (`50576fc8`):** the harness is now a gate (26 checks on the Core 723 preparation:
     identical fills and uploads, pages exactly those the pending ranges overlap, all returned; a variant without
     Release breaks it), but the gain without the settle step is small: random partial updates keep about 70 % of a

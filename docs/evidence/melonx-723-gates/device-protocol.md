@@ -6,6 +6,13 @@ Inputs to check first: the IPA's manifest names MeloNX Core 723 (contract in `ru
 `pipelineCache mainDataMapped`, footprint at 5 s and in play) still applies. Settings unchanged between runs; caches and
 saves kept; thermal state noted. Hogwarts Legacy, 1x, the same route as IPA 718/722, one session of 15 minutes or more.
 
+## Verdict (the maintainer's criteria, one command per session)
+`python3 tools/melonx/playability_verdict.py MeloNX-performance.log --pid <pid>`: the warm pass (first game frame +
+60 s, paused seconds excluded) against median and mean FPS >= 29.5, gaps p95 <= 40 ms and p99 <= 50 ms, no gap over
+1 s, footprint <= 4 GiB with a slope <= 5 MiB/min, device memory never at 0 %, thermal never critical, >= 20 minutes and
+a normal end. IPA 718 Hogwarts (pid 44597) for reference: NOT PLAYABLE (median 10.0 FPS, p95 250 ms, p99 550 ms,
+5 526 MiB). A run of at least 20 minutes is needed for the duration criterion.
+
 ## GC pauses (decides the gen0 budget; nothing changed in the collector)
 1. `MeloNX-core.log`: the `gcPause ephemeral` lines (at most 48: the first 24 collections paused 20 ms or more, then every
    16th): generation, pause, promoted MiB, gen0 and gen1 size before->after, compacted, rank. At the close, one
