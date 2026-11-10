@@ -58,7 +58,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Check the folded Metal M2 to M5 sources (Core 914)
+      - name: Check the folded Metal M2 to M5 sources (Core 915 comparison witness)
         shell: bash
         run: |
           set -euo pipefail
@@ -74,6 +74,8 @@ jobs:
           # Core 903 folds the M3 and M4 work (metal-wip-from-902.patch, identical to core903-from-902.patch) over Core 902,
           # which folded the M2 work (metal-wip-from-901.patch): reverse the M3/M4 work, check that the M2 work reverses
           # from that Core 902 state, then apply the M3/M4 work again (the source is unchanged afterwards).
+          # The Core 915 comparison witness is Core 914 with one constant changed (core915-from-914.patch): taken out first.
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/core915-from-914.patch"
           # Core 914 folds metal-wip-from-912.patch (identical to core914-from-912.patch) over Core 912 (913 was a witness of 912).
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-912.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core914-from-912.patch"
           git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-912.patch"
@@ -118,6 +120,7 @@ jobs:
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-910.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-911.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-912.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/core915-from-914.patch"
           echo "PASS: the M2 to M5 work and the vendored SPIRV-Cross are part of the canonical source"
       - name: Apply the work in progress of a next stage (metal-wip-from-914.patch)
         shell: bash

@@ -128842,7 +128842,7 @@ index ccb4aae..c25fd6f 100644
  }
 diff --git a/rpcs3/ios/IOSTextureLookupMemo.h b/rpcs3/ios/IOSTextureLookupMemo.h
 new file mode 100644
-index 0000000..9c7e4d7
+index 0000000..9545c3f
 --- /dev/null
 +++ b/rpcs3/ios/IOSTextureLookupMemo.h
 @@ -0,0 +1,600 @@
@@ -128918,7 +128918,7 @@ index 0000000..9c7e4d7
 +// entry (REWINDBOX_TEXMEMO_GHOST_910: same epoch, sampler revision, context and section generations, no scoped write
 +// over its range, target not bound). A key never seen, or one an invalidation would have dropped anyway, is not counted
 +// (COREPROF TEXMEMO660).
-+constexpr std::size_t ways = 16;
++constexpr std::size_t ways = 4;
 +constexpr std::size_t ghosts = 16;
 +constexpr std::uint64_t verify_first = 256;
 +constexpr std::uint64_t verify_period = 64;
