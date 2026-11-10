@@ -124,10 +124,10 @@ int main(int argc, const char* argv[]) {
     RPCS3DiagnosticsFlushForTesting();
     NSString* runtimePrevious = [testDocuments stringByAppendingPathComponent:@"RPCS3-performance.1.log"];
     const unsigned long long runtimeSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:runtime error:nil] fileSize];
-    const unsigned long long previousSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:runtimePrevious error:nil] fileSize];
-    assert(runtimeSize <= 8 * 1024 * 1024 && previousSize <= 8 * 1024 * 1024);
+    const unsigned long long runtimePreviousSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:runtimePrevious error:nil] fileSize];
+    assert(runtimeSize <= 8 * 1024 * 1024 && runtimePreviousSize <= 8 * 1024 * 1024);
     // The previous generation was filled past the former 2 MiB limit.
-    assert(previousSize > 7 * 1024 * 1024);
+    assert(runtimePreviousSize > 7 * 1024 * 1024);
     assert([readEntries(runtime).lastObject[@"message"] containsString:@"after_rotation"]);
     assert(readEntries(runtime).count + readEntries(runtimePrevious).count == 133);
   }
