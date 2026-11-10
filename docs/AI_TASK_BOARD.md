@@ -3326,8 +3326,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `a5f55e97` 6368088, ps2-pocket-original `f2aadf57` 7379806, switch-pocket `b0182254`
   9967228 (replace the PR169 identities for these four). Proof (host): verifier 7 packs,
   input chain 20 layouts (4894672 sprite points reach their own control), Flutter skins
-  156/156, rebuild byte-identical. Simulator: pending on this branch.
-  [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
+  156/156, rebuild byte-identical. Simulator: run `42850730582` (`8bfc9b47`) green: host
+  step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined to the outline
+  and clearly visible, released = rest, real touches). [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
