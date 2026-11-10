@@ -230,7 +230,8 @@ communication evidence, not another implementation queue.
 Main `012mUAShv9k6pSCnpW7oAF63` ·
 MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
 Skins `012mUASjgVWk8DKKjVbwTD2n` ·
-Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7`.
+Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7` ·
+Playlists/S2Arm `012mUASj3EQnvC86WC56AePw`.
 
 Current records below are snapshots. Consult exact pins/manifests/receipts before
 acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
@@ -3740,6 +3741,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
+
+### Switch 2 playlist (S2Arm) feasibility prototype — session 04
+
+- **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
+  (from `Claude` `d6b15c86`). Paths owned: `docs/s2arm-prototype-2026-11-10.md`, later a
+  host-proof workflow and a diagnostic entry (not written yet). No MeloNX, skin or XeniOS path touched.
+- **Goal:** decide whether S2Arm-rewritten code can run from JIT memory in RewindBox, loaded
+  from a data file at a fixed address, to its first gate, with a `brk` handled. Only this
+  prototype is approved; no playlist, game, graphics or service work.
+- **State (10 Nov): step 1 done by reading only; nothing compiled, executed or measured.**
+  S2Arm pinned at `6b6a5715`. Unsigned loading = S2Arm's own macOS loader path. The RewindBox
+  helper script already accepts a region at a caller-chosen address; unknown `brk` while it is
+  attached is not skipped, so guest code runs only after detach. iOS 26: all executable pages
+  must be requested before detach.
+- **Evidence:** [constat and device questions A–F](s2arm-prototype-2026-11-10.md).
+- **Open or limit:** host proof runs in CI only (container is x86-64; building third-party
+  source in the session was refused by its permission policy). Maintainer confirmation asked
+  before CI builds S2Arm's rewriter.
+- **Next:** host-proof workflow (Linux rewrite + macOS arm64 execution, negative controls),
+  then the device diagnostic handed to main for a test IPA.
 
 ### Codex orchestration — Codex
 
