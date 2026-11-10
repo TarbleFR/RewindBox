@@ -1,5 +1,7 @@
 # Compile-check of the RPCS3 host bridge with the iPhone SDK, without an application build, a Core or an IPA.
 # Run request: the bridge of RPCS3 Core 914 (capture request when the in-game menu closes, one per closing), 10 November 2026.
+# Run request 2: same bridge; the check stages every pod the bridge imports (request 1: Rpcs3InternalBridgePlugin.mm compiled,
+# Rpcs3SessionMenu.mm stopped on a pod the check had not staged).
 name: RPCS3 host bridge iPhone compile check
 run-name: "RPCS3 host bridge iPhone compile check • ${{ github.sha }}"
 'on':

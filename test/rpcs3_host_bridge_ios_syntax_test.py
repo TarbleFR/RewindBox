@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -22,7 +23,15 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/rpcs3_internal_bridge/ios/Classes'
 SOURCES = ('Rpcs3InternalBridgePlugin.mm', 'Rpcs3SessionMenu.mm')
-PODS = ('neo_swap', 'neo_touch_layout', 'achievement_translation', 'retro_achievements_session', 'external_display')
+IMPORT = re.compile(r'^\s*#\s*(?:import|include)\s*<([A-Za-z0-9_]+)/[^>]+>', re.M)
+
+
+def imported_pods() -> list:
+    """The pods of this repository whose headers the bridge sources and headers import as <pod/Header.h>."""
+    names = set()
+    for path in list(CLASSES.glob('*.mm')) + list(CLASSES.glob('*.h')) + list(CLASSES.glob('*.m')):
+        names.update(IMPORT.findall(path.read_text(errors='replace')))
+    return sorted(name for name in names if (ROOT / 'packages' / name / 'ios/Classes').is_dir())
 FLUTTER_STUB = '''#import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 typedef void (^FlutterResult)(id _Nullable result);
@@ -66,7 +75,10 @@ def main() -> int:
         stub = Path(temporary)
         (stub / 'Flutter').mkdir()
         (stub / 'Flutter/Flutter.h').write_text(FLUTTER_STUB)
-        for pod in PODS:
+        pods = imported_pods()
+        report['pods_staged'] = pods
+        print('pods staged as <pod/Header.h>: ' + ', '.join(pods))
+        for pod in pods:
             staged = stub / 'include' / pod
             staged.mkdir(parents=True)
             headers = sorted((ROOT / 'packages' / pod / 'ios/Classes').glob('*.h')) + sorted((ROOT / 'packages' / pod / 'ios/Classes/Public').glob('*.h'))
