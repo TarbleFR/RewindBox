@@ -1671,7 +1671,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         download got "ServerBusy", retried); dylib `79d70a4d…8e9a` (80,937,600 B), fingerprint `71bb1c59…6e52`,
         identities PPU a987639e / SPU 477a3fa4 unchanged, markers present (`Resolved title policy 920`, `COREPROF
         ZCULLCOST920`, the setting's name); pin_errors verified, pin `f9f2b478`.
-    - **Next:** IPA 722 (Core 920 with the MeloNX and skins lots). BO2 journals (nine minutes from
+    - **Finding (10 Nov, IPA 676 journals re-read with the extended analyzer, BO2 PID 25658 session 3; no new device
+      data):** in play (windows 9-17, 20-26 FPS) the PPU threads use 0.91-1.07 core, the SPU threads 2.8-3.5, the RSX
+      thread 0.52-0.59, the GPU 30-36 %: the frame follows the PPU. Heavy PUTLLC 1.08-1.60 M per 5 s window, their writer
+      locks 2.4-2.9 s of SPU thread time per window, PPU timed range waits (`vm_range_episode`) 14-16 k for 0.93-1.06 s,
+      PPU grace deferrals 4.4-5.7 k (0.73-0.81 s). Window 8 (60 FPS) holds 53.2 M successful PUTLLC of which 0.37 M heavy:
+      unchanged-data PUTLLC in a loop. Windows 18-23 spiral down to a stop: heavy PUTLLC 2.18 -> 7.15 M, failed PUTLLC
+      0.32 -> 2.40 M, SPU event waits 212 -> 0, GPU 21 % -> 0, FPS 20.1 -> 0 while the PPU threads stay at 0.95-1.18
+      core: the SPU threads spin on PUTLLC instead of waiting, and every heavy one parks the PPU threads. The exact
+      correction depends on the pattern (pc, line, lanes) of these PUTLLC and on where the PPU main thread spins: the
+      automatic storm capture (`AUTOSTORM917` -> `PUTLLCTRACE912`) and PPU region profile (`AUTOPPU916` -> `PPUPROF912`)
+      of Cores 917+ record both; no BO2 export since build 694 holds them. Rejected without that data: delaying or
+      throttling an SPU PUTLLC (an arbitrary delay), relaxed PUTLLC, GETLLAR thresholds.
+    - **Next:** IPA 722 (Core 920 with the MeloNX and skins lots); device question below. BO2 journals (nine minutes from
       launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
       `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
       decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
