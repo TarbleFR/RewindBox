@@ -318,7 +318,8 @@ exit(0)
         print(line, flush=True)
         check(re.match(r't=0 footprint=(\d+)/(\d+) graphics=\d+\+\d+ internal=\d+ compressed=\d+ device=\d+ media=\d+ neural=\d+ '
                        r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms groups=\S+ top=\S+$', line), line)
-        check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 50, line)
+        # The dyld shared region is skipped (a submap): a small macOS process still has a few dozen top-level regions.
+        check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 20, line)
         groups = {g.split(':')[0]: [int(v) for v in g.split(':')[1].split('/')] for g in re.search(r' groups=(\S+)', line).group(1).split(',')}
         check('app3' in groups and 64 <= groups['app3'][0] < 80 and groups['app3'][1] == 1, 'the tagged private region: ' + str(groups))
         check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][1] == 1,
