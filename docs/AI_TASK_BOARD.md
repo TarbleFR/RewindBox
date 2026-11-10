@@ -237,6 +237,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Public release 0.0.11 — maintainer request, 10 Nov; prepared by Codex, not published.**
+  The maintainer explicitly authorizes publishing the verified IPA 718 as **RewindBox 0.0.11**
+  (tag `0.0.11`, naming confirmed against earlier releases), the same complete changelog
+  in English, a SideStore/AltStore Classic source, then that list and IPA link in the
+  RewindBox Discord release channel. This is a new publication request after the closed
+  cleanup audit; it does not authorize another build or product change.
+  [Prepared publication](releases/pending-0.0.11/publication.json),
+  [English notes](releases/pending-0.0.11/release-notes.md),
+  [source draft](releases/pending-0.0.11/source.json),
+  [Discord messages](releases/pending-0.0.11/discord.json).
+  IPA identity: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`;
+  public version `0.0.11`, exact feed version/build `0.0.8`/`718` plus
+  `marketingVersion: 0.0.11` (no repack). JSON metadata and message lengths checked;
+  permissions are derived from frozen host inputs and await comparison with the exact IPA.
+  Blocked: GitHub browser signed out; connected tools lack release/asset writes; current
+  workspace has no plaintext 718. Automatic review rejected Claude/Discord access,
+  applying the superseded cleanup-only scope; no bypass, release/tag, active source or
+  Discord post. Next: restore publication access, verify/upload the exact IPA, activate
+  root `source.json` after live download verification, resolve the channel and post once.
+  Keep public baseline 0.0.10 until publication is confirmed.
+
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
   correcting its native-test failure and preserving valid reusable results. Check repeated source

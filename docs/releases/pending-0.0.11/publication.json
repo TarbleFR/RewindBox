@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "status": "prepared-not-published",
+  "release": {
+    "name": "RewindBox 0.0.11",
+    "tag": "0.0.11",
+    "target_commitish": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "draft": true
+  },
+  "authorization": "Maintainer explicitly requested publication on GitHub and their Discord release channel on 10 November 2026, and confirmed naming continuity: RewindBox 0.0.11.",
+  "ipa": {
+    "public_asset_name": "RewindBox-0.0.11.ipa",
+    "delivered_name": "RewindBox-718.ipa",
+    "build": "718",
+    "internal_version": "0.0.8",
+    "bundle_identifier": "com.neogamelab.neostation",
+    "bytes": 263465367,
+    "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a",
+    "delivery_receipt": "docs/evidence/rewind718/delivery.json",
+    "download_verification_receipt": "docs/evidence/rewind718/download718-verification.json",
+    "downloaded_in_this_preparation": false,
+    "physical_gameplay_verified": false
+  },
+  "components": {
+    "rpcs3": 914,
+    "melonx": 717
+  },
+  "source": {
+    "staged_path": "docs/releases/pending-0.0.11/source.json",
+    "activation_path": "source.json",
+    "version": "0.0.8",
+    "buildVersion": "718",
+    "marketingVersion": "0.0.11",
+    "minOSVersion": "18.0",
+    "metadata_bound_to_receipt": true,
+    "permissions_derived_from_frozen_host_configuration": true,
+    "permissions_checked_against_plaintext_ipa_here": false,
+    "live_installability_verified": false
+  },
+  "expected_urls": {
+    "release": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
+    "ipa": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa",
+    "source": "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json",
+    "status": "intended targets only; not published or advertised as live"
+  },
+  "discord": {
+    "invite": "https://discord.gg/G48u46ppX",
+    "requested_channel_name": "release",
+    "resolved_channel_id": null,
+    "publication_status": "not-posted",
+    "draft_messages": 10
+  },
+  "blockers": [
+    {
+      "service": "GitHub browser",
+      "observed": "The new-release page redirects to GitHub sign-in. Connected GitHub tools can read and edit repository files but expose no release-creation or asset-upload operation."
+    },
+    {
+      "service": "Claude/file access",
+      "observed": "The private Build 718 plaintext IPA was verified by its delivery owner; it is not available in this workspace. The combined attempt to select the owner's session and open Discord was refused by automatic approval review under the obsolete cleanup-only scope."
+    },
+    {
+      "service": "Discord",
+      "observed": "Automatic approval review refused opening the project invite, citing the former cleanup-only restrictions. No message sent; no alternate posting route used."
+    }
+  ],
+  "checks_completed": [
+    "English changelog prepared from the maintainer-approved list with device/experimental limits retained",
+    "JSON parses; bundle/version/build/size/minimum OS match published delivery receipt",
+    "Discord messages are each below 2,000 characters",
+    "No build, Core/pin change, tag, release or Discord post performed"
+  ],
+  "remaining": [
+    "Restore authorized publication access without bypassing the automatic refusal",
+    "Retrieve exact plaintext IPA 718 and verify its SHA-256, bundle metadata, entitlement union and privacy keys against the staged source",
+    "Create 0.0.11 draft release at the exact delivered source; upload byte-identical IPA, notes and checksum",
+    "Download uploaded IPA and verify bytes/SHA-256 before publishing; activate stable root source.json only once the URL works",
+    "Resolve the RewindBox release channel from its visible server history, publish the same English list and verified IPA/source URLs once",
+    "Archive actual published notes, reconcile/reset NEXT, record release and Discord message URLs"
+  ]
+}

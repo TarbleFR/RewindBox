@@ -1,6 +1,6 @@
 # RewindBox — next public release checklist
 
-Updated 5 November 2026 (03:00 UTC). Owner: the main integration/release session
+Updated 10 November 2026. Owner: the main integration/release session
 `012mUAShv9k6pSCnpW7oAF63`. This editorial inventory follows the release-note
 rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain there.
 
@@ -24,8 +24,13 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`; RPCS3 Core 914, MeloNX Core 717, main menu
   bar without labels (PR #164), Switch Pocket skin (PR #165). Downloaded plaintext IPA verified offline, private key
   deleted. Not tested on an iPhone; no FPS claim. The Switch 2 experiment and the RPCS3 Core 915 witness stay out.
-- Next public tag/build/date: not assigned here. The final manifest determines
-  inclusion. All rows below remain **not yet included in the next public announcement**.
+- Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
+  [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
+  and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and
+  automatic approval review block the final actions; intended links are not advertised as live.
+  Feed metadata preserves the IPA's actual version `0.0.8` and build `718`, with marketing version
+  `0.0.11`. The public baseline remains 0.0.10 until the release, IPA download and source are verified.
+  All rows below remain **not yet included in a verified public announcement**.
 - Seed inventory: the public559-to-private640 comparison has 745 commits.
   The items below are supported by current component documentation and the three
   active sessions; the release owner must reconcile the full final range before
