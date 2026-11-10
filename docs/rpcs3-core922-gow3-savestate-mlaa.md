@@ -1,6 +1,6 @@
 # RPCS3 Core 922 — contournement MLAA de God of War III à la reprise d'une sauvegarde d'état, mots de réservation dans le relevé de gel
 
-Core 922 = Core 921 + deux modifications. **Aucune mesure iPhone n'a encore été faite avec ce Core.**
+Core 922 = Core 921 + trois modifications (sections 3, 4 et 4 bis). **Aucune mesure iPhone n'a encore été faite avec ce Core.**
 
 ## 1. Données d'entrée (exports de l'appareil, builds 721 et 723)
 
@@ -40,6 +40,28 @@ le mot 0x854346dc0 (bit 64 posé) alors que le SPU3 en PUTLLC détient le temps 
 `spu` et `ppu` du relevé portent maintenant le mot de leur ligne lu à côté du temps du thread (`res=`, `getllar_res=`, avec le
 compteur de temps), et pour le PPU `last_faddr`, `last_ftime`, `last_fail` ; les lignes de mémoire portent leur instant de
 lecture. Le prochain gel dira si le mot recule vraiment et qui tient le verrou.
+
+## 4 bis. Règle de la base RPCS3 (`REWINDBOX_CONFIG_DATABASE_RULE_922`)
+
+Règle du mainteneur (10 novembre) : la base de réglages RPCS3 (api.rpcs3.net/config, embarquée dans
+`assets/data/rpcs3_ios_profiles.json`) est la référence de chaque jeu ; les jeux restent à 100 % de résolution par défaut et
+seul l'utilisateur change ses réglages ; le profil RewindBox de God of War III est supprimé.
+
+- **Constat (build 723, PID 48627)** : God of War III démarrait sur un fichier complet `custom_configs/config_BCES00510.yml`
+  (`CONFIG_LAYERS legacy_custom=1`), instantané de l'ancien profil RewindBox : résolution 75 %, réservations SPU relâchées,
+  RSX multithread, 19 réglages hérités ; ce fichier passait avant la base et supprimait les réglages par jeu de l'utilisateur.
+- **Moteur** : un fichier complet `custom_configs` n'est plus appliqué sur iOS (il reste sur le disque ; ligne
+  `CONFIG_DB922 … legacy_custom_ignored=1`). Ordre : réglages globaux < base RPCS3 < réglages par jeu de l'utilisateur,
+  toujours appliqués en dernier. Le mode Automatic du contournement MLAA vaut activé pour God of War III.
+- **Application** : le profil `_godOfWarIII` de `lib/services/rpcs3_game_profile_service.dart` est supprimé ; les six
+  références publient leur seule entrée de la base (Write Color Buffers, Shader Precision Ultra, SPU Block Size Mega,
+  Asynchronous Texture Streaming true).
+- **Contrôle** : `test/rpcs3_config_database922_test.py` (le vrai en-tête avec le yaml-cpp de RPCS3, 9 vérifications,
+  exécuté en local ; il n'est pas dans le pilote, qui n'a pas yaml-cpp). Les tests Dart modifiés ne sont pas exécutés ici
+  (pas de Flutter) : ils tournent dans le groupe Flutter de la livraison.
+- **Risque signalé** : l'entrée de la base active *Asynchronous Texture Streaming* pour God of War III ; ce mode n'a jamais
+  tourné sur l'iPhone (l'ancien profil le coupait pour cette raison). À vérifier au premier démarrage ; le réglage par jeu
+  permet de le couper.
 
 ## 5. Contrôle (hôte)
 

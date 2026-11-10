@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 922,
  "identity_type": "rpcs3-ios-core922",
- "summary": "RPCS3 Core 922 = Core 921 plus two changes. REWINDBOX_GOW3_MLAA_SAVESTATE_922: God of War III resumed from a savestate made without the MLAA bypass ran MLAA (builds 721 and 723: every resumed session reported ppu=savestate_memory savestate_patched=0 and read the 1280x720 colour buffer back 72-107 times per 5 s window at 12-23 FPS; every fresh boot ppu=applied and 0); the guest memory is restored before the executable loader runs, so the same official 01.00 pair, behind the same content guard, is written into the restored memory when it lacks it (GOW3MLAA909 ppu=savestate_applied); the unguarded 01.03 pair is never written into a savestate. REWINDBOX_FREEZE_RESERVATION_922: the Black Ops II freeze of build 723 printed line reservation words below times the SPU and PPU threads held, with bit 64 set; FREEZE_DUMP spu and ppu lines now carry the word of their line read next to the thread time (res=, getllar_res=, with the time-base counter), the PPU last_faddr, last_ftime and last_fail, and line records their read time. Everything else is Core 921. No reservation, timing, scheduling, resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
+ "summary": "RPCS3 Core 922 = Core 921 plus two changes. REWINDBOX_GOW3_MLAA_SAVESTATE_922: God of War III resumed from a savestate made without the MLAA bypass ran MLAA (builds 721 and 723: every resumed session reported ppu=savestate_memory savestate_patched=0 and read the 1280x720 colour buffer back 72-107 times per 5 s window at 12-23 FPS; every fresh boot ppu=applied and 0); the guest memory is restored before the executable loader runs, so the same official 01.00 pair, behind the same content guard, is written into the restored memory when it lacks it (GOW3MLAA909 ppu=savestate_applied); the unguarded 01.03 pair is never written into a savestate. REWINDBOX_FREEZE_RESERVATION_922: the Black Ops II freeze of build 723 printed line reservation words below times the SPU and PPU threads held, with bit 64 set; FREEZE_DUMP spu and ppu lines now carry the word of their line read next to the thread time (res=, getllar_res=, with the time-base counter), the PPU last_faddr, last_ftime and last_fail, and line records their read time. REWINDBOX_CONFIG_DATABASE_RULE_922 (maintainer rule): the RPCS3 database is the reference for every game; a legacy full custom_configs file (a snapshot of an earlier RewindBox title profile) is left on disk and no longer applied (CONFIG_DB922), the title runs global < RPCS3 database < the user per-game settings, at the global resolution; the MLAA bypass Automatic mode is on for God of War III. Everything else is Core 921. No reservation, timing, scheduling, resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "6d757d4379a11506658ad848c2208a743c78f5133f13de9e95ecc196c98e4ba5",
+  "patch_sha256": "643905efcff2ef82cf31a3afab504c3533d620fa401b4213485bf2818f350e44",
   "postimages": 456,
   "records": [
    "core610_20261101",
@@ -110,7 +110,7 @@
   "record": "core922_20261110",
   "manifest": "build-utils/rpcs3/core922-delta.json",
   "patch": "build-utils/rpcs3/core922-delta.patch",
-  "patch_sha256": "f74d7f1cd75c39495cf82a70f1c2f00cf7a35c07447865c2c15d3195d39cbe6d"
+  "patch_sha256": "2bfadf8cf06724b5ce43df7f15bfb72dbdd2a8f9234d270a039d90fdf8ac5966"
  },
  "exports": 92,
  "core_inputs": {
@@ -260,7 +260,8 @@
   "COREPROF TEXSWEEP921",
   "Stale Texture Release",
   "savestate_applied",
-  "getllar_res="
+  "getllar_res=",
+  "CONFIG_DB922"
  ],
  "moltenvk_dependency": {
   "run": 42733987255,

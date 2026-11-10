@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core922-delta.patch",
-  "patch_sha256": "f74d7f1cd75c39495cf82a70f1c2f00cf7a35c07447865c2c15d3195d39cbe6d",
+  "patch_sha256": "2bfadf8cf06724b5ce43df7f15bfb72dbdd2a8f9234d270a039d90fdf8ac5966",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -86,6 +86,7 @@
     "rpcs3/ios/RPCS3IOS.exports": "dda56154fb677379f9abc8638b98be5d7c16bb02011f458cbb57d780aa9004ce",
     "rpcs3/ios/RPCS3IOS.h": "2315d68838552d9d6bc3bfd94b74513c364431b546c4d4d7f31b3f35cfc8b16d",
     "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "f0bd30d340be710c1abf5d3db2fa50fd6bf325e7906b73e140527821c7ce7e72",
+    "rpcs3/ios/RPCS3IOSConfigInheritance.h": "e66620753281aaaa8e267b9f922308ec76f0abe18c3021bfa6f80a1d5ad3e883",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "6ab3f2a71783cce85eabd12d2477bf24ed6b2d6b5392149d6065d6e167eedb3d",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "e6556e47f85ff6863452df70c085806b8d1ee406a1e29cab58656e27dc89e081",
     "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "68b30b9ebe8b869051d8d18f88ebc1aac36de25b940fc7b12c072625e3a815fc",
@@ -242,7 +243,7 @@
     "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "4f90ee42f80e2276d34b78b1fe975b0f98246e3a1f6978e8a97fb6a5ef624672",
     "rpcs3/Emu/RSX/rsx_cache.h": "001970d7ed53dafba6bd4ef0183e173c9b250240d56d8e4acf56e0fdbbad102c",
     "rpcs3/Emu/RSX/rsx_methods.cpp": "e0cf4b8ffce643e4444c0da745cdd460de24e0a0a5bf1ed2df9957f14879e8d0",
-    "rpcs3/Emu/System.cpp": "4a46c8900ca5ee837947a93a6cabe893cbcb0b163d0d04e46fb969e81b08c34c",
+    "rpcs3/Emu/System.cpp": "cf2b90e6828e1396f151b377b8c3f4d5747a58615a5c817a8e4e088b418ca684",
     "rpcs3/Emu/system_config.h": "6372ec295a4fcf02036260a30309a9281f38afeb1ea6f608a9cd9a2e68708f7e",
     "rpcs3/Emu/system_config_types.cpp": "4ef95cbdcb8fd2ebbab016cf3909fd9d4c1d9601901a56cae2c81d6ac0aed0e5",
     "rpcs3/Emu/system_config_types.h": "edcb9cfb82d57a21d5fe7c90a9b9634b8e2c7fcad233e5642ab54691ae08a78e",
@@ -296,7 +297,8 @@
     "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
     "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
     "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "1d38790b9b778aa2eeb17f10f9acca3d4a932615585479325baf4c0f00c3a5a0",
-    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "151a55c2d811f73686bd59f53f6477070364b6e7f42fef6d0eada040bc746508",
+    "rpcs3/ios/RPCS3IOSConfigInheritance.h": "9238676b04d09d172f5b6dff544c7baf4d6b41a0c62b912a2676d40107520718",
+    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "c990aeb3a7716a236c75f78f8feb195e0d6b9282ef2950cef53cb69e579704f4",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "983b8f64c9c1ff17f41c278407efe74404aaddc4ec321164a2e832753490218f",
     "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "633e63151320d9a3cce80a9d5ebb288d85799b654c824a7d23e871c634a37983",
     "rpcs3/ios/RPCS3IOSFreezeDump.h": "956f41413196d4361ba2438fdf43ded0884f918060145e77129524a66d82e9f0",
@@ -568,6 +570,7 @@
     "stale_texture_sweep_921": "REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h; texture_cache.h release_stale_idle_sections; texture_cache_utils.h sync_protection_swept and ios_swept_frame; texture_cache.cpp buffered_section::sync_unpredicted; VKTextureCache.cpp/.h release_stale_textures; VKPresent.cpp; system_config.h, RPCS3IOSSettings.cpp experimental.stale_texture_sweep, RPCS3IOSExperimentalPolicy.cpp/.h, RPCS3IOSPerformance.cpp COREPROF TEXSWEEP921): on iOS every CPU texture is confirmed by a hash of its guest bytes, never by page protection, so a texture whose memory the title reused stayed cached until looked up again, and upstream trim_sections only visits blocks of more than 256 locked sections (Black Ops II, builds 620-721: none released, texture pool 74 -> 568 MiB in 4.4 minutes). Once per presented frame a pass bounded to 4 MiB hashed and 2048 sections looked at releases the idle (64 frames), unbound hash-validated CPU textures whose bytes no longer match, exactly as their next lookup would; intact ones are kept and looked at again after 64 frames; the prehash tables are not touched; the swept descriptor kinds are looked up again as after the residency pass",
     "gow3_mlaa_savestate_922": "REWINDBOX_GOW3_MLAA_SAVESTATE_922 (PPUModule.cpp, ios/IOSGow3MlaaReport.h): the God of War III 01.00 MLAA bypass pair, behind the same content guard, is also applied to the restored memory of a savestate that lacks it (builds 721 and 723: every resumed session ppu=savestate_memory savestate_patched=0 with 72-107 colour buffer read-backs per 5 s window, every fresh boot ppu=applied and 0); the unguarded 01.03 pair is not written into a savestate; GOW3MLAA909 ppu=savestate_applied",
     "freeze_reservation_922": "REWINDBOX_FREEZE_RESERVATION_922 (ios/RPCS3IOSFreezeDump.cpp): FREEZE_DUMP spu and ppu lines carry the reservation word of their line read next to the thread time (res=, getllar_res=, with the time-base counter), PPU last_faddr, last_ftime and last_fail, and line records their read time: the Black Ops II freeze of build 723 showed line words below the times threads held, with bit 64 set, read apart from the threads",
+    "config_database_rule_922": "REWINDBOX_CONFIG_DATABASE_RULE_922 (Emu/System.cpp, ios/RPCS3IOSConfigInheritance.h apply_database, ios/RPCS3IOSExperimentalPolicy.cpp): maintainer rule of 10 November: the RPCS3 database is the reference for every game. A legacy full custom_configs file (a snapshot of an earlier RewindBox title profile; God of War III ran 75 %, relaxed reservations and multithreaded RSX from it) is left on disk and no longer applied (CONFIG_DB922 legacy_custom_ignored=1); the title runs global < RPCS3 database < the user sparse per-game settings; the MLAA bypass Automatic mode is on for God of War III",
     "core922_20261110": "this record: the Core 921 record plus the Core 922 savestate MLAA bypass and freeze reservation words"
   },
   "behaviour": {
@@ -612,18 +615,24 @@
   "iphone_validation_run": false,
   "increment_from_core921": {
     "patch": "build-utils/rpcs3/core922-from-921.patch",
-    "patch_sha256": "34371ff6f1e6453fd85b457953c41edb10e6d6296ff4ce8914c872ff7de4f161",
+    "patch_sha256": "21a0b602b21084cdd5d5221c23333550b6e60c585d6aefb54c00fc4575bd36d4",
     "insertions_only": false,
-    "removed_lines": 9,
-    "files": 3,
+    "removed_lines": 17,
+    "files": 6,
     "files_before_sha256": {
       "rpcs3/Emu/Cell/PPUModule.cpp": "6c1697c73bbe750f5ffd03983b06e7d20c3f83088f301a9676433785128ede7f",
+      "rpcs3/Emu/System.cpp": "4a46c8900ca5ee837947a93a6cabe893cbcb0b163d0d04e46fb969e81b08c34c",
       "rpcs3/ios/IOSGow3MlaaReport.h": "5236c1104a3d30afbb4756f9edc2caabd1a8c20073fa64f1db3c0ecc6554f793",
+      "rpcs3/ios/RPCS3IOSConfigInheritance.h": "e66620753281aaaa8e267b9f922308ec76f0abe18c3021bfa6f80a1d5ad3e883",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "151a55c2d811f73686bd59f53f6477070364b6e7f42fef6d0eada040bc746508",
       "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "da996bfdd1e06723d78f942a432f88858fab5199f1ef14127285e28757cd411d"
     },
     "files_after_sha256": {
       "rpcs3/Emu/Cell/PPUModule.cpp": "9d4a4535b19d7a484b01fa7f0a4deadce6c6091c6e2753eaf10aae5909dd4523",
+      "rpcs3/Emu/System.cpp": "cf2b90e6828e1396f151b377b8c3f4d5747a58615a5c817a8e4e088b418ca684",
       "rpcs3/ios/IOSGow3MlaaReport.h": "95d10fd7ac3ecc5224efc487c0cb2ae7e923a8de27e7d290e875a547d3f1677e",
+      "rpcs3/ios/RPCS3IOSConfigInheritance.h": "9238676b04d09d172f5b6dff544c7baf4d6b41a0c62b912a2676d40107520718",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "c990aeb3a7716a236c75f78f8feb195e0d6b9282ef2950cef53cb69e579704f4",
       "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "633e63151320d9a3cce80a9d5ebb288d85799b654c824a7d23e871c634a37983"
     },
     "new_files": []

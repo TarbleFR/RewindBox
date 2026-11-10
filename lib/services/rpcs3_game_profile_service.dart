@@ -171,14 +171,12 @@ abstract final class Rpcs3GameProfileService {
       'cpu.spu_block_size': 'Safe',
     },
 
-    // God of War III: retain RPCS3's WCB/Ultra/Mega recommendations and add
-    // the guarded ARM64 batch already instrumented by Build 256.
-    'BCUS98111': _godOfWarIII,
-    'BCES00510': _godOfWarIII,
-    'BCES00799': _godOfWarIII,
-    'BCJS37001': _godOfWarIII,
-    'BCAS25003': _godOfWarIII,
-    'BCKS15003': _godOfWarIII,
+    // God of War III has no RewindBox title profile any more (maintainer, 10
+    // November 2026: "supprime le profil et garde la base RPCS3 comme
+    // référence"). Its six serials run the global settings plus their RPCS3
+    // database entry (assets/data/rpcs3_ios_profiles.json), at the global
+    // resolution (100 %), and whatever the user sets for the game. The Core
+    // turns the MLAA bypass on by itself for this title (Core 922).
 
     // Dragon Ball Z HD Collection (BLES01658) has no title profile again.
     // Build 551 gave it asynchronous MoltenVK submits, asynchronous texture
@@ -304,62 +302,6 @@ abstract final class Rpcs3GameProfileService {
 
   static const Map<String, String> _assassinsCreedIV = {
     'cpu.ppu_decoder': 'Recompiler (LLVM)',
-  };
-
-  static const Map<String, String> _godOfWarIII = {
-    'cpu.ppu_decoder': 'Recompiler (LLVM)',
-    'cpu.spu_decoder': 'Recompiler (LLVM)',
-    'cpu.ppu_profiler': 'false',
-    // Persist raw SPU metadata on the first run and rebuild those safe guest
-    // blocks before gameplay on later runs. Host ARM64 machine code is not
-    // persisted because it still embeds process-specific addresses.
-    'advanced.llvm_precompilation': 'true',
-    'cpu.spu_block_size': 'Mega',
-    'cpu.spu_xfloat_accuracy': 'Approximate',
-    'cpu.preferred_spu_threads': '0',
-    // Build 411 iPhone logs (7 October 2026): in heavy scenes the PPU threads
-    // were blocked 0.85 to 1.5 s per second behind the exclusive writer lock
-    // that every data-changing SPU PUTLLC and every PUTLLUC takes while
-    // "Accurate SPU Reservations" (Core default true) is on; the SPU threads
-    // spin until both PPUs park. The relaxed path keeps the range-lock and
-    // reservation protocol (single-lane CAS, direct SPURS stores) and bypasses
-    // no DMA lock. Hypothesis measured on the next run by RANGELOCKPROF
-    // wl_putllc/wl_store128 and the PPU range-wait time, not proven here.
-    'advanced.accurate_spu_reservations': 'false',
-    // Build 565 (maintainer decision, 27 October 2026): no 30 fps cap. The
-    // PS3 game is not locked to 30 fps; RPCS3 limits it to the 60 Hz vblank
-    // (Auto) like every other title, so it runs as fast as the device allows
-    // up to 60 fps with its own timing. Explicit, so a published GameDB entry
-    // cannot bring a lower limit back; a per-game user choice still wins.
-    'gpu.frame_limit': 'Auto',
-    'gpu.resolution_scale': '75',
-    // Build 551: no shader mode is forced. "Async Recompiler" skips the draws
-    // whose pipeline is still compiling; the maintainer excludes skipped
-    // draws, so God of War III keeps the global (Legacy) mode.
-    'gpu.multithreaded_rsx': 'true',
-    // Build 552: asynchronous texture streaming stays off. In this RPCS3 it
-    // turns on asynchronous compute on MoltenVK, whose separate transfer
-    // queue keeps passthrough DMA (guest memory imported as Vulkan buffers)
-    // and synchronizes both queues with Vulkan events. None of it has run on
-    // the iPhone: every logged boot reports async_tex=false.
-    'gpu.async_texture_uploads': 'false',
-    'experimental.fps_optimization_batch': 'Enabled',
-    'experimental.fifo_cache_size': '4 KiB',
-    'experimental.getllar_backoff': 'Enabled',
-    // Build 552 kept MoltenVK submits synchronous after the 551 boots ended
-    // within 0.4 s of boot return, while the RSX thread flipped the shader
-    // cache dialog. Build 587: the Core decides. With asynchronous submits,
-    // MoltenVK 1.4.2 encodes on its own queue thread after vkQueueSubmit has
-    // returned, and vkAcquireNextImageKHR releases, without a lock, the
-    // drawable that a still-queued present and the render before it use. The
-    // Core 587 now waits for the last queued present before every
-    // acquisition, and its Automatic mode turns them on for God of War III
-    // only while the title's last asynchronous boot finished (a boot that
-    // did not finish returns it to synchronous submits for good).
-    'experimental.moltenvk_async_submits': 'Automatic',
-    // The Core recognizes only the two official MLAA SPU hashes for God of
-    // War III 01.00/01.03. It cannot affect another SPU module or title.
-    'experimental.gow3_mlaa_bypass': 'Enabled',
   };
 
   static final Set<String> _detectedSerials = <String>{};

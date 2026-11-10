@@ -119285,7 +119285,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..58a8828 100644
+index 1f53c64..576de5a 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -119541,7 +119541,22 @@ index 1f53c64..58a8828 100644
  					}
  					else
  					{
-@@ -1790,17 +1910,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1787,20 +1907,43 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 						continue;
+ 					}
+ 
++#ifdef RPCS3_IOS
++					// REWINDBOX_CONFIG_DATABASE_RULE_922 (maintainer, 10 Nov: "supprime le profil et garde la base RPCS3 comme
++					// référence"): a full custom_configs file is a snapshot an earlier build wrote from the RewindBox title
++					// profile of its time (God of War III: 75 %, relaxed reservations, multithreaded RSX), not the user's
++					// choices. It is left on disk and no longer applied: the title runs global < RPCS3 database < the
++					// user's own per-game settings (the sparse overrides below).
++					if (fs::is_file(config_path))
++					{
++						sys_log.notice("CONFIG_DB922 title=%s legacy_custom_ignored=1 path=%s", m_title_id, config_path);
++						continue;
++					}
++#endif
  					if (fs::file cfg_file{config_path})
  					{
  						sys_log.notice("Applying custom config: %s", config_path);
@@ -119571,7 +119586,7 @@ index 1f53c64..58a8828 100644
  							}
  							break;
  						}
-@@ -1810,6 +1941,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1810,6 +1953,43 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -119580,7 +119595,12 @@ index 1f53c64..58a8828 100644
 +			{
 +				// REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1: global < database < the
 +				// full file's own changes. The file keeps its name (g_cfg.name).
-+				ios_inheritance = rpcs3::ios::config_inheritance::inherit_database(*m_db_config, ios_full_config, ios_global_config);
++				// REWINDBOX_CONFIG_DATABASE_RULE_922: the RPCS3 database now decides every
++				// setting it names, over the file; the file keeps the others.
++				ios_inheritance = rpcs3::ios::config_inheritance::apply_database(*m_db_config, ios_full_config, ios_global_config);
++				sys_log.notice("CONFIG_DB922 title=%s database_settings_applied=%u corrected=%u agreed=%u corrections=%s",
++					m_title_id, ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed,
++					ios_inheritance.corrections.empty() ? std::string("-") : ios_inheritance.corrections);
 +
 +				if (!ios_inheritance.ok)
 +				{
@@ -119592,8 +119612,8 @@ index 1f53c64..58a8828 100644
 +				}
 +				else
 +				{
-+					sys_log.notice("Applying database config under the custom config: %u setting(s) inherited, %u kept from the custom config",
-+						ios_inheritance.inherited, ios_inheritance.kept);
++					sys_log.notice("Applying database config over the custom config: %u setting(s) inherited, %u corrected, %u already equal",
++						ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed);
 +
 +					if (g_cfg.from_string(ios_inheritance.yaml))
 +					{
@@ -119610,7 +119630,7 @@ index 1f53c64..58a8828 100644
  			if (m_add_database_config && m_db_config && !m_db_config->empty())
  			{
  				// Add database config
-@@ -1818,6 +1981,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1998,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -119620,15 +119640,15 @@ index 1f53c64..58a8828 100644
  				}
  				else
  				{
-@@ -1825,6 +1991,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +2008,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
 +#ifdef RPCS3_IOS
 +			// NeoStation sparse user overrides are always the final title layer.
-+			// A legacy full custom config remains authoritative and suppresses them;
-+			// it only lets the database fill the settings it left at the global value.
-+			if (!ios_has_legacy_custom_config && !m_title_id.empty())
++			// REWINDBOX_CONFIG_DATABASE_RULE_922: also after a legacy full custom config, so
++			// that what the user sets for the game is always what it runs with.
++			if (!m_title_id.empty())
 +			{
 +				// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3): the override file's presence
 +				// is read on the same path that applies it, so CONFIG_LAYERS reports
@@ -119653,7 +119673,7 @@ index 1f53c64..58a8828 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,159 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2056,159 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -119700,7 +119720,7 @@ index 1f53c64..58a8828 100644
 +				const std::string ios_accurate_res = g_cfg.core.spu_accurate_reservations.to_string();
 +				const std::string ios_mt_rsx = g_cfg.video.multithreaded_rsx.to_string();
 +				const std::string ios_spu_spin = g_cfg.ios_experimental.spu_spin_timing.to_string();
-+				ios_layers.inherited = ios_inheritance.inherited;
++				ios_layers.inherited = ios_inheritance.inherited + ios_inheritance.corrected; // REWINDBOX_CONFIG_DATABASE_RULE_922
 +				ios_layers.kept = ios_inheritance.kept;
 +				ios_layers.accurate_res = ios_accurate_res;
 +				ios_layers.mt_rsx = ios_mt_rsx;
@@ -119813,7 +119833,7 @@ index 1f53c64..58a8828 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2849,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2866,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -119828,7 +119848,7 @@ index 1f53c64..58a8828 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2865,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2882,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -119838,7 +119858,7 @@ index 1f53c64..58a8828 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2941,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2958,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -119853,7 +119873,7 @@ index 1f53c64..58a8828 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3071,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3088,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -119882,7 +119902,7 @@ index 1f53c64..58a8828 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3246,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3263,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -119894,7 +119914,7 @@ index 1f53c64..58a8828 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3330,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3347,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -119905,7 +119925,7 @@ index 1f53c64..58a8828 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3380,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3397,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -119931,7 +119951,7 @@ index 1f53c64..58a8828 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3888,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3905,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -119944,7 +119964,7 @@ index 1f53c64..58a8828 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3908,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3925,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -119967,7 +119987,7 @@ index 1f53c64..58a8828 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3964,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3981,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -119975,7 +119995,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3975,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3992,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -119983,7 +120003,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3985,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +4002,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -119991,7 +120011,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4073,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4090,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -120002,7 +120022,7 @@ index 1f53c64..58a8828 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4139,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4156,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -120011,7 +120031,7 @@ index 1f53c64..58a8828 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4253,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4270,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -120026,7 +120046,7 @@ index 1f53c64..58a8828 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4288,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4305,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -120034,7 +120054,7 @@ index 1f53c64..58a8828 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4406,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4423,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -120048,7 +120068,7 @@ index 1f53c64..58a8828 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4461,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4478,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -120061,7 +120081,7 @@ index 1f53c64..58a8828 100644
  			});
  
  			// Join it
-@@ -4075,10 +4531,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4548,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -120081,7 +120101,7 @@ index 1f53c64..58a8828 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4679,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4696,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -120092,7 +120112,7 @@ index 1f53c64..58a8828 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4777,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4794,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -120118,7 +120138,7 @@ index 1f53c64..58a8828 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4865,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4882,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -137030,10 +137050,10 @@ index 0000000..c4701b2
 +}
 diff --git a/rpcs3/ios/RPCS3IOSConfigInheritance.h b/rpcs3/ios/RPCS3IOSConfigInheritance.h
 new file mode 100644
-index 0000000..23005f9
+index 0000000..e3aa359
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSConfigInheritance.h
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,210 @@
 +#pragma once
 +
 +// REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1: a full custom_configs/config_<TITLE>.yml
@@ -137059,6 +137079,11 @@ index 0000000..23005f9
 +		unsigned inherited = 0; // database leaves the file left at the global value
 +		unsigned kept = 0;      // database leaves the file changed: its value stays
 +		bool ok = false;        // the three documents parsed and the database is a map
++		// REWINDBOX_CONFIG_DATABASE_RULE_922 (apply_database): leaves where the file disagreed with the database and the
++		// database value was applied, leaves where they already agreed, and the corrections as "Section/Key:file->database".
++		unsigned corrected = 0;
++		unsigned agreed = 0;
++		std::string corrections;
 +	};
 +
 +	namespace detail
@@ -137125,6 +137150,92 @@ index 0000000..23005f9
 +				}
 +			}
 +		}
++
++		// REWINDBOX_CONFIG_DATABASE_RULE_922: every leaf the database names is applied; a file value that differs is
++		// a correction, reported with its path.
++		inline void apply_all(const YAML::Node& database, const YAML::Node& file, const YAML::Node& global, YAML::Node& out, result& r,
++			const std::string& path)
++		{
++			for (const auto& entry : database)
++			{
++				if (!entry.first.IsScalar())
++				{
++					continue;
++				}
++
++				const std::string key = entry.first.Scalar();
++				const YAML::Node value = entry.second;
++				const YAML::Node in_file = child(file, key);
++				const YAML::Node in_global = child(global, key);
++				const std::string here = path.empty() ? key : path + "/" + key;
++
++				if (value.IsMap())
++				{
++					YAML::Node section(YAML::NodeType::Map);
++					apply_all(value, in_file, in_global, section, r, here);
++
++					if (section.size())
++					{
++						out[key] = section;
++					}
++
++					continue;
++				}
++
++				const std::string wanted = leaf_text(value);
++				const std::string had = in_file.IsDefined() ? leaf_text(in_file) : leaf_text(in_global);
++
++				if (had == wanted)
++				{
++					r.agreed++;
++					continue;
++				}
++
++				out[key] = value;
++
++				if (in_file.IsDefined() && leaf_text(in_file) != leaf_text(in_global))
++				{
++					r.corrected++;
++					if (r.corrections.size() < 1024)
++					{
++						r.corrections += (r.corrections.empty() ? "" : ";") + here + ":" + had + "->" + wanted;
++					}
++				}
++				else
++				{
++					r.inherited++;
++				}
++			}
++		}
++	}
++
++	// REWINDBOX_CONFIG_DATABASE_RULE_922: the title's RPCS3 database config is the reference for every setting it
++	// names. God of War III ran on a full custom file written by an earlier build (legacy_custom=1) whose own values
++	// outranked the database under inherit_database below; the maintainer's rule (10 Nov): the RPCS3 database is applied
++	// to every game, compared with what is applied, and a setting that disagrees is corrected. The file still decides
++	// every setting the database does not name (resolution, for one).
++	inline result apply_database(const std::string& database, const std::string& file, const std::string& global)
++	{
++		result r;
++		const auto [database_node, database_error] = yaml_load(database);
++		const auto [file_node, file_error] = yaml_load(file);
++		const auto [global_node, global_error] = yaml_load(global);
++
++		if (!database_error.empty() || !file_error.empty() || !global_error.empty() || !database_node.IsMap())
++		{
++			return r;
++		}
++
++		YAML::Node out(YAML::NodeType::Map);
++		detail::apply_all(database_node, file_node, global_node, out, r, {});
++		r.ok = true;
++
++		if (r.inherited || r.corrected)
++		{
++			r.yaml = YAML::Dump(out);
++		}
++
++		return r;
 +	}
 +
 +	// database: the title's database config; file: the full config file applied
@@ -137182,7 +137293,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..0c84014 100644
+index 7c3389b..1cfb5bb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,41 @@
@@ -137577,11 +137688,14 @@ index 7c3389b..0c84014 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +418,273 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +418,276 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
-+	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, false);
++	// REWINDBOX_GOW3_MLAA_DEFAULT_922: Automatic = on for God of War III. The maintainer removed the RewindBox title profile
++	// that set it to Enabled (the RPCS3 database is the reference); the bypass itself only touches the six serials and the
++	// exact executables and SPU modules it knows (PPUModule.cpp, sys_spu.cpp).
++	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, is_god_of_war_iii_title(title_id));
 +	// CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: Automatic is God of War III, whose
 +	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
 +	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its

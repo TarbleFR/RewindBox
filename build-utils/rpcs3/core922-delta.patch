@@ -92939,7 +92939,7 @@ index ab99381..9aa065a 100644
  
  	void user_command(context* ctx, u32, u32 arg)
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 6eab393..58a8828 100644
+index 6eab393..576de5a 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -44,6 +44,7 @@
@@ -92959,7 +92959,64 @@ index 6eab393..58a8828 100644
  			// A full config file applied through m_config_path by a custom-selection
  			// or continuous boot (the exitspawn reboot of sys_process re-applies the
  			// legacy custom config this way). Reporting only: the sparse-override
-@@ -2007,6 +2010,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1904,6 +1907,18 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 						continue;
+ 					}
+ 
++#ifdef RPCS3_IOS
++					// REWINDBOX_CONFIG_DATABASE_RULE_922 (maintainer, 10 Nov: "supprime le profil et garde la base RPCS3 comme
++					// référence"): a full custom_configs file is a snapshot an earlier build wrote from the RewindBox title
++					// profile of its time (God of War III: 75 %, relaxed reservations, multithreaded RSX), not the user's
++					// choices. It is left on disk and no longer applied: the title runs global < RPCS3 database < the
++					// user's own per-game settings (the sparse overrides below).
++					if (fs::is_file(config_path))
++					{
++						sys_log.notice("CONFIG_DB922 title=%s legacy_custom_ignored=1 path=%s", m_title_id, config_path);
++						continue;
++					}
++#endif
+ 					if (fs::file cfg_file{config_path})
+ 					{
+ 						sys_log.notice("Applying custom config: %s", config_path);
+@@ -1943,7 +1958,12 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 			{
+ 				// REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1: global < database < the
+ 				// full file's own changes. The file keeps its name (g_cfg.name).
+-				ios_inheritance = rpcs3::ios::config_inheritance::inherit_database(*m_db_config, ios_full_config, ios_global_config);
++				// REWINDBOX_CONFIG_DATABASE_RULE_922: the RPCS3 database now decides every
++				// setting it names, over the file; the file keeps the others.
++				ios_inheritance = rpcs3::ios::config_inheritance::apply_database(*m_db_config, ios_full_config, ios_global_config);
++				sys_log.notice("CONFIG_DB922 title=%s database_settings_applied=%u corrected=%u agreed=%u corrections=%s",
++					m_title_id, ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed,
++					ios_inheritance.corrections.empty() ? std::string("-") : ios_inheritance.corrections);
+ 
+ 				if (!ios_inheritance.ok)
+ 				{
+@@ -1955,8 +1975,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 				}
+ 				else
+ 				{
+-					sys_log.notice("Applying database config under the custom config: %u setting(s) inherited, %u kept from the custom config",
+-						ios_inheritance.inherited, ios_inheritance.kept);
++					sys_log.notice("Applying database config over the custom config: %u setting(s) inherited, %u corrected, %u already equal",
++						ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed);
+ 
+ 					if (g_cfg.from_string(ios_inheritance.yaml))
+ 					{
+@@ -1990,9 +2010,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 
+ #ifdef RPCS3_IOS
+ 			// NeoStation sparse user overrides are always the final title layer.
+-			// A legacy full custom config remains authoritative and suppresses them;
+-			// it only lets the database fill the settings it left at the global value.
+-			if (!ios_has_legacy_custom_config && !m_title_id.empty())
++			// REWINDBOX_CONFIG_DATABASE_RULE_922: also after a legacy full custom config, so
++			// that what the user sets for the game is always what it runs with.
++			if (!m_title_id.empty())
+ 			{
+ 				// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3): the override file's presence
+ 				// is read on the same path that applies it, so CONFIG_LAYERS reports
+@@ -2007,6 +2027,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				{
  					ios_sparse_overrides_applied = ios_sparse_overrides_present;
  				}
@@ -92970,7 +93027,14 @@ index 6eab393..58a8828 100644
  			}
  #endif
  
-@@ -2081,6 +2088,89 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2075,12 +2099,95 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 				const std::string ios_accurate_res = g_cfg.core.spu_accurate_reservations.to_string();
+ 				const std::string ios_mt_rsx = g_cfg.video.multithreaded_rsx.to_string();
+ 				const std::string ios_spu_spin = g_cfg.ios_experimental.spu_spin_timing.to_string();
+-				ios_layers.inherited = ios_inheritance.inherited;
++				ios_layers.inherited = ios_inheritance.inherited + ios_inheritance.corrected; // REWINDBOX_CONFIG_DATABASE_RULE_922
+ 				ios_layers.kept = ios_inheritance.kept;
+ 				ios_layers.accurate_res = ios_accurate_res;
  				ios_layers.mt_rsx = ios_mt_rsx;
  				ios_layers.spu_spin = ios_spu_spin;
  				ios_layers.mlaa_bypass = rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass;
@@ -93060,7 +93124,7 @@ index 6eab393..58a8828 100644
  				sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_layers_line(ios_layers));
  			}
  
-@@ -4589,6 +4679,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4589,6 +4696,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -93071,7 +93135,7 @@ index 6eab393..58a8828 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4771,6 +4865,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4771,6 +4882,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -101566,8 +101630,117 @@ index 74ff550..c4701b2 100644
  	// --- JITPROF_BOOT --------------------------------------------------------
  	struct jit_boot_summary
  	{
+diff --git a/rpcs3/ios/RPCS3IOSConfigInheritance.h b/rpcs3/ios/RPCS3IOSConfigInheritance.h
+index 23005f9..e3aa359 100644
+--- a/rpcs3/ios/RPCS3IOSConfigInheritance.h
++++ b/rpcs3/ios/RPCS3IOSConfigInheritance.h
+@@ -23,6 +23,11 @@ namespace rpcs3::ios::config_inheritance
+ 		unsigned inherited = 0; // database leaves the file left at the global value
+ 		unsigned kept = 0;      // database leaves the file changed: its value stays
+ 		bool ok = false;        // the three documents parsed and the database is a map
++		// REWINDBOX_CONFIG_DATABASE_RULE_922 (apply_database): leaves where the file disagreed with the database and the
++		// database value was applied, leaves where they already agreed, and the corrections as "Section/Key:file->database".
++		unsigned corrected = 0;
++		unsigned agreed = 0;
++		std::string corrections;
+ 	};
+ 
+ 	namespace detail
+@@ -89,6 +94,92 @@ namespace rpcs3::ios::config_inheritance
+ 				}
+ 			}
+ 		}
++
++		// REWINDBOX_CONFIG_DATABASE_RULE_922: every leaf the database names is applied; a file value that differs is
++		// a correction, reported with its path.
++		inline void apply_all(const YAML::Node& database, const YAML::Node& file, const YAML::Node& global, YAML::Node& out, result& r,
++			const std::string& path)
++		{
++			for (const auto& entry : database)
++			{
++				if (!entry.first.IsScalar())
++				{
++					continue;
++				}
++
++				const std::string key = entry.first.Scalar();
++				const YAML::Node value = entry.second;
++				const YAML::Node in_file = child(file, key);
++				const YAML::Node in_global = child(global, key);
++				const std::string here = path.empty() ? key : path + "/" + key;
++
++				if (value.IsMap())
++				{
++					YAML::Node section(YAML::NodeType::Map);
++					apply_all(value, in_file, in_global, section, r, here);
++
++					if (section.size())
++					{
++						out[key] = section;
++					}
++
++					continue;
++				}
++
++				const std::string wanted = leaf_text(value);
++				const std::string had = in_file.IsDefined() ? leaf_text(in_file) : leaf_text(in_global);
++
++				if (had == wanted)
++				{
++					r.agreed++;
++					continue;
++				}
++
++				out[key] = value;
++
++				if (in_file.IsDefined() && leaf_text(in_file) != leaf_text(in_global))
++				{
++					r.corrected++;
++					if (r.corrections.size() < 1024)
++					{
++						r.corrections += (r.corrections.empty() ? "" : ";") + here + ":" + had + "->" + wanted;
++					}
++				}
++				else
++				{
++					r.inherited++;
++				}
++			}
++		}
++	}
++
++	// REWINDBOX_CONFIG_DATABASE_RULE_922: the title's RPCS3 database config is the reference for every setting it
++	// names. God of War III ran on a full custom file written by an earlier build (legacy_custom=1) whose own values
++	// outranked the database under inherit_database below; the maintainer's rule (10 Nov): the RPCS3 database is applied
++	// to every game, compared with what is applied, and a setting that disagrees is corrected. The file still decides
++	// every setting the database does not name (resolution, for one).
++	inline result apply_database(const std::string& database, const std::string& file, const std::string& global)
++	{
++		result r;
++		const auto [database_node, database_error] = yaml_load(database);
++		const auto [file_node, file_error] = yaml_load(file);
++		const auto [global_node, global_error] = yaml_load(global);
++
++		if (!database_error.empty() || !file_error.empty() || !global_error.empty() || !database_node.IsMap())
++		{
++			return r;
++		}
++
++		YAML::Node out(YAML::NodeType::Map);
++		detail::apply_all(database_node, file_node, global_node, out, r, {});
++		r.ok = true;
++
++		if (r.inherited || r.corrected)
++		{
++			r.yaml = YAML::Dump(out);
++		}
++
++		return r;
+ 	}
+ 
+ 	// database: the title's database config; file: the full config file applied
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..0c84014 100644
+index df33283..1cfb5bb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -6,17 +6,27 @@
@@ -101721,7 +101894,19 @@ index df33283..0c84014 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -344,9 +426,91 @@ void resolve_experimental_policy() noexcept
+@@ -336,7 +418,10 @@ void resolve_experimental_policy() noexcept
+ 	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
+ 	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
+ 	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
+-	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, false);
++	// REWINDBOX_GOW3_MLAA_DEFAULT_922: Automatic = on for God of War III. The maintainer removed the RewindBox title profile
++	// that set it to Enabled (the RPCS3 database is the reference); the bypass itself only touches the six serials and the
++	// exact executables and SPU modules it knows (PPUModule.cpp, sys_spu.cpp).
++	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, is_god_of_war_iii_title(title_id));
+ 	// CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: Automatic is God of War III, whose
+ 	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
+ 	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
+@@ -344,9 +429,91 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -101815,7 +102000,7 @@ index df33283..0c84014 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +556,70 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +559,70 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
