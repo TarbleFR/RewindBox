@@ -3172,6 +3172,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `a4970f96…` (196 inputs, 206 members, 77 gates), contract test 451 checks. Extrapolated, not measured: about
     -0.75 GiB for Hogwarts' cache. [Receipts](evidence/melonx-721-gates/run.json),
     [device protocol](evidence/melonx-721-gates/device-protocol.md). Handoff to main: Core CI, pin, MoltenVK packaging.
+  - **RAM, next lever (managed heap; in progress, not wired):** IPA 718 Hogwarts: the large object heap stays at about
+    507 MiB in play with 213-267 MiB of holes after each background gen2 (it never compacts; only the first-frame
+    compaction brought it to 266 MiB, refilled within 20 s); in-play GC pauses are 130-190 ms per 5 s for 2-3 collections
+    (about 45-60 ms each). One mechanism found in the source: on a tile-based GPU every host-mapped Vulkan buffer updated
+    while in flight keeps `_pendingData = new byte[Size]`, a managed copy of the whole buffer, until it is disposed (and
+    the buffer cache recreates buffers when it merges ranges). `adapt_mirror_pending_pages` (committed, NOT wired) keeps
+    those bytes in 16 KiB pooled pages instead; the differential check (126 000 operations against the delivered copy and
+    the real `BufferMirrorRangeList.FillData`) shows no difference. Limit: data stays pending until rewritten, so a
+    per-frame ring becomes pending almost everywhere; the general gain needs the settle step (write the ranges no command
+    buffer uses any more to the mapped buffer, the direct path's own condition) with its own gate. Its share of the
+    266 MiB live LOH is not measured; the adapter's `bufferMirrors pendingPages` line gives it on the device.
   - Independent review (main, read-only): F1, a window refused for fragmentation leaves the keep-alive dormant until the
     next background gen2 (as after an elevated request in Core 717) and counts it as a fragmented skip, not a miss;
     decision: ship, next Core adds a bounded `gcKeepAlive dormant` line and a separate miss count, gate holding the ratio
