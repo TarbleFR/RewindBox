@@ -22,6 +22,8 @@
 # accepts three more test page keys: PUT horizon, heavy PUTLLC trace, PPU region profile), 10 November 2026; no IPA or release.
 # Run request: the dependency of RPCS3 Core 912, second request (same MoltenVK source and patch; the host bridge asks the Core
 # to start an enabled capture when the in-game menu closes: that menu does not pause the emulation), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 914 (same MoltenVK source and patch; the host bridge sends the capture request
+# only when the menu goes from open to closed), 10 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
