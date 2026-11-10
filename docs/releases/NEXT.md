@@ -18,14 +18,19 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
   Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
   Private delivery does not mean public publication.
-- Latest verified private delivery: common IPA 720 (10 November 2026), on 719, run `42798677772` (trigger
+- Latest verified private delivery: common IPA 721 (10 November 2026), on 720, run `42822649775` (trigger
+  `cfb56420`; the first request, run `42819476474`, failed on a load-dependent floor of a MeloNX journal test, fixed by
+  `653bb484`), [receipt](../evidence/rewind721/delivery.json): IPA 267033667 B, SHA-256
+  `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`; the content of 720 with RPCS3 Core 919 (Black Ops
+  II ZCULL waits). Downloaded plaintext IPA verified offline, private key deleted. Not tested on an iPhone; no FPS claim.
+- Previous verified private delivery: common IPA 720 (10 November 2026), on 719, run `42798677772` (trigger
   `8a1884a9`; the first request, run `42795453604`, failed on a Swift call name of the MeloNX handoff, fixed by
   `65a9e633`), [receipt](../evidence/rewind720/delivery.json): IPA 266993445 B, SHA-256
   `e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`; the content of 719 with MeloNX Core 719
   (replaces 717), MoltenVK 1.4.2 with the RewindBox drawable ownership patch, and the skins' screen framing
   (PR #166) and sinking buttons (PR #167); RPCS3 Core 918 unchanged. Downloaded plaintext IPA verified offline,
   private key deleted. Not tested on an iPhone; no FPS, crash or touch claim.
-- Previous verified private delivery: common IPA 719 (10 November 2026), on 694, run `42779263525` (trigger
+- Earlier verified private delivery: common IPA 719 (10 November 2026), on 694, run `42779263525` (trigger
   `3b4b4d02`), [receipt](../evidence/rewind719/delivery.json): IPA 263643764 B, SHA-256
   `2446e86d98550c8eac6b91b618cb563c2fd0948f3e810ebd09147adc508e4c56`; the content of 718 with RPCS3 Core 918 (which
   holds Cores 916 and 917), MeloNX Core 717. Downloaded plaintext IPA verified offline, private key deleted. Not tested
@@ -54,7 +59,7 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   did for the app in each window and, for the first minutes of a game, compares this setting and the Core 917 one by
   alternating them between its windows. Host tests only; no FPS claim.
 - RPCS3 Core 919 pinned on 10 November 2026 ([record](../rpcs3-core919-zcull-bo2.md); run `42815113270`, dylib `04f44a94…`,
-  pin `44527c61…`): in Call of Duty: Black Ops II the game's main processor threads waited up to a fifth of their time for
+  pin `44527c61…`), delivered in the private IPA 721: in Call of Duty: Black Ops II the game's main processor threads waited up to a fifth of their time for
   occlusion results the GPU could have finished long before, because the work behind them was sent to the GPU only when
   the game asked; that work is now sent as soon as possible, as it already was for Assassin's Creed. Host model only
   (waits at 23 of 23 reads before, 2 after); no FPS claim before an iPhone measurement.

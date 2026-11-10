@@ -271,10 +271,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
-- **Common IPA 721 requested (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3 Core 919
-  (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)) and the
-  tests-only PR 168 merge. Freeze `c1616fe0` on base 720 (effective digest `5c60d654…`, two reviewed commits, legal
-  check passed), trigger `587abef9`, run `42819476474`. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
+- **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
+  Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
+  tests-only PR 168 merge and a journal test fix. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
+  - **State:** second request `cfb56420`, run `42822649775` attempt 1, five jobs green (19.5 min; flutter 20 and native
+    19 commands fresh). IPA 267033667 B, SHA-256 `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`,
+    build 721, `passed-offline-checks`; `libRPCS3Core.dylib` payload `a74a9cf6` = the Core 919 pin, marker "Resolved
+    title policy 919" present; 45 retained images verified. [Receipt](evidence/rewind721/delivery.json), twelve proof
+    files with the signed inventory (can be a base); key 721 deleted; sent privately as a file.
+  - **Failure kept:** first request `587abef9` (run `42819476474`): preflight, republish, flutter green and the
+    application compiled; native failed in `test/melonx_perf_journal_test.py` on a 10 % floor of a 0.25 s CPU sample of
+    the busy thread (7 % on the shared runner; the same sources passed in 720). Fix `653bb484` (main as CI owner; MeloNX
+    owner told): the thread is checked by its order and a measured share (> 0, >= every other listed thread). Refrozen
+    (effective `e66096fe`), both groups fresh again.
+  - **Undeclared image changes:** `libretro_internal_bridge` and `rpcs3_internal_bridge`, sources unchanged, differ from
+    720 in linker-made stubs only (the two `objc_msgSend` import slots exchanged again; sections and bind tables equal).
+  - **Open or limit:** not run on an iPhone; no FPS claim. Next: BO2 journals of 721 (recipe of the Core 918 record § 8):
+    `ZCULLWATCH660 slots=`/`taken=`, `ZCULLDEMAND619 waits` and FPS decide the lever.
 - **Common IPA 720 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).**
   - **Goal:** the delivered 719 plus the handoffs that stayed queued while it was built: MeloNX lot 9 (`a8198f79`,
     merge `7d0ca6c1`), skins PR #166 (`32fd5309`, merge `80aa7ac7`) and PR #167 (`66c129b9`, merge `b6a9deee`).
@@ -1584,7 +1597,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         `04f44a94…0913` (80,937,424 B), fingerprint `a74a9cf6…56e7`, identities PPU a987639e / SPU 477a3fa4
         unchanged, markers present; pin_errors verified, pin `44527c61`. Local: closure, codegen, fold, route, 13
         guards, the 912-918 tests and the full driver pass.
-    - **Next:** IPA 721 with Core 919; then the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
+    - **Next:** IPA 721 (delivered 10 Nov, run `42822649775`, holds Core 919); the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
       `ZCULLWATCH660 slots=`/`taken=` and `ZCULLDEMAND619 waits` decide whether this lever acts; GOW3 from a fresh
       boot as before.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
@@ -3358,19 +3371,19 @@ or permission for more deletion.
 
 ## Delivered baseline
 
-**Last verified: private RewindBox 0.0.8 (720), iOS 18+/SideStore.** Run `42798677772`
-attempt 1, trigger `8a1884a9`, freeze `e53126a6`, effective `be9afa4f…`; all five jobs
-passed. RPCS3 Core 918, MeloNX Core 719 with the patched MoltenVK 1.4.2, skins PR #166/#167.
-[Manifest](../build-utils/delivery/720.json),
-[delivery](evidence/rewind720/delivery.json),
-[download verification](evidence/rewind720/download720-verification.json).
+**Last verified: private RewindBox 0.0.8 (721), iOS 18+/SideStore.** Run `42822649775`
+attempt 1, trigger `cfb56420`, freeze `f248374c`, effective `e66096fe…`; all five jobs
+passed. RPCS3 Core 919, MeloNX Core 719 with the patched MoltenVK 1.4.2, skins PR #166/#167.
+[Manifest](../build-utils/delivery/721.json),
+[delivery](evidence/rewind721/delivery.json),
+[download verification](evidence/rewind721/download721-verification.json).
 
-IPA: 266993445 bytes; SHA-256
-`e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`.
+IPA: 267033667 bytes; SHA-256
+`bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`.
 Receipt binds 90 images / 44 retained, pins/signing/six validators. Private key deleted.
 Unchanged-source libretro and RPCS3 bridge byte changes (linker stubs only) recorded as
 nonblocking undeclared. Device gameplay/FPS/audio/visual verification remains separate.
-Previous 719 [receipt](evidence/rewind719/delivery.json). The public 0.0.11 candidate stays
+Previous 720 [receipt](evidence/rewind720/delivery.json). The public 0.0.11 candidate stays
 IPA 718 (on hold). Component tables of older builds are not the current pins.
 
 ## Findings to carry forward
