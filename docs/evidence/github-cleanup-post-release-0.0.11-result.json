@@ -14,7 +14,22 @@
     ],
     "threeWayDocumentationBlobsVerified": 11,
     "deltaFromClaude": "14 documentation paths only; no product/Core/pin/workflow/recipe delta",
-    "receipt": "docs/evidence/main-integration-2026-11-10.json"
+    "receipt": "docs/evidence/main-integration-2026-11-10.json",
+    "latestFastForward": {
+      "from": "d09db191517cb2f3a27fa37ccae4d0ee9dd89211",
+      "to": "4934c5e800b7d13eb30173bfb19c42f04588b4ba",
+      "mode": "fast-forward",
+      "expectedHeadLease": true,
+      "force": false,
+      "ancestryVerified": true,
+      "aheadCommits": 160,
+      "behindCommits": 0,
+      "result": "main ref verified at target through connected GitHub",
+      "scope": "Existing owner-integrated development history. Includes later unshipped source; this is not the 0.0.11 release identity.",
+      "publicReleaseSource": "cfb564205c71eb3894d2c42be21899d3d7d67233",
+      "noCoreOrPinEditedByCodex": true,
+      "noWorkflowDispatchedByCodex": true
+    }
   },
   "pullRequests": {
     "closed": [
@@ -60,49 +75,152 @@
         "head": "96701c8de8218cf2cc4a63b3df733f74358ff9c4"
       }
     ],
-    "deleted": [],
+    "deleted": [
+      {
+        "name": "work/main-nav-no-labels-20261109",
+        "head": "00a83e694b5a113f4241cf6d164038d4049884c9",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/melonx-core675",
+        "head": "e1f709d5b8c4176b93d4f210238ab3c7fccbcefc",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/melonx-lot5-core711-r2",
+        "head": "96701c8de8218cf2cc4a63b3df733f74358ff9c4",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/melonx-lot8-render-cpu",
+        "head": "bec580b6be14c6509df7bf5358b8be4b2bf42551",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-board-20261110",
+        "head": "ca6fd891cfbe0fd945e7ede27fd6f0d169268b1b",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-harness-menu-wait-20261110",
+        "head": "c9e3f26c0b2ca09e461695635437d37000fbeb6a",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-native-ratio-20261110",
+        "head": "a96f2ac74c224f1c9635fa62cde07438053a38dc",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-realistic-press-20261110",
+        "head": "66c129b924673f660c554af2b1be27fa4efbe1c8",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-screen-framing-20261110",
+        "head": "32fd530955934a2974e30860b05f4ba5ab51c9b2",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      },
+      {
+        "name": "work/skins-switch-pocket-20261109",
+        "head": "84d4ad342a4e74094899df86a0a673bbc4806886",
+        "headIsAncestorOfClaude": "790664dabecf00279456657bb854b6de229ab715",
+        "uniqueCommitsBeyondClaude": 0,
+        "openPullRequest": false,
+        "absenceVerified": true,
+        "method": "authenticated GitHub branches UI",
+        "recoverableInGitHubUI": true
+      }
+    ],
     "dryRun": {
       "command": "git push --dry-run origin --delete work/main-nav-no-labels-20261109",
       "exitCode": 128,
       "error": "fatal: could not read Username for 'https://github.com': No such device or address",
       "mutation": false
     },
-    "status": "Blocked: no authenticated Git push and no branch-delete tool; candidates retained. Active component branches and divergent history retained."
+    "status": "Ten fully integrated branch refs removed; every absence checked through connected GitHub. Restore offered in UI; all commits remain in Claude/main history.",
+    "receipt": "docs/evidence/github-cleanup-refs-2026-11-10.json"
   },
   "about": {
-    "currentDescription": "RewindBox 0.0.10 — independent iPhone/iPad emulation frontend forked from NeoStation, with embedded Libretro, MeloNX (Switch), Dolphin, ARMSX2 and RPCS3, HD textures, cheats and customizable controls.",
-    "proposedDescription": "Independent iOS/iPadOS game library with embedded Libretro, MeloNX, Dolphin, ARMSX2 and RPCS3 emulators. Preserves NeoStation credits and component licenses.",
-    "status": "Not updated: no repository metadata write tool and GitHub browser is not authenticated."
+    "currentDescription": "RewindBox — independent iPhone/iPad frontend forked from NeoStation, with embedded RPCS3, MeloNX (Switch), Dolphin, ARMSX2 and Libretro; unified library, Pocket touch skins, cheats, HD textures and supported RetroAchievements.",
+    "status": "Updated and verified through connected GitHub repository API",
+    "homepage": "https://github.com/TarbleFR/RewindBox/releases/latest"
   },
   "publication": {
     "name": "RewindBox 0.0.11",
     "tag": "0.0.11",
-    "status": "Paused by explicit latest maintainer instruction; not published",
-    "source": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "status": "draft-uploaded-publication-blocked-browser",
+    "source": "cfb564205c71eb3894d2c42be21899d3d7d67233",
     "ipa": {
       "name": "RewindBox-0.0.11.ipa",
-      "bytes": 263465367,
-      "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a"
+      "bytes": 267033667,
+      "sha256": "bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7"
     },
-    "sourceJSONSha256": "331a5162679f774ca3333fa0ae0c8a6ac4b1697bed480772bb2075c9ade9abe2",
+    "sourceJSONSha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "draftId": 440810980,
+    "draftURL": "https://github.com/TarbleFR/RewindBox/releases/tag/untagged-ed6388388e6a33f3ae3a",
     "rootSourceActivated": false,
     "discordPosted": false,
-    "blockers": [
-      "GitHub rejected the Apple social-login provider response after Apple authenticated; no automated retry.",
-      "Discord requested hCaptcha verification; no challenge attempted."
-    ],
-    "noIPACompilationOrRepack": true,
     "hold": {
-      "active": true,
-      "requestedBy": "maintainer",
-      "instruction": "ne publie pas la mise à jour tout de suite mais fais tout le reste",
-      "scope": [
-        "GitHub release publication",
-        "public update source activation",
-        "Discord release announcement"
-      ],
-      "preparedAssetsPreserved": true
-    }
+      "active": false,
+      "supersededBy": "Maintainer explicitly instructed publishing existing IPA 721 as RewindBox 0.0.11 while later work compiles, then confirmed: Tu peux commencer !. This supersedes the earlier publication hold for this exact IPA. README/About, reviewed main synchronization, selective obsolete branch/PR/workflow cleanup and Discord release announcement remain authorized."
+    },
+    "blockers": [
+      {
+        "service": "GitHub publication",
+        "observed": "Apple and GitHub Mobile sign-in succeeded. Draft 440810980 contains the verified files. A draft asset download timed out and left the tab on chrome-error://chromewebdata/. The next Edit interaction was explicitly rejected by browser security policy for its unsupported protocol; no automated workaround or publication was attempted."
+      },
+      {
+        "service": "Discord",
+        "observed": "Historical sign-in required hCaptcha. Not rechecked or posted in this continuation; announcement remains gated on verified public release."
+      }
+    ],
+    "noIPACompilationOrRepack": true
   },
   "workflows": {
     "selected": 14,
