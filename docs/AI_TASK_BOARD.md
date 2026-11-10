@@ -237,6 +237,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
+  before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
+  correcting its native-test failure and preserving valid reusable results. Check repeated source
+  contracts/memo invalidation, downloads/preparation and the critical path; consume verified unchanged
+  Core artifacts, reuse equivalent test evidence, rerun affected checks and all delivery contracts.
+  Preserve source/component/Release/ABI/legal/package/signature/download verification. No parallel
+  dispatch or product change after freeze. Codex queued one targeted prompt in main during its
+  existing recovery; execution and time savings remain unverified. Main records the measured outcome.
 - **Current maintainer instruction (10 Nov; conditional common IPA):** finish the current
   principal work and wait for every participating owner's verified handoff (RPCS3,
   MeloNX, skins/interface and approved content), then review/integrate, freeze, compile,
