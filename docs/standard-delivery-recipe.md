@@ -115,6 +115,12 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
    `docs/evidence/rewind<N>/delivery.json` au schéma 610. Supprimer la clé privée.
 6. **Relance** : ne changer que la recette ; pour réutiliser un groupe, passer `tests.<groupe>.mode`
    à `reuse` avec ses épingles (source, run, job, artefact, empreinte) et regeler.
+7. **Commandes des groupes** (depuis la 718) : une commande n'est exécutée qu'une fois par groupe
+   (`expand_commands` refuse un argv identique, de base ou ajouté) ; ne pas ajouter au groupe natif
+   une commande que le groupe Flutter exécute déjà, sauf pour une vraie différence de plate-forme ou de
+   chaîne d'outils ; une commande native fraîche n'importe pas PIL (le job natif ne fournit pas Pillow,
+   garde du contrat). Le job natif démarre une fois le simulateur des XCTests avant l'installation de
+   Flutter et l'attend juste avant le groupe (mesures : `docs/delivery-speed.md` § 5).
 
 ## 4. État de la 611 (1er novembre 2026)
 
@@ -446,3 +452,22 @@ contrôle légal réussi ; aucun conflit, aucun commit non classé.
   `79d866ef` accepte le canari nommé d'après son Core ; regel sur la même empreinte produit.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP. IPA vérifiée hors ligne, clé privée supprimée.
+
+## 19. État de la 718 (10 novembre 2026)
+
+IPA commune privée livrée sur la 694 (consigne du mainteneur du 10 novembre) : run `42747501121`,
+déclencheur `34fbf8eb`, IPA `001957b9…c29a`, 263465367 octets, ~22,6 min de bout en bout
+([reçu](evidence/rewind718/delivery.json)). RPCS3 Core 914 et MeloNX Core 717 téléchargés et authentifiés,
+non recompilés ; PR #164 et PR #165.
+- **Gel.** Premier gel sur `0c8c0a43`, regel sur `6ad78af6` (recette seule) : empreinte effective `af020701…`,
+  7440 fichiers produit, 49 commits revus, 10 « source seulement », contrôle légal réussi.
+- **Première tentative.** Run `42741950414` en échec dans le seul groupe natif : `pocket-skin-input-chain`,
+  « No module named 'PIL' », doublon d'une commande du groupe Flutter (réussie là). L'application avait
+  compilé le binaire Release et s'est arrêtée à l'attente des tests.
+- **Relance.** Correctif `6ad78af6` : doublon natif et second passage identique de
+  `test/rpcs3_diagnostics546_native_test.py` retirés, garde d'argv unique par groupe, garde PIL native,
+  simulateur démarré une fois avant le groupe (règle § 3.7). Preuve Flutter réutilisée du run
+  `42741950414` (artefact `13729494334`) ; natif frais, 19 commandes ; contrat de livraison frais.
+- **Durées.** Tableau avant/après dans `docs/delivery-speed.md` § 5.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP. IPA vérifiée hors ligne, clé privée supprimée. Aucun test sur iPhone.

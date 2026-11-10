@@ -283,6 +283,42 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       verified 694: 49 reviewed commits, 10 source-only (MeloNX lot 7 Metal archive prototype, Actions cleanup record,
       RPCS3 Core 915 witness and its revert), effective digest `af020701`, legal check passed, delivery contract 56
       tests OK; trigger `b9a451fb`, run `42741950414`. Renderer selection unchanged; Switch 2 out.
+    - **Run `42741950414` attempt 1 failed (native group only) — recovered by recipe (10 Nov 03:08 UTC).** Cause read in
+      the full native report (artifact `13730572132`): 20 of 21 commands passed; `pocket-skin-input-chain` stopped at
+      `No module named 'PIL'` after 0.45 s. Main had added to the native group a command the flutter group already runs
+      with the pinned Pillow on the same tree (passed there, 124 s, job `129585277623`). The application had compiled
+      the Release binary (5 min 48 s) and stopped at await-tests (consequence). Fix `6ad78af6` (recipe only, [skip ci]):
+      native duplicate dropped; `rpcs3-timeline-616-foundation` dropped (same argv as `-613-`, byte-identical logs in 694
+      and 718); `expand_commands` refuses an identical argv twice in a group; contract guards with negative controls
+      (old 694/718 recipes; no fresh native PIL importer); the native job boots the XCTest simulator once before Flutter
+      setup (measured cause below). Flutter evidence reused from that run (reuse guard and receipt checked locally);
+      native fresh (19 commands). Regel on `6ad78af6` (same digest `af020701`, 7440 files, legal check passed),
+      delivery contract 59 tests OK, trigger paths accepted; trigger `34fbf8eb`, run `42747501121`.
+    - **Delivery duration (maintainer follow-up), measured from job/step timestamps and test logs, not estimated.**
+      694 (run `42506743712`, success): 20 min 39 s end to end; 653/662/688 took 20.1-21.0 min, so the standard recipe
+      did not slow down. 718 attempt 1: 22 min 40 s until its failure. Critical path = native job (694: 15 min 23 s;
+      718: 21 min 18 s), not Xcode (6 min 31 s / 5 min 48 s) nor repeated contracts (one source contract per job, one
+      memo reuse in the application, no invalidation: the 9.9 min of build 563 are gone). Native: the same 20 commands
+      ran 1.3-1.9x slower in 718 (787 s → 1079 s; the three additions 16 s). Main waste found: the translation XCTest
+      lets xcodebuild boot and then shut down the simulator, the central session XCTest boots it again and waits 278 s
+      (694) / 400 s (718) in its test phase for 4.5 s of tests; Dolphin/ARMSX2 on the booted device wait 7-15 s.
+      External: the application macOS runner queued 3 min 33 s in 718 (3 s in 694). Producers outside the IPA run:
+      RPCS3 Core 914 run 18.9 min, MeloNX Core 717 run 44.6 min. The after-column is read from run `42747501121`.
+    - **IPA 718 delivered and verified (10 Nov 03:36 UTC).** Run `42747501121` attempt 1, all jobs green (flutter
+      skipped: evidence reused). Downloaded parts matched their API digests; `verify_downloaded_delivery.py` passed
+      (manifest, 4 parts, envelope, 90 native images, 6 changed = mustChange, no undeclared change, RPCS3 914
+      `df98e75d…` and MeloNX 717 `036c1cef…` fingerprints, 44 retained fingerprints, 6 offline validators 0, signer
+      receipt matched). IPA `RewindBox-718.ipa` 263465367 B, SHA-256
+      `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`; [receipt](evidence/rewind718/delivery.json);
+      private key deleted; file sent privately. Not run on an iPhone; no FPS/audio claim.
+    - **Measured outcome of the duration follow-up (run `42747501121`).** Native tests step 18 min 34 s → 7 min 45 s;
+      native job 21 min 18 s → 13 min 56 s; central session XCTest 521 s → 55 s (device recorded Booted, test phase
+      400 s → 20 s), translation 261 s → 97 s; application wait for the tests 6 min 39 s → 11 s (694: 2 min 41 s).
+      End to end 22 min 38 s (694: 20 min 39 s): the application job is now the critical path and its runner was
+      slower on the same steps (+4 min 27 s). Observed, not proven: the 2.2 GB Flutter cache download slowed to
+      3-10 MB/s while the simulator booted (native setup +3 min 18 s); off the critical path, not changed without a
+      measurement. Detail and table: [delivery-speed.md § 5](delivery-speed.md). Next action: none for 718; the next
+      delivery starts from the recipe rule in [standard-delivery-recipe.md § 3.7](standard-delivery-recipe.md).
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
