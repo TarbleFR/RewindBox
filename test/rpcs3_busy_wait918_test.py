@@ -228,7 +228,7 @@ int main(int argc, char** argv)
 			const wait_result previous = contend(holds, 0, 2 * t24, 6 * t24);
 			const wait_result kept = contend(holds, reference_spin, 2 * t24, 6 * t24);
 			// A line held much longer than the whole spin: the yields are still there.
-			const wait_result late = contend(200, reference_spin, 3 * 24 * reference_spin, 4 * 24 * reference_spin);
+			const wait_result late = contend(200, reference_spin, 6 * 24 * reference_spin, 8 * 24 * reference_spin);
 			std::printf("line wait: attempt=%d t24_ns=%llu reference_spin_ns=%llu holds=%u previous_with_yield=%u previous_yields=%u reference_with_yield=%u "
 				"reference_yields=%u late_holds=%u late_with_yield=%u\n", attempt, static_cast<unsigned long long>(t24), static_cast<unsigned long long>(reference_spin),
 				holds, previous.with_yield, previous.yields, kept.with_yield, kept.yields, late.holds, late.with_yield);
