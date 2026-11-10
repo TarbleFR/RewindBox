@@ -19,8 +19,9 @@ The driver compiles the real rpcs3/ios/IOSWriterParkSpin917.h and rpcs3/ios/IOSA
   thread does not park within the budget (a thread that is not on a core);
 - the storm tracker: two consecutive running windows over the bound, once per boot, never under the bound, stopped or
   without a frame;
-- the comparison in a storm (REWINDBOX_PARK_SPIN_COMPARE_917): the lead windows on, then off and on in turn for as
-  many windows on each side, then on; windows outside a storm on and not counted; a title under the bound never.
+- the comparison between report windows (REWINDBOX_PARK_SPIN_COMPARE_917): the lead windows on, then off and on in turn
+  for as many windows on each side, a rest, three passes per boot, then on; windows stopped or without a frame on and
+  not counted; a window or a title under the heavy PUTLLC bound keeps the park spin on.
 Static: the wait condition of vm::writer_lock is unchanged, the previous wait follows the budget, the lever off is
 the previous code path; the setting, the policy and the report fields exist; the captures asked by the report are
 served with the limits of the explicit ones.
@@ -202,39 +203,55 @@ int main(int argc, char** argv)
 			"never while not running and never without a frame");
 	}
 
-	// 4. The comparison of both sides of the lever in a storm (REWINDBOX_PARK_SPIN_COMPARE_917).
+	// 4. The comparison of the levers between report windows (REWINDBOX_PARK_SPIN_COMPARE_917).
 	{
 		namespace cmp = park::compare;
 		cmp::tracker t;
 		bool lead_on = true;
-		for (unsigned window = 1; window < cmp::lead; window++) lead_on &= t.next(3, true, 104, 1'076'569) && t.upcoming_step() == 0;
-		check(lead_on && t.storm_windows == cmp::lead - 1, "the first storm windows keep the lever on: the captures run there");
-		// The window after the lead is step 1; each call returns the lever of the next storm window.
-		unsigned off = 0, on = 0, pairs_ok = 1;
-		bool previous = true, first = true;
-		unsigned run = 0;
+		for (unsigned window = 1; window < cmp::lead; window++) lead_on &= t.next(3, true, 104, 1'076'569) && t.decided_step == 0 && t.decided_cycle == 0;
+		check(lead_on && t.windows == cmp::lead - 1, "the first windows of a boot keep the lever on: the captures run there");
+		// The window after the lead is step 1 of pass 1; each call returns the lever of the next window.
+		unsigned off = 0, on = 0, run = 0;
+		bool previous = true, first = true, pairs_ok = true, steps_ok = true;
 		for (unsigned step = 1; step <= cmp::compared; step++)
 		{
 			const bool lever = t.next(3, true, 104, 1'076'569);
 			lever ? on++ : off++;
 			run = (!first && lever == previous) ? run + 1 : 1;
 			pairs_ok &= run <= cmp::period;
+			steps_ok &= t.decided_step == step && t.decided_cycle == 1 && t.decided_storm;
 			previous = lever; first = false;
 		}
-		check(off == cmp::compared / 2 && on == cmp::compared / 2 && pairs_ok, "then off and on in turn, two windows each, as many windows on each side");
-		check(t.next(3, true, 104, 1'076'569) && t.next(3, true, 104, 1'076'569) && t.upcoming_step() == 0 && t.storm_windows == cmp::lead + cmp::compared,
-			"after the comparison the lever stays on");
+		check(off == cmp::compared / 2 && on == cmp::compared / 2 && pairs_ok && steps_ok, "then off and on in turn, two windows each, as many windows on each side");
+		bool rest_on = true;
+		for (unsigned window = 0; window < cmp::rest; window++) rest_on &= t.next(3, true, 104, 1'076'569) && t.decided_step == 0 && t.decided_cycle == 0;
+		check(rest_on, "then the rest: the lever on");
+		check(!t.next(3, true, 104, 1'076'569) && t.decided_cycle == 2 && t.decided_step == 1, "then the next pass");
+		cmp::tracker whole;
+		unsigned compared_windows = 0, off_windows = 0, last_cycle = 0;
+		for (unsigned window = 0; window < 400; window++)
+		{
+			const bool lever = whole.next(8, true, 104, 1'076'569);
+			compared_windows += whole.decided_step != 0;
+			off_windows += !lever;
+			last_cycle = whole.decided_cycle ? whole.decided_cycle : last_cycle;
+		}
+		check(compared_windows == cmp::cycles * cmp::compared && off_windows == cmp::cycles * cmp::compared / 2 && last_cycle == cmp::cycles &&
+			whole.windows == cmp::lead + cmp::cycles * (cmp::compared + cmp::rest) && whole.next(8, true, 104, 1'076'569) && whole.decided_step == 0,
+			"three passes per boot, then the lever stays on");
 		cmp::tracker u;
-		for (unsigned window = 1; window <= cmp::lead; window++) u.next(4, true, 104, 500'000);
-		check(u.upcoming_step() == 1 && !u.next(4, true, 104, 500'000), "the first compared windows are off");
-		const std::uint32_t counted = u.storm_windows;
-		check(u.next(4, true, 104, 99'999) && u.next(4, false, 104, 500'000) && u.next(4, true, 0, 500'000) && u.storm_windows == counted,
-			"a window under the bound, stopped or without a frame runs with the lever on and is not counted");
-		check(u.next(5, true, 104, 500'000) && u.storm_windows == 1, "a new boot starts again");
+		for (unsigned window = 1; window < cmp::lead; window++) u.next(4, true, 104, 500'000);
+		check(!u.next(4, true, 104, 500'000) && u.decided_step == 1, "the first compared windows are off");
+		const std::uint32_t counted = u.windows;
+		check(u.next(4, false, 104, 500'000) && u.decided_step == 0 && u.next(4, true, 0, 500'000) && u.decided_step == 0 && u.windows == counted,
+			"a window that is stopped or shows no frame runs with the lever on and is not counted");
+		check(u.next(4, true, 104, 99'999) && u.windows == counted + 1 && u.decided_step == 2 && !u.decided_storm,
+			"a window under the heavy PUTLLC bound is counted, and the park spin stays on");
+		check(u.next(5, true, 104, 500'000) && u.windows == 1, "a new boot starts again");
 		cmp::tracker gow3;
 		bool always_on = true;
-		for (unsigned window = 0; window < 40; window++) always_on &= gow3.next(6, true, 57, 4484);
-		check(always_on && gow3.storm_windows == 0, "a title under the bound never alternates");
+		for (unsigned window = 0; window < 60; window++) always_on &= gow3.next(6, true, 57, 4484);
+		check(always_on && gow3.windows == 60, "a title under the bound never alternates the park spin");
 	}
 
 	// 5. The handshake on real threads, calibrated on this machine.
@@ -340,11 +357,12 @@ def static_checks(source: Path) -> None:
     compare = compare[:compare.index('// NEOSTATION_BUILD487_DIAGNOSTICS_V1')]
     require(perf.index('"RANGELOCKPROF session=%llu') < perf.index('// REWINDBOX_PARK_SPIN_COMPARE_917') and
             perf.count('rpcs3::ios::writer_park::spin_enabled.store(') == 1 and
-            'if (rpcs3::ios::writer_park::compare::allowed.load(std::memory_order_relaxed))' in compare and
+            'const bool spin_allowed = cmp::allowed.load(std::memory_order_relaxed);' in compare and
             'm_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window)' in compare and
+            'const bool spin_next_window = spin_allowed ? spin_stepped : spin_this_window;' in compare and
             'rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);' in compare,
             'the window is reported with the lever it ran with, then the lever of the next one is set, on Automatic only')
-    require('"COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu storm_windows=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u lead=%u period=%u bound=%llu"' in compare,
+    require('"COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu counted_windows=%u next_cycle=%u cycles=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u "' in compare,
             'each step of the comparison is printed')
     capture = (source / 'rpcs3/ios/IOSCapture912.h').read_text()
     clear = capture[capture.index('inline void clear() noexcept'):capture.index('} // namespace start_request')]
@@ -384,13 +402,13 @@ def main() -> int:
         folder = Path(temporary)
         (folder / 'harness.cpp').write_text(HARNESS)
         code, report, lines = run(build(args.cxx, source, folder, 'plain', ['-O2', '-Wall', '-Wextra', '-Werror']))
-        require(code == 0 and report['failures'] == 0 and report['checks'] == 27, 'the waiter, the counters, the tracker and the handshake: %r\n%s' % (report, '\n'.join(lines)))
+        require(code == 0 and report['failures'] == 0 and report['checks'] == 30, 'the waiter, the counters, the tracker and the handshake: %r\n%s' % (report, '\n'.join(lines)))
         handshake = [line for line in lines if line.startswith('handshake:')][-1]
         if not args.no_sanitizers and sys.platform.startswith('linux'):
             code, sanitized, lines = run(build(args.cxx, source, folder, 'asan', ['-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=undefined']), '--logic-only')
             require(code == 0 and sanitized['failures'] == 0, 'asan: %r\n%s' % (sanitized, '\n'.join(lines)))
     print('PASS: the writer spins for its budget before the first hand-off, the previous wait follows it; parks and PPU parked time counted; '
-          'captures asked once per boot on a heavy PUTLLC storm; both sides of the lever compared in a storm (%d checks)' % report['checks'])
+          'captures asked once per boot on a heavy PUTLLC storm; both sides of the lever compared between report windows (%d checks)' % report['checks'])
     print('      ' + handshake)
     return 0
 

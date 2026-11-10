@@ -1,0 +1,400 @@
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 285991c..c3f4a7a 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -156,6 +156,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
+ 		// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): Automatic enables it for every title.
+ 		cfg::_enum<ios_experimental_mode> writer_park_spin{ this, "Writer Lock Park Spin", ios_experimental_mode::automatic };
++		// REWINDBOX_BUSY_WAIT_REFERENCE_918 (rpcs3/ios/RPCS3IOSLeverHelpers.h): with SPU Spin Timing = Reference,
++		// utils::busy_wait keeps the duration it has on the 24 MHz reference counter on every counter frequency.
++		cfg::_enum<ios_experimental_mode> busy_wait_reference{ this, "Busy Wait Reference Duration", ios_experimental_mode::automatic };
+ 		// CELL581_TEXTURE_PREHASH: Automatic follows Texture Validation Per FIFO Batch.
+ 		cfg::_enum<ios_experimental_mode> texture_prehash{ this, "Texture Pre-Validation", ios_experimental_mode::automatic };
+ 		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch).
+diff --git a/rpcs3/ios/IOSWriterParkSpin917.h b/rpcs3/ios/IOSWriterParkSpin917.h
+index eaad662..04e8723 100644
+--- a/rpcs3/ios/IOSWriterParkSpin917.h
++++ b/rpcs3/ios/IOSWriterParkSpin917.h
+@@ -122,57 +122,97 @@ inline void record_ppu_park(bool first_ppu_thread, std::uint64_t ticks) noexcept
+ 	}
+ }
+ 
+-// REWINDBOX_PARK_SPIN_COMPARE_917: one export holds both sides of the lever in the same scene.
++// REWINDBOX_PARK_SPIN_COMPARE_917 and REWINDBOX_BUSY_WAIT_REFERENCE_918: one export holds every side of the levers
++// in the same scene.
+ //
+-// What the budget is worth depends on the iPhone's scheduler and cannot be measured on a host. With the setting on
+-// Automatic, the 5 s report turns the lever off and on again between its windows while a storm of heavy PUTLLC lasts:
+-// the first `lead` storm windows of a boot keep it on (the captures the report asks for on a storm run there), then
+-// `period` windows off and `period` windows on, in turn, for `compared` storm windows; after that it stays on. Both
+-// sides are exact: off is the previous wait, the one of Core 916. RANGELOCKPROF prints park_spin= for the window it
+-// reports and COREPROF PARKCMP917 each step. A window that is not a storm window runs with the lever on and is not
+-// counted. With the setting Enabled or Disabled nothing alternates.
++// What the spin budget and the busy wait scale are worth depends on the iPhone's scheduler and cannot be measured on
++// a host. With a lever's setting on Automatic, the 5 s report turns it off and on again between its windows, over
++// the running windows that showed frames: the first `lead` of a boot keep both on (the captures the report asks for
++// run there), then `compared` windows go by pairs through the four combinations (spin off, scale on), (spin on,
++// scale 1), (both off), (both on), twice; then `rest` windows with both on, and the same again, `cycles` times per
++// boot, so that a pass falls inside play whatever the time spent in menus. After that both stay on. Every side is
++// exact: off is the wait of Core 916 and the scale 1 iOS had. The park spin only alternates in a window that counted
++// at least `bound_heavy` heavy PUTLLC (elsewhere no writer lock waits and it stays on). RANGELOCKPROF prints
++// park_spin= and COREPROF SCHED918 busy_wait_scale= for the window they report; COREPROF PARKCMP917 prints each step.
++// With a setting Enabled or Disabled its lever never alternates.
+ namespace compare
+ {
+-inline std::atomic<bool> allowed{false}; // the setting is Automatic
++inline std::atomic<bool> allowed{false};           // the park spin setting is Automatic
++inline std::atomic<bool> busy_wait_allowed{false}; // the busy wait setting is Automatic, SPU Spin Timing is Reference
++inline std::atomic<std::uint64_t> busy_wait_scale_on{1}; // the scale the boot policy installed; 1 is the previous one
+ 
+ inline constexpr std::uint64_t bound_heavy = 100'000; // heavy PUTLLC per report window: the bound of IOSAutoStorm917.h
+ inline constexpr std::uint32_t lead = 6;
+ inline constexpr std::uint32_t period = 2;
+ inline constexpr std::uint32_t compared = 16;
++inline constexpr std::uint32_t rest = 22;
++inline constexpr std::uint32_t cycles = 3;
++
++// The levers of a step of a pass (1 to `compared`); step 0 is outside a pass: both on.
++constexpr bool park_spin_at(std::uint32_t step) noexcept
++{
++	return !step || ((step - 1) / period) % 2 != 0;
++}
++
++constexpr bool busy_wait_at(std::uint32_t step) noexcept
++{
++	const std::uint32_t pair = step ? ((step - 1) / period) % 4 : 3;
++	return pair == 0 || pair == 3;
++}
+ 
+ struct tracker
+ {
+ 	std::uint64_t session = ~0ull;
+-	std::uint32_t storm_windows = 0; // storm windows reported in this boot, counted up to lead + compared
++	std::uint32_t windows = 0;       // running windows with frames reported in this boot, counted up to the last pass
++	std::uint32_t decided_step = 0;  // the step the levers of the next window follow; 0: both on
++	std::uint32_t decided_cycle = 0; // the pass that step belongs to (1 to `cycles`); 0 outside a pass
++	bool decided_storm = false;      // the window just reported counted at least `bound_heavy` heavy PUTLLC
++
++	// The pass and the step of the next counted window.
++	constexpr std::uint32_t upcoming_cycle() const noexcept
++	{
++		if (windows < lead)
++		{
++			return 0;
++		}
++
++		const std::uint32_t after_lead = windows - lead;
++		const std::uint32_t pass = after_lead / (compared + rest);
++		return pass < cycles && after_lead % (compared + rest) < compared ? pass + 1 : 0;
++	}
+ 
+-	// The step of the comparison the next storm window is: 1 to `compared`, 0 outside the comparison.
+ 	constexpr std::uint32_t upcoming_step() const noexcept
+ 	{
+-		const std::uint32_t upcoming = storm_windows + 1;
+-		return upcoming > lead && upcoming <= lead + compared ? upcoming - lead : 0;
++		return upcoming_cycle() ? (windows - lead) % (compared + rest) + 1 : 0;
+ 	}
+ 
+-	// One call per report window, after the window was reported. Returns the lever of the next window.
++	// One call per report window, after the window was reported. Returns the park spin of the next window; the busy
++	// wait scale of the next window is busy_wait_at(decided_step).
+ 	constexpr bool next(std::uint64_t now_session, bool running, std::uint64_t guest_flips, std::uint64_t heavy_putllc) noexcept
+ 	{
+ 		if (now_session != session)
+ 		{
+ 			session = now_session;
+-			storm_windows = 0;
++			windows = 0;
+ 		}
+ 
+-		if (!running || !guest_flips || heavy_putllc < bound_heavy)
++		if (!running || !guest_flips)
+ 		{
++			decided_step = 0;
++			decided_cycle = 0;
++			decided_storm = false;
+ 			return true;
+ 		}
+ 
+-		if (storm_windows < lead + compared)
++		if (windows < lead + cycles * (compared + rest))
+ 		{
+-			storm_windows++;
++			windows++;
+ 		}
+ 
+-		const std::uint32_t step = upcoming_step();
+-		return !step || ((step - 1) / period) % 2 != 0;
++		decided_cycle = upcoming_cycle();
++		decided_step = upcoming_step();
++		decided_storm = heavy_putllc >= bound_heavy;
++		return !decided_storm || park_spin_at(decided_step);
+ 	}
+ };
+ } // namespace compare
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 6e5904a..13ea3c8 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -208,16 +208,28 @@ void resolve_spu_spin_timing(experimental_policy& policy) noexcept
+ 	policy.spu_spin_calibrated = calibrated;
+ 	policy.spu_spin_cntfrq = cntfrq;
+ 	policy.spu_spin = calibrated ? levers::calibrated_spu_spin_thresholds(cntfrq) : levers::reference_spu_spin_thresholds();
++	// REWINDBOX_BUSY_WAIT_REFERENCE_918: Reference means the durations of the reference counter (24 MHz), on every
++	// counter. Calibrated keeps upstream's own scale. Automatic is every title; Disabled is the scale iOS had (1).
++	policy.busy_wait_reference_scale = levers::reference_arm_timer_scale(cntfrq);
++	policy.busy_wait_reference = !calibrated && resolve_mode(g_cfg.ios_experimental.busy_wait_reference, true);
++	policy.busy_wait_compare = !calibrated && policy.busy_wait_reference_scale > 1 &&
++		g_cfg.ios_experimental.busy_wait_reference.get() == ios_experimental_mode::automatic;
+ #ifdef ARCH_ARM64
+ 	utils::arm_timer_scale = 1;
+ 	if (calibrated)
+ 	{
+ 		utils::init_arm_timer_scale();
+ 	}
++	else if (policy.busy_wait_reference)
++	{
++		utils::arm_timer_scale = policy.busy_wait_reference_scale;
++	}
+ 	policy.spu_spin_timer_scale = utils::arm_timer_scale;
+ #else
+ 	policy.spu_spin_timer_scale = 1;
+ #endif
++	rpcs3::ios::writer_park::compare::busy_wait_scale_on.store(policy.busy_wait_reference_scale, std::memory_order_relaxed);
++	rpcs3::ios::writer_park::compare::busy_wait_allowed.store(policy.busy_wait_compare, std::memory_order_relaxed);
+ }
+ 
+ // Stable tokens of the "Resolved boot policy" line (never the user-facing
+@@ -580,6 +592,11 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_WRITER_PARK_SPIN_917: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u compare_in_storm=%d", resolved.writer_park_spin,
+ 		static_cast<u32>(rpcs3::ios::writer_park::spin_budget_ns / 1000), resolved.writer_park_compare);
++	ios_experimental_log.notice("Resolved title policy 918: busy_wait_reference=%d busy_wait_scale=%u reference_scale=%u cntfrq=%u busy_wait_300_ns=%u compare_between_windows=%d",
++		resolved.busy_wait_reference, static_cast<u32>(resolved.spu_spin_timer_scale), static_cast<u32>(resolved.busy_wait_reference_scale),
++		static_cast<u32>(resolved.spu_spin_cntfrq),
++		static_cast<u32>(levers::arm64_busy_wait_nanoseconds(300, resolved.spu_spin_cntfrq ? resolved.spu_spin_cntfrq : 1, resolved.spu_spin_timer_scale)),
++		resolved.busy_wait_compare);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index c2245cd..e09f47c 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -40,6 +40,11 @@ struct experimental_policy
+ 	// REWINDBOX_WRITER_PARK_SPIN_917: a writer spins for a budget before its first hand-off while the PPU threads park.
+ 	bool writer_park_spin = false;
+ 	bool writer_park_compare = false; // REWINDBOX_PARK_SPIN_COMPARE_917
++	// REWINDBOX_BUSY_WAIT_REFERENCE_918: the busy_wait scale of the reference counter is installed (SPU Spin Timing =
++	// Reference and the lever on); the scale it stands for; whether the report may compare it in a storm.
++	bool busy_wait_reference = false;
++	u64 busy_wait_reference_scale = 1;
++	bool busy_wait_compare = false;
+ 	// CELL581_TEXTURE_PREHASH: a worker hashes the textures the previous frame validated next.
+ 	bool texture_prehash = false;
+ 	// REWINDBOX_PUT_HORIZON_910: PUT changes read below the last horizon start no texture epoch.
+diff --git a/rpcs3/ios/RPCS3IOSLeverHelpers.h b/rpcs3/ios/RPCS3IOSLeverHelpers.h
+index 094a672..cee4f58 100644
+--- a/rpcs3/ios/RPCS3IOSLeverHelpers.h
++++ b/rpcs3/ios/RPCS3IOSLeverHelpers.h
+@@ -137,6 +137,22 @@ namespace rpcs3::ios::levers
+ 		return scale ? scale : 1;
+ 	}
+ 
++	// REWINDBOX_BUSY_WAIT_REFERENCE_918: the scale that gives utils::busy_wait(n) on any counter the duration it has
++	// with scale 1 on the 24 MHz counter of the reference iPhones ((n / 100) ticks of 41.67 ns: busy_wait(300) =
++	// 125 ns, busy_wait(500) = 208 ns, busy_wait() = 1.25 us). Build 718 journals, every boot: cntfrq=1000000000
++	// timer_scale=1 with SPU Spin Timing = Reference, so busy_wait(n) lasted n / 100 ns, 42 times less: the spin of
++	// the 66 call sites (the wait of an SPU GETLLAR on a line a PUTLLC holds, DMA, PUTLLUC, the reservation locks of
++	// vm.cpp, the spin of shared_mutex before its kernel wait) ended within a fraction of a microsecond and the
++	// thread went on to std::this_thread::yield() (swtch_pri on Darwin, which drops its priority for up to a
++	// quantum, IOSReservationLockPolicy.h) or to a kernel wait. On a 24 MHz counter the scale stays 1.
++	inline constexpr std::uint64_t reference_cntfrq = iphone_cntfrq_hz;
++
++	constexpr std::uint64_t reference_arm_timer_scale(std::uint64_t cntfrq) noexcept
++	{
++		const std::uint64_t scale = (cntfrq + reference_cntfrq / 2) / reference_cntfrq;
++		return scale ? scale : 1;
++	}
++
+ 	// Duration of utils::busy_wait(cycles) on ARM64 for a given counter and
+ 	// scale: (cycles / 100) * scale ticks (rpcs3/util/asm.hpp).
+ 	constexpr std::uint64_t arm64_busy_wait_nanoseconds(std::uint64_t cycles, std::uint64_t cntfrq, std::uint64_t scale) noexcept
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index cc98213..4b5a373 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -45,6 +45,7 @@
+ #include "IOSAutoPpuProfile916.h" // REWINDBOX_AUTO_PPU_PROFILE_916
+ #include "IOSAutoStorm917.h" // REWINDBOX_AUTO_STORM_CAPTURE_917
+ #include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
++#include "util/asm.hpp" // REWINDBOX_BUSY_WAIT_REFERENCE_918: utils::arm_timer_scale
+ #include "IOSCapture912.h"
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+ #include "IOSRendererCausality.h"
+@@ -211,6 +212,33 @@ thread_usage_sample sample_core_threads()
+ 	return result;
+ }
+ 
++// REWINDBOX_BUSY_WAIT_REFERENCE_918: the scheduler's own counts for this process (context switches, Mach traps
++// such as swtch_pri and thread_switch, BSD system calls). 32-bit counters: the caller takes differences modulo 2^32.
++struct task_events_sample
++{
++	bool valid = false;
++	u32 context_switches = 0;
++	u32 mach_traps = 0;
++	u32 unix_syscalls = 0;
++};
++
++task_events_sample sample_task_events()
++{
++	task_events_sample sample;
++#ifdef __APPLE__
++	task_events_info_data_t info{};
++	mach_msg_type_number_t count = TASK_EVENTS_INFO_COUNT;
++	if (task_info(mach_task_self(), TASK_EVENTS_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
++	{
++		sample.valid = true;
++		sample.context_switches = static_cast<u32>(info.csw);
++		sample.mach_traps = static_cast<u32>(info.syscalls_mach);
++		sample.unix_syscalls = static_cast<u32>(info.syscalls_unix);
++	}
++#endif
++	return sample;
++}
++
+ u64 process_memory_footprint()
+ {
+ #ifdef __APPLE__
+@@ -2322,24 +2350,67 @@ private:
+ 				profile_session, profile_window, ios_putllc_heavy_window, rpcs3::ios::auto_storm::bound_heavy, rpcs3::ios::auto_storm::windows_needed);
+ 		}
+ 
+-		// REWINDBOX_PARK_SPIN_COMPARE_917 (ios/IOSWriterParkSpin917.h): this window was reported above with the lever
+-		// it ran with (RANGELOCKPROF park_spin=); now the lever of the next one. On Automatic only.
+-		if (rpcs3::ios::writer_park::compare::allowed.load(std::memory_order_relaxed))
++		// REWINDBOX_BUSY_WAIT_REFERENCE_918: what the scheduler counted for the process in this window, with the scale
++		// of utils::busy_wait the window ran with. A yield of a waiting thread is a Mach trap (swtch_pri, thread_switch).
++		{
++			const task_events_sample events = sample_task_events();
++			// A difference is one window only when the previous report is the previous window of the same boot.
++			const bool comparable = events.valid && m_task_events.valid && m_task_events_session == profile_session && m_task_events_window + 1 == profile_window;
++#ifdef ARCH_ARM64
++			const u32 busy_wait_scale = static_cast<u32>(utils::arm_timer_scale.load(std::memory_order_relaxed));
++#else
++			const u32 busy_wait_scale = 1;
++#endif
++			ios_core_profiler.notice("COREPROF SCHED918 session=%llu window=%llu task_events=%s context_switches=%u mach_traps=%u unix_syscalls=%u busy_wait_scale=%u scope=process_window_scheduler_counts",
++				profile_session, profile_window, comparable ? "available" : events.valid ? "first_window" : "unavailable",
++				comparable ? events.context_switches - m_task_events.context_switches : 0u,
++				comparable ? events.mach_traps - m_task_events.mach_traps : 0u,
++				comparable ? events.unix_syscalls - m_task_events.unix_syscalls : 0u, busy_wait_scale);
++			m_task_events = events;
++			m_task_events_session = profile_session;
++			m_task_events_window = profile_window;
++		}
++
++		// REWINDBOX_PARK_SPIN_COMPARE_917 and REWINDBOX_BUSY_WAIT_REFERENCE_918 (ios/IOSWriterParkSpin917.h): this
++		// window was reported above with the levers it ran with (RANGELOCKPROF park_spin=, SCHED918 busy_wait_scale=);
++		// now the levers of the next one. Each lever alternates only when its own setting is Automatic.
+ 		{
+-			const bool spin_this_window = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
+-			const bool spin_next_window = m_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window);
++			namespace cmp = rpcs3::ios::writer_park::compare;
++			const bool spin_allowed = cmp::allowed.load(std::memory_order_relaxed);
++			const bool busy_allowed = cmp::busy_wait_allowed.load(std::memory_order_relaxed);
+ 
+-			if (spin_next_window != spin_this_window)
++			if (spin_allowed || busy_allowed)
+ 			{
+-				rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);
+-			}
++				const bool spin_this_window = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
++				const bool spin_stepped = m_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window);
++				const bool spin_next_window = spin_allowed ? spin_stepped : spin_this_window;
++				const u32 next_step = m_park_compare.decided_step;
++#ifdef ARCH_ARM64
++				const u64 scale_this_window = utils::arm_timer_scale.load(std::memory_order_relaxed);
++				const u64 scale_next_window = !busy_allowed ? scale_this_window : cmp::busy_wait_at(next_step) ? cmp::busy_wait_scale_on.load(std::memory_order_relaxed) : 1;
++
++				if (scale_next_window != scale_this_window)
++				{
++					utils::arm_timer_scale.store(scale_next_window, std::memory_order_relaxed);
++				}
++#else
++				const u64 scale_this_window = 1, scale_next_window = 1;
++#endif
+ 
+-			if (spin_next_window != spin_this_window || m_park_compare.upcoming_step())
+-			{
+-				ios_core_profiler.notice("COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu storm_windows=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u lead=%u period=%u bound=%llu",
+-					profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.storm_windows, m_park_compare.upcoming_step(), rpcs3::ios::writer_park::compare::compared,
+-					spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, rpcs3::ios::writer_park::compare::lead, rpcs3::ios::writer_park::compare::period,
+-					rpcs3::ios::writer_park::compare::bound_heavy);
++				if (spin_next_window != spin_this_window)
++				{
++					rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);
++				}
++
++				if (spin_next_window != spin_this_window || scale_next_window != scale_this_window || next_step)
++				{
++					ios_core_profiler.notice("COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu counted_windows=%u next_cycle=%u cycles=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u "
++						"this_window_busy_wait_scale=%u next_window_busy_wait_scale=%u compared=%s storm=%u lead=%u period=%u rest=%u bound=%llu",
++						profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.windows, m_park_compare.decided_cycle, cmp::cycles, next_step, cmp::compared,
++						spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, static_cast<u32>(scale_this_window), static_cast<u32>(scale_next_window),
++						spin_allowed && busy_allowed ? "park_spin+busy_wait" : spin_allowed ? "park_spin" : "busy_wait", m_park_compare.decided_storm ? 1u : 0u,
++						cmp::lead, cmp::period, cmp::rest, cmp::bound_heavy);
++				}
+ 			}
+ 		}
+ 
+@@ -2357,6 +2428,9 @@ private:
+     rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
+     rpcs3::ios::auto_storm::tracker m_auto_storm; // REWINDBOX_AUTO_STORM_CAPTURE_917: report thread only
+     rpcs3::ios::writer_park::compare::tracker m_park_compare; // REWINDBOX_PARK_SPIN_COMPARE_917: report thread only
++    task_events_sample m_task_events; // REWINDBOX_BUSY_WAIT_REFERENCE_918: the counts at the previous report, report thread only
++    u64 m_task_events_session = ~0ull;
++    u64 m_task_events_window = 0;
+     // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
+     rpcs3::ios::freeze_episode::tracker m_freeze_episode;
+     u64 m_freeze_session = 0;
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 921ce36..c11b117 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -158,6 +158,7 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
+ 	SETTING("experimental.writer_park_spin", "Experimental", "FPS Experiments", "Writer lock park spin", "When an SPU or PPU atomic write takes the reservation write lock, it waits for every PPU thread to stop at its next check. It used to hand its CPU core off with a system call after a fraction of a microsecond, although the PPU thread it waits for is usually running and stops within about two microseconds; it now spins for 8 microseconds before the first hand-off. Every write lock is still taken and stops every PPU thread before the write. Automatic enables it for every title; Disabled hands off as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_park_spin, 0, 0, 0),
++	SETTING("experimental.busy_wait_reference", "Experimental", "FPS Experiments", "Busy wait reference duration", "The emulator's short active waits (before a thread yields its core or sleeps) are written in ticks of the system counter. On a device whose counter runs faster than the 24 MHz of the reference iPhones they lasted proportionally less (42 times less on a 1 GHz counter). Automatic keeps the reference duration on every device; in a scene with a storm of atomic writes the performance report compares both for a moment. Disabled restores the previous duration. No effect with SPU Spin Timing = Calibrated. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.busy_wait_reference, 0, 0, 0),
+ 	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
+ 	GAME_SETTING("experimental.heavy_putllc_trace", "Experimental", "FPS Experiments", "Heavy PUTLLC trace on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), records for each SPU thread up to 512 consecutive PUTLLC that change data (address, changed part, values read, asked and found) and writes them to the performance journal; two captures per boot at most. Nothing in the reservation protocol changes. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.heavy_putllc_trace, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),
+diff --git a/rpcs3/util/asm.hpp b/rpcs3/util/asm.hpp
+index 456485f..e71829a 100644
+--- a/rpcs3/util/asm.hpp
++++ b/rpcs3/util/asm.hpp
+@@ -4,6 +4,7 @@
+ #include "util/tsc.hpp"
+ #include "util/atomic.hpp"
+ #include "util/sysinfo.hpp"
++#include <atomic> // REWINDBOX_BUSY_WAIT_REFERENCE_918: arm_timer_scale on iOS
+ #include <functional>
+ #include <thread>
+ 
+@@ -206,7 +207,13 @@ namespace utils
+ 	// many microseconds on many arm machines. 
+ #ifdef ARCH_ARM64
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_BUSY_WAIT_REFERENCE_918: read by every busy wait; written by the boot policy and, between two report
++	// windows, by the comparison of the levers the report runs (ios/IOSWriterParkSpin917.h).
++	inline std::atomic<u64> arm_timer_scale{1};
++#else
+ 	inline u64 arm_timer_scale = 1;
++#endif
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): freq / 30000000 is 0 below
+ 	// 30 MHz, so on the iPhone's 24 MHz cntfrq_el0 this call leaves the scale

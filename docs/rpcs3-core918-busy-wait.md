@@ -1,0 +1,135 @@
+# RPCS3 Core 918 — la durée des attentes actives sur l'iPhone à compteur 1 GHz
+
+Suite de la mission du 10 novembre (Black Ops II et God of War III doivent tourner plus vite).
+Core 918 = Core 917 + ce document. **Aucune mesure iPhone n'a été faite avec ce Core.** Ce qui suit vient des
+journaux applicatifs de la build 718, du code et d'exécutions sur hôte ; la section 6 dit ce que l'export suivant
+doit montrer, et il le montrera sans rien demander au joueur.
+
+## 1. Symptôme chiffré
+
+Journaux de la build 718, les seize démarrages (tous les titres) :
+
+```
+Resolved boot policy: … spin_timing=reference … cntfrq=1000000000 timer_scale=1 getllar_ticks=1000/5000/400000
+```
+
+Les attentes actives courtes de l'émulateur sont `utils::busy_wait(n)` (`rpcs3/util/asm.hpp`) : `(n / 100) × échelle`
+ticks du compteur système. L'échelle 1 a été validée sur des iPhone dont le compteur tourne à 24 MHz ; celui de cet
+appareil tourne à 1 GHz.
+
+| Appel | Compteur 24 MHz (référence) | Compteur 1 GHz, échelle 1 (build 718) | Compteur 1 GHz, Core 918 |
+|---|---|---|---|
+| `busy_wait(200)` | 83 ns | 2 ns | 84 ns |
+| `busy_wait(300)` | 125 ns | 3 ns | 126 ns |
+| `busy_wait(500)` | 208 ns | 5 ns | 210 ns |
+| `busy_wait()` (3000) | 1,25 µs | 30 ns | 1,26 µs |
+
+Quarante-deux fois moins, sur les 66 appels du moteur.
+
+## 2. Chemin de production
+
+- **Lecture GETLLAR d'un SPU sur une ligne qu'un PUTLLC tient** (`SPUThread.cpp`) : 24 fois `busy_wait(300)`, puis
+  `std::this_thread::yield()` à chaque tour. Sur cet appareil les 24 tours durent moins d'une microseconde ; un
+  PUTLLC lourd de Black Ops II tient sa ligne 1,25 à 2,3 µs (builds 694 et 676, 213 000 par seconde). Le SPU qui
+  attend passe donc presque toujours à `yield`, c'est-à-dire `swtch_pri` : sur Darwin, la priorité du thread tombe
+  jusqu'à un quantum (constat déjà fait deux fois dans ce dépôt, `IOSPassiveLockGate.h` et
+  `IOSReservationLockPolicy.h`, et corrigé alors pour l'écrivain seulement).
+- Même forme pour les transferts DMA, PUTLLUC, les verrous de réservation de `vm.cpp` et le verrou d'écriture.
+- **Tous les mutex du moteur** (`Utilities/mutex.cpp`, `sema.cpp`) : dix `busy_wait()` puis attente noyau. Dix
+  fois 30 ns au lieu de dix fois 1,25 µs : la moindre contention part en appel système.
+
+Ce que montre la fenêtre 12 de Black Ops II (build 676, 20,5 images/s) : six threads SPU à 0,53 cœur chacun alors
+qu'ils n'attendent un événement que 407 fois (119 ms) en 5 s ; les attentes connues (verrou d'écriture, report
+d'écrivains) n'expliquent pas un quart du temps qu'ils passent hors d'un cœur.
+
+## 3. Modification
+
+`REWINDBOX_BUSY_WAIT_REFERENCE_918` : avec « SPU Spin Timing = Reference » (le réglage par défaut), l'échelle est
+la fréquence du compteur divisée par 24 MHz, arrondie — 1 sur le compteur de référence, 42 à 1 GHz. Chaque durée
+redevient celle de l'appareil de référence, à 2 % près.
+
+- `rpcs3/ios/RPCS3IOSLeverHelpers.h` : `reference_arm_timer_scale` ;
+- `rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp` (`resolve_spu_spin_timing`) : installe l'échelle ; « Calibrated » garde
+  l'échelle amont (33) ; les trois seuils GETLLAR en ticks ne sont pas touchés ;
+- `rpcs3/util/asm.hpp` : l'échelle est un atomique sur iOS (lue par chaque attente, écrite par la politique et par
+  le rapport) ; `busy_wait` calcule et attend comme avant ;
+- réglage « Busy wait reference duration » (Expérimental → FPS Experiments) : Automatique = tous les titres,
+  Désactivé = l'échelle 1 d'avant.
+
+Aucune condition d'attente ne change, aucun verrou, aucun réglage de titre, aucun nombre ni priorité de SPU. Aucun
+fichier d'entrée des identités de code généré n'est modifié : les caches restent valides.
+
+## 4. Mesure dans la même scène
+
+`COREPROF SCHED918` : par fenêtre de 5 s, ce que le noyau a compté pour le processus — changements de contexte,
+appels Mach (un `yield` en est un), appels système BSD — avec l'échelle de la fenêtre.
+
+La comparaison du Core 917 est étendue. Sur les fenêtres en cours de jeu qui affichent des images, pour tous les
+titres, tant que les deux réglages sont sur Automatique :
+
+| Fenêtres comptées du démarrage | Leviers |
+|---|---|
+| 1 à 6 | tous actifs (les captures demandées par le rapport s'y déroulent) |
+| 7 à 22 | par paires : (rotation de l'écrivain inactive, échelle active), (active, échelle 1), (les deux inactifs), (les deux actifs), deux fois |
+| 23 à 44 | tous actifs |
+| 45 à 60, puis 83 à 98 | deux autres passes identiques |
+| ensuite | tous actifs |
+
+Trois passes pour qu'au moins une tombe en jeu quel que soit le temps passé dans les menus. La rotation de
+l'écrivain (levier 917) n'alterne que dans une fenêtre qui compte au moins 100 000 PUTLLC lourds ; ailleurs elle
+ne fait rien et reste active. Sur Activé ou Désactivé, un levier n'alterne jamais.
+`tools/rpcs3/capture_analyzer.py` imprime, passe par passe, les médianes de chaque combinaison : images/s, cœurs SPU
+et PPU, PUTLLC terminés, temps par verrou, appels Mach, changements de contexte, appels système.
+
+**Conséquence visible** : pendant ces passes (trois fois 80 s dans les dix premières minutes d'un démarrage), la
+cadence peut varier d'une paire de fenêtres à l'autre. Pour jouer sans alternance, mettre les deux réglages sur
+Activé.
+
+## 5. Test discriminant (hôte)
+
+`test/rpcs3_busy_wait918_test.py`, 18 vérifications sur les en-têtes réels :
+
+- l'échelle (24 MHz et 19,2 MHz : 1 ; 1 GHz : 42 ; inconnue : 1) et les durées du tableau ; contrôle : à 1 GHz avec
+  l'échelle 1, 3 ns, 5 ns et 30 ns ; les 24 tours finissent avant la plus courte tenue mesurée avec l'échelle 1 et
+  dépassent la plus longue avec l'échelle de référence ;
+- la boucle d'attente du GETLLAR sur deux vrais threads, dans les proportions de l'appareil (un tour d'avant vaut un
+  passage de boucle, un tour de référence en vaut 42 ; l'autre thread tient la ligne 2 à 6 fois les 24 tours d'avant
+  et ne dort jamais) :
+
+| 20 000 tenues, trois exécutions | Durée d'avant (contrôle) | Durée de référence |
+|---|---|---|
+| Tenues où le thread en attente a cédé son cœur | 19 919 à 19 947 | 7 à 18 |
+| Cessions au total | 504 926 à 535 000 | 4 127 à 11 093 |
+
+- une ligne tenue bien plus longtemps que toute la rotation (son détenteur n'est pas sur un cœur) : 200 sur 200
+  arrivent encore à la cession ;
+- la comparaison : les quatre combinaisons, quatre fenêtres chacune, par paires ; une fenêtre sous la borne garde la
+  rotation de l'écrivain active pendant que l'échelle alterne (God of War III) ; une fenêtre arrêtée ou sans image
+  n'est pas comptée.
+
+Ces chiffres montrent le mécanisme sur un PC Linux ; ils ne mesurent pas l'iPhone, où le coût d'une cession
+(`swtch_pri`) est celui que les passes de la section 4 mesureront.
+
+## 6. Ce que l'export suivant décidera
+
+- **Le levier agit** si, à échelle 42, les appels Mach par fenêtre chutent, les cœurs SPU et les images/s montent.
+- **Il n'agit pas ou coûte** si les images/s baissent à échelle 42 (rotation plus longue sur des cœurs déjà pris) :
+  le réglage Désactivé rétablit l'échelle 1, et le correctif suivant vise alors la cession elle-même.
+- S'il reste beaucoup d'appels Mach à échelle 42 : la cession des boucles d'attente SPU (`SPUThread.cpp`, entrée
+  d'identité : alias exact et audit, comme pour les Cores 911 et 916) doit passer à la cession sans dépression.
+
+## 7. Limites
+
+- Aucun gain n'est connu. Les durées restaurées sont celles de l'appareil de référence ; rien ne dit qu'elles sont
+  les meilleures sur celui-ci.
+- Les compteurs du noyau sont ceux du processus entier, pas ceux des seuls threads SPU.
+- Les trois seuils GETLLAR en ticks (1 000 / 5 000 / 400 000) valent 1 µs / 5 µs / 400 µs ici contre 41,7 µs /
+  208 µs / 16,7 ms sur le compteur de référence. Ils ne sont pas modifiés : c'est une décision à prendre sur mesure.
+
+## 8. Protocole iPhone
+
+1. Black Ops II, réglages laissés sur Automatique : lancer une partie et jouer cinq minutes dans la scène lente.
+2. God of War III : **démarrer le jeu normalement, sans état de sauvegarde** (« Continuer » dans le menu du jeu),
+   jouer cinq minutes ; recréer ensuite un état de sauvegarde. Un état créé avant le Core 916 garde la mémoire du
+   démarrage sans le contournement MLAA.
+3. Quitter le jeu, exporter les journaux aussitôt, avec les fichiers `.1`.
