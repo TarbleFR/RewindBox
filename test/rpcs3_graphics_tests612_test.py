@@ -70,7 +70,9 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         # Core 664: the PPU grace after starvation.
         'experimental.ppu_grace',
         # Metal branch: the native Metal 4 renderer.
-        'experimental.metal_renderer')
+        'experimental.metal_renderer',
+        # Core 912: A/B of the PUT horizon and the two bounded captures started by closing the menu.
+        'experimental.put_epoch_horizon', 'experimental.heavy_putllc_trace', 'experimental.ppu_region_profile')
 
 
 def require(condition, message):
