@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
-# Run the production DOLSkinOverlay on the shipped GameCube / Wii Pocket Original archives in the
-# iOS Simulator, with a recorder in place of TCManagerInterface (no Core).
+# Run the production DOLSkinOverlay on the shipped GameCube / Wii Pocket archives (the Originals and
+# the two wordmarked packs) in the iOS Simulator, with a recorder in place of TCManagerInterface
+# (no Core).
 require 'xcodeproj'
 require 'json'
 require 'fileutils'
@@ -14,7 +15,7 @@ FileUtils.mkdir_p(output)
 
 # The shipped archives, unpacked as installed skin folders (their catalog ids).
 fixture = File.join(output, 'fixture')
-%w[gamecube-pocket-original wii-pocket-original].each do |id|
+%w[gamecube-pocket-original wii-pocket-original gamecube-pocket wii-pocket].each do |id|
   FileUtils.mkdir_p(File.join(fixture, id))
   archive = File.join(root, "assets/skins/pocket/#{id}.manicskin")
   abort "missing #{archive}" unless File.file?(archive)
@@ -40,7 +41,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
       'CODE_SIGNING_ALLOWED' => 'NO',
       'TARGETED_DEVICE_FAMILY' => '1',
-      'HEADER_SEARCH_PATHS' => [classes, __dir__],
+      'HEADER_SEARCH_PATHS' => [classes, __dir__, File.join(root, 'test/skin_frame')],
       'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'QuartzCore'],
     })
   end
@@ -65,7 +66,10 @@ scheme.save_as(project_path, 'SkinHarness', true)
 devices = JSON.parse(`xcrun simctl list devices available --json`).fetch('devices').values.flatten
 device = devices.find { |item| item['name'].start_with?('iPhone') && item['isAvailable'] }
 abort 'No iPhone simulator available' unless device
-env = { 'TEST_RUNNER_DOLPHIN_SKIN_FIXTURE' => fixture }
+# Test-pattern renders of the real overlay (the game's place), kept by the workflow.
+renders = File.join(output, 'renders')
+FileUtils.mkdir_p(renders)
+env = { 'TEST_RUNNER_DOLPHIN_SKIN_FIXTURE' => fixture, 'TEST_RUNNER_DOLPHIN_RENDER_DIR' => renders }
 command = ['xcodebuild', 'test', '-project', project_path, '-scheme', 'SkinHarness',
            '-destination', "platform=iOS Simulator,id=#{device['udid']}",
            '-derivedDataPath', File.join(output, 'DerivedData'),

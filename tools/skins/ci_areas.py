@@ -32,14 +32,14 @@ AREAS = {
               r'|^\.github/workflows/skin-orientation-checks\.yml$|^tools/skins/ci_areas\.py$',
     # MeloNX skin overlay: iPhone compile and ci/test_skin_overlay_ui.rb on Switch Pocket
     'melonx': r'^packages/melonx_internal_bridge/(ios/Classes/MeloNXSkin|ci/)|^assets/skins/pocket/switch-'
-              r'|^tools/skins/build_switch_pocket\.py$|^docs/design/pocket/(approved-switch|switch-pocket)',
+              r'|^tools/skins/build_switch_pocket\.py$|^docs/design/pocket/(approved-switch|switch-pocket)|^test/skin_frame/',
     'dolphin_compile': r'^' + DOLPHIN + r'ios/Classes/(DOL|TouchController/TCManagerInterface\.h)',
     # ARMSX2 iPhone compile and ci/test_skin_overlay_ui.rb (both shipped PS2 archives)
-    'armsx2': r'^packages/armsx2_internal_bridge/(ios/Classes/ARMSX2|ci/)|^assets/skins/pocket/ps2-',
-    # ci/test_skin_overlay_ui.rb: DOLSkinOverlay.mm, the recorder, the two Original archives
+    'armsx2': r'^packages/armsx2_internal_bridge/(ios/Classes/ARMSX2|ci/)|^assets/skins/pocket/ps2-|^test/skin_frame/',
+    # ci/test_skin_overlay_ui.rb: DOLSkinOverlay.mm, the recorder, the four GameCube / Wii archives
     'dolphin_skin_sim': r'^' + DOLPHIN + r'ios/Classes/(DOLSkin|DOLOrientationPolicy\.h|TouchController/TCManagerInterface\.h)'
                         r'|^' + DOLPHIN + r'ci/(SkinOverlay|DolphinSkinOverlayTests|test_skin_overlay_ui)'
-                        r'|^assets/skins/pocket/(gamecube|wii)-pocket-original',
+                        r'|^assets/skins/pocket/(gamecube|wii)-pocket|^test/skin_frame/',
     # ci/test_orientation_ui.rb
     'dolphin_orientation_sim': r'^' + DOLPHIN + r'ios/Classes/(DOLOrientation|DolphinSessionLifecycle)'
                                r'|^' + DOLPHIN + r'ci/(DolphinOrientation|test_orientation_ui)',

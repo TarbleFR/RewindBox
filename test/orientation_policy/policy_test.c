@@ -52,6 +52,16 @@ int main(void) {
   expect("armsx2: both chosen", ARMSX2PolicyMask(true, true), UIKIT_ALL_BUT_UPSIDE_DOWN);
   expect("armsx2: none chosen (the session turns with the phone)", ARMSX2PolicyMask(false, false), UIKIT_ALL_BUT_UPSIDE_DOWN);
 
+  // The bounds a session is first laid out in may still be those of the screen that
+  // opened it; the surface the Dolphin core reads once is computed for the settled ones.
+  expect("turn: portrait-only session opened sideways", DOLPolicyBoundsWillTurn(UIKIT_PORTRAIT, 852, 393), 1u);
+  expect("turn: portrait-only session already upright", DOLPolicyBoundsWillTurn(UIKIT_PORTRAIT, 393, 852), 0u);
+  expect("turn: landscape-only session opened upright", DOLPolicyBoundsWillTurn(UIKIT_LANDSCAPE, 393, 852), 1u);
+  expect("turn: landscape-only session already sideways", DOLPolicyBoundsWillTurn(UIKIT_LANDSCAPE, 852, 393), 0u);
+  expect("turn: both orientations allowed, upright", DOLPolicyBoundsWillTurn(UIKIT_ALL_BUT_UPSIDE_DOWN, 393, 852), 0u);
+  expect("turn: both orientations allowed, sideways", DOLPolicyBoundsWillTurn(UIKIT_ALL_BUT_UPSIDE_DOWN, 852, 393), 0u);
+  expect("turn: no bounds yet", DOLPolicyBoundsWillTurn(UIKIT_PORTRAIT, 0, 0), 0u);
+
   // Exhaustive: no lock without a choice, never both locks, the choice is
   // independent of the skin file's capabilities (they are not an input).
   int bad = 0;

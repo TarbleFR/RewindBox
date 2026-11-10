@@ -33,6 +33,19 @@ Only original RewindBox artwork is bundled. Console names and marks remain the
 property of their owners; no third-party rights or public-domain waiver is given.
 Generation and geometry checks do not establish physical iPhone gameplay.
 
+## The game's place (10 November)
+
+`screen_opening.py` measures the navy opening each body image draws and gives the pack
+its game container: `screens[0].screenCutout` (a PNG the size of the body, alpha where
+the body stays, used by the overlays as the body's mask) and `screens[0].outputFrame`
+(the opening's bounding box, the emulator's surface). `build_pocket_skins.py`,
+`build_pocket_board_originals.py` and `build_switch_pocket.py` call it;
+`verify_pocket_skins.py` re-measures the opening on every shipped body and compares.
+PS2 Pocket - Noir mat keeps its declared rectangle (its window is one, and exact).
+`render_screen_framing.py --before <rev> --out <dir>` composes the before / after sheets
+(test pattern and game-like picture) for every pack, display type and orientation.
+[Record](../../docs/skins-screen-framing-2026-11-10.md).
+
 ## PS2 Pocket - Noir mat
 
 `build_ps2_pocket.py` (with `ps2_art.py`) adds `ps2-pocket.manicskin`, its previews

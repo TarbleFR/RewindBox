@@ -39,7 +39,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
       'CODE_SIGNING_ALLOWED' => 'NO',
       'TARGETED_DEVICE_FAMILY' => '1',
-      'HEADER_SEARCH_PATHS' => [classes],
+      'HEADER_SEARCH_PATHS' => [classes, File.join(root, 'test/skin_frame')],
       'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'QuartzCore'],
     })
   end

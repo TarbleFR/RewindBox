@@ -22,3 +22,16 @@ static inline unsigned DOLPolicyMask(bool portrait, bool landscape) {
   if (portrait && landscape) return DOLPolicyMaskAllButUpsideDown;
   return DOLPolicyMaskLandscape;
 }
+
+/// Whether the bounds a session was just given are still those of the screen that opened
+/// it. UIKit turns the window after the presentation: a phone held sideways opening a
+/// portrait-only session (or the reverse) first lays the session out in bounds its mask
+/// does not allow. The session then settles in the turned bounds (height x width), and
+/// what must be right from the start (the surface the core reads once) is computed there.
+static inline bool DOLPolicyBoundsWillTurn(unsigned mask, double width, double height) {
+  if (width < 1 || height < 1) return false;
+  const bool portrait = height > width;
+  const bool allowsPortrait = (mask & DOLPolicyMaskPortrait) != 0;
+  const bool allowsLandscape = (mask & DOLPolicyMaskLandscape) != 0;
+  return portrait ? (!allowsPortrait && allowsLandscape) : (!allowsLandscape && allowsPortrait);
+}

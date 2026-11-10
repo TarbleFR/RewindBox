@@ -18,6 +18,7 @@ name: Skin orientation checks
     - work/skins-stick-top-20261104
     - work/skins-stick-circle-20261105
     - work/skins-switch-pocket-20261109
+    - work/skins-screen-framing-20261110
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
@@ -37,6 +38,7 @@ name: Skin orientation checks
     - test/dolphin_session_chrome_test.py
     - test/armsx2_skin_menu_button_test.py
     - test/orientation_policy/**
+    - test/skin_frame/**
   workflow_dispatch:
     inputs:
       all:
@@ -144,7 +146,7 @@ jobs:
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
         ruby packages/armsx2_internal_bridge/ci/test_skin_overlay_ui.rb
-    - name: Dolphin skin overlay on the shipped GameCube/Wii Originals in the iOS Simulator (real touches, TCManagerInterface calls)
+    - name: Dolphin skin overlay on the shipped GameCube/Wii Pocket archives in the iOS Simulator (real touches, TCManagerInterface calls, the game's place)
       if: ${{ !cancelled() && steps.areas.outputs.dolphin_skin_sim == 'true' }}
       run: |
         set -euo pipefail
@@ -173,6 +175,7 @@ jobs:
           build/armsx2-ci/skin-overlay/SkinOverlay.xcresult
           build/armsx2-ci/skin-overlay/renders
           build/dolphin-ci/skin-overlay/SkinOverlay.xcresult
+          build/dolphin-ci/skin-overlay/renders
           build/melonx-ci/skin-overlay/SkinOverlay.xcresult
           build/melonx-ci/skin-overlay/renders
         if-no-files-found: ignore

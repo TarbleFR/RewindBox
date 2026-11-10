@@ -82,11 +82,57 @@ EXPECTED_PACKS = {"wii-pocket": "wii", "gamecube-pocket": "gc", "ps2-pocket": "p
 # Originals (build_switch_pocket.py checks the PNG's SHA-256).
 EXPECTED_PACKS["switch-pocket"] = "switch"
 BOARD_PACKS = {"gamecube-pocket-original", "wii-pocket-original", "ps2-pocket-original", "switch-pocket"}
-# The game's own picture ratio in the skin's screen (the host fits the game into it).
-SCREEN_RATIO = {"switch": 16/9}
+# Packs whose body draws a plain rectangular window, equal to the declared 4:3 screen.
+# Every other pack ships the cutout of the opening its body draws (screens[].screenCutout).
+RECTANGULAR_WINDOWS = {"ps2-pocket"}
 # Drawn console buttons with no input in the embedded Core (MeloNX has no HOME/Capture
 # index): they never look pressed, the session says so (MeloNXSkinSession).
 INERT_CONTROLS = {"switch-pocket": {"home", "capture"}}
+
+
+def game_opening(pack, layout, files, resource, mapping, label):
+    """The layout's game screen is the opening its body draws: re-measured on the body,
+    equal to the shipped cutout and to `outputFrame`. Returns the coverage (body pixels,
+    1 = game). PS2 Pocket draws a plain rectangular window: no cutout, the 4:3 rectangle
+    is that window exactly."""
+    import numpy as np
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import screen_opening
+    entry = layout["screens"][0]
+    frame = entry["outputFrame"]
+    body = resource(next(iter(layout["assets"].values()))).convert("RGB")
+    kx, ky = body.width/mapping[0], body.height/mapping[1]
+    measured = screen_opening.opening(body, ((frame["x"]+frame["width"]/2)*kx, (frame["y"]+frame["height"]/2)*ky))
+    opening = screen_opening.frame(measured, mapping)
+    if pack in RECTANGULAR_WINDOWS:
+        require("screenCutout" not in entry, f"{label}: unexpected screen cutout")
+        require(abs(frame["width"]/frame["height"]-4/3) < 0.001, f"{label}: screen is not 4:3")
+        # Its body draws the window with square corners: the rectangle is the opening
+        # (the smoothing of the measure rounds its corners by a few pixels at most).
+        box = np.zeros(measured.shape, bool)
+        box[round(frame["y"]*ky):round((frame["y"]+frame["height"])*ky), round(frame["x"]*kx):round((frame["x"]+frame["width"])*kx)] = True
+        require(not ((measured > 0.5) & ~box).any(), f"{label}: the drawn window leaves the declared screen")
+        # Within one body pixel (half a point) of its edge and the measure's corner smoothing.
+        require((box & (measured < 0.5)).sum() < 0.003*box.sum(), f"{label}: the declared screen leaves the drawn window")
+        return box.astype(np.float32)
+    name = entry.get("screenCutout")
+    require(isinstance(name, str) and name in files, f"{label}: missing screen cutout")
+    safe_name(name)
+    shipped = screen_opening.coverage_of(files[name])
+    require(shipped.shape == measured.shape, f"{label}: the cutout is not the body's size")
+    require(float(np.abs(shipped-measured).max()) <= 1/255+1e-6, f"{label}: the cutout is not the opening its body draws")
+    require(all(abs(frame[k]-opening[k]) <= 0.0011 for k in ("x", "y", "width", "height")),
+            f"{label}: outputFrame {frame} is not the opening's box {opening}")
+    require(float((shipped > 0).mean()) > 0.05, f"{label}: no opening")
+    return shipped
+
+
+def over_opening(hit, coverage, mapping):
+    """A touch area (mapping points) reaches the game opening (coverage, body pixels)."""
+    kx, ky = coverage.shape[1]/mapping[0], coverage.shape[0]/mapping[1]
+    x0, y0 = max(0, int(math.floor(hit[0]*kx))), max(0, int(math.floor(hit[1]*ky)))
+    x1, y1 = int(math.ceil((hit[0]+hit[2])*kx)), int(math.ceil((hit[1]+hit[3])*ky))
+    return bool((coverage[y0:y1, x0:x1] > 0).any())
 
 
 def native_layout(representations, tall):
@@ -391,11 +437,10 @@ def validate_pack(assets, body_sources, row):
             require(len(screens) == 1, f"{label}: expected a single game screen")
             for screen in screens:
                 require(inside(screen, bounds), f"{label}: screen outside mapping")
-                ratio = SCREEN_RATIO.get(console, 4/3)
-                require(abs(screen[2]/screen[3]-ratio) < 0.001, f"{label}: screen is not {ratio:.4f}")
-                # Approved raw body images stay byte-identical. Their game
-                # windows are cut out by DOLSkinOverlay's even-odd layer mask
-                # at runtime, rather than by altering the bitmap alpha.
+            # The game's container is the opening the body draws (screen_opening.py): the
+            # approved raw body images stay byte-identical, the pack ships the cutout of
+            # its opening and the overlays use it as the body's mask.
+            coverage = game_opening(row["id"], layout, files, resource, mapping, label)
             hits, provided, stick_count = [], set(), 0
             for index, item in enumerate(layout["items"]):
                 frame = rect(item["frame"])
@@ -407,7 +452,7 @@ def validate_pack(assets, body_sources, row):
                     require(min(hit[2:]) >= small[first], f"{label}/{index}: known small target {first} below {small[first]}")
                 else:
                     require(min(hit[2:]) >= 44-0.01, f"{label}/{index}: target below 44 mapping points")
-                require(not any(overlaps(hit, screen) for screen in screens), f"{label}/{index}: target over game screen")
+                require(not over_opening(hit, coverage, mapping), f"{label}/{index}: target over game screen")
                 if not board:
                     require(not any(overlaps(hit, earlier) for earlier in hits), f"{label}/{index}: overlapping control targets")
                 hits.append(hit)
@@ -433,7 +478,11 @@ def validate_pack(assets, body_sources, row):
             require(stick_count == STICKS[console], f"{label}: wrong movable stick count")
             menus = [item for item in layout["items"] if "menu" in [canonical(console, name) for name in raw_inputs(item)]]
             require(len(menus) == 1, f"{label}: expected exactly one visible Menu control, found {len(menus)}")
+            opening = layout["screens"][0]["outputFrame"]
             layout_reports.append({"display": display, "orientation": orientation,
+                                   "gameScreen": {"frame": opening, "ratio": round(opening["width"]/opening["height"], 4),
+                                                  "cutout": layout["screens"][0].get("screenCutout"),
+                                                  "openingPercentOfFrame": round(float((coverage > 0.5).mean()) * 100 * coverage.size / max(1.0, opening["width"]*opening["height"]*coverage.size/(mapping[0]*mapping[1])), 2)},
                                    "mappingSize": mapping, "controls": len(hits),
                                    "minimumMappingTargetPoints": min(min(hit[2:]) for hit in hits)})
     matrix = []
@@ -518,7 +567,7 @@ def main():
         require(len(rows) == len(EXPECTED_PACKS) and {row["id"]: row["console"] for row in rows} == EXPECTED_PACKS,
                 "expected exactly the Wii, GameCube, PS2 Pocket packs, the three board Originals and Switch Pocket")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
-                  "all PNG decodes", "every iPhone layout", "4:3 game windows (16:9 for the Switch) for native background masking", "all essential bindings", "exactly one Menu control in every layout",
+                  "all PNG decodes", "every iPhone layout", "game screen = the opening the body draws: shipped cutout re-measured on the body, outputFrame = its box (PS2 Pocket: its rectangular 4:3 window)", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
                   "approved board SHA-256 binding (Originals)",
                   "Originals: sprites transparent outside the outline, press confined to it, rest = board, cap at the touch centre",

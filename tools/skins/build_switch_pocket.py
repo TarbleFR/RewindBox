@@ -9,8 +9,9 @@ portrait and one in landscape. Like the GameCube/Wii/PS2 Originals
 board's own pixels:
 
 * the background is each phone's SCREEN without the phone frame, titles, captions, the
-  drawn Dynamic Island, the home indicator or the "Zone de jeu" text; the game window
-  stays navy and the host puts the game's exact 16:9 picture in it (never stretched);
+  drawn Dynamic Island, the home indicator or the "Zone de jeu" text; the game's place
+  is the navy window itself (screen_opening.py: its cutout and bounding box), in which
+  MeloNX keeps the picture's ratio (16:9 by default, never stretched unless chosen);
 * every control is cut from its own place (normal state), the pressed state derived
   inside its own outline; both sticks move their whole dark cap (measured circles,
   measure_stick_caps.py) over a socket refilled from the ring around it;
@@ -258,7 +259,7 @@ def build(out: Path) -> dict:
         sys.exit(f'commands {sorted(used)} differ from {sorted(INPUTS)}')
     board_sha = hashlib.sha256(path.read_bytes()).hexdigest()
     info = {'name': NAME, 'identifier': f'org.rewindbox.{PACK_ID}', 'author': 'RewindBox',
-            'gameTypeIdentifier': GAME_TYPE, 'version': 1, 'license': LICENSE_LABEL,
+            'gameTypeIdentifier': GAME_TYPE, 'version': 2, 'license': LICENSE_LABEL,
             'previewImages': {o: f'previews/{o}.png' for o in ('portrait', 'landscape')},
             'provenance': {'status': status, 'board': f'docs/design/pocket/{path.name}', 'boardSha256': board_sha,
                            'generator': 'tools/skins/build_switch_pocket.py',

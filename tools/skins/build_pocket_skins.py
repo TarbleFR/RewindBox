@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from pocket_art import control, base, knob
+import screen_opening
 
 SCALE = 3
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,7 +32,8 @@ RECONSTRUCTION = {
     'geometrySource': 'RewindBox_Pocket_Collection_v1.zip / Sources/Approved_Pocket',
     'controls': 'new deterministic distance-field renders; not recovered original bytes',
     'bodyTextures': 'approved raw images copied byte-for-byte',
-    'layoutVersion': 2,
+    'layoutVersion': 3,
+    'gameScreen': 'the opening drawn on the body, measured on the raw image (screen_opening.py); cutout shipped as screens/*.png',
 }
 
 
@@ -99,11 +101,12 @@ def png(im):
 def compose(L, files, pressed=False):
     W,H=L['mappingSize'].values()
     im=Image.open(io.BytesIO(files[L['assets']['large']])).convert('RGBA').resize((W*SCALE,H*SCALE),Image.Resampling.LANCZOS)
-    screen=L['screens'][0]['outputFrame'];bb=pxbox(screen)
-    # The physical renderer cuts only this exact 4:3 area out of the raw photo.
-    # Navy letterboxing on compact phones stays inside the original navy window.
-    d=ImageDraw.Draw(im)
-    d.rectangle((bb[0],bb[1],bb[2]-1,bb[3]-1),fill=(9,22,49,255))
+    # With a cutout (screens[].screenCutout) the game shows through the body's own opening:
+    # the preview keeps the navy window as drawn. Without one (PS2 Pocket's rectangular
+    # window) the declared rectangle is the game's place.
+    if 'screenCutout' not in L['screens'][0]:
+        d=ImageDraw.Draw(im);bb=pxbox(L['screens'][0]['outputFrame'])
+        d.rectangle((bb[0],bb[1],bb[2]-1,bb[3]-1),fill=(9,22,49,255))
     for item in L['items']:
         f=item['frame'];b=pxbox(f)
         asset=item['asset']['pressed' if pressed else 'normal']
@@ -135,7 +138,9 @@ def validate(console,reps,files):
                 assert files[item['asset']['normal']]!=files[item['asset']['pressed']]
                 if 'thumbstick' in item:assert item['thumbstick']['name'] in files
             assert expected<=provided,(console,display,orientation,expected-provided)
-            assert abs(screen['width']/screen['height']-4/3)<.0001
+            # The game's container is the opening the body draws, not a hand-placed rectangle.
+            body=Image.open(io.BytesIO(files[L['assets']['large']]));cov=screen_opening.coverage_of(files[L['screens'][0]['screenCutout']])
+            assert cov.shape==(body.height,body.width) and screen==screen_opening.frame(cov,(W,H)),(console,display,orientation,'opening')
             if display=='edgeToEdge':
                 for aw,ah in [(375,812),(390,844),(393,852),(430,932)]:
                     if orientation=='landscape':aw,ah=ah,aw
@@ -176,6 +181,16 @@ def build(out,body_dir):
     for console,pid,name in [('wii','wii-pocket','Wii Pocket'),('gc','gamecube-pocket','GameCube Pocket – Ivory')]:
         reps={display:{orientation:layout(console,display,orientation) for orientation in ['portrait','landscape']} for display in ['edgeToEdge','standard']}
         files={'LICENSE.txt':LICENSE.encode(),**raw_bodies};names=set()
+        # The game's container: the navy opening each raw body draws (one cutout per body,
+        # shared by the edge-to-edge and home-button layouts, which scale the same image).
+        for orientation in ['portrait','landscape']:
+            body=Image.open(io.BytesIO(raw_bodies[f'body-{orientation}.png']))
+            hand=reps['edgeToEdge'][orientation];W0,H0=hand['mappingSize'].values();r=hand['screens'][0]['outputFrame']
+            cov=screen_opening.opening(body,((r['x']+r['width']/2)*body.width/W0,(r['y']+r['height']/2)*body.height/H0))
+            files[f'screens/{orientation}.png']=screen_opening.cutout(cov)
+            for display in reps:
+                L=reps[display][orientation]
+                L['screens']=[{'outputFrame':screen_opening.frame(cov,tuple(L['mappingSize'].values())),'screenCutout':f'screens/{orientation}.png'}]
         for orientations in reps.values():
             for L in orientations.values():
                 for item in L['items']:
@@ -191,7 +206,7 @@ def build(out,body_dir):
             (out/f'{pid}-{orientation}.png').write_bytes(image)
             (out/f'{pid}-{orientation}-pressed.png').write_bytes(png(compose(reps['edgeToEdge'][orientation],files,pressed=True)))
             (out/f'{pid}-standard-{orientation}.png').write_bytes(png(compose(reps['standard'][orientation],files)))
-        info={'name':name,'identifier':f'org.rewindbox.{pid}','author':'RewindBox','gameTypeIdentifier':f'public.aoshuang.game.{"wii" if console=="wii" else "ngc"}','version':2,'license':LICENSE_LABEL,'previewImages':{o:f'previews/{o}.png' for o in ['portrait','landscape']},'provenance':RECONSTRUCTION,'representations':{'iphone':reps}}
+        info={'name':name,'identifier':f'org.rewindbox.{pid}','author':'RewindBox','gameTypeIdentifier':f'public.aoshuang.game.{"wii" if console=="wii" else "ngc"}','version':3,'license':LICENSE_LABEL,'previewImages':{o:f'previews/{o}.png' for o in ['portrait','landscape']},'provenance':RECONSTRUCTION,'representations':{'iphone':reps}}
         files['info.json']=(json.dumps(info,indent=2,ensure_ascii=False)+'\n').encode()
         checks=validate(console,reps,files)
         for path,data in files.items():
@@ -202,7 +217,7 @@ def build(out,body_dir):
         entries.append(entry)
         receipts[pid]={'layouts':checks,'archiveSha256':entry['sha256'],'archiveBytes':entry['size'],'files':{p:{'sha256':hashlib.sha256(d).hexdigest(),'bytes':len(d)} for p,d in sorted(files.items())},'physicalDeviceTested':False}
     (out/'catalog.json').write_text(json.dumps({'schemaVersion':1,'skins':entries},ensure_ascii=False,indent=2)+'\n')
-    (out/'validation.json').write_text(json.dumps({'generator':'tools/skins/build_pocket_skins.py','scale':SCALE,'provenance':RECONSTRUCTION,'checks':'PNG CRC; ZIP paths; complete input maps; asset presence and states; no overlaps; 4:3 game rectangle; point-size matrix; built-in safe margins','physicalDeviceTested':False,'skins':receipts},ensure_ascii=False,indent=2)+'\n')
+    (out/'validation.json').write_text(json.dumps({'generator':'tools/skins/build_pocket_skins.py','scale':SCALE,'provenance':RECONSTRUCTION,'checks':'PNG CRC; ZIP paths; complete input maps; asset presence and states; no overlaps; game screen = the opening drawn on the body; point-size matrix; built-in safe margins','physicalDeviceTested':False,'skins':receipts},ensure_ascii=False,indent=2)+'\n')
     print(json.dumps({'output':str(out),'skins':entries},ensure_ascii=False))
 
 

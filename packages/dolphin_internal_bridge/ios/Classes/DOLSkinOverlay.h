@@ -48,6 +48,14 @@ FOUNDATION_EXPORT NSString* _Nullable DOLSkinConsoleOfGameType(NSString* gameTyp
 /// Where the game goes, in the overlay's coordinates (CGRectNull when the
 /// current orientation has no skin).
 @property(nonatomic, readonly) CGRect screenFrame;
+/// Where the game goes when the overlay has `bounds` (the skin chosen for that
+/// orientation), CGRectNull without one. The same computation as the layout: the session
+/// uses it for the surface the core reads at launch, when UIKit has not yet turned the
+/// window to the orientation the session allows.
+- (CGRect)screenFrameForBounds:(CGRect)bounds;
+/// The current skin cuts its screen with the pack's own cutout (`screens[].screenCutout`):
+/// the opening its body draws, not a rectangle.
+@property(nonatomic, readonly) BOOL screenCutoutActive;
 /// The skin's menu input (and its quick save / quick load, whose states are
 /// in that menu).
 @property(nonatomic, copy, nullable) dispatch_block_t menuHandler;

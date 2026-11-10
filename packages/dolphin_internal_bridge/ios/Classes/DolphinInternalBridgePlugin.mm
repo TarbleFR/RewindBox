@@ -21,6 +21,7 @@
 #import "DolphinRecordingController.h"
 #import "DOLTouchLayout.h"
 #import "DOLSkinOverlay.h"
+#import "DOLOrientationPolicy.h"
 #import "DOLSessionChromePolicy.h"
 #import "DOLOrientation.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
@@ -515,6 +516,17 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   }
   const CGSize size = self.lockedRenderSize;
   if (size.width < 1 || size.height < 1) return;
+  const CGRect whole = CGRectIntegral(target);
+  if (CGSizeEqualToSize(whole.size, size)) {
+    // The place the surface was read for: exactly over it, point for point (its
+    // outer fraction of a point lies under the skin's body).
+    render.transform = CGAffineTransformIdentity;
+    render.bounds = CGRectMake(0, 0, size.width, size.height);
+    render.center = CGPointMake(CGRectGetMidX(whole), CGRectGetMidY(whole));
+    return;
+  }
+  // Another place (the other orientation's screen, the whole view without the skin):
+  // fitted inside it with one scale, never stretched.
   const CGFloat scale = MIN(target.size.width / size.width, target.size.height / size.height);
   render.transform = CGAffineTransformIdentity;
   render.bounds = CGRectMake(0, 0, size.width, size.height);
@@ -524,16 +536,43 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 
 - (void)lockRenderSurface {
   if (self.renderSurfaceLocked) return;
-  if (self.skinOverlay != nil) {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  if (skin != nil) {
     [self.view layoutIfNeeded];
-    [self.skinOverlay layoutIfNeeded];
+    [skin layoutIfNeeded];
     [self syncSkinOverlay];
-    [_metalView layoutIfNeeded];
-    // The drawable keeps the size Dolphin reads now, whatever moves the view.
-    _metalView.autoResizeDrawable = NO;
+    // The core reads the surface now and keeps its size, so it must have the shape of
+    // the game's place in the bounds the session SETTLES in. Right after the presentation
+    // UIKit may still give the bounds of the screen that opened the session: a phone held
+    // sideways (the RewindBox menu) opening a portrait-only skin would lock a full-screen
+    // landscape surface, later fitted into the upright skin's screen with bands above
+    // and below.
+    CGRect settled = self.view.bounds;
+    if (DOLPolicyBoundsWillTurn((unsigned)skin.supportedOrientationMask, settled.size.width, settled.size.height)) {
+      settled = CGRectMake(0, 0, settled.size.height, settled.size.width);
+    }
+    const BOOL skinShown = !self.touchEditing &&
+        !NeoTouchControlsShouldHide([self touchConsole], self.controllerMonitor.connected, YES, NO, NO);
+    CGRect target = skinShown ? [skin screenFrameForBounds:settled] : CGRectNull;
+    if (CGRectIsNull(target) || target.size.width < 1 || target.size.height < 1) target = settled;
+    if (!self.externalDisplay.active && _metalView.superview == self.view && settled.size.width >= 1 &&
+        settled.size.height >= 1) {
+      const CGSize size = CGRectIntegral(target).size;
+      _metalView.transform = CGAffineTransformIdentity;
+      _metalView.bounds = CGRectMake(0, 0, size.width, size.height);
+      [_metalView layoutIfNeeded];
+      // The drawable keeps the size Dolphin reads now, whatever moves the view.
+      _metalView.autoResizeDrawable = NO;
+      const CGFloat scale = _metalView.contentScaleFactor;
+      _metalView.drawableSize = CGSizeMake(round(size.width * scale), round(size.height * scale));
+    } else {
+      [_metalView layoutIfNeeded];
+      _metalView.autoResizeDrawable = NO;
+    }
   }
   self.lockedRenderSize = _metalView.bounds.size;
   self.renderSurfaceLocked = YES;
+  if (skin != nil) [self placeRenderSurface];
 }
 
 - (void)suspendTouchInput {

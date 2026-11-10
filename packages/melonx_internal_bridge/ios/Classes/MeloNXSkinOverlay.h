@@ -40,6 +40,9 @@ FOUNDATION_EXPORT NSString* _Nullable MeloNXSkinConsoleOfGameType(NSString* _Nul
 @property(nonatomic, readonly) BOOL hasMenuControl;
 /// Where the game goes, in the overlay's coordinates (CGRectNull without one).
 @property(nonatomic, readonly) CGRect screenFrame;
+/// The current skin cuts its screen with the pack's own cutout (`screens[].screenCutout`):
+/// the opening its body draws, not a rectangle.
+@property(nonatomic, readonly) BOOL screenCutoutActive;
 /// A digital pad button changed: the embedded Core's index (A 0, B 1, X 2, Y 3,
 /// Minus 4, Plus 6, L3 7, R3 8, L 9, R 10, Up 11, Down 12, Left 13, Right 14, ZL 15,
 /// ZR 16; neostation_melonx_input_button).

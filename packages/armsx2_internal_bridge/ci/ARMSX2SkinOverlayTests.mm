@@ -1,5 +1,6 @@
 #import <XCTest/XCTest.h>
 #import "ARMSX2SkinOverlay.h"
+#import "SkinFrameCheck.h"
 #import "ARMSX2Orientation.h"
 
 // The production ARMSX2SkinOverlay on the REAL shipped PS2 archives (unpacked by
@@ -166,7 +167,6 @@
   ARMSX2SkinOverlay* overlay = [self overlayPortrait:portrait];
   XCTAssertTrue(overlay.layoutActive);
   XCTAssertTrue(CGRectGetWidth(overlay.screenFrame) > 0);
-  XCTAssertEqualWithAccuracy(CGRectGetWidth(overlay.screenFrame) / CGRectGetHeight(overlay.screenFrame), 4.0 / 3.0, 0.01);
   NSDictionary<NSString*, NSNumber*>* pad = @{@"up" : @0, @"down" : @1, @"left" : @2, @"right" : @3, @"cross" : @4,
                                                @"circle" : @5, @"square" : @6, @"triangle" : @7, @"l1" : @8, @"r1" : @9,
                                                @"l2" : @10, @"r2" : @11, @"start" : @12, @"select" : @13, @"l3" : @14,
@@ -303,6 +303,109 @@
   XCTAssertEqual(mask(), UIInterfaceOrientationMaskPortrait);
   ARMSX2OrientationSetGameMask(0);
   XCTAssertEqual(mask(), UIInterfaceOrientationMaskLandscape, @"released: the app's own again");
+}
+
+#pragma mark The game's place: the opening the skin's body draws (test/skin_frame/SkinFrameCheck.h)
+
+/// The part of each band of the test pattern that must show: a rounded corner hides a
+/// few points at each end.
+- (const double*)frameMinimum:(NSString*)skin portrait:(BOOL)portrait {
+  static const double minimum[4] = {0.9, 0.9, 0.9, 0.9};
+  return minimum;
+}
+
+- (NSDictionary*)infoOf:(NSString*)skin {
+  return [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:
+      [[[[self documents] stringByAppendingPathComponent:@"Libretro/Skins"] stringByAppendingPathComponent:skin]
+          stringByAppendingPathComponent:@"info.json"]] options:0 error:nil];
+}
+
+/// `skin` is the one `_info` describes (the class's own, or the one a test just chose).
+- (void)checkFrameOf:(ARMSX2SkinOverlay*)overlay skin:(NSString*)skin portrait:(BOOL)portrait tag:(NSString*)tag evidence:(BOOL)evidence {
+  NSString* directory = [[[self documents] stringByAppendingPathComponent:@"Libretro/Skins"] stringByAppendingPathComponent:skin];
+  NSString* renders = NSProcessInfo.processInfo.environment[@"ARMSX2_RENDER_DIR"];
+  NSString* file = evidence && renders.length > 0
+      ? [renders stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-%@-test-pattern.png", skin, tag]] : nil;
+  SkinFrameCheck(self, overlay, overlay.screenFrame, overlay.screenCutoutActive, [self layoutForPortrait:portrait], directory,
+                 [NSString stringWithFormat:@"%@ %@", skin, tag], [self frameMinimum:skin portrait:portrait], file);
+}
+
+- (void)checkGameScreenPortrait:(BOOL)portrait {
+  NSString* name = portrait ? @"portrait" : @"landscape";
+  // The mapping size, then real phone sizes (the skin fitted with one scale).
+  for (NSValue* value in @[ [NSValue valueWithCGSize:CGSizeZero], [NSValue valueWithCGSize:CGSizeMake(393, 852)],
+                           [NSValue valueWithCGSize:CGSizeMake(375, 812)], [NSValue valueWithCGSize:CGSizeMake(430, 932)] ]) {
+    CGSize size = value.CGSizeValue;
+    if (!portrait) size = CGSizeMake(size.height, size.width);
+    ARMSX2SkinOverlay* overlay = [self overlayPortrait:portrait];
+    if (size.width >= 1) {
+      overlay.frame = CGRectMake(0, 0, size.width, size.height);
+      [overlay setNeedsLayout];
+      [overlay layoutIfNeeded];
+    }
+    [self checkFrameOf:overlay skin:[self skinId] portrait:portrait
+                   tag:size.width >= 1 ? [NSString stringWithFormat:@"%@-%.0fx%.0f", name, size.width, size.height] : name
+              evidence:size.width < 1];
+  }
+}
+
+- (void)testTheGameFillsTheDrawnOpeningInPortrait { [self checkGameScreenPortrait:YES]; }
+- (void)testTheGameFillsTheDrawnOpeningInLandscape { [self checkGameScreenPortrait:NO]; }
+
+- (void)pressOn:(ARMSX2SkinOverlay*)overlay portrait:(BOOL)portrait what:(NSString*)what {
+  [_events removeAllObjects];
+  FakeTouch* finger = [self touchAt:[self centerOf:[self itemNamed:@"cross" portrait:portrait] fx:0.5 fy:0.5]];
+  [self begin:finger on:overlay];
+  [self end:finger on:overlay];
+  XCTAssertEqualObjects(_events, (@[ @"b4+", @"b4-" ]), @"the controls answer %@", what);
+}
+
+/// One overlay through what a session does to it: a turn, the session menu over it (inputs
+/// released, touches off then on again, hidden then shown), a turn back. The game's place
+/// is right each time and the controls answer again.
+- (void)testTheGameScreenAndControlsAfterRotationAndMenu {
+  ARMSX2SkinOverlay* overlay = [self overlayPortrait:YES];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:YES tag:@"portrait" evidence:NO];
+  [self layout:overlay portrait:NO];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:NO tag:@"landscape after a turn" evidence:NO];
+  [self pressOn:overlay portrait:NO what:@"after a turn"];
+  [overlay releaseAllInputs];
+  overlay.userInteractionEnabled = NO;
+  overlay.hidden = YES;
+  overlay.hidden = NO;
+  overlay.userInteractionEnabled = YES;
+  [overlay setNeedsLayout];
+  [overlay layoutIfNeeded];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:NO tag:@"landscape after the menu" evidence:NO];
+  [self pressOn:overlay portrait:NO what:@"after the menu closed"];
+  [self layout:overlay portrait:YES];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:YES tag:@"portrait after turning back" evidence:NO];
+  [self pressOn:overlay portrait:YES what:@"after turning back"];
+}
+
+/// Another skin chosen, then the session launched again (a new overlay reads the files):
+/// each skin gets its own game place and its controls; "default" leaves no overlay.
+- (void)testTheGameScreenFollowsASkinChangeAndARelaunch {
+  NSString* other = [[self skinId] isEqualToString:@"ps2-pocket"] ? @"ps2-pocket-original" : @"ps2-pocket";
+  NSString* skins = [[self documents] stringByAppendingPathComponent:@"Libretro/Skins"];
+  NSError* error = nil;
+  [NSFileManager.defaultManager copyItemAtPath:[NSProcessInfo.processInfo.environment[@"ARMSX2_SKIN_FIXTURE"] stringByAppendingPathComponent:other]
+                                        toPath:[skins stringByAppendingPathComponent:other] error:&error];
+  XCTAssertNil(error);
+  NSDictionary* own = _info;
+  for (NSString* skin in @[ other, [self skinId], other, [self skinId] ]) {
+    [self writeSelection:@{@"console" : @{@"skin.portrait" : skin, @"skin.landscape" : skin}}];
+    _info = [self infoOf:skin];
+    for (NSNumber* portrait in @[ @YES, @NO ]) {
+      ARMSX2SkinOverlay* overlay = [self overlayPortrait:portrait.boolValue];
+      [self checkFrameOf:overlay skin:skin portrait:portrait.boolValue
+                     tag:[NSString stringWithFormat:@"%@ after a skin change", portrait.boolValue ? @"portrait" : @"landscape"] evidence:NO];
+      [self pressOn:overlay portrait:portrait.boolValue what:[NSString stringWithFormat:@"with %@ after a skin change", skin]];
+    }
+  }
+  _info = own;
+  [self writeSelection:@{@"console" : @{@"skin.portrait" : @"default", @"skin.landscape" : @"default"}}];
+  XCTAssertFalse([[ARMSX2SkinOverlay alloc] initWithGameKey:@"game.iso"].hasSkin, @"skin off: no overlay, the game keeps the whole view");
 }
 
 @end
