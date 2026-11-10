@@ -1769,25 +1769,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-- **Current maintainer complement, 10 Nov — relayed by Codex to the same owner (message 19, queued/unread at verification).**
-  Preserve the ongoing lot 9 work, validated lots 1–6/8 and closed production-excluded
-  lot 7 prototype. New P0 priorities: Mario 3D World/Bowser's Fury presentation SIGSEGV
-  in `presentCAMetalDrawable` (IPA 718 / Core 717), and Switch skin commands lost after
-  Menu→game; then long pipeline/syncpoint/GC/cache hitches. The reported stack is a
-  lead, not proof of a use-after-free or shared cause with input. Require production
-  corrections, discriminating executed before/after checks, resource/callback/session
-  lifetime invariants and separate host/iPhone results. Referenced capture source
-  `45923d133e5ec9325b6c64f44844f7dafba6f404`, binary prefix `f565e10bba1e`;
-  it does not validate newer candidates. Exact relay SHA-256
-  `70e24fa48a2a312b14b62b6788d129e58a67b3fa8c6a90363e0cd9eff4537dba`.
-  No new log file attached by Codex; original availability remains for the owner to
-  verify, with no old namesake substitution. UI set once from Fable 5.2 / Max to
-  **Opus 5.5 / High** for the next message; native `rb-effort-high` requested, return not
-  observed. Current request not stopped/replaced. Coordinate shared skin/overlay paths
-  with the existing owner; main retains integration/pins/Core CI/IPA. Public 0.0.11
-  publication is on hold at the maintainer's request. This is a targeted complement,
-  not a parallel diagnosis or new worker.
-
+- **Active maintainer goal, 10 Nov — Hogwarts playability, FPS and RAM.** Continue autonomous
+  evidence→production correction→executed test→comparable measurement cycles in this same
+  session until Hogwarts is demonstrably playable on iPhone 16 Pro Max, native 1×, correct
+  game speed and stable 30 presented FPS, with controlled allocations/footprint and no
+  recurrent long pauses. Target about 33.3 ms/frame; report p50/p95/p99, 50/100/500 ms
+  outliers, short-window FPS, long-session memory slope/headroom and thermal conditions.
+  A ≤ 4 GiB footprint is an initial target if required resources permit, never a quality
+  or correctness shortcut. A green CI/host benchmark is not iPhone playability.
+  Preserve validated lots 1–6/8, closed nonproduction lot 7, the crash/skin fixes in 720 and
+  ongoing 721 cache work; finish useful gates/CI without duplicate dispatch. Keep missing
+  device proof explicit and the mission open; continue independent fixes.
+  **Relay verified:** formal context/criteria prompt queued once for the owner's next
+  turn (Ctrl+Enter; current work left running), 21846 UTF-8 bytes, SHA-256
+  `5f1f9167574d8fa7b1e1efb744ac5d25e69f61bcf8ee5da5eee5973287057422`.
+  UI remains **Opus 5.5**, changed High→**Max** for named GC suspension/cache ownership/
+  concurrency ambiguities; High for bounded understood work thereafter. Native effective
+  effort return not observed; no claim to change the in-flight request.
+  Baseline 720 / Core 719 and run 42798677772 are verified delivery evidence, not gameplay.
+  Current 721 preparation/77-gate run were still local/in progress; MoltenVK
+  [run 42822060210](https://github.com/TarbleFR/RewindBox/actions/runs/42822060210)
+  succeeded on `5af777be`, artifact/IPA identity still to verify by owner.
+  Main retains integration/pins/Core CI/IPA; public 0.0.11 stays on hold. No new
+  worker, workflow, pin, IPA or periodic relaunch created by this relay.
 
 - **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643" to "IPA 657"),
   [621 logs](melonx-621-measurement-2026-11-03.md). Main owns compilation/pins/integration.
