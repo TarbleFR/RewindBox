@@ -320,6 +320,7 @@
  },
  "images": {
   "mustChange": [
+   "Frameworks/App.framework/App",
    "Frameworks/MeloNXCore.framework/MeloNXCore",
    "Frameworks/libRPCS3Core.dylib",
    "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
