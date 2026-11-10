@@ -1,0 +1,36 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-10",
+ "scope": "RewindBox Switch Pocket (PR #165, merged by the integration session as a separate merge): assets/skins/pocket gains one pack, switch-pocket, built by tools/skins/build_switch_pocket.py from the pixels of the maintainer-approved design docs/design/pocket/approved-switch.png (byte copy of the maintainer's RewindBox-Switch-Pocket-reference-exacte.png, 1939331 B, b89f7cce..., received in a ZIP of 1797253 B, ea785d7f...; docs/evidence/switch-pocket/reference-receipt.json). Console names and marks belong to their owners. No third-party artwork or font bundled. The six earlier packs are byte-identical. The MeloNX bridge gains RewindBox's own MeloNXSkinOverlay.h/.mm, MeloNXSkinHitTest.h and MeloNXSkinSession.swift (GPL-3.0-or-later, the package's licence; its podspec is unchanged). No hosted package, dependency, framework, engine, Core or vendored native source change.",
+ "baseline_inventory": "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json",
+ "baseline_inventory_sha256": "1c1d4cc69b7237f07ffc14ef35ce68cdaaa789bb5d5ae858651a7c84e8bca41d",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {}
+ },
+ "declarations": {},
+ "bundled_assets": {
+  "catalog": "assets/skins/pocket/catalog.json",
+  "catalog_sha256": "7934caa3ee4f01919707dd0282af45d6be7d13b6a3fd6e76f88b8cffc07f015c",
+  "previous_catalog_sha256": "7cdd07197e96523ac859a8580d3bb01021d966d98f6795240a2c7e688827585a",
+  "catalog_skins": 7,
+  "added_skins": {
+   "switch-pocket": {
+    "size": 9607850,
+    "sha256": "9df1b5da562f904d3657c950314874ff6f23ac59e025c312d9a8bfa34b871abd",
+    "archiveAsset": "assets/skins/pocket/switch-pocket.manicskin"
+   }
+  },
+  "design_reference": {
+   "path": "docs/design/pocket/approved-switch.png",
+   "size": 1939331,
+   "sha256": "b89f7cce2180b92ca3ef65adccb862c06c086345af0e7a2469d96809136ae108"
+  },
+  "review": "docs/switch-pocket-2026-11-09.md",
+  "evidence": "docs/evidence/switch-pocket/"
+ },
+ "revisions": []
+}
