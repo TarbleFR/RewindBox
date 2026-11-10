@@ -1,85 +1,29 @@
 # RewindBox — next public release checklist
 
-Updated 10 November 2026. Owner: the main integration/release session
-`012mUAShv9k6pSCnpW7oAF63`. This editorial inventory follows the release-note
-rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain there.
+Updated 10 November 2026. Owner: main integration/release session
+`012mUAShv9k6pSCnpW7oAF63`. Implementation tasks and their current evidence remain
+in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md).
 
-## Baselines and publication state
+## Published baseline
 
-- Last verified public release: [0.0.10, Build 559](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10),
-  published 26 October 2026. It already announced embedded MeloNX, PS3 ISO launch,
-  Liquid Glass and the asynchronous-submit option; do not present them as new.
-- Latest verified private delivery: IPA 669 (run `42144057315`, [receipt](../evidence/rewind669/delivery.json)), RPCS3 Core 668 / MeloNX Core 667, on 666 (run `42076808470`, RPCS3 Core 665 / MeloNX Core 663, on 662).
-  Known defect (MeloNX session, 5 Nov 12:20 UTC): Hogwarts Legacy crashes natively about 24 s after launch, before
-  the menus, with MeloNX Core 661 (pids 13088, 13123); MeloNX stays on IPA 658 until the Core 663 fix. RPCS3 is not
-  concerned.
-  See [delivery receipt](../evidence/rewind662/delivery.json) (657: [receipt](../evidence/rewind657/delivery.json),
-  653: [receipt](../evidence/rewind653/delivery.json),
-  650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
-  Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
-  Private delivery does not mean public publication.
-- Latest verified private delivery: common IPA 723 (10 November 2026), on 722, run `42878187148` (trigger `67078e4f`,
-  green first try), [receipt](../evidence/rewind723/delivery.json): IPA 271438268 B, SHA-256
-  `0be70809dde1f206bc298992a02d3349e5ff67ed0da510133788a84a32d49255`; the content of 722 with RPCS3 Core 921 (stale idle
-  textures released). Downloaded plaintext IPA verified offline, private key deleted. Not tested on an iPhone; no FPS or
-  memory claim.
-- Previous verified private delivery: common IPA 722 (10 November 2026), on 721, run `42852972508` (trigger
-  `c7ca5d37`; the first request, run `42848698413`, stopped when the encrypted IPA passed the 4 x 64 MiB transport bound,
-  fixed by `ea8152d9`), [receipt](../evidence/rewind722/delivery.json): IPA 271385645 B, SHA-256
-  `e9aad8d2c84b0e464ff1ce3e1a51b3fd0057396ee88c3ae04fedcf5dd89f245d`; the content of 721 with RPCS3 Core 920, MeloNX
-  Core 721 with the rebuilt MoltenVK (three-part patch) and the RewindBox Pocket windows at the game's ratio (PR #169).
-  Downloaded plaintext IPA verified offline, private key deleted. Not tested on an iPhone; no FPS claim.
-- Previous verified private delivery: common IPA 721 (10 November 2026), on 720, run `42822649775` (trigger
-  `cfb56420`; the first request, run `42819476474`, failed on a load-dependent floor of a MeloNX journal test, fixed by
-  `653bb484`), [receipt](../evidence/rewind721/delivery.json): IPA 267033667 B, SHA-256
-  `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`; the content of 720 with RPCS3 Core 919 (Black Ops
-  II ZCULL waits). Downloaded plaintext IPA verified offline, private key deleted. Not tested on an iPhone; no FPS claim.
-- Previous verified private delivery: common IPA 720 (10 November 2026), on 719, run `42798677772` (trigger
-  `8a1884a9`; the first request, run `42795453604`, failed on a Swift call name of the MeloNX handoff, fixed by
-  `65a9e633`), [receipt](../evidence/rewind720/delivery.json): IPA 266993445 B, SHA-256
-  `e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`; the content of 719 with MeloNX Core 719
-  (replaces 717), MoltenVK 1.4.2 with the RewindBox drawable ownership patch, and the skins' screen framing
-  (PR #166) and sinking buttons (PR #167); RPCS3 Core 918 unchanged. Downloaded plaintext IPA verified offline,
-  private key deleted. Not tested on an iPhone; no FPS, crash or touch claim.
-- Earlier verified private delivery: common IPA 719 (10 November 2026), on 694, run `42779263525` (trigger
-  `3b4b4d02`), [receipt](../evidence/rewind719/delivery.json): IPA 263643764 B, SHA-256
-  `2446e86d98550c8eac6b91b618cb563c2fd0948f3e810ebd09147adc508e4c56`; the content of 718 with RPCS3 Core 918 (which
-  holds Cores 916 and 917), MeloNX Core 717. Downloaded plaintext IPA verified offline, private key deleted. Not tested
-  on an iPhone; no FPS claim.
-- Earlier verified private delivery: common IPA 718 (maintainer instruction of 10 November 2026), on 694, run
-  `42747501121` (trigger `34fbf8eb`; attempt `42741950414` failed in its native group and was recovered by recipe
-  `6ad78af6`), [receipt](../evidence/rewind718/delivery.json): IPA 263465367 B, SHA-256
-  `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`; RPCS3 Core 914, MeloNX Core 717, main menu
-  bar without labels (PR #164), Switch Pocket skin (PR #165). Downloaded plaintext IPA verified offline, private key
-  deleted. Not tested on an iPhone; no FPS claim. The Switch 2 experiment and the RPCS3 Core 915 witness stay out.
-- RPCS3 Core 916 pinned on 10 November 2026 ([record](../rpcs3-core916-build718.md); run `42764728604`, dylib
-  `7c941344…`, pin `708e4109…`), delivered in the private IPA 719 as part of Core 918: with Accurate SPU Reservations off, an SPU atomic store on a SPURS
-  header no longer overwrites a value the game's main processor wrote in between (Assassin's Creed waited 6 s when
-  leaving the game, until it was stopped); God of War III's MLAA bypass setting now also applies to version 1.00 of the
-  game, at a fresh boot; stall reports name the waited condition and the calling code; diagnostic captures can be
-  requested again; journals no longer fill up after a game is closed. Host tests only; no FPS claim.
-- RPCS3 Core 917 pinned on 10 November 2026 ([record](../rpcs3-core917-black-ops2.md); run `42772572060`, dylib
-  `4830ddd6…`, pin `a7d1b9a6…`), delivered in the private IPA 719 as part of Core 918: for Call of Duty: Black Ops II, an SPU atomic store that must stop
-  the game's main processor threads waits a little longer on its own core before it gives that core away; the
-  performance report compares both behaviours in the same scene and collects its captures by itself when such stores
-  come in a storm. Host tests only; no FPS claim.
-- RPCS3 Core 918 pinned on 10 November 2026 ([record](../rpcs3-core918-busy-wait.md); run `42776454670`, dylib `97b083c2…`,
-  pin `3d8ec315…`), delivered in the private IPAs 719 and 720: on iPhones whose system counter runs at 1 GHz, the emulator's short active waits lasted 42 times less
-  than on the phones it was tuned on, so a thread waiting for a lock gave its core away almost at once; they now last
-  the same on every device (setting "Busy wait reference duration"). The performance report counts what the scheduler
-  did for the app in each window and, for the first minutes of a game, compares this setting and the Core 917 one by
-  alternating them between its windows. Host tests only; no FPS claim.
-- RPCS3 Core 919 pinned on 10 November 2026 ([record](../rpcs3-core919-zcull-bo2.md); run `42815113270`, dylib `04f44a94…`,
-  pin `44527c61…`), delivered in the private IPA 721: in Call of Duty: Black Ops II the game's main processor threads waited up to a fifth of their time for
-  occlusion results the GPU could have finished long before, because the work behind them was sent to the GPU only when
-  the game asked; that work is now sent as soon as possible, as it already was for Assassin's Creed. Host model only
-  (waits at 23 of 23 reads before, 2 after); no FPS claim before an iPhone measurement.
+**[RewindBox 0.0.11](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11) ·
+Build 721**, published 10 November 2026 at 20:41:55 Europe/Paris.
+RPCS3 Core 919 / MeloNX Core 719.
+[Exact published notes](0.0.11.md) · [Public file verification](../evidence/release-0.0.11-public-download.json).
+
+Items announced in 0.0.11 are now archived in its release notes and must not be
+presented as new again. The complete earlier editorial inventory remains in
+[its immutable pre-publication version](https://github.com/TarbleFR/RewindBox/blob/541d9789b0b56217ac4a9a660bee0b54c3f87dfd/docs/releases/NEXT.md).
+
+## Changes after Build 721 to carry forward
+
 - RPCS3 Core 920 pinned on 10 November 2026 ([record](../rpcs3-core920-lever-comparison.md); run `42838028676`, dylib
   `79d70a4d…`, pin `f9f2b478…`), delivered in the private IPA 722: the emulator no longer switches two of its settings off and on
   again by itself during the first minutes of every game to compare them (up to three minutes with one of them off);
   that comparison now runs only when asked for with the new setting "Lever comparison between report windows". The
   performance report also tells, for Black Ops II, how old the occlusion result is that each wait is for and what
   sending it early costs. Host tests only; no FPS claim.
+
 - RPCS3 Core 921 pinned on 10 November 2026 ([record](../rpcs3-core921-stale-texture-release.md); run `42872597093`, dylib
   `5aee7478…`, pin `d4864cab…`), delivered in the private IPA 723: in Call of Duty: Black Ops II the memory kept growing during
   play (several gigabytes after a few minutes) because textures the game had replaced in its own memory were never
@@ -87,75 +31,50 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   releases those the game has overwritten (setting "Stale texture release", on for every game). Textures still in the
   game's memory are kept. Host model only (113 MiB kept before, 24.7 MiB after on a Black Ops II-shaped stream); the
   iPhone memory gain is not measured yet.
-- Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
-  [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
-  and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and
-  automatic approval review block the final actions; intended links are not advertised as live.
-  Feed metadata preserves the IPA's actual version `0.0.8` and build `718`, with marketing version
-  `0.0.11`. The public baseline remains 0.0.10 until the release, IPA download and source are verified.
-  All rows below remain **not yet included in a verified public announcement**.
-- Seed inventory: the public559-to-private640 comparison has 745 commits.
-  The items below are supported by current component documentation and the three
-  active sessions; the release owner must reconcile the full final range before
-  publishing, including reversions, dependencies and approved items beyond this
-  initial editorial pass. Do not silently drop deferred items.
-
-## Changes to carry into the next announcement
 
 | Category | User-facing change | Evidence and current state |
 | --- | --- | --- |
-| New interface option | RewindBox Glacier style, reversible preset and bundled offline System Art; margin, clipped-title, glyph and carousel refinements. | Delivered-source baseline640; `fe37a2da`, `97d8a38f`; [Glacier record](../rewindbox-glacier-2026-11-02.md). Preserve explicit player choices. |
-| Library improvements | Improved physical proportions and sides/spines of 3D game cases, editable backs and nondestructive image correction; ROM-ID GameTDB matching, scraping and French-manual lookup. | Baseline640; `cdba0321`, `6e636e9d`, `ef1ddfee`, `cf87abdc`, `1745b3e6`, `400d1f34`; [case/media documentation](../game-box-3d.md). Artwork/manual availability depends on sources. Existing 3D cases are improved, not newly introduced. |
-| Cheats & Enhancements | Unified per-game page for available FPS/aspect-ratio/graphics/performance patches, compatibility information, toggles and restoration of original settings. | Baseline640; `23a847d6`; [enhancements](../ENHANCEMENTS.md). HD textures link to the existing feature; patches depend on title/version and may download from original sources. No universal FPS claim. |
-| RetroAchievements account | Consistent account/sign-in state, shared Hardcore policy, session notifications and legacy-account migration across supported engines. | Delivered605/608, retained640; `d7992b1f`, `5912d1cd`, `c1d857c2`, `45d19d76`, `c00bdca6`; [608 delivery](../build608-ra-session-delivery.md). Do not imply every emulator/title has achievement sets. |
-| RetroAchievements language and recognition | Achievement text follows the selected app language, including supported native overlays/external-display views; improved CHD/CSO identification, shared hashing, online lookup and clearer title-only matches. | `15c833c1`, `92f139fc`, `b06888a9`; [translation](../achievement-translation.md), [identification](../ra-game-identification-2026-11-01.md). Apple machine translation depends on runtime/language-model availability; recognition does not make unsupported dumps/sets supported. |
-| Skins and orientation | Pocket skins for GameCube/Wii and PS2 Pocket black-matte skin; portrait/landscape choices, selected-layout orientation lock, controls and Menu routing. | Privately delivered640 via squash`705e90c7`; orientation/input host and simulator receipts in board. Preserve known limits: changes apply next launch; no blanket claim of physical-device validation. |
-| PS2 playlist fix | Access the PS2 skin manager directly from the playlist menu. | Follow-up source`7dbb704`, [PR152 discussion](https://github.com/TarbleFR/RewindBox/pull/152), reviewed and integrated by main as `b8794226` (two product files, linear integration). True widget/selection/persistence tests4/4 and negative witness passed; board evidence reconciled separately. Packaged and verified in private IPA 643; iPhone path not yet observed. Closed PR's old head metadata is not the new handoff identity. |
-| RPCS3 stability/performance work | Delivered synchronization/report-wait, shader/SPIR-V cache and PPU preparation corrections; additional AC audio/BO2 stutter investigation. | Cores630/634/636/638 in640; [636](../rpcs3-core636-2026-11-03.md), [638](../rpcs3-core638-2026-11-03.md). Core 641 (source `556648e7`, run `41766094450`) pinned `ff91455f` and verified offline: the Core's existing audio counters now reach the device logs ([641](../rpcs3-core641-2026-11-04.md)). Packaged in private IPA 643. Instrumentation is not itself an audio fix. IPA 643 logs then showed the Assassin's Creed audio gaps follow cellAudio periods dropped on a wait timeout; Core 645 ([645](../rpcs3-core645-2026-11-04.md)) outputs those periods instead: compiled, pinned and packaged in private IPA 650. Core 651 ([651](../rpcs3-core651-2026-11-04.md)) also ends the wait for a late audio port when the output ring runs low (pinned `bdfe9b7d…`); Core 652 ([652](../rpcs3-core652-2026-11-04.md)) keeps one depth feedback barrier per read-only chain, depth-test-off draws included (each barrier ended a render pass; AC had 51 passes per frame), and adds a render pass end census; compiled, pinned (`e56ec20a…`) and packaged in private IPA 653. First IPA 650 device logs (AC, BO2) received 4 Nov 18:00 UTC: AC gameplay FPS equal to 643 (25–28 FPS); one AC session ended in a GPU device loss after the process footprint reached 4.7 GB with 2.5 GB compressed before the game started — verified: no steady-state regression; compression refuted as the cause. IPA 653 device logs (19:24–19:39 UTC, device at thermal 0): AC 24–29 FPS GPU-bound (70–78 % busy, 44–53 render passes per frame, 13–19 restarting the same target), BO2 15–22 FPS limited by the guest CPU (GPU 20–27 %), so Core 652's barrier change could not show on screen; the pass census now names the sites; Core 655 ([655](../rpcs3-core655-2026-11-04.md)) keeps an Assassin's Creed render pass open when a texture that is not one of its targets becomes readable, with a MoltenVK change that makes the open pass wait for the earlier writer (MoltenVK dependency run `41912442196`); every other transition ends the pass as before. Host tests passed on Linux and Apple; built (run `41915370416`, Apple harnesses `41919474901`), pinned (`9beafb86…`) and packaged in private IPA 657. Black Ops II is unchanged: the IPA 653 logs show no saturated SPU/PPU thread and an RSX thread about 40 % busy, so no scheduling or texture change rests on the evidence. Host evidence only; no controlled FPS or audio claim. IPA 657 device logs: Black Ops II froze after about 85 s of play with busy SPUs and a spinning PPU on one job queue word ([record](../rpcs3-ipa657-logs-2026-11-05.md)); its profile returns to accurate SPU reservations (RPCS3's default) and builds its recorded SPU programs before the game starts, instead of about 8,800 of them at the first scene transition (`9403a7bf`). Not observed on an iPhone yet. Core 659 ([659](../rpcs3-core659-2026-11-05.md)): on Assassin's Creed and Black Ops II, once the GPU has finished its work, the draws already recorded are sent to it at the next point where no render pass is open, so the GPU renders while the rest of the frame is recorded instead of waiting for it (IPA 657: the GPU idled 23–32 % of each Assassin's Creed frame exactly while the frame was recorded); commands, order and results unchanged; two new ZCULL counters. Host tests passed on Linux and Apple; built (run `41958979698`) and pinned (`352e46f6…`). No FPS claim before an iPhone measurement. Core 660 ([660](../rpcs3-core660-2026-11-05.md)), every fix identified so far: SPU blocks that read the decrementer get the right time offset again (since Build 481 they read a wrong per-boot constant); SPU programs found in the cache are linked without being rebuilt; Assassin's Creed reuses texture lookups while nothing they read changed, with a built-in check that turns it off at the first difference; Assassin's Creed sends the work behind a ZCULL report the game waits for earlier; Black Ops II and Assassin's Creed no longer submit at every report of a long ZCULL queue (each with its own setting on the in-game test page). Six adversarial reviews, every defect fixed; host tests passed on Linux and Apple; built (run `41995875495`, after a first request refused for a stale MoltenVK dependency receipt and an Apple sanitizer option, both fixed without removing a check) and pinned (`f4c82c38…`). Packaged in private IPA 662 (run `42020264926`). No FPS claim before an iPhone measurement. Core 664 ([664](../rpcs3-core664-2026-11-05.md)): when a thread that waited a long time for guest memory behind the Black Ops II SPU write locks finally resumes, new write locks of the other threads wait about 100 µs more before stopping it again, so it can feed the SPUs (the freezes of 9–40 s in IPA 624, 657 and 662); every write lock is still taken in full, within the same bound; its own setting on the in-game test page. Independent review: no correctness defect, two efficiency defects fixed. Host model only (PPU progress during the storm about 5 % → 50 %); built (run `42054351852`) and verified offline; superseded by Core 665 before packaging. Core 665 ([665](../rpcs3-core665-2026-11-05.md)), the thread orchestrator for every title: while a game runs, it tries the SPU threads on the efficiency cores in short phases and keeps that placement only when the frame rate is at least as high (aborting at once when it drops), so the PPU keeps the performance cores and is stopped less often by SPU writes; the PPU threads run above the background threads, below the RSX and audio threads; nothing in the rendering or the results changes; its own setting on the in-game test page. Built (run `42067129517`), pinned (`8f70502f`) and packaged in private IPA 666 (run `42076808470`). No FPS claim before an iPhone measurement. Core 668: the thread orchestrator is removed again (maintainer, 5 November: no gain measured on the iPhone); every other Core 664 change, the PPU grace included, stays. Assassin's Creed IV: Black Flag now uses the PPU recompiler (LLVM, RPCS3's default) instead of the PPU interpreter of RPCS3's entry for that game, keeping the entry's Read/Write Color Buffers: on IPA 666 the game froze at the title-screen load after its intro (`71afe46e`). Packaged in private IPA 669 (run `42144057315`); not observed on an iPhone yet. |
-| MeloNX optimization | Shader warm-up key parity and memory-pressure handling, with work on remaining stutters and unnecessary fallback costs. | PR153 shipped as Core639 in640. [Optimization map](../melonx-optimization-map-2026-11-03.md). Distinguish completed source changes from pending device comparisons. MeloNX Core 656 (handoff `7d163b07`, pin `1aec9099`, run `41934793344`) adds two levers from the IPA 650 logs: the whole rebuilds of large bindless texture arrays reuse bounded slots instead of allocating four large arrays each time (host: 400 MiB to 0.1 MiB over a 200-rebuild burst, GC pause 75 to 0 ms), and a steady 30 fps game is shown every 33.3 ms on iOS with VSync Switch (VK_GOOGLE_display_timing; simulated 17/50 ms alternations 2.37 to 0.02 per s at about +15 ms mean latency). Packaged in private IPA 657. Host evidence only; the device's core-performance windows and "Present pacing over" lines will tell. |
-| MeloNX visual correctness | Fix rendering-order defects associated with stale/flickering frames in Hogwarts Legacy and investigate/correct the distinct SSBU path. | [PR154](https://github.com/TarbleFR/RewindBox/pull/154) lot integrated linearly (`f5a95ef4`) as MeloNX Core 642, frozen `8cd2e93c` (18 host gates passed, including the barrier-compaction rerun); Core CI run `41770120368` passed and pinned (fingerprint `281aa3a4…`); packaged in private IPA 643. Under MoltenVK 1.4.1+ an in-pass image barrier of a non-attachment now ends the render pass (every title), the Hogwarts in-pass read barrier is recorded again, and SSBU's descriptor template fallbacks are removed by the binding-sized scratch for every title. Not verified visually on iPhone yet; do not claim the flicker is fixed before a device recording. Core 649 (the PR156 lot and follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks; 23 host gates) is packaged in private IPA 650. These corrections do not by themselves prove the black launch, artifacts or the recording close cured. PR156 new lot from the IPA 650 logs (closed sessions' layer binders released in SurfaceFlinger.Dispose with a sessionRetention probe, gcEvent lines, artifact-path counters, capture/interruption journal) integrated `4700d445`, wired and frozen as MeloNX Core 654 (`d8ed0119`, 27 host gates, contract `e1f181e5…`), Core CI run `41907506289` in progress; not yet packaged. |
-
-| Skins (new choices) | Two new bundled choices, GameCube Pocket — Original and Wii Pocket — Original, reproduce the approved Pocket designs in portrait and landscape alongside the existing packs; the Dolphin session's floating menu and performance buttons no longer cover skin controls. | [PR155](https://github.com/TarbleFR/RewindBox/pull/155), integrated `5ab7273d`, legal overlay `33bb2a22`, packaged in private IPA 643; the [PR157](https://github.com/TarbleFR/RewindBox/pull/157) touch, pressed-state and stick geometry fix (`39ab1b62`, legal `82f0b57c`) packaged in private IPA 650. Known limits: sharpness bounded by the approved boards (about 0.9 px/pt source); in the opposite landscape rotation the sensor housing covers part of GameCube X and the C-stick (closed, measured list); 375×667 iPhones letterboxed (36.3 pt targets); ARMSX2 floating menu over PS2 L1 in landscape reported only. Not observed on an iPhone. |
-| Skins (new choice) | PS2 Pocket — Original: a new bundled PS2 skin reproducing the approved Pocket design in portrait and landscape, beside the existing PS2 Pocket; controls react to the shape actually drawn under the finger, and the ARMSX2 floating menu no longer covers L1 when the skin has its own Menu. | [PR158](https://github.com/TarbleFR/RewindBox/pull/158) (`628a730`, `084928e`), simulator run `41870604467` green (ARMSX2 28/28); reviewed and integrated linearly by main as `70b9c36e`, legal overlay `850611ff`, host checks rerun; packaged in private IPA 653. The landscape sizes below await the maintainer's decision. Known limits: in landscape L3/R3 (about 26 pt tall) and SELECT/START (about 40 pt) are below 44 pt as placed on the approved design; sensor housing over Circle in the opposite rotation; sharpness bounded by the design. Not observed on an iPhone. |
-| Skins fix | A RewindBox skin installed by an earlier version now updates to the corrected version shipped with the app, keeping your skin choices (the GameCube Pocket — Original press boxes and off-centre sticks reported after the touch fix came from an old installed copy). | [PR159](https://github.com/TarbleFR/RewindBox/pull/159) (`d0348a4`), Flutter 250/250 with a failing-without-fix test; reviewed and integrated linearly by main as `ae36a672`; packaged in private IPA 657 (the 653 device check confirmed the stale installed copy). Not observed on an iPhone. |
-| Skins fix | On GameCube Pocket — Original and Wii Pocket — Original each analog stick now moves as one whole circle, the yellow C-stick included; nothing of the stick stays behind and no controller texture moves with it. | [PR162](https://github.com/TarbleFR/RewindBox/pull/162) (`592c4d1`), replaces the PR160 behaviour packaged in private IPA 657 ([PR160](https://github.com/TarbleFR/RewindBox/pull/160) `90aabdb`, integrated as `57e21ae2`, legal `873b0ad2`); Dolphin skin simulator 9/9 (run `41950787918`); reviewed and integrated linearly by main (byte-identical cherry-pick), legal declarations revised (board Originals + PS2 overlay), archives rebuilt byte-identically, skin verifier 22 checks on 6 packs; for the next common IPA. Not observed on an iPhone. |
-| Main menu | The main navigation bar shows its icons only: no name under any icon, the active one included, with no empty space left; the icons, their order, selection, actions and VoiceOver names are unchanged. | [PR164](https://github.com/TarbleFR/RewindBox/pull/164) (`00a83e69`), `test/main_nav_no_labels_test.dart` 5/5, full Flutter suite baseline-identical; reviewed and integrated by main (merge `9cd24ca5`), packaged in private IPA 718 and every later one. Not observed on an iPhone. |
-| Skins (new choice) | Switch Pocket: a new skin for the Nintendo Switch (MeloNX) in portrait and landscape, reproducing the approved design, chosen from Skins in the Switch playlist menu; every Switch control is on screen, both sticks move, HOME and Capture say they are not available with this engine. | [PR165](https://github.com/TarbleFR/RewindBox/pull/165) (`8e2f4bd1`, `df985d3f`, `36c7bdf2`), built from the maintainer's original PNG (`b89f7cce…`); host checks, Dart playlist flow and MeloNX simulator CI; reviewed and integrated by main (merge `4470eaef`, declaration `2f82352f`), packaged in private IPA 718 and every later one. Known limits: portrait R3 about 38 pt; in landscape the iPhone's Dynamic Island touches the left stick's edge and covers it when pushed fully left. Not observed on an iPhone. |
-| Skins fix | In the RewindBox Pocket skins (Wii, GameCube, PS2 — Original, Switch) the game now sits in the screen opening the skin draws, with its rounded corners: no strip of the skin left between the picture and its frame, and the picture never over the frame. The picture keeps the display mode you chose inside that opening. A Wii or GameCube game opened with the phone sideways into an upright-only skin now fills the skin's screen. | [PR166](https://github.com/TarbleFR/RewindBox/pull/166) (`32fd5309`), [record](../skins-screen-framing-2026-11-10.md); host checks on the 7 packs and simulator CI; reviewed by main without a defect and integrated (merge `80aa7ac7`), declarations revised for the rebuilt packs (`c6cb5837`), simulator suites green on the merged tree (run `42787761020`); packaged in private IPA 720. Known limits: with a Dolphin skin chosen for both orientations, the orientation the game did not start in is fitted with thin bands until relaunch; on Switch Pocket upright the HOME/Capture tab overlaps the top of a stretched picture. Not observed on an iPhone. |
-| Skins | On GameCube Pocket — Original, Wii Pocket — Original, PS2 Pocket — Original and Switch Pocket a pressed button now sinks into its well, with its label, instead of turning grey. | [PR167](https://github.com/TarbleFR/RewindBox/pull/167) (`66c129b9`), stacked on the screen framing change; host checks on the 7 packs and simulator CI; reviewed by main without a defect and integrated (merge `b6a9deee`); packaged in private IPA 720. The three other RewindBox packs already showed a sunk button and are unchanged. Not observed on an iPhone. |
-| MeloNX stability | Correction of a crash of Nintendo Switch games while a frame is being shown (seen in Super Mario 3D World + Bowser's Fury about 41 s after returning to the game): the bundled MoltenVK 1.4.2 now keeps each picture for the presentation that shows it. | MeloNX session, lot 9 (`9936f295`), merged `7d0ca6c1`. Cause read in the MoltenVK source (KhronosGroup/MoltenVK#2791, open upstream): an image handed out again while its earlier presentation still read its drawable. Patch `build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch` (two files), host model under ASan and TSan (use after free before, none after); iOS rebuild run `42760131591`, binary `6d3a8d03…` pinned and packaged by main with a modification notice and a copy of the patch beside the Apache-2.0 license ([record](../melonx-moltenvk-rebuild-2026-11-03.md)); packaged in private IPA 720. The crash was not reproduced on an iPhone before or after: no claim before the device sessions of the [protocol](../evidence/melonx-719-gates/device-protocol.md). |
-| Skins fix | On the Switch skins, the buttons and sticks answer again right after the in-game menu is closed; turning the phone is no longer needed. | MeloNX session with the skins owner, lot 9 (`6ddc96fd`), call name corrected by main (`65a9e633`); `MeloNXSkinOverlayTests` 23/23 on the merged tree (run `42787761020`, real sheet and dismissal: the previous single sync stays without touches); packaged in private IPA 720. Not observed on an iPhone. |
-| MeloNX optimization | In Super Smash Bros. Ultimate the regular memory clean-up request no longer turns into a long blocking one when the memory is fragmented (a 356 ms stop in the IPA 718 journals); the performance journal now tells how long the engine itself was held each second. | MeloNX session, lot 9: MeloNX Core 719 = Core 717 + the fragmentation guard (`db8e2203`, contract `38b3a5b7`, 76 gates), built by main (run `42787755406`) and pinned (`864dc08c…`); packaged in private IPA 720. Host reproduction only (the request ran blocking and compacting at ratio 0.627, background at 0.281). Hogwarts Legacy's 3.7 s pause is not explained yet: the new `mgd=` journal field is there to decide it. No device measurement. |
 | MeloNX memory | Hogwarts Legacy and other Switch games no longer keep a second copy of their saved shader cache in memory for the whole session: the cache is read from its file in place (Hogwarts' cache is about 790 MiB). | MeloNX session, lot 9 for IPA 722: MeloNX Core 721 = Core 719 + the main pipeline cache referenced in its mapped file (contract `29e58115`, 77 gates), with MoltenVK v1.4.2 rebuilt with the third part of the RewindBox patch (`394e6aef`, binary `6f65b2a6…`, run `42822060210`); built by main (run `42839257625`), pinned (`784fcc5d…`) and packaged in private IPA 722. macOS bench: +77.8 MiB copied against +32.4 MiB referenced at load for a 44 MB cache; the iPhone gain is extrapolated (about -0.75 GiB for Hogwarts), not measured. |
 | MeloNX diagnostics | When the per-second journal of a Switch game is held up 300 ms or more, the journal now records what every thread is doing then (at most six times per session), to explain the long pauses still seen in Hogwarts Legacy. | MeloNX session, lot 9 (`8fd23a71`), reviewed by main (the watch suspends no thread itself and holds no lock while reading); packaged in private IPA 722. Measurement only. |
 | Skins fix | In the RewindBox Pocket skins the game's picture now has the game's own shape (4:3, Switch 16:9) inside the skin's window, with no band and no stretching; where the drawn window did not have that shape, its frame is redrawn around the picture from the skin's own pixels. Buttons, sticks and touch areas do not move. | [PR169](https://github.com/TarbleFR/RewindBox/pull/169) (`a96f2ac7`), integrated by main (merge `c3e99f67`, declarations chained `a32101e9`): the seven archives rebuilt byte-identically, verifier 22 checks, skin simulator steps green (run `42843268978`); packaged in private IPA 722. The windows are smaller where the drawn opening was not the game's ratio (up to 31 pt per side on home-button iPhones, 33 pt above and below on Switch Pocket upright). Not observed on an iPhone. |
 
-## Publication handoff checklist
+## Integrated source awaiting a later delivery
 
-- [ ] Reconcile every relevant change since actual public tag0.0.10 with the final shipped source and manifest.
-- [ ] Confirm each announced feature/fix is present in the downloaded, verified release IPA.
-- [ ] Mark retained, removed, deferred and already-announced items explicitly; carry deferrals forward.
-- [ ] Preserve real test/compilation/device distinctions and document known limits; no estimated FPS gains.
-- [ ] Produce the final ready-to-post English changelog with actual tag/build and download identity.
-- [ ] After authorized publication, archive the exact notes under `docs/releases/<actual-tag>.md`, link the release, and start a fresh `NEXT.md` carrying all unannounced/unshipped items.
-- [ ] After private delivery only, update packaged/test states while keeping the public baseline unchanged.
+- **MeloNX Core 723 candidate:** integrated by main as `790664da` from
+  `253cafd3`; frozen contract `091195da`, 81 local gates recorded by the owner.
+  Includes GC keep-alive dormant-state/pause reporting, separate-array dirty
+  tracking and texture-array barrier epochs, plus the host memory-breakdown
+  work. It is not in public IPA721. Confirm the final Core/IPA receipts before
+  announcing delivery, memory savings or playability.
+- **Pocket pressed-state refinements, PR170:** integrated by main as
+  `e864ee0`; legal revision chain `4934c5e8`. More precise pressed states,
+  particularly Switch L/R, ZL/ZR and L3/R3. It is not in public IPA721.
+  Preserve the owner’s executed tests and actual delivery state in the board;
+  no physical-device validation is implied.
 
-## English preview — development snapshot, not final release notes
+## Latest private deliveries
 
-A new RewindBox update is in the works! Here’s a preview of the planned improvements:
+- **IPA723:** run `42878187148`, [receipt](../evidence/rewind723/delivery.json).
+  RPCS3 Core 921; the rest of IPA722 retained.
+- **IPA722:** run `42852972508`, [receipt](../evidence/rewind722/delivery.json).
+  RPCS3 Core 920, MeloNX Core 721 with the three-part MoltenVK patch,
+  skin framing PR169.
+- Neither private package replaces the public 0.0.11 baseline.
 
-• Nintendo Switch / MeloNX: rendering fixes targeting flickering in Hogwarts Legacy and Super Smash Bros. Ultimate, alongside improvements to shader warm-up, memory handling and stability.
+## Carry-forward limits
 
-• PlayStation 3 / RPCS3: further stability, cache and synchronization improvements, with continued work on Black Ops II stutters and Assassin’s Creed audio issues.
+- Residual Black Ops II performance, long Hogwarts Legacy pauses and device
+  memory behavior still require the owner’s evidence and iPhone measurements.
+  Preserve 1× image quality and correct game speed; no estimated FPS promise.
+- Retain the documented Pocket touch-target, sensor-housing and orientation
+  limits until a verified correction supersedes them.
+- The closed Metal binary-archive prototype and the separate Switch 2
+  experiment remain outside ordinary production delivery.
 
-• Skins and controls: Pocket skins for PS2, GameCube and Wii, plus new GameCube Pocket — Original, Wii Pocket — Original and PS2 Pocket — Original designs, portrait and landscape options, and orientation locking that follows your selected layout. PS2 players can open the skin manager directly from their playlist, and the Dolphin and PS2 floating session buttons no longer cover skin controls.
+## Before the next public announcement
 
-• RetroAchievements: more consistent sign-in across supported emulators, shared Hardcore settings, improved game recognition, and achievement text that follows your app language through Apple’s translation features where available.
-
-• Cheats & Enhancements: a unified place to manage compatible game patches, including graphics, aspect-ratio and performance options. Availability depends on the game and version.
-
-• Library and artwork: more realistic 3D game cases, improved spines and backs, editable back covers, and better artwork and manual lookup.
-
-• Interface: the RewindBox Glacier style, bundled offline system artwork, and refinements to menus, spacing and navigation.
-
-Work and testing are still ongoing. The final changelog will confirm exactly what ships. Thank you for the reports, videos and logs—they help shape every update!
+- [ ] Compare the final downloaded IPA and manifest against public Build721.
+- [ ] Confirm which rows are delivered, source-only, deferred or superseded.
+- [ ] Preserve host/simulator/iPhone distinctions and known limits.
+- [ ] Publish a concise English changelog with exact build, link, bytes and SHA-256.
+- [ ] Archive the published notes and refresh this list, keeping every unannounced item.

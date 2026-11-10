@@ -1,14 +1,15 @@
 {
   "schema_version": 1,
-  "status": "draft-uploaded-publication-blocked-browser",
+  "status": "published-and-public-download-verified-discord-pending",
   "release": {
     "name": "RewindBox 0.0.11",
     "tag": "0.0.11",
-    "target_commitish": "release/0.0.11-build721",
-    "draft": true,
     "id": 440810980,
-    "source_commit": "cfb564205c71eb3894d2c42be21899d3d7d67233",
-    "draft_url": "https://github.com/TarbleFR/RewindBox/releases/tag/untagged-ed6388388e6a33f3ae3a"
+    "draft": false,
+    "url": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
+    "published_at": "2026-11-10T19:41:55Z",
+    "target_commitish": "release/0.0.11-build721",
+    "source_commit": "cfb564205c71eb3894d2c42be21899d3d7d67233"
   },
   "authorization": "Maintainer explicitly instructed publishing existing IPA 721 as RewindBox 0.0.11 while later work compiles, then confirmed: Tu peux commencer !. This supersedes the earlier publication hold for this exact IPA. README/About, reviewed main synchronization, selective obsolete branch/PR/workflow cleanup and Discord release announcement remain authorized.",
   "ipa": {
@@ -39,13 +40,19 @@
     "permissions_derived_from_frozen_host_configuration": true,
     "permissions_checked_against_plaintext_ipa_here": true,
     "live_installability_verified": false,
-    "permissions_verified_by": "Codex read the downloaded byte-identical IPA metadata, Mach-O entitlement blobs and privacy descriptions; exact union matches source.json."
+    "permissions_verified_by": "Codex read the downloaded byte-identical IPA metadata, Mach-O entitlement blobs and privacy descriptions; exact union matches source.json.",
+    "active_branches": [
+      "main",
+      "Claude"
+    ],
+    "publicDownloadVerified": true
   },
   "expected_urls": {
     "release": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
     "ipa": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa",
-    "source": "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json",
-    "status": "intended targets only; not published or advertised as live"
+    "source": "https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json",
+    "alternate_source": "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json",
+    "status": "release and assets public; repository source activation accompanies this record"
   },
   "discord": {
     "invite": "https://discord.gg/G48u46ppX",
@@ -55,10 +62,6 @@
     "draft_messages": 11
   },
   "blockers": [
-    {
-      "service": "GitHub publication",
-      "observed": "Apple and GitHub Mobile sign-in succeeded. Draft 440810980 contains the verified files. A draft asset download timed out and left the tab on chrome-error://chromewebdata/. The next Edit interaction was explicitly rejected by browser security policy for its unsupported protocol; no automated workaround or publication was attempted."
-    },
     {
       "service": "Discord",
       "observed": "Historical sign-in required hCaptcha. Not rechecked or posted in this continuation; announcement remains gated on verified public release."
@@ -71,10 +74,9 @@
     "No build, Core/pin change, tag, release or Discord post performed"
   ],
   "remaining": [
-    "Restore the failed browser tab and resume existing release draft 440810980; no new authorization is needed for the approved IPA721 publication.",
-    "Publish the existing draft, verify public IPA/source/SHA256SUMS download identities, then activate root source.json and update the live README links.",
-    "Archive exact published notes and reconcile NEXT retaining all changes after IPA721; announce in the verified Discord release channel.",
-    "Remove temporary release/0.0.11-build721 only after tag 0.0.11 is verified at cfb56420; preserve active component branches and unique history."
+    "Verify served root source on both main and Claude after this commit, and confirm rendered README latest links/heading/source recipe all identify 0.0.11/721.",
+    "Post the prepared English announcement in the verified Discord release channel when authenticated access permits; record actual message IDs.",
+    "Remove temporary source-anchor release branch only after confirming tag 0.0.11 retains cfb56420; preserve component work and unique history."
   ],
   "follow_up": {
     "status": "main-about-and-selective-cleanup-completed-publication-browser-blocked",
@@ -425,8 +427,54 @@
   "github_upload_verification": {
     "sizeAndSHA256Match": true,
     "ipaAssetId": 732661386,
-    "publicDownloadVerified": false,
-    "draftDownloadVerified": false,
-    "draftDownloadFailure": "Timed out after 45000 ms; browser at chrome-error://chromewebdata/"
+    "publicDownloadVerified": true,
+    "receipt": "docs/evidence/release-0.0.11-public-download.json"
+  },
+  "english_notes_archive": "docs/releases/0.0.11.md",
+  "next_release_inventory": "docs/releases/NEXT.md",
+  "public_download_verification": {
+    "schema": 1,
+    "date": "2026-11-10",
+    "release": {
+      "id": 440810980,
+      "tag": "0.0.11",
+      "draft": false,
+      "source": "cfb564205c71eb3894d2c42be21899d3d7d67233",
+      "publishedAt": "2026-11-10T19:41:55Z"
+    },
+    "publicDownload": {
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa",
+      "bytes": 267033667,
+      "sha256": "bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7",
+      "zipIntegrity": "passed",
+      "zipEntries": 5595,
+      "packagedIdentitySHA256": "54b2724191483cb527da95ffe68cf74466f3d3c6a68c749427b34d4200df3e9e"
+    },
+    "feed": {
+      "assetURL": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/source.json",
+      "sha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+      "bytes": 10622,
+      "packageMetadataMatches": true,
+      "version": "0.0.8",
+      "buildVersion": "721",
+      "marketingVersion": "0.0.11",
+      "minOSVersion": "18.0"
+    },
+    "SHA256SUMS": {
+      "verified": true,
+      "sha256": "0474e42fb0838a2a41df3234adfbde3d9f89b36c01b23160c00a06c472a0fd0c"
+    },
+    "components": {
+      "RPCS3": 919,
+      "MeloNX": 719
+    },
+    "fileModified": false,
+    "gameplayValidatedHere": false,
+    "cryptographicSignatureVerificationPerformedHere": false,
+    "appleProvisioningVerifiedHere": false
+  },
+  "previousBrowserFailure": {
+    "phase": "draft download/edit",
+    "outcome": "publication subsequently observed as public through connected GitHub; fresh public file downloaded and verified without editing or recreating the release"
   }
 }
