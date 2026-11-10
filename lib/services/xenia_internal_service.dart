@@ -15,6 +15,7 @@ import 'storage/storage_picker_copies.dart';
 import 'storage/storage_stat_ffi.dart';
 import 'xenia_content.dart';
 import 'xenia_jit_service.dart';
+import '../l10n/xenia_locale.dart';
 import 'xenia_settings_service.dart';
 
 /// Outcome of one picked file in an Xbox 360 import. [reason] is a
@@ -466,6 +467,13 @@ abstract final class XeniaInternalService {
         'storageRoot': (await engineDirectory()).path,
         'contentRoot': (await contentDirectory()).path,
         'cacheRoot': (await cacheDirectory()).path,
+      },
+      // The per-game touch layout uses the same stable identity as the settings.
+      touchGameKey: gameKey,
+      locale: uiLocale.toLanguageTag(),
+      texts: <String, String>{
+        for (final key in const ['menu', 'resume', 'quit'])
+          key: XeniaLocale.forLocale(uiLocale, 'session_$key'),
       },
     );
     if (report['success'] == true) return const XeniaLaunchOutcome.success();

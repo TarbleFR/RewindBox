@@ -3776,6 +3776,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `IOSJitMemory`; `lib/services/xenia_jit_service.dart` plans none/reuse/handshake/classic;
   bridge: nonce probe before prepare, detach confirmed after boot. Validator rows and
   `ios-ci.yml` call listed for main in the contract.
+- **Touch controls (written, not compiled):** `XeniaTouchControls.{h,mm}` on the shared
+  Build 484 layer (layout `xbox360`, Xbox diamond, LB/LT RT/RB, sticks + L3/R3, BACK/START,
+  Y up, triggers 0..1); session: shared hide rule, RPCS3 merge, in-game editor (paused,
+  neutral pad), localized menu (fixes the earlier English-only labels). Shared additions:
+  `xbox360` in `NeoTouchLayoutPlugin.m`, `NeoTouchLayout.consoles`, panel name,
+  `layoutXbox360` ×12 (`generate_strings.py --check` OK), system settings identity. No skin
+  pack (Skins session).
 - **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
   `xbox360` entry (existing system id); Consoles tab grouped by application, external-
   RetroArch-only and missing-engine consoles removed from the tab only (maintainer
@@ -3796,7 +3803,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
   tab rule), `docs/storage-audit-cleanup.md`.
 - **Validation (Flutter 3.47.2 host):** new XeniOS + catalog/Consoles tests 65/65;
-  JIT plan/failures + XeniOS suites 72/72; shader-converter validator 7/7;
+  XeniOS, JIT, touch panel and settings suites 92/92; `xenia_touch_controls_test.py`,
+  touch catalogues and host checks PASS; shader-converter validator 7/7;
   `xenia_core_patch_test.py` (incl. helper drift and bridge order) and
   `xenia_core_cpp_test.sh` OK; workflow-scanning Python tests = same set as Claude;
   storage contract 24/24; 41 Dart suites touching changed files
@@ -3809,8 +3817,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
   Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
 - **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`) and wires the
-  helper; component fixes what the compile reports, then touch controls and the first
-  TXM-iPhone session (helper attach, launch, quit, second launch without attach).
+  helper; component fixes what the compile reports, then the first TXM-iPhone session
+  (helper attach, touch/controller play, editor, quit, second launch without attach).
 
 ### Codex orchestration — Codex
 

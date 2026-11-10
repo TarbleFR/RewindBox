@@ -274,18 +274,57 @@ path to `ios-ci.yml`'s lists, and add the extension row (suffix
 plus `XeniaCore.framework` and the converter in `Frameworks/` once its
 supply is decided.
 
+## Touch controls
+
+Built on RewindBox's shared touch-layout layer
+([Build 484](build484-touch-controls.md)), not on a new mechanism:
+`XeniaTouchControlsView` (`packages/xenia_internal_bridge/ios/Classes/
+XeniaTouchControls.{h,mm}`) follows the ARMSX2 controls element by element.
+
+- Layout key `xbox360` (`TouchControls/xbox360.json`, general and per-game
+  scopes, landscape and portrait stock frames). Per-game key: the same stable
+  identity as the settings (`title:<TITLEID>`).
+- Elements: D-pad (one element), A/B/X/Y in the Xbox 360 diamond (Y top, A
+  bottom, X left, B right), LB/LT and RT/RB, two sticks with L3/R3 buttons
+  above them, BACK/START. Legends are product legends; the D-pad and stick
+  names come from the shared catalogue.
+- Pad of user 0: X_INPUT_GAMEPAD bits, sticks in [-1, 1] with Y up (the
+  screen's Y is inverted), LT/RT full press while held.
+- Session (`XeniaSessionController`): the shared hide rule
+  (`NeoTouchControlsShouldHide`: hidden under the menu, or with a compatible
+  controller while `NeoStation.TouchControls.xbox360.HideWithControllerConnected`
+  is on, never while editing; hiding releases every control); controller and
+  touch merged with RPCS3's policy when both are live (buttons OR, triggers
+  maximum, larger stick deflection); rotation releases held controls.
+- In-game menu (localized: resume, edit touch controls, quit): the shared
+  editor over the real controls; the game is paused and the Core gets a
+  neutral pad until it closes.
+- Settings › Systems › Xbox 360 › Emulators: XeniOS identity and the shared
+  `EmbeddedTouchControlsPanel` (hide with a controller, edit on a
+  non-interactive preview registered by `XeniaTouchControlsRegisterPreview`).
+
+Shared-layer additions (minimal, for review): `xbox360` in
+`NeoTouchLayoutPlugin.m`'s console map, `NeoTouchLayout.consoles`, the panel's
+layout names and `layoutXbox360` ("Xbox 360", 12 locales) in
+`tools/touch_layout/strings.json` (catalogues regenerated, `--check` passes).
+
+Skins: no Xbox 360 controller skin pack is added; a skin overlay, its
+artwork, hit-testing and orientation rules belong to the Skins session,
+which can layer one over these controls later.
+
 ## State and limits (10 Nov 2026)
 
 - Implemented and host-tested: catalog, policy, Consoles tab, playlist import
   button, import service, settings service and screens, per-game entry in
   the game card, launch route and session monitoring, bridge Dart API, the
-  JIT plan and its failures (`test/xenia_jit_service_test.dart`).
+  JIT plan and its failures (`test/xenia_jit_service_test.dart`), the touch
+  controls contract (`test/xenia_touch_controls_test.py`).
 - Written, **not compiled**: the Objective-C++ plugin (no macOS/Xcode here).
 - Written, not compiled: the XeniaCore facade, target and build, the JIT
-  helper extension, pod and bridge (above); compiling needs a macOS runner
+  helper extension, pod and bridge, the touch controls and session (above); compiling needs a macOS runner
   (Xcode 27 for the Core) and a dispatch by the main session. Not
-  implemented: the IPA wiring of the helper (main session); touch
-  controls/skin; rumble; folder (XEX/GOD) import.
+  implemented: the IPA wiring of the helper (main session); an Xbox 360
+  skin (Skins session); rumble; folder (XEX/GOD) import.
 - Until the Core ships, every launch returns `engineMissing` (or
   `requiresIOS26`): no fake success. No iPhone observation exists.
 
@@ -294,6 +333,6 @@ supply is decided.
 Main session: dispatch `xenia-core.yml` (`checks`, then `build_core` on a
 runner with Xcode 27), fix what the real compile reports, pin the Core.
 Main session: wire `XeniaJITHelper` into the IPA (list above). Component:
-fix what the first compile reports, touch controls, then the first device
-session (launch with the helper on a TXM iPhone, menu, quit, second launch
-without a new attach).
+fix what the first compile reports, then the first device session (launch
+with the helper on a TXM iPhone, touch and controller play, editor, menu,
+quit, second launch without a new attach).

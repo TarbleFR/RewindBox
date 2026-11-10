@@ -119,6 +119,9 @@ abstract final class XeniaInternalBridge {
     required String title,
     required Map<String, String> settings,
     required Map<String, String> directories,
+    String? touchGameKey,
+    String locale = 'en',
+    Map<String, String> texts = const <String, String>{},
   }) async {
     _ensureHandler();
     try {
@@ -128,6 +131,9 @@ abstract final class XeniaInternalBridge {
             'contentKind': contentKind,
             'title': title,
             'settings': settings,
+            'touchGameKey': touchGameKey,
+            'locale': locale,
+            'texts': texts,
             ...directories,
           });
       return Map<String, dynamic>.from(result ?? const {});

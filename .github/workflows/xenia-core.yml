@@ -57,6 +57,10 @@ jobs:
         run: python3 test/xenia_shader_converter_validator_test.py
       - name: Dedicated JIT helper matches its ARMSX2 reference
         run: python3 tools/xenia/derive_jit_helper.py --check
+      - name: Touch controls contract and shared catalogues
+        run: |
+          python3 test/xenia_touch_controls_test.py
+          python3 tools/touch_layout/generate_strings.py --check
       - name: Facade C++ against the pinned headers
         run: CXX="xcrun clang++" bash test/xenia_core_cpp_test.sh .native-sources/XeniOS
       - uses: subosito/flutter-action@v2
@@ -71,10 +75,22 @@ jobs:
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
           FLUTTER_FRAMEWORK=$(find "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios" -path '*/Flutter.framework' -type d | head -1)
           test -n "$FLUTTER_FRAMEWORK"
-          for source in XeniaInternalBridgePlugin.mm XeniaJitBridgePlugin.mm; do
+          # Public headers of the pods the bridge imports (<neo_touch_layout/...>),
+          # staged as CocoaPods exposes them, like the ARMSX2 host check.
+          STAGE="$RUNNER_TEMP/xenia-host-stage"
+          python3 - "$STAGE" <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'test')
+          from libretro_ios_syntax_test import stage_dependency_headers
+          from touch_layout_support import stage_touch_layout
+          include = stage_touch_layout(stage_dependency_headers(Path(sys.argv[1])))
+          assert (include / 'neo_touch_layout/NeoTouchLayout.h').is_file()
+          PY
+          for source in XeniaInternalBridgePlugin.mm XeniaJitBridgePlugin.mm XeniaTouchControls.mm; do
             xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ \
               -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" \
-              "packages/xenia_internal_bridge/ios/Classes/$source"
+              -I "$STAGE/include" "packages/xenia_internal_bridge/ios/Classes/$source"
           done
       # StikJIT is source-built from its pin, exactly as the delivery workflows do.
       - name: Restore canonical StikJIT interfaces

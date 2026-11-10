@@ -15,6 +15,8 @@ or library is embedded.
   s.source_files     = 'Classes/**/*'
   s.public_header_files = 'Classes/XeniaInternalBridgePlugin.h'
   s.dependency 'Flutter'
+  # Xbox 360 touch controls on the shared layer (docs/build484-touch-controls.md).
+  s.dependency 'neo_touch_layout'
   s.platform = :ios, '18.0'
   s.ios.deployment_target = '18.0'
   s.frameworks = 'UIKit', 'Foundation', 'GameController', 'QuartzCore', 'Security'

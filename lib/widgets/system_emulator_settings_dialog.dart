@@ -113,6 +113,7 @@ class _SystemEmulatorSettingsDialogState
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
       'switch' => 'MeloNX',
+      'xbox360' => 'XeniOS',
       _ => null,
     };
   }

@@ -74,6 +74,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "A RemotePairing file is required to enable JIT for XeniOS.",
       'jitAttachFailed': "The JIT helper could not attach to RewindBox. Check that LocalDevVPN is connected, then try again.",
       'jitHelperIncomplete': "The JIT helper did not finish. Restart RewindBox, then try again.",
+      'session_menu': "Menu",
+      'session_resume': "Resume",
+      'session_quit': "Quit game",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -145,6 +148,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "Se necesita un archivo RemotePairing para activar el JIT de XeniOS.",
       'jitAttachFailed': "El asistente JIT no pudo conectarse a RewindBox. Comprueba que LocalDevVPN esté conectado y vuelve a intentarlo.",
       'jitHelperIncomplete': "El asistente JIT no terminó. Reinicia RewindBox y vuelve a intentarlo.",
+      'session_menu': "Menú",
+      'session_resume': "Reanudar",
+      'session_quit': "Salir del juego",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -216,6 +222,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "Для включения JIT в XeniOS нужен файл RemotePairing.",
       'jitAttachFailed': "Помощнику JIT не удалось подключиться к RewindBox. Убедитесь, что LocalDevVPN подключён, и повторите попытку.",
       'jitHelperIncomplete': "Помощник JIT не завершил работу. Перезапустите RewindBox и повторите попытку.",
+      'session_menu': "Меню",
+      'session_resume': "Продолжить",
+      'session_quit': "Выйти из игры",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -287,6 +296,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "需要 RemotePairing 文件才能为 XeniOS 启用 JIT。",
       'jitAttachFailed': "JIT 助手无法连接到 RewindBox。请确认 LocalDevVPN 已连接，然后重试。",
       'jitHelperIncomplete': "JIT 助手未完成。请重新启动 RewindBox 后重试。",
+      'session_menu': "菜单",
+      'session_resume': "继续",
+      'session_quit': "退出游戏",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -358,6 +370,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "需要 RemotePairing 檔案才能為 XeniOS 啟用 JIT。",
       'jitAttachFailed': "JIT 輔助程式無法連接到 RewindBox。請確認 LocalDevVPN 已連線，然後再試一次。",
       'jitHelperIncomplete': "JIT 輔助程式未完成。請重新啟動 RewindBox 後再試一次。",
+      'session_menu': "選單",
+      'session_resume': "繼續",
+      'session_quit': "結束遊戲",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -429,6 +444,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "É necessário um arquivo RemotePairing para ativar o JIT do XeniOS.",
       'jitAttachFailed': "O assistente de JIT não conseguiu se conectar ao RewindBox. Verifique se o LocalDevVPN está conectado e tente novamente.",
       'jitHelperIncomplete': "O assistente de JIT não terminou. Reinicie o RewindBox e tente novamente.",
+      'session_menu': "Menu",
+      'session_resume': "Retomar",
+      'session_quit': "Sair do jogo",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -500,6 +518,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "Un fichier RemotePairing est nécessaire pour activer le JIT de XeniOS.",
       'jitAttachFailed': "L’assistant JIT n’a pas pu s’attacher à RewindBox. Vérifiez que LocalDevVPN est connecté, puis réessayez.",
       'jitHelperIncomplete': "L’assistant JIT n’a pas terminé. Redémarrez RewindBox, puis réessayez.",
+      'session_menu': "Menu",
+      'session_resume': "Reprendre",
+      'session_quit': "Quitter le jeu",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -571,6 +592,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "Für den XeniOS-JIT wird eine RemotePairing-Datei benötigt.",
       'jitAttachFailed': "Der JIT-Helfer konnte sich nicht mit RewindBox verbinden. Prüfe, ob LocalDevVPN verbunden ist, und versuche es erneut.",
       'jitHelperIncomplete': "Der JIT-Helfer wurde nicht abgeschlossen. Starte RewindBox neu und versuche es erneut.",
+      'session_menu': "Menü",
+      'session_resume': "Fortsetzen",
+      'session_quit': "Spiel beenden",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -642,6 +666,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "Per attivare il JIT di XeniOS serve un file RemotePairing.",
       'jitAttachFailed': "L’assistente JIT non è riuscito a collegarsi a RewindBox. Verifica che LocalDevVPN sia connesso e riprova.",
       'jitHelperIncomplete': "L’assistente JIT non ha terminato. Riavvia RewindBox e riprova.",
+      'session_menu': "Menu",
+      'session_resume': "Riprendi",
+      'session_quit': "Esci dal gioco",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -713,6 +740,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "File RemotePairing diperlukan untuk mengaktifkan JIT XeniOS.",
       'jitAttachFailed': "Pembantu JIT tidak dapat terhubung ke RewindBox. Pastikan LocalDevVPN tersambung, lalu coba lagi.",
       'jitHelperIncomplete': "Pembantu JIT tidak selesai. Mulai ulang RewindBox, lalu coba lagi.",
+      'session_menu': "Menu",
+      'session_resume': "Lanjutkan",
+      'session_quit': "Keluar dari game",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -784,6 +814,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "XeniOS の JIT を有効にするには RemotePairing ファイルが必要です。",
       'jitAttachFailed': "JIT ヘルパーが RewindBox に接続できませんでした。LocalDevVPN が接続されていることを確認してから、もう一度お試しください。",
       'jitHelperIncomplete': "JIT ヘルパーが完了しませんでした。RewindBox を再起動してから、もう一度お試しください。",
+      'session_menu': "メニュー",
+      'session_resume': "再開",
+      'session_quit': "ゲームを終了",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -855,6 +888,9 @@ abstract final class XeniaLocale {
       'pairingRequired': "XeniOS의 JIT를 사용하려면 RemotePairing 파일이 필요합니다.",
       'jitAttachFailed': "JIT 도우미가 RewindBox에 연결하지 못했습니다. LocalDevVPN이 연결되어 있는지 확인한 후 다시 시도하세요.",
       'jitHelperIncomplete': "JIT 도우미가 완료되지 않았습니다. RewindBox를 다시 시작한 후 다시 시도하세요.",
+      'session_menu': "메뉴",
+      'session_resume': "계속",
+      'session_quit': "게임 종료",
     },
   };
 

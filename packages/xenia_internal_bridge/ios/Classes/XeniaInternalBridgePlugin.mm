@@ -12,6 +12,8 @@
 #import "XeniaInternalBridgePlugin.h"
 #import "XeniaCoreABI.h"
 #import "XeniaJitBridgePlugin.h"
+#import "XeniaTouchControls.h"
+#include <cmath>
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
@@ -101,23 +103,60 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   });
 }
 
-// Full-screen host of the Core's render view, a Menu button (Resume/Quit)
-// and the game-controller relay. No XeniOS launcher, library or onboarding.
+// Full-screen host of the Core's render view, RewindBox's Xbox 360 touch
+// controls (shared touch-layout layer), a Menu button (Resume / touch
+// controls / Quit) and the game-controller relay. No XeniOS launcher,
+// library or onboarding.
 @interface XeniaSessionController : UIViewController
 @property(nonatomic, weak) XeniaInternalBridgePlugin* owner;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
 @property(nonatomic, strong) UIView* renderView;
 @property(nonatomic, copy) NSString* gameTitle;
+@property(nonatomic, copy) NSString* touchGameKey;
+@property(nonatomic, copy) NSString* locale;
+/// Localized by Dart (XeniaLocale): menu, resume, quit.
+@property(nonatomic, copy) NSDictionary<NSString*, NSString*>* texts;
 @property(nonatomic, assign) BOOL menuOpen;
+@property(nonatomic, readonly) BOOL editingTouchControls;
 @end
+
+// One pad of the RewindBox session (XInput bits, sticks Y up, triggers 0..1).
+struct XeniaPadState {
+  uint32_t buttons = 0;
+  float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
+};
+
+// The RPCS3 merge policy (RPCS3PadMerge.h): buttons OR, triggers maximum,
+// each stick takes the larger deflection.
+static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState& b) {
+  XeniaPadState merged;
+  merged.buttons = a.buttons | b.buttons;
+  merged.lt = MAX(a.lt, b.lt);
+  merged.rt = MAX(a.rt, b.rt);
+  const bool leftA = hypotf(a.lx, a.ly) >= hypotf(b.lx, b.ly);
+  merged.lx = leftA ? a.lx : b.lx;
+  merged.ly = leftA ? a.ly : b.ly;
+  const bool rightA = hypotf(a.rx, a.ry) >= hypotf(b.rx, b.ry);
+  merged.rx = rightA ? a.rx : b.rx;
+  merged.ry = rightA ? a.ry : b.ry;
+  return merged;
+}
 
 @implementation XeniaSessionController {
   CADisplayLink* _input;
   UIButton* _menuButton;
+  XeniaTouchControlsView* _touch;
+  NeoTouchControllerMonitor* _monitor;
+  NeoTouchLayoutEditor* _editor;
 }
 
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (BOOL)prefersHomeIndicatorAutoHidden { return YES; }
+
+- (NSString*)text:(NSString*)key fallback:(NSString*)fallback {
+  NSString* value = self.texts[key];
+  return value.length ? value : fallback;
+}
 
 - (void)viewDidLoad {
   [super viewDidLoad];
@@ -128,11 +167,24 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.renderView];
   }
+  _touch = [[XeniaTouchControlsView alloc] initWithLocale:self.locale];
+  _touch.frame = self.view.bounds;
+  _touch.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  _touch.gameKey = self.touchGameKey;
+  [self.view addSubview:_touch];
+  __weak XeniaSessionController* weakSelf = self;
+  _monitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(BOOL) {
+    [weakSelf updateTouchVisibility];
+  }];
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(controllerPreferenceChanged:)
+                                             name:NeoTouchControllerPreferenceDidChangeNotification
+                                           object:nil];
+
   _menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
   [_menuButton setImage:[UIImage systemImageNamed:@"line.3.horizontal.circle"]
                forState:UIControlStateNormal];
   _menuButton.tintColor = [UIColor colorWithWhite:1 alpha:0.7];
-  _menuButton.accessibilityLabel = @"Menu";
+  _menuButton.accessibilityLabel = [self text:@"menu" fallback:@"Menu"];
   _menuButton.translatesAutoresizingMaskIntoConstraints = NO;
   [_menuButton addTarget:self action:@selector(openMenu) forControlEvents:UIControlEventTouchUpInside];
   [self.view addSubview:_menuButton];
@@ -143,6 +195,31 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
     [_menuButton.widthAnchor constraintEqualToConstant:44],
     [_menuButton.heightAnchor constraintEqualToConstant:44],
   ]];
+  [self updateTouchVisibility];
+}
+
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+  [_monitor invalidate];
+}
+
+- (void)controllerPreferenceChanged:(NSNotification*)notification {
+  [self updateTouchVisibility];
+}
+
+- (BOOL)editingTouchControls {
+  return _editor != nil;
+}
+
+// The rule shared by every engine (NeoTouchControlsShouldHide): hidden under
+// a menu, or with a compatible controller while the console's preference
+// is on; never while editing. Hiding releases every held control first.
+- (void)updateTouchVisibility {
+  const BOOL hide = NeoTouchControlsShouldHide(XeniaTouchLayoutKey, _monitor.connected, YES,
+                                               self.menuOpen, self.editingTouchControls);
+  if (hide && !_touch.hidden) [_touch releaseAllInput];
+  _touch.hidden = hide;
+  [self.view bringSubviewToFront:_menuButton];
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -156,70 +233,137 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
 - (void)stopInput {
   [_input invalidate];
   _input = nil;
+  [_touch releaseAllInput];
+  [_monitor invalidate];
+}
+
+- (void)sendNeutralPad {
+  if (!self.api) return;
+  self.api->set_buttons(0);
+  self.api->set_axes(0, 0, 0, 0, 0, 0);
 }
 
 // X_INPUT_GAMEPAD_* (xenia/hid/input.h).
 - (void)pollInput {
   const NeoXeniaAPI* api = self.api;
-  if (!api || self.menuOpen) return;
+  if (!api) return;
+  if (self.menuOpen || self.editingTouchControls) {
+    // RPCS3's rule: a connected, neutral pad while a menu or the editor covers the game.
+    [self sendNeutralPad];
+    return;
+  }
+  XeniaPadState controller;
   GCExtendedGamepad* pad = GCController.current.extendedGamepad;
-  if (!pad) {
-    api->set_buttons(0);
-    api->set_axes(0, 0, 0, 0, 0, 0);
-    return;
+  if (pad) {
+    if (pad.buttonHome.pressed) {
+      [self openMenu];
+      return;
+    }
+    if (pad.dpad.up.pressed) controller.buttons |= 0x0001;
+    if (pad.dpad.down.pressed) controller.buttons |= 0x0002;
+    if (pad.dpad.left.pressed) controller.buttons |= 0x0004;
+    if (pad.dpad.right.pressed) controller.buttons |= 0x0008;
+    if (pad.buttonMenu.pressed) controller.buttons |= 0x0010;  // Start
+    if (pad.buttonOptions.pressed) controller.buttons |= 0x0020;  // Back
+    if (pad.leftThumbstickButton.pressed) controller.buttons |= 0x0040;
+    if (pad.rightThumbstickButton.pressed) controller.buttons |= 0x0080;
+    if (pad.leftShoulder.pressed) controller.buttons |= 0x0100;
+    if (pad.rightShoulder.pressed) controller.buttons |= 0x0200;
+    if (pad.buttonA.pressed) controller.buttons |= 0x1000;
+    if (pad.buttonB.pressed) controller.buttons |= 0x2000;
+    if (pad.buttonX.pressed) controller.buttons |= 0x4000;
+    if (pad.buttonY.pressed) controller.buttons |= 0x8000;
+    controller.lx = pad.leftThumbstick.xAxis.value;
+    controller.ly = pad.leftThumbstick.yAxis.value;
+    controller.rx = pad.rightThumbstick.xAxis.value;
+    controller.ry = pad.rightThumbstick.yAxis.value;
+    controller.lt = pad.leftTrigger.value;
+    controller.rt = pad.rightTrigger.value;
   }
-  if (pad.buttonHome.pressed) {
-    [self openMenu];
-    return;
+  XeniaPadState state = controller;
+  if (!_touch.hidden) {
+    XeniaPadState touch;
+    touch.buttons = _touch.buttons;
+    touch.lx = _touch.leftX;
+    touch.ly = _touch.leftY;
+    touch.rx = _touch.rightX;
+    touch.ry = _touch.rightY;
+    touch.lt = _touch.leftTrigger;
+    touch.rt = _touch.rightTrigger;
+    state = XeniaMergePads(controller, touch);
   }
-  uint32_t buttons = 0;
-  if (pad.dpad.up.pressed) buttons |= 0x0001;
-  if (pad.dpad.down.pressed) buttons |= 0x0002;
-  if (pad.dpad.left.pressed) buttons |= 0x0004;
-  if (pad.dpad.right.pressed) buttons |= 0x0008;
-  if (pad.buttonMenu.pressed) buttons |= 0x0010;  // Start
-  if (pad.buttonOptions.pressed) buttons |= 0x0020;  // Back
-  if (pad.leftThumbstickButton.pressed) buttons |= 0x0040;
-  if (pad.rightThumbstickButton.pressed) buttons |= 0x0080;
-  if (pad.leftShoulder.pressed) buttons |= 0x0100;
-  if (pad.rightShoulder.pressed) buttons |= 0x0200;
-  if (pad.buttonA.pressed) buttons |= 0x1000;
-  if (pad.buttonB.pressed) buttons |= 0x2000;
-  if (pad.buttonX.pressed) buttons |= 0x4000;
-  if (pad.buttonY.pressed) buttons |= 0x8000;
-  api->set_buttons(buttons);
-  api->set_axes(pad.leftThumbstick.xAxis.value, pad.leftThumbstick.yAxis.value,
-                pad.rightThumbstick.xAxis.value, pad.rightThumbstick.yAxis.value,
-                pad.leftTrigger.value, pad.rightTrigger.value);
+  api->set_buttons(state.buttons);
+  api->set_axes(state.lx, state.ly, state.rx, state.ry, state.lt, state.rt);
 }
 
 - (void)openMenu {
-  if (self.menuOpen) return;
+  if (self.menuOpen || self.editingTouchControls) return;
   self.menuOpen = YES;
-  if (self.api) {
-    self.api->set_buttons(0);
-    self.api->set_axes(0, 0, 0, 0, 0, 0);
-  }
+  [self updateTouchVisibility];
+  [self sendNeutralPad];
   [self.owner setUserPaused:YES];
   UIAlertController* menu =
       [UIAlertController alertControllerWithTitle:self.gameTitle
                                           message:nil
                                    preferredStyle:UIAlertControllerStyleAlert];
   __weak XeniaSessionController* weakSelf = self;
-  [menu addAction:[UIAlertAction actionWithTitle:@"▶︎"
+  [menu addAction:[UIAlertAction actionWithTitle:[self text:@"resume" fallback:@"Resume"]
                                            style:UIAlertActionStyleCancel
                                          handler:^(UIAlertAction*) {
     weakSelf.menuOpen = NO;
+    [weakSelf updateTouchVisibility];
     [weakSelf.owner setUserPaused:NO];
   }]];
-  [menu addAction:[UIAlertAction actionWithTitle:@"✕"
+  [menu addAction:[UIAlertAction actionWithTitle:NeoTouchLayoutText(@"editTouchControls", self.locale)
+                                           style:UIAlertActionStyleDefault
+                                         handler:^(UIAlertAction*) {
+    [weakSelf beginTouchEditing];
+  }]];
+  [menu addAction:[UIAlertAction actionWithTitle:[self text:@"quit" fallback:@"Quit"]
                                            style:UIAlertActionStyleDestructive
                                          handler:^(UIAlertAction*) {
     [weakSelf.owner requestStopFromMenu];
   }]];
-  menu.actions.firstObject.accessibilityLabel = @"Resume";
-  menu.actions.lastObject.accessibilityLabel = @"Quit";
   [self presentViewController:menu animated:YES completion:nil];
+}
+
+// The shared editor over the real controls; the game stays paused and the
+// Core receives a neutral pad until it closes (Build 484 contract).
+- (void)beginTouchEditing {
+  if (_editor) return;
+  [_touch releaseAllInput];
+  // As ARMSX2: the real controls stay drawn under the editor but receive no touch.
+  _touch.userInteractionEnabled = NO;
+  _editor = [[NeoTouchLayoutEditor alloc] initWithHost:_touch
+                                             layoutKey:XeniaTouchLayoutKey
+                                               gameKey:_touch.gameKey
+                                                 title:self.gameTitle
+                                                locale:self.locale
+                                                 store:NeoTouchLayoutStore.sharedStore];
+  _editor.controllerConnected = _monitor.connected;
+  __weak XeniaSessionController* weakSelf = self;
+  _editor.finished = ^(BOOL) {
+    XeniaSessionController* strongSelf = weakSelf;
+    if (!strongSelf) return;
+    [strongSelf->_touch endEditingOverride];
+    strongSelf->_touch.userInteractionEnabled = YES;
+    strongSelf->_editor = nil;  // The editor removed itself.
+    strongSelf.menuOpen = NO;
+    [strongSelf updateTouchVisibility];
+    [strongSelf.owner setUserPaused:NO];
+  };
+  [self updateTouchVisibility];
+  [_editor presentOverCanvas];
+  [self.view bringSubviewToFront:_editor];
+}
+
+- (void)viewWillTransitionToSize:(CGSize)size
+       withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+  [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+  // The controls release on their own orientation change; the editor follows it.
+  [coordinator animateAlongsideTransition:nil completion:^(id) {
+    [self updateTouchVisibility];
+  }];
 }
 
 @end
@@ -246,6 +390,9 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   // Dedicated XeniOS JIT helper transaction (channel neostation/xenia_jit),
   // derived from the ARMSX2 helper by tools/xenia/derive_jit_helper.py.
   [XeniaJitBridgePlugin registerWithRegistrar:registrar];
+  // Settings › Systems › Xbox 360 opens the touch-controls editor on a
+  // non-interactive preview, without a session.
+  XeniaTouchControlsRegisterPreview();
   NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
   [center addObserver:plugin selector:@selector(applicationWillResignActive)
                  name:UIApplicationWillResignActiveNotification object:nil];
@@ -383,6 +530,9 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   controller.api = api;
   controller.renderView = render;
   controller.gameTitle = title;
+  controller.touchGameKey = [args[@"touchGameKey"] isKindOfClass:NSString.class] ? args[@"touchGameKey"] : nil;
+  controller.locale = [args[@"locale"] isKindOfClass:NSString.class] ? args[@"locale"] : @"en";
+  controller.texts = [args[@"texts"] isKindOfClass:NSDictionary.class] ? args[@"texts"] : @{};
   controller.modalPresentationStyle = UIModalPresentationFullScreen;
   self.session = controller;
   UIViewController* presenter = XeniaTopViewController();

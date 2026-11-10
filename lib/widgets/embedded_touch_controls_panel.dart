@@ -25,7 +25,7 @@ class EmbeddedTouchControlsPanel extends StatefulWidget {
     this.openEditor,
   });
 
-  /// "gc", "wii", "ps2" or "ps3".
+  /// "gc", "wii", "ps2", "ps3" or "xbox360".
   final String console;
 
   /// Test seams; production uses the neostation/touch_layout channel.
@@ -122,6 +122,7 @@ class _EmbeddedTouchControlsPanelState
     'wii-classic' => _t('layoutWiiClassic'),
     'ps2' => _t('layoutPS2'),
     'ps3' => _t('layoutPS3'),
+    'xbox360' => _t('layoutXbox360'),
     _ => layout,
   };
 

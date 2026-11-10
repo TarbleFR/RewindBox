@@ -10,7 +10,7 @@ class NeoTouchLayout {
   static const channel = MethodChannel('neostation/touch_layout');
 
   /// Consoles with editable touch controls.
-  static const consoles = <String>['gc', 'wii', 'ps2', 'ps3'];
+  static const consoles = <String>['gc', 'wii', 'ps2', 'ps3', 'xbox360'];
 
   static Future<NeoTouchLayoutSettings?> settings(String console) async {
     final value = await channel.invokeMapMethod<String, dynamic>(
@@ -32,7 +32,7 @@ class NeoTouchLayout {
   }
 
   /// Opens the native editor of [layout] ("gc", "wii", "wii-classic", "ps2",
-  /// "ps3"); completes when it closes. `opened` is false when the engine of
+  /// "ps3", "xbox360"); completes when it closes. `opened` is false when the engine of
   /// this layout is not available.
   static Future<({bool opened, bool saved})> openEditor(
     String layout,
