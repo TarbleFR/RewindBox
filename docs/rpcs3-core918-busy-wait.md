@@ -141,11 +141,20 @@ sous `rsx::reservation_lock` (environ 3 µs) et le cas rare de synchronisation Z
 
 ## 8. Protocole iPhone
 
-1. Black Ops II, réglages laissés sur Automatique : lancer une partie et jouer cinq minutes dans la scène lente.
+Rien à régler. Un export par jeu : le journal de performance garde deux générations de 2 Mio (`RPCS3-performance.log`
+et son fichier `.1`), soit une dizaine de minutes de fenêtres (32 à 35 Ko par fenêtre de 5 s mesurés sur les exports
+694 et 718). Une seconde partie jouée avant l'export efface la première ; l'export de la 718 ne contenait plus que
+les quatre dernières minutes de God of War III et aucune fenêtre de Black Ops II.
+
+1. Black Ops II : lancer le jeu, aller dans la scène lente et y rester jusqu'à neuf minutes après le lancement
+   (les passes de comparaison occupent les fenêtres 7 à 22, 45 à 60 et 83 à 98 comptées depuis le démarrage, menus
+   compris : de 0 min 30 à 1 min 50, de 3 min 40 à 5 min, de 6 min 50 à 8 min 10). Quitter le jeu et exporter
+   aussitôt les journaux **avec les fichiers `.1`**.
 2. God of War III : **démarrer le jeu normalement, sans état de sauvegarde** (« Continuer » dans le menu du jeu),
-   jouer cinq minutes ; recréer ensuite un état de sauvegarde. Un état créé avant le Core 916 garde la mémoire du
-   démarrage sans le contournement MLAA.
-3. Quitter le jeu, exporter les journaux aussitôt, avec les fichiers `.1`.
+   jouer jusqu'à neuf minutes après le lancement dans la même zone, recréer ensuite un état de sauvegarde, quitter
+   et exporter aussitôt avec les fichiers `.1`. Un état créé avant le Core 916 garde la mémoire du démarrage sans le
+   contournement MLAA.
+3. Pendant une passe, rester dans la même zone : la comparaison se fait entre paires de fenêtres voisines de 5 s.
 
 ## 9. Compilation et épinglage
 

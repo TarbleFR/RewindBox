@@ -1514,9 +1514,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       10 ms per frame; the frame follows the PPU main thread (0.92 core) with MLAA still running (savestate boot).
     - **Local download page refused (10 Nov):** the tool denied starting a local HTTP server for the IPA 719 page
       ("Expose Local Services"). Not retried; the IPA was sent as a file.
-    - **Next:** the journals of build 719 (BO2 five minutes in the slow scene; GOW3 from a fresh boot, five minutes),
-      then the fix they select among those listed under "What the next export decides" (the GETLLAR thresholds
-      are off that list).
+    - **Protocol corrected (10 Nov):** one export per game, with the `.1` files, right after quitting. The
+      performance journal keeps two generations of 2 MiB, about ten minutes of windows (32-35 KB per 5 s window on
+      the 694 and 718 exports); the 718 export held only the last four minutes of GOW3 and no BO2 window. The three
+      comparison passes sit at counted windows 7-22, 45-60 and 83-98 since boot, menus included (0:30-1:50,
+      3:40-5:00, 6:50-8:10): play each game until nine minutes after its launch, in the same zone. BO2 has no device
+      measurement since build 694 (Core 907): Cores 910, 911, 914, 916, 917 and 918 are all unmeasured on it.
+    - **Next:** the journals of build 719, one export per game (BO2 nine minutes from launch in the slow scene; GOW3
+      from a fresh boot, nine minutes), then the fix they select among those listed under "What the next export
+      decides" (the GETLLAR thresholds are off that list).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
