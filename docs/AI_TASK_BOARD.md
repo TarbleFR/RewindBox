@@ -250,12 +250,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     was received from the maintainer while the RPCS3 capture preparation was finishing; that work was not interrupted
     and no IPA was started. State of the handoffs, each to be verified (commits/PR, tests really run, identities,
     limits) before the freeze:
-    - RPCS3 (main): Core 912 source `4c5566b6`, compile request `02023496`, run `42728150899` in progress; it becomes
-      the RPCS3 Core of this IPA once both jobs are green, the artifacts are verified offline and it is pinned. The
-      Core 913 comparison witness (run `42729856621`, source `466e3f70`) is **not** part of this IPA.
-    - MeloNX (session `012mUASkkFGHaPcEUx9dsp8q`): handoff requested once on 10 Nov (which Core is the handoff among
-      713, 715 refrozen `ab0df1a5` and 717 frozen `f751f1f7`; commits, runs, tests, limits). Awaiting the answer.
-    - Skins/interface (session `012mUASjgVWk8DKKjVbwTD2n`): handoff requested once on 10 Nov. Awaiting the answer.
+    - RPCS3 (main): **Core 914** (source `1aef660b`, request `ce12d397`, run `42736141716` in progress) replaces Core
+      912 after the 10 Nov capture/analyzer review; it becomes the RPCS3 Core of this IPA once both jobs are green, the
+      artifacts are verified offline and it is pinned. Core 912/913 are never pinned; the AC1 witness (Core 915, 4 ways)
+      is **not** part of this IPA.
+    - MeloNX (session `012mUASkkFGHaPcEUx9dsp8q`): **handoff received 10 Nov 01:16 UTC, ready.** Core 717 to be pinned
+      by main: contract `f751f1f7`, freeze `45923d13` (on `Claude`), run `42728675479` attempt 1 job `129540815655`,
+      artifact `13726531152` (91,026,547 B, `3fa1ace5…`; name, size, digest and source checked against the API by main),
+      iPhone dylib `f565e10b…` (38,423,424 B); 75 fresh Apple gates. Replaces 713 and 715; 715 (`ab0df1a5`, run
+      `42722916222`) is the validated fallback; run `42714314353` unusable. Not run on an iPhone. Nothing of the lot out
+      of the IPA; the lot 7 Metal archive prototype stays out.
+    - Skins/interface (session `012mUASjgVWk8DKKjVbwTD2n`): **handoff received, ready.** PR #164 (`00a83e69`, menu bar
+      without labels) and PR #165 (head `84d4ad34`, Switch Pocket, CI run `42722406496` green on `36c7bdf2`), separate
+      deliverables, both from `f477f469`. Main's read-only review of #165: no actionable defect; open: the iphoneos
+      Swift build happens only in the app build, the skin does not lock a MeloNX session's orientation, no device
+      touch test. Dynamic Island compromises stay documented as compromises. To do before the freeze: extend the
+      legal/source declaration to switch-pocket.manicskin and docs/design/pocket/approved-switch.png.
     - Approved content: what is already merged on `Claude`; nothing added without a request. Switch 2 stays on its
       branch. Renderer selection unchanged (Vulkan/MoltenVK kept; the native Metal tests compiling changes nothing).
     - Next action: wait for the two targeted handoffs (no diagnostic relaunch, no worker), pin Core 912, then
