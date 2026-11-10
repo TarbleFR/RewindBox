@@ -72,9 +72,10 @@ check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.appe
 check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
       'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
 check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
-# Lot 9: the stall watch writes its two kinds of lines through the same writer under the same cap.
-check(journal.count('MeloNXStdioCapture.appendLine(') == 6 and journal.count(', to:path, limit:Self.fileLimit)') == 4 and
-      journal.count(', to:path, limit:MeloNXPerfJournal.fileLimit)') == 2 and 'open(' not in journal,
+# Lot 9: the stall watch writes its two kinds of lines, and the memory breakdown its one, through the same writer under
+# the same cap.
+check(journal.count('MeloNXStdioCapture.appendLine(') == 7 and journal.count(', to:path, limit:Self.fileLimit)') == 4 and
+      journal.count(', to:path, limit:MeloNXPerfJournal.fileLimit)') == 3 and 'open(' not in journal,
       'journal writes outside the shared writer or under the general cap')
 check('static let fileLimit: Int64 = 8 * 1024 * 1024' in journal and 'if !isPaused && rate > 0 {' in journal, 'journal cap or FPS average')
 check('qos:.utility' in journal and 'func stop() {\n        queue.async' in journal, 'sampler priority or synchronous stop')
@@ -97,6 +98,24 @@ check(watch.count('vm_read_overwrite(') == 1 and 'thread_get_state(thread, threa
       'mach_port_deallocate(mach_task_self_, me)' in watch, 'safe reads, own thread skipped, ports released')
 check(journal.index('            stalls.start()\n') < journal.index('    func stop() {') and
       'queue.async { [self] in\n            stalls.stop()\n' in journal, 'watch started with the journal and stopped with it')
+watch_only = journal[journal.index('final class MeloNXStallWatch {'):journal.index('final class MeloNXMemoryBreakdown {')]
+check(watch_only.count('MeloNXStdioCapture.appendLine(') == 2, 'the stall watch writes its two lines')
+
+# Memory breakdown (lot 9, RAM): the footprint's ledgers and regions, bounded, from its own utility queue, started and
+# stopped with the journal; it reads the process's own VM map and calls no engine closure.
+breakdown = journal[journal.index('final class MeloNXMemoryBreakdown {'):]
+check('            stalls.start()\n            breakdown.start()\n' in journal and
+      '            stalls.stop()\n            breakdown.stop()\n' in journal, 'breakdown started and stopped with the journal')
+check(all(name not in breakdown for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'task_suspend',
+                                             'vm_write', 'vm_protect', 'mach_vm_protect', 'DispatchQueue.main', 'vm_deallocate')),
+      'the breakdown calls no engine closure and changes no memory')
+check('static let maxRegions = 400_000' in breakdown and 'static let maxWalkMs = 400.0' in breakdown and
+      'first: Double = 30, every: Double = 60, maxLines: Int = 30' in breakdown and
+      'guard lines < maxLines else { timer?.cancel(); timer = nil; return }' in breakdown and
+      'qos:.utility' in breakdown and breakdown.count('MeloNXStdioCapture.appendLine(') == 1, 'breakdown bounds')
+check('task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO)' in breakdown and
+      'vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)' in breakdown and
+      'sharedObjects[info.object_id]' in breakdown, 'ledgers, the recursive region walk, shared objects counted once')
 
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
@@ -250,6 +269,61 @@ exit(0)
               'a waiting thread in the kernel')
         perf = [line for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:perf] t=')]
         check(perf and float(re.search(r' mgd=([\d.]+)', perf[0]).group(1)) >= 1590, perf[:1])
+
+        # Memory breakdown: 96 MiB tagged app-specific 3 (64 MiB written) and 32 MiB of shared memory tagged
+        # app-specific 4, written and mapped twice more (one object, counted once); then the schedule's bound.
+        memory_log = work / 'memory.log'
+        (work / 'memory').mkdir()
+        (work / 'memory' / 'main.swift').write_text(r'''import Foundation
+import Darwin
+let path = CommandLine.arguments[1]
+func tag(_ value: UInt32) -> Int32 { Int32(bitPattern:value << 24) }
+var tagged: mach_vm_address_t = 0
+guard mach_vm_allocate(mach_task_self_, &tagged, 96 << 20, VM_FLAGS_ANYWHERE | tag(242)) == KERN_SUCCESS else { exit(3) }
+memset(UnsafeMutableRawPointer(bitPattern:UInt(tagged))!, 1, 64 << 20)
+let sharedSize = 32 << 20
+guard let shared = mmap(nil, sharedSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, tag(243), 0),
+      shared != UnsafeMutableRawPointer(bitPattern:-1) else { exit(4) }
+memset(shared, 2, sharedSize)
+for _ in 0..<2 {
+    var alias: mach_vm_address_t = 0
+    var current: vm_prot_t = 0, maximum: vm_prot_t = 0
+    guard mach_vm_remap(mach_task_self_, &alias, mach_vm_size_t(sharedSize), 0, VM_FLAGS_ANYWHERE | tag(243), mach_task_self_,
+                        mach_vm_address_t(UInt(bitPattern:shared)), 0, &current, &maximum, VM_INHERIT_SHARE) == KERN_SUCCESS else { exit(5) }
+    let bytes = UnsafePointer<UInt8>(bitPattern:UInt(alias))!
+    var sum = 0
+    for offset in stride(from:0, to:sharedSize, by:16384) { sum &+= Int(bytes[offset]) }
+    if sum == 0 { exit(6) }
+}
+print("TAGGED 0x" + String(tagged, radix:16))
+print("LINE " + MeloNXMemoryBreakdown.describe(seconds:0))
+let breakdown = MeloNXMemoryBreakdown(path:path, context:[:], first:0.2, every:0.3, maxLines:3)
+breakdown.start()
+usleep(6_000_000)
+breakdown.stop()
+usleep(300_000)
+exit(0)
+''')
+        memory_executable = work / 'memory' / 'memory'
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'memory' / 'main.swift'), '-o', str(memory_executable)], check=True)
+        result = subprocess.run([str(memory_executable), str(memory_log)], capture_output=True, text=True, timeout=120)
+        check(result.returncode == 0, result)
+        tagged = next(line for line in result.stdout.splitlines() if line.startswith('TAGGED ')).split(' ')[1]
+        line = next(line for line in result.stdout.splitlines() if line.startswith('LINE ')).removeprefix('LINE ')
+        print(line, flush=True)
+        check(re.match(r't=0 footprint=(\d+)/(\d+) graphics=\d+\+\d+ internal=\d+ compressed=\d+ device=\d+ media=\d+ neural=\d+ '
+                       r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms groups=\S+ top=\S+$', line), line)
+        check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 50, line)
+        groups = {g.split(':')[0]: [int(v) for v in g.split(':')[1].split('/')] for g in re.search(r' groups=(\S+)', line).group(1).split(',')}
+        check('app3' in groups and 64 <= groups['app3'][0] < 80 and groups['app3'][1] >= 64, 'the tagged private region: ' + str(groups))
+        check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][2] == 1,
+              'the shared object mapped three times counts once: ' + str(groups))
+        top = re.search(r' top=(\S+)', line).group(1).split(',')
+        check(len(top) <= 6 and any(entry.startswith(tagged + ':96:app3:private:') and int(entry.split(':')[4].split('/')[0]) >= 64 for entry in top),
+              'the tagged region is among the largest: ' + str(top))
+        written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
+        check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written), 'three scheduled lines, then the bound: ' + str(written))
     print('Executed the performance journal on macOS.')
 
 print(f'PASS {checks} performance journal checks')

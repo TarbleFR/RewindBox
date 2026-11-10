@@ -44,6 +44,7 @@ import Darwin
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
 // has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
+// "[MeloNX:memory]" lines (MeloNXMemoryBreakdown, below): the footprint's ledgers and regions, every 60 s.
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
@@ -69,6 +70,7 @@ final class MeloNXPerfJournal {
     private let audio: () -> [Int64]?
     private let memory: () -> String?
     private let stalls: MeloNXStallWatch
+    private let breakdown: MeloNXMemoryBreakdown
     private let queue = DispatchQueue(label:"RewindBox.MeloNX.Perf", qos:.utility)
     private let lock = NSLock()
     private var paused = false
@@ -98,6 +100,7 @@ final class MeloNXPerfJournal {
         self.context = context
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
+        self.breakdown = MeloNXMemoryBreakdown(path:path, context:context)
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -127,6 +130,7 @@ final class MeloNXPerfJournal {
             timer = source
             source.resume()
             stalls.start()
+            breakdown.start()
         }
     }
 
@@ -134,6 +138,7 @@ final class MeloNXPerfJournal {
     func stop() {
         queue.async { [self] in
             stalls.stop()
+            breakdown.stop()
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -497,4 +502,172 @@ final class MeloNXStallWatch {
     }
 
     private static func decimal(_ value: Double) -> String { String(format:"%.1f", value) }
+}
+
+// Lot 9, RAM: what the footprint is made of. One "[MeloNX:memory]" line 30 s after the journal starts, then every 60 s, at
+// most 30, from the journal's own utility queue:
+//   footprint= phys_footprint / its peak MiB (the figure iOS kills the process on)
+//   graphics=  the kernel's graphics ledger (Metal and IOAccelerator memory charged to the process) + its compressed part
+//   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
+//   regions=   regions walked / walk time ms ("partial" when the walk hit its region or time bound)
+//   groups=    the 8 largest groups of regions by VM tag, name:dirty+compressed MiB/resident MiB/regions; a name ending
+//              in "~s" is shared memory (an object mapped more than once counts once, its largest mapping)
+//   top=       the 6 largest regions: address:virtual MiB:group:share mode:dirty+compressed MiB/resident MiB
+// Measurement only: it reads the process's own VM map and calls no engine closure.
+final class MeloNXMemoryBreakdown {
+    static let maxRegions = 400_000
+    static let maxWalkMs = 400.0
+    static let topGroups = 8
+    static let topRegions = 6
+
+    private let path: String
+    private let context: [String:String]
+    private let first: Double, every: Double, maxLines: Int
+    private let queue = DispatchQueue(label:"RewindBox.MeloNX.Memory", qos:.utility)
+    // Confined to the queue.
+    private var timer: DispatchSourceTimer?
+    private var started = 0.0
+    private var lines = 0
+
+    init(path: String, context: [String:String], first: Double = 30, every: Double = 60, maxLines: Int = 30) {
+        self.path = path; self.context = context; self.first = first; self.every = every; self.maxLines = maxLines
+    }
+
+    func start() {
+        queue.async { [self] in
+            guard timer == nil, started == 0 else { return }
+            started = ProcessInfo.processInfo.systemUptime
+            let source = DispatchSource.makeTimerSource(queue:queue)
+            source.schedule(deadline:.now() + first, repeating:every, leeway:.seconds(1))
+            source.setEventHandler { [weak self] in self?.record() }
+            timer = source
+            source.resume()
+        }
+    }
+
+    // Asynchronous, like the journal's stop.
+    func stop() { queue.async { [self] in timer?.cancel(); timer = nil } }
+
+    private func record() {
+        guard lines < maxLines else { timer?.cancel(); timer = nil; return }
+        lines += 1
+        let seconds = Int((ProcessInfo.processInfo.systemUptime - started).rounded())
+        _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + Self.describe(seconds:seconds), context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
+    }
+
+    private struct Group { var dirty: UInt64 = 0, resident: UInt64 = 0, regions = 0 }
+    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, dirty: UInt64, resident: UInt64 }
+
+    static func describe(seconds: Int) -> String {
+        var parts = ["t=\(seconds)"]
+        var vm = task_vm_info_data_t()
+        var vmCount = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let vmStatus = withUnsafeMutablePointer(to:&vm) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(vmCount)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &vmCount) }
+        }
+        if vmStatus == KERN_SUCCESS {
+            parts.append("footprint=\(mib(vm.phys_footprint))/\(mib(vm.ledger_phys_footprint_peak))")
+            parts.append("graphics=\(mib(vm.ledger_tag_graphics_footprint))+\(mib(vm.ledger_tag_graphics_footprint_compressed))")
+            parts.append("internal=\(mib(vm.internal)) compressed=\(mib(vm.compressed)) device=\(mib(vm.device))")
+            parts.append("media=\(mib(vm.ledger_tag_media_footprint)) neural=\(mib(vm.ledger_tag_neural_footprint))")
+            parts.append("purgeable=\(mib(vm.ledger_purgeable_nonvolatile))+\(mib(vm.ledger_purgeable_volatile))")
+        } else {
+            parts.append("ledgers=\(vmStatus)")
+        }
+
+        let page = UInt64(vm_page_size)
+        let begin = DispatchTime.now().uptimeNanoseconds
+        var groups: [String: Group] = [:]
+        var sharedObjects: [UInt32: (group: String, dirty: UInt64, resident: UInt64)] = [:]
+        var largest: [Region] = []
+        var address: vm_address_t = 0
+        var depth: natural_t = 0
+        var regions = 0
+        var partial = false
+        while true {
+            if regions >= maxRegions || Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6 > maxWalkMs { partial = true; break }
+            var size: vm_size_t = 0
+            var info = vm_region_submap_info_data_64_t()
+            var count = mach_msg_type_number_t(MemoryLayout<vm_region_submap_info_data_64_t>.size / MemoryLayout<natural_t>.size)
+            let status = withUnsafeMutablePointer(to:&info) {
+                $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) {
+                    vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)
+                }
+            }
+            guard status == KERN_SUCCESS else { break } // past the last region
+            if info.is_submap != 0 { depth += 1; continue }
+            regions += 1
+            let dirty = (UInt64(info.pages_dirtied) + UInt64(info.pages_swapped_out)) * page
+            let resident = UInt64(info.pages_resident) * page
+            let share = UInt8(truncatingIfNeeded:info.share_mode)
+            let mode = Int32(share)
+            let shared = mode == SM_SHARED || mode == SM_TRUESHARED || mode == SM_SHARED_ALIASED
+            let name = group(info.user_tag) + (shared ? "~s" : "")
+            if shared {
+                // Every mapping of one object sees the same pages: the object counts once, at its largest mapping.
+                let previous = sharedObjects[info.object_id]
+                if previous == nil { groups[name, default:Group()].regions += 1 }
+                if dirty > previous?.dirty ?? 0 || previous == nil {
+                    sharedObjects[info.object_id] = (name, max(dirty, previous?.dirty ?? 0), max(resident, previous?.resident ?? 0))
+                }
+            } else {
+                groups[name, default:Group()].dirty += dirty
+                groups[name, default:Group()].resident += resident
+                groups[name, default:Group()].regions += 1
+            }
+            if dirty > 0 && (largest.count < topRegions || dirty > largest[largest.count - 1].dirty) {
+                largest.append(Region(address:UInt64(address), size:UInt64(size), group:name, share:share, dirty:dirty, resident:resident))
+                largest.sort { $0.dirty > $1.dirty }
+                if largest.count > topRegions { largest.removeLast() }
+            }
+            address &+= size
+            if address == 0 { break } // wrapped past the top of the address space
+        }
+        for object in sharedObjects.values {
+            groups[object.group, default:Group()].dirty += object.dirty
+            groups[object.group, default:Group()].resident += object.resident
+        }
+        let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
+        parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))
+        let ranked = groups.sorted { $0.value.dirty != $1.value.dirty ? $0.value.dirty > $1.value.dirty : $0.key < $1.key }
+        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.dirty))/\(mib($0.value.resident))/\($0.value.regions)" }.joined(separator:","))
+        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.dirty))/\(mib($0.resident))" }.joined(separator:","))
+        return parts.joined(separator:" ")
+    }
+
+    private static func mib<T: BinaryInteger>(_ bytes: T) -> String { String(Int64(clamping:bytes) >> 20) }
+
+    // VM tags (mach/vm_statistics.h): the malloc zones together, the app-specific ones by number.
+    private static func group(_ tag: UInt32) -> String {
+        switch tag {
+        case 0: return "untagged"
+        case 1...13: return "malloc"
+        case 20: return "mach_msg"
+        case 21: return "iokit"
+        case 30: return "stack"
+        case 31: return "guard"
+        case 32, 35: return "pmap"
+        case 33: return "dylib"
+        case 60, 61: return "dyld"
+        case 82, 83: return "swift"
+        case 88: return "iosurface"
+        case 100: return "ioaccelerator"
+        case 240...255: return "app\(tag - 239)"
+        default: return "tag\(tag)"
+        }
+    }
+
+    private static func shareName(_ mode: UInt8) -> String {
+        switch Int32(mode) {
+        case SM_COW: return "cow"
+        case SM_PRIVATE: return "private"
+        case SM_EMPTY: return "empty"
+        case SM_SHARED: return "shared"
+        case SM_TRUESHARED: return "trueshared"
+        case SM_PRIVATE_ALIASED: return "aliased"
+        case SM_SHARED_ALIASED: return "sharedaliased"
+        case SM_LARGE_PAGE: return "large"
+        default: return String(mode)
+        }
+    }
 }
