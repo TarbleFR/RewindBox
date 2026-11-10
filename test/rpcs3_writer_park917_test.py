@@ -18,7 +18,9 @@ The driver compiles the real rpcs3/ios/IOSWriterParkSpin917.h and rpcs3/ios/IOSA
   the other thread is running. With the budget: it hands off for almost none, and still hands off when the other
   thread does not park within the budget (a thread that is not on a core);
 - the storm tracker: two consecutive running windows over the bound, once per boot, never under the bound, stopped or
-  without a frame.
+  without a frame;
+- the comparison in a storm (REWINDBOX_PARK_SPIN_COMPARE_917): the lead windows on, then off and on in turn for as
+  many windows on each side, then on; windows outside a storm on and not counted; a title under the bound never.
 Static: the wait condition of vm::writer_lock is unchanged, the previous wait follows the budget, the lever off is
 the previous code path; the setting, the policy and the report fields exist; the captures asked by the report are
 served with the limits of the explicit ones.
@@ -200,7 +202,42 @@ int main(int argc, char** argv)
 			"never while not running and never without a frame");
 	}
 
-	// 4. The handshake on real threads, calibrated on this machine.
+	// 4. The comparison of both sides of the lever in a storm (REWINDBOX_PARK_SPIN_COMPARE_917).
+	{
+		namespace cmp = park::compare;
+		cmp::tracker t;
+		bool lead_on = true;
+		for (unsigned window = 1; window < cmp::lead; window++) lead_on &= t.next(3, true, 104, 1'076'569) && t.upcoming_step() == 0;
+		check(lead_on && t.storm_windows == cmp::lead - 1, "the first storm windows keep the lever on: the captures run there");
+		// The window after the lead is step 1; each call returns the lever of the next storm window.
+		unsigned off = 0, on = 0, pairs_ok = 1;
+		bool previous = true, first = true;
+		unsigned run = 0;
+		for (unsigned step = 1; step <= cmp::compared; step++)
+		{
+			const bool lever = t.next(3, true, 104, 1'076'569);
+			lever ? on++ : off++;
+			run = (!first && lever == previous) ? run + 1 : 1;
+			pairs_ok &= run <= cmp::period;
+			previous = lever; first = false;
+		}
+		check(off == cmp::compared / 2 && on == cmp::compared / 2 && pairs_ok, "then off and on in turn, two windows each, as many windows on each side");
+		check(t.next(3, true, 104, 1'076'569) && t.next(3, true, 104, 1'076'569) && t.upcoming_step() == 0 && t.storm_windows == cmp::lead + cmp::compared,
+			"after the comparison the lever stays on");
+		cmp::tracker u;
+		for (unsigned window = 1; window <= cmp::lead; window++) u.next(4, true, 104, 500'000);
+		check(u.upcoming_step() == 1 && !u.next(4, true, 104, 500'000), "the first compared windows are off");
+		const std::uint32_t counted = u.storm_windows;
+		check(u.next(4, true, 104, 99'999) && u.next(4, false, 104, 500'000) && u.next(4, true, 0, 500'000) && u.storm_windows == counted,
+			"a window under the bound, stopped or without a frame runs with the lever on and is not counted");
+		check(u.next(5, true, 104, 500'000) && u.storm_windows == 1, "a new boot starts again");
+		cmp::tracker gow3;
+		bool always_on = true;
+		for (unsigned window = 0; window < 40; window++) always_on &= gow3.next(6, true, 57, 4484);
+		check(always_on && gow3.storm_windows == 0, "a title under the bound never alternates");
+	}
+
+	// 5. The handshake on real threads, calibrated on this machine.
 	if (argc > 1 && std::strcmp(argv[1], "--logic-only") == 0)
 	{
 		std::printf("{\"checks\": %d, \"failures\": %d}\n", checks, failures);
@@ -284,7 +321,10 @@ def static_checks(source: Path) -> None:
     require('cfg::_enum<ios_experimental_mode> writer_park_spin{ this, "Writer Lock Park Spin", ios_experimental_mode::automatic };' in config, 'the setting')
     require('resolved.writer_park_spin = resolve_mode(g_cfg.ios_experimental.writer_park_spin, true);' in policy and
             'rpcs3::ios::writer_park::spin_enabled.store(resolved.writer_park_spin, std::memory_order_relaxed);' in policy and
-            '"Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u"' in policy, 'Automatic is every title; the resolution is logged')
+            '"Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u compare_in_storm=%d"' in policy, 'Automatic is every title; the resolution is logged')
+    require('resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic;' in policy and
+            'rpcs3::ios::writer_park::compare::allowed.store(resolved.writer_park_compare, std::memory_order_relaxed);' in policy,
+            'the comparison runs on Automatic only: Enabled and Disabled are what the user chose')
     require(settings.count('SETTING("experimental.writer_park_spin", "Experimental", "FPS Experiments", "Writer lock park spin"') == 1 and
             'g_cfg.ios_experimental.writer_park_spin, 0, 0, 0),' in settings, 'the catalogue entry: the user can turn it off')
     perf = (source / 'rpcs3/ios/RPCS3IOSPerformance.cpp').read_text('utf-8', 'surrogateescape')
@@ -296,6 +336,16 @@ def static_checks(source: Path) -> None:
                    'rpcs3::ios::capture912::start_request::auto_ppu_storm.store(true, std::memory_order_release);',
                    '"COREPROF AUTOSTORM917 session=%llu window=%llu putllc_heavy=%llu bound=%llu windows=%u request=heavy_putllc_trace+ppu_region_profile"'):
         require(needle in perf, 'report: ' + needle)
+    compare = perf[perf.index('// REWINDBOX_PARK_SPIN_COMPARE_917'):]
+    compare = compare[:compare.index('// NEOSTATION_BUILD487_DIAGNOSTICS_V1')]
+    require(perf.index('"RANGELOCKPROF session=%llu') < perf.index('// REWINDBOX_PARK_SPIN_COMPARE_917') and
+            perf.count('rpcs3::ios::writer_park::spin_enabled.store(') == 1 and
+            'if (rpcs3::ios::writer_park::compare::allowed.load(std::memory_order_relaxed))' in compare and
+            'm_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window)' in compare and
+            'rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);' in compare,
+            'the window is reported with the lever it ran with, then the lever of the next one is set, on Automatic only')
+    require('"COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu storm_windows=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u lead=%u period=%u bound=%llu"' in compare,
+            'each step of the comparison is printed')
     capture = (source / 'rpcs3/ios/IOSCapture912.h').read_text()
     clear = capture[capture.index('inline void clear() noexcept'):capture.index('} // namespace start_request')]
     require('auto_putllc.store(false' in clear and 'auto_ppu_storm.store(false' in clear, 'requests of the previous boot are dropped')
@@ -334,13 +384,13 @@ def main() -> int:
         folder = Path(temporary)
         (folder / 'harness.cpp').write_text(HARNESS)
         code, report, lines = run(build(args.cxx, source, folder, 'plain', ['-O2', '-Wall', '-Wextra', '-Werror']))
-        require(code == 0 and report['failures'] == 0 and report['checks'] == 20, 'the waiter, the counters, the tracker and the handshake: %r\n%s' % (report, '\n'.join(lines)))
+        require(code == 0 and report['failures'] == 0 and report['checks'] == 27, 'the waiter, the counters, the tracker and the handshake: %r\n%s' % (report, '\n'.join(lines)))
         handshake = [line for line in lines if line.startswith('handshake:')][-1]
         if not args.no_sanitizers and sys.platform.startswith('linux'):
             code, sanitized, lines = run(build(args.cxx, source, folder, 'asan', ['-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=undefined']), '--logic-only')
             require(code == 0 and sanitized['failures'] == 0, 'asan: %r\n%s' % (sanitized, '\n'.join(lines)))
     print('PASS: the writer spins for its budget before the first hand-off, the previous wait follows it; parks and PPU parked time counted; '
-          'captures asked once per boot on a heavy PUTLLC storm (%d checks)' % report['checks'])
+          'captures asked once per boot on a heavy PUTLLC storm; both sides of the lever compared in a storm (%d checks)' % report['checks'])
     print('      ' + handshake)
     return 0
 

@@ -131076,10 +131076,10 @@ index 0000000..9206aec
 +} // namespace rpcs3::ios::writer_lock_phases
 diff --git a/rpcs3/ios/IOSWriterParkSpin917.h b/rpcs3/ios/IOSWriterParkSpin917.h
 new file mode 100644
-index 0000000..06f429e
+index 0000000..eaad662
 --- /dev/null
 +++ b/rpcs3/ios/IOSWriterParkSpin917.h
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,179 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -131203,6 +131203,61 @@ index 0000000..06f429e
 +		counters.main_park_ticks.fetch_add(ticks, std::memory_order_relaxed);
 +	}
 +}
++
++// REWINDBOX_PARK_SPIN_COMPARE_917: one export holds both sides of the lever in the same scene.
++//
++// What the budget is worth depends on the iPhone's scheduler and cannot be measured on a host. With the setting on
++// Automatic, the 5 s report turns the lever off and on again between its windows while a storm of heavy PUTLLC lasts:
++// the first `lead` storm windows of a boot keep it on (the captures the report asks for on a storm run there), then
++// `period` windows off and `period` windows on, in turn, for `compared` storm windows; after that it stays on. Both
++// sides are exact: off is the previous wait, the one of Core 916. RANGELOCKPROF prints park_spin= for the window it
++// reports and COREPROF PARKCMP917 each step. A window that is not a storm window runs with the lever on and is not
++// counted. With the setting Enabled or Disabled nothing alternates.
++namespace compare
++{
++inline std::atomic<bool> allowed{false}; // the setting is Automatic
++
++inline constexpr std::uint64_t bound_heavy = 100'000; // heavy PUTLLC per report window: the bound of IOSAutoStorm917.h
++inline constexpr std::uint32_t lead = 6;
++inline constexpr std::uint32_t period = 2;
++inline constexpr std::uint32_t compared = 16;
++
++struct tracker
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t storm_windows = 0; // storm windows reported in this boot, counted up to lead + compared
++
++	// The step of the comparison the next storm window is: 1 to `compared`, 0 outside the comparison.
++	constexpr std::uint32_t upcoming_step() const noexcept
++	{
++		const std::uint32_t upcoming = storm_windows + 1;
++		return upcoming > lead && upcoming <= lead + compared ? upcoming - lead : 0;
++	}
++
++	// One call per report window, after the window was reported. Returns the lever of the next window.
++	constexpr bool next(std::uint64_t now_session, bool running, std::uint64_t guest_flips, std::uint64_t heavy_putllc) noexcept
++	{
++		if (now_session != session)
++		{
++			session = now_session;
++			storm_windows = 0;
++		}
++
++		if (!running || !guest_flips || heavy_putllc < bound_heavy)
++		{
++			return true;
++		}
++
++		if (storm_windows < lead + compared)
++		{
++			storm_windows++;
++		}
++
++		const std::uint32_t step = upcoming_step();
++		return !step || ((step - 1) / period) % 2 != 0;
++	}
++};
++} // namespace compare
 +} // namespace rpcs3::ios::writer_park
 diff --git a/rpcs3/ios/IOSZcullLabelPage.h b/rpcs3/ios/IOSZcullLabelPage.h
 new file mode 100644
@@ -136710,7 +136765,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..badd115 100644
+index 7c3389b..6e5904a 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,40 @@
@@ -136954,7 +137009,7 @@ index 7c3389b..badd115 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +263,124 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +263,127 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -137028,6 +137083,9 @@ index 7c3389b..badd115 100644
 +	// REWINDBOX_WRITER_PARK_SPIN_917: Automatic is every title. Resolved before the emulation threads start.
 +	resolved.writer_park_spin = resolve_mode(g_cfg.ios_experimental.writer_park_spin, true);
 +	rpcs3::ios::writer_park::spin_enabled.store(resolved.writer_park_spin, std::memory_order_relaxed);
++	// REWINDBOX_PARK_SPIN_COMPARE_917: on Automatic only, the report compares both sides in a storm of heavy PUTLLC.
++	resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic;
++	rpcs3::ios::writer_park::compare::allowed.store(resolved.writer_park_compare, std::memory_order_relaxed);
 +	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
 +	// whose texture pool keeps textures of reused memory and whose RSX writes back a
 +	// render target for the CPU every frame.
@@ -137079,7 +137137,7 @@ index 7c3389b..badd115 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +392,256 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +395,256 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -137276,8 +137334,8 @@ index 7c3389b..badd115 100644
 +		static_cast<u32>(rpcs3::ios::passive_gate::writer_deferral.count()), static_cast<u32>(rpcs3::ios::passive_gate::starving_after));
 +	ios_experimental_log.notice("Resolved title policy metal: metal_renderer=%d", resolved.metal_renderer);
 +	// REWINDBOX_WRITER_PARK_SPIN_917: its own line.
-+	ios_experimental_log.notice("Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u", resolved.writer_park_spin,
-+		static_cast<u32>(rpcs3::ios::writer_park::spin_budget_ns / 1000));
++	ios_experimental_log.notice("Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u compare_in_storm=%d", resolved.writer_park_spin,
++		static_cast<u32>(rpcs3::ios::writer_park::spin_budget_ns / 1000), resolved.writer_park_compare);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -137347,7 +137405,7 @@ index 7c3389b..badd115 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..b03e7c8 100644
+index 8fba197..c2245cd 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -137358,7 +137416,7 @@ index 8fba197..b03e7c8 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,39 @@ struct experimental_policy
+@@ -12,6 +13,40 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -137388,6 +137446,7 @@ index 8fba197..b03e7c8 100644
 +	bool writer_yield_no_depress = false;
 +	// REWINDBOX_WRITER_PARK_SPIN_917: a writer spins for a budget before its first hand-off while the PPU threads park.
 +	bool writer_park_spin = false;
++	bool writer_park_compare = false; // REWINDBOX_PARK_SPIN_COMPARE_917
 +	// CELL581_TEXTURE_PREHASH: a worker hashes the textures the previous frame validated next.
 +	bool texture_prehash = false;
 +	// REWINDBOX_PUT_HORIZON_910: PUT changes read below the last horizon start no texture epoch.
@@ -137398,7 +137457,7 @@ index 8fba197..b03e7c8 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +54,140 @@ struct experimental_policy
+@@ -20,14 +55,140 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -139191,7 +139250,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..2e33d4d 100644
+index d800542..cc98213 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,215 @@
@@ -139712,8 +139771,8 @@ index d800542..2e33d4d 100644
 +			m_frame_intervals[frame_index % frame_ring_size].store(now - previous, std::memory_order_relaxed);
 +		}
 +		m_presented_frames.store(frame_index + 1, std::memory_order_release);
-+	}
-+
+ 	}
+ 
 +	void record_pipeline_job_queued(u32 pending_jobs) noexcept
 +	{
 +		rpcs3::ios::pipeline_queue::on_queued(pending_jobs); // REWINDBOX_PIPELINE_QUEUE_621
@@ -139896,8 +139955,8 @@ index d800542..2e33d4d 100644
 +	void record_rsx_shader_cache_lookup(bool hit) noexcept
 +	{
 +		(hit ? m_rsx_shader_cache_hits : m_rsx_shader_cache_misses).fetch_add(1, std::memory_order_relaxed);
- 	}
- 
++	}
++
 +	void record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event event, u64 amount) noexcept
 +	{
 +		const usz index = static_cast<usz>(event);
@@ -139968,7 +140027,7 @@ index d800542..2e33d4d 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +800,1551 @@ public:
+@@ -108,12 +800,1573 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -141496,6 +141555,27 @@ index d800542..2e33d4d 100644
 +				profile_session, profile_window, ios_putllc_heavy_window, rpcs3::ios::auto_storm::bound_heavy, rpcs3::ios::auto_storm::windows_needed);
 +		}
 +
++		// REWINDBOX_PARK_SPIN_COMPARE_917 (ios/IOSWriterParkSpin917.h): this window was reported above with the lever
++		// it ran with (RANGELOCKPROF park_spin=); now the lever of the next one. On Automatic only.
++		if (rpcs3::ios::writer_park::compare::allowed.load(std::memory_order_relaxed))
++		{
++			const bool spin_this_window = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
++			const bool spin_next_window = m_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window);
++
++			if (spin_next_window != spin_this_window)
++			{
++				rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);
++			}
++
++			if (spin_next_window != spin_this_window || m_park_compare.upcoming_step())
++			{
++				ios_core_profiler.notice("COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu storm_windows=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u lead=%u period=%u bound=%llu",
++					profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.storm_windows, m_park_compare.upcoming_step(), rpcs3::ios::writer_park::compare::compared,
++					spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, rpcs3::ios::writer_park::compare::lead, rpcs3::ios::writer_park::compare::period,
++					rpcs3::ios::writer_park::compare::bound_heavy);
++			}
++		}
++
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3) requested the bounded
 +		// FREEZE_DUMP here, from 5 s windows. REWINDBOX_FREEZE_EPISODE_621 moved it to
 +		// the sampler (observe_freeze_episode): one dump per episode, a quiet freeze
@@ -141509,6 +141589,7 @@ index d800542..2e33d4d 100644
 +    rpcs3::ios::idle_windows::tracker m_idle_windows; // REWINDBOX_IDLE_WINDOWS_916: report thread only
 +    rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
 +    rpcs3::ios::auto_storm::tracker m_auto_storm; // REWINDBOX_AUTO_STORM_CAPTURE_917: report thread only
++    rpcs3::ios::writer_park::compare::tracker m_park_compare; // REWINDBOX_PARK_SPIN_COMPARE_917: report thread only
 +    // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
 +    rpcs3::ios::freeze_episode::tracker m_freeze_episode;
 +    u64 m_freeze_session = 0;
@@ -141522,7 +141603,7 @@ index d800542..2e33d4d 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2352,93 @@ private:
+@@ -121,6 +2374,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -141616,7 +141697,7 @@ index d800542..2e33d4d 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2446,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2468,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -141710,7 +141791,7 @@ index d800542..2e33d4d 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2543,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2565,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -141839,7 +141920,7 @@ index d800542..2e33d4d 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2674,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2696,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

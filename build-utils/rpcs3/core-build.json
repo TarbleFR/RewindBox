@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 917,
  "identity_type": "rpcs3-ios-core917",
- "summary": "RPCS3 Core 917 = Core 916 plus the first work on the cost of the exact reservation write lock, for Call of Duty: Black Ops II. REWINDBOX_WRITER_PARK_SPIN_917: a writer that waits for the PPU threads to park spins for 8 us before the first core hand-off of its previous wait, which came after a fraction of a microsecond although the PPU thread waited for is usually running (build 676: 1.08 to 1.60 million heavy PUTLLC locks per 5 s window, 1.8 to 2.5 us to acquire each, 12 ns to hold it); its own setting, Automatic = every title, Disabled = the previous wait. Every lock is still taken in full and parks every PPU thread before the store; the relaxed PUTLLC is not used. RANGELOCKPROF reports the park phase by duration, the slow-park time, the locks whose wait outlasted the budget and the time PPU threads spent parked. REWINDBOX_AUTO_STORM_CAPTURE_917: on a heavy PUTLLC storm the report asks once per boot for the heavy PUTLLC trace and a PPU region profile. Everything else is Core 916. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
+ "summary": "RPCS3 Core 917 = Core 916 plus the first work on the cost of the exact reservation write lock, for Call of Duty: Black Ops II. REWINDBOX_WRITER_PARK_SPIN_917: a writer that waits for the PPU threads to park spins for 8 us before the first core hand-off of its previous wait, which came after a fraction of a microsecond although the PPU thread waited for is usually running (build 676: 1.08 to 1.60 million heavy PUTLLC locks per 5 s window, 1.8 to 2.5 us to acquire each, 12 ns to hold it); its own setting, Automatic = every title, Disabled = the previous wait. Every lock is still taken in full and parks every PPU thread before the store; the relaxed PUTLLC is not used. RANGELOCKPROF reports the park phase by duration, the slow-park time, the locks whose wait outlasted the budget and the time PPU threads spent parked. REWINDBOX_PARK_SPIN_COMPARE_917: with the setting on Automatic, in a storm of heavy PUTLLC the report turns the lever off and on again between its windows (after 6 storm windows of a boot, 2 windows off and 2 on in turn for 16 windows, then on), so one export holds both sides in the same scene; off is the previous wait. REWINDBOX_AUTO_STORM_CAPTURE_917: on a heavy PUTLLC storm the report asks once per boot for the heavy PUTLLC trace and a PPU region profile. Everything else is Core 916. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (no codegen input changes). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "66993c10a2262284c87aa8d60acaec0db40384e7255430c09418aa7531989da9",
+  "patch_sha256": "88170415a50fac419be58d9ba1db989c57d3bdc127027760287d943f6a242741",
   "postimages": 455,
   "records": [
    "core610_20261101",
@@ -105,7 +105,7 @@
   "record": "core917_20261110",
   "manifest": "build-utils/rpcs3/core917-delta.json",
   "patch": "build-utils/rpcs3/core917-delta.patch",
-  "patch_sha256": "0698b4468d70d929f8f9eb484fe17e626e3ec8f0a3e2282920cd0fcc52179bd0"
+  "patch_sha256": "618eeb7a2633d2bc26ea61e3e8923184835d9a1ffe86351c03c69302afd142c8"
  },
  "exports": 92,
  "core_inputs": {
@@ -241,7 +241,8 @@
   "wl_putllc_park_hist=%s",
   "Resolved title policy 917",
   "ppu_main_parked=%llu:%.3f",
-  "Writer lock park spin"
+  "Writer lock park spin",
+  "COREPROF PARKCMP917"
  ],
  "moltenvk_dependency": {
   "run": 42733987255,

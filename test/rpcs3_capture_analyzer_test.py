@@ -90,6 +90,18 @@ def journal():
                     'waiters=0x1000000:0x1000009 queue=kernel more=0 lwmutex_waiters=0\n'
                     'FREEZE_DUMP ppu_stack id=0x1000000 func=_sys_lwcond_queue_wait sp=0xd0010000 lr=0x2c05a94 chain=0x2c05a94:0x5e3408 scope=saved_return_addresses_innermost_first\n'
                     'FREEZE_DUMP end dump=1'))
+    # Process 600, Core 917: the Core compares both sides of the park spin over the storm windows (window 6 is not one).
+    a.append(record(600, 1.0, 'CONFIG_LAYERS title=DDDD00004 name=database_config accurate_res=true rsx_res=100'))
+    for window, spin, fps, heavy, acquire, park, slow, over, parked in ((1, 1, '22.0', 1000000, 1500, 1100, 100, 1000, 400), (2, 0, '20.0', 1000000, 2400, 2000, 300, 0, 600),
+                                                                 (3, 0, '21.0', 1000000, 2600, 2200, 500, 0, 700), (4, 1, '24.0', 1000000, 1700, 1300, 300, 3000, 600),
+                                                                 (5, 1, '23.0', 1000000, 1600, 1200, 200, 2000, 500), (6, 1, '60.0', 50000, 40, 30, 0, 0, 5)):
+        t = 10.0 * window
+        a.append(record(600, t, f'COREPROF FRAMEPROF527 session=1 window={window} phase=guest_unclassified wall_guest_fps={fps} p95_ms=60.0'))
+        a.append(record(600, t + 0.01, f'COREPROF SPUWAIT551 session=1 window={window} getllar_sleep=0:0.000 putllc_ok=2000000 putllc_fail=40000 putllc_heavy={heavy}'))
+        a.append(record(600, t + 0.02, f'RANGELOCKPROF session=1 episodes=14000 wl_putllc={heavy}:{acquire}.000:13.000 wl_putllc_phases=100.0:50.0:{park}.000 park_spin={spin} '
+                        f'wl_putllc_park_hist=1:1:1:1:1:1:1:1 wl_putllc_slow_park_ms={slow}.000 wl_putllc_over_budget={over} ppu_parked=9:9.000 ppu_main_parked=7:{parked}.000'))
+        a.append(record(600, t + 0.03, f'COREPROF PARKCMP917 session=1 window={window} putllc_heavy={heavy} storm_windows={window} next_step={window} steps=16 '
+                        f'this_window_spin={spin} next_window_spin={1 - spin} lead=6 period=2 bound=100000'))
     b.append(a[2])  # the same window line exported in a second file
     b.append(record(200, 5.0, 'CONFIG_LAYERS title=BBBB00002 name=database_config accurate_res=false'))
     b.append(record(200, 15.0, 'COREPROF FRAMEPROF527 session=3 window=7 phase=guest_unclassified wall_guest_fps=21.7 p95_ms=55.0'))
@@ -180,7 +192,7 @@ def main() -> int:
                                  '--compare', '100:1', '200:3'], capture_output=True, text=True)
         check(result.returncode == 0, 'the tool runs: ' + result.stderr[-500:])
         text, data = result.stdout, json.loads(out.read_text())
-        check(set(data) == {'100:1', '200:3', '300:1', '400:1', '500:1'}, 'five sessions, never merged')
+        check(set(data) == {'100:1', '200:3', '300:1', '400:1', '500:1', '600:1'}, 'six sessions, never merged')
         # Core 916 lines (process 500), and a line of an older Core that has no such field (process 100).
         core916 = text[text.index('== title CCCC00003'):]
         rows = {n: next(line for line in core916.splitlines() if line.startswith(f'      {n} ')) for n in (1, 2, 3)}
@@ -199,6 +211,14 @@ def main() -> int:
               'Core 917: the park histogram, the over-budget locks and the PPU parked time of a window')
         check('captures asked by the report at window 1 (heavy PUTLLC storm): putllc_heavy=1109863 (bound 100000, 2 windows in a row)' in core916 and
               '(trigger auto_heavy_putllc)' in core916, 'Core 917: the captures asked on a storm, and their trigger')
+        core917 = text[text.index('== title DDDD00004'):]
+        check('park_spin=0 off (previous wait): windows 2 (2,3) fps 20.50 locks/window 1000000 acquire_us/lock 2.500 park_us/lock 2.100 '
+              'slow_park_ms/window 400.000 over_budget/window 0 ppu_main_parked_ms/window 650.000' in core917 and
+              'park_spin=1 on: windows 3 (1,4,5) fps 23.00 locks/window 1000000 acquire_us/lock 1.600 park_us/lock 1.200 '
+              'slow_park_ms/window 200.000 over_budget/window 2000 ppu_main_parked_ms/window 500.000' in core917,
+              'Core 917: both sides of the park spin over the storm windows, the window under the bound left out: ' + core917[-900:])
+        check('park spin comparison steps printed by the Core: 6' in core917 and 'park spin compared' not in text[:text.index('== title DDDD00004')],
+              'the steps the Core printed are counted; a session with one side only compares nothing')
         a = data['100:1']
         check(a['title'] == 'AAAA00001' and a['title_origin'].startswith('RPCS3-performance.log:') and data['200:3']['title'] == 'BBBB00002', 'titles from CONFIG_LAYERS')
         check(data['300:1']['title'] == 'unknown', 'no CONFIG_LAYERS: unknown title')

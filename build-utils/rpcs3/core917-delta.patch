@@ -98973,10 +98973,10 @@ index 0000000..9206aec
 +} // namespace rpcs3::ios::writer_lock_phases
 diff --git a/rpcs3/ios/IOSWriterParkSpin917.h b/rpcs3/ios/IOSWriterParkSpin917.h
 new file mode 100644
-index 0000000..06f429e
+index 0000000..eaad662
 --- /dev/null
 +++ b/rpcs3/ios/IOSWriterParkSpin917.h
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,179 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -99100,6 +99100,61 @@ index 0000000..06f429e
 +		counters.main_park_ticks.fetch_add(ticks, std::memory_order_relaxed);
 +	}
 +}
++
++// REWINDBOX_PARK_SPIN_COMPARE_917: one export holds both sides of the lever in the same scene.
++//
++// What the budget is worth depends on the iPhone's scheduler and cannot be measured on a host. With the setting on
++// Automatic, the 5 s report turns the lever off and on again between its windows while a storm of heavy PUTLLC lasts:
++// the first `lead` storm windows of a boot keep it on (the captures the report asks for on a storm run there), then
++// `period` windows off and `period` windows on, in turn, for `compared` storm windows; after that it stays on. Both
++// sides are exact: off is the previous wait, the one of Core 916. RANGELOCKPROF prints park_spin= for the window it
++// reports and COREPROF PARKCMP917 each step. A window that is not a storm window runs with the lever on and is not
++// counted. With the setting Enabled or Disabled nothing alternates.
++namespace compare
++{
++inline std::atomic<bool> allowed{false}; // the setting is Automatic
++
++inline constexpr std::uint64_t bound_heavy = 100'000; // heavy PUTLLC per report window: the bound of IOSAutoStorm917.h
++inline constexpr std::uint32_t lead = 6;
++inline constexpr std::uint32_t period = 2;
++inline constexpr std::uint32_t compared = 16;
++
++struct tracker
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t storm_windows = 0; // storm windows reported in this boot, counted up to lead + compared
++
++	// The step of the comparison the next storm window is: 1 to `compared`, 0 outside the comparison.
++	constexpr std::uint32_t upcoming_step() const noexcept
++	{
++		const std::uint32_t upcoming = storm_windows + 1;
++		return upcoming > lead && upcoming <= lead + compared ? upcoming - lead : 0;
++	}
++
++	// One call per report window, after the window was reported. Returns the lever of the next window.
++	constexpr bool next(std::uint64_t now_session, bool running, std::uint64_t guest_flips, std::uint64_t heavy_putllc) noexcept
++	{
++		if (now_session != session)
++		{
++			session = now_session;
++			storm_windows = 0;
++		}
++
++		if (!running || !guest_flips || heavy_putllc < bound_heavy)
++		{
++			return true;
++		}
++
++		if (storm_windows < lead + compared)
++		{
++			storm_windows++;
++		}
++
++		const std::uint32_t step = upcoming_step();
++		return !step || ((step - 1) / period) % 2 != 0;
++	}
++};
++} // namespace compare
 +} // namespace rpcs3::ios::writer_park
 diff --git a/rpcs3/ios/IOSZcullLabelPage.h b/rpcs3/ios/IOSZcullLabelPage.h
 new file mode 100644
@@ -101041,7 +101096,7 @@ index 74ff550..c4701b2 100644
  	struct jit_boot_summary
  	{
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..badd115 100644
+index df33283..6e5904a 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -6,17 +6,26 @@
@@ -101087,7 +101142,7 @@ index df33283..badd115 100644
  	// CELL565_NOOP_PUTLLC: Automatic is Dragon Ball Z Budokai HD Collection only, where
  	// build 564 counted about 120,000 successful and 75,000 failed PUTLLC per frame in
  	// combat for about 500 that changed data: the no-op write-backs invalidated each
-@@ -306,9 +320,19 @@ void resolve_experimental_policy() noexcept
+@@ -306,9 +320,22 @@ void resolve_experimental_policy() noexcept
  	// CPU thread has waited through several timed waits to re-enter guest memory.
  	resolved.passive_lock_fairness = resolve_mode(g_cfg.ios_experimental.passive_lock_fairness, true);
  	rpcs3::ios::passive_gate::enabled.store(resolved.passive_lock_fairness, std::memory_order_relaxed);
@@ -101104,10 +101159,13 @@ index df33283..badd115 100644
 +	// REWINDBOX_WRITER_PARK_SPIN_917: Automatic is every title. Resolved before the emulation threads start.
 +	resolved.writer_park_spin = resolve_mode(g_cfg.ios_experimental.writer_park_spin, true);
 +	rpcs3::ios::writer_park::spin_enabled.store(resolved.writer_park_spin, std::memory_order_relaxed);
++	// REWINDBOX_PARK_SPIN_COMPARE_917: on Automatic only, the report compares both sides in a storm of heavy PUTLLC.
++	resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic;
++	rpcs3::ios::writer_park::compare::allowed.store(resolved.writer_park_compare, std::memory_order_relaxed);
  	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
  	// whose texture pool keeps textures of reused memory and whose RSX writes back a
  	// render target for the CPU every frame.
-@@ -325,6 +349,38 @@ void resolve_experimental_policy() noexcept
+@@ -325,6 +352,38 @@ void resolve_experimental_policy() noexcept
  	resolved.texture_prehash = resolved.texture_validation_epoch &&
  		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
  	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
@@ -101146,7 +101204,7 @@ index df33283..badd115 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -344,9 +400,91 @@ void resolve_experimental_policy() noexcept
+@@ -344,9 +403,91 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -101240,7 +101298,7 @@ index df33283..badd115 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +530,53 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +533,53 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
@@ -101289,16 +101347,16 @@ index df33283..badd115 100644
 +		static_cast<u32>(rpcs3::ios::passive_gate::writer_deferral.count()), static_cast<u32>(rpcs3::ios::passive_gate::starving_after));
 +	ios_experimental_log.notice("Resolved title policy metal: metal_renderer=%d", resolved.metal_renderer);
 +	// REWINDBOX_WRITER_PARK_SPIN_917: its own line.
-+	ios_experimental_log.notice("Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u", resolved.writer_park_spin,
-+		static_cast<u32>(rpcs3::ios::writer_park::spin_budget_ns / 1000));
++	ios_experimental_log.notice("Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u compare_in_storm=%d", resolved.writer_park_spin,
++		static_cast<u32>(rpcs3::ios::writer_park::spin_budget_ns / 1000), resolved.writer_park_compare);
  }
  
  void apply_spu_spin_timing_policy() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c349a27..b03e7c8 100644
+index c349a27..c2245cd 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -27,14 +27,25 @@ struct experimental_policy
+@@ -27,14 +27,26 @@ struct experimental_policy
  	bool rsx_thread_priority = false;
  	// CELL571_PASSIVE_LOCK_FAIRNESS: a starving passive locker makes new writer locks defer.
  	bool passive_lock_fairness = false;
@@ -101314,6 +101372,7 @@ index c349a27..b03e7c8 100644
  	bool writer_yield_no_depress = false;
 +	// REWINDBOX_WRITER_PARK_SPIN_917: a writer spins for a budget before its first hand-off while the PPU threads park.
 +	bool writer_park_spin = false;
++	bool writer_park_compare = false; // REWINDBOX_PARK_SPIN_COMPARE_917
  	// CELL581_TEXTURE_PREHASH: a worker hashes the textures the previous frame validated next.
  	bool texture_prehash = false;
 +	// REWINDBOX_PUT_HORIZON_910: PUT changes read below the last horizon start no texture epoch.
@@ -101324,7 +101383,7 @@ index c349a27..b03e7c8 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -50,6 +61,80 @@ struct experimental_policy
+@@ -50,6 +62,80 @@ struct experimental_policy
  	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
  	// without a setting; read by the vertex decompiler after boot resolution.
  	bool position_invariance = false;
@@ -102631,7 +102690,7 @@ index 0000000..655b3e7
 +};
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..2e33d4d 100644
+index 08e293e..cc98213 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -103554,22 +103613,11 @@ index 08e293e..2e33d4d 100644
  		ios_core_profiler.notice(
  			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
  			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
-@@ -1643,21 +2299,45 @@ private:
+@@ -1643,21 +2299,67 @@ private:
  			group_cores(core_group::jit), group_cores(core_group::other),
  			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
  			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
 +		ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_IDLE_WINDOWS_916: after the last line of a compact window
-+
-+		// REWINDBOX_AUTO_PPU_PROFILE_916 (ios/IOSAutoPpuProfile916.h): the busiest PPU thread saturates a core in the
-+		// second running window in a row: ask once per boot for the bounded PPU region profile. The diagnostic thread
-+		// serves the request with the limits of an explicit one and prints COREPROF PPUPROF912 trigger=auto_ppu_bound.
-+		if (const double busiest_ppu = rpcs3::ios::auto_ppu_profile::busiest_ppu(top_rows);
-+			m_auto_ppu_profile.observe(profile_session, state == system_state::running, guest_window_flips, busiest_ppu))
-+		{
-+			rpcs3::ios::capture912::start_request::auto_ppu.store(true, std::memory_order_release);
-+			ios_core_profiler.notice("COREPROF AUTOPPU916 session=%llu window=%llu busiest_ppu_cores=%.3f bound_cores=%.2f windows=%u request=ppu_region_profile",
-+				profile_session, profile_window, busiest_ppu, rpcs3::ios::auto_ppu_profile::bound_cores, rpcs3::ios::auto_ppu_profile::windows_needed);
-+		}
  
 -		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3): request a bounded
 -		// FREEZE_DUMP when no frame was presented for more than 3 s while one thread
@@ -103578,16 +103626,48 @@ index 08e293e..2e33d4d 100644
 -		const auto freeze = rpcs3::ios::profiler::evaluate_freeze_trigger(
 -			Emu.GetStatus(false) == system_state::running, seconds_without_frames, average_cores);
 -		if (freeze.dump)
++		// REWINDBOX_AUTO_PPU_PROFILE_916 (ios/IOSAutoPpuProfile916.h): the busiest PPU thread saturates a core in the
++		// second running window in a row: ask once per boot for the bounded PPU region profile. The diagnostic thread
++		// serves the request with the limits of an explicit one and prints COREPROF PPUPROF912 trigger=auto_ppu_bound.
++		if (const double busiest_ppu = rpcs3::ios::auto_ppu_profile::busiest_ppu(top_rows);
++			m_auto_ppu_profile.observe(profile_session, state == system_state::running, guest_window_flips, busiest_ppu))
+ 		{
+-			neostation_freeze_dump("no_frames", seconds_without_frames, freeze.busiest_cores);
++			rpcs3::ios::capture912::start_request::auto_ppu.store(true, std::memory_order_release);
++			ios_core_profiler.notice("COREPROF AUTOPPU916 session=%llu window=%llu busiest_ppu_cores=%.3f bound_cores=%.2f windows=%u request=ppu_region_profile",
++				profile_session, profile_window, busiest_ppu, rpcs3::ios::auto_ppu_profile::bound_cores, rpcs3::ios::auto_ppu_profile::windows_needed);
+ 		}
++
 +		// REWINDBOX_AUTO_STORM_CAPTURE_917 (ios/IOSAutoStorm917.h): heavy PUTLLC at a high rate in the second running
 +		// window in a row: ask once per boot for the heavy PUTLLC trace and the PPU region profile.
 +		if (m_auto_storm.observe(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window))
- 		{
--			neostation_freeze_dump("no_frames", seconds_without_frames, freeze.busiest_cores);
++		{
 +			rpcs3::ios::capture912::start_request::auto_putllc.store(true, std::memory_order_release);
 +			rpcs3::ios::capture912::start_request::auto_ppu_storm.store(true, std::memory_order_release);
 +			ios_core_profiler.notice("COREPROF AUTOSTORM917 session=%llu window=%llu putllc_heavy=%llu bound=%llu windows=%u request=heavy_putllc_trace+ppu_region_profile",
 +				profile_session, profile_window, ios_putllc_heavy_window, rpcs3::ios::auto_storm::bound_heavy, rpcs3::ios::auto_storm::windows_needed);
- 		}
++		}
++
++		// REWINDBOX_PARK_SPIN_COMPARE_917 (ios/IOSWriterParkSpin917.h): this window was reported above with the lever
++		// it ran with (RANGELOCKPROF park_spin=); now the lever of the next one. On Automatic only.
++		if (rpcs3::ios::writer_park::compare::allowed.load(std::memory_order_relaxed))
++		{
++			const bool spin_this_window = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
++			const bool spin_next_window = m_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window);
++
++			if (spin_next_window != spin_this_window)
++			{
++				rpcs3::ios::writer_park::spin_enabled.store(spin_next_window, std::memory_order_relaxed);
++			}
++
++			if (spin_next_window != spin_this_window || m_park_compare.upcoming_step())
++			{
++				ios_core_profiler.notice("COREPROF PARKCMP917 session=%llu window=%llu putllc_heavy=%llu storm_windows=%u next_step=%u steps=%u this_window_spin=%u next_window_spin=%u lead=%u period=%u bound=%llu",
++					profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.storm_windows, m_park_compare.upcoming_step(), rpcs3::ios::writer_park::compare::compared,
++					spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, rpcs3::ios::writer_park::compare::lead, rpcs3::ios::writer_park::compare::period,
++					rpcs3::ios::writer_park::compare::bound_heavy);
++			}
++		}
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3) requested the bounded
 +		// FREEZE_DUMP here, from 5 s windows. REWINDBOX_FREEZE_EPISODE_621 moved it to
@@ -103602,13 +103682,14 @@ index 08e293e..2e33d4d 100644
 +    rpcs3::ios::idle_windows::tracker m_idle_windows; // REWINDBOX_IDLE_WINDOWS_916: report thread only
 +    rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
 +    rpcs3::ios::auto_storm::tracker m_auto_storm; // REWINDBOX_AUTO_STORM_CAPTURE_917: report thread only
++    rpcs3::ios::writer_park::compare::tracker m_park_compare; // REWINDBOX_PARK_SPIN_COMPARE_917: report thread only
 +    // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
 +    rpcs3::ios::freeze_episode::tracker m_freeze_episode;
 +    u64 m_freeze_session = 0;
      u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
      rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
      rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
-@@ -1945,9 +2625,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
+@@ -1945,9 +2647,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
  	g_performance_registry.record_vram_allocation(allocated, bytes);
  }
  

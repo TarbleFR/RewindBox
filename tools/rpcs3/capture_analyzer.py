@@ -30,7 +30,7 @@ import sys
 LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET dropped=')
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
-                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917')
+                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -373,6 +373,43 @@ LEVERS = ('zcull_wait_guard', 'zcull_cond_no_wait', 'zcull_conservative_reports'
 SHOWN_LEVERS = ('spu_noop_spin_wait', 'texture_lookup_memo', 'ppu_grace', 'put_epoch_horizon', 'heavy_putllc_trace', 'ppu_region_profile')
 
 
+STORM_BOUND = 100000  # heavy PUTLLC per report window: the bound of the Core (IOSAutoStorm917.h, IOSWriterParkSpin917.h)
+
+
+def park_comparison(windows: dict) -> list:
+    """Core 917, REWINDBOX_PARK_SPIN_COMPARE_917: the storm windows of one session, by the lever each one ran with.
+
+    A storm window counts at least STORM_BOUND heavy PUTLLC and prints park_spin=. Per side: the windows, the frames per
+    second and, per writer lock of an SPU PUTLLC, the time to acquire it and the time of its park phase; then the time
+    of the slow parks, the PPU thread time parked and the locks whose wait outlasted the budget, per second of window.
+    Nothing is printed unless both sides hold at least one window: one side alone compares nothing."""
+    sides = {'0': [], '1': []}
+    for window, data in sorted(windows.items()):
+        heavy = number(value(data, 'SPUWAIT551', 'putllc_heavy'))
+        spin = value(data, 'RANGELOCKPROF', 'park_spin')
+        locks = (value(data, 'RANGELOCKPROF', 'wl_putllc') + '::').split(':')
+        phases = (value(data, 'RANGELOCKPROF', 'wl_putllc_phases') + '::').split(':')
+        count, acquire_ms, park_ms = number(locks[0]), number(locks[1]), number(phases[2])
+        if spin not in sides or not heavy or heavy < STORM_BOUND or not count:
+            continue
+        parked = (value(data, 'RANGELOCKPROF', 'ppu_main_parked') + ':').split(':')
+        sides[spin].append({'window': window, 'fps': number(value(data, 'FRAMEPROF527', 'wall_guest_fps')) or 0.0, 'locks': count,
+                            'acquire_us': 1000.0 * (acquire_ms or 0.0) / count, 'park_us': 1000.0 * (park_ms or 0.0) / count,
+                            'slow_park_ms': number(value(data, 'RANGELOCKPROF', 'wl_putllc_slow_park_ms')) or 0.0,
+                            'over_budget': number(value(data, 'RANGELOCKPROF', 'wl_putllc_over_budget')) or 0.0,
+                            'main_parked_ms': number(parked[1]) or 0.0})
+    if not sides['0'] or not sides['1']:
+        return []
+    out = ['   park spin compared over the storm windows of this session (at least %d heavy PUTLLC; medians; the scene is the same only if the windows alternate):' % STORM_BOUND]
+    for spin, name in (('0', 'off (previous wait)'), ('1', 'on'))[::1]:
+        rows = sides[spin]
+        median = lambda key: statistics.median(row[key] for row in rows)
+        out.append(f"      park_spin={spin} {name}: windows {len(rows)} ({','.join(str(row['window']) for row in rows)}) fps {median('fps'):.2f} "
+                   f"locks/window {median('locks'):.0f} acquire_us/lock {median('acquire_us'):.3f} park_us/lock {median('park_us'):.3f} "
+                   f"slow_park_ms/window {median('slow_park_ms'):.3f} over_budget/window {median('over_budget'):.0f} ppu_main_parked_ms/window {median('main_parked_ms'):.3f}")
+    return out
+
+
 def levers(digits) -> dict:
     out = {}
     for name in SHOWN_LEVERS:
@@ -542,6 +579,11 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
                 out.append(f"      ppu_stack {stack.get('id')} func={stack.get('func')} lr={stack.get('lr')} return addresses, innermost first: {stack.get('chain')}")
             if not dump['lwconds'] and not dump['stacks']:
                 out.append('      lwcond and ppu_stack lines: absent from this dump')
+        out.extend(park_comparison(entry['windows']))
+        steps = [w['PARKCMP917'] for _, w in sorted(entry['windows'].items()) if 'PARKCMP917' in w]
+        if steps:
+            out.append(f"   park spin comparison steps printed by the Core: {len(steps)} (first [{steps[0].get('_origin')}], last next_step={steps[-1].get('next_step')} "
+                       f"of {steps[-1].get('steps')}, next_window_spin={steps[-1].get('next_window_spin')})")
         mlaa = [w['GOW3MLAA909'] for _, w in sorted(entry['windows'].items()) if 'GOW3MLAA909' in w]
         if mlaa:
             last = mlaa[-1]
