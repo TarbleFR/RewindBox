@@ -33,6 +33,17 @@ Only original RewindBox artwork is bundled. Console names and marks remain the
 property of their owners; no third-party rights or public-domain waiver is given.
 Generation and geometry checks do not establish physical iPhone gameplay.
 
+## Pressed controls of the board packs (10 November)
+
+`pressed_face` (build_pocket_board_originals.py, used by the three Originals and Switch
+Pocket) no longer greys the control: the cap, label and bevel included, moves down into
+its well (1.3 board pixels lower, 3 % smaller), the wall of the well shows above it in
+shadow, the well's lip shades the cap from the upper left and the face loses about 12 %
+of its light. The pressed sprite keeps the normal sprite's alpha, so nothing outside the
+control's outline changes. Wii Pocket, GameCube Pocket – Ivory and PS2 Pocket - Noir mat
+already render a sunk state from their height model (pocket_art.py, ps2_art.py) and are
+unchanged. [Sheets](../../docs/evidence/skins-realistic-press/).
+
 ## The game's place (10 November)
 
 `screen_opening.py` measures the navy opening each body image draws and gives the pack
