@@ -20,6 +20,8 @@ BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026
 PS2_ORIGINAL_REVIEW = "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json"
 SWITCH_POCKET_REVIEW = "docs/evidence/switch-pocket-declarations-2026-11-10.json"
 SKIN_REVISION_REVIEW = "docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json"
+# Revisions in place, in order; each binds the packs of the one before it (PR #169: the windows at the game's ratio).
+SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json")
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
@@ -251,24 +253,29 @@ def repository_inputs(root: Path) -> dict[str, str]:
                 bundle.get("previous_catalog_sha256") != prior_pocket.get("bundled_assets", {}).get("catalog_sha256") or
                 (not later_ps2_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("PS2 Pocket catalog changed since review")
-    # RewindBox Pocket skins revised in place (PR #166 screen framing, PR #167 pressed controls): packs of the catalog
-    # are rebuilt, none is added. The revision review binds each pack to the identity an earlier review gave it; the
-    # earlier reviews below then check the revised identity, never an unreviewed one.
+    # RewindBox Pocket skins revised in place (PR #166 screen framing, PR #167 pressed controls; then PR #169, the
+    # windows at the game's ratio): packs of the catalog are rebuilt, none is added. Each revision review binds each pack
+    # it rebuilds to the identity the review before it gave that pack; the earlier reviews below then check the identity
+    # of the last revision, never an unreviewed one. A revision counts only with every revision before it.
     revision_path = root / SKIN_REVISION_REVIEW
-    revised_skins = {}
-    if revision_path.is_file():
-        revised_skins = json.loads(read_input(root, revision_path)).get("bundled_assets", {}).get("revised_skins", {})
+    revisions = []
+    for index, name in enumerate(SKIN_REVISION_REVIEWS):
+        if (root / name).is_file():
+            if len(revisions) != index:
+                raise SystemExit("A Pocket skin revision review lacks the revision before it: " + name)
+            revisions.append((name, json.loads(read_input(root, root / name))))
 
     def reviewed_identity(added_skins: dict) -> dict:
         result = {}
         for skin_id, identity in added_skins.items():
-            revision = revised_skins.get(skin_id)
-            if revision is not None:
-                if (revision.get("previous") != {"size": identity["size"], "sha256": identity["sha256"]} or
-                        revision.get("archiveAsset") != identity["archiveAsset"]):
-                    raise SystemExit("A later Pocket skin revision does not bind the reviewed pack: " + skin_id)
-                identity = {"size": revision.get("size"), "sha256": revision.get("sha256"),
-                            "archiveAsset": revision["archiveAsset"]}
+            for _, revision_review in revisions:
+                revision = revision_review.get("bundled_assets", {}).get("revised_skins", {}).get(skin_id)
+                if revision is not None:
+                    if (revision.get("previous") != {"size": identity["size"], "sha256": identity["sha256"]} or
+                            revision.get("archiveAsset") != identity["archiveAsset"]):
+                        raise SystemExit("A later Pocket skin revision does not bind the reviewed pack: " + skin_id)
+                    identity = {"size": revision.get("size"), "sha256": revision.get("sha256"),
+                                "archiveAsset": revision["archiveAsset"]}
             result[skin_id] = identity
         return result
     # RewindBox GameCube/Wii Pocket Originals from the approved boards (PR #155): the Pocket catalog gains two packs,
@@ -381,16 +388,18 @@ def repository_inputs(root: Path) -> dict[str, str]:
         raw = read_input(root, root / design.get("path", "missing"))
         if len(raw) != design.get("size") or sha256(raw) != design.get("sha256"):
             raise SystemExit("Switch Pocket approved design differs from the review")
-    # RewindBox Pocket skins revised in place (PR #166 and PR #167): no pack added or removed, no package, dependency,
-    # framework, engine or native source declaration change. The review binds the previous (Switch Pocket) catalog, the
-    # new catalog, and for every pack of the catalog its exact id, size and SHA-256, with the identity each revised
-    # pack replaces.
-    if revision_path.is_file():
-        revision = json.loads(read_input(root, revision_path))
-        prior_switch = json.loads(read_input(root, root / SWITCH_POCKET_REVIEW))
+    # RewindBox Pocket skins revised in place (PR #166 and PR #167; then PR #169): no pack added or removed, no package,
+    # dependency, framework, engine or native source declaration change. Each revision binds the catalog before it (the
+    # Switch Pocket review's for the first, the previous revision's after), its own catalog, and for every pack its exact
+    # id, size and SHA-256, with the identity each revised pack replaces. The last revision is checked against the
+    # catalog and the archives; an earlier one against the packs the next revision starts from.
+    for index, (name, revision) in enumerate(revisions):
+        baseline = revisions[index - 1][0] if index else SWITCH_POCKET_REVIEW
+        prior_switch = json.loads(read_input(root, root / baseline))
+        later_revision = revisions[index + 1][1] if index + 1 < len(revisions) else None
         changes = revision.get("dependency_changes", {})
-        if (revision.get("schema") != 1 or revision.get("baseline_inventory") != SWITCH_POCKET_REVIEW or
-                revision.get("baseline_inventory_sha256") != sha256(read_input(root, root / SWITCH_POCKET_REVIEW)) or
+        if (revision.get("schema") != 1 or revision.get("baseline_inventory") != baseline or
+                revision.get("baseline_inventory_sha256") != sha256(read_input(root, root / baseline)) or
                 revision.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
                 revision.get("complete_corresponding_source_attested") is not False or
                 changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
@@ -401,23 +410,34 @@ def repository_inputs(root: Path) -> dict[str, str]:
         catalog_path = bundle.get("catalog", "")
         if (catalog_path != "assets/skins/pocket/catalog.json" or
                 bundle.get("previous_catalog_sha256") != prior_switch.get("bundled_assets", {}).get("catalog_sha256") or
-                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+                (later_revision is None and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("Pocket skin revision catalog changed since review")
-        catalog = json.loads(read_input(root, root / catalog_path))
-        listed = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
-                  for skin in catalog.get("skins", [])}
+        if later_revision is None:
+            catalog = json.loads(read_input(root, root / catalog_path))
+            listed = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                      for skin in catalog.get("skins", [])}
+            listed_count = len(catalog.get("skins", []))
+        else:
+            # The packs the next revision starts from: the identity each pack it rebuilds replaces, the others as kept.
+            following = later_revision.get("bundled_assets", {})
+            listed = {skin_id: {"size": (value.get("previous") or {}).get("size"),
+                                "sha256": (value.get("previous") or {}).get("sha256"), "archiveAsset": value.get("archiveAsset")}
+                      for skin_id, value in following.get("revised_skins", {}).items()}
+            listed.update({skin_id: {key: value.get(key) for key in ("size", "sha256", "archiveAsset")}
+                           for skin_id, value in following.get("unchanged_skins", {}).items()})
+            listed_count = following.get("catalog_skins")
         revised, unchanged = bundle.get("revised_skins", {}), bundle.get("unchanged_skins", {})
         reviewed = {skin_id: {key: value.get(key) for key in ("size", "sha256", "archiveAsset")}
                     for group in (revised, unchanged) for skin_id, value in group.items()}
         if (listed != reviewed or set(revised) & set(unchanged) or not revised or
-                len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
+                listed_count != bundle.get("catalog_skins")):
             raise SystemExit("Pocket skin revision packs differ from the review")
         for skin_id, value in revised.items():
             previous = value.get("previous")
             if (not isinstance(previous, dict) or set(previous) != {"size", "sha256"} or
                     (previous["size"], previous["sha256"]) == (value["size"], value["sha256"])):
                 raise SystemExit("Pocket skin revision lacks the identity it replaces: " + skin_id)
-        for skin in listed.values():
+        for skin in listed.values() if later_revision is None else ():
             raw = read_input(root, root / skin["archiveAsset"])
             if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
                 raise SystemExit("Pocket skin revision archive differs from the catalog: " + skin["archiveAsset"])
