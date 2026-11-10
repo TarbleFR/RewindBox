@@ -1256,7 +1256,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       `42733987255` (library d19d3a42 identical, host bridge 8977315e, receipt verified offline). Local: route, codegen
       audit (three exact SPUThread.cpp aliases: 911, 912, 914), fold chain, 13 host guards, Build 435 guard, capture test
       (plain, TSan, ASan/UBSan, 11 negative controls), analyzer test, full driver: PASS. Source `1aef660b`, compile
-      request `ce12d397`, run `42736141716` (in progress).
+      request `ce12d397`, run `42736141716`: both jobs green first try (15 Apple host commands, core914 included). **Pinned**: artifact
+      13728211847, dylib `14e6f691` (80919144 B), fingerprint `df98e75d`, identities PPU a987639e / SPU 477a3fa4, markers
+      stale_rejected=/before_start/part=refused present; pin_errors and bundle clean. Not run on the iPhone; no FPS claim.
     - **Core 915 (AC1 4-way witness of Core 914, never pinned, not for a common IPA)**: engine commit e36fe47 = 7aa8ab7 with
       `ways = 4`; the canonical trees differ by rpcs3/ios/IOSTextureLookupMemo.h only; canonical d679d066. Route, codegen,
       fold, memo test with --expect-ways 4: PASS; guards and driver running.
