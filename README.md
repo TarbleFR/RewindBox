@@ -60,7 +60,7 @@ Its internal app version still reports **0.0.8**.
 RewindBox 0.0.11 is prepared and has not been published. The public
 downloads above remain 0.0.10 / Build 559 until publication is verified.
 
-**Prepared update · Build 718 · Changes since 0.0.10**
+**Prepared update · Build 721 · Changes since 0.0.10**
 
 - **RPCS3:** audio-wait, SPU synchronization, texture-coherence and cache
   corrections, including Vulkan/MoltenVK improvements. The optional native
@@ -74,7 +74,7 @@ downloads above remain 0.0.10 / Build 559 until publication is verified.
 - **Library and interface:** improved covers, 3D cases and manuals, the RewindBox
   Glacier preset, and an icons-only main navigation bar with accessible names.
 
-The verified package contains RPCS3 Core 914 and MeloNX Core 717. Package and
+The verified package contains RPCS3 Core 919 and MeloNX Core 719. Package and
 automated checks are complete; physical iPhone gameplay, FPS and audio results
 remain unverified. [Read the full prepared changelog and known limits](docs/releases/pending-0.0.11/release-notes.md).
 
