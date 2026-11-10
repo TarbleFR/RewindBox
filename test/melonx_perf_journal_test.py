@@ -335,8 +335,11 @@ exit(0)
         check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][1] == 0 and groups['app4~s'][2] == 1,
               'the shared object mapped three times counts once: ' + str(groups))
         private = [int(v) for v in re.search(r' private=(\d+)\+(\d+) ', line).groups()]
-        check(private[0] + private[1] >= 64 and int(re.search(r' unwalked=(\d+)/', line).group(1)) == 0,
-              'the written private memory is in the private total, nothing over the page-walk bound: ' + line)
+        # macOS run 42926914192: 4 private regions over the bound (allocator reservations, 418 808 MiB of address space)
+        # are not page-walked; the 96 MiB tagged region is under it and is.
+        unwalked = [int(v) for v in re.search(r' unwalked=(\d+)/(\d+) ', line).groups()]
+        check(private[0] + private[1] >= 64 and (unwalked[0] == 0 or unwalked[1] / unwalked[0] > 256),
+              'the written private memory is in the private total; only regions over 256 MiB are left unwalked: ' + line)
         check(float(re.search(r' regions=\d+/([\d.]+)ms', line).group(1)) < 80, 'the walk is quick (private regions only are page-walked): ' + line)
         top = re.search(r' top=(\S+)', line).group(1).split(',')
         check(len(top) <= 10 and any(entry.startswith(tagged + ':96:app3:private:') and sum(map(int, entry.split(':')[4].split('+'))) >= 64 for entry in top),
