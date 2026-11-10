@@ -1,0 +1,3328 @@
+{
+ "schema": 1,
+ "what": "MoltenVK v1.4.2 (db660224) built for macOS with the lot 7 prototype patch, exercised through Vulkan (test/melonx_metal_binary_archive/run_mvk.py): 62 graphics and 6 compute pipelines from synthetic SPIR-V",
+ "where": "GitHub macos-26 runner, Metal device \"Apple Paravirtual device\"; not an iPhone, not the simulator",
+ "run": 42699272657,
+ "commit": "bb49a541",
+ "artifact": 13711103187,
+ "artifactSha256": "6139cc67638af390073e01b1245191a01808d45385e148c53c1fe1d37ee92528",
+ "identity": {
+  "pin": {
+   "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+   "tag": "v1.4.2",
+   "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf"
+  },
+  "patch": {
+   "path": "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+   "sha256": "69e7e86110f6455ce11c6279614f2a4d5c0949631289a7e694e125e39c9b3391"
+  },
+  "patchApplied": [
+   " MoltenVK/MoltenVK/GPUObjects/MVKDevice.h    |   5 +",
+   " MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm   |   9 +",
+   " MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h  | 122 ++++++",
+   " MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm | 574 ++++++++++++++++++++++++++++",
+   " 4 files changed, 710 insertions(+)"
+  ],
+  "library": {
+   "path": "Package/Latest/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib",
+   "sha256": "a47777f31301709954d75ffb9bf644bd51e062f71cddcecc3728060240584bf3",
+   "bytes": 10981168
+  },
+  "markers": {
+   "RBX_MVK_BINARY_ARCHIVE_DIR": true,
+   "RewindBox Metal binary archives": true,
+   "rbx-mtl-archive-1": true
+  },
+  "platform": "macOS (the prototype is not built for iOS here)",
+  "xcode": [
+   "Xcode 26.6",
+   "Build version 17F113"
+  ],
+  "macOS": "26.7.2"
+ },
+ "salt": 699272363,
+ "failures": [],
+ "comparison": {
+  "reference, cold (first run of this salt)": {
+   "spirvToMslMs": 178.297451,
+   "mslLibraryMs": 1975.473492,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 2414.109395,
+   "pipelineCreationMaxMs": 419.322083,
+   "pipelineCreations": 68,
+   "archiveHits": null,
+   "archiveHitMs": null,
+   "archiveRenderHitMs": null,
+   "archiveComputeHitMs": null,
+   "archiveMisses": null,
+   "archiveMissMs": null,
+   "graphicsCreateMs": 1348.13,
+   "graphicsCreateMaxMs": 134.114,
+   "computeCreateMs": 2459.86,
+   "collectMs": null,
+   "saveMs": null,
+   "savedBytes": null,
+   "verifyMs": null,
+   "loadMs": null,
+   "destroyDeviceMs": 4.190834,
+   "peakFootprintMiB": 20.2
+  },
+  "reference, system cache warm": {
+   "spirvToMslMs": 199.923909,
+   "mslLibraryMs": 6.56153,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1924.376602,
+   "pipelineCreationMaxMs": 371.513625,
+   "pipelineCreations": 68,
+   "archiveHits": null,
+   "archiveHitMs": null,
+   "archiveRenderHitMs": null,
+   "archiveComputeHitMs": null,
+   "archiveMisses": null,
+   "archiveMissMs": null,
+   "graphicsCreateMs": 196.327,
+   "graphicsCreateMaxMs": 25.7626,
+   "computeCreateMs": 1951.49,
+   "collectMs": null,
+   "saveMs": null,
+   "savedBytes": null,
+   "verifyMs": null,
+   "loadMs": null,
+   "destroyDeviceMs": 1.651209,
+   "peakFootprintMiB": 20.3
+  },
+  "reference, system cache removed": {
+   "spirvToMslMs": 175.427781,
+   "mslLibraryMs": 1601.481236,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 2260.565437,
+   "pipelineCreationMaxMs": 337.875041,
+   "pipelineCreations": 68,
+   "archiveHits": null,
+   "archiveHitMs": null,
+   "archiveRenderHitMs": null,
+   "archiveComputeHitMs": null,
+   "archiveMisses": null,
+   "archiveMissMs": null,
+   "graphicsCreateMs": 1392.37,
+   "graphicsCreateMaxMs": 180.083,
+   "computeCreateMs": 2250.65,
+   "collectMs": null,
+   "saveMs": null,
+   "savedBytes": null,
+   "verifyMs": null,
+   "loadMs": null,
+   "destroyDeviceMs": 2.427625,
+   "peakFootprintMiB": 20.4
+  },
+  "collection (empty archive directory, system cache removed)": {
+   "spirvToMslMs": 194.091908,
+   "mslLibraryMs": 2021.427488,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 2527.65381,
+   "pipelineCreationMaxMs": 431.965208,
+   "pipelineCreations": 68,
+   "archiveHits": 0,
+   "archiveHitMs": 0,
+   "archiveRenderHitMs": 0,
+   "archiveComputeHitMs": 0,
+   "archiveMisses": 0,
+   "archiveMissMs": 0,
+   "graphicsCreateMs": 1582.92,
+   "graphicsCreateMaxMs": 152.359,
+   "computeCreateMs": 2534.66,
+   "collectMs": 17.4406,
+   "saveMs": 15.494,
+   "savedBytes": 1904193,
+   "verifyMs": 0,
+   "loadMs": 0.621625,
+   "destroyDeviceMs": 13.276708,
+   "peakFootprintMiB": 27.0
+  },
+  "reuse, system cache warm": {
+   "spirvToMslMs": 185.864656,
+   "mslLibraryMs": 6.235449,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1867.290848,
+   "pipelineCreationMaxMs": 380.857791,
+   "pipelineCreations": 68,
+   "archiveHits": 68,
+   "archiveHitMs": 1865.35,
+   "archiveRenderHitMs": 11.779999999999973,
+   "archiveComputeHitMs": 1853.57,
+   "archiveMisses": 0,
+   "archiveMissMs": 0,
+   "graphicsCreateMs": 178.936,
+   "graphicsCreateMaxMs": 17.9387,
+   "computeCreateMs": 1886.32,
+   "collectMs": 0,
+   "saveMs": 0,
+   "savedBytes": 0,
+   "verifyMs": 1.219,
+   "loadMs": 2.07179,
+   "destroyDeviceMs": 3.321625,
+   "peakFootprintMiB": 20.3
+  },
+  "reuse, system cache removed, strict": {
+   "spirvToMslMs": 164.332532,
+   "mslLibraryMs": 1704.556697,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1915.304228,
+   "pipelineCreationMaxMs": 343.787416,
+   "pipelineCreations": 68,
+   "archiveHits": 68,
+   "archiveHitMs": 1913.79,
+   "archiveRenderHitMs": 39.809999999999945,
+   "archiveComputeHitMs": 1873.98,
+   "archiveMisses": 0,
+   "archiveMissMs": 0,
+   "graphicsCreateMs": 983.33,
+   "graphicsCreateMaxMs": 106.351,
+   "computeCreateMs": 2280.92,
+   "collectMs": 0,
+   "saveMs": 0,
+   "savedBytes": 0,
+   "verifyMs": 1.21867,
+   "loadMs": 2.12775,
+   "destroyDeviceMs": 4.661958,
+   "peakFootprintMiB": 20.2
+  },
+  "reuse, system cache removed again, not strict": {
+   "spirvToMslMs": 163.466197,
+   "mslLibraryMs": 1769.660572,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1922.625144,
+   "pipelineCreationMaxMs": 344.048,
+   "pipelineCreations": 68,
+   "archiveHits": 68,
+   "archiveHitMs": 1921.35,
+   "archiveRenderHitMs": 34.429999999999836,
+   "archiveComputeHitMs": 1886.92,
+   "archiveMisses": 0,
+   "archiveMissMs": 0,
+   "graphicsCreateMs": 952.82,
+   "graphicsCreateMaxMs": 103.456,
+   "computeCreateMs": 2293.99,
+   "collectMs": 0,
+   "saveMs": 0,
+   "savedBytes": 0,
+   "verifyMs": 1.19558,
+   "loadMs": 1.91104,
+   "destroyDeviceMs": 9.918,
+   "peakFootprintMiB": 20.2
+  },
+  "variant left out, normal operation (system cache removed)": {
+   "spirvToMslMs": 162.539867,
+   "mslLibraryMs": 1655.538279,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1769.55002,
+   "pipelineCreationMaxMs": 343.031,
+   "pipelineCreations": 69,
+   "archiveHits": 68,
+   "archiveHitMs": 1747.18,
+   "archiveRenderHitMs": 39.48000000000002,
+   "archiveComputeHitMs": 1707.7,
+   "archiveMisses": 1,
+   "archiveMissMs": 0.051291,
+   "graphicsCreateMs": 1009.38,
+   "graphicsCreateMaxMs": 103.9,
+   "computeCreateMs": 2063.99,
+   "collectMs": 0.123458,
+   "saveMs": 1.57779,
+   "savedBytes": 64797,
+   "verifyMs": 1.11621,
+   "loadMs": 1.9335,
+   "destroyDeviceMs": 5.326834,
+   "peakFootprintMiB": 20.5
+  },
+  "damaged segment (4 KiB overwritten, same size)": {
+   "spirvToMslMs": 165.476156,
+   "mslLibraryMs": 5.032408,
+   "mslLibraries": 33,
+   "pipelineCreationMs": 1736.985939,
+   "pipelineCreationMaxMs": 342.96525,
+   "pipelineCreations": 68,
+   "archiveHits": 0,
+   "archiveHitMs": 0,
+   "archiveRenderHitMs": 0,
+   "archiveComputeHitMs": 0,
+   "archiveMisses": 0,
+   "archiveMissMs": 0,
+   "graphicsCreateMs": 156.804,
+   "graphicsCreateMaxMs": 9.66667,
+   "computeCreateMs": 1756.35,
+   "collectMs": 13.8851,
+   "saveMs": 11.9421,
+   "savedBytes": 1895897,
+   "verifyMs": 1.63021,
+   "loadMs": 2.23438,
+   "destroyDeviceMs": 9.799,
+   "peakFootprintMiB": 28.2
+  }
+ },
+ "collectingSessionMemory": {
+  "reopened after each save": {
+   "peakFootprintMiB": 26.5,
+   "saves": 9,
+   "saveMs": 37.407,
+   "savedBytes": 1895897
+  },
+  "kept in memory": {
+   "peakFootprintMiB": 27.2,
+   "saves": 9,
+   "saveMs": 34.7153,
+   "savedBytes": 1895897
+  }
+ },
+ "referencePeakFootprintMiB": 20.2,
+ "sessions": [
+  {
+   "label": "reference, cold (first run of this salt)",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 20.2,
+   "maxResidentMiB": 35.5,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 1348.13,
+      "maxMs": 134.114
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2459.86,
+      "maxMs": 489.063
+     }
+    },
+    "createWallMs": 3808.182,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 178.297451,
+     "maxMs": 13.501583
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1975.473492,
+     "maxMs": 839.391333
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 2414.109395,
+     "maxMs": 419.322083
+    },
+    "destroyDeviceMs": 4.190834,
+    "cacheReads": 0,
+    "threads": 1
+   }
+  },
+  {
+   "label": "reference, system cache warm",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.6,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 196.327,
+      "maxMs": 25.7626
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1951.49,
+      "maxMs": 378.183
+     }
+    },
+    "createWallMs": 2147.910584,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 199.923909,
+     "maxMs": 25.297833
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 6.56153,
+     "maxMs": 0.840625
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1924.376602,
+     "maxMs": 371.513625
+    },
+    "destroyDeviceMs": 1.651209,
+    "cacheReads": 0,
+    "threads": 1
+   }
+  },
+  {
+   "label": "reference, system cache removed",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 20.4,
+   "maxResidentMiB": 35.7,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 1392.37,
+      "maxMs": 180.083
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2250.65,
+      "maxMs": 404.811
+     }
+    },
+    "createWallMs": 3643.130542,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 175.427781,
+     "maxMs": 12.996541
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1601.481236,
+     "maxMs": 500.550541
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 2260.565437,
+     "maxMs": 337.875041
+    },
+    "destroyDeviceMs": 2.427625,
+    "cacheReads": 0,
+    "threads": 1
+   }
+  },
+  {
+   "label": "collection (empty archive directory, system cache removed)",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 27.0,
+   "maxResidentMiB": 43.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 1582.92,
+      "maxMs": 152.359
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2534.66,
+      "maxMs": 498.807
+     }
+    },
+    "createWallMs": 4117.667042,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 194.091908,
+     "maxMs": 11.032875
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 2021.427488,
+     "maxMs": 711.906875
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 2527.65381,
+     "maxMs": 431.965208
+    },
+    "destroyDeviceMs": 13.276708,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.621625,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 17.4406,
+    "addMaxMs": 1.32425,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 2,
+    "saveMs": 15.494,
+    "saveMaxMs": 8.51475,
+    "savedBytes": 1904193,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "reuse, system cache warm",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.4,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 178.936,
+      "maxMs": 17.9387
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1886.32,
+      "maxMs": 386.483
+     }
+    },
+    "createWallMs": 2065.324917,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 185.864656,
+     "maxMs": 15.587541
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 6.235449,
+     "maxMs": 1.095416
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1867.290848,
+     "maxMs": 380.857791
+    },
+    "destroyDeviceMs": 3.321625,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.219,
+    "loadMs": 2.07179,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1865.35,
+    "hitMaxMs": 380.826,
+    "computeHits": 6,
+    "computeHitMs": 1853.57,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "reuse, system cache removed, strict",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.2,
+   "maxResidentMiB": 35.0,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 983.33,
+      "maxMs": 106.351
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2280.92,
+      "maxMs": 409.237
+     }
+    },
+    "createWallMs": 3264.329416,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 164.332532,
+     "maxMs": 6.451083
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1704.556697,
+     "maxMs": 592.676875
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1915.304228,
+     "maxMs": 343.787416
+    },
+    "destroyDeviceMs": 4.661958,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.21867,
+    "loadMs": 2.12775,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1913.79,
+    "hitMaxMs": 343.755,
+    "computeHits": 6,
+    "computeHitMs": 1873.98,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "reuse, system cache removed again, not strict",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 20.2,
+   "maxResidentMiB": 35.1,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 952.82,
+      "maxMs": 103.456
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2293.99,
+      "maxMs": 406.212
+     }
+    },
+    "createWallMs": 3246.896208,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 163.466197,
+     "maxMs": 7.120541
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1769.660572,
+     "maxMs": 679.298416
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1922.625144,
+     "maxMs": 344.048
+    },
+    "destroyDeviceMs": 9.918,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.19558,
+    "loadMs": 1.91104,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1921.35,
+    "hitMaxMs": 344.023,
+    "computeHits": 6,
+    "computeHitMs": 1886.92,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "variant left out, strict",
+   "returncode": 0,
+   "args": [
+    "--absent"
+   ],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.0,
+   "maxResidentMiB": 34.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 150.724,
+      "maxMs": 9.97663
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1793.75,
+      "maxMs": 341.651
+     }
+    },
+    "createWallMs": 1944.579416,
+    "absent": {
+     "result": -3,
+     "created": false,
+     "ms": 0.37475
+    },
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 164.070697,
+     "maxMs": 7.518541
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 5.618825,
+     "maxMs": 1.037958
+    },
+    "mvkPipelineCompile": {
+     "count": 69,
+     "totalMs": 1770.410608,
+     "maxMs": 336.336416
+    },
+    "destroyDeviceMs": 4.636292,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.41696,
+    "loadMs": 3.10838,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1768.94,
+    "hitMaxMs": 336.302,
+    "computeHits": 6,
+    "computeHitMs": 1761.14,
+    "misses": 1,
+    "missMs": 0.079625,
+    "missMaxMs": 0.079625,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "variant left out, normal operation (system cache removed)",
+   "returncode": 0,
+   "args": [
+    "--absent"
+   ],
+   "settings": {},
+   "peakFootprintMiB": 20.5,
+   "maxResidentMiB": 35.4,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 1009.38,
+      "maxMs": 103.9
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2063.99,
+      "maxMs": 408.102
+     }
+    },
+    "createWallMs": 3073.4535,
+    "absent": {
+     "result": 0,
+     "created": true,
+     "ms": 20.857458
+    },
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 162.539867,
+     "maxMs": 6.577875
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1655.538279,
+     "maxMs": 566.972291
+    },
+    "mvkPipelineCompile": {
+     "count": 69,
+     "totalMs": 1769.55002,
+     "maxMs": 343.031
+    },
+    "destroyDeviceMs": 5.326834,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.11621,
+    "loadMs": 1.9335,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1747.18,
+    "hitMaxMs": 343.008,
+    "computeHits": 6,
+    "computeHitMs": 1707.7,
+    "misses": 1,
+    "missMs": 0.051291,
+    "missMaxMs": 0.051291,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 1,
+    "collected": 1,
+    "addMs": 0.123458,
+    "addMaxMs": 0.123458,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 1,
+    "saveMs": 1.57779,
+    "saveMaxMs": 1.57779,
+    "savedBytes": 64797,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "variant collected, strict (two segments)",
+   "returncode": 0,
+   "args": [
+    "--absent"
+   ],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.1,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 127.489,
+      "maxMs": 8.067
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1778.91,
+      "maxMs": 310.16
+     }
+    },
+    "createWallMs": 1906.492334,
+    "absent": {
+     "result": 0,
+     "created": true,
+     "ms": 0.388958
+    },
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 145.313364,
+     "maxMs": 5.929791
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.871906,
+     "maxMs": 0.637583
+    },
+    "mvkPipelineCompile": {
+     "count": 69,
+     "totalMs": 1754.337059,
+     "maxMs": 305.103666
+    },
+    "destroyDeviceMs": 5.727375,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 2,
+    "loadedBytes": 1968990,
+    "verifyMs": 1.17392,
+    "loadMs": 1.89062,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 69,
+    "hitMs": 1753.18,
+    "hitMaxMs": 305.075,
+    "computeHits": 6,
+    "computeHitMs": 1747.29,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "memory floor (collection held)",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "MIN_FREE_MB": "1048576"
+   },
+   "peakFootprintMiB": 20.4,
+   "maxResidentMiB": 35.6,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 520.612,
+      "maxMs": 54.4033
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1953.56,
+      "maxMs": 354.686
+     }
+    },
+    "createWallMs": 2474.243792,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 164.182241,
+     "maxMs": 8.466666
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.432572,
+     "maxMs": 0.807458
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 2298.856852,
+     "maxMs": 349.223541
+    },
+    "destroyDeviceMs": 3.890583,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.434166,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 68,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "memory floor with a loaded archive",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "MIN_FREE_MB": "1048576"
+   },
+   "peakFootprintMiB": 20.2,
+   "maxResidentMiB": 34.9,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 127.427,
+      "maxMs": 7.86654
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1670.32,
+      "maxMs": 311.454
+     }
+    },
+    "createWallMs": 1797.841167,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 143.157571,
+     "maxMs": 6.133291
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.874822,
+     "maxMs": 0.687833
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1647.626976,
+     "maxMs": 306.813791
+    },
+    "destroyDeviceMs": 5.222459,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 2,
+    "loadedBytes": 1968990,
+    "verifyMs": 1.31446,
+    "loadMs": 2.50563,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1646.41,
+    "hitMaxMs": 306.779,
+    "computeHits": 6,
+    "computeHitMs": 1640.69,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "save failure (directory read-only)",
+   "returncode": 0,
+   "args": [
+    "--absent"
+   ],
+   "settings": {},
+   "peakFootprintMiB": 20.6,
+   "maxResidentMiB": 40.1,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 154.924,
+      "maxMs": 11.942
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1694.02,
+      "maxMs": 313.791
+     }
+    },
+    "createWallMs": 1849.046042,
+    "absent": {
+     "result": 0,
+     "created": true,
+     "ms": 0.563541
+    },
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 165.47832,
+     "maxMs": 8.937625
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 5.568656,
+     "maxMs": 1.026541
+    },
+    "mvkPipelineCompile": {
+     "count": 69,
+     "totalMs": 1673.827851,
+     "maxMs": 309.120833
+    },
+    "destroyDeviceMs": 17.196084,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.36496,
+    "loadMs": 2.84979,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1672.13,
+    "hitMaxMs": 309.098,
+    "computeHits": 6,
+    "computeHitMs": 1664.28,
+    "misses": 1,
+    "missMs": 0.067458,
+    "missMaxMs": 0.067458,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 1,
+    "collected": 1,
+    "addMs": 0.216833,
+    "addMaxMs": 0.216833,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 1,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "after the failed save, strict",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.2,
+   "maxResidentMiB": 35.0,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 129.293,
+      "maxMs": 7.35887
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1692.94,
+      "maxMs": 314.932
+     }
+    },
+    "createWallMs": 1822.31825,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 144.854327,
+     "maxMs": 5.597666
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.93878,
+     "maxMs": 0.515375
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1670.024521,
+     "maxMs": 310.311625
+    },
+    "destroyDeviceMs": 3.836792,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 1.05617,
+    "loadMs": 1.52117,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1668.9,
+    "hitMaxMs": 310.282,
+    "computeHits": 6,
+    "computeHitMs": 1662.97,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "damaged segment (4 KiB overwritten, same size)",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 28.2,
+   "maxResidentMiB": 45.0,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 156.804,
+      "maxMs": 9.66667
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1756.35,
+      "maxMs": 348.787
+     }
+    },
+    "createWallMs": 1913.266166,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 165.476156,
+     "maxMs": 7.510583
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 5.032408,
+     "maxMs": 0.675625
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1736.985939,
+     "maxMs": 342.96525
+    },
+    "destroyDeviceMs": 9.799,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 1.63021,
+    "loadMs": 2.23438,
+    "removedDamaged": 1,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 13.8851,
+    "addMaxMs": 0.61875,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 2,
+    "saveMs": 11.9421,
+    "saveMaxMs": 6.09396,
+    "savedBytes": 1895897,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "damaged segment, checksum check off (Metal alone)",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "VERIFY": "0"
+   },
+   "peakFootprintMiB": 20.7,
+   "maxResidentMiB": 35.6,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 131.714,
+      "maxMs": 7.61233
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1681.09,
+      "maxMs": 316.215
+     }
+    },
+    "createWallMs": 1812.883375,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 145.987739,
+     "maxMs": 5.845
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.996738,
+     "maxMs": 0.556958
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1659.23169,
+     "maxMs": 311.529875
+    },
+    "destroyDeviceMs": 5.997625,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1904193,
+    "verifyMs": 0,
+    "loadMs": 0.473958,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 67,
+    "hitMs": 1657.8,
+    "hitMaxMs": 311.504,
+    "computeHits": 6,
+    "computeHitMs": 1651.7,
+    "misses": 1,
+    "missMs": 0.073458,
+    "missMaxMs": 0.073458,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 1,
+    "collected": 1,
+    "addMs": 0.144458,
+    "addMaxMs": 0.144458,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 1,
+    "saveMs": 1.33883,
+    "saveMaxMs": 1.33883,
+    "savedBytes": 64813,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "cut segment (half the file)",
+   "returncode": 0,
+   "args": [],
+   "settings": {},
+   "peakFootprintMiB": 26.9,
+   "maxResidentMiB": 43.7,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 136.859,
+      "maxMs": 7.34346
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1687.84,
+      "maxMs": 323.036
+     }
+    },
+    "createWallMs": 1824.772625,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 148.050821,
+     "maxMs": 5.512708
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.232906,
+     "maxMs": 0.56125
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1667.896557,
+     "maxMs": 318.331208
+    },
+    "destroyDeviceMs": 10.916166,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.462458,
+    "removedDamaged": 1,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 10.8806,
+    "addMaxMs": 0.300583,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 2,
+    "saveMs": 12.245,
+    "saveMaxMs": 6.96492,
+    "savedBytes": 1895897,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "intact file Metal refuses, first launch",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SESSION_MAX_ADDS": "0"
+   },
+   "peakFootprintMiB": 20.4,
+   "maxResidentMiB": 35.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 128.109,
+      "maxMs": 7.84167
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1774.07,
+      "maxMs": 356.645
+     }
+    },
+    "createWallMs": 1902.266667,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 143.934906,
+     "maxMs": 5.870416
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.699947,
+     "maxMs": 0.575625
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1751.399685,
+     "maxMs": 351.996291
+    },
+    "destroyDeviceMs": 3.129458,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0.027208,
+    "loadMs": 0.560375,
+    "removedDamaged": 0,
+    "refusedSegments": 1,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 68,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "intact file Metal refuses, second launch",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SESSION_MAX_ADDS": "0"
+   },
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.7,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 144.836,
+      "maxMs": 8.33817
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1802.99,
+      "maxMs": 340.383
+     }
+    },
+    "createWallMs": 1947.9145,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 158.036534,
+     "maxMs": 6.29475
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 5.092531,
+     "maxMs": 0.835666
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1780.631393,
+     "maxMs": 335.037333
+    },
+    "destroyDeviceMs": 3.7195,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0.035916,
+    "loadMs": 0.689041,
+    "removedDamaged": 0,
+    "refusedSegments": 1,
+    "removedRefused": 1,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 68,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "archives of two other identities",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SESSION_MAX_ADDS": "0"
+   },
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.6,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 135.091,
+      "maxMs": 7.99
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1916.54,
+      "maxMs": 330.352
+     }
+    },
+    "createWallMs": 2051.715208,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 152.116032,
+     "maxMs": 5.940208
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.232282,
+     "maxMs": 0.576791
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1891.369019,
+     "maxMs": 325.142208
+    },
+    "destroyDeviceMs": 3.975,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.95775,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 1,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 68,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "two segments, at most two kept with this session's",
+   "returncode": 0,
+   "args": [
+    "--absent"
+   ],
+   "settings": {
+    "MAX_SEGMENTS": "2"
+   },
+   "peakFootprintMiB": 26.9,
+   "maxResidentMiB": 43.9,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 133.476,
+      "maxMs": 8.31042
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1714.56,
+      "maxMs": 309.833
+     }
+    },
+    "createWallMs": 1848.156916,
+    "absent": {
+     "result": 0,
+     "created": true,
+     "ms": 0.434333
+    },
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 144.828575,
+     "maxMs": 6.03775
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.902489,
+     "maxMs": 0.70375
+    },
+    "mvkPipelineCompile": {
+     "count": 69,
+     "totalMs": 1695.223226,
+     "maxMs": 305.18225
+    },
+    "destroyDeviceMs": 10.29375,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 64797,
+    "verifyMs": 0.103583,
+    "loadMs": 0.847708,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 1,
+    "prunedIdentities": 0,
+    "hits": 1,
+    "hitMs": 0.172708,
+    "hitMaxMs": 0.172708,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 68,
+    "missMs": 1.57714,
+    "missMaxMs": 0.086583,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 10.4911,
+    "addMaxMs": 0.2985,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 2,
+    "saveMs": 12.2075,
+    "saveMaxMs": 6.59296,
+    "savedBytes": 1895897,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "session bound (10 collections)",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SESSION_MAX_ADDS": "10"
+   },
+   "peakFootprintMiB": 21.8,
+   "maxResidentMiB": 36.7,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 133.789,
+      "maxMs": 7.70646
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1698.28,
+      "maxMs": 319.137
+     }
+    },
+    "createWallMs": 1832.146417,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 148.480239,
+     "maxMs": 6.0425
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.342241,
+     "maxMs": 0.627625
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1675.45498,
+     "maxMs": 312.894208
+    },
+    "destroyDeviceMs": 5.147125,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.481708,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 10,
+    "collected": 10,
+    "addMs": 1.6842,
+    "addMaxMs": 0.220958,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 58,
+    "saves": 1,
+    "saveMs": 1.9205,
+    "saveMaxMs": 1.9205,
+    "savedBytes": 299519,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "collection, saves every 8 additions, archive reopened after each save",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SAVE_EVERY": "8",
+    "REOPEN": "1"
+   },
+   "peakFootprintMiB": 26.5,
+   "maxResidentMiB": 43.3,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 137.746,
+      "maxMs": 7.50254
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1672.88,
+      "maxMs": 308.105
+     }
+    },
+    "createWallMs": 1810.715167,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 149.175823,
+     "maxMs": 5.763
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.240614,
+     "maxMs": 0.554875
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1652.733852,
+     "maxMs": 303.363041
+    },
+    "destroyDeviceMs": 8.440917,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.418791,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 10.3775,
+    "addMaxMs": 0.2815,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 9,
+    "saveMs": 37.407,
+    "saveMaxMs": 6.12479,
+    "savedBytes": 1895897,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "after it (reopened after each save), strict",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.3,
+   "maxResidentMiB": 35.0,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 130.264,
+      "maxMs": 7.10129
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1682.24,
+      "maxMs": 314.874
+     }
+    },
+    "createWallMs": 1812.597542,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 144.818153,
+     "maxMs": 5.448833
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 3.812991,
+     "maxMs": 0.524166
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1660.486437,
+     "maxMs": 310.232583
+    },
+    "destroyDeviceMs": 5.31925,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1895897,
+    "verifyMs": 1.00283,
+    "loadMs": 1.46871,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1659.32,
+    "hitMaxMs": 310.201,
+    "computeHits": 6,
+    "computeHitMs": 1653.25,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "collection, saves every 8 additions, archive kept in memory",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "SAVE_EVERY": "8",
+    "REOPEN": "0"
+   },
+   "peakFootprintMiB": 27.2,
+   "maxResidentMiB": 42.5,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 158.586,
+      "maxMs": 8.62663
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1737.15,
+      "maxMs": 350.883
+     }
+    },
+    "createWallMs": 1895.816375,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 166.752488,
+     "maxMs": 6.3095
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 5.313113,
+     "maxMs": 0.759375
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1717.129976,
+     "maxMs": 345.374166
+    },
+    "destroyDeviceMs": 10.878625,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.542041,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 12.8609,
+    "addMaxMs": 0.440875,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 9,
+    "saveMs": 34.7153,
+    "saveMaxMs": 7.07071,
+    "savedBytes": 1895897,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "after it (kept in memory), strict",
+   "returncode": 0,
+   "args": [],
+   "settings": {
+    "STRICT": "1"
+   },
+   "peakFootprintMiB": 20.1,
+   "maxResidentMiB": 34.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 145.467,
+      "maxMs": 8.00971
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1889.41,
+      "maxMs": 370.634
+     }
+    },
+    "createWallMs": 2034.949041,
+    "draws": 38,
+    "drawHash": "d737018f04991e8d",
+    "dispatches": 6,
+    "computeHash": "beb2078f3d645d86",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 160.068614,
+     "maxMs": 6.01725
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 4.534448,
+     "maxMs": 0.653333
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1865.947726,
+     "maxMs": 365.305666
+    },
+    "destroyDeviceMs": 2.746417,
+    "cacheReads": 0,
+    "threads": 1
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": true,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1895897,
+    "verifyMs": 1.13496,
+    "loadMs": 1.77596,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1864.72,
+    "hitMaxMs": 365.286,
+    "computeHits": 6,
+    "computeHitMs": 1856.77,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 1: creation from 4 threads, cache reads, close at once",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4",
+    "--cache-reads",
+    "50",
+    "--no-draw"
+   ],
+   "settings": {
+    "SAVE_EVERY": "4"
+   },
+   "peakFootprintMiB": 25.9,
+   "maxResidentMiB": 42.9,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 5262.29,
+      "maxMs": 657.451
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 3157.42,
+      "maxMs": 595.499
+     }
+    },
+    "createWallMs": 2779.848792,
+    "draws": 0,
+    "drawHash": "14650fb0739d0383",
+    "dispatches": 0,
+    "computeHash": "14650fb0739d0383",
+    "nonBlackPixels": 0,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 159.940573,
+     "maxMs": 6.739
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1075.272737,
+     "maxMs": 120.913
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 4290.944138,
+     "maxMs": 518.75275
+    },
+    "destroyDeviceMs": 9.630292,
+    "cacheReads": 22,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.615083,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 17.3628,
+    "addMaxMs": 4.30363,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 22,
+    "saveMs": 98.5213,
+    "saveMaxMs": 7.4225,
+    "savedBytes": 1903529,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 1: next launch, 4 threads",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4"
+   ],
+   "settings": {},
+   "peakFootprintMiB": 20.8,
+   "maxResidentMiB": 35.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 1921.89,
+      "maxMs": 1123.36
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 3557.13,
+      "maxMs": 917.224
+     }
+    },
+    "createWallMs": 1846.056458,
+    "draws": 38,
+    "drawHash": "d8d9a788d59895c6",
+    "dispatches": 6,
+    "computeHash": "6c64127f5bc8e408",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 149.478072,
+     "maxMs": 5.687916
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1425.441658,
+     "maxMs": 324.973833
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1726.953098,
+     "maxMs": 330.410125
+    },
+    "destroyDeviceMs": 3.112042,
+    "cacheReads": 0,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1903529,
+    "verifyMs": 1.08508,
+    "loadMs": 1.591,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1719.54,
+    "hitMaxMs": 330.378,
+    "computeHits": 6,
+    "computeHitMs": 1712.52,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 2: creation from 4 threads, cache reads, close at once",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4",
+    "--cache-reads",
+    "50",
+    "--no-draw"
+   ],
+   "settings": {
+    "SAVE_EVERY": "4"
+   },
+   "peakFootprintMiB": 26.5,
+   "maxResidentMiB": 43.5,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 4765.61,
+      "maxMs": 415.824
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 3626.85,
+      "maxMs": 827.198
+     }
+    },
+    "createWallMs": 2809.079875,
+    "draws": 0,
+    "drawHash": "14650fb0739d0383",
+    "dispatches": 0,
+    "computeHash": "14650fb0739d0383",
+    "nonBlackPixels": 0,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 156.754821,
+     "maxMs": 6.101458
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1047.140073,
+     "maxMs": 88.793791
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 4360.496146,
+     "maxMs": 706.561916
+    },
+    "destroyDeviceMs": 8.463209,
+    "cacheReads": 28,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.423541,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 14.2695,
+    "addMaxMs": 2.13125,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 21,
+    "saveMs": 92.8377,
+    "saveMaxMs": 7.80208,
+    "savedBytes": 1903529,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 2: next launch, 4 threads",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4"
+   ],
+   "settings": {},
+   "peakFootprintMiB": 20.7,
+   "maxResidentMiB": 35.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 2207.3,
+      "maxMs": 539.57
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 1947.88,
+      "maxMs": 534.422
+     }
+    },
+    "createWallMs": 1789.6655,
+    "draws": 38,
+    "drawHash": "0f288d6bf2bf3f85",
+    "dispatches": 6,
+    "computeHash": "d81728e824ca779c",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 147.61474,
+     "maxMs": 5.70625
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 825.281862,
+     "maxMs": 296.854458
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1661.539854,
+     "maxMs": 301.731583
+    },
+    "destroyDeviceMs": 4.195167,
+    "cacheReads": 0,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1903529,
+    "verifyMs": 1.02029,
+    "loadMs": 1.48746,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1652.43,
+    "hitMaxMs": 301.695,
+    "computeHits": 6,
+    "computeHitMs": 1645,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 3: creation from 4 threads, cache reads, close at once",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4",
+    "--cache-reads",
+    "50",
+    "--no-draw"
+   ],
+   "settings": {
+    "SAVE_EVERY": "4"
+   },
+   "peakFootprintMiB": 26.1,
+   "maxResidentMiB": 43.2,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 5298.13,
+      "maxMs": 717.042
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 3192.08,
+      "maxMs": 706.596
+     }
+    },
+    "createWallMs": 2857.270792,
+    "draws": 0,
+    "drawHash": "14650fb0739d0383",
+    "dispatches": 0,
+    "computeHash": "14650fb0739d0383",
+    "nonBlackPixels": 0,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 156.114325,
+     "maxMs": 6.066166
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1028.701113,
+     "maxMs": 88.039625
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 4502.561521,
+     "maxMs": 578.540791
+    },
+    "destroyDeviceMs": 8.746334,
+    "cacheReads": 29,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 0,
+    "loadedBytes": 0,
+    "verifyMs": 0,
+    "loadMs": 0.392625,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 0,
+    "hitMs": 0,
+    "hitMaxMs": 0,
+    "computeHits": 0,
+    "computeHitMs": 0,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 68,
+    "collectQueued": 68,
+    "collected": 68,
+    "addMs": 15.6469,
+    "addMaxMs": 2.61179,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 21,
+    "saveMs": 90.7518,
+    "saveMaxMs": 6.97817,
+    "savedBytes": 1903529,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  },
+  {
+   "label": "threads round 3: next launch, 4 threads",
+   "returncode": 0,
+   "args": [
+    "--threads",
+    "4"
+   ],
+   "settings": {},
+   "peakFootprintMiB": 20.7,
+   "maxResidentMiB": 35.8,
+   "test": {
+    "graphics": {
+     "requested": 62,
+     "created": 62,
+     "failures": "",
+     "time": {
+      "count": 62,
+      "totalMs": 2457.24,
+      "maxMs": 588.814
+     }
+    },
+    "compute": {
+     "requested": 6,
+     "created": 6,
+     "failures": "",
+     "time": {
+      "count": 6,
+      "totalMs": 2238.24,
+      "maxMs": 551.458
+     }
+    },
+    "createWallMs": 1789.292542,
+    "draws": 38,
+    "drawHash": "d4cc15677a6d9023",
+    "dispatches": 6,
+    "computeHash": "2b7bf63b4b8c779c",
+    "nonBlackPixels": 155648,
+    "mvkSpirvToMsl": {
+     "count": 32,
+     "totalMs": 145.836822,
+     "maxMs": 5.764458
+    },
+    "mvkMslCompile": {
+     "count": 33,
+     "totalMs": 1099.434445,
+     "maxMs": 301.50125
+    },
+    "mvkPipelineCompile": {
+     "count": 68,
+     "totalMs": 1668.852603,
+     "maxMs": 306.655166
+    },
+    "destroyDeviceMs": 3.679834,
+    "cacheReads": 0,
+    "threads": 4
+   },
+   "archive": {
+    "schema": "rbx-mtl-archive-1",
+    "identity": "id-b87770a8182c8df3",
+    "strict": false,
+    "loaded": true,
+    "loadedSegments": 1,
+    "loadedBytes": 1903529,
+    "verifyMs": 1.03313,
+    "loadMs": 1.51454,
+    "removedDamaged": 0,
+    "refusedSegments": 0,
+    "removedRefused": 0,
+    "prunedSegments": 0,
+    "prunedIdentities": 0,
+    "hits": 68,
+    "hitMs": 1659.83,
+    "hitMaxMs": 306.619,
+    "computeHits": 6,
+    "computeHitMs": 1652.58,
+    "misses": 0,
+    "missMs": 0,
+    "missMaxMs": 0,
+    "lookupsBeforeLoad": 0,
+    "lookupsWithoutArchive": 0,
+    "collectQueued": 0,
+    "collected": 0,
+    "addMs": 0,
+    "addMaxMs": 0,
+    "addErrors": 0,
+    "collectAlreadyArchived": 0,
+    "collectDroppedQueueFull": 0,
+    "collectDroppedAtClose": 0,
+    "collectHeldForMemory": 0,
+    "collectCapped": 0,
+    "saves": 0,
+    "saveMs": 0,
+    "saveMaxMs": 0,
+    "savedBytes": 0,
+    "saveErrors": 0,
+    "reopenErrors": 0,
+    "directoryErrors": 0
+   }
+  }
+ ]
+}

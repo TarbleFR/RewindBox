@@ -55,6 +55,7 @@ namespace Ryujinx.Library {
   public static int Reloads=>_contentManager.Reloads;
   // EmbeddedRuntime.cs owns the code arena request; the preflight only sets it.
   static ulong EmbeddedJitArenaHint;static ulong EmbeddedJitArenaFor(ulong titleId,Nca program)=>0;
+  static ulong NotedTitle=ulong.MaxValue;static void EmbeddedNoteLaunchTitle(ulong titleId){NotedTitle=titleId;}
   public static ulong ArenaHint{get=>EmbeddedJitArenaHint;set=>EmbeddedJitArenaHint=value;}
  }
 }

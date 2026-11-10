@@ -509,11 +509,18 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             do { try self.activateAudio(reason:"ownershipRestored") }
             catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)) }
         })
+        // Every interruption of the game's audio session is journaled (a call,
+        // Siri, a recording's microphone, another app); only an end that
+        // allows resuming reactivates it, as before.
         audioObservers.append(center.addObserver(forName:AVAudioSession.interruptionNotification,object:AVAudioSession.sharedInstance(),queue:.main) { [weak self] event in
-            guard let self, self.previousAudio != nil,
-                  (event.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.uintValue == AVAudioSession.InterruptionType.ended.rawValue,
-                  let raw = (event.userInfo?[AVAudioSessionInterruptionOptionKey] as? NSNumber)?.uintValue,
-                  AVAudioSession.InterruptionOptions(rawValue:raw).contains(.shouldResume) else { return }
+            guard let self, self.previousAudio != nil else { return }
+            let type = (event.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.uintValue
+            let raw = (event.userInfo?[AVAudioSessionInterruptionOptionKey] as? NSNumber)?.uintValue
+            let ended = type == AVAudioSession.InterruptionType.ended.rawValue
+            let resume = raw.map { AVAudioSession.InterruptionOptions(rawValue:$0).contains(.shouldResume) } ?? false
+            if type == AVAudioSession.InterruptionType.began.rawValue { MeloNXLaunchJournal.record("audio","interruptionBegan") }
+            else if ended { MeloNXLaunchJournal.record("audio","interruptionEndReceived",detail:resume ? "shouldResume: yes" : "shouldResume: no") }
+            guard ended, resume else { return }
             do { try self.activateAudio(reason:"interruptionEnded") }
             catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)) }
         })

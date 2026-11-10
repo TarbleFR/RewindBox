@@ -126,12 +126,22 @@ def check(source: Path | None, baseline: Path | None = None, reused_reference: P
             if item['reused_from_delivered'] == recovered.CORE_SOURCE} == set(identity['reused_native_modes'])
     assert gate.NEW_CANONICAL_UPSTREAM <= set(manifest['files_sha256'])
     assert gate.NEW_CANONICAL_UPSTREAM <= set(proof['source_closure']['upstream_dependencies']['files_sha256'])
-    # Host bridge: the Core-input drift and the MoltenVK reviewed delta are the same pair.
-    assert identity['core_input_sha256'][gate.HOST] == dependency.HOST_BEFORE and gate.HOST_SHA == dependency.HOST_AFTER
-    assert sha((ROOT / gate.HOST).read_bytes()) == gate.HOST_SHA and spec['moltenvk_dependency']['reviewed_host_delta'] is True
-    assert spec['moltenvk_dependency']['run'] == identity['moltenvk_dependency']['run']
-    assert spec['moltenvk_dependency']['source'] == identity['moltenvk_dependency']['source']
-    assert spec['moltenvk_dependency']['library_sha256'] == identity['moltenvk_dependency']['library_sha256']
+    # Host bridge: the Core-input drift starts from the reference's bridge, and the declared host is the current one.
+    assert identity['core_input_sha256'][gate.HOST] == dependency.HOST_BEFORE
+    assert sha((ROOT / gate.HOST).read_bytes()) == gate.HOST_SHA
+    declared = spec['moltenvk_dependency']
+    linked = identity['moltenvk_dependency']
+    if 'replaces' in declared:
+        # A replaced dependency: its own run recorded the current bridge (no reviewed pair), and it replaces exactly the
+        # dependency the reference Core linked.
+        assert declared['reviewed_host_delta'] is False and declared['run'] != linked['run']
+        assert {k: declared['replaces'][k] for k in ('run', 'source', 'library_sha256')} == {
+            k: linked[k] for k in ('run', 'source', 'library_sha256')}
+    else:
+        # The reference's dependency: the Core-input drift and the MoltenVK reviewed delta are the same pair.
+        assert gate.HOST_SHA == dependency.HOST_AFTER and declared['reviewed_host_delta'] is True
+        assert declared['run'] == linked['run'] and declared['source'] == linked['source']
+        assert declared['library_sha256'] == linked['library_sha256']
     # The delivery consumer pins either this build's reference (until it is built) or this build.
     consumer_build = int(consumer.CORE_TYPE.removeprefix('rpcs3-ios-core'))
     assert consumer_build in (gate.REFERENCE_BUILD, gate.BUILD), consumer.CORE_TYPE
@@ -184,7 +194,9 @@ def check(source: Path | None, baseline: Path | None = None, reused_reference: P
     for job in workflow['jobs'].values():
         steps = [step.get('id') for step in job['steps']]
         assert 'core-build' in steps and job['steps'][steps.index('core-build')]['run'].count('--github-outputs') == 1
-    assert gate.github_outputs()['dependency_run'] == identity['moltenvk_dependency']['run']
+    # The route passes the declared dependency (the reference's, or its declared replacement) to the authenticating step.
+    assert gate.github_outputs()['dependency_run'] == spec['moltenvk_dependency']['run']
+    assert gate.github_outputs()['dependency_source'] == spec['moltenvk_dependency']['source']
     assert gate.github_outputs()['apple_baseline_source'] == recovered.CORE_SOURCE
     authenticate = next(step for step in workflow['jobs']['core']['steps'] if 'rpcs3_core610.py \\\n' in step.get('run', '')
                         and '--prepare' in step['run'])

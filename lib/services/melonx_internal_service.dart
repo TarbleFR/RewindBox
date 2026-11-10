@@ -10,6 +10,8 @@ import 'package:neostation/l10n/pairing_file_locale.dart';
 import 'config_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
+import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
+import 'package:neostation/services/enhancements/enhancement_service.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -351,6 +353,20 @@ abstract final class MelonxInternalService {
     }
   }
 
+  /// RewindBox catalogue cheats the player did not choose in RewindBox are
+  /// disabled before the game starts. Never blocks a launch.
+  static Future<void> _disableUnlistedCatalogueCheats() async {
+    try {
+      final chosen = MelonxEnhancementAdapter.chosenKeys(await EnhancementService.instance.store.all());
+      final titles = await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(await rootDirectory(), chosen);
+      if (titles.isNotEmpty) {
+        MelonxLaunchDiagnostics.record('cheats', 'unchosenDisabled', {'titles': titles.join(',')});
+      }
+    } catch (error) {
+      MelonxLaunchDiagnostics.record('cheats', 'unlistedCheckFailed', {'error': error.runtimeType.toString()});
+    }
+  }
+
   static Future<Map<String, dynamic>> launch({
     required String gamePath,
     required String locale,
@@ -414,6 +430,7 @@ abstract final class MelonxInternalService {
           'diagnostic': 'The local game file is empty.',
         };
       MelonxLaunchDiagnostics.record('file', 'passed', {'bytes': bytes});
+      await _disableUnlistedCatalogueCheats();
       MelonxLaunchDiagnostics.record('entitlements', 'begin');
       final accessFailure = await verifyMemoryAccess();
       if (accessFailure != null) return accessFailure;

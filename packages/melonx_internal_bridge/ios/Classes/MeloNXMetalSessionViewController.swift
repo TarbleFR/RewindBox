@@ -7,23 +7,42 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
     private let observationLock = NSLock()
     private var presentedFrames: UInt64 = 0
     private var lastPresented: CFTimeInterval = 0
+    private var lastAcquired: CFTimeInterval = 0
     private var pacing = MeloNXPerfJournal.Presentation()
     var firstPresentation: (() -> Void)?
     var frameCount: UInt64 { observationLock.lock(); defer { observationLock.unlock() }; return presentedFrames }
-    // Gaps between presentations for the performance journal; the longest gap
-    // and the list of gaps reset on each read.
+    // Gaps between presentations and between drawable requests for the
+    // performance journal; the longest gap and wait and both lists reset on
+    // each read.
     func presentation() -> MeloNXPerfJournal.Presentation {
         observationLock.lock(); defer { observationLock.unlock() }
         var result = pacing
         result.frames = presentedFrames
         pacing.maxGapMs = 0
         pacing.gapsMs.removeAll(keepingCapacity: true)
+        pacing.acquireGapsMs.removeAll(keepingCapacity: true)
+        pacing.maxAcquireWaitMs = 0
         return result
     }
     // A pause is not a held frame: the next presentation starts a new gap.
-    func restartPacing() { observationLock.lock(); lastPresented = 0; observationLock.unlock() }
+    func restartPacing() { observationLock.lock(); lastPresented = 0; lastAcquired = 0; observationLock.unlock() }
     override func nextDrawable() -> CAMetalDrawable? {
+        // Measurement only: the host time the engine asked for a drawable, read
+        // before CAMetalLayer waits for a free one (the display or compositor
+        // may hold them all), and the longest such wait. Only requests that
+        // return a drawable are recorded, bounded like the presentation gaps.
+        // The drawable is unchanged.
+        let requested = CACurrentMediaTime()
         guard let drawable = super.nextDrawable() else { return nil }
+        let waitMs = (CACurrentMediaTime() - requested) * 1000
+        observationLock.lock()
+        pacing.maxAcquireWaitMs = max(pacing.maxAcquireWaitMs, waitMs)
+        if lastAcquired > 0, requested > lastAcquired,
+           pacing.acquireGapsMs.count < MeloNXPerfJournal.Presentation.gapLimit {
+            pacing.acquireGapsMs.append(UInt16(min(((requested - lastAcquired) * 1000).rounded(), 65535)))
+        }
+        lastAcquired = requested
+        observationLock.unlock()
         drawable.addPresentedHandler { [weak self] value in
             guard let self, value.presentedTime > 0 else { return }
             self.observationLock.lock()
@@ -101,6 +120,9 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private let menuButton = UIButton(type:.system)
     private var router: MeloNXInputRouter?
     private var controls: UIHostingController<AnyView>?
+    // The player's Switch controller skin, when one is chosen (MeloNXSkinSession).
+    private var skinSession: MeloNXSkinSession?
+    private var surfaceFill: [NSLayoutConstraint] = []
     private var perf: MeloNXPerfJournal?
     private let diagnosticContext = MeloNXStdioCapture.sessionContext
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
@@ -135,7 +157,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         }
         surface.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(surface)
-        NSLayoutConstraint.activate([surface.leadingAnchor.constraint(equalTo:view.leadingAnchor),surface.trailingAnchor.constraint(equalTo:view.trailingAnchor),surface.topAnchor.constraint(equalTo:view.topAnchor),surface.bottomAnchor.constraint(equalTo:view.bottomAnchor)])
+        surfaceFill = [surface.leadingAnchor.constraint(equalTo:view.leadingAnchor),surface.trailingAnchor.constraint(equalTo:view.trailingAnchor),surface.topAnchor.constraint(equalTo:view.topAnchor),surface.bottomAnchor.constraint(equalTo:view.bottomAnchor)]
+        NSLayoutConstraint.activate(surfaceFill)
         spinner.color = .white; spinner.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(spinner)
         NSLayoutConstraint.activate([spinner.centerXAnchor.constraint(equalTo:view.centerXAnchor),spinner.centerYAnchor.constraint(equalTo:view.centerYAnchor)])
@@ -184,6 +207,17 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 MeloNXLaunchJournal.record("lifecycle",event,detail:"memory " + MeloNXMetalSessionViewController.memoryField())
             })
         }
+        // Screen recording, mirroring or AirPlay of this screen (isCaptured):
+        // one line per change of the game window's screen and one at session
+        // start, so a recording the player could not save can be matched with
+        // the capture state. Another screen's change is not journaled.
+        observers.append(NotificationCenter.default.addObserver(forName:UIScreen.capturedDidChangeNotification,object:nil,queue:.main) { [weak self] event in
+            self?.recordCapture(event.object as? UIScreen)
+        })
+    }
+    private func recordCapture(_ changed: UIScreen?) {
+        guard let screen = view.window?.windowScene?.screen ?? changed, changed == nil || changed === screen else { return }
+        MeloNXLaunchJournal.record("lifecycle",screen.isCaptured ? "captured" : "notCaptured",detail:"memory " + Self.memoryField())
     }
 
     private func installControls(generation: Int64) {
@@ -197,6 +231,11 @@ final class MeloNXMetalSessionViewController: UIViewController {
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
         refreshControls()
+        if let skin = MeloNXSkinSession(game:game,router:router,host:view,surface:surface,surfaceFill:surfaceFill,menuButton:menuButton,menu:{ [weak self] in self?.showMenu() }) {
+            skin.controlsView = { [weak self] in self?.controls?.view }
+            skin.interactive = { [weak self] in guard let self else { return false }; return self.presentedViewController == nil && !self.closing && self.pauseReasons.isEmpty }
+            skinSession = skin; skin.sync()
+        }
         if UIApplication.shared.applicationState != .active { pauseReasons.insert("application") }
         applyPause()
     }
@@ -236,6 +275,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         addChild(child); view.insertSubview(child.view,belowSubview:menuButton)
         NSLayoutConstraint.activate([child.view.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor),child.view.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor),child.view.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),child.view.bottomAnchor.constraint(equalTo:view.safeAreaLayoutGuide.bottomAnchor)])
         child.didMove(toParent:self); controls = child
+        skinSession?.sync()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -246,6 +286,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
             dismiss(animated:true) { [finished] in finished(.success(())) }
             return
         }
+        recordCapture(nil)
         surface.layoutIfNeeded()
         let size = surface.metalLayer.drawableSize
         // As in standalone MeloNX: no auto-lock while a game runs, and the
@@ -259,6 +300,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
                     self?.perf?.stop(); self?.perf = nil
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
+                    self?.skinSession?.close(); self?.skinSession = nil
                     self?.router?.close(); MeloNXTextInput.shared.detach(self); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
                         self.dismiss(animated:true) { finished(result) }
@@ -273,6 +315,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        skinSession?.layout()
         applyPresentTarget()
     }
     // Standalone MeloNX sends its screen's maximum rate on every layout.
@@ -289,6 +332,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         perf?.setPaused(!pauseReasons.isEmpty)
         surface.metalLayer.restartPacing()
         router?.suspend(!pauseReasons.isEmpty)
+        skinSession?.sync()
         host.setPaused(!pauseReasons.isEmpty)
     }
     @objc private func showMenu() {

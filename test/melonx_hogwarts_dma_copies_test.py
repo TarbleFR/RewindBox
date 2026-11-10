@@ -68,9 +68,103 @@ import adapt_hogwarts_dma_copies as adapter  # noqa: E402
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
 import adapt_queued_syncpoints as queued  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import apply_present  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 ALL = [*adapter.NAMES, *host.NAMES]
+# Files of this composition each post-631 adapter edits, in preparation order (PR #153 lot, then PR #154 lot).
+LOT_FILES = {
+    'adapt_pipeline_warmup_parity': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    'adapt_device_short_trim': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
+    'adapt_moltenvk_barrier_ordering': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_descriptor_scratch_all_titles': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_readback_occupied_attribution': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_pipeline_miss_context': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # PR #156 lot (Core 644).
+    'adapt_readback_receivers': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_present_source_attribution': [],
+    # PR #156 follow-up (Core 647).
+    'adapt_teardown_compile_cancel': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
+    'adapt_pause_guest_threads': [],
+    'adapt_teardown_phase_marks': [],
+    # PR #156 new lot (Core 654): the binder release's Library hunks; the artifact-path counters on PipelineBase and TextureArray.
+    'adapt_binder_teardown': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_artifact_counters': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # MeloNX levers (Core 656): the array rebuild slots edit none of these files; the present pacing edits Window and Library.
+    'adapt_array_rebuild_allocations': [],
+    'adapt_present_pacing': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Library/Library.cs'],
+    # IPA 657 fix (Core 658): the game image written into the drawable by a render pass edits Window only.
+    'adapt_present_drawable_residency': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    # Core 661 (Hogwarts 658 logs, RAM, GC, input lots), in preparation order: the files of this composition each edits.
+    'adapt_present_pacer_fixes': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    'adapt_shader_save_poll': [],
+    'adapt_warmup_key_parity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_setprogram_warmup': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
+    'adapt_teardown_cache': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_forced_syncpoint_wait': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs', 'src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs', 'src/Ryujinx.Library/Library.cs'],
+    'adapt_session_retention': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_memory_inventory': [],
+    'adapt_guest_fault_context': [],
+    'adapt_host_warning_trim': [],
+    'adapt_safe_point_compaction': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_cold_texture_release': [],
+    'adapt_bindless_retention': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_moltenvk_stage_ordering': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs'],
+    # Core 667 (IPA 666 logs: render worker NullReferenceException, sky blocks, shader-cache saves), in preparation order.
+    'adapt_buffer_array_barriers': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    'adapt_hogwarts_precise_math': ['src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'],
+    'adapt_shader_save_journal': [],
+    'adapt_nan_scrub': [],
+    # Core 673: the main pipeline cache checkpoint during play (PipelineState.cs is outside this composition).
+    'adapt_main_cache_checkpoint': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_checkpoint_side_cache': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 677: evicted buffers recreated in both host budget settings.
+    'adapt_evicted_buffer_recreate': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # Core 679: Apple audio session start failure (outside this composition).
+    'adapt_audio_start_deferred': [],
+    # Core 681: the pipeline cache room.
+    'adapt_pipeline_cache_room': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 683: pause and play-time persistence of the main pipeline cache.
+    'adapt_pipeline_cache_persist': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Library/Library.cs'],
+    # Core 685: pipeline build journal.
+    'adapt_pipeline_build_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # Core 687: main pipeline cache growth rule and journal records.
+    'adapt_pipeline_cache_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 689: occupied read-backs into a buffer; async skips only into regenerated targets.
+    'adapt_occupied_readback_buffers': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_async_regenerated_targets': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Graphics.Vulkan/TextureStorage.cs',
+                                        'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 691: released-texture flush guard (no file held here); pipeline failure identity (PipelineBase.cs).
+    'adapt_released_texture_flush': [],
+    'adapt_pipeline_failure_identity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_worker_main_cache_lookup': [],
+    # Core 693: compute/graphics switch bindings and the GC keep-alive (no file held here).
+    'adapt_compute_switch_bindings': [],
+    'adapt_bgc_keepalive': [],
+    # Core 697: bindless delta repairs (no file held here); the main pipeline cache loads in the background.
+    'adapt_array_delta_invalidated': [],
+    'adapt_pipeline_cache_background': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 699: the GPU thread's synchronous waits attributed per invoked command.
+    'adapt_sync_wait_attribution': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Core 701: buffer flushes read after their sync.
+    'adapt_synced_buffer_reads': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'],
+    # Core 703: a stage's layout declares each used binding with its used type (no file of this lot).
+    'adapt_layout_used_types': [],
+    # Core 705: the program already set keeps its bound descriptor sets.
+    'adapt_same_program_descriptors': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 707: the retention chain journal.
+    'adapt_retention_chain': ['src/Ryujinx.Library/Library.cs'],
+    # Core 709: valid textures kept past the short texture cache.
+    'adapt_short_cache_reuse': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
+    # Core 711: graphics pipeline states replayed at launch.
+    'adapt_pipeline_variant_replay': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    # Core 713: worker snapshots main's file holds removed at the close; an ignored main snapshot written again.
+    'adapt_pipeline_snapshot_retire': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 715: extra array sets kept bound; texture array references by delta.
+    'adapt_extra_set_binds': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
+    'adapt_array_reference_deltas': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Core 717: a worker's libraries published to main during play.
+    'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+}
 
 checks = 0
 
@@ -96,9 +190,9 @@ def compose(target, final=False):
         queued.apply(target, names=[queued.LIBRARY])
     host.apply(target)
     if final:
-        # PR #153 lot (Core 639), last in preparation order: its TextureCache.cs and ShaderCollection.cs hunks.
-        apply_present(target, 'adapt_pipeline_warmup_parity')
-        apply_present(target, 'adapt_device_short_trim')
+        # PR #153 lot (Core 639) then PR #154 lot (Core 642), last in preparation order, on the files held here.
+        for name in ORDER:
+            apply_present(target, name)
 
 
 with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
@@ -109,16 +203,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     after = {p: (work / p).read_text(encoding='utf-8-sig') for p in ALL}
     composed = temporary / 'final'
     compose(composed, final=True)
-    # Expected final: this composition plus the queued syncpoint Library line, then the PR #153 lot (Core 639) on
-    # the files it edits here (TextureCache.cs, ShaderCollection.cs), nothing else.
+    # Expected final: this composition plus the queued syncpoint Library line, then the PR #153 lot (Core 639) and the
+    # PR #154 lot (Core 642) on the files they edit here (LOT_FILES), nothing else.
     expected_final = temporary / 'expected-final'
     shutil.copytree(work, expected_final)
     (expected_final / adapter.LIBRARY).write_text(
         after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]), encoding='utf-8')
-    lot153 = apply_present(expected_final, 'adapt_pipeline_warmup_parity') + apply_present(expected_final, 'adapt_device_short_trim')
-    check(sorted(lot153) == ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'] and
+    lots = {name: apply_present(expected_final, name) for name in ORDER}
+    print(json.dumps({'lotFiles': lots}), flush=True)
+    check(lots == LOT_FILES and
           all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
-          'the final composition adds only the queued syncpoint Library line and the PR #153 hunks')
+          'the final composition adds only the queued syncpoint Library line and the PR #153, #154 and #156 hunks (its follow-up and new lot included)')
     postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
@@ -1492,6 +1587,11 @@ namespace Ryujinx.Graphics.Vulkan
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'build-utils/melonx/adapt_queued_syncpoints.py', 'test/melonx_hogwarts_dma_copies_test.py',
           'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+          'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+          'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
+          'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
+          'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
+          'build-utils/melonx/adapt_teardown_phase_marks.py',
           'test/melonx_adapter_control.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',

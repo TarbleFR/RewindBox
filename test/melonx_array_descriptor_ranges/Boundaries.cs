@@ -60,6 +60,8 @@ namespace Ryujinx.Graphics.Vulkan
         public static long ArrayWholeWrites, ArrayWholeElements, ArrayRangeWrites, ArrayRangeElements, ArrayElementsKept;
         public static long ArrayWriteTicks, ArrayReferencePasses, ArrayReferencesAdded, ArrayReferenceTicks;
         public static long ArrayCurrentBinds, ArraySlotsAdded, ArrayFallbacks;
+        // Core 654 (adapt_artifact_counters): declared so the final TextureArray compiles; counted, not compared here.
+        public static long ArrayDestroyedViewWalkElements, ArrayDestroyedViewRefreshElements;
     }
 
     static class RenderStageTimer

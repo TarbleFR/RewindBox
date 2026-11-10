@@ -1,0 +1,165 @@
+{
+  "result": "passed",
+  "checks": 50,
+  "finalPreparationBound": false,
+  "sourceKind": "core658Preparation",
+  "postimages": {},
+  "sdk": "10.0.100",
+  "gc": "libclrgc.so (segments), ConserveMemory 5, HighMemoryPercent 99, workstation concurrent, linux-x64 CoreCLR",
+  "reports": {
+    "control": {
+      "mode": "control",
+      "policy": {
+        "firstFrame63MiB": false,
+        "firstFrame64MiB": true,
+        "pauseDevice15": true,
+        "pauseDevice16": false,
+        "pauseDeviceUnknown": false,
+        "pauseSmall": false,
+        "pause59s": false,
+        "pause60s": true
+      },
+      "beforeFirstFrame": {
+        "rssMiB": 561,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "afterFirstFrame": {
+        "rssMiB": 562,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "compactionsAfterFirstFrame": 0,
+      "liveIntact": true,
+      "journal": []
+    },
+    "candidate": {
+      "mode": "candidate",
+      "policy": {
+        "firstFrame63MiB": false,
+        "firstFrame64MiB": true,
+        "pauseDevice15": true,
+        "pauseDevice16": false,
+        "pauseDeviceUnknown": false,
+        "pauseSmall": false,
+        "pause59s": false,
+        "pause60s": true
+      },
+      "beforeFirstFrame": {
+        "rssMiB": 561,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "afterFirstFrame": {
+        "rssMiB": 340,
+        "committedMiB": 305,
+        "lohMiB": 305,
+        "lohFreeMiB": 0,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 2,
+        "reclaimableMiB": 0,
+        "liveMiB": 305
+      },
+      "compactionsAfterFirstFrame": 1,
+      "compactionsAfterSecondFirstFrame": 1,
+      "pauseWithin60s": 1,
+      "liveIntact": true,
+      "journal": [
+        "memory heapCompacted: firstFrame: footprint 562 -> 340 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 70.8 ms, 70 ms in all; device 11% available (adapt_safe_point_compaction)"
+      ]
+    },
+    "pause": {
+      "mode": "pause",
+      "policy": {
+        "firstFrame63MiB": false,
+        "firstFrame64MiB": true,
+        "pauseDevice15": true,
+        "pauseDevice16": false,
+        "pauseDeviceUnknown": false,
+        "pauseSmall": false,
+        "pause59s": false,
+        "pause60s": true
+      },
+      "beforeFirstFrame": {
+        "rssMiB": 561,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "afterFirstFrame": {
+        "rssMiB": 562,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "compactionsAfterFirstFrame": 0,
+      "pauseDevice40": 0,
+      "pauseResumedAfter1s": 0,
+      "pauseWhileStopping": 0,
+      "beforeHeldPause": {
+        "rssMiB": 563,
+        "committedMiB": 528,
+        "lohMiB": 527,
+        "lohFreeMiB": 222,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 0,
+        "reclaimableMiB": 222,
+        "liveMiB": 305
+      },
+      "heldPause": 1,
+      "afterHeldPause": {
+        "rssMiB": 342,
+        "committedMiB": 305,
+        "lohMiB": 305,
+        "lohFreeMiB": 0,
+        "gen2FreeMiB": 0,
+        "lastGcGeneration": 2,
+        "reclaimableMiB": 0,
+        "liveMiB": 305
+      },
+      "secondHeldPauseWithin60s": 1,
+      "liveIntact": true,
+      "journal": [
+        "memory heapCompacted: hostPause: footprint 564 -> 341 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 853.4 ms, 853 ms in all; device 11% available (adapt_safe_point_compaction)"
+      ]
+    }
+  },
+  "physicalDeviceTested": false,
+  "productionLibraryAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+    "src/Ryujinx.Library/Library.cs": "a85914786f6895097b16c6a1f1cc4d8bfcb03ca461593b7a5b567d0f4dcdc201",
+    "src/Ryujinx.Library/Window/WindowBase.cs": "a9ade1cf9367eafc1f18d3feb1325e6eff7e35aed391e6c9790046148d393f86"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_safe_point_compaction.py": "b6b77086fbbe046d9d04fd9ecff6b9258c0dea272f423d221548803ce58d3653",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_adapter_control.py": "edb57723b89e0139f40b07dfdeed40c97a772b5a1b9594d43e74a9ead224a65e",
+    "test/melonx_safe_point_compaction_test.py": "7ccf1bb5646183e9dba0deedc2db07180f93228fc7d2e530dab6c07fad5991a4",
+    "test/melonx_safe_point_compaction/Program.cs": "daeaacaa20c10a239689756524ceb536b0ed2e70d338c2c611081c308e1aa2da"
+  },
+  "limitation": "The fixture runs CoreCLR with the segments GC on Linux (RSS, not iOS phys_footprint), in a container whose cgroup sets a GC heap hard limit; the footprint change and pause length on an iPhone are known only from a device run."
+}

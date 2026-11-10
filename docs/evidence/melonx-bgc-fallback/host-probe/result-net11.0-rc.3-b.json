@@ -1,0 +1,25 @@
+{
+ "label": "net11rc3-host-b",
+ "runtime": {
+  "runtime": "11.0.0",
+  "framework": ".NET 11.0.0-rc.3.26522.148",
+  "serverGC": false,
+  "latency": "Interactive",
+  "gcName": ""
+ },
+ "processes": 32,
+ "parallel": 8,
+ "idleSeconds": 21,
+ "counts": {
+  "alive / warm / background": 64,
+  "create / first / blocking": 32,
+  "create / idle / background": 128,
+  "create / warm / background": 32,
+  "create / warm / blocking": 32
+ },
+ "threadCreationRequests": 160,
+ "threadCreationFallbacks": 0,
+ "liveThreadRequests": 64,
+ "liveThreadFallbacks": 0,
+ "fallbackPauseMs": []
+}

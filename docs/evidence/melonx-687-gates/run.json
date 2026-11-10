@@ -1,0 +1,148 @@
+{
+ "schema": 1,
+ "date": "2026-11-07",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 687,
+ "base": "Core 685 (3b6cfcca, pin 813fd1f4)",
+ "finding": {
+  "input": "IPA 684 private journals, Hogwarts pid 26658 (one session 13:38:47-13:51:36 UTC); not in the repository",
+  "cache": "main 605.06 MiB loaded, 1024 MiB budget, never refused; six play-time checkpoints rewrote the whole file (4.2-5.2 s plus a 1.0-1.5 s size probe) for +1.56 and +0.55 MiB, about 3.7 GB written in 13 min; nine iOS memory warnings from 13:50:18 (footprint 5334 MiB, headroom 1321 MiB, device 6 %), starting in the window of the sixth checkpoint",
+  "freeze": "13:49:09-30: render-thread compute pipeline time 3530 and 3721 ms per 5 s window, 42 new MoltenVK shader conversions (13.5 s of MSL compilation); the Core 685 journal times graphics only",
+  "diagnostics": "the stderr capture copies 500 engine lines per session; the 5 s Gpu warnings spent it by 6:23, so journal summaries and checkpoint lines were lost after that",
+  "fps": "per 5 s window p10 16.4, p50 23.6, p90 29.4; windows under 22 fps: syncInvoke 999 ms and render thread 2723 ms per 5 s, against 475 and 2129 ms at 28 fps or more (not addressed by Core 687)"
+ },
+ "change": "adapt_pipeline_cache_growth (PipelineCacheManager.cs, PipelineState.cs): play-time checkpoint writes the main file for 8 MiB of new content or any after 10 min; pause for any new content; close, workers, side cache and budgets unchanged; compute compilations of 50 ms or more journaled; pipelineCache and pipelineBuilds records in the engine journal",
+ "probe": {
+  "control": {
+   "variant": "control",
+   "startRecords": [],
+   "smallGrowth": {
+    "outcome": "written",
+    "mainFileMiB": 102,
+    "writes": 1
+   },
+   "largeGrowth": {
+    "outcome": "written",
+    "mainFileMiB": 109,
+    "writes": 1
+   },
+   "staleGrowth": {
+    "outcome": "written",
+    "mainFileMiB": 110,
+    "writes": 1
+   },
+   "playRecords": [],
+   "pause": {
+    "firstWrites": 1,
+    "firstMiB": 50.19,
+    "unchangedWrites": 1,
+    "mainFileMiB": 50.19,
+    "records": []
+   },
+   "worker": {
+    "recycledInfo": true,
+    "records": []
+   },
+   "closeRecords": [],
+   "errors": 0,
+   "warnings": 0
+  },
+  "candidate": {
+   "variant": "candidate",
+   "startRecords": [
+    "pipelineBuilds journal 0 pipelines compiled in 0 earlier sessions"
+   ],
+   "smallGrowth": {
+    "outcome": "skipped",
+    "mainFileMiB": 100,
+    "writes": 0
+   },
+   "largeGrowth": {
+    "outcome": "written",
+    "mainFileMiB": 109,
+    "writes": 1
+   },
+   "staleGrowth": {
+    "outcome": "written",
+    "mainFileMiB": 110,
+    "writes": 1
+   },
+   "pause": {
+    "firstWrites": 1,
+    "firstMiB": 50.19,
+    "unchangedWrites": 0,
+    "mainFileMiB": 50.19,
+    "records": [
+     "pipelineCache checkpoint pause: main 50.19 MiB, +192.00 KiB since the file was written 0 s ago (adapt_pipeline_cache_growth)",
+     "pipelineCache written main 50.19 MiB in 66 ms (adapt_pipeline_cache_growth)",
+     "pipelineCache checkpointSkipped pause: main 50.19 MiB, +0.00 KiB since the file was written 0 s ago (adapt_pipeline_cache_growth)"
+    ]
+   },
+   "worker": {
+    "recycledInfo": true,
+    "records": [
+     "pipelineCache recycled worker 0 at 134.28 MiB (adapt_pipeline_cache_growth)",
+     "pipelineBuilds summary Pipeline compilations (last minute): render thread 1 in 300 ms, of which compiled again 0 in 0 ms; workers 0 in 0 ms, of which compiled again 0 in 0 ms. Session: render thread 1 in 300 ms, compiled again 0 in 0 ms; workers 0 in 0 ms, compiled again 0 in 0 ms (adapt_pipeline_build_journal)."
+    ]
+   },
+   "closeRecords": [
+    "pipelineCache saved main 154.28 MiB in 188 ms (adapt_pipeline_cache_growth)",
+    "pipelineCache saved worker 0 0.03 KiB in 2 ms (adapt_pipeline_cache_growth)"
+   ],
+   "errors": 0,
+   "warnings": 0
+  }
+ },
+ "compiled": "Ryujinx.Graphics.Vulkan builds with the final preparation (0 errors)",
+ "gatesRun": {
+  "fragmented-reads-checks.json": "cb22bd63bf906fcd4cc2db0978f19d839f5ace46728cf74e082f26d49d156f0a",
+  "performance-diagnostics-checks.json": "ec3347cb70d4a5eb43ae21789c3b95d61bd022199b05dccdf011286e253ba16a",
+  "hogwarts-dma-copies-checks.json": "9a83d1ef72538992744d2e62b1a7f3da1c896b74c90bf420f3a0c03b4bef4130",
+  "pipeline-checkpoint-checks.json": "30e20f0a06a639b0cad6192042c83c46eae0c071f4c805073ac874024f822839",
+  "pipeline-warmup-parity-checks.json": "dd38ced8e8b9854805493b5a6c5b7be101dfee4360df84836c0a81b553bc852b",
+  "pipeline-miss-context-checks.json": "c3c6563a61b9c4214ce402258f17a57ef6c130426c3618bd44bc035a4b1e43ed",
+  "teardown-compile-cancel-checks.json": "c17e366be8e7a3464ba68a8fb4e9284f60091e45929b070a9b16e537ed129fc8",
+  "setprogram-warmup-checks.json": "64e2803d5a7b8a95c781ad2b0a93be368200c12347390e066f5bdbea0a117331",
+  "teardown-cache-checks.json": "041bba1864c909ce03d4a5f6f9ad8d3c648aad83a58c13245735b90148b314ac",
+  "main-cache-checkpoint-checks.json": "d3863864c75ccbbf73d84e87e499a337a9bd79917189633488d4b9a5df4ff12f",
+  "checkpoint-side-cache-checks.json": "ba111713a609454aeac2e506fdc91324dd31d8cb7f1fec0e1deff37336820331",
+  "pipeline-cache-room-checks.json": "96b17bfe21578e809f044271160a218756f1577351ee441e39e358115d66e1aa",
+  "pipeline-cache-persist-checks.json": "911e9d5307afc3221ed3fd9b8984e553a23c085b4dc39fab724989e34ac92c3a",
+  "pipeline-build-journal-checks.json": "44c62242e703922f7a99a39b88bb2d5100b0e77ae8ba97c42a9d30c749b11cba",
+  "pipeline-cache-growth-checks.json": "47c878a920edb8f32a41e7c3fe5f55680b7c50161bc15931196bb588a955c50c"
+ },
+ "contract": {
+  "sha256": "dc4e77bf66de3b86bb5cc85a1bc4b93b86cea39d636b5c48ce232d7224946d6c",
+  "freshAppleGates": 56,
+  "preparationInputs": 174,
+  "contractTest": "402 checks with the authenticated archive",
+  "localGateValidation": "15 receipts validated against the frozen contract"
+ },
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42381823611 attempt 1 (b85df163, Core 687)": "passed: 56 fresh gates, NativeAOT compile and ABI, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42381823611,
+  "attempt": 1,
+  "job": 128430878145,
+  "source": "b85df163f75c7ab6490a08761480f52db1fb3867",
+  "artifact": 13578588706,
+  "artifactBytes": 90700804,
+  "artifactSha256": "f66df9ad24138827da764d78d785e979b311fa606d03612dba91dfe6d7f7a103",
+  "expiresAt": "2026-11-21T15:00:46Z",
+  "iphoneBinarySha256": "3ef51948a6a74f3aa93ebfd157ab78593ba93b87fcdde902233a354655682d52",
+  "iphoneBinaryBytes": 38176672,
+  "packagedFingerprint": "56e192fa53166bb4e9bed33b5d907074c3ffd5b69e7d442be41555d953f756af",
+  "resultSha256": "150a14b378256e967aba0181081b09351354e7223e0e208d0b8ff37d40ce1706",
+  "contractSha256": "dc4e77bf66de3b86bb5cc85a1bc4b93b86cea39d636b5c48ce232d7224946d6c",
+  "iphoneBinaryMarkers": [
+   "adapt_pipeline_cache_growth",
+   "since the file was written",
+   "adapt_pipeline_build_journal",
+   "checkpointed on pause"
+  ],
+  "engineEvidence": "passed offline (run, job, artifact from the GitHub API)",
+  "replaces": "Core 685 (3b6cfcca, pin 813fd1f4, fingerprint 3b727e0f)"
+ }
+}

@@ -23,6 +23,12 @@ This test reads the materialized Core (--source) and:
    JITCacheCompatibility.cmake) and requires the delivered identities
    PPU a987639e9f838d1c and SPU 477a3fa442d27917 through one exact new alias,
    while any other future SPULLVMRecompiler.cpp stays unaliased.
+A later Core that changes this file again outside the 613 block (Core 660:
+REWINDBOX_SPU_TIMEBASE_MAPPING_660 and REWINDBOX_SPU_DIRECT_OBJECT_HIT_660) is
+accepted only as its reviewed file: its SHA-256 is the one its record pins, the
+613 region is byte-identical, and reversing that file's hunks of the Core's
+increment patch gives back the earlier file, on which point 2 is checked; the
+file's own exact alias must lead to the same Core 612 hash.
 
 No gameplay claim: the effect on the device is measured by the next logs.
 """
@@ -51,6 +57,9 @@ DELIVERED = {'PPU': 'a987639e9f838d1c', 'SPU': '477a3fa442d27917'}
 OLD_ADMISSION = ('\t\trpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), '
                  '[] { return Emu.IsStopped(); });\n\t\tif (!admission) return nullptr;\n\n')
 OBJECT_BLOCK_HEAD = '\t\t// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: read a previously generated\n'
+ROOT = Path(__file__).resolve().parents[1]
+# Later Cores that change SPULLVMRecompiler.cpp outside the 613 block, newest first: (record, increment, patch).
+LATER = (('build-utils/rpcs3/core660-delta.json', 'increment_from_core659', 'build-utils/rpcs3/core660-from-659.patch'),)
 
 
 def sha(raw: bytes) -> str:
@@ -60,6 +69,33 @@ def sha(raw: bytes) -> str:
 def require(condition, message):
     if not condition:
         raise SystemExit('FAIL: ' + message)
+
+
+def earlier_file(raw: bytes) -> tuple[bytes, list]:
+    """The file a reviewed later Core changed, reverted through each later increment (newest first)."""
+    chain = []
+    for record, key, patch in LATER:
+        if not (ROOT / record).exists():
+            continue  # without its record a later file is not accepted (point 2 then fails on it)
+        increment = json.loads((ROOT / record).read_text())[key]
+        if sha(raw) != increment['files_after_sha256'].get(LLVM):
+            continue
+        text = (ROOT / patch).read_bytes()
+        require(sha(text) == increment['patch_sha256'], patch + ' differs from its record')
+        start = text.index(b'diff --git a/' + LLVM.encode() + b' b/')
+        end = text.find(b'\ndiff --git ', start)
+        section = text[start:] if end < 0 else text[start:end + 1]
+        with tempfile.TemporaryDirectory(prefix='core613-later-') as temporary:
+            tree = Path(temporary)
+            (tree / LLVM).parent.mkdir(parents=True)
+            (tree / LLVM).write_bytes(raw)
+            (tree / 'later.patch').write_bytes(section)
+            subprocess.run(['git', 'init', '-q'], cwd=tree, check=True)
+            subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', 'later.patch'], cwd=tree, check=True)
+            raw = (tree / LLVM).read_bytes()
+        require(sha(raw) == increment['files_before_sha256'][LLVM], 'the reverted file is not the one ' + record + ' starts from')
+        chain.append(record)
+    return raw, chain
 
 
 def ios_region(text: str) -> tuple[int, int]:
@@ -247,7 +283,12 @@ def main() -> None:
     region = text[start:end]
     block = new_block(region)
     require('constexpr usz unadmitted_hit_max_bytes = 16 * 1024;' in block, '16 KiB bound')
-    restored = restored_612(text)
+    earlier, later = earlier_file(raw)
+    if later:
+        earlier_text = earlier.decode()
+        earlier_start, earlier_end = ios_region(earlier_text)
+        require(earlier_text[earlier_start:earlier_end] == region, 'a later Core changed the 613 region')
+    restored = restored_612(earlier.decode())
     require(sha(restored) == CORE612_LLVM_SHA, 'outside the 613 block the file is not the delivered Core 612 file')
 
     compiler = shlex.split(args.cxx)
@@ -269,7 +310,7 @@ def main() -> None:
     require({k: v['candidate'] for k, v in result.items()} == DELIVERED, 'codegen identities changed: ' + repr(result))
     require(result['SPU']['future_unknown_source'] != DELIVERED['SPU'], 'an unknown source must change the SPU identity')
     report = {'passed': True, 'sanitized': args.sanitize, 'compiler': compiler[0],
-              'spullvm_sha256': candidate, 'restored_core612_sha256': CORE612_LLVM_SHA,
+              'spullvm_sha256': candidate, 'restored_core612_sha256': CORE612_LLVM_SHA, 'later_reviewed_cores': later,
               'codegen': result, 'executed_cases': 8, 'scope': 'extracted admission decision and codegen identity; no gameplay claim'}
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)

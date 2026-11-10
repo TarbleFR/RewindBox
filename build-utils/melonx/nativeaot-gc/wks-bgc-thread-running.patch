@@ -1,0 +1,27 @@
+diff --git a/src/coreclr/gc/gc.cpp b/src/coreclr/gc/gc.cpp
+index 9124821..1b72599 100644
+--- a/src/coreclr/gc/gc.cpp
++++ b/src/coreclr/gc/gc.cpp
+@@ -24412,6 +24412,13 @@ void gc_heap::garbage_collect_pm_full_gc()
+     gc1();
+ }
+ 
++#if defined(__clang__) || defined(__GNUC__)
++// RewindBox: identifies a runtime library built with the patch below (dotnet/runtime#119383, commit f1f0a476,
++// first released in .NET 11; absent from every 10.0.x tag up to 10.0.14). Kept by the linker (used => no_dead_strip).
++__attribute__((used)) static const char rewindbox_gc_patch_marker[] =
++    "RewindBox NativeAOT GC patch 1: WKS background GC start checks bgc_thread_running (dotnet/runtime#119383)";
++#endif
++
+ void gc_heap::garbage_collect (int n)
+ {
+     gc_pause_mode saved_settings_pause_mode = settings.pause_mode;
+@@ -24752,7 +24759,7 @@ void gc_heap::garbage_collect (int n)
+                 }
+             }
+ #else
+-            do_concurrent_p = (!!bgc_thread && commit_mark_array_bgc_init());
++            do_concurrent_p = (bgc_thread_running && commit_mark_array_bgc_init());
+             if (do_concurrent_p)
+             {
+                 background_saved_lowest_address = lowest_address;

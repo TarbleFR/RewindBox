@@ -1,0 +1,35 @@
+name: MeloNX Metal library sharing measure
+run-name: Metal library sharing • ${{ github.sha }}
+# Lot 8. MoltenVK v1.4.2 as MeloNX embeds it (unpatched) built for macOS and exercised through Vulkan on the runner's real
+# Metal device ("Apple Paravirtual device"): how many MSL libraries MeloNX's per-worker pipeline caches compile with each
+# publication strategy. Nothing is packaged, pinned or delivered from here; no iOS binary is produced.
+'on':
+  push:
+    branches:
+    # Measures on the lot's work branch only (the delivery to Claude runs no identical measure again).
+    - work/melonx-lot8-**
+    paths:
+    - .github/workflows/melonx-library-share.yml
+    - test/melonx_library_share/**
+permissions:
+  contents: read
+concurrency:
+  group: melonx-library-share-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  measure:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Build MoltenVK v1.4.2 for macOS and measure the library publication strategies
+      run: python3 test/melonx_library_share/run_share.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-library-share-${{ github.sha }}
+        path: dist/melonx-library-share
+        retention-days: 14
+        if-no-files-found: error

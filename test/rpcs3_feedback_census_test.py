@@ -56,6 +56,25 @@ V2_COUNT = ('#ifdef RPCS3_IOS\n'
             '\tif (began)\n\t{\n'
             '\t\trpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);\n'
             '\t}\n#endif\n}')
+# Core 655 (REWINDBOX_IN_PASS_READ_TRANSITION_655): the same iOS block of begin_render_pass then notes the
+# attachment images of the pass open on m_draw_fbo for vk::change_image_layout. It counts nothing: the census
+# v2 increment above it stays the only one, and this exact block is the only other accepted ending.
+IN_PASS_655 = ('\t{\n'
+               '\t\t// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo (images of its views).\n'
+               '\t\tstd::array<VkImage, 8> images{};\n'
+               '\t\tu32 count = 0;\n'
+               '\t\tfor (const auto& view : m_draw_fbo->attachments)\n'
+               '\t\t{\n'
+               '\t\t\tif (count == images.size())\n'
+               '\t\t\t{\n'
+               '\t\t\t\tcount = 0; // more than the registry holds: unknown, the pass ends as before\n'
+               '\t\t\t\tbreak;\n'
+               '\t\t\t}\n'
+               '\t\t\timages[count++] = view->image()->value;\n'
+               '\t\t}\n'
+               '\t\tvk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);\n'
+               '\t}\n')
+V2_COUNT_655 = V2_COUNT[:-len('#endif\n}')] + IN_PASS_655 + '#endif\n}'
 LINE = ('iOS Core Profiler: COREPROF FEEDBACK610 session=4 window=12 draw_renderpasses=4210 snapshot_draws=380 '
         'snapshot_copies=402 duplicate_copies=22 snapshot_mpix=355.123 pb_draws=61 msaa_feedback_reads=0 '
         'depth_feedback_reads=0 scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1')
@@ -88,7 +107,8 @@ def census_v2_contract(source: Path, new: str) -> bool:
     if V2_CALL not in new:
         return False
     body = phases.body(new, 'void VKGSRender::begin_render_pass()')
-    if new.count(V2_CALL) != 1 or V2_CALL not in body or not body.rstrip().endswith(V2_COUNT):
+    if (new.count(V2_CALL) != 1 or V2_CALL not in body or
+            not any(body.rstrip().endswith(form) for form in (V2_COUNT, V2_COUNT_655))):
         raise AssertionError('census v2 begin_render_pass differs from its reviewed form')
     if 'feedback_census' in body[:body.index(V2_CALL)]:
         raise AssertionError('census v2 still counts before the render pass is begun')

@@ -42,6 +42,9 @@ FOUNDATION_EXPORT NSString* _Nullable DOLSkinConsoleOfGameType(NSString* gameTyp
 @property(nonatomic, readonly) UIInterfaceOrientationMask supportedOrientationMask;
 /// The current bounds' orientation has one.
 @property(nonatomic, readonly) BOOL layoutActive;
+/// The current layout has a Menu control (the session then hides its own
+/// floating menu button, DOLSessionChromePolicy.h).
+@property(nonatomic, readonly) BOOL hasMenuControl;
 /// Where the game goes, in the overlay's coordinates (CGRectNull when the
 /// current orientation has no skin).
 @property(nonatomic, readonly) CGRect screenFrame;

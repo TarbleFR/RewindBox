@@ -1,0 +1,139 @@
+{
+  "result": "passed",
+  "checks": 34,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "c283f61ab7d22079b6dad45c3bf69cf70278dd35c91aacabd87f5018562c2eb4",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "fb84d717296319a20c398329a0a9b1259c9cc31103928ff40f41ae78a65d7054"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "startup": {
+        "ctorMs": 4520.0886,
+        "mainAtStart": 12582848,
+        "workersAtStart": 64,
+        "pendingAtStart": false,
+        "workerFilesKeptBeforeMainWrite": false,
+        "mainFileUnchangedBeforeSave": false,
+        "mainFileAfterSave": 12910528,
+        "workerFileAfterMain": true,
+        "loaderMerges": 0,
+        "fileUnchangedDuringLoad": false,
+        "workerWaitMs": -1,
+        "workerSawLoaded": false,
+        "loaded": true,
+        "mainAfterLoad": 12648384,
+        "snapshotThread": "unnamed",
+        "mergeThread": "unnamed",
+        "mergeText": "merge into main 1 lockHeld=True",
+        "fileAfter": 22347712,
+        "lines": []
+      },
+      "endDuringLoad": {
+        "teardownMs": 15.5789,
+        "deferred": false,
+        "releasedInTime": true,
+        "releaseThread": null,
+        "mergesAfterDispose": 3,
+        "stagingDestroyed": false,
+        "fileUnchanged": false
+      },
+      "noSnapshot": {
+        "ctorMs": 0.2696,
+        "pending": false,
+        "deferred": false
+      },
+      "rejected": {
+        "loaded": true,
+        "fileAfter": 65568,
+        "mainMerged": false
+      },
+      "loadEndsDuringTeardown": {
+        "loaded": true,
+        "moved": false,
+        "fileAfter": 13107136
+      },
+      "failedLoad": {
+        "loaded": true,
+        "fileKept": false,
+        "workerFilesKept": false,
+        "lines": 0
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "startup": {
+        "ctorMs": 14.1034,
+        "mainAtStart": 32,
+        "workersAtStart": 64,
+        "pendingAtStart": true,
+        "workerFilesKeptBeforeMainWrite": true,
+        "mainFileUnchangedBeforeSave": true,
+        "mainFileAfterSave": 12910528,
+        "workerFileAfterMain": true,
+        "loaderMerges": 3,
+        "fileUnchangedDuringLoad": true,
+        "workerWaitMs": 4505.8402,
+        "workerSawLoaded": true,
+        "loaded": true,
+        "mainAfterLoad": 12648384,
+        "snapshotThread": "RewindBox.PipelineCacheLoad",
+        "mergeThread": "RewindBox.PipelineCacheLoad",
+        "mergeText": "merge into main 1 lockHeld=True",
+        "fileAfter": 22347712,
+        "lines": [
+          "Vulkan main pipeline cache loaded in the background: 10.00 MiB, 2/2 worker snapshots (2.00 MiB) joined, in 4504 ms (adapt_pipeline_cache_background)."
+        ]
+      },
+      "endDuringLoad": {
+        "teardownMs": 0.1403,
+        "deferred": true,
+        "releasedInTime": true,
+        "releaseThread": "RewindBox.PipelineCacheLoad",
+        "mergesAfterDispose": 0,
+        "stagingDestroyed": true,
+        "fileUnchanged": true
+      },
+      "noSnapshot": {
+        "ctorMs": 0.3231,
+        "pending": false,
+        "deferred": false
+      },
+      "rejected": {
+        "loaded": true,
+        "fileAfter": 65568,
+        "mainMerged": false
+      },
+      "loadEndsDuringTeardown": {
+        "loaded": true,
+        "moved": true,
+        "fileAfter": 13107136
+      },
+      "failedLoad": {
+        "loaded": true,
+        "fileKept": true,
+        "workerFilesKept": true,
+        "lines": 1
+      }
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanSourceExecuted": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "cb88dec93c4f083b9c61498967c0a60492cec2feaf8608e11d864d0d92c7fa12",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "1d4f227a64b5d9a6d4f582458a3ab4a60aae37c3f465ea11b3c558dfc47c5e55",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "16b7141983efcc0ab7909f345da41a1d0ffa91306c81c7368b9725ee67ae19c6"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_cache_background.py": "e73d274ac122284895add564486f1e0e084333341f57becbdb9a601f3cb7d1b2",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_pipeline_cache_background_test.py": "4338e341fa5662f6ea7249faee460a3e0ed0872afbab596ec8eba0b1ff43a6cf",
+    "test/melonx_pipeline_cache_background/Program.cs": "086555f45b4e852c8787a85c6ab646239286258634ec68241b27a1dbf07e299d",
+    "test/melonx_pipeline_cache_background/Double.cs": "cc049ebe6a5bda5f64b77b688b774242de5aed623f62ae640239ce91e1122145",
+    "test/melonx_adapter_control.py": "523576a3b8171fdf0eb35e7e789bc6177e0addedb621f4695fc9e6f55b9a4672"
+  }
+}

@@ -93,7 +93,7 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 		const int lines_before = rsx_log.trip_lines.load();
 		tally.pickups = 0; tally.pickup_us = 0; tally.pickup_max_us = 0;
 		const auto start = get_system_time();
-		while (!z.m_ios_demand.tripped() && get_system_time() - start < 8'000'000)
+		while (!z.m_ios_demand.tripped() && get_system_time() - start < 20'000'000)
 		{
 			z.enqueue(address);
 			CHECK(guest_access(z, address, thread_class::ppu));
@@ -104,7 +104,10 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 		const auto trip = z.m_ios_demand.trip_record();
 		CHECK(z.m_ios_demand.tripped() && trip.reason == static_cast<u32>(od::trip_reason::wait_budget) && trip.scope == 1);
 		CHECK(trip.windows_us[0] > od::wait_budget_us && trip.windows_us[1] > od::wait_budget_us && trip.windows_us[2] > od::wait_budget_us);
-		CHECK(elapsed >= 2'000'000 && elapsed < 8'000'000 && budget_faults >= 6); // the first bucket can be nearly whole
+		// Core 665 Apple run 42067129517 (attempt 2, the Core 624 tree): on a loaded runner the trip came after
+		// 8 s, with windows 587/494/511 ms, so the bound is 20 s; the trip reason, windows and read count
+		// checks are unchanged.
+		CHECK(elapsed >= 2'000'000 && elapsed < 20'000'000 && budget_faults >= 6); // the first bucket can be nearly whole
 		CHECK(rsx_log.trip_lines.load() == lines_before + 1 && tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
 		CHECK(tally.pickups.load() >= 6 && tally.pickup_max_us.load() >= 40'000);
 		guard_trip_lines += rsx_log.trip_lines.load() - lines_before;

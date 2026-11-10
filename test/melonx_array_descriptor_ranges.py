@@ -11,6 +11,7 @@ borrowed and pooled caller arrays rely on that contract of the Vulkan TextureArr
 """
 from pathlib import Path
 import hashlib
+import importlib
 import json
 import os
 import re
@@ -21,7 +22,9 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present, reverse_present  # noqa: E402
 
 TEXTURE_ARRAY = 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'
 RESOURCE_ARRAY = 'src/Ryujinx.Graphics.Vulkan/ResourceArray.cs'
@@ -56,6 +59,18 @@ def run(control_root, candidate_root, temporary, dotnet, environment, version):
         work.mkdir()
         for relative in [*FILES, *FIXTURE]:
             shutil.copyfile((tree if relative in FILES else ROOT) / relative, work / Path(relative).name)
+        # Core 661 (adapt_bindless_retention): the final TextureArray counts its large arrays in GAL's
+        # TextureArrayInventory; the fixture compiles that class as the tree declares it (ITextureArray.cs).
+        if 'TextureArrayInventory' in (work / Path(TEXTURE_ARRAY).name).read_text(encoding='utf-8-sig'):
+            gal = (tree / 'src/Ryujinx.Graphics.GAL/ITextureArray.cs').read_text(encoding='utf-8-sig')
+            start = gal.index('    public static class TextureArrayInventory')
+            depth, end = 0, None
+            for index in range(gal.index('{', start), len(gal)):
+                depth += {'{': 1, '}': -1}.get(gal[index], 0)
+                if depth == 0:
+                    end = index + 1
+                    break
+            (work / 'TextureArrayInventory.cs').write_text('namespace Ryujinx.Graphics.GAL\n{\n' + gal[start:end] + '\n}\n')
         (work / 'Arrays.csproj').write_text(PROJECT)
         (work / 'nuget.config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
         (work / 'global.json').write_text(json.dumps({'sdk': {'version': version, 'rollForward': 'disable'}}))
@@ -107,19 +122,49 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
 
     Its GAL files and the other backends are unchanged by this lot (byte for byte), so its historical GAL comparison
     stands for them; what changed is the Vulkan TextureArray its borrowed or pooled caller arrays rely on. The delivered
-    TextureArray is the reviewed backend postimage, the final one adds the reviewed encoding hunks only, its setters only
+    TextureArray is the reviewed backend postimage, the final one adds the reviewed encoding hunks and the later adapters'
+    counters only (reversed through melonx_adapter_control.ORDER), its setters only
     read the caller's array, and the arrays run (run above) with the caller's arrays overwritten at once.
     """
     control_root, candidate_root = Path(control_root), Path(candidate_root)
     unchanged = [*gal_files, *(path for path in backend_inputs if path != TEXTURE_ARRAY)]
+    later_gal, later_backend = {}, {}
     for relative in unchanged:
-        assert sha(control_root / relative) == sha(candidate_root / relative), 'changed by this lot: ' + relative
+        if sha(control_root / relative) == sha(candidate_root / relative):
+            continue
+        # Core 656: a GAL file may differ only by later reviewed preparation steps (adapt_array_rebuild_allocations:
+        # ThreadedArrayPool's bounded slots for arrays longer than 4096, executed by its own gate on the final source).
+        # Then the delivered file plus exactly those steps' edits must be the final file, and the receipt says the
+        # historical GAL comparison no longer covers it (galSourcesUnchanged false). The other backends stay unchanged.
+        # Core 667: likewise another backend file may differ only by later reviewed steps (adapt_buffer_array_barriers:
+        # ImageArray's buffer arrays queue no image barrier), executed by their own gate on the final source; the receipt
+        # then says the other backends changed (otherBackendsUnchanged false) and by which steps.
+        names = [name for name in ORDER if relative in importlib.import_module(name).BASELINE]
+        assert names, 'changed by this lot: ' + relative
+        with tempfile.TemporaryDirectory(prefix='melonx-gal-later-steps-') as temporary:
+            copy = Path(temporary) / relative
+            copy.parent.mkdir(parents=True)
+            shutil.copyfile(control_root / relative, copy)
+            for name in names:
+                assert apply_present(Path(temporary), name, only=[relative]) == [relative], name
+            assert copy.read_bytes() == (candidate_root / relative).read_bytes(), 'changed beyond the later steps: ' + relative
+        (later_gal if relative in gal_files else later_backend)[relative] = names
     assert sha(control_root / TEXTURE_ARRAY) == backend_inputs[TEXTURE_ARRAY], 'the delivered TextureArray is not the reviewed postimage'
     final = (candidate_root / TEXTURE_ARRAY).read_text(encoding='utf-8-sig')
-    restored = final
+    # The adapters that run after the host adapter and edit TextureArray.cs (Core 654: the artifact-path counters of
+    # adapt_artifact_counters) are reversed first, latest first, on a copy holding this file alone; then the encoding hunks.
+    with tempfile.TemporaryDirectory(prefix='melonx-texture-array-restore-') as temporary:
+        copy = Path(temporary) / TEXTURE_ARRAY
+        copy.parent.mkdir(parents=True)
+        shutil.copyfile(candidate_root / TEXTURE_ARRAY, copy)
+        later = [name for name in ORDER if TEXTURE_ARRAY in importlib.import_module(name).BASELINE]
+        for name in reversed(later):
+            assert reverse_present(Path(temporary), name, only=[TEXTURE_ARRAY]) == [TEXTURE_ARRAY], name
+        restored = copy.read_text(encoding='utf-8-sig')
     for old, new in reversed(host.TEXTURE_ARRAY_HUNKS):
         restored = restored.replace(new, old)
-    assert restored == (control_root / TEXTURE_ARRAY).read_text(encoding='utf-8-sig'), 'TextureArray beyond the encoding hunks'
+    assert restored == (control_root / TEXTURE_ARRAY).read_text(encoding='utf-8-sig'), \
+        'TextureArray beyond the encoding hunks and the later adapters (' + ', '.join(later) + ')'
     for signature, name in (('public void SetTextures(int index, ITexture[] textures)', 'textures'),
                             ('public void SetSamplers(int index, ISampler[] samplers)', 'samplers')):
         assert reads_only(method_body(final, signature), name), 'the final setter may keep the caller array: ' + signature
@@ -134,7 +179,9 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
     sources = [*gal_files, *backend_inputs, RESOURCE_ARRAY]
     return dict(result='passed', physicalDeviceTested=False, fpsGainProven=False,
                 sourceKind='deliveredPreparedWithFinalCandidate', finalPreparedSourceBound=True,
-                galSourcesUnchanged=True, otherBackendsUnchanged=True, historicalGalComparisonReexecuted=False,
+                galSourcesUnchanged=not later_gal, galFilesChangedByLaterSteps=later_gal,
+                otherBackendsUnchanged=not later_backend, backendFilesChangedByLaterSteps=later_backend,
+                historicalGalComparisonReexecuted=False,
                 backendContractReviewed=True, backendContractExecuted=True, settersReadCallerArraysOnly=True,
                 arrayDescriptorRanges=section,
                 inputs={p: sha(ROOT / p) for p in [*inputs, *INPUTS, 'build-utils/melonx/adapt_host_qos_pipeline_budget.py']},

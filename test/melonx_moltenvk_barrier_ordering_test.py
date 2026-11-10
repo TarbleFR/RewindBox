@@ -17,8 +17,16 @@ import hashlib, json, os, re, shutil, subprocess, sys, tempfile
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+# Core gate form: <control> --candidate-source <final preparation>; the control tree is not read (the exact Core 639
+# control is rebuilt from the final preparation). Standalone form: <Core 639 prepared tree>.
+SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import control_source  # noqa: E402
+_HOLD = []
+# The Core 639 preparation, or the final preparation (prepare_embedded.py runs this adapter): its exact control.
+FINAL_SOURCE = SOURCE
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_moltenvk_barrier_ordering', _HOLD)
 from adapt_moltenvk_barrier_ordering import apply, BASELINE, LAST_TRACKING_MOLTENVK
 
 for name, expected in BASELINE.items():
@@ -98,7 +106,7 @@ check(reports['candidate']['endsPass'] == {'moltenvk142-non-attachment': True, '
 inputs = ['build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_moltenvk_barrier_ordering_test.py', 'test/melonx_moltenvk_barrier_ordering/Program.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-receipt = dict(result='passed', checks=checks, reports=reports, sdk=sdk, physicalDeviceTested=False, nativeCallsUsed=False,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core639Preparation', postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {}, reports=reports, sdk=sdk, physicalDeviceTested=False, nativeCallsUsed=False,
                fullProductionVulkanAssembly=True, sourceBaseline=BASELINE,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Host fixture of the deferral decision; the MoltenVK 1.4.2 GPU ordering and the stale frames '

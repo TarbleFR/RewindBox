@@ -10,6 +10,11 @@ namespace neostation::rpcs3::early_escrow {
 
 inline constexpr uint64_t mib = 1024ull * 1024;
 inline constexpr uint64_t low = 0x100000000ull;
+// The preferred window ends at 64 GiB (`high`). Gaps are listed in ascending address order, so for each code
+// capacity a low gap is always taken first. When the low window is full, the search continues up to the task's maximum
+// address (`limit`). The system shared region fills almost all of 6-63 GiB on iOS 27 beta: the VA census of IPA 674
+// showed 538 MiB free below 64 GiB (largest gap 260 MiB) and a free 64 GiB gap at 448 GiB. Code and data stay within
+// the 4 GiB ADRP reach (NEOSTATION_JIT_HIGH_WINDOW_904; the Core searches the same way).
 inline constexpr uint64_t high = 0x1000000000ull;
 inline constexpr uint64_t reach = 0x100000000ull;
 inline constexpr uint64_t data_bytes = 256 * mib;
@@ -42,13 +47,13 @@ inline uint64_t align_down(uint64_t value, uint64_t alignment) {
   return value & ~(alignment - 1);
 }
 
-inline bool valid(Layout layout, uint64_t page) {
-  if (!page || (page & (page - 1)) || !layout) return false;
+inline bool valid(Layout layout, uint64_t page, uint64_t limit = high) {
+  if (!page || (page & (page - 1)) || !layout || limit < high) return false;
   if (layout.code_bytes < code_capacities.back() ||
       layout.code_bytes > code_capacities.front() ||
       layout.code < low || layout.data < low ||
-      layout.code > high - layout.code_bytes ||
-      layout.data > high - data_bytes ||
+      layout.code > limit - layout.code_bytes ||
+      layout.data > limit - data_bytes ||
       layout.code % page || layout.data % page) {
     return false;
   }
@@ -63,15 +68,15 @@ inline bool valid(Layout layout, uint64_t page) {
 // minimum data capacity. Smaller code capacities are the same adaptive
 // fallbacks already used by the embedded Core, not a second runtime mode.
 inline std::vector<Layout> candidates(const std::vector<Range>& gaps,
-                                      uint64_t page) {
+                                      uint64_t page, uint64_t limit = high) {
   std::vector<Layout> result;
-  if (!page || (page & (page - 1))) return result;
+  if (!page || (page & (page - 1)) || limit < high) return result;
 
   for (const uint64_t code_bytes : code_capacities) {
     const uint64_t total = code_bytes + data_bytes;
     for (const Range gap : gaps) {
       const uint64_t begin = align_up(std::max(low, gap.begin), page);
-      const uint64_t end = std::min(high, gap.end);
+      const uint64_t end = std::min(limit, gap.end);
       if (begin < end && total <= end - begin) {
         result.push_back({begin, begin + code_bytes, code_bytes, true});
       }
@@ -82,12 +87,12 @@ inline std::vector<Layout> candidates(const std::vector<Range>& gaps,
     // possible instead of probing arbitrary addresses inside either gap.
     for (size_t i = 0; i < gaps.size(); ++i) {
       const uint64_t cb = align_up(std::max(low, gaps[i].begin), page);
-      const uint64_t ce = std::min(high, gaps[i].end);
+      const uint64_t ce = std::min(limit, gaps[i].end);
       if (cb >= ce || code_bytes > ce - cb) continue;
       for (size_t j = 0; j < gaps.size(); ++j) {
         if (i == j) continue;
         const uint64_t db = align_up(std::max(low, gaps[j].begin), page);
-        const uint64_t de = std::min(high, gaps[j].end);
+        const uint64_t de = std::min(limit, gaps[j].end);
         if (db >= de || data_bytes > de - db) continue;
 
         uint64_t code = cb;
@@ -98,7 +103,7 @@ inline std::vector<Layout> candidates(const std::vector<Range>& gaps,
           data = align_down(de - data_bytes, page);
         }
         Layout candidate{code, data, code_bytes, false};
-        if (valid(candidate, page)) result.push_back(candidate);
+        if (valid(candidate, page, limit)) result.push_back(candidate);
       }
     }
   }
@@ -119,9 +124,10 @@ struct ReservationResult {
 template <class Backend>
 ReservationResult reserve(const std::vector<Range>& gaps,
                           uint64_t page,
-                          Backend& backend) {
+                          Backend& backend,
+                          uint64_t limit = high) {
   ReservationResult result;
-  for (const Layout plan : candidates(gaps, page)) {
+  for (const Layout plan : candidates(gaps, page, limit)) {
     ++result.attempts;
     result.attempted_address = plan.code;
     result.attempted_bytes =

@@ -1,0 +1,64 @@
+name: MeloNX Metal binary archive prototype
+run-name: Metal binary archive prototype • ${{ github.sha }}
+# Lot 7. Runs on the runner's real Metal device (macOS, "Apple Paravirtual device"): the stand-alone probe of
+# MTLBinaryArchive, then MoltenVK v1.4.2 (the revision MeloNX embeds) built for macOS with the prototype patch and
+# exercised through Vulkan. Nothing is packaged, pinned or delivered from here; no iOS binary is produced.
+'on':
+  push:
+    branches:
+    - Claude
+    - work/melonx-lot7-**
+    paths:
+    - .github/workflows/melonx-metal-archive.yml
+    - test/melonx_metal_binary_archive/**
+    - build-utils/melonx/metal-archive/**
+permissions:
+  contents: read
+concurrency:
+  group: melonx-metal-archive-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Stand-alone Metal binary archive probe
+      run: python3 test/melonx_metal_binary_archive/run_probe.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-metal-archive-probe-${{ github.sha }}
+        path: dist/melonx-metal-archive-probe
+        retention-days: 14
+        if-no-files-found: error
+  moltenvk:
+    runs-on: macos-26
+    timeout-minutes: 100
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Reuse the external libraries of an earlier build of the same MoltenVK revision
+      id: external
+      uses: actions/cache/restore@v4
+      with:
+        path: .metal-archive/MoltenVK/External
+        key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
+    - name: Build patched MoltenVK for macOS and exercise the prototype through Vulkan
+      run: python3 test/melonx_metal_binary_archive/run_mvk.py
+    - name: Keep the external libraries for the next run (also when an expectation failed)
+      if: always() && steps.external.outputs.cache-hit != 'true' && hashFiles('.metal-archive/MoltenVK/External/build/**') != ''
+      uses: actions/cache/save@v4
+      with:
+        path: .metal-archive/MoltenVK/External
+        key: melonx-metal-archive-external-${{ hashFiles('build-utils/melonx/moltenvk-rebuild.json') }}-v1
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-metal-archive-mvk-${{ github.sha }}
+        path: dist/melonx-metal-archive-mvk
+        retention-days: 14
+        if-no-files-found: error

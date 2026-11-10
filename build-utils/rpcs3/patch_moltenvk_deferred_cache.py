@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Apply the opt-in RPCS3 MoltenVK source candidate, rejecting source drift.
 
+Since Core 655 the patch also makes MVKCmdPipelineBarrier wait, inside a render encoder, for the stage fences of a
+barrier made only of transitions to SHADER_READ_ONLY_OPTIMAL (the RPCS3 in-pass read transitions), and defines
+rbx_mvk_in_pass_read_barrier_waits(), which the Core checks at boot (test/rpcs3_moltenvk_in_pass_read_wait_test.py).
+
 The historical prebuilt producer and compiled a4 core are not changed. A full
 framework rebuild with RBX_MVK_DEFERRED_CACHE_IMPORT=1 is required for activation.
 """
@@ -13,8 +17,8 @@ import subprocess
 
 UPSTREAM_COMMIT = 'db66022459ffb663aa2b50f6b018bc2e124f5edf'
 BUILD_MACRO = 'RBX_MVK_DEFERRED_CACHE_IMPORT'
-PREIMAGES = {'MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h': None, 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h': 'cf3d53ad19077ac3d139b0d8ea58fe9181e47ec9578897c1f42526a31f3bf9bf', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm': '21ec8c9291111bf78320f4eabaa3165432065be02b19e5250eee39f469d13bac', 'MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm': '7a6228015634567e6fe7425f95358430e64022ca71946bbfc0cba566444d242e', 'MoltenVK/MoltenVK/GPUObjects/MVKSync.mm': '56f2e8797ed91929028eeb59575533660fa70bd71e14baee741d8e6eaff67558'}
-POSTIMAGES = {'MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h': 'cb2be170bf8033c52df7e5d1cd4cb2c76073cfe052066ac8614e6483c39c103f', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h': '053ddce4ef78daf1fddefab4b0bfc01b6365a4eed42e54ed8f8de8333c60ec7e', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm': '14e25d611580971159d491adf82ae0066ef01c20c8b89b06fd7195f705e4b63e', 'MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm': 'd7f64fd428a07c859b02d1639a9f4f165e2f64ba1723f27ca25c9a34a152b584', 'MoltenVK/MoltenVK/GPUObjects/MVKSync.mm': 'fc90ab52817375f04ed543dfc0dcbf2e827f12fb4baec8af457cadf9f7fae60c'}
+PREIMAGES = {'MoltenVK/MoltenVK/Commands/MVKCmdPipeline.mm': '53780228590ea329e665287272048175d75ab8a668c4baad47bde31ebcaeb59e', 'MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h': None, 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h': 'cf3d53ad19077ac3d139b0d8ea58fe9181e47ec9578897c1f42526a31f3bf9bf', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm': '21ec8c9291111bf78320f4eabaa3165432065be02b19e5250eee39f469d13bac', 'MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm': '7a6228015634567e6fe7425f95358430e64022ca71946bbfc0cba566444d242e', 'MoltenVK/MoltenVK/GPUObjects/MVKSync.mm': '56f2e8797ed91929028eeb59575533660fa70bd71e14baee741d8e6eaff67558'}
+POSTIMAGES = {'MoltenVK/MoltenVK/Commands/MVKCmdPipeline.mm': 'b4e6fe568f2a181dd8aa0bbfc30d134a26e277eb1cbbfb77868f3cbfb1468a66', 'MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h': 'cb2be170bf8033c52df7e5d1cd4cb2c76073cfe052066ac8614e6483c39c103f', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h': '053ddce4ef78daf1fddefab4b0bfc01b6365a4eed42e54ed8f8de8333c60ec7e', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm': '14e25d611580971159d491adf82ae0066ef01c20c8b89b06fd7195f705e4b63e', 'MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm': 'd7f64fd428a07c859b02d1639a9f4f165e2f64ba1723f27ca25c9a34a152b584', 'MoltenVK/MoltenVK/GPUObjects/MVKSync.mm': 'fc90ab52817375f04ed543dfc0dcbf2e827f12fb4baec8af457cadf9f7fae60c'}
 PATCH = Path(__file__).with_name('patches') / 'moltenvk-1.4.2-deferred-cache.patch'
 
 

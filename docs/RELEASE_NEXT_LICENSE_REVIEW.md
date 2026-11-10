@@ -1,4 +1,12 @@
-# Next release — license and attribution preparation
+# Historical next-release license and attribution preparation (21 October 2026)
+
+> **Historical audit snapshot.** The current published binary is
+> [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1),
+> documented in the [release/source manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+> This original review remains a source of **unresolved** license and rights
+> questions; it was not a publication and must not be used as proof that all
+> open permissions or binary-source gaps were subsequently cleared.
+
 
 **Prepared 21 October 2026 · Unpublished · Working branch: `Claude`**
 

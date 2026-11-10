@@ -1,0 +1,297 @@
+{
+  "result": "passed",
+  "checks": 82,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs": "04bd68ec461e397f90ba02d851b1be467a6aa4137af3caecffba0c46119e531b",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "8600d75c306800c4672cc8f7274846783dde9c0f4feb264f3ee42450ac37593a",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "0fe0e778ae3dc65802e4b845c56f705a2365a66603f5ccd509148421bc1432c8",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "04e29d2d861ef4da902f0b10d9176dbd3c6f9b1d814ee4f73486a7e83d142b39",
+    "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs": "7565c734034273d5045d85e677db2cbb024f017343a737a66d8c2a9b52c43ef6",
+    "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs": "bd948d062548762c35025918817f1929ced0feefd347e56f4c2175e76c52677f",
+    "src/Ryujinx.Library/Library.cs": "267268d0ce10d11a1c0330fcf6ba6f0161e0b539ff38066cfa6856b635bb776d"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "policyFlag": false,
+      "progressMembers": false,
+      "progressing": {
+        "WaitReturned": false,
+        "Ms": 1019.8951,
+        "Threshold": 25,
+        "ValueAtReturn": 10,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 25 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "gpuWorkThenFence": {
+        "WaitReturned": false,
+        "Ms": 1000.6888,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "renderWorkThenFence": {
+        "WaitReturned": false,
+        "Ms": 1000.3442,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "idle": {
+        "WaitReturned": false,
+        "Ms": 1000.3485,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "idleAgain": {
+        "WaitReturned": false,
+        "Ms": 1000.3743,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "drainedShort": {
+        "WaitReturned": false,
+        "Ms": 1000.2861,
+        "Threshold": 100,
+        "ValueAtReturn": 10,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 100 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "stuckBusy": {
+        "WaitReturned": false,
+        "Ms": 1000.5871,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "termination": {
+        "WaitReturned": false,
+        "Ms": 1000.28,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": 699.7654,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "alreadyReached": {
+        "WaitReturned": false,
+        "Ms": 0.2014,
+        "Threshold": 1,
+        "ValueAtReturn": 1,
+        "TrueCompletion": true,
+        "TerminationToReturnMs": -1,
+        "Lines": []
+      },
+      "gpuSideWait": {
+        "timedOut": true,
+        "ms": 1000.3567,
+        "lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "policyFlag": true,
+      "progressMembers": true,
+      "progressing": {
+        "WaitReturned": false,
+        "Ms": 2512.3422,
+        "Threshold": 25,
+        "ValueAtReturn": 25,
+        "TrueCompletion": true,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 2 slices, 1 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 2496 ms; last: syncpoint 1 threshold 25 value 25 Reached after 2496 ms"
+        ]
+      },
+      "gpuWorkThenFence": {
+        "WaitReturned": false,
+        "Ms": 3201.6693,
+        "Threshold": 1,
+        "ValueAtReturn": 1,
+        "TrueCompletion": true,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 3 slices, 1 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 3201 ms; last: syncpoint 1 threshold 1 value 1 Reached after 3201 ms"
+        ]
+      },
+      "renderWorkThenFence": {
+        "WaitReturned": false,
+        "Ms": 3201.0022,
+        "Threshold": 1,
+        "ValueAtReturn": 1,
+        "TrueCompletion": true,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 3 slices, 1 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 3201 ms; last: syncpoint 1 threshold 1 value 1 Reached after 3201 ms"
+        ]
+      },
+      "idle": {
+        "WaitReturned": false,
+        "Ms": 1000.843,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Warning Gpu NoteForcedWait: Forced wait on syncpoint 1 for threshold 1: value 0, GPU idle with nothing queued after 1001 ms; resuming execution as before (adapt_forced_syncpoint_wait, logged once)",
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 1 slices, 0 false completions avoided, 1 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 1001 ms; last: syncpoint 1 threshold 1 value 0 Idle after 1001 ms"
+        ]
+      },
+      "idleAgain": {
+        "WaitReturned": false,
+        "Ms": 1000.8644,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 2 forced, 2 slices, 0 false completions avoided, 2 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 1001 ms; last: syncpoint 1 threshold 1 value 0 Idle after 1001 ms"
+        ]
+      },
+      "drainedShort": {
+        "WaitReturned": false,
+        "Ms": 3001.4596,
+        "Threshold": 100,
+        "ValueAtReturn": 20,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Warning Gpu NoteForcedWait: Forced wait on syncpoint 1 for threshold 100: value 20, GPU idle with nothing queued after 3001 ms; resuming execution as before (adapt_forced_syncpoint_wait, logged once)",
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 3 slices, 0 false completions avoided, 1 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 3001 ms; last: syncpoint 1 threshold 100 value 20 Idle after 3001 ms"
+        ]
+      },
+      "stuckBusy": {
+        "WaitReturned": false,
+        "Ms": 10005.6606,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Warning Gpu NoteForcedWait: Forced wait on syncpoint 1 for threshold 1: value 0, no GPU progress for 10000 ms after 10005 ms; resuming execution as before (adapt_forced_syncpoint_wait, logged once)",
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 10 slices, 0 false completions avoided, 0 fallbacks with the GPU idle, 1 without progress, 0 ended by termination, 0 at the cap; longest 10005 ms; last: syncpoint 1 threshold 1 value 0 NoProgress after 10005 ms"
+        ]
+      },
+      "termination": {
+        "WaitReturned": false,
+        "Ms": 301.0972,
+        "Threshold": 1,
+        "ValueAtReturn": 0,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": 0.481,
+        "Lines": [
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 0 slices, 0 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 1 ended by termination, 0 at the cap; longest 301 ms; last: syncpoint 1 threshold 1 value 0 Cancelled after 301 ms"
+        ]
+      },
+      "alreadyReached": {
+        "WaitReturned": false,
+        "Ms": 0.0846,
+        "Threshold": 1,
+        "ValueAtReturn": 1,
+        "TrueCompletion": true,
+        "TerminationToReturnMs": -1,
+        "Lines": []
+      },
+      "policyOff": {
+        "WaitReturned": false,
+        "Ms": 1004.7456,
+        "Threshold": 25,
+        "ValueAtReturn": 10,
+        "TrueCompletion": false,
+        "TerminationToReturnMs": -1,
+        "Lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 25 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "gpuSideWait": {
+        "timedOut": true,
+        "ms": 1000.347,
+        "lines": [
+          "Error Gpu WaitOnSyncpoint: Wait on syncpoint 1 for threshold 1 took more than 1000ms, resuming execution..."
+        ]
+      },
+      "cap": {
+        "outcome": "Capped",
+        "ms": 1502.874,
+        "capConstantMs": 30000,
+        "lines": [
+          "Warning Gpu NoteForcedWait: Forced wait on syncpoint 1 for threshold 1: value 0, not reached within the 1500 ms cap after 1503 ms; resuming execution as before (adapt_forced_syncpoint_wait, logged once)",
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 1 forced, 3 slices, 0 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 1 at the cap; longest 1503 ms; last: syncpoint 1 threshold 1 value 0 Capped after 1503 ms",
+          "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 2 forced, 5 slices, 0 false completions avoided, 0 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 2 at the cap; longest 1503 ms; last: syncpoint 1 threshold 1 value 0 Capped after 201 ms"
+        ]
+      },
+      "valueNoCallback": {
+        "outcome": "Reached",
+        "ms": 402.0254,
+        "value": 5,
+        "target": 3
+      },
+      "lineBudget": {
+        "reachedWaits": 300,
+        "reachedLines": 1,
+        "idleWaits": 100,
+        "idleLines": 65,
+        "idleWarnings": 1,
+        "lastLine": "Info Gpu NoteForcedWait: Forced syncpoint waits (adapt_forced_syncpoint_wait): 64 forced, 64 slices, 0 false completions avoided, 64 fallbacks with the GPU idle, 0 without progress, 0 ended by termination, 0 at the cap; longest 1 ms; last: syncpoint 1 threshold 1 value 0 Idle after 1 ms"
+      }
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Library",
+    "Ryujinx.HLE",
+    "Ryujinx.Graphics.Gpu",
+    "Ryujinx.Graphics.GAL"
+  ],
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs": "16993b4ce936012a516d29a2e2c73c319d2cb6ab523669e1cfa345328d95af0a",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "7f631c57ccb95243686e422361c0b4dcd04f2b77da6ad99fbe33f20819d7dfec",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "d5a51e8b7ba834373ae08398624c7bd1ec6e677cfa512cfe31b32697bc5577bd",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs": "e8591623a4baad5ddfd78ac9842869330e68fe3800442ae566bc2dadf94a682c",
+    "src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs": "9ff868b0dc69d43111bec66e8555d6db52166f6465ef62225208a6a2478c3540",
+    "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs": "e9307f4cd474249b74a1e183439aa669b809d865b17974c8898911b48251316d",
+    "src/Ryujinx.Library/Library.cs": "ef4533888583df2775e47be7d736229bca45727f3183820daec08194a256a6ad"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_forced_syncpoint_wait.py": "2d394e691f2a828c30adcb66208bf0e311d8bc4ceb85e0a40406327f4668e737",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_forced_syncpoint_wait_test.py": "dab169c032589dcdba05da8f06604c6bb2a9961c69b5d428eb18c2ae48e22b76",
+    "test/melonx_forced_syncpoint_wait/Program.cs": "9d0d74c0fef53561241254b82f793a3b3b40662cfd8de42efabe27c62d7c753f"
+  },
+  "limitation": "Host fixture with a GPU double driving the production progress members; the GPFIFO dispatch marks and the threaded renderer counter are bound statically and by build, not run on a real GPU thread. Whether the black flashes of Hogwarts Legacy go, and how long the {Nv} thread now waits in a build burst, are known only from a device run."
+}

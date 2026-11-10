@@ -229,10 +229,14 @@ final class MeloNXRuntimeAPI {
     }
     func detach(_ id: Int64, pad: Int32) { _ = detachFunction(id, pad) }
     func reset(_ id: Int64, pad: Int32) { _ = resetFunction(id, pad) }
-    func button(_ id: Int64, pad: Int32, button: Int32, pressed: Bool) {
-        _ = buttonFunction(id, pad, button, pressed ? 1 : 0)
+    // The export's code: 0 accepted, 1 invalid, 2 the session takes no input
+    // (stale generation, closed or stopping), 3 exception (EmbeddedInput.cs).
+    @discardableResult
+    func button(_ id: Int64, pad: Int32, button: Int32, pressed: Bool) -> Int32 {
+        buttonFunction(id, pad, button, pressed ? 1 : 0)
     }
-    func stick(_ id: Int64, pad: Int32, stick: Int32, x: Float, y: Float) {
-        _ = stickFunction(id, pad, stick, max(-1, min(1, x)), max(-1, min(1, y)))
+    @discardableResult
+    func stick(_ id: Int64, pad: Int32, stick: Int32, x: Float, y: Float) -> Int32 {
+        stickFunction(id, pad, stick, max(-1, min(1, x)), max(-1, min(1, y)))
     }
 }

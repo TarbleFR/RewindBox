@@ -190,6 +190,14 @@
   "api/artifacts.json": "edf8efad3ace35f5517886fa6b9c3f0ff31bcf041a71488fb1b4b0b7e658299d",
   "api/jobs.json": "aa4c1337b44ace84f3cfa3acf94e65e195b6ef27a54fdd073a0b6d983821f746",
   "api/run-attempt.json": "3c33414cdd884e0b9f07db24566900f8d2349437ca1111834530026e4c9441bd",
-  "download640-verification.json": "5cf75a5419c14f1468435a250cee2f00f110cdc5f16a6b9e9776693729117059"
+  "download640-verification.json": "5cf75a5419c14f1468435a250cee2f00f110cdc5f16a6b9e9776693729117059",
+  "environment.json": "a05cc97d9b3f5138e072ccbaf268641c97d07bc23bd62928dc0b7750b435ea63",
+  "observed-timings.json": "59ed18e2a6182177c6b6119c6770da04a96eb2ac5bde578b6f55e957e82e06d7",
+  "signature.json": "9edd04d5a34f480fb9c7be94b2561a4e80145db9a6fab84708b689da4137633b",
+  "signed-payload-identity.json": "a19dfd9f344dc6425d23cb0d0285d263114d95c0d19122ec072d07a06a448071",
+  "standard-embedded.json": "56c7eab36269a7a7c2d0c45975fecbb0b564265edc10fd81fef8e38100a7f9e2",
+  "standard-ipa-validation.json": "7e9241ed84e513f3d842f0fdbbf5c9a044e5dcbc5610cc77ca256122d3ee65f4",
+  "standard-tests.json": "f068cad3312b7d5b35207a9934a4a50736ea6eeddb9380091ff20c8976fa1a63",
+  "version-validation.json": "8831200c05f5a0d0ad08479e24dc664e30054526d3695dd373a22d71406add60"
  }
 }

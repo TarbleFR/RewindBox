@@ -78,7 +78,29 @@ READ_COUNTERS = arrays.READ_COUNTERS
 ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Ten since build 631: the four fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs rerun on the final source.
 # Eleven with the queued syncpoints: the counter report compaction fixture declares CounterCache.cs and DeferredCounterReport.cs.
-FRESH_GATES = 13
+# Thirteen with Core 639 (PR #153 lot), eighteen with Core 642 (PR #154 lot: four adapter gates and the barrier compaction rerun on the final preparation).
+# Twenty with Core 644 (PR #156 lot: read-back receivers and present source attribution); twenty-two with Core 647
+# (its follow-up: teardown compile cancel and the pause guest-thread record); twenty-three with Core 649 (teardown phase marks);
+# twenty-seven with Core 654 (PR #156 new lot: binder teardown, gcEvent lines of the collector, artifact-path counters, and the
+# single-virtual-dependency fixture rerun because its receipt declares the collector); twenty-nine with Core 656 (MeloNX
+# levers from the IPA 650 logs: bounded reuse of pool-sized bindless rebuild arrays, 30 fps present pacing); thirty with
+# Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor); 47 with Core 661
+# (Hogwarts 658 logs: sixteen gates for its fifteen adapters and the gcEvent fallback flag, and the native display
+# fixture rerun because its receipt declares EmbeddedMemory.cs); 58 with Core 689 (IPA 688 async-shaders logs: occupied
+# read-backs into a buffer, async skips only into regenerated targets); 61 with Core 691 (IPA 688/690 crash at 0x111: no copy from a
+# destroyed image; failed pipelines named; worker compiles look in the main cache first); 63 with Core 693 (IPA 691 in play: a
+# compute/graphics switch re-sends the resolved bindings; the background GC thread is kept alive); 64 with Core 697 (IPA 693:
+# bindless delta repairs in place; the main pipeline cache loads in the background); 65 with Core 699 (IPA 692: the GPU
+# thread's synchronous waits attributed per invoked command on the existing render work line); 66 with Core 701 (IPA 694:
+# a buffer flush after its sync reads without a render-thread round trip); 67 with Core 703 (IPAs 688-694: a stage's
+# layout declares each used binding with its used type, Hogwarts Legacy program 890A188FB55B5D5D); 68 with Core 705
+# (IPA 694: setting the program already set keeps its bound descriptor sets); 69 with Core 707 (IPAs 691-694: the
+# deepest part of a closed session still reachable, journal only); 70 with Core 709 (lot 4: valid textures kept past the
+# short texture cache, bounded); 71 with Core 711 (lot 5: graphics pipeline states replayed at launch); 72 with Core 713
+# (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again); 74 with Core
+# 715 (lot 8: extra array sets kept bound on main-set-only updates; texture array references by delta); 75 with Core 717
+# (lot 8: a worker's Metal libraries published to the main cache during play).
+FRESH_GATES = 75
 HISTORICAL_RECEIPTS = 61
 
 

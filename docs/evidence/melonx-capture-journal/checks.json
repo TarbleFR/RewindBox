@@ -1,0 +1,26 @@
+{
+  "result": "passed",
+  "checks": 63,
+  "controlRef": "72eae3478c0c25fcbcbd05f86cdc5c7feab8c980",
+  "sourceBaseline": {
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "27b79cb9552757d84d482d73778335f2418f073d3f81c5bfc5334f1afaeea04a",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift": "e05d77ce10a16be062a4bb317da6619a71ef15124fbf733dfd1a5cb46e74ca7e",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "1a4965daedfbbbb49eb53abbc8912ecc1b59d5c0fbf360bf4bb51b3cdf01be85"
+  },
+  "inputs": {
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "62653988f3e0d3843069138fc831e466cb3fee94b2c68465538b8cc1522469d9",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift": "29b9be95360948dff110e71b08f565a256f81c8d9006bd3f3c02af81eaff705d",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "71e815fcdad604dcd695b797956ecba8af452243fd32b5ddade2e7207fa3e357",
+    "test/melonx_capture_journal_test.py": "c651d6ee7ef2e5e53fde478c314221d8ae4cbee8d6d502467cad57c8f5a4af22"
+  },
+  "sdk": "swiftc unavailable",
+  "swiftExecution": "not run",
+  "swiftExecuted": [],
+  "swiftSkipped": [
+    "MeloNXPerfJournal acq=/acqw= output",
+    "installAudioObservers control vs candidate notification matrix"
+  ],
+  "physicalDeviceTested": false,
+  "uikitRun": false,
+  "limitation": "Instrumentation only. Static checks of the Swift sources; the perf journal and the extracted interruption observer (control and candidate) execute only where a Swift compiler exists, so on a runner without one only the static half has run. UIScreen capture notifications, real interruptions and CAMetalLayer request timing and waits are observed only on a device."
+}

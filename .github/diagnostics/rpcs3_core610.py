@@ -112,6 +112,15 @@ def load_spec(path=SPEC_PATH):
             "core build spec: MoltenVK dependency")
     _hex(dependency["source"], HEX40, "MoltenVK dependency source")
     _hex(dependency["library_sha256"], HEX64, "MoltenVK library")
+    # A Core may link a reviewed new MoltenVK build (for instance the in-pass read barrier fence wait); its spec then
+    # names the dependency the reference Core linked, which it replaces, and the reason.
+    if "replaces" in dependency:
+        replaced = dependency["replaces"]
+        require(set(replaced) == {"run", "source", "library_sha256", "reason"} and type(replaced["run"]) is int
+                and replaced["run"] != dependency["run"] and isinstance(replaced["reason"], str) and replaced["reason"],
+                "core build spec: replaced MoltenVK dependency")
+        _hex(replaced["source"], HEX40, "replaced MoltenVK dependency source")
+        _hex(replaced["library_sha256"], HEX64, "replaced MoltenVK library")
     modes = spec["native_modes"]
     require(modes["reused"] == sorted(set(modes["reused"])) and type(modes["reused_count"]) is int
             and modes["reused_count"] == 2 * len(modes["reused"]) and modes["affected"]
@@ -364,9 +373,18 @@ def prepare(source, dependency_run, dependency_source):
     closure = source_closure(source)
     dep = dependency.authenticate(dependency_run, dependency_source, OUT / "mvk-cache-dependency",
                                   reviewed_host_delta=declared["reviewed_host_delta"])
-    require(dep["library_sha256"] == declared["library_sha256"] == reference_identity["moltenvk_dependency"]["library_sha256"]
-            and dep["run"] == reference_identity["moltenvk_dependency"]["run"],
-            f"MoltenVK dependency differs from the one Core {REFERENCE_BUILD} linked")
+    linked = reference_identity["moltenvk_dependency"]
+    if "replaces" in declared:
+        # The declared replacement: authenticated above from its own run, and the replaced one is the reference's.
+        replaced = declared["replaces"]
+        require(dep["library_sha256"] == declared["library_sha256"] and dep["run"] == declared["run"]
+                and replaced["run"] == linked["run"] and replaced["library_sha256"] == linked["library_sha256"]
+                and replaced["source"] == linked["source"],
+                f"MoltenVK dependency is not the declared replacement of the one Core {REFERENCE_BUILD} linked")
+    else:
+        require(dep["library_sha256"] == declared["library_sha256"] == linked["library_sha256"]
+                and dep["run"] == linked["run"],
+                f"MoltenVK dependency differs from the one Core {REFERENCE_BUILD} linked")
     recipe = module("core_recipe", ROOT / SPEC["route"]["driver"])
     require(sha(recipe.recipe_bytes()) == recipe.AFTER, "candidate recipe identity changed")
     require({"original_recipe_sha256": recipe.BEFORE, "recipe_patch_sha256": recipe.PATCH_SHA,

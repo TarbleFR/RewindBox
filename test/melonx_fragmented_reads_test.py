@@ -31,14 +31,85 @@ from adapt_hogwarts_dma_copies import apply as apply_dma, NAMES as DMA_NAMES, LI
 from adapt_queued_syncpoints import apply as apply_queued, NAMES as QUEUE_NAMES  # noqa: E402
 from adapt_host_qos_pipeline_budget import apply as apply_host, NAMES as HOST_NAMES  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import apply_present  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
 from adapt_pipeline_warmup_parity import BASELINE as WARMUP_BASELINE  # noqa: E402
 from adapt_device_short_trim import BASELINE as TRIM_BASELINE  # noqa: E402
-# Core 639: the PR #153 lot's files join the composition, so the final GPU and Vulkan build binds every changed file.
+from adapt_moltenvk_barrier_ordering import BASELINE as BARRIER_BASELINE  # noqa: E402
+from adapt_descriptor_scratch_all_titles import BASELINE as SCRATCH_BASELINE  # noqa: E402
+from adapt_readback_occupied_attribution import BASELINE as OCCUPIED_BASELINE  # noqa: E402
+from adapt_pipeline_miss_context import BASELINE as MISS_BASELINE  # noqa: E402
+from adapt_readback_receivers import BASELINE as RECEIVERS_BASELINE  # noqa: E402
+from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE  # noqa: E402
+from adapt_teardown_compile_cancel import BASELINE as TEARDOWN_BASELINE  # noqa: E402
+from adapt_array_rebuild_allocations import BASELINE as ARRAY_REBUILD_BASELINE  # noqa: E402
+from adapt_present_pacing import BASELINE as PACING_BASELINE  # noqa: E402
+# Core 639, 642 and 644: the PR #153, #154 and #156 lots' files join the composition, so the final GPU and Vulkan build binds
+# every changed file.
 COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | set(QUEUE_NAMES) | set(HOST_NAMES) |
-                  set(WARMUP_BASELINE) | set(TRIM_BASELINE) | {DIAGNOSTICS})
+                  set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
+                  set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) |
+                  set(PRESENT_BASELINE) | set(TEARDOWN_BASELINE) | {DIAGNOSTICS} |
+                  # Core 656: the MeloNX levers' GAL pool and Vulkan initialization join the composed GPU/Vulkan closure.
+                  set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE))
+# Core 661: every GPU, GAL and Vulkan file a Core 661 adapter edits joins the composition, so the final GPU and Vulkan
+# build binds each one (their files outside this closure, HLE and Library, are bound by their own gates).
+CORE661 = ('adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering')
+COMPOSED = sorted(set(COMPOSED) | {name for module in CORE661 for name in __import__(module).BASELINE
+                                   if name.startswith('src/Ryujinx.Graphics.')})
+# Core 667: likewise the GPU and Vulkan files of its adapters (ImageArray.cs joins the composition).
+CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_shader_save_journal',
+           # Core 671: the translator and host shader cache files of the NaN scrub.
+           'adapt_nan_scrub',
+           # Core 673: the pipeline cache manager and pipeline state of the main cache checkpoint.
+           'adapt_main_cache_checkpoint',
+           # Core 675: the side cache used while a checkpoint holds the main lock.
+           'adapt_checkpoint_side_cache',
+           # Core 677: evicted buffers recreated in both host budget settings.
+           'adapt_evicted_buffer_recreate',
+           # Core 679: the Apple audio session (no GPU file).
+           'adapt_audio_start_deferred',
+           # Core 681: the pipeline cache manager.
+           'adapt_pipeline_cache_room',
+           # Core 683: the pipeline cache manager and renderer.
+           'adapt_pipeline_cache_persist',
+           # Core 685: the pipeline build journal.
+           'adapt_pipeline_build_journal',
+           # Core 687: the pipeline cache growth rule.
+           'adapt_pipeline_cache_growth',
+           # Core 689: occupied read-backs into a buffer (DmaClass.cs) and the async rule (FramebufferParams.cs joins).
+           'adapt_occupied_readback_buffers', 'adapt_async_regenerated_targets',
+           # Core 691: the released-texture flush guard (GAL, Vulkan, GPU texture) and the pipeline failure identity.
+           'adapt_released_texture_flush', 'adapt_pipeline_failure_identity', 'adapt_worker_main_cache_lookup',
+           # Core 693: the compute/graphics switch re-sends bindings (TextureManager.cs, TextureBindingsManager.cs).
+           'adapt_compute_switch_bindings', 'adapt_bgc_keepalive',
+           # Core 697: bindless delta repairs (TextureBindingsArrayCache.cs); background main pipeline cache load
+           # (PipelineCacheManager.cs, PipelineState.cs, VulkanRenderer.cs).
+           'adapt_array_delta_invalidated', 'adapt_pipeline_cache_background',
+           # Core 699: the GPU thread's synchronous waits attributed per invoked command (ThreadedRenderer.cs).
+           'adapt_sync_wait_attribution',
+           # Core 701: buffer flushes read after their sync (IRenderer.cs, ThreadedRenderer.cs, Buffer.cs).
+           'adapt_synced_buffer_reads',
+           # Core 703: a stage's layout declares each used binding with its used type (ShaderInfoBuilder.cs).
+           'adapt_layout_used_types',
+           # Core 705: the program already set keeps its bound descriptor sets (DescriptorSetUpdater.cs, PipelineBase.cs).
+           'adapt_same_program_descriptors',
+           # Core 707: the retention chain journal (Library.cs, EmbeddedMemory.cs, WindowBase.cs, Horizon.cs, KProcess.cs).
+           'adapt_retention_chain',
+           # Core 709: valid textures kept past the short texture cache (AutoDeleteCache.cs, TextureCache.cs, GpuContext.cs).
+           'adapt_short_cache_reuse',
+           # Core 711: graphics pipeline states replayed at launch (PipelineCacheManager.cs, ShaderCollection.cs, PipelineBase.cs,
+           # PipelineState.cs).
+           'adapt_pipeline_variant_replay',
+           # Core 713: worker snapshots main's file holds removed at the close (PipelineCacheManager.cs).
+           'adapt_pipeline_snapshot_retire',
+           # Core 715: extra array sets kept bound (DescriptorSetUpdater.cs); array references by delta (TextureArray.cs).
+           'adapt_extra_set_binds', 'adapt_array_reference_deltas',
+           # Core 717: a worker's libraries published to main (PipelineCacheManager.cs, PipelineState.cs).
+           'adapt_worker_library_share')
+COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
+                                   if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -47,6 +118,29 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_hogwarts_dma_copies.py',
           'build-utils/melonx/adapt_queued_syncpoints.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+          'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+          'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
+          'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
+          'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
+          'build-utils/melonx/adapt_teardown_phase_marks.py',
+          'build-utils/melonx/adapt_array_rebuild_allocations.py', 'build-utils/melonx/adapt_present_pacing.py',
+          'build-utils/melonx/adapt_present_drawable_residency.py',
+          'build-utils/melonx/adapt_present_pacer_fixes.py',
+          'build-utils/melonx/adapt_shader_save_poll.py',
+          'build-utils/melonx/adapt_warmup_key_parity.py',
+          'build-utils/melonx/adapt_setprogram_warmup.py',
+          'build-utils/melonx/adapt_teardown_cache.py',
+          'build-utils/melonx/adapt_forced_syncpoint_wait.py',
+          'build-utils/melonx/adapt_session_retention.py',
+          'build-utils/melonx/adapt_memory_inventory.py',
+          'build-utils/melonx/adapt_guest_fault_context.py',
+          'build-utils/melonx/adapt_host_warning_trim.py',
+          'build-utils/melonx/adapt_safe_point_compaction.py',
+          'build-utils/melonx/adapt_cold_texture_release.py',
+          'build-utils/melonx/adapt_bindless_retention.py',
+          'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
+          'build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
+          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_evicted_buffer_recreate.py', 'build-utils/melonx/adapt_audio_start_deferred.py', 'build-utils/melonx/adapt_pipeline_cache_room.py', 'build-utils/melonx/adapt_pipeline_cache_persist.py', 'build-utils/melonx/adapt_pipeline_build_journal.py', 'build-utils/melonx/adapt_pipeline_cache_growth.py', 'build-utils/melonx/adapt_occupied_readback_buffers.py', 'build-utils/melonx/adapt_async_regenerated_targets.py', 'build-utils/melonx/adapt_released_texture_flush.py', 'build-utils/melonx/adapt_pipeline_failure_identity.py', 'build-utils/melonx/adapt_worker_main_cache_lookup.py', 'build-utils/melonx/adapt_compute_switch_bindings.py', 'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_array_delta_invalidated.py', 'build-utils/melonx/adapt_pipeline_cache_background.py', 'build-utils/melonx/adapt_sync_wait_attribution.py', 'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_layout_used_types.py', 'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_retention_chain.py', 'build-utils/melonx/adapt_short_cache_reuse.py', 'build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_pipeline_snapshot_retire.py', 'build-utils/melonx/adapt_extra_set_binds.py', 'build-utils/melonx/adapt_array_reference_deltas.py', 'build-utils/melonx/adapt_worker_library_share.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
@@ -106,9 +200,10 @@ def compose(target):
     apply_dma(target)
     apply_queued(target)
     apply_host(target)
-    # Then, last in prepare_embedded order, the PR #153 lot on the files this composition holds (Core 639).
-    apply_present(target, 'adapt_pipeline_warmup_parity')
-    apply_present(target, 'adapt_device_short_trim')
+    # Then, last in prepare_embedded order, the PR #153 lot (Core 639) and the PR #154 lot (Core 642) on the files
+    # this composition holds.
+    for name in ORDER:
+        apply_present(target, name)
 
 
 def compose_staged(target):

@@ -102,6 +102,66 @@ from adapt_queued_syncpoints import apply as adapt_queued_syncpoints
 from adapt_host_qos_pipeline_budget import apply as adapt_host_qos_pipeline_budget
 from adapt_pipeline_warmup_parity import apply as adapt_pipeline_warmup_parity
 from adapt_device_short_trim import apply as adapt_device_short_trim
+from adapt_moltenvk_barrier_ordering import apply as adapt_moltenvk_barrier_ordering
+from adapt_descriptor_scratch_all_titles import apply as adapt_descriptor_scratch_all_titles
+from adapt_readback_occupied_attribution import apply as adapt_readback_occupied_attribution
+from adapt_pipeline_miss_context import apply as adapt_pipeline_miss_context
+from adapt_readback_receivers import apply as adapt_readback_receivers
+from adapt_present_source_attribution import apply as adapt_present_source_attribution
+from adapt_teardown_compile_cancel import apply as adapt_teardown_compile_cancel
+from adapt_pause_guest_threads import apply as adapt_pause_guest_threads
+from adapt_teardown_phase_marks import apply as adapt_teardown_phase_marks
+from adapt_binder_teardown import apply as adapt_binder_teardown
+from adapt_artifact_counters import apply as adapt_artifact_counters
+from adapt_array_rebuild_allocations import apply as adapt_array_rebuild_allocations
+from adapt_present_pacing import apply as adapt_present_pacing
+from adapt_present_drawable_residency import apply as adapt_present_drawable_residency
+from adapt_present_pacer_fixes import apply as adapt_present_pacer_fixes
+from adapt_shader_save_poll import apply as adapt_shader_save_poll
+from adapt_warmup_key_parity import apply as adapt_warmup_key_parity
+from adapt_setprogram_warmup import apply as adapt_setprogram_warmup
+from adapt_teardown_cache import apply as adapt_teardown_cache
+from adapt_forced_syncpoint_wait import apply as adapt_forced_syncpoint_wait
+from adapt_session_retention import apply as adapt_session_retention
+from adapt_memory_inventory import apply as adapt_memory_inventory
+from adapt_guest_fault_context import apply as adapt_guest_fault_context
+from adapt_host_warning_trim import apply as adapt_host_warning_trim
+from adapt_safe_point_compaction import apply as adapt_safe_point_compaction
+from adapt_cold_texture_release import apply as adapt_cold_texture_release
+from adapt_bindless_retention import apply as adapt_bindless_retention
+from adapt_moltenvk_stage_ordering import apply as adapt_moltenvk_stage_ordering
+from adapt_buffer_array_barriers import apply as adapt_buffer_array_barriers
+from adapt_hogwarts_precise_math import apply as adapt_hogwarts_precise_math
+from adapt_shader_save_journal import apply as adapt_shader_save_journal
+from adapt_nan_scrub import apply as adapt_nan_scrub
+from adapt_main_cache_checkpoint import apply as adapt_main_cache_checkpoint
+from adapt_checkpoint_side_cache import apply as adapt_checkpoint_side_cache
+from adapt_evicted_buffer_recreate import apply as adapt_evicted_buffer_recreate
+from adapt_audio_start_deferred import apply as adapt_audio_start_deferred
+from adapt_pipeline_cache_room import apply as adapt_pipeline_cache_room
+from adapt_pipeline_cache_persist import apply as adapt_pipeline_cache_persist
+from adapt_pipeline_build_journal import apply as adapt_pipeline_build_journal
+from adapt_pipeline_cache_growth import apply as adapt_pipeline_cache_growth
+from adapt_occupied_readback_buffers import apply as adapt_occupied_readback_buffers
+from adapt_async_regenerated_targets import apply as adapt_async_regenerated_targets
+from adapt_released_texture_flush import apply as adapt_released_texture_flush
+from adapt_pipeline_failure_identity import apply as adapt_pipeline_failure_identity
+from adapt_worker_main_cache_lookup import apply as adapt_worker_main_cache_lookup
+from adapt_compute_switch_bindings import apply as adapt_compute_switch_bindings
+from adapt_bgc_keepalive import apply as adapt_bgc_keepalive
+from adapt_array_delta_invalidated import apply as adapt_array_delta_invalidated
+from adapt_pipeline_cache_background import apply as adapt_pipeline_cache_background
+from adapt_sync_wait_attribution import apply as adapt_sync_wait_attribution
+from adapt_synced_buffer_reads import apply as adapt_synced_buffer_reads
+from adapt_layout_used_types import apply as adapt_layout_used_types
+from adapt_same_program_descriptors import apply as adapt_same_program_descriptors
+from adapt_retention_chain import apply as adapt_retention_chain
+from adapt_short_cache_reuse import apply as adapt_short_cache_reuse
+from adapt_pipeline_variant_replay import apply as adapt_pipeline_variant_replay
+from adapt_pipeline_snapshot_retire import apply as adapt_pipeline_snapshot_retire
+from adapt_extra_set_binds import apply as adapt_extra_set_binds
+from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
+from adapt_worker_library_share import apply as adapt_worker_library_share
 
 
 def replace_once(path, old, new):
@@ -256,6 +316,146 @@ def main():
     # device-short texture trim evicts only textures it frees without a flush (GpuContext, AutoDeleteCache, TextureCache).
     adapted += [source / name for name in adapt_pipeline_warmup_parity(source)]
     adapted += [source / name for name in adapt_device_short_trim(source)]
+    # After every Core 639 step: each pins the Core 639 preparation's bytes of its files (none edits another's).
+    # PR #154: barrier ordering on MoltenVK 1.4.2 (VulkanRenderer, PipelineBase, BarrierBatch), the binding-sized
+    # descriptor scratch for every title (Library), occupied-readback attribution (DmaClass), miss context
+    # (ShaderCollection).
+    adapted += [source / name for name in adapt_moltenvk_barrier_ordering(source)]
+    adapted += [source / name for name in adapt_descriptor_scratch_all_titles(source)]
+    adapted += [source / name for name in adapt_readback_occupied_attribution(source)]
+    adapted += [source / name for name in adapt_pipeline_miss_context(source)]
+    # PR #156 (each pins the Core 642 preparation's bytes of its file): DMA read-back receivers (DmaClass, after
+    # adapt_readback_occupied_attribution) and present source attribution (Gpu Window, diagnostics only).
+    adapted += [source / name for name in adapt_readback_receivers(source)]
+    adapted += [source / name for name in adapt_present_source_attribution(source)]
+    # PR #156 follow-up (each pins the Core 642 preparation's bytes of its files): teardown compile cancel (VulkanRenderer,
+    # ShaderCollection, BackgroundCompilationScheduler) and the guest-thread record at a host pause (Horizon, KProcess).
+    adapted += [source / name for name in adapt_teardown_compile_cancel(source)]
+    adapted += [source / name for name in adapt_pause_guest_threads(source)]
+    # Teardown phase marks (journal only; VulkanRenderer after adapt_teardown_compile_cancel, WindowBase).
+    adapted += [source / name for name in adapt_teardown_phase_marks(source)]
+    # PR #156 new lot, IPA 650 logs (each pins the Core 649 preparation's bytes of its files): closed sessions' layer
+    # binders released in SurfaceFlinger.Dispose with the sessionRetention probe (SurfaceFlinger, HOSBinderDriverServer,
+    # Library), then the artifact-path counters (PipelineBase and BarrierBatch after adapt_moltenvk_barrier_ordering,
+    # TextureArray); journal and counters apart from the binder release.
+    adapted += [source / name for name in adapt_binder_teardown(source)]
+    adapted += [source / name for name in adapt_artifact_counters(source)]
+    # MeloNX levers from the IPA 650 logs (each pins the Core 654 preparation's bytes of its files): the whole rebuilds of
+    # pool-sized bindless arrays reuse bounded slots (TextureBindingsArrayCache, GAL ThreadedArrayPool), then the 30 fps
+    # present pacing on VK_GOOGLE_display_timing (Window, VulkanInitialization, VulkanRenderer after
+    # adapt_teardown_compile_cancel and adapt_teardown_phase_marks, Library after adapt_binder_teardown).
+    adapted += [source / name for name in adapt_array_rebuild_allocations(source)]
+    adapted += [source / name for name in adapt_present_pacing(source)]
+    # IPA 657 fix (pins the Core 656 preparation's Window.cs, after adapt_present_pacing): the game image is written into
+    # the iOS drawable by a render pass, not by a compute storage-image descriptor that MoltenVK 1.4.2's residency set
+    # leaves non-resident on iOS 18 and later (black launch, frozen image).
+    adapted += [source / name for name in adapt_present_drawable_residency(source)]
+    # Core 661 (Hogwarts 658 logs; each pins the file as the adapters before it leave it): the present pacer engages
+    # on the iPhone (stand-down bug, calibrated margins, learned offset; Window after adapt_present_drawable_residency).
+    adapted += [source / name for name in adapt_present_pacer_fixes(source)]
+    # The GPU thread polls a program's published link status instead of draining the render queue (ShaderCache).
+    adapted += [source / name for name in adapt_shader_save_poll(source)]
+    # Warm-up pipeline keys of geometry-as-compute and primitive restart match the draw's.
+    adapted += [source / name for name in adapt_warmup_key_parity(source)]
+    # SetProgram no longer waits for play-time warm-ups (Hogwarts policy); a draw still waits for its own pipeline.
+    adapted += [source / name for name in adapt_setprogram_warmup(source)]
+    # Teardown cancels the compile backlog before program disposal and saves the pipeline cache first; host-pause checkpoint.
+    adapted += [source / name for name in adapt_teardown_cache(source)]
+    # The forced {Nv} syncpoint wait goes on while the GPU progresses (Hogwarts policy), no premature Success.
+    adapted += [source / name for name in adapt_forced_syncpoint_wait(source)]
+    # A closed session's process-wide roots (statistics timer, TimeManager) are released.
+    adapted += [source / name for name in adapt_session_retention(source)]
+    # Journal only: 30 s memoryInventory line (GpuContext).
+    adapted += [source / name for name in adapt_memory_inventory(source)]
+    # Journal only: guest fault context after a crash on a guest thread (KernelStatic).
+    adapted += [source / name for name in adapt_guest_fault_context(source)]
+    # A host memoryWarning trims the GPU caches flush-free at device <= 12 %.
+    adapted += [source / name for name in adapt_host_warning_trim(source)]
+    # One LOH-compacting collection after the first frame and in a held pause at device <= 15 %, never in play.
+    adapted += [source / name for name in adapt_safe_point_compaction(source)]
+    # Pool-only sampler textures unused for 60 s are released at device <= 10 % (bounded, reload pinning).
+    adapted += [source / name for name in adapt_cold_texture_release(source)]
+    # Pool texture arrays keep no all-null sampler arrays and one view reference per element.
+    adapted += [source / name for name in adapt_bindless_retention(source)]
+    # MoltenVK 1.4.2 orders argument-buffer reads only by barriers: each new reader stage of a written texture gets its
+    # own barrier (every title), and unordered render/compute switches get one for Hogwarts.
+    adapted += [source / name for name in adapt_moltenvk_stage_ordering(source)]
+    # Core 667: buffer texture/image arrays queue no image barrier (the render worker's NullReferenceException of IPA 666).
+    adapted += [source / name for name in adapt_buffer_array_barriers(source)]
+    # Core 667: Hogwarts Legacy's shaders compiled by Metal without fast math (Inf and NaN kept).
+    adapted += [source / name for name in adapt_hogwarts_precise_math(source)]
+    # Core 667: durable counters of the shader disk-cache saves.
+    adapted += [source / name for name in adapt_shader_save_journal(source)]
+    # Core 671: Hogwarts Legacy's colour and image writes made finite (NaN -> 0, Inf -> 65504), title-gated.
+    adapted += [source / name for name in adapt_nan_scrub(source)]
+    # Core 673: the main pipeline cache checkpointed during play, from a worker thread.
+    adapted += [source / name for name in adapt_main_cache_checkpoint(source)]
+    # Core 675: creations go to a side cache while a checkpoint holds the main cache lock.
+    adapted += [source / name for name in adapt_checkpoint_side_cache(source)]
+    # Core 677: an evicted GPU buffer is recreated when used again, whatever the host memory budget setting.
+    adapted += [source / name for name in adapt_evicted_buffer_recreate(source)]
+    # Core 679: an audio output whose engine iOS refuses to start is retried from playback instead of aborting.
+    adapted += [source / name for name in adapt_audio_start_deferred(source)]
+    # Core 681: worker pipeline cache snapshots join main at startup; main budget 1 GiB.
+    adapted += [source / name for name in adapt_pipeline_cache_room(source)]
+    # Core 683: the main pipeline cache written on pause (app in the background) and more often during play.
+    adapted += [source / name for name in adapt_pipeline_cache_persist(source)]
+    # Core 685: journal of the pipelines compiled per title (compiled again versus new), diagnostics only.
+    adapted += [source / name for name in adapt_pipeline_build_journal(source)]
+    # Core 687: the main pipeline cache rewritten only for real new content; compute pipelines journaled.
+    adapted += [source / name for name in adapt_pipeline_cache_growth(source)]
+    # Core 689 (Hogwarts 688 async-shaders logs): a read-back over an occupied destination with no buffer goes into a
+    # buffer on the GPU (Hogwarts policy); async shaders skip a draw only into a target the frame regenerates.
+    adapted += [source / name for name in adapt_occupied_readback_buffers(source)]
+    adapted += [source / name for name in adapt_async_regenerated_targets(source)]
+    # Core 691 (IPA 688/690 crash at 0x111 in vkCmdCopyImageToBuffer): a texture flush never records a copy from a
+    # destroyed image; a failed pipeline names its program and its dropped draws are counted apart from async skips.
+    adapted += [source / name for name in adapt_released_texture_flush(source)]
+    adapted += [source / name for name in adapt_pipeline_failure_identity(source)]
+    # Core 691: a background pipeline compile first looks in the main cache without waiting (IPA 690: ~30 compiled again).
+    adapted += [source / name for name in adapt_worker_main_cache_lookup(source)]
+    # Core 693 (IPA 691 in play: GPU-thread bindings 0.9-1.5 s per 5 s; blocking gen2 fallbacks of 151-718 ms): a
+    # compute/graphics switch re-sends the resolved texture bindings; the background GC thread is kept alive.
+    adapted += [source / name for name in adapt_compute_switch_bindings(source)]
+    adapted += [source / name for name in adapt_bgc_keepalive(source)]
+    # Core 697 (IPA 693 counters: 293 of 297 whole delta scans for an invalidated texture, 40 whole re-checks, 24
+    # rebuilds): bindless delta passes visit the elements of invalidated textures and repair in place.
+    adapted += [source / name for name in adapt_array_delta_invalidated(source)]
+    # Core 697 (IPA 693: the 780 MiB main pipeline cache took 536 s to load with a cold Metal cache): it loads in the
+    # background and is merged into main; the game no longer waits for it.
+    adapted += [source / name for name in adapt_pipeline_cache_background(source)]
+    # Core 699 (IPA 692: GPU.MainThread waited 107-2844 ms per 5 s window for the render thread, mostly unexplained):
+    # each synchronous wait is attributed to its invoked command (queue drained ahead, the command itself) on the
+    # existing render work line; no log line added.
+    adapted += [source / name for name in adapt_sync_wait_attribution(source)]
+    # Core 701 (IPA 694: BufferGetData waited 3 349.7 ms in 35 windows for 7.5 ms of reads): a buffer flush, which follows
+    # the wait for its sync, reads without draining the render thread's queue.
+    adapted += [source / name for name in adapt_synced_buffer_reads(source)]
+    # Core 703 (IPAs 688-694: Hogwarts Legacy program 890A188FB55B5D5D, "SPIR-V to MSL conversion error: nullptr", its
+    # draws unavailable): a stage's layout declares each binding it uses with the type it uses it as.
+    adapted += [source / name for name in adapt_layout_used_types(source)]
+    # Core 705 (IPA 694: descriptors 1 121 ms in draw prepare and 394 ms in compute prepare per 108 frames): setting the
+    # program already set keeps its bound descriptor sets instead of rewriting all four.
+    adapted += [source / name for name in adapt_same_program_descriptors(source)]
+    # Core 707 (IPAs 691-694: every session closed in play keeps its Switch reachable, 500-563 MB after the final
+    # collection): journal the deepest part of the closed session still reachable, at the close and at the next first frame.
+    adapted += [source / name for name in adapt_retention_chain(source)]
+    # Core 709 (lot 4: a texture back in a pool after the short cache's two presents was created and uploaded again):
+    # valid textures kept past the short cache, bounded (1 024 textures, 32 MiB, 60 presents), released under pressure.
+    adapted += [source / name for name in adapt_short_cache_reuse(source)]
+    # Core 711 (lot 5: a cached program warms up one graphics state; its other states were created on the render thread
+    # every session): states drawn late recorded semantically, replayed in the background at the next launch, bounded.
+    adapted += [source / name for name in adapt_pipeline_variant_replay(source)]
+    # Core 713 (lot 6: worker snapshots main's file holds were read, hydrated and merged at every launch; a main snapshot
+    # the driver ignores blocked every checkpoint): such copies removed at the close; an ignored snapshot written again.
+    adapted += [source / name for name in adapt_pipeline_snapshot_retire(source)]
+    # Core 715 (lot 8: an update of the main sets alone looked the bindless array sets up and bound them again; a texture
+    # array changed again in the same command buffer referenced all its views again): kept bound; new references only.
+    adapted += [source / name for name in adapt_extra_set_binds(source)]
+    adapted += [source / name for name in adapt_array_reference_deltas(source)]
+    # Core 717 (lot 8: a worker's Metal libraries reached the main cache only before a recycle or at the close, so another
+    # worker compiled the same MSL again): published to main after each own compilation, bounded, never waiting.
+    adapted += [source / name for name in adapt_worker_library_share(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -329,7 +529,59 @@ def main():
                  'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
                  'adapt_bindless_array_deltas.py', 'adapt_hogwarts_dma_copies.py',
                  'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py',
-                 'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py']:
+                 'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py',
+                 'adapt_moltenvk_barrier_ordering.py', 'adapt_descriptor_scratch_all_titles.py',
+                 'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py',
+                 'adapt_readback_receivers.py', 'adapt_present_source_attribution.py',
+                 'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py', 'adapt_teardown_phase_marks.py',
+                 'adapt_binder_teardown.py', 'adapt_artifact_counters.py', 'adapt_array_rebuild_allocations.py',
+                 'adapt_present_pacing.py', 'adapt_present_drawable_residency.py',
+                 'adapt_present_pacer_fixes.py',
+                 'adapt_shader_save_poll.py',
+                 'adapt_warmup_key_parity.py',
+                 'adapt_setprogram_warmup.py',
+                 'adapt_teardown_cache.py',
+                 'adapt_forced_syncpoint_wait.py',
+                 'adapt_session_retention.py',
+                 'adapt_memory_inventory.py',
+                 'adapt_guest_fault_context.py',
+                 'adapt_host_warning_trim.py',
+                 'adapt_safe_point_compaction.py',
+                 'adapt_cold_texture_release.py',
+                 'adapt_bindless_retention.py',
+                 'adapt_moltenvk_stage_ordering.py',
+                 'adapt_buffer_array_barriers.py',
+                 'adapt_hogwarts_precise_math.py',
+                 'adapt_shader_save_journal.py',
+                 'adapt_nan_scrub.py',
+                 'adapt_main_cache_checkpoint.py',
+                 'adapt_checkpoint_side_cache.py',
+                 'adapt_evicted_buffer_recreate.py',
+                 'adapt_audio_start_deferred.py',
+                 'adapt_pipeline_cache_room.py',
+                 'adapt_pipeline_cache_persist.py',
+                 'adapt_pipeline_build_journal.py',
+                 'adapt_pipeline_cache_growth.py',
+                 'adapt_occupied_readback_buffers.py',
+                 'adapt_async_regenerated_targets.py',
+                 'adapt_released_texture_flush.py',
+                 'adapt_pipeline_failure_identity.py',
+                 'adapt_worker_main_cache_lookup.py',
+                 'adapt_compute_switch_bindings.py',
+                 'adapt_bgc_keepalive.py',
+                 'adapt_array_delta_invalidated.py',
+                 'adapt_pipeline_cache_background.py',
+                 'adapt_sync_wait_attribution.py',
+                 'adapt_synced_buffer_reads.py',
+                 'adapt_layout_used_types.py',
+                 'adapt_same_program_descriptors.py',
+                 'adapt_retention_chain.py',
+                 'adapt_short_cache_reuse.py',
+                 'adapt_pipeline_variant_replay.py',
+                 'adapt_pipeline_snapshot_retire.py',
+                 'adapt_extra_set_binds.py',
+                 'adapt_array_reference_deltas.py',
+                 'adapt_worker_library_share.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

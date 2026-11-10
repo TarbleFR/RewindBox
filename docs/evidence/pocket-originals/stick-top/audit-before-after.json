@@ -1,0 +1,334 @@
+{
+ "gamecube-pocket-original/portrait": {
+  "l": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "r": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "z": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "mainStick": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 44.93,
+   "capOffsetFromBoardPoints_before": 5.38,
+   "travelPoints_before": 11.48,
+   "fullDeflectionRadiusPoints_before": 63.63,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 9.73,
+   "fullDeflectionRadiusPoints_after": 52.55
+  },
+  "y": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "a": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "x": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "b": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "dpad": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "cStick": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 56.72,
+   "capOffsetFromBoardPoints_before": 5.01,
+   "travelPoints_before": 10.91,
+   "fullDeflectionRadiusPoints_before": 60.53,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 10.21,
+   "fullDeflectionRadiusPoints_after": 46.1
+  },
+  "menu": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "start": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  }
+ },
+ "gamecube-pocket-original/landscape": {
+  "l": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "mainStick": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 35.5,
+   "capOffsetFromBoardPoints_before": 6.33,
+   "travelPoints_before": 10.95,
+   "fullDeflectionRadiusPoints_before": 55.61,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 10.98,
+   "fullDeflectionRadiusPoints_after": 49.28
+  },
+  "dpad": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "menu": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "r": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "z": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "y": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "a": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "x": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "b": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "cStick": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 60.05,
+   "capOffsetFromBoardPoints_before": 8.09,
+   "travelPoints_before": 10.08,
+   "fullDeflectionRadiusPoints_before": 55.91,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 7.34,
+   "fullDeflectionRadiusPoints_after": 40.71
+  },
+  "start": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  }
+ },
+ "wii-pocket-original/portrait": {
+  "c": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "z": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "mainStick": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 37.38,
+   "capOffsetFromBoardPoints_before": 4.89,
+   "travelPoints_before": 12.03,
+   "fullDeflectionRadiusPoints_before": 66.74,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 10.67,
+   "fullDeflectionRadiusPoints_after": 59.17
+  },
+  "a": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "b": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "dpad": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "one": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "two": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "minus": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "home": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "plus": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "menu": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  }
+ },
+ "wii-pocket-original/landscape": {
+  "c": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "z": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "mainStick": {
+   "misroutedPercent_before": 0.06,
+   "pressedChangesOutsideOutlinePercent_before": 34.94,
+   "capOffsetFromBoardPoints_before": 6.65,
+   "travelPoints_before": 10.6,
+   "fullDeflectionRadiusPoints_before": 58.78,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0,
+   "capOffsetFromBoardPoints_after": 0.0,
+   "travelPoints_after": 9.65,
+   "fullDeflectionRadiusPoints_after": 53.51
+  },
+  "dpad": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "menu": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "minus": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "home": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "plus": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "a": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "b": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "one": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  },
+  "two": {
+   "misroutedPercent_before": 0.0,
+   "pressedChangesOutsideOutlinePercent_before": 0.0,
+   "misroutedPercent_after": 0.0,
+   "pressedChangesOutsideOutlinePercent_after": 0.0
+  }
+ }
+}

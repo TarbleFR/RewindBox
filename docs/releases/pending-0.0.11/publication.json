@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "status": "prepared-publication-on-hold",
+  "release": {
+    "name": "RewindBox 0.0.11",
+    "tag": "0.0.11",
+    "target_commitish": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "draft": true
+  },
+  "authorization": "The maintainer previously authorized RewindBox 0.0.11 publication and cleanup. Latest explicit instruction, 10 November 2026: do not publish the update yet; complete all other work. Cleanup, main synchronization and README/About updates remain authorized. Public release, source activation and Discord announcement are on hold until a new maintainer instruction.",
+  "ipa": {
+    "public_asset_name": "RewindBox-0.0.11.ipa",
+    "delivered_name": "RewindBox-718.ipa",
+    "build": "718",
+    "internal_version": "0.0.8",
+    "bundle_identifier": "com.neogamelab.neostation",
+    "bytes": 263465367,
+    "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a",
+    "delivery_receipt": "docs/evidence/rewind718/delivery.json",
+    "download_verification_receipt": "docs/evidence/rewind718/download718-verification.json",
+    "downloaded_in_this_preparation": true,
+    "physical_gameplay_verified": false
+  },
+  "components": {
+    "rpcs3": 914,
+    "melonx": 717
+  },
+  "source": {
+    "staged_path": "docs/releases/pending-0.0.11/source.json",
+    "activation_path": "source.json",
+    "version": "0.0.8",
+    "buildVersion": "718",
+    "marketingVersion": "0.0.11",
+    "minOSVersion": "18.0",
+    "metadata_bound_to_receipt": true,
+    "permissions_derived_from_frozen_host_configuration": true,
+    "permissions_checked_against_plaintext_ipa_here": true,
+    "live_installability_verified": false,
+    "permissions_verified_by": "main Claude Code: ipa_verification; Codex downloaded file has the identical SHA-256"
+  },
+  "expected_urls": {
+    "release": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
+    "ipa": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa",
+    "source": "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json",
+    "status": "intended targets only; not published or advertised as live"
+  },
+  "discord": {
+    "invite": "https://discord.gg/G48u46ppX",
+    "requested_channel_name": "release",
+    "resolved_channel_id": null,
+    "publication_status": "not-posted",
+    "draft_messages": 10
+  },
+  "blockers": [
+    {
+      "service": "GitHub publication",
+      "observed": "At the maintainer's explicit choice, secure Sign in with Apple completed its credential step and displayed a signed-in confirmation. After Continue, GitHub returned: 'We could not validate the response from your social login provider. Please try again or use our alternative sign-in or sign-up options.' GitHub authentication is not established; automated retries stopped. No password or account identifier is recorded."
+    },
+    {
+      "service": "Discord",
+      "observed": "Secure sign-in submitted; Discord requires hCaptcha ('Wait! Are you human?'). No challenge interacted with or message posted. User human verification required."
+    }
+  ],
+  "checks_completed": [
+    "English changelog prepared from the maintainer-approved list with device/experimental limits retained",
+    "JSON parses; bundle/version/build/size/minimum OS match published delivery receipt",
+    "Discord messages are each below 2,000 characters",
+    "No build, Core/pin change, tag, release or Discord post performed"
+  ],
+  "remaining": [
+    "Complete independent repository cleanup, README and About updates within the reviewed scope; preserve active work, history and protected evidence.",
+    "Keep the byte-identical IPA, validated source.json, English changelog and SHA256SUMS ready. Do not publish, activate the public feed or announce while the maintainer's hold is active.",
+    "When the maintainer resumes publication, use authenticated release-write/upload access, reuse the exact delivered source and assets, verify the uploaded IPA download and only then activate the stable source and announce in the verified Discord release channel.",
+    "After actual publication, archive its exact notes and reconcile/reset NEXT while retaining deferred content."
+  ],
+  "follow_up": {
+    "status": "independent-cleanup-authorized-publication-on-hold",
+    "order": [
+      "Finish reviewed cleanup, synchronize main and Claude, update README/About",
+      "Keep release/source/Discord publication on hold at the maintainer's request"
+    ],
+    "main_unique_commits": [
+      "4f7e39e024e2e2bc2d8f3c46404c2a49f8ef1566",
+      "97d68263ed64a7a7e38a715627a3851d40c679d9",
+      "74ffeb699777ce5f3e09b67f7cbd99cd997bc787",
+      "893179a556260d6c9714ab8391b3c6bda97e8386",
+      "3be2a34e4d056e9ad7078aecc710c54617f8a58f"
+    ],
+    "requires_reviewed_merge": true,
+    "force_push_authorized": false,
+    "workflow_review": {
+      "path": "docs/evidence/github-cleanup-post-release-0.0.11-review.json",
+      "source": "c28a37d1abd46920b9fb14ed2f31e13e6050f6c4",
+      "read_only": false,
+      "coverage_blobs": 2566,
+      "classified_launchers": 44,
+      "preliminary_candidates": 14,
+      "post_deletion_contract_executed": true,
+      "limitation": "Only scanned coverage; dynamic/outside references not exhaustively excluded; recheck current tree and execute standard_delivery_contract_test before any retirement.",
+      "test_result": {
+        "tests": 59,
+        "skipped": 4,
+        "exit_code": 0
+      },
+      "execution_receipt": "docs/evidence/workflow-retirement-2026-11-10.json"
+    },
+    "integration": {
+      "status": "completed",
+      "commit": "8283f341e53e22c6c72a5cd41f71c32cd01ffc14",
+      "receipt": "docs/evidence/main-integration-2026-11-10.json"
+    }
+  },
+  "ipa_verification": {
+    "at": "2026-11-10",
+    "by": "main Claude Code session 012mUAShv9k6pSCnpW7oAF63",
+    "file": "RewindBox-718.ipa (to be published byte-identical as RewindBox-0.0.11.ipa)",
+    "bytes": 263465367,
+    "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a",
+    "source": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "run": 42747501121,
+    "zip": "testzip OK, 5594 entries",
+    "app": {
+      "CFBundleIdentifier": "com.neogamelab.neostation",
+      "CFBundleShortVersionString": "0.0.8",
+      "CFBundleVersion": "718",
+      "MinimumOSVersion": "18.0"
+    },
+    "extensions": "7 appex, all 0.0.8 (718); MinimumOSVersion 17.4 (JIT helpers, NeoSwapDonor) or 18.0",
+    "signedEntitlementsUnion": [
+      "com.apple.developer.kernel.extended-virtual-addressing",
+      "com.apple.developer.kernel.increased-debugging-memory-limit",
+      "com.apple.developer.kernel.increased-memory-limit",
+      "get-task-allow"
+    ],
+    "privacyKeysUnion": [
+      "NSLocalNetworkUsageDescription",
+      "NSMotionUsageDescription",
+      "NSPhotoLibraryAddUsageDescription"
+    ],
+    "stagedSourceJson": "matches (bundle id, version 0.0.8, build 718, minOS 18.0, size, entitlement union, privacy key union; app texts used); no correction needed"
+  },
+  "release_checks": {
+    "existing_0.0.11_release": "none (releases: 0.0.10, 0.0.9-fix.1, 0.0.9)",
+    "existing_0.0.11_tag": "none (git ls-remote)"
+  },
+  "root_download_verification": {
+    "by": "Codex",
+    "source": "downloaded from the main Claude session's published RewindBox-718.ipa file card",
+    "bytes": 263465367,
+    "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a",
+    "zip": "testzip passed;5594 entries",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "version": "0.0.8",
+    "build": "718",
+    "minOSVersion": "18.0",
+    "upload_prepared": true,
+    "ipa_modified": false
+  },
+  "hold": {
+    "active": true,
+    "requestedBy": "maintainer",
+    "instruction": "ne publie pas la mise à jour tout de suite mais fais tout le reste",
+    "scope": [
+      "GitHub release publication",
+      "public update source activation",
+      "Discord release announcement"
+    ],
+    "preparedAssetsPreserved": true
+  }
+}

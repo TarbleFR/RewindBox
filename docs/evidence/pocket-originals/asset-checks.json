@@ -4,11 +4,17 @@
     "manifest digests and sizes",
     "ZIP CRC and confined resources",
     "all PNG decodes",
-    "12 iPhone layouts",
+    "every iPhone layout",
     "4:3 game windows for native background masking",
     "all essential bindings",
     "exactly one Menu control in every layout",
-    "approved raw body byte identity and provenance SHA-256",
+    "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
+    "approved board SHA-256 binding (Originals)",
+    "Originals: sprites transparent outside the outline, press confined to it, rest = board, cap at the touch centre",
+    "Originals: drawn shapes disjoint, invisible extensions reach no other control",
+    "native layout selection per iPhone",
+    "Originals: sensor housing (both landscape sides), corners, home indicator",
+    "Originals: letterboxed home-button iPhone targets measured, not claimed",
     "distinct normal/pressed artwork",
     "separate movable stick caps",
     "no control overlaps",
@@ -22,6 +28,7 @@
   "targetMetric": "short side of fitted item hit frame; a D-pad or stick is one directional cluster",
   "packs": [
     {
+      "id": "wii-pocket",
       "console": "wii",
       "archive": "wii-pocket.manicskin",
       "size": 5760549,
@@ -30,6 +37,7 @@
         "body-portrait.png": "7e74db0dade75f78d61c4d62a8d501cf99e5dc94510bb5c7a0921eb2c56c63f4",
         "body-landscape.png": "cc3379d4961eb771bca149e1234580657c5d6b6a9a75e0572bd4ee98b3f27020"
       },
+      "approvedBoardSha256": null,
       "gameWindowMode": "native even-odd background mask; raw body preserved",
       "pngs": 29,
       "layouts": [
@@ -228,6 +236,7 @@
       ]
     },
     {
+      "id": "gamecube-pocket",
       "console": "gc",
       "archive": "gamecube-pocket.manicskin",
       "size": 6053003,
@@ -236,6 +245,7 @@
         "body-portrait.png": "7e74db0dade75f78d61c4d62a8d501cf99e5dc94510bb5c7a0921eb2c56c63f4",
         "body-landscape.png": "cc3379d4961eb771bca149e1234580657c5d6b6a9a75e0572bd4ee98b3f27020"
       },
+      "approvedBoardSha256": null,
       "gameWindowMode": "native even-odd background mask; raw body preserved",
       "pngs": 30,
       "layouts": [
@@ -434,11 +444,13 @@
       ]
     },
     {
+      "id": "ps2-pocket",
       "console": "ps2",
       "archive": "ps2-pocket.manicskin",
       "size": 6117888,
       "sha256": "2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad",
       "approvedBodySha256": {},
+      "approvedBoardSha256": null,
       "gameWindowMode": "native even-odd background mask; raw body preserved",
       "pngs": 39,
       "layouts": [
@@ -633,6 +645,387 @@
             21,
             59
           ]
+        }
+      ]
+    },
+    {
+      "id": "gamecube-pocket-original",
+      "console": "gc",
+      "archive": "gamecube-pocket-original.manicskin",
+      "size": 6452061,
+      "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
+      "approvedBodySha256": {},
+      "approvedBoardSha256": "ecead3bd3ece4f381b2a4ee736f158c06e34d6bde42fb5c6ffb4998580ccf0f7",
+      "gameWindowMode": "native even-odd background mask over the board's own navy window",
+      "pngs": 56,
+      "layouts": [
+        {
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "mappingSize": [
+            393.0,
+            851.879
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 46.39399999999999
+        },
+        {
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "mappingSize": [
+            852.0,
+            378.783
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 46.383
+        }
+      ],
+      "nativeFitMatrix": [
+        {
+          "devicePoints": [
+            375,
+            667
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 36.325,
+          "letterboxedFallback": true,
+          "meets44pt": false
+        },
+        {
+          "devicePoints": [
+            667,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 36.312,
+          "letterboxedFallback": true,
+          "meets44pt": false
+        },
+        {
+          "devicePoints": [
+            375,
+            812
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 44.222,
+          "boardPlacementIntoHomeIndicatorBand": [
+            {
+              "item": 10,
+              "drawnIntoBandPoints": 2.602
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            812,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 44.205,
+          "knownHousingDeviation": [
+            {
+              "item": 3,
+              "side": "left",
+              "largestUncoveredStripPoints": [
+                50.0,
+                50.001
+              ],
+              "control": "menu"
+            },
+            {
+              "item": 8,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                37.0,
+                63.0
+              ],
+              "control": "x"
+            },
+            {
+              "item": 10,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                95.29,
+                106.579
+              ],
+              "control": "cUp"
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            390,
+            844
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 45.965,
+          "boardPlacementIntoHomeIndicatorBand": [
+            {
+              "item": 10,
+              "drawnIntoBandPoints": 1.365
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            844,
+            390
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 45.947,
+          "knownHousingDeviation": [
+            {
+              "item": 8,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                36.64,
+                65.482
+              ],
+              "control": "x"
+            },
+            {
+              "item": 10,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                97.228,
+                110.779
+              ],
+              "control": "cUp"
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            393,
+            852
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 46.394,
+          "boardPlacementIntoHomeIndicatorBand": [
+            {
+              "item": 10,
+              "drawnIntoBandPoints": 0.999
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            852,
+            393
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 46.383,
+          "knownHousingDeviation": [
+            {
+              "item": 8,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                54.562,
+                23.564
+              ],
+              "control": "x"
+            },
+            {
+              "item": 10,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                111.829,
+                83.675
+              ],
+              "control": "cUp"
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            430,
+            932
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 50.757,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            932,
+            430
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 50.738,
+          "knownHousingDeviation": [
+            {
+              "item": 8,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                59.685,
+                31.692
+              ],
+              "control": "x"
+            },
+            {
+              "item": 10,
+              "side": "right",
+              "largestUncoveredStripPoints": [
+                122.329,
+                97.448
+              ],
+              "control": "cUp"
+            }
+          ],
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        }
+      ]
+    },
+    {
+      "id": "wii-pocket-original",
+      "console": "wii",
+      "archive": "wii-pocket-original.manicskin",
+      "size": 5257748,
+      "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
+      "approvedBodySha256": {},
+      "approvedBoardSha256": "fae06ef43be7c8a34c5b39e66a0f5558d9283bbe6f1412e070bd8ac0212dc90f",
+      "gameWindowMode": "native even-odd background mask over the board's own navy window",
+      "pngs": 54,
+      "layouts": [
+        {
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "mappingSize": [
+            393.0,
+            851.879
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 46.386
+        },
+        {
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "mappingSize": [
+            852.0,
+            378.783
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 46.388999999999996
+        }
+      ],
+      "nativeFitMatrix": [
+        {
+          "devicePoints": [
+            375,
+            667
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 36.319,
+          "letterboxedFallback": true,
+          "meets44pt": false
+        },
+        {
+          "devicePoints": [
+            667,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 36.316,
+          "letterboxedFallback": true,
+          "meets44pt": false
+        },
+        {
+          "devicePoints": [
+            375,
+            812
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 44.215,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            812,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 44.211,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            390,
+            844
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 45.957,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            844,
+            390
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 45.953,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            393,
+            852
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 46.386,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            852,
+            393
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 46.389,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            430,
+            932
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 50.749,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
+        },
+        {
+          "devicePoints": [
+            932,
+            430
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 50.745,
+          "physicalModel": "sensor housing both landscape sides, display corners, home indicator"
         }
       ]
     }

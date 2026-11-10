@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "session": "012mUAShv9k6pSCnpW7oAF63",
+  "host": "Linux x86_64 (cloud VM, not Apple)",
+  "sdk": {
+    "version": "10.0.100",
+    "source": "builds.dotnet.microsoft.com dotnet-sdk-10.0.100-linux-x64.tar.gz (dot.net/v1/dotnet-install.sh into a user directory)",
+    "sha512Verified": "release-metadata 10.0 releases.json (the tarball re-downloaded, its SHA-512 checked, every extracted file equal to the installed one)"
+  },
+  "upstream": {
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+    "pristine": true
+  },
+  "baselineArchive": {
+    "artifact": 13141611354,
+    "bytes": 89436359,
+    "sha256": "05009abfcfa45a5e5644491a52da2b08abeef8337451eb688c72a9f346f0abd5",
+    "authenticated": "verify_dma_core.authenticate_archive"
+  },
+  "core": 654,
+  "lot": "PR #156 new lot (handoff 42a104cc, IPA 650 logs): closed sessions' layer binders released in SurfaceFlinger.Dispose with the sessionRetention probe; gcEvent lines of the collector; artifact-path counters; the single-virtual-dependency fixture rerun because its delivered receipt declares the collector; on Core 649",
+  "gates": {
+    "bindless-array-deltas": {
+      "report": "bindless-array-delta-checks.json",
+      "result": "passed",
+      "sha256": "bc4db0c1f3ac5b3d03d56d2513f69757ccc6e16cf6d477cc854d69379662cc0f",
+      "seconds": 15
+    },
+    "fragmented-reads": {
+      "report": "fragmented-reads-checks.json",
+      "result": "passed",
+      "sha256": "39e1025b73049235ffd982db063d484900b080c67f1967542b2d793b3178a721",
+      "seconds": 47
+    },
+    "performance-diagnostics": {
+      "report": "performance-diagnostics-checks.json",
+      "result": "passed",
+      "sha256": "cb86a86e0e558e392db9366e2b60d970684e76cbae36877719d1c08e66527d67",
+      "seconds": 3
+    },
+    "binding-data-snapshots": {
+      "report": "binding-data-snapshot-checks.json",
+      "result": "passed",
+      "sha256": "f2e56b380363d5455f34b92593017d133b2a62d9fc16ea7370218d34d9c7a6e4",
+      "seconds": 7
+    },
+    "hogwarts-dma-copies": {
+      "report": "hogwarts-dma-copies-checks.json",
+      "result": "passed",
+      "sha256": "3287faf16e3a1e059f2c5bbb499e5bc05e7f240eb210460c411c769f906a2656",
+      "seconds": 6
+    },
+    "pipeline-checkpoint": {
+      "report": "pipeline-checkpoint-checks.json",
+      "result": "passed",
+      "sha256": "3261caf02cab3786aa8749f99b99e64e6ede28199068ed60174b8485755e71ee",
+      "seconds": 5
+    },
+    "scalar-texture-descriptors": {
+      "report": "scalar-texture-descriptor-checks.json",
+      "result": "passed",
+      "sha256": "81d6a9a9ec66665aa77517871855144491142fbf65ea596e90cdc5d965731a12",
+      "seconds": 8
+    },
+    "fallback-descriptor-scratch": {
+      "report": "fallback-descriptor-scratch-checks.json",
+      "result": "passed",
+      "sha256": "60c84e8c5d194d76ca07ac7adc05cfc2ba0dabec41a241e5d02c4b55da80f913",
+      "seconds": 8
+    },
+    "single-resource-bindings": {
+      "report": "single-resource-binding-checks.json",
+      "result": "passed",
+      "sha256": "d7ceba5dd61669ab6f07ba512a124b5d2dd8cc91d0169a3ec2b89ef36db6e078",
+      "seconds": 8
+    },
+    "bounded-binding-snapshots": {
+      "report": "bounded-binding-snapshot-checks.json",
+      "result": "passed",
+      "sha256": "dc39f988e37d805afde97952b532095bdb5eea11eec4407332c1ae1326e51ed7",
+      "seconds": 8
+    },
+    "counter-report-compaction": {
+      "report": "counter-report-compaction-final-checks.json",
+      "result": "passed",
+      "sha256": "eed12bd75954135bd05185d694d94b75d2568edc6b907fbc2eaa4c0514cc193b",
+      "seconds": 6
+    },
+    "single-virtual-dependency": {
+      "report": "single-virtual-dependency-final-checks.json",
+      "result": "passed",
+      "sha256": "40e90f88b21e790aebd3ffa8d775a69ecbb65fe50a6161b8b90f1c13688ecbf0",
+      "seconds": 13
+    },
+    "pipeline-warmup-parity": {
+      "report": "pipeline-warmup-parity-checks.json",
+      "result": "passed",
+      "sha256": "7528c21cb78519eb1c6bdacc17eb9db1120c5e34bad58503729f69a486e218ac",
+      "seconds": 53
+    },
+    "device-short-trim": {
+      "report": "device-short-trim-checks.json",
+      "result": "passed",
+      "sha256": "eb546d2ec199cb459cb55f72f7c5fb05fc54f9cc3dbd65e245bfa9923eb61bd7",
+      "seconds": 6
+    },
+    "moltenvk-barrier-ordering": {
+      "report": "moltenvk-barrier-ordering-checks.json",
+      "result": "passed",
+      "sha256": "d2835733d08197b9c6f865921c180480f0632fb6046772a179bc2616c82fa78a",
+      "seconds": 21
+    },
+    "descriptor-scratch-all-titles": {
+      "report": "descriptor-scratch-all-titles-checks.json",
+      "result": "passed",
+      "sha256": "c713c2a79e555475b2f63e0e6d67827d849c3b6cdeb10a81207e4936e69fa739",
+      "seconds": 2
+    },
+    "readback-occupied-attribution": {
+      "report": "readback-occupied-attribution-checks.json",
+      "result": "passed",
+      "sha256": "3a1e36aa1191dfcb17844571080758befd2cd912c8a8d91c12efbed1c90138c6",
+      "seconds": 41
+    },
+    "pipeline-miss-context": {
+      "report": "pipeline-miss-context-checks.json",
+      "result": "passed",
+      "sha256": "6fa9cac385360af107b2ef16683898b34420696f861ebd750c4d0fed0e5de92e",
+      "seconds": 12
+    },
+    "barrier-compaction": {
+      "report": "barrier-compaction-checks.json",
+      "result": "passed",
+      "sha256": "f572cb864afbc8a7581ac487ef20bd0812646cf25ea3fff428ce309ff869cd87",
+      "seconds": 7
+    },
+    "readback-receivers": {
+      "report": "readback-receivers-checks.json",
+      "result": "passed",
+      "sha256": "1107907a008b157709d13bc841e70d44d66fbbed681123693d33ec401d6fd50c",
+      "seconds": 46
+    },
+    "present-source-attribution": {
+      "report": "present-source-attribution-checks.json",
+      "result": "passed",
+      "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+      "seconds": 24
+    },
+    "teardown-compile-cancel": {
+      "report": "teardown-compile-cancel-checks.json",
+      "result": "passed",
+      "sha256": "70ab8588cd5a2777a2c9d5586cbf0af7e0b0d4d5b4131a405ee48b68a6fac2ff",
+      "seconds": 35
+    },
+    "pause-guest-threads": {
+      "report": "pause-guest-threads-checks.json",
+      "result": "passed",
+      "sha256": "96978526ef61e5676feb358511fdf47d52cebf6d866191f5698b59391175ccf0",
+      "seconds": 70
+    },
+    "teardown-phase-marks": {
+      "report": "teardown-phase-marks-checks.json",
+      "result": "passed",
+      "sha256": "c51d2040fa38e25bf5239fcb795c1ad5b107d2c2386b4ef730e0f628fd0c25f4",
+      "seconds": 39
+    },
+    "binder-teardown": {
+      "report": "binder-teardown-checks.json",
+      "result": "passed",
+      "sha256": "39f79fa161cc0a1b96773e7f9ebd6e6f3ef02e3c1da5c0814490f31da4ac2778",
+      "seconds": 79
+    },
+    "gc-events": {
+      "report": "gc-events-checks.json",
+      "result": "passed",
+      "sha256": "2164c9ae34c423775992e388baf7a68e652e47dd5be3f6f414de954ea90fe7a0",
+      "seconds": 24
+    },
+    "artifact-counters": {
+      "report": "artifact-counters-checks.json",
+      "result": "passed",
+      "sha256": "5aea7a55aebe68061ec1e6ae49d9f7f9d35fa99f2604a1aac7b8fb204f63c5d3",
+      "seconds": 22
+    }
+  },
+  "contract": {
+    "path": "build-utils/melonx/dma-core-contract.json",
+    "sha256": "e1f181e518fe252a606fb2f60ad7be08175a138b5934816d17b4c1e260a9e335",
+    "freshAppleGates": 27,
+    "reusedAppleGates": 21,
+    "historicalAppleReceipts": 61
+  },
+  "contractTest": {
+    "checks": 331,
+    "actualBaselineArchiveVerified": true
+  },
+  "failuresBeforeCorrection": {
+    "bindless-array-deltas": "its composition copied the Core 611 control's collector and required it to equal the checked-in native collector, which since Core 654 also writes the gcEvent lines: the control collector is now pinned by digest (95732bef\u2026, the native collector of Cores 614 to 649) and the composition starts from the checked-in native collector, as prepare_embedded does; 302 checks unchanged",
+    "hogwarts-dma-copies": "LOT_FILES, the files each ORDER adapter edits among the DMA adapter's files, lacked the two Core 654 adapters (binder teardown: Library.cs; artifact counters: PipelineBase.cs, TextureArray.cs); the composition equality check itself was already met",
+    "sdk": "this container's system SDK had moved from 10.0.100 to 10.0.114 between the Core 649 pass and this one; the eight fixtures whose probes pin 10.0.100 (global.json, rollForward disable) failed to resolve an SDK; SDK 10.0.100 was installed into a user directory from builds.dotnet.microsoft.com (SHA-512 of the tarball checked against the 10.0 release metadata, every extracted file equal to the installed one) and the whole pass was rerun with it first on PATH",
+    "single-resource-bindings, bounded-binding-snapshots": "melonx_array_descriptor_ranges.final_receipt compared the final TextureArray.cs minus the encoding hunks with the control; the artifact-path counters of adapt_artifact_counters also edit it: the later ORDER adapters' edits are now reversed first (melonx_adapter_control.reverse_present, the inverse of apply_present), then the exact comparison stands; the fixture's RenderDetail double also declares ArrayDestroyedViewWalkElements/RefreshElements so the final TextureArray compiles (counted, not compared)",
+    "barrier-compaction": "the fixture's RenderDetail double lacked InPassAttachmentBarriersKept, which the final BarrierBatch.cs increments: declared (not compared; no barrier, pass end or fence changes)",
+    "single-virtual-dependency": "not a failure: the delivered receipt single-virtual-dependency-final-checks.json declares the collector (postimage), which the gcEvent lines change, so the fixture is rerun on the final preparation as a 27th gate (arrays Core gate shape, control ada) instead of being reused"
+  },
+  "scope": "Local Linux receipts on the real final preparation of 13700519 with SDK 10.0.100, one uninterrupted pass of the 27 gates; the Core CI reruns them on Apple ARM64. No device run."
+}

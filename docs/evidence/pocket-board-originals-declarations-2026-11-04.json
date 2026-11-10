@@ -1,0 +1,92 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-04",
+ "scope": "RewindBox GameCube/Wii Pocket Originals (PR #155, integrated linearly by the integration session): assets/skins/pocket gains two packs built by tools/skins/build_pocket_board_originals.py from the pixels of the maintainer-approved RewindBox boards docs/design/pocket/approved-gamecube.png and approved-wii.png (the maintainer's three input PNGs are pixel-identical crops of them, docs/evidence/pocket-originals/board-originals/inputs.json). The boards' console wordmarks are kept as approved and labelled: console names and marks belong to their owners. No third-party artwork or font bundled. The existing wii-pocket, gamecube-pocket and ps2-pocket archives are byte-identical. No hosted package, dependency, framework, engine, Core or vendored native source change.",
+ "baseline_inventory": "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json",
+ "baseline_inventory_sha256": "0c364155330bd000be0bbf24b2d4739ea4d9af056361406e5f4415e0d0d918fd",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {}
+ },
+ "declarations": {},
+ "bundled_assets": {
+  "catalog": "assets/skins/pocket/catalog.json",
+  "catalog_sha256": "e3e0b2f8da88bf27cc3785eb4d04e0fe39061d644e1d5a9103a2af4e7af3f957",
+  "previous_catalog_sha256": "5adc4e79d31ee4d433d194c48b2bad1f26ad3243239a8a19dff5cbafece52ab9",
+  "catalog_skins": 5,
+  "added_skins": {
+   "gamecube-pocket-original": {
+    "size": 6166556,
+    "sha256": "995038e88b4597fce27cb32100e9feb14ff0d22dc352117b8846070a093af2ff",
+    "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+   },
+   "wii-pocket-original": {
+    "size": 5095619,
+    "sha256": "337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790",
+    "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+   }
+  },
+  "review": "docs/pocket-originals-2026-11-03.md",
+  "evidence": "docs/evidence/pocket-originals/board-originals/"
+ },
+ "revisions": [
+  {
+   "date": "2026-11-04",
+   "change": "PR #157 touch fix: the two Original archives regenerated from the same approved boards (outlines, transparent sprites, contour-limited pressed state, stick frames on the drawn cap); same ids, names and previews; same art sources, no new third-party material",
+   "previous": {
+    "catalog_sha256": "db67091ebedf08aea1261d3ee9330e22c5a90bd8e416af94b08d8944b6e743a9",
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 5965941,
+      "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 4874505,
+      "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  },
+  {
+   "date": "2026-11-04",
+   "change": "PR #160 stick fix: the two Original archives regenerated from the same approved boards (only each analog stick's measured top face moves; the skirt and the yellow C base stay; the area under the top is the skirt colour); same ids, names and previews; same art sources, no new third-party material. The catalog moved on through the later PS2 Pocket - Original overlay, which binds the current catalog",
+   "previous": {
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 6452061,
+      "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 5257748,
+      "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  },
+  {
+   "date": "2026-11-05",
+   "change": "PR #162 whole-circle sticks: the two Original archives regenerated from the same approved boards (each GameCube/Wii analog stick moves as its whole measured circle, the C-stick yellow ring included; the socket under it is refilled from the socket or gate pixels around it); same ids, names and previews; same art sources, no new third-party material. The catalog moved on through the later PS2 Pocket - Original overlay, which binds the current catalog",
+   "previous": {
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 5995074,
+      "sha256": "9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 5105387,
+      "sha256": "645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  }
+ ]
+}

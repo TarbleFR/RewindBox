@@ -29,6 +29,8 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/app_widget_localizations.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/diagnostics_directory.dart';
+import 'package:neostation/services/libretro_skin_catalogs.dart';
+import 'package:neostation/services/libretro_skin_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:flutter/material.dart';
@@ -326,6 +328,28 @@ Future<void> _prepareIosFilesWorkspaceAfterStartup() async {
   }
 }
 
+/// RewindBox's bundled controller skins follow the archives this build ships:
+/// a pack installed by an earlier build is refreshed in place, its selections
+/// kept (LibretroSkinCatalogs.refreshInstalledBundledSkins). Deferred like the
+/// Files housekeeping; nothing is read when no installed pack is stale.
+Future<void> _refreshBundledSkinsAfterStartup() async {
+  if (!Platform.isIOS) return;
+  final log = LoggerService.instance;
+  try {
+    final refreshed = await LibretroSkinCatalogs.refreshBundledSkins(
+      await LibretroSkinService.create(),
+    );
+    if (refreshed.isNotEmpty) {
+      log.i(
+        'Bundled skins refreshed: '
+        '${refreshed.map((skin) => '${skin.identifier}=${skin.id}').join(', ')}.',
+      );
+    }
+  } catch (error) {
+    log.w('Bundled skin refresh failed: $error');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -602,6 +626,7 @@ void main() async {
           _prepareIosFilesWorkspaceAfterStartup,
         ),
       );
+      unawaited(_refreshBundledSkinsAfterStartup());
     });
   }
 

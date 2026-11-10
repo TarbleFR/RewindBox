@@ -1259,6 +1259,34 @@
       "스틱 버튼 (L3/R3)",
       "摇杆按键 (L3/R3)",
       "搖桿按鍵 (L3/R3)"
+    ],
+    "HOME is not available with this Switch engine": [
+      "HOME is not available with this Switch engine",
+      "HOME n’est pas disponible avec ce moteur Switch",
+      "HOME ist mit dieser Switch-Engine nicht verfügbar",
+      "HOME no está disponible con este motor de Switch",
+      "HOME non è disponibile con questo motore Switch",
+      "HOME não está disponível com este motor de Switch",
+      "HOME недоступна в этом движке Switch",
+      "HOME tidak tersedia dengan mesin Switch ini",
+      "この Switch エンジンでは HOME を使用できません",
+      "이 Switch 엔진에서는 HOME을 사용할 수 없습니다",
+      "此 Switch 引擎不支持 HOME",
+      "此 Switch 引擎不支援 HOME"
+    ],
+    "Capture is not available with this Switch engine": [
+      "Capture is not available with this Switch engine",
+      "La capture n’est pas disponible avec ce moteur Switch",
+      "Aufnahme ist mit dieser Switch-Engine nicht verfügbar",
+      "La captura no está disponible con este motor de Switch",
+      "L’acquisizione non è disponibile con questo motore Switch",
+      "A captura não está disponível com este motor de Switch",
+      "Снимок экрана недоступен в этом движке Switch",
+      "Tangkapan tidak tersedia dengan mesin Switch ini",
+      "この Switch エンジンではキャプチャーを使用できません",
+      "이 Switch 엔진에서는 캡처를 사용할 수 없습니다",
+      "此 Switch 引擎不支持截屏",
+      "此 Switch 引擎不支援擷取"
     ]
   }
 }

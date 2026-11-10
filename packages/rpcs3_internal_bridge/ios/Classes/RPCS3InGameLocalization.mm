@@ -1144,6 +1144,124 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build664Translations() {
+  // Core 664: the PPU grace after starvation of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testPpuGrace": @"PPU grace after starvation",
+      },
+      @"es": @{
+        @"testPpuGrace": @"Margen del PPU tras la inanición",
+      },
+      @"ru": @{
+        @"testPpuGrace": @"Пауза для PPU после голодания",
+      },
+      @"zh": @{
+        @"testPpuGrace": @"饥饿后给 PPU 的宽限",
+      },
+      @"zh_Hant": @{
+        @"testPpuGrace": @"飢餓後給 PPU 的寬限",
+      },
+      @"pt": @{
+        @"testPpuGrace": @"Folga do PPU após inanição",
+      },
+      @"fr": @{
+        @"testPpuGrace": @"Répit du PPU après famine",
+      },
+      @"de": @{
+        @"testPpuGrace": @"PPU-Schonfrist nach Aushungerung",
+      },
+      @"it": @{
+        @"testPpuGrace": @"Tregua per il PPU dopo l’inedia",
+      },
+      @"id": @{
+        @"testPpuGrace": @"Jeda PPU setelah kelaparan",
+      },
+      @"ja": @{
+        @"testPpuGrace": @"飢餓後の PPU 猶予",
+      },
+      @"ko": @{
+        @"testPpuGrace": @"기아 후 PPU 유예",
+      },
+    };
+  });
+  return values;
+}
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {
+  // Core 660: the SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testSpuDirectObjectHits": @"SPU direct object hits",
+        @"testTextureLookupMemo": @"Texture lookup memo",
+        @"testZcullDepthGuard": @"ZCULL queue-depth guard",
+      },
+      @"es": @{
+        @"testSpuDirectObjectHits": @"Enlace directo de objetos SPU",
+        @"testTextureLookupMemo": @"Memorización de búsquedas de texturas",
+        @"testZcullDepthGuard": @"Protección de profundidad de cola ZCULL",
+      },
+      @"ru": @{
+        @"testSpuDirectObjectHits": @"Прямая компоновка объектов SPU",
+        @"testTextureLookupMemo": @"Запоминание поиска текстур",
+        @"testZcullDepthGuard": @"Защита глубины очереди ZCULL",
+      },
+      @"zh": @{
+        @"testSpuDirectObjectHits": @"SPU 对象直接链接",
+        @"testTextureLookupMemo": @"纹理查找记忆化",
+        @"testZcullDepthGuard": @"ZCULL 队列深度保护",
+      },
+      @"zh_Hant": @{
+        @"testSpuDirectObjectHits": @"SPU 物件直接連結",
+        @"testTextureLookupMemo": @"材質查詢記憶化",
+        @"testZcullDepthGuard": @"ZCULL 佇列深度保護",
+      },
+      @"pt": @{
+        @"testSpuDirectObjectHits": @"Vinculação direta de objetos SPU",
+        @"testTextureLookupMemo": @"Memorização de buscas de texturas",
+        @"testZcullDepthGuard": @"Proteção de profundidade da fila ZCULL",
+      },
+      @"fr": @{
+        @"testSpuDirectObjectHits": @"Liens directs des objets SPU",
+        @"testTextureLookupMemo": @"Mémo des recherches de textures",
+        @"testZcullDepthGuard": @"Garde de profondeur de file ZCULL",
+      },
+      @"de": @{
+        @"testSpuDirectObjectHits": @"Direktes Linken der SPU-Objekte",
+        @"testTextureLookupMemo": @"Memo der Textursuchen",
+        @"testZcullDepthGuard": @"ZCULL-Warteschlangentiefenschutz",
+      },
+      @"it": @{
+        @"testSpuDirectObjectHits": @"Collegamento diretto degli oggetti SPU",
+        @"testTextureLookupMemo": @"Memorizzazione delle ricerche di texture",
+        @"testZcullDepthGuard": @"Protezione profondità coda ZCULL",
+      },
+      @"id": @{
+        @"testSpuDirectObjectHits": @"Penautan langsung objek SPU",
+        @"testTextureLookupMemo": @"Memo pencarian tekstur",
+        @"testZcullDepthGuard": @"Pelindung kedalaman antrean ZCULL",
+      },
+      @"ja": @{
+        @"testSpuDirectObjectHits": @"SPU オブジェクトの直接リンク",
+        @"testTextureLookupMemo": @"テクスチャ検索のメモ化",
+        @"testZcullDepthGuard": @"ZCULL キュー深度ガード",
+      },
+      @"ko": @{
+        @"testSpuDirectObjectHits": @"SPU 오브젝트 직접 링크",
+        @"testTextureLookupMemo": @"텍스처 조회 메모",
+        @"testZcullDepthGuard": @"ZCULL 큐 깊이 보호",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translations() {
   // Core 634: the loading and memory levers of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1615,6 +1733,101 @@ NSString* RPCS3CanonicalLocale(NSString* identifier) {
   return [supported containsObject:language] ? language : @"en";
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* BuildMetalTranslations() {
+  // Metal branch: the native Metal 4 renderer of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testMetalRenderer": @"Native Metal 4 renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texture recheck at the PUT horizon",
+        @"testHeavyPutllcTrace": @"Capture: heavy PUTLLC (after closing the menu)",
+        @"testPpuRegionProfile": @"Capture: PPU regions (after closing the menu)",
+      },
+      @"es": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revisión de texturas en el horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (al cerrar el menú)",
+        @"testPpuRegionProfile": @"Captura: regiones PPU (al cerrar el menú)",
+      },
+      @"ru": @{
+        @"testMetalRenderer": @"Нативный рендерер Metal 4",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Проверка текстур на горизонте PUT",
+        @"testHeavyPutllcTrace": @"Захват: тяжёлые PUTLLC (после закрытия меню)",
+        @"testPpuRegionProfile": @"Захват: области PPU (после закрытия меню)",
+      },
+      @"zh": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 边界重新检查纹理",
+        @"testHeavyPutllcTrace": @"采集:重型 PUTLLC(关闭菜单后)",
+        @"testPpuRegionProfile": @"采集:PPU 区域(关闭菜单后)",
+      },
+      @"zh_Hant": @{
+        @"testMetalRenderer": @"原生 Metal 4 渲染器",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"在 PUT 邊界重新檢查紋理",
+        @"testHeavyPutllcTrace": @"擷取:重型 PUTLLC(關閉選單後)",
+        @"testPpuRegionProfile": @"擷取:PPU 區域(關閉選單後)",
+      },
+      @"pt": @{
+        @"testMetalRenderer": @"Renderizador Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Reverificação de texturas no horizonte PUT",
+        @"testHeavyPutllcTrace": @"Captura: PUTLLC pesados (ao fechar o menu)",
+        @"testPpuRegionProfile": @"Captura: regiões PPU (ao fechar o menu)",
+      },
+      @"fr": @{
+        @"testMetalRenderer": @"Moteur Metal 4 natif",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Revérification des textures à l’horizon PUT",
+        @"testHeavyPutllcTrace": @"Capture : PUTLLC lourds (à la fermeture du menu)",
+        @"testPpuRegionProfile": @"Capture : régions PPU (à la fermeture du menu)",
+      },
+      @"de": @{
+        @"testMetalRenderer": @"Nativer Metal-4-Renderer",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Texturprüfung am PUT-Horizont",
+        @"testHeavyPutllcTrace": @"Aufzeichnung: schwere PUTLLC (nach Schließen des Menüs)",
+        @"testPpuRegionProfile": @"Aufzeichnung: PPU-Bereiche (nach Schließen des Menüs)",
+      },
+      @"it": @{
+        @"testMetalRenderer": @"Renderer Metal 4 nativo",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Riverifica delle texture all’orizzonte PUT",
+        @"testHeavyPutllcTrace": @"Cattura: PUTLLC pesanti (alla chiusura del menu)",
+        @"testPpuRegionProfile": @"Cattura: regioni PPU (alla chiusura del menu)",
+      },
+      @"id": @{
+        @"testMetalRenderer": @"Perender Metal 4 native",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"Pemeriksaan ulang tekstur di batas PUT",
+        @"testHeavyPutllcTrace": @"Rekam: PUTLLC berat (setelah menu ditutup)",
+        @"testPpuRegionProfile": @"Rekam: wilayah PPU (setelah menu ditutup)",
+      },
+      @"ja": @{
+        @"testMetalRenderer": @"ネイティブ Metal 4 レンダラー",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 境界でのテクスチャ再検査",
+        @"testHeavyPutllcTrace": @"記録:重い PUTLLC(メニューを閉じた後)",
+        @"testPpuRegionProfile": @"記録:PPU 領域(メニューを閉じた後)",
+      },
+      @"ko": @{
+        @"testMetalRenderer": @"네이티브 Metal 4 렌더러",
+        // Core 912: the PUT horizon A/B row and the two captures started by closing the menu.
+        @"testPutEpochHorizon": @"PUT 경계에서 텍스처 재검사",
+        @"testHeavyPutllcTrace": @"캡처: 무거운 PUTLLC(메뉴를 닫은 후)",
+        @"testPpuRegionProfile": @"캡처: PPU 영역(메뉴를 닫은 후)",
+      },
+    };
+  });
+  return values;
+}
+
 NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* all = Translations();
   NSDictionary* build256 = Build256Translations();
@@ -1624,8 +1837,14 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build627 = Build627Translations();
   NSDictionary* build630 = Build630Translations();
   NSDictionary* build634 = Build634Translations();
+  NSDictionary* build660 = Build660Translations();
+  NSDictionary* build664 = Build664Translations();
+  NSDictionary* buildMetal = BuildMetalTranslations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build634[locale][key] ?: build634[@"en"][key] ?:
+  return buildMetal[locale][key] ?: buildMetal[@"en"][key] ?:
+      build664[locale][key] ?: build664[@"en"][key] ?:
+      build660[locale][key] ?: build660[@"en"][key] ?:
+      build634[locale][key] ?: build634[@"en"][key] ?:
       build630[locale][key] ?: build630[@"en"][key] ?:
       build627[locale][key] ?: build627[@"en"][key] ?:
       build621[locale][key] ?: build621[@"en"][key] ?:

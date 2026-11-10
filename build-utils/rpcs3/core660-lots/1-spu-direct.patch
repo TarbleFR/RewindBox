@@ -1,0 +1,1388 @@
+diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
+index ef5f127..5baafcc 100644
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -1627,9 +1627,68 @@ bool jit_compiler::try_add_cached(std::unique_ptr<llvm::Module> _module, const s
+ bool jit_compiler::try_add_minimal_object(jit_cached_object object, const std::string& entry,
+ 	const std::unordered_map<std::string, u64>& bindings, std::string& error)
+ {
+-	// Prototype only: callers must provide every patchpoint/helper symbol from
+-	// this process. No address is read from or written to the persistent cache.
+-	return jit_minimal_object::add(*m_engine, object.buffer, entry, bindings, error);
++	// Callers must provide every patchpoint/helper symbol from this process. No
++	// address is read from or written to the persistent cache.
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): the SPU
++	// cache-hit path links validated objects here, and they are finalized here
++	// too: the load and finalizeObject run in one run_recoverable_llvm (one
++	// worker handoff instead of a second one in try_fin; RuntimeDyld reports
++	// errors as fatal errors). True: added and finalized, as try_fin succeeds.
++	// False with an error: LLVM fatal recovery while loading or finalizing, the
++	// compiler must be discarded. False with an empty error: jit_minimal_object::add
++	// refused the object before it touched the engine, nothing was finalized, and
++	// the caller may still link it another way.
++	std::unique_ptr<llvm::MemoryBuffer> buffer = std::move(object.buffer);
++#ifdef RPCS3_IOS
++	// REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT gets a view; the compiler keeps the
++	// bytes until finalizeObject, as ObjectCache::getObject does for a cached hit.
++	std::unique_ptr<llvm::MemoryBuffer> owner;
++	if (buffer && rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))
++	{
++		owner = std::move(buffer);
++		buffer = llvm::MemoryBuffer::getMemBuffer(owner->getMemBufferRef(), false);
++	}
++#endif
++
++	bool added = false;
++	std::string refused;
++	const bool recovered = run_recoverable_llvm([&]()
++	{
++		added = jit_minimal_object::add(*m_engine, buffer, entry, bindings, refused);
++
++		if (added)
++		{
++			m_engine->finalizeObject();
++		}
++	}, error);
++
++	if (!recovered)
++	{
++#ifdef RPCS3_IOS
++		// As a failed try_add_cached or try_fin: the bytes stay with the compiler.
++		if (owner)
++		{
++			held_objects().hold(this, std::move(owner));
++		}
++#endif
++		if (m_announcer) m_announcer->finalized(false);
++		return false;
++	}
++
++	if (!added)
++	{
++		jit_log.trace("LLVM: Minimal object %s refused: %s", entry, refused);
++		error.clear();
++		return false;
++	}
++
++	// As try_fin after a successful finalizeObject; the bytes of this object
++	// (owner) are freed on return, after the finalize.
++	if (m_announcer) m_announcer->finalized(true);
++#ifdef RPCS3_IOS
++	held_objects().release(this);
++#endif
++	return true;
+ }
+ 
+ void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index e94fdc0..00f4af2 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -97,13 +97,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
+            actual STREQUAL "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7")
+         set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
+-    # REWINDBOX_SPU_TIMEBASE_MAPPING_660: the RdDec emitter maps spu_timebase_offs on the engine
+-    # again before loading it, because compile() clears every global mapping before each module.
+-    # Host-side symbol binding only: the IR, the emitted objects, their relocations and helper
+-    # symbols are unchanged; a cached object now links the symbol to g_timebase_offs. Keep the
+-    # delivered Core 612 effective hash for this exact source snapshot only.
++    # REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): compile() links a cached object
++    # whose undefined symbols are all known without building its IR; six emitter lambdas become named
++    # static helpers with the same bodies, and call() keeps the same names and argument values. Host
++    # linking only: IR, passes, emission, relocations, helper symbol names and object names are
++    # unchanged, so the delivered Core 612 effective hash stays for this exact source snapshot only.
+     elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
+-           actual STREQUAL "3f2e9a77dc6fb4c186d8a597d7c78c996e18d6821d1b52891465cc36b2ad8984")
++           actual STREQUAL "2a9548d2372109cd64d04d35d05af28d9e16f0c337be3baa69dbba9bd6ac4eae")
+         set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
+     # REWINDBOX_SPU_OBJECT_PREFETCH_616: JITLLVM's load_cached_object first takes
+     # the compressed bytes that ios/IOSSpuObjectPrefetch.h read ahead from the
+@@ -126,6 +126,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
+            actual STREQUAL "8e7d94b9db255017c5b2ab2d5080c2e6065e720c78c91bef840bbb79798a41f0")
+         set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    # REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: only the body of try_add_minimal_object changes (the load and
++    # its finalizeObject run in one run_recoverable_llvm and follow the 634 byte-release rule). Loader
++    # code only: emission, validation of other objects and relocations are unchanged. Keep the delivered
++    # effective hash for this exact source snapshot only.
++    elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
++           actual STREQUAL "a96b07eb6d5b0ca5c21dd0fa1b9f758e1802c7ab640db31e1e9deada100b77a1")
++        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
+     elseif(source STREQUAL "Cell/PPUThread.cpp" AND
+            actual STREQUAL "dde2a8619da340925e6a57dc0bdb138b1dc14a40300173ed913fe3fbc44b3823")
+         set(${output} "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44" PARENT_SCOPE)
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+index eae14c7..6a38c2c 100644
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -17,6 +17,7 @@
+ #include "Emu/RSX/Core/RSXReservationLock.hpp"
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "util/tsc.hpp"
+ #endif
+ // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
+@@ -81,6 +82,8 @@ bool should_emit_spu_compile_diagnostic() noexcept
+ #include <llvm/Transforms/Scalar/LoopPassManager.h>
+ #include <llvm/Transforms/Scalar/SimplifyCFG.h>
+ #include <llvm/Transforms/InstCombine/InstCombine.h>
++#include <llvm/Object/ObjectFile.h> // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
++#include <llvm/Support/MemoryBuffer.h> // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #ifdef _MSC_VER
+ #pragma warning(pop)
+ #else
+@@ -1613,34 +1616,106 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->SetInsertPoint(_body);
+ 	}
+ 
+-	void putllc16_pattern(const spu_program& /*prog*/, u64 pattern_info)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc16_pattern (spu_putllc16_rsx_res), lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static bool exec_putllc16_rsx_res(spu_thread* _spu, u32 ls_dst, u32 lsa, u32 eal, u32 notify)
+ 	{
+-		// Prevent store elimination
+-		m_block->store_context_ctr[s_reg_mfc_eal]++;
+-		m_block->store_context_ctr[s_reg_mfc_lsa]++;
+-		m_block->store_context_ctr[s_reg_mfc_tag]++;
+-		m_block->store_context_ctr[s_reg_mfc_size]++;
++		const u32 raddr = eal;
++
++		const v128 rdata = read_from_ptr<v128>(_spu->rdata, ls_dst % 0x80);
++		const v128 to_write = _spu->_ref<const nse_t<v128>>(ls_dst);
++
++		const auto dest = raddr | (ls_dst & 127);
++		const auto _dest = vm::get_super_ptr<atomic_t<nse_t<v128>>>(dest);
++
++		if (rdata == to_write || ((lsa ^ ls_dst) & (SPU_LS_SIZE - 128)))
++		{
++			vm::reservation_update(raddr);
++			_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
++			_spu->raddr = 0;
++			return true;
++		}
+ 
+-		static const auto on_fail = [](spu_thread* _spu, u32 addr)
++		auto& res = vm::reservation_acquire(eal);
++
++		if (res % 128)
+ 		{
+-			if (const u32 raddr = _spu->raddr)
++			return false;
++		}
++
++		{
++			rsx::reservation_lock rsx_lock(raddr, 128);
++
++			// Touch memory
++			utils::trigger_write_page_fault(vm::base(dest ^ (4096 / 2)));
++
++			auto [old_res, ok] = res.fetch_op([&](u64& rval)
+ 			{
+-				// Last check for event before we clear the reservation
+-				if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++				if (rval % 128)
+ 				{
+-					if (raddr == addr)
+-					{
+-						_spu->set_events(SPU_EVENT_LR);
+-					}
+-					else
+-					{
+-						_spu->get_events(SPU_EVENT_LR);
+-					}
++					return false;
+ 				}
+ 
+-				_spu->raddr = 0;
++				rval |= 127;
++				return true;
++			});
++
++			if (!ok)
++			{
++				return false;
++			}
++
++			if (!_dest->compare_and_swap_test(rdata, to_write))
++			{
++				res.release(old_res);
++				return false;
++			}
++
++			// Success
++			res.release(old_res + 128);
++		}
++
++		_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
++		_spu->raddr = 0;
++
++		if (notify)
++		{
++			res.notify_all();
++		}
++
++		return true;
++	}
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc16_pattern, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_putllc16_fail(spu_thread* _spu, u32 addr)
++	{
++		if (const u32 raddr = _spu->raddr)
++		{
++			// Last check for event before we clear the reservation
++			if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++			{
++				if (raddr == addr)
++				{
++					_spu->set_events(SPU_EVENT_LR);
++				}
++				else
++				{
++					_spu->get_events(SPU_EVENT_LR);
++				}
+ 			}
+-		};
++
++			_spu->raddr = 0;
++		}
++	}
++
++	void putllc16_pattern(const spu_program& /*prog*/, u64 pattern_info)
++	{
++		// Prevent store elimination
++		m_block->store_context_ctr[s_reg_mfc_eal]++;
++		m_block->store_context_ctr[s_reg_mfc_lsa]++;
++		m_block->store_context_ctr[s_reg_mfc_tag]++;
++		m_block->store_context_ctr[s_reg_mfc_size]++;
+ 
+ 		const union putllc16_or_0_info
+ 		{
+@@ -1732,79 +1807,13 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 
+ 		if (g_cfg.core.rsx_accurate_res_access)
+ 		{
+-			const auto success = call("spu_putllc16_rsx_res", +[](spu_thread* _spu, u32 ls_dst, u32 lsa, u32 eal, u32 notify) -> bool
+-			{
+-				const u32 raddr = eal;
+-
+-				const v128 rdata = read_from_ptr<v128>(_spu->rdata, ls_dst % 0x80);
+-				const v128 to_write = _spu->_ref<const nse_t<v128>>(ls_dst);
+-
+-				const auto dest = raddr | (ls_dst & 127);
+-				const auto _dest = vm::get_super_ptr<atomic_t<nse_t<v128>>>(dest);
+-
+-				if (rdata == to_write || ((lsa ^ ls_dst) & (SPU_LS_SIZE - 128)))
+-				{
+-					vm::reservation_update(raddr);
+-					_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
+-					_spu->raddr = 0;
+-					return true;
+-				}
+-
+-				auto& res = vm::reservation_acquire(eal);
+-
+-				if (res % 128)
+-				{
+-					return false;
+-				}
+-
+-				{
+-					rsx::reservation_lock rsx_lock(raddr, 128);
+-
+-					// Touch memory
+-					utils::trigger_write_page_fault(vm::base(dest ^ (4096 / 2)));
+-
+-					auto [old_res, ok] = res.fetch_op([&](u64& rval)
+-					{
+-						if (rval % 128)
+-						{
+-							return false;
+-						}
+-
+-						rval |= 127;
+-						return true;
+-					});
+-
+-					if (!ok)
+-					{
+-						return false;
+-					}
+-
+-					if (!_dest->compare_and_swap_test(rdata, to_write))
+-					{
+-						res.release(old_res);
+-						return false;
+-					}
+-
+-					// Success
+-					res.release(old_res + 128);
+-				}
+-
+-				_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
+-				_spu->raddr = 0;
+-
+-				if (notify)
+-				{
+-					res.notify_all();
+-				}
+-
+-				return true;
+-			}, m_thread, dest, _lsa, _eal, m_ir->getInt32(!info.no_notify));
++			const auto success = call("spu_putllc16_rsx_res", &exec_putllc16_rsx_res, m_thread, dest, _lsa, _eal, m_ir->getInt32(!info.no_notify));
+ 
+ 
+ 			m_ir->CreateCondBr(success, _final, _fail);
+ 
+ 			m_ir->SetInsertPoint(_fail);
+-			call("PUTLLC16_fail", +on_fail, m_thread, _eal);
++			call("PUTLLC16_fail", &exec_putllc16_fail, m_thread, _eal);
+ 			m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 			m_ir->CreateBr(_final);
+ 
+@@ -1923,13 +1932,35 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->CreateBr(_fail);
+ 
+ 		m_ir->SetInsertPoint(_fail);
+-		call("PUTLLC16_fail", +on_fail, m_thread, _eal);
++		call("PUTLLC16_fail", &exec_putllc16_fail, m_thread, _eal);
+ 		m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 		m_ir->CreateBr(_final);
+ 
+ 		m_ir->SetInsertPoint(_final);
+ 	}
+ 
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc0_pattern, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_putllc0_fail(spu_thread* _spu, u32 addr)
++	{
++		if (const u32 raddr = _spu->raddr)
++		{
++			// Last check for event before we clear the reservation
++			if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++			{
++				if (raddr == addr)
++				{
++					_spu->set_events(SPU_EVENT_LR);
++				}
++				else
++				{
++					_spu->get_events(SPU_EVENT_LR);
++				}
++			}
++			_spu->raddr = 0;
++		}
++	}
++
+ 	void putllc0_pattern(const spu_program& /*prog*/, u64 pattern_info)
+ 	{
+ 		// Prevent store elimination
+@@ -1938,26 +1969,6 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_block->store_context_ctr[s_reg_mfc_tag]++;
+ 		m_block->store_context_ctr[s_reg_mfc_size]++;
+ 
+-		static const auto on_fail = [](spu_thread* _spu, u32 addr)
+-		{
+-			if (const u32 raddr = _spu->raddr)
+-			{
+-				// Last check for event before we clear the reservation
+-				if (~_spu->ch_events.load().events & SPU_EVENT_LR)
+-				{
+-					if (raddr == addr)
+-					{
+-						_spu->set_events(SPU_EVENT_LR);
+-					}
+-					else
+-					{
+-						_spu->get_events(SPU_EVENT_LR);
+-					}
+-				}
+-				_spu->raddr = 0;
+-			}
+-		};
+-
+ 		const union putllc16_or_0_info
+ 		{
+ 			u64 data;
+@@ -2010,7 +2021,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->CreateBr(_final);
+ 
+ 		m_ir->SetInsertPoint(_fail);
+-		call("PUTLLC0_fail", +on_fail, m_thread, _eal);
++		call("PUTLLC0_fail", &exec_putllc0_fail, m_thread, _eal);
+ 		m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 		m_ir->CreateBr(_final);
+ 
+@@ -2094,6 +2105,173 @@ public:
+ 		m_spu_frsqest_fraction_lut = new llvm::GlobalVariable(*m_module, llvm::ArrayType::get(GetType<u32>(), 64), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantDataArray::get(m_context, spu_frsqest_fraction_lut));
+ 	}
+ 
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 BINDINGS BEGIN: generated from every call("name", function) and
++	// updateGlobalMapping("name", address) of the block translator outside compile_interpreter(),
++	// for this build (ARCH_X64-only sites are not compiled here). Each row is the exact expression
++	// that site maps under that name; the host audit regenerates this block from the sites.
++	struct direct_binding
++	{
++		std::string_view name;
++		u64 address;
++	};
++
++	// Evaluated once per process (thread-safe static initialization), on the first hit: every row is
++	// constant by then. spu_runtime::initialize_static_trampolines() (SPUCommonRecompiler.cpp) sets
++	// tr_dispatch, tr_all and g_escape once per process (its state 2 never resets), at Core init
++	// (rpcs3/ios/RPCS3IOS.cpp), before any SPU compile; jit_runtime::alloc(0, 0) returns the base of
++	// the code subrange, fixed once the JIT arena is prepared, and on Apple takes the process-wide
++	// s_alloc_lock (JITASM.cpp), which a hit therefore no longer takes.
++	static const std::array<direct_binding, 27>& direct_bindings() noexcept
++	{
++		static const std::array<direct_binding, 27> table
++		{{
++			{"PUTLLC0_fail", reinterpret_cast<uptr>(&exec_putllc0_fail)},
++			{"PUTLLC16_fail", reinterpret_cast<uptr>(&exec_putllc16_fail)},
++			{"atomic_wait_engine::notify_all", reinterpret_cast<uptr>(static_cast<void(*)(const void*)>(atomic_wait_engine::notify_all))},
++			{"spu_check_interrupts", reinterpret_cast<uptr>(&exec_check_interrupts)},
++			{"spu_dispatch", reinterpret_cast<uptr>(spu_runtime::tr_dispatch)},
++			{"spu_dispatcher", reinterpret_cast<u64>(spu_runtime::tr_all)},
++			{"spu_escape", reinterpret_cast<uptr>(spu_runtime::g_escape)},
++			{"spu_exec_check_state", reinterpret_cast<uptr>(&exec_check_state)},
++			{"spu_exec_mfc_cmd", reinterpret_cast<uptr>(&exec_mfc_cmd<false>)},
++			{"spu_exec_mfc_cmd_saveable", reinterpret_cast<uptr>(&exec_mfc_cmd<true>)},
++			{"spu_get_events", reinterpret_cast<uptr>(&exec_get_events)},
++			{"spu_list_unstall", reinterpret_cast<uptr>(&exec_list_unstall)},
++			{"spu_memcpy", reinterpret_cast<uptr>(&exec_spu_memcpy)},
++			{"spu_putllc16_rsx_res", reinterpret_cast<uptr>(&exec_putllc16_rsx_res)},
++			{"spu_read_channel", reinterpret_cast<uptr>(&exec_rdch)},
++			{"spu_read_channel_count", reinterpret_cast<uptr>(&exec_rchcnt)},
++			{"spu_read_decrementer", reinterpret_cast<uptr>(&exec_read_dec)},
++			{"spu_read_events", reinterpret_cast<uptr>(&exec_read_events)},
++			{"spu_read_in_mbox", reinterpret_cast<uptr>(&exec_read_in_mbox)},
++			{"spu_segment_base", reinterpret_cast<u64>(jit_runtime::alloc(0, 0))},
++			{"spu_syscall", reinterpret_cast<uptr>(&exec_stop)},
++			{"spu_timebase_offs", reinterpret_cast<u64>(&g_timebase_offs)},
++			{"spu_unknown", reinterpret_cast<uptr>(&exec_unk)},
++			{"spu_write_channel", reinterpret_cast<uptr>(&exec_wrch)},
++			{"spu_write_mfc_command", reinterpret_cast<uptr>(&exec_mfc_wrch)},
++			{"wait_on_spu_channel", reinterpret_cast<uptr>(&exec_wait_on_channel)},
++			{"wait_spu_inbox", reinterpret_cast<uptr>(&exec_wait_inbox)},
++		}};
++		return table;
++	}
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 BINDINGS END
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 HELPER BEGIN (ios/IOSSpuObjectBindings.h): the bindings of
++	// a cached object linked without IR, or the reason it keeps the IR path and the symbol that decided
++	// it. The object was parsed and its entry required by load_cached_object(); nothing here touches the
++	// engine or allocates a patchpoint stub: compile() copies the object first, then makes the stubs
++	// with direct_object_patchpoints(), once nothing but the link itself can refuse the object.
++	// A binding decides a name only because no object of this engine defines it (MCJIT resolves from
++	// the definitions of the loaded objects before the global map, ios/IOSSpuObjectBindings.h); no SPU
++	// object defines a table or patchpoint name, and the IR path resolves the same names the same way.
++	rpcs3::ios::spu_direct_hit::reason direct_object_bindings(const llvm::MemoryBuffer& object, usz guest_words,
++		std::unordered_map<std::string, u64>& bindings, std::vector<std::string>& patchpoints, std::string& offending)
++	{
++		namespace direct = rpcs3::ios::spu_direct_hit;
++
++		auto file = llvm::object::ObjectFile::createObjectFile(object.getMemBufferRef());
++		if (!file)
++		{
++			llvm::consumeError(file.takeError());
++			return direct::reason::object_unreadable;
++		}
++
++		// The architecture jit_minimal_object::add requires.
++		if ((*file)->getArch() != m_jit.get_engine().getTargetMachine()->getTargetTriple().getArch())
++		{
++			return direct::reason::object_unreadable;
++		}
++
++		std::vector<direct::symbol> symbols;
++		for (const llvm::object::SymbolRef& sym : (*file)->symbols())
++		{
++			if (symbols.size() >= direct::max_symbols)
++			{
++				return direct::reason::symbol_bound;
++			}
++
++			direct::symbol& entry = symbols.emplace_back();
++			llvm::Expected<llvm::StringRef> name = sym.getName();
++			llvm::Expected<u32> flags = sym.getFlags();
++			if (!name || !flags)
++			{
++				if (!name) llvm::consumeError(name.takeError());
++				if (!flags) llvm::consumeError(flags.takeError());
++				entry.readable = false;
++				continue;
++			}
++
++			entry.name = std::string_view(name->data(), name->size());
++			entry.undefined = (*flags & llvm::object::SymbolRef::SF_Undefined) != 0;
++			entry.absolute = (*flags & llvm::object::SymbolRef::SF_Absolute) != 0;
++			entry.global = (*flags & llvm::object::SymbolRef::SF_Global) != 0;
++		}
++
++		const auto& table = direct_bindings();
++		std::array<std::string_view, std::tuple_size_v<std::remove_cvref_t<decltype(table)>>> names{};
++		for (usz i = 0; i < table.size(); i++)
++		{
++			names[i] = table[i].name;
++		}
++
++		const direct::plan plan = direct::classify(m_hash, symbols, names, direct::patchpoint_limit(guest_words));
++		if (plan.result != direct::reason::accepted)
++		{
++			// A view of the object's bytes or of m_hash: copied.
++			offending.assign(plan.offending.data(), plan.offending.size());
++			return plan.result;
++		}
++
++		bindings.clear();
++		bindings.reserve(plan.named.size() + plan.patchpoints.size());
++		patchpoints.clear();
++		patchpoints.reserve(plan.patchpoints.size());
++
++		for (const u32 index : plan.named)
++		{
++			if (!table[index].address)
++			{
++				offending.assign(table[index].name.data(), table[index].name.size());
++				return direct::reason::null_binding;
++			}
++
++			bindings.emplace(std::string(table[index].name), table[index].address);
++		}
++
++		// The names tail_chunk() registers, regenerated, in ascending number. parse_patchpoint() accepts
++		// only the module name, "-pp-" and the decimal number itself, so each is the symbol the classifier
++		// accepted.
++		for (const u32 id : plan.patchpoints)
++		{
++			std::string ppname = fmt::format("%s-pp-%u", m_hash, id);
++			u32 parsed = 0;
++
++			if (!direct::parse_patchpoint(m_hash, ppname, parsed) || parsed != id || bindings.contains(ppname))
++			{
++				offending = std::move(ppname);
++				return direct::reason::malformed_patchpoint;
++			}
++
++			patchpoints.push_back(std::move(ppname));
++		}
++
++		return direct::reason::accepted;
++	}
++
++	// One fresh stub per patchpoint name, made as tail_chunk() makes it (data 0), in the ascending
++	// number order of direct_object_bindings(); the names are moved into the bindings.
++	void direct_object_patchpoints(std::unordered_map<std::string, u64>& bindings, std::vector<std::string>& patchpoints)
++	{
++		for (std::string& ppname : patchpoints)
++		{
++			bindings.emplace(std::move(ppname), reinterpret_cast<u64>(m_spurt->make_branch_patchpoint()));
++		}
++	}
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 HELPER END
++#endif
++
+ 	virtual spu_function_t compile(spu_program&& _func) override
+ 	{
+ 		if (_func.data.empty() && m_interp_magn)
+@@ -2268,6 +2446,181 @@ public:
+ 		}
+ #endif
+ 
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 DIRECT BEGIN (ios/IOSSpuObjectBindings.h): a hit whose
++		// undefined symbols are all known links its object without building the IR. Each binding is
++		// the expression the IR path maps under that name (direct_bindings()), each patchpoint a fresh
++		// stub as tail_chunk() makes it, and the publication is the IR path's. Names resolve as on the
++		// IR path (MCJIT looks in the definitions of the loaded objects before the global map): the
++		// bindings decide them because no SPU object defines a table or patchpoint name. Any other
++		// object goes on to the IR path below, untouched, with no LLVM error left and no stub made.
++		if (spu_cached_object && g_spu_llvm_compile_context && rpcs3::ios::spu_direct_hit::enabled.load(std::memory_order_relaxed))
++		{
++			namespace direct = rpcs3::ios::spu_direct_hit;
++			std::string& llvm_error = g_spu_llvm_compile_context->llvm_error;
++			const u64 direct_started = utils::get_tsc();
++			std::unordered_map<std::string, u64> direct_map;
++			std::vector<std::string> direct_pp_names;
++			std::string direct_offending;
++			direct::reason direct_reason = direct_object_bindings(*spu_cached_object.buffer, func.data.size(), direct_map, direct_pp_names, direct_offending);
++			const usz direct_bytes = spu_cached_object.buffer->getBufferSize();
++			jit_cached_object direct_object;
++
++			if (direct_reason == direct::reason::accepted)
++			{
++				// MCJIT gets a copy: the validated object stays here for the IR path if it is refused. The
++				// copy comes before any patchpoint stub: getMemBufferCopy() returns null when its allocation
++				// fails, and the hit then keeps the IR path, which makes its own stubs.
++				direct_object.buffer = llvm::MemoryBuffer::getMemBufferCopy(spu_cached_object.buffer->getBuffer(), spu_cached_object.buffer->getBufferIdentifier());
++				direct_object.bytes = direct_bytes;
++
++				if (!direct_object.buffer)
++				{
++					direct_reason = direct::reason::copy_failed;
++				}
++			}
++
++			if (direct_reason == direct::reason::accepted)
++			{
++				// Only the link itself can refuse the object now (jit_minimal_object::add repeats the checks
++				// of the classifier): one fresh stub per patchpoint, in ascending number.
++				const usz direct_patchpoints = direct_pp_names.size();
++				direct_object_patchpoints(direct_map, direct_pp_names);
++
++#if defined(__APPLE__)
++				jit_write_protect(false);
++
++				struct jit_write_guard
++				{
++					~jit_write_guard()
++					{
++						jit_write_protect(true);
++					}
++				} _jit_guard;
++#endif
++
++				// The bindings are the only mappings of this object, as compile() clears them before each module.
++				m_engine->clearAllGlobalMappings();
++				const u64 link_started = utils::get_tsc();
++
++				// Add and finalize in one recoverable LLVM run (one worker handoff). False with an error: LLVM
++				// fatal recovery while loading or finalizing, as a failed try_add_cached or try_fin of the IR
++				// path, and the caller discards the compiler. False without one: refused before the engine
++				// was touched, nothing finalized.
++				if (m_jit.try_add_minimal_object(std::move(direct_object), m_hash, direct_map, llvm_error))
++				{
++					const u64 link_done = utils::get_tsc();
++					jit_phase::g_counters.add(jit_phase::spu_object_load, link_done - link_started, direct_bytes);
++					rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::hit, direct_bytes);
++
++					// MCJIT's getFunctionAddress() looks in the global map, then in RuntimeDyld's table (the
++					// object just finalized defines the entry), then in the modules, and returns 0 when none
++					// has the name; unlike getPointerToNamedFunction(), it never asks the memory manager,
++					// whose findSymbol ends in make_null_function() and never returns 0. The SPU triple is
++					// ELF (jit_compiler::triple2()), so the name takes no prefix.
++					const spu_function_t fn = reinterpret_cast<spu_function_t>(m_jit.get_engine().getFunctionAddress(m_hash));
++
++					if (!fn)
++					{
++						spu_log.error("SPU object cache: %s produced no entry point (cached=%d)", m_hash, true);
++						fs::remove_file(spu_obj_cache + m_hash + ".obj.gz");
++						direct::stats().record_failure();
++
++						if (add_to_file)
++						{
++							add_loc->cached = 0;
++						}
++
++						return nullptr;
++					}
++
++					direct::stats().record_direct(direct_bytes, utils::get_tsc() - compile_started, link_started - direct_started,
++						link_done - link_started, direct_map.size() - direct_patchpoints, direct_patchpoints);
++
++					// The IR path's publication below, from "Install unconditionally" to its return,
++					// without its spu_debug IR log (spu_debug never uses the object cache).
++					// Install unconditionally, possibly replacing existing one from spu_fast
++					add_loc->warmed = rpcs3::spu::loading_warmup;
++					add_loc->compiled = fn;
++#ifdef RPCS3_IOS
++					rpcs3::ios::record_spu_block_compiled(
++						::narrow<u32>(func_size * sizeof(u32)), utils::get_tsc() - compile_started);
++#endif
++
++					// Rebuild trampoline if necessary
++					if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
++					{
++						if (auto& cache = g_fxo->get<spu_cache>())
++						{
++							if (add_to_file)
++							{
++								cache.add(func);
++							}
++						}
++
++						// The function is already published and usable; only this trampoline
++						// rebuild attempt failed. Do not permanently fail duplicate waiters.
++						add_loc->llvm_compile_state.release(2);
++						add_loc->llvm_compile_state.notify_all();
++						add_loc->compiled.notify_all();
++						return nullptr;
++					}
++
++					add_loc->compiled.notify_all();
++					add_loc->llvm_compile_state.release(2);
++					add_loc->llvm_compile_state.notify_all();
++
++#if defined(__APPLE__)
++					jit_write_protect(true);
++#endif
++#if defined(ARCH_ARM64)
++					// Flush all cache lines after potentially writing executable code
++					asm("ISB");
++					asm("DSB ISH");
++#endif
++
++					if (auto& cache = g_fxo->get<spu_cache>())
++					{
++						if (add_to_file)
++						{
++							cache.add(func);
++						}
++
++						spu_log.trace("New SPU block compiled successfully (size=%u)", func_size);
++					}
++
++					return fn;
++				}
++
++				if (!llvm_error.empty())
++				{
++					// LLVM fatal recovery while loading or finalizing: the caller discards the compiler.
++					direct::stats().record_failure();
++
++					if (add_to_file)
++					{
++						add_loc->cached = 0;
++					}
++
++					return nullptr;
++				}
++
++				// Refused before anything was loaded.
++				direct_reason = direct::reason::add_rejected;
++			}
++
++			direct::stats().record_fallback(direct_reason);
++
++			if (direct::should_log_fallback(direct_reason))
++			{
++				spu_log.notice("SPUDIRECT660 fallback %s: %s (%s)", direct::reason_names[static_cast<usz>(direct_reason)], direct_offending, m_hash);
++			}
++
++			llvm_error.clear();
++		}
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 DIRECT END
++#endif
++
+ 		// NEOSTATION_BUILD499_SPU_AUDIT_V1: aggregate JITPROF/SPUPROF remain the default diagnostics.
+ 		// Per-block messages are opt-in trace; avoid formatting and file writes on every compile.
+ 		spu_log.trace("SPUCORE499 Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
+@@ -5550,23 +5903,45 @@ public:
+ 		return m_ir->CreateTrunc(m_ir->CreateXor(shv, inv), get_type<u32>());
+ 	}
+ 
+-	llvm::Value* wait_rchcnt(u32 off, u32 inv = 0)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of wait_rchcnt, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static u32 exec_wait_on_channel(spu_thread* _spu, spu_channel* ch, u32 is_read)
+ 	{
+-		auto wait_on_channel = [](spu_thread* _spu, spu_channel* ch, u32 is_read) -> u32
++		if (is_read)
+ 		{
+-			if (is_read)
+-			{
+-				ch->pop_wait(*_spu, false);
+-			}
+-			else
+-			{
+-				ch->push_wait(*_spu, 0, false);
+-			}
++			ch->pop_wait(*_spu, false);
++		}
++		else
++		{
++			ch->push_wait(*_spu, 0, false);
++		}
+ 
+-			return ch->get_count();
+-		};
++		return ch->get_count();
++	}
+ 
+-		return m_ir->CreateXor(call("wait_on_spu_channel", +wait_on_channel, m_thread, _ptr(m_thread, off), m_ir->getInt32(inv == 0u)), m_ir->getInt32(inv));
++	llvm::Value* wait_rchcnt(u32 off, u32 inv = 0)
++	{
++		return m_ir->CreateXor(call("wait_on_spu_channel", &exec_wait_on_channel, m_thread, _ptr(m_thread, off), m_ir->getInt32(inv == 0u)), m_ir->getInt32(inv));
++	}
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of RCHCNT, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static u32 exec_wait_inbox(spu_thread* _spu, spu_channel_4_t* ch)
++	{
++		if (const u32 count = ch->get_count())
++		{
++			return count;
++		}
++
++		// A parked SPU must acknowledge suspend_all, just like RDCH.
++		// Restore/check CPU state before continuing guest execution.
++		_spu->state += cpu_flag::wait;
++		ch->pop_wait(*_spu, false);
++		if (_spu->check_state())
++		{
++			spu_runtime::g_escape(_spu);
++		}
++		return ch->get_count();
+ 	}
+ 
+ 	void RCHCNT(spu_opcode_t op) //
+@@ -5640,28 +6015,10 @@ public:
+ 			}
+ 			case SPU_RdInMbox:
+ 			{
+-				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
+-				{
+-					if (const u32 count = ch->get_count())
+-					{
+-						return count;
+-					}
+-
+-					// A parked SPU must acknowledge suspend_all, just like RDCH.
+-					// Restore/check CPU state before continuing guest execution.
+-					_spu->state += cpu_flag::wait;
+-					ch->pop_wait(*_spu, false);
+-					if (_spu->check_state())
+-					{
+-						spu_runtime::g_escape(_spu);
+-					}
+-					return ch->get_count();
+-				};
+-
+ 				// The wait may acknowledge a savestate/suspend request or escape.
+ 				update_pc();
+ 				ensure_gpr_stores();
+-				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
++				res.value = call("wait_spu_inbox", &exec_wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
+ 				break;
+ 			}
+ 			default: break;
+@@ -5833,6 +6190,13 @@ public:
+ 		}
+ 	}
+ 
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of WRCH, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_spu_memcpy(u8* dst, const u8* src, u32 size)
++	{
++		std::memcpy(dst, src, size);
++	}
++
+ 	void WRCH(spu_opcode_t op) //
+ 	{
+ 		const auto val = eval(extract(get_vr(op.rt), 3));
+@@ -6187,11 +6551,7 @@ public:
+ 					else if (csize)
+ 					{
+ 						// TODO
+-						auto spu_memcpy = [](u8* dst, const u8* src, u32 size)
+-						{
+-							std::memcpy(dst, src, size);
+-						};
+-						call("spu_memcpy", +spu_memcpy, dst, src, zext<u32>(size).eval(m_ir));
++						call("spu_memcpy", &exec_spu_memcpy, dst, src, zext<u32>(size).eval(m_ir));
+ 					}
+ 
+ 					// Disable certain thing
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index c589f48..11a31ef 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -198,6 +198,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> spu_object_prefetch{ this, "SPU Object Prefetch", ios_experimental_mode::automatic };
+ 		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
+ 		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): Automatic is every title; Disabled
++		// builds the IR of every SPU object-cache hit again.
++		cfg::_enum<ios_experimental_mode> spu_direct_object_hits{ this, "SPU Direct Object Hits", ios_experimental_mode::automatic };
+ 		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
+ 		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
+ 		// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): Automatic is Black Ops II and God of War III.
+diff --git a/rpcs3/ios/IOSSpuObjectBindings.h b/rpcs3/ios/IOSSpuObjectBindings.h
+new file mode 100644
+index 0000000..e2ccd63
+--- /dev/null
++++ b/rpcs3/ios/IOSSpuObjectBindings.h
+@@ -0,0 +1,355 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <charconv>
++#include <cstddef>
++#include <cstdint>
++#include <span>
++#include <string_view>
++#include <system_error>
++#include <vector>
++
++// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: Black Ops II links 8,700-8,800 SPU blocks at the first
++// transition of each boot, every one of them a hit of the persistent object cache (IPA 657,
++// Core 655, session 2 window 5: 8,793 blocks). A hit still builds the whole IR of the block,
++// only to name the symbols the cached object needs, then throws it away: about 0.19 ms of
++// spu_build per block next to 0.18 ms of object load.
++//
++// The object itself already names what it needs. Its undefined symbols are exactly the names
++// the IR declared and mapped on the engine:
++// - the helper of every call("name", function, ...) of the block translator (CPUTranslator.h
++//   call() maps the literal name to that function), plus spu_dispatcher, spu_timebase_offs and
++//   spu_segment_base, each mapped by one line of SPULLVMRecompiler.cpp;
++// - "<module name>-pp-<N>", one fresh branch patchpoint (make_branch_patchpoint(), data 0) each.
++// A hit whose undefined symbols are all of these links the object directly: the bindings are the
++// same expressions the IR path maps under the same names, the patchpoints are fresh stubs of the
++// same kind. Anything else (a name the table does not know, libm, memcpy, outline atomics, an
++// absolute global, a duplicate, a malformed or out-of-bound patchpoint, a second definition, a
++// missing entry, a failed copy of the object) leaves the object to the IR path of the same
++// compile() call, exactly as before.
++//
++// Name resolution is MCJIT's and the same on both paths (LLVM 18 and 20, checked on the host): an
++// undefined name of an object being loaded resolves first from RuntimeDyld's own table, which holds
++// every named definition of the objects already loaded in this engine, local and internal ones
++// included; then from the engine's resolver (the global map, where the bindings are, then that
++// table); last from the memory manager (MemoryManager1/2::findSymbol in Utilities/JITLLVM.cpp:
++// process symbols, then make_null_function()). The global map does not come first: a binding
++// decides a name only because no object of this engine defines that name. None does: a block
++// object defines its entry (its only global) and the locals spu_test_state, __spu-null,
++// __spu-cx*, __spu-fx*, __unnamed_N and the $x/$d mapping symbols; the LLVM interpreter object
++// defines spu_interpreter, spu_<MNEMONIC>[_<hex>], spu_ret and __unnamed_N. No table name and no
++// "<hash>-pp-<N>" name is among them, and the host audit (spu_direct_hit660_test.py) fails if one
++// of these names gets a body, an initializer or an internal or private linkage anywhere in
++// SPULLVMRecompiler.cpp or CPUTranslator.h. The IR hit path links the same object under the same
++// names in the same engine, with exactly this precedence too.
++//
++// This header only classifies a symbol list against a table of names. It has no LLVM or RPCS3
++// dependency so that the host test compiles it as it is.
++namespace rpcs3::ios::spu_direct_hit
++{
++inline std::atomic<bool> enabled{false}; // experimental.spu_direct_object_hits
++
++enum class reason : std::uint32_t
++{
++	accepted,
++	object_unreadable,    // the object does not parse or is not for this engine's architecture
++	symbol_unreadable,    // a symbol name or flags could not be read
++	symbol_bound,         // more symbols than max_symbols
++	absolute_global,      // a global absolute symbol (same rule as JITMinimalObject.h)
++	unknown_symbol,       // an undefined name that is neither a table name nor a patchpoint of this module
++	duplicate_symbol,     // an undefined name listed twice
++	malformed_patchpoint, // "<entry>-pp-" followed by anything but the regenerated decimal number
++	patchpoint_bound,     // a patchpoint number or count above the bounds
++	foreign_definition,   // a defined global symbol that is not the entry
++	missing_entry,        // the entry is not defined
++	duplicate_entry,      // the entry is defined twice
++	null_binding,         // a table expression evaluated to 0 in this process
++	copy_failed,          // the copy of the object handed to MCJIT could not be allocated
++	add_rejected,         // jit_minimal_object::add refused the object before loading it
++	count
++};
++
++inline constexpr std::size_t reason_count = static_cast<std::size_t>(reason::count);
++
++inline constexpr std::array<std::string_view, reason_count> reason_names{
++	"accepted", "object_unreadable", "symbol_unreadable", "symbol_bound", "absolute_global", "unknown_symbol",
++	"duplicate_symbol", "malformed_patchpoint", "patchpoint_bound", "foreign_definition", "missing_entry",
++	"duplicate_entry", "null_binding", "copy_failed", "add_rejected"};
++static_assert(!reason_names[reason_count - 1].empty(), "one name per reason");
++
++struct symbol
++{
++	std::string_view name;
++	bool readable = true;   // name and flags could be read
++	bool undefined = false; // SF_Undefined
++	bool absolute = false;  // SF_Absolute
++	bool global = false;    // SF_Global
++};
++
++struct plan
++{
++	reason result = reason::accepted;
++	std::vector<std::uint32_t> named;       // indices into the binding table, ascending, each once
++	std::vector<std::uint32_t> patchpoints; // patchpoint numbers, ascending, each once
++	std::string_view offending;             // the symbol that decided a rejection (a view of the input: copy it)
++};
++
++inline constexpr std::size_t max_symbols = 65536;
++inline constexpr std::uint32_t max_patchpoint = (1u << 20) - 1;
++
++// The direct path never allocates more stubs than this for one block. The IR path allocates one per
++// tail_chunk(nullptr) of each emitted chunk; an object above the bound keeps the IR path.
++constexpr std::size_t patchpoint_limit(std::size_t guest_words) noexcept
++{
++	return std::min<std::size_t>(guest_words * 16 + 64, std::size_t{max_patchpoint} + 1);
++}
++
++// name == entry + "-pp-" + decimal(id) exactly, the way fmt::format("%s-pp-%u", m_hash, id) wrote it:
++// no sign, no leading zero, no suffix, a value that fits 32 bits.
++constexpr bool parse_patchpoint(std::string_view entry, std::string_view name, std::uint32_t& id) noexcept
++{
++	constexpr std::string_view infix = "-pp-";
++	if (name.size() <= entry.size() + infix.size() || name.substr(0, entry.size()) != entry ||
++		name.substr(entry.size(), infix.size()) != infix)
++	{
++		return false;
++	}
++
++	const std::string_view digits = name.substr(entry.size() + infix.size());
++	std::uint32_t value = 0;
++	const auto [end, error] = std::from_chars(digits.data(), digits.data() + digits.size(), value, 10);
++	if (error != std::errc() || end != digits.data() + digits.size())
++	{
++		return false;
++	}
++
++	char regenerated[16]{};
++	const auto [last, error2] = std::to_chars(regenerated, regenerated + sizeof(regenerated), value, 10);
++	if (error2 != std::errc() || std::string_view(regenerated, static_cast<std::size_t>(last - regenerated)) != digits)
++	{
++		return false;
++	}
++
++	id = value;
++	return true;
++}
++
++constexpr bool is_patchpoint_name(std::string_view entry, std::string_view name) noexcept
++{
++	constexpr std::string_view infix = "-pp-";
++	return name.size() >= entry.size() + infix.size() && name.substr(0, entry.size()) == entry &&
++		name.substr(entry.size(), infix.size()) == infix;
++}
++
++// Every undefined, named symbol must be a table name or a patchpoint of `entry`; the entry must be the
++// only defined global symbol, defined once. Undefined symbols without a name are ignored, as
++// JITMinimalObject.h ignores them.
++inline plan classify(std::string_view entry, std::span<const symbol> symbols, std::span<const std::string_view> table,
++	std::size_t max_patchpoints)
++{
++	plan result;
++	const auto reject = [&](reason why, std::string_view name)
++	{
++		result.result = why;
++		result.offending = name;
++		result.named.clear();
++		result.patchpoints.clear();
++		return result;
++	};
++
++	if (entry.empty() || symbols.size() > max_symbols)
++	{
++		return reject(entry.empty() ? reason::missing_entry : reason::symbol_bound, {});
++	}
++
++	std::size_t entries = 0;
++	std::vector<bool> seen(table.size(), false);
++
++	for (const symbol& sym : symbols)
++	{
++		if (!sym.readable)
++		{
++			return reject(reason::symbol_unreadable, sym.name);
++		}
++
++		if (sym.absolute && sym.global)
++		{
++			return reject(reason::absolute_global, sym.name);
++		}
++
++		if (!sym.undefined)
++		{
++			if (sym.name == entry)
++			{
++				// MCJIT finds the entry by name among the global symbols of the loaded objects.
++				if (!sym.global)
++				{
++					return reject(reason::missing_entry, sym.name);
++				}
++
++				if (++entries > 1)
++				{
++					return reject(reason::duplicate_entry, sym.name);
++				}
++			}
++			else if (sym.global)
++			{
++				return reject(reason::foreign_definition, sym.name);
++			}
++
++			continue;
++		}
++
++		if (sym.name.empty())
++		{
++			continue;
++		}
++
++		const auto found = std::find(table.begin(), table.end(), sym.name);
++		if (found != table.end())
++		{
++			const auto index = static_cast<std::size_t>(found - table.begin());
++			if (seen[index])
++			{
++				return reject(reason::duplicate_symbol, sym.name);
++			}
++
++			seen[index] = true;
++			continue;
++		}
++
++		if (!is_patchpoint_name(entry, sym.name))
++		{
++			return reject(reason::unknown_symbol, sym.name);
++		}
++
++		std::uint32_t id = 0;
++		if (!parse_patchpoint(entry, sym.name, id))
++		{
++			return reject(reason::malformed_patchpoint, sym.name);
++		}
++
++		if (id > max_patchpoint || result.patchpoints.size() >= max_patchpoints)
++		{
++			return reject(reason::patchpoint_bound, sym.name);
++		}
++
++		result.patchpoints.push_back(id);
++	}
++
++	if (!entries)
++	{
++		return reject(reason::missing_entry, entry);
++	}
++
++	std::sort(result.patchpoints.begin(), result.patchpoints.end());
++	if (std::adjacent_find(result.patchpoints.begin(), result.patchpoints.end()) != result.patchpoints.end())
++	{
++		return reject(reason::duplicate_symbol, {});
++	}
++
++	for (std::size_t index = 0; index < seen.size(); ++index)
++	{
++		if (seen[index])
++		{
++			result.named.push_back(static_cast<std::uint32_t>(index));
++		}
++	}
++
++	return result;
++}
++
++// The fallback notice of compile() ("SPUDIRECT660 fallback <reason>: <symbol> (<module>)"): the first 8
++// hits of each reason in this process, then every 256th, as should_emit_spu_compile_diagnostic() in
++// SPULLVMRecompiler.cpp limits its diagnostics. An accepted hit formats nothing.
++inline bool should_log_fallback(reason why) noexcept
++{
++	static std::array<std::atomic<std::uint64_t>, reason_count> seen{};
++	const auto index = static_cast<std::size_t>(why);
++	if (why == reason::accepted || index >= reason_count)
++	{
++		return false;
++	}
++
++	const std::uint64_t current = seen[index].fetch_add(1, std::memory_order_relaxed) + 1;
++	return current <= 8 || (current % 256) == 0;
++}
++
++// Per-window counters for COREPROF SPUDIRECT660 (rpcs3/ios/RPCS3IOSPerformance.cpp). Ticks are TSC ticks.
++struct window_counters
++{
++	std::uint64_t direct = 0, direct_bytes = 0;     // blocks linked directly, their object bytes
++	std::uint64_t direct_ticks = 0, direct_max_ticks = 0; // compile() start to the published entry
++	std::uint64_t classify_ticks = 0;               // object parse, classification and bindings
++	std::uint64_t link_ticks = 0;                   // add + finalize of the object
++	std::uint64_t bindings = 0, patchpoints = 0;    // table bindings and patchpoint stubs of those blocks
++	std::uint64_t failures = 0;                     // link/finalize/entry failures, handled as on the IR path
++	std::array<std::uint64_t, reason_count> fallbacks{}; // hits left to the IR path, by reason
++};
++
++class counters
++{
++	std::atomic<std::uint64_t> m_direct{0}, m_direct_bytes{0}, m_direct_ticks{0}, m_direct_max_ticks{0};
++	std::atomic<std::uint64_t> m_classify_ticks{0}, m_link_ticks{0}, m_bindings{0}, m_patchpoints{0}, m_failures{0};
++	std::array<std::atomic<std::uint64_t>, reason_count> m_fallbacks{};
++
++public:
++	void record_direct(std::uint64_t bytes, std::uint64_t ticks, std::uint64_t classify_ticks, std::uint64_t link_ticks,
++		std::uint64_t bindings, std::uint64_t patchpoints) noexcept
++	{
++		m_direct.fetch_add(1, std::memory_order_relaxed);
++		m_direct_bytes.fetch_add(bytes, std::memory_order_relaxed);
++		m_direct_ticks.fetch_add(ticks, std::memory_order_relaxed);
++		m_classify_ticks.fetch_add(classify_ticks, std::memory_order_relaxed);
++		m_link_ticks.fetch_add(link_ticks, std::memory_order_relaxed);
++		m_bindings.fetch_add(bindings, std::memory_order_relaxed);
++		m_patchpoints.fetch_add(patchpoints, std::memory_order_relaxed);
++		std::uint64_t seen = m_direct_max_ticks.load(std::memory_order_relaxed);
++		while (ticks > seen && !m_direct_max_ticks.compare_exchange_weak(seen, ticks, std::memory_order_relaxed))
++		{
++		}
++	}
++
++	void record_fallback(reason why) noexcept
++	{
++		const auto index = static_cast<std::size_t>(why);
++		if (index < reason_count)
++		{
++			m_fallbacks[index].fetch_add(1, std::memory_order_relaxed);
++		}
++	}
++
++	void record_failure() noexcept
++	{
++		m_failures.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	window_counters take_window() noexcept
++	{
++		window_counters result;
++		result.direct = m_direct.exchange(0, std::memory_order_relaxed);
++		result.direct_bytes = m_direct_bytes.exchange(0, std::memory_order_relaxed);
++		result.direct_ticks = m_direct_ticks.exchange(0, std::memory_order_relaxed);
++		result.direct_max_ticks = m_direct_max_ticks.exchange(0, std::memory_order_relaxed);
++		result.classify_ticks = m_classify_ticks.exchange(0, std::memory_order_relaxed);
++		result.link_ticks = m_link_ticks.exchange(0, std::memory_order_relaxed);
++		result.bindings = m_bindings.exchange(0, std::memory_order_relaxed);
++		result.patchpoints = m_patchpoints.exchange(0, std::memory_order_relaxed);
++		result.failures = m_failures.exchange(0, std::memory_order_relaxed);
++		for (std::size_t index = 0; index < reason_count; ++index)
++		{
++			result.fallbacks[index] = m_fallbacks[index].exchange(0, std::memory_order_relaxed);
++		}
++		return result;
++	}
++};
++
++inline counters& stats() noexcept
++{
++	static counters instance;
++	return instance;
++}
++}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 2a06ee7..126bad1 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -147,6 +147,17 @@ constexpr bool wants_spu_noop_spin_wait(std::string_view title_id) noexcept
+ 	return is_black_ops_ii_title(title_id);
+ }
+ 
++// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): every title. IPA 657 (Core 655):
++// Black Ops II links 8,700-8,800 SPU blocks at the first transition of each boot, all object-cache
++// hits (session 2 window 5: 8,793), each spending about 0.19 ms of spu_build on an IR that only names
++// the object's symbols, next to 0.18 ms of object load. The direct link binds the same functions under
++// the same names and publishes the block the same way, so no title needs to keep the IR path; the
++// SPU Direct Object Hits setting (Disabled) restores it per game.
++constexpr bool wants_spu_direct_object_hits(std::string_view /*title_id*/) noexcept
++{
++	return true;
++}
++
+ // REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
+ // fallback compresses only window Z in (1, far] and passes every other vertex
+ // through unchanged. The pinned draws of the #13227 capture keep depth clip on
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index d87b7ae..9b03ffc 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -20,6 +20,7 @@
+ #include "IOSThreadQoS.h"
+ #include "IOSMoltenVKAsyncCanary.h"
+ #include "IOSInPassReadTransition.h"
++#include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -396,6 +397,11 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
+ 	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
+ 		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: Automatic is every title (ios/IOSTitleLevers.h); ARM64 only, the
++	// direct link exists in the ARM64 SPU recompiler only.
++	resolved.spu_direct_object_hits = arm64_default && resolve_mode(g_cfg.ios_experimental.spu_direct_object_hits,
++		rpcs3::ios::title_levers::wants_spu_direct_object_hits(title_id));
++	rpcs3::ios::spu_direct_hit::enabled.store(resolved.spu_direct_object_hits, std::memory_order_relaxed);
+ 	// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed (IPA 653: 4-11 restarts of the same framebuffer per frame
+ 	// after a read transition), and only with the MoltenVK that waits for the barrier inside the pass.
+ 	resolved.moltenvk_in_pass_waits = rpcs3::ios::in_pass_read::moltenvk_waits_in_pass();
+@@ -482,6 +488,9 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
+ 		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: its own line.
++	ios_experimental_log.notice("Resolved title policy 660: spu_direct_object_hits=%d spu_object_cache=%d",
++		resolved.spu_direct_object_hits, resolved.persistent_spu_object_cache);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 893b7e2..8f5b582 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -84,6 +84,9 @@ struct experimental_policy
+ 	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
+ 	// PUTLLC waits for a bounded time inside the PUTLLC.
+ 	bool spu_noop_spin_wait = false;
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): an SPU object-cache hit whose
++	// symbols are all known links without building its IR.
++	bool spu_direct_object_hits = false;
+ 	// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): SPU threads run in the user-initiated class.
+ 	bool spu_qos_below_rsx = false;
+ 	// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): a NOP in the command stream is not an idle period.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index a4a2bf4..b17e874 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -26,6 +26,7 @@
+ #include "IOSCompilePressure.h"
+ #include "IOSRsxSyncProfile.h"
+ #include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
++#include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
+ #include "IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
+ #include "IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
+@@ -1487,6 +1488,28 @@ private:
+                 counters.hits, counters.hit_bytes / 1024.0, counters.claimed, counters.dropped,
+                 state.pending, state.resident, state.resident_bytes / 1024.0);
+         }
++        // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): SPU object-cache hits linked
++        // without IR (direct), their object KiB, compile() time from start to the published entry
++        // (total/max), the share spent classifying and binding and in add + finalize, the bindings and
++        // patchpoint stubs made, link failures handled as on the IR path, and the hits left to the IR
++        // path by reason (fb_<reason>, one per spu_direct_hit::reason_names entry after "accepted",
++        // fb_copy_failed included; obj_hits of SPUPROF counts both paths).
++        {
++            const auto direct = rpcs3::ios::spu_direct_hit::stats().take_window();
++            std::string line = fmt::format("COREPROF SPUDIRECT660 session=%llu window=%llu enabled=%u direct=%llu direct_kib=%.1f "
++                "direct_ms=%.3f direct_max_ms=%.3f classify_ms=%.3f link_ms=%.3f bindings=%llu patchpoints=%llu failures=%llu",
++                profile_session, profile_window, rpcs3::ios::spu_direct_hit::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                direct.direct, direct.direct_bytes / 1024.0, milliseconds(direct.direct_ticks), milliseconds(direct.direct_max_ticks),
++                milliseconds(direct.classify_ticks), milliseconds(direct.link_ticks), direct.bindings, direct.patchpoints, direct.failures);
++            unsigned long long fallbacks = 0;
++            for (usz reason = 1; reason < rpcs3::ios::spu_direct_hit::reason_count; ++reason)
++            {
++                fallbacks += direct.fallbacks[reason];
++                fmt::append(line, " fb_%s=%llu", rpcs3::ios::spu_direct_hit::reason_names[reason], direct.fallbacks[reason]);
++            }
++            fmt::append(line, " fallbacks=%llu scope=process_window window_boundary_approximate=1", fallbacks);
++            ios_core_profiler.notice("%s", line);
++        }
+         // REWINDBOX_ZCULL_LABEL_PAGE_624, REWINDBOX_ZCULL_COND_PREVIOUS_624 and
+         // REWINDBOX_ZCULL_FAULT_CENSUS_624: the reports block shift of this boot, the
+         // conditional render evaluations drawn on the previous visible value, ready or
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 8f186dd..a1019e4 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -167,6 +167,8 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
+ 	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h)
++	GAME_SETTING("experimental.spu_direct_object_hits", "Experimental", "SPU", "SPU direct object hits", "Links an SPU block found in the persistent object cache without building its LLVM IR again, when every symbol of the object is a known SPU helper or patchpoint; any other object takes the usual path. The same code runs. Automatic enables it for every game; Disabled builds the IR of every hit as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_direct_object_hits, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
+ 	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.

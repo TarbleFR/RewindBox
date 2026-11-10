@@ -143,15 +143,15 @@ void main() {
     expect(view.items.firstWhere((item) => item.id == coins.id).status, EnhancementStatus.active);
     expect(view.items.where((item) => item.status == EnhancementStatus.installed), isNotEmpty);
 
+    // Only the chosen program is on disk: a lost enable list cannot run the others.
     final files = modCheats().listSync().whereType<File>().toList();
     expect(
-      files.map((file) => path.basenameWithoutExtension(file.path)),
-      containsAll(['3CA12DFAAF9C82DA', 'B424BE150A8E7D78', 'F5DCCDDB37E97724']),
+      files.map((file) => path.basenameWithoutExtension(file.path)).toSet(),
+      {'3CA12DFAAF9C82DA', 'F5DCCDDB37E97724'},
     );
     for (final file in files) {
       final names = MelonxEnhancementAdapter.parseCheatNames(file.readAsStringSync());
-      expect(names, isNotEmpty, reason: 'Ryujinx must not skip ${file.path}');
-      expect(names, isNot(contains('<default>')), reason: 'every program is named');
+      expect(names, ['9999 Coins Save 1'], reason: 'Ryujinx must read exactly the chosen program in ${file.path}');
     }
     final enabled = enabledList().readAsLinesSync();
     expect(
@@ -160,10 +160,45 @@ void main() {
     );
     expect(enabled.where((line) => line.contains('Infinite Health')), isEmpty);
 
-    // Off again: the files stay installed, the enable list is emptied.
+    // Off again: no RewindBox code stays on disk and the enable list is emptied.
     view = await service.setActive(game, 'switch', view, view.items.firstWhere((i) => i.id == coins.id), false);
     expect(enabledList().readAsStringSync().trim(), isEmpty);
+    expect(modCheats().existsSync() ? modCheats().listSync().whereType<File>() : const <File>[], isEmpty);
     expect(view.installed, isTrue);
+  });
+
+  test('an old absolute key is re-rooted at the MeloNX segment that holds mods', () {
+    final now = Directory('/new/Documents/MeloNX');
+    expect(
+      MelonxEnhancementAdapter.resolveStateKey(now, '/old/Documents/MeloNX/mods/contents/t/RewindBox/MeloNX/x.txt'),
+      '/new/Documents/MeloNX/mods/contents/t/RewindBox/MeloNX/x.txt',
+    );
+    expect(MelonxEnhancementAdapter.resolveStateKey(now, 'mods/contents/t/a.txt'), '/new/Documents/MeloNX/mods/contents/t/a.txt');
+    expect(MelonxEnhancementAdapter.resolveStateKey(now, '/elsewhere/file.txt'), '/elsewhere/file.txt');
+  });
+
+  test('after the app container moves, RewindBox still owns its files', () async {
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    // Keys written by an older version were absolute, in a container iOS has since moved.
+    final store = EnhancementStore(root: () async => Directory(path.join(temp.path, 'store')));
+    await store.transaction((games) async {
+      final state = games.values.single;
+      final moved = {
+        for (final entry in state.files.entries)
+          path.join('/var/mobile/Containers/Data/Application/OLD-CONTAINER/Documents/MeloNX', entry.key): entry.value,
+      };
+      state.files
+        ..clear()
+        ..addAll(moved);
+    });
+
+    // Turning the code off rewrites RewindBox's own file instead of refusing it as the player's.
+    view = await service.setActive(game, 'switch', view, view.items.first, false);
+    expect(enabledList().readAsStringSync().trim(), isEmpty);
+    await service.restore(view.identity.storeKey);
+    expect(modCheats().existsSync(), isFalse, reason: 'restore finds and removes the files after the move');
+    expect(enabledList().existsSync(), isFalse);
   });
 
   test('existing cheats of the player stay enabled and restore removes only ours', () async {
@@ -286,5 +321,51 @@ void main() {
     expect(enabledList().readAsLinesSync().first, '0123456789ABCDEF-<Other Cheat>');
     await service.restore(view.identity.storeKey);
     expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Other Cheat>']);
+  });
+
+  test('RewindBox cheat files without an enable list are all disabled before a launch', () async {
+    // Hogwarts Legacy case: the catalogue file is on disk, the enable list is gone, so the engine enabled every program.
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    expect(modCheats().listSync().whereType<File>(), isNotEmpty);
+    enabledList().deleteSync();
+    // A cheat file of the player's own keeps the engine default: still enabled.
+    File(path.join(root.path, 'mods', 'contents', _title.toLowerCase(), 'cheats', '0123456789ABCDEF.txt'))
+        .writeAsStringSync('[Own Code]\n$_line\n');
+
+    final repaired = await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, const {});
+
+    expect(repaired, [_title.toLowerCase()]);
+    expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Own Code Cheat>']);
+  });
+
+  test('catalogue codes listed but not chosen in RewindBox are removed; chosen ones stay', () async {
+    var view = await service.open(game, 'switch', download: true);
+    final coins = view.items.firstWhere((item) => item.name == '9999 Coins Save 1');
+    view = await service.setActive(game, 'switch', view, coins, true);
+    final chosen = MelonxEnhancementAdapter.chosenKeys(await service.store.all());
+    expect(chosen, containsAll(['3CA12DFAAF9C82DA-<9999 Coins Save 1 Cheat>', 'F5DCCDDB37E97724-<9999 Coins Save 1 Cheat>']));
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, chosen), isEmpty, reason: 'nothing to change');
+
+    // The same list with nothing recorded as chosen (an older version, or no way left to turn them off): all removed,
+    // the player's other lines kept.
+    enabledList().writeAsStringSync('${enabledList().readAsStringSync()}0123456789ABCDEF-<Other Cheat>\n');
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, const {}), [_title.toLowerCase()]);
+    expect(enabledList().readAsLinesSync(), ['0123456789ABCDEF-<Other Cheat>']);
+  });
+
+  test('an existing enable list and titles without RewindBox files are left alone', () async {
+    var view = await service.open(game, 'switch', download: true);
+    view = await service.setActive(game, 'switch', view, view.items.first, true);
+    final before = enabledList().readAsStringSync();
+    final other = Directory(path.join(root.path, 'mods', 'contents', '0100f7e00c70e000', 'cheats'))
+      ..createSync(recursive: true);
+    File(path.join(other.path, '0123456789ABCDEF.txt')).writeAsStringSync('[Own Code]\n$_line\n');
+
+    final chosen = MelonxEnhancementAdapter.chosenKeys(await service.store.all());
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(root, chosen), isEmpty);
+    expect(enabledList().readAsStringSync(), before);
+    expect(File(path.join(other.path, 'enabled.txt')).existsSync(), isFalse);
+    expect(await MelonxEnhancementAdapter.disableUnchosenCatalogueCheats(Directory(path.join(temp.path, 'none')), chosen), isEmpty);
   });
 }

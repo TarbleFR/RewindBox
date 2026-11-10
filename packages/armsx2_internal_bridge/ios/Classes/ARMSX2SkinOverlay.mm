@@ -16,8 +16,10 @@
 // of their own, a stick finger only moves the stick.
 #import "ARMSX2SkinOverlay.h"
 #import "ARMSX2OrientationPolicy.h"
+#import "ARMSX2SkinHitTest.h"
 #import <CoreGraphics/CoreGraphics.h>
 #include <cmath>
+#include <vector>
 
 #pragma mark - Input table (DolphinSkins 'ps2', lib/services/dolphin_skins.dart)
 
@@ -114,9 +116,42 @@ typedef NS_ENUM(NSInteger, A2SkinItemKind) {
 @property(nonatomic, copy, nullable) NSString* pressedAssetPath;
 @property(nonatomic, copy, nullable) NSString* knobPath;
 @property(nonatomic, assign) CGSize knobSize;
+// Alpha of the normal sprite (row-major bytes, alphaSize pixels), nil when the
+// item has none or it is opaque: the drawn shape answers a touch first
+// (ARMSX2SkinHitTest.h).
+@property(nonatomic, strong, nullable) NSData* alphaMap;
+@property(nonatomic, assign) CGSize alphaSize;
 @end
 @implementation A2SkinItem
 @end
+
+/// The normal sprite's alpha, at most 192 pixels on its long side; nil when
+/// it cannot be read or has no transparent pixel (then the frame is the shape).
+static NSData* A2SkinAlphaMap(NSString* path, CGSize* size) {
+  if (path == nil) return nil;
+  UIImage* image = [UIImage imageWithContentsOfFile:path];
+  CGImageRef cg = image.CGImage;
+  if (cg == NULL) return nil;
+  const size_t sourceWidth = CGImageGetWidth(cg), sourceHeight = CGImageGetHeight(cg);
+  if (sourceWidth == 0 || sourceHeight == 0) return nil;
+  const double scale = MIN(1.0, 192.0 / (double)MAX(sourceWidth, sourceHeight));
+  const size_t width = MAX((size_t)1, (size_t)llround((double)sourceWidth * scale));
+  const size_t height = MAX((size_t)1, (size_t)llround((double)sourceHeight * scale));
+  NSMutableData* data = [NSMutableData dataWithLength:width * height];
+  CGContextRef context = CGBitmapContextCreate(data.mutableBytes, width, height, 8, width, NULL,
+                                               (CGBitmapInfo)kCGImageAlphaOnly);
+  if (context == NULL) return nil;
+  CGContextSetInterpolationQuality(context, kCGInterpolationNone);
+  CGContextDrawImage(context, CGRectMake(0, 0, width, height), cg);
+  CGContextRelease(context);
+  // Bitmap rows are top first, as UIKit draws them.
+  const uint8_t* bytes = (const uint8_t*)data.bytes;
+  BOOL transparent = NO;
+  for (size_t i = 0; i < width * height && !transparent; i++) transparent = bytes[i] < 128;
+  if (!transparent) return nil;
+  *size = CGSizeMake(width, height);
+  return data;
+}
 
 @interface A2SkinRepresentation : NSObject
 @property(nonatomic, assign) BOOL portrait;
@@ -309,6 +344,9 @@ static A2SkinRepresentation* A2SkinParse(NSDictionary* layout, NSString* root, B
       item.assetPath = A2SkinFile(root, asset[@"normal"]);
       item.pressedAssetPath = A2SkinFile(root, asset[@"pressed"]);
     }
+    CGSize alphaSize = CGSizeZero;
+    item.alphaMap = A2SkinAlphaMap(item.assetPath, &alphaSize);
+    item.alphaSize = alphaSize;
     if (item.inputs.count == 0 && item.directions.count == 0 && item.assetPath == nil) continue;
     [items addObject:item];
   }
@@ -494,6 +532,13 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   return (UIInterfaceOrientationMask)ARMSX2PolicyMask(_portrait != nil, _landscape != nil);
 }
 
+- (BOOL)hasMenuControl {
+  for (A2SkinItem* item in _current.items) {
+    if ([item.inputs containsObject:@"menu"]) return YES;
+  }
+  return NO;
+}
+
 - (BOOL)layoutActive {
   return _current != nil;
 }
@@ -633,22 +678,27 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   return CGRectContainsPoint(_skinRect, point) ? self : nil;
 }
 
-/// The control under `point`: its drawn frame first, then its extended edges;
-/// the last drawn wins.
+/// The control under `point` (ARMSX2SkinHitTest.h): the drawn shape first, then
+/// the nearest frame, then the nearest extended touch area. Without overlapping
+/// frames (the earlier packs) this is the previous answer: frame, then extended
+/// edges, the last drawn wins.
 - (NSInteger)itemAtPoint:(CGPoint)point {
   if (_current == nil || CGRectIsNull(_skinRect)) return -1;
   const CGSize mapping = _current.mappingSize;
   const CGPoint local = CGPointMake((point.x - _skinRect.origin.x) * mapping.width / _skinRect.size.width,
                                     (point.y - _skinRect.origin.y) * mapping.height / _skinRect.size.height);
   NSArray<A2SkinItem*>* items = _current.items;
-  for (NSInteger pass = 0; pass < 2; pass++) {
-    for (NSInteger index = (NSInteger)items.count - 1; index >= 0; index--) {
-      A2SkinItem* item = items[(NSUInteger)index];
-      if (item.inputs.count == 0 && item.directions.count == 0) continue;
-      if (CGRectContainsPoint(pass == 0 ? item.frame : item.hitFrame, local)) return index;
-    }
+  std::vector<A2SkinHitItem> hits(items.count);
+  for (NSUInteger index = 0; index < items.count; index++) {
+    A2SkinItem* item = items[index];
+    const CGRect f = item.frame, h = item.hitFrame;
+    hits[index] = A2SkinHitItem{f.origin.x, f.origin.y, f.size.width, f.size.height,
+                                h.origin.x, h.origin.y, h.size.width, h.size.height,
+                                item.alphaMap != nil ? (const uint8_t*)item.alphaMap.bytes : nullptr,
+                                (long)item.alphaSize.width, (long)item.alphaSize.height,
+                                (item.inputs.count > 0 || item.directions.count > 0) ? 1 : 0};
   }
-  return -1;
+  return (NSInteger)A2SkinHitIndex(hits.data(), (long)hits.size(), local.x, local.y);
 }
 
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {

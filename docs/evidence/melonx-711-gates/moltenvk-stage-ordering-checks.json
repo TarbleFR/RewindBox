@@ -1,0 +1,510 @@
+{
+  "result": "passed",
+  "checks": 75,
+  "fixtureChecks": {
+    "control": 28,
+    "candidate": 68
+  },
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "af1ae06375c24a3d6434913de9773534037069b936a4fa1e6317e792c520bf81",
+    "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "1a49881c24b4f7c8794885aae8ffb39fff11eaac063f5ac40024230ecc69907c",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304",
+    "src/Ryujinx.Library/Library.cs": "d601923afc7d31e844d6eb2ea6f28516475da259c9449b9a2001df9f65e4ea97"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "checks": 28,
+      "readers": {
+        "fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "compute then fragment": {
+          "steps": [
+            "write",
+            "compute",
+            "fragment"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit"
+          ]
+        },
+        "fragment then vertex": {
+          "steps": [
+            "write",
+            "fragment",
+            "vertex"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "fragment twice": {
+          "steps": [
+            "write",
+            "fragment",
+            "fragment"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "written again": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute",
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false,
+            true,
+            false
+          ],
+          "barriers": 2,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "texture array (2 storages): fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 2,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "no write": {
+          "steps": [
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            false,
+            false
+          ],
+          "barriers": 0,
+          "recorded": []
+        },
+        "MoltenVK 1.4.0: fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "not MoltenVK: fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        }
+      },
+      "switches": null,
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 68,
+      "readers": {
+        "fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 2,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit"
+          ]
+        },
+        "compute then fragment": {
+          "steps": [
+            "write",
+            "compute",
+            "fragment"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 2,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "fragment then vertex": {
+          "steps": [
+            "write",
+            "fragment",
+            "vertex"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 2,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageVertexShaderBit"
+          ]
+        },
+        "fragment twice": {
+          "steps": [
+            "write",
+            "fragment",
+            "fragment"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "written again": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute",
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            true,
+            true,
+            true
+          ],
+          "barriers": 4,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit"
+          ]
+        },
+        "texture array (2 storages): fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            true
+          ],
+          "barriers": 4,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit",
+            "PipelineStageColorAttachmentOutputBit->PipelineStageComputeShaderBit"
+          ]
+        },
+        "no write": {
+          "steps": [
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            false,
+            false
+          ],
+          "barriers": 0,
+          "recorded": []
+        },
+        "MoltenVK 1.4.0: fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        },
+        "not MoltenVK: fragment then compute": {
+          "steps": [
+            "write",
+            "fragment",
+            "compute"
+          ],
+          "ordered": [
+            true,
+            false
+          ],
+          "barriers": 1,
+          "recorded": [
+            "PipelineStageColorAttachmentOutputBit->PipelineStageFragmentShaderBit"
+          ]
+        }
+      },
+      "switches": {
+        "render then dispatch, policy": {
+          "script": "R D",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            1,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "barriers": 1
+        },
+        "render then dispatch, counted only": {
+          "script": "R D",
+          "order": false,
+          "ordered": false,
+          "delta": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "render, barrier to compute, dispatch": {
+          "script": "R f2c D",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            1,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "dispatch then render, policy": {
+          "script": "D R",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            1
+          ],
+          "barriers": 1
+        },
+        "dispatch then render, counted only": {
+          "script": "D R",
+          "order": false,
+          "ordered": false,
+          "delta": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "dispatch, full barrier, render": {
+          "script": "D all R",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            0,
+            0,
+            0,
+            1,
+            1,
+            0
+          ],
+          "barriers": 0
+        },
+        "dispatch, compute to fragment, render": {
+          "script": "D c2f R",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            1
+          ],
+          "barriers": 1
+        },
+        "dispatch, compute to fragment, render, counted only": {
+          "script": "D c2f R",
+          "order": false,
+          "ordered": false,
+          "delta": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "dispatch, next command buffer, render": {
+          "script": "D cb R",
+          "order": true,
+          "ordered": false,
+          "delta": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "render then render (not a switch)": {
+          "script": "R R",
+          "order": true,
+          "ordered": false,
+          "delta": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "barriers": 0
+        },
+        "render, two dispatches": {
+          "script": "R D D",
+          "order": true,
+          "ordered": true,
+          "delta": [
+            1,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "barriers": 1
+        }
+      },
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    }
+  },
+  "libraryBuild": {
+    "project": "src/Ryujinx.Library/Ryujinx.Library.csproj",
+    "vulkanAssemblySha256": "22621e6b80f4e708848c5f28e920d226a1f4fc713c13cb452e39c8912be79abd"
+  },
+  "moltenVkSourceChecked": true,
+  "moltenVkSources": {
+    "GPUObjects/MVKPipeline.mm": "ed60a03a3e6d79220303e3b470da837909973d4f80686fec33e9f5e5cef6964f",
+    "Commands/MVKCmdPipeline.mm": "53780228590ea329e665287272048175d75ab8a668c4baad47bde31ebcaeb59e",
+    "Commands/MVKCommandBuffer.mm": "9c0a476985f6c04359e41ff3f2a5b0d34c5b5a18883478bdd171b2e993c6e94f",
+    "Vulkan/mvk_datatypes.mm": "57f6173faa6d67b8e123309b81a4c07dc6168ac2b4075206d7cd6d3cb8d2b795",
+    "GPUObjects/MVKDevice.h": "826deb7e9d223d2bdabb68b347dcffbce969586c804335bd2b5e293bdd0571c8",
+    "GPUObjects/MVKDevice.mm": "e93c8fe096d9c9f8c0b02da6443bc820dc42ca4340b122cc8dd11721ad7e9b8d",
+    "GPUObjects/MVKRenderPass.mm": "3ecc62a77baee0e460a029b709a2e4fd07e3c76043914f23d7eb79596350c9a5"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "nativeCallsUsed": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Library",
+    "Ryujinx.Graphics.Vulkan"
+  ],
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "3020f6c8dd938de055638a0349ee5127e1024f24673eb24c4f5d73f0628763ab",
+    "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "c34ef138840334a14adc2f8380bc15a18e2dad73889254a980bea5aefa581883",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "8d5db09a9b260535e50b3be7de47a8a9dd088f5692f59dd3b207dd37f7e5f9c5",
+    "src/Ryujinx.Library/Library.cs": "00485e8bad8720897a3a4363e0e3b0957454d2df0b25045401681fa831157783"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_moltenvk_stage_ordering.py": "1b586c4da06e4fba065e086f65a84a005ec9bdbfed7cb3e3500d61a2eb3e0e5e",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_moltenvk_stage_ordering_test.py": "6d6a456011bd26444a56ac1422da5a7ee8db0af3b663500daa10ce221a880a15",
+    "test/melonx_moltenvk_stage_ordering/Program.cs": "d5d782ea1efcf69b86ce6586e4d5f52d97e8fe6c74c57d3a3f4d4215de950dc0"
+  },
+  "limitation": "Host fixture: the production barrier paths and decisions, replayed on a model of MoltenVK 1.4.2's fences bound to its source; no GPU. Whether the white sky, black blocks and bands of Hogwarts Legacy go, and the GPU cost of the switch barriers, are known only from a device run."
+}

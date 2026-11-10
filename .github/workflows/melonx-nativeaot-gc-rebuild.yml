@@ -1,0 +1,37 @@
+name: MeloNX NativeAOT GC rebuild
+run-name: NativeAOT workstation GC (.NET 10.0.0 + dotnet/runtime#119383) • ${{ github.sha }}
+# Rebuilds gcwks.cpp.o of the iOS NativeAOT runtime packs 10.0.0 from dotnet/runtime v10.0.0 with the reviewed patch of
+# build-utils/melonx/nativeaot-gc-rebuild.json and splices it into the packs' libRuntime.WorkstationGC.a.
+# It packages nothing: the Core build adopts the artifact by its digests (nativeaot-gc-rebuild-pin.json).
+'on':
+  push:
+    branches:
+    - Claude
+    paths:
+    - .github/workflows/melonx-nativeaot-gc-rebuild.yml
+    - build-utils/melonx/build_nativeaot_gc_rebuild.py
+    - build-utils/melonx/nativeaot_gc_archive.py
+    - build-utils/melonx/nativeaot-gc-rebuild.json
+    - build-utils/melonx/nativeaot-gc/**
+permissions:
+  contents: read
+concurrency:
+  group: melonx-nativeaot-gc-rebuild-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  nativeaot-gc:
+    runs-on: macos-26
+    timeout-minutes: 150
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Build the patched NativeAOT workstation GC for ios-arm64 and iossimulator-arm64
+      run: python3 build-utils/melonx/build_nativeaot_gc_rebuild.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-NativeAOT-GC-rebuild-${{ github.sha }}
+        path: dist/melonx-nativeaot-gc-rebuild
+        retention-days: 30
+        if-no-files-found: error

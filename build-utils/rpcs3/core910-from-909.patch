@@ -1,0 +1,824 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index 405ba84..afebc7e 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -104,6 +104,9 @@ namespace rpcs3::ios::texture_prehash
+ 		// position at which the RSX thread wakes the worker for the next ranges.
+ 		std::atomic<usz> g_position{0};
+ 		usz g_refill_at = umax;
++		// REWINDBOX_PREHASH_BUDGET_910: the look-ahead depth and the totals at the last frame end.
++		usz g_lookahead = lookahead;
++		u64 g_frame_hits = 0, g_frame_worker_hashes = 0;
+ 		// Never destroyed: a process that exits with the worker running does not terminate.
+ 		std::thread* g_worker = nullptr;
+ 
+@@ -229,7 +232,7 @@ namespace rpcs3::ios::texture_prehash
+ 				const u64 ordinal = epoch - g_frame_epoch;
+ 				batch.clear();
+ 
+-				for (usz i = position; i < g_previous.size() && batch.size() < lookahead && g_previous[i].ordinal <= ordinal; i++)
++				for (usz i = position; i < g_previous.size() && batch.size() < g_lookahead && g_previous[i].ordinal <= ordinal; i++)
+ 				{
+ 					batch.emplace_back(i, g_previous[i]);
+ 				}
+@@ -291,6 +294,7 @@ namespace rpcs3::ios::texture_prehash
+ 
+ 					publish(range.start, range.length, epoch, hash);
+ 					worker_hashes.fetch_add(1, std::memory_order_relaxed);
++					total_worker_hashes.fetch_add(1, std::memory_order_relaxed);
+ 				}
+ 
+ 				lock.lock();
+@@ -364,6 +368,13 @@ namespace rpcs3::ios::texture_prehash
+ 			g_current.clear();
+ 			g_position.store(0, std::memory_order_relaxed);
+ 			g_refill_at = umax;
++			// REWINDBOX_PREHASH_BUDGET_910: the next frame looks as far ahead as this one used.
++			const u64 hits_now = total_hits.load(std::memory_order_relaxed);
++			const u64 hashes_now = total_worker_hashes.load(std::memory_order_relaxed);
++			g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);
++			current_lookahead.store(static_cast<u32>(g_lookahead), std::memory_order_relaxed);
++			g_frame_hits = hits_now;
++			g_frame_worker_hashes = hashes_now;
+ 			g_frame_epoch = validation::current_epoch();
+ 			g_frame++;
+ 			g_signal++;
+@@ -419,6 +430,10 @@ namespace rpcs3::ios::texture_prehash
+ 		g_position.store(0, std::memory_order_relaxed);
+ 		g_refill_at = umax;
+ 		g_frame_epoch = 0;
++		g_lookahead = lookahead;
++		g_frame_hits = total_hits.load(std::memory_order_relaxed);
++		g_frame_worker_hashes = total_worker_hashes.load(std::memory_order_relaxed);
++		current_lookahead.store(static_cast<u32>(lookahead), std::memory_order_relaxed);
+ 	}
+ }
+ #endif
+@@ -680,6 +695,7 @@ namespace rsx
+ 				if (prehashed)
+ 				{
+ 					rpcs3::ios::texture_prehash::hit_bytes.fetch_add(range.length(), std::memory_order_relaxed);
++					rpcs3::ios::texture_prehash::total_hits.fetch_add(1, std::memory_order_relaxed); // REWINDBOX_PREHASH_BUDGET_910
+ 				}
+ 			}
+ 		}
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 29ae33f..8063bdd 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -166,10 +166,18 @@ namespace rsx
+ 				put = m_ctrl->put.and_fetch(~3);
+ 			}
+ 
+-			if (put != m_epoch_put) [[unlikely]]
++			// REWINDBOX_PUT_HORIZON_910: a PUT change read while the FIFO is still below the last horizon starts no
++			// epoch (the commands ahead were visible when the covering epoch started); horizon off: every change does.
++			namespace validation = rpcs3::ios::texture_validation;
++			if (put != m_epoch_horizon.seen || m_epoch_horizon.deferred) [[unlikely]]
+ 			{
+-				m_epoch_put = put;
+-				rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::put);
++				// Fast FIFO only: the other modes read PUT once per cache refill and would cross the horizon unseen.
++				if (m_epoch_horizon.observe(m_internal_get, put, validation::validation_epoch.load(std::memory_order_relaxed),
++					validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && !g_cfg.core.rsx_fifo_accuracy))
++				{
++					validation::advance_epoch(validation::epoch_source::put);
++					m_epoch_horizon.started(validation::validation_epoch.load(std::memory_order_relaxed));
++				}
+ 			}
+ 
+ 			return put;
+@@ -326,6 +334,15 @@ namespace rsx
+ 		{
+ 			invalidate_cache();
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_PUT_HORIZON_910: a jump to itself; read() starts an epoch when the guest has patched it.
++			if (spin_cmd && get == m_internal_get)
++			{
++				m_spin_addr = get;
++				m_spin_cmd = spin_cmd;
++			}
++#endif
++
+ 			if (spin_cmd && m_ctrl->get == get)
+ 			{
+ 				m_memwatch_addr = get;
+@@ -518,6 +535,28 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (m_spin_addr != umax) [[unlikely]]
++			{
++				// REWINDBOX_PUT_HORIZON_910: the FIFO executed a jump to itself at m_spin_addr. A different command read
++				// there is the guest's patch: it publishes the commands behind it without moving PUT, and the data they
++				// need was written before the patch, so it starts a validation epoch as a new PUT does (with the horizon
++				// on, where the PUT changes read meanwhile no longer start one; off: as before, no epoch).
++				const bool patched = m_internal_get == m_spin_addr && m_cmd != m_spin_cmd;
++
++				if (patched || m_internal_get != m_spin_addr)
++				{
++					m_spin_addr = umax;
++				}
++
++				if (patched && rpcs3::ios::texture_validation::put_horizon_policy::enabled.load(std::memory_order_relaxed))
++				{
++					rpcs3::ios::texture_validation::advance_epoch(rpcs3::ios::texture_validation::epoch_source::put);
++					rpcs3::ios::texture_validation::put_patched.fetch_add(1, std::memory_order_relaxed);
++				}
++			}
++#endif
++
+ 			if (m_cmd & RSX_METHOD_NON_METHOD_CMD_MASK) [[unlikely]]
+ 			{
+ 				if ((m_cmd & RSX_METHOD_OLD_JUMP_CMD_MASK) == RSX_METHOD_OLD_JUMP_CMD ||
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
+index 39c6390..42fe0b0 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.h
++++ b/rpcs3/Emu/RSX/RSXFIFO.h
+@@ -3,6 +3,9 @@
+ #include "util/types.hpp"
+ #include "util/endian.hpp"
+ #include "Emu/RSX/gcm_enums.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h" // REWINDBOX_PUT_HORIZON_910
++#endif
+ 
+ #include <span>
+ 
+@@ -139,7 +142,11 @@ namespace rsx
+ 			u32 m_memwatch_cmp = 0;
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: last PUT that opened a texture validation epoch.
+-			mutable u32 m_epoch_put = umax;
++			// REWINDBOX_PUT_HORIZON_910: with what was visible then (ios/IOSTextureValidationProfile.h).
++			mutable rpcs3::ios::texture_validation::put_horizon m_epoch_horizon;
++			// The last jump to itself the FIFO executed (address, command word); umax: none.
++			u32 m_spin_addr = umax;
++			u32 m_spin_cmd = 0;
+ #endif
+ 
+ 			u32 m_command_reg = 0;
+@@ -190,6 +197,9 @@ namespace rsx
+ #ifdef RPCS3_IOS
+ 			// CELL565_RSX_IDLE_PARK: the FIFO left its idle state.
+ 			void end_idle_period() { m_idle_since = 0; }
++			// REWINDBOX_PUT_HORIZON_910: the FIFO was repositioned (guest reset, recovery): nothing ahead is known to
++			// have been visible at the last epoch. RSX thread only.
++			void reset_epoch_horizon() { m_epoch_horizon = {}; m_spin_addr = umax; }
+ #endif
+ 			void idle_wait();
+ 			std::span<const u32> get_current_arg_ptr(u32 length_in_words) const;
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index 2fb5531..287065e 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -1430,6 +1430,9 @@ namespace rsx
+ 				{
+ 					vm::_ptr<atomic_be_t<u64>>(dma_address + ::offset32(&RsxDmaControl::put))->release(get_put);
+ 					fifo_ctrl->set_get(static_cast<u32>(get_put));
++#ifdef RPCS3_IOS
++					fifo_ctrl->reset_epoch_horizon(); // REWINDBOX_PUT_HORIZON_910: a guest FIFO reset republishes everything
++#endif
+ 					fifo_ctrl->abort();
+ 					fifo_ret_addr = RSX_CALL_STACK_EMPTY;
+ 					last_known_code_start = static_cast<u32>(get_put);
+@@ -3092,6 +3095,9 @@ namespace rsx
+ 
+ 		// Error. Should reset the queue
+ 		fifo_ctrl->set_get(restore_point);
++#ifdef RPCS3_IOS
++		fifo_ctrl->reset_epoch_horizon(); // REWINDBOX_PUT_HORIZON_910
++#endif
+ 		fifo_ret_addr = saved_fifo_ret;
+ 		std::this_thread::sleep_for(2ms);
+ 		fifo_ctrl->abort();
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 7ded007..026bb68 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -12,6 +12,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSFeedbackCensus.h" // REWINDBOX_FEEDBACK_CENSUS_610
++#include "ios/IOSRenderPassCensus.h" // REWINDBOX_PASS_SHAPE_910
+ #include "ios/IOSRendererCausality.h"
+ #include "ios/IOSFrameTrace.h" // REWINDBOX_PIPELINE_QUEUE_621
+ #include "ios/IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
+@@ -1550,6 +1551,9 @@ void VKGSRender::emit_geometry(u32 sub_index)
+ 	}
+ 
+ 	m_frame_stats.draw_exec_time += m_profiler.duration();
++#ifdef RPCS3_IOS
++	rpcs3::ios::renderpass_census::note_draw(); // REWINDBOX_PASS_SHAPE_910: this pass has drawn
++#endif
+ }
+ 
+ void VKGSRender::begin()
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+index f26a26b..5a5f85d 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+@@ -51,6 +51,16 @@ namespace vk
+ 		if (new_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+ 		{
+ 			in_pass::add(c.ended_other);
++			// REWINDBOX_PASS_SHAPE_910: by the layout asked for.
++			switch (+new_layout)
++			{
++			case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: in_pass::add(c.to_color); break;
++			case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: in_pass::add(c.to_depth); break;
++			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: in_pass::add(c.to_transfer_dst); break;
++			case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: in_pass::add(c.to_transfer_src); break;
++			case VK_IMAGE_LAYOUT_GENERAL: in_pass::add(c.to_general); break;
++			default: break;
++			}
+ 			return false;
+ 		}
+ 		if (!in_pass::enabled.load(std::memory_order_relaxed))
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 0c9e137..82f6c46 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -156,6 +156,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
+ 		// CELL581_TEXTURE_PREHASH: Automatic follows Texture Validation Per FIFO Batch.
+ 		cfg::_enum<ios_experimental_mode> texture_prehash{ this, "Texture Pre-Validation", ios_experimental_mode::automatic };
++		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch).
++		cfg::_enum<ios_experimental_mode> put_epoch_horizon{ this, "Texture Epoch At The PUT Horizon", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSInPassReadTransition.h b/rpcs3/ios/IOSInPassReadTransition.h
+index 4ac76a8..138df00 100644
+--- a/rpcs3/ios/IOSInPassReadTransition.h
++++ b/rpcs3/ios/IOSInPassReadTransition.h
+@@ -44,6 +44,10 @@ struct window_counters
+ 	std::atomic<std::uint64_t> ended_layout{0};     // read transition from another layout or with other masks/queues: ended
+ 	std::atomic<std::uint64_t> ended_disabled{0};   // read transition while the lever is off: ended
+ 	std::atomic<std::uint64_t> ended_other{0};      // transition to another layout with the pass open: ended
++	// REWINDBOX_PASS_SHAPE_910: ended_other by the layout asked for (Black Ops II: 26 per frame, RPASS652
++	// image_helpers.cpp). Attachment layouts are target switches; transfer layouts are uploads and copies recorded
++	// while a pass is open (candidates for recording before the pass); GENERAL is a feedback loop.
++	std::atomic<std::uint64_t> to_color{0}, to_depth{0}, to_transfer_dst{0}, to_transfer_src{0}, to_general{0};
+ };
+ 
+ inline window_counters counters{};
+diff --git a/rpcs3/ios/IOSRenderPassCensus.h b/rpcs3/ios/IOSRenderPassCensus.h
+index fd49ada..a0001ca 100644
+--- a/rpcs3/ios/IOSRenderPassCensus.h
++++ b/rpcs3/ios/IOSRenderPassCensus.h
+@@ -41,6 +41,29 @@ struct window_counters
+ 
+ inline window_counters counters{};
+ 
++// REWINDBOX_PASS_SHAPE_910: Black Ops II, build 694 device log (Core 907), gameplay window 41 at 21.7 fps: the GPU
++// executes 35.8 ms per frame and is active over 46 of the frame's 52 ms (queue delay up to 26 ms), the RSX thread
++// waits for nothing and the PPU threads use 0.40 core: the frame is GPU-bound. 49 render passes begin per frame, 15
++// of them on the framebuffer the previous one ended on; every restart stores and reloads every attachment on the
++// Apple GPU. RPASS652 names the code that ended a pass; it does not say whether the pass had drawn anything. A pass
++// that ended without a draw, then began again on the same framebuffer, loaded and stored its attachments for nothing:
++// its begin can be deferred to the first draw. Counted per window (COREPROF RPASS652 ended_empty= ended_short=
++// same_target_after_empty=); decision: deferral of the begin if same_target_after_empty is a large share of same_target.
++struct shape_counters
++{
++	std::atomic<std::uint64_t> ended_empty{0};             // passes ended with no draw recorded in them
++	std::atomic<std::uint64_t> ended_short{0};             // passes ended with 1 to 3 draws
++	std::atomic<std::uint64_t> same_target_after_empty{0}; // begins on the framebuffer a pass without a draw ended on
++};
++inline shape_counters shape{};
++// Draws recorded since the last begin (RSX thread; relaxed atomic for the helpers' other callers).
++inline std::atomic<std::uint32_t> draws_in_pass{0};
++
++inline void note_draw() noexcept
++{
++	draws_in_pass.store(draws_in_pass.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
++}
++
+ inline void add(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
+ {
+ 	counter.fetch_add(value, std::memory_order_relaxed);
+@@ -79,18 +102,33 @@ struct last_end
+ 	const void* framebuffer = nullptr;
+ 	int site = -1;
+ 	bool valid = false;
++	bool empty = false; // REWINDBOX_PASS_SHAPE_910: the ended pass had no draw
+ };
+ 
+ inline void on_end(last_end& previous, const void* framebuffer, const char* file, std::uint32_t line) noexcept
+ {
+ 	const int index = slot(file, line);
+ 	add(index >= 0 ? counters.sites[index].ends : counters.overflow);
+-	previous = { framebuffer, index, true };
++	const std::uint32_t draws = draws_in_pass.exchange(0, std::memory_order_relaxed);
++	if (draws == 0)
++	{
++		add(shape.ended_empty);
++	}
++	else if (draws <= 3)
++	{
++		add(shape.ended_short);
++	}
++	previous = { framebuffer, index, true, draws == 0 };
+ }
+ 
+ inline void on_begin(last_end& previous, const void* framebuffer) noexcept
+ {
+ 	add(counters.begins);
++	draws_in_pass.store(0, std::memory_order_relaxed);
++	if (previous.valid && previous.empty && previous.framebuffer == framebuffer)
++	{
++		add(shape.same_target_after_empty);
++	}
+ 	if (!previous.valid)
+ 	{
+ 		add(counters.fresh);
+diff --git a/rpcs3/ios/IOSTextureLookupMemo.h b/rpcs3/ios/IOSTextureLookupMemo.h
+index b70d2ed..9c7e4d7 100644
+--- a/rpcs3/ios/IOSTextureLookupMemo.h
++++ b/rpcs3/ios/IOSTextureLookupMemo.h
+@@ -65,9 +65,11 @@ enum class mode : std::uint32_t
+ // a slot that samples more than 4 textures within an epoch evicts by LRU the entry it needs next, so a cycle of 5 or
+ // more textures never hits. 16 ways keep up to 16 textures per slot; every check of a hit is unchanged (the same
+ // key, epoch, revision, range, context, section and bound tests, the same verification sampling). Memory: 20 slots
+-// x 16 entries. miss_evicted counts the miss_empty whose key this slot evicted by LRU, current in its epoch and not
+-// stored again since, among its last 16 evictions: a capacity miss, against a key never seen or dropped by an
+-// invalidation (COREPROF TEXMEMO660).
++// x 16 entries. miss_evicted counts the miss_empty that only capacity explains: the key was evicted by LRU while its
++// entry was valid (among the slot's last 16 evictions), was not stored again, and nothing since would have dropped the
++// entry (REWINDBOX_TEXMEMO_GHOST_910: same epoch, sampler revision, context and section generations, no scoped write
++// over its range, target not bound). A key never seen, or one an invalidation would have dropped anyway, is not counted
++// (COREPROF TEXMEMO660).
+ constexpr std::size_t ways = 16;
+ constexpr std::size_t ghosts = 16;
+ constexpr std::uint64_t verify_first = 256;
+@@ -272,6 +274,8 @@ class table
+ 		bool compressed = false;
+ 		bool valid = false;
+ 		std::uint32_t used = 0;
++		// REWINDBOX_TEXMEMO_GHOST_910: start | length << 32 of the slot binding at end(); 0: unknown.
++		std::uint64_t range = 0;
+ 	};
+ 
+ 	std::array<entry, Slots * ways> m_entries{};
+@@ -282,9 +286,20 @@ class table
+ 	static constexpr std::size_t seen_capacity = 4096;
+ 	std::array<std::uint64_t, seen_capacity> m_seen{};
+ 	std::size_t m_seen_count = 0;
+-	// REWINDBOX_TEXMEMO_WAYS_908: hashes of the last keys each slot evicted by LRU (0: free), a ring per slot.
+-	std::array<std::uint64_t, Slots * ghosts> m_ghosts{};
++	// REWINDBOX_TEXMEMO_WAYS_908: the last keys each slot evicted by LRU, a ring per slot.
++	// REWINDBOX_TEXMEMO_GHOST_910: with what the evicted entry was valid under (Core 909 review: a hash alone counted
++	// a key whose entry the next epoch would have dropped anyway as a capacity miss).
++	struct ghost
++	{
++		std::uint64_t hash = 0;   // 0: free
++		generations gen{};        // the entry's generations
++		std::uint64_t memory = 0; // the sampler revision of its validation
++		std::uint64_t range = 0;  // its binding range (start | length << 32); 0: unknown
++		bool compressed = false;
++	};
++	std::array<ghost, Slots * ghosts> m_ghosts{};
+ 	std::array<std::uint32_t, Slots> m_ghost_next{};
++	std::uint32_t m_ghost_live = 0;
+ 
+ 	static std::uint64_t key_hash(std::size_t slot, const key& k) noexcept
+ 	{
+@@ -300,12 +315,59 @@ class table
+ 		return h ? h : 1;
+ 	}
+ 
+-	bool evicted_recently(std::size_t slot, const key& k) const noexcept
++	// Why a present entry does not serve its key now (miss::none: it does). The checks of a hit, in their order.
++	miss validity(std::size_t index, const entry& e, bool compressed, bool bound) const noexcept
+ 	{
++		const auto now = generations::now();
++		miss reason = miss::none;
++		if (!now.epoch || e.gen.epoch != now.epoch)
++		{
++			reason = miss::epoch;
++		}
++		else if (e.stamp.memory != texture_validation::sampler_revision.load(std::memory_order_acquire))
++		{
++			reason = miss::revision;
++		}
++		else if (!m_ranges.matches(index, e.stamp))
++		{
++			reason = miss::range;
++		}
++		else if (e.gen.context != now.context)
++		{
++			reason = miss::context;
++		}
++		else if (e.gen.local != now.local || (compressed && e.gen.all != now.all))
++		{
++			reason = miss::section;
++		}
++		else if (!compressed && bound)
++		{
++			reason = miss::bound;
++		}
++		return reason;
++	}
++
++	// REWINDBOX_TEXMEMO_GHOST_910: the key was evicted while valid and its entry would still serve it now.
++	bool evicted_recently(std::size_t slot, const key& k, bool compressed, bool bound) const noexcept
++	{
++		if (!m_ghost_live || (!compressed && bound))
++		{
++			return false;
++		}
++
++		const auto now = generations::now();
++		if (!now.epoch)
++		{
++			return false;
++		}
++
+ 		const std::uint64_t h = key_hash(slot, k);
+ 		for (std::size_t g = 0; g < ghosts; ++g)
+ 		{
+-			if (m_ghosts[slot * ghosts + g] == h)
++			const ghost& e = m_ghosts[slot * ghosts + g];
++			if (e.hash == h && e.compressed == compressed && e.gen.epoch == now.epoch &&
++				e.memory == texture_validation::sampler_revision.load(std::memory_order_acquire) &&
++				e.gen.context == now.context && e.gen.local == now.local && (!compressed || e.gen.all == now.all))
+ 			{
+ 				return true;
+ 			}
+@@ -313,15 +375,29 @@ class table
+ 		return false;
+ 	}
+ 
++	void drop_ghost(ghost& e) noexcept
++	{
++		if (e.hash)
++		{
++			e.hash = 0;
++			--m_ghost_live;
++		}
++	}
++
+ 	// A key stored again is no longer an evicted one: a later miss_empty of it is not a capacity miss.
+ 	void forget_ghost(std::size_t slot, const key& k) noexcept
+ 	{
++		if (!m_ghost_live)
++		{
++			return;
++		}
++
+ 		const std::uint64_t h = key_hash(slot, k);
+ 		for (std::size_t g = 0; g < ghosts; ++g)
+ 		{
+-			if (m_ghosts[slot * ghosts + g] == h)
++			if (m_ghosts[slot * ghosts + g].hash == h)
+ 			{
+-				m_ghosts[slot * ghosts + g] = 0;
++				drop_ghost(m_ghosts[slot * ghosts + g]);
+ 			}
+ 		}
+ 	}
+@@ -350,32 +426,7 @@ public:
+ 				continue;
+ 			}
+ 
+-			const auto now = generations::now();
+-			miss reason = miss::none;
+-			if (!now.epoch || e.gen.epoch != now.epoch)
+-			{
+-				reason = miss::epoch;
+-			}
+-			else if (e.stamp.memory != texture_validation::sampler_revision.load(std::memory_order_acquire))
+-			{
+-				reason = miss::revision;
+-			}
+-			else if (!m_ranges.matches(index, e.stamp))
+-			{
+-				reason = miss::range;
+-			}
+-			else if (e.gen.context != now.context)
+-			{
+-				reason = miss::context;
+-			}
+-			else if (e.gen.local != now.local || (compressed && e.gen.all != now.all))
+-			{
+-				reason = miss::section;
+-			}
+-			else if (!compressed && bound)
+-			{
+-				reason = miss::bound;
+-			}
++			const miss reason = validity(index, e, compressed, bound);
+ 
+ 			if (reason != miss::none)
+ 			{
+@@ -388,7 +439,7 @@ public:
+ 			return { &e.value, miss::none };
+ 		}
+ 
+-		if (evicted_recently(slot, k))
++		if (evicted_recently(slot, k, compressed, bound))
+ 		{
+ 			count(counters.miss_evicted);
+ 		}
+@@ -448,12 +499,15 @@ public:
+ 			}
+ 		}
+ 
+-		if (best == 1 && m_entries[victim].gen.epoch == generations::now().epoch)
++		if (best == 1 && validity(victim, m_entries[victim], m_entries[victim].compressed, false) == miss::none)
+ 		{
+-			// A valid entry of another key, current in this epoch, goes by LRU: remember its key (capacity misses).
+-			// An entry of an older epoch would miss anyway (miss_epoch), so it is not a capacity miss.
++			// A valid entry of another key that would still serve it goes by LRU: remember it (capacity misses).
++			const entry& old = m_entries[victim];
+ 			auto& next = m_ghost_next[slot];
+-			m_ghosts[slot * ghosts + next] = key_hash(slot, m_entries[victim].k);
++			ghost& slot_ghost = m_ghosts[slot * ghosts + next];
++			drop_ghost(slot_ghost);
++			slot_ghost = { key_hash(slot, old.k), old.gen, old.stamp.memory, old.range, old.compressed };
++			++m_ghost_live;
+ 			next = (next + 1) % ghosts;
+ 		}
+ 		m_entries[victim].valid = false;
+@@ -492,6 +546,7 @@ public:
+ 
+ 		m_ranges.set_range(t.index, start, length);
+ 		auto& e = m_entries[t.index];
++		e.range = (!length || length > 0xffffffffull || start + length > (1ull << 32)) ? 0 : start | (length << 32);
+ 		e.k = k;
+ 		e.value = value;
+ 		e.stamp = t.stamp;
+@@ -507,6 +562,24 @@ public:
+ 	void invalidate(std::uint32_t start, std::uint64_t length) noexcept
+ 	{
+ 		m_ranges.invalidate(start, length);
++
++		// REWINDBOX_TEXMEMO_GHOST_910: a scoped write would have dropped the evicted entries it covers (the same
++		// overlap rule as the slot bindings; the exclusive lock keeps the RSX thread's lookups out).
++		if (!m_ghost_live || !length)
++		{
++			return;
++		}
++
++		const bool unknown_write = length > 0xffffffffull || start + length > (1ull << 32);
++		for (ghost& e : m_ghosts)
++		{
++			const std::uint64_t ghost_start = static_cast<std::uint32_t>(e.range);
++			const std::uint64_t ghost_length = e.range >> 32;
++			if (e.hash && (unknown_write || !e.range || (start < ghost_start + ghost_length && ghost_start < start + length)))
++			{
++				drop_ghost(e);
++			}
++		}
+ 	}
+ 
+ 	// Under the cache reader lock: after a verified difference.
+@@ -517,6 +590,11 @@ public:
+ 			m_entries[index].valid = false;
+ 			m_ranges.forget(index);
+ 		}
++
++		for (ghost& e : m_ghosts)
++		{
++			drop_ghost(e);
++		}
+ 	}
+ };
+ }
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+index fea2f33..9d566a1 100644
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -43,6 +43,32 @@ constexpr std::uint32_t min_bytes = 64u << 10;
+ constexpr std::size_t max_sequence = 2048;
+ // Recorded validations the worker hashes ahead of the RSX thread.
+ constexpr std::size_t lookahead = 64;
++// REWINDBOX_PREHASH_BUDGET_910: God of War III, build 694 device log (Core 907), window 29: the worker completed 10,135
++// hashes (10.48 GB) and the RSX thread used 4,623 of them (5.05 GB): the rest was hashed for an epoch that ended first.
++// The depth of the worker's look-ahead now follows what the last frame used: under half of its completed hashes used,
++// the depth halves (down to 4 ranges); above 85 %, it doubles (up to 64). Only how much is hashed ahead changes: a
++// result still validates nothing but the range and epoch it was taken for, and what the worker leaves is hashed by
++// the RSX thread as before.
++constexpr std::size_t min_lookahead = 4;
++constexpr std::size_t next_lookahead(std::size_t current, std::uint64_t frame_worker_hashes, std::uint64_t frame_hits) noexcept
++{
++	if (frame_worker_hashes < 8)
++	{
++		return current; // too little to judge
++	}
++	if (frame_hits * 2 < frame_worker_hashes)
++	{
++		return current / 2 < min_lookahead ? min_lookahead : current / 2;
++	}
++	if (frame_hits * 100 >= frame_worker_hashes * 85)
++	{
++		return current * 2 > lookahead ? lookahead : current * 2;
++	}
++	return current;
++}
++// Totals since boot (the window counters below are taken by the profiler) and the current depth.
++inline std::atomic<std::uint64_t> total_hits{0}, total_worker_hashes{0};
++inline std::atomic<std::uint32_t> current_lookahead{static_cast<std::uint32_t>(lookahead)};
+ // Results kept (direct mapped, power of two).
+ constexpr std::size_t table_size = 4096;
+ 
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+index af6cd5d..7d3101f 100644
+--- a/rpcs3/ios/IOSTextureValidationProfile.h
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -147,4 +147,84 @@ inline void advance_epoch(epoch_source source = epoch_source::other) noexcept
+ 		}
+ 	}
+ }
++
++// REWINDBOX_PUT_HORIZON_910: God of War III, build 694 device log (Core 907), window 29: 25,807 texture epochs for 72
++// frames (about 358 per frame) while the RSX FIFO ran dry only 3,932 times (about 55 per frame). The FIFO reads PUT
++// at every command and every change it saw started an epoch, although the commands it was still executing had been
++// published before the previous one. The rule of the epoch is that the data a command needs is written before the
++// command becomes visible; a validation made after a command became visible therefore serves it. The commands below
++// the PUT that opened the last PUT epoch (the horizon) were all visible then, and every validation since is newer:
++// a later PUT only matters once the FIFO reaches the horizon. Until then its epoch is deferred; it starts when the
++// FIFO reaches the horizon (or leaves the linear segment below it: jump, call, return, wrap), with the PUT read then.
++// Semaphore acquires, RSX writes, flushes, invalidations and the frame end start their epochs as before; one of them
++// also covers every command visible when it happened, so the horizon moves up to the last PUT read before it.
++// A jump to itself that the guest patches publishes the commands behind it without moving PUT: with the horizon on,
++// the patched command starts an epoch (RSXFIFO.cpp). The FIFO cache of the non-Fast accuracy modes reads PUT once per
++// refill, so those modes never defer; a FIFO reset or recovery forgets the horizon (reset_epoch_horizon).
++// Per title (Automatic: God of War III); off: an epoch for every PUT change read, as before.
++namespace put_horizon_policy
++{
++inline std::atomic<bool> enabled{false};
++}
++// PUT changes read while the FIFO was still below the horizon (no epoch started for them).
++inline std::atomic<std::uint64_t> put_deferred{0};
++// Epochs started by a patched jump-to-itself (counted in the put source as well).
++inline std::atomic<std::uint64_t> put_patched{0};
++
++struct put_horizon
++{
++	std::uint32_t horizon = ~0u; // commands below it were visible when the covering epoch started
++	std::uint32_t get = 0;       // the FIFO position when the horizon was set, then at each deferral
++	std::uint32_t seen = ~0u;    // the last PUT read
++	std::uint64_t epoch = 0;     // validation_epoch at the last read
++	bool armed = false;          // horizon and get describe a segment
++	bool deferred = false;       // a PUT change was deferred since the horizon was set
++
++	// The FIFO at `get_now` reads `put`; `epoch_now` is validation_epoch. True: start an epoch before the next command.
++	bool observe(std::uint32_t get_now, std::uint32_t put, std::uint64_t epoch_now, bool defer_allowed) noexcept
++	{
++		// An epoch another source started since the last read covers every command visible at that read.
++		if (defer_allowed && armed && deferred && epoch_now != epoch && seen >= get)
++		{
++			horizon = seen;
++			deferred = false;
++		}
++
++		const bool changed = put != seen;
++		seen = put;
++		epoch = epoch_now;
++
++		if (put == horizon && !deferred)
++		{
++			return false; // nothing published since the covering epoch
++		}
++
++		// The next word the FIFO consumes is at get_now or at get_now + 4 (an argument read looks at PUT from the word
++		// before it): both must be below the horizon, so the word at the horizon is never consumed before its epoch.
++		if (defer_allowed && armed && put != horizon && get_now >= get && get_now < horizon && horizon - get_now > 4 &&
++			!(put >= get && put < horizon))
++		{
++			// Still below the horizon, walking up: the commands ahead were visible when the covering epoch started.
++			get = get_now;
++			deferred = true;
++			if (changed)
++			{
++				put_deferred.fetch_add(1, std::memory_order_relaxed);
++			}
++			return false;
++		}
++
++		horizon = put;
++		get = get_now;
++		armed = true;
++		deferred = false;
++		return true;
++	}
++
++	// The caller started the epoch observe() asked for.
++	void started(std::uint64_t epoch_now) noexcept
++	{
++		epoch = epoch_now;
++	}
++};
+ }
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index ccc7e4e..01cb00b 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -344,6 +344,10 @@ void resolve_experimental_policy() noexcept
+ 	resolved.texture_prehash = resolved.texture_validation_epoch &&
+ 		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
+ 	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
++	// REWINDBOX_PUT_HORIZON_910 (ios/IOSTextureValidationProfile.h): needs the epochs.
++	resolved.put_epoch_horizon = resolved.texture_validation_epoch &&
++		resolve_mode(g_cfg.ios_experimental.put_epoch_horizon, is_god_of_war_iii_title(title_id));
++	rpcs3::ios::texture_validation::put_horizon_policy::enabled.store(resolved.put_epoch_horizon, std::memory_order_relaxed);
+ 	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h, ios/IOSTitleLevers.h): needs the epochs.
+ 	// Automatic serves hits for Assassin's Creed and verifies every hit for Black Ops II (counters only);
+ 	// Enabled serves hits for any title with the epochs; Disabled keeps the Core 659 lookup. Set after the
+@@ -536,6 +540,7 @@ void resolve_experimental_policy() noexcept
+ 		resolved.in_pass_read_transitions, resolved.moltenvk_in_pass_waits);
+ 	ios_experimental_log.notice("Resolved title policy 907: native_half_registers=%d load_op_clear=%d",
+ 		resolved.native_half_registers, resolved.load_op_clear);
++	ios_experimental_log.notice("Resolved title policy 910: put_epoch_horizon=%d", resolved.put_epoch_horizon);
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
+ 		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index b5a6024..fa94b82 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -39,6 +39,8 @@ struct experimental_policy
+ 	bool writer_yield_no_depress = false;
+ 	// CELL581_TEXTURE_PREHASH: a worker hashes the textures the previous frame validated next.
+ 	bool texture_prehash = false;
++	// REWINDBOX_PUT_HORIZON_910: PUT changes read below the last horizon start no texture epoch.
++	bool put_epoch_horizon = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index bfb6aa3..bb1bd66 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1753,8 +1753,10 @@ private:
+             }
+             ios_core_profiler.notice(
+                 "COREPROF RPASS652 session=%llu window=%llu begins=%llu fresh=%llu same_target=%llu other_target=%llu overflow=%llu "
+-                "sites=%s scope=process_window_counters",
+-                profile_session, profile_window, rp_begins, rp_fresh, rp_same, rp_other, rp_overflow, rp_sites.c_str());
++                "sites=%s ended_empty=%llu ended_short=%llu same_target_after_empty=%llu scope=process_window_counters",
++                profile_session, profile_window, rp_begins, rp_fresh, rp_same, rp_other, rp_overflow, rp_sites.c_str(),
++                census::take(census::shape.ended_empty), census::take(census::shape.ended_short),
++                census::take(census::shape.same_target_after_empty)); // REWINDBOX_PASS_SHAPE_910
+         }
+         // REWINDBOX_IN_PASS_READ_TRANSITION_655: transitions to SHADER_READ_ONLY_OPTIMAL recorded inside the open render
+         // pass (kept_color/kept_depth/kept_transfer: from an attachment or transfer layout), and those that still ended it
+@@ -1769,9 +1771,12 @@ private:
+                 ended_disabled = in_pass::take(c.ended_disabled), ended_other = in_pass::take(c.ended_other);
+             ios_core_profiler.notice(
+                 "COREPROF RPASS655 session=%llu window=%llu enabled=%d kept_color=%llu kept_depth=%llu kept_transfer=%llu "
+-                "ended_attachment=%llu ended_unknown=%llu ended_layout=%llu ended_disabled=%llu ended_other=%llu scope=process_window_counters",
++                "ended_attachment=%llu ended_unknown=%llu ended_layout=%llu ended_disabled=%llu ended_other=%llu "
++                "to_color=%llu to_depth=%llu to_transfer_dst=%llu to_transfer_src=%llu to_general=%llu scope=process_window_counters",
+                 profile_session, profile_window, in_pass::enabled.load(std::memory_order_relaxed) ? 1 : 0, kept_color, kept_depth,
+-                kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other);
++                kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other,
++                in_pass::take(c.to_color), in_pass::take(c.to_depth), in_pass::take(c.to_transfer_dst),
++                in_pass::take(c.to_transfer_src), in_pass::take(c.to_general)); // REWINDBOX_PASS_SHAPE_910
+         }
+         // REWINDBOX_LOAD_OP_CLEAR_907: passes begun by a full clear with load-op CLEAR, and the clears kept as draws.
+         {
+@@ -1855,10 +1860,13 @@ private:
+             const u64 e_other = source(validation::epoch_source::other);
+             ios_core_profiler.notice("COREPROF EPOCH909 session=%llu window=%llu put=%llu acquire=%llu inline_upload=%llu memory_copy=%llu "
+                 "blit_cpu=%llu flush=%llu invalidate=%llu frame_end=%llu other=%llu scoped_rsx_writes=%llu scoped_rsx_write_bytes=%llu "
+-                "scope=process_window_counters window_boundary_approximate=1",
++                "put_horizon=%u put_deferred=%llu put_patched=%llu scope=process_window_counters window_boundary_approximate=1",
+                 profile_session, profile_window, e_put, e_acquire, e_inline, e_copy, e_blit, e_flush, e_invalidate, e_frame, e_other,
+                 validation::scoped_rsx_writes.exchange(0, std::memory_order_relaxed),
+-                validation::scoped_rsx_write_bytes.exchange(0, std::memory_order_relaxed));
++                validation::scoped_rsx_write_bytes.exchange(0, std::memory_order_relaxed),
++                validation::put_horizon_policy::enabled.load(std::memory_order_relaxed) && !g_cfg.core.rsx_fifo_accuracy ? 1u : 0u,
++                validation::put_deferred.exchange(0, std::memory_order_relaxed),
++                validation::put_patched.exchange(0, std::memory_order_relaxed));
+         }
+         // REWINDBOX_GOW3_MLAA_REPORT_909: what the God of War III MLAA bypass actually applied (only for that title).
+         if (const u32 mlaa_ppu = rpcs3::ios::gow3_mlaa::ppu.load(std::memory_order_relaxed))
+@@ -1888,9 +1896,10 @@ private:
+         {
+             namespace prehash = rpcs3::ios::texture_prehash;
+             ios_core_profiler.notice("COREPROF OPT583 session=%llu window=%llu worker_passed=%llu worker_refills=%llu "
+-                "scope=process_window_counters window_boundary_approximate=1",
++                "lookahead=%u scope=process_window_counters window_boundary_approximate=1",
+                 profile_session, profile_window,
+-                prehash::worker_passed.exchange(0, std::memory_order_relaxed), prehash::worker_refills.exchange(0, std::memory_order_relaxed));
++                prehash::worker_passed.exchange(0, std::memory_order_relaxed), prehash::worker_refills.exchange(0, std::memory_order_relaxed),
++                prehash::current_lookahead.load(std::memory_order_relaxed)); // REWINDBOX_PREHASH_BUDGET_910
+         }
+         // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
+         // became of their bytes in this window, one bounded line.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 96cba0d..790b2f8 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -157,6 +157,7 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.metal_renderer", "Experimental", "Renderer", "Native Metal 4 renderer", "Draws the PlayStation 3 graphics with the native Metal 4 renderer instead of Vulkan on MoltenVK: textures, render-to-texture and readback, exact occlusion queries, MSAA and native overlays run on Metal 4; paths still missing are counted in the log. Needs iOS 26 and a Metal 4 GPU, otherwise Vulkan is used. Automatic keeps Vulkan. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.metal_renderer, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
++	SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
+ 	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
+ 	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),

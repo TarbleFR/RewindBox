@@ -17,6 +17,7 @@
 #import "RPCS3TouchControls.h"
 #import <neo_touch_layout/NeoTouchLayout.h>
 #import "RPCS3PerformanceOverlay.h"
+#include "RPCS3OverlayButtonLayout.h"
 #include "RPCS3PerformanceSnapshot.h"
 #include "RPCS3FrameRateHold.h"
 #include <atomic>
@@ -40,6 +41,7 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #import <mach/mach.h>
+#import <malloc/malloc.h>
 #import <os/lock.h>
 #import <os/proc.h>
 #import <sys/sysctl.h>
@@ -328,21 +330,54 @@ static UIViewController* RPCS3RootViewController(void) {
   self.performanceOverlay.hidden = YES;
   [view addSubview:self.performanceOverlay];
 
-  [NSLayoutConstraint activateConstraints:@[
-    [menu.leadingAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.leadingAnchor constant:12],
-    // Keep RPCS3 actions in their own rail below the virtual shoulder row.
-    [menu.topAnchor constraintEqualToAnchor:view.safeAreaLayoutGuide.topAnchor constant:70],
-    [menu.widthAnchor constraintEqualToConstant:44],
-    [menu.heightAnchor constraintEqualToConstant:44],
-    [performance.centerXAnchor constraintEqualToAnchor:menu.centerXAnchor],
-    [performance.topAnchor constraintEqualToAnchor:menu.bottomAnchor constant:8],
-    [performance.widthAnchor constraintEqualToConstant:44],
-    [performance.heightAnchor constraintEqualToConstant:44],
-    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:menu.trailingAnchor constant:8],
-    [self.performanceOverlay.topAnchor constraintEqualToAnchor:menu.topAnchor],
-    [self.performanceOverlay.widthAnchor constraintEqualToConstant:320],
-    [self.performanceOverlay.heightAnchor constraintEqualToConstant:250],
-  ]];
+  // Frames come from rpcs3_overlay::compute (see layoutOverlayButtons).
+  menu.translatesAutoresizingMaskIntoConstraints = YES;
+  performance.translatesAutoresizingMaskIntoConstraints = YES;
+  self.performanceOverlay.translatesAutoresizingMaskIntoConstraints = YES;
+  [self layoutOverlayButtons];
+}
+static CGRect RPCS3ToCG(const rpcs3_overlay::Rect& r) { return CGRectMake(r.x, r.y, r.w, r.h); }
+- (void)layoutOverlayButtons {
+  UIView* root = self.view;
+  if (!root || root.bounds.size.width <= 0) return;
+  // Real control frames: the live views of the touch overlay (after its own
+  // layout and stored/custom layout), in this view's coordinates. Hidden
+  // overlay (controller connected / switch off) contributes nothing.
+  std::vector<rpcs3_overlay::Rect> occupied;
+  RPCS3TouchControlsView* touch = self.inputController.touchControls;
+  if (touch && !touch.hidden && touch.alpha > 0.01) {
+    [touch layoutIfNeeded];
+    for (NSString* identifier in @[@"dpad.up", @"dpad.down", @"dpad.left", @"dpad.right", @"square", @"cross",
+                                   @"circle", @"triangle", @"l1", @"l2", @"r1", @"r2", @"select", @"start",
+                                   @"stick.left", @"stick.right"]) {
+      UIView* control = [touch controlForIdentifier:identifier];
+      if (!control || !control.superview) continue;
+      // A control is on screen only if it and every ancestor below this view are shown.
+      BOOL shown = YES;
+      for (UIView* v = control; v && v != root; v = v.superview) {
+        if (v.hidden || v.alpha <= 0.01) { shown = NO; break; }
+      }
+      if (!shown) continue;
+      CGRect f = [control.superview convertRect:control.frame toView:root];
+      if (f.size.width > 0 && f.size.height > 0)
+        occupied.push_back({f.origin.x, f.origin.y, f.size.width, f.size.height});
+    }
+  }
+  // The Core letterboxes inside the Metal view; its image rect is not exposed
+  // natively, so the whole Metal view is treated as the image (never altered).
+  CGRect image = self.metalView.superview == root ? self.metalView.frame : root.bounds;
+  UIEdgeInsets safe = root.safeAreaInsets;
+  rpcs3_overlay::Layout layout = rpcs3_overlay::compute(
+      {root.bounds.origin.x, root.bounds.origin.y, root.bounds.size.width, root.bounds.size.height},
+      {safe.top, safe.left, safe.bottom, safe.right}, {image.origin.x, image.origin.y, image.size.width, image.size.height},
+      occupied);
+  self.menuButton.frame = RPCS3ToCG(layout.menu);
+  self.performanceButton.frame = RPCS3ToCG(layout.performanceButton);
+  self.performanceOverlay.frame = RPCS3ToCG(layout.panel);
+}
+- (void)viewSafeAreaInsetsDidChange {
+  [super viewSafeAreaInsetsDidChange];
+  [self.view setNeedsLayout];
 }
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
@@ -351,6 +386,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)viewDidLayoutSubviews {
   [super viewDidLayoutSubviews];
   [self.inputController layoutControlsInBounds:self.view.bounds safeAreaInsets:self.view.safeAreaInsets];
+  [self layoutOverlayButtons];
   // The virtual pad is installed after loadView; preserve the independent
   // action rail's hit testing above it without sharing any pad geometry.
   [self.view bringSubviewToFront:self.performanceOverlay];
@@ -368,6 +404,7 @@ static UIViewController* RPCS3RootViewController(void) {
 - (void)menuPressed { if (self.menuHandler) self.menuHandler(); }
 - (void)performancePressed {
   self.showingPerformance = !self.showingPerformance;
+  [self layoutOverlayButtons];  // controller visibility may have changed since the last layout
   [self.performanceOverlay reset];
   self.performanceOverlay.hidden = !self.showingPerformance;
   self.performanceButton.tintColor = self.showingPerformance ? UIColor.systemGreenColor : UIColor.whiteColor;
@@ -846,6 +883,15 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.spirv_disk_cache": @[@"Enabled", @"Disabled"],
       @"experimental.hardware_crypto": @[@"Enabled", @"Disabled"],
       @"experimental.spu_object_prefetch": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_direct_object_hits": @[@"Enabled", @"Disabled"],
+      @"experimental.texture_lookup_memo": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_depth_guard": @[@"Enabled", @"Disabled"],
+      @"experimental.ppu_grace": @[@"Enabled", @"Disabled"],
+      @"experimental.metal_renderer": @[@"Enabled", @"Disabled"],
+      // Core 912: PUT horizon A/B and the two captures started by closing the menu.
+      @"experimental.put_epoch_horizon": @[@"Enabled", @"Disabled"],
+      @"experimental.heavy_putllc_trace": @[@"Enabled", @"Disabled"],
+      @"experimental.ppu_region_profile": @[@"Enabled", @"Disabled"],
     };
   });
   return values;
@@ -1120,6 +1166,33 @@ static void RPCS3Progress(void* context,
       return NO;
     }
     RPCS3Milestone(@"core_handoff_end", @"verified; entering dlopen");
+  }
+
+  // REWINDBOX_HOST_MEMORY_BEFORE_CORE_650: IPA 650 logs (4 Nov 2026): the AC
+  // process that lost its GPU (VK_ERROR_DEVICE_LOST) already had 2.5 GB of
+  // compressed pages at its first in-game memory sample, after 6.5 minutes in the
+  // RewindBox UI (0 compressed for the process relaunched 15 s after its start;
+  // 4.7 GB footprint against the 6655 MiB process limit). No line measured the
+  // process right before the Core loaded. This one does, returns the malloc
+  // zones' free pages to the kernel (malloc_zone_pressure_relief, free memory
+  // only: nothing live is released) and measures again, so the next device log
+  // attributes the pre-game footprint, resident, compressed and jetsam headroom.
+  {
+    task_vm_info_data_t before = {};
+    const BOOL measuredBefore = RPCS3TaskVMInfo(&before);
+    const uint64_t availableBefore = os_proc_available_memory();
+    const size_t relieved = malloc_zone_pressure_relief(NULL, 0);
+    task_vm_info_data_t after = {};
+    const BOOL measuredAfter = RPCS3TaskVMInfo(&after);
+    RPCS3Milestone(@"host_memory_before_core_load", [NSString stringWithFormat:
+        @"valid=%d footprint=%llu resident=%llu compressed=%llu available=%llu thermal=%ld "
+        @"malloc_relief=%zu valid_after=%d footprint_after=%llu compressed_after=%llu available_after=%llu physical=%llu",
+        measuredBefore ? 1 : 0, (unsigned long long)before.phys_footprint, (unsigned long long)before.resident_size,
+        (unsigned long long)before.compressed, (unsigned long long)availableBefore,
+        (long)NSProcessInfo.processInfo.thermalState, relieved, measuredAfter ? 1 : 0,
+        (unsigned long long)after.phys_footprint, (unsigned long long)after.compressed,
+        (unsigned long long)os_proc_available_memory(),
+        (unsigned long long)NSProcessInfo.processInfo.physicalMemory]);
   }
 
   RPCS3Milestone(@"core_load_begin",
@@ -1803,6 +1876,36 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   });
 }
 
+// REWINDBOX_CAPTURE_912: the menu does not pause the PS3 emulation, so closing
+// it is the explicit start of a capture enabled on the test page (digits 20 and
+// 21 of levers627= at the last boot of this title): the Core takes this write
+// of the running title as "start one capture now" and loads, changes and saves
+// no setting. Nothing is sent when no capture is enabled, nor when the title
+// was stopped or booted again since the menu closed (a change made on the test
+// page restarts it); the request and its status join the journal.
+- (void)requestEnabledCaptures {
+  NSString* titleId = [self.activeTitleId copy];
+  if (!titleId.length || !self.gameController) return;
+  const uint64_t boot = _performanceDisplayEpoch.load(std::memory_order_acquire);
+  NSString* digits = RPCS3RsxConfigSnapshot(titleId)[@"levers627"];
+  NSArray<NSArray*>* captures = @[@[@19, @"experimental.heavy_putllc_trace"],
+                                  @[@20, @"experimental.ppu_region_profile"]];
+  for (NSArray* capture in captures) {
+    const NSUInteger bit = [capture[0] unsignedIntegerValue];
+    if (digits.length <= bit) continue;
+    const NSInteger digit = [digits characterAtIndex:bit] - '0';
+    if (digit < 0 || digit > 9 || !(digit & 1)) continue;
+    NSString* key = capture[1];
+    dispatch_async(_runtimeQueue, ^{
+      if (self.operationBusy || !self->_api.set_game_setting ||
+          self->_performanceDisplayEpoch.load(std::memory_order_acquire) != boot) return;
+      const rpcs3_ios_status status = self->_api.set_game_setting(titleId.UTF8String, key.UTF8String, "Enabled");
+      RPCS3Diagnostic(@"capture_request", [NSString stringWithFormat:@"CAPTURE_REQUEST title=%@ key=%@ status=%d",
+                                           titleId, key, (int)status]);
+    });
+  }
+}
+
 // REWINDBOX_GRAPHICS_TESTS_612: stop, write every change, then boot the title
 // again even when a change was refused (the game continues with the values it
 // had); the menu reports the refusal. Each applied change is logged.
@@ -2224,8 +2327,13 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
   menu.menuDismissed = ^{
     Rpcs3InternalBridgePlugin* bridge = weakSelf;
     if (!bridge) return;
+    // REWINDBOX_CAPTURE_914: one request per enabled capture for one closing of
+    // the menu: only the change from open to closed asks, a second callback of
+    // the same dismissal asks nothing.
+    const BOOL wasOpen = bridge.hostMenuOpen;
     bridge.hostMenuOpen = NO;
     [bridge publishHostState];
+    if (wasOpen) [bridge requestEnabledCaptures];
   };
   menu.shareReport = ^(UIViewController* presenter) {
     [weakSelf presentIncidentReportFrom:presenter];

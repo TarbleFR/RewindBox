@@ -55,6 +55,29 @@ Its internal app version still reports **0.0.8**.
 [Full release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10) ·
 [Build 559 delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json).
 
+## Pending 0.0.11 publication
+
+RewindBox 0.0.11 is prepared and has not been published. The public
+downloads above remain 0.0.10 / Build 559 until publication is verified.
+
+**Prepared update · Build 718 · Changes since 0.0.10**
+
+- **RPCS3:** audio-wait, SPU synchronization, texture-coherence and cache
+  corrections, including Vulkan/MoltenVK improvements. The optional native
+  Metal 4 renderer remains experimental.
+- **MeloNX:** first-frame and graphics-ordering corrections, more durable
+  shader caches, fewer repeated allocations, in-game keyboard and L3/R3 access.
+- **Pocket skins:** GameCube, Wii, PS2 and Switch designs, Original variants
+  alongside existing skins, and corrected touch areas, highlights and sticks.
+- **RetroAchievements and cheats:** centralized account settings, improved game
+  identification, and unified per-game Cheats & Enhancements controls.
+- **Library and interface:** improved covers, 3D cases and manuals, the RewindBox
+  Glacier preset, and an icons-only main navigation bar with accessible names.
+
+The verified package contains RPCS3 Core 914 and MeloNX Core 717. Package and
+automated checks are complete; physical iPhone gameplay, FPS and audio results
+remain unverified. [Read the full prepared changelog and known limits](docs/releases/pending-0.0.11/release-notes.md).
+
 ## More to explore
 
 Browse HD texture packs, customize touch controls, explore interactive 3D
@@ -195,8 +218,10 @@ Keep the expected filenames and subfolders; **System** uses a capital S.
 - **Settings → Tools → BIOS checker** identifies required and optional files.
 - Use the **Nintendo 3DS system-file importer** for supported BIOS and NAND data.
 - PS2 BIOS and PS3 firmware use their respective emulator settings.
-- **Nintendo Switch / MeloNX:** import your own compatible firmware and keys
-  in the embedded Switch settings, then add your local games.
+- **Nintendo Switch / MeloNX:** import your own legally obtained keys and
+  compatible firmware in the embedded Switch settings, then add your local
+  games. The Switch playlist opens directly; an external MeloNX installation
+  and its old game paths are not required.
 - The PS3 library supports game-save import/export and user-supplied RAP licenses.
   Game saves and emulator save states are different formats.
 - **Settings → Tools** also provides storage analysis and cleanup. Review the
@@ -289,7 +314,8 @@ and **[all 51 historical cheat source entries](docs/CHEAT_CATALOG_SOURCES.md)**.
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
 combined-license questions remain documented in the
-**[next-release license review](docs/RELEASE_NEXT_LICENSE_REVIEW.md)** and the
+**[Build 530 release/source manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)**,
+**[source access and attribution review](docs/SOURCE_CODE_ACCESS.md)** and the
 **[historical 0.0.7 review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
 The reviews distinguish existing IPAs from subsequent packaging changes.
 

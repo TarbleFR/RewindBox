@@ -1,6 +1,29 @@
 # Explicit candidate validation only. Source pushes use [skip ci]; a separate
 # marker commit touching only this workflow avoids historical broad Core routes.
 # Validation request: BO2 cache candidate, 31 October 2026; no IPA or release.
+# Validation request: RPCS3 Core 655 in-pass read transitions (MVKCmdPipelineBarrier fence waits
+# inside a render encoder, rbx_mvk_in_pass_read_barrier_waits), 4 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 655 (in-pass read transitions), 4 November 2026.
+# Run request: the dependency of RPCS3 Core 660 (same MoltenVK source and patch; the host bridge
+# gains the three Core 660 test page keys), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 664 (same MoltenVK source and patch; the host bridge
+# gains the Core 664 test page key experimental.ppu_grace), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 665 (same MoltenVK source and patch; the host bridge
+# gains the Core 665 test page key experimental.thread_orchestrator), 5 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 668 (same MoltenVK source and patch; the host bridge
+# is the Core 664 bridge again, the orchestrator key removed), 6 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 902 (same MoltenVK source and patch; the host bridge
+# gains the Metal 4 renderer test page key experimental.metal_renderer), 6 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 908 (same MoltenVK source and patch; the host bridge
+# places the in-game Menu and Performances buttons with a collision-aware layout), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 910 (same MoltenVK source and patch; the host bridge
+# counts only touch controls whose ancestors are shown when it places the overlay buttons), 9 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 912 (same MoltenVK source and patch; the host bridge
+# accepts three more test page keys: PUT horizon, heavy PUTLLC trace, PPU region profile), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 912, second request (same MoltenVK source and patch; the host bridge asks the Core
+# to start an enabled capture when the in-game menu closes: that menu does not pause the emulation), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 914 (same MoltenVK source and patch; the host bridge sends the capture request
+# only when the menu goes from open to closed), 10 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
@@ -70,6 +93,9 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-source-extracted.log
           python3 test/rpcs3_pipeline_cache_milestones_test.py \
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-host-milestones.log
+          python3 test/rpcs3_moltenvk_in_pass_read_wait_test.py "$RUNNER_TEMP/rpcs3-mvk-preflight/MoltenVK" --cxx clang++ \
+            --report build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.json \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.log
       - name: Preserve preflight receipts and failures
         if: always()
         uses: actions/upload-artifact@v4

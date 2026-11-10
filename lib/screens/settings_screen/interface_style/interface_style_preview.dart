@@ -5,7 +5,6 @@ import 'package:material_symbols_icons/symbols.dart';
 import '../../../l10n/interface_style_locale.dart';
 import '../../../services/sfx_service.dart';
 import '../../../utils/nav_tabs.dart';
-import '../../../widgets/custom_toggle_switch.dart';
 import '../../../widgets/glass/glass.dart';
 import '../../../widgets/main_menu_tab_strip.dart';
 import '../new_settings_options/widgets/setting_row.dart';
@@ -104,15 +103,6 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
         ),
         iconBuilder: (tab) =>
             NavTabIcon(tab: tab, spec: navTabSpec(tab), tint: tint),
-        labelBuilder: (tab, selected) => Text(
-          navTabLabel(context, tab),
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: 6.r,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            color: tint.withValues(alpha: selected ? 1 : 0.72),
-          ),
-        ),
       ),
     );
 
@@ -130,22 +120,6 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
           label: t(_styleKeys[settings.style]!),
           trailingIcon: Symbols.expand_more_rounded,
           onTap: _cycleStyle,
-        ),
-      ),
-    );
-
-    final labelsOn = settings.tabLabels != TabLabelMode.hidden;
-    final labelsRow = SettingRow(
-      title: t(InterfaceStyleLocale.tabLabels),
-      subtitle: t(InterfaceStyleLocale.previewLabelsHint),
-      focused: true,
-      trailing: CustomToggleSwitch(
-        key: const ValueKey('interface-style-preview-labels'),
-        value: labelsOn,
-        onChanged: (value) => widget.onChanged?.call(
-          settings.copyWith(
-            tabLabels: value ? TabLabelMode.always : TabLabelMode.hidden,
-          ),
         ),
       ),
     );
@@ -227,7 +201,7 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [labelsRow, const GlassGap(), buttons],
+                  children: [buttons],
                 ),
               ),
             ],
@@ -239,8 +213,6 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
               strip,
               const GlassGap(),
               styleRow,
-              const GlassGap(),
-              labelsRow,
               const GlassGap(),
               buttons,
               const GlassGap(),

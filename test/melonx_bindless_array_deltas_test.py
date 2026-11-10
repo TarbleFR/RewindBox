@@ -37,6 +37,9 @@ CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_bindless_array_deltas import apply, apply_array_cache, ARRAY_CACHE, DIAGNOSTICS, NAMES
+import importlib  # noqa: E402
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 GAL = 'src/Ryujinx.Graphics.GAL'
 MULTI = GAL + '/Multithreading'
@@ -71,6 +74,10 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+# native/melonx/EmbeddedPerformanceDiagnostics.cs as delivered in Cores 614 to 649 (the Core 611 control holds it unedited).
+DELIVERED_NATIVE_COLLECTOR = '95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39'
+
+
 reports, compiled = {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temporary:
     temporary = Path(temporary).resolve()
@@ -79,11 +86,29 @@ with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temp
     for relative in NAMES:
         (composed / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SOURCE / relative, composed / relative)
-    check((composed / DIAGNOSTICS).read_bytes() == (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_bytes(),
-          'delivered collector differs from the native collector that prepare_embedded copies')
+    # The delivered (Core 611) collector is the native collector of Cores 614 to 649, pinned by digest; since Core 654 the
+    # checked-in native collector also writes the gcEvent lines (the gc-events gate binds that difference to inserted
+    # lines only), so the composition starts, as prepare_embedded does, from the checked-in native collector.
+    check(sha(SOURCE / DIAGNOSTICS) == DELIVERED_NATIVE_COLLECTOR,
+          'delivered collector differs from the native collector of Cores 614 to 649 that prepare_embedded copied')
+    shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', composed / DIAGNOSTICS)
     apply(composed)
+    adapted = {p: sha(composed / p) for p in NAMES}
+    check(all(adapted[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
+    # Core 656: later preparation steps edit some of these files (adapt_array_rebuild_allocations: the cache's whole
+    # rebuilds and ThreadedArrayPool). They are applied to the composition in preparation order, so it still equals the
+    # final source exactly, and the fixture below compiles that final source.
+    later = [name for name in ORDER if set(importlib.import_module(name).BASELINE) & (set(NAMES) | set(FILES))] if CANDIDATE else []
+    for name in later:
+        apply_present(composed, name, only=set(NAMES))
+    # The compiled dependencies of the cache: the delivered files plus exactly those later steps' edits.
+    dependencies = temporary / 'dependencies'
+    for relative in FILES:
+        (dependencies / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SOURCE / relative, dependencies / relative)
+    for name in later:
+        apply_present(dependencies, name, only=set(FILES) - {ARRAY_CACHE})
     postimages = {p: sha(composed / p) for p in NAMES}
-    check(all(postimages[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in NAMES}, 'composition differs from the final prepared source')
     for variant in ('control', 'candidate'):
@@ -95,11 +120,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temp
             shutil.copyfile(origin / relative, target)
         if variant == 'candidate':
             if CANDIDATE:
-                check(all(sha(work / p) == sha(SOURCE / p) for p in FILES if p != ARRAY_CACHE),
-                      'final source changed a compiled dependency of the cache')
+                check(all(sha(work / p) == sha(dependencies / p) for p in FILES if p != ARRAY_CACHE),
+                      'final source changed a compiled dependency of the cache beyond the later reviewed steps')
             else:
                 apply_array_cache(work)
-            check(sha(work / ARRAY_CACHE) == postimages[ARRAY_CACHE], 'candidate cache is not the composed final cache')
+            check(sha(work / ARRAY_CACHE) == postimages[ARRAY_CACHE] if CANDIDATE else adapted[ARRAY_CACHE],
+                  'candidate cache is not the composed final cache')
         compiled[variant] = {p: sha(work / p) for p in FILES}
         shutil.copyfile(ROOT / 'test/melonx_bindless_array_deltas/Program.cs', work / 'Program.cs')
         define = '<DefineConstants>ADAPTED</DefineConstants>' if variant == 'candidate' else ''
@@ -142,6 +168,11 @@ check(len(candidate['syncs']) == 4 and all(r['correctAtOnce'] for r in candidate
 check([r['correctAtOnce'] for r in control['syncs']] == [False, False, True, True],
       'delivered: released host bound on the cache hit only')
 check(len(candidate['overflows']) == 2, 'log overflow scenarios ran')
+# Core 697 (adapt_array_delta_invalidated): an invalidated bound texture re-resolves its elements only, in place.
+check(len(candidate['invalidations']) == 2 and all(r['invalidated'] and r['correctAtOnce'] and not r['rebuilt'] and
+      r['remapPeeks'] < r['length'] // 4 and r['removePeeks'] < r['length'] // 4 and r['duringPeeks'] < r['length'] // 4
+      for r in candidate['invalidations']),
+      'invalidated bound textures: no whole scan, no rebuild: ' + json.dumps(candidate['invalidations']))
 check(len(candidate['quiet']) == 4 and all(q['refreshes'] <= 1 for q in candidate['quiet']),
       'quiet updates come back to cache hits after the blacklisting rebuild')
 rows = []
@@ -168,6 +199,7 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
 inputs = ['build-utils/melonx/adapt_bindless_array_deltas.py', 'test/melonx_bindless_array_deltas_test.py',
           'test/melonx_bindless_array_deltas/Program.cs', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
+               invalidations=candidate['invalidations'],
                deliveredDefects=dict(removals=control['removals'], failures=control['failures'], syncs=control['syncs']),
                measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False, fpsGainProven=False,
                poolsTexturesAndTransportDoubled=True, productionCacheAndCommandsCompiled=True,

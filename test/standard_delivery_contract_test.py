@@ -76,6 +76,7 @@ UNCHANGED_TEST_STEPS = ('Set up Flutter3.47.2', 'Resolve exact workspace lock', 
                         'Prepare real Flutter iOS headers and simulator project tool')
 RUN_STEPS = {'flutter': 'Run source contracts and Flutter behavior',
              'native': 'Run actual Xcode16.4 tests and host compilation'}
+PIL_IMPORT = re.compile(r'^\s*(?:from PIL\b|import PIL\b)', re.M)
 
 
 def sha(data: bytes) -> str:
@@ -526,6 +527,78 @@ class Workflow(unittest.TestCase):
                              f'python3 -B .github/diagnostics/standard_delivery.py tests {group}')
             self.assertIn(RUN_STEPS[group], before, 'The group step keeps its delivered 610 name')
         self.assertEqual(step('native', 'Select targeted Xcode16.4 and Swift6')['with'], {'xcode-version': '16.4'})
+
+    def test_the_flutter_job_provides_the_pillow_its_python_tests_import(self):
+        """650 run 41861290919: test/pocket_skin_input_chain_test.py failed on "No module named 'PIL'" (the
+        ubuntu runner's python3 has no Pillow). A frozen flutter command whose Python source imports PIL runs
+        with the pinned Pillow of the skin checks, from a venv put first on PATH before the group step."""
+        importing = sorted({argument for manifest in manifests().values()
+                            if manifest['tests'].get('flutter', {}).get('mode') == 'fresh'
+                            for _, arguments in manifest['tests']['flutter'].get('commands', [])
+                            for argument in arguments
+                            if argument.endswith('.py') and (ROOT / argument).is_file() and
+                            PIL_IMPORT.search((ROOT / argument).read_text(encoding='utf-8'))})
+        self.assertIn('test/pocket_skin_input_chain_test.py', importing)
+        pins = set(re.findall(r'pillow==([0-9.]+)', (ROOT / '.github/workflows/skin-orientation-checks.yml').read_text()))
+        self.assertEqual(len(pins), 1, pins)
+        name = 'Provide the pinned Pillow of the skin verifiers'
+        names = [s['name'] for s in steps('flutter')]
+        self.assertIn(name, names, 'flutter commands import PIL: ' + repr(importing))
+        self.assertLess(names.index('Resolve exact workspace lock'), names.index(name))
+        self.assertLess(names.index(name), names.index(RUN_STEPS['flutter']))
+        provide = step('flutter', name)['run']
+        self.assertIn('python3 -m venv --system-site-packages "$RUNNER_TEMP/delivery-python"', provide)
+        self.assertIn('pip install --quiet --disable-pip-version-check pillow==' + next(iter(pins)), provide)
+        self.assertTrue(provide.rstrip().endswith('echo "$RUNNER_TEMP/delivery-python/bin" >> "$GITHUB_PATH"'))
+
+    def test_no_fresh_native_command_imports_pil_without_its_pillow(self):
+        """718 run 42741950414 attempt 1: the native job failed only on test/pocket_skin_input_chain_test.py,
+        "No module named 'PIL'". The recipe had added to the native group the command its flutter group
+        already ran, with the pinned Pillow, on the same tree. The native job provides no Pillow, so no fresh
+        native command may import PIL (negative control: the 718 recipe of that run)."""
+        def importers(manifest):
+            return sorted({argument for _, arguments in manifest['tests'].get('native', {}).get('commands', [])
+                           for argument in arguments
+                           if argument.endswith('.py') and (ROOT / argument).is_file() and
+                           PIL_IMPORT.search((ROOT / argument).read_text(encoding='utf-8'))})
+        failed = json.loads(REPO.show('b9a451fbf93ab0d4d4848770456e9aaebe8ce859', sd.manifest_path(718)))
+        self.assertEqual(importers(failed), ['test/pocket_skin_input_chain_test.py'])
+        self.assertNotIn('Provide the pinned Pillow of the skin verifiers', [s['name'] for s in steps('native')])
+        for build, manifest in manifests().items():
+            if manifest['tests'].get('native', {}).get('mode') == 'fresh':
+                self.assertEqual(importers(manifest), [], build)
+
+    def test_the_native_job_boots_its_simulator_once_before_the_group(self):
+        """694 run 42506743712 and 718 run 42741950414: the translation XCTest let xcodebuild boot the
+        simulator and shut it down afterwards (the central session receipt records it Shutdown), so the
+        central session XCTest booted it again and waited 278 s and 400 s in its test phase for 4-5 s of tests;
+        the Dolphin and ARMSX2 XCTests that followed on the booted device waited 7-15 s. The native job boots
+        the device every XCTest selects once, before Flutter is set up, and waits for it right before the
+        group; no test command or device check changes."""
+        names = [s['name'] for s in steps('native')]
+        boot = 'Boot the targeted iOS simulator once for every XCTest'
+        wait = 'Wait for the targeted iOS simulator to finish booting'
+        self.assertLess(names.index('Select targeted Xcode16.4 and Swift6'), names.index(boot))
+        self.assertLess(names.index(boot), names.index('Set up Flutter3.47.2'))
+        self.assertEqual(names.index(wait) + 1, names.index(RUN_STEPS['native']))
+        self.assertLess(names.index('Prepare real Flutter iOS headers and simulator project tool'), names.index(wait))
+        text, waiting = step('native', boot)['run'], step('native', wait)['run']
+        runtime = "'com.apple.CoreSimulator.SimRuntime.iOS-' + sdk.replace('.', '-')"
+        for source in ('test/retro_achievements_session_native_test.py', '.github/diagnostics/rewind608_checks.py',
+                       'test/dolphin_account_267_test.py', 'test/armsx2_graphics_ui_test.py'):
+            body = (ROOT / source).read_text(encoding='utf-8')
+            self.assertIn(runtime, body, source)
+            self.assertIn("['name'].startswith('iPhone')", body, source)
+            self.assertIn("'simctl', 'list', 'devices', 'available', '-j'", body, source)
+        self.assertIn(runtime, text)
+        self.assertIn("'simctl', 'list', 'devices', 'available', '-j'", text)
+        self.assertIn("d['name'].startswith('iPhone') and d.get('isAvailable')", text)
+        self.assertIn("matches[0]['udid']", text)
+        self.assertIn('nohup xcrun simctl bootstatus "$UDID" -b', text)
+        self.assertIn('xcrun simctl bootstatus "$TARGET_SIMULATOR" -b', waiting)
+        for value in (text, waiting):
+            self.assertNotIn('shutdown', value.lower())
+            self.assertNotIn('erase', value.lower())
 
     def test_required_steps_exist(self):
         for job, names in sd.REQUIRED_STEPS.items():
@@ -1027,6 +1100,27 @@ class Groups(unittest.TestCase):
             commands = dict(sd.expand_commands(group, manifest['tests'][group], reader.listing))
             self.assertEqual(commands[name], ['python3', '-B', 'test/rpcs3_graphics_tests612_test.py'])
             self.assertEqual(manifest['tests'][group]['mode'], 'fresh', '612 changes product inputs of both groups')
+
+    def test_a_group_runs_an_identical_command_once(self):
+        """616..718: test/rpcs3_diagnostics546_native_test.py ran twice in the native job, as
+        rpcs3-timeline-613-foundation and rpcs3-timeline-616-foundation, with the same log bytes in 694 and
+        718 (cbed30fc...). An addition repeating an argv of its own group (base or added) is refused; the
+        same script in the other group stays allowed (another runner and toolchain)."""
+        listing = lambda prefix: []
+        for frozen in (sd.manifest_path(694), sd.manifest_path(718)):
+            old = json.loads(REPO.show('b9a451fbf93ab0d4d4848770456e9aaebe8ce859', frozen))
+            with self.assertRaisesRegex(ValueError, 'rpcs3-timeline-616-foundation repeats the identical command '
+                                                    'rpcs3-timeline-613-foundation'):
+                sd.expand_commands('native', old['tests']['native'], listing)
+        base = sd.base_groups()['native'][0]
+        with self.assertRaisesRegex(ValueError, 'repeats the identical command ' + base[0]):
+            sd.expand_commands('native', {'additions': {'commands': [['again', list(base[1])]]}}, listing)
+        spec = {'additions': {'commands': [['one', ['python3', '-B', 'test/x_test.py']],
+                                           ['two', ['python3', '-B', 'test/x_test.py', '--other']]]}}
+        self.assertEqual([n for n, _ in sd.expand_commands('native', spec, listing)][-2:], ['one', 'two'])
+        flutter = sd.base_groups()['flutter']
+        script = next(argv for _, argv in flutter if argv[:2] == ['python3', '-B'])
+        sd.expand_commands('native', {'additions': {'commands': [['cross', list(script)]]}}, listing)
 
     def test_recipe_reads_of_the_groups(self):
         """The reuse guard compares every recipe file a group may read (scripts it runs, diagnostics

@@ -97,3 +97,14 @@ static partial class Program
         }
     }
 }
+
+namespace Ryujinx.Graphics.Gpu
+{
+    // Core 701 (adapt_synced_buffer_reads): the final Buffer.FlushImpl reads through IRenderer.GetBufferDataAfterSync,
+    // whose default member is GetBufferData; this fixture's renderer boundary has no such member, so the default applies.
+    static class SyncedBufferReads
+    {
+        public static Ryujinx.Graphics.GAL.PinnedSpan<byte> GetBufferDataAfterSync(this RendererBoundary renderer,
+            Ryujinx.Graphics.GAL.BufferHandle buffer, int offset, int size) => renderer.GetBufferData(buffer, offset, size);
+    }
+}

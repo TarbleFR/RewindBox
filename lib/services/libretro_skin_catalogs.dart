@@ -955,6 +955,94 @@ class LibretroSkinCatalogs {
     }
   }
 
+  /// Identifier prefix of RewindBox's own bundled packs (their info.json).
+  static const String rewindboxIdentifierPrefix = 'org.rewindbox.';
+
+  /// One refresh at a time per skins folder (app start and the skin page may
+  /// both ask): a second caller waits for the running one.
+  static final Map<String, Future<List<LibretroInstalledSkin>>> _refreshing = {};
+
+  /// [refreshInstalledBundledSkins] for [skins] with catalogs of its own
+  /// (disposed afterwards). Never throws.
+  static Future<List<LibretroInstalledSkin>> refreshBundledSkins(LibretroSkinService skins) async {
+    final catalogs = LibretroSkinCatalogs.over(skins);
+    try {
+      return await catalogs.refreshInstalledBundledSkins();
+    } finally {
+      catalogs.dispose();
+    }
+  }
+
+  /// RewindBox's own bundled packs follow the archive this build ships.
+  ///
+  /// A bundled pack is copied into `Skins/<id>` when it is installed, and an
+  /// app update never touches that copy: a GameCube Pocket — Original
+  /// installed by IPA 643 kept drawing its old opaque sprites and off-centre
+  /// caps after IPA 650 shipped the corrected archive under the same
+  /// identifier. Here an installed skin whose identifier is a bundled pack's
+  /// (`org.rewindbox.*`, read from the shipped archive) and whose archive
+  /// SHA-256 is not the shipped one is replaced by the shipped archive through
+  /// [LibretroSkinService.replace]: the new copy is installed first, every
+  /// console and game selection naming the old copy moves to it, then the old
+  /// copy is deleted; on any failure the old copy keeps its files and
+  /// selections. Nothing is installed that was not installed before, and a skin
+  /// of any other identifier is never touched. The common case (nothing stale)
+  /// only compares the recorded SHA-256 with the catalog: no archive is read.
+  /// Returns the refreshed skins.
+  Future<List<LibretroInstalledSkin>> refreshInstalledBundledSkins() {
+    final key = skins.skinsDirectory;
+    // A block body: an arrow returning the removed future (this very one)
+    // would make whenComplete wait for itself.
+    return _refreshing[key] ??= _refreshInstalledBundledSkins().whenComplete(() {
+      _refreshing.remove(key);
+    });
+  }
+
+  Future<List<LibretroInstalledSkin>> _refreshInstalledBundledSkins() async {
+    final refreshed = <LibretroInstalledSkin>[];
+    try {
+      final bundles = await _loadBundledSkins();
+      final shipped = {for (final bundle in bundles) bundle.sha256};
+      final stale = [
+        for (final skin in await skins.installedSkins())
+          if (skin.identifier.startsWith(rewindboxIdentifierPrefix) && !shipped.contains(skin.sha256)) skin,
+      ];
+      if (stale.isEmpty) return refreshed;
+      for (final bundle in bundles) {
+        final candidates = [for (final skin in stale) if (skin.consoles.contains(bundle.console)) skin];
+        if (candidates.isEmpty) continue;
+        try {
+          final archive = LibretroRemoteSkinInspector(client: _client).readBytes(await _bundledBytes(bundle));
+          final decoded = jsonDecode(utf8.decode(archive.infoJson));
+          final identifier = decoded is Map ? decoded['identifier'] : null;
+          if (identifier is! String || !identifier.startsWith(rewindboxIdentifierPrefix)) continue;
+          if (!candidates.any((skin) => skin.identifier == identifier)) continue;
+          final result = await _installBundled(bundle, bundle.console);
+          if (result is LibretroSkinNeedsReplaceConfirmation) {
+            if (result.existing.identifier != identifier || shipped.contains(result.existing.sha256)) {
+              await skins.discard(result);
+              continue;
+            }
+            final replaced = await skins.replace(result);
+            if (replaced is LibretroSkinImported) {
+              refreshed.add(replaced.skin);
+              _log.i('Bundled skin ${bundle.id} refreshed: ${result.existing.id} -> ${replaced.skin.id}');
+            } else {
+              _log.w('Bundled skin ${bundle.id} not refreshed: $replaced');
+            }
+          } else if (result is LibretroSkinImportFailed) {
+            _log.w('Bundled skin ${bundle.id} not refreshed: ${result.messageKey} ${result.technicalDetails}');
+          }
+        } catch (error) {
+          _log.w('Bundled skin ${bundle.id} not refreshed: $error');
+        }
+      }
+    } catch (error) {
+      _log.w('Bundled skin refresh skipped: $error');
+    }
+    return refreshed;
+  }
+
   /// The same converted layout and native compositor used by gameplay. Never
   /// substitute an individual descriptor image for a complete controller.
   /// At most two compositions/downloads run together; pinned PNGs work offline.

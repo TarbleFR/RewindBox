@@ -1,0 +1,1505 @@
+{
+  "result": "passed",
+  "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+  "completeProductionClasses": true,
+  "physicalDeviceTested": false,
+  "fpsGainProven": false,
+  "rendererAndTrackingDoubled": true,
+  "adapterIdempotent": true,
+  "sourceDriftControlsPassed": 3,
+  "reports": {
+    "control": {
+      "overcopyCorrected": true,
+      "assertions": 4939,
+      "semanticDigest": "d6683e2dce9156cd",
+      "allocations": [
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 32768,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 4096,
+          "dependencies": 0,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 0
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 132800
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 926400
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 80000
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 92800
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 81600
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 91200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 107200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 147200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 100800
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 110400
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 203200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 243200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 177600
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 187200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 587200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 627200
+        }
+      ],
+      "retainedFixtureMode": "candidate",
+      "variant": "control"
+    },
+    "candidate": {
+      "overcopyCorrected": true,
+      "assertions": 4939,
+      "semanticDigest": "d6683e2dce9156cd",
+      "allocations": [
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 28800
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 28800
+        },
+        {
+          "length": 32768,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 28800
+        },
+        {
+          "length": 4096,
+          "dependencies": 0,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 0
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 72000
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 865600
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 19200
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 32000
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 81600
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 91200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 107200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 147200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 100800
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 110400
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 203200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 243200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 177600
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 187200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 587200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 627200
+        }
+      ],
+      "retainedFixtureMode": "candidate",
+      "variant": "candidate"
+    }
+  },
+  "savings": [
+    {
+      "length": 128,
+      "dependencies": 1,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 4096,
+      "dependencies": 1,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 32768,
+      "dependencies": 1,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 4096,
+      "dependencies": 0,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 1,
+      "dirty": true,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 4096,
+      "dependencies": 1,
+      "dirty": true,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 128,
+      "dependencies": 1,
+      "dirty": false,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 128,
+      "dependencies": 1,
+      "dirty": true,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 304.0
+    },
+    {
+      "length": 128,
+      "dependencies": 2,
+      "dirty": false,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 2,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 2,
+      "dirty": true,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 2,
+      "dirty": true,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 8,
+      "dirty": false,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 8,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 8,
+      "dirty": true,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 8,
+      "dirty": true,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 32,
+      "dirty": false,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 32,
+      "dirty": false,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 32,
+      "dirty": true,
+      "gpuSync": true,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    },
+    {
+      "length": 128,
+      "dependencies": 32,
+      "dirty": true,
+      "gpuSync": false,
+      "flushes": 200,
+      "savedBytesPerCall": 0.0
+    }
+  ],
+  "hostCost": {
+    "rows": [
+      {
+        "readback": false,
+        "dependencies": 0,
+        "controlNs": 2.2801,
+        "candidateNs": 2.2118,
+        "controlSamples": [
+          2.5233,
+          2.2801,
+          2.221,
+          2.1419,
+          2.1584,
+          2.1201,
+          2.3041,
+          2.2988,
+          2.3027
+        ],
+        "candidateSamples": [
+          2.6443,
+          2.2071,
+          2.2118,
+          2.1741,
+          2.1638,
+          2.1493,
+          2.3858,
+          2.2696,
+          2.2879
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": false,
+        "dependencies": 1,
+        "controlNs": 641.1007,
+        "candidateNs": 109.5766,
+        "controlSamples": [
+          650.6451,
+          637.9252,
+          641.1007,
+          657.5284,
+          653.3433,
+          617.3124,
+          650.2726,
+          475.9084,
+          625.3213
+        ],
+        "candidateSamples": [
+          108.1148,
+          96.0012,
+          112.1922,
+          133.3545,
+          111.3692,
+          99.8976,
+          114.717,
+          109.5766,
+          98.7685
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": false,
+        "dependencies": 2,
+        "controlNs": 509.839,
+        "candidateNs": 535.5616,
+        "controlSamples": [
+          695.3173,
+          519.8205,
+          509.839,
+          527.5671,
+          509.807,
+          529.2641,
+          508.8548,
+          494.0884,
+          504.3891
+        ],
+        "candidateSamples": [
+          586.67,
+          756.5764,
+          532.1849,
+          533.8796,
+          516.3351,
+          607.9886,
+          521.0381,
+          535.5616,
+          567.7494
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": false,
+        "dependencies": 8,
+        "controlNs": 734.9512,
+        "candidateNs": 750.1932,
+        "controlSamples": [
+          712.0321,
+          716.8391,
+          763.9027,
+          734.9512,
+          728.0744,
+          722.7353,
+          795.8646,
+          750.7369,
+          919.3628
+        ],
+        "candidateSamples": [
+          714.8488,
+          783.2688,
+          753.5662,
+          742.4701,
+          741.4234,
+          731.9601,
+          756.8522,
+          750.1932,
+          1537.0494
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": false,
+        "dependencies": 32,
+        "controlNs": 6103.6769,
+        "candidateNs": 6261.1009,
+        "controlSamples": [
+          5584.7961,
+          6431.9449,
+          6003.2193,
+          6229.5693,
+          6292.6236,
+          5834.6532,
+          5904.2741,
+          6121.0252,
+          6103.6769
+        ],
+        "candidateSamples": [
+          7329.6136,
+          5776.6409,
+          6261.1009,
+          5938.084,
+          6554.4204,
+          6708.5595,
+          6105.1974,
+          5805.3424,
+          7394.2097
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": true,
+        "dependencies": 0,
+        "controlNs": 49.419,
+        "candidateNs": 152.1092,
+        "controlSamples": [
+          48.267,
+          53.1837,
+          49.419,
+          49.7532,
+          47.8815,
+          47.8284,
+          50.1327,
+          48.1609,
+          49.716
+        ],
+        "candidateSamples": [
+          150.2752,
+          149.5017,
+          152.7799,
+          151.2588,
+          159.4595,
+          153.5181,
+          148.8703,
+          166.1205,
+          152.1092
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": true,
+        "dependencies": 1,
+        "controlNs": 2702.492,
+        "candidateNs": 912.4478,
+        "controlSamples": [
+          2769.747,
+          2629.1565,
+          2660.7228,
+          2625.2352,
+          2612.0359,
+          2885.6984,
+          2762.7734,
+          2702.492,
+          2767.0502
+        ],
+        "candidateSamples": [
+          960.299,
+          889.8262,
+          922.6918,
+          929.123,
+          890.0752,
+          875.8706,
+          912.4478,
+          944.8907,
+          859.4421
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": true,
+        "dependencies": 2,
+        "controlNs": 2707.5286,
+        "candidateNs": 3003.4799,
+        "controlSamples": [
+          3635.858,
+          2645.3383,
+          2684.4954,
+          2663.8662,
+          2684.6733,
+          2707.5286,
+          3449.547,
+          2814.8472,
+          2762.3902
+        ],
+        "candidateSamples": [
+          2864.8724,
+          2832.4275,
+          2802.4895,
+          2755.4264,
+          3867.0476,
+          3042.929,
+          3003.4799,
+          3227.7619,
+          3133.8049
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": true,
+        "dependencies": 8,
+        "controlNs": 3421.2991,
+        "candidateNs": 3668.185,
+        "controlSamples": [
+          3772.6208,
+          3478.6871,
+          3421.2991,
+          3292.6411,
+          3344.5836,
+          3249.8246,
+          3359.7352,
+          3433.5041,
+          3454.2339
+        ],
+        "candidateSamples": [
+          3827.9613,
+          3668.185,
+          3415.8011,
+          3392.7562,
+          4202.5119,
+          3356.2018,
+          3769.4638,
+          3677.1911,
+          3520.7625
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "readback": true,
+        "dependencies": 32,
+        "controlNs": 6313.8544,
+        "candidateNs": 6625.0909,
+        "controlSamples": [
+          6268.7214,
+          6529.5365,
+          7820.4161,
+          6313.8544,
+          7442.8901,
+          6308.633,
+          6529.3691,
+          6181.2694,
+          6213.2846
+        ],
+        "candidateSamples": [
+          6625.0909,
+          6434.4932,
+          8030.1997,
+          6466.7841,
+          6779.4753,
+          6816.8201,
+          6218.8706,
+          6290.0907,
+          7633.0918
+        ],
+        "controlNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcStarted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "controlNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "candidateNoGcCompleted": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "pairedInSameProcess": true,
+    "pairs": 9,
+    "delegatesCreatedBeforeMeasurement": true,
+    "noGcRequestedOnlyWithinHostProbe": true
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_single_virtual_dependency.py": "e4bfbfa23417570f9bb6af13cdd91b75694a858386a1cc03ea26a9f8b6763b34",
+    "test/melonx_single_virtual_dependency_test.py": "94642e206ed92d7b324a1fb9bda5519b0f87ab94b00656bf4ec2e4f9d7d7bfc1",
+    "test/melonx_single_virtual_dependency/Extra.cs": "86d98f600aaf33392bb376efb1dad25502eaf69fce1380620a4c62b8a9e500ea",
+    "test/melonx_single_virtual_dependency/CostRunner.cs": "ecc40466cbbedb818da442b47fcaed4dbb07f257e08e7cfaca7e97e7536cf660",
+    "test/melonx_single_virtual_dependency/JournalBoundary.cs": "67d8abd715be2c434e8b5054f613bad51bd15e9bf9283f401430af4c1563abc5",
+    "build-utils/melonx/adapt_fragmented_reads.py": "10bfc515166061757fd0d393a634e3c38d4f015725dca96deff331b8d6c02734",
+    "test/melonx_single_virtual_dependency/RegionBoundary.cs": "13672e3df97cff15b66dc483760bddc045ddcad4da1b8d6d01eb7eb56ab54498",
+    "test/melonx_virtual_buffer_readback/Program.cs": "67fee3a9a3a3ac3454cfee5b09ae9075a169cc0d0e431f047844e20a1ba809b3",
+    "test/melonx_virtual_buffer_readback/Boundaries.cs": "8022855efeac755652f1ef7cb44ab25dcb5313d6ac24402965a24422ce8d904c"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+    "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+    "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+    "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+    "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+    "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/PinnedSpan.cs": "f9257352a5e29b153a5af2fbc66286d97294046e196f69f1d0bf6350954fd932",
+    "src/Ryujinx.Graphics.GAL/BufferAccess.cs": "65f5bbec17fd0b3902a1256593ae858719a3016c1a8a6e96e70d2a92330d2ce4",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "2af3a086c9271b6bcc40bd3b1087eb71e92aa6c3204325d44521b63f1816c835",
+    "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs": "6e795f339912d5e0c83a017fad23f2109bd937ae242b616722a1e90deba8a88a",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "388f3a7ca9e412ea5bd55d2551911ce316078b5d63adf6adb7d2984ca16dc50f",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+    "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+    "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+    "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+    "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+    "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/PinnedSpan.cs": "f9257352a5e29b153a5af2fbc66286d97294046e196f69f1d0bf6350954fd932",
+    "src/Ryujinx.Graphics.GAL/BufferAccess.cs": "65f5bbec17fd0b3902a1256593ae858719a3016c1a8a6e96e70d2a92330d2ce4",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Boundaries.cs": "8022855efeac755652f1ef7cb44ab25dcb5313d6ac24402965a24422ce8d904c",
+      "Program.cs": "2483e640631e94f308f014f556f15dfbe2605135b6074c71c0b024b40ab019dd",
+      "Extra.cs": "86d98f600aaf33392bb376efb1dad25502eaf69fce1380620a4c62b8a9e500ea",
+      "src/Ryujinx.Graphics.GAL/BufferAccess.cs": "65f5bbec17fd0b3902a1256593ae858719a3016c1a8a6e96e70d2a92330d2ce4",
+      "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+      "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+      "src/Ryujinx.Graphics.GAL/PinnedSpan.cs": "f9257352a5e29b153a5af2fbc66286d97294046e196f69f1d0bf6350954fd932",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+      "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+      "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769",
+      "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+      "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff"
+    },
+    "candidate": {
+      "Boundaries.cs": "8022855efeac755652f1ef7cb44ab25dcb5313d6ac24402965a24422ce8d904c",
+      "Program.cs": "2483e640631e94f308f014f556f15dfbe2605135b6074c71c0b024b40ab019dd",
+      "ReadOnlyRegion.cs": "6e795f339912d5e0c83a017fad23f2109bd937ae242b616722a1e90deba8a88a",
+      "JournalBoundary.cs": "67d8abd715be2c434e8b5054f613bad51bd15e9bf9283f401430af4c1563abc5",
+      "RegionBoundary.cs": "13672e3df97cff15b66dc483760bddc045ddcad4da1b8d6d01eb7eb56ab54498",
+      "EmbeddedPerformanceDiagnostics.cs": "2af3a086c9271b6bcc40bd3b1087eb71e92aa6c3204325d44521b63f1816c835",
+      "Extra.cs": "86d98f600aaf33392bb376efb1dad25502eaf69fce1380620a4c62b8a9e500ea",
+      "src/Ryujinx.Graphics.GAL/BufferAccess.cs": "65f5bbec17fd0b3902a1256593ae858719a3016c1a8a6e96e70d2a92330d2ce4",
+      "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+      "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+      "src/Ryujinx.Graphics.GAL/PinnedSpan.cs": "f9257352a5e29b153a5af2fbc66286d97294046e196f69f1d0bf6350954fd932",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+      "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+      "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "388f3a7ca9e412ea5bd55d2551911ce316078b5d63adf6adb7d2984ca16dc50f",
+      "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+      "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff"
+    }
+  },
+  "compiledBindings": [
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/IRange.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/IRange.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/INonOverlappingRange.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/INonOverlappingRange.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/RangeListBase.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/RangeListBase.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/MemoryRange.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/MemoryRange.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/MultiRange.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/MultiRange.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Memory/Range/IMultiRangeItem.cs"
+      ],
+      "productionPath": "src/Ryujinx.Memory/Range/IMultiRangeItem.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.GAL/BufferHandle.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.GAL/BufferHandle.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.GAL/BufferRange.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.GAL/BufferRange.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.GAL/PinnedSpan.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.GAL/PinnedSpan.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.GAL/BufferAccess.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.GAL/BufferAccess.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "EmbeddedPerformanceDiagnostics.cs"
+      ],
+      "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "ReadOnlyRegion.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs"
+    }
+  ],
+  "timingScope": "Paired same-process host algorithm probe; no production GC policy change or iPhone prediction"
+}

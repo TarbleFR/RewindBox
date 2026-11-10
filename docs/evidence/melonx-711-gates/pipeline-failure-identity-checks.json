@@ -1,0 +1,29 @@
+{
+  "result": "passed",
+  "checks": 16,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "c2bf7240ce6e4bbb17ad9ec18a47d0edfdc4cc57df398b5600e8fa824c64b304"
+  },
+  "report": {
+    "count": 32,
+    "first": "Pipeline creation failed for program 0123456789ABCDEF: ErrorInitializationFailed; stages 2, samples 1, topology TriangleList, background worker (adapt_pipeline_failure_identity)",
+    "second": "Pipeline creation failed for program 0000000000000001: ErrorInitializationFailed; stages 2, samples 1, topology TriangleList, render thread (adapt_pipeline_failure_identity)"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "fccd9e40a8823194ab4aca1210fe866fd7aa9df2022d126ab127b5ce5f1c8c70",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "4faf0b7631c91b22deb7eaa2619d297a264a5f6fb5cee5a708b1158d824e650f"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_failure_identity.py": "a2a942658fe4ae4643271e044b1c83b425fb52008af0b92b367a612a77abc822",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_pipeline_failure_identity_test.py": "2a213838feee4ed66ae0e46be3a4f382d1ef10f9eac6c7a3add5de328b318f81",
+    "test/melonx_pipeline_failure_identity/Program.cs": "a482f20f92c5671d7fc9649c056d098a26b6aedcfc5575918ad47508fca054a9",
+    "test/melonx_adapter_control.py": "523576a3b8171fdf0eb35e7e789bc6177e0addedb621f4695fc9e6f55b9a4672"
+  }
+}

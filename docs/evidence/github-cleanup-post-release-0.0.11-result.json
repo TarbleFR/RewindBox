@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "repository": "TarbleFR/RewindBox",
+  "authorization": "Maintainer explicitly confirmed release publication, Claude-to-main synchronization and selective cleanup, then required independent cleanup and README/About updates to continue despite the publication authentication blocker.",
+  "integration": {
+    "commit": "8283f341e53e22c6c72a5cd41f71c32cd01ffc14",
+    "parents": [
+      "3be2a34e4d056e9ad7078aecc710c54617f8a58f",
+      "263abc369ab7992364115ca91735aaefb1fb5799"
+    ],
+    "refsVerified": [
+      "main",
+      "Claude"
+    ],
+    "threeWayDocumentationBlobsVerified": 11,
+    "deltaFromClaude": "14 documentation paths only; no product/Core/pin/workflow/recipe delta",
+    "receipt": "docs/evidence/main-integration-2026-11-10.json"
+  },
+  "pullRequests": {
+    "closed": [
+      154,
+      155,
+      156,
+      157,
+      158,
+      159,
+      160,
+      162
+    ],
+    "retainedOpen": [
+      163
+    ],
+    "receipt": "docs/evidence/github-cleanup-prs-2026-11-10.json",
+    "historyPreserved": true
+  },
+  "actions": {
+    "previousCleanup": {
+      "run": 42735827450,
+      "deletedVerified": 1311,
+      "receipt": "docs/evidence/github-cleanup-2026-11-10.json",
+      "surveillanceDisabled": true
+    },
+    "followupDeletionCount": 0,
+    "noNewCleanupWorkflowDispatched": true,
+    "latestObservedTotal": 1292,
+    "totalIsNotDeletionProof": true
+  },
+  "branches": {
+    "verifiedIntegratedCandidates": [
+      {
+        "name": "work/main-nav-no-labels-20261109",
+        "head": "00a83e694b5a113f4241cf6d164038d4049884c9"
+      },
+      {
+        "name": "work/melonx-core675",
+        "head": "e1f709d5b8c4176b93d4f210238ab3c7fccbcefc"
+      },
+      {
+        "name": "work/melonx-lot5-core711-r2",
+        "head": "96701c8de8218cf2cc4a63b3df733f74358ff9c4"
+      }
+    ],
+    "deleted": [],
+    "dryRun": {
+      "command": "git push --dry-run origin --delete work/main-nav-no-labels-20261109",
+      "exitCode": 128,
+      "error": "fatal: could not read Username for 'https://github.com': No such device or address",
+      "mutation": false
+    },
+    "status": "Blocked: no authenticated Git push and no branch-delete tool; candidates retained. Active component branches and divergent history retained."
+  },
+  "about": {
+    "currentDescription": "RewindBox 0.0.10 — independent iPhone/iPad emulation frontend forked from NeoStation, with embedded Libretro, MeloNX (Switch), Dolphin, ARMSX2 and RPCS3, HD textures, cheats and customizable controls.",
+    "proposedDescription": "Independent iOS/iPadOS game library with embedded Libretro, MeloNX, Dolphin, ARMSX2 and RPCS3 emulators. Preserves NeoStation credits and component licenses.",
+    "status": "Not updated: no repository metadata write tool and GitHub browser is not authenticated."
+  },
+  "publication": {
+    "name": "RewindBox 0.0.11",
+    "tag": "0.0.11",
+    "status": "Paused by explicit latest maintainer instruction; not published",
+    "source": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "ipa": {
+      "name": "RewindBox-0.0.11.ipa",
+      "bytes": 263465367,
+      "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a"
+    },
+    "sourceJSONSha256": "331a5162679f774ca3333fa0ae0c8a6ac4b1697bed480772bb2075c9ade9abe2",
+    "rootSourceActivated": false,
+    "discordPosted": false,
+    "blockers": [
+      "GitHub rejected the Apple social-login provider response after Apple authenticated; no automated retry.",
+      "Discord requested hCaptcha verification; no challenge attempted."
+    ],
+    "noIPACompilationOrRepack": true,
+    "hold": {
+      "active": true,
+      "requestedBy": "maintainer",
+      "instruction": "ne publie pas la mise à jour tout de suite mais fais tout le reste",
+      "scope": [
+        "GitHub release publication",
+        "public update source activation",
+        "Discord release announcement"
+      ],
+      "preparedAssetsPreserved": true
+    }
+  },
+  "workflows": {
+    "selected": 14,
+    "deletedPaths": [
+      {
+        "path": ".github/workflows/liquid-glass-ui550-delivery.yml",
+        "blob": "230cae9bdf108f661cfe57404398a85fd277ffc9"
+      },
+      {
+        "path": ".github/workflows/melonx-audio532-delivery.yml",
+        "blob": "51b1e187008751b869e36fb11306bcbc54e107c3"
+      },
+      {
+        "path": ".github/workflows/melonx-audio537-delivery.yml",
+        "blob": "4bd6369ef877decf2c2b8969c63578feabf9d901"
+      },
+      {
+        "path": ".github/workflows/melonx-close544-delivery.yml",
+        "blob": "81dc955ffa39c491eba93c417c43b011805a36ab"
+      },
+      {
+        "path": ".github/workflows/melonx-import535-delivery.yml",
+        "blob": "bae8ee4e5d225c9f12cd1b5cf9e737aa3712bc10"
+      },
+      {
+        "path": ".github/workflows/melonx-launch529-delivery.yml",
+        "blob": "b125ee156de6dc5990c6829cc8c172ec3121d7a3"
+      },
+      {
+        "path": ".github/workflows/melonx-launch530-delivery.yml",
+        "blob": "c4ac66811cf015a12179ba8fa29cf715635ecf5f"
+      },
+      {
+        "path": ".github/workflows/melonx-pipeline540-delivery.yml",
+        "blob": "9d2860ebf7d67e39d5d9029073b975324f15f94d"
+      },
+      {
+        "path": ".github/workflows/melonx-runtime533-delivery.yml",
+        "blob": "4e0169bddf6f0ca75a819b415194995e6c2a1f8c"
+      },
+      {
+        "path": ".github/workflows/melonx-shader531-delivery.yml",
+        "blob": "c69255da6d8307ee65c1f4d5dcb7fc805c04cb05"
+      },
+      {
+        "path": ".github/workflows/melonx-threading549-delivery.yml",
+        "blob": "66bc629bce8aa4452ee0d725b27572f038959ceb"
+      },
+      {
+        "path": ".github/workflows/rewind588-baseline-delivery.yml",
+        "blob": "c6bda318734f2fa1b20c51aa7f55714d61ad91b1"
+      },
+      {
+        "path": ".github/workflows/rewind593-baseline-delivery.yml",
+        "blob": "b0abc1aef25fe9df14f1b085b0027e08c19709b4"
+      },
+      {
+        "path": ".github/workflows/rewind594-baseline-delivery.yml",
+        "blob": "a14dc8188f8766e13fafc3e86dcdd40bbf2b3e86"
+      }
+    ],
+    "deletedLines": 11429,
+    "contract": {
+      "command": "python3 -B test/standard_delivery_contract_test.py",
+      "tests": 59,
+      "skipped": 4,
+      "exitCode": 0,
+      "durationSeconds": 208.529,
+      "attempts": 1
+    },
+    "receipt": "docs/evidence/workflow-retirement-2026-11-10.json",
+    "log": "docs/evidence/workflow-retirement-2026-11-10/standard-delivery-contract.log"
+  },
+  "readme": {
+    "status": "Updated overview, public0.0.10 baseline, prepared0.0.11 preview and explicit device limits",
+    "physicalIPhoneClaims": false
+  },
+  "melonxRelay": {
+    "session": "session_012mUASkkFGHaPcEUx9dsp8q",
+    "message": 19,
+    "state": "queued-unread at verification; current useful request left running",
+    "promptSha256": "70e24fa48a2a312b14b62b6788d129e58a67b3fa8c6a90363e0cd9eff4537dba",
+    "bytes": 9875,
+    "priorities": [
+      "presentation crash",
+      "skin input after Menu return",
+      "long hitches"
+    ],
+    "originalsAttached": false,
+    "modelSettingBefore": "Fable 5.2 / Max",
+    "modelSettingAfter": "Opus 5.5 / High",
+    "nativeEffortRequested": "rb-effort-high",
+    "nativeEffortReturnObserved": false
+  }
+}

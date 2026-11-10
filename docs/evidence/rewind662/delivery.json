@@ -1,0 +1,188 @@
+{
+ "schema": 1,
+ "build": 662,
+ "version": "0.0.8",
+ "result": "delivered-and-verified",
+ "deliveryType": "private",
+ "recipe": {
+  "workflow": ".github/workflows/standard-delivery.yml",
+  "manifest": "build-utils/delivery/662.json",
+  "manifestSHA256": "715dbe8149c64f4565bf2fe564fe65c1a806d1e211c8f9b11b93db54ed5f4c3f"
+ },
+ "execution": {
+  "source": "73d9f856a17a1a22099676280a4e87f9ecc0c457",
+  "tree": "c47983da6aa63feaa807f3192f2e600c4b8b9bbe",
+  "run": 42020264926,
+  "attempt": 1,
+  "branch": "Claude",
+  "jobs": {
+   "application": {
+    "id": 127221343434,
+    "conclusion": "success",
+    "started": "2026-11-05T11:36:52Z",
+    "completed": "2026-11-05T11:56:55Z"
+   },
+   "flutter": {
+    "id": 127221343314,
+    "conclusion": "success",
+    "started": "2026-11-05T11:36:50Z",
+    "completed": "2026-11-05T11:42:47Z"
+   },
+   "native": {
+    "id": 127221343359,
+    "conclusion": "success",
+    "started": "2026-11-05T11:36:52Z",
+    "completed": "2026-11-05T11:50:40Z"
+   },
+   "preflight": {
+    "id": 127220955981,
+    "conclusion": "success",
+    "started": "2026-11-05T11:36:00Z",
+    "completed": "2026-11-05T11:36:48Z"
+   },
+   "republish": {
+    "id": 127221343382,
+    "conclusion": "success",
+    "started": "2026-11-05T11:36:50Z",
+    "completed": "2026-11-05T11:38:06Z"
+   }
+  },
+  "runConclusion": "success",
+  "startedUTC": "2026-11-05T11:35:57Z",
+  "completedUTC": "2026-11-05T11:56:56Z"
+ },
+ "baseline": {
+  "build": 658,
+  "source": "9730acd54933d1c35c99752bdb98e9622cecbffd",
+  "ipaSHA256": "89607f58cada2f8437118d161b0f64481e362196f6c0f05078ed1618ec3ff479"
+ },
+ "ipa": {
+  "name": "RewindBox-662.ipa",
+  "producerName": "RewindBox-Build662-73d9f856a17a1a22099676280a4e87f9ecc0c457-cold.ipa",
+  "bytes": 247122020,
+  "sha256": "d857e567a9f7b9ec94d5417247bb149b522a5d6951f16665ea5fc2bc640a0213"
+ },
+ "delta": {
+  "freezeCommit": "11b7f6c37100bb387c9c0aea388f1ad17fdd6b9d",
+  "effectiveDigest": "446df4663d8c30706e7e537f898c502ac579458f7ecc15b4f02711c3e2d910f6",
+  "reviewedCommits": [
+   "dd973d0b6bd8897c434d571b06eb9080e08f1b85",
+   "8c8e83a90708170d37658a92cec2789c16d7522c",
+   "678cc4dab454683cb186400cea34d3aa376fd97d",
+   "93809a6f54e4a307e07d7c1cf28eb3a900805530",
+   "3d74467b7784ea7d9ef00439c146a771e84abe05",
+   "a86c85457b60da90c3ec6cbc3ae1fc4ee7cdadef",
+   "066dce5822c53c01bd6f90642efe180d64044f76",
+   "e5052411b3bf4e6f2c24e1359d9cc235391882f7",
+   "158914a399590d0f6c158fcd329bce9adc96b226",
+   "73933643eb71a08dbdd7d50743f67bc3c071322b",
+   "9889f711c44e74fdd487f97cfa58ee15b104be4f",
+   "373f82ed550addad20896110e520f7e9cdd69819",
+   "3623e04ab7329b5acd5700c22452abcfda2ec043",
+   "7ad561296b94cdc6468fe77a60c47f3b98a7d7af",
+   "a2d9412413e5e611cae23cbb93ade701febb5414",
+   "829d5182185f12285a029a70e84ad6bb3265917b",
+   "48c837d4bafcfffb5a431a2bfe65ed26eb0bf6ab",
+   "e1ab9b526f0a8d0f3f1296819e3c22ee46a9321b",
+   "d0da535e59421e6ec7527a0febf2a4fc855903c3",
+   "c83014fecf96f6721c1fd1fedcbd251c89996ae8",
+   "7f0d7b50ffa1b951d321d704745c1f0245c0bdc3",
+   "a36243d54848ea4fb85a480c8200b437db431dee"
+  ],
+  "sourceOnly": [],
+  "promotedCommits": [
+   {
+    "commit": "9403a7bff4ff282e0c4ad6dd3833e645b9b712a2",
+    "paths": "all"
+   }
+  ],
+  "restoredPaths": 69
+ },
+ "components": {
+  "rpcs3": {
+   "mode": "replace"
+  },
+  "melonx": {
+   "mode": "replace"
+  },
+  "dolphin": {
+   "mode": "retain"
+  },
+  "armsx2": {
+   "mode": "retain"
+  },
+  "libretro": {
+   "mode": "retain-archive"
+  },
+  "melonx-dependencies": {
+   "mode": "retain-archive"
+  },
+  "melonx-upstream": {
+   "mode": "pinned-source"
+  },
+  "stikjit": {
+   "mode": "pinned-source"
+  },
+  "donor": {
+   "mode": "pinned-release"
+  }
+ },
+ "verification": {
+  "result": "passed-offline-checks",
+  "nativeImageCount": 90,
+  "bundles": 8,
+  "imagesChangedFromBase": [
+   "Frameworks/App.framework/App",
+   "Frameworks/MeloNXCore.framework/MeloNXCore",
+   "Frameworks/libRPCS3Core.dylib",
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+   "Runner"
+  ],
+  "offlineValidators": {
+   "melonx": 0,
+   "neoplay": 0,
+   "shaders": 0,
+   "legal": 0,
+   "no-kartpad": 0,
+   "no-dusklight": 0
+  },
+  "signerReceiptIPASHA256Matched": true,
+  "cryptographicSignatureVerificationPerformedOffline": false
+ },
+ "testEvidence": {
+  "testsRun": {
+   "flutter": "fresh",
+   "native": "fresh",
+   "delivery-contract": "fresh"
+  },
+  "testsExecutedInThisRun": [
+   "flutter",
+   "native",
+   "delivery-contract"
+  ],
+  "deliveryContractJob": 127220955981
+ },
+ "limits": {
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "appleProvisioningVerified": false,
+  "directAppleInstallationReady": false
+ },
+ "privateRecipientKeyDeletedAfterVerifiedDelivery": true,
+ "proofFiles": {
+  "api/artifacts.json": "71fc7156c987fbebe87c636270ac3dd6550bc47e85f36db520b30dec434c7e87",
+  "api/jobs.json": "a6afdd8399f06621191436549e7ece71a6e6cc901bcd3d7c4e360afceb9e87ca",
+  "api/run-attempt.json": "a7e6ff8da88ce23f01903d9ef08a811773ddabb96a960472d7732da0b0a46843",
+  "download662-verification.json": "d5d2ee2d82929ef1e40c9aff11943f75dc2383821848f7c90b73c3ef08c39f0a",
+  "environment.json": "b4cbf448b534ef6ccaedfd4b59ab83b5885b30d6b27ed3eccf27c0fdc0a3f3ab",
+  "observed-timings.json": "8d9a3889de117f2357d311d588a9f5c39a70764a8bd4a6a25738a96b0a56579a",
+  "signature.json": "52ab55a30c4f843e39746f398e6148cde83e7d0521162127bec5efefef0b793a",
+  "signed-payload-identity.json": "a2ae78368b74ae044b41eb36b3b92b69194f7358e2c6f56a18c6c9da052c389f",
+  "standard-embedded.json": "dbb778a34dc04334a918241d36698bbb853746f6a1d012c0a1706928cf238d24",
+  "standard-ipa-validation.json": "2e7b88fc92f9fe3e417353a894b66378d3e23864d5f6322e1424c4ef6269b744",
+  "standard-tests.json": "4fe1c303d81dac205eb083b3be193ce8cb4a4a30b163ae06973b1ea12bfbca53",
+  "version-validation.json": "83c18912e2c93335691becac64b539c3314c603f99e5bfef80bd28d9e6c96daf"
+ }
+}

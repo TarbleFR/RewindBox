@@ -1,0 +1,320 @@
+{
+ "schema": 1,
+ "date": "2026-11-09",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 713,
+ "lot": 6,
+ "base": "Core 711 (b60d0c0e, contract e3cc304a; Core CI of the first freeze 914ea9d2 green, run 42669419054; the revision run 42671662153 pending at the freeze); not pinned",
+ "deviceBaseline": "IPA 694 (maintainer: 2048 shaders in 2.155 s, main cache 780.86 MiB, worker snapshots 167.09 MiB, background load and integration 7.188 s, 1984 lookup hits for 1 miss)",
+ "findings": [
+  "every launch mapped, hydrated (MoltenVK compiles the MSL of each entry) and merged the worker snapshots and every close wrote them again although main's file held them (IPA 684 pid 26658: 155.37 MiB merged into 605.06 MiB, next checkpoint 624.69 MiB with 501 new pipelines: at least 87 % duplicates)",
+  "a refused worker snapshot kept the workers' hold and was refused again at every launch",
+  "a main file of another driver identity (pipelineCacheUUID: MoltenVK revision, iOS major.minor, GPU family) loads as nothing (MoltenVK v1.4.2 readData) but counted as loaded: no play or pause checkpoint until a clean close",
+  "already before this lot: a refusal of intact data (MoltenVK refuses the whole data when one Metal library fails to compile) replaced the file at the next checkpoint",
+  "not changed (next candidates): the shader cache rebuild clears shared and host before rewriting them; NaN scrub alternation re-translates the whole cache; a format version change deletes the guest cache when nothing loaded"
+ ],
+ "change": "adapt_pipeline_snapshot_retire (PipelineCacheManager.cs only, every title): worker files main's file holds removed at the close, files that may hold more left untouched, other closes as before; a main snapshot of another device header the driver kept nothing of handled as rejected; a refused snapshot of this device kept at its first refusal (main Frozen that session), replaced or removable at the second refusal of the same file (<file>.refused)",
+ "postimages": {
+  "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "3721ea7d7a67ea0ce71e5609ff8b959f94a625aa2b2a4b070915360ad04ca25d"
+ },
+ "review": {
+  "tool": "rb-core-review (source only)",
+  "first": "one defect: a refused worker snapshot was removed at the close although a refusal can be transient; amplification: a transient main refusal replaced the file (pre-existing)",
+  "fix": "refusal record, first refusal keeps the file",
+  "second": "no actionable defect; low: a first-refusal session saves nothing of itself; low residual (pre-existing): a worker snapshot loaded without a main snapshot is handled at its first refusal"
+ },
+ "gate": {
+  "name": "pipeline-snapshot-retire",
+  "checks": 106,
+  "measures": [
+   {
+    "launch": 1,
+    "control": {
+     "mappedMain": 0,
+     "mappedWorkers": 0,
+     "hydrated": 0,
+     "duplicateEntries": 0,
+     "loadMs": 15.6,
+     "closeWrittenMain": 17703396,
+     "closeWrittenWorkers": 7868232,
+     "closeMs": 56.4
+    },
+    "candidate": {
+     "mappedMain": 0,
+     "mappedWorkers": 0,
+     "hydrated": 0,
+     "duplicateEntries": 0,
+     "loadMs": 17.2,
+     "closeWrittenMain": 17703396,
+     "closeWrittenWorkers": 0,
+     "closeMs": 38.6
+    }
+   },
+   {
+    "launch": 2,
+    "control": {
+     "mappedMain": 17703396,
+     "mappedWorkers": 7868232,
+     "hydrated": 25559040,
+     "duplicateEntries": 240,
+     "loadMs": 50.8,
+     "closeWrittenMain": 24915876,
+     "closeWrittenWorkers": 3934152,
+     "closeMs": 63.3
+    },
+    "candidate": {
+     "mappedMain": 17703396,
+     "mappedWorkers": 0,
+     "hydrated": 17694720,
+     "duplicateEntries": 0,
+     "loadMs": 36.1,
+     "closeWrittenMain": 24915876,
+     "closeWrittenWorkers": 0,
+     "closeMs": 50.9
+    }
+   },
+   {
+    "launch": 3,
+    "control": {
+     "mappedMain": 24915876,
+     "mappedWorkers": 3934152,
+     "hydrated": 28835840,
+     "duplicateEntries": 120,
+     "loadMs": 27.5,
+     "closeWrittenMain": 32128356,
+     "closeWrittenWorkers": 3934152,
+     "closeMs": 74.2
+    },
+    "candidate": {
+     "mappedMain": 24915876,
+     "mappedWorkers": 0,
+     "hydrated": 24903680,
+     "duplicateEntries": 0,
+     "loadMs": 31.9,
+     "closeWrittenMain": 32128356,
+     "closeWrittenWorkers": 0,
+     "closeMs": 66.7
+    }
+   },
+   {
+    "launch": 4,
+    "control": {
+     "mappedMain": 32128356,
+     "mappedWorkers": 3934152,
+     "hydrated": 36044800,
+     "duplicateEntries": 120,
+     "loadMs": 36.4,
+     "closeWrittenMain": 39340836,
+     "closeWrittenWorkers": 3934152,
+     "closeMs": 177.6
+    },
+    "candidate": {
+     "mappedMain": 32128356,
+     "mappedWorkers": 0,
+     "hydrated": 32112640,
+     "duplicateEntries": 0,
+     "loadMs": 32.1,
+     "closeWrittenMain": 39340836,
+     "closeWrittenWorkers": 0,
+     "closeMs": 82.5
+    }
+   }
+  ],
+  "driverModel": "MoltenVK v1.4.2 readData rules on a content double; no Metal compilation, no device"
+ },
+ "gatesRun": {
+  "fragmented-reads": {
+   "result": "passed",
+   "checks": 66,
+   "receiptSha256": "dd5d18a1ec3a2bc126224aa9ce0c8120305b2ba45c103cda897eab54a4350c70"
+  },
+  "performance-diagnostics": {
+   "result": "passed",
+   "checks": null,
+   "receiptSha256": "ef48d6e8d6555339408cd9a0e0200a44201f6d7e485de5a1e1ca38e5d8ff9f8d"
+  },
+  "hogwarts-dma-copies": {
+   "result": "passed",
+   "checks": 172,
+   "receiptSha256": "2381930125eb05a3fe1e02ecd971203152ba0e25e8849eb4ccc7c1025296421a"
+  },
+  "pipeline-checkpoint": {
+   "result": "passed",
+   "checks": null,
+   "receiptSha256": "d63b43b056a35e1a329b5f881227997d6024291b88f63bcc09ae0eaa168caee0"
+  },
+  "teardown-cache": {
+   "result": "passed",
+   "checks": 53,
+   "receiptSha256": "d92b54408451f3d3b868e058c98497c347930b3576a8129ebf2de4cf464fa4d5"
+  },
+  "main-cache-checkpoint": {
+   "result": "passed",
+   "checks": 29,
+   "receiptSha256": "224ee44e0d809d15ab6f7ea4829b49b67c6c937994193c58012bf9d30419d62b"
+  },
+  "checkpoint-side-cache": {
+   "result": "passed",
+   "checks": 24,
+   "receiptSha256": "e28e24b401bd14b7e43a62da4e2294949489ddd32f4049336fbeec93042d0d71"
+  },
+  "pipeline-cache-room": {
+   "result": "passed",
+   "checks": 23,
+   "receiptSha256": "3841bdb20d8bb7fa59bd34d3134f3c6cb735a4041f023f40dd1211faa5d8259e"
+  },
+  "pipeline-cache-persist": {
+   "result": "passed",
+   "checks": 30,
+   "receiptSha256": "a36a2ff33b2342f1eb9fff0c84582f95d2fbf1f545f01a68932b79373a3889db"
+  },
+  "pipeline-build-journal": {
+   "result": "passed",
+   "checks": 30,
+   "receiptSha256": "0f124bb902bc4d078c0f00dbde3f1c87b46a2bd493bcdbade6be1e3600b2b0c7"
+  },
+  "pipeline-cache-growth": {
+   "result": "passed",
+   "checks": 37,
+   "receiptSha256": "313438dcb84b7add368c841feca655afa74dafabd4400cda4e00653640f70f2e"
+  },
+  "pipeline-cache-background": {
+   "result": "passed",
+   "checks": 34,
+   "receiptSha256": "b2e148e1795c78771349aff589904f3450096b5d9f6ac9bcbadd7bfaf66d09bf"
+  },
+  "pipeline-variant-replay": {
+   "result": "passed",
+   "checks": 107,
+   "receiptSha256": "ccc6d4d425b1f0ec99de4603c882f2279e249a57bf3c994c49d0f4c4bee432f5"
+  },
+  "moltenvk-stage-ordering": {
+   "result": "passed",
+   "checks": 75,
+   "receiptSha256": "4be12d13ba3f90b46157754188efebff3bf536420ad7d441fb90315b1d81f12d"
+  },
+  "pipeline-snapshot-retire": {
+   "result": "passed",
+   "checks": 106,
+   "receiptSha256": "8592868efc4d941bf9b3ee50951adc045e49d3e350a4a890e2457a5b22806c1e"
+  }
+ },
+ "boundaryChange": "test/melonx_pipeline_checkpoint: Boundaries.cs gains PipelineCacheUuid (Silk.NET); Program.cs: a subinterval worker's content must be on disk at the close, in its own file or in main's file once that file is removed",
+ "otherReceiptsForFreeze": "57 receipts reused for their control files: 14 fresh Core 711 receipts (docs/evidence/melonx-711-gates) and 43 Core 709 CI receipts (run 42634615592)",
+ "contract": {
+  "sha256": "01e2f624d773e250a2ffb7994b1f9841779bfadb71514d19fdd970a51cc8e3b5",
+  "preparationInputs": 191,
+  "preparedMembers": 206,
+  "freshAppleGates": 72,
+  "contractTestChecks": 441,
+  "freshReceiptsValidated": 15
+ },
+ "proofScope": "the real manager's decisions, files and content on a Vulkan double holding cache content with MoltenVK v1.4.2 readData rules; no Metal compilation, no MoltenVK, no device; host times",
+ "toMeasureOnDevice": [
+  "next launch after one clean close: the load line (\"Vulkan main pipeline cache loaded in the background: ..., 0/0 worker snapshots\") and its time against 694's 7.188 s (MoltenVK does not separate read, hydration and merge; the worker share of 7.188 s is not known)",
+  "close: \"pipelineCache workerRetired\" bytes and the teardown \"pipelineCacheSaved\" time (a close, not a pause in play)",
+  "peak memory during the load",
+  "after an iOS update: \"mainIgnored\" then a pause checkpoint written",
+  "\"mainRefusedKept\" if a refusal occurs"
+ ],
+ "physicalDeviceTested": false,
+ "ipa": null,
+ "revisions": [
+  "first freeze 2bebf779 (commit 87763290, Core CI run 42681937497 started with the racy pipeline-variant-replay harness)",
+  "refrozen 01e2f624: test/melonx_pipeline_variant_replay/Program.cs failure scenario made deterministic (Core 711 revision CI run 42671662153 failed on it); pipeline-variant-replay rerun 107 checks, also with every core busy"
+ ],
+ "ciRuns": [
+  {
+   "commit": "87763290",
+   "contract": "2bebf779",
+   "run": 42681937497,
+   "job": 129379065609,
+   "conclusion": "success",
+   "artifact": {
+    "id": 13705617126,
+    "bytes": 91011107,
+    "sha256": "4784bfe952167a9befb8711c4cb4178517ea4f0cf512b5c3ec4dc6798729cc6d"
+   },
+   "binaries": {
+    "ios-arm64": "db033fa70e0fe84157171b20954cde57a8964d8c74ed9048ebbf8178c3fff139",
+    "iossimulator-arm64": "bbc5012c04d28c039e2e36d11143993918fc4603da46e974ee7bc4c0e112564f"
+   },
+   "freshAppleGates": 72,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "gates": {
+    "pipelineSnapshotRetire": "passed 106 on macOS (same scenario results as locally)",
+    "pipelineVariantReplay": "passed 107 with the racy harness (the race did not occur in this run; it did in Core 711 run 42671662153)"
+   },
+   "note": "first freeze; superseded by the refrozen 01e2f624 (deterministic pipeline-variant-replay harness), requested next"
+  },
+  {
+   "commit": "96701c8d",
+   "contract": "01e2f624",
+   "run": 42689230667,
+   "attempt": 1,
+   "job": 129404254595,
+   "event": "workflow_dispatch (the [melonx-dma-core] commit 5c42dc97 touched documents only, so the path filter did not start the workflow)",
+   "conclusion": "failure",
+   "failedStep": "8: Run five affected final-source gates",
+   "classification": "harness timing, not this lot: gate forced-syncpoint-wait (lot 4, Core 709; no file of lots 5-7): \"candidate sees the termination within one 50 ms poll and the host's timed-wait lateness of the same window\": FlagToDetectionMs 210.2 against 50 + HostLateMs 83.4; DetectionToReturnMs 0.0095. The same product sources passed this gate in run 42681937497 (87763290).",
+   "action": "failed job re-run once (attempt 2)"
+  },
+  {
+   "commit": "96701c8d",
+   "contract": "01e2f624",
+   "run": 42689230667,
+   "attempt": 2,
+   "job": 129427720835,
+   "event": "re-run of the failed job",
+   "conclusion": "failure",
+   "passedSteps": "7 (Apple ARM64, exact SDK, reviewed inputs), 8 (all final-source gates, 41 min: forced-syncpoint-wait and the deterministic pipeline-variant-replay harness included), 9 (NativeAOT library compiled, exported ABI verified), 10 (both libraries bound to reviewed sources and gate receipts)",
+   "failedStep": "11: Fetch the unchanged native frameworks through their pinned republication",
+   "classification": "GitHub service error, not the Core: `gh api repos/TarbleFR/RewindBox/actions/artifacts/13411123524/zip` answered HTTP 503 (the 404 just before it is the expired original artifact of run 39854858591, expected). The republished artifact 13411123524 was available again minutes later (checked 21:40 UTC).",
+   "skippedSteps": "12 (authenticate the native frameworks), 13 (exercise the rebuilt engine in an ARM64 iOS app), 15 (fresh guest execution, teardown, backing release)",
+   "artifact": {
+    "id": 13712057829,
+    "bytes": 90994477,
+    "sha256": "523b3e20ed54e913123045afc78c9b6751d1d73e1471576d521f99a4124c023f",
+    "note": "uploaded by a failed job: no simulator validation; NOT a Core 713 identity"
+   },
+   "action": "failed job re-run (attempt 3): a different failure from attempt 1, outside the repository"
+  },
+  {
+   "commit": "96701c8d",
+   "commitFull": "96701c8de8218cf2cc4a63b3df733f74358ff9c4",
+   "contract": "01e2f624",
+   "contractSha256": "01e2f624d773e250a2ffb7994b1f9841779bfadb71514d19fdd970a51cc8e3b5",
+   "run": 42689230667,
+   "attempt": 3,
+   "job": 129458458332,
+   "event": "re-run of the failed job",
+   "conclusion": "success",
+   "completedAt": "2026-11-09T22:15:45Z",
+   "artifact": {
+    "id": 13716280201,
+    "name": "MeloNX-engine-96701c8de8218cf2cc4a63b3df733f74358ff9c4",
+    "bytes": 91011117,
+    "sha256": "272530933188e318a0b5ce9582769abdd9b720365770cbe087129d8e8fa16102",
+    "expires": "2026-11-23T22:15:33Z"
+   },
+   "binaries": {
+    "ios-arm64": {
+     "sha256": "ff3f2333ed950bfbd9f3691b653ffbefdd19a48e627e0749e92e2f57631d918f",
+     "bytes": 38407032
+    },
+    "iossimulator-arm64": {
+     "sha256": "6b0fa988b807c6b90630d48b7276bc0bc5efa2c1e7b3d1e44d0c8690aa4cf52d",
+     "bytes": 38723704
+    }
+   },
+   "freshAppleGates": 72,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "gates": {
+    "pipelineVariantReplay": "passed 107 (deterministic harness)",
+    "forcedSyncpointWait": "passed 84",
+    "pipelineSnapshotRetire": "passed 106"
+   },
+   "note": "the Core 713 identity to pin: every step green, the ARM64 iOS app exercised in the simulator (runtime smoke), not tested on a device"
+  }
+ ]
+}

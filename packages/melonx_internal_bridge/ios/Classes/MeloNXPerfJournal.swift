@@ -13,6 +13,15 @@ import Darwin
 //   long=  gaps over 50 ms / gaps over 100 ms (pauses at a 30 fps target)
 //   gaps=  every gap between two presentations in the interval, ms rounded
 //          (at most 240), for frame-time percentiles over any stretch of play
+//   acq=   every interval between two drawable requests in the interval
+//          (host time when the engine asked CAMetalLayer.nextDrawable for a
+//          drawable; requests that got none are skipped), ms rounded (at most
+//          240): the engine's own frame cadence, to tell a gap the game
+//          produced from one the display added after it
+//   acqw=  the longest wait inside nextDrawable in the interval, ms (every
+//          drawable still held by the display or compositor); a request that
+//          waited delays the engine's next one, so the acq= interval after
+//          it includes that wait
 //   dsp=   5 ms audio DSP periods / late episodes (a stall over 2 ms and its
 //          catch-up periods count once) / their lateness ms / the longest ms /
 //          periods skipped
@@ -22,11 +31,19 @@ import Darwin
 //          31 default, 20 utility, 4 background)
 //   mem=   footprint MiB / headroom MiB / device available % / live donors
 //          (host-supplied; absent when the host gives none)
+//   in=    input the session's router handled in the interval (absent when
+//          none): tL/tR touch and pL/pR controller events for the left/right
+//          stick as count/largest magnitude; oL/oR the largest magnitude sent
+//          to the engine for that stick (a source moving while oL stays 0 was
+//          overridden); b button changes sent; d inputs dropped while paused
+//          or closed; e writes the engine refused, count:last code
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
         var over50: UInt64 = 0, over100: UInt64 = 0, gapsMs: [UInt16] = []
+        var acquireGapsMs: [UInt16] = []
+        var maxAcquireWaitMs = 0.0
         static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
@@ -61,6 +78,11 @@ final class MeloNXPerfJournal {
     private var totalLate: Int64 = 0, totalLateNs: Int64 = 0, totalSkipped: Int64 = 0
     private var totalStarved: Int64 = 0, totalStarvedNs: Int64 = 0
     private var hottest = 0
+    // in= comes from the running session's input router (one at a time); the
+    // router installs it with its controls and removes it when it closes.
+    private static let inputLock = NSLock()
+    private static var inputOwner: ObjectIdentifier?
+    private static var inputSource: (() -> String?)?
 
     init(path: String, context: [String:String] = [:], interval: Double = 1, lineLimit: Int = 1800,
          fps: @escaping () -> [String: Any], presentation: @escaping () -> Presentation,
@@ -71,6 +93,16 @@ final class MeloNXPerfJournal {
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
+
+    static func setInput(owner: AnyObject, _ source: (() -> String?)?) {
+        inputLock.lock(); defer { inputLock.unlock() }
+        if let source { inputOwner = ObjectIdentifier(owner); inputSource = source }
+        else if inputOwner == ObjectIdentifier(owner) { inputOwner = nil; inputSource = nil }
+    }
+    private static func input() -> String? {
+        inputLock.lock(); let source = inputSource; inputLock.unlock()
+        return source?()
+    }
 
     func start() {
         queue.async { [self] in
@@ -124,6 +156,8 @@ final class MeloNXPerfJournal {
         totalOver50 &+= over50; totalOver100 &+= over100
         fields.append("long=\(over50)/\(over100)")
         if !shown.gapsMs.isEmpty { fields.append("gaps=" + shown.gapsMs.map { String($0) }.joined(separator:",")) }
+        if !shown.acquireGapsMs.isEmpty { fields.append("acq=" + shown.acquireGapsMs.map { String($0) }.joined(separator:",")) }
+        if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
 
         if let values = audio(), values.count == 9 {
             let before = previousAudio ?? values
@@ -157,6 +191,7 @@ final class MeloNXPerfJournal {
         fields.append(cpu)
 
         if let text = memory() { fields.append("mem=" + text) }
+        if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
         hottest = max(hottest, thermal)

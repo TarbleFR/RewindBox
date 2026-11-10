@@ -421,3 +421,64 @@
  
  	// Limit timeout to avoid overflow since wait_for() uses wait_until()
  	chrono::nanoseconds nanoTimeout(min(getMVKConfig().metalCompileTimeout, kMVKUndefinedLargeUInt64));
+--- a/MoltenVK/MoltenVK/Commands/MVKCmdPipeline.mm
++++ b/MoltenVK/MoltenVK/Commands/MVKCmdPipeline.mm
+@@ -174,6 +174,7 @@ void MVKCmdPipelineBarrier<N>::encode(MVKCommandEncoder* cmdEncoder) {
+ 	// by checking for a VK_IMAGE_LAYOUT_GENERAL layout.
+ 	// During subpass changes, or with dynamic rendering, if an input attachment is being used,
+ 	// both VK_DEPENDENCY_BY_REGION_BIT and VK_ACCESS_INPUT_ATTACHMENT_READ_BIT will be set.
++	bool rbxRenderpassRestarted = false;
+ 	if (cmdEncoder->_mtlRenderEncoder && mtlFeats.tileBasedDeferredRendering) {
+ 		bool needsRenderpassRestart = false;
+ 		for (auto& b : _barriers) {
+@@ -191,6 +192,37 @@ void MVKCmdPipelineBarrier<N>::encode(MVKCommandEncoder* cmdEncoder) {
+ 		if (needsRenderpassRestart) {
+ 			cmdEncoder->encodeStoreActions(true);
+ 			cmdEncoder->beginMetalRenderPass(kMVKCommandUseRestartSubpass);
++			rbxRenderpassRestarted = true;
++		}
++	}
++
++	// RewindBox (rbx_mvk_in_pass_read_barrier_waits): the RPCS3 Core records a transition to
++	// VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL of an image that is not an attachment of the open render pass
++	// inside that pass instead of ending it (Apple GPUs store and reload every attachment at each pass restart).
++	// Outside a render encoder the block above ends the encoder and records the stage fences of the barrier
++	// (setBarrier), which the next encoder waits for when it begins; inside one nothing was recorded, so the
++	// writes of the earlier encoders (a pass that rendered the image, a blit that uploaded it) would not be
++	// ordered before this pass's reads when argument buffers are resident through a residency set (Metal then
++	// tracks no hazard for them). The same fences are recorded and the current render encoder waits for them
++	// now. Metal may move a fence wait to the start of the pass, which only orders more of this pass after
++	// those writes; this encoder updates its fences at its end, after the wait, and setBarrier makes that update
++	// use the next slot, so the encoder never waits for a fence it updates itself. Only barriers that are all
++	// such read transitions take this path; anything else is encoded exactly as before.
++	if (cmdEncoder->_mtlRenderEncoder && !rbxRenderpassRestarted && !_barriers.empty() &&
++		cmdEncoder->isUsingMetalArgumentBuffers() && cmdEncoder->getDevice()->hasResidencySet()) {
++		bool rbxReadTransitionsOnly = true;
++		for (auto& b : _barriers) {
++			if (b.type != MVKPipelineBarrier::Image || b.newLayout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
++				rbxReadTransitionsOnly = false;
++				break;
++			}
++		}
++		if (rbxReadTransitionsOnly) {
++			for (auto& b : _barriers) {
++				uint64_t sourceStageMask = mvkBarrierStagesFromPipelineStageFlags(b.srcStageMask), destStageMask = mvkBarrierStagesFromPipelineStageFlags(b.dstStageMask);
++				cmdEncoder->setBarrier(sourceStageMask, destStageMask);
++			}
++			cmdEncoder->encodeBarrierWaits(kMVKCommandUsePipelineBarrier);
+ 		}
+ 	}
+ 
+@@ -233,6 +265,12 @@ template class MVKCmdPipelineBarrier<1>;
+ template class MVKCmdPipelineBarrier<4>;
+ template class MVKCmdPipelineBarrier<32>;
+ 
++// RewindBox: the RPCS3 Core keeps a render pass open for the read transitions above only when this MoltenVK
++// waits for their fences inside the pass; it looks this symbol up (weak reference) at boot. Version 1.
++extern "C" __attribute__((visibility("default"), used)) int rbx_mvk_in_pass_read_barrier_waits(void) {
++	return 1;
++}
++
+ 
+ #pragma mark -
+ #pragma mark MVKCmdBindPipeline

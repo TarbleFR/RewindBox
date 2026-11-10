@@ -291,11 +291,14 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       );
     }
 
+    final root = await _root();
+    _rebaseStateFiles(root, state);
+
     // A file of the player's at one of these paths is never overwritten.
     for (final plan in plans.values) {
       for (final file in plan.files.keys) {
         final current = await EnhancementFiles.digestOf(File(file));
-        if (current != null && current != state.files[file]) {
+        if (current != null && current != state.files[stateKey(root, file)]) {
           throw EnhancementException('user_file_present', file);
         }
       }
@@ -310,16 +313,49 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final written = <String>{};
     for (final plan in plans.values) {
       for (final file in plan.files.entries) {
-        state.files[file.key] = await EnhancementFiles.writeText(File(file.key), file.value);
-        written.add(file.key);
+        final key = stateKey(root, file.key);
+        state.files[key] = await EnhancementFiles.writeText(File(file.key), file.value);
+        written.add(key);
       }
     }
     for (final stale in state.files.keys.where((p) => !written.contains(p)).toList()) {
-      if (await EnhancementFiles.deleteIfOwned(File(stale), state.files[stale]!)) {
+      if (await EnhancementFiles.deleteIfOwned(File(resolveStateKey(root, stale)), state.files[stale]!)) {
         state.files.remove(stale);
       }
     }
     state.installed = true;
+  }
+
+  /// The recorded files are keyed relative to the MeloNX root. iOS can move
+  /// the app container between installs (a Hogwarts Legacy player's moved
+  /// between IPA 658 and 672), and absolute keys then named files RewindBox
+  /// could no longer find: its own files were refused as the player's and a
+  /// restore left them on disk without their enable list.
+  static String stateKey(Directory root, String file) => path.relative(file, from: root.path);
+
+  /// The current path of a recorded key; an absolute key written by an older
+  /// version is re-rooted at the current MeloNX root. Every file RewindBox
+  /// records lies under `<root>/mods/`, so the root is the segment named like
+  /// it that is directly followed by `mods` (a deeper segment of the same name
+  /// cannot be taken for it).
+  static String resolveStateKey(Directory root, String key) {
+    if (!path.isAbsolute(key)) return path.join(root.path, key);
+    final parts = path.split(key);
+    final name = path.basename(root.path);
+    for (var index = 0; index + 1 < parts.length; index++) {
+      if (parts[index] == name && parts[index + 1] == 'mods') {
+        return path.joinAll([root.path, ...parts.sublist(index + 1)]);
+      }
+    }
+    return key;
+  }
+
+  static void _rebaseStateFiles(Directory root, EnhancementGameState state) {
+    final entries = state.files.entries.toList();
+    state.files.clear();
+    for (final entry in entries) {
+      state.files[stateKey(root, resolveStateKey(root, entry.key))] = entry.value;
+    }
   }
 
   /// Files and enable-list keys of one program's directory.
@@ -346,9 +382,14 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
     }
 
-    // One Atmosphere file per Build ID with every listed program.
+    // One Atmosphere file per Build ID with only the enabled programs: the
+    // engine enables every cheat of a file when enabled.txt is absent, so a
+    // lost list must never run a code the player did not choose (a Hogwarts
+    // Legacy player ran 93 catalogue codes at once). Every catalogue program
+    // still has its enable-list key, so the list stays RewindBox's to manage.
     final perBuild = <String, StringBuffer>{};
     final allKeys = <String>{};
+    final allBuilds = <String>{};
     final activeKeys = <String>{};
     final activeBuilds = <String>{};
     for (final entry in entries) {
@@ -366,6 +407,12 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
       if (!_safeName(name)) continue;
       for (final build in _builds(entry).entries) {
+        final key = programKey(build.key, name);
+        allKeys.add(key);
+        allBuilds.add(build.key);
+        if (!active.contains(id)) continue;
+        activeKeys.add(key);
+        activeBuilds.add(build.key);
         final buffer = perBuild.putIfAbsent(build.key, () {
           final header = StringBuffer();
           final master = masters[build.key];
@@ -379,16 +426,10 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
         buffer.writeln('[$name]');
         build.value.forEach(buffer.writeln);
         buffer.writeln();
-        final key = programKey(build.key, name);
-        allKeys.add(key);
-        if (active.contains(id)) {
-          activeKeys.add(key);
-          activeBuilds.add(build.key);
-        }
       }
     }
     for (final build in masters.keys) {
-      if (perBuild.containsKey(build)) allKeys.add(programKey(build, masterName));
+      if (allBuilds.contains(build)) allKeys.add(programKey(build, masterName));
     }
     for (final build in activeBuilds) {
       if (masters.containsKey(build)) activeKeys.add(programKey(build, masterName));
@@ -430,11 +471,79 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     final lines = [...foreign, ...(activeKeys.toList()..sort())];
     await EnhancementFiles.writeText(file, lines.isEmpty ? '' : '${lines.join('\n')}\n');
     data['keys'] = allKeys.toList()..sort();
+    // The codes the player chose here, read back before every launch (disableUnchosenCatalogueCheats).
+    data['activeKeys'] = activeKeys.toList()..sort();
+  }
+
+  /// Enable-list keys of the codes the player turned on in RewindBox, from
+  /// the enhancement state of every MeloNX game (recorded by apply).
+  static Set<String> chosenKeys(Iterable<EnhancementGameState> states) => {
+    for (final state in states)
+      if (state.engine == 'melonx' && state.data['programs'] is Map)
+        for (final program in (state.data['programs'] as Map).values)
+          if (program is Map)
+            for (final key in (program['activeKeys'] as List? ?? const [])) key.toString(),
+  };
+
+  /// Before a launch: no RewindBox catalogue code runs unless the player chose
+  /// it in RewindBox ([chosen], from [chosenKeys]).
+  ///
+  /// A Hogwarts Legacy player ran 93 catalogue codes at once, ten conflicting
+  /// resolution codes among them, and the game aborted within two minutes in
+  /// every session: the RewindBox files held every catalogue program of the
+  /// version, and either their enable list was gone (the engine then enables
+  /// every cheat) or it still listed codes the player could no longer turn off.
+  /// Each title holding RewindBox cheat files gets an enable list without the
+  /// catalogue codes that are not in [chosen]; the player's own cheat files keep
+  /// the engine's default (they stay listed) and other lines of the list stay.
+  /// Returns the title IDs whose list was written.
+  static Future<List<String>> disableUnchosenCatalogueCheats(Directory root, Set<String> chosen) async {
+    final contents = Directory(path.join(root.path, 'mods', 'contents'));
+    final repaired = <String>[];
+    if (!await contents.exists()) return repaired;
+    await for (final title in contents.list(followLinks: false)) {
+      if (title is! Directory) continue;
+      final ours = Directory(path.join(title.path, modName, 'cheats'));
+      if (!await ours.exists()) continue;
+      final catalogue = <String>{};
+      await for (final file in ours.list(followLinks: false)) {
+        final stem = path.basenameWithoutExtension(file.path);
+        if (file is! File || path.extension(file.path).toLowerCase() != '.txt' || !_buildId.hasMatch(stem.toUpperCase())) {
+          continue;
+        }
+        for (final name in parseCheatNames(await file.readAsString())) {
+          catalogue.add(programKey(stem.toUpperCase(), name));
+        }
+      }
+      if (catalogue.isEmpty) continue;
+      final enabled = File(path.join(title.path, 'cheats', 'enabled.txt'));
+      final List<String> lines;
+      if (await enabled.exists()) {
+        final current = [
+          for (final line in await enabled.readAsLines())
+            if (line.trim().isNotEmpty) line.trim(),
+        ];
+        lines = [for (final line in current) if (!catalogue.contains(line) || chosen.contains(line)) line];
+        if (lines.length == current.length) continue;
+      } else {
+        // The engine enables every cheat without a list: list the player's own
+        // files (its default for them) and only the chosen catalogue codes.
+        lines = [
+          ...await _existingProgramKeysIn(root, title),
+          ...(catalogue.where(chosen.contains).toList()..sort()),
+        ];
+      }
+      await EnhancementFiles.writeText(enabled, lines.isEmpty ? '' : '${lines.join('\n')}\n');
+      repaired.add(path.basename(title.path));
+    }
+    return repaired;
   }
 
   /// Programs of the player's own cheat files, parsed like Ryujinx does.
-  Future<List<String>> _existingProgramKeys(Directory titleDirectory) async {
-    final root = await _root();
+  Future<List<String>> _existingProgramKeys(Directory titleDirectory) async =>
+      _existingProgramKeysIn(await _root(), titleDirectory);
+
+  static Future<List<String>> _existingProgramKeysIn(Directory root, Directory titleDirectory) async {
     final title = path.basename(titleDirectory.path);
     final directories = [
       titleDirectory,
@@ -495,8 +604,10 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
 
   @override
   Future<void> remove(EnhancementGameState state) async {
+    final root = await _root();
+    _rebaseStateFiles(root, state);
     for (final entry in state.files.entries.toList()) {
-      if (!await EnhancementFiles.deleteIfOwned(File(entry.key), entry.value)) {
+      if (!await EnhancementFiles.deleteIfOwned(File(resolveStateKey(root, entry.key)), entry.value)) {
         _log.w('Enhancements: ${entry.key} changed since RewindBox wrote it; kept');
       }
       state.files.remove(entry.key);

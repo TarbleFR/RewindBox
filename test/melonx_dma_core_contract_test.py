@@ -19,6 +19,66 @@ from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES a
 from adapt_queued_syncpoints import NAMES as QUEUE_NAMES
 from adapt_pipeline_warmup_parity import BASELINE as WARMUP_BASELINE
 from adapt_device_short_trim import BASELINE as TRIM_BASELINE
+from adapt_moltenvk_barrier_ordering import BASELINE as BARRIER_BASELINE
+from adapt_descriptor_scratch_all_titles import BASELINE as SCRATCH_BASELINE
+from adapt_readback_occupied_attribution import BASELINE as OCCUPIED_BASELINE
+from adapt_pipeline_miss_context import BASELINE as MISS_BASELINE
+from adapt_readback_receivers import BASELINE as RECEIVERS_BASELINE
+from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE
+from adapt_teardown_compile_cancel import BASELINE as TEARDOWN_BASELINE
+from adapt_pause_guest_threads import BASELINE as PAUSE_BASELINE
+from adapt_teardown_phase_marks import BASELINE as MARKS_BASELINE
+from adapt_binder_teardown import BASELINE as BINDER_BASELINE
+from adapt_artifact_counters import BASELINE as COUNTERS_BASELINE
+from adapt_array_rebuild_allocations import BASELINE as ARRAY_REBUILD_BASELINE
+from adapt_present_pacing import BASELINE as PACING_BASELINE
+from adapt_present_drawable_residency import BASELINE as RESIDENCY_BASELINE
+from adapt_present_pacer_fixes import BASELINE as C661_PRESENT_PACER_FIXES
+from adapt_shader_save_poll import BASELINE as C661_SHADER_SAVE_POLL
+from adapt_warmup_key_parity import BASELINE as C661_WARMUP_KEY_PARITY
+from adapt_setprogram_warmup import BASELINE as C661_SETPROGRAM_WARMUP
+from adapt_teardown_cache import BASELINE as C661_TEARDOWN_CACHE
+from adapt_forced_syncpoint_wait import BASELINE as C661_FORCED_SYNCPOINT_WAIT
+from adapt_session_retention import BASELINE as C661_SESSION_RETENTION
+from adapt_memory_inventory import BASELINE as C661_MEMORY_INVENTORY
+from adapt_guest_fault_context import BASELINE as C661_GUEST_FAULT_CONTEXT
+from adapt_host_warning_trim import BASELINE as C661_HOST_WARNING_TRIM
+from adapt_safe_point_compaction import BASELINE as C661_SAFE_POINT_COMPACTION
+from adapt_cold_texture_release import BASELINE as C661_COLD_TEXTURE_RELEASE
+from adapt_bindless_retention import BASELINE as C661_BINDLESS_RETENTION
+from adapt_moltenvk_stage_ordering import BASELINE as C661_MOLTENVK_STAGE_ORDERING
+from adapt_buffer_array_barriers import BASELINE as C667_BUFFER_ARRAY_BARRIERS
+from adapt_hogwarts_precise_math import BASELINE as C667_HOGWARTS_PRECISE_MATH
+from adapt_shader_save_journal import BASELINE as C667_SHADER_SAVE_JOURNAL
+from adapt_nan_scrub import BASELINE as C671_NAN_SCRUB
+from adapt_main_cache_checkpoint import BASELINE as C673_MAIN_CACHE_CHECKPOINT
+from adapt_checkpoint_side_cache import BASELINE as C675_CHECKPOINT_SIDE_CACHE
+from adapt_evicted_buffer_recreate import BASELINE as C677_EVICTED_BUFFER_RECREATE
+from adapt_audio_start_deferred import BASELINE as C679_AUDIO_START_DEFERRED
+from adapt_pipeline_cache_room import BASELINE as C681_PIPELINE_CACHE_ROOM
+from adapt_pipeline_cache_persist import BASELINE as C683_PIPELINE_CACHE_PERSIST
+from adapt_pipeline_build_journal import BASELINE as C685_PIPELINE_BUILD_JOURNAL
+from adapt_pipeline_cache_growth import BASELINE as C687_PIPELINE_CACHE_GROWTH
+from adapt_occupied_readback_buffers import BASELINE as C689_OCCUPIED_READBACK_BUFFERS  # noqa: E402
+from adapt_async_regenerated_targets import BASELINE as C689_ASYNC_REGENERATED_TARGETS  # noqa: E402
+from adapt_released_texture_flush import BASELINE as C691_RELEASED_TEXTURE_FLUSH  # noqa: E402
+from adapt_pipeline_failure_identity import BASELINE as C691_PIPELINE_FAILURE_IDENTITY  # noqa: E402
+from adapt_worker_main_cache_lookup import BASELINE as C691_WORKER_MAIN_CACHE_LOOKUP  # noqa: E402
+from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDINGS  # noqa: E402
+from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
+from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
+from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
+from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
+from adapt_synced_buffer_reads import BASELINE as C701_SYNCED_BUFFER_READS  # noqa: E402
+from adapt_layout_used_types import BASELINE as C703_LAYOUT_USED_TYPES  # noqa: E402
+from adapt_same_program_descriptors import BASELINE as C705_SAME_PROGRAM_DESCRIPTORS  # noqa: E402
+from adapt_retention_chain import BASELINE as C707_RETENTION_CHAIN  # noqa: E402
+from adapt_short_cache_reuse import BASELINE as C709_SHORT_CACHE_REUSE  # noqa: E402
+from adapt_pipeline_variant_replay import BASELINE as C711_PIPELINE_VARIANT_REPLAY  # noqa: E402
+from adapt_pipeline_snapshot_retire import BASELINE as C713_PIPELINE_SNAPSHOT_RETIRE  # noqa: E402
+from adapt_extra_set_binds import BASELINE as C715_EXTRA_SET_BINDS  # noqa: E402
+from adapt_array_reference_deltas import BASELINE as C715_ARRAY_REFERENCE_DELTAS  # noqa: E402
+from adapt_worker_library_share import BASELINE as C717_WORKER_LIBRARY_SHARE  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -35,24 +95,187 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered',
             'counter-report-compaction': 'ada',
             # Core 639 (PR #153 lot): their fixtures rebuild their own exact Core 631 control from the final source.
-            'pipeline-warmup-parity': 'delivered', 'device-short-trim': 'delivered'}
+            'pipeline-warmup-parity': 'delivered', 'device-short-trim': 'delivered',
+            # Core 642 (PR #154 lot): the same form, against the Core 639 preparation each adapter pins.
+            'moltenvk-barrier-ordering': 'delivered', 'descriptor-scratch-all-titles': 'delivered',
+            'readback-occupied-attribution': 'delivered', 'pipeline-miss-context': 'delivered',
+            # The build 87 barrier compaction proof declares BarrierBatch.cs (changed by the barrier ordering adapter).
+            'barrier-compaction': 'delivered',
+            # Core 644 (PR #156 lot).
+            'readback-receivers': 'delivered', 'present-source-attribution': 'delivered',
+            # Core 647 (PR #156 follow-up).
+            'teardown-compile-cancel': 'delivered', 'pause-guest-threads': 'delivered',
+            # Core 649 (teardown phase marks).
+            'teardown-phase-marks': 'delivered',
+            # Core 654 (PR #156 new lot): the binder release, the collector's gcEvent lines, the artifact-path counters.
+            'binder-teardown': 'delivered', 'gc-events': 'delivered', 'artifact-counters': 'delivered',
+            # Core 656 (MeloNX levers from the IPA 650 logs): bounded rebuild arrays, 30 fps present pacing.
+            'array-rebuild-allocations': 'delivered', 'present-pacing': 'delivered',
+            # Core 658 (IPA 657 fix): the game image written into the iOS drawable by a render pass.
+            'present-drawable-residency': 'delivered',
+            # Core 661 (Hogwarts 658 logs): fifteen adapters and the gcEvent fallback flag.
+            'present-pacer-fixes': 'delivered',
+            'shader-save-poll': 'delivered',
+            'warmup-key-parity': 'delivered',
+            'setprogram-warmup': 'delivered',
+            'teardown-cache': 'delivered',
+            'forced-syncpoint-wait': 'delivered',
+            'session-retention': 'delivered',
+            'memory-inventory': 'delivered',
+            'guest-fault-context': 'delivered',
+            'gc-fallback': 'delivered',
+            'host-warning-trim': 'delivered',
+            'safe-point-compaction': 'delivered',
+            'cold-texture-release': 'delivered',
+            'bindless-retention': 'delivered',
+            'moltenvk-stage-ordering': 'delivered',
+            'core667-fixes': 'delivered',
+            'nan-scrub': 'delivered',
+            'main-cache-checkpoint': 'delivered',
+            'checkpoint-side-cache': 'delivered',
+            'evicted-buffer-recreate': 'delivered',
+            'audio-start-deferred': 'delivered',
+            'pipeline-cache-room': 'delivered',
+            'pipeline-cache-persist': 'delivered',
+            'pipeline-build-journal': 'delivered',
+            'pipeline-cache-growth': 'delivered',
+            # Core 689: occupied read-backs into a buffer; async skips only into regenerated targets.
+            'occupied-readback-buffers': 'delivered', 'async-regenerated-targets': 'delivered',
+            # Core 691: released-texture flush, pipeline failure identity, worker main-cache lookup.
+            'released-texture-flush': 'delivered', 'pipeline-failure-identity': 'delivered', 'worker-main-cache-lookup': 'delivered',
+            # Core 693: compute/graphics switch bindings; background GC keep-alive.
+            'compute-switch-bindings': 'delivered', 'bgc-keepalive': 'delivered',
+            # Core 697: background main pipeline cache load.
+            'pipeline-cache-background': 'delivered',
+            # Core 699: the GPU thread's synchronous waits attributed per invoked command.
+            'sync-wait-attribution': 'delivered',
+            # Core 701: buffer flushes read after their sync without a round trip.
+            'synced-buffer-reads': 'delivered',
+            # Core 703: a stage's layout declares each used binding with its used type.
+            'layout-used-types': 'delivered',
+            # Core 705: the program already set keeps its bound descriptor sets.
+            'same-program-descriptors': 'delivered',
+            # Core 707: the retention chain journal of a closed session.
+            'retention-chain': 'delivered',
+            # Core 709: valid textures kept past the short texture cache, bounded.
+            'texture-pool-allocations': 'delivered',
+            # Core 711: graphics pipeline states replayed at launch.
+            'pipeline-variant-replay': 'delivered',
+            # Core 713: worker snapshots main's file holds removed at the close.
+            'pipeline-snapshot-retire': 'delivered',
+            # Core 715: extra array sets kept bound; texture array references by delta.
+            'extra-set-binds': 'delivered', 'array-reference-deltas': 'delivered',
+            # Core 717: a worker's libraries published to main during play.
+            'worker-library-share': 'delivered',
+            # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
+            'display-native': 'delivered',
+            # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
+            'single-virtual-dependency': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
-CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
-           set(WARMUP_BASELINE) | set(TRIM_BASELINE))
+# Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
+CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
+           set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
+           set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE) |
+           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE) | set(BINDER_BASELINE) | set(COUNTERS_BASELINE) |
+           set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE) | set(RESIDENCY_BASELINE) |
+           # Core 661: its adapters' files and the native runtime (the guest fault context handler).
+           set(C661_PRESENT_PACER_FIXES) | set(C661_SHADER_SAVE_POLL) | set(C661_WARMUP_KEY_PARITY) | set(C661_SETPROGRAM_WARMUP) | set(C661_TEARDOWN_CACHE) | set(C661_FORCED_SYNCPOINT_WAIT) | set(C661_SESSION_RETENTION) | set(C661_MEMORY_INVENTORY) | set(C661_GUEST_FAULT_CONTEXT) | set(C661_HOST_WARNING_TRIM) | set(C661_SAFE_POINT_COMPACTION) | set(C661_COLD_TEXTURE_RELEASE) | set(C661_BINDLESS_RETENTION) | set(C661_MOLTENVK_STAGE_ORDERING) |
+           {'src/Ryujinx.Library/EmbeddedRuntime.cs'} |
+           # Core 667: its adapters' files and the native launch preflight (the arena choice and the launch title).
+           set(C667_BUFFER_ARRAY_BARRIERS) | set(C667_HOGWARTS_PRECISE_MATH) | set(C667_SHADER_SAVE_JOURNAL) |
+           {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
+           # Core 671: the translator and host shader cache files of the NaN scrub.
+           set(C671_NAN_SCRUB) |
+           # Core 673: the pipeline cache manager and pipeline state (already changed files).
+           set(C673_MAIN_CACHE_CHECKPOINT) | set(C675_CHECKPOINT_SIDE_CACHE) |
+           set(C677_EVICTED_BUFFER_RECREATE) | set(C679_AUDIO_START_DEFERRED) |
+           set(C681_PIPELINE_CACHE_ROOM) | set(C683_PIPELINE_CACHE_PERSIST) |
+           set(C685_PIPELINE_BUILD_JOURNAL) | set(C687_PIPELINE_CACHE_GROWTH) |
+           # Core 689: DmaClass.cs (already changed) and the Vulkan files of the async rule (FramebufferParams.cs new).
+           set(C689_OCCUPIED_READBACK_BUFFERS) | set(C689_ASYNC_REGENERATED_TARGETS) |
+           # Core 691: the flush guard (ITexture.cs, PersistentFlushBuffer.cs and TextureView.cs new), PipelineState/Base.
+           set(C691_RELEASED_TEXTURE_FLUSH) | set(C691_PIPELINE_FAILURE_IDENTITY) | set(C691_WORKER_MAIN_CACHE_LOOKUP) |
+           # Core 693: TextureManager.cs and TextureBindingsManager.cs (GPU), EmbeddedSession.cs (Library).
+           set(C693_COMPUTE_SWITCH_BINDINGS) | set(C693_BGC_KEEPALIVE) |
+           # Core 697: TextureBindingsArrayCache.cs, PipelineCacheManager.cs, PipelineState.cs, VulkanRenderer.cs (already changed).
+           set(C697_ARRAY_DELTA_INVALIDATED) | set(C697_PIPELINE_CACHE_BACKGROUND) |
+           # Core 699: ThreadedRenderer.cs (already changed).
+           set(C699_SYNC_WAIT_ATTRIBUTION) |
+           # Core 701: IRenderer.cs and Buffer.cs (new), ThreadedRenderer.cs.
+           set(C701_SYNCED_BUFFER_READS) |
+           # Core 703: ShaderInfoBuilder.cs (new).
+           set(C703_LAYOUT_USED_TYPES) |
+           # Core 705: DescriptorSetUpdater.cs, PipelineBase.cs (already changed).
+           set(C705_SAME_PROGRAM_DESCRIPTORS) |
+           # Core 707: Library.cs, EmbeddedMemory.cs, WindowBase.cs, Horizon.cs, KProcess.cs (already changed).
+           set(C707_RETENTION_CHAIN) |
+           # Core 709: AutoDeleteCache.cs, TextureCache.cs, GpuContext.cs (already changed).
+           set(C709_SHORT_CACHE_REUSE) |
+           # Core 711: PipelineCacheManager.cs, ShaderCollection.cs, PipelineBase.cs, PipelineState.cs (already changed).
+           set(C711_PIPELINE_VARIANT_REPLAY) |
+           # Core 713: PipelineCacheManager.cs (already changed).
+           set(C713_PIPELINE_SNAPSHOT_RETIRE) |
+           # Core 715: DescriptorSetUpdater.cs, TextureArray.cs (already changed).
+           set(C715_EXTRA_SET_BINDS) | set(C715_ARRAY_REFERENCE_DELTAS) |
+           # Core 717: PipelineCacheManager.cs, PipelineState.cs (already changed).
+           set(C717_WORKER_LIBRARY_SHARE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
          'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json',
          # The queued syncpoints change CounterCache.cs and DeferredCounterReport.cs, which this receipt declares.
          'counter-report-compaction-final-checks.json',
+         # Core 642: the barrier ordering adapter changes BarrierBatch.cs, which this core87 receipt declares.
+         CORE87 + 'barrier-compaction-checks.json',
+         # Core 654: the collector changes (gcEvent lines), which this receipt declares as a postimage.
+         'single-virtual-dependency-final-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
-                                      'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
+                                      'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json')),
+         # Core 661: adapt_safe_point_compaction changes EmbeddedMemory.cs, which the native display fixture declares.
+         CORE87[:-len('historical-core87/')] + 'display-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
           'src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs', 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs',
-          'src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs', 'src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs'}
-REUSED_FRESH = {'single-virtual-dependency-final-checks.json'}
+          'src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs', 'src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs',
+          # Core 644 (adapt_present_source_attribution): the GPU Window joins the prepared source.
+          'src/Ryujinx.Graphics.Gpu/Window.cs',
+          # Core 647 (adapt_pause_guest_threads): KProcess joins (Horizon.cs was already a prepared member).
+          'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs',
+          # Core 654 (adapt_binder_teardown): the two SurfaceFlinger files join (Library.cs was already a prepared member).
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs',
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs'}
+# Core 654: no fresh fixture of the delivered Core is reused any more (the single-virtual-dependency receipt declares the collector).
+# Core 661: upstream members its adapters edit for the first time join the prepared source.
+C661_JOINED = {'src/Ryujinx.Graphics.GAL/IProgram.cs',
+               'src/Ryujinx.Graphics.GAL/ITextureArray.cs',
+               'src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs',
+               'src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs',
+               'src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs',
+               'src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs',
+               'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs',
+               'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs',
+               'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs',
+               'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs',
+               'src/Ryujinx.HLE/PerformanceStatistics.cs'}
+JOINED = JOINED | C661_JOINED
+# Core 671 (adapt_nan_scrub): the two translator files join the prepared source (DiskCacheHostStorage.cs already was);
+# like the Core 661 GPU joiners they are read from a control only by fragmented-reads (delivered609).
+C671_JOINED = {'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs', 'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs'}
+JOINED = JOINED | C671_JOINED
+# Core 691 (adapt_released_texture_flush): ITexture.cs (GAL) and PersistentFlushBuffer.cs join the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/ITexture.cs', 'src/Ryujinx.Graphics.Vulkan/PersistentFlushBuffer.cs'}
+# Core 693 (adapt_compute_switch_bindings): TextureBindingsManager.cs joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs'}
+# Core 701 (adapt_synced_buffer_reads): IRenderer.cs joins the prepared source (Buffer.cs already was).
+JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/IRenderer.cs'}
+# Core 703 (adapt_layout_used_types): ShaderInfoBuilder.cs joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Shader/ShaderInfoBuilder.cs'}
+REUSED_FRESH = set()
 
 
 def check(ok, message):
@@ -89,6 +312,8 @@ check(verify.CONTROL_MEMBERS == {'delivered': 'embedded-adapted-source.zip',
 
 # The payload is unchanged: the prepared collector is the native collector with the array-delta edits, the same
 # 13 work rows and the same read and array counters as the delivered Core (the max-width payload bound holds).
+# Core 654: the native collector also writes the gcEvent journal lines (not in the payload), so the prepared collector
+# differs from the delivered Core's; the gc-events gate binds that difference to inserted lines only.
 prepared = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(encoding='utf-8-sig')
 for before, after in DIAGNOSTIC_EDITS:
     check(prepared.count(before) == 1, 'Collector anchor drift')
@@ -219,31 +444,99 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 37 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 84 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
                                                      'build-utils/melonx/adapt_pipeline_warmup_parity.py',
-                                                     'build-utils/melonx/adapt_device_short_trim.py'} and
-          set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
+                                                     'build-utils/melonx/adapt_device_short_trim.py',
+                                                     'build-utils/melonx/adapt_moltenvk_barrier_ordering.py',
+                                                     'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+                                                     'build-utils/melonx/adapt_readback_occupied_attribution.py',
+                                                     'build-utils/melonx/adapt_pipeline_miss_context.py',
+                                                     'build-utils/melonx/adapt_readback_receivers.py',
+                                                     'build-utils/melonx/adapt_present_source_attribution.py',
+                                                     'build-utils/melonx/adapt_teardown_compile_cancel.py',
+                                                     'build-utils/melonx/adapt_pause_guest_threads.py',
+                                                     'build-utils/melonx/adapt_teardown_phase_marks.py',
+                                                     'build-utils/melonx/adapt_binder_teardown.py',
+                                                     'build-utils/melonx/adapt_artifact_counters.py',
+                                                     'build-utils/melonx/adapt_array_rebuild_allocations.py',
+                                                     'build-utils/melonx/adapt_present_pacing.py',
+                                                     'build-utils/melonx/adapt_present_drawable_residency.py',
+                                                     'build-utils/melonx/adapt_present_pacer_fixes.py',
+                                                     'build-utils/melonx/adapt_shader_save_poll.py',
+                                                     'build-utils/melonx/adapt_warmup_key_parity.py',
+                                                     'build-utils/melonx/adapt_setprogram_warmup.py',
+                                                     'build-utils/melonx/adapt_teardown_cache.py',
+                                                     'build-utils/melonx/adapt_forced_syncpoint_wait.py',
+                                                     'build-utils/melonx/adapt_session_retention.py',
+                                                     'build-utils/melonx/adapt_memory_inventory.py',
+                                                     'build-utils/melonx/adapt_guest_fault_context.py',
+                                                     'build-utils/melonx/adapt_host_warning_trim.py',
+                                                     'build-utils/melonx/adapt_safe_point_compaction.py',
+                                                     'build-utils/melonx/adapt_cold_texture_release.py',
+                                                     'build-utils/melonx/adapt_bindless_retention.py',
+                                                     'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
+                                                     'build-utils/melonx/adapt_buffer_array_barriers.py',
+                                                     'build-utils/melonx/adapt_hogwarts_precise_math.py',
+                                                     'build-utils/melonx/adapt_shader_save_journal.py',
+                                                     'build-utils/melonx/adapt_nan_scrub.py',
+                                                     'build-utils/melonx/adapt_main_cache_checkpoint.py',
+                                                     'build-utils/melonx/adapt_checkpoint_side_cache.py',
+                                                     'build-utils/melonx/adapt_evicted_buffer_recreate.py',
+                                                     'build-utils/melonx/adapt_audio_start_deferred.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_room.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_persist.py',
+                                                     'build-utils/melonx/adapt_pipeline_build_journal.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_growth.py',
+                                                     'build-utils/melonx/adapt_occupied_readback_buffers.py',
+                                                     'build-utils/melonx/adapt_async_regenerated_targets.py',
+                                                     'build-utils/melonx/adapt_released_texture_flush.py',
+                                                     'build-utils/melonx/adapt_pipeline_failure_identity.py',
+                                                     'build-utils/melonx/adapt_worker_main_cache_lookup.py',
+                                                     'build-utils/melonx/adapt_compute_switch_bindings.py',
+                                                     'build-utils/melonx/adapt_bgc_keepalive.py',
+                                                     'build-utils/melonx/adapt_array_delta_invalidated.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_background.py',
+                                                     'build-utils/melonx/adapt_sync_wait_attribution.py',
+                                                     'build-utils/melonx/adapt_synced_buffer_reads.py',
+                                                     'build-utils/melonx/adapt_layout_used_types.py',
+                                                     'build-utils/melonx/adapt_same_program_descriptors.py',
+                                                     'build-utils/melonx/adapt_retention_chain.py',
+                                                     'build-utils/melonx/adapt_short_cache_reuse.py',
+                                                     'build-utils/melonx/adapt_pipeline_variant_replay.py',
+                                                     'build-utils/melonx/adapt_pipeline_snapshot_retire.py',
+                                                     'build-utils/melonx/adapt_extra_set_binds.py',
+                                                     'build-utils/melonx/adapt_array_reference_deltas.py',
+                                                     'build-utils/melonx/adapt_worker_library_share.py'} and
+          set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
+                                                       # Core 654: the collector's gcEvent lines.
+                                                       'native/melonx/EmbeddedPerformanceDiagnostics.cs',
+                                                       # Core 661: the guest fault context handler.
+                                                       'native/melonx/EmbeddedRuntime.cs',
+                                                       # Core 667: the launch title's note (arena choice, math mode).
+                                                       'native/melonx/EmbeddedLaunchPreflight.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
-          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs and the four warm-up parity members join the prepared source')
+          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
           {path for path, value in frozen['preparedMembers'].items() if baseline[path] != value} == CHANGES,
           'Prepared source differs from the delivered one outside the reviewed changes')
     collector = hashlib.sha256(prepared.encode('utf-8')).hexdigest()
-    check(collector == frozen['preparedMembers'][DIAGNOSTICS] == arrays_frozen['preparedMembers'][DIAGNOSTICS],
-          'The collector (payload) changed')
+    check(collector == frozen['preparedMembers'][DIAGNOSTICS] and collector != arrays_frozen['preparedMembers'][DIAGNOSTICS],
+          'The prepared collector is not the checked-in native collector (gcEvent lines) plus the array-delta edits')
     check(frozen['baselinePreparationInputs'] == arrays_frozen['preparationInputs'] and
           frozen['baselinePreparedMembers'] == arrays_frozen['preparedMembers'] and
           frozen['readsControlMembers'] == arrays_frozen['baselinePreparedMembers'] and
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 134 and len(frozen['preparedMembers']) == 180, 'Wrong final composition')
+    # Core 717: 194 preparation inputs (adapt_worker_library_share.py added), the same 206 prepared members.
+    check(len(frozen['preparationInputs']) == 194 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -254,23 +547,58 @@ if not args.helpers_only:
     check(set(gate['bindless-array-deltas']['requiredPostimages']) == set(ARRAY_NAMES) and
           set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES) | set(HOST_NAMES),
           'A changed adapter gate does not bind every change')
-    check(CHANGES <= set(gate['fragmented-reads']['requiredPostimages']) and
-          CHANGES - {LIBRARY} <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
+    # Library-assembly files (Library.cs, WindowBase.cs) and the HLE files (KProcess, Horizon, the two SurfaceFlinger
+    # files of Core 654) are outside the GPU/Vulkan closure.
+    OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'} | set(BINDER_BASELINE)
+    # Core 661: its HLE and Library-assembly files (bound by their own gates).
+    OUTSIDE_GPU |= {'src/Ryujinx.HLE/HOS/Horizon.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs', 'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs', 'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs', 'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs', 'src/Ryujinx.HLE/PerformanceStatistics.cs', 'src/Ryujinx.HLE/Switch.cs', 'src/Ryujinx.Library/EmbeddedMemory.cs', 'src/Ryujinx.Library/EmbeddedRuntime.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Library/Ryujinx.Library.csproj', 'src/Ryujinx.Library/Window/WindowBase.cs'}
+    # Core 667: the native launch preflight (Library assembly) is bound by the Core 667 gate.
+    OUTSIDE_GPU |= {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'}
+    # Core 679: the Apple audio session (Ryujinx.Audio.Backends.Apple assembly) is bound by the audio-start-deferred gate.
+    OUTSIDE_GPU |= set(C679_AUDIO_START_DEFERRED)
+    # Core 693: the session file (Library assembly) is bound by the bgc-keepalive gate.
+    OUTSIDE_GPU |= set(C693_BGC_KEEPALIVE)
+    check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
+          # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
+          CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
           'The final GPU assembly build does not bind every changed GPU file')
+    check(set(PAUSE_BASELINE) <= set(gate['pause-guest-threads']['requiredPostimages']) and
+          set(MARKS_BASELINE) <= set(gate['teardown-phase-marks']['requiredPostimages']) and
+          set(BINDER_BASELINE) <= set(gate['binder-teardown']['requiredPostimages']), 'The HLE and Library changes are bound by their own gates')
+    # Core 654: the counters' three Vulkan files and the collector are bound by their own gates besides the GPU assembly build.
+    check(set(COUNTERS_BASELINE) <= set(gate['artifact-counters']['requiredPostimages']) and
+          gate['gc-events']['requiredPostimages'] == [DIAGNOSTICS] and
+          {b['productionPath'] for b in gate['gc-events']['compiledBindings']} == {DIAGNOSTICS} and
+          gate['gc-events']['assertions'].get('backgroundGcObserved') is True and gate['gc-events']['assertions'].get('serverGc') is False,
+          'The Core 654 counters and collector are bound by their own gates')
     check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
                                                              'baselinePreparedWithFinalInstrumentedCandidate',
-                                                             # Core 639: the final preparation, its exact 631 control rebuilt
-                                                             'finalPreparationWithReversedControl') for name in gate),
+                                                             # Core 639 and 642: the final preparation, its exact pinned control rebuilt
+                                                             'finalPreparationWithReversedControl',
+                                                             # Core 654 gc-events: the final preparation's collector against the Core 649 one
+                                                             'finalPreparation') for name in gate),
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']
     graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in JOINED}
     # The four warm-up parity members are read from a control only by fragmented-reads (delivered609); no gate on the
     # delivered 614 control reads them (the PR #153 fixtures rebuild their own Core 631 control).
-    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
-    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members}
-    check(unadapted == {'delivered': delivered_graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
-                        'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'], **graphics},
+    # The GPU Window (Core 644) is likewise read from a control only by fragmented-reads.
+    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY} - C661_JOINED - C671_JOINED
+    # Core 661: GAL ITextureArray.cs (adapt_bindless_retention) is read from the delivered and delivered611 controls by the
+    # array-descriptor and bindless-array gates; its other GPU joiners only by fragmented-reads (delivered609); its HLE
+    # joiners from no control (their own gates read the final preparation).
+    TEXTURE_ARRAY_GAL = 'src/Ryujinx.Graphics.GAL/ITextureArray.cs'
+    c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
+    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED and path not in C671_JOINED}
+    delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
+    check(unadapted == {'delivered': delivered_graphics,
+                        'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},
+                        # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
+                        # gates read them, from the final preparation.
+                        'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
+                                         **{path: digest for path, digest in graphics.items()
+                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

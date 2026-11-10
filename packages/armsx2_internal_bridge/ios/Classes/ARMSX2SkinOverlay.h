@@ -34,6 +34,9 @@ FOUNDATION_EXPORT NSString* _Nullable ARMSX2SkinConsoleOfGameType(NSString* _Nul
 @property(nonatomic, readonly) UIInterfaceOrientationMask supportedOrientationMask;
 /// The current bounds' orientation has one.
 @property(nonatomic, readonly) BOOL layoutActive;
+/// The current skin has a Menu control of its own (then the session's floating
+/// menu button is not drawn over it).
+@property(nonatomic, readonly) BOOL hasMenuControl;
 /// Where the game goes, in the overlay's coordinates (CGRectNull without one).
 @property(nonatomic, readonly) CGRect screenFrame;
 /// A digital pad button changed (ARMSX2PadButton 0...15).

@@ -76,7 +76,7 @@ class BundledControllerSkin {
       final size = raw['size'];
       if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(id) ||
           !ids.add(id) ||
-          !const ['gc', 'wii', 'ps2'].contains(console) ||
+          !const ['gc', 'wii', 'ps2', 'switch'].contains(console) ||
           !RegExp(r'^[a-f0-9]{64}$').hasMatch(digest) ||
           size is! int ||
           size <= 0 ||

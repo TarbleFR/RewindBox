@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 638,
- "note": "RPCS3 Core 638: Core 636 (Core 634, which contains Core 630, plus the three corrections of the Core 634 audit: X29/X30 never read through Darwin's __x[29] in the ZCULL fault handler, the SPIR-V pack bound counts the batch being written, the parallel PPU check stops at the first miss or a stop; and the ZCULL slot release ending a guest's pause) plus the God of War III readback prediction counters (COREPROF READPREDICT638, instrumentation only), built by the RPCS3 Core route (run 41737262282, attempt 1, source 5a6d2485). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone.",
+ "build": 914,
+ "note": "RPCS3 Core 914 (Core 912 was built but never pinned; Core 913 was its 4-way witness): Core 911 plus diagnostics for the open questions, all off by default. REWINDBOX_CAPTURE_912: two bounded captures enabled per title on the test page and started by a request of the host when its in-game menu closes (that menu does not pause the emulation; the request is a write of Enabled to the capture setting of the running title, taken by rpcs3_ios_set_game_setting before its idle contract, loading and saving nothing): COREPROF PUTLLCTRACE912 (per SPU thread, up to 512 consecutive data-changing accurate PUTLLC with the lane read, asked and found, six outcomes, one time base; REWINDBOX_CAPTURE_914: an event is stored only by the capture it was prepared under, an event of an earlier capture is refused and counted) and COREPROF PPUPROF912 (PPU threads sampled for at most 5 s by 256-byte regions of the last indirect transfer, system call or reservation instruction). The stall dump lists the FIFO position and the main thread's semaphores first. levers627 gains digits 19 to 21. No lock, barrier, reservation result or wait changes. SPUThread.cpp, an SPU identity input, changes in the host body of do_putllc() only (plus one include): one exact alias per Core (912, 914) in JITCacheCompatibility.cmake (Core 627 procedure, audited), identities unchanged. Host bridge 8977315e (test page rows, one capture request per closing of the in-game menu); MoltenVK dependency of run 42733987255 (library d19d3a42). Built by the RPCS3 Core route (run 42736141716, attempt 1, source ce12d397; Apple host harnesses run 42736141716 on ce12d397). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 638 source closure and the native dependency",
+    "Authenticate the Core 914 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 638",
-    "Verify the actual binary and write its Core 638 identity",
+    "Compile and link the actual iPhone Core 914",
+    "Verify the actual binary and write its Core 914 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 638 without an application delivery",
+    "Upload the verified Core 914 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
-   "run": 41737262282,
+   "source": "ce12d39799381682a2fa57a53a8f7de23f6e12ad",
+   "run": 42736141716,
    "attempt": 1,
-   "job": 126269535708,
-   "artifact": 13279848360,
-   "name": "RPCS3Core-638-5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
-   "bytes": 29325101,
-   "sha256": "1bbdcbd3ad1d904d782d11b7fe6119d36bdee7aa78e975865ae25e7321bcf5f3",
-   "expiresAt": "2026-12-03T23:28:46Z"
+   "job": 129565748595,
+   "artifact": 13728211847,
+   "name": "RPCS3Core-914-ce12d39799381682a2fa57a53a8f7de23f6e12ad",
+   "bytes": 30488863,
+   "sha256": "3f289f9da9ce78df4e6b757c93a86df13df5696452e9bebca1d6ed443313004e",
+   "expiresAt": "2026-12-10T01:47:34Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 638 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 914 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 638 harnesses with Apple clang",
+    "Run the affected and new Core 914 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core638",
+    "core914",
     "lr-full-queue"
    ],
-   "source": "5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
-   "run": 41737262282,
+   "source": "ce12d39799381682a2fa57a53a8f7de23f6e12ad",
+   "run": 42736141716,
    "attempt": 1,
-   "job": 126269535214,
-   "artifact": 13279912187,
-   "name": "RPCS3Core-638-apple-host-tests-5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
-   "bytes": 42111,
-   "sha256": "43b18e52fc629726abf1644a615425bcb6d3482f3ce0e549e2f5f12578e10c71",
-   "expiresAt": "2026-12-03T23:21:09Z",
+   "job": 129565748130,
+   "artifact": 13726874317,
+   "name": "RPCS3Core-914-apple-host-tests-ce12d39799381682a2fa57a53a8f7de23f6e12ad",
+   "bytes": 62460,
+   "sha256": "06dc34c8d28a3c3519ee789268ec1d4d0eb29096f6aa5271ae4a0c50995da6cb",
+   "expiresAt": "2026-12-10T01:45:19Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core638",
-  "dylibBytes": 77739520,
-  "dylibSha256": "4686eb28bf4f448e8d569fc9bc2cefb2aec5bedd9876c8ced64d50dd5095c400",
-  "identitySha256": "58fd3aff6c26be33aa7f2351735820087d78a4a4bb7497d50ceea6de2fbbe2a6",
+  "type": "rpcs3-ios-core914",
+  "dylibBytes": 80919144,
+  "dylibSha256": "14e6f6912c142a31768619fe090a73d44dd7c2d80294d71caf89c9d811351798",
+  "identitySha256": "ce2acece9eff6c22610f592b5db913ae7405ddacaa0d9a8b751913b1cb4782d5",
   "proofMember": "core610-proof.json",
-  "proofSha256": "82544136d9f5e4a24884f8be9d0e356494c4270ce069afeb18c80b354fb8dd23",
-  "payloadFingerprint": "c35b792ec83139b43099291ed5d9b935748b6495001d7dd7ae313fbc79f72da6"
+  "proofSha256": "1e9b28ee4e0d9d4152e71a56ec8611dca37f74a0eeea1bcfca1b19df18276d4f",
+  "payloadFingerprint": "df98e75ddd5cae2783f7e499ce79178fa09904f9054edb7b8673f7306112be5e"
  },
  "canonical": {
-  "patchSha256": "b6d8799545691969acf8462aaea9df7825ee78626d92058181bbb706ea7fdd54",
-  "postimages": 357,
+  "patchSha256": "c45491ed85238b6768adf75b9d6359c5e4fc43bc07a3efe84443e0b8dc4b2695",
+  "postimages": 448,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -218,7 +218,7 @@
  },
  "host": {
   "path": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "sha256": "036dafbb44cf34ed51d5928fb50f3dc455bb3932c33544f9bae510b8de9f4a98"
+  "sha256": "8977315ebff0fcdc6d4dd4813881cef023e7b7f9174a4fbb42dce97387794ca9"
  },
  "hostStore": {
   "path": "native/neoswap-storage/Store.cpp",
@@ -253,13 +253,49 @@
   "report array on a host page",
   "Resolved title policy 630",
   "Resolved title policy 634",
-  "COREPROF READPREDICT638"
+  "COREPROF READPREDICT638",
+  "COREPROF AUDIO641",
+  "COREPROF RPASS652",
+  "Resolved title policy 655",
+  "COREPROF RPASS655",
+  "Resolved title policy 659",
+  "COREPROF ZCULLLEAD659",
+  "COREPROF ZCULLHINT659",
+  "Resolved title policy 660",
+  "COREPROF SPUDIRECT660",
+  "COREPROF TEXMEMO660",
+  "COREPROF ZCULLWATCH660",
+  "COREPROF ZCULLDEPTH660",
+  "Resolved title policy 664",
+  "COREPROF PPUGRACE664",
+  "COREPROF METAL frames=",
+  "Native Metal 4 renderer",
+  "COREPROF METAL textures bound=",
+  "COREPROF METAL M4 queries=",
+  "COREPROF METAL M5 program_cache=",
+  "COREPROF METAL state frames=",
+  "COREPROF LOADCLEAR907",
+  "Resolved title policy 907",
+  "wl_putllc_phases=",
+  "miss_evicted=",
+  "COREPROF EPOCH909",
+  "COREPROF GOW3MLAA909",
+  "put_deferred=",
+  "put_patched=",
+  "same_target_after_empty=",
+  "Resolved title policy 910",
+  "worker_used=",
+  "COREPROF PUTLLCTRACE912",
+  "COREPROF PPUPROF912",
+  "part=armed trigger=menu_closed",
+  "fifo_pos=",
+  "stale_rejected="
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
-  "run": 41610162888,
-  "artifact": 13219702266,
-  "payloadFingerprint": "eccf8535d7a6e846fdaf26674cbfeef7a6541d2d97af5b23201a144129c041cf"
+  "source": "65c7ffa4dbd94f29c31e88d992db1fd396a73c9a",
+  "run": 42709542308,
+  "artifact": 13716227563,
+  "payloadFingerprint": "19a1f4a0cb630a5e49b5c878a046cd3d94826f846dfd781f765a39eb14d89cb4"
  }
 }

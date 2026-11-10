@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "repository": "https://github.com/dotnet/runtime.git",
+  "tag": "v10.0.0",
+  "revision": "60629d14374c56f1cb51819049ad1fa529307f8d",
+  "sourceSha256": {
+    "src/coreclr/gc/gc.cpp": "4d92ead47fc1472ea47f4c2c0b8d9246def3f49ac427f374703d1aadfe74de8c",
+    "src/coreclr/nativeaot/Runtime/gcenv.ee.cpp": "34a4106345051e0c58ed1a03dc124f64c66ce6037c6bea1ea2b5fd1bcae59550"
+  },
+  "patch": "build-utils/melonx/nativeaot-gc/wks-bgc-thread-running.patch",
+  "patchSha256": "018214fb546d305f729f60d6895f94b0d3c6fe76af14f1d5fb2b061f52ba3824",
+  "marker": "RewindBox NativeAOT GC patch 1: WKS background GC start checks bgc_thread_running (dotnet/runtime#119383)",
+  "library": "libRuntime.WorkstationGC.a",
+  "member": "gcwks.cpp.o",
+  "license": "MIT (dotnet/runtime LICENSE.TXT; THIRD-PARTY-NOTICES.TXT archived with the build)",
+  "upstreamFix": {
+    "pullRequest": "https://github.com/dotnet/runtime/pull/119383",
+    "issue": "https://github.com/dotnet/runtime/issues/13238",
+    "commit": "f1f0a476d1efd949b499e26ed5ac65acd5234888",
+    "mergeCommit": "0722618d671cb551d9de826d270ce7825da49cab",
+    "merged": "2025-09-05",
+    "firstReleaseTag": "v11.0.0-preview.1.26104.118",
+    "absentFromTags": "v10.0.0 to v10.0.14 (gc.cpp still `!!bgc_thread`, read 2026-11-05)"
+  },
+  "runtimePacks": {
+    "ios-arm64": {
+      "package": "Microsoft.NETCore.App.Runtime.NativeAOT.ios-arm64",
+      "version": "10.0.0",
+      "nupkgSha256": "b1acbb3bc953e78b1371a2877d3042cda0be78398e3cc30d03f2cd3d9b2318b2",
+      "sourceCommit": "dotnet/dotnet b0f34d51fccc69fd334253924abd8d6853fad7aa",
+      "librarySha256": "44b780ba8bcaa1261cca8f7a28fcc95de8623b242f1f94c290e2cb29f9757f33",
+      "libraryBytes": 7106680,
+      "members": 81,
+      "memberSha256": "d1eb1aa27254c4f2891dc5a1e4bbd04b701d5bfbeffea80c785041af31e6f0de",
+      "platform": "IOS",
+      "buildArguments": ["-os", "ios", "-arch", "arm64"]
+    },
+    "iossimulator-arm64": {
+      "package": "Microsoft.NETCore.App.Runtime.NativeAOT.iossimulator-arm64",
+      "version": "10.0.0",
+      "nupkgSha256": "eae42e543e57ada1f06ab217bf976f4389a61cfe51612b0b8df3ff24796e15f3",
+      "sourceCommit": "dotnet/dotnet b0f34d51fccc69fd334253924abd8d6853fad7aa",
+      "librarySha256": "39fea820ec5cf2cd9cdb8e20a42c5ca5f1eb91084a8ec131c2b6e384a0d68ec5",
+      "libraryBytes": 7110768,
+      "members": 81,
+      "memberSha256": "634e2e95d346e3abed7de19f8d293e228d491e5428ff0b7a20f5c3af66903724",
+      "platform": "IOSSIMULATOR",
+      "buildArguments": ["-os", "iossimulator", "-arch", "arm64"]
+    }
+  },
+  "why": "IPA 658 Hogwarts Legacy: 19 background gen2 requests after more than 20 s without one fell back to blocking gen2s (102, 332, 952 ms in play); .NET 10.0.0's workstation start check reads bgc_thread, which the BGC thread sets only after NativeAOT's CreateThread returned. No 10.0.x release carries the fix and no GC setting keeps the thread alive, so gcwks.cpp.o is rebuilt from v10.0.0 with the upstream one-line fix and spliced into the runtime pack's archive (docs/melonx-bgc-fallback-2026-11-05.md)."
+}

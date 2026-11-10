@@ -86,6 +86,13 @@ jobs:
         cache: true
     - name: Resolve exact workspace lock
       run: flutter pub get --enforce-lockfile
+    - name: Provide the pinned Pillow of the skin verifiers
+      run: |
+        set -euo pipefail
+        python3 -m venv --system-site-packages "$RUNNER_TEMP/delivery-python"
+        "$RUNNER_TEMP/delivery-python/bin/python" -m pip install --quiet --disable-pip-version-check pillow==12.3.0
+        "$RUNNER_TEMP/delivery-python/bin/python" -c 'import PIL; print("Pillow " + PIL.__version__)'
+        echo "$RUNNER_TEMP/delivery-python/bin" >> "$GITHUB_PATH"
     - name: Run source contracts and Flutter behavior
       run: python3 -B .github/diagnostics/standard_delivery.py tests flutter
     - name: Preserve actual command results
@@ -118,6 +125,30 @@ jobs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '16.4'
+    - name: Boot the targeted iOS simulator once for every XCTest
+      run: |
+        set -euo pipefail
+        # docs/delivery-speed.md: the translation XCTest let xcodebuild boot this simulator and shut it
+        # down after its run, so the central session XCTest booted it again and waited minutes before its
+        # first launch, while the later XCTests found it booted. Booted here, while Flutter is set up, it
+        # stays booted for the whole group. Same device as every XCTest of the group: the first available
+        # iPhone of the iOS runtime of the selected SDK. No test is changed; each still checks its device.
+        UDID="$(python3 -B - <<'PY_DEVICE'
+        import json, subprocess
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-version'], text=True).strip()
+        runtime = 'com.apple.CoreSimulator.SimRuntime.iOS-' + sdk.replace('.', '-')
+        devices = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j']))['devices']
+        matches = [d for d in devices.get(runtime, []) if d['name'].startswith('iPhone') and d.get('isAvailable')]
+        print(matches[0]['udid'] if matches else '')
+        PY_DEVICE
+        )"
+        if [ -z "$UDID" ]; then
+          echo 'No matching simulator; each XCTest keeps its own refusal.'
+          exit 0
+        fi
+        echo "TARGET_SIMULATOR=$UDID" >> "$GITHUB_ENV"
+        nohup xcrun simctl bootstatus "$UDID" -b < /dev/null > "$RUNNER_TEMP/target-simulator-boot.log" 2>&1 &
+        echo "Booting $UDID in the background"
     - name: Set up Flutter3.47.2
       uses: subosito/flutter-action@v2
       with:
@@ -131,6 +162,14 @@ jobs:
         set -euo pipefail
         flutter precache --ios
         command -v xcodegen || brew install xcodegen
+    - name: Wait for the targeted iOS simulator to finish booting
+      run: |
+        set -euo pipefail
+        if [ -n "${TARGET_SIMULATOR:-}" ]; then
+          xcrun simctl bootstatus "$TARGET_SIMULATOR" -b
+          cat "$RUNNER_TEMP/target-simulator-boot.log" || true
+          xcrun simctl list devices booted
+        fi
     - name: Run actual Xcode16.4 tests and host compilation
       run: python3 -B .github/diagnostics/standard_delivery.py tests native
     - name: Preserve actual command results

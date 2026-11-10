@@ -35,7 +35,7 @@ from adapt_gpu_work_diagnostics import apply as gpu_work, NAMES as GPU_WORK
 from adapt_bindless_array_deltas import apply as array_deltas, NAMES as ARRAY_DELTAS
 from adapt_queued_syncpoints import apply as queued, GPFIFO_DEVICE, COUNTER_CACHE
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import apply_present  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 from adapt_host_qos_pipeline_budget import (apply_threaded, apply_pipeline_budget, apply_hunks, THREADED, PIPELINE_CACHE,
                                             PIPELINE_BASE, PIPELINE_BASE_HUNKS, BUFFER_HOLDER, BUFFER_HOLDER_HUNKS)
 
@@ -92,10 +92,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
                                 (BUFFER_HOLDER, lambda path: apply_hunks(path, BUFFER_HOLDER_HUNKS))):
         if (expected / relative).exists():
             host_hunk(expected / relative)
-    # Then the PR #153 lot (Core 639) on the observed files it edits (PipelineState.cs).
-    apply_present(expected, 'adapt_pipeline_warmup_parity')
-    apply_present(expected, 'adapt_device_short_trim')
+    # Then the PR #153 lot (Core 639) and the PR #154 lot (Core 642) on the observed files they edit.
     paths = list(dict.fromkeys([*existing, *native.values()]))
+    for name in ORDER:
+        apply_present(expected, name, only=set(paths))
     for path in paths:
         if CANDIDATE:
             assert (expected / path).read_bytes() == (CANDIDATE / path).read_bytes(), 'Final prepared source differs: ' + path
@@ -128,10 +128,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # Accepted-run ownership and finally are unchanged except observer calls.
     session_before = (SOURCE / native['native/melonx/EmbeddedSession.cs']).read_text()
     session_after = (expected / native['native/melonx/EmbeddedSession.cs']).read_text()
-    normalized = session_after.replace('                EmbeddedPerformanceDiagnostics.Start(generation);\n', '').replace('                    EmbeddedPerformanceDiagnostics.Stop(generation);\n', '')
+    # Core 693: adapt_bgc_keepalive's own replacements in the session file (keep-alive start/stop and its class) are
+    # undone before the comparison; its gate (bgc-keepalive) binds them.
+    import adapt_bgc_keepalive as _bgc
+    session_core = session_after
+    for _new, _old in ((_bgc.TAIL_NEW, _bgc.TAIL_OLD), (_bgc.START_NEW, _bgc.START_OLD), (_bgc.STOP_NEW, _bgc.STOP_OLD)):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
+    normalized = session_core.replace('                EmbeddedPerformanceDiagnostics.Start(generation);\n', '').replace('                    EmbeddedPerformanceDiagnostics.Stop(generation);\n', '')
     assert normalized == session_before, 'Unexpected session policy change'
-    assert session_after.index('return EmbeddedSessions.Run(generation') < session_after.index('EmbeddedPerformanceDiagnostics.Start(generation)') < session_after.index('try { Load(options)')
-    assert session_after.index('finally\n                {\n                    EmbeddedPerformanceDiagnostics.Stop(generation);') > session_after.index('try { Load(options)')
+    assert session_core.index('return EmbeddedSessions.Run(generation') < session_core.index('EmbeddedPerformanceDiagnostics.Start(generation)') < session_core.index('try { Load(options)')
+    assert session_core.index('finally\n                {\n                    EmbeddedPerformanceDiagnostics.Stop(generation);') > session_core.index('try { Load(options)')
     source_checks += 3
     assert (expected / unchanged).read_bytes() == (SOURCE / unchanged).read_bytes(), 'UIKit sampler changed'
     source_checks += 1
@@ -162,6 +169,12 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_queued_syncpoints.py',
                'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+               'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+               'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
+               'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
+               'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
+               'build-utils/melonx/adapt_teardown_phase_marks.py',
+               'build-utils/melonx/adapt_bgc_keepalive.py',
                'test/melonx_adapter_control.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}

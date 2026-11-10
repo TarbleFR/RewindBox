@@ -1,0 +1,69 @@
+{
+  "result": "passed",
+  "checks": 27,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "af8a5474964e627714d7176d063659235c3634346089724b31b644bb5e59cfb1",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "ba9f2ab96d95fff0a26d166123dd050f4ba928f556a305d66d2baf7818b36f03",
+    "src/Ryujinx.Library/Library.cs": "267268d0ce10d11a1c0330fcf6ba6f0161e0b539ff38066cfa6856b635bb776d"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "pausedAfterNewPipelines": {
+        "mainFileMiB": 10
+      },
+      "pausedAgainUnchanged": {
+        "extraWrites": 0
+      },
+      "renderThreadTrigger": {
+        "afterSevenMiB": 10,
+        "afterEightMiB": 10,
+        "writtenOffTheCreatingThread": true
+      },
+      "withinInterval": {
+        "mainFileMiB": 10
+      },
+      "errors": 0,
+      "pauseLine": null
+    },
+    "candidate": {
+      "variant": "candidate",
+      "pausedAfterNewPipelines": {
+        "mainFileMiB": 10.75
+      },
+      "pausedAgainUnchanged": {
+        "extraWrites": 0
+      },
+      "renderThreadTrigger": {
+        "afterSevenMiB": 10,
+        "afterEightMiB": 12,
+        "writtenOffTheCreatingThread": true
+      },
+      "withinInterval": {
+        "mainFileMiB": 10
+      },
+      "disposeDuringPauseWrite": {
+        "disposeWaitedMs": 414,
+        "writeCompleted": true,
+        "mainFileMiB": 10.5
+      },
+      "errors": 0,
+      "pauseLine": "Vulkan main pipeline cache checkpointed on pause in 16 ms, 3 main pipelines since the previous checkpoint (adapt_pipeline_cache_persist)."
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_cache_persist.py": "33a53a6c23bb72016f6c49963e1a65ae4e11585153ac25cb62629ecd9576b646",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_pipeline_cache_persist_test.py": "fdae0d1582fb34d6ae490ecc9f579356558ad935ac57da5737271c654b9dbf34",
+    "test/melonx_main_cache_checkpoint/Double.cs": "67c84f00443a26a6d62d00aeca3f68978ed467b58083e70e2a83dfd416cd9f59",
+    "test/melonx_pipeline_cache_persist/Program.cs": "fcaa5f2ab38e615f4293cda9c949d9978ffa02137148d76e9a17df177fba54cb",
+    "test/melonx_adapter_control.py": "ba6b1733dba7f355d8bcf40e3d014f1d39f27660b360f17c8086d6280c1d2d7d"
+  },
+  "limitation": "Host fixture of the real cache manager with a Vulkan double. Whether iOS leaves the app the few seconds a pause write takes before suspending it is known only from a device run."
+}
