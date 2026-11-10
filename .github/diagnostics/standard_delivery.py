@@ -2553,9 +2553,14 @@ def record(build, run, verification, api_directory, key_deleted=False, root=None
     folder = root / f'docs/evidence/rewind{build}'
     folder.mkdir(parents=True, exist_ok=True)
     (folder / 'api').mkdir(exist_ok=True)
+    # The report and the API metadata may already be where they are kept (719, 10 November 2026: the verifier had
+    # written its report into the evidence folder and the copy onto itself stopped the record).
+    def keep(source, destination):
+        if Path(source).resolve() != destination.resolve():
+            shutil.copy2(source, destination)
     for name in ('run-attempt.json', 'jobs.json', 'artifacts.json'):
-        shutil.copy2(api_directory / name, folder / 'api' / name)
-    shutil.copy2(verification, folder / f'download{build}-verification.json')
+        keep(api_directory / name, folder / 'api' / name)
+    keep(verification, folder / f'download{build}-verification.json')
     # The signed image inventory of the delivered IPA is what authenticates this delivery as the base of a later
     # build (verify_base). It only exists inside the encrypted delivery: it is copied from the decrypted folder
     # into the evidence folder before the recipient key is deleted. A receipt without it (718, 10 November 2026:

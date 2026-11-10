@@ -228,6 +228,69 @@ class ManifestSchema(unittest.TestCase):
         with self.assertRaises(ValueError):
             sd.verify_base(broken, read)
 
+    def test_record_replays_the_latest_receipt_and_needs_its_signed_inventory(self):
+        """718, 10 November 2026: a receipt written without signed-payload-identity.json cannot be the base of a later
+        build. 719: a verification report already in the evidence folder stopped the record on a copy onto itself."""
+        from unittest import mock
+        builds = sorted((int(p.stem) for p in (ROOT / sd.MANIFESTS).glob('*.json') if p.stem.isdigit()), reverse=True)
+        chosen = None
+        for build in builds:
+            folder = ROOT / f'docs/evidence/rewind{build}'
+            if all((folder / name).is_file() for name in ('delivery.json', 'signed-payload-identity.json',
+                                                           f'download{build}-verification.json', 'api/jobs.json')):
+                report = json.loads((folder / f'download{build}-verification.json').read_bytes())
+                jobs = json.loads((folder / 'api/jobs.json').read_bytes())
+                jobs = jobs.get('jobs', []) if isinstance(jobs, dict) else jobs
+                if set(job['name'] for job in jobs) == set(sd.JOB_NAMES) and \
+                        report.get('result') == 'passed-offline-checks':
+                    chosen = build
+                    break
+        if chosen is None:
+            self.skipTest('no standard receipt with its signed image inventory in this tree')
+        committed = json.loads((ROOT / f'docs/evidence/rewind{chosen}/delivery.json').read_bytes())
+        run = committed['execution']['run']
+
+        def replay(prepare=None, verification_outside=False):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / sd.MANIFESTS).mkdir(parents=True)
+                shutil.copy2(ROOT / sd.manifest_path(chosen), root / sd.manifest_path(chosen))
+                folder = root / f'docs/evidence/rewind{chosen}'
+                shutil.copytree(ROOT / f'docs/evidence/rewind{chosen}', folder)
+                (folder / 'delivery.json').unlink()
+                verification = folder / f'download{chosen}-verification.json'
+                api = folder / 'api'
+                if verification_outside:
+                    outside = root / 'outside'
+                    outside.mkdir()
+                    shutil.move(str(verification), outside / 'report.json')
+                    shutil.move(str(api), outside / 'api')
+                    verification, api = outside / 'report.json', outside / 'api'
+                if prepare:
+                    prepare(folder)
+                with mock.patch.object(sd, 'in_ci', lambda: False):
+                    result = sd.record(chosen, run, verification, api, key_deleted=True, root=root)
+                return result, json.loads((folder / 'delivery.json').read_bytes())
+
+        for outside in (False, True):
+            result, written = replay(verification_outside=outside)
+            self.assertEqual(result['result'], 'written')
+            for key in ('build', 'result', 'ipa', 'baseline', 'proofFiles'):
+                self.assertEqual(written[key], committed[key], (key, outside))
+            self.assertEqual(written['execution']['run'], run)
+            self.assertIn('signed-payload-identity.json', written['proofFiles'])
+
+        with self.assertRaisesRegex(ValueError, 'signed image inventory'):
+            replay(lambda folder: (folder / 'signed-payload-identity.json').unlink())
+
+        def another_ipa(folder):
+            path = folder / 'signed-payload-identity.json'
+            identity = json.loads(path.read_bytes())
+            identity['ipaSha256'] = '0' * 64
+            path.write_text(json.dumps(identity))
+        with self.assertRaisesRegex(ValueError, 'not the one of the verified IPA'):
+            replay(another_ipa)
+
     def test_recipient(self):
         _, manifest = current_manifest()
         recipient = manifest['recipient']

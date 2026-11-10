@@ -1490,7 +1490,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         `ppu=applied ppu_patch=100`. Then, by result: the yield of the SPU wait loops without depression (SPUThread.cpp,
         alias and audit), a directed hand-off to the awaited PPU thread, a bounded wait for net-zero heavy polls, the
         GETLLAR tick thresholds at their reference durations.
-    - **Next:** the common private IPA 719 with Core 918 (base 694).
+    - **IPA 719 delivered and verified (10 Nov):** = the content of 718 with RPCS3 Core 918 (pin `3d8ec315`), MeloNX
+      Core 717 unchanged, on the base 694. Freeze `78811d59` (effective digest `46d8fc5c…`, 52 reviewed commits, 10
+      source-only), trigger `3b4b4d02`, run `42779263525`, five jobs green first try (25.5 min; flutter and native
+      fresh). IPA 263643764 B, SHA-256 `2446e86d98550c8eac6b91b618cb563c2fd0948f3e810ebd09147adc508e4c56`;
+      `passed-offline-checks`; `libRPCS3Core.dylib` payload `78f2defd…f9d3` = the Core 918 pin, markers SCHED918,
+      PARKCMP917, both policy lines, the setting and GOW3MLAA909 present in the signed library; build 719, version
+      0.0.8. [Receipt](evidence/rewind719/delivery.json) with twelve proof files including the signed image inventory
+      (this receipt can be a base); key 719 deleted; sent privately to the maintainer.
+      - Undeclared image change explained: `dolphin_internal_bridge` differs from the base in the linker-made stubs
+        only (they load `objc_msgSend` from one or the other of two adjacent import slots bound to that same
+        symbol); its 38 code and data sections and its bindings equal those of 718 (recipe § 3.10, § 20).
+      - `record` stopped on a copy of the report onto itself when the report was already in the evidence folder:
+        fixed, with a replay test of the latest receipt and two negative controls (60 contract tests pass).
+      - Not run on the iPhone. No FPS claim. The journals of this build are the next input (protocol in the
+        [Core 918 record](rpcs3-core918-busy-wait.md) § 8).
+    - **Next:** the journals of build 719 (BO2 five minutes in the slow scene; GOW3 from a fresh boot, five minutes),
+      then the fix they select among those listed under "What the next export decides".
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

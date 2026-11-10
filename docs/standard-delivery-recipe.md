@@ -139,6 +139,12 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
    d'avant la synchronisation et le second parent la tête actuelle
    (`git commit-tree <arbre> -p <tête d'avant> -p HEAD`, puis avance rapide). Il est classé comme un seul
    changement revu, avec dans sa note la liste de ce qu'il apporte (719 : `d506a8ed`).
+10. **Une image changée sans être déclarée s'explique avant l'enregistrement** (719). Le rapport de vérification
+   liste sous `undeclaredImageChanges` les images ni retenues ni remplacées ni « doit changer » dont la charge
+   diffère de la base. Ce n'est pas un échec : une extension Flutter est reliée à chaque build. Avant d'écrire le
+   reçu, comparer l'image à celle de la build précédente section par section : une différence dans le code compilé
+   ou les données se classe (commit revu, image déclarée) ; une différence limitée à ce que l'éditeur de liens
+   fabrique se note dans l'état de la build.
 
 ## 4. État de la 611 (1er novembre 2026)
 
@@ -489,3 +495,29 @@ non recompilés ; PR #164 et PR #165.
 - **Durées.** Tableau avant/après dans `docs/delivery-speed.md` § 5.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP. IPA vérifiée hors ligne, clé privée supprimée. Aucun test sur iPhone.
+
+## 20. État de la 719 (10 novembre 2026)
+
+IPA commune privée livrée sur la 694 : run `42779263525`, déclencheur `3b4b4d02`, cinq jobs verts au premier
+essai, IPA `2446e86d…4c56`, 263643764 octets, 25,5 min de bout en bout
+([reçu](evidence/rewind719/delivery.json), douze fichiers de preuve dont l'inventaire signé des 90 images : ce
+reçu peut servir de base). Contenu de la 718 avec RPCS3 Core 918 (pin `3d8ec315`, charge `78f2defd…f9d3`) ;
+MeloNX Core 717 inchangé.
+- **Gel.** `78811d59` : empreinte effective `46d8fc5c…`, 7465 fichiers produit, 52 commits revus (les 49 de
+  la 718, la fusion de réalignement `d506a8ed` § 3.9, `cd325180`, `66760ea8`), 10 « source seulement », contrôle
+  légal réussi. Base 694 parce que le reçu de la 718 n'a pas d'inventaire signé (§ 3.8).
+- **Tests.** Flutter et natif frais : la preuve Flutter de la 718 porte le nom d'artefact et l'empreinte
+  effective de la 718, elle ne se réutilise pas d'une build à l'autre.
+- **Durées des jobs.** Contrôle 0,9 min ; Flutter 7,5 min ; natif 20,4 min ; republication 1,0 min ;
+  application 24,4 min, dont compilation Xcode 240 s et signature/export 43 s.
+- **Image non déclarée.** `dolphin_internal_bridge` diffère de la base (elle lui était identique dans la 718).
+  Comparée à celle de la 718 : mêmes 38 sections de code et de données (même empreinte), mêmes liaisons ;
+  seuls diffèrent les stubs fabriqués par l'éditeur de liens, qui lisent l'adresse de `objc_msgSend` dans
+  l'une ou l'autre de deux cases voisines de la table des symboles importés, toutes deux liées à ce même
+  symbole. Aucune différence de comportement ; rien à classer (§ 3.10).
+- **Enregistrement.** Les huit reçus copiés avant la suppression de la clé (§ 3.5). `record` s'arrêtait sur la
+  copie du rapport sur lui-même quand le vérificateur l'avait écrit dans le dossier de preuves : corrigé, avec
+  un test qui rejoue le reçu le plus récent (rapport dans le dossier ou ailleurs) et deux contrôles négatifs
+  (inventaire absent, inventaire d'une autre IPA).
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP. IPA
+  vérifiée hors ligne (`passed-offline-checks`), clé privée supprimée. Aucun test sur iPhone.

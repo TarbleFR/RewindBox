@@ -18,25 +18,30 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
   Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
   Private delivery does not mean public publication.
-- Latest verified private delivery: common IPA 718 (maintainer instruction of 10 November 2026), on 694, run
+- Latest verified private delivery: common IPA 719 (10 November 2026), on 694, run `42779263525` (trigger
+  `3b4b4d02`), [receipt](../evidence/rewind719/delivery.json): IPA 263643764 B, SHA-256
+  `2446e86d98550c8eac6b91b618cb563c2fd0948f3e810ebd09147adc508e4c56`; the content of 718 with RPCS3 Core 918 (which
+  holds Cores 916 and 917), MeloNX Core 717. Downloaded plaintext IPA verified offline, private key deleted. Not tested
+  on an iPhone; no FPS claim.
+- Previous verified private delivery: common IPA 718 (maintainer instruction of 10 November 2026), on 694, run
   `42747501121` (trigger `34fbf8eb`; attempt `42741950414` failed in its native group and was recovered by recipe
   `6ad78af6`), [receipt](../evidence/rewind718/delivery.json): IPA 263465367 B, SHA-256
   `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`; RPCS3 Core 914, MeloNX Core 717, main menu
   bar without labels (PR #164), Switch Pocket skin (PR #165). Downloaded plaintext IPA verified offline, private key
   deleted. Not tested on an iPhone; no FPS claim. The Switch 2 experiment and the RPCS3 Core 915 witness stay out.
 - RPCS3 Core 916 pinned on 10 November 2026 ([record](../rpcs3-core916-build718.md); run `42764728604`, dylib
-  `7c941344…`, pin `708e4109…`), not in an IPA yet: with Accurate SPU Reservations off, an SPU atomic store on a SPURS
+  `7c941344…`, pin `708e4109…`), delivered in the private IPA 719 as part of Core 918: with Accurate SPU Reservations off, an SPU atomic store on a SPURS
   header no longer overwrites a value the game's main processor wrote in between (Assassin's Creed waited 6 s when
   leaving the game, until it was stopped); God of War III's MLAA bypass setting now also applies to version 1.00 of the
   game, at a fresh boot; stall reports name the waited condition and the calling code; diagnostic captures can be
   requested again; journals no longer fill up after a game is closed. Host tests only; no FPS claim.
 - RPCS3 Core 917 pinned on 10 November 2026 ([record](../rpcs3-core917-black-ops2.md); run `42772572060`, dylib
-  `4830ddd6…`, pin `a7d1b9a6…`), not in an IPA yet: for Call of Duty: Black Ops II, an SPU atomic store that must stop
+  `4830ddd6…`, pin `a7d1b9a6…`), delivered in the private IPA 719 as part of Core 918: for Call of Duty: Black Ops II, an SPU atomic store that must stop
   the game's main processor threads waits a little longer on its own core before it gives that core away; the
   performance report compares both behaviours in the same scene and collects its captures by itself when such stores
   come in a storm. Host tests only; no FPS claim.
 - RPCS3 Core 918 pinned on 10 November 2026 ([record](../rpcs3-core918-busy-wait.md); run `42776454670`, dylib `97b083c2…`,
-  pin `3d8ec315…`): on iPhones whose system counter runs at 1 GHz, the emulator's short active waits lasted 42 times less
+  pin `3d8ec315…`), delivered in the private IPA 719: on iPhones whose system counter runs at 1 GHz, the emulator's short active waits lasted 42 times less
   than on the phones it was tuned on, so a thread waiting for a lock gave its core away almost at once; they now last
   the same on every device (setting "Busy wait reference duration"). The performance report counts what the scheduler
   did for the app in each window and, for the first minutes of a game, compares this setting and the Core 917 one by
