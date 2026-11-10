@@ -2614,8 +2614,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     The library stage is the next lot (lot 8): redundant creations first; a creation deferred to first use counts as
     a gain only where it removes work instead of moving it.
 - **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9-10 Nov; owner:
-  this session, integration and Core build; Core 715 validated; Core 717 = Core 715 + adapt_worker_library_share, frozen
-  `f751f1f7`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
+  this session; development closed, ready for device trials; Core 717 = Core 715 + adapt_worker_library_share validated;
+  Core 715 the validated fallback; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
   - Goal: less render-thread work per frame and fewer repeated native compilations, every title, same draws and results.
   - Base: Core 713 validated (contract `01e2f624`, run 42689230667 attempt 3, binary `ff3f2333…`).
   - Fix 1 (DescriptorSetUpdater.cs): an update of the uniform or storage set alone looked the bindless array set up
@@ -2669,6 +2669,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     maintainer (protocol, budget under the lock, bench sync) and rb-core-review (estimate accounting): fixed. All 75
     gates green locally; contract `f751f1f7` (194 inputs), contract test 447 checks.
     [Receipts](evidence/melonx-717-gates/run.json).
+  - Core 717 CI: run 42728675479 on `45923d13` (contract `f751f1f7`) green (job 129540815655; artifact 13726531152, 91
+    026 547 B, sha256 `3fa1ace5…`; iPhone binary `f565e10b…` 38 423 424 B, simulator `377f7b80…`; 75 fresh Apple gates,
+    simulator-validated, not gameplay tested): the Core of this lot, to pin (main). Device trials:
+    [protocol](evidence/melonx-717-gates/device-protocol.md) (two comparable routes with caches kept, then a long
+    session; load, compilations left, long frames, render-thread waits, memory, image). Compilation counts are reduced
+    on the runner; time there is a macOS bench figure; smoothness and the effect of the 166-185 ms lock total (summed
+    over the runner scenario) on render-thread waits are to be measured in play.
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

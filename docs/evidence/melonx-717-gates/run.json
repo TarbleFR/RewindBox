@@ -145,10 +145,35 @@
  "ciRuns": [
   {
    "commit": "45923d13",
+   "commitFull": "45923d133e5ec9325b6c64f44844f7dafba6f404",
    "contract": "f751f1f7",
+   "contractSha256": "f751f1f71f00e0bb40842da080f5801e7910037faa03aa6e47f6e558f0c5ceac",
    "run": 42728675479,
    "attempt": 1,
-   "status": "requested 2026-11-10T00:29Z"
+   "job": 129540815655,
+   "conclusion": "success",
+   "completedAt": "2026-11-10T01:13:53Z",
+   "artifact": {
+    "id": 13726531152,
+    "name": "MeloNX-engine-45923d133e5ec9325b6c64f44844f7dafba6f404",
+    "bytes": 91026547,
+    "sha256": "3fa1ace5637581632eec232de31daf1983061b25e2127b69966a5126594d4d22",
+    "expires": "2026-11-24T01:13:39Z"
+   },
+   "binaries": {
+    "ios-arm64": {
+     "sha256": "f565e10bba1e6373ecf7a13f95228dcccae028c42711b03e6526a419ec7b5dbd",
+     "bytes": 38423424
+    },
+    "iossimulator-arm64": {
+     "sha256": "377f7b8017af9381cd0d4571981d7302053f5b4540035c82886fa339c292ed36",
+     "bytes": 38740216
+    }
+   },
+   "freshAppleGates": 75,
+   "verified": "binaries hash to their identity; 194 inputs; worker-library-share 63, extra-set-binds 154, array-reference-deltas 46, cold-texture-release 131 passed; simulator runtime smoke passed",
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "note": "the Core of this lot to pin (main); Core 715 (run 42722916222, binary 63653e35) is the validated fallback"
   }
  ]
 }
