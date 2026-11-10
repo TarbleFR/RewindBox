@@ -307,13 +307,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     the next macOS run. Dolphin session harness (SessionMenuTests 13 tests / 21 failures, RecordingControllerTests one
     test): harness/baseline, stale since `DolphinSessionMenu.mm` changed on 18 Oct to 1 Nov without its tests; owner:
     main, open, outside the delivery test groups.
-  - **Runs on `b179a080`:** MeloNX Core 719 (contract `38b3a5b7`, 76 gates) run `42787755406` and the skins simulator
-    suites (all steps) run `42787761020`, both dispatched by hand: a tagged push would also have started melonx-host,
-    the MoltenVK rebuild, shader-kit, touch-layout and unified-cheats. Results below when they end.
-  - **Draft `build-utils/delivery/720.json`** on the base 719 (its receipt holds the signed image inventory): RPCS3
-    unchanged from base, MeloNX replaced, `MeloNXMoltenVKStandalone` and the three bridges must change; five reviewed
-    commits; dry-run freeze: one blocker left, the MeloNX pin. The label "MeloNX Core 719" is the owner's frozen one
-    (kept so as not to refreeze its contract); it is not the content of IPA 719, which holds Core 717.
+  - **MeloNX owner's decision on the keep-alive remark (09:07 UTC):** no fix before IPA 720, Core 719 goes as frozen.
+    Its reasons: the dormancy also exists in Core 717 (a request the conserve-memory rule turns into a blocking
+    collection does not advance the background gen2 index, so that keep-alive also falls into Missed); above 0.5 the
+    runtime's next gen2 is blocking and compacting with or without the request; the remaining fallback after the
+    compaction is common to both Cores and is journaled (`fellBackFromBackground=1`, `fallbacksInSession`); the real
+    defect is one of accounting ("fragmented skips" instead of "missed"). Next Core: a bounded "gcKeepAlive dormant"
+    line and a separate Missed count, with main's reproduction as its gate.
+  - **Skins simulator suites on the merged tree** (run `42787761020`, `b179a080`, all steps, 30 min): Pocket host
+    verifier of the seven archives and input chain, MeloNXSkinOverlayTests 23/23 (the lot 9 tests and the skins frame
+    checks together), ARMSX2 13/13, Dolphin skin overlay 36/36, Dolphin orientation suites: green. Red: the two
+    classified pre-existing steps only (libretro 1 of 22; session harness 28 tests / 25 failures, the same methods and
+    counts as before the merges). Confirmation of the libretro test fix: run `42795464202` on `ff3edb7e`, in progress.
+  - **MeloNX Core 719 built and pinned:** run `42787755406` (dispatched on `b179a080`), job `129733174508`, 50 min,
+    attempt 1, every step green, 76 fresh Apple gates. Artifact `13753428009`, 91,029,102 B, `77cb3662…499f` (zip =
+    API digest, downloaded, read offline). iPhone library `1b2d434b…2f4b` (38,423,432 B), packaged fingerprint
+    `1336c87b…f38a`, result `643ca36c`, contract `38b3a5b7`. Component verifier on the downloaded artifact: passed.
+    Pin `a7d7bfae` (pin file `864dc08c…95ac`), replaces Core 717 (run `42728675479`, fingerprint `036c1cef`).
+  - **IPA 720 frozen and requested (10:00 UTC):** manifest on the delivered 719 (receipt with the signed inventory):
+    RPCS3 Core 918 unchanged from base (retained fingerprint `78f2defd`), MeloNX replaced (`1336c87b`),
+    `MeloNXMoltenVKStandalone` and the armsx2, dolphin and melonx bridges must change, `Runner` too. Six reviewed
+    commits (three merges, MoltenVK pin and packaging, skin revision review, libretro host test), none source-only,
+    78 inherited deferred paths. Freeze `b5be6a97`, effective digest `36a27ff5…b2ad`, 7476 product files, legal check
+    passed; delivery contract 61 tests OK (4 skipped), `contract 720` exit 0, trigger paths accepted. Flutter group
+    fresh (20 commands, with the MoltenVK packaging test), native fresh (19). Trigger `ff3edb7e`, run `42795453604`.
+    The label "MeloNX Core 719" is the owner's frozen one (kept so as not to refreeze its contract); it is not the
+    content of IPA 719, which holds Core 717.
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
   correcting its native-test failure and preserving valid reusable results. Check repeated source
