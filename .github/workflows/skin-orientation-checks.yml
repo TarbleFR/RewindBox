@@ -23,6 +23,7 @@ name: Skin orientation checks
     - work/skins-harness-menu-wait-20261110
     - work/skins-native-ratio-20261110
     - work/skins-switch-press-20261110
+    - work/skins-wii-portrait-input-20261111
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
