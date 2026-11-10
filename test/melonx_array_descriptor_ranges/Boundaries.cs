@@ -168,8 +168,16 @@ namespace Ryujinx.Graphics.Vulkan
 
     public sealed class TextureStorage
     {
+        // Core 723 (adapt_array_barrier_epoch): production moves this epoch with every change a later barrier call depends on;
+        // here every call changes the counted state, so every call moves it and the array passes its storages each time, as
+        // the delivered array does (the skip itself is executed by the array-barrier-epoch gate).
+        public static long AttachmentEpoch;
         public int Barriers;
-        public void QueueWriteToReadBarrier(CommandBufferScoped cbs, AccessFlags access, PipelineStageFlags stage) => Barriers++;
+        public void QueueWriteToReadBarrier(CommandBufferScoped cbs, AccessFlags access, PipelineStageFlags stage)
+        {
+            Barriers++;
+            AttachmentEpoch++;
+        }
     }
 
     public sealed class TextureView : ITexture

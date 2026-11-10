@@ -3387,11 +3387,70 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     decision: ship, next Core adds a bounded `gcKeepAlive dormant` line and a separate miss count, gate holding the ratio
     above 0.48 for 20 s. Watch: after a present `_mtlDrawable` is nil; only MetalFX (refused by the host) reads a
     swapchain texture before reacquisition.
-  - Next: main integrates Core 721 + the mapped-cache MoltenVK (one IPA, no duplicate build); device trials per both
-    protocols. Then, against the maintainer's goal (Hogwarts 30 FPS at 1x, footprint toward 4 GiB): the managed heap
-    (823 MiB, 249 MiB fragmented in play) and GPU memory shares, the GPU thread's binding commits (1 010 ms and 25 MiB
-    allocated per 5 s in play), Hogwarts' long pause from `mgd=`, F1, `NS_SWIFT_NAME`, and
-    `test/melonx_capture_journal_test.py` (red on Linux since before 719).
+  - **718 Hogwarts, what holds 30 FPS (local reading of the journals, 10 Nov):** at t=58-60 s the host sampler shows
+    27.7-31.9 FPS with 33 ms gaps (render thread 50-71 % of a core, GPU.MainThread 34-49 %, guest MainThread ~46 %);
+    from t=61 s the footprint is 5.19 GB with 7-8 % of the device available, thermal `serious` from t=64 s, 3-15 FPS.
+    Inventory at 03:41:42: footprint 5 482 MiB, GC committed 822 MiB (LOH 507 MiB, 247 MiB of it free), texture cache
+    154, buffer cache 107; the rest (guest memory, the MoltenVK cache copy Core 721 removes, JIT, Metal objects) about
+    4.4 GiB. So memory and heat come first; render-thread work also feeds the heat and the GPU thread's waits.
+  - **Render thread, 97-frame window (03:41:20):** busy 2 870 of 5 077 ms; DrawIndexed 80 191 calls 1 433 ms (draw
+    descriptors 933.5, pipelines 162.7, auto-flushes 907 calls 136.8), DispatchCompute 5 233 calls 365 ms (compute
+    descriptors 302 ms for 5 472 programs of up to 32 descriptors: 55 us each), SetTextureArraySeparate 50 841 calls
+    248.6 ms, BufferSetData 133.5, CreateSync 1 594 calls 116.2; submits 2 385 (264.7 ms, about 25 command buffers per
+    frame); texture-array reference passes 23 644 (1.53 M references, 243.5 ms: one pass per array per command buffer);
+    the GPU thread waited 519.6 ms on it.
+  - **Descriptor write cost on real MoltenVK** (run 42835169847, macOS runner, the recipe patch): the runner's GPU is an
+    Apple Paravirtual device without Metal3, so MoltenVK used encoder argument buffers, not the iPhone's Metal3 path,
+    and the run failed its Metal3 requirement; figures as an upper bound only: a 74-descriptor template write 4.39 us
+    (0.059 us per descriptor, 4.34 us when the content repeats), a bind recording 0.03 us. At that speed the 718
+    window's 5.39 M descriptors are about 0.32 s of its 1.24 s of descriptor time: most of it is the managed
+    preparation (reference passes, buffer resolution), not MoltenVK's write.
+  - **Core 723 frozen (10 Nov, commit `c5336f6d` on this branch, on main's Core 721 pin `b5fc9d5e`; not run on an
+    iPhone):** Core 721 + four adapters, only EmbeddedSession.cs, DescriptorSetUpdater.cs, TextureStorage.cs and
+    TextureArray.cs differ from its preparation:
+    `adapt_gc_keepalive_dormant` (F1: a window refused for fragmentation that closes journals `gcKeepAlive dormant`,
+    counted apart); `adapt_gc_pause_journal` (each ephemeral collection read on the keep-alive's poll: `gcPause
+    ephemeral` lines, first 24 of 20 ms or more then every 16th, at most 48, and a `gcPause summary` per generation;
+    counts from GC.CollectionCount, since the record index is shared by every kind of collection: a first version
+    counted each gen2 as a missed ephemeral one, caught by the gate's real-runtime part); `adapt_extra_array_dirty`
+    (a separate array change sets its own dirty bit: set 2 not rewritten, the extra sets rebound);
+    `adapt_array_barrier_epoch` (a texture array skips its write-to-read barrier pass when no attachment was loaded or
+    stored since a pass over the same storages covering the same stages; production members of control and candidate
+    give identical barrier logs and final states over 3 configurations x 3 seeds x 60 000 operations, four wrong
+    variants diverge; detail-line counters for passes run, skipped, rebuilt). All 81 gates passed locally on the final
+    preparation; seven older gates were taught the new adapters (performance-diagnostics, hogwarts-dma-copies, the
+    descriptor encoding final check, core667-fixes, bgc-fragmentation-guard with files_edited_later, and the array
+    fixtures' TextureStorage double); compute-switch-bindings and worker-library-share were load-dependent under three
+    parallel gates and green alone. Contract `091195da…` (200 inputs, 206 members, 81 gates), contract test 459 checks
+    with the baseline archive, also after merging main's `7a7a2eee`. Independent core review of the two render-thread
+    adapters: no actionable defect. MoltenVK unchanged (`6f65b2a6`). [Receipts](evidence/melonx-723-gates/run.json),
+    [device protocol](evidence/melonx-723-gates/device-protocol.md).
+  - **Bridge, memory breakdown (`b713354b`, after IPA 722):** MeloNXMemoryBreakdown in MeloNXPerfJournal.swift, one
+    `[MeloNX:memory]` line 30 s after the start then every 60 s (at most 30): phys_footprint and peak, the kernel's
+    graphics ledger and the other TASK_VM_INFO ledgers, then top-level regions grouped by VM tag with resident MiB
+    (shared objects counted once, file-backed apart) and the six largest regions. Two O(1) queries per region (a first
+    version made the kernel walk every page with the VM map read-locked: 40.7 ms for 84 regions on macOS, now 0.8 ms
+    for 41). macOS run 42847375219: journal 122 checks, input 66, iOS 18 typecheck. Decides the RAM lever after 721.
+  - **718 Hogwarts, the target in numbers (frame_report):** t=45-60 s, thermal fair: median 28.7 FPS, gaps p50/p95/p99
+    33/50/67 ms; t=61-175 s (5.2 GB, 4-8 % available, then serious): median 10.7 FPS, 67/250/483 ms. The session
+    planned no pipeline variants ("0 lines read", first session of its record): 1 262 late creations (7.3 s), 25-312
+    graphics pipeline builds per 5 s in play; a second launch is the check of the replay.
+  - Next: main runs the Core 723 CI, pins it and builds the next IPA with bridge `b713354b`; device trials per the 721
+    and 723 protocols (mapped-cache RAM, stall lines, gcPause, the descriptor and barrier counters, memory lines, a
+    second launch for the variant replay). Also open: the compute descriptor cost (55 us per small program), command
+    buffers per frame (texture-array reference passes 243.5 ms per 5 s, submits), the auto-flush timer on MoltenVK,
+    the managed heap (LOH holes), `NS_SWIFT_NAME`, and `test/melonx_capture_journal_test.py` (red on Linux since before
+    719).
+  - **Playability verdict (`2875cfe9`):** `tools/melonx/playability_verdict.py MeloNX-performance.log --pid N` judges a
+    session's warm pass against the maintainer's criteria (median/mean FPS >= 29.5, gaps p95 <= 40 and p99 <= 50 ms,
+    no gap over 1 s, footprint <= 4 GiB with slope <= 5 MiB/min, thermal never critical, >= 20 min, normal end); test
+    20 checks on synthetic sessions. IPA 718 Hogwarts: NOT PLAYABLE (median 10.0 FPS, p95 250, p99 550 ms, 5 526 MiB).
+  - **Mirror pending pages, parked (`50576fc8`):** the harness is now a gate (26 checks on the Core 723 preparation:
+    identical fills and uploads, pages exactly those the pending ranges overlap, all returned; a variant without
+    Release breaks it), but the gain without the settle step is small: random partial updates keep about 70 % of a
+    32 MiB buffer in pages, 400 random buffers about 81 % of their full copies, and a buffer under 16 KiB would hold a
+    whole page. In 718 the buffer cache held 107-119 MiB in play, which bounds what full copies can hold; the device
+    share (memory lines, then a count of the copies) decides whether the settle step is worth its risk.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard

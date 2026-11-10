@@ -135,11 +135,19 @@ for module in ADAPTERS:
 # --- Static: the exact scope of each change ---
 for name, signature, guard in ((TEXTURE_ARRAY, 'public void QueueWriteToReadBarriers(', adapt_buffer_array_barriers.TEXTURE_NEW),
                                (IMAGE_ARRAY, 'public void QueueWriteToReadBarriers(', adapt_buffer_array_barriers.IMAGE_NEW)):
-    final_method, control_method = member(read(FINAL_SOURCE, name), signature), member(read(CONTROL, name), signature)
+    final_text = read(FINAL_SOURCE, name)
+    final_method, control_method = member(final_text, signature), member(read(CONTROL, name), signature)
     first = final_method.split('{', 1)[1].lstrip()
     check(first.startswith('// RewindBox (adapt_buffer_array_barriers)') and 'if (_isBuffer)\n            {\n                return;\n            }'
           in final_method.split('HashSet<TextureStorage> storages = _storages;')[0], name + ': the buffer guard is the first statement')
-    check(final_method.replace(guard, adapt_buffer_array_barriers.TEXTURE_OLD if name == TEXTURE_ARRAY else adapt_buffer_array_barriers.IMAGE_OLD)
+    compared = final_method
+    if name == TEXTURE_ARRAY:
+        # Core 723: adapt_array_barrier_epoch edits this method later (the skip after the guard, the pass counters); its
+        # gate (array-barrier-epoch) executes them, so they are undone before the comparison with the Core 663 method.
+        import adapt_array_barrier_epoch
+        check(final_text.count(adapt_array_barrier_epoch.PASS_NEW) == 1, name + ': the epoch pass is the one adapter edit after the guard')
+        compared = member(final_text.replace(adapt_array_barrier_epoch.PASS_NEW, adapt_array_barrier_epoch.PASS_OLD), signature)
+    check(compared.replace(guard, adapt_buffer_array_barriers.TEXTURE_OLD if name == TEXTURE_ARRAY else adapt_buffer_array_barriers.IMAGE_OLD)
           == control_method, name + ': the rest of QueueWriteToReadBarriers is the Core 663 method')
     check('_isBuffer = isBuffer;' in read(FINAL_SOURCE, name) and read(FINAL_SOURCE, name).count('_isBuffer =') == 1,
           name + ': _isBuffer is set once, by the constructor')
@@ -272,7 +280,8 @@ check('"shaderCache"' not in control['journal'], 'control journals no save line'
 inputs = ['build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
           'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/core667_native.py', 'build-utils/melonx/adapt_session.py',
           'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedLaunchPreflight.cs', 'test/melonx_core667_fixes_test.py',
-          'test/melonx_core667_fixes/Program.cs', 'test/melonx_core667_fixes/StubMoltenVK.c', 'test/melonx_adapter_control.py']
+          'test/melonx_core667_fixes/Program.cs', 'test/melonx_core667_fixes/StubMoltenVK.c', 'test/melonx_adapter_control.py',
+          'build-utils/melonx/adapt_array_barrier_epoch.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                postimages={p: sha(FINAL_SOURCE / p) for p in POSTIMAGES}, reports=reports, sdk=sdk, host=platform.system(),

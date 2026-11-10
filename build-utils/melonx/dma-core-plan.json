@@ -75,7 +75,11 @@
   "build-utils/melonx/adapt_array_reference_deltas.py",
   "build-utils/melonx/adapt_worker_library_share.py",
   "build-utils/melonx/adapt_bgc_fragmentation_guard.py",
-  "build-utils/melonx/adapt_pipeline_cache_mapped_data.py"
+  "build-utils/melonx/adapt_pipeline_cache_mapped_data.py",
+  "build-utils/melonx/adapt_gc_keepalive_dormant.py",
+  "build-utils/melonx/adapt_gc_pause_journal.py",
+  "build-utils/melonx/adapt_extra_array_dirty.py",
+  "build-utils/melonx/adapt_array_barrier_epoch.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -271,7 +275,12 @@
   "test/melonx_bgc_fragmentation_guard/Program.cs",
   "test/melonx_pipeline_cache_mapped_data/Program.cs",
   "test/melonx_pipeline_cache_mapped_data/Double.cs",
-  "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch"
+  "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch",
+  "test/melonx_gc_keepalive_dormant/Program.cs",
+  "test/melonx_gc_pause_journal/Program.cs",
+  "test/melonx_extra_array_dirty/Program.cs",
+  "test/melonx_extra_array_dirty/Boundaries.cs",
+  "test/melonx_array_barrier_epoch/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -3755,6 +3764,115 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+   ]
+  },
+  {
+   "name": "gc-keepalive-dormant",
+   "script": "test/melonx_gc_keepalive_dormant_test.py",
+   "report": "gc-keepalive-dormant-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3000,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionLibraryAssemblyBuilt": true,
+    "comparison.controlSilentWhenDormant": true,
+    "comparison.candidateDormantLines": 1,
+    "comparison.refusedWindowNotAMiss": true,
+    "comparison.plainMissCounted": true,
+    "comparison.dormantLinesBounded": 4,
+    "comparison.requestsUnchanged": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedSession.cs"
+   ]
+  },
+  {
+   "name": "gc-pause-journal",
+   "script": "test/melonx_gc_pause_journal_test.py",
+   "report": "gc-pause-journal-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3000,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionLibraryAssemblyBuilt": true,
+    "comparison.linesBounded": 48,
+    "comparison.perGenerationTotalsFromRuntimeCounts": true,
+    "comparison.gen2NotCountedAsEphemeral": true,
+    "comparison.productionReadSeesForcedCollections": true,
+    "comparison.requestsUnchanged": true,
+    "comparison.keepAliveSummaryUnchanged": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedSession.cs"
+   ]
+  },
+  {
+   "name": "extra-array-dirty",
+   "script": "test/melonx_extra_array_dirty_test.py",
+   "report": "extra-array-dirty-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionUpdaterMembersExecuted": true,
+    "comparison.sameDescriptorsRead": true,
+    "comparison.arraySetBindsUnchanged": true,
+    "comparison.sensitivityVariantFailed": true,
+    "comparison.separateSwitchWritesControl": 400,
+    "comparison.separateSwitchWritesCandidate": 0
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs"
+   ]
+  },
+  {
+   "name": "array-barrier-epoch",
+   "script": "test/melonx_array_barrier_epoch_test.py",
+   "report": "array-barrier-epoch-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "comparison.sameBarrierLog": true,
+    "comparison.sameFinalStates": true,
+    "comparison.barrierDecisionUnchanged": true,
+    "comparison.stateWritesOnlyInThreeMethods": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs"
    ]
   }
  ]

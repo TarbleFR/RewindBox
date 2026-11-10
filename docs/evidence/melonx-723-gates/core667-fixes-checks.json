@@ -1,0 +1,115 @@
+{
+  "result": "passed",
+  "checks": 56,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "e62eb2f3e25cbccc3f7ce6dfd77c8c5ab29de9561ee429742506067748d19b57",
+    "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": "831986501847bc7d8bc98bada795e7a9d9f55b9399bd64f48303f334cc74b4b1",
+    "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs": "087fa705f78aec3ae5b2b3ef463d2bb97e96a5feeeb30f611f226eecc5608f95",
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "472c8bff47be41e236e2b05dde07d83222c5b45cbab61f53dbeac443aebf1e21",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs": "d40bf48954289a009f57031ccabc650c402b88057e9dfae150942b3103f5315e",
+    "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs": "ddbbfb8cef308483caa67678ad8a9d380f0e8f64addd814338f0bed09b9fbb7c"
+  },
+  "reports": {
+    "control": {
+      "barriers": {
+        "bufferTexture": "System.NullReferenceException",
+        "bufferImage": "System.NullReferenceException",
+        "emptyTexture": "none",
+        "emptyImage": "none",
+        "bufferTextureTwice": "System.NullReferenceException"
+      },
+      "configurationSize": 152,
+      "fastMathOffset": 72,
+      "configurationDefault": "030A11181F262D3400000000575E656C200000008F969DA401000000C7CED5DCE3EAF1F8FF060D14010000002C010000535A61686F767D848B9299A0A7AEB5BCC3CAD1D8DFE6EDF401000000171E252C333A41484F565D646B72798000000000A3AAB1B8BFC6CDD4DBE2E9F0F7FE050C131A21282F363D444B525960676E757C838A91989FA6ADB4BBC2C9D001000000F3FA01080F161D24",
+      "shaderSaves": {
+        "pending": [
+          2,
+          2,
+          0,
+          0
+        ],
+        "writerReceived": 64,
+        "written": null,
+        "failed": null,
+        "queuedCounter": null,
+        "longestHeadWaitMs": -1
+      },
+      "journal": "{\"stage\":\"nativeAot\",\"errorCode\":\"\",\"diagnostic\":\"\",\"journalError\":\"\",\"events\":[]}"
+    },
+    "candidate": {
+      "barriers": {
+        "bufferTexture": "none",
+        "bufferImage": "none",
+        "emptyTexture": "none",
+        "emptyImage": "none",
+        "bufferTextureTwice": "none"
+      },
+      "configurationSize": 152,
+      "fastMathOffset": 72,
+      "configurationDefault": "030A11181F262D3400000000575E656C200000008F969DA401000000C7CED5DCE3EAF1F8FF060D14010000002C010000535A61686F767D848B9299A0A7AEB5BCC3CAD1D8DFE6EDF401000000171E252C333A41484F565D646B72798000000000A3AAB1B8BFC6CDD4DBE2E9F0F7FE050C131A21282F363D444B525960676E757C838A91989FA6ADB4BBC2C9D001000000F3FA01080F161D24",
+      "configurationPrecise": "030A11181F262D3400000000575E656C200000008F969DA401000000C7CED5DCE3EAF1F8FF060D14010000002C010000535A61686F767D848B9299A0A7AEB5BCC3CAD1D8DFE6EDF400000000171E252C333A41484F565D646B72798000000000A3AAB1B8BFC6CDD4DBE2E9F0F7FE050C131A21282F363D444B525960676E757C838A91989FA6ADB4BBC2C9D001000000F3FA01080F161D24",
+      "configurationFast": "030A11181F262D3400000000575E656C200000008F969DA401000000C7CED5DCE3EAF1F8FF060D14010000002C010000535A61686F767D848B9299A0A7AEB5BCC3CAD1D8DFE6EDF401000000171E252C333A41484F565D646B72798000000000A3AAB1B8BFC6CDD4DBE2E9F0F7FE050C131A21282F363D444B525960676E757C838A91989FA6ADB4BBC2C9D001000000F3FA01080F161D24",
+      "notedPreciseMath": {
+        "hogwarts": false,
+        "smash": false,
+        "reset": false
+      },
+      "arenaDecisions": [
+        "0,0,6655 -> accept 1024",
+        "0,0,4096 -> accept 0",
+        "1024,0,4096 -> accept 1024",
+        "1024,0,6655 -> accept 1024",
+        "0,0,6144 -> accept 1024",
+        "0,512,6655 -> accept 0",
+        "1024,512,6655 -> refuse 1024",
+        "1024,1024,6655 -> accept 1024",
+        "0,1024,6655 -> accept 0",
+        "1024,768,6655 -> refuse 1024",
+        "512,0,6655 -> accept 1024"
+      ],
+      "shaderSaves": {
+        "pending": [
+          2,
+          2,
+          0,
+          0
+        ],
+        "writerReceived": 64,
+        "written": 64,
+        "failed": 1,
+        "queuedCounter": 0,
+        "longestHeadWaitMs": 40
+      },
+      "journal": "{\"stage\":\"nativeAot\",\"errorCode\":\"\",\"diagnostic\":\"\",\"journalError\":\"\",\"events\":[{\"sequence\":1,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":2,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode precise (Inf and NaN kept)\"},{\"sequence\":3,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":4,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"written: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 40 ms\"},{\"sequence\":5,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"disposed: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 40 ms\"}]}"
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "libHacFeedSwitched": {
+    "control": false,
+    "candidate": false
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Graphics.Vulkan",
+    "Ryujinx.Graphics.Gpu"
+  ],
+  "inputs": {
+    "build-utils/melonx/adapt_buffer_array_barriers.py": "277f027d4ad88152975b8f71598a0ceaa2c083ee88788f6bfc25f6daa5e162c2",
+    "build-utils/melonx/adapt_hogwarts_precise_math.py": "686d4c9bc4a44208e830f69db9ed9aae65975bd1201728cbb8318aff23efe7cd",
+    "build-utils/melonx/adapt_shader_save_journal.py": "5ee166261d69332bdda1a53ee44187a519af336789fb4713d39ba217f892fb46",
+    "build-utils/melonx/core667_native.py": "ee698353dd3f32020b6e2476c2d044ba904748041843e437d8e0922c656705fe",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "native/melonx/EmbeddedRuntime.cs": "d40bf48954289a009f57031ccabc650c402b88057e9dfae150942b3103f5315e",
+    "native/melonx/EmbeddedLaunchPreflight.cs": "ddbbfb8cef308483caa67678ad8a9d380f0e8f64addd814338f0bed09b9fbb7c",
+    "test/melonx_core667_fixes_test.py": "cb5af66875f05ea0f2c03a0eeaad7b0df3c9e1b0f1dcc9d98cbcedfed8492b15",
+    "test/melonx_core667_fixes/Program.cs": "91709183c4415b9a7db4cd130a0eb19c45bd57cb5ad198b5ee307266f69219fc",
+    "test/melonx_core667_fixes/StubMoltenVK.c": "04c41a85eeaffd6d668faa44a1089d336484536a402f17c97b2b72819b30c42c",
+    "test/melonx_adapter_control.py": "c12717101284cf83c3f5141af958bc75afb803717ac5b2b2d135b8706640351a",
+    "build-utils/melonx/adapt_array_barrier_epoch.py": "0e024c4bffa318df827b51173d7b328afba075d13e8327e7701e815deacd74ca"
+  },
+  "limitation": "Host probe: the production array barrier calls, MoltenVK configuration write (test double of MoltenVK), shader save loop and native arena decision. Whether Hogwarts Legacy's black sky blocks go with precise math, its GPU cost, and the in-play shader saves are known only from a device run."
+}

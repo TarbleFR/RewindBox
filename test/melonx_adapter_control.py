@@ -40,7 +40,8 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_retention_chain', 'adapt_short_cache_reuse',
          'adapt_pipeline_variant_replay', 'adapt_pipeline_snapshot_retire',
          'adapt_extra_set_binds', 'adapt_array_reference_deltas', 'adapt_worker_library_share',
-         'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data')
+         'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data',
+         'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch')
 
 
 def sha(path: Path) -> str:

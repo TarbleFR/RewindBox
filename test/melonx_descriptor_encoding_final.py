@@ -34,6 +34,7 @@ FINAL_SIZES = ('_textures = new DescriptorImageInfo[Constants.MaxTextureBindings
                '_bufferImages = new BufferView[Constants.MaxImageBindings * 2];')
 INPUTS = ['test/melonx_descriptor_encoding_final.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'build-utils/melonx/adapt_same_program_descriptors.py', 'build-utils/melonx/adapt_extra_set_binds.py',
+          'build-utils/melonx/adapt_extra_array_dirty.py',
           'test/melonx_scalar_texture_descriptors/Encoding.cs']
 
 
@@ -51,9 +52,14 @@ def restore(body):
 def without_later(text):
     """The final DescriptorSetUpdater without the replacements of later adapters that edit other members (Core 705
     adapt_same_program_descriptors: SetProgram and the template commit; Core 715 adapt_extra_set_binds: the extra set
-    binds of UpdateAndBindDescriptorSets and BindExtraSets; their own gates execute them)."""
+    binds of UpdateAndBindDescriptorSets and BindExtraSets; Core 723 adapt_extra_array_dirty: the separate-array dirty bit,
+    undone first as the latest; their own gates execute them)."""
     import adapt_same_program_descriptors as later
     import adapt_extra_set_binds as extra
+    import adapt_extra_array_dirty as dirty
+    for old, new in reversed(dirty.PAIRS):
+        assert text.count(new) <= 1, new[:80]
+        text = text.replace(new, old)
     for old, new in ((extra.LOOP_OLD, extra.LOOP_NEW), (extra.SIGNATURE_OLD, extra.SIGNATURE_NEW), (extra.CALL_OLD, extra.CALL_NEW),
                      (later.SET_PROGRAM_OLD, later.SET_PROGRAM_NEW), (later.COMMIT_OLD, later.COMMIT_NEW)):
         assert text.count(new) <= 1, new[:80]

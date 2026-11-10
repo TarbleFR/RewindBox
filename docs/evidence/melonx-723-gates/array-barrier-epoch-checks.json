@@ -1,0 +1,197 @@
+{
+  "result": "passed",
+  "checks": 119,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "ea5c4e4671bc97f0cdd94196f0add66b97f9e8d0e77b0e07cfb7845756fed2f0",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "e62eb2f3e25cbccc3f7ce6dfd77c8c5ab29de9561ee429742506067748d19b57"
+  },
+  "configurations": {
+    "101": "MoltenVK, argument-buffer hazards not tracked (iPhone, MoltenVK 1.4.2)",
+    "111": "MoltenVK tracking hazards: in-pass deferral and forced fences",
+    "001": "another driver"
+  },
+  "seeds": [
+    11,
+    23,
+    47
+  ],
+  "operations": 60000,
+  "runs": {
+    "101/11": {
+      "barriers": 12689,
+      "deferred": 0,
+      "arrayPasses": 23964,
+      "run": 16574,
+      "skipped": 7390,
+      "rebuilds": 6276,
+      "storagesVisited": 608275,
+      "logSha256": "5DBC275A395F9510D50261F45626AE2F920794188BA4F8622C333D837064C7D3"
+    },
+    "101/23": {
+      "barriers": 12357,
+      "deferred": 0,
+      "arrayPasses": 23984,
+      "run": 16638,
+      "skipped": 7346,
+      "rebuilds": 6251,
+      "storagesVisited": 612209,
+      "logSha256": "302534070FBF2FE4CB1893D5239DDC7EEB45283FEBF251DCBF2050A726A9248D"
+    },
+    "101/47": {
+      "barriers": 10602,
+      "deferred": 0,
+      "arrayPasses": 23985,
+      "run": 16531,
+      "skipped": 7454,
+      "rebuilds": 6069,
+      "storagesVisited": 612354,
+      "logSha256": "9376B8CA5737CBE812AB5C42AB9DABA65D4009C531B3B91DFE4EA0BA6C03884F"
+    },
+    "111/11": {
+      "barriers": 11409,
+      "deferred": 840,
+      "arrayPasses": 23964,
+      "run": 16574,
+      "skipped": 7390,
+      "rebuilds": 6276,
+      "storagesVisited": 608275,
+      "logSha256": "3583DE8CF603364A62E957C6FABC63D04E534B3C7F660BC8721509924F7DB6A9"
+    },
+    "111/23": {
+      "barriers": 11025,
+      "deferred": 814,
+      "arrayPasses": 23984,
+      "run": 16638,
+      "skipped": 7346,
+      "rebuilds": 6251,
+      "storagesVisited": 612209,
+      "logSha256": "D23FDC17A885F571A7EA298A99E4106D942C8F5F0E71F73A2F8420CA33840ADB"
+    },
+    "111/47": {
+      "barriers": 9619,
+      "deferred": 685,
+      "arrayPasses": 23985,
+      "run": 16531,
+      "skipped": 7454,
+      "rebuilds": 6069,
+      "storagesVisited": 612354,
+      "logSha256": "17B6D9166D6B33C9582052718334D7BF7A680E1D36E52FB76232DB7A3BDEAC07"
+    },
+    "001/11": {
+      "barriers": 12249,
+      "deferred": 0,
+      "arrayPasses": 23964,
+      "run": 16574,
+      "skipped": 7390,
+      "rebuilds": 6276,
+      "storagesVisited": 608275,
+      "logSha256": "7B66BB6B1B32F848A041636AB4B89F18C91E46D8FBF5059EB4290A1FD69FB433"
+    },
+    "001/23": {
+      "barriers": 11839,
+      "deferred": 0,
+      "arrayPasses": 23984,
+      "run": 16638,
+      "skipped": 7346,
+      "rebuilds": 6251,
+      "storagesVisited": 612209,
+      "logSha256": "F8C3869945A910AF767619D9520AD64CCF0C063433900F39E7B11F7739AF4E20"
+    },
+    "001/47": {
+      "barriers": 10304,
+      "deferred": 0,
+      "arrayPasses": 23985,
+      "run": 16531,
+      "skipped": 7454,
+      "rebuilds": 6069,
+      "storagesVisited": 612354,
+      "logSha256": "A25A6990F44B47558F3ABD72315D9BEB1C21370A9F67627565E6645D3C840125"
+    }
+  },
+  "sensitivity": {
+    "noLoadEpoch": [
+      "101/11",
+      "101/23",
+      "101/47",
+      "111/11",
+      "111/23",
+      "111/47",
+      "001/11",
+      "001/23",
+      "001/47"
+    ],
+    "noStoreEpoch": [
+      "101/11",
+      "101/23",
+      "101/47",
+      "111/11",
+      "111/23",
+      "111/47",
+      "001/11",
+      "001/23",
+      "001/47"
+    ],
+    "noStageCheck": [
+      "101/11",
+      "101/23",
+      "101/47",
+      "111/11",
+      "111/23",
+      "111/47",
+      "001/11",
+      "001/23",
+      "001/47"
+    ],
+    "rebuiltAsSame": [
+      "101/11",
+      "101/23",
+      "101/47",
+      "111/11",
+      "111/23",
+      "111/47",
+      "001/11",
+      "001/23",
+      "001/47"
+    ]
+  },
+  "comparison": {
+    "sameBarrierLog": true,
+    "sameFinalStates": true,
+    "barrierDecisionUnchanged": true,
+    "stateWritesOnlyInThreeMethods": true,
+    "variantsDiverge": [
+      "noLoadEpoch",
+      "noStageCheck",
+      "noStoreEpoch",
+      "rebuiltAsSame"
+    ]
+  },
+  "productionMemberHashes": {
+    "control": "4b7b52e0c65b50453f1cb610347205f31e081235415792a14a8bc07e01e50126",
+    "candidate": "a53a46780d720461607fa44800cacd52256976c31368ffc11c7f15a1c0c49613",
+    "noLoadEpoch": "72549d117558e5199d876946c56ae39d5694241042812ce7e0db5be470730b25",
+    "noStoreEpoch": "eb75ae3169b8721c4465e668419f87d4c1be5e32397682b680539c00d4f1e514",
+    "noStageCheck": "b1bc4c74bbfa18a1f85c7f000277d41e7ca36e78ba2bfeae891c7a616b7f3ff0",
+    "rebuiltAsSame": "ddaa0574dd60ab873b3ca111471183b48699e606854fc118940818324add4e96"
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionAssembliesBuilt": [
+    "Ryujinx.Graphics.Vulkan"
+  ],
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs": "af1ae06375c24a3d6434913de9773534037069b936a4fa1e6317e792c520bf81",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "be0e5a59a2cd8c7715648b3ab6e8d09ec5c571ed8ebee71446e46b769f6475bd"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_array_barrier_epoch.py": "0e024c4bffa318df827b51173d7b328afba075d13e8327e7701e815deacd74ca",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/adapt_descriptor_updates.py": "e767de4b338f3f4516f62efac2c03fa987d609e00d019b81e90defac9fc7ce6a",
+    "test/melonx_array_barrier_epoch_test.py": "97b057a3c0f246ba5523d52258faf6836617e91091ff9414ee9dd99e09046128",
+    "test/melonx_array_barrier_epoch/Program.cs": "f3cac0698db3fc33851c4876254de3f4d79e129757cf9dd67ab10405d1e2a8f5",
+    "test/melonx_adapter_control.py": "c12717101284cf83c3f5141af958bc75afb803717ac5b2b2d135b8706640351a"
+  },
+  "limitation": "Production barrier members with the renderer doubled; the render-thread time saved in Hogwarts Legacy is known only from a device run (the detail line counts the passes run and skipped)."
+}

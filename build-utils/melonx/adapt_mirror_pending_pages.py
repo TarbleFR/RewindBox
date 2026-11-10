@@ -30,6 +30,10 @@ data becomes pending almost everywhere and the pages then hold about as much as 
 part that makes the gain general, still to write with its own gate: settle the pending ranges no command buffer uses any
 more (the direct path's own condition: not rented, or the range not in use) by writing them to the mapped buffer and
 dropping them, bounded per call; that also removes the mirror copies of those ranges at their next binding.
+Gate (10 Nov, test/melonx_mirror_pending_pages_test.py, on the Core 723 preparation): the differential scenarios pass,
+but the gain is modest without the settle step: random partial updates keep about 70 % of a 32 MiB buffer in pages,
+the 400 random buffers about 81 % of their full copies, and a buffer under 16 KiB would hold a whole page instead of
+its few bytes (small buffers should keep their exact copy). Parked: the device share of mirror data comes first.
 """
 import hashlib
 from adapt_session import once

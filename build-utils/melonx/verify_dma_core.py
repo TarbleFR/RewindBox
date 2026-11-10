@@ -100,8 +100,10 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # (lot 6: worker snapshots main's file holds removed at the close, an ignored main snapshot written again); 74 with Core
 # 715 (lot 8: extra array sets kept bound on main-set-only updates; texture array references by delta); 75 with Core 717
 # (lot 8: a worker's Metal libraries published to the main cache during play); 76 with Core 719 (lot 9: no keep-alive
-# request on a fragmented heap); 77 with Core 721 (lot 9: the main pipeline cache referenced in its mapped file).
-FRESH_GATES = 77
+# request on a fragmented heap); 77 with Core 721 (lot 9: the main pipeline cache referenced in its mapped file); 81 with
+# Core 723 (lot 9: the keep-alive's dormant line, the ephemeral pause journal, no main texture set write on a separate
+# array change, texture array barrier passes skipped when nothing changed).
+FRESH_GATES = 81
 HISTORICAL_RECEIPTS = 61
 
 
