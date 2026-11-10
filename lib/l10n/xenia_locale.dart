@@ -70,6 +70,7 @@ abstract final class XeniaLocale {
       'gameSettings': "XeniOS settings for this game",
       'emptyTitle': "No Xbox 360 games yet",
       'emptyBody': "Import your .iso or .zar games from Files with the import button.",
+      'shaderConverterMissing': "This version of RewindBox contains the XeniOS engine without Apple's Metal Shader Converter, which it needs to display games.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -137,6 +138,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Ajustes de XeniOS de este juego",
       'emptyTitle': "Aún no hay juegos de Xbox 360",
       'emptyBody': "Importa tus juegos .iso o .zar desde Archivos con el botón de importar.",
+      'shaderConverterMissing': "Esta versión de RewindBox incluye el motor XeniOS sin el Metal Shader Converter de Apple, necesario para mostrar los juegos.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -204,6 +206,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Настройки XeniOS для этой игры",
       'emptyTitle': "Игр Xbox 360 пока нет",
       'emptyBody': "Импортируйте игры .iso или .zar из «Файлов» кнопкой импорта.",
+      'shaderConverterMissing': "Эта версия RewindBox содержит движок XeniOS без Metal Shader Converter от Apple, который нужен для вывода изображения игр.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -271,6 +274,7 @@ abstract final class XeniaLocale {
       'gameSettings': "此游戏的 XeniOS 设置",
       'emptyTitle': "还没有 Xbox 360 游戏",
       'emptyBody': "使用导入按钮从“文件”导入你的 .iso 或 .zar 游戏。",
+      'shaderConverterMissing': "此版本的 RewindBox 包含 XeniOS 引擎，但缺少显示游戏所需的 Apple Metal Shader Converter。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -338,6 +342,7 @@ abstract final class XeniaLocale {
       'gameSettings': "此遊戲的 XeniOS 設定",
       'emptyTitle': "尚無 Xbox 360 遊戲",
       'emptyBody': "使用匯入按鈕從「檔案」匯入你的 .iso 或 .zar 遊戲。",
+      'shaderConverterMissing': "此版本的 RewindBox 包含 XeniOS 引擎，但缺少顯示遊戲所需的 Apple Metal Shader Converter。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -405,6 +410,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Ajustes do XeniOS deste jogo",
       'emptyTitle': "Ainda não há jogos de Xbox 360",
       'emptyBody': "Importe seus jogos .iso ou .zar do app Arquivos com o botão de importar.",
+      'shaderConverterMissing': "Esta versão do RewindBox contém o motor XeniOS sem o Metal Shader Converter da Apple, necessário para exibir os jogos.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -472,6 +478,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Réglages XeniOS de ce jeu",
       'emptyTitle': "Aucun jeu Xbox 360 pour l’instant",
       'emptyBody': "Importez vos jeux .iso ou .zar depuis Fichiers avec le bouton d’import.",
+      'shaderConverterMissing': "Cette version de RewindBox contient le moteur XeniOS sans le Metal Shader Converter d’Apple, nécessaire à l’affichage des jeux.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -539,6 +546,7 @@ abstract final class XeniaLocale {
       'gameSettings': "XeniOS-Einstellungen für dieses Spiel",
       'emptyTitle': "Noch keine Xbox-360-Spiele",
       'emptyBody': "Importiere deine .iso- oder .zar-Spiele mit der Import-Taste aus Dateien.",
+      'shaderConverterMissing': "Diese RewindBox-Version enthält die XeniOS-Engine ohne Apples Metal Shader Converter, den sie zur Anzeige von Spielen benötigt.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -606,6 +614,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Impostazioni XeniOS di questo gioco",
       'emptyTitle': "Ancora nessun gioco Xbox 360",
       'emptyBody': "Importa i tuoi giochi .iso o .zar da File con il pulsante di importazione.",
+      'shaderConverterMissing': "Questa versione di RewindBox contiene il motore XeniOS senza il Metal Shader Converter di Apple, necessario per visualizzare i giochi.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -673,6 +682,7 @@ abstract final class XeniaLocale {
       'gameSettings': "Pengaturan XeniOS untuk game ini",
       'emptyTitle': "Belum ada game Xbox 360",
       'emptyBody': "Impor game .iso atau .zar dari Files dengan tombol impor.",
+      'shaderConverterMissing': "Versi RewindBox ini berisi mesin XeniOS tanpa Metal Shader Converter dari Apple, yang diperlukan untuk menampilkan game.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -740,6 +750,7 @@ abstract final class XeniaLocale {
       'gameSettings': "このゲームの XeniOS 設定",
       'emptyTitle': "Xbox 360 のゲームはまだありません",
       'emptyBody': "読み込みボタンで「ファイル」から .iso または .zar のゲームを読み込んでください。",
+      'shaderConverterMissing': "このバージョンの RewindBox には XeniOS エンジンが含まれていますが、ゲームの表示に必要な Apple の Metal Shader Converter がありません。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -807,6 +818,7 @@ abstract final class XeniaLocale {
       'gameSettings': "이 게임의 XeniOS 설정",
       'emptyTitle': "아직 Xbox 360 게임이 없습니다",
       'emptyBody': "가져오기 버튼으로 파일 앱에서 .iso 또는 .zar 게임을 가져오세요.",
+      'shaderConverterMissing': "이 버전의 RewindBox에는 XeniOS 엔진이 포함되어 있지만 게임 표시에 필요한 Apple Metal Shader Converter가 없습니다.",
     },
   };
 
@@ -835,7 +847,8 @@ abstract final class XeniaLocale {
     'jitUnavailable' ||
     'sessionActive' ||
     'restartRequired' ||
-    'gameUnreadable' => error!,
+    'gameUnreadable' ||
+    'shaderConverterMissing' => error!,
     _ => 'launchFailed',
   };
 

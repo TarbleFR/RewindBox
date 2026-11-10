@@ -16,6 +16,11 @@ enum XeniaRuntimeState {
   /// This RewindBox build does not include XeniaCore.framework.
   engineMissing,
 
+  /// XeniaCore.framework is there without Apple's Metal Shader Converter
+  /// runtime (Frameworks/libmetalirconverter.dylib), which it cannot load or
+  /// render without.
+  shaderConverterMissing,
+
   /// The framework is there but exposes another ABI version.
   abiMismatch,
 }

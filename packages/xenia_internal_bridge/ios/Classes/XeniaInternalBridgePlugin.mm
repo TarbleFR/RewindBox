@@ -45,6 +45,16 @@ static NSString* XeniaFrameworkPath(void) {
   return [frameworks stringByAppendingPathComponent:@"XeniaCore.framework/XeniaCore"];
 }
 
+// Apple's Metal Shader Converter runtime, a non-weak dependency of the Core
+// (`@rpath/libmetalirconverter.dylib`): Xenia's Metal backend cannot render
+// without it (docs/xenios-playlist.md § Shader converter). It ships in the
+// app's Frameworks folder, authenticated at packaging time by
+// build-utils/xenia/validate_shader_converter.py; it is never downloaded.
+static NSString* XeniaShaderConverterPath(void) {
+  NSString* frameworks = NSBundle.mainBundle.privateFrameworksPath;
+  return [frameworks stringByAppendingPathComponent:@"libmetalirconverter.dylib"];
+}
+
 static BOOL XeniaSupportedOS(void) {
   NSOperatingSystemVersion minimum = {(NSInteger)NEO_XENIA_MINIMUM_IOS_MAJOR, 0, 0};
   return [NSProcessInfo.processInfo isOperatingSystemAtLeastVersion:minimum];
@@ -72,6 +82,7 @@ static UIViewController* XeniaTopViewController(void) {
 @property(nonatomic, strong) dispatch_queue_t sessionQueue;
 @property(nonatomic, strong) XeniaSessionController* session;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
+@property(nonatomic, copy) NSString* loadDetail;
 - (void)deliverEvent:(NSString*)event transaction:(uint64_t)transaction message:(NSString*)message;
 - (void)requestStopFromMenu;
 - (void)setUserPaused:(BOOL)paused;
@@ -256,6 +267,9 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   if (![NSFileManager.defaultManager fileExistsAtPath:XeniaFrameworkPath()]) {
     return @{@"state" : @"engineMissing", @"osVersion" : os};
   }
+  if (![NSFileManager.defaultManager fileExistsAtPath:XeniaShaderConverterPath()]) {
+    return @{@"state" : @"shaderConverterMissing", @"osVersion" : os};
+  }
   NSMutableDictionary* state = [@{@"state" : @"ready", @"osVersion" : os} mutableCopy];
   if (self.api && self.api->source_revision) state[@"sourceRevision"] = @(self.api->source_revision);
   return state;
@@ -269,8 +283,16 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   if (!XeniaSupportedOS()) return @"requiresIOS26";
   NSString* path = XeniaFrameworkPath();
   if (![NSFileManager.defaultManager fileExistsAtPath:path]) return @"engineMissing";
+  // Without it dlopen fails inside dyld with a bare "Library not loaded".
+  if (![NSFileManager.defaultManager fileExistsAtPath:XeniaShaderConverterPath()]) {
+    return @"shaderConverterMissing";
+  }
   void* handle = dlopen(path.fileSystemRepresentation, RTLD_NOW | RTLD_LOCAL);
-  if (!handle) return @"engineMissing";
+  if (!handle) {
+    const char* reason = dlerror();
+    self.loadDetail = reason ? @(reason) : @"";
+    return @"coreLoadFailed";
+  }
   NeoXeniaGetAPI getAPI = (NeoXeniaGetAPI)dlsym(handle, "NeoXenia_GetAPI");
   const NeoXeniaAPI* api = getAPI ? getAPI(NEO_XENIA_ABI_VERSION) : nullptr;
   if (!api || api->version != NEO_XENIA_ABI_VERSION || api->size < sizeof(NeoXeniaAPI)) {
@@ -307,7 +329,7 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   }
   NSString* loadError = [self loadCore];
   if (loadError) {
-    result(@{@"success" : @NO, @"error" : loadError});
+    result(@{@"success" : @NO, @"error" : loadError, @"detail" : self.loadDetail ?: @""});
     return;
   }
   NSDictionary* rawSettings = [args[@"settings"] isKindOfClass:NSDictionary.class] ? args[@"settings"] : @{};

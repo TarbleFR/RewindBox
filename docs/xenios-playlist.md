@@ -141,6 +141,79 @@ audio backend (kept at the engine default pending audio arbitration review).
   broker at iOS ≥ 26). Lowering the Core's target is a separate, evidenced
   step, not done here.
 
+## Shader converter (`libmetalirconverter.dylib`)
+
+The IPA has no separate `XeniOS.framework`, but it does embed one native
+dependency: `Payload/XeniOS.app/Frameworks/libmetalirconverter.dylib`, Apple's
+Metal Shader Converter runtime. It is a hard requirement of the Core.
+
+| Fact | Evidence |
+| --- | --- |
+| Reference bytes | 30171152 B, SHA-256 `923caf5d7f69b72c0e5e657ac63e48f7d8d972107a5f7d665417101d76d090ff` (pinned in `build-utils/xenia/source.json`) |
+| Mach-O | thin arm64 `MH_DYLIB`, install name `@rpath/libmetalirconverter.dylib`, current/compat 0.0.0, `LC_SOURCE_VERSION` 33.39, platform IOS, **minos 13.0**, SDK 26.4, `cryptid 0`, code signature present, built by Apple (`AppleInternal` rpaths) |
+| Dependencies | system only: libbz2, CoreFoundation, libarchive, libc++, libSystem (all present on iOS 18) |
+| Exports | 188 external symbols in the `IR*`, `DXIL*`, `DXILContainer*`, `D3D*` namespaces only — no LLVM or libc++ symbol is exported (two-level namespace), so it cannot interpose another engine's symbols |
+| How the Core uses it | non-weak `LC_LOAD_DYLIB` of the executable; `MetalShaderConverter::Initialize` (`gpu/metal/metal_shader_converter.cc:201`) is called by `MetalCommandProcessor` and its failure is fatal ("nothing can render", `metal_command_processor.cc:2619-2624`) on **both** guest-shader paths: render-target-cache compute shaders always go through it, and guest shaders default to `metal_use_dxil=true` with `metal_shader_compiler=spirv2air` falling back to MSC |
+| Interface | headers in `third_party/metal-shader-converter` (IR_VERSION 4.0.1); the sources call 45 `IR*` names, 33 must be exported by the library (all present in the reference), the other 12 are header-implemented runtime helpers or enum types |
+| Build input | `cmake/ios/ShaderConverter.cmake`: `XENIA_IOS_SHADER_CONVERTER_LIBRARY` must be an iPhoneOS (not macOS, not simulator) library, checked with `xcrun vtool` |
+| License | Apple software under Apple's own terms (stated by the IPA's own `Acknowledgements.json`); the Apache-2.0 `LICENSE.txt` covers the headers only |
+
+Consequences, enforced in this repository:
+
+- **Not committed, not rehosted, not extracted from the owner's IPA into any
+  artifact.** The builder supplies an iPhoneOS copy out of band (Apple
+  Developer download of Metal Shader Converter); RewindBox has no
+  redistribution permission on record, so shipping it in a published IPA is a
+  maintainer/legal decision for the main session, not implied by this work.
+- `build-utils/xenia/validate_shader_converter.py` authenticates the supplied
+  file before any Core build or packaging: arm64 thin dylib, platform IOS,
+  install name, not encrypted, minos ≤ 18.0, system-only dependencies and the
+  33 required exports; `--require-pinned-digest` additionally requires the
+  reference bytes. Executed against the reference copy on 10 Nov 2026: OK.
+  Unit-tested on synthetic Mach-O files (`test/xenia_shader_converter_validator_test.py`).
+- Packaging path: the app's `Frameworks/libmetalirconverter.dylib`
+  (`@executable_path/Frameworks` is on the app's rpath), not nested inside
+  `XeniaCore.framework`. SideStore re-signs it with the rest of the app.
+- Loading: it is loaded only as a dependency of `XeniaCore.framework`, so
+  only on iOS ≥ 26; its own minos 13.0 means it is not what imposes iOS 26.
+  The bridge checks its presence first and reports `shaderConverterMissing`
+  (localized) instead of an opaque dyld "Library not loaded"; a failing
+  `dlopen` reports `coreLoadFailed` with `dlerror()` in the details.
+- No other RewindBox engine embeds this library today, so there is no
+  install-name clash; a future engine that needs it must share one validated
+  copy (dyld loads a single `@rpath/libmetalirconverter.dylib` per process).
+
+## Core adaptation plan (next increment)
+
+`EmulatorAppIOS` (`app/xenia_main_ios.mm`) is the only boot driver and is
+tied to the XeniOS UI; re-implementing it would lose its pause protocol (GPU
+idle, then audio, then guest threads, deliberately not `Emulator::Pause`,
+`:1839-1930`), stop watchdog and `ResetTitle` teardown. The adaptation keeps
+it and adds a small compiled-in facade behind `NeoXenia_GetAPI`:
+
+- context: an `IOSWindowedAppContext` whose `metal_view` is a `XeniaMetalView`
+  created by `create_render_view` and whose `view_controller` is the
+  bridge's session controller (`ui/ios/game/window_ios.mm:159-183` reads both);
+- boot: the `EmulatorThread` steps (`:2240-2530`): `LoadGameConfigForFile`,
+  then RewindBox's settings through `cvar::ConfigVars` + `LoadConfigValue`,
+  `Setup`, `MountStandardDrives`, `SetupSubsystems`, `SetPresenter`,
+  `LaunchPath`; stop through `RequestGameStop` and the existing teardown;
+- input: a RewindBox `hid::InputDriver` fed by `set_buttons`/`set_axes`
+  instead of XeniOS's touch driver, so RewindBox keeps controller ownership;
+- neutralized in RewindBox (each would otherwise misbehave in the host):
+  `xe_ios_microphone_start` and `voice_chat` (RewindBox has no
+  `NSMicrophoneUsageDescription`; a record-permission request without it
+  terminates the app), `xe_ios_party_voice_start`, `xe_ios_live_social_install`
+  and every online/account feature (camera, Face ID), the diagnostics outbox
+  and `xe_ios_diagnostics_note_title` (inert today without the
+  `XeniOSDiagnosticsURL` Info.plist key, kept off explicitly), launch-status
+  and dashboard UI, background refresh, the crash-reporter extension,
+  `IOSAudioSessionStart` (replaced by RewindBox's audio policy),
+  `apu_phase_head_tracking` (no head-pose entitlement);
+- CMake: a `XeniaCore` SHARED framework target from the static libraries
+  listed in `cmake/ios/App.cmake:49-94`, deployment target 26.0, linked to
+  the validated shader converter, `-exported_symbols_list` = `NeoXenia_GetAPI`.
+
 ## State and limits (10 Nov 2026)
 
 - Implemented and host-tested: catalog, policy, Consoles tab, playlist import
@@ -148,9 +221,9 @@ audio backend (kept at the engine default pending audio arbitration review).
   the game card, launch route and session monitoring, bridge Dart API.
 - Written, **not compiled**: the Objective-C++ plugin (no macOS/Xcode here).
 - Not implemented: `XeniaCore.framework` adapter and its CI build (needs
-  macOS, Xcode with the iOS 27.2 SDK, Ninja/CMake, the iPhoneOS
-  `libmetalirconverter.dylib` supplied out of band — not downloadable here and
-  not to be extracted from the owner's IPA into public artifacts); the JIT
+  macOS, Xcode with the iOS 27.2 SDK, Ninja/CMake, and the iPhoneOS
+  `libmetalirconverter.dylib` supplied out of band and validated as above —
+  not downloadable here, not extracted from the owner's IPA); the JIT
   handshake (XeniOS needs an attached debugger: a dedicated helper identity,
   like the other engines); touch controls/skin; folder (XEX/GOD) import.
 - Until the Core ships, every launch returns `engineMissing` (or

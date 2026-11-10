@@ -228,6 +228,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     switch (_xenia?.state) {
       XeniaRuntimeState.requiresIOS26 => 'requiresIOS26',
       XeniaRuntimeState.abiMismatch => 'abiMismatch',
+      XeniaRuntimeState.shaderConverterMissing => 'shaderConverterMissing',
       XeniaRuntimeState.unsupportedPlatform => 'unsupportedPlatform',
       _ => 'engineMissing',
     },
