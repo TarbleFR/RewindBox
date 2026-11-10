@@ -2528,9 +2528,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     three-launch protocol of the record (collection, reuse, reuse after removing the app's com.apple.metal cache).
     The library stage is the next lot (lot 8): redundant creations first; a creation deferred to first use counts as
     a gain only where it removes work instead of moving it.
-- **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov; owner: this
-  session, integration and Core build; open; Core 715 = Core 713 + adapt_extra_set_binds + adapt_array_reference_deltas,
-  refrozen `ab0df1a5`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
+- **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9-10 Nov; owner:
+  this session, integration and Core build; Core 715 validated; Core 717 = Core 715 + adapt_worker_library_share, frozen
+  `f751f1f7`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
   - Goal: less render-thread work per frame and fewer repeated native compilations, every title, same draws and results.
   - Base: Core 713 validated (contract `01e2f624`, run 42689230667 attempt 3, binary `ff3f2333…`).
   - Fix 1 (DescriptorSetUpdater.cs): an update of the uniform or storage set alone looked the bindless array set up
@@ -2555,17 +2555,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and submission. Checked after it: CommandBufferPool.SubmissionCount grows at every submission of an index; array
     setters run on the render thread (threaded commands). Not judged: MoltenVK re-encoding bound sets in a new encoder
     (the delivered early return already depends on it).
-  - Core CI: first freeze `28c53540` run 42714314353 on `9f90df80` red at step 8, gate cold-texture-release: the new
-    AddNewReferences held the statement that gate binds its proof to (one line of TextureArray.cs, required once); the
-    local reruns had covered only the gates declaring the two files. Revised (same behaviour), all 74 gates run locally
-    and green, refrozen `ab0df1a5`, contract test 445 checks; requested by the commit carrying this line.
+  - Core 715 CI: first freeze `28c53540` run 42714314353 red (gate cold-texture-release: the new AddNewReferences held
+    the statement that gate binds its proof to, required once). Revised (same behaviour), all 74 gates run locally,
+    refrozen `ab0df1a5`: run 42722916222 on `a2e0d7a4` green (job 129521127453; artifact 13722528871, 91 020 474 B,
+    sha256 `f658127c…`; iPhone binary `63653e35…` 38 407 032 B, simulator `7922bdf8…`; 74 fresh Apple gates,
+    simulator-validated, not gameplay tested). [Receipts](evidence/melonx-715-gates/run.json).
   - Not claimed: render-thread milliseconds on the iPhone, FPS. To read on the next device run (same route, 1x): the
     pass detail line's array reference passes and references added, array current binds, descriptors in draw and compute
     prepare against 1 121 / 394 ms per 108 frames.
-  - Next (Metal libraries): MoltenVK v1.4.2 keeps libraries per VkPipelineCache; MeloNX's workers take any work item and
-    compile into their own cache, merged into main only before a recycle, so variants of one new program on two workers
-    convert and compile the same MSL twice in a session. Candidate fix: a bounded play-time merge of the worker's cache
-    into main by the owning worker under the main lock, so the next worker's main lookup finds the library.
+  - Fix 3, Core 717 (PipelineCacheManager.cs, PipelineState.cs): MoltenVK v1.4.2 keeps Metal libraries per
+    VkPipelineCache; a worker's cache reached main only before a recycle or at the close, so a variant taken by the
+    other worker converted and compiled the same MSL again. After a creation compiled in its own cache, the worker
+    merges that cache into main (references copied, nothing compiled) under the main lock, announced as a holder so
+    render-thread creations go to the side cache; never waiting (busy: retried at the next own compile), not into a
+    Frozen main, not under low memory, not past main's estimated budget (checked before and under the lock). The
+    announcement became a count of holders for every holder of the file (a holder could clear another's flag).
+  - Real backend (MoltenVK v1.4.2 unpatched, macOS runner Metal; runs 42717015439 and 42720455975, two rounds each;
+    [measure](evidence/melonx-717-gates/library-share-measure.json)): MSL compiles 40 -> 27, the one-cache lower bound,
+    SPIR-V conversions 39 -> 26; 24 merges in 0.2 ms; peak footprint +0.5 to +0.7 MiB. Not removed: two workers
+    compiling the same library at once (40 in the synchronised concurrent case, 12 overlapping pairs); a
+    merge-then-reset strategy made 49, batches of 8 made 40 (rejected). Moved, not added: a variant served from main
+    creates its pipeline state under the main lock (166-185 ms per 60 requests against 4-6 ms): a render-thread creation
+    meeting it waits.
+  - Gate worker-library-share (real manager, content double; 63 checks): alternating variants 27 -> 15 libraries (14
+    distinct); busy lock, Frozen main, recycle, render creations during shares, close and next launch: same content;
+    another holder announced while a worker fails the lock: render thread to the side cache in about 2 ms, a variant
+    clearing announcements leaves it waiting; budget refused near the bound, credit kept apart from measures. Reviews:
+    maintainer (protocol, budget under the lock, bench sync) and rb-core-review (estimate accounting): fixed. All 75
+    gates green locally; contract `f751f1f7` (194 inputs), contract test 447 checks.
+    [Receipts](evidence/melonx-717-gates/run.json).
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

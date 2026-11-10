@@ -210,6 +210,37 @@
     "note": "receipts only (failed at the gates); not a Core identity"
    },
    "action": "AddNewReferences rewritten without that statement (same behaviour), preparation redone, all 74 gates run locally, refrozen"
+  },
+  {
+   "commit": "a2e0d7a4",
+   "commitFull": "a2e0d7a4b6e169778921cb9e745f594f6604e433",
+   "contract": "ab0df1a5",
+   "contractSha256": "ab0df1a5b6e7896cdcece2e45b5ad7ff05f45c9e7b095fea441b78bfd60c9092",
+   "run": 42722916222,
+   "attempt": 1,
+   "job": 129521127453,
+   "conclusion": "success",
+   "completedAt": "2026-11-10T00:25:31Z",
+   "artifact": {
+    "id": 13722528871,
+    "name": "MeloNX-engine-a2e0d7a4b6e169778921cb9e745f594f6604e433",
+    "bytes": 91020474,
+    "sha256": "f658127c4c78f6a657f5b48e59450339d8d709c2040282f5419db1d27a038500",
+    "expires": "2026-11-24T00:25:19Z"
+   },
+   "binaries": {
+    "ios-arm64": {
+     "sha256": "63653e357188d572049299d0761cad276ef124d6e3a655e45200d44e11cefafb",
+     "bytes": 38407032
+    },
+    "iossimulator-arm64": {
+     "sha256": "7922bdf82f43eb5c87e26dceed3d5210218d71ba4e358281115fc105517ad19c",
+     "bytes": 38740216
+    }
+   },
+   "freshAppleGates": 74,
+   "status": "compiled-and-simulator-validated-not-gameplay-tested",
+   "note": "Core 715 validated (every step green, the ARM64 iOS app exercised in the simulator); superseded for delivery by Core 717 only once that one is validated"
   }
  ],
  "revision": "AddNewReferences without the statement cold-texture-release binds its proof to (same behaviour)"

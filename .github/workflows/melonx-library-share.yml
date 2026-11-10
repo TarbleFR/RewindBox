@@ -6,7 +6,7 @@ run-name: Metal library sharing • ${{ github.sha }}
 'on':
   push:
     branches:
-    - Claude
+    # Measures on the lot's work branch only (the delivery to Claude runs no identical measure again).
     - work/melonx-lot8-**
     paths:
     - .github/workflows/melonx-library-share.yml
