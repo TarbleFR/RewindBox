@@ -1746,6 +1746,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         Local: closure, codegen (no input change), fold (0 tree changes), route, analyzer, rerun list (guards), pin
         `--source-only`, the 921 test (g++ ASan+UBSan with negative controls, clang) pass; the shared 660 harness accepts
         a third `is_current_thread()` seam (the pass asserts the RSX thread).
+      - Source `690d8ce0`, request `03a52515`, run `42872597093` green first try (Core job 130027450067, Apple host job
+        130027450536, 15 host commands passed); artifact 13791109527 (30,507,248 B, zip = API digest `70d9950b`); dylib
+        `5aee7478…3a31` (80,937,976 B), fingerprint `c970c0ba…c214`, identities PPU a987639e / SPU 477a3fa4 unchanged
+        (player caches valid), markers present (`Resolved title policy 921`, `COREPROF TEXSWEEP921`, the setting's
+        name); pin_errors verified, pin `d4864cab`. Local driver (the whole chain down to Core 668) passed in 1378 s.
       - **Device question (IPA with Core 921, BO2 multiplayer, 20 min from game entry, `.1` files):** does
         TEXCACHE621 `texture_mib` / JITMEM `gpu_textures_requested` stop growing, MEMPROF527 lose its 64 MiB steps,
         TEXSWEEP921 `released` > 0, and what does `sweep_ms` cost per window against FPS/p95 of build 721? Refuted if

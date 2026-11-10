@@ -75,6 +75,13 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   that comparison now runs only when asked for with the new setting "Lever comparison between report windows". The
   performance report also tells, for Black Ops II, how old the occlusion result is that each wait is for and what
   sending it early costs. Host tests only; no FPS claim.
+- RPCS3 Core 921 pinned on 10 November 2026 ([record](../rpcs3-core921-stale-texture-release.md); run `42872597093`, dylib
+  `5aee7478…`, pin `d4864cab…`), not yet in a delivered IPA: in Call of Duty: Black Ops II the memory kept growing during
+  play (several gigabytes after a few minutes) because textures the game had replaced in its own memory were never
+  released; once per frame the emulator now checks a few megabytes of unused textures against the game's memory and
+  releases those the game has overwritten (setting "Stale texture release", on for every game). Textures still in the
+  game's memory are kept. Host model only (113 MiB kept before, 24.7 MiB after on a Black Ops II-shaped stream); the
+  iPhone memory gain is not measured yet.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

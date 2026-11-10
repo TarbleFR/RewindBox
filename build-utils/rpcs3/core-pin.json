@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 920,
- "note": "RPCS3 Core 920 = Core 919 plus two corrections for Call of Duty: Black Ops II. REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920: Cores 917 to 919 switched Writer lock park spin and Busy wait reference duration off and on again between 5 s report windows in three passes during the first minutes of every boot whenever their settings were Automatic, the default (up to 36 windows with a lever off); the passes now run only with the diagnostic setting Lever comparison between report windows = Enabled, for a lever whose own setting is Automatic, bounded and logged; Automatic and Disabled never alternate and both levers stay as their settings resolve (Automatic: on). REWINDBOX_ZCULL_COST_920: COREPROF ZCULLCOST920 reports the age of the report each waiting ZCULL read waits for last and the RSX-thread time of the Core 919 watched submissions. Core 919 (pinned 44527c61): Black Ops II ZCULL watched flush with its own budget. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. No codegen input changes: identities unchanged. Host bridge 8977315e unchanged; MoltenVK dependency of run 42733987255 (library d19d3a42). Built by the RPCS3 Core route (run 42838028676, attempt 1, source f0404065; Apple host harnesses run 42838028676 on f0404065). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
+ "build": 921,
+ "note": "RPCS3 Core 921 = Core 920 plus the release of stale idle textures, for the memory of Call of Duty: Black Ops II and every title. REWINDBOX_STALE_TEXTURE_SWEEP_921: on iOS every CPU texture is confirmed by a hash of its guest bytes, never by page protection, so a texture whose memory the title reused stayed cached until looked up again and upstream trim_sections only visits blocks of more than 256 locked sections (Black Ops II, builds 620-721: texture pool 74 -> 568 MiB in 4.4 minutes, none released); once per presented frame a pass bounded to 4 MiB hashed and 2048 sections looked at releases the idle, unbound hash-validated CPU textures whose bytes no longer match, exactly as their next lookup would; intact ones are kept. Setting Stale texture release, Automatic = every title; COREPROF TEXSWEEP921. Core 920 (pinned f9f2b478): no lever alternation in ordinary play, ZCULL cost line. No resolution, precision, frame limit, SPU count or priority or LLVM option changes. No codegen input changes: identities unchanged. Host bridge 8977315e unchanged; MoltenVK dependency of run 42733987255 (library d19d3a42). Built by the RPCS3 Core route (run 42872597093, attempt 1, source 03a52515; Apple host harnesses run 42872597093 on 03a52515). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 920 source closure and the native dependency",
+    "Authenticate the Core 921 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 920",
-    "Verify the actual binary and write its Core 920 identity",
+    "Compile and link the actual iPhone Core 921",
+    "Verify the actual binary and write its Core 921 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 920 without an application delivery",
+    "Upload the verified Core 921 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "f0404065ece79bd22ca8437bc71218ee686c817e",
-   "run": 42838028676,
+   "source": "03a525152845b2153432f1bbd2a6393f85db3023",
+   "run": 42872597093,
    "attempt": 1,
-   "job": 129905367194,
-   "artifact": 13776266781,
-   "name": "RPCS3Core-920-f0404065ece79bd22ca8437bc71218ee686c817e",
-   "bytes": 30505496,
-   "sha256": "83451bc3dae5f771d713b6ccbd9121c475ace7eb455a8a515a66733a978939a6",
-   "expiresAt": "2026-12-10T15:12:22Z"
+   "job": 130027450067,
+   "artifact": 13791109527,
+   "name": "RPCS3Core-921-03a525152845b2153432f1bbd2a6393f85db3023",
+   "bytes": 30507248,
+   "sha256": "70d9950ba236d374dcbc050db715c4111c87e3e6e5fa80a171acfcfcf459a5cb",
+   "expiresAt": "2026-12-10T18:33:31Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 920 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 921 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 920 harnesses with Apple clang",
+    "Run the affected and new Core 921 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core920",
+    "core921",
     "lr-full-queue"
    ],
-   "source": "f0404065ece79bd22ca8437bc71218ee686c817e",
-   "run": 42838028676,
+   "source": "03a525152845b2153432f1bbd2a6393f85db3023",
+   "run": 42872597093,
    "attempt": 1,
-   "job": 129905366604,
-   "artifact": 13775577102,
-   "name": "RPCS3Core-920-apple-host-tests-f0404065ece79bd22ca8437bc71218ee686c817e",
-   "bytes": 64095,
-   "sha256": "ed6447b2078be0c878c02496e604d08bd245e0f06f8c489e602e835f723e98ce",
-   "expiresAt": "2026-12-10T15:07:34Z",
+   "job": 130027450536,
+   "artifact": 13792701338,
+   "name": "RPCS3Core-921-apple-host-tests-03a525152845b2153432f1bbd2a6393f85db3023",
+   "bytes": 64301,
+   "sha256": "292e093dc375182d78b9858a90ef3a9aa9215114bfd03122094452f4ceaea706",
+   "expiresAt": "2026-12-10T18:39:05Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core920",
-  "dylibBytes": 80937600,
-  "dylibSha256": "79d70a4da6f621611869644f6d29d4331351f7079ebfd7c8f558f5bda89e8e9a",
-  "identitySha256": "397029fb58d63a28c250b5c03046a4a133f4d60d6f5462b58c353c9e0b825adf",
+  "type": "rpcs3-ios-core921",
+  "dylibBytes": 80937976,
+  "dylibSha256": "5aee7478cb7d4d9d30c09808dd8fda7865d467d80b8fbafea6ca57b29f4e3a31",
+  "identitySha256": "306428d145a1b4afec2bdfa53472b72a8c2b8226ef58db86a0a3c297139c68c8",
   "proofMember": "core610-proof.json",
-  "proofSha256": "02de8ab6d4889f4f3bb27999876ce7eef760de69149239fa02cffc22c04a2762",
-  "payloadFingerprint": "71bb1c590f552b06348db888f4f3b5a53c33192988c6ebd4ad0a7f4e15d86e52"
+  "proofSha256": "04c04163b4194010c78c978212a7630bcd60dc4fe01cc08daaa37021e7ddd0f4",
+  "payloadFingerprint": "c970c0ba16ee7d4813ed8cc6d28762c1eb3758ec50dfc29fc34e33bd1cf7c214"
  },
  "canonical": {
-  "patchSha256": "9377bd66758e9481afd9ff5361e5ea1ad100efd99453a4d6af9d484c48b9a5cf",
-  "postimages": 455,
+  "patchSha256": "ea8bb09d473b346020e8995584f0e33efde2b511a86a20401b8dc0941582a147",
+  "postimages": 456,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -305,13 +305,15 @@
   "next_window_busy_wait_scale=",
   "Resolved title policy 919",
   "Resolved title policy 920",
-  "COREPROF ZCULLCOST920"
+  "COREPROF ZCULLCOST920",
+  "Resolved title policy 921",
+  "COREPROF TEXSWEEP921"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "e2f3e211d80f8270f241df786167cf75fb23b657",
-  "run": 42815113270,
-  "artifact": 13765658019,
-  "payloadFingerprint": "a74a9cf6a1fdfb17ecbba272f5e260ac745014f3f478714281c5f21abf2156e7"
+  "source": "f0404065ece79bd22ca8437bc71218ee686c817e",
+  "run": 42838028676,
+  "artifact": 13776266781,
+  "payloadFingerprint": "71bb1c590f552b06348db888f4f3b5a53c33192988c6ebd4ad0a7f4e15d86e52"
  }
 }
