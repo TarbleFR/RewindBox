@@ -290,8 +290,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Pre-existing, not touched:** `test/legal_bundle_preflight_test.py` fails 3 of 8 (an RA evidence path missing from
     its temporary tree), identical on `ac788759`; `test/neo_swap_core_pin_test.py` normal mode fails on the old binary
     pin `cfe92344` (source-only mode passes), identical on `ac788759`.
-  - **Next:** pin MeloNX Core 721, classify the simulator run, draft (spec ready, recipient key 722 generated outside
-    Git), freeze, contract, trigger, verify, receipt, send.
+  - **MeloNX Core 721 pinned** `2d6a5183`: run `42839257625` (49.3 min, gates 39.6), artifact 13779212424 (zip
+    `410dca88`), iPhone binary `c6fa1cc6` (38,423,432 B), fingerprint `b1584100`, contract `29e58115`, 77 fresh gates.
+  - **Simulator run `42843268978`:** every skin step green (host verifier, MeloNX, ARMSX2 and Dolphin overlays,
+    Dolphin orientation); only the Dolphin session harness red, the known `SessionMenuTests` rows and missing touch NIBs
+    (task Dolphin session harness), not touched by these lots.
+  - **First request failed** (`7a7a2eee`, run `42848698413`): preflight, republish, flutter and native green, the
+    application built (Xcode 318 s) and sealed; `split_encrypted_delivery.py` refused the encrypted payload over
+    4 x 64 MiB (IPA 721 was already 99.5 % of it; PR 169 adds about 3.9 MB). Fix `ea8152d9` (product path): four
+    pieces of at most 96 MiB, test with a payload over 256 MiB (old splitter refuses it, new accepts). Refrozen
+    (`b0305c6a`, effective `2528a3dc`), second request `c7ca5d37`, run `42852972508` (both groups fresh).
+  - **Next:** verify the second run, receipt, send.
 
 - **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
   Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
