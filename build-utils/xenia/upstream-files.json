@@ -1,0 +1,17 @@
+{
+  "src/xenia/app/xenia_main_ios.mm": "7310df11d6f1a1f6dafa90094a3a07d8e84bde3eef5b2da678190b8fec93eea3",
+  "cmake/ios/App.cmake": "34725b491b1b39e28a6f361f4cb5763993fa9004ed26a64d41258d5ac0fe44a9",
+  "cmake/ios/ShaderConverter.cmake": "65d1cdff583eca8cac16d3a14252f472cba33c61bbd16572e8ee39ca4455a678",
+  "src/xenia/ui/ios/app/windowed_app_context_ios.h": "02d51fde2b41b6eb66829eb4e8bb859022ea4a840ded69a4c14dcb050a7b5dca",
+  "src/xenia/ui/ios/app/ios_app_delegate.mm": "0d1a9cc7f62fd6565b45ada54b0fae6235970ff628bfa02e808a83e641f710dd",
+  "src/xenia/ui/ios/game/window_ios.mm": "3695284688261e7fce32e707faaf256c6137df90e6ea5ee7897a96a64e955866",
+  "src/xenia/ui/ios/game/ios_metal_view.h": "e4e4a04bc2e997bf90c1662ca0d57c51ce3115d57680fb878d9ada5aa69cef9c",
+  "src/xenia/ui/windowed_app.h": "099767fba8bd74592c0683fbf3ec934a70e7fb6223744a84d1df169b452ac244",
+  "src/xenia/hid/input_driver.h": "47aa81f04dbc2f7230e5c25865673cedd66a81c5b41a49f2e64493341e69e1de",
+  "src/xenia/hid/input.h": "f49a7c0a8461daf65a19e19f10fdb4103f342b50388a8feb3879ea454700d5e6",
+  "src/xenia/base/cvar.h": "2ec4c85c4e3e07689b2a0843ac23205d086a896c4e97154271b7a02da050d759",
+  "src/xenia/base/logging.h": "fce4c8b9c815a4c8c9406ab7aaf738764c57c9f2882c7a2c31cd2ad24faa7a7e",
+  "src/xenia/ui/ios/shared/ios_system_utils.h": "5c5155db7f61b92e9f4ac5bf20d15ca7e5cdf468242c7b02184664aecf48e1cc",
+  "src/xenia/gpu/metal/metal_command_processor.cc": "b05199de8e1b073f7e16d5f092904cff3ee13ab155636455265eedacfbe5816b",
+  "src/xenia/kernel/xconfig.cc": "c4ea70930b905a9c284d64e2fcdaef97dabd8c0ec091e134f1b10d958a53e552"
+}

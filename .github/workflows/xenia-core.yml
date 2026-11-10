@@ -1,0 +1,172 @@
+name: XeniOS native core
+run-name: XeniOS native core • ${{ github.sha }}
+# Dispatch only: the main session owns Core builds, pins and IPA delivery
+# (docs/AI_TASK_BOARD.md). docs/xenios-playlist.md § Core adaptation plan.
+on:
+  workflow_dispatch:
+    inputs:
+      build_core:
+        description: 'Also compile XeniaCore.framework (needs Xcode 27)'
+        type: boolean
+        default: false
+      runner:
+        description: 'macOS runner label with Xcode 27 (XeniOS uses a self-hosted xcode-27 image)'
+        type: string
+        default: 'macos-26'
+permissions:
+  contents: read
+concurrency:
+  group: xenia-native-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    name: Patch, shader converter, facade C++ and host plugin
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read immutable source revision
+        id: source
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          source = json.loads(Path('build-utils/xenia/source.json').read_text())
+          assert source['abi_version'] == 1
+          assert source['repository'] == 'https://github.com/xenios-jp/XeniOS.git'
+          assert re.fullmatch('[0-9a-f]{40}', source['revision'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('revision=' + source['revision'], file=output)
+          PY
+      - uses: actions/checkout@v4
+        with:
+          repository: xenios-jp/XeniOS
+          ref: ${{ steps.source.outputs.revision }}
+          path: .native-sources/XeniOS
+          persist-credentials: false
+      - name: Header-only submodules for the facade check
+        run: git -C .native-sources/XeniOS submodule update --init --depth=1 third_party/tomlplusplus third_party/fmt third_party/cxxopts
+      - name: Pin, upstream API files and adaptation patch
+        run: python3 test/xenia_core_patch_test.py --upstream .native-sources/XeniOS
+      - name: Shader converter validator
+        run: python3 test/xenia_shader_converter_validator_test.py
+      - name: Facade C++ against the pinned headers
+        run: CXX="xcrun clang++" bash test/xenia_core_cpp_test.sh .native-sources/XeniOS
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - run: flutter precache --ios
+      - name: Compile the bridge plugin against Flutter (iOS 18 target)
+        run: |
+          set -euo pipefail
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          FLUTTER_FRAMEWORK=$(find "$FLUTTER_ROOT/bin/cache/artifacts/engine/ios" -path '*/Flutter.framework' -type d | head -1)
+          test -n "$FLUTTER_FRAMEWORK"
+          xcrun clang++ -std=c++20 -fobjc-arc -fblocks -fsyntax-only -x objective-c++ \
+            -isysroot "$SDK" -target arm64-apple-ios18.0 -F "$(dirname "$FLUTTER_FRAMEWORK")" \
+            packages/xenia_internal_bridge/ios/Classes/XeniaInternalBridgePlugin.mm
+
+  core:
+    name: Compile pinned XeniaCore iOS framework
+    needs: checks
+    if: ${{ inputs.build_core }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 180
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read immutable source revision and converter mirror
+        id: source
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          pin = json.loads(Path('build-utils/xenia/source.json').read_text())
+          mirror = pin['shader_converter']['upstream_mirror']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print('revision=' + pin['revision'], file=output)
+              print('msc_repo=' + mirror['repository'], file=output)
+              print('msc_tag=' + mirror['release_tag'], file=output)
+              print('msc_sha256=' + mirror['sha256'], file=output)
+          PY
+      - name: Select Xcode 27 (the pinned sources need the iOS 27 SDK)
+        run: |
+          set -euo pipefail
+          xcode="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 27 on this runner (StateReporting needs the iOS 27 SDK). Dispatch with a runner that has it."
+            ls -d /Applications/Xcode*.app || true
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+      - name: Install the Metal toolchain
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if sudo xcodebuild -downloadComponent MetalToolchain; then exit 0; fi
+            sleep $((attempt * 30))
+          done
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          repository: xenios-jp/XeniOS
+          ref: ${{ steps.source.outputs.revision }}
+          path: .native-sources/XeniOS
+          persist-credentials: false
+      - name: Submodules and data of the pinned revision (as XeniOS's apple-publish.yml)
+        working-directory: .native-sources/XeniOS
+        run: |
+          set -euo pipefail
+          git submodule update --init --depth=1 -j"$(sysctl -n hw.ncpu)" \
+            $(grep -oE 'path = .+' .gitmodules | sed 's/path = //' | grep -v 'DirectXShaderCompiler')
+          git submodule update --init --recursive --depth=1 -j"$(sysctl -n hw.ncpu)" third_party/wxWidgets
+          ./xenia-build.py slang
+          ./xenia-build.py msc
+          ./xenia-build.py fetchdata
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python3 -m pip install --upgrade cmake ninja meson mako pyyaml packaging
+      - name: Fetch the iPhoneOS shader converter from its pinned mirror (never uploaded)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/msc-ios"
+          mkdir -p "$dir"
+          gh release download "${{ steps.source.outputs.msc_tag }}" --repo "${{ steps.source.outputs.msc_repo }}" \
+            --pattern libmetalirconverter.dylib --dir "$dir" --clobber
+          echo "${{ steps.source.outputs.msc_sha256 }}  $dir/libmetalirconverter.dylib" | shasum -a 256 -c -
+          echo "MSC_IOS_LIBRARY=$dir/libmetalirconverter.dylib" >> "$GITHUB_ENV"
+      - name: Compile and verify XeniaCore.framework
+        run: bash build-utils/xenia/build_core.sh .native-sources/XeniOS "$MSC_IOS_LIBRARY"
+      - name: Keep the converter out of the artifact
+        run: test ! -e dist/xenia/libmetalirconverter.dylib && ! find dist/xenia -name 'libmetalirconverter*' | grep -q .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XeniaCore-${{ github.sha }}
+          path: dist/xenia/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+      - name: Collect native diagnostics
+        if: always()
+        run: |
+          mkdir -p build/xenia-diagnostics
+          cp build/xenia-core/*.log build/xenia-core/*.json build/xenia-core/*.txt build/xenia-diagnostics/ 2>/dev/null || true
+          cp build/xenia-core/ios/CMakeCache.txt build/xenia-diagnostics/ 2>/dev/null || true
+          printf 'host=%s\nxenios=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > build/xenia-diagnostics/identity.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: XeniaCore-diagnostics-${{ github.sha }}
+          path: build/xenia-diagnostics/
+          if-no-files-found: error
+          retention-days: 7

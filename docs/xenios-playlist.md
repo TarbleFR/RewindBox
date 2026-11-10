@@ -161,8 +161,9 @@ Metal Shader Converter runtime. It is a hard requirement of the Core.
 Consequences, enforced in this repository:
 
 - **Not committed, not rehosted, not extracted from the owner's IPA into any
-  artifact.** The builder supplies an iPhoneOS copy out of band (Apple
-  Developer download of Metal Shader Converter); RewindBox has no
+  artifact.** CI fetches XeniOS's pinned mirror at build time (see the
+  XeniaCore section) or a builder supplies an iPhoneOS copy out of band;
+  RewindBox has no
   redistribution permission on record, so shipping it in a published IPA is a
   maintainer/legal decision for the main session, not implied by this work.
 - `build-utils/xenia/validate_shader_converter.py` authenticates the supplied
@@ -183,36 +184,39 @@ Consequences, enforced in this repository:
   install-name clash; a future engine that needs it must share one validated
   copy (dyld loads a single `@rpath/libmetalirconverter.dylib` per process).
 
-## Core adaptation plan (next increment)
+## XeniaCore framework (facade, patch, build)
 
-`EmulatorAppIOS` (`app/xenia_main_ios.mm`) is the only boot driver and is
-tied to the XeniOS UI; re-implementing it would lose its pause protocol (GPU
-idle, then audio, then guest threads, deliberately not `Emulator::Pause`,
-`:1839-1930`), stop watchdog and `ResetTitle` teardown. The adaptation keeps
-it and adds a small compiled-in facade behind `NeoXenia_GetAPI`:
+`EmulatorAppIOS` (`app/xenia_main_ios.mm`) stays the boot driver: re-writing
+it would lose its pause protocol (GPU idle, then audio, then guest threads,
+deliberately not `Emulator::Pause`, `:1839-1930`), stop watchdog and
+`ResetTitle` teardown. RewindBox drives it only through
+`IOSWindowedAppContext`'s public API.
 
-- context: an `IOSWindowedAppContext` whose `metal_view` is a `XeniaMetalView`
-  created by `create_render_view` and whose `view_controller` is the
-  bridge's session controller (`ui/ios/game/window_ios.mm:159-183` reads both);
-- boot: the `EmulatorThread` steps (`:2240-2530`): `LoadGameConfigForFile`,
-  then RewindBox's settings through `cvar::ConfigVars` + `LoadConfigValue`,
-  `Setup`, `MountStandardDrives`, `SetupSubsystems`, `SetPresenter`,
-  `LaunchPath`; stop through `RequestGameStop` and the existing teardown;
-- input: a RewindBox `hid::InputDriver` fed by `set_buttons`/`set_axes`
-  instead of XeniOS's touch driver, so RewindBox keeps controller ownership;
-- neutralized in RewindBox (each would otherwise misbehave in the host):
-  `xe_ios_microphone_start` and `voice_chat` (RewindBox has no
-  `NSMicrophoneUsageDescription`; a record-permission request without it
-  terminates the app), `xe_ios_party_voice_start`, `xe_ios_live_social_install`
-  and every online/account feature (camera, Face ID), the diagnostics outbox
-  and `xe_ios_diagnostics_note_title` (inert today without the
-  `XeniOSDiagnosticsURL` Info.plist key, kept off explicitly), launch-status
-  and dashboard UI, background refresh, the crash-reporter extension,
-  `IOSAudioSessionStart` (replaced by RewindBox's audio policy),
-  `apu_phase_head_tracking` (no head-pose entitlement);
-- CMake: a `XeniaCore` SHARED framework target from the static libraries
-  listed in `cmake/ios/App.cmake:49-94`, deployment target 26.0, linked to
-  the validated shader converter, `-exported_symbols_list` = `NeoXenia_GetAPI`.
+| Piece | Path | What it does |
+| --- | --- | --- |
+| Upstream patch | `build-utils/xenia/rewindbox-core.patch` | 47 added lines, nothing removed, every change behind `XE_NEO_EMBEDDED_CORE` (the XeniOS app build is unchanged): no microphone/party voice/voice device (`xe_ios_microphone_start`, title voice listener, `SetVoiceDeviceFactory`), no diagnostics title note, no Live social install; RewindBox launch overrides right after `config::LoadGameConfigForFile`; a title-launched hook after `LaunchPath`; RewindBox's input driver instead of the touch driver; `NeoXeniaCreateEmulatorApp` instead of `XE_DEFINE_WINDOWED_APP` (no `main`); `App.cmake` includes the RewindBox target when `NEO_XENIA_ADAPTER_DIR` is set |
+| Hooks | `packages/xenia_internal_bridge/core/neo_xenia_core_hooks.h` | the four functions the patch calls |
+| Facade | `core/XeniaCore.mm` (ARC, this file only) | `NeoXeniaAPI` v1: one `IOSWindowedAppContext`, one `EmulatorAppIOS`, one `XeniaMetalView` and one never-presented host view controller per process (iOSWindow keeps raw pointers to both); the `XeniaAppDelegate` steps it needs (launch arguments, log file in the storage root, `InitializeLogging`, `OnInitialize`); `LaunchGame` / `SetEmulationPaused(kUser)` / `TerminateCurrentGame`; exit, launch-failure and stop-stuck callbacks turned into transaction-tagged events; `voice_chat` and `apu_phase_head_tracking` forced off; JIT through XeniOS's own `xe_check_jit_available` |
+| Pure C++ | `core/XeniaCoreInput.h` | host pad of user 0 (atomics), its `hid::InputDriver` (connected gamepad, no keystrokes, rumble not forwarded yet) and cvar application through `cvar::ConfigVars` + `LoadConfigValue` |
+| Target | `core/target.cmake`, `core/exports.txt` | `XeniaCore` SHARED framework from the same sources/libraries/embedded data as `xenia-app`, `-Werror` (`xe_target_defaults`), deployment 26.0, `-exported_symbols_list` = `_NeoXenia_GetAPI`, rpaths `@executable_path/Frameworks` and `@loader_path/..` for the converter, LICENSE and Acknowledgements copied into the framework |
+| Build | `build-utils/xenia/{prepare_source.py,build_core.sh,verify_core.py,upstream-files.json}` | pin + clean tree + 15 upstream API files by SHA-256 + `git apply`; converter validated (structure, exports, pinned digest) and `codesign`-checked as Apple's; host `xenia-shader-cc`; iOS configure/build exactly as XeniOS's `apple-publish.yml`; verification: arm64 iPhoneOS minos 26.0, install name `@rpath/XeniaCore.framework/XeniaCore`, converter as dependency, `_NeoXenia_GetAPI` the only export, no `main`, no absolute build path |
+| CI | `.github/workflows/xenia-core.yml` (dispatch only) | `checks` (macos-26): patch test on the pinned checkout, validator tests, facade C++ check, bridge plugin compiled against Flutter for iOS 18; `core` (opt-in, runner input): Xcode 27 required, Metal toolchain, submodules without DirectXShaderCompiler, `slang`/`msc`/`fetchdata`, converter from its pinned mirror, build, artifact `dist/xenia` **without** the converter |
+
+Executed here (Linux, no Xcode): `test/xenia_core_patch_test.py --upstream`
+on the pinned checkout (patch applies, guards balanced, hooks/facade/bridge
+keys agree); `test/xenia_core_cpp_test.sh` (the pure C++ parts compile with
+`-Werror` against the pinned cvar, toml++, `X_INPUT_*` and `InputDriver`
+headers — it caught a missing `xe::` qualification); validator on both the
+mirror and the IPA copy. **Not executed:** the Objective-C++ facade and
+plugin compile, the framework build, any device run; the workflow has not
+been dispatched (Core CI belongs to the main session).
+
+Shader converter supply for CI: XeniOS's own pinned mirror
+(`xenios-jp/metal-shader-converter` `ios-4.0.3`, SHA-256 `bd6b729d…37aa`),
+downloaded and compared on 10 Nov 2026: same code as the IPA copy
+(identical bytes from offset 4096 to the code signature), only the
+signature differs. It is fetched at build time, digest- and
+signature-checked, and kept out of every artifact.
 
 ## State and limits (10 Nov 2026)
 
@@ -220,10 +224,9 @@ it and adds a small compiled-in facade behind `NeoXenia_GetAPI`:
   button, import service, settings service and screens, per-game entry in
   the game card, launch route and session monitoring, bridge Dart API.
 - Written, **not compiled**: the Objective-C++ plugin (no macOS/Xcode here).
-- Not implemented: `XeniaCore.framework` adapter and its CI build (needs
-  macOS, Xcode with the iOS 27.2 SDK, Ninja/CMake, and the iPhoneOS
-  `libmetalirconverter.dylib` supplied out of band and validated as above —
-  not downloadable here, not extracted from the owner's IPA); the JIT
+- Written, not compiled: the XeniaCore facade, target and build (above);
+  compiling needs a macOS runner with Xcode 27 and a dispatch by the main
+  session. Not implemented: the JIT
   handshake (XeniOS needs an attached debugger: a dedicated helper identity,
   like the other engines); touch controls/skin; folder (XEX/GOD) import.
 - Until the Core ships, every launch returns `engineMissing` (or
@@ -231,10 +234,8 @@ it and adds a small compiled-in facade behind `NeoXenia_GetAPI`:
 
 ## Next action
 
-Build `XeniaCore.framework` from `cf7c7ee45`: an adapter (`core/XeniaCore.mm`)
-implementing `NeoXeniaAPI` over `xe::Emulator` without the XeniOS UI shell
-(`app/xenia_main_ios.mm` `EmulatorThread` steps: `Emulator::Setup`,
-`SetupSubsystems`, `SetPresenter`, `LaunchPath`, `ResetTitle`), a CMake
-target exporting only `NeoXenia_GetAPI`, and a component workflow modelled on
-`armsx2-core.yml`; then the JIT helper identity. Coordinate the Core pin, CI
-dispatch and IPA inclusion with the main session.
+Main session: dispatch `xenia-core.yml` (`checks`, then `build_core` on a
+runner with Xcode 27), fix what the real compile reports, pin the Core.
+Component: the dedicated JIT helper identity (XeniOS needs an attached
+debugger; RewindBox's helper path, not StikDebug hand-off), touch controls,
+then the first device session (launch, menu, quit, second launch).

@@ -41,6 +41,7 @@ LC_CODE_SIGNATURE = 0x1D
 PLATFORMS = {1: 'MACOS', 2: 'IOS', 3: 'TVOS', 4: 'WATCHOS', 6: 'MACCATALYST',
              7: 'IOSSIMULATOR', 8: 'TVOSSIMULATOR', 9: 'WATCHOSSIMULATOR'}
 N_EXT = 0x01
+N_PEXT = 0x10
 N_TYPE = 0x0E
 N_SECT = 0x0E
 
@@ -118,7 +119,8 @@ def parse(data: bytes) -> dict:
             raise ValueError('symbol table beyond end of file')
         for index in range(nsyms):
             strx, ntype, _, _, _ = struct.unpack_from('<IBBHQ', data, symoff + index * 16)
-            if ntype & N_EXT and (ntype & N_TYPE) == N_SECT and 0 < strx < strsize:
+            if (ntype & N_EXT and not ntype & N_PEXT and (ntype & N_TYPE) == N_SECT
+                    and 0 < strx < strsize):
                 raw = data[stroff + strx:stroff + strsize].split(b'\0', 1)[0]
                 facts['exports'].append(raw.decode('utf-8', 'replace'))
     facts['flags'] = flags
@@ -149,10 +151,11 @@ def check(facts: dict, pin: dict, digest: str, size: int, require_digest: bool) 
     foreign = [name for name in facts['dependencies'] if not name.startswith(allowed)]
     if foreign:
         failures.append('non-system dependencies: ' + ', '.join(foreign))
-    reference = expected['reference']
-    if require_digest and (digest != reference['sha256'] or size != reference['bytes']):
-        failures.append(f'digest {digest} ({size} B) is not the pinned reference '
-                        f"{reference['sha256']} ({reference['bytes']} B)")
+    pinned = {(item['sha256'], item['bytes'])
+              for item in (expected['reference'], expected.get('upstream_mirror')) if item}
+    if require_digest and (digest, size) not in pinned:
+        failures.append(f'digest {digest} ({size} B) is neither the pinned reference nor the '
+                        'pinned upstream mirror')
     return failures
 
 
@@ -177,6 +180,7 @@ def main(argv: list[str]) -> int:
         'bytes': len(data),
         'sha256': digest,
         'matches_pinned_reference': digest == pin['shader_converter']['reference']['sha256'],
+        'matches_pinned_mirror': digest == pin['shader_converter'].get('upstream_mirror', {}).get('sha256'),
         **{key: facts[key] for key in ('install_name', 'current_version', 'platform', 'minos',
                                        'sdk', 'source_version', 'cryptid', 'code_signature',
                                        'dependencies')},

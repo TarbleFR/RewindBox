@@ -3755,8 +3755,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   hard dependency: Metal init fails without it on both shader paths. Apple terms
   (Apache-2.0 = headers only): never committed/rehosted/extracted; supplied out of band,
   authenticated by `build-utils/xenia/validate_shader_converter.py` against
-  `build-utils/xenia/source.json` (run OK on the reference copy). Shipping it in a
-  published IPA needs a maintainer/legal decision (main).
+  `build-utils/xenia/source.json`. CI source: XeniOS's pinned mirror
+  `xenios-jp/metal-shader-converter` `ios-4.0.3` (`bd6b729d…`), downloaded 10 Nov: same
+  code as the IPA copy (bytes 4096..signature identical), Apple-signed; fetched at build
+  time, never in artifacts. Shipping it in a published IPA: maintainer/legal decision (main).
+- **XeniaCore (written, not compiled):** upstream patch `build-utils/xenia/rewindbox-core.patch`
+  (47 guarded lines, applies to the pin), facade `packages/xenia_internal_bridge/core/`
+  (`XeniaCore.mm` over `EmulatorAppIOS` via `IOSWindowedAppContext`, `XeniaCoreInput.h`,
+  `target.cmake`, exports = `_NeoXenia_GetAPI`), `build-utils/xenia/{prepare_source.py,
+  build_core.sh,verify_core.py}`, dispatch-only `.github/workflows/xenia-core.yml`
+  (`checks` on macos-26; `core` opt-in, needs an Xcode 27 runner). Executed here: patch
+  test on the pinned checkout, facade C++ `-Werror` check against pinned headers, validator.
 - **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
   `xbox360` entry (existing system id); Consoles tab grouped by application, external-
   RetroArch-only and missing-engine consoles removed from the tab only (maintainer
@@ -3777,17 +3786,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
   tab rule), `docs/storage-audit-cleanup.md`.
 - **Validation (Flutter 3.47.2 host):** new XeniOS + catalog/Consoles tests 65/65;
-  shader-converter validator unit tests 7/7; storage contract 24/24; 41 Dart suites touching changed files
+  shader-converter validator unit tests 7/7; `xenia_core_patch_test.py` and
+  `xenia_core_cpp_test.sh` OK; workflow-scanning Python tests = same set as Claude;
+  storage contract 24/24; 41 Dart suites touching changed files
   373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
   refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
   failure set as HEAD (19, shallow-history/baseline). Analyzer: no new issue.
-- **Blockers:** XeniaCore.framework facade + CI (macOS, Xcode iOS SDK 27.2, validated
-  out-of-band converter dylib and its redistribution decision); dedicated JIT helper;
-  ObjC plugin compile. Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
+- **Blockers:** first real compile of the facade/plugin/framework (dispatch of
+  `xenia-core.yml` by main on an Xcode 27 runner); converter redistribution decision;
+  dedicated JIT helper. Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
   no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
   Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
-- **Next:** facade over `EmulatorAppIOS` (plan in the contract) exporting only
-  `NeoXenia_GetAPI`, component workflow like `armsx2-core.yml`; Core pin/CI/IPA with main.
+- **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`); component fixes
+  what the compile reports, then the JIT helper identity and the first device session.
 
 ### Codex orchestration — Codex
 

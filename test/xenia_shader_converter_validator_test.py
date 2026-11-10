@@ -116,7 +116,8 @@ class ShaderConverterValidator(unittest.TestCase):
         code, report = self.run_on(data, '--require-pinned-digest')
         self.assertEqual(code, 1)
         self.assertEqual(report['sha256'], hashlib.sha256(data).hexdigest())
-        self.assertTrue(any('pinned reference' in failure for failure in report['failures']))
+        self.assertTrue(any('pinned upstream mirror' in failure for failure in report['failures']))
+        self.assertFalse(report['matches_pinned_mirror'])
 
     def test_the_pin_matches_the_native_bridge(self) -> None:
         # The bridge's availability check and the packaging path agree.
