@@ -2,6 +2,7 @@
 #import "DOLSkinOverlay.h"
 #import "SkinOverlayRecorder.h"
 #import "SkinFrameCheck.h"
+#import "SkinHarnessWait.h"
 
 // The production DOLSkinOverlay on the REAL GameCube / Wii Pocket Original
 // archives (unpacked by test_skin_overlay_ui.rb into DOLPHIN_SKIN_FIXTURE),
@@ -229,7 +230,7 @@ static NSString* const kWiiPocket = @"wii-pocket";
         const NSInteger before = _menuCount;
         SkinFakeTouch* t = [self touch:p];
         [self begin:t on:overlay];
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+        SkinHarnessWait(^BOOL { return self->_menuCount != before; }, 2);
         XCTAssertEqual(_menuCount, before + 1, @"%@ Menu once at (%.1f, %.1f)", skin, p.x, p.y);
         XCTAssertEqualObjects([self held], [NSSet set], @"Menu sends nothing to the pad");
         [self end:t on:overlay];
