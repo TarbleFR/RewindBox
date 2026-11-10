@@ -271,6 +271,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 721 requested (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3 Core 919
+  (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)) and the
+  tests-only PR 168 merge. Freeze `c1616fe0` on base 720 (effective digest `5c60d654…`, two reviewed commits, legal
+  check passed), trigger `587abef9`, run `42819476474`. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
 - **Common IPA 720 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).**
   - **Goal:** the delivered 719 plus the handoffs that stayed queued while it was built: MeloNX lot 9 (`a8198f79`,
     merge `7d0ca6c1`), skins PR #166 (`32fd5309`, merge `80aa7ac7`) and PR #167 (`66c129b9`, merge `b6a9deee`).
