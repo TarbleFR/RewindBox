@@ -26,7 +26,8 @@ VKCPP = 'rpcs3/Emu/RSX/VK/VKTextureCache.cpp'
 # (file, pattern, replacement, expected count)
 SEAMS = [
     (TEX, 'rsx::get_current_renderer()->get_tiled_memory_region(', '::host_seam::tiled_memory_region(', 2),
-    (TEX, 'rsx::get_current_renderer()->is_current_thread()', '::host_seam::is_rsx_thread()', 2),
+    # Core 921 adds one (the stale texture pass, REWINDBOX_STALE_TEXTURE_SWEEP_921); earlier trees have two.
+    (TEX, 'rsx::get_current_renderer()->is_current_thread()', '::host_seam::is_rsx_thread()', (2, 3)),
     (TEX, 'rsx::get_current_renderer()->ROP_sync_timestamp', '::host_seam::rop_sync_timestamp()', 1),
     (TEX, 'g_cfg.video.', '::host_seam::video.', 15),
     (HELPERS, 'rsx::get_current_renderer()->resolution_scaling_config', '::host_seam::scaling_config()', 2),
@@ -86,7 +87,8 @@ def seamed_include_root(tree: Path, root: Path) -> dict:
         path = root / name.replace('rpcs3/', '', 1)
         content = path.read_text(encoding='utf-8')
         count = content.count(pattern)
-        require(count == expected, f'seam {pattern!r} in {name}: {count} occurrences, expected {expected}')
+        allowed = expected if isinstance(expected, tuple) else (expected,)
+        require(count in allowed, f'seam {pattern!r} in {name}: {count} occurrences, expected {expected}')
         path.write_text(content.replace(pattern, replacement), encoding='utf-8')
         counts[pattern] = count
     return counts

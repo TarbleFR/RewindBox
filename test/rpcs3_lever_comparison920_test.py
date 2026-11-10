@@ -38,6 +38,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 INCREMENT = ROOT / 'build-utils/rpcs3/core920-from-919.patch'
+# Later increments over the same files, newest first: reversed before this one when they apply in reverse.
+LATER = (ROOT / 'build-utils/rpcs3/core921-from-920.patch',)
 HEADER = 'rpcs3/ios/IOSWriterParkSpin917.h'
 REPORT = 'rpcs3/ios/RPCS3IOSPerformance.cpp'
 POLICY = 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp'
@@ -180,6 +182,10 @@ def control_tree(source: Path, work: Path) -> Path:
     require(INCREMENT.is_file(), 'the Core 920 increment ' + str(INCREMENT.relative_to(ROOT)))
     tree = work / 'tree919'
     shutil.copytree(source / 'rpcs3', tree / 'rpcs3', symlinks=True)
+    for later in LATER:
+        if later.is_file() and subprocess.run(['git', 'apply', '-R', '--check', '--whitespace=nowarn', str(later)], cwd=tree,
+                                              capture_output=True).returncode == 0:
+            subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', str(later)], cwd=tree, check=True, capture_output=True)
     reverse = subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', str(INCREMENT)], cwd=tree, capture_output=True, text=True)
     require(reverse.returncode == 0, 'the Core 920 increment does not reverse on the tree under test:\n' + reverse.stderr[-3000:])
     return tree

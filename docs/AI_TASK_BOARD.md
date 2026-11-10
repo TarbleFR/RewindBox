@@ -1724,13 +1724,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       looked up again; upstream's purge of stale hash sections (`ranged_storage::trim_sections`) only visits blocks with
       more than 256 locked sections (tuned for PC's sub-4 KiB hashed textures) and never runs on BO2; the Core 573
       residency is God of War III only and starts at 768 MiB. Device hash rate 12.8-16.8 GiB/s (builds 694/718/721).
-    - **Core 921 (in progress, engine tree from `4c4961b`):** bounded sweep of idle hash-validated texture sections
-      that releases exactly those whose guest bytes no longer match (a lookup would reject them anyway), bound textures
-      excluded, sampler descriptors invalidated as after the 573 eviction; witness first on the real texture cache
-      (harness of test/rpcs3_texture_lookup_memo660_harness.py, streamed pool rewritten at shifted offsets: Core 920 keeps
-      every stale section), then candidate, invariants (no valid section released, no stale texture served, cost per
-      frame bounded), Core build, pin, private IPA. Device question for that IPA only: does the BO2 footprint still grow
-      after game entry (TEXCACHE621 `texture_mib`, JITMEM `gpu_textures_requested`, MEMPROF527 over 20 min)?
+    - **Core 921 (10 Nov, [record](rpcs3-core921-stale-texture-release.md)): idle iOS textures whose guest bytes changed are
+      released (`REWINDBOX_STALE_TEXTURE_SWEEP_921`).** Once per presented frame (VKPresent.cpp, after the 573 residency
+      pass) a pass bounded to 4 MiB hashed and 2048 sections looked at, resuming from a cursor, hashes the hash-validated
+      CPU textures idle 64 frames, unbound, not found intact in the last 64 frames, with the lookups' hash and comparison
+      (`buffered_section::sync_unpredicted`: no prehash tables) and releases exactly those that no longer match (their
+      next lookup would); the swept descriptor kinds are looked up again. Setting Stale texture release (Automatic = every
+      title), `Resolved title policy 921`, `COREPROF TEXSWEEP921`; analyzer columns tex_mib, tex_misses, sweep_released,
+      sweep_host_mib, sweep_ms.
+      - Control (test/rpcs3_stale_texture_sweep921_test.py, the real texture cache of the 660 harness, the Core 920 tree as
+        witness = the source with the 921 increment reverted, g++ ASan+UBSan and clang, memo verify_all and active):
+        Black Ops II-shaped stream over a 24 MiB pool, 2400 frames: Core 920 keeps 2408 sections, 56.8 -> 113.0 MiB
+        between frames 1200 and 2400, 1930 stale idle; Core 921 525 sections, 24.8 -> 24.7 MiB, 47 stale idle, the same
+        2408 uploads, 1883 released, 339 KiB hashed per frame (464 KiB at most); no slot ever serves stale bytes; no
+        released section matched, was bound or used in the last 64 frames, no prehash record; idle intact textures kept
+        (0 uploads, same images on return); 600 stale sections each examined once, 64 per pass; a texture overwritten then
+        restored costs one upload (Core 920 reuses it); the setting off = Core 920 frame for frame. Negative controls fail
+        (release on a match: 2333 valid released; no bound set; no idle delay). Independent review (rb-core-review): no
+        defect. Host model; no iPhone gain claimed.
+      - Engine `8e8f90a` (base `4c4961b`), increment 12 files (insertions only), canonical `ea8bb09d`, delta `039777d7`.
+        Local: closure, codegen (no input change), fold (0 tree changes), route, analyzer, rerun list (guards), pin
+        `--source-only`, the 921 test (g++ ASan+UBSan with negative controls, clang) pass; the shared 660 harness accepts
+        a third `is_current_thread()` seam (the pass asserts the RSX thread).
+      - **Device question (IPA with Core 921, BO2 multiplayer, 20 min from game entry, `.1` files):** does
+        TEXCACHE621 `texture_mib` / JITMEM `gpu_textures_requested` stop growing, MEMPROF527 lose its 64 MiB steps,
+        TEXSWEEP921 `released` > 0, and what does `sweep_ms` cost per window against FPS/p95 of build 721? Refuted if
+        `texture_mib` stays linear with `released` near 0.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
