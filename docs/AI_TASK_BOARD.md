@@ -3746,7 +3746,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
   (from `Claude` `d6b15c86`). Paths owned: `docs/s2arm-prototype-2026-11-10.md`, later a
-  `tools/s2arm_prototype/`, the host-proof workflow; later a diagnostic entry (not written yet). No MeloNX, skin or XeniOS path touched.
+  `tools/s2arm_prototype/`, `packages/s2arm_probe/`, the host-proof workflow. No MeloNX, skin or XeniOS path touched.
 - **Goal:** decide whether S2Arm-rewritten code can run from JIT memory in RewindBox, loaded
   from a data file at a fixed address, to its first gate, with a `brk` handled. Only this
   prototype is approved; no playlist, game, graphics or service work.
@@ -3758,13 +3758,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `cntpct` and `svc` gates: 15/15 checks (KTLS, KTLR, K18 slots, gate values, one `brk` handled by
   SIGTRAP). Controls failed as required: no gate 139, wrong TLS slot 3, empty key page 139, no
   `brk` handler 133.
-- **Evidence:** [constat, result and device questions A–F](s2arm-prototype-2026-11-10.md);
-  `tools/s2arm_prototype/`, `.github/workflows/s2arm-prototype-host.yml`.
-- **Open or limit:** macOS seals code with `mprotect`, which the iPhone JIT forbids: the host pass
-  proves format and redirections only. The device diagnostic needs the JIT helper (MeloNX-owned
-  paths): questions sent to session 01, no MeloNX file touched.
-- **Next:** agree the hook with session 01, write the device diagnostic (questions A–F), hand it
-  to main for a test IPA.
+- **Step 3 (10 Nov): device probe written, host-checked only, not in the app.**
+  `packages/s2arm_probe` (no S2Arm source, no game content). Run `42924925273`, commit `92f5007`:
+  with a stand-in for the JIT helper on macOS arm64 both placements (code remapped at a chosen
+  address; one helper region with data inside) ran the module, 16/16 checks each, and the sources
+  compile for iOS arm64 with `-Werror`. Later commits (module header committed, window released
+  after phase 2; head `c70f229`) are being re-checked by run `42925954171`.
+- **Session 01 answers (read/measured, its evidence):** chosen-address preparation never exercised
+  on iOS 26; aliases made before detach stay usable (measured); unknown `brk` loops while attached
+  (read); it writes the hook in its own files from the specification, after its current Core handoff.
+- **Evidence:** [constat, host result, hook specification, expected journal](s2arm-prototype-2026-11-10.md);
+  `tools/s2arm_prototype/`, `packages/s2arm_probe/`, `.github/workflows/s2arm-prototype-host.yml`.
+- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Blocked on
+  the session 01 hook, then on main adding the package and building a test IPA.
+- **Next:** confirm run `42925954171`; answer session 01's objections; hand main the package line
+  and the maintainer's test steps once the hook exists.
 
 ### Codex orchestration — Codex
 
