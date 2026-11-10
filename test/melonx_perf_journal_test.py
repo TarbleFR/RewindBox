@@ -186,7 +186,9 @@ exit(2)
         # Stall watch: one engine call blocked 1.6 s while a named thread spins and another waits, then seven of
         # 500 ms (only six stalls are recorded), then quick calls.
         stall_log = work / 'stall.log'
-        (work / 'stall.swift').write_text(r'''import Foundation
+        (work / 'stall').mkdir()
+        # Top-level code is only allowed in main.swift: the second program has its own directory.
+        (work / 'stall' / 'main.swift').write_text(r'''import Foundation
 import Darwin
 let path = CommandLine.arguments[1]
 let spinner = Thread {
@@ -217,9 +219,9 @@ usleep(400_000)
 spinner.cancel(); gate.signal()
 exit(0)
 ''')
-        stall_executable = work / 'stall'
+        stall_executable = work / 'stall' / 'stall'
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
-                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'stall.swift'), '-o', str(stall_executable)], check=True)
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'stall' / 'main.swift'), '-o', str(stall_executable)], check=True)
         result = subprocess.run([str(stall_executable), str(stall_log)], capture_output=True, text=True, timeout=120)
         check(result.returncode == 0, result)
         stall_lines = [line.removeprefix('[MeloNX:stall] ') for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:stall] ')]
