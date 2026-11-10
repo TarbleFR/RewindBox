@@ -57,7 +57,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Check the folded Metal M2 to M5 sources (Core 913 comparison witness)
+      - name: Check the folded Metal M2 to M5 sources (Core 912)
         shell: bash
         run: |
           set -euo pipefail
@@ -73,8 +73,6 @@ jobs:
           # Core 903 folds the M3 and M4 work (metal-wip-from-902.patch, identical to core903-from-902.patch) over Core 902,
           # which folded the M2 work (metal-wip-from-901.patch): reverse the M3/M4 work, check that the M2 work reverses
           # from that Core 902 state, then apply the M3/M4 work again (the source is unchanged afterwards).
-          # The Core 913 comparison witness is Core 912 with one constant changed (core913-from-912.patch): taken out first.
-          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/core913-from-912.patch"
           # Core 912 folds metal-wip-from-911.patch (identical to core912-from-911.patch) over Core 911.
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-911.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core912-from-911.patch"
           git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-911.patch"
@@ -115,7 +113,6 @@ jobs:
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-909.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-910.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-911.patch"
-          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/core913-from-912.patch"
           echo "PASS: the M2 to M5 work and the vendored SPIRV-Cross are part of the canonical source"
       - name: Apply the work in progress of a next stage (metal-wip-from-912.patch)
         shell: bash
