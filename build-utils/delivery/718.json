@@ -248,8 +248,256 @@
   }
  },
  "product": {
-  "reviewedCommits": [],
-  "sourceOnly": [],
+  "reviewedCommits": [
+   {
+    "commit": "9bf4b6e5dfb3011b0ff9c21a79dc8dd93e75720e",
+    "note": "feat(melonx): Core 701: a buffer flush reads after its sync without a render-thread round trip [skip ci]"
+   },
+   {
+    "commit": "14aaac11ecec8e190a33c652bbd580c2750be03e",
+    "note": "[melonx-dma-core] feat(melonx): Core 701 (frozen 1e11b188): buffer flushes read after their sync without a round trip"
+   },
+   {
+    "commit": "20e4968bced3c3ea9c249991b2e46af08e624184",
+    "note": "feat(melonx): Core 703: a stage's layout declares each used binding with its used type [skip ci]"
+   },
+   {
+    "commit": "b06fbae9504f13525c91da586307ff19d5a01774",
+    "note": "fix(melonx): Core 703: DeclareUsedTypes above AddArrayDescriptors' documentation; no bytecode in the fixture [skip ci]"
+   },
+   {
+    "commit": "273f3df5fc486df19db0588f53a0e52e54d30f05",
+    "note": "[melonx-dma-core] feat(melonx): Core 703 (frozen a79ea96f): a stage's layout declares each used binding with its used type"
+   },
+   {
+    "commit": "a30b576d6b4ebec47ecd2052df2bfa3554b5e82a",
+    "note": "feat(melonx): Core 705: setting the program already set keeps its bound descriptor sets [skip ci]"
+   },
+   {
+    "commit": "ed64a491f0b59326ea839a17a658d140e9655856",
+    "note": "test(melonx): Core 705: final-source descriptor fixtures compare members without the same-program replacements [skip ci]"
+   },
+   {
+    "commit": "012fe2cf023f80338f37abbfb5837575220717a5",
+    "note": "[melonx-dma-core] feat(melonx): Core 705 (frozen 406c415a): setting the program already set keeps its bound descriptor sets"
+   },
+   {
+    "commit": "1b9965468843127444ba9d5c247b4753acbe4d84",
+    "note": "feat(melonx): Core 707: journal the deepest part of a closed session still reachable [skip ci]"
+   },
+   {
+    "commit": "03501db3772ddf35e3e98f559a272992aab13c3e",
+    "note": "test(melonx): Core 707: display-native compares the final EmbeddedMemory without the retention-chain journal call; texture pool allocation bench (production TexturePool) [skip ci]"
+   },
+   {
+    "commit": "5697f6f7467d13793410e393ef39717904aa8b69",
+    "note": "feat(melonx): Core 709: keep valid textures past the short texture cache, bounded [skip ci]"
+   },
+   {
+    "commit": "d5fb26565458a920044dbd358fe5d6c48f6ca696",
+    "note": "[melonx-dma-core] feat(melonx): Core 709 (frozen 31f9ecf2): valid textures kept past the short texture cache, bounded"
+   },
+   {
+    "commit": "b73459da9f9bf3ff45751b7ee1bb82c16441f6e9",
+    "note": "[melonx-dma-core] fix(melonx): Core 709 (frozen e527ffe7): forced wait termination timed from the flag; no extra descriptor lookups"
+   },
+   {
+    "commit": "bdd4ac95d1766ff1244e590156931e48ebd76a00",
+    "note": "feat(rpcs3): Menu top-left and Performances top-right of the safe area, collision-aware, panel aligned under its button [skip ci]"
+   },
+   {
+    "commit": "bca80da32296a221461ffff2e5784b3b14df2519",
+    "note": "build(rpcs3): Core 908 = Core 907 + texture memo 16 ways, writer lock phases, freeze dump of pollers and lwconds [skip ci]"
+   },
+   {
+    "commit": "270c6f3cdfb180648ba1ac32fcce3a1a619760c6",
+    "note": "feat(melonx): Core 711 (not frozen): graphics pipeline states drawn late recorded semantically, replayed at launch [skip ci]"
+   },
+   {
+    "commit": "c806964f5a55385bcd014fbda7f6b2a7c683e312",
+    "note": "fix(melonx): Core 711 (not frozen): review fixes of the variant replay journal [skip ci]"
+   },
+   {
+    "commit": "aca055a728eec0fae12b223bda78e0ab0a73dfad",
+    "note": "fix(melonx): Core 711 (not frozen): failure kinds, ready-before-use and joins in the variant summary [skip ci]"
+   },
+   {
+    "commit": "f9700f629b1aae7f878098b9bdaab098f9e2963c",
+    "note": "test(melonx): pipeline-cache-background compares only the files no later adapter edits (Core 711 edits PipelineCacheManager.cs) [skip ci]"
+   },
+   {
+    "commit": "914ea9d2bc02200f85dea64063ec9e9235be1b84",
+    "note": "[melonx-dma-core] feat(melonx): Core 711 (frozen ea2ba417): graphics pipeline states drawn late recorded semantically, replayed at launch"
+   },
+   {
+    "commit": "8ebc4b37a060341efa71139ff48aec42f63eeb55",
+    "note": "build(rpcs3): Core 908 links the MoltenVK dependency of run 42668189251 (same source and patch, library d19d3a42 byte-identical, host bridge bdcd0ac7 recorded) [skip ci]"
+   },
+   {
+    "commit": "c1cf74a58a1d65f5205d822f0100eb65e28827da",
+    "note": "fix(melonx): Core 711 (not refrozen): a recipe suspended after two strikes is evicted at once; documentation states it [skip ci]"
+   },
+   {
+    "commit": "b60d0c0e67e8efe2c8a87dd51fcb9dca5a1ef202",
+    "note": "[melonx-dma-core] fix(melonx): Core 711 (frozen e3cc304a): a recipe suspended after two strikes is evicted at once"
+   },
+   {
+    "commit": "eb8712ffb6d4411c99ce4d7b0be2c3d903ede0cb",
+    "note": "feat(melonx): Core 713 (not frozen): worker snapshots main's file holds removed at the close; an ignored main snapshot written again [skip ci]"
+   },
+   {
+    "commit": "43fc47b6e99b2181aa87d973b1bea507109337f4",
+    "note": "fix(melonx): Core 713 (not frozen): a refused pipeline cache snapshot of this device is kept at its first refusal [skip ci]"
+   },
+   {
+    "commit": "1215a67ff32e88bff5edee8b3d68095832da9478",
+    "note": "build(rpcs3): Core 909 = Core 908 + God of War III levers (NV308A/NV0039 writes revalidated over their range, epoch sources, MLAA bypass report, freeze label lines) [skip ci]"
+   },
+   {
+    "commit": "877632906b9bd1a9585d1fdf017d7c7bf431ddff",
+    "note": "[melonx-dma-core] feat(melonx): Core 713 (frozen 2bebf779): worker snapshots main's file holds removed at the close; foreign and refused main snapshots handled"
+   },
+   {
+    "commit": "460abaedf8882fb493e4f6255efc246cc7e584c7",
+    "note": "fix(melonx): Core 713 (refrozen 01e2f624, not yet requested): pipeline-variant-replay failure scenario made deterministic; Core 711 CI recorded [skip ci]"
+   },
+   {
+    "commit": "b0d8f602afa3dcb0643d61ee0a092b4ba9155c13",
+    "note": "fix(rpcs3): overlay buttons count only controls whose ancestors are shown, fall back to the least covered place, and the performance panel avoids the touch controls [skip ci]"
+   },
+   {
+    "commit": "774e6c8de9b894f236125d88107fcaf54f9202f8",
+    "note": "build(rpcs3): Core 910 = Core 909 + texture epochs at the PUT horizon (GOW3), prehash look-ahead budget, exact memo capacity-miss counter, render pass shape census [skip ci]"
+   },
+   {
+    "commit": "0cd3edf448ab44c34e2c62460da36d10cea29e98",
+    "note": "build(rpcs3): Core 911 = Core 910 + SPU polling wait on the accurate no-op PUTLLC path (BO2), prehash budget on worker results used; AC1/BO2 attribution corrected [skip ci]"
+   },
+   {
+    "commit": "73d5b59d6784521027796e1b1a7241d0e453447f",
+    "note": "test(rpcs3): the full-queue guard takes out the audited Core 911 do_putllc increment before its Core 627 contract [skip ci]"
+   },
+   {
+    "commit": "56cca266a7463fcc8a578dd11b7353ab97cd803c",
+    "note": "[rpcs3-core-build-apple] test(rpcs3): rerun the Core 911 Apple host harnesses (PPU grace 664 model: a missed 500 us observation is run again)"
+   },
+   {
+    "commit": "9f30569f5fad3c7bc51470a03a7a2eae1ea51a2f",
+    "note": "feat(melonx): lot 8 (Core 715, not frozen): extra array sets kept bound on main-set-only updates; array references by delta [skip ci]"
+   },
+   {
+    "commit": "d545186f92de809e786e708700a434291da0c69f",
+    "note": "feat(melonx): Core 715 frozen 28c53540 (not requested): array reference gate, wiring, bound reruns [skip ci]"
+   },
+   {
+    "commit": "7ab6554675fbcb6745a9c0b91c4ef7102a667407",
+    "note": "test(melonx): lot 8 Metal library sharing measure on the real backend (MoltenVK v1.4.2 unpatched, macOS)"
+   },
+   {
+    "commit": "e6ee4837fe4440d7db596ee0bd2f8537b014b85b",
+    "note": "feat(melonx): lot 8 (Core 717, not frozen): a worker publishes the libraries it compiled to the main cache during play [skip ci]"
+   },
+   {
+    "commit": "89a9b68cb268e54ae67ff86aa7ed6874e7a02b37",
+    "note": "fix(melonx): Core 715 revision (not frozen): AddNewReferences without the cold-texture-release proof line; run 42714314353 recorded [skip ci]"
+   },
+   {
+    "commit": "664bfddd7e9d1e550782809665d42a9ac19d049b",
+    "note": "fix(melonx): lot 8 (Core 717, not frozen): announcement count, budget re-checked under the lock; reliable concurrent Metal bench"
+   },
+   {
+    "commit": "7cf5d14dd957abd08dac925b1ddcde26776373ca",
+    "note": "merge: Claude a2e0d7a4 (Core 715 refrozen ab0df1a5) into the lot 8 work branch [skip ci]"
+   },
+   {
+    "commit": "e3babfb54e9ff8e45c8a571a0163b59413214d8e",
+    "note": "build(melonx): Core 717 wiring (not frozen): adapt_worker_library_share in the preparation, gate worker-library-share [skip ci]"
+   },
+   {
+    "commit": "5f323df66c36d6f47de006e836573bba63a53da4",
+    "note": "fix(melonx): Core 717 (not frozen): main's budget estimate keeps a merge credit apart; worker growth counted in pipelines [skip ci]"
+   },
+   {
+    "commit": "742618835013e2dbf89c163c3a84dc8d29a7f7b6",
+    "note": "merge: Claude 02023496 into the lot 8 work branch [skip ci]"
+   },
+   {
+    "commit": "45923d133e5ec9325b6c64f44844f7dafba6f404",
+    "note": "[melonx-dma-core] feat(melonx): Core 717 (frozen f751f1f7): a worker's Metal libraries published to the main cache during play"
+   },
+   {
+    "commit": "0e667a29bc55f11fb3a72e4f0c49cde2efeeff71",
+    "note": "merge: Claude into the lot 8 work branch [skip ci]"
+   },
+   {
+    "commit": "1aef660b5965b49d1775cb5220918e80dd895574",
+    "note": "fix(rpcs3): Core 914 source: a PUTLLC event never enters another capture; the analyzer tells processes and sessions apart [skip ci]"
+   },
+   {
+    "commit": "9cd24ca5695649d7b7e0c9d756eb9009cd9b54d8",
+    "note": "merge: PR #164 main menu bar without labels (00a83e69, skins/interface session) [skip ci]"
+   },
+   {
+    "commit": "4470eaefbb4723749a423928c9ef5010385a697b",
+    "note": "merge: PR #165 Switch Pocket skin for MeloNX (84d4ad34, skins/interface session) [skip ci]"
+   },
+   {
+    "commit": "2f82352f597ddcf44a0761b2de93e47900ec73c8",
+    "note": "fix(legal): Switch Pocket declaration (PR #165): the Pocket catalog gains switch-pocket, bound with its approved design; the PS2 Original link accepts the later catalog [skip ci]"
+   }
+  ],
+  "sourceOnly": [
+   {
+    "commit": "486a1d7d45ffd34e58d466792a0860f6cd2c81f3",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "30eccc3a2acf4c8bd7bf63207dcfb702d42dbaed",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "287a7c8bfe95c872df231b599dbef2c3ef4c1219",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "e4c2b267dc55cb24a57543dcac7688b69097b122",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "a01901623dee74b70536a033c1b5184bcb0fd5a3",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "b5b09dac17d3f345a5bf2671711e847c8d47e525",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "299380889649d5268a3e2aabaa4efd2d1ac48442",
+    "targetBuild": 719,
+    "note": "MeloNX lot 7 Metal binary archive prototype (off, isolated, not integrated; its owner keeps it out of the IPA)"
+   },
+   {
+    "commit": "633af0345706936872d983cdf445d7fbee64f317",
+    "targetBuild": 719,
+    "note": "Actions cleanup record (maintenance data, no application content)"
+   },
+   {
+    "commit": "57ba0979ab45cc581468997cefba676ed2e5b267",
+    "targetBuild": 719,
+    "note": "RPCS3 Core 915 comparison witness source (4-way texture memo): a comparison artifact, never pinned and never in a common IPA"
+   },
+   {
+    "commit": "8db580f384ae1cf8ff302a2678a43f4ee1b8a640",
+    "targetBuild": 719,
+    "note": "Revert of the Core 915 witness files (restores Core 914 at the head); deferred together with the witness"
+   }
+  ],
   "promotedCommits": []
  },
  "images": {
