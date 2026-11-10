@@ -68,15 +68,13 @@ static unsigned wait_for_park(const std::atomic<bool>& parked, bool spin, std::u
 {
 	unsigned handoffs = 0;
 
+	while (!parked.load(std::memory_order_acquire) && waiter.spin(spin, budget_ns, [] { return now_ns(); }))
+	{
+		relax();
+	}
+
 	for (std::uint64_t iteration = 0; !parked.load(std::memory_order_acquire); iteration++)
 	{
-		if (waiter.spin(spin, budget_ns, [] { return now_ns(); }))
-		{
-			relax();
-			iteration = 0;
-			continue;
-		}
-
 		if (iteration >= 128 && iteration % 32 == 0)
 		{
 			handoffs++;
@@ -262,12 +260,14 @@ def static_checks(source: Path) -> None:
     vm = (source / 'rpcs3/Emu/Memory/vm.cpp').read_text('utf-8', 'surrogateescape').replace('\r\n', '\n')
     begin = vm.index('writer_lock::writer_lock(u32 const addr, atomic_t<u64, 128>* range_lock, u32 const size, u64 const flags) noexcept')
     ctor = vm[begin:vm.index('atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)', begin)]
-    loop = ('\t\t\t\t\tfor (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)\n\t\t\t\t\t{\n#ifdef RPCS3_IOS\n'
-            '\t\t\t\t\t\tif (ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))\n\t\t\t\t\t\t{\n'
-            '\t\t\t\t\t\t\trpcs3::ios::passive_gate::relax();\n\t\t\t\t\t\t\twait_iteration = 0;')
-    require(ctor.count(loop) == 1, 'the park wait: same condition, the budget in front of the previous wait')
-    after = ctor[ctor.index(loop):]
-    require('#endif\n\t\t\t\t\t\treservation_lock_wait(wait_iteration);\n\t\t\t\t\t}' in after, 'the previous wait follows the budget')
+    loop = ('\t\t\t\tif (auto ptr = +*lock)\n\t\t\t\t{\n#ifdef RPCS3_IOS\n'
+            '\t\t\t\t\twhile (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))\n'
+            '\t\t\t\t\t{\n\t\t\t\t\t\trpcs3::ios::passive_gate::relax();\n\t\t\t\t\t}\n#endif\n'
+            '\t\t\t\t\tfor (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)\n\t\t\t\t\t{\n'
+            '\t\t\t\t\t\treservation_lock_wait(wait_iteration);\n\t\t\t\t\t}\n\t\t\t\t}\n')
+    require(ctor.count(loop) == 1, 'the park wait: same condition, the budget in front of the previous wait, which is untouched')
+    require('\twait_iteration = 0;' not in ctor and 'continue;' not in ctor[ctor.index('rpcs3::ios::writer_park::waiter ios_park;'):],
+            'the previous wait starts at its first iteration: nothing rewinds or skips its counter')
     require(ctor.count('ios_park.spin(') == 1 and ctor.count('reservation_lock_wait(wait_iteration);') == 2, 'the range-lock wait is untouched')
     require('const bool ios_park_spin = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);' in ctor and
             'utils::get_tsc_freq() / (1\'000\'000\'000 / rpcs3::ios::writer_park::spin_budget_ns)' in ctor, 'the lever and its budget')

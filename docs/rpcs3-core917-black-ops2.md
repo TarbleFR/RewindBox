@@ -46,7 +46,9 @@ arrêtés.
 ## 3. La modification
 
 `REWINDBOX_WRITER_PARK_SPIN_917` (`rpcs3/ios/IOSWriterParkSpin917.h`, `vm::writer_lock`) : le SPU tourne pendant
-8 µs avant sa première cession ; ensuite l'attente précédente s'applique telle quelle. Ce qu'il attend ne change
+8 µs dans une boucle placée devant l'attente précédente ; celle-ci n'est pas modifiée et repart de sa première
+itération (revue indépendante du 10 novembre : la première forme, qui remettait le compteur à zéro dans la boucle
+d'origine, la faisait repartir de la deuxième ; corrigé avant toute compilation). Ce que le SPU attend ne change
 pas : tous les threads PPU arrêtés avant l'écriture, le verrou tenu comme avant. Un thread PPU qui n'est pas sur un
 cœur reçoit toujours les cessions, 8 µs plus tard — contre les 50 µs et plus que coûte déjà un tel arrêt.
 
@@ -63,10 +65,13 @@ GETLLAR/PUTLLC du jeu n'est modifié.
 - la poignée de main sur deux vrais threads, étalonnée sur la machine (un thread qui s'arrête 2 à 6 fois plus tard
   que ne durent les 128 itérations) :
 
-| 20 000 verrous | Attente précédente (contrôle) | Avec le budget |
+| 20 000 verrous, cinq exécutions | Attente précédente (contrôle) | Avec le budget |
 |---|---|---|
-| Verrous ayant cédé leur cœur au moins une fois | 19 873 à 19 960 | 2 à 10 |
-| Cessions au total | 127 694 à 177 922 | 110 à 554 (un cas à 14 107, l'autre thread ayant été désordonnancé) |
+| Verrous ayant cédé leur cœur au moins une fois | 19 906 à 19 970 | 11 à 97 |
+| Cessions au total | 151 980 à 189 087 | 2 041 à 17 481 |
+
+Les cinq exécutions ont eu lieu pendant que les autres tests occupaient la machine : un thread désordonnancé
+pendant un verrou coûte à lui seul des centaines de cessions, d'où l'étendue de la dernière colonne.
 
 - un thread qui ne s'arrête pas dans le budget (pas sur un cœur) : 200 verrous sur 200 cèdent encore leur cœur.
 

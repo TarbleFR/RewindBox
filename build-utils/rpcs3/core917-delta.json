@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core917-delta.patch",
-  "patch_sha256": "ae056662d229a611e736a75416be91f9857cf682063d4e9ba2137d9ce0c2b624",
+  "patch_sha256": "0698b4468d70d929f8f9eb484fe17e626e3ec8f0a3e2282920cd0fcc52179bd0",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -139,7 +139,7 @@
     "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "631c96dd079b9ca41e54b4953d62b35b90e083b770ef225b4272d5c6dd822ba2",
     "rpcs3/Emu/Cell/lv2/sys_rsx.cpp": "3896b89a764ec0b4bf81563f8640bfea12eb8c443a31e63fb6aa8df9e751df86",
     "rpcs3/Emu/Cell/lv2/sys_spu.cpp": "091ffbe4ebad34e3207851bcb13e1a1da9229aa2edde4123424b89ae4032a54b",
-    "rpcs3/Emu/Memory/vm.cpp": "c7d66ef7de8aa2d56f6f171980affa704f272a26d590681d395ba35b503ed5f2",
+    "rpcs3/Emu/Memory/vm.cpp": "34baf467946b1901eb2f08dc0917d28fafaa65d9d6fe0273490e83b858a1f57c",
     "rpcs3/Emu/RSX/Common/texture_cache.cpp": "a899497a8cc8f20ea36a944198d2a4459382c3b7e9ce3926a6166587a2ca8773",
     "rpcs3/Emu/RSX/Common/texture_cache.h": "9bc4dc3444c3c48a09130ccd0dd200552a5718b564bcd93207b60d6734371d8a",
     "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "a8067c0c9941c8322fdc8a50ba02a74e55cb1758056ba3abdfc0f750d91da17c",
@@ -591,7 +591,7 @@
   "iphone_validation_run": false,
   "increment_from_core916": {
     "patch": "build-utils/rpcs3/core916-from-914.patch",
-    "patch_sha256": "610764dd1b0746260674b03e2da1d2781770190cd4b0988033aad077723fb0e3",
+    "patch_sha256": "767123ebe5583c887f0a6e6d56c7f01447890b68d13daf83315282321dff90e6",
     "insertions_only": false,
     "removed_lines": 9,
     "files": 10,
@@ -606,7 +606,7 @@
       "rpcs3/ios/RPCS3IOSSettings.cpp": "9e6e01918f682f99759d79df53ed23058d54c82713bc10f8304ab42043db2f22"
     },
     "files_after_sha256": {
-      "rpcs3/Emu/Memory/vm.cpp": "c7d66ef7de8aa2d56f6f171980affa704f272a26d590681d395ba35b503ed5f2",
+      "rpcs3/Emu/Memory/vm.cpp": "34baf467946b1901eb2f08dc0917d28fafaa65d9d6fe0273490e83b858a1f57c",
       "rpcs3/Emu/system_config.h": "be0e74484a1e0abc4f9e358509bbcd32f3dd74987cdcc5683cc47198c045a9a9",
       "rpcs3/ios/IOSAutoStorm917.h": "23898aec272bb489789f84c83af7cb4412b347a643fb455a2593da75ef6c7b95",
       "rpcs3/ios/IOSCapture912.h": "4bdfd1728994a8136439f9b179ad52ead83f84758f68de783566560a02dfd56a",

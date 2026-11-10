@@ -1,5 +1,5 @@
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index a69beb0..62a52cc 100644
+index a69beb0..d36f750 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -15,6 +15,7 @@
@@ -33,13 +33,14 @@ index a69beb0..62a52cc 100644
  #endif
  			for (u64 i = 0;; i++)
  			{
-@@ -695,12 +712,28 @@ namespace vm
+@@ -695,10 +712,25 @@ namespace vm
  			const u64 phase_ranges_end = utils::get_tsc();
  #endif
  
 +#ifdef RPCS3_IOS
 +			// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): with the lever on, the writer spins for a
-+			// budget before the first hand-off of reservation_lock_wait. The condition waited for is the same.
++			// budget in front of the wait below, which is the previous one, untouched, from its first iteration.
++			// The condition waited for is the same.
 +			rpcs3::ios::writer_park::waiter ios_park;
 +			const bool ios_park_spin = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
 +			static const u64 ios_park_budget = utils::get_tsc_freq() / (1'000'000'000 / rpcs3::ios::writer_park::spin_budget_ns);
@@ -49,20 +50,16 @@ index a69beb0..62a52cc 100644
  			{
  				if (auto ptr = +*lock)
  				{
++#ifdef RPCS3_IOS
++					while (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))
++					{
++						rpcs3::ios::passive_gate::relax();
++					}
++#endif
  					for (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)
  					{
-+#ifdef RPCS3_IOS
-+						if (ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))
-+						{
-+							rpcs3::ios::passive_gate::relax();
-+							wait_iteration = 0; // the previous wait starts at its first iteration once the budget is over
-+							continue;
-+						}
-+#endif
  						reservation_lock_wait(wait_iteration);
- 					}
- 				}
-@@ -712,6 +745,7 @@ namespace vm
+@@ -712,6 +744,7 @@ namespace vm
  				static const u64 slow_threshold = utils::get_tsc_freq() / 20000; // 50 us
  				rpcs3::ios::writer_lock_phases::record(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,
  					phase_park_end - phase_ranges_end, phase_flagged, slow_threshold);

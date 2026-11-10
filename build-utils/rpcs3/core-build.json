@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "f13dfb2e7a2aac1c238be1784e15003c3fcc703d39a5c20ad6bbde583e2accba",
+  "patch_sha256": "66993c10a2262284c87aa8d60acaec0db40384e7255430c09418aa7531989da9",
   "postimages": 455,
   "records": [
    "core610_20261101",
@@ -105,7 +105,7 @@
   "record": "core917_20261110",
   "manifest": "build-utils/rpcs3/core917-delta.json",
   "patch": "build-utils/rpcs3/core917-delta.patch",
-  "patch_sha256": "ae056662d229a611e736a75416be91f9857cf682063d4e9ba2137d9ce0c2b624"
+  "patch_sha256": "0698b4468d70d929f8f9eb484fe17e626e3ec8f0a3e2282920cd0fcc52179bd0"
  },
  "exports": 92,
  "core_inputs": {

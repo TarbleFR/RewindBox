@@ -82023,7 +82023,7 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..62a52cc 100644
+index e7f55d7..d36f750 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -12,7 +12,12 @@
@@ -82234,7 +82234,7 @@ index e7f55d7..62a52cc 100644
  				}
  			}
  
-@@ -589,6 +708,17 @@ namespace vm
+@@ -589,18 +708,50 @@ namespace vm
  
  				reservation_lock_wait(wait_iteration);
  			}
@@ -82244,7 +82244,8 @@ index e7f55d7..62a52cc 100644
 +
 +#ifdef RPCS3_IOS
 +			// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): with the lever on, the writer spins for a
-+			// budget before the first hand-off of reservation_lock_wait. The condition waited for is the same.
++			// budget in front of the wait below, which is the previous one, untouched, from its first iteration.
++			// The condition waited for is the same.
 +			rpcs3::ios::writer_park::waiter ios_park;
 +			const bool ios_park_spin = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
 +			static const u64 ios_park_budget = utils::get_tsc_freq() / (1'000'000'000 / rpcs3::ios::writer_park::spin_budget_ns);
@@ -82252,18 +82253,16 @@ index e7f55d7..62a52cc 100644
  
  			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
  			{
-@@ -596,11 +726,33 @@ namespace vm
+ 				if (auto ptr = +*lock)
  				{
++#ifdef RPCS3_IOS
++					while (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))
++					{
++						rpcs3::ios::passive_gate::relax();
++					}
++#endif
  					for (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)
  					{
-+#ifdef RPCS3_IOS
-+						if (ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))
-+						{
-+							rpcs3::ios::passive_gate::relax();
-+							wait_iteration = 0; // the previous wait starts at its first iteration once the budget is over
-+							continue;
-+						}
-+#endif
  						reservation_lock_wait(wait_iteration);
  					}
  				}
@@ -82286,7 +82285,7 @@ index e7f55d7..62a52cc 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1196,7 @@ namespace vm
+@@ -1044,7 +1195,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -82295,7 +82294,7 @@ index e7f55d7..62a52cc 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1473,7 @@ namespace vm
+@@ -1321,7 +1472,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -82304,7 +82303,7 @@ index e7f55d7..62a52cc 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1513,7 @@ namespace vm
+@@ -1361,7 +1512,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -82313,7 +82312,7 @@ index e7f55d7..62a52cc 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1567,7 @@ namespace vm
+@@ -1415,7 +1566,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82322,7 +82321,7 @@ index e7f55d7..62a52cc 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1587,101 @@ namespace vm
+@@ -1435,6 +1586,101 @@ namespace vm
  			return 0;
  		}
  
@@ -82424,7 +82423,7 @@ index e7f55d7..62a52cc 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1741,7 @@ namespace vm
+@@ -1494,7 +1740,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82433,7 +82432,7 @@ index e7f55d7..62a52cc 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1972,52 @@ namespace vm
+@@ -1725,6 +1971,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -82486,7 +82485,7 @@ index e7f55d7..62a52cc 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +2050,7 @@ namespace vm
+@@ -1757,6 +2049,7 @@ namespace vm
  			}
  		}
  
@@ -82494,7 +82493,7 @@ index e7f55d7..62a52cc 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2102,7 @@ namespace vm
+@@ -1808,7 +2101,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -82503,7 +82502,7 @@ index e7f55d7..62a52cc 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2143,13 @@ namespace vm
+@@ -1849,6 +2142,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -82517,7 +82516,7 @@ index e7f55d7..62a52cc 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2704,7 @@ namespace vm
+@@ -2403,7 +2703,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
