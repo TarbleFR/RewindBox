@@ -257,6 +257,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Discord post. Next: restore publication access, verify/upload the exact IPA, activate
   root `source.json` after live download verification, resolve the channel and post once.
   Keep public baseline 0.0.10 until publication is confirmed.
+  **Additional maintainer instructions (same request):** after publication, integrate
+  `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
+  branches and PRs. Classify each candidate against integrated content, active owners,
+  pins, release producers and evidence before removal/closure; retain current work.
+  Read-only precheck: `main`/`Claude` diverge (main has 5 unique commits, mainly release/
+  branding/legal documentation; `Claude` ahead 1453 at the check). No forced ref update:
+  reconcile these changes through a reviewed merge. The earlier 1311-run cleanup is
+  already verified and closed; this follow-up is separate and has not started.
 
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),

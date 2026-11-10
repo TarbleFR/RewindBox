@@ -77,5 +77,22 @@
     "Download uploaded IPA and verify bytes/SHA-256 before publishing; activate stable root source.json only once the URL works",
     "Resolve the RewindBox release channel from its visible server history, publish the same English list and verified IPA/source URLs once",
     "Archive actual published notes, reconcile/reset NEXT, record release and Discord message URLs"
-  ]
+  ],
+  "follow_up": {
+    "status": "authorized-pending-publication",
+    "order": [
+      "Publish verified RewindBox 0.0.11 and source; announce in resolved Discord channel",
+      "Integrate Claude into main preserving the five main-only commits and verified current product",
+      "Clean only demonstrably obsolete workflow files, Actions runs, integrated/superseded branches and PRs"
+    ],
+    "main_unique_commits": [
+      "4f7e39e024e2e2bc2d8f3c46404c2a49f8ef1566",
+      "97d68263ed64a7a7e38a715627a3851d40c679d9",
+      "74ffeb699777ce5f3e09b67f7cbd99cd997bc787",
+      "893179a556260d6c9714ab8391b3c6bda97e8386",
+      "3be2a34e4d056e9ad7078aecc710c54617f8a58f"
+    ],
+    "requires_reviewed_merge": true,
+    "force_push_authorized": false
+  }
 }
