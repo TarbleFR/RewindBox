@@ -3763,7 +3763,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   with a stand-in for the JIT helper on macOS arm64 both placements (code remapped at a chosen
   address; one helper region with data inside) ran the module, 16/16 checks each, and the sources
   compile for iOS arm64 with `-Werror`. Later commits (module header committed, window released
-  after phase 2; head `c70f229`) are being re-checked by run `42925954171`.
+  after phase 2; `c70f229`) passed the same checks in run `42925954171`, 3/3 jobs, including the
+  byte comparison of the committed module header with the rewriter's output.
 - **Session 01 answers (read/measured, its evidence):** chosen-address preparation never exercised
   on iOS 26; aliases made before detach stay usable (measured); unknown `brk` loops while attached
   (read); it writes the hook in its own files from the specification, after its current Core handoff.
@@ -3771,7 +3772,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `tools/s2arm_prototype/`, `packages/s2arm_probe/`, `.github/workflows/s2arm-prototype-host.yml`.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Blocked on
   the session 01 hook, then on main adding the package and building a test IPA.
-- **Next:** confirm run `42925954171`; answer session 01's objections; hand main the package line
+- **Next:** answer session 01's objections; hand main the package line
   and the maintainer's test steps once the hook exists.
 
 ### Codex orchestration — Codex

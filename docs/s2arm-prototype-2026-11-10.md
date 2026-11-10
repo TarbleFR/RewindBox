@@ -113,7 +113,9 @@ runs is the rewriter's output for the synthetic module, committed as generated d
 (`S2ArmSynthModule.h`, SHA-256 of the image `e2341dfd…9698`, compared with the rewriter's
 output in CI). Host check: run `42924925273`, commit `92f5007`: with a stand-in for the JIT
 helper on macOS arm64 both placements ran the module (16/16 checks each), and the three
-sources compile for iOS arm64 with `-Werror`. This checks the probe's logic only.
+sources compile for iOS arm64 with `-Werror`. Run `42925954171`, commit `c70f229`, repeats this
+with the committed header compared byte for byte and the window released after phase 2.
+This checks the probe's logic only.
 
 ### Hook specification for the MeloNX bridge (owner: session 01)
 
