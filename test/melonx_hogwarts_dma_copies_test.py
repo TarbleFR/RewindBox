@@ -164,6 +164,8 @@ LOT_FILES = {
     'adapt_array_reference_deltas': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
     # Core 717: a worker's libraries published to main during play.
     'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 719: the GC keep-alive's fragmentation guard (no file held here).
+    'adapt_bgc_fragmentation_guard': [],
 }
 
 checks = 0

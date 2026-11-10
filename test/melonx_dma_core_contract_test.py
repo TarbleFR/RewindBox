@@ -79,6 +79,7 @@ from adapt_pipeline_snapshot_retire import BASELINE as C713_PIPELINE_SNAPSHOT_RE
 from adapt_extra_set_binds import BASELINE as C715_EXTRA_SET_BINDS  # noqa: E402
 from adapt_array_reference_deltas import BASELINE as C715_ARRAY_REFERENCE_DELTAS  # noqa: E402
 from adapt_worker_library_share import BASELINE as C717_WORKER_LIBRARY_SHARE  # noqa: E402
+from adapt_bgc_fragmentation_guard import BASELINE as C719_BGC_FRAGMENTATION_GUARD  # noqa: E402
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -510,7 +511,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_pipeline_snapshot_retire.py',
                                                      'build-utils/melonx/adapt_extra_set_binds.py',
                                                      'build-utils/melonx/adapt_array_reference_deltas.py',
-                                                     'build-utils/melonx/adapt_worker_library_share.py'} and
+                                                     'build-utils/melonx/adapt_worker_library_share.py',
+                                                     'build-utils/melonx/adapt_bgc_fragmentation_guard.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -535,8 +537,8 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    # Core 717: 194 preparation inputs (adapt_worker_library_share.py added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 194 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
+    check(len(frozen['preparationInputs']) == 195 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
