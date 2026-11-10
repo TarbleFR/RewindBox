@@ -130,7 +130,14 @@ sous `rsx::reservation_lock` (environ 3 µs) et le cas rare de synchronisation Z
   les meilleures sur celui-ci.
 - Les compteurs du noyau sont ceux du processus entier, pas ceux des seuls threads SPU.
 - Les trois seuils GETLLAR en ticks (1 000 / 5 000 / 400 000) valent 1 µs / 5 µs / 400 µs ici contre 41,7 µs /
-  208 µs / 16,7 ms sur le compteur de référence. Ils ne sont pas modifiés : c'est une décision à prendre sur mesure.
+  208 µs / 16,7 ms sur le compteur de référence (et 0,33 µs / 1,67 µs / 133 µs dans l'intention amont). Ils ne
+  sont pas modifiés, et les journaux existants les écartent comme levier :
+  - Black Ops II (export de la build 694, 50 fenêtres de jeu à 230 000 PUTLLC lourds par seconde) : 0 sondage
+    GETLLAR et 0 sommeil GETLLAR. Le deuxième et le troisième seuil ne règlent que ce chemin ; le premier ne
+    concerne que les PUTLLC échoués, 2,9 % des PUTLLC réussis. Les SPU de ce jeu enchaînent GETLLAR puis PUTLLC
+    (2,4 millions de PUTLLC réussis par fenêtre) et n'attendent un événement que 351 fois par fenêtre ;
+  - God of War III (build 718, fenêtre 16) : 95 736 sondages (13,9 ms) et 3 094 sommeils (197 ms) sur l'ensemble
+    des threads SPU en 5 s, soit 0,04 cœur.
 
 ## 8. Protocole iPhone
 

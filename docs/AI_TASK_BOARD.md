@@ -1505,8 +1505,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         fixed, with a replay test of the latest receipt and two negative controls (60 contract tests pass).
       - Not run on the iPhone. No FPS claim. The journals of this build are the next input (protocol in the
         [Core 918 record](rpcs3-core918-busy-wait.md) § 8).
+    - **Hypothesis closed on existing journals (10 Nov):** the three GETLLAR tick thresholds are not a lever for
+      either game. BO2 (build 694 export, 50 gameplay windows at 230,000 heavy PUTLLC per second): 0 GETLLAR polls,
+      0 GETLLAR sleeps, failed PUTLLC 2.9 % of the successful ones, 351 event waits per window; its SPU threads
+      chain GETLLAR then PUTLLC (2.4 million successful per window). GOW3 (build 718 w16): 95,736 polls (13.9 ms)
+      and 3,094 sleeps (197 ms) over all SPU threads in 5 s, 0.04 core. GOW3 w16 also bounds the per-frame
+      readback: `fault_read` 79 in 217.7 ms, 2.8 ms of a 60.5 ms median frame, GPU busy 24 %, RSX stages about
+      10 ms per frame; the frame follows the PPU main thread (0.92 core) with MLAA still running (savestate boot).
+    - **Local download page refused (10 Nov):** the tool denied starting a local HTTP server for the IPA 719 page
+      ("Expose Local Services"). Not retried; the IPA was sent as a file.
     - **Next:** the journals of build 719 (BO2 five minutes in the slow scene; GOW3 from a fresh boot, five minutes),
-      then the fix they select among those listed under "What the next export decides".
+      then the fix they select among those listed under "What the next export decides" (the GETLLAR thresholds
+      are off that list).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
