@@ -1644,8 +1644,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         codegen (no input change), fold (0 tree changes), route, 912-920 tests, guards, pin `--source-only` pass. The
         normal mode of test/neo_swap_core_pin_test.py fails on the old binary pin `cfe92344` (lacks
         test/rpcs3_restore_eof_test.py) identically on a clean `ac788759` worktree: pre-existing, unrelated.
-      - **State:** local only until the source and request commits are pushed; then run, pin, common IPA 722.
-    - **Next:** Core 920 compile and pin, then IPA 722 (with the MeloNX and skins lots). BO2 journals (nine minutes from
+      - Source `753ce921`, request `f0404065`, run `42838028676` green first try (Core job 129905367194, Apple host job
+        129905366604, 15 host commands passed); artifact 13776266781 (30,505,496 B, zip = API digest `83451bc3`; the first
+        download got "ServerBusy", retried); dylib `79d70a4d…8e9a` (80,937,600 B), fingerprint `71bb1c59…6e52`,
+        identities PPU a987639e / SPU 477a3fa4 unchanged, markers present (`Resolved title policy 920`, `COREPROF
+        ZCULLCOST920`, the setting's name); pin_errors verified, pin `f9f2b478`.
+    - **Next:** IPA 722 (Core 920 with the MeloNX and skins lots). BO2 journals (nine minutes from
       launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
       `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
       decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
