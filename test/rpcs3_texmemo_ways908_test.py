@@ -21,6 +21,7 @@ Static: ways = 16, the TEXMEMO660 line reports ways= and miss_evicted=, and the 
 find()) are the Core 907 ones, in their order.
 
     python3 test/rpcs3_texmemo_ways908_test.py --source CORE [--baseline CORE907] [--cxx g++] [--no-sanitizers] [--report OUT.json]
+                                               [--expect-ways 4]   (only the comparison witness declares 4)
 """
 from __future__ import annotations
 
@@ -233,14 +234,19 @@ def main() -> int:
     parser.add_argument('--cxx', default=os.environ.get('CXX') or shutil.which('g++') or shutil.which('clang++'))
     parser.add_argument('--report', type=Path)
     parser.add_argument('--no-sanitizers', action='store_true')
+    parser.add_argument('--expect-ways', type=int, choices=(16, 4), default=16,
+                        help='the declared capacity: 16 for every reference Core, 4 only for the Assassin\'s Creed '
+                             'comparison witness (the same tree with that one constant changed)')
     args = parser.parse_args()
 
     header = (args.source / MEMO_H).read_text()
     perf = (args.source / PERF).read_text()
     require('REWINDBOX_TEXMEMO_WAYS_908' in header and 'REWINDBOX_TEXMEMO_GHOST_910' in header, 'marker missing in ' + MEMO_H)
-    require(re.search(r'^constexpr std::size_t ways = 16;$', header, re.M), 'ways = 16')
+    declared = re.findall(r'^constexpr std::size_t ways = (\d+);$', header, re.M)
+    require(declared == [str(args.expect_ways)], f'ways = {args.expect_ways} expected, the tree declares {declared}')
     require('"ways=%zu miss_evicted=%llu "' in perf and 'memo::ways, m_evicted);' in perf, 'TEXMEMO660 reports ways and miss_evicted')
-    report: dict = {'compiler': args.cxx, 'header_sha256': hashlib.sha256(header.encode()).hexdigest()}
+    report: dict = {'compiler': args.cxx, 'header_sha256': hashlib.sha256(header.encode()).hexdigest(),
+                    'declared_ways': args.expect_ways}
     if args.baseline:
         base = (args.baseline / MEMO_H).read_text()
         require('constexpr std::size_t ways = 4;' in base, 'baseline ways = 4')
@@ -257,17 +263,20 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix='texmemo908-') as temporary:
         work = Path(temporary)
-        for name, ways in (('ways16', None), ('ways4', 4)):
+        for name, ways in (('ways16', 16), ('ways4', 4)):
             include = work / name
             include.mkdir()
-            text = header if ways is None else header.replace('constexpr std::size_t ways = 16;', f'constexpr std::size_t ways = {ways};')
+            text = header if ways == args.expect_ways else header.replace(
+                f'constexpr std::size_t ways = {args.expect_ways};', f'constexpr std::size_t ways = {ways};')
+            require(f'constexpr std::size_t ways = {ways};' in text, f'the {ways}-way copy of the header')
             (include / 'IOSTextureLookupMemo.h').write_text(text)
             shutil.copy(args.source / VALIDATION_H, include / 'IOSTextureValidationProfile.h')
             report[name] = build_and_run(args.cxx, include, work, name, not args.no_sanitizers)
-    require(report['ways16']['ways'] == 16 and report['ways16']['cycle6_hits'] == 18 and report['ways4']['cycle6_hits'] == 0,
+    require(report['ways16']['ways'] == 16 and report['ways4']['ways'] == 4 and
+            report['ways16']['cycle6_hits'] == 18 and report['ways4']['cycle6_hits'] == 0,
             'six textures on one slot: hits with 16 ways, none with 4')
     report['result'] = 'passed'
-    print('PASS: 16 ways hit a 6- and 16-texture cycle on one slot (4 ways: none), 17 overflows by LRU and is counted as '
+    print(f'PASS (tree declares {args.expect_ways} ways): 16 ways hit a 6- and 16-texture cycle on one slot (4 ways: none), 17 overflows by LRU and is counted as '
           'capacity misses; every invalidation drops as before; slots independent; an evicted key is a capacity miss only '
           'while its entry would still serve it (epoch, revision, generations, scoped write, clear, bound)')
     if args.report:

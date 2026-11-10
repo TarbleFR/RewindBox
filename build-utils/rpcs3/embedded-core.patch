@@ -69455,10 +69455,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..3acc2f9
+index 0000000..cf7726c
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,167 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -69550,6 +69550,15 @@ index 0000000..3acc2f9
 +    # exact reviewed snapshot only.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "c59a24dd44e7fee377a56f32d1e3114658649f33c04d54fe09f737ac3cb94da4")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_CAPTURE_912: only the host body of do_putllc changes (it notes the outcome of a
++    # data-changing accurate PUTLLC for the bounded diagnostic capture, off by default), plus one
++    # include. process_mfc_cmd, get_ch_value, set_ch_value, the SPU layout (SPUThread.h), emitter
++    # bodies, external helper signatures and relocation targets are unchanged: the objects call
++    # the same host functions. Preserve the delivered effective hash for this exact reviewed
++    # snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "c7f903e345e1577dbb141a2584b1dc71bd179817bf491e785c9114d7b4dd6195")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -79377,10 +79386,10 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..2b3039a 100644
+index bc9ec5e..5b76823 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
-@@ -25,11 +25,21 @@
+@@ -25,11 +25,22 @@
  
  #include <unordered_set>
  
@@ -79396,13 +79405,14 @@ index bc9ec5e..2b3039a 100644
 +#include "ios/IOSSpuWaitProfile.h"
 +#include "ios/IOSSignalTrace.h"
 +#include "ios/IOSSpuNoopSpin.h"
++#include "ios/IOSCapture912.h"
  #ifdef ARCH_ARM64
  #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
 +#include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
  #endif
  #endif
  
-@@ -309,6 +319,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
+@@ -309,6 +320,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
  #endif
  }
  
@@ -79417,7 +79427,7 @@ index bc9ec5e..2b3039a 100644
  #if defined(ARCH_X64)
  static FORCE_INLINE void mov_rdata_avx(__m256i* dst, const __m256i* src)
  {
-@@ -407,6 +425,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -407,6 +426,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79444,7 +79454,7 @@ index bc9ec5e..2b3039a 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -417,6 +455,9 @@ __forceinline
+@@ -417,6 +456,9 @@ __forceinline
  #endif
  extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  {
@@ -79454,7 +79464,7 @@ index bc9ec5e..2b3039a 100644
  	const auto rhs = reinterpret_cast<const v128*>(_src);
  	const v128 a = gv_add32(rhs[0], rhs[1]);
  	const v128 c = gv_add32(rhs[4], rhs[5]);
-@@ -425,6 +466,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
+@@ -425,6 +467,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  	const v128 r = gv_add32(gv_add32(a, b), gv_add32(c, d));
  	const v128 r1 = gv_add32(r, gv_shuffle32<1, 0, 3, 2>(r));
  	return r1._u32[0] + r1._u32[2];
@@ -79462,7 +79472,7 @@ index bc9ec5e..2b3039a 100644
  }
  
  #if defined(ARCH_X64)
-@@ -491,6 +533,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -491,6 +534,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79489,7 +79499,7 @@ index bc9ec5e..2b3039a 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -539,6 +601,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
+@@ -539,6 +602,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
  extern thread_local u64 g_tls_fault_spu;
  
@@ -79502,7 +79512,7 @@ index bc9ec5e..2b3039a 100644
  const extern spu_decoder<spu_itype> g_spu_itype;
  const extern spu_decoder<spu_iflag> g_spu_iflag;
  
-@@ -549,14 +617,29 @@ namespace vm
+@@ -549,14 +618,29 @@ namespace vm
  	// Defined here for performance reasons
  	writer_lock::~writer_lock() noexcept
  	{
@@ -79536,7 +79546,7 @@ index bc9ec5e..2b3039a 100644
  	}
  }
  
-@@ -661,6 +744,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
+@@ -661,6 +745,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
  		{
  			res[1] = umax;
  		}
@@ -79548,7 +79558,7 @@ index bc9ec5e..2b3039a 100644
  
  		break;
  	}
-@@ -1352,6 +1440,7 @@ void spu_thread::cpu_init()
+@@ -1352,6 +1441,7 @@ void spu_thread::cpu_init()
  
  	ch_events.raw() = {};
  	interrupts_enabled = false;
@@ -79556,7 +79566,7 @@ index bc9ec5e..2b3039a 100644
  	raddr = 0;
  
  	ch_dec_start_timestamp = get_timebased_time();
-@@ -1485,6 +1574,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
+@@ -1485,6 +1575,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
  
  void spu_thread::cpu_task()
  {
@@ -79565,7 +79575,7 @@ index bc9ec5e..2b3039a 100644
  #ifdef __APPLE__
  	jit_write_protect(true);
  #endif
-@@ -1566,7 +1657,7 @@ void spu_thread::cpu_task()
+@@ -1566,7 +1658,7 @@ void spu_thread::cpu_task()
  		{
  			if (state) [[unlikely]]
  			{
@@ -79574,7 +79584,7 @@ index bc9ec5e..2b3039a 100644
  					break;
  			}
  
-@@ -1586,6 +1677,7 @@ void spu_thread::cpu_task()
+@@ -1586,6 +1678,7 @@ void spu_thread::cpu_task()
  			}
  
  			spu_runtime::g_gateway(*this, _ptr<u8>(0), nullptr);
@@ -79582,7 +79592,7 @@ index bc9ec5e..2b3039a 100644
  		}
  
  		if (unsavable && is_stopped(state - cpu_flag::stop))
-@@ -1632,7 +1724,10 @@ void spu_thread::cpu_work()
+@@ -1632,7 +1725,10 @@ void spu_thread::cpu_work()
  		return;
  	}
  
@@ -79594,7 +79604,7 @@ index bc9ec5e..2b3039a 100644
  
  	bool work_left = false;
  
-@@ -1676,13 +1771,19 @@ void spu_thread::cpu_work()
+@@ -1676,13 +1772,19 @@ void spu_thread::cpu_work()
  
  	bool gen_interrupt = false;
  
@@ -79617,7 +79627,7 @@ index bc9ec5e..2b3039a 100644
  			{
  				mask &= ~SPU_EVENT_LR;
  			}
-@@ -1691,7 +1792,16 @@ void spu_thread::cpu_work()
+@@ -1691,7 +1793,16 @@ void spu_thread::cpu_work()
  		}
  
  		gen_interrupt = check_mfc_interrupts(pc);
@@ -79635,7 +79645,7 @@ index bc9ec5e..2b3039a 100644
  	}
  
  	in_cpu_work = false;
-@@ -1713,7 +1823,7 @@ void spu_thread::cpu_work()
+@@ -1713,7 +1824,7 @@ void spu_thread::cpu_work()
  		});
  	}
  
@@ -79644,7 +79654,7 @@ index bc9ec5e..2b3039a 100644
  	{
  		// Interrupt! escape everything and restart execution
  		spu_runtime::g_escape(this);
-@@ -1738,6 +1848,7 @@ struct raw_spu_cleanup
+@@ -1738,6 +1849,7 @@ struct raw_spu_cleanup
  
  void spu_thread::cleanup()
  {
@@ -79652,7 +79662,7 @@ index bc9ec5e..2b3039a 100644
  	// Deallocate local storage
  	ensure(vm::dealloc(vm_offset(), vm::spu, &shm));
  
-@@ -1941,6 +2052,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
+@@ -1941,6 +2053,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
  
  	serialize_common(ar);
  
@@ -79666,7 +79676,7 @@ index bc9ec5e..2b3039a 100644
  	raddr = ::narrow<u32>(ar.pop<u64>());
  
  	if (raddr)
-@@ -2079,6 +2197,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2079,6 +2198,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  
  	u32 eal = args.eal;
  	u32 lsa = args.lsa & 0x3ffff;
@@ -79689,7 +79699,7 @@ index bc9ec5e..2b3039a 100644
  
  	// Keep src point to const
  	u8* dst = nullptr;
-@@ -2304,6 +2438,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2304,6 +2439,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				}
  				}
  
@@ -79698,7 +79708,7 @@ index bc9ec5e..2b3039a 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -2340,7 +2476,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2340,7 +2477,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			}
  		}
  
@@ -79709,7 +79719,7 @@ index bc9ec5e..2b3039a 100644
  		{
  			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
  			{
-@@ -2535,6 +2673,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2535,6 +2674,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  			}
  
@@ -79719,7 +79729,7 @@ index bc9ec5e..2b3039a 100644
  			return;
  		}
  		else
-@@ -2747,6 +2888,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2747,6 +2889,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  		}
  
@@ -79729,7 +79739,7 @@ index bc9ec5e..2b3039a 100644
  		return;
  	}
  
-@@ -2823,6 +2967,9 @@ plain_access:
+@@ -2823,6 +2968,9 @@ plain_access:
  		dump.block_hash = _this->block_hash;
  		std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  	}
@@ -79739,7 +79749,7 @@ index bc9ec5e..2b3039a 100644
  }
  
  bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
-@@ -2878,6 +3025,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
+@@ -2878,6 +3026,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
  
  bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  {
@@ -79753,7 +79763,7 @@ index bc9ec5e..2b3039a 100644
  	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
  
  	// Amount of elements to fetch in one go
-@@ -3298,8 +3452,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3298,8 +3453,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		// Avoid inlining huge transfers because it intentionally drops range lock unlock
@@ -79766,7 +79776,7 @@ index bc9ec5e..2b3039a 100644
  			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
  			{
  				rsx_lock.update_if_enabled(addr, size, range_lock);
-@@ -3378,6 +3535,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3378,6 +3536,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			}
  			}
  
@@ -79779,7 +79789,7 @@ index bc9ec5e..2b3039a 100644
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		else if (size)
-@@ -3439,6 +3602,11 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3439,6 +3603,25 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  	// Store conditionally
  	const u32 addr = args.eal & -128;
@@ -79787,11 +79797,25 @@ index bc9ec5e..2b3039a 100644
 +	// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911: this PUTLLC completed as the write-back of unchanged data under
 +	// Accurate SPU Reservations (CELL565 path below).
 +	bool ios_accurate_noop = false;
++	// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h, putllc_trace): the outcome of a data-changing accurate PUTLLC while a
++	// capture collects, and the line as memory held it on the two paths that read it and saw a difference.
++	u8 ios_trace_result = 0;
++	bool ios_trace_observed = false;
++	bool ios_trace_exchange = false;
++	spu_rdata_t ios_trace_memory;
++	const auto ios_trace_record = [&]()
++	{
++		if (ios_trace_result)
++		{
++			rpcs3::ios::capture912::putllc_trace::record(id, pc, addr, rtime, utils::get_tsc(), ios_trace_result, rdata,
++				_ptr<spu_rdata_t>(args.lsa & 0x3ff80), ios_trace_observed ? &ios_trace_memory : nullptr);
++		}
++	};
 +#endif
  
  	if ([&]()
  	{
-@@ -3450,6 +3618,60 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3633,66 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -79847,12 +79871,18 @@ index bc9ec5e..2b3039a 100644
 +		{
 +			t_ios_noop_spin.on_progress();
 +		}
++
++		// REWINDBOX_CAPTURE_912: until a later point says otherwise, this PUTLLC fails on the reservation time below.
++		if (accurate && rpcs3::ios::capture912::putllc_trace::is_collecting() && !cmp_rdata(to_write, rdata))
++		{
++			ios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_time;
++		}
 +#endif
 +
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3679,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3700,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -79899,7 +79929,7 @@ index bc9ec5e..2b3039a 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3717,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3738,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -79914,7 +79944,17 @@ index bc9ec5e..2b3039a 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3507,25 +3742,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3503,29 +3759,78 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 
+ 		if (!_ok)
+ 		{
++#ifdef RPCS3_IOS
++			if (ios_trace_result)
++			{
++				ios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_owner; // REWINDBOX_CAPTURE_912
++			}
++#endif
+ 			// Already locked or updated: give up
  			return false;
  		}
  
@@ -79957,7 +79997,22 @@ index bc9ec5e..2b3039a 100644
 +			// differs from the GETLLAR snapshot cannot be stored by this PUTLLC,
 +			// so fail it before parking every PPU thread. Only the comparison
 +			// under the lock below can succeed; the protocol is unchanged.
-+			if (!cmp_rdata(rdata, super_data))
++			// REWINDBOX_CAPTURE_912: while a capture collects, the line is copied once, without the writer lock, and
++			// this check compares the copy: the recorded value is the one that decided, not a second read. The check
++			// and what follows it are the same.
++			if (ios_trace_result)
++			{
++				mov_rdata(ios_trace_memory, super_data);
++
++				if (!cmp_rdata(rdata, ios_trace_memory))
++				{
++					rpcs3::ios::record_writer_lock_avoided(static_cast<u32>(vm::writer_lock_source::spu_putllc));
++					ios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_precheck;
++					ios_trace_observed = true;
++					return false;
++				}
++			}
++			else if (!cmp_rdata(rdata, super_data))
 +			{
 +				rpcs3::ios::record_writer_lock_avoided(static_cast<u32>(vm::writer_lock_source::spu_putllc));
 +				return false;
@@ -79970,12 +80025,47 @@ index bc9ec5e..2b3039a 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3552,6 +3815,47 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3537,6 +3842,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 					{
+ 						return true;
+ 					}
++#ifdef RPCS3_IOS
++					ios_trace_exchange = true; // REWINDBOX_CAPTURE_912: the 128 bytes compared equal, the 16-byte exchange failed
++#endif
+ 				}
+ 				else
+ 				{
+@@ -3545,13 +3853,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (ios_trace_result)
++			{
++				// REWINDBOX_CAPTURE_912: the line copied under the writer lock, which is still held here, right after
++				// the comparison or the exchange that failed.
++				ios_trace_result = ios_trace_exchange ? rpcs3::ios::capture912::putllc_trace::failed_exchange
++					: rpcs3::ios::capture912::putllc_trace::failed_compare;
++				mov_rdata(ios_trace_memory, super_data);
++				ios_trace_observed = true;
++			}
++#endif
+ 			return false;
+ 		}();
+ 
++#ifdef RPCS3_IOS
++		if (success && ios_trace_result)
++		{
++			ios_trace_result = rpcs3::ios::capture912::putllc_trace::stored; // REWINDBOX_CAPTURE_912
++		}
++#endif
+ 		res += success ? 64 : 0 - 64;
  		return success;
  	}())
  	{
 +#ifdef RPCS3_IOS
 +		rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::putllc_ok);
++		ios_trace_record(); // REWINDBOX_CAPTURE_912
 +
 +		// REWINDBOX_SPU_NOOP_SPIN_ACCURATE_911 (ios/IOSSpuNoopSpin.h): Black Ops II runs with Accurate SPU
 +		// Reservations (database configuration), where the write-back of unchanged data never reaches the wait
@@ -80018,17 +80108,18 @@ index bc9ec5e..2b3039a 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3883,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3946,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
 +#ifdef RPCS3_IOS
 +		rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::putllc_fail);
++		ios_trace_record(); // REWINDBOX_CAPTURE_912
 +#endif
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +3938,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +4002,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -80037,7 +80128,7 @@ index bc9ec5e..2b3039a 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +3947,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +4011,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -80057,7 +80148,7 @@ index bc9ec5e..2b3039a 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +4034,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +4098,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -80071,7 +80162,7 @@ index bc9ec5e..2b3039a 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +4049,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +4113,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -80081,7 +80172,7 @@ index bc9ec5e..2b3039a 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4206,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4270,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -80099,7 +80190,7 @@ index bc9ec5e..2b3039a 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4274,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4338,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -80110,7 +80201,7 @@ index bc9ec5e..2b3039a 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4263,8 +4597,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
+@@ -4263,8 +4661,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
  	return busy_waiting_switch;
  }
  
@@ -80158,7 +80249,7 @@ index bc9ec5e..2b3039a 100644
  	// Stall infinitely if MFC queue is full
  	while (mfc_size >= 16) [[unlikely]]
  	{
-@@ -4273,11 +4646,57 @@ bool spu_thread::process_mfc_cmd()
+@@ -4273,11 +4710,57 @@ bool spu_thread::process_mfc_cmd()
  
  		if (test_stopped())
  		{
@@ -80218,7 +80309,7 @@ index bc9ec5e..2b3039a 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4288,11 +4707,76 @@ bool spu_thread::process_mfc_cmd()
+@@ -4288,11 +4771,76 @@ bool spu_thread::process_mfc_cmd()
  
  		if (is_stopped(old))
  		{
@@ -80296,7 +80387,7 @@ index bc9ec5e..2b3039a 100644
  
  	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
  	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
-@@ -4306,6 +4790,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4854,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -80322,7 +80413,7 @@ index bc9ec5e..2b3039a 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4818,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4882,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -80331,7 +80422,7 @@ index bc9ec5e..2b3039a 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4858,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4922,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -80347,7 +80438,7 @@ index bc9ec5e..2b3039a 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4876,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4940,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -80356,7 +80447,7 @@ index bc9ec5e..2b3039a 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4950,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +5014,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -80365,7 +80456,7 @@ index bc9ec5e..2b3039a 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4961,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +5025,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -80384,7 +80475,7 @@ index bc9ec5e..2b3039a 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4993,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +5057,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -80396,7 +80487,7 @@ index bc9ec5e..2b3039a 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +5048,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +5112,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -80412,7 +80503,7 @@ index bc9ec5e..2b3039a 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +5067,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +5131,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -80421,7 +80512,7 @@ index bc9ec5e..2b3039a 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +5085,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +5149,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -80437,7 +80528,7 @@ index bc9ec5e..2b3039a 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +5198,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +5262,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -80446,7 +80537,7 @@ index bc9ec5e..2b3039a 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5616,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5680,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80455,7 +80546,7 @@ index bc9ec5e..2b3039a 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5624,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5688,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -80471,7 +80562,7 @@ index bc9ec5e..2b3039a 100644
  		}
  	}
  
-@@ -5163,7 +5704,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5768,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -80480,7 +80571,7 @@ index bc9ec5e..2b3039a 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5712,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5776,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80489,7 +80580,7 @@ index bc9ec5e..2b3039a 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5785,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5849,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -80498,7 +80589,7 @@ index bc9ec5e..2b3039a 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5893,7 @@ retry:
+@@ -5352,6 +5957,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -80506,7 +80597,7 @@ index bc9ec5e..2b3039a 100644
  		}
  	}
  
-@@ -5400,29 +5942,155 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +6006,155 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -80563,7 +80654,8 @@ index bc9ec5e..2b3039a 100644
 -			if (state.none_of(cpu_flag::pending))
 +			const u64 now = get_timebased_time();
 +			sleep_us = umax;
-+			{
+ 			{
+-				state += cpu_flag::pending;
 +				std::lock_guard lock(mutex);
 +				u64 sleep_scaled_ticks = umax;
 +				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
@@ -80593,10 +80685,9 @@ index bc9ec5e..2b3039a 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
-+			}
+ 			}
 +			for (const auto& e : due_entries)
- 			{
--				state += cpu_flag::pending;
++			{
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -80609,7 +80700,7 @@ index bc9ec5e..2b3039a 100644
 +						spu->cpu_thread::notify();
 +					}
 +				}
- 			}
++			}
 +			due_entries.clear();
  		}
  	}
@@ -80674,7 +80765,7 @@ index bc9ec5e..2b3039a 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6428,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6492,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -80691,7 +80782,7 @@ index bc9ec5e..2b3039a 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6468,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6532,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -80700,7 +80791,7 @@ index bc9ec5e..2b3039a 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6605,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6669,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -80709,7 +80800,7 @@ index bc9ec5e..2b3039a 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6625,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6689,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80718,7 +80809,7 @@ index bc9ec5e..2b3039a 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6705,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6769,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80727,7 +80818,7 @@ index bc9ec5e..2b3039a 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6732,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6796,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -80742,7 +80833,7 @@ index bc9ec5e..2b3039a 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +7136,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +7200,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -80752,7 +80843,7 @@ index bc9ec5e..2b3039a 100644
  		return true;
  	}
  
-@@ -6479,6 +7166,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +7230,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -80761,7 +80852,7 @@ index bc9ec5e..2b3039a 100644
  		return true;
  	}
  
-@@ -6509,6 +7198,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +7262,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -118866,7 +118957,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..8772353 100644
+index 1f53c64..58a8828 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -119234,7 +119325,7 @@ index 1f53c64..8772353 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,155 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,159 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -119361,6 +119452,10 @@ index 1f53c64..8772353 100644
 +					ios_add_lever(ios_levers.ppu_grace, ios_lever_settings.ppu_grace);
 +					// Metal branch: digit 18 of levers627= (the native Metal 4 renderer).
 +					ios_add_lever(ios_levers.metal_renderer, ios_lever_settings.metal_renderer);
++					// Core 912: digits 19 to 21 of levers627= (PUT horizon, heavy PUTLLC trace, PPU region profile).
++					ios_add_lever(ios_levers.put_epoch_horizon, ios_lever_settings.put_epoch_horizon);
++					ios_add_lever(ios_levers.heavy_putllc_trace, ios_lever_settings.heavy_putllc_trace);
++					ios_add_lever(ios_levers.ppu_region_profile, ios_lever_settings.ppu_region_profile);
 +					ios_rsx.levers627 = ios_levers627;
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
@@ -119390,7 +119485,7 @@ index 1f53c64..8772353 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2845,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2849,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -119405,7 +119500,7 @@ index 1f53c64..8772353 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2861,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2865,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -119415,7 +119510,7 @@ index 1f53c64..8772353 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2937,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2941,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -119430,7 +119525,7 @@ index 1f53c64..8772353 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3067,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3071,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -119459,7 +119554,7 @@ index 1f53c64..8772353 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3242,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3246,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -119471,7 +119566,7 @@ index 1f53c64..8772353 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3326,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3330,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -119482,7 +119577,7 @@ index 1f53c64..8772353 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3376,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3380,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -119508,7 +119603,7 @@ index 1f53c64..8772353 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3884,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3888,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -119521,7 +119616,7 @@ index 1f53c64..8772353 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3904,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3908,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -119544,7 +119639,7 @@ index 1f53c64..8772353 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3960,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3964,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -119552,7 +119647,7 @@ index 1f53c64..8772353 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3971,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3975,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -119560,7 +119655,7 @@ index 1f53c64..8772353 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3981,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3985,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -119568,7 +119663,7 @@ index 1f53c64..8772353 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4069,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4073,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -119579,7 +119674,7 @@ index 1f53c64..8772353 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4135,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4139,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -119588,7 +119683,7 @@ index 1f53c64..8772353 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4249,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4253,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -119603,7 +119698,7 @@ index 1f53c64..8772353 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4284,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4288,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -119611,7 +119706,7 @@ index 1f53c64..8772353 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4402,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4406,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -119625,7 +119720,7 @@ index 1f53c64..8772353 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4457,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4461,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -119638,7 +119733,7 @@ index 1f53c64..8772353 100644
  			});
  
  			// Join it
-@@ -4075,10 +4527,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4531,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -119658,7 +119753,7 @@ index 1f53c64..8772353 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4675,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4679,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -119669,7 +119764,7 @@ index 1f53c64..8772353 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4773,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4777,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -119695,7 +119790,7 @@ index 1f53c64..8772353 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4861,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4865,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -119870,7 +119965,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..82f6c46 100644
+index 7072922..893407f 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -119900,7 +119995,7 @@ index 7072922..82f6c46 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,32 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,35 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -119930,10 +120025,13 @@ index 7072922..82f6c46 100644
 +		cfg::_enum<ios_experimental_mode> texture_prehash{ this, "Texture Pre-Validation", ios_experimental_mode::automatic };
 +		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch).
 +		cfg::_enum<ios_experimental_mode> put_epoch_horizon{ this, "Texture Epoch At The PUT Horizon", ios_experimental_mode::automatic };
++		// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): diagnostics, Automatic = off for every title.
++		cfg::_enum<ios_experimental_mode> heavy_putllc_trace{ this, "Heavy PUTLLC Trace On Resume", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> ppu_region_profile{ this, "PPU Region Profile On Resume", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +171,65 @@ struct cfg_root : cfg::node
+@@ -134,6 +174,65 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -121091,6 +121189,560 @@ index 0000000..317bb2e
 +	bool m_started = false;
 +};
 +}
+diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
+new file mode 100644
+index 0000000..657821c
+--- /dev/null
++++ b/rpcs3/ios/IOSCapture912.h
+@@ -0,0 +1,548 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++#include <new>
++#include <string>
++#include <string_view>
++#include <vector>
++
++// REWINDBOX_CAPTURE_912: two bounded captures for questions the aggregate counters cannot answer. Both are off
++// unless their setting is on at boot (Automatic: off), start only on an explicit action (the emulation leaving a
++// pause: the in-game menu closed) and stop by themselves. Nothing here changes a lock, a barrier, a reservation
++// result or a wait: the collectors copy values the executed path already holds.
++//
++// putllc_trace (Black Ops II: what do the heavy PUTLLC write?). With Accurate SPU Reservations, every PUTLLC that
++// changes data and reaches its decision is recorded per SPU thread, in the order the thread executed them, up to
++// `capacity` events per thread and capture. No address filter: "consecutive" means every such PUTLLC of that
++// thread from the start of the capture to the thread's last recorded event; a thread that fills its buffer stops
++// recording (counted in after_full). There is no order between threads other than the timestamps.
++// Values and their meaning (16-byte lane = the first lane where the write-back differs from the snapshot):
++//   snapshot  the lane as the thread read it at GETLLAR (its reservation copy);
++//   written   the lane the thread asked to store;
++//   observed  the lane found in memory at the decision, on the paths that read the line and did not store:
++//             precheck (the line is copied once without the writer lock and the copy is what the check compares),
++//             compare and exchange (the line is copied under the writer lock right after the comparison or the
++//             16-byte exchange that failed). The mask after it says which lanes of memory differed from the snapshot;
++//             "=" says the copy equalled the snapshot. On a stored PUTLLC memory equalled the snapshot by the
++//             comparison under the lock. On the paths that fail on the reservation word, memory was not read:
++//             the event says so; nothing is read again later.
++//   written   is the local store at the moment the event is recorded, after the decision.
++// Cost while collecting: one 128-byte comparison and an 80-byte entry per recorded PUTLLC; not collecting: one
++// relaxed load per data-changing accurate PUTLLC. Memory: max_threads x capacity x sizeof(event), allocated once
++// by the diagnostic thread on the first capture.
++namespace rpcs3::ios::capture912
++{
++namespace putllc_trace
++{
++inline constexpr std::size_t capacity = 512;
++inline constexpr std::size_t max_threads = 8;
++inline constexpr std::uint64_t max_capture_ns = 3'000'000'000ull;
++inline constexpr std::uint32_t max_captures = 2; // per boot
++
++enum result : std::uint8_t
++{
++	none = 0,
++	stored = 1,            // compared equal under the writer lock, written
++	failed_time = 2,       // the reservation time had changed on entry (memory not read)
++	failed_owner = 3,      // the reservation word was locked or moved at the unique-lock attempt (memory not read)
++	failed_precheck = 4,   // memory already differed from the snapshot before the writer lock
++	failed_compare = 5,    // memory differed from the snapshot under the writer lock
++	failed_exchange = 6,   // under the writer lock the 128 bytes compared equal and the 16-byte exchange failed
++};
++
++struct event
++{
++	std::uint64_t tsc = 0;
++	std::uint64_t rtime = 0;      // the reservation time the thread held
++	std::uint32_t addr = 0;       // the 128-byte line
++	std::uint32_t pc = 0;         // SPU pc of the MFC command
++	std::uint8_t result = none;
++	std::uint8_t lanes = 0;       // bit i: 16-byte lane i of the write-back differs from the snapshot
++	std::uint8_t lane = 0xff;     // the first of them
++	std::uint8_t observed_valid = 0; // 1: observed[] was read at the decision and differs from the snapshot somewhere
++	std::uint8_t observed_lanes = 0; // bit i: lane i of memory differed from the snapshot (observed_read only)
++	std::uint8_t observed_read = 0;  // 1: the path copied the line from memory
++	std::uint8_t observed_lane = 0;  // the lane of observed[] (observed_valid only)
++	std::uint8_t pad = 0;
++	std::array<std::uint8_t, 16> snapshot{};
++	std::array<std::uint8_t, 16> written{};
++	std::array<std::uint8_t, 16> observed{}; // lane `lane` of memory at the decision (observed_valid only)
++};
++
++struct slot
++{
++	std::atomic<std::uint32_t> count{0};      // published entries (complete)
++	std::atomic<std::uint32_t> after_full{0}; // PUTLLC of this thread not recorded: its buffer was full
++	std::uint32_t thread_id = 0;
++};
++
++enum state : std::uint32_t { idle = 0, collecting = 1, stopping = 2 };
++
++inline std::atomic<bool> armed{false};               // the boot setting
++inline std::atomic<std::uint32_t> g_state{idle};
++inline std::atomic<std::uint32_t> g_generation{0};
++inline std::atomic<std::uint32_t> g_slots_used{0};
++inline std::atomic<std::uint32_t> g_writers{0};
++inline std::atomic<std::uint32_t> g_threads_dropped{0}; // threads beyond max_threads
++inline std::atomic<event*> g_events{nullptr};
++inline std::atomic<std::uint64_t> g_start_tsc{0};       // the time base of a capture: every thread's events refer to it
++inline std::array<slot, max_threads> g_slots{};
++
++inline bool is_collecting() noexcept
++{
++	return g_state.load(std::memory_order_relaxed) == collecting;
++}
++
++// Diagnostic thread: start a capture. The previous one was read and no writer is inside. now_tsc: the same clock
++// as the events' tsc.
++inline bool start(std::uint64_t now_tsc = 0) noexcept
++{
++	if (g_state.load(std::memory_order_acquire) != idle || g_writers.load(std::memory_order_acquire) != 0)
++	{
++		return false;
++	}
++
++	if (!g_events.load(std::memory_order_acquire))
++	{
++		g_events.store(new (std::nothrow) event[max_threads * capacity], std::memory_order_release);
++
++		if (!g_events.load(std::memory_order_acquire))
++		{
++			return false;
++		}
++	}
++
++	for (auto& s : g_slots)
++	{
++		s.count.store(0, std::memory_order_relaxed);
++		s.after_full.store(0, std::memory_order_relaxed);
++		s.thread_id = 0;
++	}
++
++	g_slots_used.store(0, std::memory_order_relaxed);
++	g_threads_dropped.store(0, std::memory_order_relaxed);
++	g_start_tsc.store(now_tsc, std::memory_order_relaxed);
++	g_generation.fetch_add(1, std::memory_order_release);
++	g_state.store(collecting, std::memory_order_release);
++	return true;
++}
++
++// Diagnostic thread: no new event starts after this.
++inline void stop() noexcept
++{
++	// seq_cst here, in quiescent() and in record(): either a writer sees the stop, or quiescent() sees the writer.
++	std::uint32_t expected = collecting;
++	g_state.compare_exchange_strong(expected, stopping, std::memory_order_seq_cst);
++}
++
++// Diagnostic thread, after stop(): true once no writer is inside; the slots may then be read.
++inline bool quiescent() noexcept
++{
++	return g_state.load(std::memory_order_seq_cst) == stopping && g_writers.load(std::memory_order_seq_cst) == 0;
++}
++
++// Diagnostic thread, after the slots were read.
++inline void release() noexcept
++{
++	g_state.store(idle, std::memory_order_release);
++}
++
++// Every recording thread filled its buffer (or nothing can be recorded any more).
++inline bool full() noexcept
++{
++	const std::uint32_t used = g_slots_used.load(std::memory_order_acquire);
++
++	if (!used)
++	{
++		return false;
++	}
++
++	for (std::uint32_t i = 0; i < used && i < max_threads; i++)
++	{
++		if (g_slots[i].count.load(std::memory_order_acquire) < capacity)
++		{
++			return false;
++		}
++	}
++
++	return true;
++}
++
++// SPU thread, after its PUTLLC decided. snapshot/written: the 128 bytes of the reservation copy and of the
++// write-back; observed: the 128 bytes of memory copied at the decision, or null when the path did not read them.
++inline void record(std::uint32_t thread_id, std::uint32_t pc, std::uint32_t addr, std::uint64_t rtime, std::uint64_t tsc,
++	std::uint8_t outcome, const void* snapshot, const void* written, const void* observed) noexcept
++{
++	g_writers.fetch_add(1, std::memory_order_seq_cst);
++
++	struct leave
++	{
++		~leave() { g_writers.fetch_sub(1, std::memory_order_seq_cst); }
++	} leaving;
++
++	if (g_state.load(std::memory_order_seq_cst) != collecting)
++	{
++		return;
++	}
++
++	static thread_local std::uint32_t t_generation = 0;
++	static thread_local std::uint32_t t_slot = ~0u;
++	const std::uint32_t generation = g_generation.load(std::memory_order_acquire);
++
++	if (t_generation != generation)
++	{
++		t_generation = generation;
++		const std::uint32_t index = g_slots_used.fetch_add(1, std::memory_order_acq_rel);
++
++		if (index >= max_threads)
++		{
++			g_slots_used.store(static_cast<std::uint32_t>(max_threads), std::memory_order_release);
++			g_threads_dropped.fetch_add(1, std::memory_order_relaxed);
++			t_slot = ~0u;
++		}
++		else
++		{
++			t_slot = index;
++			g_slots[index].thread_id = thread_id;
++		}
++	}
++
++	if (t_slot == ~0u)
++	{
++		return;
++	}
++
++	slot& s = g_slots[t_slot];
++	const std::uint32_t n = s.count.load(std::memory_order_relaxed);
++
++	if (n >= capacity)
++	{
++		s.after_full.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++
++	event& e = g_events.load(std::memory_order_relaxed)[t_slot * capacity + n];
++	e = event{};
++	e.tsc = tsc;
++	e.rtime = rtime;
++	e.addr = addr;
++	e.pc = pc;
++	e.result = outcome;
++	const auto* a = static_cast<const std::uint8_t*>(snapshot);
++	const auto* b = static_cast<const std::uint8_t*>(written);
++	const auto* m = static_cast<const std::uint8_t*>(observed);
++
++	for (std::uint32_t lane = 0; lane < 8; lane++)
++	{
++		if (std::memcmp(a + lane * 16, b + lane * 16, 16) != 0)
++		{
++			e.lanes |= static_cast<std::uint8_t>(1u << lane);
++
++			if (e.lane == 0xff)
++			{
++				e.lane = static_cast<std::uint8_t>(lane);
++			}
++		}
++
++		if (m && std::memcmp(a + lane * 16, m + lane * 16, 16) != 0)
++		{
++			e.observed_lanes |= static_cast<std::uint8_t>(1u << lane);
++		}
++	}
++
++	const std::uint32_t lane = e.lane == 0xff ? 0 : e.lane;
++	std::memcpy(e.snapshot.data(), a + lane * 16, 16);
++	std::memcpy(e.written.data(), b + lane * 16, 16);
++
++	if (m)
++	{
++		e.observed_read = 1;
++
++		if (e.observed_lanes)
++		{
++			// The lane shown is the first written lane when memory differs there, else the first lane that differs.
++			std::uint32_t shown = lane;
++
++			if (!(e.observed_lanes & (1u << lane)))
++			{
++				for (shown = 0; !(e.observed_lanes & (1u << shown)); shown++)
++				{
++				}
++			}
++
++			e.observed_valid = 1;
++			e.observed_lane = static_cast<std::uint8_t>(shown);
++			std::memcpy(e.observed.data(), m + shown * 16, 16);
++		}
++	}
++
++	s.count.store(n + 1, std::memory_order_release); // publish the complete entry
++}
++
++inline void append_hex(std::string& out, const std::uint8_t* data, std::size_t size)
++{
++	static constexpr char digits[] = "0123456789abcdef";
++
++	for (std::size_t i = 0; i < size; i++)
++	{
++		out += digits[data[i] >> 4];
++		out += digits[data[i] & 15];
++	}
++}
++
++// One event: dt_us:pc:addr:result:lanes:lane:rtime:snapshot:written:observed. observed is "-" (memory not read),
++// "=" (equal to the snapshot: by the comparison under the lock when stored, else by the copy the path took) or
++// hex/mask@lane (16 bytes of the copy, the lanes of memory that differed from the snapshot, the lane shown).
++// dt_us is the time since the thread's previous recorded event.
++inline std::string format_event(const event& e, std::uint64_t previous_tsc, std::uint64_t tsc_hz)
++{
++	char head[96];
++	const std::uint64_t dt = previous_tsc && tsc_hz && e.tsc >= previous_tsc ? (e.tsc - previous_tsc) * 1'000'000ull / tsc_hz : 0;
++	std::snprintf(head, sizeof(head), "%llu:%x:%x:%u:%02x:%x:%llx:", static_cast<unsigned long long>(dt), e.pc, e.addr, e.result, e.lanes,
++		e.lane == 0xff ? 15u : e.lane, static_cast<unsigned long long>(e.rtime));
++	std::string out = head;
++	append_hex(out, e.snapshot.data(), 16);
++	out += ':';
++	append_hex(out, e.written.data(), 16);
++	out += ':';
++
++	if (e.observed_valid)
++	{
++		char tail[16];
++		append_hex(out, e.observed.data(), 16);
++		std::snprintf(tail, sizeof(tail), "/%02x@%x", e.observed_lanes, e.observed_lane);
++		out += tail;
++	}
++	else
++	{
++		out += e.result == stored || e.observed_read ? "=" : "-";
++	}
++
++	return out;
++}
++
++// Diagnostic thread, quiescent(): the lines of one capture (each at most about 900 characters).
++inline std::vector<std::string> format_capture(std::uint32_t capture, std::uint64_t session, std::uint64_t tsc_hz, std::uint64_t elapsed_us,
++	const char* end_reason)
++{
++	std::vector<std::string> lines;
++	const std::uint32_t used = std::min<std::uint32_t>(g_slots_used.load(std::memory_order_acquire), static_cast<std::uint32_t>(max_threads));
++	const event* events = g_events.load(std::memory_order_acquire);
++	char head[320];
++	std::uint64_t total = 0, lost = 0;
++
++	for (std::uint32_t i = 0; i < used; i++)
++	{
++		total += g_slots[i].count.load(std::memory_order_acquire);
++		lost += g_slots[i].after_full.load(std::memory_order_relaxed);
++	}
++
++	std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=begin threads=%u threads_dropped=%u events=%llu "
++		"after_full=%llu capacity=%zu elapsed_us=%llu end=%s scope=accurate_data_changing_putllc order=per_thread "
++		"time_base=capture_start t0_us=first_event_of_the_line "
++		"fields=dt_us:pc:addr:result:lanes:lane:rtime:snapshot:written:observed",
++		static_cast<unsigned long long>(session), capture, used, g_threads_dropped.load(std::memory_order_relaxed),
++		static_cast<unsigned long long>(total), static_cast<unsigned long long>(lost), capacity,
++		static_cast<unsigned long long>(elapsed_us), end_reason);
++	lines.emplace_back(head);
++
++	for (std::uint32_t i = 0; i < used && events; i++)
++	{
++		const std::uint32_t count = std::min<std::uint32_t>(g_slots[i].count.load(std::memory_order_acquire), static_cast<std::uint32_t>(capacity));
++		std::uint64_t previous = 0;
++		std::string line;
++		std::uint32_t first = 0;
++
++		for (std::uint32_t n = 0; n <= count; n++)
++		{
++			std::string text = n < count ? format_event(events[i * capacity + n], previous, tsc_hz) : std::string();
++
++			if (n < count)
++			{
++				previous = events[i * capacity + n].tsc;
++			}
++
++			if (!line.empty() && (n == count || line.size() + text.size() > 800))
++			{
++				// t0_us: the first event of this line against the start of the capture, so that the events of every
++				// thread share one time base (each event is stamped when it is recorded, after its PUTLLC decided).
++				const std::uint64_t base = g_start_tsc.load(std::memory_order_relaxed);
++				const std::uint64_t stamp = events[i * capacity + first].tsc;
++				const std::uint64_t t0 = tsc_hz && stamp >= base ? (stamp - base) * 1'000'000ull / tsc_hz : 0;
++				std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=events thread=0x%x first=%u last=%u of=%u "
++					"after_full=%u t0_us=%llu ev=", static_cast<unsigned long long>(session), capture, g_slots[i].thread_id, first, n - 1, count,
++					g_slots[i].after_full.load(std::memory_order_relaxed), static_cast<unsigned long long>(t0));
++				lines.emplace_back(head + line);
++				line.clear();
++				first = n;
++			}
++
++			if (n < count)
++			{
++				if (!line.empty())
++				{
++					line += ' ';
++				}
++
++				line += text;
++			}
++		}
++	}
++
++	std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=end lines=%zu", static_cast<unsigned long long>(session),
++		capture, lines.size() + 1);
++	lines.emplace_back(head);
++	return lines;
++}
++} // namespace putllc_trace
++
++// ppu_profile (God of War III: where does the main PPU thread spend its time?). A sampler reads, about once per
++// millisecond for a bounded time, the state and the guest pc of the running PPU threads. With the LLVM PPU
++// recompiler the pc field is written at indirect transfers (returns, calls through a pointer), at system calls
++// and at reservation instructions, not at every instruction or direct call: a sample names the last such point,
++// that is a region of code (often the caller of the hot code), never an exact instruction. Samples are counted per
++// 256-byte region; a thread seen waiting is counted as waiting with the name of its system call when it has one.
++namespace ppu_profile
++{
++inline constexpr std::size_t max_regions = 512;   // distinct 256-byte regions per thread (then counted in overflow)
++inline constexpr std::size_t max_threads = 4;
++inline constexpr std::uint32_t max_samples = 5000; // about 5 s at 1 kHz
++inline constexpr std::uint32_t max_captures = 3;  // per boot
++
++inline std::atomic<bool> armed{false};
++
++struct histogram
++{
++	struct cell
++	{
++		std::uint32_t region = 0; // pc >> 8, 0: empty
++		std::uint32_t count = 0;
++		std::uint32_t first_pc = 0;
++	};
++
++	std::array<cell, max_regions> cells{};
++	std::uint32_t thread_id = 0;
++	std::uint64_t running = 0, waiting = 0, overflow = 0, same_pc = 0;
++	std::uint32_t last_pc = 0;
++	std::uint32_t distinct = 0;
++
++	void add_running(std::uint32_t pc) noexcept
++	{
++		running++;
++		same_pc += pc == last_pc;
++		last_pc = pc;
++		const std::uint32_t region = pc >> 8;
++		std::size_t at = (region * 2654435761u) % max_regions;
++
++		for (std::size_t probe = 0; probe < max_regions; probe++, at = (at + 1) % max_regions)
++		{
++			cell& c = cells[at];
++
++			if (c.count == 0)
++			{
++				if (distinct >= max_regions * 3 / 4)
++				{
++					break; // keep the table sparse: the rest is overflow
++				}
++
++				c = {region, 1, pc};
++				distinct++;
++				return;
++			}
++
++			if (c.region == region)
++			{
++				c.count++;
++				return;
++			}
++		}
++
++		overflow++;
++	}
++
++	void add_waiting() noexcept
++	{
++		waiting++;
++	}
++
++	// The busiest regions first: region_base:count:first_pc.
++	std::string top(std::size_t limit) const
++	{
++		std::vector<cell> sorted;
++
++		for (const cell& c : cells)
++		{
++			if (c.count)
++			{
++				sorted.push_back(c);
++			}
++		}
++
++		std::sort(sorted.begin(), sorted.end(), [](const cell& a, const cell& b) { return a.count != b.count ? a.count > b.count : a.region < b.region; });
++		std::string out;
++		char item[48];
++
++		for (std::size_t i = 0; i < sorted.size() && i < limit; i++)
++		{
++			std::snprintf(item, sizeof(item), "%s%x:%u:%x", i ? "," : "", sorted[i].region << 8, sorted[i].count, sorted[i].first_pc);
++			out += item;
++		}
++
++		return out.empty() ? "-" : out;
++	}
++};
++} // namespace ppu_profile
++
++// The explicit start both captures share. The in-game menu of the host does not pause the emulation, so the host says
++// "start now" when that menu closes: it writes "Enabled" again to the capture's setting of the running title, and the
++// settings API hands that write here instead of treating it as a change of setting (nothing is loaded or saved).
++// Only a capture enabled at boot accepts a request.
++namespace start_request
++{
++inline std::atomic<bool> putllc{false};
++inline std::atomic<bool> ppu{false};
++
++// Settings API thread, a title running. True: the write is a start request and it is recorded.
++inline bool offer(std::string_view key, std::string_view value) noexcept
++{
++	if (value != "Enabled")
++	{
++		return false;
++	}
++
++	if (key == "experimental.heavy_putllc_trace" && putllc_trace::armed.load(std::memory_order_relaxed))
++	{
++		putllc.store(true, std::memory_order_release);
++		return true;
++	}
++
++	if (key == "experimental.ppu_region_profile" && ppu_profile::armed.load(std::memory_order_relaxed))
++	{
++		ppu.store(true, std::memory_order_release);
++		return true;
++	}
++
++	return false;
++}
++
++// Diagnostic thread, every sample: one start per request; a request found while the emulation does not run is dropped.
++inline bool take(std::atomic<bool>& request, bool running) noexcept
++{
++	return request.exchange(false, std::memory_order_acq_rel) && running;
++}
++
++// Diagnostic thread, another boot: a request of the previous game starts nothing.
++inline void clear() noexcept
++{
++	putllc.store(false, std::memory_order_release);
++	ppu.store(false, std::memory_order_release);
++}
++} // namespace start_request
++} // namespace rpcs3::ios::capture912
 diff --git a/rpcs3/ios/IOSCompileAdmission.h b/rpcs3/ios/IOSCompileAdmission.h
 new file mode 100644
 index 0000000..4eac154
@@ -132616,12 +133268,13 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..d53946d 100644
+index 74a6dc7..d9aa2c8 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
-@@ -1,6 +1,15 @@
+@@ -1,6 +1,16 @@
 +#include "IOSRestoreFailure.h"
 +#include "IOSCompileAdmission.h"
++#include "IOSCapture912.h" // REWINDBOX_CAPTURE_912
 +#include <os/proc.h>
 +#include <mach/mach.h>
  #include "RPCS3IOS.h"
@@ -132635,7 +133288,7 @@ index 74a6dc7..d53946d 100644
  #include "RPCS3IOSCapabilities.h"
  #include "RPCS3IOSConfigDatabase.h"
  #include "RPCS3IOSContract.h"
-@@ -10,21 +19,30 @@
+@@ -10,21 +20,30 @@
  #include "RPCS3IOSPath.h"
  #include "RPCS3IOSPlatform.h"
  #include "RPCS3IOSPerformance.h"
@@ -132666,7 +133319,7 @@ index 74a6dc7..d53946d 100644
  #include "Emu/Audio/IOS/IOSAudioBackend.h"
  #include "Emu/Audio/Null/null_enumerator.h"
  #include "Emu/Cell/Modules/cellMsgDialog.h"
-@@ -42,6 +60,7 @@
+@@ -42,6 +61,7 @@
  #include "Emu/NP/rpcn_config.h"
  #ifdef HAVE_VULKAN
  #include "Emu/RSX/VK/VKGSRender.h"
@@ -132674,7 +133327,7 @@ index 74a6dc7..d53946d 100644
  #endif
  #include "Emu/system_config.h"
  #include "Emu/system_progress.hpp"
-@@ -98,6 +117,9 @@
+@@ -98,6 +118,9 @@
  #include <thread>
  #include <unordered_map>
  #include <vector>
@@ -132684,7 +133337,7 @@ index 74a6dc7..d53946d 100644
  
  namespace
  {
-@@ -106,10 +128,17 @@ std::mutex g_progress_mutex;
+@@ -106,10 +129,17 @@ std::mutex g_progress_mutex;
  rpcs3::ios::lifecycle g_lifecycle;
  rpcs3::ios::error_store g_last_error;
  rpcs3_ios_config g_config{};
@@ -132702,7 +133355,7 @@ index 74a6dc7..d53946d 100644
  std::atomic_bool g_accept_display_surfaces = false;
  std::atomic_bool g_accept_pad_state = false;
  rpcs3::ios::display_surface_registry g_display_surface;
-@@ -312,7 +341,8 @@ boot_progress_snapshot capture_boot_progress()
+@@ -312,7 +342,8 @@ boot_progress_snapshot capture_boot_progress()
  	};
  
  	boot_progress_snapshot snapshot = read();
@@ -132712,7 +133365,7 @@ index 74a6dc7..d53946d 100644
  	{
  		boot_progress_snapshot next = read();
  		if (next == snapshot)
-@@ -321,6 +351,7 @@ boot_progress_snapshot capture_boot_progress()
+@@ -321,6 +352,7 @@ boot_progress_snapshot capture_boot_progress()
  		}
  		snapshot = std::move(next);
  	}
@@ -132720,7 +133373,7 @@ index 74a6dc7..d53946d 100644
  }
  
  rpcs3_ios_emulation_state current_emulation_state() noexcept
-@@ -378,6 +409,11 @@ void emit_log(int32_t level, std::string_view message)
+@@ -378,6 +410,11 @@ void emit_log(int32_t level, std::string_view message)
  	g_config.log_callback(g_config.user_context, level, terminated.c_str());
  }
  
@@ -132732,7 +133385,7 @@ index 74a6dc7..d53946d 100644
  void emit_jit_arena_statistics(std::string_view phase)
  {
  	constexpr usz mib = 1024 * 1024;
-@@ -385,7 +421,7 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -385,7 +422,7 @@ void emit_jit_arena_statistics(std::string_view phase)
  	emit_log(4, fmt::format(
  		"iOS JIT arena %s: code live=%u MiB, free=%u MiB (%llu bytes), largest_free=%u MiB (%llu bytes), "
  		"runtime=%u MiB, peak=%u MiB; data live=%u MiB, free=%u MiB (%llu bytes), "
@@ -132741,7 +133394,7 @@ index 74a6dc7..d53946d 100644
  		phase,
  		stats.live_code_bytes / mib,
  		stats.free_code_bytes / mib,
-@@ -401,7 +437,15 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -401,7 +438,15 @@ void emit_jit_arena_statistics(std::string_view phase)
  		static_cast<u64>(stats.largest_free_data_bytes),
  		stats.runtime_data_bytes / mib,
  		stats.peak_data_bytes / mib,
@@ -132758,7 +133411,7 @@ index 74a6dc7..d53946d 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +492,32 @@ private:
+@@ -448,16 +493,32 @@ private:
  	std::string m_name;
  };
  
@@ -132795,7 +133448,7 @@ index 74a6dc7..d53946d 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -904,10 +964,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +965,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -132808,7 +133461,7 @@ index 74a6dc7..d53946d 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -963,8 +1023,25 @@ EmuCallbacks make_callbacks()
+@@ -963,8 +1024,25 @@ EmuCallbacks make_callbacks()
  	};
  	callbacks.init_gs_render = [](utils::serial* archive)
  	{
@@ -132834,7 +133487,7 @@ index 74a6dc7..d53946d 100644
  		case video_renderer::vulkan:
  #ifdef HAVE_VULKAN
  			g_fxo->init<rsx::thread, named_thread<VKGSRender>>(archive);
-@@ -1267,15 +1344,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1345,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -132853,7 +133506,7 @@ index 74a6dc7..d53946d 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1366,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1367,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -132982,7 +133635,7 @@ index 74a6dc7..d53946d 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1383,20 +1525,27 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1383,20 +1526,27 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  				jit_stats.expanded ? "expanded" : "standard"));
  		}
  		Emu.SetCallbacks(make_callbacks());
@@ -133013,7 +133666,7 @@ index 74a6dc7..d53946d 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1668,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1669,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -133021,7 +133674,7 @@ index 74a6dc7..d53946d 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3311,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3312,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -133030,7 +133683,23 @@ index 74a6dc7..d53946d 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3219,6 +3369,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3198,6 +3349,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+ 		set_error("A setting key and value are required");
+ 		return RPCS3_IOS_INVALID_ARGUMENT;
+ 	}
++	// REWINDBOX_CAPTURE_912: the host's in-game menu does not pause the emulation; when it closes, the host writes
++	// "Enabled" again to a capture setting of the running title. For a capture enabled at boot that write is the
++	// explicit start of one capture: nothing is loaded, changed or saved. Every other write while a title runs is
++	// refused just below, as before.
++	if (title_id && Emu.GetStatus(false) == system_state::running && Emu.GetTitleID() == title_id &&
++		rpcs3::ios::capture912::start_request::offer(key, value))
++	{
++		return RPCS3_IOS_OK;
++	}
+ 	if (const auto result = rpcs3::ios::validate_idle_operation_contract(
+ 		g_lifecycle.state(), current_emulation_state()); result != RPCS3_IOS_OK)
+ 	{
+@@ -3219,6 +3379,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
  		normalize_current_game_resolution(game.resolution);
@@ -133061,7 +133730,7 @@ index 74a6dc7..d53946d 100644
  		if (std::string_view{key} == "gpu.resolution")
  		{
  			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
-@@ -3233,12 +3407,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3417,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -133080,7 +133749,7 @@ index 74a6dc7..d53946d 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3487,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3497,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -133090,7 +133759,7 @@ index 74a6dc7..d53946d 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3566,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3576,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -133101,7 +133770,7 @@ index 74a6dc7..d53946d 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4353,6 +4527,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -4353,6 +4537,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -133109,7 +133778,7 @@ index 74a6dc7..d53946d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4396,6 +4571,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4396,6 +4581,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -133117,7 +133786,7 @@ index 74a6dc7..d53946d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4444,6 +4620,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4630,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -133130,7 +133799,7 @@ index 74a6dc7..d53946d 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4653,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4663,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -133139,7 +133808,7 @@ index 74a6dc7..d53946d 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4670,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4680,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -133178,7 +133847,7 @@ index 74a6dc7..d53946d 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4717,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4727,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -133200,7 +133869,7 @@ index 74a6dc7..d53946d 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,14 +4731,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,14 +4741,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
@@ -133225,12 +133894,12 @@ index 74a6dc7..d53946d 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -4644,7 +4852,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4862,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
 +			return result;
-+		}
+ 		}
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D1): the snapshot leaves struct_size at
 +		// the Build 487 size only when the caller passed it; then the emulator state
@@ -133258,12 +133927,12 @@ index 74a6dc7..d53946d 100644
 +				metrics->boot_progress_total = permille.total;
 +				metrics->valid_fields |= RPCS3_IOS_PERFORMANCE_BOOT_PROGRESS_VALID;
 +			}
- 		}
++		}
 +
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4968,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4978,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -133474,7 +134143,7 @@ index 74a6dc7..d53946d 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5216,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5226,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -133491,7 +134160,7 @@ index 74a6dc7..d53946d 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5263,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5273,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -133511,7 +134180,7 @@ index 74a6dc7..d53946d 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5298,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5308,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -135155,10 +135824,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..01cb00b 100644
+index 7c3389b..3927c70 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,38 @@
+@@ -1,10 +1,39 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -135171,6 +135840,7 @@ index 7c3389b..01cb00b 100644
 +#include "IOSJitLoad.h"
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSTexturePrehash.h"
++#include "IOSCapture912.h"
 +#include "IOSDeferredCommit.h"
 +#include "IOSEarlySubmit.h"
 +#include "IOSRsxIdlePark.h"
@@ -135197,7 +135867,7 @@ index 7c3389b..01cb00b 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +41,122 @@ namespace
+@@ -13,6 +42,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -135320,7 +135990,7 @@ index 7c3389b..01cb00b 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +171,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +172,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -135397,7 +136067,7 @@ index 7c3389b..01cb00b 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +261,116 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +262,121 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -135488,6 +136158,11 @@ index 7c3389b..01cb00b 100644
 +	resolved.put_epoch_horizon = resolved.texture_validation_epoch &&
 +		resolve_mode(g_cfg.ios_experimental.put_epoch_horizon, is_god_of_war_iii_title(title_id));
 +	rpcs3::ios::texture_validation::put_horizon_policy::enabled.store(resolved.put_epoch_horizon, std::memory_order_relaxed);
++	// REWINDBOX_CAPTURE_912: off unless enabled for this boot (Automatic is off for every title).
++	resolved.heavy_putllc_trace = resolve_mode(g_cfg.ios_experimental.heavy_putllc_trace, false);
++	resolved.ppu_region_profile = resolve_mode(g_cfg.ios_experimental.ppu_region_profile, false);
++	rpcs3::ios::capture912::putllc_trace::armed.store(resolved.heavy_putllc_trace, std::memory_order_relaxed);
++	rpcs3::ios::capture912::ppu_profile::armed.store(resolved.ppu_region_profile, std::memory_order_relaxed);
 +	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h, ios/IOSTitleLevers.h): needs the epochs.
 +	// Automatic serves hits for Assassin's Creed and verifies every hit for Black Ops II (counters only);
 +	// Enabled serves hits for any title with the epochs; Disabled keeps the Core 659 lookup. Set after the
@@ -135514,7 +136189,7 @@ index 7c3389b..01cb00b 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +382,251 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +388,253 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -135687,6 +136362,8 @@ index 7c3389b..01cb00b 100644
 +	ios_experimental_log.notice("Resolved title policy 907: native_half_registers=%d load_op_clear=%d",
 +		resolved.native_half_registers, resolved.load_op_clear);
 +	ios_experimental_log.notice("Resolved title policy 910: put_epoch_horizon=%d", resolved.put_epoch_horizon);
++	ios_experimental_log.notice("Resolved title policy 912: heavy_putllc_trace=%d ppu_region_profile=%d", resolved.heavy_putllc_trace,
++		resolved.ppu_region_profile);
 +	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
 +	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
 +		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
@@ -135777,7 +136454,7 @@ index 7c3389b..01cb00b 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..fa94b82 100644
+index 8fba197..c135e3e 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -135788,7 +136465,7 @@ index 8fba197..fa94b82 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,34 @@ struct experimental_policy
+@@ -12,6 +13,37 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -135820,10 +136497,13 @@ index 8fba197..fa94b82 100644
 +	bool texture_prehash = false;
 +	// REWINDBOX_PUT_HORIZON_910: PUT changes read below the last horizon start no texture epoch.
 +	bool put_epoch_horizon = false;
++	// REWINDBOX_CAPTURE_912: bounded captures started when the emulation leaves a pause.
++	bool heavy_putllc_trace = false;
++	bool ppu_region_profile = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +49,140 @@ struct experimental_policy
+@@ -20,14 +52,140 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -135966,10 +136646,10 @@ index 8fba197..fa94b82 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..e48e1c8
+index 0000000..8453ee6
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,600 @@
+@@ -0,0 +1,914 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -135983,12 +136663,16 @@ index 0000000..e48e1c8
 +#include "Emu/Cell/lv2/sys_semaphore.h" // REWINDBOX_FREEZE_DEEP_621
 +#include "Emu/Cell/lv2/sys_lwcond.h" // REWINDBOX_FREEZE_POLLER_908
 +#include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
++#include "ios/IOSCapture912.h" // REWINDBOX_CAPTURE_912
++#include "Emu/RSX/RSXFIFO.h"
 +#include <cstring>
 +#include "Emu/Memory/vm_reservation.h"
 +#include "Emu/Cell/timers.hpp"
 +#include "Emu/RSX/RSXThread.h"
 +#include "Utilities/Thread.h"
 +#include "util/logs.hpp"
++#include "util/sysinfo.hpp" // REWINDBOX_CAPTURE_912: utils::get_tsc_freq
++#include "util/tsc.hpp"
 +
 +#include <algorithm>
 +#include <chrono>
@@ -136207,11 +136891,17 @@ index 0000000..e48e1c8
 +		return "FREEZE_DUMP rsx present=0";
 +	}
 +
++	// REWINDBOX_CAPTURE_912: where the FIFO itself stands (its internal GET can be ahead of the published one), the
++	// last command word it decoded and the arguments it still waits for: a FIFO waiting for PUT inside a method, or
++	// standing on a jump, is told apart from one that has nothing to read.
++	const auto* fifo = rsx->fifo_ctrl.get();
 +	std::string line = fmt::format(
-+		"FREEZE_DUMP rsx present=1 state=%s fifo_state=%u get=0x%x put=0x%x in_begin_end=%u ext_lock=%u",
++		"FREEZE_DUMP rsx present=1 state=%s fifo_state=%u get=0x%x put=0x%x in_begin_end=%u ext_lock=%u "
++		"fifo_pos=0x%x last_cmd=0x%x args_left=%u",
 +		cpu_state_token(*rsx), static_cast<u32>(rsx->performance_counters.state),
 +		rsx->ctrl ? +rsx->ctrl->get : 0u, rsx->ctrl ? +rsx->ctrl->put : 0u,
-+		rsx->in_begin_end ? 1u : 0u, +rsx->external_interrupt_lock);
++		rsx->in_begin_end ? 1u : 0u, +rsx->external_interrupt_lock,
++		fifo ? fifo->get_pos() : 0u, fifo ? fifo->last_cmd() : 0u, fifo ? fifo->get_remaining_args_count() : 0u);
 +	return bound_line(line);
 +}
 +}
@@ -136298,7 +136988,9 @@ index 0000000..e48e1c8
 +			idm::select<lv2_obj, lv2_sema>([&](u32 id, lv2_sema& sema)
 +			{
 +				const s32 val = sema.val;
-+				if (val >= 0 || semaphores.size() >= 8)
++				// REWINDBOX_CAPTURE_912: up to 32 are collected (8 before: the semaphore of the main thread was
++				// often not among them); the dump lists those a watched thread waits on first, 12 at most.
++				if (val >= 0 || semaphores.size() >= 32)
 +				{
 +					return;
 +				}
@@ -136430,6 +137122,17 @@ index 0000000..e48e1c8
 +		for (const auto& cond : lwconds)
 +		{
 +			deep.push_back(lwcond_line(cond));
++		}
++
++		// REWINDBOX_CAPTURE_912: the semaphores the first PPU thread (the title's main thread) waits on come first.
++		const u32 first_ppu_id = ppus.empty() ? 0u : ppus.front()->id;
++		std::stable_partition(semaphores.begin(), semaphores.end(), [&](const sema_state& sema)
++		{
++			return std::find(sema.waiters.begin(), sema.waiters.end(), first_ppu_id) != sema.waiters.end();
++		});
++		if (semaphores.size() > 12)
++		{
++			semaphores.resize(12);
 +		}
 +
 +		for (const auto& sema : semaphores)
@@ -136570,12 +137273,303 @@ index 0000000..e48e1c8
 +	ios_freeze_dump.notice("%s", snapshot);
 +	return true;
 +}
++
++// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): the diagnostic-thread side of the two captures. Called by the
++// profiler sampler every 500 ms; nothing here runs on an emulated thread except the PPU sampler's own reads.
++namespace
++{
++namespace capture = rpcs3::ios::capture912;
++
++u64 s_capture_session = ~0ull;  // the boot session the limits below belong to
++u32 s_putllc_captures = 0;      // captures armed in this boot session
++u32 s_putllc_number = 0;        // the capture in progress: its number and the boot session that armed it
++u64 s_putllc_session = 0;
++u64 s_putllc_started_us = 0;
++const char* s_putllc_end = "-";
++
++struct ppu_sampling
++{
++	std::vector<stx::shared_ptr<named_thread<ppu_thread>>> threads;
++	std::array<capture::ppu_profile::histogram, capture::ppu_profile::max_threads> tracked{};
++	std::array<std::array<std::pair<const char*, u32>, 8>, capture::ppu_profile::max_threads> wait_calls{};
++	u32 tracked_count = 0;
++	u64 others_running = 0;
++	u32 samples = 0;
++	u64 started_us = 0, ended_us = 0;
++	u64 session = 0;  // the boot session that armed this capture, and its number in that session
++	u32 number = 0;
++	u32 thread_count = 0;
++	std::array<std::string, capture::ppu_profile::max_threads> names;
++	std::atomic<bool> stop{false};
++	std::atomic<bool> done{false};
++	std::thread worker;
++
++	void run()
++	{
++		while (samples < capture::ppu_profile::max_samples && !stop.load(std::memory_order_relaxed) &&
++			Emu.GetStatus(false) == system_state::running)
++		{
++			for (const auto& ptr : threads)
++			{
++				const ppu_thread& ppu = *ptr;
++				u32 slot = tracked_count;
++
++				for (u32 i = 0; i < tracked_count; i++)
++				{
++					if (tracked[i].thread_id == ppu.id)
++					{
++						slot = i;
++						break;
++					}
++				}
++
++				const bool waiting = !!(ppu.state & cpu_flag::wait);
++
++				if (slot == tracked_count)
++				{
++					// Tracked: the first thread of the list (the title's main thread), then the first seen running.
++					if (tracked_count >= capture::ppu_profile::max_threads || (waiting && &ptr != &threads.front()))
++					{
++						others_running += !waiting;
++						continue;
++					}
++
++					tracked[tracked_count++].thread_id = ppu.id;
++				}
++
++				if (!waiting)
++				{
++					tracked[slot].add_running(ppu.cia);
++					continue;
++				}
++
++				tracked[slot].add_waiting();
++				const char* call = ppu.current_function;
++
++				for (auto& [name, count] : wait_calls[slot])
++				{
++					if (count == 0 || name == call)
++					{
++						name = call;
++						count++;
++						break;
++					}
++				}
++			}
++
++			samples++;
++			std::this_thread::sleep_for(std::chrono::microseconds(1000));
++		}
++
++		ended_us = get_system_time();
++
++		// The thread objects are released here, by this worker, about a millisecond after the emulation left the
++		// running state or the capture ended; the diagnostic thread only reads the copies below.
++		thread_count = static_cast<u32>(threads.size());
++
++		for (u32 i = 0; i < tracked_count; i++)
++		{
++			for (const auto& ptr : threads)
++			{
++				if (ptr->id == tracked[i].thread_id)
++				{
++					names[i] = ptr->get_name();
++					break;
++				}
++			}
++		}
++
++		threads.clear();
++		done.store(true, std::memory_order_release);
++	}
++};
++
++ppu_sampling* s_ppu = nullptr; // one capture at a time; deleted by the diagnostic thread after the join
++u32 s_ppu_captures = 0;
++
++void emit_ppu_profile(ppu_sampling& run)
++{
++	const u64 session = run.session;
++	const u32 s_ppu_captures = run.number;
++	ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=begin samples=%u period_us=1000 elapsed_us=%llu threads=%u "
++		"tracked=%u others_running=%llu region_bytes=256 pc_scope=last_indirect_transfer_syscall_or_reservation "
++		"top_fields=region:samples:first_pc", session, s_ppu_captures, run.samples, run.ended_us - run.started_us,
++		run.thread_count, run.tracked_count, run.others_running);
++
++	for (u32 i = 0; i < run.tracked_count; i++)
++	{
++		const auto& h = run.tracked[i];
++		const std::string name = run.names[i].empty() ? std::string("-") : sanitize_token(run.names[i]);
++
++		std::string calls;
++
++		for (const auto& [call, count] : run.wait_calls[i])
++		{
++			if (count)
++			{
++				fmt::append(calls, "%s%s:%u", calls.empty() ? "" : ",", sanitize_token(call ? call : "guest_code"), count);
++			}
++		}
++
++		std::string line = fmt::format("COREPROF PPUPROF912 session=%llu capture=%u part=thread id=0x%x name=%s running=%llu "
++			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id, name, h.running,
++			h.waiting, h.same_pc, h.distinct, h.overflow, calls.empty() ? std::string("-") : calls, h.top(24));
++		ios_freeze_dump.notice("%s", bound_line(line));
++	}
++
++	ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=end", session, s_ppu_captures);
++}
++}
++
++void rewindbox_capture912_tick(unsigned long long session)
++{
++	const system_state status = Emu.GetStatus(false);
++	const bool running = status == system_state::running;
++	namespace trace = capture::putllc_trace;
++
++	if (session != s_capture_session)
++	{
++		// Another boot: the per-boot limits start again, a start request of the previous game starts nothing, and a
++		// capture of the previous boot ends now; it is exported under the session that started it.
++		s_capture_session = session;
++		capture::start_request::clear();
++		s_putllc_captures = 0;
++		s_ppu_captures = 0;
++
++		if (trace::is_collecting())
++		{
++			s_putllc_end = "session_change";
++			trace::stop();
++		}
++
++		if (s_ppu)
++		{
++			s_ppu->stop.store(true, std::memory_order_relaxed);
++		}
++	}
++
++	// The explicit start: the host wrote "Enabled" to the capture's setting when its in-game menu closed
++	// (ios/IOSCapture912.h, start_request). A request that cannot be served says why in the journal.
++	const bool start_putllc = capture::start_request::take(capture::start_request::putllc, running);
++	const bool start_ppu = capture::start_request::take(capture::start_request::ppu, running);
++	bool putllc_started = false;
++
++	// Heavy PUTLLC trace.
++	if (start_putllc)
++	{
++		if (s_putllc_captures >= trace::max_captures)
++		{
++			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu part=refused reason=limit_per_boot max=%u", session, trace::max_captures);
++		}
++		else if (!trace::start(utils::get_tsc()))
++		{
++			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu part=refused reason=previous_capture_not_exported", session);
++		}
++		else
++		{
++			putllc_started = true;
++			s_putllc_started_us = get_system_time();
++			s_putllc_session = session;
++			s_putllc_number = ++s_putllc_captures;
++			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu capture=%u part=armed trigger=menu_closed capacity=%u max_threads=%u max_ms=%u",
++				s_putllc_session, s_putllc_number, static_cast<u32>(trace::capacity), static_cast<u32>(trace::max_threads),
++				static_cast<u32>(trace::max_capture_ns / 1'000'000));
++		}
++	}
++
++	if (putllc_started)
++	{
++	}
++	else if (trace::is_collecting())
++	{
++		const u64 elapsed = get_system_time() - s_putllc_started_us;
++
++		if (trace::full() || elapsed * 1000 >= trace::max_capture_ns || !running)
++		{
++			s_putllc_end = trace::full() ? "full" : running ? "time" : "not_running";
++			trace::stop();
++		}
++	}
++	else if (trace::quiescent())
++	{
++		for (const std::string& line : trace::format_capture(s_putllc_number, s_putllc_session, utils::get_tsc_freq(),
++			get_system_time() - s_putllc_started_us, s_putllc_end))
++		{
++			ios_freeze_dump.notice("%s", line);
++		}
++
++		trace::release();
++	}
++
++	// PPU region profile.
++	if (s_ppu)
++	{
++		if (start_ppu)
++		{
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=previous_capture_not_exported", session);
++		}
++
++		if (!running)
++		{
++			s_ppu->stop.store(true, std::memory_order_relaxed);
++		}
++
++		if (s_ppu->done.load(std::memory_order_acquire))
++		{
++			s_ppu->worker.join();
++			emit_ppu_profile(*s_ppu);
++			delete s_ppu;
++			s_ppu = nullptr;
++		}
++	}
++	else if (start_ppu && s_ppu_captures >= capture::ppu_profile::max_captures)
++	{
++		ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=limit_per_boot max=%u", session, capture::ppu_profile::max_captures);
++	}
++	else if (start_ppu)
++	{
++		auto run = std::make_unique<ppu_sampling>();
++
++		{
++			// The same try-locked reader pattern as the freeze dump: a busy lock skips this capture.
++			std::shared_lock idm_reader(id_manager::g_mutex, std::try_to_lock);
++
++			if (idm_reader.owns_lock() && g_fxo->is_init<id_manager::id_map<named_thread<ppu_thread>>>())
++			{
++				idm::select<named_thread<ppu_thread>>([&](u32 id, named_thread<ppu_thread>&)
++				{
++					if (auto ptr = idm::get_unlocked<named_thread<ppu_thread>>(id))
++					{
++						run->threads.emplace_back(std::move(ptr));
++					}
++				}, idm::unlocked);
++			}
++		}
++
++		if (!run->threads.empty())
++		{
++			run->started_us = get_system_time();
++			run->session = session;
++			run->number = ++s_ppu_captures;
++			const u32 listed = static_cast<u32>(run->threads.size());
++			s_ppu = run.release();
++			s_ppu->worker = std::thread([state = s_ppu] { state->run(); });
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=armed trigger=menu_closed threads=%u max_samples=%u",
++				session, s_ppu->number, listed, capture::ppu_profile::max_samples);
++		}
++		else
++		{
++			// The thread list is read under a try-lock; busy, or no PPU thread yet.
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=thread_list_unavailable", session);
++		}
++	}
++}
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.h b/rpcs3/ios/RPCS3IOSFreezeDump.h
 new file mode 100644
-index 0000000..7719240
+index 0000000..411dec0
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.h
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,30 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: bounded FREEZE_DUMP of the guest threads.
@@ -136601,6 +137595,11 @@ index 0000000..7719240
 +// Returns true when the dump was logged (false: not running, idm lock busy, rate limit).
 +bool neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores,
 +	unsigned long long episode = 0);
++
++// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): called by the profiler sampler every sample (500 ms). Starts an armed
++// capture when the emulation leaves a pause, stops it by itself, and logs its bounded "COREPROF PUTLLCTRACE912" /
++// "COREPROF PPUPROF912" lines. Does nothing when neither capture is armed (their boot settings are off).
++void rewindbox_capture912_tick(unsigned long long session);
 diff --git a/rpcs3/ios/RPCS3IOSFreezeEpisode.h b/rpcs3/ios/RPCS3IOSFreezeEpisode.h
 new file mode 100644
 index 0000000..655b3e7
@@ -137235,7 +138234,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..77889ef 100644
+index d800542..9629144 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,209 @@
@@ -138006,7 +139005,7 @@ index d800542..77889ef 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +794,1475 @@ public:
+@@ -108,12 +794,1477 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -138088,6 +139087,8 @@ index d800542..77889ef 100644
 +
 +			// REWINDBOX_FREEZE_EPISODE_621: every sample, outside the profile lock.
 +			observe_freeze_episode(usage);
++			// REWINDBOX_CAPTURE_912: the armed captures (off unless their boot settings are on).
++			rewindbox_capture912_tick(m_profile_session.load(std::memory_order_relaxed));
 +
 +			if (report)
 +			{
@@ -139484,7 +140485,7 @@ index d800542..77889ef 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2270,93 @@ private:
+@@ -121,6 +2272,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -139578,7 +140579,7 @@ index d800542..77889ef 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2364,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2366,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -139672,7 +140673,7 @@ index d800542..77889ef 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2461,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2463,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -139801,7 +140802,7 @@ index d800542..77889ef 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2592,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2594,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -140408,7 +141409,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..790b2f8 100644
+index b7b0474..4b0e6b7 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -140473,7 +141474,7 @@ index b7b0474..790b2f8 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +147,72 @@ const std::array catalog{
+@@ -122,21 +147,74 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -140487,7 +141488,9 @@ index b7b0474..790b2f8 100644
 +	GAME_SETTING("experimental.metal_renderer", "Experimental", "Renderer", "Native Metal 4 renderer", "Draws the PlayStation 3 graphics with the native Metal 4 renderer instead of Vulkan on MoltenVK: textures, render-to-texture and readback, exact occlusion queries, MSAA and native overlays run on Metal 4; paths still missing are counted in the log. Needs iOS 26 and a Metal 4 GPU, otherwise Vulkan is used. Automatic keeps Vulkan. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.metal_renderer, 0, 0, 0),
 +	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
 +	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
-+	SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
++	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
++	GAME_SETTING("experimental.heavy_putllc_trace", "Experimental", "FPS Experiments", "Heavy PUTLLC trace on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), records for each SPU thread up to 512 consecutive PUTLLC that change data (address, changed part, values read, asked and found) and writes them to the performance journal; two captures per boot at most. Nothing in the reservation protocol changes. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.heavy_putllc_trace, 0, 0, 0),
++	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),
 +	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
 +	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
@@ -140548,7 +141551,7 @@ index b7b0474..790b2f8 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +281,89 @@ const std::array catalog{
+@@ -205,6 +283,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -140638,7 +141641,7 @@ index b7b0474..790b2f8 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +732,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +734,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

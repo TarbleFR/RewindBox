@@ -1876,6 +1876,36 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   });
 }
 
+// REWINDBOX_CAPTURE_912: the menu does not pause the PS3 emulation, so closing
+// it is the explicit start of a capture enabled on the test page (digits 20 and
+// 21 of levers627= at the last boot of this title): the Core takes this write
+// of the running title as "start one capture now" and loads, changes and saves
+// no setting. Nothing is sent when no capture is enabled, nor when the title
+// was stopped or booted again since the menu closed (a change made on the test
+// page restarts it); the request and its status join the journal.
+- (void)requestEnabledCaptures {
+  NSString* titleId = [self.activeTitleId copy];
+  if (!titleId.length || !self.gameController) return;
+  const uint64_t boot = _performanceDisplayEpoch.load(std::memory_order_acquire);
+  NSString* digits = RPCS3RsxConfigSnapshot(titleId)[@"levers627"];
+  NSArray<NSArray*>* captures = @[@[@19, @"experimental.heavy_putllc_trace"],
+                                  @[@20, @"experimental.ppu_region_profile"]];
+  for (NSArray* capture in captures) {
+    const NSUInteger bit = [capture[0] unsignedIntegerValue];
+    if (digits.length <= bit) continue;
+    const NSInteger digit = [digits characterAtIndex:bit] - '0';
+    if (digit < 0 || digit > 9 || !(digit & 1)) continue;
+    NSString* key = capture[1];
+    dispatch_async(_runtimeQueue, ^{
+      if (self.operationBusy || !self->_api.set_game_setting ||
+          self->_performanceDisplayEpoch.load(std::memory_order_acquire) != boot) return;
+      const rpcs3_ios_status status = self->_api.set_game_setting(titleId.UTF8String, key.UTF8String, "Enabled");
+      RPCS3Diagnostic(@"capture_request", [NSString stringWithFormat:@"CAPTURE_REQUEST title=%@ key=%@ status=%d",
+                                           titleId, key, (int)status]);
+    });
+  }
+}
+
 // REWINDBOX_GRAPHICS_TESTS_612: stop, write every change, then boot the title
 // again even when a change was refused (the game continues with the values it
 // had); the menu reports the refusal. Each applied change is logged.
@@ -2299,6 +2329,7 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
     if (!bridge) return;
     bridge.hostMenuOpen = NO;
     [bridge publishHostState];
+    [bridge requestEnabledCaptures];
   };
   menu.shareReport = ^(UIViewController* presenter) {
     [weakSelf presentIncidentReportFrom:presenter];
