@@ -168,6 +168,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'extra-set-binds': 'delivered', 'array-reference-deltas': 'delivered',
             # Core 717: a worker's libraries published to main during play.
             'worker-library-share': 'delivered',
+            # Core 719 (lot 9): the GC keep-alive's fragmentation guard.
+            'bgc-fragmentation-guard': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.

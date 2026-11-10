@@ -1,0 +1,62 @@
+{
+  "result": "passed",
+  "checks": 25,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Library/EmbeddedSession.cs": "fb620f855a7946e97682592d047ff06eba9210ff6520a1c13ace740a048bbb06"
+  },
+  "report": {
+    "policy": {
+      "none": "NotSeen",
+      "0": "Wait",
+      "11999": "Wait",
+      "12000": "Induce",
+      "16000": "Induce",
+      "16001": "Missed",
+      "30000": "Missed",
+      "14000small": "SmallHeap",
+      "14000at384": "Induce"
+    },
+    "simulated": {
+      "beforeFirst": 0,
+      "at11": 0,
+      "at14": 1,
+      "second": 2,
+      "smallHeap": 2,
+      "missed": 2,
+      "afterStop": 2,
+      "firstAtMs": 32250,
+      "secondAtMs": 46250,
+      "lines": [
+        "gcKeepAlive/started: background gen2 requested 12-16 s after the previous one (adapt_bgc_keepalive)",
+        "gcKeepAlive/summary: background gen2 requests 2, windows missed 1, small-heap skips 1, background records seen 4 (adapt_bgc_keepalive)"
+      ]
+    },
+    "real": {
+      "requested": 3,
+      "backgroundAdvanced": 143,
+      "blockingAdvanced": 0,
+      "gen2Collections": 4,
+      "heapMiB": 514,
+      "concurrent": "Interactive",
+      "lines": [
+        "gcKeepAlive/started: background gen2 requested 12-16 s after the previous one (adapt_bgc_keepalive)",
+        "gcKeepAlive/summary: background gen2 requests 3, windows missed 0, small-heap skips 0, background records seen 4 (adapt_bgc_keepalive)"
+      ]
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionLibraryAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_bgc_keepalive.py": "c5038b7bae81af7e6cdb1f3464e86b72ec845b49611a56a0476cc20e922d15e1",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_bgc_keepalive_test.py": "594c8739328ef665d8177d332c1913b07eb353f760b4308e6e7af62b295ec660",
+    "test/melonx_bgc_keepalive/Program.cs": "d7b9c8d4ff12797b7b772014dd78517e628113930a3aa3169d76c6a5901401e0",
+    "test/melonx_adapter_control.py": "bb5014f76a57d1c17312d36d5d37d2ba960b4ebe6cc5cc54e980427060bc3433"
+  }
+}
