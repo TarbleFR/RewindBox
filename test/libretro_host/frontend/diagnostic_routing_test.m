@@ -35,7 +35,9 @@ static unsigned OpenDescriptorsFor(NSString *path, ino_t *inode) {
 
 int main(int argc, const char **argv) {
   @autoreleasepool {
-    Require(argc == 2, @"one isolated fixture directory");
+    // The frontend runner (test/libretro_frontend_test.py) passes the repository root after the fixture directory
+    // since 4 November 2026 (orientation selection on real store files); this test reads the fixture directory only.
+    Require(argc == 2 || argc == 3, @"one isolated fixture directory");
     NSString *root = @(argv[1]);
     NSFileManager *files = NSFileManager.defaultManager;
     NSString *legacy = Join(root, @"Libretro/Logs/session.log");

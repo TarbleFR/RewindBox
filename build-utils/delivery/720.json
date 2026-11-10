@@ -448,6 +448,14 @@
        "-B",
        "test/armsx2_skin_menu_button_test.py"
       ]
+     ],
+     [
+      "melonx-standalone-moltenvk-packaging",
+      [
+       "python3",
+       "-B",
+       "test/melonx_standalone_parity_test.py"
+      ]
      ]
     ],
     "flutterTestGlobs": [
