@@ -3650,6 +3650,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   touch areas unchanged; the windows are smaller where the drawn opening was wider/taller
   (appearance change, maintainer's request). Not observed on an iPhone.
   [Record](skins-screen-framing-2026-11-10.md), [sheets](evidence/skins-native-ratio/).
+- **Precise pressed states (10 Nov evening, high selector; Switch L/R, ZL/ZR, L3/R3):**
+  branch `work/skins-switch-press-20261110`, **stacked on PR169** (same archives): tools
+  `b8e2126a`, `aed95a55`, packs `8bfc9b47`. Finding: the pressed sprite shrank/shifted
+  the whole sprite, and sprites take in some body (seam gap of the touching shoulder
+  buttons, margin round measured shapes); that body darkened = brackets at the seams,
+  dark ticks on top, jagged ring round the light pills (invisible on the PS2's black
+  body). Change: cap settles straight down, only the control shaded (`_control_part`),
+  well in the cap's edge colour, lip shifted not wrapped, crop edge outside, light pills
+  pressed in place; Switch light pills fitted on their drawn edge (`fit_pill`) and drawn
+  antialiased; frames keep the measured stadium too (touch areas within 0.2 pt, portrait R3
+  37.8 -> 37.9). Archives: wii-pocket-original `fa0e9522` 5287792, gamecube-pocket-original
+  `a5f55e97` 6368088, ps2-pocket-original `f2aadf57` 7379806, switch-pocket `b0182254`
+  9967228 (replace the PR169 identities for these four). Proof (host): verifier 7 packs,
+  input chain 20 layouts (4894672 sprite points reach their own control), Flutter skins
+  156/156, rebuild byte-identical. Simulator: run `42850730582` (`8bfc9b47`) green: host
+  step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined to the outline
+  and clearly visible, released = rest, real touches). [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.

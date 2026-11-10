@@ -48,8 +48,8 @@
       "name": "GameCube Pocket — Original",
       "console": "gc",
       "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin",
-      "sha256": "e769c7088a900ed495a464c093154b8123bf5ecc995f4dc1c068f7c843da18e7",
-      "size": 6352280,
+      "sha256": "a5f55e973b2b86e640598bd9f23ebe278f330758fbb0d6c19f73414b4789646b",
+      "size": 6368088,
       "previewAssets": {
         "portrait": "assets/skins/pocket/gamecube-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/gamecube-pocket-original-landscape.png"
@@ -62,8 +62,8 @@
       "name": "Wii Pocket — Original",
       "console": "wii",
       "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin",
-      "sha256": "31506cdad95872de68b2a774e44fed378a291a28e6704e055d9369ce2315cf2f",
-      "size": 5282357,
+      "sha256": "fa0e9522888959134bb9069606ddf7d0eaf0120698b7abce0a9bbc1b767a990b",
+      "size": 5287792,
       "previewAssets": {
         "portrait": "assets/skins/pocket/wii-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/wii-pocket-original-landscape.png"
@@ -76,8 +76,8 @@
       "name": "PS2 Pocket — Original",
       "console": "ps2",
       "archiveAsset": "assets/skins/pocket/ps2-pocket-original.manicskin",
-      "sha256": "18712f79f08d14025286562a71a975749488bfa32952af1b10a6c26bfd845a56",
-      "size": 7366935,
+      "sha256": "f2aadf5787986e5ce07d6a51f35608a178ff18550a1660417112f42294247c65",
+      "size": 7379806,
       "previewAssets": {
         "portrait": "assets/skins/pocket/ps2-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/ps2-pocket-original-landscape.png"
@@ -90,8 +90,8 @@
       "name": "Switch Pocket",
       "console": "switch",
       "archiveAsset": "assets/skins/pocket/switch-pocket.manicskin",
-      "sha256": "c56f9a3760e98296edcc26ad19365879f55185820b76c6bb5748e30c89e94727",
-      "size": 9934222,
+      "sha256": "b0182254468af984b3825552941d74cde30f6a5a79c441d69eb9300bf3677a10",
+      "size": 9967228,
       "previewAssets": {
         "portrait": "assets/skins/pocket/switch-pocket-portrait.png",
         "landscape": "assets/skins/pocket/switch-pocket-landscape.png"
