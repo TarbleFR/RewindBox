@@ -256,11 +256,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Codex downloaded that file card independently: same 263465367 B / full SHA-256,
   ZIP test passed (5594 entries), bundle/version/build/minOS matched; byte-identical
   upload assets, JSON and SHA256SUMS staged. The earlier automatic scope refusal is
-  cleared. Real blockers: GitHub sign-in returned “Incorrect username or password”;
-  main's release-write tool is absent/gh token invalid; Discord requires a human
-  hCaptcha after secure sign-in. User browser authentication/verification is needed,
-  **not another publication approval**. No challenge attempted, tag/release/source
-  activation or Discord post. Keep public baseline 0.0.10 until publication confirmed.
+  cleared. **Current authentication blocker:** the maintainer requires Apple sign-in.
+  Apple accepted the secure credential flow, but GitHub then rejected the provider
+  response (“We could not validate the response from your social login provider”).
+  GitHub is not authenticated; automated retries stopped. Main also lacks a release
+  write tool/valid gh token; Discord still requires human hCaptcha verification.
+  No credentials/identifiers recorded. Authorization remains confirmed; no new approval
+  requested. No challenge attempted, tag/release/source activation or Discord post.
+  Keep public baseline 0.0.10 until publication confirmed.
   **Additional maintainer instructions (same request):** after publication, integrate
   `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
   branches and PRs. Classify each candidate against integrated content, active owners,
@@ -273,7 +276,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   replacement evidence for closure while retaining their unique histories; 3 ancestor
   branches are candidates after live head/owner checks. Preserve Dependabot163,
   active owner branches, and the 608/609/610/497 workflow inputs still used by current
-  delivery. No merge, closure, branch/run/workflow deletion has been performed.
+  delivery. [Detailed workflow review](evidence/github-cleanup-post-release-0.0.11-review.json):
+  2566 scanned blobs, 44 launchers classified, 14 preliminary superseded launchers
+  outside the current 718 closure. Recheck final references and execute the delivery
+  contract after removal; dynamic/outside references remain a stated limit.
+  No merge, closure, branch/run/workflow deletion has been performed.
 
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),

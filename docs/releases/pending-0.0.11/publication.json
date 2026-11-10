@@ -54,7 +54,7 @@
   "blockers": [
     {
       "service": "GitHub publication",
-      "observed": "Browser sign-in was submitted through the secure authentication flow; GitHub returned 'Incorrect username or password.' Main Claude has no authorized release/asset write tool and reports its gh token invalid. User browser authentication is required, not another publication approval."
+      "observed": "At the maintainer's explicit choice, secure Sign in with Apple completed its credential step and displayed a signed-in confirmation. After Continue, GitHub returned: 'We could not validate the response from your social login provider. Please try again or use our alternative sign-in or sign-up options.' GitHub authentication is not established; automated retries stopped. No password or account identifier is recorded."
     },
     {
       "service": "Discord",
@@ -68,7 +68,7 @@
     "No build, Core/pin change, tag, release or Discord post performed"
   ],
   "remaining": [
-    "Complete GitHub authentication in the shared browser, then the Discord human-verification step. Authorization is already confirmed.",
+    "Restore a valid GitHub session via the maintainer-required Apple sign-in (provider return rejected), then complete Discord human verification. Authorization is confirmed; do not request another publication approval.",
     "Re-use the byte-identical IPA and validated source assets staged for upload; check public release assets after upload.",
     "Create 0.0.11 draft release at the exact delivered source; upload byte-identical IPA, notes and checksum",
     "Download uploaded IPA and verify bytes/SHA-256 before publishing; activate stable root source.json only once the URL works",
@@ -90,7 +90,17 @@
       "3be2a34e4d056e9ad7078aecc710c54617f8a58f"
     ],
     "requires_reviewed_merge": true,
-    "force_push_authorized": false
+    "force_push_authorized": false,
+    "workflow_review": {
+      "path": "docs/evidence/github-cleanup-post-release-0.0.11-review.json",
+      "source": "c28a37d1abd46920b9fb14ed2f31e13e6050f6c4",
+      "read_only": true,
+      "coverage_blobs": 2566,
+      "classified_launchers": 44,
+      "preliminary_candidates": 14,
+      "post_deletion_contract_executed": false,
+      "limitation": "Only scanned coverage; dynamic/outside references not exhaustively excluded; recheck current tree and execute standard_delivery_contract_test before any retirement."
+    }
   },
   "ipa_verification": {
     "at": "2026-11-10",
