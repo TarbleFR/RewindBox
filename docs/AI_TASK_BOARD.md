@@ -246,6 +246,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   work and the selected renderer. Main retains Core/pin/CI/delivery ownership.
   Codex queued this exact instruction once in the principal session on 10 Nov; the UI
   showed it unread while current work continued (no interruption or duplicate dispatch).
+  - **Read by the principal session and handoff state (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** The instruction
+    was received from the maintainer while the RPCS3 capture preparation was finishing; that work was not interrupted
+    and no IPA was started. State of the handoffs, each to be verified (commits/PR, tests really run, identities,
+    limits) before the freeze:
+    - RPCS3 (main): Core 912 source `4c5566b6`, compile request `02023496`, run `42728150899` in progress; it becomes
+      the RPCS3 Core of this IPA once both jobs are green, the artifacts are verified offline and it is pinned. The
+      Core 913 comparison witness (run `42729856621`, source `466e3f70`) is **not** part of this IPA.
+    - MeloNX (session `012mUASkkFGHaPcEUx9dsp8q`): handoff requested once on 10 Nov (which Core is the handoff among
+      713, 715 refrozen `ab0df1a5` and 717 frozen `f751f1f7`; commits, runs, tests, limits). Awaiting the answer.
+    - Skins/interface (session `012mUASjgVWk8DKKjVbwTD2n`): handoff requested once on 10 Nov. Awaiting the answer.
+    - Approved content: what is already merged on `Claude`; nothing added without a request. Switch 2 stays on its
+      branch. Renderer selection unchanged (Vulkan/MoltenVK kept; the native Metal tests compiling changes nothing).
+    - Next action: wait for the two targeted handoffs (no diagnostic relaunch, no worker), pin Core 912, then
+      review, integrate, freeze, standard recipe, one common build, verification of the downloaded plaintext IPA.
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
