@@ -60,6 +60,24 @@ Its internal app version still reports **0.0.8**.
 RewindBox 0.0.11 is prepared and has not been published. The public
 downloads above remain 0.0.10 / Build 559 until publication is verified.
 
+**Prepared update · Build 718 · Changes since 0.0.10**
+
+- **RPCS3:** audio-wait, SPU synchronization, texture-coherence and cache
+  corrections, including Vulkan/MoltenVK improvements. The optional native
+  Metal 4 renderer remains experimental.
+- **MeloNX:** first-frame and graphics-ordering corrections, more durable
+  shader caches, fewer repeated allocations, in-game keyboard and L3/R3 access.
+- **Pocket skins:** GameCube, Wii, PS2 and Switch designs, Original variants
+  alongside existing skins, and corrected touch areas, highlights and sticks.
+- **RetroAchievements and cheats:** centralized account settings, improved game
+  identification, and unified per-game Cheats & Enhancements controls.
+- **Library and interface:** improved covers, 3D cases and manuals, the RewindBox
+  Glacier preset, and an icons-only main navigation bar with accessible names.
+
+The verified package contains RPCS3 Core 914 and MeloNX Core 717. Package and
+automated checks are complete; physical iPhone gameplay, FPS and audio results
+remain unverified. [Read the full prepared changelog and known limits](docs/releases/pending-0.0.11/release-notes.md).
+
 ## More to explore
 
 Browse HD texture packs, customize touch controls, explore interactive 3D

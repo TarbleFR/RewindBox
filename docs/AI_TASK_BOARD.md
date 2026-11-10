@@ -237,57 +237,39 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Public release 0.0.11 — maintainer request, 10 Nov; prepared by Codex, not published.**
-  The maintainer explicitly authorizes publishing the verified IPA 718 as **RewindBox 0.0.11**
-  (tag `0.0.11`, naming confirmed against earlier releases), the same complete changelog
-  in English, a SideStore/AltStore Classic source, then that list and IPA link in the
-  RewindBox Discord release channel. This is a new publication request after the closed
-  cleanup audit; it does not authorize another build or product change.
-  [Prepared publication](releases/pending-0.0.11/publication.json),
+- **Public release 0.0.11 — ON HOLD by the maintainer's latest 10 Nov instruction.**
+  “ne publie pas la mise à jour tout de suite mais fais tout le reste”.
+  Keep the release, public source activation and Discord announcement unpublished.
+  Continue the already-authorized cleanup, main synchronization and README/About
+  updates. No new IPA compilation or repack is part of this publication preparation.
+  [Publication state](releases/pending-0.0.11/publication.json),
   [English notes](releases/pending-0.0.11/release-notes.md),
-  [source draft](releases/pending-0.0.11/source.json),
-  [Discord messages](releases/pending-0.0.11/discord.json).
-  IPA identity: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`;
-  public version `0.0.11`, exact feed version/build `0.0.8`/`718` plus
-  `marketingVersion: 0.0.11` (no repack). JSON metadata and message lengths checked;
-  permissions are derived from frozen host inputs and await comparison with the exact IPA.
-  **Maintainer reconfirmed; access rechecked:** main completed the exact IPA/plist/
-  signed-entitlement/privacy-key checks (receipt `ipa_verification`, `f377ab2c`).
-  Codex downloaded that file card independently: same 263465367 B / full SHA-256,
-  ZIP test passed (5594 entries), bundle/version/build/minOS matched; byte-identical
-  upload assets, JSON and SHA256SUMS staged. The earlier automatic scope refusal is
-  cleared. **Current authentication blocker:** the maintainer requires Apple sign-in.
-  Apple accepted the secure credential flow, but GitHub then rejected the provider
-  response (“We could not validate the response from your social login provider”).
-  GitHub is not authenticated; automated retries stopped. Main also lacks a release
-  write tool/valid gh token; Discord still requires human hCaptcha verification.
-  No credentials/identifiers recorded. Authorization remains confirmed; no new approval
-  requested. No challenge attempted, tag/release/source activation or Discord post.
-  Keep public baseline 0.0.10 until publication confirmed.
-  **Additional maintainer instructions (same request):** after publication, integrate
-  `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
-  branches and PRs. Classify each candidate against integrated content, active owners,
-  pins, release producers and evidence before removal/closure; retain current work.
-  Read-only precheck: `main`/`Claude` diverge (main has 5 unique commits, mainly release/
-  branding/legal documentation; `Claude` ahead 1453 at the check). No forced ref update:
-  reconcile these changes through a reviewed merge. The earlier 1311-run cleanup is
-  already verified and closed; this follow-up is separate and has not started.
-  Read-only cleanup review: 8 old product PRs (154–160,162) have exact integration/
-  replacement evidence for closure while retaining their unique histories; 3 ancestor
-  branches are candidates after live head/owner checks. Preserve Dependabot163,
-  active owner branches, and the 608/609/610/497 workflow inputs still used by current
-  delivery. [Detailed workflow review](evidence/github-cleanup-post-release-0.0.11-review.json):
-  2566 scanned blobs, 44 launchers classified, 14 preliminary superseded launchers
-  outside the current 718 closure. Recheck final references and execute the delivery
-  contract after removal; dynamic/outside references remain a stated limit.
-  **Current maintainer follow-up:** proceed with the independent integration/cleanup
-  operations despite the publication-authentication blocker; also update README and
-  the GitHub About description. **Executed:** PR154/155/156/157/158/159/160/162 closed
-  after exact live-head and integration checks; Dependabot163 retained. Branches and
-  their unique history preserved. [Closure receipt](evidence/github-cleanup-prs-2026-11-10.json).
-  Main integration reconciles its 5 unique commits with all Claude history; one README
-  conflict resolved, 8 other main-only documents retained byte-identically. No product,
-  Core, pin or IPA change. Publication/Discord/About still need authenticated write access.
+  [validated source draft](releases/pending-0.0.11/source.json) and
+  [Discord drafts](releases/pending-0.0.11/discord.json) remain ready.
+  Exact IPA 718: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`,
+  RPCS3 Core 914 / MeloNX Core 717. Main and Codex independently verified the same plaintext
+  file, ZIP, metadata and feed permissions. Internal version/build remains 0.0.8/718;
+  feed marketingVersion 0.0.11. No public release/tag, root feed activation or post.
+  **Executed:** reviewed true merge `8283f341` synchronized `main` / `Claude`,
+  preserving both histories and all five main-only commits. Eleven reconciled
+  document blobs verified; no product/Core/pin change. README refreshed with the
+  live 0.0.10 links and a clearly prepared 0.0.11 preview.
+  [Merge review](evidence/main-integration-2026-11-10.json).
+  PR154–160,162 closed after exact integration checks; Dependabot163 and active
+  owners retained. Fourteen superseded workflow launchers removed after exact
+  blob/current 718 closure checks: delivery contract exit 0, 59 tests, 4 skips,
+  one execution; current producers, diagnostics, modules and evidence preserved.
+  [Cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json),
+  [workflow proof](evidence/workflow-retirement-2026-11-10.json),
+  [PR proof](evidence/github-cleanup-prs-2026-11-10.json).
+  Earlier 1311-run cleanup remains verified and closed; no new Actions deletion
+  or cleanup dispatch. Three integrated branch candidates remain: the normal Git
+  deletion dry-run failed authentication without mutation. GitHub About is still
+  pending: no metadata-write tool, browser not authenticated. Apple accepted sign-in
+  but GitHub rejected its provider return; automated retries stopped. Existing
+  branch/PR/workflow histories and ongoing component work are preserved.
+  **Next:** complete authenticated About/eligible-ref cleanup; keep publication
+  on hold until the maintainer asks to resume. No new authorization requested.
 
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
@@ -1548,6 +1530,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `repository_inputs` on the deferred `b06888a9` podspec, the effective tree passes.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
+
+- **Current maintainer complement, 10 Nov — relayed by Codex to the same owner (message 19, queued/unread at verification).**
+  Preserve the ongoing lot 9 work, validated lots 1–6/8 and closed production-excluded
+  lot 7 prototype. New P0 priorities: Mario 3D World/Bowser's Fury presentation SIGSEGV
+  in `presentCAMetalDrawable` (IPA 718 / Core 717), and Switch skin commands lost after
+  Menu→game; then long pipeline/syncpoint/GC/cache hitches. The reported stack is a
+  lead, not proof of a use-after-free or shared cause with input. Require production
+  corrections, discriminating executed before/after checks, resource/callback/session
+  lifetime invariants and separate host/iPhone results. Referenced capture source
+  `45923d133e5ec9325b6c64f44844f7dafba6f404`, binary prefix `f565e10bba1e`;
+  it does not validate newer candidates. Exact relay SHA-256
+  `70e24fa48a2a312b14b62b6788d129e58a67b3fa8c6a90363e0cd9eff4537dba`.
+  No new log file attached by Codex; original availability remains for the owner to
+  verify, with no old namesake substitution. UI set once from Fable 5.2 / Max to
+  **Opus 5.5 / High** for the next message; native `rb-effort-high` requested, return not
+  observed. Current request not stopped/replaced. Coordinate shared skin/overlay paths
+  with the existing owner; main retains integration/pins/Core CI/IPA. Public 0.0.11
+  publication is on hold at the maintainer's request. This is a targeted complement,
+  not a parallel diagnosis or new worker.
+
 
 - **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643" to "IPA 657"),
   [621 logs](melonx-621-measurement-2026-11-03.md). Main owns compilation/pins/integration.
