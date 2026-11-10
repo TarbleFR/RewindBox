@@ -18,7 +18,12 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
   Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
   Private delivery does not mean public publication.
-- Latest verified private delivery: common IPA 722 (10 November 2026), on 721, run `42852972508` (trigger
+- Latest verified private delivery: common IPA 723 (10 November 2026), on 722, run `42878187148` (trigger `67078e4f`,
+  green first try), [receipt](../evidence/rewind723/delivery.json): IPA 271438268 B, SHA-256
+  `0be70809dde1f206bc298992a02d3349e5ff67ed0da510133788a84a32d49255`; the content of 722 with RPCS3 Core 921 (stale idle
+  textures released). Downloaded plaintext IPA verified offline, private key deleted. Not tested on an iPhone; no FPS or
+  memory claim.
+- Previous verified private delivery: common IPA 722 (10 November 2026), on 721, run `42852972508` (trigger
   `c7ca5d37`; the first request, run `42848698413`, stopped when the encrypted IPA passed the 4 x 64 MiB transport bound,
   fixed by `ea8152d9`), [receipt](../evidence/rewind722/delivery.json): IPA 271385645 B, SHA-256
   `e9aad8d2c84b0e464ff1ce3e1a51b3fd0057396ee88c3ae04fedcf5dd89f245d`; the content of 721 with RPCS3 Core 920, MeloNX
@@ -76,7 +81,7 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   performance report also tells, for Black Ops II, how old the occlusion result is that each wait is for and what
   sending it early costs. Host tests only; no FPS claim.
 - RPCS3 Core 921 pinned on 10 November 2026 ([record](../rpcs3-core921-stale-texture-release.md); run `42872597093`, dylib
-  `5aee7478…`, pin `d4864cab…`), not yet in a delivered IPA: in Call of Duty: Black Ops II the memory kept growing during
+  `5aee7478…`, pin `d4864cab…`), delivered in the private IPA 723: in Call of Duty: Black Ops II the memory kept growing during
   play (several gigabytes after a few minutes) because textures the game had replaced in its own memory were never
   released; once per frame the emulator now checks a few megabytes of unused textures against the game's memory and
   releases those the game has overwritten (setting "Stale texture release", on for every game). Textures still in the

@@ -271,6 +271,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 723 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 722 with RPCS3 Core 921
+  (pin `d4864cab`: idle iOS textures whose guest bytes changed are released); MeloNX Core 721 (pin `784fcc5d`), MoltenVK
+  `6f65b2a6` and the 722 skins unchanged. Draft `ea7f0a8e`, freeze on it (dry run: 0 blockers, 0 unclassified commits,
+  effective digest `76828e04`, base `2528a3dc`, 78 inherited deferred paths as in 722, legal check passed), one reviewed
+  commit (`690d8ce0`), trigger `67078e4f`, run `42878187148` green first try (preflight, flutter, native, republish,
+  application; 25 min). Four pieces of 68,081,518 B = API digests; offline verification passed; IPA 271438268 B,
+  SHA-256 `0be70809…9255`, 90 images; the eight receipts copied from `work/delivery/`; key deleted; receipt
+  [rewind723](evidence/rewind723/delivery.json) (12 proofs). Sent privately as a file.
+  - **Device question (BO2 multiplayer, IPA 723, settings as the IPA 722 export, Stale texture release on Automatic):**
+    play at least 20 min from game entry, then export at once with the `.1` files. It decides (1) Core 921: whether
+    TEXCACHE621 `texture_mib`, JITMEM `gpu_textures_requested`/`vma_block_bytes` and MEMPROF527 footprint stop growing,
+    with TEXSWEEP921 `released` > 0 and `sweep_ms` per window (refuted if `texture_mib` stays linear with `released`
+    near 0); (2) the next CPU correction: the per-window lines of the play windows (RANGELOCKPROF phases, SCHED918,
+    SPUWAIT551) and the automatic storm captures (`AUTOSTORM917` -> `PUTLLCTRACE912`, `PPUPROF912`), which the IPA 722
+    export lost in its missing `.1` generation. A close and second launch, then Zombies if available, complete it.
 - **Common IPA 722 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
   (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
   - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
