@@ -420,26 +420,6 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         value: d.tabIconSize,
         onChanged: (v) => _update(d.copyWith(tabIconSize: v)),
       ),
-      _ChoiceRow<TabLabelMode>(
-        'tabLabels',
-        title: _t(InterfaceStyleLocale.tabLabels),
-        segments: [
-          GlassSegment(
-            value: TabLabelMode.hidden,
-            label: _t(InterfaceStyleLocale.labelsHidden),
-          ),
-          GlassSegment(
-            value: TabLabelMode.selectedOnly,
-            label: _t(InterfaceStyleLocale.labelsSelected),
-          ),
-          GlassSegment(
-            value: TabLabelMode.always,
-            label: _t(InterfaceStyleLocale.labelsAlways),
-          ),
-        ],
-        value: d.tabLabels,
-        onChanged: (v) => _update(d.copyWith(tabLabels: v)),
-      ),
       _ToggleRow(
         'tabBumpers',
         title: _t(InterfaceStyleLocale.tabBumpers),

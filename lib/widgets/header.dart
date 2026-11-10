@@ -375,21 +375,13 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               selected: NavTab.values[widget.selectedTabIndex],
               cellExtent: glacier ? 21.r : 32.r,
               tabBuilder: (tab) => _buildTabButton(context, tab),
+              // No visible tab names (maintainer, 9 Nov): the icons alone, in
+              // every interface style; each button keeps its translated name
+              // as its accessibility label (see _buildTabButton).
               iconBuilder: (tab) => NavTabIcon(
                 tab: tab,
                 spec: navTabSpec(tab),
                 tint: Theme.of(context).colorScheme.onSurface,
-              ),
-              labelBuilder: (tab, selected) => Text(
-                navTabLabel(context, tab),
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: glacier ? 6.r : 6.5.r,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(
-                    alpha: selected ? 1 : 0.72,
-                  ),
-                ),
               ),
             ),
           ),

@@ -172,7 +172,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     // a wider rectangle and the active name a little larger. Every other
     // indicator keeps square cells.
     final glacierIndicator = settings.tabIndicator == TabIndicatorStyle.glacier;
-    final cellW = glacierIndicator ? cell * 1.81 : cell;
+    // Without names (the main menu draws none since 9 Nov) the Glacier frame
+    // only has to hold the glyph: narrower cells, no empty band beside it.
+    final cellW = glacierIndicator
+        ? cell * (showLabels ? 1.81 : 1.4)
+        : cell;
     final labelBand = showLabels
         ? (glacierIndicator ? 10.r : 9.r) * glass.tabIconScale
         : 0.0;
@@ -254,7 +258,9 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                           width: cellW,
                           // Glacier keeps the active name clear of the
                           // outline's bottom edge.
-                          height: glacierIndicator ? cell - 4.r : cell,
+                          height: glacierIndicator && showLabels
+                              ? cell - 4.r
+                              : cell,
                           child: Center(
                             child: SizedBox.square(
                               dimension: iconExtent,
@@ -263,7 +269,8 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                           ),
                         ),
                         if (showLabels) label(tab),
-                        if (glacierIndicator) SizedBox(height: 4.r),
+                        if (glacierIndicator && showLabels)
+                          SizedBox(height: 4.r),
                       ],
                     ),
             ),
