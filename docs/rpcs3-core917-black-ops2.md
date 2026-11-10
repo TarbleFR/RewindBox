@@ -169,3 +169,17 @@ fenêtre) rien n'est demandé.
 Ce que l'export doit contenir : BO2 — `COREPROF AUTOSTORM917`, `COREPROF PARKCMP917` (étapes 1 à 16),
 `RANGELOCKPROF … park_spin=`, les deux captures (`trigger=auto_heavy_putllc`) ; GOW3 —
 `COREPROF GOW3MLAA909 … ppu=applied ppu_patch=100`, `COREPROF AUTOPPU916` si le thread principal dépasse 0,85 cœur.
+
+## 9. Compilation et épinglage
+
+| Élément | Valeur |
+|---|---|
+| Demande | `1b910e42` (`[rpcs3-core-build]`), run `42772572060`, verte au premier essai |
+| Job Core | 129683559994 ; artefact 13743377611, 30 500 109 octets, empreinte API `e50440ec…1a73` |
+| Job hôte Apple | 129683559621 ; 15 commandes dont `core917` ; artefact 13743641125 |
+| Bibliothèque | `libRPCS3Core.dylib` 80 937 088 octets, SHA-256 `4830ddd6…1b35`, empreinte de charge `ad954ebb…d3ab` |
+| Identités | type `rpcs3-ios-core917`, PPU `a987639e9f838d1c`, SPU `477a3fa442d27917` (inchangées) |
+| Pin | `a7d1b9a6…` ; vérificateur du dépôt : `verified`, aucune erreur, marqueurs présents |
+
+Ce Core n'a pas été livré seul : le Core 918 le reprend et lui ajoute la durée de référence des attentes actives
+(`docs/rpcs3-core918-busy-wait.md`).

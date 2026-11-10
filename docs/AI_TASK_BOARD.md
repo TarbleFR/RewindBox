@@ -1399,8 +1399,53 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       saturated; the job queue lines (0x2e20c00…) are a tagged lock-free queue with ~190 jobs pending. The relaxed
       PUTLLC stays refused; the next Core works on the cost of the exact path (the writer's hand-off before the PPU
       threads have had time to park) and collects the captures by itself.
-    - **Next:** Core 917 (writer park spin with its park histogram, PPU parked time, automatic captures on a heavy
-      PUTLLC storm), then the common private IPA; iPhone protocol in the record, section 7.
+    - **Core 917 (10 Nov, BO2 first; [record](rpcs3-core917-black-ops2.md)).** What window 12 of build 676 adds
+      (20.5 fps, 1,076,602 heavy PUTLLC locks): 2,238,967 successful PUTLLC of which 1,076,569 heavy (the rest write
+      an unchanged line back: polling); PPU threads 14,268 long-wait episodes, 990.6 ms, 21,891 timed waits of 39 us
+      on average, 7.8 ms at most; PPUGRACE664 opened 3,839, 4,551 writer deferrals, 726 ms; the six SPU threads wait
+      for an event 407 times (119 ms) while using 0.53 core each. Device evidence for slow parks (GOW3, 718 s5 w15):
+      3,325 locks, park phase 12.1 ms of which one park of 3.9 ms and ten of 50 us and more.
+      - `REWINDBOX_WRITER_PARK_SPIN_917` (vm.cpp, ios/IOSWriterParkSpin917.h): a writer that waits for the PPU threads
+        to park spins for 8 us in a loop in front of its previous wait (128 hint iterations, then a core hand-off every
+        32), which is untouched. Wait condition, lock and PPU parking unchanged; relaxed PUTLLC not used. Setting
+        "Writer lock park spin", Automatic = every title.
+      - `REWINDBOX_PARK_SPIN_COMPARE_917`: on Automatic, in a storm (>= 100,000 heavy PUTLLC per window) the report
+        alternates the lever: storm windows 1-6 on, then 2 off / 2 on for 16 windows, then on. One export holds both
+        sides in the same scene (RANGELOCKPROF park_spin=, COREPROF PARKCMP917; the analyzer prints both sides).
+      - RANGELOCKPROF: wl_putllc_park_hist (0.5, 1, 2, 4, 8, 16, 50 us, more), wl_putllc_slow_park_ms,
+        wl_putllc_over_budget, ppu_parked, ppu_main_parked. `REWINDBOX_AUTO_STORM_CAPTURE_917`: two storm windows in
+        a row ask once per boot for the heavy PUTLLC trace and a PPU region profile (trigger=auto_heavy_putllc).
+      - Tests: test/rpcs3_writer_park917_test.py, 27 checks on the real headers (waiter on a counted clock; two real
+        threads: the previous wait hands off for 19,901-19,970 of 20,000 locks while the other thread is running, with
+        the budget 3-97; a thread that does not park within the budget still gets every hand-off; trackers; static:
+        the previous loop is the Core 916 one, the window is reported before the next lever is set). Host only.
+      - Independent review (rb-core-review) of the wait: no actionable defect; its remark (the reset inside the loop
+        made the previous wait start at its second iteration) fixed by the separate loop (engine 0c1e128).
+      - Rejected with the reason: a PPU re-spin after each timed wait (it would leave before the starving mark, so
+        without the Core 664 grace window that ended the 9-40 s BO2 stalls); a directed hand-off before the histogram
+        says PPU threads are off-core; relaxed PUTLLC, lock-free compare, page protection (a plain PPU store between
+        compare and store is lost or ignored).
+      - Packaging: engine d6ba70d, 179fe9a, 0c1e128, 921dbb5 over Core 916; canonical 88170415 (455), delta 618eeb7a;
+        no codegen input changes, identities PPU a987639e / SPU 477a3fa4. Local: closure, codegen audit, fold chain,
+        route, 13 host guards, Core 916 tests, capture and analyzer tests, full driver PASS.
+      - **Built and pinned (fallback; not delivered alone):** request `1b910e42`, run `42772572060` green first try
+        (Core job 129683559994, Apple host job 129683559621, 15 commands with `core917`); artifact 13743377611
+        (30,500,109 B, zip = API digest e50440ec); dylib `4830ddd6…1b35` (80,937,088 B), fingerprint `ad954ebb…d3ab`,
+        identities PPU a987639e / SPU 477a3fa4 in the built identity, every marker present; pin_errors and bundle
+        clean, pin `a7d1b9a6`. Not run on the iPhone; no FPS claim.
+      - Known slip in the Core 917 record: `increment_from_core916.patch` names `core916-from-914.patch`; the digest
+        beside it is the one of `core917-from-916.patch`. The Core 918 record names its own increment correctly.
+    - **Delivery line restored (10 Nov):** the main sync merged Claude into main with main as first parent (8283f341)
+      and Claude was advanced onto it; the delivery contract then refuses a draft ("The base is not on the
+      first-parent line of HEAD"). Realignment merge `d506a8ed` (tree of the head, first parent 263abc36, nothing
+      rewritten, fast-forward). A later sync of that kind needs the same merge before a delivery (recipe § 3.9).
+    - **Receipt of 718 is not a base:** it holds no signed image inventory (four proof files; recipient key deleted).
+      IPA 719 is drafted on the base 694 with the classification of 718; `record` now refuses a receipt without the
+      inventory (recipe § 3.5, 3.8).
+    - **Next:** Core 918, found while 917 compiled: build 718 journals show `cntfrq=1000000000 timer_scale=1` at every
+      boot, so `utils::busy_wait(300)` lasts 3 ns instead of the 125 ns of the 24 MHz reference counter (66 call sites:
+      SPU GETLLAR lock wait, DMA, PUTLLUC, vm reservation locks, shared_mutex spins) and the waiters fall into
+      `sched_yield` or kernel waits almost at once. Then the common private IPA 719.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

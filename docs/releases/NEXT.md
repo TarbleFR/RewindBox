@@ -30,6 +30,11 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   leaving the game, until it was stopped); God of War III's MLAA bypass setting now also applies to version 1.00 of the
   game, at a fresh boot; stall reports name the waited condition and the calling code; diagnostic captures can be
   requested again; journals no longer fill up after a game is closed. Host tests only; no FPS claim.
+- RPCS3 Core 917 pinned on 10 November 2026 ([record](../rpcs3-core917-black-ops2.md); run `42772572060`, dylib
+  `4830ddd6…`, pin `a7d1b9a6…`), not in an IPA yet: for Call of Duty: Black Ops II, an SPU atomic store that must stop
+  the game's main processor threads waits a little longer on its own core before it gives that core away; the
+  performance report compares both behaviours in the same scene and collects its captures by itself when such stores
+  come in a storm. Host tests only; no FPS claim.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

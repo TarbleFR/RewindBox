@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 916,
- "note": "RPCS3 Core 916 (Core 915 was the 4-way comparison witness of Core 914 and is the base of nothing): Core 914 plus the corrections drawn from the build 718 journals. REWINDBOX_SPURS_RELAXED_STORE_916: with Accurate SPU Reservations off, the PUTLLC of an SPU on a SPURS header line no longer copies its whole 128-byte line over memory; the line is compared with the GETLLAR copy and each changed 16-byte lane is exchanged atomically, a plain guest store made since GETLLAR fails the PUTLLC and is never overwritten, and a PUTLLC a guest store interrupts gives back the lanes it had stored (Assassin's Creed, build 718: the lost wake-up of the SPURS kernels behind the 6 s wait of the stop sequence). REWINDBOX_GOW3_MLAA_100_916: the God of War III MLAA bypass (the existing title setting) knows the 01.00 executable, behind a content guard, at a fresh boot. Collection repairs: the stall dump lists the waiters of a lightweight condition from its own queue and the return addresses of waiting PPU threads; CONFIG_LAYERS exports the 21 lever digits (18 before: no capture could be requested); stopped report windows are compact; the report asks once per boot for the bounded PPU region profile when a PPU thread saturates a core. No resolution, precision, frame limit, SPU count or priority, GETLLAR/PUTLLC delay or LLVM option changes. SPUThread.cpp, an SPU identity input, changes in the host body of do_putllc() only (plus one include): one more exact alias in JITCacheCompatibility.cmake (Core 627 procedure, audited), identities unchanged. Host bridge 8977315e unchanged; MoltenVK dependency of run 42733987255 (library d19d3a42). Built by the RPCS3 Core route (run 42764728604, attempt 1, source 850341af; Apple host harnesses run 42764728604 on 850341af; request 1, run 42763953223, had been refused by the source closure before any compile). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
+ "build": 917,
+ "note": "RPCS3 Core 917 = Core 916 plus the first work on the cost of the exact reservation write lock, for Call of Duty: Black Ops II (build 676, the last export that holds its report windows: 1.08 to 1.60 million heavy PUTLLC locks per 5 s window, 1.8 to 2.5 us to acquire each, 12 ns to hold it, 20 to 26 frames per second with no thread saturated). REWINDBOX_WRITER_PARK_SPIN_917: a writer that waits for the PPU threads to park spins for 8 us in a loop in front of its previous wait, which is untouched; its own setting, Automatic = every title, Disabled = the previous wait. REWINDBOX_PARK_SPIN_COMPARE_917: on Automatic, in a storm of heavy PUTLLC the report turns the lever off and on again between its windows (after 6 storm windows of a boot, 2 off and 2 on in turn for 16 windows, then on) so that one export holds both sides in the same scene. RANGELOCKPROF reports the park phase by duration, the slow-park time, the locks whose wait outlasted the budget, the time PPU threads spent parked and the lever of the window. REWINDBOX_AUTO_STORM_CAPTURE_917: on a heavy PUTLLC storm the report asks once per boot for the heavy PUTLLC trace and a PPU region profile. Every lock is still taken in full and parks every PPU thread before the store; the relaxed PUTLLC is not used. No resolution, precision, frame limit, SPU count or priority, GETLLAR/PUTLLC delay or LLVM option changes. No codegen input changes: identities unchanged. Host bridge 8977315e unchanged; MoltenVK dependency of run 42733987255 (library d19d3a42). Built by the RPCS3 Core route (run 42772572060, attempt 1, source 1b910e42; Apple host harnesses run 42772572060 on 1b910e42). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 916 source closure and the native dependency",
+    "Authenticate the Core 917 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 916",
-    "Verify the actual binary and write its Core 916 identity",
+    "Compile and link the actual iPhone Core 917",
+    "Verify the actual binary and write its Core 917 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 916 without an application delivery",
+    "Upload the verified Core 917 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "850341afc2c8d7406ac08ead7ce37af07bfa67b2",
-   "run": 42764728604,
+   "source": "1b910e42d1288141ef7f083530577ae381917dc1",
+   "run": 42772572060,
    "attempt": 1,
-   "job": 129658419968,
-   "artifact": 13740500237,
-   "name": "RPCS3Core-916-850341afc2c8d7406ac08ead7ce37af07bfa67b2",
-   "bytes": 30496427,
-   "sha256": "758e2bf55e0130f2398a1000962cf33c0f9fb66e499431c88c1d0caad643a0a1",
-   "expiresAt": "2026-12-10T06:09:10Z"
+   "job": 129683559994,
+   "artifact": 13743377611,
+   "name": "RPCS3Core-917-1b910e42d1288141ef7f083530577ae381917dc1",
+   "bytes": 30500109,
+   "sha256": "e50440ece0d5ee167ec4a4c469524db10faea3eefcb01475490f34acb02c1a73",
+   "expiresAt": "2026-12-10T07:24:21Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 916 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 917 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 916 harnesses with Apple clang",
+    "Run the affected and new Core 917 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core916",
+    "core917",
     "lr-full-queue"
    ],
-   "source": "850341afc2c8d7406ac08ead7ce37af07bfa67b2",
-   "run": 42764728604,
+   "source": "1b910e42d1288141ef7f083530577ae381917dc1",
+   "run": 42772572060,
    "attempt": 1,
-   "job": 129658419663,
-   "artifact": 13740240477,
-   "name": "RPCS3Core-916-apple-host-tests-850341afc2c8d7406ac08ead7ce37af07bfa67b2",
-   "bytes": 62978,
-   "sha256": "11cbb87f35ea2977074d69ea619a6f32b0076cb1a217684e25ae6c8869c7d39d",
-   "expiresAt": "2026-12-10T06:07:37Z",
+   "job": 129683559621,
+   "artifact": 13743641125,
+   "name": "RPCS3Core-917-apple-host-tests-1b910e42d1288141ef7f083530577ae381917dc1",
+   "bytes": 63178,
+   "sha256": "d07db6ab85fcf7c591c4b73ee6118e99c2d2f92f3c371c77cb678f3e6d319cfc",
+   "expiresAt": "2026-12-10T07:20:42Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core916",
-  "dylibBytes": 80920128,
-  "dylibSha256": "7c94134401cb05dbd4ea94d2fa9187c3e06c7d442ca434b2e77a625e0f3cb534",
-  "identitySha256": "1c7980aa7702b6b32e1cb38ba0b474e2d73b91f2f81db05381d75f7e23da3f5d",
+  "type": "rpcs3-ios-core917",
+  "dylibBytes": 80937088,
+  "dylibSha256": "4830ddd66e6dd5fa51786a785f33e2db7e8ea07a04b55473fd3c1b057ea91b35",
+  "identitySha256": "0556e35f2e2af040bceba3472bffdba3d5bcc9a4cf25b915d32a30f773e3c3f5",
   "proofMember": "core610-proof.json",
-  "proofSha256": "6a6dad4e95f36fe98d10b13671334bcdb506783b7dd98de28d89547049fcb616",
-  "payloadFingerprint": "845e82a25d75e8636ed10a86f8f6820708f39d41bc050807abc8522a9413c904"
+  "proofSha256": "3cbbd652a47c9046b9242a9ec35257d6b4cff7b55f4dd4b6caa54a5dd33391e4",
+  "payloadFingerprint": "ad954ebbac0e48e9378f80763841d197145751f5cf3979b0f278a390c252d3ab"
  },
  "canonical": {
-  "patchSha256": "81678148e1679c9170014bfa24b1a7ce21ce6a60dc53420a5b836a26cf2b39df",
-  "postimages": 453,
+  "patchSha256": "88170415a50fac419be58d9ba1db989c57d3bdc127027760287d943f6a242741",
+  "postimages": 455,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -287,20 +287,25 @@
   "worker_used=",
   "COREPROF PUTLLCTRACE912",
   "COREPROF PPUPROF912",
-  "part=armed trigger=menu_closed",
   "fifo_pos=",
   "stale_rejected=",
   "COREPROF IDLE916",
   "COREPROF AUTOPPU916",
   "spurs_relaxed=",
   "FREEZE_DUMP ppu_stack",
-  "ppu_patch="
+  "ppu_patch=",
+  "auto_heavy_putllc",
+  "COREPROF AUTOSTORM917",
+  "wl_putllc_park_hist=",
+  "Resolved title policy 917",
+  "ppu_main_parked=",
+  "COREPROF PARKCMP917"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "ce12d39799381682a2fa57a53a8f7de23f6e12ad",
-  "run": 42736141716,
-  "artifact": 13728211847,
-  "payloadFingerprint": "df98e75ddd5cae2783f7e499ce79178fa09904f9054edb7b8673f7306112be5e"
+  "source": "850341afc2c8d7406ac08ead7ce37af07bfa67b2",
+  "run": 42764728604,
+  "artifact": 13740500237,
+  "payloadFingerprint": "845e82a25d75e8636ed10a86f8f6820708f39d41bc050807abc8522a9413c904"
  }
 }
