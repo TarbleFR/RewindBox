@@ -138243,10 +138243,10 @@ index 8fba197..a9457cb 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..e3f19f7
+index 0000000..a3f1443
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,1077 @@
+@@ -0,0 +1,1078 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -139192,7 +139192,8 @@ index 0000000..e3f19f7
 +	const bool start_ppu_storm = capture::start_request::take(capture::start_request::auto_ppu_storm, running); // REWINDBOX_AUTO_STORM_CAPTURE_917
 +	const bool start_ppu_spu = capture::start_request::take(capture::start_request::auto_spu, running); // REWINDBOX_SPU_PROFILE_923
 +	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm || start_ppu_spu;
-+	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : start_ppu_storm ? "auto_heavy_putllc" : "auto_spu_bound";
++	const char* const ppu_trigger_917 = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const char* const ppu_trigger = start_ppu_spu && !start_ppu_menu && !start_ppu_auto && !start_ppu_storm ? "auto_spu_bound" : ppu_trigger_917;
 +	bool putllc_started = false;
 +
 +	// Heavy PUTLLC trace.

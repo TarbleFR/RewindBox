@@ -102256,7 +102256,7 @@ index c349a27..a9457cb 100644
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
  	// like the fields above; none of them enters an object-cache key.
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-index cc826f8..e3f19f7 100644
+index cc826f8..a3f1443 100644
 --- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 @@ -1,20 +1,35 @@
@@ -102830,7 +102830,7 @@ index cc826f8..e3f19f7 100644
  	std::vector<std::string> lines;
  	lines.reserve(plan.spu_lines + plan.ppu_lines);
  
-@@ -256,22 +665,413 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+@@ -256,22 +665,414 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
  		}
  	}
  
@@ -103116,7 +103116,8 @@ index cc826f8..e3f19f7 100644
 +	const bool start_ppu_storm = capture::start_request::take(capture::start_request::auto_ppu_storm, running); // REWINDBOX_AUTO_STORM_CAPTURE_917
 +	const bool start_ppu_spu = capture::start_request::take(capture::start_request::auto_spu, running); // REWINDBOX_SPU_PROFILE_923
 +	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm || start_ppu_spu;
-+	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : start_ppu_storm ? "auto_heavy_putllc" : "auto_spu_bound";
++	const char* const ppu_trigger_917 = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const char* const ppu_trigger = start_ppu_spu && !start_ppu_menu && !start_ppu_auto && !start_ppu_storm ? "auto_spu_bound" : ppu_trigger_917;
 +	bool putllc_started = false;
 +
 +	// Heavy PUTLLC trace.

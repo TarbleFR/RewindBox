@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core923-delta.patch",
-  "patch_sha256": "991fff2706b748addffecd90496a8b48f9c1e0b22c5a3e10256fc46e55b4f6c1",
+  "patch_sha256": "44f16d0517e8703cb3d1e772511f932ae11c197a19fcccaef8b8a2a580dde860",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -301,7 +301,7 @@
     "rpcs3/ios/RPCS3IOSConfigInheritance.h": "9238676b04d09d172f5b6dff544c7baf4d6b41a0c62b912a2676d40107520718",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "c990aeb3a7716a236c75f78f8feb195e0d6b9282ef2950cef53cb69e579704f4",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "983b8f64c9c1ff17f41c278407efe74404aaddc4ec321164a2e832753490218f",
-    "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "ab1ba731fa377261307a03852d79c4e16e35accb8c8a3a258faba4568ab7d164",
+    "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "a4744a041b5f6d7bb1096132de645ea8f48c2588943e17b3044d9a152690f259",
     "rpcs3/ios/RPCS3IOSFreezeDump.h": "956f41413196d4361ba2438fdf43ded0884f918060145e77129524a66d82e9f0",
     "rpcs3/ios/RPCS3IOSFreezeEpisode.h": "990e1dd5e890723b35d9654d6d74de3897b3ef9a2df4534e144ebd3e03b7d4ba",
     "rpcs3/ios/RPCS3IOSLeverHelpers.h": "8ce7969c2d47a3ef2ff47d38219c67b7a9b4293cdc82e85ffe1f1b81b647917f",
@@ -620,7 +620,7 @@
   "iphone_validation_run": false,
   "increment_from_core922": {
     "patch": "build-utils/rpcs3/core923-from-922.patch",
-    "patch_sha256": "54a7f00fddcae9d318b555f77fbc604140e48b823c2b74c9bf633759c630b120",
+    "patch_sha256": "efdd2344b87f55890e1e6306c537b8401315d6816a4d20e127310545e3c2d6d0",
     "insertions_only": false,
     "removed_lines": 2,
     "files": 4,
@@ -632,7 +632,7 @@
     "files_after_sha256": {
       "rpcs3/ios/IOSAutoSpuProfile923.h": "335f7dc9a7724f2662cbdfe905685f6d0296d3b693bd980a7b2c3ef6fc3e6d63",
       "rpcs3/ios/IOSCapture912.h": "754b43e61bbc30a6ec7a559373361c7bed07171edcad551e58b7f1a98d57c335",
-      "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "ab1ba731fa377261307a03852d79c4e16e35accb8c8a3a258faba4568ab7d164",
+      "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "a4744a041b5f6d7bb1096132de645ea8f48c2588943e17b3044d9a152690f259",
       "rpcs3/ios/RPCS3IOSPerformance.cpp": "24638fcfc1a022976413b03357aed6c699425f825acdfeee83c1ef62d50c7f2c"
     },
     "new_files": [

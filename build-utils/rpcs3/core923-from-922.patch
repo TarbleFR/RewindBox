@@ -82,7 +82,7 @@ index 8c853fd..4f5acec 100644
  } // namespace start_request
  
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-index bad4b70..e3f19f7 100644
+index bad4b70..a3f1443 100644
 --- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 @@ -13,6 +13,7 @@
@@ -187,7 +187,7 @@ index bad4b70..e3f19f7 100644
  }
  }
  
-@@ -874,8 +941,9 @@ void rewindbox_capture912_tick(unsigned long long session)
+@@ -874,8 +941,10 @@ void rewindbox_capture912_tick(unsigned long long session)
  	const bool start_ppu_menu = capture::start_request::take(capture::start_request::ppu, running);
  	const bool start_ppu_auto = capture::start_request::take(capture::start_request::auto_ppu, running);
  	const bool start_ppu_storm = capture::start_request::take(capture::start_request::auto_ppu_storm, running); // REWINDBOX_AUTO_STORM_CAPTURE_917
@@ -195,11 +195,12 @@ index bad4b70..e3f19f7 100644
 -	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
 +	const bool start_ppu_spu = capture::start_request::take(capture::start_request::auto_spu, running); // REWINDBOX_SPU_PROFILE_923
 +	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm || start_ppu_spu;
-+	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : start_ppu_storm ? "auto_heavy_putllc" : "auto_spu_bound";
++	const char* const ppu_trigger_917 = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const char* const ppu_trigger = start_ppu_spu && !start_ppu_menu && !start_ppu_auto && !start_ppu_storm ? "auto_spu_bound" : ppu_trigger_917;
  	bool putllc_started = false;
  
  	// Heavy PUTLLC trace.
-@@ -968,6 +1036,24 @@ void rewindbox_capture912_tick(unsigned long long session)
+@@ -968,6 +1037,24 @@ void rewindbox_capture912_tick(unsigned long long session)
  						run->threads.emplace_back(std::move(ptr));
  					}
  				}, idm::unlocked);
