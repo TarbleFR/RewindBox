@@ -118,6 +118,9 @@ int main()
 '''
 
 
+SANITIZE = True
+
+
 def require(condition, message):
     if not condition:
         raise SystemExit('FAIL: ' + message)
@@ -144,7 +147,7 @@ def run(source: Path, cxx: str, mutation: str | None) -> tuple[int, str]:
     with tempfile.TemporaryDirectory(prefix='mlaa922-') as temporary:
         folder = Path(temporary)
         (folder / 'harness.cpp').write_text(HARNESS.replace('@SAVESTATE_FIX@', fix).replace('@APPLY_CONDITION@', cond))
-        flags = ['-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=undefined'] if Path(cxx).name.startswith('g++') and sys.platform.startswith('linux') else ['-O2']
+        flags = ['-O1', '-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=undefined'] if SANITIZE and Path(cxx).name.startswith('g++') and sys.platform.startswith('linux') else ['-O2']
         binary = folder / 'harness'
         build = subprocess.run([cxx, '-std=c++20', '-Wall', '-Wextra', '-Werror', *flags, '-I', str(source / 'rpcs3'), str(folder / 'harness.cpp'), '-o', str(binary)],
                                capture_output=True, text=True)
@@ -157,12 +160,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--cxx', default='g++')
+    parser.add_argument('--no-sanitizers', action='store_true', help='plain -O2 build (the Core 922 driver passes it with clang)')
+    parser.add_argument('--report', type=Path)
     args = parser.parse_args()
+    global SANITIZE
+    SANITIZE = not args.no_sanitizers
     source = args.source.resolve()
     code, out = run(source, args.cxx, None)
     require(code == 0 and out.strip().endswith('"failures": 0}'), 'candidate:\n' + out[-2000:])
     mcode, mout = run(source, args.cxx, 'ignore_guard')
     require(mcode != 0 and 'unguarded 01.03 pair is not written into a savestate' in mout, 'the ignore_guard mutation is not caught:\n' + mout[-1500:])
+    if args.report:
+        import json
+        args.report.write_text(json.dumps({'passed': True, 'result': out.strip().splitlines()[-1], 'mutation': 'ignore_guard caught'}) + '\n')
     print('PASS: God of War III MLAA bypass on resumed savestates (%s); mutation ignore_guard caught' % out.strip().splitlines()[-1])
     return 0
 

@@ -1,0 +1,123 @@
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index 4b84b37..a8f83e8 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -2417,7 +2417,16 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 		rpcs3::ios::gow3_mlaa::savestate_patched.store(ar && mlaa_plan ? (mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32) ? 1 : 0) : -1,
+ 			std::memory_order_relaxed);
+ 
+-		if (!ar && mlaa_policy && mlaa_plan)
++		// REWINDBOX_GOW3_MLAA_SAVESTATE_922: a savestate carries the memory of the boot it was made from. Builds 721 and
++		// 723 (PIDs 47234 and 48447): every God of War III session resumed from a savestate made without the bypass
++		// reported ppu=savestate_memory savestate_patched=0 and read the 1280x720 colour buffer back 72-107 times per
++		// 5 s window (MLAA running, 12-23 FPS), every fresh boot ppu=applied and 0. The guest memory is restored
++		// before this loader runs (System.cpp: vm::load before ppu_load_exec), so the same pair, behind the same
++		// content guard, is applied to it: from then on the title schedules no MLAA, as after a fresh boot. A job
++		// scheduled before the savestate completes on its SPU as it would have.
++		const bool mlaa_savestate_fix = ar && mlaa_policy && mlaa_plan && mlaa_plan->guarded &&
++			!mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32);
++		if ((!ar || mlaa_savestate_fix) && mlaa_policy && mlaa_plan)
+ 		{
+ 			const mlaa_patch::result mlaa_result = mlaa_patch::apply(*mlaa_plan, mlaa_read8, mlaa_read32,
+ 				[&](u32 address, u8 value) { _main.get_ref<u8>(address) = value; },
+@@ -2434,8 +2443,12 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 			}
+ 			else
+ 			{
+-				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x)",
+-					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word);
++				if (ar)
++				{
++					mlaa_state = ppu_state::savestate_applied;
++				}
++				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x%s)",
++					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word, ar ? ", restored savestate memory" : "");
+ 			}
+ 		}
+ 
+diff --git a/rpcs3/ios/IOSGow3MlaaReport.h b/rpcs3/ios/IOSGow3MlaaReport.h
+index da0e4bf..598eda7 100644
+--- a/rpcs3/ios/IOSGow3MlaaReport.h
++++ b/rpcs3/ios/IOSGow3MlaaReport.h
+@@ -20,7 +20,8 @@ namespace rpcs3::ios::gow3_mlaa
+ enum class ppu_state : std::uint32_t
+ {
+ 	unset = 0, applied, other_executable, savestate, policy_off,
+-	refused_guard // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
++	refused_guard, // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
++	savestate_applied // REWINDBOX_GOW3_MLAA_SAVESTATE_922: the pair written into the restored memory of a savestate
+ };
+ 
+ inline std::atomic<std::uint32_t> ppu{0};
+@@ -72,6 +73,7 @@ inline const char* ppu_name(std::uint32_t state) noexcept
+ 	case ppu_state::savestate: return "savestate_memory";
+ 	case ppu_state::policy_off: return "policy_off";
+ 	case ppu_state::refused_guard: return "refused_guard";
++	case ppu_state::savestate_applied: return "savestate_applied";
+ 	default: return "unset";
+ 	}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+index 0de2af8..bad4b70 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+@@ -64,6 +64,21 @@ std::string cpu_state_token(const cpu_thread& cpu)
+ 	return sanitize_token(fmt::format("%s", cpu.state.load()));
+ }
+ 
++// REWINDBOX_FREEZE_RESERVATION_922: the reservation word of a line read in the same line as the thread's own
++// reservation time. Build 723, Black Ops II freeze: the line records printed after the threads showed the words of
++// 0x2e20880 and 0x2e20c00 below times threads had read from them, with bit 64 set; the word read next to each time
++// tells whether a word really went back or the reads were apart. ts = the time-base counter at the read.
++std::string reservation_word(u32 addr)
++{
++	if (!addr || !vm::check_addr(addr & -128, vm::page_readable, 128))
++	{
++		return "-";
++	}
++
++	const u64 word = vm::reservation_acquire(addr);
++	return fmt::format("0x%llx@%llu", word, utils::get_tsc());
++}
++
+ std::string ppu_line(const ppu_thread& ppu)
+ {
+ 	const char* function = ppu.current_function;
+@@ -74,12 +89,12 @@ std::string ppu_line(const ppu_thread& ppu)
+ 	// semaphore id of sys_semaphore_wait), lr, ctr and the reservation.
+ 	std::string line = fmt::format(
+ 		"FREEZE_DUMP ppu id=0x%x name=%s state=%s pc=0x%x prio=%d func=%s last=%s wait_s=%.3f "
+-		"r3=0x%llx r4=0x%llx r5=0x%llx r6=0x%llx r7=0x%llx r8=0x%llx r9=0x%llx r10=0x%llx lr=0x%llx ctr=0x%llx raddr=0x%x rtime=0x%llx",
++		"r3=0x%llx r4=0x%llx r5=0x%llx r6=0x%llx r7=0x%llx r8=0x%llx r9=0x%llx r10=0x%llx lr=0x%llx ctr=0x%llx raddr=0x%x rtime=0x%llx res=%s last_faddr=0x%x last_ftime=0x%llx last_fail=%llu",
+ 		ppu.id, sanitize_token(ppu.get_name()), cpu_state_token(ppu), ppu.cia, ppu.prio.load().prio,
+ 		sanitize_token(function ? function : ""), sanitize_token(last ? last : ""),
+ 		wait_start ? (get_guest_system_time() - wait_start) / 1000000. : 0.0,
+ 		ppu.gpr[3], ppu.gpr[4], ppu.gpr[5], ppu.gpr[6], ppu.gpr[7], ppu.gpr[8], ppu.gpr[9], ppu.gpr[10],
+-		ppu.lr, ppu.ctr, ppu.raddr, ppu.rtime);
++		ppu.lr, ppu.ctr, ppu.raddr, ppu.rtime, reservation_word(ppu.raddr ? ppu.raddr : ppu.last_faddr), ppu.last_faddr, ppu.last_ftime, ppu.last_fail);
+ 	return bound_line(line);
+ }
+ 
+@@ -221,7 +236,7 @@ std::string ppu_stack_line(const ppu_thread& ppu)
+ std::string guest_line(u32 addr)
+ {
+ 	const u64 rtime = vm::check_addr(addr, vm::page_readable, 128) ? +vm::reservation_acquire(addr) : 0;
+-	std::string line = fmt::format("FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s", addr, rtime, guest_hex(addr, 128));
++	std::string line = fmt::format("FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s ts=%llu", addr, rtime, guest_hex(addr, 128), utils::get_tsc());
+ 	return bound_line(line);
+ }
+ 
+@@ -246,11 +261,11 @@ std::string spu_line(const spu_thread& spu, const lv2_spu_group* group)
+ 
+ 	std::string line = fmt::format(
+ 		"FREEZE_DUMP spu id=0x%x lv2_id=0x%x name=%s group=%s gid=0x%x gstate=%s pc=0x%x state=%s "
+-		"raddr=0x%x rtime=0x%llx last_getllar=0x%x getllar_addr=0x%x getllar_spins=%u gl_switch=0x%x "
++		"raddr=0x%x rtime=0x%llx res=%s last_getllar=0x%x getllar_addr=0x%x getllar_res=%s getllar_spins=%u gl_switch=0x%x "
+ 		"eventstat_spins=%llu events=0x%llx mask=0x%x mfc_size=%u mfc=%s:%u:0x%x:0x%x:0x%x func=%s wait_s=%.3f spurs_addr=0x%x",
+ 		spu.id, spu.lv2_id, sanitize_token(spu.get_name()), group_name, group ? group->id : 0u,
+ 		sanitize_token(group_state), spu.pc, cpu_state_token(spu),
+-		spu.raddr, spu.rtime, spu.last_getllar, spu.last_getllar_addr, spu.getllar_spin_count,
++		spu.raddr, spu.rtime, reservation_word(spu.raddr), spu.last_getllar, spu.last_getllar_addr, reservation_word(spu.last_getllar_addr), spu.getllar_spin_count,
+ 		spu.getllar_busy_waiting_switch, spu.eventstat_spin_count, events.all, static_cast<u32>(events.mask),
+ 		spu.mfc_size, pending.cmd, static_cast<u32>(pending.tag), pending.lsa, pending.eal, static_cast<u32>(pending.size),
+ 		sanitize_token(function ? function : ""),
