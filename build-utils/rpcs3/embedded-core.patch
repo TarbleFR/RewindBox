@@ -70571,7 +70571,7 @@ index a42ae12..de2bea5 100644
  	static inline const auto& get(bool llvm = false)
  	{
 diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
-index dc78ddc..4b84b37 100644
+index dc78ddc..a8f83e8 100644
 --- a/rpcs3/Emu/Cell/PPUModule.cpp
 +++ b/rpcs3/Emu/Cell/PPUModule.cpp
 @@ -1,4 +1,7 @@
@@ -70677,7 +70677,7 @@ index dc78ddc..4b84b37 100644
  	for (const auto& s : elf.shdrs)
  	{
  		ppu_loader.notice("** Section: sh_type=0x%x, addr=0x%llx, size=0x%llx, flags=0x%x", std::bit_cast<u32>(s.sh_type), s.sh_addr, s.sh_size, s._sh_flags);
-@@ -2335,6 +2387,62 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2335,6 +2387,75 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		g_fxo->get<patch_engine>().apply(applied, Emu.GetTitleID() + '-' + hash, [&](u32 addr, u32 size) { return _main.get_ptr<u8>(addr, size); });
  	}
  
@@ -70711,7 +70711,16 @@ index dc78ddc..4b84b37 100644
 +		rpcs3::ios::gow3_mlaa::savestate_patched.store(ar && mlaa_plan ? (mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32) ? 1 : 0) : -1,
 +			std::memory_order_relaxed);
 +
-+		if (!ar && mlaa_policy && mlaa_plan)
++		// REWINDBOX_GOW3_MLAA_SAVESTATE_922: a savestate carries the memory of the boot it was made from. Builds 721 and
++		// 723 (PIDs 47234 and 48447): every God of War III session resumed from a savestate made without the bypass
++		// reported ppu=savestate_memory savestate_patched=0 and read the 1280x720 colour buffer back 72-107 times per
++		// 5 s window (MLAA running, 12-23 FPS), every fresh boot ppu=applied and 0. The guest memory is restored
++		// before this loader runs (System.cpp: vm::load before ppu_load_exec), so the same pair, behind the same
++		// content guard, is applied to it: from then on the title schedules no MLAA, as after a fresh boot. A job
++		// scheduled before the savestate completes on its SPU as it would have.
++		const bool mlaa_savestate_fix = ar && mlaa_policy && mlaa_plan && mlaa_plan->guarded &&
++			!mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32);
++		if ((!ar || mlaa_savestate_fix) && mlaa_policy && mlaa_plan)
 +		{
 +			const mlaa_patch::result mlaa_result = mlaa_patch::apply(*mlaa_plan, mlaa_read8, mlaa_read32,
 +				[&](u32 address, u8 value) { _main.get_ref<u8>(address) = value; },
@@ -70728,8 +70737,12 @@ index dc78ddc..4b84b37 100644
 +			}
 +			else
 +			{
-+				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x)",
-+					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word);
++				if (ar)
++				{
++					mlaa_state = ppu_state::savestate_applied;
++				}
++				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x%s)",
++					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word, ar ? ", restored savestate memory" : "");
 +			}
 +		}
 +
@@ -70740,7 +70753,7 @@ index dc78ddc..4b84b37 100644
  	if (!applied.empty() || ar)
  	{
  		// Compare memory changes in memory after executable code sections end
-@@ -2373,7 +2481,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2373,7 +2494,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  	}
  
  	// Initialize HLE modules
@@ -70754,7 +70767,7 @@ index dc78ddc..4b84b37 100644
  
  	// Embedded SPU elf patching
  	for (const auto& seg : _main.segs)
-@@ -2650,7 +2764,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2650,7 +2777,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		}
  
  		void init_fxo_for_exec(utils::serial* ar, bool full);
@@ -83443,7 +83456,7 @@ index 8171927..ceb4bce 100644
  
  	protected:
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
-index 6b30665..c9c186e 100644
+index 6b30665..a98ac17 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
 @@ -9,7 +9,21 @@
@@ -83882,10 +83895,10 @@ index 6b30665..c9c186e 100644
 +#ifdef RPCS3_IOS
 +			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
 +			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
-+			mem_hash = fast_hash_internal();
+ 			mem_hash = fast_hash_internal();
 +			validated_epoch = epoch;
 +#else
- 			mem_hash = fast_hash_internal();
++			mem_hash = fast_hash_internal();
 +#endif
  		}
  
@@ -83930,7 +83943,37 @@ index 6b30665..c9c186e 100644
  #else
  		const auto cycles = hash_length / 8;
  		auto rem = hash_length % 8;
-@@ -266,7 +664,69 @@ namespace rsx
+@@ -259,6 +657,29 @@ namespace rsx
+ 		return (protection_strat == section_protection_strategy::lock);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_STALE_TEXTURE_SWEEP_921: sync() for the stale texture pass. An idle section's hash is not a prediction of
++	// the next frame's lookups, so the prehash tables are neither consulted nor fed and the prehash bypass of an RSX
++	// write is left for the next lookup. The epoch shortcut and the comparison are those of sync().
++	bool buffered_section::sync_unpredicted() const
++	{
++		if (protection_strat == section_protection_strategy::lock || !locked)
++		{
++			return true;
++		}
++
++		const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
++		if (epoch && validated_epoch == epoch)
++		{
++			return true;
++		}
++
++		const bool unchanged = (fast_hash_internal() == mem_hash);
++		validated_epoch = unchanged ? epoch : 0;
++		return unchanged;
++	}
++#endif
++
+ 	bool buffered_section::sync() const
+ 	{
+ 		if (protection_strat == section_protection_strategy::lock || !locked)
+@@ -266,7 +687,69 @@ namespace rsx
  			return true;
  		}
  
@@ -84001,7 +84044,7 @@ index 6b30665..c9c186e 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b2..381291b 100644
+index 0fa80b2..48babd2 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
 @@ -12,6 +12,17 @@
@@ -84065,10 +84108,14 @@ index 0fa80b2..381291b 100644
  					bounds_area < target_area)
  				{
  					return false;
-@@ -653,7 +671,25 @@ namespace rsx
+@@ -653,7 +671,29 @@ namespace rsx
  
  		shared_mutex m_cache_mutex;
  		ranged_storage m_storage;
++#ifdef RPCS3_IOS
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921: where the next stale texture pass starts (RSX thread, under m_cache_mutex).
++		rpcs3::ios::stale_texture_sweep::cursor m_ios_stale_cursor{};
++#endif
 +#ifdef RPCS3_IOS
 +		// The cache only consumes the encoded identity and invalidation range.
 +		// Copy/gather recipes are used from the current request, never the cached
@@ -84091,7 +84138,7 @@ index 0fa80b2..381291b 100644
  		std::vector<image_view_type> m_uncached_subresources;
  		predictor_type m_predictor;
  
-@@ -787,6 +823,36 @@ namespace rsx
+@@ -787,6 +827,36 @@ namespace rsx
  			return true;
  		}
  
@@ -84128,7 +84175,7 @@ index 0fa80b2..381291b 100644
  		/**
  		 * Section invalidation
  		 */
-@@ -795,6 +861,21 @@ namespace rsx
+@@ -795,6 +865,21 @@ namespace rsx
  		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
  		{
  			AUDIT(!data.flushed);
@@ -84150,7 +84197,7 @@ index 0fa80b2..381291b 100644
  
  			if (data.sections_to_flush.size() > 1)
  			{
-@@ -821,6 +902,17 @@ namespace rsx
+@@ -821,6 +906,17 @@ namespace rsx
  				}
  			}
  
@@ -84168,7 +84215,7 @@ index 0fa80b2..381291b 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1145,9 +1237,28 @@ namespace rsx
+@@ -1145,9 +1241,28 @@ namespace rsx
  
  			AUDIT(cause.valid());
  			AUDIT(fault_range_in.valid());
@@ -84197,7 +84244,7 @@ index 0fa80b2..381291b 100644
  
  			thrashed_set result = {};
  			result.cause = cause;
-@@ -1237,6 +1348,22 @@ namespace rsx
+@@ -1237,6 +1352,22 @@ namespace rsx
  			// Decide which sections to flush, unprotect, and exclude
  			update_cache_tag();
  
@@ -84220,7 +84267,7 @@ index 0fa80b2..381291b 100644
  			for (auto &obj : trampled_set.sections)
  			{
  				auto &tex = *obj;
-@@ -1281,9 +1408,49 @@ namespace rsx
+@@ -1281,9 +1412,49 @@ namespace rsx
  						{
  							tex.set_dirty(true);
  						}
@@ -84270,7 +84317,7 @@ index 0fa80b2..381291b 100644
  					else
  					{
  						result.sections_to_flush.push_back(&tex);
-@@ -1644,6 +1811,11 @@ namespace rsx
+@@ -1644,6 +1815,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -84282,7 +84329,7 @@ index 0fa80b2..381291b 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1906,11 @@ namespace rsx
+@@ -1734,6 +1910,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -84294,7 +84341,7 @@ index 0fa80b2..381291b 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1860,6 +2037,13 @@ namespace rsx
+@@ -1860,6 +2041,13 @@ namespace rsx
  
  		virtual void on_frame_end()
  		{
@@ -84308,7 +84355,7 @@ index 0fa80b2..381291b 100644
  			// Must manually release each cached entry
  			for (auto& entry : m_temporary_subresource_cache)
  			{
-@@ -1871,7 +2055,7 @@ namespace rsx
+@@ -1871,7 +2059,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -84317,7 +84364,7 @@ index 0fa80b2..381291b 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +2071,7 @@ namespace rsx
+@@ -1887,7 +2075,7 @@ namespace rsx
  						continue;
  					}
  
@@ -84326,7 +84373,7 @@ index 0fa80b2..381291b 100644
  					{
  						continue;
  					}
-@@ -1903,6 +2087,29 @@ namespace rsx
+@@ -1903,6 +2091,29 @@ namespace rsx
  		section_storage_type *find_texture_from_dimensions(u32 rsx_address, u32 format, u16 width = 0, u16 height = 0, u16 depth = 0, u16 mipmaps = 0)
  		{
  			auto &block = m_storage.block_for(rsx_address);
@@ -84356,7 +84403,7 @@ index 0fa80b2..381291b 100644
  			for (auto &tex : block)
  			{
  				if constexpr (check_unlocked)
-@@ -2048,6 +2255,9 @@ namespace rsx
+@@ -2048,6 +2259,9 @@ namespace rsx
  				return;
  
  			std::lock_guard lock(m_cache_mutex);
@@ -84366,7 +84413,7 @@ index 0fa80b2..381291b 100644
  			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
  		}
  
-@@ -2321,6 +2531,102 @@ namespace rsx
+@@ -2321,6 +2535,195 @@ namespace rsx
  			return evicted_set.violation_handled;
  		}
  
@@ -84464,12 +84511,105 @@ index 0fa80b2..381291b 100644
 +			m_storage.purge_unreleased_sections();
 +			return released;
 +		}
++
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): one bounded pass over the idle hash-validated
++		// CPU textures, from m_ios_stale_cursor. A section is examined when no lookup has used it for
++		// texture_residency::min_idle_frames frames, the pass has not found it intact in the last revisit_frames frames and
++		// its base is not in `exclusion_list` (the bound textures); it is
++		// released when its guest bytes no longer match its hash, exactly as its next lookup would release it, and kept
++		// otherwise. The pass stops after `limits` (hashed bytes, sections looked at) or one revolution of the storage;
++		// the next one resumes after the last section looked at. Returns what it did; the released sections are purged.
++		template <typename HostBytes>
++		rpcs3::ios::stale_texture_sweep::pass_result release_stale_idle_sections(const std::set<u32>& exclusion_list, HostBytes&& host_bytes,
++			const rpcs3::ios::stale_texture_sweep::pass_limits& limits = {})
++		{
++			ensure(rsx::get_current_renderer()->is_current_thread());
++			namespace sweep = rpcs3::ios::stale_texture_sweep;
++			namespace residency = rpcs3::ios::texture_residency;
++			sweep::pass_result result{};
++			std::unique_lock lock(m_cache_mutex, std::defer_lock);
++
++			if (!lock.try_lock())
++			{
++				sweep::counters.refused_locked.fetch_add(1, std::memory_order_relaxed);
++				return result;
++			}
++
++			const u64 begin = utils::get_tsc();
++			const u64 now = residency::current_frame();
++			const u32 type_to_check = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_src;
++			constexpr u32 num_blocks = ranged_storage::num_blocks;
++			auto& cursor = m_ios_stale_cursor;
++			bool stopped = false;
++
++			for (u32 visited = 0; visited < num_blocks && !stopped; ++visited)
++			{
++				auto& block = m_storage[cursor.block % num_blocks];
++
++				if (block.get_locked_count() != 0)
++				{
++					u32 slot = 0;
++					for (auto& region : block)
++					{
++						if (slot < cursor.slot)
++						{
++							++slot;
++							continue;
++						}
++
++						if (result.seen >= limits.sections || result.examined_bytes >= limits.bytes)
++						{
++							cursor.slot = slot;
++							stopped = true;
++							break;
++						}
++
++						++slot;
++						++result.seen;
++
++						if (region.is_dirty() || !region.is_locked() || region.is_locked(true) || !(region.get_context() & type_to_check) ||
++							!residency::idle(region.last_use_frame, now) || !sweep::revisit_due(region.ios_swept_frame, now) ||
++							exclusion_list.contains(region.get_section_base()))
++						{
++							continue;
++						}
++
++						const u64 bytes = region.get_confirmed_range().length();
++						const u64 host = host_bytes(region);
++						result.examined_bytes += bytes;
++						++result.examined;
++
++						if (!region.sync_protection_swept())
++						{
++							++result.released;
++							result.released_bytes += bytes;
++							result.released_host_bytes += host;
++						}
++					}
++				}
++
++				if (!stopped)
++				{
++					cursor.slot = 0;
++					cursor.block = (cursor.block + 1) % num_blocks;
++					result.revolutions += cursor.block == 0 ? 1 : 0;
++				}
++			}
++
++			if (result.released)
++			{
++				m_storage.purge_unreleased_sections();
++			}
++
++			sweep::record(result, utils::get_tsc() - begin);
++			return result;
++		}
 +#endif
 +
  		// Expands a _3d_unwrap descriptor into the explicit slice list used by _3d_gather.
  		static void expand_3d_unwrap_sections(rsx::simple_array<copy_region_descriptor>& sections, const deferred_subresource& desc, u8 level)
  		{
-@@ -2522,7 +2828,7 @@ namespace rsx
+@@ -2522,7 +2925,7 @@ namespace rsx
  				// Most mesh textures are stored as compressed to make the most of the limited memory
  				if (auto cached_texture = find_texture_from_dimensions(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth))
  				{
@@ -84478,7 +84618,7 @@ index 0fa80b2..381291b 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2531,6 +2837,10 @@ namespace rsx
+@@ -2531,6 +2934,10 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -84489,7 +84629,7 @@ index 0fa80b2..381291b 100644
  				}
  
  				return {};
-@@ -2563,7 +2873,7 @@ namespace rsx
+@@ -2563,7 +2970,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -84498,7 +84638,7 @@ index 0fa80b2..381291b 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2919,121 @@ namespace rsx
+@@ -2609,12 +3016,121 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -84622,7 +84762,7 @@ index 0fa80b2..381291b 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2632,10 +3051,15 @@ namespace rsx
+@@ -2632,10 +3148,15 @@ namespace rsx
  						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
  						cached_texture->unprotect();
  						cached_texture->set_dirty(true);
@@ -84639,7 +84779,7 @@ index 0fa80b2..381291b 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2644,15 +3068,23 @@ namespace rsx
+@@ -2644,15 +3165,23 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -84665,7 +84805,7 @@ index 0fa80b2..381291b 100644
  				});
  			}
  
-@@ -2875,6 +3307,57 @@ namespace rsx
+@@ -2875,6 +3404,57 @@ namespace rsx
  			return {};
  		}
  
@@ -84723,7 +84863,7 @@ index 0fa80b2..381291b 100644
  		template <typename surface_store_type, typename RsxTextureType>
  		bool test_if_descriptor_expired(commandbuffer_type& cmd, surface_store_type& surface_cache, sampled_image_descriptor* descriptor, const RsxTextureType& tex)
  		{
-@@ -3068,6 +3551,18 @@ namespace rsx
+@@ -3068,6 +3648,18 @@ namespace rsx
  		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
  		sampled_image_descriptor upload_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, Args&&... extras)
  		{
@@ -84742,7 +84882,7 @@ index 0fa80b2..381291b 100644
  			m_texture_upload_calls_this_frame++;
  
  			image_section_attributes_t attributes{};
-@@ -3095,8 +3590,6 @@ namespace rsx
+@@ -3095,8 +3687,6 @@ namespace rsx
  				{
  				case rsx::texture_dimension_extended::texture_dimension_3d:
  				case rsx::texture_dimension_extended::texture_dimension_cubemap:
@@ -84751,7 +84891,7 @@ index 0fa80b2..381291b 100644
  				case rsx::texture_dimension_extended::texture_dimension_2d:
  					scale.height /= attributes.height;
  					[[ fallthrough ]];
-@@ -3169,6 +3662,16 @@ namespace rsx
+@@ -3169,6 +3759,16 @@ namespace rsx
  				return {};
  			}
  
@@ -84768,7 +84908,7 @@ index 0fa80b2..381291b 100644
  			if (options.is_compressed_format)
  			{
  				// Compressed textures cannot be 1D in some APIs
-@@ -3176,7 +3679,16 @@ namespace rsx
+@@ -3176,7 +3776,16 @@ namespace rsx
  			}
  
  			const auto lookup_range = utils::address_range32::start_length(attributes.address, attributes.pitch * required_surface_height);
@@ -84785,7 +84925,7 @@ index 0fa80b2..381291b 100644
  
  			auto result = fast_texture_search(cmd, attributes, scale, tex.decoded_remap(),
  				options, lookup_range, extended_dimension, m_rtts,
-@@ -3326,13 +3838,18 @@ namespace rsx
+@@ -3326,13 +3935,18 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -84805,7 +84945,7 @@ index 0fa80b2..381291b 100644
  			{
  				uploaded->get_view(tex.decoded_remap()),
  				texture_upload_context::shader_read,
-@@ -3341,7 +3858,136 @@ namespace rsx
+@@ -3341,7 +3955,136 @@ namespace rsx
  				extended_dimension,
  				attributes.address
  			};
@@ -84942,7 +85082,7 @@ index 0fa80b2..381291b 100644
  
  		// FIXME: This function is way too large and needs an urgent refactor.
  		template <typename surface_store_type, typename blitter_type, typename ...Args>
-@@ -3628,6 +4274,15 @@ namespace rsx
+@@ -3628,6 +4371,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -84958,7 +85098,7 @@ index 0fa80b2..381291b 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +4379,26 @@ namespace rsx
+@@ -3724,6 +4476,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -85025,10 +85165,10 @@ index e6789e8..040fe85 100644
  		{
  			if (g_cfg.video.strict_rendering_mode)
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-index a10770d..da2171f 100644
+index a10770d..b04e251 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-@@ -11,6 +11,18 @@
+@@ -11,6 +11,19 @@
  
  #include <list>
  #include <unordered_set>
@@ -85039,6 +85179,7 @@ index a10770d..da2171f 100644
 +#include "ios/IOSTextureValidationProfile.h"
 +#include "ios/IOSTexturePrehash.h"
 +#include "ios/IOSTextureResidency.h"
++#include "ios/IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
 +#include "ios/IOSDeferredCommit.h"
 +#include "ios/IOSReadbackPrediction.h"
 +#include "ios/IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
@@ -85047,7 +85188,7 @@ index a10770d..da2171f 100644
  
  namespace rsx
  {
-@@ -157,6 +169,30 @@ namespace rsx
+@@ -157,6 +170,30 @@ namespace rsx
  		inline size_type capacity() const { return m_capacity; }
  		inline bool empty() const { return m_size == 0; }
  
@@ -85078,7 +85219,7 @@ index a10770d..da2171f 100644
  		inline void clear()
  		{
  			m_size = 0;
-@@ -223,6 +259,15 @@ namespace rsx
+@@ -223,6 +260,15 @@ namespace rsx
  		using unowned_container_type = std::unordered_set<section_storage_type*>;
  		using unowned_iterator = typename unowned_container_type::iterator;
  		using unowned_const_iterator = typename unowned_container_type::const_iterator;
@@ -85094,7 +85235,7 @@ index a10770d..da2171f 100644
  
  	private:
  		u32 index = 0;
-@@ -233,6 +278,33 @@ namespace rsx
+@@ -233,6 +279,33 @@ namespace rsx
  		atomic_t<u32> locked_count = 0;
  		atomic_t<u32> unreleased_count = 0;
  		ranged_storage_type *m_storage = nullptr;
@@ -85128,7 +85269,7 @@ index a10770d..da2171f 100644
  
  		inline void add_owned_section_overlaps(section_storage_type &section)
  		{
-@@ -297,18 +369,72 @@ namespace rsx
+@@ -297,18 +370,72 @@ namespace rsx
  
  		inline section_storage_type& create_section()
  		{
@@ -85201,7 +85342,7 @@ index a10770d..da2171f 100644
  			}
  
  			AUDIT(exists_count == 0);
-@@ -370,6 +496,9 @@ namespace rsx
+@@ -370,6 +497,9 @@ namespace rsx
  			AUDIT(section.valid_range());
  			AUDIT(range.overlaps(section.get_section_base()));
  			add_owned_section_overlaps(section);
@@ -85211,7 +85352,7 @@ index a10770d..da2171f 100644
  		}
  
  		inline void on_section_range_invalid(section_storage_type &section)
-@@ -377,6 +506,9 @@ namespace rsx
+@@ -377,6 +507,9 @@ namespace rsx
  			AUDIT(section.valid_range());
  			AUDIT(range.overlaps(section.get_section_base()));
  			remove_owned_section_overlaps(section);
@@ -85221,7 +85362,7 @@ index a10770d..da2171f 100644
  		}
  
  		inline void on_section_resources_created(const section_storage_type &section)
-@@ -610,6 +742,13 @@ namespace rsx
+@@ -610,6 +743,13 @@ namespace rsx
  
  		void trim_sections()
  		{
@@ -85235,7 +85376,7 @@ index a10770d..da2171f 100644
  			for (auto it = m_in_use.begin(); it != m_in_use.end(); it++)
  			{
  				auto* block = *it;
-@@ -619,11 +758,24 @@ namespace rsx
+@@ -619,11 +759,24 @@ namespace rsx
  					{
  						if (tex.is_locked() && !tex.is_locked(true))
  						{
@@ -85260,7 +85401,7 @@ index a10770d..da2171f 100644
  		}
  
  
-@@ -883,6 +1035,12 @@ namespace rsx
+@@ -883,6 +1036,12 @@ namespace rsx
  
  		section_protection_strategy protection_strat = section_protection_strategy::lock;
  		u64 mem_hash = 0;
@@ -85273,10 +85414,14 @@ index a10770d..da2171f 100644
  
  		bool locked = false;
  		void init_lockable_range(const address_range32& range);
-@@ -903,6 +1061,12 @@ namespace rsx
+@@ -903,6 +1062,16 @@ namespace rsx
  		void protect(utils::protection prot, const std::pair<u32, u32>& new_confirm);
  		void unprotect();
  		bool sync() const;
++#ifdef RPCS3_IOS
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921: the answer of sync() without the prehash tables.
++		bool sync_unpredicted() const;
++#endif
 +#ifdef RPCS3_IOS
 +		// CELL573_SCOPED_RSX_WRITES: the next validation hashes again.
 +		// CELL581_TEXTURE_PREHASH: on the RSX thread, never with the worker's hash
@@ -85286,7 +85431,7 @@ index a10770d..da2171f 100644
  
  		void discard();
  		const address_range32& get_bounds(section_bounds bounds) const;
-@@ -1037,6 +1201,10 @@ namespace rsx
+@@ -1037,6 +1206,10 @@ namespace rsx
  		using predictor_type            = texture_cache_predictor<traits>;
  		using predictor_key_type        = typename predictor_type::key_type;
  		using predictor_entry_type      = typename predictor_type::mapped_type;
@@ -85297,7 +85442,7 @@ index a10770d..da2171f 100644
  
  	protected:
  		ranged_storage_type *m_storage = nullptr;
-@@ -1076,6 +1244,9 @@ namespace rsx
+@@ -1076,6 +1249,9 @@ namespace rsx
  		bool synchronized = false;
  		bool flushed = false;
  		bool speculatively_flushed = false;
@@ -85307,13 +85452,15 @@ index a10770d..da2171f 100644
  
  		rsx::memory_read_flags readback_behaviour = rsx::memory_read_flags::flush_once;
  		rsx::component_order view_flags = rsx::component_order::default_;
-@@ -1091,6 +1262,20 @@ namespace rsx
+@@ -1091,6 +1267,22 @@ namespace rsx
  	public:
  		u64 cache_tag = 0;
  		u64 last_write_tag = 0;
 +#ifdef RPCS3_IOS
 +		// CELL573_TEXTURE_RESIDENCY: frame of the last lookup that used this section.
 +		u64 last_use_frame = 0;
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921: frame in which the stale texture pass last found it intact (0: never).
++		u64 ios_swept_frame = 0;
 +
 +		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a change of this section that an
 +		// exact texture lookup can observe (protection, dirty flag, ranges, resources, format, dimensions,
@@ -85328,7 +85475,7 @@ index a10770d..da2171f 100644
  
  		~cached_texture_section()
  		{
-@@ -1121,9 +1306,18 @@ namespace rsx
+@@ -1121,9 +1313,18 @@ namespace rsx
  		{
  			AUDIT(memory_range.valid());
  			AUDIT(!is_locked());
@@ -85347,7 +85494,7 @@ index a10770d..da2171f 100644
  
  			// Superclass
  			rsx::buffered_section::reset(memory_range);
-@@ -1145,9 +1339,15 @@ namespace rsx
+@@ -1145,9 +1346,16 @@ namespace rsx
  			synchronized = false;
  			flushed = false;
  			speculatively_flushed = false;
@@ -85359,11 +85506,12 @@ index a10770d..da2171f 100644
  			last_write_tag = 0ull;
 +#ifdef RPCS3_IOS
 +			last_use_frame = rpcs3::ios::texture_residency::current_frame();
++			ios_swept_frame = 0;
 +#endif
  
  			m_predictor_entry = nullptr;
  
-@@ -1167,6 +1367,9 @@ namespace rsx
+@@ -1167,6 +1375,9 @@ namespace rsx
  
  		void create_dma_only(u16 width, u16 height, u32 pitch)
  		{
@@ -85373,7 +85521,7 @@ index a10770d..da2171f 100644
  			this->width = width;
  			this->height = height;
  			this->rsx_pitch = pitch;
-@@ -1184,6 +1387,10 @@ namespace rsx
+@@ -1184,6 +1395,10 @@ namespace rsx
  		{
  			AUDIT(exists());
  			AUDIT(valid_range());
@@ -85384,7 +85532,7 @@ index a10770d..da2171f 100644
  
  			if (triggered_exists_callbacks) return;
  			triggered_exists_callbacks = true;
-@@ -1195,6 +1402,9 @@ namespace rsx
+@@ -1195,6 +1410,9 @@ namespace rsx
  
  		void on_section_resources_destroyed()
  		{
@@ -85394,7 +85542,7 @@ index a10770d..da2171f 100644
  			if (!triggered_exists_callbacks) return;
  			triggered_exists_callbacks = false;
  
-@@ -1224,6 +1434,9 @@ namespace rsx
+@@ -1224,6 +1442,9 @@ namespace rsx
  
  		void set_dirty(bool new_dirty)
  		{
@@ -85404,7 +85552,7 @@ index a10770d..da2171f 100644
  			if (new_dirty == false && !is_locked() && context == texture_upload_context::shader_read)
  				return;
  
-@@ -1261,6 +1474,9 @@ namespace rsx
+@@ -1261,6 +1482,9 @@ namespace rsx
  		void notify_range_valid()
  		{
  			AUDIT(valid_range());
@@ -85414,7 +85562,7 @@ index a10770d..da2171f 100644
  
  			// Callbacks
  			m_block->on_section_range_valid(*derived());
-@@ -1275,6 +1491,9 @@ namespace rsx
+@@ -1275,6 +1499,9 @@ namespace rsx
  
  		void invalidate_range()
  		{
@@ -85424,7 +85572,7 @@ index a10770d..da2171f 100644
  			if (!valid_range())
  				return;
  
-@@ -1345,6 +1564,11 @@ namespace rsx
+@@ -1345,6 +1572,11 @@ namespace rsx
  		 */
  		void post_protect(utils::protection old_prot, utils::protection prot)
  		{
@@ -85436,7 +85584,7 @@ index a10770d..da2171f 100644
  			if (old_prot != utils::protection::rw && prot == utils::protection::rw)
  			{
  				AUDIT(!is_locked());
-@@ -1403,6 +1627,9 @@ namespace rsx
+@@ -1403,6 +1635,9 @@ namespace rsx
  
  		inline void unprotect()
  		{
@@ -85446,7 +85594,7 @@ index a10770d..da2171f 100644
  			utils::protection old_prot = get_protection();
  			rsx::buffered_section::unprotect();
  			post_protect(old_prot, utils::protection::rw);
-@@ -1410,6 +1637,9 @@ namespace rsx
+@@ -1410,6 +1645,9 @@ namespace rsx
  
  		inline void discard(bool set_dirty = true)
  		{
@@ -85456,7 +85604,7 @@ index a10770d..da2171f 100644
  			utils::protection old_prot = get_protection();
  			rsx::buffered_section::discard();
  			post_protect(old_prot, utils::protection::rw);
-@@ -1422,6 +1652,9 @@ namespace rsx
+@@ -1422,6 +1660,9 @@ namespace rsx
  
  		void reprotect(const utils::protection prot)
  		{
@@ -85466,7 +85614,7 @@ index a10770d..da2171f 100644
  			if (synchronized && !flushed)
  			{
  				// Abort enqueued transfer
-@@ -1438,6 +1671,9 @@ namespace rsx
+@@ -1438,6 +1679,9 @@ namespace rsx
  
  		void reprotect(const utils::protection prot, const std::pair<u32, u32>& range)
  		{
@@ -85476,7 +85624,7 @@ index a10770d..da2171f 100644
  			if (synchronized && !flushed)
  			{
  				// Abort enqueued transfer
-@@ -1463,6 +1699,12 @@ namespace rsx
+@@ -1463,6 +1707,12 @@ namespace rsx
  
  		void on_flush()
  		{
@@ -85489,7 +85637,7 @@ index a10770d..da2171f 100644
  			speculatively_flushed = false;
  
  			m_tex_cache->on_flush();
-@@ -1482,6 +1724,9 @@ namespace rsx
+@@ -1482,6 +1732,9 @@ namespace rsx
  
  		void on_speculative_flush()
  		{
@@ -85499,7 +85647,7 @@ index a10770d..da2171f 100644
  			speculatively_flushed = true;
  
  			m_tex_cache->on_speculative_flush();
-@@ -1489,10 +1734,71 @@ namespace rsx
+@@ -1489,10 +1742,71 @@ namespace rsx
  
  		void on_miss()
  		{
@@ -85571,7 +85719,7 @@ index a10770d..da2171f 100644
  		void touch(u64 tag)
  		{
  			last_write_tag = tag;
-@@ -1504,6 +1810,9 @@ namespace rsx
+@@ -1504,6 +1818,9 @@ namespace rsx
  
  			if (speculatively_flushed)
  			{
@@ -85581,7 +85729,7 @@ index a10770d..da2171f 100644
  				m_tex_cache->on_misprediction();
  			}
  
-@@ -1512,6 +1821,19 @@ namespace rsx
+@@ -1512,6 +1829,19 @@ namespace rsx
  
  		bool sync_protection()
  		{
@@ -85601,7 +85749,7 @@ index a10770d..da2171f 100644
  			if (!buffered_section::sync())
  			{
  				discard(true);
-@@ -1519,9 +1841,22 @@ namespace rsx
+@@ -1519,9 +1849,39 @@ namespace rsx
  				return false;
  			}
  
@@ -85619,12 +85767,29 @@ index a10770d..da2171f 100644
 +			last_use_frame = last_use;
 +			return valid;
 +		}
++
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): the validation of an idle section by the stale
++		// texture pass. Same hash and comparison as a lookup, and on a mismatch the same release (discard, dirty) as
++		// sync_protection; a match is not a use (last_use_frame is kept, ios_swept_frame records it) and the prehash tables
++		// are neither read nor fed. The caller skips dirty sections and page-locked ones.
++		bool sync_protection_swept()
++		{
++			if (!buffered_section::sync_unpredicted())
++			{
++				discard(true);
++				ensure(is_dirty());
++				return false;
++			}
++
++			ios_swept_frame = rpcs3::ios::texture_residency::current_frame();
++			return true;
++		}
 +#endif
 +
  
  		/**
  		 * Flush
-@@ -1642,6 +1977,9 @@ namespace rsx
+@@ -1642,6 +2002,9 @@ namespace rsx
  			auto cleanup_flush = [&]()
  			{
  				flushed = true;
@@ -85634,7 +85799,7 @@ index a10770d..da2171f 100644
  				flush_exclusions.clear();
  				on_flush();
  			};
-@@ -1657,8 +1995,20 @@ namespace rsx
+@@ -1657,8 +2020,20 @@ namespace rsx
  			// NOTE: Hard faults should have been pre-processed beforehand
  			ensure(synchronized);
  
@@ -85655,7 +85820,7 @@ index a10770d..da2171f 100644
  
  			// Finish up
  			// Its highly likely that this surface will be reused, so we just leave resources in place
-@@ -1689,27 +2039,45 @@ namespace rsx
+@@ -1689,27 +2064,45 @@ namespace rsx
  
  		void set_view_flags(rsx::component_order flags)
  		{
@@ -113535,7 +113700,7 @@ index 712505e..d67babe 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index a604696..023c90d 100644
+index a604696..7c733fa 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
 @@ -12,6 +12,17 @@
@@ -113634,7 +113799,7 @@ index a604696..023c90d 100644
  
  void VKGSRender::advance_queued_frames()
  {
-@@ -191,10 +265,52 @@ void VKGSRender::advance_queued_frames()
+@@ -191,10 +265,83 @@ void VKGSRender::advance_queued_frames()
  
  	// Run video memory balancer
  	m_device->rebalance_memory_type_usage();
@@ -113662,7 +113827,9 @@ index a604696..023c90d 100644
 +				}
 +			}
 +		};
-+
+ 
+-	// m_rtts storage is double buffered and should be safe to tag on frame boundary
+-	m_rtts.trim(*m_current_command_buffer, vk::vmm_determine_memory_load_severity());
 +		scan_array(rsx::method_registers.fragment_textures);
 +		scan_array(rsx::method_registers.vertex_textures);
 +
@@ -113676,10 +113843,39 @@ index a604696..023c90d 100644
 +			}
 +		}
 +	}
++
++	// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): once per frame, release the idle CPU textures whose
++	// guest bytes no longer match, as their next lookup would. Bound textures are not examined; when one was released,
++	// every cached descriptor of these kinds is looked up again before its next use, as after the residency pass.
++	if (rpcs3::ios::stale_texture_sweep::enabled.load(std::memory_order_relaxed))
++	{
++		std::set<u32> bound_textures;
++		auto scan_array = [&](const auto& texture_array)
++		{
++			for (const auto& tex : texture_array)
++			{
++				if (tex.enabled())
++				{
++					bound_textures.insert(rsx::get_address(tex.offset(), tex.location()));
++				}
++			}
++		};
++
++		scan_array(rsx::method_registers.fragment_textures);
++		scan_array(rsx::method_registers.vertex_textures);
++
++		if (m_texture_cache.release_stale_textures(bound_textures))
++		{
++			std::lock_guard lock(m_sampler_mutex);
++			for (const auto context : { rsx::texture_upload_context::shader_read, rsx::texture_upload_context::blit_engine_src })
++			{
++				rsx::invalidate_sampler_context(fs_sampler_state, m_textures_dirty, context);
++				rsx::invalidate_sampler_context(vs_sampler_state, m_vertex_textures_dirty, context);
++			}
++		}
++	}
 +#endif
- 
--	// m_rtts storage is double buffered and should be safe to tag on frame boundary
--	m_rtts.trim(*m_current_command_buffer, vk::vmm_determine_memory_load_severity());
++
 +	// REWINDBOX_TEXCACHE_PROFILE_621: the cache's per-frame statistics, taken before on_frame_end resets them.
 +	rpcs3::ios::texture_cache_profile::on_frame_end({
 +		m_texture_cache.get_texture_upload_calls_this_frame(), m_texture_cache.get_texture_upload_misses_this_frame(),
@@ -113690,7 +113886,7 @@ index a604696..023c90d 100644
  
  	// Texture cache is also double buffered to prevent use-after-free
  	m_texture_cache.on_frame_end();
-@@ -233,6 +349,11 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
+@@ -233,6 +380,11 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
  			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
  	}
  
@@ -113702,7 +113898,7 @@ index a604696..023c90d 100644
  	// Set up a present request for this frame as well
  	present(m_current_frame);
  
-@@ -250,11 +371,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
+@@ -250,11 +402,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
  	ensure(ctx->swap_command_buffer);
  
  	// Perform hard swap here
@@ -113724,7 +113920,7 @@ index a604696..023c90d 100644
  
  	// Resource cleanup.
  	{
-@@ -392,6 +523,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -392,6 +554,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  			flush_command_queue();
  		}
  
@@ -113736,7 +113932,7 @@ index a604696..023c90d 100644
  		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
  		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
  	}
-@@ -428,6 +564,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -428,6 +595,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  
  void VKGSRender::flip(const rsx::display_flip_info_t& info)
  {
@@ -113747,7 +113943,7 @@ index a604696..023c90d 100644
  	// Check swapchain condition/status
  	if (!m_swapchain->supports_automatic_wm_reports())
  	{
-@@ -597,6 +737,14 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -597,6 +768,14 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
  	u32 out_of_date_rebuilds = 0;
@@ -113762,7 +113958,7 @@ index a604696..023c90d 100644
  	while (VkResult status = m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, timeout, &m_current_frame->present_image))
  	{
  		switch (status)
-@@ -641,6 +789,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -641,6 +820,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  		}
  	}
  
@@ -113775,7 +113971,7 @@ index a604696..023c90d 100644
  	// Confirm that the driver did not silently fail
  	ensure(m_current_frame->present_image != umax);
  
-@@ -718,7 +872,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -718,7 +903,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  		if (g_cfg.video.record_with_overlays && has_overlay)
  		{
@@ -113786,7 +113982,7 @@ index a604696..023c90d 100644
  			single_target_pass = vk::get_renderpass(*m_device, key);
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
-@@ -880,12 +1036,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -880,12 +1067,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  			metal_fx_input->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  			metal_fx_output->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  
@@ -113806,7 +114002,7 @@ index a604696..023c90d 100644
  
  			m_current_command_buffer = m_primary_cb_list.next();
  			m_current_command_buffer->reset();
-@@ -1060,6 +1223,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -1060,6 +1254,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  	}
  
  	queue_swap_request(!acquire_consumed_before_present);
@@ -115329,7 +115525,7 @@ index c9bbf4e..2bc13d6 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762..bc4a269 100644
+index c165762..6dc8f15 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -6,8 +6,12 @@
@@ -115502,15 +115698,15 @@ index c165762..bc4a269 100644
 -				const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
 +					section.src->push_layout(cmd, preferred_layout);
 +				}
- 
--				if (convert_w == section.dst_w && src_h == section.dst_h &&
--					transform == rsx::surface_transform::identity)
++
 +				auto src_image = section.src;
 +				auto src_x = section.src_x;
 +				auto src_y = section.src_y;
 +				auto src_w = section.src_w;
 +				auto src_h = section.src_h;
-+
+ 
+-				if (convert_w == section.dst_w && src_h == section.dst_h &&
+-					transform == rsx::surface_transform::identity)
 +				rsx::flags32_t transform = section.xform;
 +				if (section.xform == rsx::surface_transform::coordinate_transform)
  				{
@@ -115599,7 +115795,8 @@ index c165762..bc4a269 100644
 +				ensure(transform == rsx::surface_transform::identity);
  
 -				if (_dst != dst)
--				{
++				if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
+ 				{
 -					// We place the output after the source to account for the initial typeless-xfer if applicable
 -					// If src_image == _dst then this is just a write-to-self. Either way, use best-fit placement.
 -					dst_rect.position.x = 0;
@@ -115607,8 +115804,7 @@ index c165762..bc4a269 100644
 -					mip_layers = {};
 -				}
 -				else if (dst->type() == VK_IMAGE_TYPE_3D)
-+				if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
- 				{
+-				{
 -					dst_rect.position.z = section.dst_z;
 +					const auto copy_rgn = get_output_region(section, src_x, src_y, src_w, src_h, src_image);
 +					vkCmdCopyImage(cmd, src_image->value, src_image->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
@@ -115618,7 +115814,13 @@ index c165762..bc4a269 100644
 -					mip_layers.dst_layer = static_cast<u8>(section.dst_z);
 -				}
 +					vk::image* _dst = dst;
-+
+ 
+-				vk::copy_scaled_image(cmd, src_image, _dst,
+-					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
+-					dst_rect,
+-					mip_layers,
+-					src_image->format() == _dst->format(),
+-					VK_FILTER_NEAREST);
 +					if (src_image->info.format != dst->info.format) [[ unlikely ]]
 +					{
 +						// Either a bitcast is required or a scale+copy to mipmap level / layer
@@ -115628,21 +115830,15 @@ index c165762..bc4a269 100644
 +						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 +					}
  
--				vk::copy_scaled_image(cmd, src_image, _dst,
--					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
--					dst_rect,
--					mip_layers,
--					src_image->format() == _dst->format(),
--					VK_FILTER_NEAREST);
-+					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
-+					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
- 
 -				if (_dst != dst) [[unlikely]]
 -				{
 -					// Casting comes after the scaling!
 -					const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
 -					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 -					vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
++					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
++					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
++
 +					if (_dst != dst)
 +					{
 +						// We place the output after the source to account for the initial typeless-xfer if applicable
@@ -116146,7 +116342,7 @@ index c165762..bc4a269 100644
  		return baseclass::get_unreleased_textures_count() + ::size32(m_cached_images);
  	}
  
-@@ -1757,4 +2040,26 @@ namespace vk
+@@ -1757,4 +2040,36 @@ namespace vk
  
  		return false;
  	}
@@ -116171,10 +116367,20 @@ index c165762..bc4a269 100644
 +			return image && image->memory ? image->memory->size() : 0;
 +		}) != 0;
 +	}
++
++	bool texture_cache::release_stale_textures(const std::set<u32>& exclusion_list)
++	{
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921: the host bytes are the image's memory, as for the residency pass.
++		return release_stale_idle_sections(exclusion_list, [](vk::cached_texture_section& section) -> u64
++		{
++			const auto image = section.get_raw_texture();
++			return image && image->memory ? image->memory->size() : 0;
++		}).released != 0;
++	}
 +#endif
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee059..43abdea 100644
+index b0ee059..bea9b86 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
 @@ -49,6 +49,11 @@ namespace vk
@@ -116275,13 +116481,15 @@ index b0ee059..43abdea 100644
  		void initialize(vk::render_device& device, VkQueue submit_queue, vk::data_heap& upload_heap);
  
  		void destroy() override;
-@@ -548,5 +570,9 @@ namespace vk
+@@ -548,5 +570,11 @@ namespace vk
  		u64 get_temporary_memory_in_use() const;
  
  		bool is_overallocated() const;
 +#ifdef RPCS3_IOS
 +		// CELL573_TEXTURE_RESIDENCY: true when idle textures were released.
 +		bool evict_idle_textures(const std::set<u32>& exclusion_list);
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921: one pass; true when a texture whose guest bytes changed was released.
++		bool release_stale_textures(const std::set<u32>& exclusion_list);
 +#endif
  	};
  }
@@ -119077,7 +119285,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..58a8828 100644
+index 1f53c64..576de5a 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -119333,7 +119541,22 @@ index 1f53c64..58a8828 100644
  					}
  					else
  					{
-@@ -1790,17 +1910,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1787,20 +1907,43 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 						continue;
+ 					}
+ 
++#ifdef RPCS3_IOS
++					// REWINDBOX_CONFIG_DATABASE_RULE_922 (maintainer, 10 Nov: "supprime le profil et garde la base RPCS3 comme
++					// référence"): a full custom_configs file is a snapshot an earlier build wrote from the RewindBox title
++					// profile of its time (God of War III: 75 %, relaxed reservations, multithreaded RSX), not the user's
++					// choices. It is left on disk and no longer applied: the title runs global < RPCS3 database < the
++					// user's own per-game settings (the sparse overrides below).
++					if (fs::is_file(config_path))
++					{
++						sys_log.notice("CONFIG_DB922 title=%s legacy_custom_ignored=1 path=%s", m_title_id, config_path);
++						continue;
++					}
++#endif
  					if (fs::file cfg_file{config_path})
  					{
  						sys_log.notice("Applying custom config: %s", config_path);
@@ -119363,7 +119586,7 @@ index 1f53c64..58a8828 100644
  							}
  							break;
  						}
-@@ -1810,6 +1941,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1810,6 +1953,43 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -119372,7 +119595,12 @@ index 1f53c64..58a8828 100644
 +			{
 +				// REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1: global < database < the
 +				// full file's own changes. The file keeps its name (g_cfg.name).
-+				ios_inheritance = rpcs3::ios::config_inheritance::inherit_database(*m_db_config, ios_full_config, ios_global_config);
++				// REWINDBOX_CONFIG_DATABASE_RULE_922: the RPCS3 database now decides every
++				// setting it names, over the file; the file keeps the others.
++				ios_inheritance = rpcs3::ios::config_inheritance::apply_database(*m_db_config, ios_full_config, ios_global_config);
++				sys_log.notice("CONFIG_DB922 title=%s database_settings_applied=%u corrected=%u agreed=%u corrections=%s",
++					m_title_id, ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed,
++					ios_inheritance.corrections.empty() ? std::string("-") : ios_inheritance.corrections);
 +
 +				if (!ios_inheritance.ok)
 +				{
@@ -119384,8 +119612,8 @@ index 1f53c64..58a8828 100644
 +				}
 +				else
 +				{
-+					sys_log.notice("Applying database config under the custom config: %u setting(s) inherited, %u kept from the custom config",
-+						ios_inheritance.inherited, ios_inheritance.kept);
++					sys_log.notice("Applying database config over the custom config: %u setting(s) inherited, %u corrected, %u already equal",
++						ios_inheritance.inherited, ios_inheritance.corrected, ios_inheritance.agreed);
 +
 +					if (g_cfg.from_string(ios_inheritance.yaml))
 +					{
@@ -119402,7 +119630,7 @@ index 1f53c64..58a8828 100644
  			if (m_add_database_config && m_db_config && !m_db_config->empty())
  			{
  				// Add database config
-@@ -1818,6 +1981,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1998,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -119412,15 +119640,15 @@ index 1f53c64..58a8828 100644
  				}
  				else
  				{
-@@ -1825,6 +1991,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +2008,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
 +#ifdef RPCS3_IOS
 +			// NeoStation sparse user overrides are always the final title layer.
-+			// A legacy full custom config remains authoritative and suppresses them;
-+			// it only lets the database fill the settings it left at the global value.
-+			if (!ios_has_legacy_custom_config && !m_title_id.empty())
++			// REWINDBOX_CONFIG_DATABASE_RULE_922: also after a legacy full custom config, so
++			// that what the user sets for the game is always what it runs with.
++			if (!m_title_id.empty())
 +			{
 +				// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3): the override file's presence
 +				// is read on the same path that applies it, so CONFIG_LAYERS reports
@@ -119445,7 +119673,7 @@ index 1f53c64..58a8828 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,159 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2056,159 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -119492,7 +119720,7 @@ index 1f53c64..58a8828 100644
 +				const std::string ios_accurate_res = g_cfg.core.spu_accurate_reservations.to_string();
 +				const std::string ios_mt_rsx = g_cfg.video.multithreaded_rsx.to_string();
 +				const std::string ios_spu_spin = g_cfg.ios_experimental.spu_spin_timing.to_string();
-+				ios_layers.inherited = ios_inheritance.inherited;
++				ios_layers.inherited = ios_inheritance.inherited + ios_inheritance.corrected; // REWINDBOX_CONFIG_DATABASE_RULE_922
 +				ios_layers.kept = ios_inheritance.kept;
 +				ios_layers.accurate_res = ios_accurate_res;
 +				ios_layers.mt_rsx = ios_mt_rsx;
@@ -119605,7 +119833,7 @@ index 1f53c64..58a8828 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2849,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2866,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -119620,7 +119848,7 @@ index 1f53c64..58a8828 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2865,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2882,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -119630,7 +119858,7 @@ index 1f53c64..58a8828 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2941,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2958,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -119645,7 +119873,7 @@ index 1f53c64..58a8828 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3071,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3088,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -119674,7 +119902,7 @@ index 1f53c64..58a8828 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3246,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3263,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -119686,7 +119914,7 @@ index 1f53c64..58a8828 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3330,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3347,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -119697,7 +119925,7 @@ index 1f53c64..58a8828 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3380,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3397,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -119723,7 +119951,7 @@ index 1f53c64..58a8828 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3888,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3905,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -119736,7 +119964,7 @@ index 1f53c64..58a8828 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3908,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3925,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -119759,7 +119987,7 @@ index 1f53c64..58a8828 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3964,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3981,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -119767,7 +119995,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3975,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3992,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -119775,7 +120003,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3985,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +4002,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -119783,7 +120011,7 @@ index 1f53c64..58a8828 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4073,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4090,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -119794,7 +120022,7 @@ index 1f53c64..58a8828 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4139,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4156,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -119803,7 +120031,7 @@ index 1f53c64..58a8828 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4253,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4270,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -119818,7 +120046,7 @@ index 1f53c64..58a8828 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4288,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4305,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -119826,7 +120054,7 @@ index 1f53c64..58a8828 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4406,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4423,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -119840,7 +120068,7 @@ index 1f53c64..58a8828 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4461,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4478,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -119853,7 +120081,7 @@ index 1f53c64..58a8828 100644
  			});
  
  			// Join it
-@@ -4075,10 +4531,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4548,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -119873,7 +120101,7 @@ index 1f53c64..58a8828 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4679,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4696,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -119884,7 +120112,7 @@ index 1f53c64..58a8828 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4777,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4794,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -119910,7 +120138,7 @@ index 1f53c64..58a8828 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4865,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4882,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -120085,7 +120313,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..9780bb8 100644
+index 7072922..a924a14 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -120115,7 +120343,7 @@ index 7072922..9780bb8 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,43 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,45 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -120139,6 +120367,8 @@ index 7072922..9780bb8 100644
 +		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
 +		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
 +		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
++		// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> stale_texture_sweep{ this, "Stale Texture Release", ios_experimental_mode::automatic };
 +		// CELL579_WRITER_YIELD: Automatic enables it for every title.
 +		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
 +		// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): Automatic enables it for every title.
@@ -120159,7 +120389,7 @@ index 7072922..9780bb8 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +182,65 @@ struct cfg_root : cfg::node
+@@ -134,6 +184,65 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -121395,6 +121625,67 @@ index 0000000..506dad2
 +	}
 +};
 +} // namespace rpcs3::ios::auto_ppu_profile
+diff --git a/rpcs3/ios/IOSAutoSpuProfile923.h b/rpcs3/ios/IOSAutoSpuProfile923.h
+new file mode 100644
+index 0000000..30e4b7d
+--- /dev/null
++++ b/rpcs3/ios/IOSAutoSpuProfile923.h
+@@ -0,0 +1,55 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_SPU_PROFILE_923: where do the SPU threads spend their time?
++//
++// Build 723, God of War III (BCES00510, PID 48627, fresh boot, MLAA bypass applied, no colour read-back): the play
++// windows 41-52 run at 9-13 guest frames per second with the GPU busy 14-21 %, the main PPU thread at 0.8-0.85 core and
++// five SPU threads at 0.6-0.83 core each (3.3-3.6 cores) on a device of two performance and four efficiency cores;
++// waits, compilations and synchronisations are small. The frame follows the SPU work and nothing in the journal says
++// what that work is. The region profile of Core 912 (ios/IOSCapture912.h, ppu_profile) reads PPU threads only.
++// When the SPU threads used at least `bound_cores` cores together in `windows_needed` consecutive running windows that
++// showed frames, the report asks once per boot for a region profile; that capture also samples the SPU threads
++// (state, pc, system call when waiting), about once per millisecond for at most 5000 samples. It stops no thread and
++// changes nothing; lines COREPROF SPUPROF923. With the LLVM SPU recompiler the pc field is written at the entry of a
++// compiled chunk and before calls out of it: a sample names a chunk of the program, not an instruction.
++namespace rpcs3::ios::auto_spu_profile
++{
++inline constexpr double bound_cores = 2.5;
++inline constexpr std::uint32_t windows_needed = 2;
++inline constexpr std::uint32_t max_threads = 8;
++
++struct tracker
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t consecutive = 0;
++	bool asked = false;
++
++	// One call per report window. True once per boot session: ask for the profile now.
++	bool observe(std::uint64_t now_session, bool running, std::uint64_t guest_flips, double spu_cores) noexcept
++	{
++		if (now_session != session)
++		{
++			session = now_session;
++			consecutive = 0;
++			asked = false;
++		}
++
++		if (!running || !guest_flips || !(spu_cores >= bound_cores))
++		{
++			consecutive = 0;
++			return false;
++		}
++
++		if (asked || ++consecutive < windows_needed)
++		{
++			return false;
++		}
++
++		asked = true;
++		return true;
++	}
++};
++} // namespace rpcs3::ios::auto_spu_profile
 diff --git a/rpcs3/ios/IOSAutoStorm917.h b/rpcs3/ios/IOSAutoStorm917.h
 new file mode 100644
 index 0000000..5c0d936
@@ -121456,10 +121747,10 @@ index 0000000..5c0d936
 +} // namespace rpcs3::ios::auto_storm
 diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
 new file mode 100644
-index 0000000..8c853fd
+index 0000000..4f5acec
 --- /dev/null
 +++ b/rpcs3/ios/IOSCapture912.h
-@@ -0,0 +1,654 @@
+@@ -0,0 +1,658 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -122013,6 +122304,9 @@ index 0000000..8c853fd
 +// and for a PPU region profile when heavy PUTLLC come at a high rate.
 +inline std::atomic<bool> auto_putllc{false};
 +inline std::atomic<bool> auto_ppu_storm{false};
++// REWINDBOX_SPU_PROFILE_923 (ios/IOSAutoSpuProfile923.h): the report asks once per boot for a region profile when the
++// SPU threads together saturate the device; that capture samples the SPU threads too.
++inline std::atomic<bool> auto_spu{false};
 +
 +// Settings API thread, a title running. True: the write is a start request and it is recorded.
 +inline bool offer(std::string_view key, std::string_view value) noexcept
@@ -122051,6 +122345,7 @@ index 0000000..8c853fd
 +	auto_ppu.store(false, std::memory_order_release);
 +	auto_putllc.store(false, std::memory_order_release);
 +	auto_ppu_storm.store(false, std::memory_order_release);
++	auto_spu.store(false, std::memory_order_release);
 +}
 +} // namespace start_request
 +
@@ -123254,10 +123549,10 @@ index 0000000..df1f2ec
 +} // namespace rpcs3::ios::gow3_mlaa_patch
 diff --git a/rpcs3/ios/IOSGow3MlaaReport.h b/rpcs3/ios/IOSGow3MlaaReport.h
 new file mode 100644
-index 0000000..da0e4bf
+index 0000000..598eda7
 --- /dev/null
 +++ b/rpcs3/ios/IOSGow3MlaaReport.h
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,99 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -123280,7 +123575,8 @@ index 0000000..da0e4bf
 +enum class ppu_state : std::uint32_t
 +{
 +	unset = 0, applied, other_executable, savestate, policy_off,
-+	refused_guard // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
++	refused_guard, // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
++	savestate_applied // REWINDBOX_GOW3_MLAA_SAVESTATE_922: the pair written into the restored memory of a savestate
 +};
 +
 +inline std::atomic<std::uint32_t> ppu{0};
@@ -123332,6 +123628,7 @@ index 0000000..da0e4bf
 +	case ppu_state::savestate: return "savestate_memory";
 +	case ppu_state::policy_off: return "policy_off";
 +	case ppu_state::refused_guard: return "refused_guard";
++	case ppu_state::savestate_applied: return "savestate_applied";
 +	default: return "unset";
 +	}
 +}
@@ -129213,6 +129510,100 @@ index 0000000..bc4c6ae
 +	return result::stored;
 +}
 +} // namespace rpcs3::ios::spurs_relaxed_store
+diff --git a/rpcs3/ios/IOSStaleTextureSweep.h b/rpcs3/ios/IOSStaleTextureSweep.h
+new file mode 100644
+index 0000000..92aeed8
+--- /dev/null
++++ b/rpcs3/ios/IOSStaleTextureSweep.h
+@@ -0,0 +1,88 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_STALE_TEXTURE_SWEEP_921: on iOS every CPU texture is confirmed by a hash of its guest bytes, never by page
++// protection (Emu/RSX/Common/texture_cache_protection_policy.h), so a texture whose guest memory the title has filled
++// with other data is found stale only when a lookup asks for it again; one that is never asked for again keeps its
++// image and its section for the rest of the boot. Upstream releases such hashed sections in
++// ranged_storage::trim_sections, but only in blocks of more than 256 locked sections: on the PC only textures under
++// 4 KiB are hashed. Call of Duty: Black Ops II streams its textures through guest memory at shifting addresses: in
++// every journal of builds 620 to 721 its texture cache gains 200-450 sections per 5 s window, trim releases none
++// (JITMEM texture_trim_sections=0), the cache's live bytes reach 527 MiB and its pool 568 MiB in 4.4 minutes (build
++// 666, more than the PS3's whole memory, still climbing) and the process footprint grows 5-20 MiB/s without plateau.
++//
++// Once per presented frame this pass hashes the guest bytes of the CPU textures (hash-validated shader reads and blit
++// sources) no lookup has used for texture_residency::min_idle_frames frames, at most `bytes_per_pass` bytes and
++// `sections_per_pass` sections looked at, resuming where the previous pass stopped, and releases exactly those whose
++// bytes no longer match: the next lookup of such a section would reject it and upload the memory again, as a write
++// fault would have on the PC. A section whose bytes still match is kept, however long it stays idle; the textures bound
++// to the current registers are not examined; the hash and its comparison are those of the lookups (without the
++// prehash tables, which predict the next frame's lookups). No cap, no eviction of a valid texture.
++namespace rpcs3::ios::stale_texture_sweep
++{
++inline std::atomic<bool> enabled{false};
++
++// Guest bytes hashed per pass at most: about 0.25-0.31 ms at the 12.8-16.8 GiB/s the texture hash ran at on the device
++// (JITMEM texture_hash_bytes / texture_hash_ticks, builds 694, 718 and 721). Over the 568 MiB pool of build 666 a full
++// revolution takes about 142 frames, 5 s at 28 FPS.
++constexpr std::uint64_t bytes_per_pass = 4ull << 20;
++// Sections looked at per pass at most, idle or not, so a pass over many small or busy sections stays short.
++constexpr std::uint32_t sections_per_pass = 2048;
++// A section found intact is looked at again only after this many frames (about 2 s at 30 FPS): a valid idle texture
++// costs one hash per `revisit_frames` frames instead of one per revolution of the storage.
++constexpr std::uint64_t revisit_frames = 64;
++
++inline bool revisit_due(std::uint64_t swept_frame, std::uint64_t now) noexcept
++{
++	return swept_frame == 0 || swept_frame > now || now - swept_frame >= revisit_frames;
++}
++
++// Read and reset by the 5 s report (COREPROF TEXSWEEP921).
++struct counters_t
++{
++	std::atomic<std::uint64_t> passes{0}, refused_locked{0}, seen{0}, examined{0}, examined_bytes{0};
++	std::atomic<std::uint64_t> released{0}, released_bytes{0}, released_host_bytes{0}, revolutions{0}, ticks{0};
++};
++inline counters_t counters;
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& value) noexcept
++{
++	return value.exchange(0, std::memory_order_relaxed);
++}
++
++// Where the next pass starts: a block of the texture cache storage and a slot inside it.
++struct cursor
++{
++	std::uint32_t block = 0;
++	std::uint32_t slot = 0;
++};
++
++struct pass_limits
++{
++	std::uint64_t bytes = bytes_per_pass;
++	std::uint32_t sections = sections_per_pass;
++};
++
++// What one pass did (the counters add these).
++struct pass_result
++{
++	std::uint32_t seen = 0, examined = 0, released = 0, revolutions = 0;
++	std::uint64_t examined_bytes = 0, released_bytes = 0, released_host_bytes = 0;
++};
++
++inline void record(const pass_result& result, std::uint64_t ticks) noexcept
++{
++	counters.passes.fetch_add(1, std::memory_order_relaxed);
++	counters.seen.fetch_add(result.seen, std::memory_order_relaxed);
++	counters.examined.fetch_add(result.examined, std::memory_order_relaxed);
++	counters.examined_bytes.fetch_add(result.examined_bytes, std::memory_order_relaxed);
++	counters.released.fetch_add(result.released, std::memory_order_relaxed);
++	counters.released_bytes.fetch_add(result.released_bytes, std::memory_order_relaxed);
++	counters.released_host_bytes.fetch_add(result.released_host_bytes, std::memory_order_relaxed);
++	counters.revolutions.fetch_add(result.revolutions, std::memory_order_relaxed);
++	counters.ticks.fetch_add(ticks, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::stale_texture_sweep
 diff --git a/rpcs3/ios/IOSTextureCacheProfile.h b/rpcs3/ios/IOSTextureCacheProfile.h
 new file mode 100644
 index 0000000..b0964fd
@@ -136724,10 +137115,10 @@ index 0000000..c4701b2
 +}
 diff --git a/rpcs3/ios/RPCS3IOSConfigInheritance.h b/rpcs3/ios/RPCS3IOSConfigInheritance.h
 new file mode 100644
-index 0000000..23005f9
+index 0000000..e3aa359
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSConfigInheritance.h
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,210 @@
 +#pragma once
 +
 +// REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1: a full custom_configs/config_<TITLE>.yml
@@ -136753,6 +137144,11 @@ index 0000000..23005f9
 +		unsigned inherited = 0; // database leaves the file left at the global value
 +		unsigned kept = 0;      // database leaves the file changed: its value stays
 +		bool ok = false;        // the three documents parsed and the database is a map
++		// REWINDBOX_CONFIG_DATABASE_RULE_922 (apply_database): leaves where the file disagreed with the database and the
++		// database value was applied, leaves where they already agreed, and the corrections as "Section/Key:file->database".
++		unsigned corrected = 0;
++		unsigned agreed = 0;
++		std::string corrections;
 +	};
 +
 +	namespace detail
@@ -136819,6 +137215,92 @@ index 0000000..23005f9
 +				}
 +			}
 +		}
++
++		// REWINDBOX_CONFIG_DATABASE_RULE_922: every leaf the database names is applied; a file value that differs is
++		// a correction, reported with its path.
++		inline void apply_all(const YAML::Node& database, const YAML::Node& file, const YAML::Node& global, YAML::Node& out, result& r,
++			const std::string& path)
++		{
++			for (const auto& entry : database)
++			{
++				if (!entry.first.IsScalar())
++				{
++					continue;
++				}
++
++				const std::string key = entry.first.Scalar();
++				const YAML::Node value = entry.second;
++				const YAML::Node in_file = child(file, key);
++				const YAML::Node in_global = child(global, key);
++				const std::string here = path.empty() ? key : path + "/" + key;
++
++				if (value.IsMap())
++				{
++					YAML::Node section(YAML::NodeType::Map);
++					apply_all(value, in_file, in_global, section, r, here);
++
++					if (section.size())
++					{
++						out[key] = section;
++					}
++
++					continue;
++				}
++
++				const std::string wanted = leaf_text(value);
++				const std::string had = in_file.IsDefined() ? leaf_text(in_file) : leaf_text(in_global);
++
++				if (had == wanted)
++				{
++					r.agreed++;
++					continue;
++				}
++
++				out[key] = value;
++
++				if (in_file.IsDefined() && leaf_text(in_file) != leaf_text(in_global))
++				{
++					r.corrected++;
++					if (r.corrections.size() < 1024)
++					{
++						r.corrections += (r.corrections.empty() ? "" : ";") + here + ":" + had + "->" + wanted;
++					}
++				}
++				else
++				{
++					r.inherited++;
++				}
++			}
++		}
++	}
++
++	// REWINDBOX_CONFIG_DATABASE_RULE_922: the title's RPCS3 database config is the reference for every setting it
++	// names. God of War III ran on a full custom file written by an earlier build (legacy_custom=1) whose own values
++	// outranked the database under inherit_database below; the maintainer's rule (10 Nov): the RPCS3 database is applied
++	// to every game, compared with what is applied, and a setting that disagrees is corrected. The file still decides
++	// every setting the database does not name (resolution, for one).
++	inline result apply_database(const std::string& database, const std::string& file, const std::string& global)
++	{
++		result r;
++		const auto [database_node, database_error] = yaml_load(database);
++		const auto [file_node, file_error] = yaml_load(file);
++		const auto [global_node, global_error] = yaml_load(global);
++
++		if (!database_error.empty() || !file_error.empty() || !global_error.empty() || !database_node.IsMap())
++		{
++			return r;
++		}
++
++		YAML::Node out(YAML::NodeType::Map);
++		detail::apply_all(database_node, file_node, global_node, out, r, {});
++		r.ok = true;
++
++		if (r.inherited || r.corrected)
++		{
++			r.yaml = YAML::Dump(out);
++		}
++
++		return r;
 +	}
 +
 +	// database: the title's database config; file: the full config file applied
@@ -136876,10 +137358,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..d1c13d7 100644
+index 7c3389b..1cfb5bb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,40 @@
+@@ -1,10 +1,41 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -136900,6 +137382,7 @@ index 7c3389b..d1c13d7 100644
 +#include "IOSReservationLockPolicy.h"
 +#include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
 +#include "IOSTextureResidency.h"
++#include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
 +#include "IOSTitleLevers.h"
 +#include "IOSLoadOpClear907.h"
 +#include "IOSThreadQoS.h"
@@ -136920,7 +137403,7 @@ index 7c3389b..d1c13d7 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +43,122 @@ namespace
+@@ -13,6 +44,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -137043,7 +137526,7 @@ index 7c3389b..d1c13d7 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +173,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +174,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -137135,7 +137618,7 @@ index 7c3389b..d1c13d7 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +278,129 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +279,134 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -137220,6 +137703,11 @@ index 7c3389b..d1c13d7 100644
 +	resolved.texture_residency = resolve_mode(g_cfg.ios_experimental.texture_residency,
 +		is_god_of_war_iii_title(Emu.GetTitleID()));
 +	rpcs3::ios::texture_residency::enabled.store(resolved.texture_residency, std::memory_order_relaxed);
++	// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): Automatic is every title. Every iOS CPU texture is
++	// confirmed by hash, so one whose memory a title reused stays cached until it is looked up again (Black Ops II:
++	// 527 MiB of sections and a 568 MiB pool after 4.4 minutes, build 666); the pass releases only those that changed.
++	resolved.stale_texture_sweep = resolve_mode(g_cfg.ios_experimental.stale_texture_sweep, true);
++	rpcs3::ios::stale_texture_sweep::enabled.store(resolved.stale_texture_sweep, std::memory_order_relaxed);
 +	// CELL575_TITLE_LEVERS: with the texture epoch, Call of Duty: Black Ops II and Bladestorm;
 +	// CELL589_TITLE_LEVERS: Assassin's Creed.
 +	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
@@ -137265,11 +137753,14 @@ index 7c3389b..d1c13d7 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +412,269 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +418,276 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
-+	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, false);
++	// REWINDBOX_GOW3_MLAA_DEFAULT_922: Automatic = on for God of War III. The maintainer removed the RewindBox title profile
++	// that set it to Enabled (the RPCS3 database is the reference); the bypass itself only touches the six serials and the
++	// exact executables and SPU modules it knows (PPUModule.cpp, sys_spu.cpp).
++	resolved.gow3_mlaa_bypass = resolve_mode(g_cfg.ios_experimental.gow3_mlaa_bypass, is_god_of_war_iii_title(title_id));
 +	// CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: Automatic is God of War III, whose
 +	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
 +	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
@@ -137477,6 +137968,10 @@ index 7c3389b..d1c13d7 100644
 +	ios_experimental_log.notice("Resolved title policy 920: lever_comparison=%s park_spin_alternates=%d busy_wait_alternates=%d",
 +		g_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled ? "requested" : "off",
 +		resolved.writer_park_compare, resolved.busy_wait_compare);
++	// REWINDBOX_STALE_TEXTURE_SWEEP_921: its own line.
++	ios_experimental_log.notice("Resolved title policy 921: stale_texture_sweep=%d bytes_per_pass=%u sections_per_pass=%u idle_frames=%u",
++		resolved.stale_texture_sweep, static_cast<u32>(rpcs3::ios::stale_texture_sweep::bytes_per_pass),
++		static_cast<u32>(rpcs3::ios::stale_texture_sweep::sections_per_pass), static_cast<u32>(rpcs3::ios::texture_residency::min_idle_frames));
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -137546,7 +138041,7 @@ index 7c3389b..d1c13d7 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..e09f47c 100644
+index 8fba197..a9457cb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -137557,7 +138052,7 @@ index 8fba197..e09f47c 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,45 @@ struct experimental_policy
+@@ -12,6 +13,47 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -137581,6 +138076,8 @@ index 8fba197..e09f47c 100644
 +	bool metal_renderer = false;
 +	// CELL573_TEXTURE_RESIDENCY: idle textures above a soft cap are released.
 +	bool texture_residency = false;
++	// REWINDBOX_STALE_TEXTURE_SWEEP_921: idle textures whose guest bytes changed are released.
++	bool stale_texture_sweep = false;
 +	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
 +	bool scoped_texture_revalidation = false;
 +	// CELL579_WRITER_YIELD: a writer holding its exclusive bit yields without Darwin's priority depression.
@@ -137603,7 +138100,7 @@ index 8fba197..e09f47c 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +60,140 @@ struct experimental_policy
+@@ -20,14 +62,140 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -137746,10 +138243,10 @@ index 8fba197..e09f47c 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..0de2af8
+index 0000000..a3f1443
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,976 @@
+@@ -0,0 +1,1078 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -137765,6 +138262,7 @@ index 0000000..0de2af8
 +#include "IOSFreezeChain916.h" // REWINDBOX_FREEZE_CHAIN_916
 +#include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
 +#include "ios/IOSCapture912.h" // REWINDBOX_CAPTURE_912
++#include "ios/IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
 +#include "Emu/RSX/RSXFIFO.h"
 +#include <cstring>
 +#include "Emu/Memory/vm_reservation.h"
@@ -137816,6 +138314,21 @@ index 0000000..0de2af8
 +	return sanitize_token(fmt::format("%s", cpu.state.load()));
 +}
 +
++// REWINDBOX_FREEZE_RESERVATION_922: the reservation word of a line read in the same line as the thread's own
++// reservation time. Build 723, Black Ops II freeze: the line records printed after the threads showed the words of
++// 0x2e20880 and 0x2e20c00 below times threads had read from them, with bit 64 set; the word read next to each time
++// tells whether a word really went back or the reads were apart. ts = the time-base counter at the read.
++std::string reservation_word(u32 addr)
++{
++	if (!addr || !vm::check_addr(addr & -128, vm::page_readable, 128))
++	{
++		return "-";
++	}
++
++	const u64 word = vm::reservation_acquire(addr);
++	return fmt::format("0x%llx@%llu", word, utils::get_tsc());
++}
++
 +std::string ppu_line(const ppu_thread& ppu)
 +{
 +	const char* function = ppu.current_function;
@@ -137826,12 +138339,12 @@ index 0000000..0de2af8
 +	// semaphore id of sys_semaphore_wait), lr, ctr and the reservation.
 +	std::string line = fmt::format(
 +		"FREEZE_DUMP ppu id=0x%x name=%s state=%s pc=0x%x prio=%d func=%s last=%s wait_s=%.3f "
-+		"r3=0x%llx r4=0x%llx r5=0x%llx r6=0x%llx r7=0x%llx r8=0x%llx r9=0x%llx r10=0x%llx lr=0x%llx ctr=0x%llx raddr=0x%x rtime=0x%llx",
++		"r3=0x%llx r4=0x%llx r5=0x%llx r6=0x%llx r7=0x%llx r8=0x%llx r9=0x%llx r10=0x%llx lr=0x%llx ctr=0x%llx raddr=0x%x rtime=0x%llx res=%s last_faddr=0x%x last_ftime=0x%llx last_fail=%llu",
 +		ppu.id, sanitize_token(ppu.get_name()), cpu_state_token(ppu), ppu.cia, ppu.prio.load().prio,
 +		sanitize_token(function ? function : ""), sanitize_token(last ? last : ""),
 +		wait_start ? (get_guest_system_time() - wait_start) / 1000000. : 0.0,
 +		ppu.gpr[3], ppu.gpr[4], ppu.gpr[5], ppu.gpr[6], ppu.gpr[7], ppu.gpr[8], ppu.gpr[9], ppu.gpr[10],
-+		ppu.lr, ppu.ctr, ppu.raddr, ppu.rtime);
++		ppu.lr, ppu.ctr, ppu.raddr, ppu.rtime, reservation_word(ppu.raddr ? ppu.raddr : ppu.last_faddr), ppu.last_faddr, ppu.last_ftime, ppu.last_fail);
 +	return bound_line(line);
 +}
 +
@@ -137973,7 +138486,7 @@ index 0000000..0de2af8
 +std::string guest_line(u32 addr)
 +{
 +	const u64 rtime = vm::check_addr(addr, vm::page_readable, 128) ? +vm::reservation_acquire(addr) : 0;
-+	std::string line = fmt::format("FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s", addr, rtime, guest_hex(addr, 128));
++	std::string line = fmt::format("FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s ts=%llu", addr, rtime, guest_hex(addr, 128), utils::get_tsc());
 +	return bound_line(line);
 +}
 +
@@ -137998,11 +138511,11 @@ index 0000000..0de2af8
 +
 +	std::string line = fmt::format(
 +		"FREEZE_DUMP spu id=0x%x lv2_id=0x%x name=%s group=%s gid=0x%x gstate=%s pc=0x%x state=%s "
-+		"raddr=0x%x rtime=0x%llx last_getllar=0x%x getllar_addr=0x%x getllar_spins=%u gl_switch=0x%x "
++		"raddr=0x%x rtime=0x%llx res=%s last_getllar=0x%x getllar_addr=0x%x getllar_res=%s getllar_spins=%u gl_switch=0x%x "
 +		"eventstat_spins=%llu events=0x%llx mask=0x%x mfc_size=%u mfc=%s:%u:0x%x:0x%x:0x%x func=%s wait_s=%.3f spurs_addr=0x%x",
 +		spu.id, spu.lv2_id, sanitize_token(spu.get_name()), group_name, group ? group->id : 0u,
 +		sanitize_token(group_state), spu.pc, cpu_state_token(spu),
-+		spu.raddr, spu.rtime, spu.last_getllar, spu.last_getllar_addr, spu.getllar_spin_count,
++		spu.raddr, spu.rtime, reservation_word(spu.raddr), spu.last_getllar, spu.last_getllar_addr, reservation_word(spu.last_getllar_addr), spu.getllar_spin_count,
 +		spu.getllar_busy_waiting_switch, spu.eventstat_spin_count, events.all, static_cast<u32>(events.mask),
 +		spu.mfc_size, pending.cmd, static_cast<u32>(pending.tag), pending.lsa, pending.eal, static_cast<u32>(pending.size),
 +		sanitize_token(function ? function : ""),
@@ -138450,6 +138963,13 @@ index 0000000..0de2af8
 +	std::array<capture::ppu_profile::histogram, capture::ppu_profile::max_threads> tracked{};
 +	std::array<std::array<std::pair<const char*, u32>, 8>, capture::ppu_profile::max_threads> wait_calls{};
 +	u32 tracked_count = 0;
++	// REWINDBOX_SPU_PROFILE_923: the SPU threads listed when the capture started, one histogram each.
++	std::vector<stx::shared_ptr<named_thread<spu_thread>>> spu_threads;
++	std::array<capture::ppu_profile::histogram, rpcs3::ios::auto_spu_profile::max_threads> spu_tracked{};
++	std::array<std::array<std::pair<const char*, u32>, 6>, rpcs3::ios::auto_spu_profile::max_threads> spu_wait_calls{};
++	std::array<std::string, rpcs3::ios::auto_spu_profile::max_threads> spu_names;
++	u32 spu_count = 0;
++	u32 spu_listed = 0;
 +	u64 others_running = 0;
 +	u32 samples = 0;
 +	u64 started_us = 0, ended_us = 0;
@@ -138514,6 +139034,31 @@ index 0000000..0de2af8
 +				}
 +			}
 +
++			// REWINDBOX_SPU_PROFILE_923: the same reads for the SPU threads (state, pc, the system call of a waiting one).
++			for (u32 i = 0; i < spu_count; i++)
++			{
++				const spu_thread& spu = *spu_threads[i];
++
++				if (!(spu.state & cpu_flag::wait))
++				{
++					spu_tracked[i].add_running(spu.pc);
++					continue;
++				}
++
++				spu_tracked[i].add_waiting();
++				const char* call = spu.current_func;
++
++				for (auto& [name, count] : spu_wait_calls[i])
++				{
++					if (count == 0 || name == call)
++					{
++						name = call;
++						count++;
++						break;
++					}
++				}
++			}
++
 +			samples++;
 +			std::this_thread::sleep_for(std::chrono::microseconds(1000));
 +		}
@@ -138536,6 +139081,13 @@ index 0000000..0de2af8
 +			}
 +		}
 +
++		for (u32 i = 0; i < spu_count; i++)
++		{
++			spu_tracked[i].thread_id = spu_threads[i]->id;
++			spu_names[i] = spu_threads[i]->get_name();
++		}
++
++		spu_threads.clear();
 +		threads.clear();
 +		done.store(true, std::memory_order_release);
 +	}
@@ -138574,6 +139126,33 @@ index 0000000..0de2af8
 +	}
 +
 +	ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=end", session, s_ppu_captures);
++
++	// REWINDBOX_SPU_PROFILE_923: the SPU threads of the same capture.
++	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=begin samples=%u period_us=1000 elapsed_us=%llu spu_threads=%u "
++		"tracked=%u region_bytes=256 pc_scope=last_compiled_chunk_entry_or_call_out top_fields=region:samples:first_pc", session, s_ppu_captures,
++		run.samples, run.ended_us - run.started_us, run.spu_listed, run.spu_count);
++
++	for (u32 i = 0; i < run.spu_count; i++)
++	{
++		const auto& h = run.spu_tracked[i];
++		std::string calls;
++
++		for (const auto& [call, count] : run.spu_wait_calls[i])
++		{
++			if (count)
++			{
++				fmt::append(calls, "%s%s:%u", calls.empty() ? "" : ",", sanitize_token(call ? call : "guest_code"), count);
++			}
++		}
++
++		std::string line = fmt::format("COREPROF SPUPROF923 session=%llu capture=%u part=thread id=0x%x name=%s running=%llu "
++			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id,
++			run.spu_names[i].empty() ? std::string("-") : sanitize_token(run.spu_names[i]), h.running, h.waiting, h.same_pc, h.distinct, h.overflow,
++			calls.empty() ? std::string("-") : calls, h.top(24));
++		ios_freeze_dump.notice("%s", bound_line(line));
++	}
++
++	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=end", session, s_ppu_captures);
 +}
 +}
 +
@@ -138611,8 +139190,10 @@ index 0000000..0de2af8
 +	const bool start_ppu_menu = capture::start_request::take(capture::start_request::ppu, running);
 +	const bool start_ppu_auto = capture::start_request::take(capture::start_request::auto_ppu, running);
 +	const bool start_ppu_storm = capture::start_request::take(capture::start_request::auto_ppu_storm, running); // REWINDBOX_AUTO_STORM_CAPTURE_917
-+	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm;
-+	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const bool start_ppu_spu = capture::start_request::take(capture::start_request::auto_spu, running); // REWINDBOX_SPU_PROFILE_923
++	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm || start_ppu_spu;
++	const char* const ppu_trigger_917 = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const char* const ppu_trigger = start_ppu_spu && !start_ppu_menu && !start_ppu_auto && !start_ppu_storm ? "auto_spu_bound" : ppu_trigger_917;
 +	bool putllc_started = false;
 +
 +	// Heavy PUTLLC trace.
@@ -138705,6 +139286,24 @@ index 0000000..0de2af8
 +						run->threads.emplace_back(std::move(ptr));
 +					}
 +				}, idm::unlocked);
++
++				// REWINDBOX_SPU_PROFILE_923: the SPU threads, under the same reader.
++				if (g_fxo->is_init<id_manager::id_map<named_thread<spu_thread>>>())
++				{
++					idm::select<named_thread<spu_thread>>([&](u32 id, named_thread<spu_thread>&)
++					{
++						run->spu_listed++;
++
++						if (run->spu_count < rpcs3::ios::auto_spu_profile::max_threads)
++						{
++							if (auto ptr = idm::get_unlocked<named_thread<spu_thread>>(id))
++							{
++								run->spu_threads.emplace_back(std::move(ptr));
++								run->spu_count++;
++							}
++						}
++					}, idm::unlocked);
++				}
 +			}
 +		}
 +
@@ -139412,10 +140011,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..84e65db 100644
+index d800542..745f8cc 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,243 @@
+@@ -1,26 +1,246 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -139453,6 +140052,8 @@ index d800542..84e65db 100644
 +#include "IOSFeedbackCensus.h"
 +#include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
 +#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
++#include "IOSTextureResidency.h"
 +#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
 +#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
 +#include "IOSLoadOpClear907.h"
@@ -139461,6 +140062,7 @@ index d800542..84e65db 100644
 +#include "IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
 +#include "IOSIdleWindows916.h" // REWINDBOX_IDLE_WINDOWS_916
 +#include "IOSAutoPpuProfile916.h" // REWINDBOX_AUTO_PPU_PROFILE_916
++#include "IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
 +#include "IOSAutoStorm917.h" // REWINDBOX_AUTO_STORM_CAPTURE_917
 +#include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
 +#include "util/asm.hpp" // REWINDBOX_BUSY_WAIT_REFERENCE_918: utils::arm_timer_scale
@@ -139659,10 +140261,40 @@ index d800542..84e65db 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +255,534 @@ u64 process_memory_footprint()
+@@ -38,31 +258,564 @@ u64 process_memory_footprint()
  #endif
  }
  
++// REWINDBOX_MEMORY_PARTS_923: what the kernel's ledger attributes the footprint to. JITMEM's pools are requested Vulkan
++// allocations (855 MiB of blocks "unused" in God of War III, build 723), which say nothing about physical memory; the
++// ledger's graphics tag is the memory Metal really holds for the process.
++struct memory_parts_sample
++{
++	bool valid = false;
++	u64 internal = 0, compressed = 0, graphics = 0, graphics_compressed = 0, external = 0, reusable = 0;
++};
++
++memory_parts_sample sample_memory_parts()
++{
++	memory_parts_sample parts;
++#if defined(__APPLE__) && defined(TASK_VM_INFO_REV3_COUNT)
++	task_vm_info_data_t info{};
++	mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++	if (task_info(mach_task_self(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS &&
++		count >= TASK_VM_INFO_REV3_COUNT)
++	{
++		parts.valid = true;
++		parts.internal = info.internal;
++		parts.compressed = info.compressed;
++		parts.external = info.external;
++		parts.reusable = info.reusable;
++		parts.graphics = static_cast<u64>(info.ledger_tag_graphics_footprint);
++		parts.graphics_compressed = static_cast<u64>(info.ledger_tag_graphics_footprint_compressed);
++	}
++#endif
++	return parts;
++}
++
 +rpcs3::ios::diagnostics::ProcessMemorySample sample_process_memory()
 +{
 +    rpcs3::ios::diagnostics::ProcessMemorySample sample;
@@ -139972,8 +140604,8 @@ index d800542..84e65db 100644
 +			peak, pending_jobs, std::memory_order_relaxed))
 +		{
 +		}
- 	}
- 
++	}
++
 +	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
 +	{
 +		rpcs3::ios::pipeline_queue::on_completed(queue_wait_ticks, compile_ticks); // REWINDBOX_PIPELINE_QUEUE_621
@@ -140176,8 +140808,8 @@ index d800542..84e65db 100644
 +		}
 +		m_native_ui_visible.store(native_ui_visible ? 1u : 0u, std::memory_order_relaxed);
 +		m_has_flip_info.store(true, std::memory_order_release);
-+	}
-+
+ 	}
+ 
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: one closed RSX load window (get_load()).
 +	void record_rsx_load_window(u64 elapsed_us, u64 idle_us) noexcept
 +	{
@@ -140204,7 +140836,7 @@ index d800542..84e65db 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +792,10 @@ public:
+@@ -72,10 +825,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -140217,7 +140849,7 @@ index d800542..84e65db 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +828,1635 @@ public:
+@@ -108,12 +861,1674 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -141121,6 +141753,27 @@ index d800542..84e65db 100644
 +                static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip,
 +                fb_skip_off, post_skip_off);
 +        }
++        // REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): the stale texture passes of the window (one per
++        // presented frame; refused_locked= passes that found the cache lock taken), the sections they looked at (seen=)
++        // and hashed (examined=, idle CPU textures, examined_mib= of guest bytes), what they released because the bytes
++        // had changed (released=, guest MiB, host image MiB), storage revolutions completed and their RSX-thread time.
++        {
++            namespace sweep = rpcs3::ios::stale_texture_sweep;
++            auto& c = sweep::counters;
++            const u64 passes = sweep::take(c.passes), refused = sweep::take(c.refused_locked), seen = sweep::take(c.seen);
++            const u64 examined = sweep::take(c.examined), examined_bytes = sweep::take(c.examined_bytes);
++            const u64 released = sweep::take(c.released), released_bytes = sweep::take(c.released_bytes);
++            const u64 released_host = sweep::take(c.released_host_bytes), revolutions = sweep::take(c.revolutions);
++            const u64 sweep_ticks = sweep::take(c.ticks);
++            const auto mib = [](u64 bytes) { return static_cast<double>(bytes) / (1024.0 * 1024.0); };
++            ios_core_profiler.notice(
++                "COREPROF TEXSWEEP921 session=%llu window=%llu enabled=%u passes=%llu refused_locked=%llu seen=%llu examined=%llu "
++                "examined_mib=%.1f released=%llu released_mib=%.1f released_host_mib=%.1f revolutions=%llu sweep_ms=%.3f "
++                "bytes_per_pass=%llu sections_per_pass=%u idle_frames=%llu scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, sweep::enabled.load(std::memory_order_relaxed) ? 1u : 0u, passes, refused, seen, examined,
++                mib(examined_bytes), released, mib(released_bytes), mib(released_host), revolutions, milliseconds(sweep_ticks),
++                static_cast<u64>(sweep::bytes_per_pass), sweep::sections_per_pass, static_cast<u64>(rpcs3::ios::texture_residency::min_idle_frames));
++        }
 +        // REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): sampler-slot lookups through the one-lock
 +        // path (lookups=), hits served without the cache lookup (hits=; TEXCACHE621 upload_calls then counts the
 +        // other lookups), hits that ran the full lookup and were compared (verified=), differences found
@@ -141440,6 +142093,14 @@ index d800542..84e65db 100644
 +            profile_session, profile_window, memory_window.samples, mem.valid ? 1u : 0u,
 +            mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
 +            peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
++        {
++            const memory_parts_sample parts = sample_memory_parts(); // REWINDBOX_MEMORY_PARTS_923
++            ios_core_profiler.notice(
++                "COREPROF MEMPARTS923 session=%llu window=%llu valid=%u graphics=%llu graphics_compressed=%llu internal=%llu compressed=%llu "
++                "external=%llu reusable=%llu scope=kernel_ledger_at_report graphics_scope=ledger_tag_graphics_footprint",
++                profile_session, profile_window, parts.valid ? 1u : 0u, parts.graphics, parts.graphics_compressed, parts.internal,
++                parts.compressed, parts.external, parts.reusable);
++        }
 +        ios_core_profiler.notice(
 +            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
 +            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
@@ -141751,6 +142412,15 @@ index d800542..84e65db 100644
 +				profile_session, profile_window, busiest_ppu, rpcs3::ios::auto_ppu_profile::bound_cores, rpcs3::ios::auto_ppu_profile::windows_needed);
 +		}
 +
++		// REWINDBOX_SPU_PROFILE_923 (ios/IOSAutoSpuProfile923.h): the SPU threads together saturate the device in the
++		// second running window in a row: ask once per boot for a region profile that samples the SPU threads too.
++		if (m_auto_spu_profile.observe(profile_session, state == system_state::running, guest_window_flips, group_cores(core_group::spu)))
++		{
++			rpcs3::ios::capture912::start_request::auto_spu.store(true, std::memory_order_release);
++			ios_core_profiler.notice("COREPROF AUTOSPU923 session=%llu window=%llu spu_cores=%.3f bound_cores=%.2f windows=%u request=spu_region_profile",
++				profile_session, profile_window, group_cores(core_group::spu), rpcs3::ios::auto_spu_profile::bound_cores, rpcs3::ios::auto_spu_profile::windows_needed);
++		}
++
 +		// REWINDBOX_AUTO_STORM_CAPTURE_917 (ios/IOSAutoStorm917.h): heavy PUTLLC at a high rate in the second running
 +		// window in a row: ask once per boot for the heavy PUTLLC trace and the PPU region profile.
 +		if (m_auto_storm.observe(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window))
@@ -141837,6 +142507,7 @@ index d800542..84e65db 100644
 +    u64 m_report_window = 0; // guarded by m_profile_mutex
 +    rpcs3::ios::idle_windows::tracker m_idle_windows; // REWINDBOX_IDLE_WINDOWS_916: report thread only
 +    rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
++    rpcs3::ios::auto_spu_profile::tracker m_auto_spu_profile; // REWINDBOX_SPU_PROFILE_923: report thread only
 +    rpcs3::ios::auto_storm::tracker m_auto_storm; // REWINDBOX_AUTO_STORM_CAPTURE_917: report thread only
 +    rpcs3::ios::writer_park::compare::tracker m_park_compare; // REWINDBOX_PARK_SPIN_COMPARE_917: report thread only
 +    task_events_sample m_task_events; // REWINDBOX_BUSY_WAIT_REFERENCE_918: the counts at the previous report, report thread only
@@ -141855,7 +142526,7 @@ index d800542..84e65db 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2464,93 @@ private:
+@@ -121,6 +2536,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -141949,7 +142620,7 @@ index d800542..84e65db 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2558,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2630,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -142043,7 +142714,7 @@ index d800542..84e65db 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2655,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2727,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -142172,7 +142843,7 @@ index d800542..84e65db 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2786,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2858,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -142779,7 +143450,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..13a5fab 100644
+index b7b0474..4d3078e 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -142844,7 +143515,7 @@ index b7b0474..13a5fab 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +147,77 @@ const std::array catalog{
+@@ -122,21 +147,78 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -142866,6 +143537,7 @@ index b7b0474..13a5fab 100644
 +	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),
 +	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
++	SETTING("experimental.stale_texture_sweep", "Experimental", "FPS Experiments", "Stale texture release", "Each frame, the textures no draw has used for 64 frames are checked against the game memory they came from, a few megabytes at a time; those whose memory the game has since filled with other data are released, as their next use would have released them. A texture whose memory is unchanged is kept however long it stays unused, and the textures in use are not checked. Limits the memory held by textures the game no longer has. Automatic enables it for every title; Disabled keeps every texture until it is used again. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.stale_texture_sweep, 0, 0, 0),
 +	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
@@ -142924,7 +143596,7 @@ index b7b0474..13a5fab 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +286,89 @@ const std::array catalog{
+@@ -205,6 +287,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -143014,7 +143686,7 @@ index b7b0474..13a5fab 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +737,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +738,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

@@ -1,4 +1,4 @@
-# RewindBox 0.0.11 — Build 718
+# RewindBox 0.0.11 — Build 721
 
 Everything since RewindBox 0.0.10 (Build 559), brought together in one update.
 
@@ -8,8 +8,12 @@ Everything since RewindBox 0.0.10 (Build 559), brought together in one update.
 - Reduced redundant rendering interruptions and repeated graphics work, including changes to **Vulkan/MoltenVK**.
 - Improved texture caching to reuse more previously calculated results.
 - **Black Ops II:** corrections to SPU synchronization, memory reservations and waits involved in stalls.
+- **Black Ops II:** earlier submission of pending occlusion results, with a separate bounded budget, targets waits on the game’s main CPU threads.
+- Corrected short active-wait timing on iPhones with a 1 GHz system counter and adjusted the BO2 writer-lock wait path.
+- **Assassin’s Creed:** corrected an atomic SPU write that could overwrite a newer main-CPU value during game exit.
 - Improved SPU program preparation and cache reuse to reduce recompilation during gameplay.
 - **God of War III:** removed the unintended 30 FPS limit and reduced unnecessary texture validation.
+- **God of War III v1.00:** the optional MLAA bypass now applies on a fresh boot as well.
 - **Assassin’s Creed IV and Dynasty Warriors 6:** corrected game profiles to use the LLVM PPU recompiler.
 - Corrected texture coherence, partial graphics commands and CPU/GPU synchronization paths.
 - More reliable retention of mounted ISO images.
@@ -33,6 +37,8 @@ Everything since RewindBox 0.0.10 (Build 559), brought together in one update.
 - **Hogwarts Legacy** corrections covering texture copies and handling of certain invalid graphics values.
 - Failure to start the iOS audio engine no longer directly aborts the application.
 - Compilation cancellation during teardown addresses sessions stuck on “closing,” including the SSBU path.
+- Corrected a MoltenVK presentation ownership race: an in-flight presentation retains the drawable it needs.
+- Added a fragmentation guard to avoid unnecessary blocking memory cleanup, targeting pauses reproduced from **Super Smash Bros. Ultimate** logs.
 
 ## 🎨 Skins and touch controls
 
@@ -45,6 +51,9 @@ Everything since RewindBox 0.0.10 (Build 559), brought together in one update.
 - GameCube/Wii analog sticks now move as a complete circle, including the C-stick.
 - Bundled skin updates now refresh older installed copies while preserving your selections.
 - Restored access to **Skins from the PS2 playlist**.
+- Corrected the return from the MeloNX in-game menu so skin buttons and sticks regain input immediately.
+- Improved game-screen framing inside Pocket skins, including rounded corners.
+- Refined pressed-button visuals so controls sink into their housings rather than simply turning gray.
 - Dolphin and PS2 floating session buttons no longer cover skin controls when the skin provides its own Menu button.
 
 ## 🏆 RetroAchievements
@@ -89,9 +98,11 @@ Everything since RewindBox 0.0.10 (Build 559), brought together in one update.
 
 ## Testing and known limits
 
-The downloaded Build 718 IPA passed the recorded offline package, source/component identity and delivery checks. RPCS3 Core 914 and MeloNX Core 717 are included. Native checks were run for this delivery; equivalent Flutter evidence was reused from the preceding attempt.
+The downloaded Build 721 IPA passed the recorded offline package, source/component identity and delivery checks. RPCS3 Core 919 and MeloNX Core 719 are included. Fresh Flutter, native and delivery-contract checks were executed for this delivery. The downloaded file matches the original private delivery byte for byte.
 
-Automated tests and desktop benchmarks do not establish iPhone FPS, audio or gameplay improvements. The latest combined build has not been gameplay-tested on a physical iPhone. First-use shader compilation and game-specific issues may remain. Cheats and achievement support depend on the game, version and engine.
+Automated tests and desktop benchmarks do not establish iPhone FPS, audio or gameplay improvements. The complete package has not been gameplay-validated on a physical iPhone. First-use shader compilation and game-specific issues may remain. Cheats and achievement support depend on the game, version and engine.
+
+Long Hogwarts Legacy pauses and residual BO2 performance problems remain under investigation. This build retains automatic BO2/God of War III comparison windows; their removal belongs to a later build and is not included here.
 
 Some faithful Pocket layouts have small touch targets or Dynamic Island overlap. Switch Pocket’s HOME and Capture controls are unavailable in this engine; MeloNX does not lock session orientation through the skin. The MeloNX Metal binary-archive prototype, Switch 2 experiment and RPCS3 comparison-only Cores are not included.
 
@@ -103,8 +114,8 @@ Some faithful Pocket layouts have small touch targets or Dynamic Island overlap.
 
 - Requires **iOS 18.0 or later**.
 - Re-sign with SideStore, AltStore Classic or your usual compatible sideloading tool. This is not a notarized AltStore PAL package or a directly installable Apple distribution build.
-- Public release: **0.0.11**. IPA metadata remains **0.0.8, Build 718**; the source preserves those exact values and uses `marketingVersion` to display 0.0.11.
-- Size: **263,465,367 bytes**.
-- SHA-256: `001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a`.
+- Public release: **0.0.11**. IPA metadata remains **0.0.8, Build 721**; the source preserves those exact values and uses `marketingVersion` to display 0.0.11.
+- Size: **267,033,667 bytes**.
+- SHA-256: `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`.
 
 No firmware, keys, BIOS or game files are bundled.

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "release": {
+    "id": 440810980,
+    "tag": "0.0.11",
+    "draft": false,
+    "source": "cfb564205c71eb3894d2c42be21899d3d7d67233",
+    "publishedAt": "2026-11-10T19:41:55Z"
+  },
+  "publicDownload": {
+    "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa",
+    "bytes": 267033667,
+    "sha256": "bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7",
+    "zipIntegrity": "passed",
+    "zipEntries": 5595,
+    "packagedIdentitySHA256": "54b2724191483cb527da95ffe68cf74466f3d3c6a68c749427b34d4200df3e9e"
+  },
+  "feed": {
+    "assetURL": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/source.json",
+    "sha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "bytes": 10622,
+    "packageMetadataMatches": true,
+    "version": "0.0.8",
+    "buildVersion": "721",
+    "marketingVersion": "0.0.11",
+    "minOSVersion": "18.0"
+  },
+  "SHA256SUMS": {
+    "verified": true,
+    "sha256": "0474e42fb0838a2a41df3234adfbde3d9f89b36c01b23160c00a06c472a0fd0c"
+  },
+  "components": {
+    "RPCS3": 919,
+    "MeloNX": 719
+  },
+  "fileModified": false,
+  "gameplayValidatedHere": false,
+  "cryptographicSignatureVerificationPerformedHere": false,
+  "appleProvisioningVerifiedHere": false,
+  "rootSources": {
+    "bytes": 10622,
+    "sha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "urls": [
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json",
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json"
+    ],
+    "bothHTTPDownloadsVerified": true
+  },
+  "documentation": {
+    "readmeBlob": "34a51eb3988662c65acb09d60b3b5e5bdac16843",
+    "branches": [
+      "main",
+      "Claude"
+    ],
+    "downloadLabel": "Download 0.0.11 · Build 721",
+    "oldDownloadAndPendingSectionsRemoved": true,
+    "sourceRecipeTag": "0.0.11",
+    "browserRenderedReadmeVerified": true,
+    "screenshot": "docs/evidence/release-0.0.11-readme.png",
+    "concurrentWorkPreserved": "c91fe6a owner updates reconciled by true merge a2667976; later owner commits retained"
+  },
+  "temporarySourceBranch": {
+    "name": "release/0.0.11-build721",
+    "deleted": true,
+    "absenceVerified": true,
+    "tagSourceRetained": "cfb564205c71eb3894d2c42be21899d3d7d67233"
+  }
+}

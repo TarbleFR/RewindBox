@@ -41,6 +41,11 @@ def journal():
     a.append(record(100, 20.09, 'COREPROF ZCULLCOST920 session=1 window=2 newest=9:27.000:4.000 newest_over_1ms=7 watched_submit=47:11.750:0.900 '
                     'scope=process_window window_boundary_approximate=1'))
     a.append(record(100, 20.10, 'COREPROF MEMPROF527 session=1 window=2 samples=10 valid=1 footprint=2684377392 compressed=376291328'))
+    # Core 921: the texture cache size and the release of stale idle textures (window 2 only: window 1 is an older Core).
+    a.append(record(100, 20.11, 'COREPROF TEXCACHE621 session=1 window=2 frames=120 upload_calls=94000 upload_misses=341 texture_mib=57.3 temp_mib=20.4'))
+    a.append(record(100, 20.12, 'COREPROF TEXSWEEP921 session=1 window=2 enabled=1 passes=120 refused_locked=0 seen=4100 examined=310 '
+                    'examined_mib=40.2 released=12 released_mib=0.6 released_host_mib=3.5 revolutions=118 sweep_ms=0.420 bytes_per_pass=4194304 '
+                    'sections_per_pass=2048 idle_frames=64 scope=process_window_counters window_boundary_approximate=1'))
     events = ' '.join(f'{n}:2584:2e20880:1:01:0:{0x100 + n:x}:{"%032x" % (n % 2)}:{"%032x" % ((n + 1) % 2)}:=' for n in range(6))
     # Five failed PUTLLC, one per way the event describes memory at the decision (snapshot 0, asked 1).
     zero, one, other = '%032x' % 0, '%032x' % 1, '%032x' % 7
@@ -258,10 +263,17 @@ def main() -> int:
         check(cost.get('newest') == '9:27.000:4.000' and cost.get('newest_over_1ms') == '7' and cost.get('watched_submit') == '47:11.750:0.900' and
               a['windows']['2']['ZCULLWATCH660'].get('taken') == '40:5:2:0' and a['windows']['2']['MEMPROF527'].get('footprint') == '2684377392',
               'Core 920 ZCULL cost, watched flush and memory lines attached to their window')
+        sweep = a['windows']['2'].get('TEXSWEEP921', {})
+        check(sweep.get('released') == '12' and sweep.get('released_host_mib') == '3.5' and sweep.get('sweep_ms') == '0.420' and
+              a['windows']['2'].get('TEXCACHE621', {}).get('texture_mib') == '57.3' and 'TEXSWEEP921' not in a['windows']['1'],
+              'Core 921 texture cache and stale texture lines attached to their window, absent from the older window')
         row1 = next(line for line in text.splitlines() if line.startswith('      1 '))
         row2 = next(line for line in text.splitlines() if line.startswith('      2 '))
         check(' inactive inactive ' in row1 and ' 9:31.500:6.200 9:90.000:15.000 12:300:0:1:4 40:5:2:0 9:27.000:4.000 7 47:11.750:0.900 ' in row2 and
               ' 2684377392 376291328 ' in row2, 'the ZCULL columns: inactive when the watched flush is off, the values otherwise: ' + row2[-260:])
+        check(row2.split('   [')[0].split()[-5:] == ['57.3', '341', '12', '3.5', '0.420'] and
+              row1.split('   [')[0].split()[-5:] == ['absent_or_lost'] * 5,
+              'the Core 921 columns: the values in window 2, absent in the older window 1: ' + row1[-120:] + ' | ' + row2[-120:])
         check(a['windows']['1']['FRAMEPROF527']['_origin'].startswith('RPCS3-causes.log:1') or a['windows']['1']['FRAMEPROF527']['_origin'].startswith('RPCS3-performance.log:3'), 'provenance kept, the copy counted once')
         check(a['windows']['2']['frames']['spu_cores'] == '3.100' and a['windows']['2']['RANGELOCKPROF']['wl_putllc_phases'] == '0.1:0.2:1.2', 'burst lines attached to their window')
         check(a['levers']['spu_noop_spin_wait'] == 'on' and a['levers']['put_epoch_horizon'] == 'on' and a['levers']['heavy_putllc_trace'] == 'on (explicit)'

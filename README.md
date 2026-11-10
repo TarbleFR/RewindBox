@@ -10,7 +10,7 @@
 [![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 
-**[Download 0.0.10 · Build 559](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10)** · **[IPA download](https://github.com/TarbleFR/RewindBox/releases/download/0.0.10/RewindBox-.0.0.10.ipa)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
+**[Download 0.0.11 · Build 721](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11)** · **[IPA download](https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa)** · **[SideStore / AltStore source](https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
 
 </div>
 
@@ -25,58 +25,61 @@ sideloaded app: Libretro, **MeloNX for Nintendo Switch**, Dolphin, ARMSX2
 and RPCS3. Compatible games run inside RewindBox with its menus and controls;
 a separate RetroArch or MeloNX installation is not required.
 
-## What's new in 0.0.10
+## What's new in 0.0.11
 
-**Public release · Build 559 · Changes since 0.0.9-fix.1 (Build 530)**
+**Public release · Build 721 · Changes since 0.0.10 (Build 559)**
 
-- **Refined Liquid Glass interface:** updated headers and menus, a working
-  Interface preview with Apply/Revert, and more appearance options in all
-  twelve supported languages.
-- **Embedded Nintendo Switch / MeloNX:** backend threading enabled by default,
-  game FPS in the RAM overlay, in-game MoltenVK selection with automatic
-  fallback, and fixes for imports, updates, audio and closing games.
-- **PS3 disc images from your library:** install compatible ISO images into
-  RPCS3 with their required key files, then launch them. ISO mounts are also
-  preserved when restoring a save state.
-- **RPCS3 improvements:** the God of War III profile is correctly applied;
-  SPU cache loading, texture validation, shader and pipeline compilation,
-  GPU copies and waiting paths have been improved.
-- **Library reliability:** ROM folder changes saved in quick succession no
-  longer fail.
+- **🎮 PlayStation 3:** Assassin’s Creed audio and exit corrections, Black Ops II
+  synchronization and occlusion-wait improvements, corrected active-wait timing,
+  texture/cache work and updated game profiles.
+- **🕹️ Nintendo Switch:** first-frame and graphics-ordering fixes, persistent
+  shader/pipeline caches, fewer repeated allocations, a MoltenVK presentation
+  ownership correction and a guard against blocking memory cleanup.
+- **🎨 Pocket skins:** GameCube, Wii, PS2 and Switch designs, Original variants
+  alongside existing skins, corrected touch areas and sticks, improved screen
+  framing and pressed buttons, and restored skin input after the MeloNX menu.
+- **🏆 RetroAchievements & enhancements:** centralized sign-in and Hardcore
+  settings, improved game recognition, and unified per-game cheat and patch controls.
+- **📚 Library & interface:** improved 3D cases, covers and French manuals,
+  the RewindBox Glacier style, offline system artwork and an icons-only main menu.
 
-The first launch of each PS3 game rebuilds its SPU cache once; the PPU cache
-is kept. These changes passed automated native, sanitizer, ARM64 and packaging
-checks. Compatibility and performance depend on the game and device; the
-release does not establish a measured iPhone FPS gain.
+| Included component | Version |
+| --- | --- |
+| Public release | **0.0.11** |
+| IPA | **Build 721**, internal app version **0.0.8** |
+| RPCS3 | **Core 919** |
+| MeloNX | **Core 719** |
+| Minimum iOS | **18.0** |
 
-**Version note:** the GitHub release is **0.0.10** and the IPA is **Build 559**.
-Its internal app version still reports **0.0.8**.
+The optional native Metal 4 renderer remains experimental; Vulkan/MoltenVK stays
+available. Automated package, source/component identity, Flutter and native checks
+passed. These checks do not establish iPhone FPS, audio or gameplay gains.
+Long Hogwarts Legacy pauses and residual Black Ops II performance issues remain
+under investigation. This exact build retains automatic BO2/God of War III
+comparison windows; their removal is in a later private build.
 
-[Full release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10) ·
-[Build 559 delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json).
+**[Full changelog and known limits](docs/releases/0.0.11.md)** ·
+**[Public release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11)** ·
+**[Verified public download](docs/evidence/release-0.0.11-public-download.json)**
 
-## Pending 0.0.11 publication
+### Install and receive updates
 
-RewindBox 0.0.11 is prepared and has not been published. The public
-downloads above remain 0.0.10 / Build 559 until publication is verified.
+Download the [IPA](https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/RewindBox-0.0.11.ipa)
+and re-sign it with a compatible sideloading tool. For SideStore, AltStore Classic
+or another compatible source client, add this source URL:
 
-**Prepared update · Build 718 · Changes since 0.0.10**
+```text
+https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json
+```
 
-- **RPCS3:** audio-wait, SPU synchronization, texture-coherence and cache
-  corrections, including Vulkan/MoltenVK improvements. The optional native
-  Metal 4 renderer remains experimental.
-- **MeloNX:** first-frame and graphics-ordering corrections, more durable
-  shader caches, fewer repeated allocations, in-game keyboard and L3/R3 access.
-- **Pocket skins:** GameCube, Wii, PS2 and Switch designs, Original variants
-  alongside existing skins, and corrected touch areas, highlights and sticks.
-- **RetroAchievements and cheats:** centralized account settings, improved game
-  identification, and unified per-game Cheats & Enhancements controls.
-- **Library and interface:** improved covers, 3D cases and manuals, the RewindBox
-  Glacier preset, and an icons-only main navigation bar with accessible names.
+The [downloadable source.json](https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/source.json)
+is also attached to the release. Its package metadata preserves **0.0.8 / 721**,
+with **0.0.11** as the marketing version. This is a sideloading source, not an
+AltStore PAL notarized package.
 
-The verified package contains RPCS3 Core 914 and MeloNX Core 717. Package and
-automated checks are complete; physical iPhone gameplay, FPS and audio results
-remain unverified. [Read the full prepared changelog and known limits](docs/releases/pending-0.0.11/release-notes.md).
+- **IPA size:** 267,033,667 bytes.
+- **SHA-256:** `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`.
+- [SHA256SUMS](https://github.com/TarbleFR/RewindBox/releases/download/0.0.11/SHA256SUMS).
 
 ## More to explore
 
@@ -266,35 +269,30 @@ restricted capabilities on a device.
 
 ## Build from source
 
-The published **0.0.10 / Build 559** IPA was assembled from the delivery
-recipe at
-[`fb0a80e7da6ecade04f0503a48ffaab507263dc4`](https://github.com/TarbleFR/RewindBox/tree/fb0a80e7da6ecade04f0503a48ffaab507263dc4).
-The recipe pins the application trees and native inputs; a moving branch
-or the release tag alone is not the exact assembled build tree.
-`Claude` remains the development branch.
-
-The delivery uses **Flutter 3.47.2** and **Xcode 26.3**:
+The public **0.0.11 / Build 721** IPA was assembled from delivery source
+[`cfb564205c71eb3894d2c42be21899d3d7d67233`](https://github.com/TarbleFR/RewindBox/tree/cfb564205c71eb3894d2c42be21899d3d7d67233).
+Tag **0.0.11** points to that source. The moving `main` and `Claude` branches
+can include later development work; they are not the release’s frozen product tree.
 
 ```bash
 git clone https://github.com/TarbleFR/RewindBox.git
 cd RewindBox
-git checkout fb0a80e7da6ecade04f0503a48ffaab507263dc4
-flutter pub get --enforce-lockfile
-flutter config --no-enable-swift-package-manager
-python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
+git checkout 0.0.11
 ```
 
-These steps prepare the checkout. Follow the
-[Build 559 delivery workflow](https://github.com/TarbleFR/RewindBox/blob/fb0a80e7da6ecade04f0503a48ffaab507263dc4/.github/workflows/rpcs3-cell559-delivery.yml)
-for its pinned product trees, native runtimes, packaging, signing and
-entitlement checks. The
-[delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json)
-records the exact inputs and IPA checksum. It identifies RPCS3 Core source
-[`07c76ec11f4000247f908b792f53b304c91c8bcd`](https://github.com/TarbleFR/RewindBox/tree/07c76ec11f4000247f908b792f53b304c91c8bcd).
+Use the [Build 721 manifest](https://github.com/TarbleFR/RewindBox/blob/cfb564205c71eb3894d2c42be21899d3d7d67233/build-utils/delivery/721.json)
+and its [standard delivery workflow](https://github.com/TarbleFR/RewindBox/blob/cfb564205c71eb3894d2c42be21899d3d7d67233/.github/workflows/standard-delivery.yml).
+The recipe materializes the frozen effective product tree before building,
+authenticates retained components and binds source, tests, binaries and signatures.
+Checking out the tag alone does not perform those preparation and packaging steps.
+The recorded toolchain uses **Flutter 3.47.2** and **Xcode 26.3**.
 
-Use the [source access guide](docs/SOURCE_CODE_ACCESS.md) for component
-sources and attribution. Keep signing material, credentials and private
-user content out of Git.
+[Delivery receipt](docs/evidence/rewind721/delivery.json) ·
+[Public download verification](docs/evidence/release-0.0.11-public-download.json) ·
+[Standard recipe](docs/standard-delivery-recipe.md) ·
+[Source access and attribution](docs/SOURCE_CODE_ACCESS.md).
+
+Keep signing material, credentials and private user content out of Git.
 
 ## Credits and licenses
 

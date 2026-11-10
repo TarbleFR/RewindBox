@@ -132,7 +132,10 @@ def static_checks(source: Path) -> None:
     begin = loader.index('// REWINDBOX_GOW3_MLAA_100_916 (ios/IOSGow3MlaaPatch.h): one plan per known executable')
     block = loader[begin:loader.index('#endif\n', begin)]
     require(all(('title_id == "%s"' % serial) in block for serial in SERIALS) and block.count('title_id == "') == 6, 'the six God of War III serials, no other')
-    require('if (!ar && mlaa_policy && mlaa_plan)\n' in block and block.count('mlaa_patch::apply(') == 1, 'a plan is applied at a fresh boot only, under the setting')
+    # REWINDBOX_GOW3_MLAA_SAVESTATE_922 (test/rpcs3_gow3_mlaa_savestate922_test.py) extends the rule to restored
+    # memory that lacks the guarded pair; this test keeps the fresh-boot rule of either form.
+    require(('if (!ar && mlaa_policy && mlaa_plan)\n' in block or 'if ((!ar || mlaa_savestate_fix) && mlaa_policy && mlaa_plan)\n' in block)
+            and block.count('mlaa_patch::apply(') == 1, 'a plan is applied at a fresh boot, under the setting')
     require('const mlaa_patch::plan* mlaa_plan = mlaa_patch::find(hash);' in block, 'the plan is chosen by the exact executable hash')
     require('_main.get_ptr<u8>(mlaa_plan->flag_address & ~3u, 4) && _main.get_ptr<u8>(mlaa_plan->call_address, 4)' in block,
             'a plan whose addresses are outside the image is dropped before any access')

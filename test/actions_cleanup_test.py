@@ -65,6 +65,10 @@ class FakeAPI:
 
     def get_json(self, path):
         self.requests.append(("GET", path))
+        if '/artifacts?' in path:
+            return {'total_count': 0, 'artifacts': []}
+        if '/jobs?' in path:
+            return {'total_count': 1, 'jobs': [{'status': 'completed', 'conclusion': 'skipped', 'steps': []}]}
         if path == cleanup.PREFIX + "/git/ref/heads/Claude":
             return {"object": {"sha": self.claude_sha}}
         if path == cleanup.PREFIX + "/git/ref/heads/main":
@@ -90,6 +94,58 @@ class FakeAPI:
 
 
 class CleanupSafetyTest(unittest.TestCase):
+    def test_skipped_evidence_checks_pass_through_real_request_boundary(self):
+        runs = records(301)
+        for run in runs:
+            run['conclusion'] = 'skipped'
+        backing = FakeAPI(runs)
+        class Server:
+            def open(inner, request, timeout):
+                path = request.full_url.removeprefix(cleanup.API_URL)
+                if request.method == 'DELETE':
+                    status = backing.delete_run(int(path.rsplit('/', 1)[1]))
+                    response = io.BytesIO(b'')
+                else:
+                    status = 200
+                    response = io.BytesIO(json.dumps(backing.get_json(path)).encode())
+                response.status, response.headers = status, {}
+                return response
+        api = cleanup.GitHubAPI('unit-test-placeholder', opener=Server(), sleep=lambda _: None)
+        with tempfile.TemporaryDirectory() as tmp:
+            env, event = context()
+            result = cleanup.run_cleanup(api, plan_for(runs, skipped_only=True),
+                cleanup.Journal(Path(tmp)), execute=True, environment=env, event=event)
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(backing.deleted, [runs[-1]['id']])
+        self.assertTrue(any('/artifacts?' in path for method, path in backing.requests if method == 'GET'))
+        self.assertTrue(any('/jobs?' in path for method, path in backing.requests if method == 'GET'))
+
+    def test_skipped_run_with_execution_or_artifact_is_preserved(self):
+        for evidence in ('artifact', 'executed', 'incomplete', 'unknown'):
+            with self.subTest(evidence=evidence):
+                runs = records(301)
+                for r in runs:
+                    r['conclusion'] = 'skipped'
+                class EvidenceAPI(FakeAPI):
+                    def get_json(self, path):
+                        if '/artifacts?' in path and evidence == 'artifact':
+                            return {'total_count': 1, 'artifacts': [{'id': 1}]}
+                        if '/jobs?' in path:
+                            if evidence == 'executed':
+                                return {'total_count': 1, 'jobs': [{'status': 'completed', 'conclusion': 'success', 'steps': []}]}
+                            if evidence == 'incomplete':
+                                return {'total_count': 101, 'jobs': []}
+                            if evidence == 'unknown':
+                                return {}
+                        return super().get_json(path)
+                api = EvidenceAPI(runs)
+                with tempfile.TemporaryDirectory() as tmp:
+                    env, event = context()
+                    result = cleanup.run_cleanup(api, plan_for(runs, skipped_only=True),
+                        cleanup.Journal(Path(tmp)), execute=True, environment=env, event=event)
+                self.assertEqual(api.deleted, [])
+                self.assertEqual(result['status'], 'completed')
+
     def test_skipped_only_policy_protects_executed_jobs_and_allows_product_push(self):
         runs = records(302)
         for r in runs:
@@ -454,3 +510,4 @@ class RateLimitTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -74,6 +74,7 @@ namespace host
 		return h;
 	}
 	inline u64 hashes = 0; // fast_hash_internal calls (rpcs3::ios::texture_prehash::range_hash)
+	inline u64 prehash_records = 0; // rpcs3::ios::texture_prehash::record calls (REWINDBOX_STALE_TEXTURE_SWEEP_921 test)
 	inline u64 protects = 0;
 }
 
@@ -494,7 +495,7 @@ namespace rpcs3::ios::texture_prehash
 		host::hashes++;
 		return host::hash_bytes(static_cast<const u8*>(src), length);
 	}
-	void record(std::uint32_t, std::uint32_t, bool) noexcept {}
+	void record(std::uint32_t, std::uint32_t, bool) noexcept { host::prehash_records++; }
 	void end_frame() noexcept {}
 	void on_epoch_advance() noexcept {}
 }

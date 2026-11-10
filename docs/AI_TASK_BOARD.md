@@ -229,7 +229,8 @@ communication evidence, not another implementation queue.
 
 Main `012mUAShv9k6pSCnpW7oAF63` ·
 MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
-Skins `012mUASjgVWk8DKKjVbwTD2n`.
+Skins `012mUASjgVWk8DKKjVbwTD2n` ·
+Playlists/XeniOS `012mUASiVyxdnhNTUKesGGm7`.
 
 Current records below are snapshots. Consult exact pins/manifests/receipts before
 acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
@@ -237,41 +238,84 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Public release 0.0.11 — ON HOLD by the maintainer's latest 10 Nov instruction.**
-  “ne publie pas la mise à jour tout de suite mais fais tout le reste”.
-  Keep the release, public source activation and Discord announcement unpublished.
-  Continue the already-authorized cleanup, main synchronization and README/About
-  updates. No new IPA compilation or repack is part of this publication preparation.
-  [Publication state](releases/pending-0.0.11/publication.json),
-  [English notes](releases/pending-0.0.11/release-notes.md),
-  [validated source draft](releases/pending-0.0.11/source.json) and
-  [Discord drafts](releases/pending-0.0.11/discord.json) remain ready.
-  Exact IPA 718: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`,
-  RPCS3 Core 914 / MeloNX Core 717. Main and Codex independently verified the same plaintext
-  file, ZIP, metadata and feed permissions. Internal version/build remains 0.0.8/718;
-  feed marketingVersion 0.0.11. No public release/tag, root feed activation or post.
-  **Executed:** reviewed true merge `8283f341` synchronized `main` / `Claude`,
-  preserving both histories and all five main-only commits. Eleven reconciled
-  document blobs verified; no product/Core/pin change. README refreshed with the
-  live 0.0.10 links and a clearly prepared 0.0.11 preview.
-  [Merge review](evidence/main-integration-2026-11-10.json).
-  PR154–160,162 closed after exact integration checks; Dependabot163 and active
-  owners retained. Fourteen superseded workflow launchers removed after exact
-  blob/current 718 closure checks: delivery contract exit 0, 59 tests, 4 skips,
-  one execution; current producers, diagnostics, modules and evidence preserved.
-  [Cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json),
-  [workflow proof](evidence/workflow-retirement-2026-11-10.json),
-  [PR proof](evidence/github-cleanup-prs-2026-11-10.json).
-  Earlier 1311-run cleanup remains verified and closed; no new Actions deletion
-  or cleanup dispatch. Three integrated branch candidates remain: the normal Git
-  deletion dry-run failed authentication without mutation. GitHub About is still
-  pending: no metadata-write tool, browser not authenticated. Apple accepted sign-in
-  but GitHub rejected its provider return; automated retries stopped. Existing
-  branch/PR/workflow histories and ongoing component work are preserved.
-  **Next:** complete authenticated About/eligible-ref cleanup; keep publication
-  on hold until the maintainer asks to resume. No new authorization requested.
+- **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
+  [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
+  published at 20:41:55 Europe/Paris. Git tag `0.0.11` verified at
+  `cfb564205c71eb3894d2c42be21899d3d7d67233`; RPCS3 Core919 / MeloNX Core719.
+  Codex downloaded the real public IPA (asset `732661386`): 267033667 B,
+  SHA-256 `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`,
+  ZIP intact (5595 entries), packaged identity `54b27241` and metadata 0.0.8/721,
+  iOS18.0 matched the private delivery. Public source.json `732661849` and
+  SHA256SUMS `732661888` downloaded and checked; both listed hashes match.
+  [Public file proof](evidence/release-0.0.11-public-download.json);
+  [original package proof](evidence/release-0.0.11-build721-download.json).
+  **Repository publication follow-through:** README now advertises 0.0.11/721
+  in its actual download links, What's new section, component table and source-build
+  recipe; pending-publication text and old 559 download/recipe removed.
+  Root `source.json` activated on main and Claude with the byte-identical release
+  asset (`4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812`).
+  [Exact English notes](releases/0.0.11.md) archived; [NEXT](releases/NEXT.md)
+  reset to public721, retaining 722/723 changes and later source-only work.
+  [Publication state](releases/pending-0.0.11/publication.json).
+  The older draft browser failure no longer blocks these connector/document updates:
+  publication was observed externally; no duplicate release or new IPA was created.
+  No gameplay/FPS or Apple provisioning claim; internal package version stays 0.0.8.
+  **Cleanup remains verified:** 1311 skipped Actions, 14 superseded workflows,
+  eight obsolete PRs and ten fully integrated branches removed; current owners,
+  dependency PR163 and unique history retained. main and Claude synchronized at
+  `541d9789` before this publication-document correction; updates use fresh leases
+  and preserve concurrent work. About description already updated/API-verified.
+  [Cleanup/ref audit](evidence/github-cleanup-refs-2026-11-10.json),
+  [cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json).
+  **Follow-through verified:** main and Claude serve identical root sources
+  (10622 B, SHA-256 `4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812`).
+  The real GitHub README page displays the 0.0.11 heading and Build721 component
+  table; [rendered proof](evidence/release-0.0.11-readme.png). Both README blobs match
+  `34a51eb3`; no 0.0.10 download link, old What's new heading or pending-publication
+  section remains. Source recipe checks out tag0.0.11. Temporary source-anchor
+  branch removed; its 404 and tag cfb56420 preservation verified.
+  Concurrent owner changes (`c91fe6a`) preserved by true merge `a2667976`;
+  later owner work remains intact. No force, new build, Core or pin edit by Codex.
+  **Remaining:** Discord announcement only, after authenticated access to the verified
+  release channel; record actual message IDs. Historical Discord hCaptcha was not
+  solved and no Discord post is claimed. The GitHub publication/document/source
+  correction is complete; do not repeat it or re-announce later private builds.
 
-- **Common IPA 722 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
+- **Common IPA 724 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 723 with RPCS3 Core 923
+  (pin `4398e164`, run `42905444118`, dylib `46520c3d`: Core 922 GOW3 MLAA bypass on savestate resume, RPCS3 database as
+  the per-game reference with legacy full `custom_configs` ignored, freeze dump `res=`/`getllar_res=`; Core 923 SPU sampling
+  `SPUPROF923`, `AUTOSPU923`, `MEMPARTS923`), MeloNX Core 723 (pin `249d287d`), skins PR 170, the 8 MiB performance journal
+  with `.1` export (`11828899`) and the GOW3 RewindBox profile removed. First request `42910955631` failed in the native group
+  only (`redefinition of 'previousSize'` in the new rotation test, my defect; fixed by a rename, reviewed commit); second
+  request `5738e4ff`, run `42914845416` green (preflight, flutter, native, republish, application; 23 min). Four pieces of
+  68,131,438 B = API digests; offline verification passed; IPA 271630484 B, SHA-256 `c3fcb1c7…f446`, 90 images; eight
+  receipts copied; key deleted; receipt [rewind724](evidence/rewind724/delivery.json) (12 proofs). Sent privately as a file.
+  **Nothing of Core 922/923 is observed on the device yet.**
+  - **Device protocol (IPA 724):** GOW3 fresh boot and savestate resume, a few minutes of play, export with `.1`:
+    `CONFIG_DB922`, `GOW3MLAA909 ppu=savestate_applied`, `READBACK555 fault_read`, `SPUPROF923` (which SPU code holds the
+    3.3-3.6 cores), `MEMPARTS923`; first boot also answers the Asynchronous Texture Streaming risk (database value, never
+    run on the device; per-game setting turns it off). BO2: play until a freeze, export at once (`FREEZE_DUMP … res=`).
+    Skins PR 171 (fourth legal revision) is for IPA 725.
+
+- **Common IPA 723 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 722 with RPCS3 Core 921
+  (pin `d4864cab`: idle iOS textures whose guest bytes changed are released); MeloNX Core 721 (pin `784fcc5d`), MoltenVK
+  `6f65b2a6` and the 722 skins unchanged. Draft `ea7f0a8e`, freeze on it (dry run: 0 blockers, 0 unclassified commits,
+  effective digest `76828e04`, base `2528a3dc`, 78 inherited deferred paths as in 722, legal check passed), one reviewed
+  commit (`690d8ce0`), trigger `67078e4f`, run `42878187148` green first try (preflight, flutter, native, republish,
+  application; 25 min). Four pieces of 68,081,518 B = API digests; offline verification passed; IPA 271438268 B,
+  SHA-256 `0be70809…9255`, 90 images; the eight receipts copied from `work/delivery/`; key deleted; receipt
+  [rewind723](evidence/rewind723/delivery.json) (12 proofs). Sent privately as a file.
+  - **Device question (BO2 multiplayer, IPA 723, settings as the IPA 722 export, Stale texture release on Automatic):**
+    play at least 20 min from game entry, then export at once with the `.1` files. It decides (1) Core 921: whether
+    TEXCACHE621 `texture_mib`, JITMEM `gpu_textures_requested`/`vma_block_bytes` and MEMPROF527 footprint stop growing,
+    with TEXSWEEP921 `released` > 0 and `sweep_ms` per window (refuted if `texture_mib` stays linear with `released`
+    near 0); (2) the next CPU correction: the per-window lines of the play windows (RANGELOCKPROF phases, SCHED918,
+    SPUWAIT551) and the automatic storm captures (`AUTOSTORM917` -> `PUTLLCTRACE912`, `PPUPROF912`), which the IPA 722
+    export lost in its missing `.1` generation. A close and second launch, then Zombies if available, complete it.
+    On IPA 723 the performance journal still rotates at 2 MiB (~5 min per generation): share both
+    `RPCS3-performance.log` and `RPCS3-performance.1.log` (or export within 10 min of game entry); from IPA 724 the
+    current generation alone holds ~21 min (`REWINDBOX_PERFORMANCE_RETENTION_724`).
+- **Common IPA 722 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
   (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
   - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
     thread suspended by the watch itself, no lock held while reading, ports released, six stalls at most; the four macOS
@@ -290,8 +334,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Pre-existing, not touched:** `test/legal_bundle_preflight_test.py` fails 3 of 8 (an RA evidence path missing from
     its temporary tree), identical on `ac788759`; `test/neo_swap_core_pin_test.py` normal mode fails on the old binary
     pin `cfe92344` (source-only mode passes), identical on `ac788759`.
-  - **Next:** pin MeloNX Core 721, classify the simulator run, draft (spec ready, recipient key 722 generated outside
-    Git), freeze, contract, trigger, verify, receipt, send.
+  - **MeloNX Core 721 pinned** `2d6a5183`: run `42839257625` (49.3 min, gates 39.6), artifact 13779212424 (zip
+    `410dca88`), iPhone binary `c6fa1cc6` (38,423,432 B), fingerprint `b1584100`, contract `29e58115`, 77 fresh gates.
+  - **Simulator run `42843268978`:** every skin step green (host verifier, MeloNX, ARMSX2 and Dolphin overlays,
+    Dolphin orientation); only the Dolphin session harness red, the known `SessionMenuTests` rows and missing touch NIBs
+    (task Dolphin session harness), not touched by these lots.
+  - **First request failed** (`7a7a2eee`, run `42848698413`): preflight, republish, flutter and native green, the
+    application built (Xcode 318 s) and sealed; `split_encrypted_delivery.py` refused the encrypted payload over
+    4 x 64 MiB (IPA 721 was already 99.5 % of it; PR 169 adds about 3.9 MB). Fix `ea8152d9` (product path): four
+    pieces of at most 96 MiB, test with a payload over 256 MiB (old splitter refuses it, new accepts). Refrozen
+    (`b0305c6a`, effective `2528a3dc`), second request `c7ca5d37`, run `42852972508` (both groups fresh).
+  - **State:** second request `c7ca5d37`, run `42852972508` attempt 1, five jobs green. IPA 271385645 B, SHA-256
+    `e9aad8d2c84b0e464ff1ce3e1a51b3fd0057396ee88c3ae04fedcf5dd89f245d`, build 722, `passed-offline-checks` (6 validators
+    0, 90 images); changed images: Runner, libRPCS3Core, MeloNXCore, MeloNXMoltenVKStandalone, melonx_internal_bridge,
+    and rpcs3_internal_bridge by linker stubs only (the two `objc_msgSend` slots exchanged; bind tables and GOT equal).
+    [Receipt](evidence/rewind722/delivery.json), twelve proof files with the signed inventory (can be a base); key 722
+    deleted; sent privately as a file. Not run on an iPhone; no FPS claim.
+  - **Device question (BO2, IPA 722, default settings, Lever comparison left on Automatic):** launch, play a slow scene
+    until nine minutes after the launch (or until a stop if one comes), export at once with the `.1` files. For the RAM
+    slope, a second session of at least 20 minutes, then export. These journals carry the PUTLLC storm capture, the PPU
+    region profile, ZCULLCOST920 and ZCULLWATCH660, RANGELOCKPROF (ppu_main_parked) and MEMPROF527.
 
 - **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
   Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
@@ -1691,6 +1753,97 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
       `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
       decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
+    - **Finding (10 Nov, IPA 722 journals: BO2 build 721 = Core 919, PID 47085, session 2 = `t6mp_ps3f.self`
+      multiplayer, settings: accurate reservations, 100 % resolution, frame limit Auto, 6 SPURS, PPU/SPU LLVM, Legacy shader
+      recompiler, levers627 `010111011111111112000`; windows 4-32 of the performance file are in the missing `.1`
+      generation, so only the timeline, causes and window 33 are read).** In play 30-38 FPS (median 31.2), p95 35-57 ms,
+      pauses 0.26-1.98 s in windows 19, 21, 23, 32 = first-use pipeline compilations (fragment library 0.37-0.99 s; no
+      costly fingerprint recurs across the 40 BO2 sessions read: the pipeline cache works, the work is first use). RAM:
+      footprint 2.23 -> 3.44 GiB in 2.5 min of play. Across every BO2 session of builds 620-721 the footprint grows 5-20 MiB/s
+      without plateau (build 666 session 5: 1.82 -> 3.56 GiB in 4.4 min, compressed 0.21 -> 1.03 GiB): the texture
+      cache's live bytes (TEXCACHE621 `texture_mib`) climb linearly 2 -> 527 MiB and the JITMEM texture pool 74 -> 568 MiB,
+      VMA blocks 544 -> 1376 MiB (the 64 MiB footprint steps), more than all PS3 memory, and `texture_trim_sections=0` in
+      every journal. Cause (code): on iOS every CPU texture is validated by content hash, never by page protection
+      (`texture_cache_protection_policy.h`), so a texture whose guest memory the game reused is found stale only if it is
+      looked up again; upstream's purge of stale hash sections (`ranged_storage::trim_sections`) only visits blocks with
+      more than 256 locked sections (tuned for PC's sub-4 KiB hashed textures) and never runs on BO2; the Core 573
+      residency is God of War III only and starts at 768 MiB. Device hash rate 12.8-16.8 GiB/s (builds 694/718/721).
+    - **Core 921 (10 Nov, [record](rpcs3-core921-stale-texture-release.md)): idle iOS textures whose guest bytes changed are
+      released (`REWINDBOX_STALE_TEXTURE_SWEEP_921`).** Once per presented frame (VKPresent.cpp, after the 573 residency
+      pass) a pass bounded to 4 MiB hashed and 2048 sections looked at, resuming from a cursor, hashes the hash-validated
+      CPU textures idle 64 frames, unbound, not found intact in the last 64 frames, with the lookups' hash and comparison
+      (`buffered_section::sync_unpredicted`: no prehash tables) and releases exactly those that no longer match (their
+      next lookup would); the swept descriptor kinds are looked up again. Setting Stale texture release (Automatic = every
+      title), `Resolved title policy 921`, `COREPROF TEXSWEEP921`; analyzer columns tex_mib, tex_misses, sweep_released,
+      sweep_host_mib, sweep_ms.
+      - Control (test/rpcs3_stale_texture_sweep921_test.py, the real texture cache of the 660 harness, the Core 920 tree as
+        witness = the source with the 921 increment reverted, g++ ASan+UBSan and clang, memo verify_all and active):
+        Black Ops II-shaped stream over a 24 MiB pool, 2400 frames: Core 920 keeps 2408 sections, 56.8 -> 113.0 MiB
+        between frames 1200 and 2400, 1930 stale idle; Core 921 525 sections, 24.8 -> 24.7 MiB, 47 stale idle, the same
+        2408 uploads, 1883 released, 339 KiB hashed per frame (464 KiB at most); no slot ever serves stale bytes; no
+        released section matched, was bound or used in the last 64 frames, no prehash record; idle intact textures kept
+        (0 uploads, same images on return); 600 stale sections each examined once, 64 per pass; a texture overwritten then
+        restored costs one upload (Core 920 reuses it); the setting off = Core 920 frame for frame. Negative controls fail
+        (release on a match: 2333 valid released; no bound set; no idle delay). Independent review (rb-core-review): no
+        defect. Host model; no iPhone gain claimed.
+      - Engine `8e8f90a` (base `4c4961b`), increment 12 files (insertions only), canonical `ea8bb09d`, delta `039777d7`.
+        Local: closure, codegen (no input change), fold (0 tree changes), route, analyzer, rerun list (guards), pin
+        `--source-only`, the 921 test (g++ ASan+UBSan with negative controls, clang) pass; the shared 660 harness accepts
+        a third `is_current_thread()` seam (the pass asserts the RSX thread).
+      - Source `690d8ce0`, request `03a52515`, run `42872597093` green first try (Core job 130027450067, Apple host job
+        130027450536, 15 host commands passed); artifact 13791109527 (30,507,248 B, zip = API digest `70d9950b`); dylib
+        `5aee7478…3a31` (80,937,976 B), fingerprint `c970c0ba…c214`, identities PPU a987639e / SPU 477a3fa4 unchanged
+        (player caches valid), markers present (`Resolved title policy 921`, `COREPROF TEXSWEEP921`, the setting's
+        name); pin_errors verified, pin `d4864cab`. Local driver (the whole chain down to Core 668) passed in 1378 s.
+      - **Device question (IPA with Core 921, BO2 multiplayer, 20 min from game entry, `.1` files):** does
+        TEXCACHE621 `texture_mib` / JITMEM `gpu_textures_requested` stop growing, MEMPROF527 lose its 64 MiB steps,
+        TEXSWEEP921 `released` > 0, and what does `sweep_ms` cost per window against FPS/p95 of build 721? Refuted if
+        `texture_mib` stays linear with `released` near 0.
+    - **Finding (10 Nov evening, BO2 GPU pools re-read; no new device data):** JITMEM of the BO2 sessions of builds 650-676
+      (PIDs 9046, 10471, 13540, 13941, 25658): system 337-338 MiB constant, surfaces 153-183 MiB flat after game entry,
+      scratch 18-28, other 36 -> 139 then flat, textures 45 -> 307 MiB still climbing; VMA unused 26-63 -> 148-298 MiB.
+      The growth is the texture pool only (Core 921's target); no second memory correction is shown by these data.
+    - **Collection defect fixed (`REWINDBOX_PERFORMANCE_RETENTION_724`, host bridge, commit `11828899`):** a running
+      window writes 32-37 KB to `RPCS3-performance.log` (50-52 windows per 2 MiB generation, builds 662/676/721), so a
+      generation held ~5 min and the pair ~10; `AUTOSTORM917`/`AUTOPPU916` fire once per boot in the second qualifying
+      window: a 20-min protocol always lost them (both 718 and 722 exports lacked them), and the PS3 report held 1 MiB
+      (~2.6 min) of the current generation only. Now 8 MiB per generation (~21 min, ~42 with `.1`), the report exports
+      the whole current generation and the newest 4 MiB of `.1`; disk only (16 MiB at most), no Core/guest/timing change.
+      Native rotation test updated (130 x 64 KiB: one rotation, 133 records kept); it runs on macOS in the IPA 724
+      native group (not run on Linux: Foundation).
+    - **Device result, IPA 723 (build 723 = Core 921, BO2 PID 48320 session 2 `t6mp`, same settings, ~2.7 min of play,
+      export with the whole performance history):** Core 921 confirmed: TEXCACHE621 `texture_mib` 32.8 -> 93 MiB in
+      the first 30 s then flat at 98-111 MiB (build 721: 265.6 MiB at 2.5 min; build 666: 527 MiB at 4.4 min),
+      TEXSWEEP921 58-456 released per window, `sweep_ms` 12-46 ms per 5 s window (0.2-0.9 % of the RSX thread).
+      FPS 36-41 in the first minute, then 26-35 (windows 22, 27, 28 at 19-23). Footprint still 2927 -> 3506 MiB,
+      compressed 538 -> 813 MiB (step at window 22); JITMEM: VMA unused 89 -> 333 MiB, textures requested 66 -> 185,
+      other 47 -> 140, surfaces 171-181. Maintainer: "plus performant mais manque de stabilité, j'ai subi un gel".
+    - **Freeze (windows 37-40, 13.6 s no frame, not recovered, stopped from the menu):** FREEZE_DUMP: the six
+      CellSpursKernel SPU threads on reservation line `0x2e20880` (five GETLLAR, one PUTLLC), PPU `Secondary` running
+      0.97 core at pc `0x73ccdc` with r6 `0x2e208a0` (same line), main thread in sys_semaphore_wait. First complete
+      capture of the session (PPUPROF912 + PUTLLCTRACE912, early): main and Secondary PPU threads spin in
+      `0x73cc00-0x73d2ff`; line `0x2e20880` = 279 data-changing PUTLLC of 1664 captured, 82 `failed_owner`, 17
+      `failed_time` (SPU pcs 0x2690, 0x25d0, 0x2750; lane 2 = {pointer, tag+1} list head read by the PPU loop).
+      Bottleneck = PPU/SPU contention on one reservation line without forward progress. Exact mechanism and a
+      non-relaxed correction under study (research delegated); rejected as before: relaxed PUTLLC, GETLLAR thresholds,
+      delays, fake success, SPU count or priority changes.
+    - **GOW3 device results, IPA 723 (BCES00510 01.00):** PID 48447 resumed from a savestate: `GOW3MLAA909 ppu=savestate_memory
+      savestate_patched=0`, READBACK555 fault_read 72-75 per window, 12-23 FPS. PID 48627 fresh boot: `ppu=applied`, fault_read 0,
+      menus 60 FPS, play windows 41-52 at 9-13 FPS with GPU busy 14-21 %: PPU main 0.8-0.85 core, five SPU threads 0.6-0.83 core
+      each (3.3-3.6), RSX 0.4-0.5 on a 2P+4E device; waits, compiles and syncs small. The frame is CPU-bound by SPU work; no SPU
+      attribution exists in the export (next: SPU sample profile, Core 923). Boot ran a legacy full custom file (75 %, relaxed
+      reservations, MT RSX; `legacy_custom=1 inherited=19`).
+    - **Core 922 ([record](rpcs3-core922-gow3-savestate-mlaa.md)), maintainer rules of 10 Nov ("la base RPCS3 doit être la
+      règle", "100 % par défaut", "supprime le profil"):** (1) `REWINDBOX_GOW3_MLAA_SAVESTATE_922` guarded 01.00 pair written
+      into restored savestate memory that lacks it; (2) `REWINDBOX_FREEZE_RESERVATION_922` freeze dump `res=`/`getllar_res=`
+      next to thread times (BO2 freeze: line words below held times with bit 64 set; static review of every writer found no
+      decreasing path, cause open); (3) `REWINDBOX_CONFIG_DATABASE_RULE_922` legacy full custom_configs no longer applied
+      (`CONFIG_DB922`), global < RPCS3 database < user per-game settings, MLAA Automatic = on for GOW3; app profile
+      `_godOfWarIII` removed. Engine `1402b86`, delta `2bfadf8c`, canonical `643905ef`; local closure, 922 tests, codegen
+      (identities unchanged), fold, route, guards, full driver pass; database rule test local only (yaml-cpp); Dart tests not run
+      locally (no Flutter). Source `e6510aeb`, request `367b8980`, run `42899482941` in progress. Risk: the database turns
+      Asynchronous Texture Streaming on for GOW3, never run on the device. MeloNX Core 723 pinned `249d287d` (run `42883532005`).
+      **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3594,11 +3747,43 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   touch areas unchanged; the windows are smaller where the drawn opening was wider/taller
   (appearance change, maintainer's request). Not observed on an iPhone.
   [Record](skins-screen-framing-2026-11-10.md), [sheets](evidence/skins-native-ratio/).
+- **Precise pressed states (10 Nov evening, high selector; Switch L/R, ZL/ZR, L3/R3):**
+  branch `work/skins-switch-press-20261110`, **stacked on PR169** (same archives): tools
+  `b8e2126a`, `aed95a55`, packs `8bfc9b47`. Finding: the pressed sprite shrank/shifted
+  the whole sprite, and sprites take in some body (seam gap of the touching shoulder
+  buttons, margin round measured shapes); that body darkened = brackets at the seams,
+  dark ticks on top, jagged ring round the light pills (invisible on the PS2's black
+  body). Change: cap settles straight down, only the control shaded (`_control_part`),
+  well in the cap's edge colour, lip shifted not wrapped, crop edge outside, light pills
+  pressed in place; Switch light pills fitted on their drawn edge (`fit_pill`) and drawn
+  antialiased; frames keep the measured stadium too (touch areas within 0.2 pt, portrait R3
+  37.8 -> 37.9). Archives: wii-pocket-original `fa0e9522` 5287792, gamecube-pocket-original
+  `a5f55e97` 6368088, ps2-pocket-original `f2aadf57` 7379806, switch-pocket `b0182254`
+  9967228 (replace the PR169 identities for these four). Proof (host): verifier 7 packs,
+  input chain 20 layouts (4894672 sprite points reach their own control), Flutter skins
+  156/156, rebuild byte-identical. Simulator: run `42850730582` (`8bfc9b47`) green: host
+  step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined to the outline
+  and clearly visible, released = rest, real touches). [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
 
 ### Codex orchestration — Codex
+
+- **Playlists/XeniOS routing — created and started (10 Nov).**
+  Session [03 Playlists](https://claude.ai/code/session_012mUASiVyxdnhNTUKesGGm7),
+  branch `work/playlists-xenios-20261110` from `71d0f0a6`; UI Opus5.5/High,
+  native `/rb-effort-high` reported high. Full scoped prompt and three attachments
+  sent. Owner reconstructed the original IPA outside Git: **49156698 B**,
+  SHA-256 `8ba4c18b17d7b6f8a8d1ff70eaaf22e18c391891a9e546ced572baad8def600b`,
+  all CRCs valid. Version2.3.1/build11662, iOS26 minimum (plist and Mach-O);
+  `Frameworks/libmetalirconverter.dylib` is present, not a separate XeniOS Core.
+  Existing `xbox360` identity found; upstream source retrieval started.
+  Scope: direct playlist/import, real supported per-game settings/language,
+  existing layered architecture; principal keeps integration/pins/CI/IPA.
+  [Input/routing receipt](evidence/xenios-playlists-input-routing-2026-11-10.json).
+  Component implementation/compilation/device results remain unverified;
+  owner maintains its one task and scoped PR toward Claude.
 
 - **Effort follow-up:** high selector expanded `b8e12584`, routing `20c14011`;
   skins UI Max→High, Opus5.5 retained. Reload/native Skill-return and automatic
@@ -3616,27 +3801,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Actions history cleanup — Codex
 
-- **10 Nov maintainer request — completed and independently audited.**
-  [Run 42735827450](https://github.com/TarbleFR/RewindBox/actions/runs/42735827450)
-  / job `129564695680`, attempt 1, source `633af034`: success.
-  Exactly **1,311** reviewed completed/skipped first attempts have distinct,
-  ordered DELETE **204** receipts; their IDs equal the immutable plan selection
-  (SHA-256 `1f6d5f04…868c3e`). Zero 404, conflicts or unselected snapshot losses.
-  All **1,208 protected snapshot runs** remain, including executed/active/rerun/
-  referenced runs and the newest 300. ZIP `13729243116` downloaded and hashed;
-  all five evidence files audited against plan, journal and complete listings.
-  Final listing: 1,269 = 1,208 retained + 61 distinct new runs; independent
-  13-page audit: 1,287 = 1,208 retained + 79 distinct new runs. Counts reflect
-  new product runs, not additional deletion. No duplicate dispatch or mutation
-  beyond the reviewed cleanup; no Core/pin/product/IPA action by this audit.
-  [Audited receipt](evidence/github-cleanup-2026-11-10.json) preserves exact IDs,
-  file hashes and checks. Completion surveillance
-  `Automation_0196817728ec8191be81faafe4584741` **disabled** after verification.
+- **10 Nov follow-up — completed and independently audited.**
+  [Run 42893521842](https://github.com/TarbleFR/RewindBox/actions/runs/42893521842),
+  job `130100499242`, attempt 1, source `34ff0056`: success.
+  **383** old completed/skipped first attempts removed; ordered HTTP204 receipts
+  match the reviewed plan (SHA-256 `c790165f…edcd75c`). All **1,276 protected
+  snapshot runs** remain, including the newest 300 and every executed run.
+  Jobs from all attempts and attached artifacts are checked before deletion;
+  active/changed/new/rerun/evidence-bearing runs stay protected.
+  26 safety tests pass locally and in CI. The first attempt `42893040902`
+  stopped with **zero DELETEs** because the two new evidence GETs were absent
+  from the internal request allowlist; a real-request-boundary test reproduced
+  the failure before the exact read-only fix. DELETE scope is unchanged.
+  [Follow-up audit](evidence/github-cleanup-2026-11-10-followup.json)
+  retains source/plan/artifact identities, exact deletions and final verification.
+  No product, Core, pin, IPA or public-release change.
 
-Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
-all initial artifacts/retained producers preserved, Dependabot151 retained.
-[Audited receipt](evidence/github-cleanup-2026-11-04.json). Not current inventory
-or permission for more deletion.
+Previous verified cleanups remain recorded:
+[1,311 skipped runs on 10 Nov](evidence/github-cleanup-2026-11-10.json);
+[4 Nov cleanup](evidence/github-cleanup-2026-11-04.json).
+The old completion surveillance remains disabled; no new automation was created.
 
 ## Delivered baseline
 

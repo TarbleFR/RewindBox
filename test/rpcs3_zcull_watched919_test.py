@@ -44,7 +44,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 INCREMENT = ROOT / 'build-utils/rpcs3/core919-from-918.patch'
 # The increments of later Cores, newest first: reversed before this one when the tree under test holds them.
-LATER = (ROOT / 'build-utils/rpcs3/core920-from-919.patch',)
+# Later increments over the same files, newest first: reversed before this one when they apply in reverse.
+LATER = (ROOT / 'build-utils/rpcs3/core921-from-920.patch', ROOT / 'build-utils/rpcs3/core920-from-919.patch')
 LEVERS = 'rpcs3/ios/IOSTitleLevers.h'
 WATCHED = 'rpcs3/ios/IOSZcullWatched.h'
 RENDER = 'rpcs3/Emu/RSX/VK/VKGSRender.cpp'

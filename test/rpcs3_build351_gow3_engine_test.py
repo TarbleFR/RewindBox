@@ -82,7 +82,10 @@ def main() -> None:
             "_main.get_ref<be_t<u32>>(address)" not in ppu_module,
             "official God of War III 01.03 PPU MLAA bypass is missing")
     require("get_experimental_policy().gow3_mlaa_bypass" in ppu_module and
-            "if (!ar && mlaa_policy && mlaa_plan)" in ppu_module,
+            ("if (!ar && mlaa_policy && mlaa_plan)" in ppu_module or
+             # Core 922: a resumed savestate gets the guarded plan only when its memory lacks it
+             ("if ((!ar || mlaa_savestate_fix) && mlaa_policy && mlaa_plan)" in ppu_module and
+              "const bool mlaa_savestate_fix = ar && mlaa_policy && mlaa_plan && mlaa_plan->guarded &&" in ppu_module)),
             "PPU MLAA bypass is not guarded from savestate/disabled paths")
     require("God of War III MLAA Bypass" in config and
             "God of War III MLAA bypass" in settings,

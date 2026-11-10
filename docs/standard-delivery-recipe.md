@@ -23,6 +23,22 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   build sont déclarés dans son manifeste.
 - **Échec** : une livraison échouée est relancée en ne modifiant que la recette, et ses jobs de test
   réussis sont réutilisés.
+- **Enchaînement Core puis IPA** (ajout du 10 novembre 2026, demande du mainteneur : livrer plus vite sans
+  retirer de contrôle ; durées mesurées sur les Cores 921 à 923 et l'IPA 723) :
+  - **un seul Core par livraison** : les corrections prêtes avant une livraison sont regroupées dans le même
+    Core ; un Core intermédiaire compilé n'est ni épinglé ni livré (le 922, remplacé par le 923) ;
+  - **la demande de compilation part dès que les contrôles ciblés passent** (clôture des sources, tests
+    nouveaux ou modifiés, audit des identités de code généré, chaîne de repli, route, gardes : environ
+    1 min) ; le pilote historique complet (environ 23 min) tourne en parallèle, en local et dans le job
+    Apple du run ; un pilote rouge interdit l'épinglage, il ne retarde plus la demande ;
+  - **l'IPA n'est demandée qu'une fois tous ses Cores épinglés** ; pendant leur compilation, la clé de
+    destinataire, la spécification et le brouillon sont préparés, jamais déclenchés ;
+  - **une seule compilation à la fois** par route ; une demande n'est pas doublée pour « rattraper » une
+    file d'attente de runners ;
+  - **ce qui reste incompressible** : compilation du Core (19 min) et tests hôte Apple (28 min) en
+    parallèle, livraison (environ 25 min), files d'attente macOS. Piste non appliquée : exécuter en
+    parallèle, dans le pilote, les tests d'incréments indépendants (hors tests sensibles au temps) ; à
+    mesurer sur un Core avant d'en faire la règle.
 
 ## 2. Ce qui est en place (première cible : 611)
 
@@ -624,3 +640,27 @@ l'inventaire signé). Contenu de la 720 avec RPCS3 Core 919 (pin `44527c61`, cha
 - **Durées.** Application 18,5 min, dont compilation Xcode 341 s et signature/export 62 s ; natif 12,6 min.
 - **Hors CI.** Métadonnées par l'API REST publique, pièces par les URL signées du serveur GitHub MCP, IPA vérifiée hors
   ligne, huit reçus copiés avant la suppression de la clé, clé supprimée. Aucun test sur iPhone.
+
+## 23. État de la 722 (10 novembre 2026)
+
+IPA commune privée livrée sur la 721 : run `42852972508`, déclencheur `c7ca5d37`, cinq jobs verts, IPA `e9aad8d2…f245d`,
+271385645 octets ([reçu](evidence/rewind722/delivery.json), douze fichiers de preuve dont l'inventaire signé, 90
+images). Contenu de la 721 avec RPCS3 Core 920 (pin `f9f2b478`), MeloNX Core 721 (pin `784fcc5d`) avec
+`MeloNXMoltenVKStandalone` reconstruit (MoltenVK v1.4.2 et le correctif RewindBox en trois parties, binaire
+`6f65b2a6`), le stall watch du journal MeloNX et les fenêtres Pocket au ratio du jeu (PR 169).
+- **Première tentative.** Run `42848698413` (déclencheur `7a7a2eee`) : contrôle, republication, Flutter et natif verts,
+  l'application compilée et scellée ; `split_encrypted_delivery.py` refuse alors la charge chiffrée au-delà de 4 × 64 Mio
+  (la 721 en occupait déjà 99,5 % ; la PR 169 ajoute environ 3,9 Mo d'archives). Correctif `ea8152d9` (chemin produit) :
+  quatre pièces d'au plus 96 Mio, test d'une charge de plus de 256 Mio (l'ancien découpeur la refuse, le nouveau
+  l'accepte) ; regel (empreinte effective `2528a3dc`), les deux groupes rejoués. Pièces de 68068462 octets.
+- **Chaîne légale des skins.** La seconde revue de révision des packs Pocket est liée à la première
+  (`collect_build_source_evidence.py`, revues de révision en chaîne, seule la dernière comparée au catalogue).
+- **Images non déclarées.** `rpcs3_internal_bridge`, sources inchangées, diffère de la 721 par les seuls bouchons de
+  l'éditeur de liens (les deux cases d'`objc_msgSend` échangées de nouveau ; tables de liaison et GOT identiques).
+- **Piège évité.** Les huit reçus se copient depuis `work/delivery/` du vérificateur, jamais par une recherche sur tout
+  `work/` : l'arbre effectif décompressé y contient les reçus des livraisons précédentes ; `record` a refusé le premier
+  exemplaire copié (celui de la 616) avant toute écriture.
+- **Durées.** Compilation Xcode 345 s, signature/export 57 s ; application 20,8 min, natif 15,7 min.
+- **Hors CI.** Métadonnées par l'API REST publique, pièces par les URL signées du serveur GitHub MCP, IPA vérifiée hors
+  ligne, huit reçus copiés avant la suppression de la clé, clé supprimée. Aucun test sur iPhone.
+

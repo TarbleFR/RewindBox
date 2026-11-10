@@ -117,14 +117,19 @@ int main(int argc, const char* argv[]) {
     }
     NSString* bigRuntime = [@"COREPROF WAITPROF527 " stringByAppendingString:
         [@"r" stringByPaddingToLength:64 * 1024 withString:@"r" startingAtIndex:0]];
-    for (unsigned i = 0; i < 50; ++i) RPCS3Diagnostic(@"core_log", bigRuntime);
+    // REWINDBOX_PERFORMANCE_RETENTION_724: 130 records of 64 KiB exceed the
+    // 8 MiB generation once; nothing is lost between the two files.
+    for (unsigned i = 0; i < 130; ++i) RPCS3Diagnostic(@"core_log", bigRuntime);
     RPCS3Diagnostic(@"core_log", @"COREPROF MEMPROF527 session=7 window=2 marker=after_rotation");
     RPCS3DiagnosticsFlushForTesting();
     NSString* runtimePrevious = [testDocuments stringByAppendingPathComponent:@"RPCS3-performance.1.log"];
-    assert([[[NSFileManager defaultManager] attributesOfItemAtPath:runtime error:nil] fileSize] <= 2 * 1024 * 1024);
-    assert([[[NSFileManager defaultManager] attributesOfItemAtPath:runtimePrevious error:nil] fileSize] <= 2 * 1024 * 1024);
+    const unsigned long long runtimeSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:runtime error:nil] fileSize];
+    const unsigned long long runtimePreviousSize = [[[NSFileManager defaultManager] attributesOfItemAtPath:runtimePrevious error:nil] fileSize];
+    assert(runtimeSize <= 8 * 1024 * 1024 && runtimePreviousSize <= 8 * 1024 * 1024);
+    // The previous generation was filled past the former 2 MiB limit.
+    assert(runtimePreviousSize > 7 * 1024 * 1024);
     assert([readEntries(runtime).lastObject[@"message"] containsString:@"after_rotation"]);
-    assert(readEntries(runtime).count + readEntries(runtimePrevious).count == 53);
+    assert(readEntries(runtime).count + readEntries(runtimePrevious).count == 133);
   }
   return 0;
 }

@@ -59,47 +59,16 @@ void main() {
     );
 
     test(
-      'targets only the registered God of War III serials',
+      'God of War III has no RewindBox title profile: the RPCS3 database is the reference',
       () {
         for (final serial in <String>[
           'BCUS98111', 'BCES00510', 'BCES00799',
           'BCJS37001', 'BCAS25003', 'BCKS15003',
         ]) {
-          final profile = Rpcs3GameProfileService.profileForSerial(serial)!;
-          expect(profile.settings['cpu.spu_block_size'], 'Mega');
-          expect(profile.settings['cpu.preferred_spu_threads'], '0');
-          // Build 412: relaxed SPU reservations are a measured hypothesis
-          // against the Build 411 writer-lock stalls. Build 565: no 30 fps
-          // cap; the title is limited to the 60 Hz vblank (Auto).
-          expect(profile.settings['advanced.accurate_spu_reservations'], 'false');
-          expect(profile.settings['gpu.frame_limit'], 'Auto');
-          expect(profile.settings['gpu.resolution_scale'], '75');
-          // Build 551: Async skips draws while a pipeline compiles; the
-          // profile no longer forces any shader mode.
-          expect(profile.settings.containsKey('gpu.shader_mode'), isFalse);
-          expect(profile.settings['gpu.multithreaded_rsx'], 'true');
-          // Build 552: asynchronous texture streaming, which has never run
-          // on the iPhone, is explicitly off for this title. Build 587: the
-          // Core's Automatic mode decides asynchronous MoltenVK submits (God
-          // of War III, behind the encode barrier and the boot canary).
           expect(
-            profile.settings['experimental.moltenvk_async_submits'],
-            'Automatic',
+            Rpcs3GameProfileService.profileForSerial(serial)!.settings,
+            isEmpty,
           );
-          expect(profile.settings['gpu.async_texture_uploads'], 'false');
-          expect(profile.settings['experimental.fifo_cache_size'], '4 KiB');
-          expect(
-            profile.settings['experimental.getllar_backoff'],
-            'Enabled',
-          );
-          expect(
-            profile.settings['experimental.fps_optimization_batch'],
-            'Enabled',
-          );
-          expect(profile.settings['cpu.ppu_decoder'], 'Recompiler (LLVM)');
-          expect(profile.settings['cpu.spu_decoder'], 'Recompiler (LLVM)');
-          expect(profile.settings['cpu.ppu_profiler'], 'false');
-          expect(profile.settings['advanced.llvm_precompilation'], 'true');
         }
         for (final serial in <String>['BCUS98114', 'BLES00412', 'NPUB12345']) {
           expect(
@@ -111,17 +80,16 @@ void main() {
     );
 
     test('returns independent profile maps between games and launches', () {
-      final first = Rpcs3GameProfileService.profileForSerial('BCES00510')!;
-      first.settings['cpu.preferred_spu_threads'] = '6';
+      final first = Rpcs3GameProfileService.profileForSerial('BLES01717')!;
+      first.settings['advanced.accurate_spu_reservations'] = 'false';
       expect(
-        Rpcs3GameProfileService.profileForSerial('BCES00510')!
-            .settings['cpu.preferred_spu_threads'],
-        '0',
+        Rpcs3GameProfileService.profileForSerial('BLES01717')!
+            .settings['advanced.accurate_spu_reservations'],
+        'true',
       );
       expect(
-        Rpcs3GameProfileService.profileForSerial('BCUS98111')!
-            .settings['cpu.preferred_spu_threads'],
-        '0',
+        Rpcs3GameProfileService.profileForSerial('BCES00510')!.settings,
+        isEmpty,
       );
     });
 
@@ -172,7 +140,7 @@ void main() {
       expect(inheritedGames, isEmpty);
     });
 
-    test('merges God of War III official and iOS performance keys', () async {
+    test('God of War III publishes its RPCS3 database entry only', () async {
       final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
         <String>['BCES00510'],
       );
@@ -182,37 +150,18 @@ void main() {
       final yaml =
           (games['BCES00510'] as Map<String, dynamic>)['config'] as String;
 
-      expect(yaml, contains('Core:'));
+      // The official entry (api.rpcs3.net/config), nothing added.
       expect(yaml, contains('SPU Block Size: Mega'));
-      expect(yaml, contains('Preferred SPU Threads: 0'));
-      expect(yaml, contains('PPU Decoder: Recompiler (LLVM)'));
-      expect(yaml, contains('SPU Decoder: Recompiler (LLVM)'));
-      expect(yaml, contains('PPU Profiler: false'));
-      expect(yaml, contains('LLVM Precompilation: true'));
-      expect(yaml, contains('Video:'));
-      expect(yaml, contains('Resolution Scale: 75'));
-      expect(yaml, isNot(contains('Shader Mode:')));
-      expect(yaml, contains('Multithreaded RSX: true'));
-      expect(
-        yaml,
-        contains('  Vulkan:\n    Asynchronous Texture Streaming: false'),
-      );
-      expect(yaml, contains('MoltenVK Asynchronous Submits: Automatic'));
-      expect(yaml, isNot(contains('MoltenVK Asynchronous Submits: Enabled')));
-      expect(yaml, contains('FPS Optimization Batch: Enabled'));
-      expect(yaml, contains('RSX FIFO Read Cache: 4 KiB'));
-      expect(yaml, contains('GETLLAR Mobile Backoff: Enabled'));
-      expect(yaml, contains('God of War III MLAA Bypass: Enabled'));
-      // Build 412 replaces the former "never relax reservations" contract: the
-      // Build 411 logs attribute the heavy-scene PPU stalls to the exclusive
-      // writer lock of accurate PUTLLC/PUTLLUC; the relaxed upstream path is
-      // applied as a measured hypothesis. Build 565 removes the 30 fps limiter.
-      expect(yaml, contains('Accurate SPU Reservations: false'));
-      expect(yaml, contains('Frame limit: Auto'));
-      expect(yaml, isNot(contains('Frame limit: 30')));
       expect(yaml, contains('Shader Precision: Ultra'));
       expect(yaml, contains('Write Color Buffers: true'));
-      expect(yaml, isNot(contains('Audio:')));
+      expect(yaml, contains('Asynchronous Texture Streaming: true'));
+      // Maintainer, 10 November 2026: 100 % by default, no title profile.
+      expect(yaml, isNot(contains('Resolution Scale')));
+      expect(yaml, isNot(contains('Multithreaded RSX')));
+      expect(yaml, isNot(contains('Accurate SPU Reservations')));
+      expect(yaml, isNot(contains('Frame limit')));
+      expect(yaml, isNot(contains('LLVM Precompilation')));
+      expect(yaml, isNot(contains('MLAA')));
     });
 
     test(
@@ -504,9 +453,11 @@ void main() {
         messenger.setMockMethodCallHandler(channel, null);
         Rpcs3GameProfileService.noteDetectedSerials(const <String>[]);
       });
+      // The God of War III serials the RPCS3 database holds (BCJS37001 has no
+      // entry and no RewindBox profile any more).
       const serials = <String>[
         'BCUS98111', 'BCES00510', 'BCES00799',
-        'BCJS37001', 'BCAS25003', 'BCKS15003',
+        'BCAS25003', 'BCKS15003',
       ];
       Rpcs3GameProfileService.noteDetectedSerials(<String>[
         ...serials, 'ABCD123456789',
@@ -525,7 +476,7 @@ void main() {
         expect(games.keys, unorderedEquals(serials));
         for (final entry in games.values) {
           final yaml = (entry as Map<String, dynamic>)['config'] as String;
-          expect(yaml, contains('LLVM Precompilation: true'));
+          expect(yaml, isNot(contains('LLVM Precompilation')));
           expect(yaml, contains('SPU Block Size: Mega'));
         }
         Rpcs3GameProfileService.noteDetectedSerials(<String>['ABCD123456789']);

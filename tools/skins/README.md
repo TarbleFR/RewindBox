@@ -35,6 +35,19 @@ Generation and geometry checks do not establish physical iPhone gameplay.
 
 ## Pressed controls of the board packs (10 November)
 
+Second pass the same day (maintainer, Switch Pocket: L / R, ZL / ZR, L3 / R3 lacked
+precision): `pressed_face` no longer shrinks and shifts the whole sprite, which showed the
+body a sprite's outline takes in, darkened (a bracket at each seam of the touching
+shoulder buttons, dark ticks on top, a jagged ring round the light pills). The cap settles
+straight down, compressed toward its bottom edge (never moved sideways, so a seam stays
+exact); only the control itself is shaded (`_control_part`: told from the body by colour,
+one component); the well at the top takes the cap's own edge colour; the lip is shifted,
+not wrapped round the sprite; the sprite's crop edge counts as outside. Light pills
+(Switch − ≡ + HOME Capture L3 R3) are pressed in place, and their outline is fitted on
+their drawn edge (`fit_pill`: a rounded rectangle, not a stadium) and drawn antialiased at
+the sprite's resolution; their frame is the measured stadium and the fitted shape
+together, so no touch area shrinks. [Sheets](../../docs/evidence/skins-press-precision/).
+
 `pressed_face` (build_pocket_board_originals.py, used by the three Originals and Switch
 Pocket) no longer greys the control: the cap, label and bevel included, moves down into
 its well (1.3 board pixels lower, 3 % smaller), the wall of the well shows above it in

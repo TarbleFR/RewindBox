@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 722,
   "status": "frozen",
-  "note": "Private common IPA 722 = the delivered 721 with the handoffs of 10 November: RPCS3 Core 920 (no lever is switched off and on again by itself in ordinary play any more: the comparison of Writer lock park spin and Busy wait reference duration runs only with the new diagnostic setting Lever comparison between report windows = Enabled, bounded and logged; COREPROF ZCULLCOST920 gives the age of the report each waiting ZCULL read of Black Ops II waits for and the cost of the Core 919 watched submissions); MeloNX lot 9 for 722 (MeloNX Core 721: the main pipeline cache referenced in its mapped file instead of copied, with MoltenVK v1.4.2 rebuilt with the three-part RewindBox patch, binary 6f65b2a6; the native stall watch of the host journal); skins PR 169 (the RewindBox Pocket windows at the game's ratio, 4:3 and Switch 16:9). Base: the delivered and verified 721, whose receipt holds its signed image inventory. No iPhone measurement; no FPS claim.",
+  "note": "Private common IPA 722 = the delivered 721 with the handoffs of 10 November: RPCS3 Core 920 (no lever is switched off and on again by itself in ordinary play any more: the comparison of Writer lock park spin and Busy wait reference duration runs only with the new diagnostic setting Lever comparison between report windows = Enabled, bounded and logged; COREPROF ZCULLCOST920 gives the age of the report each waiting ZCULL read of Black Ops II waits for and the cost of the Core 919 watched submissions); MeloNX lot 9 for 722 (MeloNX Core 721: the main pipeline cache referenced in its mapped file instead of copied, with MoltenVK v1.4.2 rebuilt with the three-part RewindBox patch, binary 6f65b2a6; the native stall watch of the host journal); skins PR 169 (the RewindBox Pocket windows at the game's ratio, 4:3 and Switch 16:9). Base: the delivered and verified 721, whose receipt holds its signed image inventory. Second request: the first one (run 42848698413) built and sealed the application, then the transport splitter refused an encrypted payload over 4 x 64 MiB; fixed (four pieces of at most 96 MiB) and refrozen. No iPhone measurement; no FPS claim.",
   "base": {
     "build": 721,
     "source": "cfb564205c71eb3894d2c42be21899d3d7d67233",
@@ -272,12 +272,16 @@
       {
         "commit": "48faa4f8c873a4030319716c286aa8d1d40fa8c3",
         "note": "Tools only: tools/rpcs3/capture_analyzer.py reads the ZCULLDEMAND619, ZCULLLEAD659, ZCULLWATCH660, ZCULLCOST920 and MEMPROF527 lines and frame pacing per window (inactive kept apart from 0, absent from 0), with its test test/rpcs3_capture_analyzer_test.py; no file of the application changes."
+      },
+      {
+        "commit": "ea8152d9ab84595ebe854f9e3d1a6bc640e01415",
+        "note": "Fix of the first attempt of this build (run 42848698413): build-utils/split_encrypted_delivery.py bounds each of the four transport pieces to 96 MiB instead of 64 MiB (the encrypted IPA passed 256 MiB); test/standard_delivery_contract_test.py splits a payload over 256 MiB with the real splitter. The payload, its encryption and the verification of each piece are unchanged."
       }
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "dce2477de473a816db2979c7c5518b64ce5a76c0",
-    "freezeTree": "c95f369854502b0cd3f4a4ca9128793dae0c18b6",
+    "freezeCommit": "b0305c6a8caf430228407eba30f53c0575642ae8",
+    "freezeTree": "abc3e49d0a5f4bfb5702f37c44f4c9fb5a44eb92",
     "baseEffectiveDigest": "e66096fe706021a93b3f2328ff51bed71c8df7944ee0942318d975f28c872771",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10.json",
@@ -479,6 +483,24 @@
         "subject": "build(delivery): IPA 722 draft on the delivered 721: RPCS3 Core 920, MeloNX Core 721 with MoltenVK 6f65b2a6, skins PR 169 [skip ci]",
         "role": "recipe",
         "productPaths": 0
+      },
+      {
+        "commit": "7a7a2eeeecc632a125fcbb0e0aca157b6299cf6e",
+        "subject": "[ipa-delivery:722] build(delivery): request the private common IPA 722 (RPCS3 Core 920: no lever alternation in ordinary play; MeloNX Core 721 with MoltenVK 6f65b2a6; skins PR 169)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ea8152d9ab84595ebe854f9e3d1a6bc640e01415",
+        "subject": "fix(delivery): four transport pieces of at most 96 MiB; the encrypted IPA 722 passed the former 4 x 64 MiB [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "b0305c6a8caf430228407eba30f53c0575642ae8",
+        "subject": "build(delivery): IPA 722 draft again after the failed first attempt: the transport piece bound fix reviewed [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
       }
     ],
     "deferred": {},
@@ -677,6 +699,11 @@
         "mode": "100644",
         "gitBlob": "75d1caa24a7dc1a1ba2f2c4251d22e9cec1fd3dd",
         "sha256": "13ceeeab00357d485fa71e457fc1a512dfe15822c7fc4d67f56e191f5e8fa95d"
+      },
+      "build-utils/split_encrypted_delivery.py": {
+        "mode": "100644",
+        "gitBlob": "71070b24c24e9926768de5f64337481fdaca6d03",
+        "sha256": "404474ffd6dbf90d290262cb4b1d3a129b3d4750a16aa018cb65ebc701017b0e"
       },
       "packages/melonx_internal_bridge/ci/MeloNXSkinOverlayTests.mm": {
         "mode": "100644",
@@ -1037,7 +1064,7 @@
       "test/ra_disc_hash_reader_test.py": null,
       "test/retro_achievements_identification_test.dart": null
     },
-    "effectiveDigest": "2ba8f620032deaf29ffba570391b37fc2fe3e51f4537f61e78d61e943a23b5ea",
+    "effectiveDigest": "2528a3dc7b189c9b53a206a78a029195fddf3bfe7518baae21d3a808e0b448b6",
     "productFiles": 7510,
     "embeddedRecipeInputs": {
       "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
@@ -1982,8 +2009,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-10T15:49:24Z",
-    "commit": "dce2477de473a816db2979c7c5518b64ce5a76c0",
+    "at": "2026-11-10T16:16:14Z",
+    "commit": "b0305c6a8caf430228407eba30f53c0575642ae8",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }

@@ -31,7 +31,7 @@ LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET droppe
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
                 'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917', 'SCHED918',
-                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527')
+                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527', 'TEXCACHE621', 'TEXSWEEP921')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -377,7 +377,12 @@ COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527',
            ('zc_taken', 'ZCULLWATCH660', 'taken'), ('zc_newest', 'ZCULLCOST920', 'newest'), ('zc_newest_1ms', 'ZCULLCOST920', 'newest_over_1ms'),
            ('zc_watched_submit', 'ZCULLCOST920', 'watched_submit'), ('rsx_submit', 'RSXSYNC551', 'submit'),
            # Memory of the process, sampled in the window (bytes).
-           ('footprint', 'MEMPROF527', 'footprint'), ('compressed', 'MEMPROF527', 'compressed'))
+           ('footprint', 'MEMPROF527', 'footprint'), ('compressed', 'MEMPROF527', 'compressed'),
+           # Texture cache memory (TEXCACHE621: live sections in MiB of guest bytes, new uploads) and the Core 921 release of
+           # stale idle textures (TEXSWEEP921: sections released, their host image MiB, the RSX-thread time of the passes).
+           ('tex_mib', 'TEXCACHE621', 'texture_mib'), ('tex_misses', 'TEXCACHE621', 'upload_misses'),
+           ('sweep_released', 'TEXSWEEP921', 'released'), ('sweep_host_mib', 'TEXSWEEP921', 'released_host_mib'),
+           ('sweep_ms', 'TEXSWEEP921', 'sweep_ms'))
 # levers627= of CONFIG_LAYERS part=rsx: one digit per lever in this order; 1 = on, +2 = set explicitly for the test.
 # The "Resolved title policy" lines are not among the exported kinds: this field is what an export proves.
 LEVERS = ('zcull_wait_guard', 'zcull_cond_no_wait', 'zcull_conservative_reports', 'spu_noop_spin_wait', 'spu_qos_below_rsx', 'fifo_nop_fast_path',
@@ -473,7 +478,9 @@ def levers(digits) -> dict:
 UNITS = ('zc_waits, zc_oldest_lead, zc_newest, zc_watched_submit and rsx_submit are count:total_ms:max_ms per window; zc_slots is '
          'learned:refreshed:expired:evicted:short_lead and zc_taken draw_start:after_textures:fallback:carried (ZCULLWATCH660, inactive when '
          'the watched flush is off for the title); zc_newest_1ms the waiting reads whose last report was 1 ms old or more; footprint and '
-         'compressed are bytes; median/p99/max_ms and over50/over100 are guest frame intervals of the window; '
+         'compressed are bytes; tex_mib is the guest MiB of the live texture sections and tex_misses the uploads of the window (TEXCACHE621); '
+         'sweep_released, sweep_host_mib and sweep_ms are the stale idle textures the Core 921 pass released, their host image MiB and the '
+         'RSX-thread time of its passes (TEXSWEEP921, absent before Core 921); median/p99/max_ms and over50/over100 are guest frame intervals of the window; '
          'fps and cores are averages over the window; gpu_busy is a share of the window; wl_putllc is count:acquire_ms:hold_ms cumulated over '
          'all SPU threads (thread time, not frame time); getllar_sleep is count:total_ms; pass, epoch and memo counters are per window; '
          'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count; '
