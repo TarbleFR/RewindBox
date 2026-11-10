@@ -333,6 +333,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     fresh (20 commands, with the MoltenVK packaging test), native fresh (19). Trigger `ff3edb7e`, run `42795453604`.
     The label "MeloNX Core 719" is the owner's frozen one (kept so as not to refreeze its contract); it is not the
     content of IPA 719, which holds Core 717.
+  - **Run `42795453604` attempt 1 failed (10:17 UTC): product defect of lot 9, fixed, refrozen, requested again.**
+    Preflight (delivery contract), republish and native (19 commands) green. Two red jobs, both on `6ddc96fd` (skin
+    touches after the menu), which no earlier job had compiled or run:
+    - application (job `129759822347`), xcodebuild exit 65, one compiler error:
+      `MeloNXMetalSessionViewController.swift:339:32: 'syncNowAndWhenUncovered(_:stillWanted:sync:)' has been renamed
+      to 'syncNowAnd(whenUncovered:stillWanted:sync:)'` (the name Swift gives the Objective-C selector). The MoltenVK
+      packaging step had passed on the runner.
+    - flutter (job `129759822227`), 979 passed, 1 failed: `test/melonx_skins_test.dart` "the session sends the skin
+      to the real router path…" still expected the single `skinSession?.sync()` after `router?.suspend(...)`. Every
+      other command passed, the MoltenVK packaging test included (64 checks).
+    Fix `65a9e633` (main; both owners told): the call site uses the imported name; the Dart contract expects the lot
+    9 form and refuses the spelling that does not compile. Not compilable here: verified by the application job of
+    the new run. Refreeze `e53126a6`, effective digest `be9afa4f…05e9`, seven reviewed commits, legal check passed,
+    contract 61 tests OK, both test groups fresh again (the fix changes the effective tree). Trigger `8a1884a9`, run
+    `42798677772`.
+  - Pre-existing, outside the delivery groups, told to its owner: `test/melonx_capture_journal_test.py` fails on
+    Linux ("controller removed lines") identically on the 719 trigger `3b4b4d02`.
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
   correcting its native-test failure and preserving valid reusable results. Check repeated source
