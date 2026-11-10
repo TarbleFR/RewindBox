@@ -1794,6 +1794,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       the whole current generation and the newest 4 MiB of `.1`; disk only (16 MiB at most), no Core/guest/timing change.
       Native rotation test updated (130 x 64 KiB: one rotation, 133 records kept); it runs on macOS in the IPA 724
       native group (not run on Linux: Foundation).
+    - **Device result, IPA 723 (build 723 = Core 921, BO2 PID 48320 session 2 `t6mp`, same settings, ~2.7 min of play,
+      export with the whole performance history):** Core 921 confirmed: TEXCACHE621 `texture_mib` 32.8 -> 93 MiB in
+      the first 30 s then flat at 98-111 MiB (build 721: 265.6 MiB at 2.5 min; build 666: 527 MiB at 4.4 min),
+      TEXSWEEP921 58-456 released per window, `sweep_ms` 12-46 ms per 5 s window (0.2-0.9 % of the RSX thread).
+      FPS 36-41 in the first minute, then 26-35 (windows 22, 27, 28 at 19-23). Footprint still 2927 -> 3506 MiB,
+      compressed 538 -> 813 MiB (step at window 22); JITMEM: VMA unused 89 -> 333 MiB, textures requested 66 -> 185,
+      other 47 -> 140, surfaces 171-181. Maintainer: "plus performant mais manque de stabilité, j'ai subi un gel".
+    - **Freeze (windows 37-40, 13.6 s no frame, not recovered, stopped from the menu):** FREEZE_DUMP: the six
+      CellSpursKernel SPU threads on reservation line `0x2e20880` (five GETLLAR, one PUTLLC), PPU `Secondary` running
+      0.97 core at pc `0x73ccdc` with r6 `0x2e208a0` (same line), main thread in sys_semaphore_wait. First complete
+      capture of the session (PPUPROF912 + PUTLLCTRACE912, early): main and Secondary PPU threads spin in
+      `0x73cc00-0x73d2ff`; line `0x2e20880` = 279 data-changing PUTLLC of 1664 captured, 82 `failed_owner`, 17
+      `failed_time` (SPU pcs 0x2690, 0x25d0, 0x2750; lane 2 = {pointer, tag+1} list head read by the PPU loop).
+      Bottleneck = PPU/SPU contention on one reservation line without forward progress. Exact mechanism and a
+      non-relaxed correction under study (research delegated); rejected as before: relaxed PUTLLC, GETLLAR thresholds,
+      delays, fake success, SPU count or priority changes.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
