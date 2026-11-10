@@ -3270,6 +3270,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   on the Dolphin session harness only, the same failure as on the framing run (not from
   these branches).
   [Sheets](evidence/skins-realistic-press/). Not observed on an iPhone.
+- **State of the 10 Nov skins work (owner's update after integration):**
+  [PR166](https://github.com/TarbleFR/RewindBox/pull/166) framing merged `80aa7ac7`,
+  [PR167](https://github.com/TarbleFR/RewindBox/pull/167) realistic press merged `b6a9deee`,
+  both packaged in private IPA 720 (main's receipt `evidence/rewind720/delivery.json`);
+  final archive identities on `Claude` = the PR167 ones. Harness fix
+  [PR168](https://github.com/TarbleFR/RewindBox/pull/168) (`c9e3f26c`, merged `11ee0f5a`,
+  tests only): the three skin harnesses wait for the Menu / system-button delivery, at
+  most 2 s, instead of a fixed 20 ms (one failure of `testWiiButtonsLandscape` on
+  identical sources, run `42795464202`); run `42800736698` green; one green run does not
+  prove the instability gone.
+  - Open, maintainer's decisions: (1) non-4:3 openings keep thin black bands with a 4:3
+    picture (Stretched fills; exact 4:3 openings need new art); (2) `wii-pocket`,
+    `gamecube-pocket`, `ps2-pocket` pressed states left as rendered (PS2 Pocket - Noir mat
+    lights a blue rim).
+  - Open, not started (main's review remarks, no Pocket skin concerned):
+    `screenFrameForBounds:` uses unturned safe-area insets for a Delta portrait-only skin
+    without a screen; an imported `screenCutout` without alpha is not rejected.
+  - Not observed on an iPhone: framing, pressed controls and controls after the in-game
+    menu are for the maintainer to check on IPA 720. Next action: none until the
+    maintainer's device result or decisions.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
