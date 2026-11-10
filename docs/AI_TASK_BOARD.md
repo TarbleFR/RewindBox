@@ -3746,21 +3746,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 - **Owner/branch:** session `012mUASj3EQnvC86WC56AePw`, `work/s2arm-switch2-prototype-20261110`
   (from `Claude` `d6b15c86`). Paths owned: `docs/s2arm-prototype-2026-11-10.md`, later a
-  host-proof workflow and a diagnostic entry (not written yet). No MeloNX, skin or XeniOS path touched.
+  `tools/s2arm_prototype/`, the host-proof workflow; later a diagnostic entry (not written yet). No MeloNX, skin or XeniOS path touched.
 - **Goal:** decide whether S2Arm-rewritten code can run from JIT memory in RewindBox, loaded
   from a data file at a fixed address, to its first gate, with a `brk` handled. Only this
   prototype is approved; no playlist, game, graphics or service work.
-- **State (10 Nov): step 1 done by reading only; nothing compiled, executed or measured.**
-  S2Arm pinned at `6b6a5715`. Unsigned loading = S2Arm's own macOS loader path. The RewindBox
-  helper script already accepts a region at a caller-chosen address; unknown `brk` while it is
-  attached is not skipped, so guest code runs only after detach. iOS 26: all executable pages
-  must be requested before detach.
-- **Evidence:** [constat and device questions A–F](s2arm-prototype-2026-11-10.md).
-- **Open or limit:** host proof runs in CI only (container is x86-64; building third-party
-  source in the session was refused by its permission policy). Maintainer confirmation asked
-  before CI builds S2Arm's rewriter.
-- **Next:** host-proof workflow (Linux rewrite + macOS arm64 execution, negative controls),
-  then the device diagnostic handed to main for a test IPA.
+- **State (10 Nov): step 2 host proof passed in CI; nothing run on an iPhone.** Run `42920636820`
+  attempt 1, commit `ab4619be`, 3/3 jobs. S2Arm `6b6a5715` rewriter built on ubuntu-24.04 and
+  macos-15 (arm64): synthetic module rewritten with 0 gaps, 9 sites, 2 gates; the five outputs are
+  byte-identical on both systems (`main.patched.bin` SHA-256 `e2341dfd…9698`). On macOS the module,
+  loaded from data files at a fixed slot of a reserved window, ran through S2Arm's `sw_gate` to its
+  `cntpct` and `svc` gates: 15/15 checks (KTLS, KTLR, K18 slots, gate values, one `brk` handled by
+  SIGTRAP). Controls failed as required: no gate 139, wrong TLS slot 3, empty key page 139, no
+  `brk` handler 133.
+- **Evidence:** [constat, result and device questions A–F](s2arm-prototype-2026-11-10.md);
+  `tools/s2arm_prototype/`, `.github/workflows/s2arm-prototype-host.yml`.
+- **Open or limit:** macOS seals code with `mprotect`, which the iPhone JIT forbids: the host pass
+  proves format and redirections only. The device diagnostic needs the JIT helper (MeloNX-owned
+  paths): questions sent to session 01, no MeloNX file touched.
+- **Next:** agree the hook with session 01, write the device diagnostic (questions A–F), hand it
+  to main for a test IPA.
 
 ### Codex orchestration — Codex
 

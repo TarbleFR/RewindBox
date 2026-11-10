@@ -1,8 +1,9 @@
 # Switch 2 playlist (S2Arm) — feasibility prototype
 
-**Status, 10 November 2026: step 1 (source reading) done. Nothing from S2Arm has been
-compiled or executed yet.** Every statement below comes from reading the pinned sources;
-none is a host or device measurement. Only the prototype is approved; integration is not.
+**Status, 10 November 2026: step 1 (source reading) and step 2 (host proof in CI) done.
+Nothing has run on an iPhone.** The sections on loading and on the JIT helper come from
+reading the pinned sources; only the "Step 2" result is an executed check. Only the
+prototype is approved; integration is not.
 
 ## Pinned inputs
 
@@ -83,18 +84,24 @@ requested before the helper detaches, so the module layout (or one arena large e
 must be known at JIT preparation, and a second game in the same process cannot get new
 executable memory under the present helper policy.
 
-## Step 2 — host proof
+## Step 2 — host proof (passed)
 
-Feasible, **in CI only**: the session container is x86-64 without an AArch64 toolchain or
-emulator, and building third-party source inside it is refused by the session's
-permission policy. Planned jobs, on this branch only:
+Run `42920636820` attempt 1 on commit `ab4619be`, workflow `s2arm-prototype-host.yml`,
+sources in `tools/s2arm_prototype/`. It runs in CI because the session container is x86-64
+and may not build third-party source.
 
-- Linux: build the pinned rewriter, rewrite a synthetic NSO written for this test (no game
-  content: `svc`, `mrs`/`msr tpidr_el0`, `mrs tpidrro_el0`, x18 use, counter read, `brk`),
-  check zero gaps and the expected sites and gates.
-- macOS arm64: same build, byte comparison with the Linux output, then a small loader
-  following steps 1–5 above with S2Arm's own `entry.S` gate, executing the module to its
-  first gate. Negative controls must fail: KGATE slot left empty, wrong KTLS slot, key page
-  not installed, `brk` handler not installed.
+- **Rewrite**, ubuntu-24.04 and macos-15 (arm64): the pinned rewriter turns the synthetic
+  module (`make_synth_nso.py`, no game content) into 9 redirected sites and 2 gates with
+  0 gaps. Layout: `LOAD_BIAS 0x2000`, `TEXT_END 0x1000`, `KEY_PAGE_OFF 0x6000`,
+  `PATCH_OFF 0xe000`. The five output files are byte-identical on both systems;
+  `main.patched.bin` SHA-256 `e2341dfd1dc829f06eebbedace773624e8cb5e35faf22a815b32ed086cdc9698`.
+- **Execution**, macOS arm64: `host_loader.c` follows steps 1–5 above and links S2Arm's
+  unmodified `runtime/src/entry.S`. The module ran to its `cntpct` and `svc` gates; 15 of
+  15 checks: `tpidr_el0` read and write through slot KTLS, `tpidrro_el0` through KTLR, x18
+  through K18, the gate saw x0 = 0x77 and its results came back, one `brk` handled by SIGTRAP.
+- **Negative controls**, each must not pass: KGATE slot empty (signal 11), KTLS reading the
+  wrong slot (4 mismatches), key page empty (signal 11), no SIGTRAP handler (signal 5).
 
-A macOS pass proves the format and the redirections, not the iPhone JIT questions A–F.
+Limits: macOS seals the code with `mprotect`, which the iPhone JIT forbids; x18 and
+`tpidrro_el0` behaviour, signal delivery and address space on iOS are not covered. Questions
+A–F remain entirely open.
