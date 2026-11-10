@@ -208,7 +208,13 @@ void main() {
     final install = controller.substring(controller.indexOf('private func installControls'));
     expect(install.indexOf('let router = MeloNXInputRouter(') < install.indexOf('MeloNXSkinSession(game:game,router:router'), isTrue);
     expect(controller, contains('skinSession?.layout()'));
-    expect(controller, contains('router?.suspend(!pauseReasons.isEmpty)\n        skinSession?.sync()'));
+    // Since lot 9 (skin touches after the in-game menu) a resume syncs the skin now and again once the menu's sheet
+    // has gone (MeloNXSkinInteraction.h, imported in Swift as syncNowAnd(whenUncovered:stillWanted:sync:)); a pause
+    // keeps the single sync.
+    expect(controller, contains('router?.suspend(!pauseReasons.isEmpty)\n        if let skinSession, pauseReasons.isEmpty {'));
+    expect(controller, contains('MLXSkinInteraction.syncNowAnd(whenUncovered:self,'));
+    expect(controller, isNot(contains('syncNowAndWhenUncovered(')), reason: 'the Objective-C spelling does not compile in Swift');
+    expect(controller, contains('sync:{ [weak skinSession] in skinSession?.sync() })\n        } else {\n            skinSession?.sync()\n        }'));
     expect(controller.indexOf('self?.skinSession?.close()') < controller.indexOf('self?.router?.close()'), isTrue);
     expect(File('packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h').readAsStringSync(),
         contains('#import "MeloNXSkinOverlay.h"'), reason: 'Swift sees the overlay in the standalone typecheck too');

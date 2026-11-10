@@ -336,7 +336,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
             // A menu action can run while its sheet is still being dismissed: the
             // skin is synced again once the sheet has gone (MeloNXSkinInteraction.h),
             // so its touches answer the first contact after the menu.
-            MLXSkinInteraction.syncNowAndWhenUncovered(self,
+            MLXSkinInteraction.syncNowAnd(whenUncovered:self,
                 stillWanted:{ [weak self, weak skinSession] in
                     guard let self, let skinSession, self.skinSession === skinSession else { return false }
                     return !self.closing && self.pauseReasons.isEmpty
