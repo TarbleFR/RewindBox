@@ -2327,9 +2327,13 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
   menu.menuDismissed = ^{
     Rpcs3InternalBridgePlugin* bridge = weakSelf;
     if (!bridge) return;
+    // REWINDBOX_CAPTURE_914: one request per enabled capture for one closing of
+    // the menu: only the change from open to closed asks, a second callback of
+    // the same dismissal asks nothing.
+    const BOOL wasOpen = bridge.hostMenuOpen;
     bridge.hostMenuOpen = NO;
     [bridge publishHostState];
-    [bridge requestEnabledCaptures];
+    if (wasOpen) [bridge requestEnabledCaptures];
   };
   menu.shareReport = ^(UIViewController* presenter) {
     [weakSelf presentIncidentReportFrom:presenter];

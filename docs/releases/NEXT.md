@@ -18,6 +18,10 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
   Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
   Private delivery does not mean public publication.
+- Pending private delivery (maintainer instruction of 10 November 2026, conditional): one common private IPA once the
+  principal RPCS3 work is finished (Core 912, compile run `42728150899`, not yet verified or pinned) and the MeloNX and
+  skins/interface owners have handed over verified fixes (requested on 10 November, awaiting). Not built yet; no partial
+  delivery; the Switch 2 experiment stays out. Its contents and limits will be listed here after the verified delivery.
 - Next public tag/build/date: not assigned here. The final manifest determines
   inclusion. All rows below remain **not yet included in the next public announcement**.
 - Seed inventory: the public559-to-private640 comparison has 745 commits.
