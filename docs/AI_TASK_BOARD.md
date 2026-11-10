@@ -268,8 +268,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       legal/source declaration to switch-pocket.manicskin and docs/design/pocket/approved-switch.png.
     - Approved content: what is already merged on `Claude`; nothing added without a request. Switch 2 stays on its
       branch. Renderer selection unchanged (Vulkan/MoltenVK kept; the native Metal tests compiling changes nothing).
-    - Next action: wait for the two targeted handoffs (no diagnostic relaunch, no worker), pin Core 912, then
-      review, integrate, freeze, standard recipe, one common build, verification of the downloaded plaintext IPA.
+    - **IPA 718 frozen and requested (10 Nov 02:19 UTC).** Integration: PR #164 merged `9cd24ca5`, PR #165 merged
+      `4470eaef` (two separate merges; board conflicts resolved by keeping the current RPCS3/IPA/MeloNX sections, the
+      skins section of the branch taken as is), Switch Pocket legal declaration `2f82352f`. Pins: RPCS3 Core 914
+      `f285a8a1`, MeloNX Core 717 (component verifier passed locally on the downloaded artifact). Manifest 718 on the
+      verified 694: 49 reviewed commits, 10 source-only (MeloNX lot 7 Metal archive prototype, Actions cleanup record,
+      RPCS3 Core 915 witness and its revert), effective digest `af020701`, legal check passed, delivery contract 56
+      tests OK; trigger `b9a451fb`, run `42741950414`. Renderer selection unchanged; Switch 2 out.
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
