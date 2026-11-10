@@ -164,12 +164,12 @@
     "build-utils/melonx/adapt_warmup_key_parity.py": "fc3ee4f8f4957fe1d5953af0563ea7cbb9a3f904188f302855e287dd4549ba5b",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "test/melonx_adapter_control.py": "bb5014f76a57d1c17312d36d5d37d2ba960b4ebe6cc5cc54e980427060bc3433",
-    "test/melonx_warmup_key_parity_test.py": "fb0dca74eb9f6d00688129cc3a457a70be1dc4e02d42494526fcff51494a29cf",
+    "test/melonx_warmup_key_parity_test.py": "2f91b16a0830172248aed3c09ee7fe8ff143b496157f5115a8ca6e9d5aaf68b4",
     "test/melonx_warmup_key_parity/gpu/Program.cs": "ddcf8372d4eb82d3ff4aaecdcbee91a796a446b854d3ee4c5ab0442963721679",
     "test/melonx_warmup_key_parity/vulkan/Program.cs": "0f387cda83ac0cb016fa86d67a0975dfb5d82891342834c0a11ff6ca80060c7e",
     "build-utils/melonx/build_moltenvk_rebuild.py": "fd82cd466048f53e4a2c44fc327e9a1171648b5278a93a52b7b45b91a83ae946",
-    "build-utils/melonx/moltenvk-rebuild.json": "b9eabcde0d4c084fc888a5dbcdd47a6516eb699629b076db734fa01783fc49a6",
-    "build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch": "9a6867b729ed0324680528a9a4eaf9095412a12e9bea23769dbc9229cb73448b"
+    "build-utils/melonx/moltenvk-rebuild.json": "b7bc047d8b88ce2e1b2cd1cf2e2c15739984802ee1bbd36203f2b0b8a4405e24",
+    "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch": "eddbf71acd3a87bf600f6cc98c6ded38827d9cbabd33e7fb6a60db71788623ac"
   },
   "limitation": "Host fixture of the keys, the created restart value and the warm-up state; the number of render-thread pipeline builds and stalls in Hogwarts Legacy is known only from a device run."
 }

@@ -30,7 +30,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
-PATCH = ROOT / 'build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch'
+PATCH = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'  # the drawable hunks; the size hunks too (lot 9)
 MODEL = ROOT / 'test/melonx_moltenvk_drawable_ownership/model.cpp'
 
 
@@ -39,11 +39,11 @@ def require(condition, message):
         raise SystemExit('melonx moltenvk drawable ownership: ' + message)
 
 
-def added_function(text, name):
-    """The patched body of one MVKPresentableSwapchainImage method (added and context lines of the patch)."""
+def added_function(text, name, owner='MVKPresentableSwapchainImage'):
+    """The patched body of one method (added and context lines of the patch)."""
     lines = [line[1:] for line in text.splitlines() if line[:1] in ('+', ' ')]
     body = '\n'.join(lines)
-    start = body.find('MVKPresentableSwapchainImage::' + name + '(')
+    start = body.find(owner + '::' + name + '(')
     require(start >= 0, f'{name} not in the patch')
     end = body.find('\n}', start)
     return body[start:end]
@@ -55,7 +55,15 @@ def check_patch():
     require(hashlib.sha256(PATCH.read_bytes()).hexdigest() == PIN['patchSha256'], 'the patch digest matches its pin')
     text = PATCH.read_text()
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
-    require(files == ['MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm'], files)
+    require(files == ['MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
+                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h'], files)
+    # Lot 9, second part: the size query counts each entry once (measured by test/melonx_library_share/run_cache_size.py).
+    count = added_function(text, 'countData', 'MVKPipelineCache')
+    require('if (entrySize == 0)' in count and 'entrySize = cb.buffSize;' in count and 'total += entrySize;' in count and
+            'writer(cacheIter.getCompressedMSL());' in count, 'an entry is counted once and its size kept')
+    require('_dataSize = countData();' in text and '_pipelineCacheEntrySize = 0;' in text, 'the size query uses the kept sizes')
+    require('\n-\t\t\t\twriteData(outStream, true);\n' in text, 'the full counting pass is gone from the size query')
     for marker in PIN['patchMarkers']:
         require(marker in text, 'the marker is compiled in: ' + marker)
     acquire = added_function(text, 'acquireAndSignalWhenAvailable')

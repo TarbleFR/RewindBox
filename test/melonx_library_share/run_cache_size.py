@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
-SHIPPED = ROOT / PIN['patch']
+SHIPPED = ROOT / 'build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch'  # delivered in IPA 720
 CANDIDATE = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'
 OUT = ROOT / 'dist/melonx-cache-size'
 WORK = ROOT / '.cache-size'
@@ -59,7 +59,7 @@ def build(target, patch, name):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    assert PIN['tag'] == 'v1.4.2' and sha(SHIPPED) == PIN['patchSha256'], 'the shipped patch is the pinned one'
+    assert PIN['tag'] == 'v1.4.2' and sha(CANDIDATE) == PIN['patchSha256'], 'the candidate is the pinned recipe patch'
     target = WORK / 'MoltenVK'
     if not (target / '.git').exists():
         sh(['git', 'init', '-q', target])
@@ -91,7 +91,7 @@ def main():
         a, b = results['shipped']['runs'][attempt], results['candidate']['runs'][attempt]
         assert a['bytes'] == b['bytes'] and a['dataHash'] == b['dataHash'], f'attempt {attempt}: same size and bytes in both builds'
     report = {'identity': {'moltenvk': {k: PIN[k] for k in ('repository', 'tag', 'revision')},
-                           'shippedPatch': {'path': PIN['patch'], 'sha256': sha(SHIPPED)},
+                           'shippedPatch': {'path': SHIPPED.relative_to(ROOT).as_posix(), 'sha256': sha(SHIPPED)},
                            'candidatePatch': {'path': CANDIDATE.relative_to(ROOT).as_posix(), 'sha256': sha(CANDIDATE)},
                            'test': sha(HERE / 'mvk_library_share_test.cpp'), 'shaders': sha(SHADERS),
                            'xcode': sh(['xcodebuild', '-version']).splitlines()[:2], 'os': sh(['sw_vers']).split()},
