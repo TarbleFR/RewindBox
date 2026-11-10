@@ -2799,7 +2799,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   newest 300, all executed jobs (success/failure/cancelled), active/rerun/referenced
   runs are protected. No Core/pin/product/build/delivery change. Existing cleanup
   script and 24 guard tests pass; snapshot dry-run selects 1,311 with zero mutations.
-  Execution is not yet verified; follow the exact cleanup run and retain its receipt.
+  Running: [42735827450](https://github.com/TarbleFR/RewindBox/actions/runs/42735827450),
+  source `633af034`, plan SHA-256 `1f6d5f04…868c3e`. GitHub guard tests passed;
+  deletion step active, final count/receipt not yet verified. No second dispatch.
+  The other delivery workflows triggered by the push skipped every job.
 
 Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
 all initial artifacts/retained producers preserved, Dependabot151 retained.
