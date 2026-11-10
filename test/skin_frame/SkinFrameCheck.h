@@ -217,3 +217,50 @@ static void SkinFrameCheck(XCTestCase* self, UIView* overlay, CGRect screen, BOO
     [self addAttachment:attachment];
   }
 }
+
+/// A D-pad shows the arm under the finger pressed, not the whole cross (maintainer's
+/// recording of 11 November: every direction looked pressed together). `frame` is the
+/// D-pad's frame in the overlay's coordinates; `press` puts a finger at a point and
+/// `release` lifts it. For each direction: the drawing changes in that direction's
+/// quarter and not in the opposite one, and it is the rest drawing again once released.
+static void SkinDPadArmCheck(XCTestCase* self, UIView* overlay, CGRect frame, void (^press)(CGPoint), void (^release)(void),
+                             NSString* tag) {
+  long W = 0, H = 0;
+  NSData* rest = SkinFrameRGBA(SkinFrameRender(overlay, YES), &W, &H);
+  const uint8_t* R = (const uint8_t*)rest.bytes;
+  // Changed pixels in a rectangle of the overlay (points).
+  long (^changed)(NSData*, CGRect) = ^long(NSData* shot, CGRect area) {
+    const uint8_t* P = (const uint8_t*)shot.bytes;
+    long count = 0;
+    for (long y = MAX(0L, (long)(CGRectGetMinY(area) * 3)); y < MIN(H, (long)(CGRectGetMaxY(area) * 3)); y++) {
+      for (long x = MAX(0L, (long)(CGRectGetMinX(area) * 3)); x < MIN(W, (long)(CGRectGetMaxX(area) * 3)); x++) {
+        const long i = (y * W + x) * 4;
+        if (abs(P[i] - R[i]) + abs(P[i + 1] - R[i + 1]) + abs(P[i + 2] - R[i + 2]) > 24) count++;
+      }
+    }
+    return count;
+  };
+  const CGFloat w = frame.size.width, h = frame.size.height;
+  // The outer third of each arm: clear of the centre and of the diagonals.
+  NSDictionary<NSString*, NSValue*>* arms = @{
+    @"up" : [NSValue valueWithCGRect:CGRectMake(frame.origin.x + w * 0.38, frame.origin.y, w * 0.24, h * 0.3)],
+    @"down" : [NSValue valueWithCGRect:CGRectMake(frame.origin.x + w * 0.38, frame.origin.y + h * 0.7, w * 0.24, h * 0.3)],
+    @"left" : [NSValue valueWithCGRect:CGRectMake(frame.origin.x, frame.origin.y + h * 0.38, w * 0.3, h * 0.24)],
+    @"right" : [NSValue valueWithCGRect:CGRectMake(frame.origin.x + w * 0.7, frame.origin.y + h * 0.38, w * 0.3, h * 0.24)],
+  };
+  NSDictionary<NSString*, NSString*>* opposite = @{@"up" : @"down", @"down" : @"up", @"left" : @"right", @"right" : @"left"};
+  for (NSString* direction in @[ @"up", @"down", @"left", @"right" ]) {
+    const CGRect arm = arms[direction].CGRectValue;
+    press(CGPointMake(CGRectGetMidX(arm), CGRectGetMidY(arm)));
+    NSData* held = SkinFrameRGBA(SkinFrameRender(overlay, YES), &W, &H);
+    release();
+    NSData* after = SkinFrameRGBA(SkinFrameRender(overlay, YES), &W, &H);
+    XCTAssertGreaterThan(changed(held, arm), 20L, @"%@ %@: its arm is drawn pressed", tag, direction);
+    XCTAssertEqual(changed(held, arms[opposite[direction]].CGRectValue), 0L, @"%@ %@: the opposite arm stays at rest", tag, direction);
+    for (NSString* side in arms) {
+      if ([side isEqualToString:direction] || [side isEqualToString:opposite[direction]]) continue;
+      XCTAssertEqual(changed(held, arms[side].CGRectValue), 0L, @"%@ %@: the %@ arm stays at rest", tag, direction, side);
+    }
+    XCTAssertEqualObjects(after, rest, @"%@ %@: released is the rest drawing", tag, direction);
+  }
+}
