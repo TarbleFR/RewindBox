@@ -19,6 +19,7 @@ PS2_POCKET_REVIEW = "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json
 BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026-11-04.json"
 PS2_ORIGINAL_REVIEW = "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json"
 SWITCH_POCKET_REVIEW = "docs/evidence/switch-pocket-declarations-2026-11-10.json"
+SKIN_REVISION_REVIEW = "docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json"
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
@@ -250,6 +251,26 @@ def repository_inputs(root: Path) -> dict[str, str]:
                 bundle.get("previous_catalog_sha256") != prior_pocket.get("bundled_assets", {}).get("catalog_sha256") or
                 (not later_ps2_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("PS2 Pocket catalog changed since review")
+    # RewindBox Pocket skins revised in place (PR #166 screen framing, PR #167 pressed controls): packs of the catalog
+    # are rebuilt, none is added. The revision review binds each pack to the identity an earlier review gave it; the
+    # earlier reviews below then check the revised identity, never an unreviewed one.
+    revision_path = root / SKIN_REVISION_REVIEW
+    revised_skins = {}
+    if revision_path.is_file():
+        revised_skins = json.loads(read_input(root, revision_path)).get("bundled_assets", {}).get("revised_skins", {})
+
+    def reviewed_identity(added_skins: dict) -> dict:
+        result = {}
+        for skin_id, identity in added_skins.items():
+            revision = revised_skins.get(skin_id)
+            if revision is not None:
+                if (revision.get("previous") != {"size": identity["size"], "sha256": identity["sha256"]} or
+                        revision.get("archiveAsset") != identity["archiveAsset"]):
+                    raise SystemExit("A later Pocket skin revision does not bind the reviewed pack: " + skin_id)
+                identity = {"size": revision.get("size"), "sha256": revision.get("sha256"),
+                            "archiveAsset": revision["archiveAsset"]}
+            result[skin_id] = identity
+        return result
     # RewindBox GameCube/Wii Pocket Originals from the approved boards (PR #155): the Pocket catalog gains two packs,
     # nothing else. No package, dependency, framework, engine or native source declaration changes; the review binds
     # the previous (PS2 Pocket) catalog, the new catalog and the exact id, size and SHA-256 of each added pack.
@@ -278,7 +299,7 @@ def repository_inputs(root: Path) -> dict[str, str]:
         catalog = json.loads(read_input(root, root / catalog_path))
         added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
                  for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
-        if added != bundle.get("added_skins") or (not later_board_catalog and
+        if added != reviewed_identity(bundle.get("added_skins", {})) or (not later_board_catalog and
                                                   len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
             raise SystemExit("Pocket board Originals added packs differ from the review")
         for skin in added.values():
@@ -313,7 +334,7 @@ def repository_inputs(root: Path) -> dict[str, str]:
         catalog = json.loads(read_input(root, root / catalog_path))
         added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
                  for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
-        if added != bundle.get("added_skins") or (not later_ps2_original_catalog and
+        if added != reviewed_identity(bundle.get("added_skins", {})) or (not later_ps2_original_catalog and
                                                   len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
             raise SystemExit("PS2 Pocket Original added pack differs from the review")
         for skin in added.values():
@@ -339,14 +360,18 @@ def repository_inputs(root: Path) -> dict[str, str]:
             raise SystemExit("Switch Pocket declaration review scope changed")
         bundle = switch.get("bundled_assets", {})
         catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (Pocket skin revision); it binds this digest, and the pack
+        # reviewed here stays checked below at the identity that revision gives it.
+        later_switch_catalog = revision_path.is_file()
         if (catalog_path != "assets/skins/pocket/catalog.json" or
                 bundle.get("previous_catalog_sha256") != prior_ps2_original.get("bundled_assets", {}).get("catalog_sha256") or
-                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+                (not later_switch_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("Switch Pocket catalog changed since review")
         catalog = json.loads(read_input(root, root / catalog_path))
         added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
                  for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
-        if added != bundle.get("added_skins") or len(catalog.get("skins", [])) != bundle.get("catalog_skins"):
+        if added != reviewed_identity(bundle.get("added_skins", {})) or (not later_switch_catalog and
+                                                                         len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
             raise SystemExit("Switch Pocket added pack differs from the review")
         for skin in added.values():
             raw = read_input(root, root / skin["archiveAsset"])
@@ -356,6 +381,46 @@ def repository_inputs(root: Path) -> dict[str, str]:
         raw = read_input(root, root / design.get("path", "missing"))
         if len(raw) != design.get("size") or sha256(raw) != design.get("sha256"):
             raise SystemExit("Switch Pocket approved design differs from the review")
+    # RewindBox Pocket skins revised in place (PR #166 and PR #167): no pack added or removed, no package, dependency,
+    # framework, engine or native source declaration change. The review binds the previous (Switch Pocket) catalog, the
+    # new catalog, and for every pack of the catalog its exact id, size and SHA-256, with the identity each revised
+    # pack replaces.
+    if revision_path.is_file():
+        revision = json.loads(read_input(root, revision_path))
+        prior_switch = json.loads(read_input(root, root / SWITCH_POCKET_REVIEW))
+        changes = revision.get("dependency_changes", {})
+        if (revision.get("schema") != 1 or revision.get("baseline_inventory") != SWITCH_POCKET_REVIEW or
+                revision.get("baseline_inventory_sha256") != sha256(read_input(root, root / SWITCH_POCKET_REVIEW)) or
+                revision.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                revision.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
+            raise SystemExit("Pocket skin revision review has a different baseline or dependency scope")
+        if revision.get("declarations") != {}:
+            raise SystemExit("Pocket skin revision declaration review scope changed")
+        bundle = revision.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_switch.get("bundled_assets", {}).get("catalog_sha256") or
+                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+            raise SystemExit("Pocket skin revision catalog changed since review")
+        catalog = json.loads(read_input(root, root / catalog_path))
+        listed = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                  for skin in catalog.get("skins", [])}
+        revised, unchanged = bundle.get("revised_skins", {}), bundle.get("unchanged_skins", {})
+        reviewed = {skin_id: {key: value.get(key) for key in ("size", "sha256", "archiveAsset")}
+                    for group in (revised, unchanged) for skin_id, value in group.items()}
+        if (listed != reviewed or set(revised) & set(unchanged) or not revised or
+                len(catalog.get("skins", [])) != bundle.get("catalog_skins")):
+            raise SystemExit("Pocket skin revision packs differ from the review")
+        for skin_id, value in revised.items():
+            previous = value.get("previous")
+            if (not isinstance(previous, dict) or set(previous) != {"size", "sha256"} or
+                    (previous["size"], previous["sha256"]) == (value["size"], value["sha256"])):
+                raise SystemExit("Pocket skin revision lacks the identity it replaces: " + skin_id)
+        for skin in listed.values():
+            raw = read_input(root, root / skin["archiveAsset"])
+            if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
+                raise SystemExit("Pocket skin revision archive differs from the catalog: " + skin["archiveAsset"])
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

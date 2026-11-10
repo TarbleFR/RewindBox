@@ -1111,6 +1111,102 @@ class EffectiveTree611(unittest.TestCase):
             self.assertTrue((ROOT / name).is_file(), name)
 
 
+class PocketSkinRevisionReview(unittest.TestCase):
+    """720, 10 November 2026: PR 166 and PR 167 rebuilt six Pocket packs in place and the declaration chain of the
+    application refused the effective tree ("Pocket board Originals added packs differ from the review"). The revision
+    review binds every rebuilt pack to the identity an earlier review gave it."""
+
+    REVIEW = 'docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json'
+    CATALOG = 'assets/skins/pocket/catalog.json'
+
+    def setUp(self):
+        if not (ROOT / self.REVIEW).is_file():
+            self.skipTest('no Pocket skin revision review in this tree')
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('source_evidence_revision',
+                                                      ROOT / 'build-utils/collect_build_source_evidence.py')
+        self.evidence = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.evidence)
+        tree = effective_of_head()
+        self.reader = sd.EffectiveReader(REPO, tree['effective'])
+        _, manifest = current_manifest()
+        head = manifest['product'].get('freezeCommit') or REPO.commit('HEAD')
+        self.paths = set(tree['effective']) | {path for path in REPO.entries(head) if sd.is_recipe(path)}
+        self.paths |= {self.REVIEW}
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        for path in self.paths:
+            (self.root / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / path).touch()
+        self.cache, self.overrides = {}, {}
+
+    def read(self, root, path):
+        """The collector's read_input on the effective tree: product paths as the freeze restores them, recipe paths
+        from the checkout; an override stands for a changed file."""
+        relative = Path(path).resolve().relative_to(Path(root).resolve()).as_posix()
+        if not Path(path).is_file():
+            raise SystemExit('Source evidence is not a repository file: ' + relative)
+        if relative in self.overrides:
+            return self.overrides[relative]
+        if relative not in self.cache:
+            data = self.reader.read(relative) if sd.is_product(relative) else None
+            self.cache[relative] = data if data is not None else (ROOT / relative).read_bytes()
+        return self.cache[relative]
+
+    def collect(self, overrides=None, absent=()):
+        from unittest import mock
+        self.overrides = dict(overrides or {})
+        for path in absent:
+            (self.root / path).unlink()
+        try:
+            with mock.patch.object(self.evidence, 'read_input', self.read):
+                return self.evidence.repository_inputs(self.root)
+        finally:
+            for path in absent:
+                (self.root / path).touch()
+
+    def test_the_rebuilt_packs_pass_only_through_their_revision_review(self):
+        review = json.loads(self.read(self.root, self.root / self.REVIEW))
+        bundle = review['bundled_assets']
+        catalog_raw = self.read(self.root, self.root / self.CATALOG)
+        self.assertEqual(bundle['catalog_sha256'], sha(catalog_raw))
+        self.assertEqual(len(bundle['revised_skins']) + len(bundle['unchanged_skins']), bundle['catalog_skins'])
+        self.assertTrue('pubspec.lock' in self.collect(), 'the effective tree does not pass its declaration chain')
+
+        # Before the revision review existed: the same tree is refused by the first earlier review of a rebuilt pack.
+        with self.assertRaisesRegex(SystemExit, 'differ from the review|catalog changed since review'):
+            self.collect(absent=[self.REVIEW])
+
+        def changed_review(edit):
+            value = json.loads(json.dumps(review))
+            edit(value['bundled_assets'])
+            return {self.REVIEW: json.dumps(value).encode()}
+
+        # A revision that does not name the identity the earlier review gave the pack binds nothing.
+        bound = sorted(set(bundle['revised_skins']) & {'switch-pocket', 'ps2-pocket-original', 'wii-pocket-original',
+                                                       'gamecube-pocket-original'})
+        self.assertTrue(bound, 'no rebuilt pack carries an earlier identity review')
+        with self.assertRaisesRegex(SystemExit, 'does not bind the reviewed pack: ' + bound[0]):
+            self.collect(changed_review(lambda b: b['revised_skins'][bound[0]]['previous'].update(sha256='0' * 64)))
+        # A pack the catalog holds at another identity than the revision reviewed.
+        with self.assertRaisesRegex(SystemExit, 'differ'):
+            self.collect(changed_review(lambda b: b['revised_skins'][bound[0]].update(size=1)))
+        # A revision that leaves a pack of the catalog out.
+        with self.assertRaisesRegex(SystemExit, 'differ'):
+            self.collect(changed_review(lambda b: b['unchanged_skins'].clear() if b['unchanged_skins']
+                                        else b['revised_skins'].pop(bound[0])))
+        # The catalog moved after the review.
+        with self.assertRaisesRegex(SystemExit, 'catalog changed since review'):
+            self.collect({self.CATALOG: catalog_raw + b'\n'})
+        # An archive that is not the one the catalog and the review name.
+        archive = bundle['revised_skins'][bound[0]]['archiveAsset']
+        with self.assertRaisesRegex(SystemExit, 'archive differs from the catalog'):
+            self.collect({archive: self.read(self.root, self.root / archive) + b'x'})
+        # And the unchanged tree still passes after the controls.
+        self.assertTrue('pubspec.lock' in self.collect())
+
+
 class Groups(unittest.TestCase):
     def test_base_commands_are_the_610_groups(self):
         import rewind610_checks as checks610
