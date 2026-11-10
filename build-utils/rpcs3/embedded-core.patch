@@ -121625,6 +121625,67 @@ index 0000000..506dad2
 +	}
 +};
 +} // namespace rpcs3::ios::auto_ppu_profile
+diff --git a/rpcs3/ios/IOSAutoSpuProfile923.h b/rpcs3/ios/IOSAutoSpuProfile923.h
+new file mode 100644
+index 0000000..30e4b7d
+--- /dev/null
++++ b/rpcs3/ios/IOSAutoSpuProfile923.h
+@@ -0,0 +1,55 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_SPU_PROFILE_923: where do the SPU threads spend their time?
++//
++// Build 723, God of War III (BCES00510, PID 48627, fresh boot, MLAA bypass applied, no colour read-back): the play
++// windows 41-52 run at 9-13 guest frames per second with the GPU busy 14-21 %, the main PPU thread at 0.8-0.85 core and
++// five SPU threads at 0.6-0.83 core each (3.3-3.6 cores) on a device of two performance and four efficiency cores;
++// waits, compilations and synchronisations are small. The frame follows the SPU work and nothing in the journal says
++// what that work is. The region profile of Core 912 (ios/IOSCapture912.h, ppu_profile) reads PPU threads only.
++// When the SPU threads used at least `bound_cores` cores together in `windows_needed` consecutive running windows that
++// showed frames, the report asks once per boot for a region profile; that capture also samples the SPU threads
++// (state, pc, system call when waiting), about once per millisecond for at most 5000 samples. It stops no thread and
++// changes nothing; lines COREPROF SPUPROF923. With the LLVM SPU recompiler the pc field is written at the entry of a
++// compiled chunk and before calls out of it: a sample names a chunk of the program, not an instruction.
++namespace rpcs3::ios::auto_spu_profile
++{
++inline constexpr double bound_cores = 2.5;
++inline constexpr std::uint32_t windows_needed = 2;
++inline constexpr std::uint32_t max_threads = 8;
++
++struct tracker
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t consecutive = 0;
++	bool asked = false;
++
++	// One call per report window. True once per boot session: ask for the profile now.
++	bool observe(std::uint64_t now_session, bool running, std::uint64_t guest_flips, double spu_cores) noexcept
++	{
++		if (now_session != session)
++		{
++			session = now_session;
++			consecutive = 0;
++			asked = false;
++		}
++
++		if (!running || !guest_flips || !(spu_cores >= bound_cores))
++		{
++			consecutive = 0;
++			return false;
++		}
++
++		if (asked || ++consecutive < windows_needed)
++		{
++			return false;
++		}
++
++		asked = true;
++		return true;
++	}
++};
++} // namespace rpcs3::ios::auto_spu_profile
 diff --git a/rpcs3/ios/IOSAutoStorm917.h b/rpcs3/ios/IOSAutoStorm917.h
 new file mode 100644
 index 0000000..5c0d936
@@ -121686,10 +121747,10 @@ index 0000000..5c0d936
 +} // namespace rpcs3::ios::auto_storm
 diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
 new file mode 100644
-index 0000000..8c853fd
+index 0000000..4f5acec
 --- /dev/null
 +++ b/rpcs3/ios/IOSCapture912.h
-@@ -0,0 +1,654 @@
+@@ -0,0 +1,658 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -122243,6 +122304,9 @@ index 0000000..8c853fd
 +// and for a PPU region profile when heavy PUTLLC come at a high rate.
 +inline std::atomic<bool> auto_putllc{false};
 +inline std::atomic<bool> auto_ppu_storm{false};
++// REWINDBOX_SPU_PROFILE_923 (ios/IOSAutoSpuProfile923.h): the report asks once per boot for a region profile when the
++// SPU threads together saturate the device; that capture samples the SPU threads too.
++inline std::atomic<bool> auto_spu{false};
 +
 +// Settings API thread, a title running. True: the write is a start request and it is recorded.
 +inline bool offer(std::string_view key, std::string_view value) noexcept
@@ -122281,6 +122345,7 @@ index 0000000..8c853fd
 +	auto_ppu.store(false, std::memory_order_release);
 +	auto_putllc.store(false, std::memory_order_release);
 +	auto_ppu_storm.store(false, std::memory_order_release);
++	auto_spu.store(false, std::memory_order_release);
 +}
 +} // namespace start_request
 +
@@ -138178,10 +138243,10 @@ index 8fba197..a9457cb 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..bad4b70
+index 0000000..e3f19f7
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,991 @@
+@@ -0,0 +1,1077 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -138197,6 +138262,7 @@ index 0000000..bad4b70
 +#include "IOSFreezeChain916.h" // REWINDBOX_FREEZE_CHAIN_916
 +#include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
 +#include "ios/IOSCapture912.h" // REWINDBOX_CAPTURE_912
++#include "ios/IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
 +#include "Emu/RSX/RSXFIFO.h"
 +#include <cstring>
 +#include "Emu/Memory/vm_reservation.h"
@@ -138897,6 +138963,13 @@ index 0000000..bad4b70
 +	std::array<capture::ppu_profile::histogram, capture::ppu_profile::max_threads> tracked{};
 +	std::array<std::array<std::pair<const char*, u32>, 8>, capture::ppu_profile::max_threads> wait_calls{};
 +	u32 tracked_count = 0;
++	// REWINDBOX_SPU_PROFILE_923: the SPU threads listed when the capture started, one histogram each.
++	std::vector<stx::shared_ptr<named_thread<spu_thread>>> spu_threads;
++	std::array<capture::ppu_profile::histogram, rpcs3::ios::auto_spu_profile::max_threads> spu_tracked{};
++	std::array<std::array<std::pair<const char*, u32>, 6>, rpcs3::ios::auto_spu_profile::max_threads> spu_wait_calls{};
++	std::array<std::string, rpcs3::ios::auto_spu_profile::max_threads> spu_names;
++	u32 spu_count = 0;
++	u32 spu_listed = 0;
 +	u64 others_running = 0;
 +	u32 samples = 0;
 +	u64 started_us = 0, ended_us = 0;
@@ -138961,6 +139034,31 @@ index 0000000..bad4b70
 +				}
 +			}
 +
++			// REWINDBOX_SPU_PROFILE_923: the same reads for the SPU threads (state, pc, the system call of a waiting one).
++			for (u32 i = 0; i < spu_count; i++)
++			{
++				const spu_thread& spu = *spu_threads[i];
++
++				if (!(spu.state & cpu_flag::wait))
++				{
++					spu_tracked[i].add_running(spu.pc);
++					continue;
++				}
++
++				spu_tracked[i].add_waiting();
++				const char* call = spu.current_func;
++
++				for (auto& [name, count] : spu_wait_calls[i])
++				{
++					if (count == 0 || name == call)
++					{
++						name = call;
++						count++;
++						break;
++					}
++				}
++			}
++
 +			samples++;
 +			std::this_thread::sleep_for(std::chrono::microseconds(1000));
 +		}
@@ -138983,6 +139081,13 @@ index 0000000..bad4b70
 +			}
 +		}
 +
++		for (u32 i = 0; i < spu_count; i++)
++		{
++			spu_tracked[i].thread_id = spu_threads[i]->id;
++			spu_names[i] = spu_threads[i]->get_name();
++		}
++
++		spu_threads.clear();
 +		threads.clear();
 +		done.store(true, std::memory_order_release);
 +	}
@@ -139021,6 +139126,33 @@ index 0000000..bad4b70
 +	}
 +
 +	ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=end", session, s_ppu_captures);
++
++	// REWINDBOX_SPU_PROFILE_923: the SPU threads of the same capture.
++	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=begin samples=%u period_us=1000 elapsed_us=%llu spu_threads=%u "
++		"tracked=%u region_bytes=256 pc_scope=last_compiled_chunk_entry_or_call_out top_fields=region:samples:first_pc", session, s_ppu_captures,
++		run.samples, run.ended_us - run.started_us, run.spu_listed, run.spu_count);
++
++	for (u32 i = 0; i < run.spu_count; i++)
++	{
++		const auto& h = run.spu_tracked[i];
++		std::string calls;
++
++		for (const auto& [call, count] : run.spu_wait_calls[i])
++		{
++			if (count)
++			{
++				fmt::append(calls, "%s%s:%u", calls.empty() ? "" : ",", sanitize_token(call ? call : "guest_code"), count);
++			}
++		}
++
++		std::string line = fmt::format("COREPROF SPUPROF923 session=%llu capture=%u part=thread id=0x%x name=%s running=%llu "
++			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id,
++			run.spu_names[i].empty() ? std::string("-") : sanitize_token(run.spu_names[i]), h.running, h.waiting, h.same_pc, h.distinct, h.overflow,
++			calls.empty() ? std::string("-") : calls, h.top(24));
++		ios_freeze_dump.notice("%s", bound_line(line));
++	}
++
++	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=end", session, s_ppu_captures);
 +}
 +}
 +
@@ -139058,8 +139190,9 @@ index 0000000..bad4b70
 +	const bool start_ppu_menu = capture::start_request::take(capture::start_request::ppu, running);
 +	const bool start_ppu_auto = capture::start_request::take(capture::start_request::auto_ppu, running);
 +	const bool start_ppu_storm = capture::start_request::take(capture::start_request::auto_ppu_storm, running); // REWINDBOX_AUTO_STORM_CAPTURE_917
-+	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm;
-+	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : "auto_heavy_putllc";
++	const bool start_ppu_spu = capture::start_request::take(capture::start_request::auto_spu, running); // REWINDBOX_SPU_PROFILE_923
++	const bool start_ppu = start_ppu_menu || start_ppu_auto || start_ppu_storm || start_ppu_spu;
++	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : start_ppu_auto ? "auto_ppu_bound" : start_ppu_storm ? "auto_heavy_putllc" : "auto_spu_bound";
 +	bool putllc_started = false;
 +
 +	// Heavy PUTLLC trace.
@@ -139152,6 +139285,24 @@ index 0000000..bad4b70
 +						run->threads.emplace_back(std::move(ptr));
 +					}
 +				}, idm::unlocked);
++
++				// REWINDBOX_SPU_PROFILE_923: the SPU threads, under the same reader.
++				if (g_fxo->is_init<id_manager::id_map<named_thread<spu_thread>>>())
++				{
++					idm::select<named_thread<spu_thread>>([&](u32 id, named_thread<spu_thread>&)
++					{
++						run->spu_listed++;
++
++						if (run->spu_count < rpcs3::ios::auto_spu_profile::max_threads)
++						{
++							if (auto ptr = idm::get_unlocked<named_thread<spu_thread>>(id))
++							{
++								run->spu_threads.emplace_back(std::move(ptr));
++								run->spu_count++;
++							}
++						}
++					}, idm::unlocked);
++				}
 +			}
 +		}
 +
@@ -139859,10 +140010,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..6430fbc 100644
+index d800542..745f8cc 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,245 @@
+@@ -1,26 +1,246 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -139910,6 +140061,7 @@ index d800542..6430fbc 100644
 +#include "IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
 +#include "IOSIdleWindows916.h" // REWINDBOX_IDLE_WINDOWS_916
 +#include "IOSAutoPpuProfile916.h" // REWINDBOX_AUTO_PPU_PROFILE_916
++#include "IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
 +#include "IOSAutoStorm917.h" // REWINDBOX_AUTO_STORM_CAPTURE_917
 +#include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
 +#include "util/asm.hpp" // REWINDBOX_BUSY_WAIT_REFERENCE_918: utils::arm_timer_scale
@@ -140108,10 +140260,40 @@ index d800542..6430fbc 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +257,534 @@ u64 process_memory_footprint()
+@@ -38,31 +258,564 @@ u64 process_memory_footprint()
  #endif
  }
  
++// REWINDBOX_MEMORY_PARTS_923: what the kernel's ledger attributes the footprint to. JITMEM's pools are requested Vulkan
++// allocations (855 MiB of blocks "unused" in God of War III, build 723), which say nothing about physical memory; the
++// ledger's graphics tag is the memory Metal really holds for the process.
++struct memory_parts_sample
++{
++	bool valid = false;
++	u64 internal = 0, compressed = 0, graphics = 0, graphics_compressed = 0, external = 0, reusable = 0;
++};
++
++memory_parts_sample sample_memory_parts()
++{
++	memory_parts_sample parts;
++#if defined(__APPLE__) && defined(TASK_VM_INFO_REV3_COUNT)
++	task_vm_info_data_t info{};
++	mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++	if (task_info(mach_task_self(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS &&
++		count >= TASK_VM_INFO_REV3_COUNT)
++	{
++		parts.valid = true;
++		parts.internal = info.internal;
++		parts.compressed = info.compressed;
++		parts.external = info.external;
++		parts.reusable = info.reusable;
++		parts.graphics = static_cast<u64>(info.ledger_tag_graphics_footprint);
++		parts.graphics_compressed = static_cast<u64>(info.ledger_tag_graphics_footprint_compressed);
++	}
++#endif
++	return parts;
++}
++
 +rpcs3::ios::diagnostics::ProcessMemorySample sample_process_memory()
 +{
 +    rpcs3::ios::diagnostics::ProcessMemorySample sample;
@@ -140421,8 +140603,8 @@ index d800542..6430fbc 100644
 +			peak, pending_jobs, std::memory_order_relaxed))
 +		{
 +		}
- 	}
- 
++	}
++
 +	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
 +	{
 +		rpcs3::ios::pipeline_queue::on_completed(queue_wait_ticks, compile_ticks); // REWINDBOX_PIPELINE_QUEUE_621
@@ -140625,8 +140807,8 @@ index d800542..6430fbc 100644
 +		}
 +		m_native_ui_visible.store(native_ui_visible ? 1u : 0u, std::memory_order_relaxed);
 +		m_has_flip_info.store(true, std::memory_order_release);
-+	}
-+
+ 	}
+ 
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: one closed RSX load window (get_load()).
 +	void record_rsx_load_window(u64 elapsed_us, u64 idle_us) noexcept
 +	{
@@ -140653,7 +140835,7 @@ index d800542..6430fbc 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +794,10 @@ public:
+@@ -72,10 +825,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -140666,7 +140848,7 @@ index d800542..6430fbc 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +830,1656 @@ public:
+@@ -108,12 +861,1674 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -141910,6 +142092,14 @@ index d800542..6430fbc 100644
 +            profile_session, profile_window, memory_window.samples, mem.valid ? 1u : 0u,
 +            mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
 +            peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
++        {
++            const memory_parts_sample parts = sample_memory_parts(); // REWINDBOX_MEMORY_PARTS_923
++            ios_core_profiler.notice(
++                "COREPROF MEMPARTS923 session=%llu window=%llu valid=%u graphics=%llu graphics_compressed=%llu internal=%llu compressed=%llu "
++                "external=%llu reusable=%llu scope=kernel_ledger_at_report graphics_scope=ledger_tag_graphics_footprint",
++                profile_session, profile_window, parts.valid ? 1u : 0u, parts.graphics, parts.graphics_compressed, parts.internal,
++                parts.compressed, parts.external, parts.reusable);
++        }
 +        ios_core_profiler.notice(
 +            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
 +            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
@@ -142221,6 +142411,15 @@ index d800542..6430fbc 100644
 +				profile_session, profile_window, busiest_ppu, rpcs3::ios::auto_ppu_profile::bound_cores, rpcs3::ios::auto_ppu_profile::windows_needed);
 +		}
 +
++		// REWINDBOX_SPU_PROFILE_923 (ios/IOSAutoSpuProfile923.h): the SPU threads together saturate the device in the
++		// second running window in a row: ask once per boot for a region profile that samples the SPU threads too.
++		if (m_auto_spu_profile.observe(profile_session, state == system_state::running, guest_window_flips, group_cores(core_group::spu)))
++		{
++			rpcs3::ios::capture912::start_request::auto_spu.store(true, std::memory_order_release);
++			ios_core_profiler.notice("COREPROF AUTOSPU923 session=%llu window=%llu spu_cores=%.3f bound_cores=%.2f windows=%u request=spu_region_profile",
++				profile_session, profile_window, group_cores(core_group::spu), rpcs3::ios::auto_spu_profile::bound_cores, rpcs3::ios::auto_spu_profile::windows_needed);
++		}
++
 +		// REWINDBOX_AUTO_STORM_CAPTURE_917 (ios/IOSAutoStorm917.h): heavy PUTLLC at a high rate in the second running
 +		// window in a row: ask once per boot for the heavy PUTLLC trace and the PPU region profile.
 +		if (m_auto_storm.observe(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window))
@@ -142307,6 +142506,7 @@ index d800542..6430fbc 100644
 +    u64 m_report_window = 0; // guarded by m_profile_mutex
 +    rpcs3::ios::idle_windows::tracker m_idle_windows; // REWINDBOX_IDLE_WINDOWS_916: report thread only
 +    rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
++    rpcs3::ios::auto_spu_profile::tracker m_auto_spu_profile; // REWINDBOX_SPU_PROFILE_923: report thread only
 +    rpcs3::ios::auto_storm::tracker m_auto_storm; // REWINDBOX_AUTO_STORM_CAPTURE_917: report thread only
 +    rpcs3::ios::writer_park::compare::tracker m_park_compare; // REWINDBOX_PARK_SPIN_COMPARE_917: report thread only
 +    task_events_sample m_task_events; // REWINDBOX_BUSY_WAIT_REFERENCE_918: the counts at the previous report, report thread only
@@ -142325,7 +142525,7 @@ index d800542..6430fbc 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2487,93 @@ private:
+@@ -121,6 +2536,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -142419,7 +142619,7 @@ index d800542..6430fbc 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2581,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2630,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -142513,7 +142713,7 @@ index d800542..6430fbc 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2678,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2727,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -142642,7 +142842,7 @@ index d800542..6430fbc 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2809,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2858,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
