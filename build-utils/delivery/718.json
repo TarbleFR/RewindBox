@@ -499,8 +499,8 @@
       }
     ],
     "promotedCommits": [],
-    "freezeCommit": "0c8c0a437bc6e2b2a1bb6abda1eedafdf6563b1e",
-    "freezeTree": "00cd96562274fffa3185a1edf935d073850354a3",
+    "freezeCommit": "6ad78af6f599a1f3efabea447e1dc0dc6217e288",
+    "freezeTree": "2c3b99b8d2ef4a60a8c81be9d3e968bd46ffa763",
     "baseEffectiveDigest": "b74ac6ca68595c8e2b1bcb68e93a84267edfd299083b737d8426adbb2d19b4a1",
     "inheritedDeferredPaths": [
       "lib/models/retro_achievements_session.dart",
@@ -1204,6 +1204,36 @@
       {
         "commit": "0c8c0a437bc6e2b2a1bb6abda1eedafdf6563b1e",
         "subject": "build(delivery): IPA 718 draft: the two changed bridges in mustChange [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "b9a451fbf93ab0d4d4848770456e9aaebe8ce859",
+        "subject": "[ipa-delivery:718] build(delivery): request the private common IPA 718 (RPCS3 Core 914, MeloNX Core 717, menu bar without labels, Switch Pocket skin)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "85dee4c71f90518f1783d28dde11d600421ad937",
+        "subject": "docs: IPA 718 frozen and requested (run 42741950414) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "cdfbb0755d508501fee4f160e2fee7b052db7b1c",
+        "subject": "docs: record queued principal request to shorten delivery recipe with measured timings [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "e55e1a1850bd4eadbe5892234e5018f827be3e34",
+        "subject": "docs: audit completed Actions cleanup and close surveillance [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "6ad78af6f599a1f3efabea447e1dc0dc6217e288",
+        "subject": "fix(delivery): 718 recipe: native duplicates dropped, flutter evidence reused, simulator booted once [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -3026,14 +3056,6 @@
           ]
         ],
         [
-          "rpcs3-timeline-616-foundation",
-          [
-            "python3",
-            "-B",
-            "test/rpcs3_diagnostics546_native_test.py"
-          ]
-        ],
-        [
           "melonx-perf-journal",
           [
             "python3",
@@ -3104,14 +3126,6 @@
             "-B",
             "test/rpcs3_capture_analyzer_test.py"
           ]
-        ],
-        [
-          "pocket-skin-input-chain",
-          [
-            "python3",
-            "-B",
-            "test/pocket_skin_input_chain_test.py"
-          ]
         ]
       ]
     },
@@ -3131,8 +3145,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-10T02:19:06Z",
-    "commit": "0c8c0a437bc6e2b2a1bb6abda1eedafdf6563b1e",
+    "at": "2026-11-10T03:08:11Z",
+    "commit": "6ad78af6f599a1f3efabea447e1dc0dc6217e288",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
