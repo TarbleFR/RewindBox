@@ -237,45 +237,40 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Public release 0.0.11 — existing IPA 721 uploaded as a GitHub draft (10 Nov).**
-  Maintainer explicitly requested IPA 721 as RewindBox 0.0.11 and confirmed start;
-  the earlier publication hold is lifted for this exact file. No new authorization needed.
-  Source `cfb564205c71eb3894d2c42be21899d3d7d67233`, run `42822649775`,
-  RPCS3 Core 919 / MeloNX Core 719. Codex downloaded the real main-session file card:
-  267033667 B, SHA-256 `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`,
-  ZIP intact (5595 entries), eight bundles 0.0.8/721, iOS 18.0, packaged identity/manifest,
-  signed entitlement and privacy-key unions checked. [Download proof](evidence/release-0.0.11-build721-download.json).
-  **GitHub draft 440810980** contains IPA asset `732661386`, source.json `732661849`,
-  SHA256SUMS `732661888`; uploaded sizes and GitHub SHA-256 digests match local files.
-  Source JSON SHA-256 `4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812`.
-  English notes match after CRLF normalization. Tag target branch `release/0.0.11-build721`
-  is verified at `cfb56420`; no Actions run was created for this source-anchor branch.
-  [Publication state](releases/pending-0.0.11/publication.json),
-  [English notes](releases/pending-0.0.11/release-notes.md), [source draft](releases/pending-0.0.11/source.json),
-  [Discord drafts](releases/pending-0.0.11/discord.json).
-  **Not public yet:** tag creation/publication, public download verification, root source
-  activation and Discord post remain undone. Apple + GitHub Mobile authentication succeeded.
-  Downloading the draft IPA timed out and left the tab at `chrome-error://chromewebdata/`;
-  the following Edit action was explicitly rejected by browser security policy for the
-  unsupported protocol. No workaround, duplicate release or new build attempted.
-  User intervention restoring that failed tab is needed, then resume this existing draft.
-  **Repository work executed:** main fast-forward `d09db191 → 4934c5e8` verified via GitHub;
-  160 commits ahead / zero behind, no force or rewritten history. It preserves owner-integrated
-  later development source; it is not the public IPA721 identity. README accurately previews
-  721 while retaining live 0.0.10 links. About description updated and API-verified.
-  Ten fully integrated obsolete branch refs deleted and all ten absences API-verified;
-  Restore offered in UI, commits retained in history. Active MeloNX/skins owners, dependency
-  PR163 and divergent unique history retained. [Ref/About/sync audit](evidence/github-cleanup-refs-2026-11-10.json).
-  Earlier true merge `8283f341` preserved main's five unique commits; PR154–160,162 closed
-  after exact checks; 14 superseded workflow launchers removed (59 tests, four skips,
-  exit 0); 1311 skipped Actions deletions remain verified/closed. No additional Actions
-  deletion or workflow dispatch. [Cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json),
-  [workflow proof](evidence/workflow-retirement-2026-11-10.json), [PR proof](evidence/github-cleanup-prs-2026-11-10.json).
-  No gameplay/FPS gain or new Apple provisioning proof claimed; no 722–724 additions
-  included in 0.0.11 notes. **Next:** resume existing draft; publish and verify public
-  download; activate root feed and live README links; archive exact 0.0.11 notes; carry
-  post-721 items into NEXT; announce in Discord; remove temporary release branch only
-  after the tag's exact source is verified.
+- **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
+  [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
+  published at 20:41:55 Europe/Paris. Git tag `0.0.11` verified at
+  `cfb564205c71eb3894d2c42be21899d3d7d67233`; RPCS3 Core919 / MeloNX Core719.
+  Codex downloaded the real public IPA (asset `732661386`): 267033667 B,
+  SHA-256 `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`,
+  ZIP intact (5595 entries), packaged identity `54b27241` and metadata 0.0.8/721,
+  iOS18.0 matched the private delivery. Public source.json `732661849` and
+  SHA256SUMS `732661888` downloaded and checked; both listed hashes match.
+  [Public file proof](evidence/release-0.0.11-public-download.json);
+  [original package proof](evidence/release-0.0.11-build721-download.json).
+  **Repository publication follow-through:** README now advertises 0.0.11/721
+  in its actual download links, What's new section, component table and source-build
+  recipe; pending-publication text and old 559 download/recipe removed.
+  Root `source.json` activated on main and Claude with the byte-identical release
+  asset (`4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812`).
+  [Exact English notes](releases/0.0.11.md) archived; [NEXT](releases/NEXT.md)
+  reset to public721, retaining 722/723 changes and later source-only work.
+  [Publication state](releases/pending-0.0.11/publication.json).
+  The older draft browser failure no longer blocks these connector/document updates:
+  publication was observed externally; no duplicate release or new IPA was created.
+  No gameplay/FPS or Apple provisioning claim; internal package version stays 0.0.8.
+  **Cleanup remains verified:** 1311 skipped Actions, 14 superseded workflows,
+  eight obsolete PRs and ten fully integrated branches removed; current owners,
+  dependency PR163 and unique history retained. main and Claude synchronized at
+  `541d9789` before this publication-document correction; updates use fresh leases
+  and preserve concurrent work. About description already updated/API-verified.
+  [Cleanup/ref audit](evidence/github-cleanup-refs-2026-11-10.json),
+  [cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json).
+  **Remaining:** verify served root sources and visible README after push;
+  remove the temporary source-anchor branch now that the tag protects cfb56420;
+  post the English list and IPA link in the verified Discord release channel,
+  recording actual message IDs. Discord historical hCaptcha/access was not solved
+  or claimed complete. Never re-announce 722–724 work as part of public721.
 
 - **Common IPA 723 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 722 with RPCS3 Core 921
   (pin `d4864cab`: idle iOS textures whose guest bytes changed are released); MeloNX Core 721 (pin `784fcc5d`), MoltenVK
