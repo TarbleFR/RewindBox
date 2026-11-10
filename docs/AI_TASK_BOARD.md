@@ -281,6 +281,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   solved and no Discord post is claimed. The GitHub publication/document/source
   correction is complete; do not repeat it or re-announce later private builds.
 
+- **Common IPA 724 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 723 with RPCS3 Core 923
+  (pin `4398e164`, run `42905444118`, dylib `46520c3d`: Core 922 GOW3 MLAA bypass on savestate resume, RPCS3 database as
+  the per-game reference with legacy full `custom_configs` ignored, freeze dump `res=`/`getllar_res=`; Core 923 SPU sampling
+  `SPUPROF923`, `AUTOSPU923`, `MEMPARTS923`), MeloNX Core 723 (pin `249d287d`), skins PR 170, the 8 MiB performance journal
+  with `.1` export (`11828899`) and the GOW3 RewindBox profile removed. First request `42910955631` failed in the native group
+  only (`redefinition of 'previousSize'` in the new rotation test, my defect; fixed by a rename, reviewed commit); second
+  request `5738e4ff`, run `42914845416` green (preflight, flutter, native, republish, application; 23 min). Four pieces of
+  68,131,438 B = API digests; offline verification passed; IPA 271630484 B, SHA-256 `c3fcb1c7…f446`, 90 images; eight
+  receipts copied; key deleted; receipt [rewind724](evidence/rewind724/delivery.json) (12 proofs). Sent privately as a file.
+  **Nothing of Core 922/923 is observed on the device yet.**
+  - **Device protocol (IPA 724):** GOW3 fresh boot and savestate resume, a few minutes of play, export with `.1`:
+    `CONFIG_DB922`, `GOW3MLAA909 ppu=savestate_applied`, `READBACK555 fault_read`, `SPUPROF923` (which SPU code holds the
+    3.3-3.6 cores), `MEMPARTS923`; first boot also answers the Asynchronous Texture Streaming risk (database value, never
+    run on the device; per-game setting turns it off). BO2: play until a freeze, export at once (`FREEZE_DUMP … res=`).
+    Skins PR 171 (fourth legal revision) is for IPA 725.
+
 - **Common IPA 723 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 722 with RPCS3 Core 921
   (pin `d4864cab`: idle iOS textures whose guest bytes changed are released); MeloNX Core 721 (pin `784fcc5d`), MoltenVK
   `6f65b2a6` and the 722 skins unchanged. Draft `ea7f0a8e`, freeze on it (dry run: 0 blockers, 0 unclassified commits,
