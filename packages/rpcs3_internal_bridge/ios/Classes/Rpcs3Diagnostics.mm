@@ -14,7 +14,15 @@
 
 static const unsigned long long kRPCS3DiagnosticLimit = 2 * 1024 * 1024;
 static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
-static const unsigned long long kRPCS3RuntimeHistoryLimit = 2 * 1024 * 1024;
+// REWINDBOX_PERFORMANCE_RETENTION_724: a 5 s report window of a running title
+// writes 32-37 KB here (Black Ops II, builds 662-721: some fifty COREPROF
+// lines). 2 MiB kept about five minutes per generation, ten with the previous
+// one: a session played twenty minutes before its export had lost its first
+// windows and the once-per-boot captures (AUTOSTORM917 -> PUTLLCTRACE912,
+// AUTOPPU916 -> PPUPROF912), missing from both the IPA 718 and 722 exports.
+// 8 MiB keeps about 21 minutes per generation, 42 with the previous one.
+// Append-only with no RAM cache: only disk space grows (16 MiB at most).
+static const unsigned long long kRPCS3RuntimeHistoryLimit = 8 * 1024 * 1024;
 // Compact causal evidence keeps two bounded generations independently of the
 // verbose profiler/restore stream (at most 8 MiB across both cause files).
 static const unsigned long long kRPCS3CauseHistoryLimit = 4 * 1024 * 1024;
@@ -446,7 +454,7 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
 }
 
 - (void)writeRuntimeHistory:(NSData*)line {
-  // The current plus one previous generation occupy at most 4 MiB on disk.
+  // The current plus one previous generation occupy at most 16 MiB on disk.
   [self appendLine:line name:@"RPCS3-performance.log"
              limit:kRPCS3RuntimeHistoryLimit index:kRPCS3PerformanceFile];
 }
@@ -1060,7 +1068,10 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
           {"RPCS3-causes.log", "Cause history", 3 * 1024 * 1024},
           {"RPCS3-causes.1.log", "Cause history (previous generation)", 1024 * 1024},
           {"RPCS3-timeline.log", "Timeline", 512 * 1024},
-          {"RPCS3-performance.log", "Performance history", 1024 * 1024},
+          // REWINDBOX_PERFORMANCE_RETENTION_724: the whole current generation
+          // (about 21 minutes) and the newest part of the previous one.
+          {"RPCS3-performance.log", "Performance history", 8 * 1024 * 1024},
+          {"RPCS3-performance.1.log", "Performance history (previous generation)", 4 * 1024 * 1024},
           {"RPCS3-diagnostic.log", "Diagnostic journal", 2 * 1024 * 1024},
           {"RPCS3-diagnostic.1.log", "Diagnostic journal (previous generation)", 512 * 1024},
           {"RPCS3-restore-trace.log", "Savestate restore trace", 128 * 1024},
