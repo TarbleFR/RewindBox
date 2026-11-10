@@ -721,7 +721,10 @@
      "test/pocket_catalog_offline_ui_test.dart",
      "test/libretro_skin_catalogs_test.dart",
      "test/armsx2_playlist_skins_test.dart",
-     "test/rpcs3_game_profile_service_test.dart"
+     "test/rpcs3_game_profile_service_test.dart",
+     "test/main_nav_no_labels_test.dart",
+     "test/melonx_playlist_skins_test.dart",
+     "test/melonx_skins_test.dart"
     ],
     "analyze": [
      "lib/widgets/glacier",
@@ -1195,6 +1198,30 @@
        "python3",
        "-B",
        "test/melonx_input_stick_test.py"
+      ]
+     ],
+     [
+      "rpcs3-host-bridge-ios-compile",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_host_bridge_ios_syntax_test.py"
+      ]
+     ],
+     [
+      "rpcs3-capture-analyzer",
+      [
+       "python3",
+       "-B",
+       "test/rpcs3_capture_analyzer_test.py"
+      ]
+     ],
+     [
+      "pocket-skin-input-chain",
+      [
+       "python3",
+       "-B",
+       "test/pocket_skin_input_chain_test.py"
       ]
      ]
     ]
