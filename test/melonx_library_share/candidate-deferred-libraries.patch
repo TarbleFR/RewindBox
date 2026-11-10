@@ -1,0 +1,192 @@
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
+index 779c6c9..fd7930c 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm
+@@ -2738,6 +2738,9 @@ void MVKPipelineCache::writeData(ostream& outstream, bool isCounting) {
+ // RewindBox: pNext structure type of VkPipelineCacheCreateInfo asking that the initial data be referenced, not copied
+ // ('RBX1', outside every registered range). Only RewindBox passes it.
+ static const uint32_t kRewindBoxMappedCacheDataSType = 0x52425831;
++// RewindBox: 'RBX2', a second private structure: the libraries read from the data keep no MTLLibrary; each compiles its
++// compressed MSL when a pipeline needs one of its functions, and releases it after (MVKShaderLibrary::getMTLFunction).
++static const uint32_t kRewindBoxDeferredLibrariesSType = 0x52425832;
+ __attribute__((used)) static const char kRewindBoxMappedCacheData[] =
+ 	"RewindBox mapped cache data: compressed MSL referenced in the mapped file, not copied";
+ 
+@@ -2811,8 +2814,11 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+ 		// (a read-only mapping of the cache file) instead of being copied: the caller keeps that data mapped and
+ 		// unchanged until this cache, and every cache its libraries are merged into, is destroyed.
+ 		bool referenceData = false;
++		bool deferLibraries = false;
++		uint32_t librariesRead = 0;
+ 		for (const auto* next = (const VkBaseInStructure*)pCreateInfo->pNext; next; next = next->pNext) {
+ 			if ((uint32_t)next->sType == kRewindBoxMappedCacheDataSType) { referenceData = true; }
++			if ((uint32_t)next->sType == kRewindBoxDeferredLibrariesSType) { deferLibraries = true; }
+ 		}
+ 
+ 		// Read the data header...and ensure correct byte-order.
+@@ -2867,7 +2873,8 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+ 					// Add the shader library to the staging cache.
+ 					MVKShaderLibraryCache* slCache = getShaderLibraryCache(smKey);
+ 					addPerformanceInterval(getPerformanceStats().pipelineCache.readPipelineCache, startTime);
+-					slCache->addShaderLibrary(&shaderConversionConfig, resultInfo, compressedMSL);
++					slCache->addShaderLibrary(&shaderConversionConfig, resultInfo, compressedMSL, deferLibraries);
++					librariesRead++;
+ 
+ 					break;
+ 				}
+@@ -2879,6 +2886,13 @@ void MVKPipelineCache::readData(const VkPipelineCacheCreateInfo* pCreateInfo) {
+ 			}
+ 		}
+ 
++		// RewindBox: one line per loaded cache, so a journal says which way its data was taken.
++		if (librariesRead > 0) {
++			MVKLogInfo("RewindBox pipeline cache load: %u shader libraries from %zu bytes; compressed MSL %s; MTLLibraries %s.",
++					   librariesRead, byteCount, referenceData ? "referenced in the caller's data" : "copied",
++					   deferLibraries ? "deferred to their first use" : "compiled now");
++		}
++
+ 	} catch (cereal::Exception& ex) {
+ 		setConfigurationResult(reportError(VK_ERROR_INITIALIZATION_FAILED, "Error reading pipeline cache data: %s", ex.what()));
+ 	}
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+index 596d9ec..0123279 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+@@ -122,7 +122,8 @@ public:
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const mvk::SPIRVToMSLConversionResultInfo& resultInfo,
+ 					 const MVKCompressor<std::string> compressedMSL,
+-					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr);
++					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr,
++					 bool deferMTLLibrary = false);
+ 
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const void* mslCompiledCodeData,
+@@ -148,6 +149,7 @@ protected:
+ 						const std::vector<std::pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef = nullptr);
+ 	void compressMSL(const std::string& msl);
+ 	void decompressMSL(std::string& msl);
++	id<MTLLibrary> newDeferredMTLLibrary();	// RewindBox: compiles the compressed MSL again; the caller releases it
+ 	MVKCompressor<std::string>& getCompressedMSL() { return _compressedMSL; }
+ 
+ 	MVKVulkanAPIDeviceObject* _owner;
+@@ -155,6 +157,7 @@ protected:
+ 	MVKCompressor<std::string> _compressedMSL;
+ 	mvk::SPIRVToMSLConversionResultInfo _shaderConversionResultInfo;
+ 	size_t _pipelineCacheEntrySize = 0;	// RewindBox: serialized size of this library's pipeline cache entry, 0 until counted
++	bool _deferMTLLibrary = false;		// RewindBox: no MTLLibrary is kept; each function retrieval compiles the compressed MSL
+ 
+ 	/** When true, representing a library created with source, but never specialized */
+ 	bool _maySpecializeWithMacro;
+@@ -204,7 +207,8 @@ protected:
+ 									   const mvk::SPIRVToMSLConversionResult& conversionResult);
+ 	MVKShaderLibrary* addShaderLibrary(const mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 									   const mvk::SPIRVToMSLConversionResultInfo& resultInfo,
+-									   const MVKCompressor<std::string> compressedMSL);
++									   const MVKCompressor<std::string> compressedMSL,
++									   bool deferMTLLibrary = false);
+ 	void merge(MVKShaderLibraryCache* other);
+ 
+ 	MVKVulkanAPIDeviceObject* _owner;
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+index 3aa44a4..8c4972f 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+@@ -73,7 +73,8 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 												VkPipelineCreationFeedback* pShaderFeedback,
+ 												MVKShaderModule* shaderModule) {
+ 
+-	if ( !_mtlLibrary ) { return MVKMTLFunctionNull; }
++	// RewindBox: a deferred library keeps no MTLLibrary; it compiles its compressed MSL for this retrieval (below).
++	if ( !_mtlLibrary && !_deferMTLLibrary ) { return MVKMTLFunctionNull; }
+ 
+ 	id<MTLLibrary> lib = _mtlLibrary;
+ 
+@@ -109,6 +110,16 @@ MVKMTLFunction MVKShaderLibrary::getMTLFunction(const VkSpecializationInfo* pSpe
+ 		}
+ 	}
+ 
++	// RewindBox: the MTLLibrary of a deferred library lives for this retrieval; the MTLFunction keeps what it needs.
++	struct MVKDeferredLibraryRelease {
++		id<MTLLibrary> mtlLibrary = nil;
++		~MVKDeferredLibraryRelease() { [mtlLibrary release]; }
++	} deferredLibrary;
++	if ( !lib && _deferMTLLibrary ) {
++		deferredLibrary.mtlLibrary = newDeferredMTLLibrary();	// retained
++		lib = deferredLibrary.mtlLibrary;
++	}
++	if ( !lib ) { return MVKMTLFunctionNull; }
+ 
+ 	@synchronized (getMTLDevice()) {
+ 		@autoreleasepool {
+@@ -213,13 +224,20 @@ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 								   const SPIRVToMSLConversionResultInfo& resultInfo,
+ 								   const MVKCompressor<std::string> compressedMSL,
+-								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef) :
++								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef,
++								   bool deferMTLLibrary) :
+ 	MVKBaseDeviceObject(owner->getDevice()),
+ 	_owner(owner),
+ 	_maySpecializeWithMacro(specializationMacroDef == nullptr) {
+ 
+ 	_shaderConversionResultInfo = resultInfo;
+ 	_compressedMSL = compressedMSL;
++	// RewindBox: nothing is compiled now; getMTLFunction compiles the compressed MSL when a pipeline needs a function.
++	if (deferMTLLibrary && !specializationMacroDef) {
++		_deferMTLLibrary = true;
++		_mtlLibrary = nil;
++		return;
++	}
+ 	string msl;
+ 	decompressMSL(msl);
+ 	compileLibrary(msl, specializationMacroDef);
+@@ -246,6 +264,20 @@ void MVKShaderLibrary::compileLibrary(const string& msl,
+ 	slc->destroy();
+ }
+ 
++// RewindBox: the MTLLibrary of a deferred library, compiled from its compressed MSL (Metal finds a source it compiled
++// before in its own cache). Touches no member: concurrent retrievals each compile and release their own.
++id<MTLLibrary> MVKShaderLibrary::newDeferredMTLLibrary() {
++	string msl;
++	decompressMSL(msl);
++	MVKShaderLibraryCompiler* slc = new MVKShaderLibraryCompiler(_owner);
++	NSString* nsSrc = [[NSString alloc] initWithUTF8String: msl.c_str()];	// temp retained
++	vector<pair<MSLSpecializationMacroInfo, MVKShaderMacroValue>> macro_def;
++	id<MTLLibrary> mtlLibrary = slc->newMTLLibrary(nsSrc, _shaderConversionResultInfo, macro_def);	// retained
++	[nsSrc release];
++	slc->destroy();
++	return mtlLibrary;
++}
++
+ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+                                    const void* mslCompiledCodeData,
+                                    size_t mslCompiledCodeLength) :
+@@ -276,6 +308,7 @@ MVKShaderLibrary::MVKShaderLibrary(const MVKShaderLibrary& other) :
+ 	_mtlLibrary = [other._mtlLibrary retain];
+ 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
+ 	_compressedMSL = other._compressedMSL;
++	_deferMTLLibrary = other._deferMTLLibrary;	// RewindBox
+ }
+ 
+ MVKShaderLibrary& MVKShaderLibrary::operator=(const MVKShaderLibrary& other) {
+@@ -286,6 +319,7 @@ MVKShaderLibrary& MVKShaderLibrary::operator=(const MVKShaderLibrary& other) {
+ 	_owner = other._owner;
+ 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
+ 	_compressedMSL = other._compressedMSL;
++	_deferMTLLibrary = other._deferMTLLibrary;	// RewindBox
+ 	return *this;
+ }
+ 
+@@ -368,8 +402,9 @@ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConver
+ // Adds and returns a new shader library configured from contents read from a pipeline cache.
+ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 														  const SPIRVToMSLConversionResultInfo& resultInfo,
+-														  const MVKCompressor<std::string> compressedMSL) {
+-	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
++														  const MVKCompressor<std::string> compressedMSL,
++														  bool deferMTLLibrary) {
++	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL, nullptr, deferMTLLibrary);
+ 	_shaderLibraries.emplace_back(*pShaderConfig, shLib);
+ 	return shLib;
+ }

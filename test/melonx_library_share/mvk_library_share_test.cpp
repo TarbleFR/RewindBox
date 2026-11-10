@@ -434,8 +434,15 @@ int main(int argc, char** argv) {
     // referencing), creates every pipeline again in it with FAIL_ON_PIPELINE_COMPILE_REQUIRED (all must be found: no
     // compilation), writes the cache data back (it must equal the file byte for byte), and reports the footprint before,
     // after the creation and after the pipelines; the mapping is removed only after the cache is destroyed.
-    if (strategy == "mapsave" || strategy.compare(0, 8, "mapload-") == 0) {
-        bool save = strategy == "mapsave", reference = strategy == "mapload-reference";
+    // Candidate (test/melonx_library_share/candidate-deferred-libraries.patch): a second private structure ('RBX2') makes
+    // the libraries read from the data keep no MTLLibrary: each compiles its compressed MSL when a pipeline needs one of
+    // its functions and releases it after. mapload-deferred passes both structures. mergeload-* repeat the three modes the
+    // way RewindBox loads its main cache: a staging cache created from the mapping, merged into an empty main cache, then
+    // destroyed; the pipelines are created in main and main's data is written back.
+    bool viaMerge = strategy.compare(0, 10, "mergeload-") == 0;
+    if (strategy == "mapsave" || strategy.compare(0, 8, "mapload-") == 0 || viaMerge) {
+        std::string mode = strategy.substr(strategy.find('-') == std::string::npos ? 0 : strategy.find('-') + 1);
+        bool save = strategy == "mapsave", deferred = mode == "deferred", reference = mode == "reference" || deferred;
         auto loadRound = [&](uint32_t round) {
             std::vector<Shader> more = loadShaders(argv[1], salt + 7919u * round);
             c.fragments.clear();
@@ -460,6 +467,7 @@ int main(int argc, char** argv) {
         void* mapped = nullptr;
         size_t mappedSize = 0;
         double before = footprintMiB(), afterCreate = 0;
+        uint32_t compiledAtLoad = 0;
         if (save) {
             check(vkCreatePipelineCache(c.device, &cacheInfo, nullptr, &cache), "vkCreatePipelineCache save");
         } else {
@@ -469,14 +477,28 @@ int main(int argc, char** argv) {
             mapped = mmap(nullptr, mappedSize, PROT_READ, MAP_PRIVATE, fd, 0);
             close(fd);
             if (mapped == MAP_FAILED) fail("mmap failed");
-            struct { VkStructureType sType; const void* pNext; } referenceInfo{(VkStructureType)0x52425831, nullptr};
+            struct { VkStructureType sType; const void* pNext; } deferredInfo{(VkStructureType)0x52425832, nullptr};
+            struct { VkStructureType sType; const void* pNext; } referenceInfo{(VkStructureType)0x52425831, deferred ? &deferredInfo : nullptr};
             VkPipelineCacheCreateInfo loadInfo = cacheInfo;
             loadInfo.pNext = reference ? &referenceInfo : nullptr;
             loadInfo.initialDataSize = mappedSize;
             loadInfo.pInitialData = mapped;
             before = footprintMiB();
-            check(vkCreatePipelineCache(c.device, &loadInfo, nullptr, &cache), "vkCreatePipelineCache load");
+            if (viaMerge) {
+                VkPipelineCache staging = VK_NULL_HANDLE;
+                check(vkCreatePipelineCache(c.device, &cacheInfo, nullptr, &cache), "vkCreatePipelineCache main");
+                check(vkCreatePipelineCache(c.device, &loadInfo, nullptr, &staging), "vkCreatePipelineCache staging");
+                check(vkMergePipelineCaches(c.device, cache, 1, &staging), "vkMergePipelineCaches staging into main");
+                vkDestroyPipelineCache(c.device, staging, nullptr);
+            } else {
+                check(vkCreatePipelineCache(c.device, &loadInfo, nullptr, &cache), "vkCreatePipelineCache load");
+            }
             afterCreate = footprintMiB();
+#ifdef __APPLE__
+            MVKPerformanceStatistics atLoad{};
+            size_t atLoadSize = sizeof(atLoad);
+            if (vkGetPerformanceStatisticsMVK(c.device, &atLoad, &atLoadSize) == VK_SUCCESS) compiledAtLoad = atLoad.shaderCompilation.mslCompile.count;
+#endif
         }
         int pipelines = 0, missing = 0;
         std::vector<VkPipeline> made;
@@ -500,6 +522,22 @@ int main(int argc, char** argv) {
             }
         }
         double afterPipelines = footprintMiB();
+        // A second pass over the last round's pipelines (new objects, states already created once, nothing may be
+        // compiled from SPIR-V): what one more pipeline of a cached program costs once the first pass is done (a deferred
+        // library compiles its MSL again; Metal has seen the source).
+        double againMs = 0;
+        int againMissing = 0;
+        if (!save && c.fragments.size() > 0) {
+            for (int f = 0; f < (int)c.fragments.size(); f++) {
+                GraphicsVariant v{f, kFormats[0], false, false, 0};
+                VkPipeline pipeline = VK_NULL_HANDLE;
+                double t = nowMs();
+                VkResult result = createGraphics(c, cache, VK_PIPELINE_CREATE_FAIL_ON_PIPELINE_COMPILE_REQUIRED_BIT, v, &pipeline);
+                againMs += nowMs() - t;
+                if (result == VK_SUCCESS) made.push_back(pipeline); else againMissing++;
+            }
+        }
+        double afterAgain = footprintMiB();
         size_t size = cacheSize(c.device, cache);
         std::vector<uint8_t> data(size);
         size_t written = size;
@@ -514,6 +552,9 @@ int main(int argc, char** argv) {
              << ", \"bytes\": " << written << ", \"writeResult\": " << (int)wrote << ", \"sameAsFile\": " << (sameAsFile ? "true" : "false")
              << ", \"footprintBeforeMiB\": " << before << ", \"footprintAfterCreateMiB\": " << afterCreate
              << ", \"footprintAfterPipelinesMiB\": " << afterPipelines << ", \"createMs\": " << createMs
+             << ", \"footprintAfterNewVariantsMiB\": " << afterAgain << ", \"newVariants\": " << (int)c.fragments.size()
+             << ", \"newVariantsMissing\": " << againMissing << ", \"newVariantsMs\": " << againMs
+             << ", \"mvkMslCompileAtLoad\": " << compiledAtLoad
              << ", \"dataHash\": \"" << std::hex << fnv(1469598103934665603ull, data.data(), written) << std::dec << "\"";
 #ifdef __APPLE__
         MVKPerformanceStatistics statistics{};
