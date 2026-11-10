@@ -154,4 +154,4 @@ sous `rsx::reservation_lock` (environ 3 µs) et le cas rare de synchronisation Z
 
 Le pilote local complet a échoué une fois dans `zcull630_plain` (banc chronométré de l'étape Core 630 sur l'arbre
 ramené en arrière, ligne 765) pendant que d'autres compilations chargeaient la machine ; le même pilote est vert dans
-le job hôte Apple de ce run.
+le job hôte Apple de ce run et dans un rejeu local sans autre charge.

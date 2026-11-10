@@ -1476,7 +1476,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         increment core918-from-917 = metal-wip-from-917. Local: closure, codegen audit, fold chain, route, 13 host
         guards, Core 916/917/918 tests (g++ and clang++), capture and analyzer tests PASS. The full local driver failed
         once in `zcull630_plain` (a timed ZCULL fault harness of the Core 630 stage on the reverted tree, line 765)
-        while other compiles loaded the machine; the same driver is green in the Apple host job of the run.
+        while other compiles loaded the machine; the same driver is green in the Apple host job of the run and in a
+        local rerun without other load.
       - **Built and pinned:** request `02b9bf22`, run `42776454670` green first try (Core job 129695964275, Apple host
         job 129695963848, 15 commands with `core918`); artifact 13745436352 (30,502,186 B, zip = API digest f5478c38);
         dylib `97b083c2…cb6f` (80,937,424 B), fingerprint `78f2defd…f9d3`, identities PPU a987639e / SPU 477a3fa4 in
