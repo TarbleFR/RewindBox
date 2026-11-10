@@ -27,8 +27,10 @@ PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text()
 OUT = ROOT / 'dist/melonx-moltenvk-rebuild'
 WORK = ROOT / '.moltenvk-rebuild'
 COMMANDS = []
-MARKERS = ('REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE', 'Argument buffer resource usage (RewindBox)',
-           'RewindBox argument buffer resource usage: %s walk')
+# The markers of the pinned patch (patchMarkers); without a patch, those of the retired 1.4.0 argument buffer patch,
+# which an unmodified build must not contain.
+MARKERS = tuple(PIN.get('patchMarkers') or ('REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE', 'Argument buffer resource usage (RewindBox)',
+                                             'RewindBox argument buffer resource usage: %s walk'))
 # The entry points MeloNX resolves in libMoltenVK (Silk.NET's loader, MVKInitialization.cs and the Metal interop).
 ENTRY_POINTS = ('_vkGetInstanceProcAddr', '_vkCreateInstance', '_vk_icdGetInstanceProcAddr',
                 '_vkGetMoltenVKConfigurationMVK', '_vkSetMoltenVKConfigurationMVK', '_vkGetMTLDeviceMVK',
