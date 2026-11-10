@@ -1,4 +1,13 @@
-# RewindBox — Next release draft
+# RewindBox — historical next-release draft (21 October 2026)
+
+> **Archived planning document.** The public release is now
+> [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1).
+> See the [current source and release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+> Statements below describing Switch integration as unpublished or incomplete,
+> and statements about no assigned version, applied **when this draft was
+> prepared** on 21 October; they do **not** describe the current IPA.
+> This historical draft has not been rewritten as a shipping-feature guarantee.
+
 
 **Unpublished draft · Prepared 21 October 2026 · Changes since 0.0.8**
 

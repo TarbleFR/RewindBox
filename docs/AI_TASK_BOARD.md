@@ -237,50 +237,39 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Public release 0.0.11 — maintainer request, 10 Nov; prepared by Codex, not published.**
-  The maintainer explicitly authorizes publishing the verified IPA 718 as **RewindBox 0.0.11**
-  (tag `0.0.11`, naming confirmed against earlier releases), the same complete changelog
-  in English, a SideStore/AltStore Classic source, then that list and IPA link in the
-  RewindBox Discord release channel. This is a new publication request after the closed
-  cleanup audit; it does not authorize another build or product change.
-  [Prepared publication](releases/pending-0.0.11/publication.json),
+- **Public release 0.0.11 — ON HOLD by the maintainer's latest 10 Nov instruction.**
+  “ne publie pas la mise à jour tout de suite mais fais tout le reste”.
+  Keep the release, public source activation and Discord announcement unpublished.
+  Continue the already-authorized cleanup, main synchronization and README/About
+  updates. No new IPA compilation or repack is part of this publication preparation.
+  [Publication state](releases/pending-0.0.11/publication.json),
   [English notes](releases/pending-0.0.11/release-notes.md),
-  [source draft](releases/pending-0.0.11/source.json),
-  [Discord messages](releases/pending-0.0.11/discord.json).
-  IPA identity: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`;
-  public version `0.0.11`, exact feed version/build `0.0.8`/`718` plus
-  `marketingVersion: 0.0.11` (no repack). JSON metadata and message lengths checked;
-  permissions are derived from frozen host inputs and await comparison with the exact IPA.
-  **Maintainer reconfirmed; access rechecked:** main completed the exact IPA/plist/
-  signed-entitlement/privacy-key checks (receipt `ipa_verification`, `f377ab2c`).
-  Codex downloaded that file card independently: same 263465367 B / full SHA-256,
-  ZIP test passed (5594 entries), bundle/version/build/minOS matched; byte-identical
-  upload assets, JSON and SHA256SUMS staged. The earlier automatic scope refusal is
-  cleared. **Current authentication blocker:** the maintainer requires Apple sign-in.
-  Apple accepted the secure credential flow, but GitHub then rejected the provider
-  response (“We could not validate the response from your social login provider”).
-  GitHub is not authenticated; automated retries stopped. Main also lacks a release
-  write tool/valid gh token; Discord still requires human hCaptcha verification.
-  No credentials/identifiers recorded. Authorization remains confirmed; no new approval
-  requested. No challenge attempted, tag/release/source activation or Discord post.
-  Keep public baseline 0.0.10 until publication confirmed.
-  **Additional maintainer instructions (same request):** after publication, integrate
-  `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
-  branches and PRs. Classify each candidate against integrated content, active owners,
-  pins, release producers and evidence before removal/closure; retain current work.
-  Read-only precheck: `main`/`Claude` diverge (main has 5 unique commits, mainly release/
-  branding/legal documentation; `Claude` ahead 1453 at the check). No forced ref update:
-  reconcile these changes through a reviewed merge. The earlier 1311-run cleanup is
-  already verified and closed; this follow-up is separate and has not started.
-  Read-only cleanup review: 8 old product PRs (154–160,162) have exact integration/
-  replacement evidence for closure while retaining their unique histories; 3 ancestor
-  branches are candidates after live head/owner checks. Preserve Dependabot163,
-  active owner branches, and the 608/609/610/497 workflow inputs still used by current
-  delivery. [Detailed workflow review](evidence/github-cleanup-post-release-0.0.11-review.json):
-  2566 scanned blobs, 44 launchers classified, 14 preliminary superseded launchers
-  outside the current 718 closure. Recheck final references and execute the delivery
-  contract after removal; dynamic/outside references remain a stated limit.
-  No merge, closure, branch/run/workflow deletion has been performed.
+  [validated source draft](releases/pending-0.0.11/source.json) and
+  [Discord drafts](releases/pending-0.0.11/discord.json) remain ready.
+  Exact IPA 718: 263465367 B, SHA-256 `001957b9…623c29a`, source `34fbf8eb`,
+  RPCS3 Core 914 / MeloNX Core 717. Main and Codex independently verified the same plaintext
+  file, ZIP, metadata and feed permissions. Internal version/build remains 0.0.8/718;
+  feed marketingVersion 0.0.11. No public release/tag, root feed activation or post.
+  **Executed:** reviewed true merge `8283f341` synchronized `main` / `Claude`,
+  preserving both histories and all five main-only commits. Eleven reconciled
+  document blobs verified; no product/Core/pin change. README refreshed with the
+  live 0.0.10 links and a clearly prepared 0.0.11 preview.
+  [Merge review](evidence/main-integration-2026-11-10.json).
+  PR154–160,162 closed after exact integration checks; Dependabot163 and active
+  owners retained. Fourteen superseded workflow launchers removed after exact
+  blob/current 718 closure checks: delivery contract exit 0, 59 tests, 4 skips,
+  one execution; current producers, diagnostics, modules and evidence preserved.
+  [Cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json),
+  [workflow proof](evidence/workflow-retirement-2026-11-10.json),
+  [PR proof](evidence/github-cleanup-prs-2026-11-10.json).
+  Earlier 1311-run cleanup remains verified and closed; no new Actions deletion
+  or cleanup dispatch. Three integrated branch candidates remain: the normal Git
+  deletion dry-run failed authentication without mutation. GitHub About is still
+  pending: no metadata-write tool, browser not authenticated. Apple accepted sign-in
+  but GitHub rejected its provider return; automated retries stopped. Existing
+  branch/PR/workflow histories and ongoing component work are preserved.
+  **Next:** complete authenticated About/eligible-ref cleanup; keep publication
+  on hold until the maintainer asks to resume. No new authorization requested.
 
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
@@ -1360,6 +1349,58 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       built source identities differ by rpcs3/ios/IOSTextureLookupMemo.h only. Artifact 13728955880, dylib `b4ece6df`,
       fingerprint `b8759812`; [identity](evidence/rpcs3-core915-ac1-ways4-witness/identity.json). Never pinned.
     - Preparation closed: reference 914 pinned, witness 915 recorded separately. Remaining: iPhone measurements only.
+  - **Mission 10 Nov, build 718 journals (maintainer: performance, stutters, stops of progression; verified changes only) →
+    Core 916** ([record](rpcs3-core916-build718.md)). Inputs: five app journals of build 718 (private; sha256 prefixes
+    97011f92, 27176ff9, 82d1c6be, 81f01cec, 9a023031). The `.1` rotation is not among them: the per-window CPU/SPU/pass/memo
+    lines of BO2 (sessions 1-2) and AC1 (session 3) and GOW3 window 12 are not in the files and found no change here.
+    - **Confirmed and fixed — AC1 stop sequence (6.125 s, PID 45272 s3, accurate_res=false):** the PPU's plain byte store
+      `sysSrvMessage = 0xff` (wake-up of the SPURS kernels for a workload shutdown) is absent from header line 0x102ec580
+      while the reservation store made just before it is in line 0x102ec600; five SPUs wait on that line with its current
+      time. Upstream's relaxed `relaxed_spurs` PUTLLC copied the SPU's whole 128-byte line without comparing it.
+      `REWINDBOX_SPURS_RELAXED_STORE_916`: whole-line compare, then one atomic exchange per changed 16-byte lane; a store
+      made since GETLLAR fails the PUTLLC and is never overwritten; a store that lands while the line is stored fails it
+      too and the lanes already stored are given back (time advances, waiters told). Same lock, no writer lock, wait or
+      timeout. Host (real header): 19 checks, 0 lost of 4.9-9.5 M guest stores, 98 173-176 233 interrupted PUTLLC taken
+      back; the previous store fails 12 checks and loses ~344 000-364 000. Independent review (rb-core-review): no lock,
+      time, livelock or wake-up defect; its one finding (a byte merge could split a multi-byte store) is fixed by the
+      roll-back and kept as a second negative control.
+    - **Confirmed and fixed — GOW3 MLAA bypass applied to nothing (PID 45272 s5):** setting Enabled, executable
+      PPU-4d5c5150 (01.00), bypass knew 01.03 only; PPU main 0.931 core, GPU 21 %, 58 colour-buffer read-backs per 57
+      frames. `REWINDBOX_GOW3_MLAA_100_916`: RPCS3's "Disable MLAA" pair for 01.00 behind a content guard, fresh boot only
+      (an old savestate keeps unpatched memory: `savestate_patched=0`). 26 host checks. No profile, resolution or
+      precision change; the setting's own effect (the game's anti-aliasing off) now applies.
+    - **Collection defects fixed:** levers627 exported 18 of 21 digits → no capture could be requested on 718 (limit 48);
+      lwcond waiters keyed on r3 (overwritten by the syscall) → read from the kernel queue, plus `FREEZE_DUMP ppu_stack`;
+      46 stopped windows filled the rotation → compact (`IDLE916`; that file 1 577 669 → 242 244 B); GOW3's inherited
+      custom profile refuses the test page → the report asks once per boot for the PPU region profile when a PPU thread
+      stays ≥ 0.85 core (`trigger=auto_ppu_bound`). The light-run channel level is restored on the stopped-window exit.
+    - **Open, with the next decisive test:** Black Flag (accurate_res=true, so not the SPURS store): main thread in
+      `_sys_lwcond_queue_wait` 9.615 s, TaskThread2 polling `*(u32*)0x110ddbd0 == 0` every 30 µs, SPURS idle (ready counts
+      0), no thread running; the dump does not show a lost wake-up → one stall on Core 916 (lwcond queue + stacks), then
+      A/B of one setting per run. GOW3 PPU main activity → automatic profile on a fresh boot. BO2 slow windows → captures
+      B1/B3, now requestable. AC1 cadence → GPU-bound in `GPUTIME621` (78 %); pass lines not in the files.
+    - **Unchanged on purpose:** no setting, SPU count/priority, GETLLAR/PUTLLC delay, LLVM option, frame limit; GOW3
+      texture epochs (put_horizon=0: profile not on Fast FIFO accuracy, no benefit claimed); 16-way memo.
+    - **Core 916 built and pinned:** engine commits 9acb865 + 7dd4d7b over 7aa8ab7; canonical 81678148 (453); source
+      `d27ec230`, drift declaration `7fb79306`. Request 1 (`3c2a8e5c`, run `42763953223`) was refused by the source
+      closure before any compile (the adapted Build 351 contract test, a declared Core input, was not in the reviewed
+      drift; I had not run the closure check locally): declared, closure passes. Request 2 `850341af`, run
+      `42764728604`: both jobs green first try (15 Apple host commands, core916 included). Verified offline: artifact
+      13740500237, dylib `7c941344` (80 920 128 B), fingerprint `845e82a2`, identities PPU a987639e / SPU 477a3fa4
+      unchanged, every 916 marker present; pin `708e4109`. Local: codegen audit (four exact aliases), fold chain, 13
+      host guards, route, closure, MoltenVK protocol, full driver: pass. `test/neo_swap_core_pin_test.py` fails as on
+      the parent commit (legacy pin cfe92344 lacks test/rpcs3_restore_eof_test.py): not from this work.
+    - **BO2 and GOW3 performance (maintainer, 10 Nov: do not stop before they run faster):** what the journals show.
+      GOW3 718 s5 w15: 231 ms of SPU time and 85 ms of PPU main per 88 ms frame, GPU 21 %, RSX thread 35 ms/frame with
+      8 ms of texture hashing (11.63 GB per window at 14.1 GB/s, already NEON XXH3): the MLAA SPU work is the first
+      item, bypassed by Core 916 on the installed 01.00 executable at a fresh boot. BO2 676 s3 w9-17 (the last export
+      that still holds its per-window lines): 1.08-1.60 M heavy PUTLLC per window, 2.4-2.9 s of SPU time acquiring the
+      writer lock against 13-19 ms holding it, PPU threads 1.06 s in timed waits behind it, 20-26 fps with no thread
+      saturated; the job queue lines (0x2e20c00…) are a tagged lock-free queue with ~190 jobs pending. The relaxed
+      PUTLLC stays refused; the next Core works on the cost of the exact path (the writer's hand-off before the PPU
+      threads have had time to park) and collects the captures by itself.
+    - **Next:** Core 917 (writer park spin with its park histogram, PPU parked time, automatic captures on a heavy
+      PUTLLC storm), then the common private IPA; iPhone protocol in the record, section 7.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -1541,6 +1582,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `repository_inputs` on the deferred `b06888a9` podspec, the effective tree passes.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
+
+- **Current maintainer complement, 10 Nov — relayed by Codex to the same owner (message 19, queued/unread at verification).**
+  Preserve the ongoing lot 9 work, validated lots 1–6/8 and closed production-excluded
+  lot 7 prototype. New P0 priorities: Mario 3D World/Bowser's Fury presentation SIGSEGV
+  in `presentCAMetalDrawable` (IPA 718 / Core 717), and Switch skin commands lost after
+  Menu→game; then long pipeline/syncpoint/GC/cache hitches. The reported stack is a
+  lead, not proof of a use-after-free or shared cause with input. Require production
+  corrections, discriminating executed before/after checks, resource/callback/session
+  lifetime invariants and separate host/iPhone results. Referenced capture source
+  `45923d133e5ec9325b6c64f44844f7dafba6f404`, binary prefix `f565e10bba1e`;
+  it does not validate newer candidates. Exact relay SHA-256
+  `70e24fa48a2a312b14b62b6788d129e58a67b3fa8c6a90363e0cd9eff4537dba`.
+  No new log file attached by Codex; original availability remains for the owner to
+  verify, with no old namesake substitution. UI set once from Fable 5.2 / Max to
+  **Opus 5.5 / High** for the next message; native `rb-effort-high` requested, return not
+  observed. Current request not stopped/replaced. Coordinate shared skin/overlay paths
+  with the existing owner; main retains integration/pins/Core CI/IPA. Public 0.0.11
+  publication is on hold at the maintainer's request. This is a targeted complement,
+  not a parallel diagnosis or new worker.
+
 
 - **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643" to "IPA 657"),
   [621 logs](melonx-621-measurement-2026-11-03.md). Main owns compilation/pins/integration.

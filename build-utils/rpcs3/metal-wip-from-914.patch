@@ -1,0 +1,1039 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 3ab3636..aba9151 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -104,6 +104,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "a1b9099f2424779aa60b9401f265e556a5073115d568f7781852128ac6d44187")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_SPURS_RELAXED_STORE_916: SPUThread.cpp changes in the host body of do_putllc() only (the
++    # store of a SPURS header line with relaxed reservations goes through ios/IOSSpursRelaxedStore.h) and
++    # adds that one include. No emitter, helper signature, SPU layout or relocation target changes: the
++    # objects call the same host function. Same effective hash, exact snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "28b20cc80a3974315ed0eb3797733b7c56e6ca8c6f26cf01c587021b5b196a23")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index 55793ab..4b84b37 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -16,6 +16,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "ios/IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
++#include "ios/IOSGow3MlaaPatch.h" // REWINDBOX_GOW3_MLAA_100_916
+ #endif
+ #include "Emu/VFS.h"
+ 
+@@ -2387,42 +2388,58 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 	}
+ 
+ #ifdef RPCS3_IOS
+-	// The official 1.03 PPU patch prevents the game from scheduling MLAA in
+-	// the first place. Pair it with the exact-hash SPU fallback in sys_spu.cpp;
+-	// neither half can affect another title or executable revision.
++	// The official PPU patch prevents the game from scheduling MLAA in the first place. Pair it with the exact-hash
++	// SPU fallback in sys_spu.cpp; neither half can affect another title or executable revision.
++	// REWINDBOX_GOW3_MLAA_100_916 (ios/IOSGow3MlaaPatch.h): one plan per known executable (01.03 as delivered, and
++	// 01.00, the executable the build 718 device runs, which was not known here), the 01.00 pair behind a content guard.
+ 	const std::string_view title_id = Emu.GetTitleID();
+ 	// REWINDBOX_GOW3_MLAA_REPORT_909: what the bypass does for this executable (ios/IOSGow3MlaaReport.h).
+ 	if (title_id == "BCES00510" || title_id == "BCES00799" || title_id == "BCUS98111" ||
+ 		title_id == "BCJS37001" || title_id == "BCAS25003" || title_id == "BCKS15003")
+ 	{
+ 		using rpcs3::ios::gow3_mlaa::ppu_state;
+-		rpcs3::ios::gow3_mlaa::record_executable(hash,
+-			!rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass ? ppu_state::policy_off :
+-			ar ? ppu_state::savestate :
+-			hash != "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" ? ppu_state::other_executable : ppu_state::applied);
+-	}
++		namespace mlaa_patch = rpcs3::ios::gow3_mlaa_patch;
++		const mlaa_patch::plan* mlaa_plan = mlaa_patch::find(hash);
++		// Both addresses must lie in a segment of this executable (get_ref throws otherwise): a plan that does not
++		// fit the loaded image is no plan.
++		const bool mlaa_unmapped = mlaa_plan && !(_main.get_ptr<u8>(mlaa_plan->flag_address & ~3u, 4) && _main.get_ptr<u8>(mlaa_plan->call_address, 4));
++		if (mlaa_unmapped)
++		{
++			mlaa_plan = nullptr;
++		}
++		const bool mlaa_policy = rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass;
++		const auto mlaa_read8 = [&](u32 address) { return static_cast<u8>(_main.get_ref<u8>(address)); };
++		const auto mlaa_read32 = [&](u32 address) { return static_cast<u32>(_main.get_ref<u32>(address)); };
++		ppu_state mlaa_state = !mlaa_policy ? ppu_state::policy_off : ar ? ppu_state::savestate :
++			mlaa_unmapped ? ppu_state::refused_guard : !mlaa_plan ? ppu_state::other_executable : ppu_state::applied;
+ 
+-	if (!ar && rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass &&
+-		hash == "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" &&
+-		(title_id == "BCES00510" || title_id == "BCES00799" || title_id == "BCUS98111" ||
+-			title_id == "BCJS37001" || title_id == "BCAS25003" || title_id == "BCKS15003"))
+-	{
+-		constexpr std::array<std::pair<u32, u32>, 2> mlaa_patches{{
+-			{0x0052bf2c, 0x00000000},
+-			{0x0023137c, 0x60000000}, // nop
+-		}};
++		rpcs3::ios::gow3_mlaa::ppu_patch_version.store(!mlaa_plan ? 0u : mlaa_plan->version == "01.00" ? 100u : 103u, std::memory_order_relaxed);
++		rpcs3::ios::gow3_mlaa::savestate_patched.store(ar && mlaa_plan ? (mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32) ? 1 : 0) : -1,
++			std::memory_order_relaxed);
+ 
+-		for (const auto& [address, instruction] : mlaa_patches)
++		if (!ar && mlaa_policy && mlaa_plan)
+ 		{
+-			auto& target = _main.get_ref<u32>(address);
+-			if (target != instruction)
++			const mlaa_patch::result mlaa_result = mlaa_patch::apply(*mlaa_plan, mlaa_read8, mlaa_read32,
++				[&](u32 address, u8 value) { _main.get_ref<u8>(address) = value; },
++				[&](u32 address, u32 value) { _main.get_ref<u32>(address) = value; },
++				[&](u32 address) { applied.push_back(address); });
++
++			rpcs3::ios::gow3_mlaa::ppu_call_word.store(mlaa_result.call_word, std::memory_order_relaxed);
++
++			if (mlaa_result.what == mlaa_patch::outcome::refused_guard)
++			{
++				mlaa_state = ppu_state::refused_guard;
++				ppu_loader.error("iOS God of War III PPU MLAA bypass refused for %s (%s): word 0x%08x at 0x%x, flag byte 0x%02x at 0x%x",
++					hash, mlaa_plan->version, mlaa_result.call_word, mlaa_plan->call_address, mlaa_result.flag_byte, mlaa_plan->flag_address);
++			}
++			else
+ 			{
+-				target = instruction;
+-				applied.push_back(address);
++				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x)",
++					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word);
+ 			}
+ 		}
+ 
+-		ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s", hash);
++		rpcs3::ios::gow3_mlaa::record_executable(hash, mlaa_state);
+ 	}
+ #endif
+ 
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index 3f30608..2f7c20c 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -38,6 +38,7 @@
+ #include "ios/IOSSignalTrace.h"
+ #include "ios/IOSSpuNoopSpin.h"
+ #include "ios/IOSCapture912.h"
++#include "ios/IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
+ #ifdef ARCH_ARM64
+ #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
+ #include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
+@@ -3781,9 +3782,38 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 		{
+ 			if (relaxed_spurs)
+ 			{
++#ifdef RPCS3_IOS
++				// REWINDBOX_SPURS_RELAXED_STORE_916 (ios/IOSSpursRelaxedStore.h): the line is stored only if it still is
++				// what GETLLAR read, lane by lane, and no byte this SPU did not change is written: a plain guest store
++				// made since GETLLAR (the PPU's sysSrvMessage wake-up, for one) is no longer overwritten by the copy
++				// read before it, and it fails this PUTLLC. The unique lock taken above is released on every outcome.
++				const rpcs3::ios::spurs_relaxed_store::result ios_spurs_result = rpcs3::ios::spurs_relaxed_store::store(vm::_ptr<unsigned char>(addr),
++					reinterpret_cast<const unsigned char*>(&rdata), reinterpret_cast<const unsigned char*>(&to_write),
++					[](unsigned char* lane, rpcs3::ios::spurs_relaxed_store::lane_t& expected, const rpcs3::ios::spurs_relaxed_store::lane_t& desired)
++					{
++						u128 comp, exch;
++						std::memcpy(&comp, expected.bytes, sizeof(comp));
++						std::memcpy(&exch, desired.bytes, sizeof(exch));
++						const bool ok = atomic_storage<u128>::compare_exchange(*reinterpret_cast<u128*>(lane), comp, exch);
++						std::memcpy(expected.bytes, &comp, sizeof(comp));
++						return ok;
++					});
++				// The reservation time advances whenever memory was written: by a store, and by a store that was taken
++				// back because a guest store reached it (a copy of the line read across it must not pass for unchanged;
++				// those who wait for this line are told). A refusal that wrote nothing leaves the time as it was.
++				res += ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_changed ? 0 - 64 : 64;
++
++				if (ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_undone)
++				{
++					vm::reservation_notifier_notify(addr, rtime);
++				}
++
++				return ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::stored;
++#else
+ 				mov_rdata(*vm::_ptr<spu_rdata_t>(addr), to_write);
+ 				res += 64;
+ 				return true;
++#endif
+ 			}
+ 		}
+ #ifndef RPCS3_IOS
+diff --git a/rpcs3/ios/IOSAutoPpuProfile916.h b/rpcs3/ios/IOSAutoPpuProfile916.h
+new file mode 100644
+index 0000000..506dad2
+--- /dev/null
++++ b/rpcs3/ios/IOSAutoPpuProfile916.h
+@@ -0,0 +1,72 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++#include <string_view>
++#include <vector>
++
++// REWINDBOX_AUTO_PPU_PROFILE_916: one PPU region profile per boot, asked by the 5 s report itself.
++//
++// Build 718, God of War III (BCES00510), session 5, window 15: 11.2 guest frames per second, the GPU busy 21 % of
++// the time and the title's main PPU thread at 0.931 core (top=PPU[0x1000000]_:0.931): the frame waits for that
++// thread, and nothing in the journal says what it runs. The PPU region profile of Core 912 answers that, but it starts
++// only on a request of the host's test page, and that page refuses a title whose settings are an inherited custom
++// profile (legacy_custom=1), which is this title's case.
++// When the busiest PPU thread used at least `bound_cores` of a core in `windows_needed` consecutive running windows
++// that showed frames, the report asks once per boot for the same bounded profile (ios/IOSCapture912.h, ppu_profile:
++// a sampler thread that reads state and pc about once per millisecond for at most 5000 samples; it stops no thread).
++// The per-boot limit and the refusals of the explicit request apply unchanged.
++namespace rpcs3::ios::auto_ppu_profile
++{
++inline constexpr double bound_cores = 0.85;
++inline constexpr std::uint32_t windows_needed = 2;
++
++// The busiest PPU thread of a window's thread list (names as the report's top= field prints them: "PPU[0x...]...").
++template <typename Rows>
++double busiest_ppu(const Rows& rows) noexcept
++{
++	double busiest = 0.0;
++
++	for (const auto& row : rows)
++	{
++		if (std::string_view(row.name).starts_with("PPU[") && row.cores > busiest)
++		{
++			busiest = row.cores;
++		}
++	}
++
++	return busiest;
++}
++
++struct tracker
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t consecutive = 0;
++	bool asked = false;
++
++	// One call per report window. True once per boot session: ask for the profile now.
++	bool observe(std::uint64_t now_session, bool running, std::uint64_t guest_flips, double busiest_ppu_cores) noexcept
++	{
++		if (now_session != session)
++		{
++			session = now_session;
++			consecutive = 0;
++			asked = false;
++		}
++
++		if (!running || !guest_flips || !(busiest_ppu_cores >= bound_cores))
++		{
++			consecutive = 0;
++			return false;
++		}
++
++		if (asked || ++consecutive < windows_needed)
++		{
++			return false;
++		}
++
++		asked = true;
++		return true;
++	}
++};
++} // namespace rpcs3::ios::auto_ppu_profile
+diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
+index bab9a4d..787e842 100644
+--- a/rpcs3/ios/IOSCapture912.h
++++ b/rpcs3/ios/IOSCapture912.h
+@@ -544,6 +544,9 @@ namespace start_request
+ {
+ inline std::atomic<bool> putllc{false};
+ inline std::atomic<bool> ppu{false};
++// REWINDBOX_AUTO_PPU_PROFILE_916 (ios/IOSAutoPpuProfile916.h): the 5 s report asks for one PPU region profile per
++// boot when the busiest PPU thread saturates a core. It needs no setting: the profile reads, it changes nothing.
++inline std::atomic<bool> auto_ppu{false};
+ 
+ // Settings API thread, a title running. True: the write is a start request and it is recorded.
+ inline bool offer(std::string_view key, std::string_view value) noexcept
+@@ -579,6 +582,7 @@ inline void clear() noexcept
+ {
+ 	putllc.store(false, std::memory_order_release);
+ 	ppu.store(false, std::memory_order_release);
++	auto_ppu.store(false, std::memory_order_release);
+ }
+ } // namespace start_request
+ 
+diff --git a/rpcs3/ios/IOSFreezeChain916.h b/rpcs3/ios/IOSFreezeChain916.h
+new file mode 100644
+index 0000000..8046ddf
+--- /dev/null
++++ b/rpcs3/ios/IOSFreezeChain916.h
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++
++// REWINDBOX_FREEZE_CHAIN_916: two bounded walks of the stall dump, kept apart so that they are executed by a host test.
++//
++// 1. The threads queued on a kernel object, read from the object's own queue. The lwcond lines of Core 908 named a
++//    condition's waiters by r3 of the waiting threads, but _sys_lwcond_queue_wait stores its return value (0) in r3
++//    before it sleeps: on build 718 (Black Flag, PID 44597) twelve threads waited on lightweight conditions and no
++//    lwcond line was printed. The queue of the condition itself does not depend on a register.
++// 2. The return addresses of a waiting or polling PPU thread, from its stack back chain: where in the game the wait
++//    was asked from (the dump only had the address inside the system library). PowerPC 64-bit ELF ABI as the PS3 uses
++//    it: the doubleword at the stack pointer is the caller's stack pointer, and a function saves its return address
++//    at 16 bytes above the caller's stack pointer.
++namespace rpcs3::ios::freeze_chain
++{
++// first: the head of an intrusive queue; next(node) the following node or null; id(node) what to record.
++// Returns the number recorded (at most cap); `more` says whether the queue went on.
++template <typename Node, typename Next, typename Id>
++std::size_t queue_ids(const Node* first, Next&& next, Id&& id, std::uint32_t* out, std::size_t cap, bool& more)
++{
++	std::size_t count = 0;
++	more = false;
++
++	// A queue being changed while it is read without its lock would loop: the caller holds the object's lock, and the
++	// walk is bounded anyway.
++	std::size_t steps = 0;
++
++	for (const Node* node = first; node && steps < 64; node = next(node), steps++)
++	{
++		if (count == cap)
++		{
++			more = true;
++			break;
++		}
++
++		out[count++] = id(node);
++	}
++
++	return count;
++}
++
++// sp: the thread's stack pointer; readable(address) whether 8 bytes can be read there; read64(address) the big-endian
++// doubleword in host order. Writes the saved return addresses, innermost first; stops at an unreadable address, a
++// null or non-increasing back chain (the stack grows down: a caller's frame is above), or cap.
++template <typename Readable, typename Read64>
++std::size_t back_chain(std::uint64_t sp, Readable&& readable, Read64&& read64, std::uint32_t* out, std::size_t cap)
++{
++	std::size_t count = 0;
++
++	while (count < cap)
++	{
++		if (!sp || sp > 0xffffffffull || (sp & 15) || !readable(static_cast<std::uint32_t>(sp)))
++		{
++			break;
++		}
++
++		const std::uint64_t caller = read64(static_cast<std::uint32_t>(sp));
++
++		if (caller <= sp || caller > 0xffffffffull || caller - sp > 0x100000 || !readable(static_cast<std::uint32_t>(caller + 16)))
++		{
++			break;
++		}
++
++		out[count++] = static_cast<std::uint32_t>(read64(static_cast<std::uint32_t>(caller + 16)));
++		sp = caller;
++	}
++
++	return count;
++}
++} // namespace rpcs3::ios::freeze_chain
+diff --git a/rpcs3/ios/IOSGow3MlaaPatch.h b/rpcs3/ios/IOSGow3MlaaPatch.h
+new file mode 100644
+index 0000000..df1f2ec
+--- /dev/null
++++ b/rpcs3/ios/IOSGow3MlaaPatch.h
+@@ -0,0 +1,130 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <string_view>
++
++// REWINDBOX_GOW3_MLAA_100_916: the PPU half of the God of War III MLAA bypass, per executable.
++//
++// Build 718, BCES00510, PID 45272, sessions 4 and 5: the title's setting "God of War III MLAA Bypass" is Enabled
++// (boot policy gow3_mlaa=1), the executable is PPU-4d5c5150... (application 01.00) and COREPROF GOW3MLAA909 reports
++// that nothing was applied: the bypass knew the 01.03 executable only. In the slow windows the PPU main thread uses
++// 0.93 core and the SPU threads 2.99 cores, and every frame one SPU reads the 1280x720 colour buffer back
++// (READBACK555 fault_read 58 per window of 57 frames, 3.8 ms on average, 18 ms at most).
++//
++// RPCS3's patch repository holds "Disable MLAA" (authors illusion, ZEROx; patch version 3.0) for both executables:
++//   PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962 (01.03): [ byte, 0x52BF2F, 0 ], [ be32, 0x0023137c, 0x60000000 ]
++//   PPU-4d5c51503a81a327c2a99427390a395b8dcb3767 (01.00): [ byte, 0x52BF2F, 0 ], [ be32, 0x00231248, 0x60000000 ]
++// The be32 line removes one call (the author: "A few nop to the call 0x230c4c narrowed down to 0x0023137c"); the byte
++// is the game's own flag. The 01.03 pair is the one delivered since Build 351 (it clears the whole word 0x52bf2c, an
++// earlier version of the same patch) and is kept as it is. The 01.00 pair is applied only on that exact executable
++// and only if the word to replace is a relative call and the flag byte holds 0 or 1: any other content refuses the
++// whole pair and says so (COREPROF GOW3MLAA909 ppu=refused_guard), so a different executable is never patched.
++// Like every executable patch it is applied at a fresh boot; a savestate carries the memory of the boot it was made
++// from, and the report says whether that memory holds the patch (savestate_patched=).
++namespace rpcs3::ios::gow3_mlaa_patch
++{
++struct plan
++{
++	std::string_view executable; // "PPU-<sha1>"
++	std::string_view version;
++	std::uint32_t flag_address;  // one byte, set to 0
++	std::uint32_t call_address;  // one big-endian word, set to nop
++	bool guarded;                // check the content before writing
++	bool clear_flag_word;        // the delivered 01.03 form: the big-endian word that ends with the flag byte
++};
++
++constexpr std::uint32_t nop = 0x60000000;
++
++constexpr plan plans[] = {
++	{"PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962", "01.03", 0x0052bf2f, 0x0023137c, false, true},
++	{"PPU-4d5c51503a81a327c2a99427390a395b8dcb3767", "01.00", 0x0052bf2f, 0x00231248, true, false},
++};
++
++constexpr const plan* find(std::string_view executable) noexcept
++{
++	for (const plan& candidate : plans)
++	{
++		if (candidate.executable == executable)
++		{
++			return &candidate;
++		}
++	}
++
++	return nullptr;
++}
++
++// bl target: primary opcode 18, relative (AA = 0), link (LK = 1).
++constexpr bool is_relative_call(std::uint32_t word) noexcept
++{
++	return (word & 0xfc000003u) == 0x48000001u;
++}
++
++enum class outcome : std::uint8_t { applied, already_applied, refused_guard };
++
++struct result
++{
++	outcome what = outcome::refused_guard;
++	std::uint32_t call_word = 0; // the word found at call_address before any write
++	std::uint8_t flag_byte = 0;  // the byte found at flag_address before any write
++	std::uint32_t writes = 0;
++};
++
++// read32/write32 take a guest address and a host-order value of the big-endian word; read8/write8 one byte.
++// `wrote(address)` is called for each address whose content changed (the loader's list of applied patches).
++template <typename Read8, typename Read32, typename Write8, typename Write32, typename Wrote>
++result apply(const plan& p, Read8&& read8, Read32&& read32, Write8&& write8, Write32&& write32, Wrote&& wrote)
++{
++	result r;
++	r.call_word = read32(p.call_address);
++	r.flag_byte = read8(p.flag_address);
++
++	if (p.guarded)
++	{
++		const bool call_ok = r.call_word == nop || is_relative_call(r.call_word);
++		const bool flag_ok = r.flag_byte <= 1;
++
++		if (!call_ok || !flag_ok)
++		{
++			r.what = outcome::refused_guard;
++			return r;
++		}
++	}
++
++	if (p.clear_flag_word)
++	{
++		const std::uint32_t word_address = p.flag_address & ~3u;
++
++		if (read32(word_address) != 0)
++		{
++			write32(word_address, 0);
++			wrote(word_address);
++			r.writes++;
++		}
++	}
++	else if (r.flag_byte != 0)
++	{
++		write8(p.flag_address, 0);
++		wrote(p.flag_address);
++		r.writes++;
++	}
++
++	if (r.call_word != nop)
++	{
++		write32(p.call_address, nop);
++		wrote(p.call_address);
++		r.writes++;
++	}
++
++	r.what = r.writes ? outcome::applied : outcome::already_applied;
++	return r;
++}
++
++// Does this memory hold the patch (a savestate made from a boot that applied it)?
++template <typename Read8, typename Read32>
++bool present(const plan& p, Read8&& read8, Read32&& read32)
++{
++	return read32(p.call_address) == nop && read8(p.flag_address) == 0;
++}
++} // namespace rpcs3::ios::gow3_mlaa_patch
+diff --git a/rpcs3/ios/IOSGow3MlaaReport.h b/rpcs3/ios/IOSGow3MlaaReport.h
+index b671562..da0e4bf 100644
+--- a/rpcs3/ios/IOSGow3MlaaReport.h
++++ b/rpcs3/ios/IOSGow3MlaaReport.h
+@@ -19,10 +19,16 @@ namespace rpcs3::ios::gow3_mlaa
+ {
+ enum class ppu_state : std::uint32_t
+ {
+-	unset = 0, applied, other_executable, savestate, policy_off
++	unset = 0, applied, other_executable, savestate, policy_off,
++	refused_guard // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
+ };
+ 
+ inline std::atomic<std::uint32_t> ppu{0};
++// REWINDBOX_GOW3_MLAA_100_916 (ios/IOSGow3MlaaPatch.h): the word found where the call is removed, the patch's version
++// of the application (0 = no patch for this executable, else 100 or 103), and for a savestate boot whether its
++// memory holds the patch (-1 = not a savestate boot or no patch for this executable).
++inline std::atomic<std::uint32_t> ppu_call_word{0}, ppu_patch_version{0};
++inline std::atomic<std::int32_t> savestate_patched{-1};
+ inline std::atomic<std::uint64_t> spu_images{0}, spu_matched{0}, spu_words_patched{0};
+ 
+ constexpr std::size_t hash_slots = 6;
+@@ -65,6 +71,7 @@ inline const char* ppu_name(std::uint32_t state) noexcept
+ 	case ppu_state::other_executable: return "other_executable";
+ 	case ppu_state::savestate: return "savestate_memory";
+ 	case ppu_state::policy_off: return "policy_off";
++	case ppu_state::refused_guard: return "refused_guard";
+ 	default: return "unset";
+ 	}
+ }
+diff --git a/rpcs3/ios/IOSIdleWindows916.h b/rpcs3/ios/IOSIdleWindows916.h
+new file mode 100644
+index 0000000..a5b9596
+--- /dev/null
++++ b/rpcs3/ios/IOSIdleWindows916.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_IDLE_WINDOWS_916: the 5 s report of a stopped emulation.
++//
++// Build 718, PID 45272: the exported performance journal (1,577,669 bytes, one 2 MiB rotation) holds windows 15 to 64
++// of session 5 and nothing of sessions 1 to 4; windows 18 to 64 were written after the game was stopped (phase=stopped,
++// state=0, every counter 0), 54 lines and about 30 KiB each: 1,442,924 bytes, 91.5 % of the file. Those lines pushed
++// the windows of Black Ops II and Assassin's Creed, the ones the capture was made for, out of the rotation.
++// A stopped window after the first one keeps its FRAMEPROF527 line (the freeze and progress clocks read it) and one
++// COREPROF IDLE916 line; the counters it would have printed are still taken, so the next running window starts clean.
++namespace rpcs3::ios::idle_windows
++{
++struct tracker
++{
++	std::uint32_t consecutive = 0; // stopped windows without a guest flip in a row, this one included
++
++	// True when this window's detail lines are left out: the second and later stopped windows of a row.
++	// The first one is printed in full: it holds what the stop itself did.
++	bool compact(bool stopped_phase, std::uint64_t guest_flips) noexcept
++	{
++		if (!stopped_phase || guest_flips)
++		{
++			consecutive = 0;
++			return false;
++		}
++
++		if (consecutive != ~0u)
++		{
++			consecutive++;
++		}
++
++		return consecutive >= 2;
++	}
++};
++} // namespace rpcs3::ios::idle_windows
+diff --git a/rpcs3/ios/IOSSpursRelaxedStore.h b/rpcs3/ios/IOSSpursRelaxedStore.h
+new file mode 100644
+index 0000000..bc4c6ae
+--- /dev/null
++++ b/rpcs3/ios/IOSSpursRelaxedStore.h
+@@ -0,0 +1,130 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++
++// REWINDBOX_SPURS_RELAXED_STORE_916: the PUTLLC of an SPU on the two header lines of a SPURS instance, when Accurate SPU
++// Reservations is off.
++//
++// Build 718, Assassin's Creed (BLES00158, accurate_res=false), PID 45272, session 3, stall dump of the stop sequence:
++// the main thread waits for the shutdown of a SPURS workload (semaphore _spuWkL, 6.125 s); the second header line
++// holds wklState1[1] = 3 (shutting down) and sysSrvMsgUpdateWorkload = 0xff, written by the PPU's reservation
++// operation; the first header line holds sysSrvMessage = 0xe0: the plain byte store of 0xff that the PPU makes next,
++// to wake the SPURS kernels, is not in memory, and the five kernels wait for a lost reservation on that line with the
++// line's current reservation time. Upstream's relaxed path stored the whole 128-byte line of a SPURS header from the
++// SPU's local copy once the reservation time was unchanged, without comparing the line: a plain guest store (it does
++// not advance the reservation time) made between the SPU's GETLLAR and its PUTLLC was overwritten by the copy read
++// before it. On the console that store loses the SPU its reservation and the PUTLLC fails.
++//
++// This store never writes a byte the SPU did not change, fails when the line no longer is what GETLLAR read, and when
++// it fails it leaves the line as the guest's own stores made it:
++//   1. the whole line is compared with the GETLLAR copy: any guest store made before this PUTLLC fails it;
++//   2. each 16-byte lane the SPU changed is exchanged against its GETLLAR value (one atomic exchange per lane), in
++//      address order; a lane the SPU did not change is not written;
++//   3. a guest store that reaches a changed lane after step 1: the PUTLLC fails. The lanes it had already stored are
++//      given their GETLLAR value back (an exchange against what it stored; a byte the guest stored into such a lane in
++//      between is kept), so the line ends as GETLLAR read it plus the guest's stores: the order "guest store, then a
++//      PUTLLC that fails", whatever the width of the store. Memory was written for a moment: the caller advances the
++//      reservation time for that outcome too, so no copy of the line read across it passes for unchanged.
++// An earlier form kept such a store beside the SPU's bytes, byte by byte (the order "PUTLLC, then the store"). A store
++// wider than one byte whose bytes partly equalled the ones GETLLAR read could then end split, a value neither side
++// wrote (independent review, 10 November): the PUTLLC is refused instead.
++// What a comparison of data cannot see stays as in every reservation of this emulator: a guest store of the value the
++// byte already had; and, here, a guest store into a lane already stored that writes the very byte this PUTLLC wrote,
++// while that lane is being given back (two guest stores inside one PUTLLC).
++// The caller holds the unique lock of the line's reservation word (other SPUs and PPU reservation stores are excluded
++// and a GETLLAR retries), as before; only plain guest stores can run beside this.
++namespace rpcs3::ios::spurs_relaxed_store
++{
++constexpr std::size_t line_bytes = 128;
++constexpr std::size_t lane_bytes = 16;
++constexpr std::size_t lanes = line_bytes / lane_bytes;
++
++enum class result : std::uint8_t
++{
++	stored,          // every lane the SPU changed holds its bytes
++	refused_changed, // the line was not what GETLLAR read: nothing written
++	refused_undone,  // a guest store reached a changed lane while the line was stored: the lanes already stored were
++	                 // given back. Memory was written: the reservation time must advance
++};
++
++inline std::atomic<std::uint64_t> stored_count{0}, undone_count{0}, refused_count{0};
++
++struct lane_t
++{
++	unsigned char bytes[lane_bytes];
++};
++
++// exchange(memory_lane, expected, desired): one atomic 16-byte compare-and-exchange on guest memory; on failure
++// `expected` receives the lane as memory holds it (the contract of atomic_storage<u128>::compare_exchange).
++template <typename Exchange>
++result store(unsigned char* memory, const unsigned char* getllar, const unsigned char* to_write, Exchange&& exchange) noexcept
++{
++	if (std::memcmp(memory, getllar, line_bytes) != 0)
++	{
++		refused_count.fetch_add(1, std::memory_order_relaxed);
++		return result::refused_changed;
++	}
++
++	unsigned written = 0; // one bit per lane stored
++
++	for (std::size_t lane = 0; lane < lanes; lane++)
++	{
++		const std::size_t at = lane * lane_bytes;
++
++		if (std::memcmp(to_write + at, getllar + at, lane_bytes) == 0)
++		{
++			continue;
++		}
++
++		lane_t expected, desired;
++		std::memcpy(expected.bytes, getllar + at, lane_bytes);
++		std::memcpy(desired.bytes, to_write + at, lane_bytes);
++
++		if (exchange(memory + at, expected, desired))
++		{
++			written |= 1u << lane;
++			continue;
++		}
++
++		if (!written)
++		{
++			refused_count.fetch_add(1, std::memory_order_relaxed);
++			return result::refused_changed;
++		}
++
++		// The guest stored into this lane after step 1. Give back the lanes already stored, last one first.
++		for (std::size_t back = lane; back-- > 0;)
++		{
++			if (!(written & (1u << back)))
++			{
++				continue;
++			}
++
++			const std::size_t from = back * lane_bytes;
++			lane_t stored, before;
++			std::memcpy(stored.bytes, to_write + from, lane_bytes);
++			std::memcpy(before.bytes, getllar + from, lane_bytes);
++
++			while (!exchange(memory + from, stored, before))
++			{
++				// `stored` is the lane now. A byte that is not the one this PUTLLC stored was stored by the guest
++				// since: it stays. Every other byte takes its GETLLAR value back.
++				for (std::size_t i = 0; i < lane_bytes; i++)
++				{
++					before.bytes[i] = stored.bytes[i] != to_write[from + i] ? stored.bytes[i] : getllar[from + i];
++				}
++			}
++		}
++
++		undone_count.fetch_add(1, std::memory_order_relaxed);
++		return result::refused_undone;
++	}
++
++	stored_count.fetch_add(1, std::memory_order_relaxed);
++	return result::stored;
++}
++} // namespace rpcs3::ios::spurs_relaxed_store
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index ba348ae..c4701b2 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -450,6 +450,8 @@ namespace rpcs3::ios::boot_diagnostics
+ 		std::string_view overrides;     // every applied sparse override key; filtered when formatted
+ 	};
+ 
++	constexpr std::size_t levers627_limit = 48; // REWINDBOX_LEVERS_EXPORT_916
++
+ 	inline std::string format_config_rsx_line(const config_rsx& rsx)
+ 	{
+ 		std::string line = "CONFIG_LAYERS part=rsx";
+@@ -475,7 +477,10 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 18);
++		// REWINDBOX_LEVERS_EXPORT_916: the Core composes 21 digits since Core 912 (PUT horizon, heavy PUTLLC trace, PPU
++		// region profile) and the limit was still 18: the host, which reads this line, never saw digits 19 to 21, so
++		// no capture request could be sent on build 718. The limit leaves room for later levers.
++		append_text(line, "levers627", rsx.levers627, levers627_limit);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
+diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+index a3de958..85b710c 100644
+--- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
++++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
+@@ -10,6 +10,7 @@
+ #include "Emu/Cell/lv2/sys_spu.h"
+ #include "Emu/Cell/lv2/sys_semaphore.h" // REWINDBOX_FREEZE_DEEP_621
+ #include "Emu/Cell/lv2/sys_lwcond.h" // REWINDBOX_FREEZE_POLLER_908
++#include "IOSFreezeChain916.h" // REWINDBOX_FREEZE_CHAIN_916
+ #include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
+ #include "ios/IOSCapture912.h" // REWINDBOX_CAPTURE_912
+ #include "Emu/RSX/RSXFIFO.h"
+@@ -170,6 +171,10 @@ struct lwcond_state
+ 	u32 lwid = 0;
+ 	u32 control = 0;
+ 	std::vector<u32> waiters;
++	// REWINDBOX_FREEZE_CHAIN_916: the waiters are the condition's own queue (read under its lock, only tried).
++	bool locked = false;
++	bool more = false;
++	s32 lwmutex_waiters = 0;
+ };
+ 
+ std::string lwcond_line(const lwcond_state& cond)
+@@ -186,7 +191,29 @@ std::string lwcond_line(const lwcond_state& cond)
+ 	}
+ 	std::string line = fmt::format("FREEZE_DUMP lwcond id=0x%x name=%s lwmutex_id=0x%x control=0x%x control_data=%s lwmutex=0x%x lwmutex_data=%s waiters=%s",
+ 		cond.id, sanitize_token(lv2_obj::name64(cond.name)), cond.lwid, cond.control, guest_hex(cond.control, 8), lwmutex,
+-		guest_hex(lwmutex, 24), ids.empty() ? std::string("-") : ids);
++		guest_hex(lwmutex, 24), !cond.locked ? std::string("busy") : ids.empty() ? std::string("-") : ids);
++	// REWINDBOX_FREEZE_CHAIN_916: waiters= is the condition's queue; the count the kernel keeps of threads that wait
++	// for the mutex after a signal, and whether the queue was longer than what is listed.
++	fmt::append(line, " queue=kernel more=%u lwmutex_waiters=%d", cond.more ? 1u : 0u, cond.lwmutex_waiters);
++	return bound_line(line);
++}
++
++// REWINDBOX_FREEZE_CHAIN_916 (ios/IOSFreezeChain916.h): the return addresses of a PPU thread that waits or polls, from
++// its stack back chain, so that the place in the game that asked for the wait is named.
++std::string ppu_stack_line(const ppu_thread& ppu)
++{
++	u32 frames[10]{};
++	const std::size_t count = rpcs3::ios::freeze_chain::back_chain(ppu.gpr[1],
++		[](u32 addr) { return vm::check_addr(addr, vm::page_readable, 8); },
++		[](u32 addr) { return static_cast<u64>(*vm::get_super_ptr<be_t<u64>>(addr)); }, frames, std::size(frames));
++	std::string chain;
++	for (std::size_t i = 0; i < count; i++)
++	{
++		fmt::append(chain, "%s0x%x", i ? ":" : "", frames[i]);
++	}
++	std::string line = fmt::format("FREEZE_DUMP ppu_stack id=0x%x func=%s sp=0x%llx lr=0x%x chain=%s scope=saved_return_addresses_innermost_first",
++		ppu.id, sanitize_token(ppu.current_function ? ppu.current_function : ""), ppu.gpr[1], static_cast<u32>(ppu.lr),
++		chain.empty() ? std::string("-") : chain);
+ 	return bound_line(line);
+ }
+ 
+@@ -357,33 +384,45 @@ bool neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 			}, idm::unlocked);
+ 		}
+ 
+-		// REWINDBOX_FREEZE_POLLER_908: the lwconds the PPU threads wait on (r3 of
+-		// _sys_lwcond_queue_wait is the lwcond id), at most 6; their identity is const.
++		// REWINDBOX_FREEZE_POLLER_908: the lwconds the PPU threads wait on, at most 6; their identity is const.
++		// REWINDBOX_FREEZE_CHAIN_916: the waiters are read from each condition's own queue under its lock (only
++		// tried), not from r3 of the waiting threads: the system call has stored its return value there (the build
++		// 718 dump of Black Flag shows r3=0x0 for its twelve waiting threads and has no lwcond line). The condition
++		// the first PPU thread (the title's main thread) waits on is kept first.
+ 		if (g_fxo->is_init<id_manager::id_map<lv2_obj>>())
+ 		{
+-			std::vector<std::pair<u32, u32>> waited; // lwcond id, waiting ppu id
+-			for (const auto& ppu : ppus)
+-			{
+-				const char* function = ppu->current_function;
+-				if (function && std::strcmp(function, "_sys_lwcond_queue_wait") == 0)
+-				{
+-					waited.emplace_back(static_cast<u32>(ppu->gpr[3]), ppu->id);
+-				}
+-			}
++			const u32 first_id = ppus.empty() ? 0u : ppus.front()->id;
+ 			idm::select<lv2_obj, lv2_lwcond>([&](u32 id, lv2_lwcond& cond)
+ 			{
+ 				lwcond_state state{id, cond.name, cond.lwid, cond.control.addr()};
+-				for (const auto& [cond_id, ppu_id] : waited)
++				state.lwmutex_waiters = cond.lwmutex_waiters;
++				if (cond.mutex.try_lock_shared())
+ 				{
+-					if (cond_id == id && state.waiters.size() < 8)
+-					{
+-						state.waiters.push_back(ppu_id);
+-					}
++					state.locked = true;
++					u32 ids[8]{};
++					const std::size_t count = rpcs3::ios::freeze_chain::queue_ids(+cond.sq,
++						[](const ppu_thread* cpu) { return +cpu->next_cpu; }, [](const ppu_thread* cpu) { return cpu->id; },
++						ids, std::size(ids), state.more);
++					state.waiters.assign(ids, ids + count);
++					cond.mutex.unlock_shared();
+ 				}
+-				if (!state.waiters.empty() && lwconds.size() < 6)
++				if (state.locked && state.waiters.empty())
++				{
++					return;
++				}
++				const bool of_first = std::find(state.waiters.begin(), state.waiters.end(), first_id) != state.waiters.end();
++				if (of_first)
++				{
++					lwconds.insert(lwconds.begin(), std::move(state));
++				}
++				else if (lwconds.size() < 6)
+ 				{
+ 					lwconds.push_back(std::move(state));
+ 				}
++				if (lwconds.size() > 6)
++				{
++					lwconds.pop_back();
++				}
+ 			}, idm::unlocked);
+ 		}
+ 
+@@ -472,6 +511,25 @@ bool neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 			deep.push_back(lwcond_line(cond));
+ 		}
+ 
++		// REWINDBOX_FREEZE_CHAIN_916: where the waits were asked from: the first PPU thread, then the threads that
++		// poll or wait on a lightweight condition or a semaphore, 6 lines at most.
++		{
++			u32 stacks = 0;
++			const auto wants_stack = [](const char* function)
++			{
++				return function && (is_polling_call(function) || std::strcmp(function, "_sys_lwcond_queue_wait") == 0 ||
++					std::strcmp(function, "sys_semaphore_wait") == 0 || std::strcmp(function, "sys_cond_wait") == 0);
++			};
++			for (usz i = 0; i < ppus.size() && stacks < 6; i++)
++			{
++				if (i == 0 || wants_stack(ppus[i]->current_function))
++				{
++					deep.push_back(ppu_stack_line(*ppus[i]));
++					stacks++;
++				}
++			}
++		}
++
+ 		// REWINDBOX_CAPTURE_912: the semaphores the first PPU thread (the title's main thread) waits on come first.
+ 		const u32 first_ppu_id = ppus.empty() ? 0u : ppus.front()->id;
+ 		std::stable_partition(semaphores.begin(), semaphores.end(), [&](const sema_state& sema)
+@@ -793,7 +851,11 @@ void rewindbox_capture912_tick(unsigned long long session)
+ 	// The explicit start: the host wrote "Enabled" to the capture's setting when its in-game menu closed
+ 	// (ios/IOSCapture912.h, start_request). A request that cannot be served says why in the journal.
+ 	const bool start_putllc = capture::start_request::take(capture::start_request::putllc, running);
+-	const bool start_ppu = capture::start_request::take(capture::start_request::ppu, running);
++	// REWINDBOX_AUTO_PPU_PROFILE_916: the report's own request is served like the host's, and says so in trigger=.
++	const bool start_ppu_menu = capture::start_request::take(capture::start_request::ppu, running);
++	const bool start_ppu_auto = capture::start_request::take(capture::start_request::auto_ppu, running);
++	const bool start_ppu = start_ppu_menu || start_ppu_auto;
++	const char* const ppu_trigger = start_ppu_menu ? "menu_closed" : "auto_ppu_bound";
+ 	bool putllc_started = false;
+ 
+ 	// Heavy PUTLLC trace.
+@@ -847,8 +909,8 @@ void rewindbox_capture912_tick(unsigned long long session)
+ 	{
+ 		if (start_ppu)
+ 		{
+-			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u", session,
+-				capture::refusal_name(capture::admit_ppu(s_boot, true)), capture::ppu_profile::max_captures);
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u trigger=%s", session,
++				capture::refusal_name(capture::admit_ppu(s_boot, true)), capture::ppu_profile::max_captures, ppu_trigger);
+ 		}
+ 
+ 		if (!running)
+@@ -866,8 +928,8 @@ void rewindbox_capture912_tick(unsigned long long session)
+ 	}
+ 	else if (start_ppu && capture::admit_ppu(s_boot, false) != capture::refusal::none)
+ 	{
+-		ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u", session,
+-			capture::refusal_name(capture::admit_ppu(s_boot, false)), capture::ppu_profile::max_captures);
++		ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u trigger=%s", session,
++			capture::refusal_name(capture::admit_ppu(s_boot, false)), capture::ppu_profile::max_captures, ppu_trigger);
+ 	}
+ 	else if (start_ppu)
+ 	{
+@@ -897,13 +959,13 @@ void rewindbox_capture912_tick(unsigned long long session)
+ 			const u32 listed = static_cast<u32>(run->threads.size());
+ 			s_ppu = run.release();
+ 			s_ppu->worker = std::thread([state = s_ppu] { state->run(); });
+-			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=armed trigger=menu_closed threads=%u max_samples=%u",
+-				session, s_ppu->number, listed, capture::ppu_profile::max_samples);
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu capture=%u part=armed trigger=%s threads=%u max_samples=%u",
++				session, s_ppu->number, ppu_trigger, listed, capture::ppu_profile::max_samples);
+ 		}
+ 		else
+ 		{
+ 			// The thread list is read under a try-lock; busy, or no PPU thread yet.
+-			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=thread_list_unavailable", session);
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=thread_list_unavailable trigger=%s", session, ppu_trigger);
+ 		}
+ 	}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 9629144..d9da97c 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -40,6 +40,10 @@
+ #include "IOSLoadOpClear907.h"
+ #include "IOSWriterLockPhases.h" // REWINDBOX_WRITER_LOCK_PHASES_908
+ #include "IOSGow3MlaaReport.h" // REWINDBOX_GOW3_MLAA_REPORT_909
++#include "IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
++#include "IOSIdleWindows916.h" // REWINDBOX_IDLE_WINDOWS_916
++#include "IOSAutoPpuProfile916.h" // REWINDBOX_AUTO_PPU_PROFILE_916
++#include "IOSCapture912.h"
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+ #include "IOSRendererCausality.h"
+ #include "IOSSignalTrace.h"
+@@ -1120,6 +1124,21 @@ private:
+             guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
+             guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram,
+             guest_window_flips, guest_progress.wall_guest_fps, guest_progress.completed_interval_fps, guest_progress.last_guest_flip_age_ms);
++        // REWINDBOX_IDLE_WINDOWS_916 (ios/IOSIdleWindows916.h): the second and later windows of a stopped emulation keep
++        // the line above and this one. The channel is lowered as for a light run: the lines below are not formatted,
++        // their counters are still taken, and the level comes back at the end of the report.
++        const bool ios_idle_compact = m_idle_windows.compact(state == system_state::stopped || state == system_state::stopping, guest_window_flips);
++        if (ios_idle_compact)
++        {
++            ios_core_profiler.notice("COREPROF IDLE916 session=%llu window=%llu consecutive=%u detail=frameprof_only "
++                "last_guest_flip_age_ms=%.3f scope=stopped_windows_after_the_first",
++                profile_session, profile_window, m_idle_windows.consecutive, guest_progress.last_guest_flip_age_ms);
++
++            if (ios_core_profiler.enabled.load() > logs::level::warning)
++            {
++                ios_core_profiler.enabled.release(logs::level::warning);
++            }
++        }
+         {
+             const u64 anchor_before = utils::get_tsc();
+             const u64 anchor_us = static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
+@@ -1806,12 +1825,17 @@ private:
+             s_previous = now_totals;
+             ios_core_profiler.notice(
+                 "COREPROF SPUWAIT551 session=%llu window=%llu tuple=count:total_ms getllar_poll=%llu:%.3f getllar_sleep=%llu:%.3f "
+-                "event_wait=%llu:%.3f putllc_ok=%llu putllc_fail=%llu putllc_heavy=%llu scope=process_window_all_spu_threads",
++                "event_wait=%llu:%.3f putllc_ok=%llu putllc_fail=%llu putllc_heavy=%llu scope=process_window_all_spu_threads "
++                "spurs_relaxed=%llu:%llu:%llu spurs_relaxed_tuple=stored:undone:refused",
+                 profile_session, profile_window,
+                 d[wait::getllar_polls], milliseconds(d[wait::getllar_poll_ticks]),
+                 d[wait::getllar_sleeps], milliseconds(d[wait::getllar_sleep_ticks]),
+                 d[wait::event_waits], milliseconds(d[wait::event_wait_ticks]),
+-                d[wait::putllc_ok], d[wait::putllc_fail], d[wait::putllc_heavy]);
++                d[wait::putllc_ok], d[wait::putllc_fail], d[wait::putllc_heavy],
++                // REWINDBOX_SPURS_RELAXED_STORE_916: PUTLLC on a SPURS header with relaxed reservations in this window.
++                rpcs3::ios::spurs_relaxed_store::stored_count.exchange(0, std::memory_order_relaxed),
++                rpcs3::ios::spurs_relaxed_store::undone_count.exchange(0, std::memory_order_relaxed),
++                rpcs3::ios::spurs_relaxed_store::refused_count.exchange(0, std::memory_order_relaxed));
+         }
+         // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
+         {
+@@ -1875,10 +1899,14 @@ private:
+         {
+             namespace mlaa = rpcs3::ios::gow3_mlaa;
+             ios_core_profiler.notice("COREPROF GOW3MLAA909 session=%llu window=%llu executable=%s ppu=%s spu_images=%llu spu_matched=%llu "
+-                "spu_words_patched=%llu unmatched_spu=%s scope=process_since_boot",
++                "spu_words_patched=%llu unmatched_spu=%s scope=process_since_boot ppu_patch=%u ppu_call_word=0x%08x savestate_patched=%d",
+                 profile_session, profile_window, mlaa::executable_hash(), mlaa::ppu_name(mlaa_ppu),
+                 mlaa::spu_images.load(std::memory_order_relaxed), mlaa::spu_matched.load(std::memory_order_relaxed),
+-                mlaa::spu_words_patched.load(std::memory_order_relaxed), mlaa::unmatched_list());
++                mlaa::spu_words_patched.load(std::memory_order_relaxed), mlaa::unmatched_list(),
++                // REWINDBOX_GOW3_MLAA_100_916: the plan of this executable (100, 103, 0 = none), the word it replaced
++                // and, on a savestate boot, whether the restored memory holds the patch (-1 = not applicable).
++                mlaa::ppu_patch_version.load(std::memory_order_relaxed), mlaa::ppu_call_word.load(std::memory_order_relaxed),
++                mlaa::savestate_patched.load(std::memory_order_relaxed));
+         }
+         // CELL581_TEXTURE_PREHASH: RSX validations served by the worker and its work, one bounded line.
+         {
+@@ -2122,6 +2150,10 @@ private:
+ 		const u64 window_frames = current_frames > frame_baseline ? current_frames - frame_baseline : 0;
+ 		if (!window_frames && Emu.GetStatus(false) == system_state::stopped)
+ 		{
++			// REWINDBOX_IDLE_WINDOWS_916: this exit is the one a stopped window takes. The level lowered above (a compact
++			// window, or a light run) comes back here too: left lowered, it would be read as the boot's level by the
++			// next report and every later line of the channel would be lost.
++			ios_core_profiler.enabled.release(ios_channel_level);
+ 			return;
+ 		}
+ 
+@@ -2212,10 +2244,14 @@ private:
+ 		const u64 rsx_window_elapsed_us = m_rsx_window_elapsed_us.exchange(0, std::memory_order_relaxed);
+ 		const u64 rsx_window_idle_us = m_rsx_window_idle_us.exchange(0, std::memory_order_relaxed);
+ 		const double rsx_fifo_busy = rpcs3::ios::profiler::rsx_fifo_busy_percent(rsx_window_elapsed_us, rsx_window_idle_us);
+-		const std::string top_list = rpcs3::ios::profiler::format_top_list(
+-			rpcs3::ios::profiler::top_threads(std::move(top_accumulated), usage_samples));
++		const std::vector<rpcs3::ios::profiler::thread_cores> top_rows = rpcs3::ios::profiler::top_threads(std::move(top_accumulated), usage_samples);
++		const std::string top_list = rpcs3::ios::profiler::format_top_list(top_rows);
+ 
+-		ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_LIGHT_MEASUREMENT_627
++		// REWINDBOX_IDLE_WINDOWS_916: a compact stopped window has no synthesis line either; its level comes back below.
++		if (!ios_idle_compact)
++		{
++			ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_LIGHT_MEASUREMENT_627
++		}
+ 		ios_core_profiler.notice(
+ 			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
+ 			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
+@@ -2244,6 +2280,18 @@ private:
+ 			group_cores(core_group::jit), group_cores(core_group::other),
+ 			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
+ 			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
++		ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_IDLE_WINDOWS_916: after the last line of a compact window
++
++		// REWINDBOX_AUTO_PPU_PROFILE_916 (ios/IOSAutoPpuProfile916.h): the busiest PPU thread saturates a core in the
++		// second running window in a row: ask once per boot for the bounded PPU region profile. The diagnostic thread
++		// serves the request with the limits of an explicit one and prints COREPROF PPUPROF912 trigger=auto_ppu_bound.
++		if (const double busiest_ppu = rpcs3::ios::auto_ppu_profile::busiest_ppu(top_rows);
++			m_auto_ppu_profile.observe(profile_session, state == system_state::running, guest_window_flips, busiest_ppu))
++		{
++			rpcs3::ios::capture912::start_request::auto_ppu.store(true, std::memory_order_release);
++			ios_core_profiler.notice("COREPROF AUTOPPU916 session=%llu window=%llu busiest_ppu_cores=%.3f bound_cores=%.2f windows=%u request=ppu_region_profile",
++				profile_session, profile_window, busiest_ppu, rpcs3::ios::auto_ppu_profile::bound_cores, rpcs3::ios::auto_ppu_profile::windows_needed);
++		}
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3) requested the bounded
+ 		// FREEZE_DUMP here, from 5 s windows. REWINDBOX_FREEZE_EPISODE_621 moved it to
+@@ -2255,6 +2303,8 @@ private:
+ 
+ 
+     u64 m_report_window = 0; // guarded by m_profile_mutex
++    rpcs3::ios::idle_windows::tracker m_idle_windows; // REWINDBOX_IDLE_WINDOWS_916: report thread only
++    rpcs3::ios::auto_ppu_profile::tracker m_auto_ppu_profile; // REWINDBOX_AUTO_PPU_PROFILE_916: report thread only
+     // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
+     rpcs3::ios::freeze_episode::tracker m_freeze_episode;
+     u64 m_freeze_session = 0;

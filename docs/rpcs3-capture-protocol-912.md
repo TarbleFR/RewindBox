@@ -14,6 +14,19 @@ restent hors de Git.
 
 Un témoin n'est comparable qu'à la référence dont il est issu : 915 avec 914 seulement.
 
+**Core 916** (correctifs tirés des journaux du build 718 : [rpcs3-core916-build718.md](rpcs3-core916-build718.md))
+change trois points de ce protocole :
+
+- sur le build 718 (Core 914), **aucune capture ne pouvait être demandée** : `CONFIG_LAYERS levers627=` exportait
+  18 chiffres sur 21 et l'hôte lit les chiffres 20 et 21 avant d'envoyer la demande. Les parcours B de la section 6
+  ne sont exécutables qu'à partir du Core 916 ;
+- le rapport demande lui-même un profil de régions PPU, une fois par démarrage, quand le thread PPU le plus chargé
+  dépasse 0,85 cœur deux fenêtres de suite (`COREPROF AUTOPPU916`, puis `PPUPROF912 … trigger=auto_ppu_bound`) : il
+  ne dépend ni de la page Tests ni du menu, et compte dans la limite de 3 profils par démarrage ;
+- une fenêtre « jeu arrêté » après la première ne contient plus que `FRAMEPROF527` et `COREPROF IDLE916` ;
+  l'analyseur l'affiche `stopped(compact)` et ses colonnes `compact` (ni absentes ni perdues). Le dump de blocage
+  gagne les lignes `lwcond … queue=kernel` et `ppu_stack`.
+
 Les deux exposent la variante dans les exports : `COREPROF TEXMEMO660 … ways=16` ou `ways=4`. Une IPA ne contient
 qu'un Core : la comparaison AC1 demande deux IPA, identiques par ailleurs (même hôte, même MeloNX).
 

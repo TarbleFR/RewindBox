@@ -1,12 +1,15 @@
-# Embedded Libretro cores — current development source
+# Embedded Libretro cores — Build 530 source and licenses
 
-Public 0.0.8 / Build 480 contained 34 cores; the earlier 0.0.7 / Build 455
-contained 14. The current development tree contains the 35 cores credited
-below, with Mesen added on 20 October 2026.
+The published [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)
+IPA contains **35 iOS ARM64 Libretro cores**, including Azahar
+2127.0-alpha1 and the optional Mesen NES engine. Public 0.0.8 / Build 480
+previously contained 34 cores; 0.0.7 / Build 455 contained 14.
 
-NeoStation packages 35 iOS ARM64 libretro core binaries, including the official
-Azahar 2127.0-alpha1 release. RetroArch
-is a separate frontend; NeoStation embeds these cores using its own host.
+**RewindBox** embeds the cores in its own frontend; RetroArch is a separate
+frontend and is not required to launch them from RewindBox. Build 530's
+pinned host binary/source context is identified in the
+[release and corresponding-source manifest](../../../docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+No missing buildbot source attestation is implied by the new release.
 All original authors retain their rights. No endorsement or relicensing is implied.
 
 ## Credits and license texts

@@ -1,5 +1,44 @@
 # Engine corresponding sources
 
+## Current published Build 530 source addendum (25 October 2026)
+
+The published [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)
+is newer than this document's original 21 October audit snapshot.
+Its **host application source** is
+[`3f0c706afe1d0faa635465517871a500c3289582`](https://github.com/TarbleFR/RewindBox/tree/3f0c706afe1d0faa635465517871a500c3289582);
+the release workflow completed in [run **40156236364**](https://github.com/TarbleFR/RewindBox/actions/runs/40156236364).
+See the [exact Build 530 release/source manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+rather than treating the older Build 499/500 and unfinished-MeloNX records
+below as the current build identities.
+
+- **MeloNX is now embedded** in the IPA, not an external handoff or a
+  future/unpackaged engine. Its patched NativeAOT core uses source
+  `ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12`,
+  [successful CI run **40152134234**](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234)
+  and upstream [MeloNX revision `13700519f3abc4e6d7ed8a065b118b2cc59bcd67`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67).
+  The [pinned build adapter](../build-utils/melonx/adapt_runtime.py)
+  avoids the unsupported iOS `VK_EXT_external_memory_host` buffer import and
+  retains the existing GPU readback fallback.
+- **RPCS3 is Core 528**, source
+  `17ee65469c39e560c91fdb6d55604ab590992f59`,
+  [successful run **40142369420**](https://github.com/TarbleFR/RewindBox/actions/runs/40142369420).
+  This supersedes the core binary mentioned in the historical Build 499/500
+  rows, but does not establish a God of War III FPS gain.
+- **Libretro has 35 bundled cores**, including Mesen and the rebuilt PPSSPP
+  core; the binary remains tied to the immutable source/identity receipts
+  and still has the 32 buildbot-source-attestation gaps documented below.
+
+The bundle's `Legal/Sources/BUILD_SOURCE_EVIDENCE.json` sets
+`complete_corresponding_source_attested: false`. The newer host and engine
+source links do not remove previously identified component source, license
+or commercial SDK obligations. Build 530 validation includes the ARM64 iOS
+simulator; long-duration real-iPhone gameplay has not been independently
+verified.
+
+---
+
+## Historical engine source-rights audit (21 October 2026)
+
 Review: **21 October 2026**, development source
 `fab5ecf3b119b4d84636ad4f4d03218a96279871` on `Claude`. This record prepares
 source access for a future distribution. It does not change an engine binary,

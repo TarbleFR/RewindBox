@@ -1,6 +1,35 @@
 # Source code access and dependency provenance
 
-**Next-release preparation · 21 October 2026 · Unpublished**
+**Current release update · 25 October 2026** (historical source preparation from 21 October retained below)
+
+## Published Build 530: exact sources to inspect
+
+The latest release is [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1).
+Use its [release-specific source manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+and the compiled host source revision
+[`3f0c706afe1d0faa635465517871a500c3289582`](https://github.com/TarbleFR/RewindBox/tree/3f0c706afe1d0faa635465517871a500c3289582)
+when seeking the source code corresponding to the current iOS download.
+The release-publishing workflow is attached to
+[`97d68263ed64a7a7e38a715627a3851d40c679d9`](https://github.com/TarbleFR/RewindBox/commit/97d68263ed64a7a7e38a715627a3851d40c679d9)
+and intentionally checks out that earlier exact application revision.
+
+Build 530 includes the **embedded MeloNX** runtime using RewindBox engine
+source `ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12` and the successful
+[NativeAOT / iOS simulator run](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234).
+The retained RPCS3 core comes from source revision
+`17ee65469c39e560c91fdb6d55604ab590992f59` (Core 528);
+the build contains **35 Libretro cores**. Source pins, upstream locations,
+patches, license notices and remaining attestation gaps are indexed in the
+[Build 530 manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+
+Inside the IPA, `Legal/BUILD_SOURCE_IDENTITY.json` and
+`Legal/Sources/BUILD_SOURCE_EVIDENCE.json` record the build's source
+identity and resolved inputs. The latter explicitly says
+`complete_corresponding_source_attested: false`. A GitHub repository link,
+license notice or compiled-binary digest alone **does not** demonstrate a
+complete corresponding-source delivery for every native dependency.
+
+## Historical source-access preparation (21 October 2026)
 
 RewindBox's code, local changes, build recipes, dependency notices and source
 references must be kept together when preparing a binary distribution. This
@@ -11,7 +40,7 @@ or claim that every component has complete corresponding-source coverage.
 ## 1. RewindBox's source and the changes since 0.0.8
 
 The host repository is [TarbleFR/RewindBox](https://github.com/TarbleFR/RewindBox).
-Future app bundles record their exact host commit in
+Current Build 530 and earlier source-audited app bundles record their host commit in
 `Legal/BUILD_SOURCE_IDENTITY.json` and in
 `Legal/Sources/BUILD_SOURCE_EVIDENCE.json`. The latter contains the immutable
 host source archive URL and a URL template for each reviewed repository file.

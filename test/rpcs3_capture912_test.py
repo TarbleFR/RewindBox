@@ -428,7 +428,8 @@ def static_checks(source: Path) -> None:
                    'capture::start_request::take(capture::start_request::putllc, running)',
                    'capture::start_request::take(capture::start_request::ppu, running)',
                    'if (s_boot.enter(session))', 'capture::serve_putllc(s_boot, utils::get_tsc())', 's_putllc_end = "session_change";',
-                   'part=armed trigger=menu_closed', 'COREPROF PUTLLCTRACE912 session=%llu part=refused reason=%s', 'COREPROF PPUPROF912 session=%llu part=refused reason=%s',
+                   # Core 917: both captures name their trigger (the host's request when its menu closes, or the report's own).
+                   'part=armed trigger=%s', 'start_putllc_menu ? "menu_closed" : "auto_heavy_putllc"', 'COREPROF PUTLLCTRACE912 session=%llu part=refused reason=%s', 'COREPROF PPUPROF912 session=%llu part=refused reason=%s',
                    'capture::admit_ppu(s_boot, true)', 'capture::admit_ppu(s_boot, false) != capture::refusal::none',
                    'part=refused reason=thread_list_unavailable',
                    's_putllc_number = s_boot.putllc;', 'run->number = ++s_boot.ppu;', 'run->session = session;',

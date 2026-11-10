@@ -159,7 +159,11 @@ def static_checks(source: Path) -> dict:
     ppu = (source / 'rpcs3/Emu/Cell/PPUModule.cpp').read_text()
     spu = (source / 'rpcs3/Emu/Cell/lv2/sys_spu.cpp').read_text()
     require('rpcs3::ios::gow3_mlaa::record_executable(hash,' in ppu and 'ppu_state::savestate' in ppu, 'PPU decision recorded')
-    require('hash == "PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" &&' in ppu, 'the PPU bypass gate is unchanged')
+    # Core 916: the gate is the plan of the exact executable (ios/IOSGow3MlaaPatch.h), applied at a fresh boot with the setting on.
+    plan = (source / 'rpcs3/ios/IOSGow3MlaaPatch.h').read_text()
+    require('const mlaa_patch::plan* mlaa_plan = mlaa_patch::find(hash);' in ppu and 'if (!ar && mlaa_policy && mlaa_plan)' in ppu and
+            '{"PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962", "01.03", 0x0052bf2f, 0x0023137c, false, true},' in plan,
+            'the PPU bypass gate: exact executable, setting on, fresh boot')
     require('rpcs3::ios::gow3_mlaa::record_unmatched_spu(hash);' in spu and 'spu_words_patched.fetch_add' in spu, 'SPU decision recorded')
     cache_cpp = (source / 'rpcs3/Emu/RSX/Common/texture_cache.cpp').read_text()
     for needle in ('batch.size() < g_lookahead &&', 'g_lookahead = next_lookahead(g_lookahead, hashes_now - g_frame_worker_hashes, hits_now - g_frame_hits);',

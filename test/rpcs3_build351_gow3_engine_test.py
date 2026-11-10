@@ -69,14 +69,20 @@ def main() -> None:
         require(token in sys_spu, f"missing guarded MLAA token: {token}")
     require("get_experimental_policy().gow3_mlaa_bypass" in sys_spu,
             "MLAA engine bypass is not opt-in")
-    require("PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962" in ppu_module and
-            "0x0052bf2c" in ppu_module and "0x0023137c" in ppu_module and
-            "0x60000000" in ppu_module and
+    # Core 916 (REWINDBOX_GOW3_MLAA_100_916): the pair lives in ios/IOSGow3MlaaPatch.h, one plan per executable. The
+    # delivered 01.03 form is unchanged: the big-endian word that ends with the flag byte 0x52bf2f (0x0052bf2c) is
+    # cleared and the call at 0x0023137c becomes nop, without a content guard
+    # (test/rpcs3_gow3_mlaa100_916_test.py executes both plans on images of the two executables).
+    plan = read("rpcs3/ios/IOSGow3MlaaPatch.h")
+    require('{"PPU-19724fde16a5b111b7b4d2a065f5dccaf8e01962", "01.03", 0x0052bf2f, 0x0023137c, false, true},' in plan and
+            "constexpr std::uint32_t nop = 0x60000000;" in plan and
+            "const std::uint32_t word_address = p.flag_address & ~3u;" in plan and
+            "mlaa_patch::find(hash)" in ppu_module and
             "_main.get_ref<u32>(address)" in ppu_module and
             "_main.get_ref<be_t<u32>>(address)" not in ppu_module,
             "official God of War III 01.03 PPU MLAA bypass is missing")
     require("get_experimental_policy().gow3_mlaa_bypass" in ppu_module and
-            "!ar" in ppu_module,
+            "if (!ar && mlaa_policy && mlaa_plan)" in ppu_module,
             "PPU MLAA bypass is not guarded from savestate/disabled paths")
     require("God of War III MLAA Bypass" in config and
             "God of War III MLAA bypass" in settings,
