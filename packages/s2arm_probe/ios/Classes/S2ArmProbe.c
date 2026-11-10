@@ -462,6 +462,17 @@ static int run_module(const char *mode, uint8_t *start, uint8_t *text_rw, uint8_
     return ok;
 }
 
+// The window is address space only, but the engine started next reserves its own.
+static void release_window(void) {
+    if (!g.window) return;
+    say("windowRelease", "begin", "munmap %p, %.0f GiB", (void *)g.window, (double)g.window_size / GIB);
+    int result = munmap(g.window, g.window_size);
+    say("windowRelease", result ? "failed" : "passed", "errno=%d", result ? errno : 0);
+    g.window = NULL;
+    g.slot = NULL;
+    g.modes &= ~RB_S2ARM_MODE_FIXED;
+}
+
 int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
     if (!log || !g.log) return -1;
     g.log = log;
@@ -469,6 +480,7 @@ int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
         footprint_mib());
     if (!g.modes) {
         say("phase2", "failed", "phase 1 found no way to place executable code");
+        release_window();
         return -1;
     }
     for (int k = 0; k < KEYS; k++)
@@ -485,6 +497,7 @@ int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
     uint8_t *late = writable_alias("lateAlias", source, PAGE);
     if (late) run_stub("lateAliasExecute", late + PAGE - 2 * STUB_BACK, source + PAGE - 2 * STUB_BACK);
 
+    release_window();
     int ok = fixed == 1 || (fixed == -1 && arena == 1);
     say("phase2", ok ? "passed" : "failed", "fixed=%d arena=%d (1 passed, 0 failed, -1 not available) footprint=%.1f MiB", fixed, arena,
         footprint_mib());
@@ -497,6 +510,17 @@ int rb_s2arm_probe_attached(rb_s2arm_prepare_fn prepare, rb_s2arm_log_fn log, ui
     (void)prepare; (void)log; (void)flags;
     return -1;
 }
+// The window is address space only, but the engine started next reserves its own.
+static void release_window(void) {
+    if (!g.window) return;
+    say("windowRelease", "begin", "munmap %p, %.0f GiB", (void *)g.window, (double)g.window_size / GIB);
+    int result = munmap(g.window, g.window_size);
+    say("windowRelease", result ? "failed" : "passed", "errno=%d", result ? errno : 0);
+    g.window = NULL;
+    g.slot = NULL;
+    g.modes &= ~RB_S2ARM_MODE_FIXED;
+}
+
 int rb_s2arm_probe_detached(rb_s2arm_log_fn log) {
     (void)log;
     return -1;

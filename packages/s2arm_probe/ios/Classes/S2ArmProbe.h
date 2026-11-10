@@ -26,7 +26,8 @@ enum { // result bits of rb_s2arm_probe_attached
 // Returns the modes available for phase 2 (0 = none), or -1 if it could not start.
 int rb_s2arm_probe_attached(rb_s2arm_prepare_fn prepare, rb_s2arm_log_fn log, uint32_t flags);
 // Phase 2: after the helper has detached. Loads and runs the rewritten synthetic
-// module. Returns 0 if every check passed, 1 otherwise, -1 if phase 1 gave no mode.
+// module, then releases the window. Call it whenever phase 1 returned >= 0.
+// Returns 0 if every check passed, 1 otherwise, -1 if phase 1 gave no mode.
 int rb_s2arm_probe_detached(rb_s2arm_log_fn log);
 
 #ifdef __cplusplus

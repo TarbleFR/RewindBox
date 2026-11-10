@@ -105,3 +105,50 @@ and may not build third-party source.
 Limits: macOS seals the code with `mprotect`, which the iPhone JIT forbids; x18 and
 `tpidrro_el0` behaviour, signal delivery and address space on iOS are not covered. Questions
 A–F remain entirely open.
+
+## Step 3 — device probe (written, checked on the host, not yet in the app)
+
+`packages/s2arm_probe` (diagnostic only; no S2Arm source, no game content). The module it
+runs is the rewriter's output for the synthetic module, committed as generated data
+(`S2ArmSynthModule.h`, SHA-256 of the image `e2341dfd…9698`, compared with the rewriter's
+output in CI). Host check: run `42924925273`, commit `92f5007`: with a stand-in for the JIT
+helper on macOS arm64 both placements ran the module (16/16 checks each), and the three
+sources compile for iOS arm64 with `-Werror`. This checks the probe's logic only.
+
+### Hook specification for the MeloNX bridge (owner: session 01)
+
+- **Lookup, no link dependency:** `NSClassFromString(@"S2ArmProbePlugin")`, then
+  `+attachedFunction` and `+detachedFunction` return the two C functions declared in
+  `packages/s2arm_probe/ios/Classes/S2ArmProbe.h`. Class absent: one journal line, nothing else.
+- **Trigger:** a diagnostic switch absent from the player path, chosen by the bridge owner
+  (proposal: an Info.plist boolean set only in the test IPA). A second switch passes
+  `RB_S2ARM_PROBE_SELF_MAPPED`; it is used only if the first journal asks for it.
+- **Phase 1** `rb_s2arm_probe_attached(prepare, log, flags)`: after
+  `MeloNXJitConfirmCoreLoadHandoff`, before `runtime.prepareJit()`. `prepare(address, length)`
+  issues helper command 1 and returns x0. Calls made: `(0, 0x8000)` and `(0, 0x14000)`; with the
+  flag, also two calls with a chosen address and 0x4000. It executes no `brk` of its own.
+- **Phase 2** `rb_s2arm_probe_detached(log)`: after `MeloNXJitWaitForDetach` succeeded and before
+  any guest thread exists; call it whenever phase 1 returned 0 or more.
+- **Journal:** `log(step, status, detail)` must be durable when it returns, under a recognisable
+  prefix such as `s2armProbe.<step>`: the next step may end the process.
+- **Signals:** around risky accesses the probe installs SIGSEGV/SIGBUS/SIGILL handlers and
+  restores the previous ones. In phase 2 its SIGTRAP handler advances one exact address (the
+  module's own `brk #0x123`), passes anything else to the previous handler, and is removed
+  after the run. It never skips a JIT helper `brk`.
+- **Memory and address space:** 0x1C000 bytes of helper-prepared memory (kept), up to 64 GiB
+  reserved without access below 2^39 and released at the end of phase 2.
+- **Outcome:** the probe's result never fails the launch; the game then starts as usual.
+
+### What the journal must show
+
+| Question | Journal steps |
+| --- | --- |
+| A window below 2^39 | `holes` (largest hole), `window` (size obtained) |
+| B code at a chosen address | `helperRegion`, `fixedAlias`, `fixedExecuteText`, `fixedExecutePatch` |
+| B fallback, one region with data inside | `arenaRegion`, `arenaDataProtect` or `arenaDataOverlay`, `arenaExecuteText/Patch` |
+| C write after detach | `fixedWrite` / `arenaWrite`, `lateAlias`, `lateAliasExecute` |
+| D redirections and gates | `fixedSlots`, `fixedRun` with `checks=16/16` (same for `arena`) |
+| E `brk` after detach | `brk=1` in `fixedRun` / `arenaRun` |
+| F memory | `footprint` in `phase1` and `phase2` lines |
+
+A step with `begin` and no result is the step that ended the process.
