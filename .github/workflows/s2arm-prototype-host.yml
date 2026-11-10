@@ -9,6 +9,7 @@ name: S2Arm prototype host proof
     paths:
       - .github/workflows/s2arm-prototype-host.yml
       - tools/s2arm_prototype/**
+      - packages/s2arm_probe/**
 permissions:
   contents: read
 concurrency:
@@ -75,6 +76,35 @@ jobs:
           clang -O1 -Wall -Wextra -o proof/host_loader tools/s2arm_prototype/host_loader.c \
             "$RUNNER_TEMP/s2arm/runtime/src/entry.S"
           bash tools/s2arm_prototype/run_host_proof.sh proof/host_loader proof/out proof/host-proof.txt
+      - name: Device probe, module header, host run and iOS compilation
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          classes=packages/s2arm_probe/ios/Classes
+          python3 tools/s2arm_prototype/emit_module_header.py proof/out proof/S2ArmSynthModule.h
+          if [ -f "$classes/S2ArmSynthModule.h" ]; then
+            cmp proof/S2ArmSynthModule.h "$classes/S2ArmSynthModule.h"
+          else
+            echo "::warning::S2ArmSynthModule.h is not committed yet; using the generated one"
+            cp proof/S2ArmSynthModule.h "$classes/S2ArmSynthModule.h"
+            echo '----- BEGIN S2ArmSynthModule.h -----'; cat proof/S2ArmSynthModule.h; echo '----- END S2ArmSynthModule.h -----'
+          fi
+          clang -O1 -Wall -Wextra -I "$classes" -o proof/device_probe_host_test \
+            tools/s2arm_prototype/device_probe_host_test.c "$classes/S2ArmProbe.c" "$classes/S2ArmProbeGate.S"
+          set +e
+          proof/device_probe_host_test 0 > proof/device-probe-host.txt 2>&1; status=$?
+          proof/device_probe_host_test 1 > proof/device-probe-host-selfmapped.txt 2>&1; risky=$?
+          set -e
+          cat proof/device-probe-host.txt
+          echo "== with process-mapped variants (informative, exit=$risky)"; cat proof/device-probe-host-selfmapped.txt
+          test "$status" = 0
+          grep -q 'fixedRun passed signal=0 checks=16/16' proof/device-probe-host.txt
+          sdk=$(xcrun --sdk iphoneos --show-sdk-path)
+          for source in S2ArmProbe.c S2ArmProbeGate.S S2ArmProbePlugin.m; do
+            xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$sdk" -fobjc-arc -Wall -Wextra -Werror \
+              -I "$classes" -c "$classes/$source" -o "proof/ios-${source%.*}.o"
+          done
+          echo "iOS arm64 objects compiled"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -84,6 +114,8 @@ jobs:
             proof/rewrite.log
             proof/digest.json
             proof/host-proof.txt*
+            proof/device-probe-host*.txt
+            proof/S2ArmSynthModule.h
           retention-days: 30
   compare:
     needs: rewrite
