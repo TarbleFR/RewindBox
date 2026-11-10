@@ -2,6 +2,7 @@
 #import "MeloNXSkinOverlay.h"
 #import "MeloNXSkinInteraction.h"
 #import "SkinFrameCheck.h"
+#import "SkinHarnessWait.h"
 
 // The production MeloNXSkinOverlay on the REAL shipped Switch Pocket archive
 // (unpacked by test_skin_overlay_ui.rb into MELONX_SKIN_FIXTURE), driven by touches
@@ -546,11 +547,11 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
       MLXFakeTouch* touch = [self touchAt:p];
       [self begin:touch on:overlay];
       if ([name isEqualToString:@"menu"]) {
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+        SkinHarnessWait(^BOOL { return [self menuCount] != menus; }, 2);
         XCTAssertEqual([self menuCount], menus + 1, @"Menu once at (%.1f, %.1f)", p.x, p.y);
         XCTAssertEqualObjects([self events], @[]);
       } else if ([@[ @"home", @"capture" ] containsObject:name]) {
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+        SkinHarnessWait(^BOOL { return [self system].count > 0; }, 2);
         XCTAssertEqualObjects([self system], @[ name ], @"%@ reported once at (%.1f, %.1f)", name, p.x, p.y);
         XCTAssertEqualObjects([self events], @[], @"%@ sends nothing to the game", name);
         XCTAssertEqual([self menuCount], menus, @"%@ is not the RewindBox menu", name);

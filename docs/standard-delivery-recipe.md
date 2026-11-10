@@ -599,7 +599,28 @@ Core 918 inchangé (`unchangedFromBase`, charge `78f2defd…f9d3` retenue).
   1er novembre ; ouvert, propriétaire main. `test/melonx_capture_journal_test.py` : échec sous Linux, identique
   sur `3b4b4d02` ; signalé au propriétaire MeloNX. `DolphinSkinOverlayTests testWiiButtonsLandscape` : un échec au
   run `42795464202` (`DolphinSkinOverlayTests.mm:233`, compte du Menu 0 puis 2 au lieu de 1) sur des sources qui
-  passent au run `42787761020` (36/36) ; attente fixe de 20 ms ; signalé au propriétaire des skins.
+  passent au run `42787761020` (36/36) ; attente fixe de 20 ms ; signalé au propriétaire des skins, qui l'a
+  corrigée dans les trois bancs (PR #168, `c9e3f26c` : attente de l'événement bornée à 2 s, puis 30 ms pour qu'une
+  seconde livraison fasse encore échouer le « une fois ») ; relue et fusionnée par main (`11ee0f5a`), run
+  `42800736698` vert. Un run vert ne prouve pas la disparition de l'instabilité. Cette fusion touche des chemins
+  de test : elle se classe dans le manifeste de la build suivante.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP. IPA
   vérifiée hors ligne (`passed-offline-checks`), huit reçus copiés avant la suppression de la clé (§ 3.5), clé
   privée supprimée, envoi privé en fichier. Aucun test sur iPhone.
+
+## 22. État de la 721 (10 novembre 2026)
+
+IPA commune privée livrée sur la 720 : run `42822649775`, déclencheur `cfb56420`, cinq jobs verts, IPA `bc640a83…c0d7`,
+267033667 octets, 19,5 min de bout en bout ([reçu](evidence/rewind721/delivery.json), douze fichiers de preuve dont
+l'inventaire signé). Contenu de la 720 avec RPCS3 Core 919 (pin `44527c61`, charge `a74a9cf6`), la fusion de la PR 168
+(tests seulement) et une correction de test ; MeloNX Core 719 et `MeloNXMoltenVKStandalone` retenus de la base.
+- **Première tentative.** Run `42819476474` (déclencheur `587abef9`) : contrôle, republication et Flutter verts,
+  l'application compilée ; le groupe natif échoue dans `test/melonx_perf_journal_test.py` sur un plancher de 10 % d'un
+  échantillon de 0,25 s du thread occupé (7 % sur le runner partagé ; sources identiques à la 720, où il passait).
+  Correctif `653bb484` : le thread est contrôlé par son rang et une part mesurée (> 0 et au moins celle de chaque autre
+  thread listé) ; regel (empreinte effective `e66096fe`), les deux groupes rejoués.
+- **Images non déclarées.** Les ponts libretro et RPCS3, sources inchangées, diffèrent de la 720 par les seuls bouchons
+  de l'éditeur de liens (les deux cases d'import d'`objc_msgSend` échangées de nouveau) ; rien à classer (§ 3.10).
+- **Durées.** Application 18,5 min, dont compilation Xcode 341 s et signature/export 62 s ; natif 12,6 min.
+- **Hors CI.** Métadonnées par l'API REST publique, pièces par les URL signées du serveur GitHub MCP, IPA vérifiée hors
+  ligne, huit reçus copiés avant la suppression de la clé, clé supprimée. Aucun test sur iPhone.

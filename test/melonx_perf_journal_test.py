@@ -146,11 +146,13 @@ exit(2)
             check(any(field.startswith('mgd=') for field in fields), line)
             check('dsp=200/3/7.5/3.1/1' in fields and 'out=200/1/12.0/12.0' in fields, line)
             check(re.search(r' th=(nominal|fair|serious|critical) lp=[01]( paused)?$', line), line)
-            # The spinning thread is the busiest one listed (threads are sorted by CPU time). Its share of a
-            # 0.25 s sample depends on the shared runner's load (39 % seen in run 41523517233): a floor,
-            # not a measurement.
+            # The spinning thread is the busiest one listed (threads are sorted by CPU time): it comes first,
+            # with a share above zero and at least that of every other listed thread. Its share of a 0.25 s
+            # sample depends on the shared runner's load (39 % in run 41523517233, 7 % in delivery run
+            # 42819476474), so no fixed floor is asked: the order and a measured share are what is checked.
             worker = re.search(r' cpu=\d+ Perf_Busy_Worker_1:(\d+)/(\d+)', line)
-            check(worker and int(worker.group(1)) >= 10, line)
+            check(worker and int(worker.group(1)) >= 1, line)
+            check(all(int(share) <= int(worker.group(1)) for share in re.findall(r' \S+:(\d+)/\d+', line)), line)
             check(int(re.search(r' cpu=(\d+)', line).group(1)) >= int(worker.group(1)), line)
             check(len(re.findall(r' \S+:\d+/\d+', line)) <= 6, line)
         check('paused' not in samples[0] and 'paused' in samples[-1], samples)

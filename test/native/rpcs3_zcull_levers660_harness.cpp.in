@@ -912,7 +912,7 @@ struct run_state
 	oracle_t oracle;
 	u64 read_count = 0, read_mismatches = 0, read_wait_us = 0, read_wait_max_us = 0, read_faults = 0, reads_emulated = 0;
 	u64 reads_digest = 1469598103934665603ull;
-	u64 max_early_in_frame = 0, max_watched_submits_in_frame = 0;
+	u64 max_early_in_frame = 0, max_watched_submits_in_frame = 0, max_561_in_frame = 0;
 	u64 frames = 0, frame_us_total = 0, frame_start_us = 0;
 	u64 early_at_frame_start = 0, watched_at_frame_start = 0;
 	std::vector<u64> watched_fallback_after;
@@ -1003,6 +1003,7 @@ struct run_state
 	void flip()
 	{
 		max_early_in_frame = std::max<u64>(max_early_in_frame, rpcs3::ios::early_submit::submits.load() - early_at_frame_start);
+		max_561_in_frame = std::max<u64>(max_561_in_frame, r.m_ios_early_submits_this_frame);
 		max_watched_submits_in_frame = std::max<u64>(max_watched_submits_in_frame, watched_submits_now() - watched_at_frame_start);
 		r.flip();
 		frames++;
@@ -1110,6 +1111,59 @@ static void scenario_bo2(run_state& s, int frames)
 				{
 					s.read((report_index + 255) % 256); // the newest report: its query is in the open command buffer
 					frame_reports++;
+				}
+			}
+		}
+		s.flip();
+	}
+}
+
+// REWINDBOX_ZCULL_WATCHED_BO2_919: Black Ops II frames in the shape of the IPA 676 device windows (Core 905,
+// PID 25658, session 3, window 12): about 3,700 draws in 7 submissions per frame of which OPT561 makes
+// almost 6 early (615 over 104 frames, 72,019 capped checks: the GPU is idle at most draw ends, 32 % busy),
+// about 1,300 reports per frame into rotating slots, and a guest that waits for a report slot queued 5 to 15
+// ms before its read (ZCULLLEAD659 5.0-15.0 ms mean, 42-113 waits per window). Here one slot (300) takes one
+// report at `report_percent` of the frame's draws and is read at `read_percent` of them. With the GPU-idle test
+// true at most draw ends (bo2read) the 6 early submissions of the frame are spent before the report; with it
+// false (bo2busy) 561 submits less often and the open command buffer holds the report until the read.
+// The age of the newest report of a waited slot is not in the device journal (only the oldest one is): this
+// stream gives the slot one report per frame, so both are the same.
+static void scenario_bo2read(run_state& s, int frames, int report_percent, int read_percent)
+{
+	lcg rnd(919u);
+	start_zcull(s);
+	u32 report_index = 0;
+	for (int f = 0; f < frames; f++)
+	{
+		s.frame_begin();
+		s.clear();
+		int target = 1;
+		int drawn = 0;
+		const int total = 40 * 60;
+		const int watched_report_at = total * report_percent / 100 + static_cast<int>(rnd(60));
+		const int watched_read_at = total * read_percent / 100 + static_cast<int>(rnd(60));
+		for (int p = 0; p < 40; p++)
+		{
+			const int length = 45 + static_cast<int>(rnd(30));
+			if (rnd(3) != 0) target = 1 + static_cast<int>(rnd(5));
+			const u32 how = rnd(10);
+			for (int d = 0; d < length; d++)
+			{
+				const bool test = rnd(100) < 35;
+				if (test) s.clear();
+				s.draw(target, d == 0 && how >= 6, d == 0 && how < 3, rnd(2) == 0 ? 0u : 1 + rnd(30));
+				drawn++;
+				if (test) s.report(report_index++ % 256);
+				if (drawn == watched_report_at)
+				{
+					s.clear();
+					s.draw(target, false, false, rnd(3) != 0 ? 1 + rnd(20) : 0u);
+					drawn++;
+					s.report(300);
+				}
+				if (drawn == watched_read_at)
+				{
+					s.read(300);
 				}
 			}
 		}
@@ -1278,8 +1332,8 @@ static void print_json(run_state& s, const char* scenario, const char* variant)
 #endif
 	std::printf("\"watched_fallback_after\":[");
 	for (usz i = 0; i < s.watched_fallback_after.size(); i++) std::printf("%s%llu", i ? "," : "", static_cast<ullong>(s.watched_fallback_after[i]));
-	std::printf("],\"max_early_in_frame\":%llu,\"max_watched_submits_in_frame\":%llu,\"frames\":%llu,\"frame_us_mean\":%.1f,",
-		static_cast<ullong>(s.max_early_in_frame), static_cast<ullong>(s.max_watched_submits_in_frame), static_cast<ullong>(s.frames),
+	std::printf("],\"max_early_in_frame\":%llu,\"max_561_in_frame\":%llu,\"max_watched_submits_in_frame\":%llu,\"frames\":%llu,\"frame_us_mean\":%.1f,",
+		static_cast<ullong>(s.max_early_in_frame), static_cast<ullong>(s.max_561_in_frame), static_cast<ullong>(s.max_watched_submits_in_frame), static_cast<ullong>(s.frames),
 		s.frames ? static_cast<double>(s.frame_us_total) / static_cast<double>(s.frames) : 0.0);
 	std::printf("\"pool\":{\"allocations\":%llu,\"peak\":%zu,\"overflows\":%llu,\"waits\":%llu,\"wait_us\":%llu,\"unsubmitted_waits\":%llu},",
 		static_cast<ullong>(r.m_occlusion_query_manager->allocations), r.m_occlusion_query_manager->peak, static_cast<ullong>(r.m_occlusion_query_manager->overflows),
@@ -1343,6 +1397,23 @@ int main(int argc, char** argv)
 		renderer->t.gpu_draw_us = 4;
 		renderer->t.record_us = 5;
 		scenario_bo2(s, 6);
+	}
+	else if (scenario == "bo2read")
+	{
+		// The GPU drains between submissions (about a third busy) and the RSX thread records about 30 ms per frame.
+		renderer->t.gpu_draw_us = 4;
+		renderer->t.record_us = 12;
+		scenario_bo2read(s, 24, 75, 95);
+	}
+	else if (scenario == "bo2busy")
+	{
+		// The same frames, the GPU-idle test of 561 false at most draw ends (a submission takes 5 ms to start and
+		// complete): 561 submits about 4 times per frame, below its cap, and the open command buffer holds the
+		// report from its queueing to the guest's read.
+		renderer->t.gpu_draw_us = 4;
+		renderer->t.record_us = 12;
+		renderer->t.handoff_us = 5000;
+		scenario_bo2read(s, 24, 55, 85);
 	}
 	else if (scenario == "bo2deep")
 	{

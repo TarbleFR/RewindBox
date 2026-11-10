@@ -1,6 +1,7 @@
 #import <XCTest/XCTest.h>
 #import "ARMSX2SkinOverlay.h"
 #import "SkinFrameCheck.h"
+#import "SkinHarnessWait.h"
 #import "ARMSX2Orientation.h"
 
 // The production ARMSX2SkinOverlay on the REAL shipped PS2 archives (unpacked by
@@ -499,7 +500,7 @@ static NSDictionary<NSString*, NSNumber*>* A2TestPad(void) {
       FakeTouch* touch = [self touchAt:p];
       [self begin:touch on:overlay];
       if ([name isEqualToString:@"menu"]) {
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+        SkinHarnessWait(^BOOL { return [self menuCount] != menus; }, 2);
         XCTAssertEqual([self menuCount], menus + 1, @"Menu once at (%.1f, %.1f)", p.x, p.y);
         XCTAssertEqualObjects([self events], @[]);
       } else {

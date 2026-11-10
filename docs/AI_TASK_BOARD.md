@@ -271,6 +271,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
+  Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
+  tests-only PR 168 merge and a journal test fix. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
+  - **State:** second request `cfb56420`, run `42822649775` attempt 1, five jobs green (19.5 min; flutter 20 and native
+    19 commands fresh). IPA 267033667 B, SHA-256 `bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`,
+    build 721, `passed-offline-checks`; `libRPCS3Core.dylib` payload `a74a9cf6` = the Core 919 pin, marker "Resolved
+    title policy 919" present; 45 retained images verified. [Receipt](evidence/rewind721/delivery.json), twelve proof
+    files with the signed inventory (can be a base); key 721 deleted; sent privately as a file.
+  - **Failure kept:** first request `587abef9` (run `42819476474`): preflight, republish, flutter green and the
+    application compiled; native failed in `test/melonx_perf_journal_test.py` on a 10 % floor of a 0.25 s CPU sample of
+    the busy thread (7 % on the shared runner; the same sources passed in 720). Fix `653bb484` (main as CI owner; MeloNX
+    owner told): the thread is checked by its order and a measured share (> 0, >= every other listed thread). Refrozen
+    (effective `e66096fe`), both groups fresh again.
+  - **Undeclared image changes:** `libretro_internal_bridge` and `rpcs3_internal_bridge`, sources unchanged, differ from
+    720 in linker-made stubs only (the two `objc_msgSend` import slots exchanged again; sections and bind tables equal).
+  - **Open or limit:** not run on an iPhone; no FPS claim. Next: BO2 journals of 721 (recipe of the Core 918 record § 8):
+    `ZCULLWATCH660 slots=`/`taken=`, `ZCULLDEMAND619 waits` and FPS decide the lever.
 - **Common IPA 720 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).**
   - **Goal:** the delivered 719 plus the handoffs that stayed queued while it was built: MeloNX lot 9 (`a8198f79`,
     merge `7d0ca6c1`), skins PR #166 (`32fd5309`, merge `80aa7ac7`) and PR #167 (`66c129b9`, merge `b6a9deee`).
@@ -303,9 +320,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     tables equal). Outside the delivery groups: Dolphin session harness stale since 18 Oct (main, open);
     `test/melonx_capture_journal_test.py` red on Linux since before 719 (MeloNX owner told);
     `DolphinSkinOverlayTests testWiiButtonsLandscape` failed once in run `42795464202` on sources that passed in
-    `42787761020` (fixed 20 ms wait; skins owner told). The MeloNX owner keeps the keep-alive accounting ("gcKeepAlive
-    dormant" line, separate Missed count) for its next Core. "MeloNX Core 719" is the owner's frozen label; IPA 719
-    holds Core 717.
+    `42787761020`: the harness waited a fixed 20 ms for a Menu the overlay sends on a later turn of the main queue;
+    corrected in the tests by the skins owner's PR #168 (`c9e3f26c`, reviewed and merged by main as `11ee0f5a`, run
+    `42800736698` green: MeloNX 23/23, ARMSX2 13 and 13, Dolphin 36/36; one green run does not prove it gone). That
+    merge changes test paths: classify it in the next delivery manifest. The MeloNX owner keeps the keep-alive
+    accounting ("gcKeepAlive dormant" line, separate Missed count) for its next Core. "MeloNX Core 719" is the
+    owner's frozen label; IPA 719 holds Core 717.
   - **Next:** device journals. RPCS3: [Core 918 record](rpcs3-core918-busy-wait.md) § 8. MeloNX:
     [device protocol](evidence/melonx-719-gates/device-protocol.md). Skins: screen framing and pressed buttons on
     the rebuilt packs.
@@ -1558,10 +1578,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       comparison passes sit at counted windows 7-22, 45-60 and 83-98 since boot, menus included (0:30-1:50,
       3:40-5:00, 6:50-8:10): play each game until nine minutes after its launch, in the same zone. BO2 has no device
       measurement since build 694 (Core 907): Cores 910, 911, 914, 916, 917 and 918 are all unmeasured on it.
-    - **Next:** the journals of build 719 or 720 (IPA 720, delivered on 10 Nov, holds the same Core 918: payload
-      `78f2defd` read in both files), one export per game (BO2 nine minutes from launch in the slow scene; GOW3 from
-      a fresh boot, nine minutes), then the fix they select among those listed under "What the next export decides"
-      (the GETLLAR thresholds are off that list).
+    - **Core 919 (10 Nov, BO2 ZCULL waits; maintainer: "les diagnostics sont suffisamment fournis pour avancer";
+      [record](rpcs3-core919-zcull-bo2.md)).** Device evidence, IPA 676 (Core 905, PID 25658, session 3, windows
+      9-19, 20-26 FPS, GPU 32 %): PPU threads wait 205-1,165 ms per 5 s window on 42-113 pending ZCULL report reads
+      (ZCULLDEMAND619, fault_threads ppu); the oldest pending report had been queued 5.0-15.0 ms before (ZCULLLEAD659)
+      while a command buffer needs 2.2 ms GPU + 1.5 ms queue: submitted only on demand. Core 660 had excluded BO2 from
+      the watched flush on a host model (reads right after the report) that the device contradicts; and the 561 cap
+      (5.9 of 6 per frame used) would refuse its arms anyway.
+      - `REWINDBOX_ZCULL_WATCHED_BO2_919` (BO2 joins the watched flush) and `REWINDBOX_ZCULL_WATCHED_OWN_BUDGET_919`
+        (watched arms refused only by their own budget of 2 per frame; a watched submission no longer counts in the
+        561 cap). Only command buffer boundaries move; values, order and read moments unchanged; no codegen input.
+      - Control (test/rpcs3_zcull_watched919_test.py, real ZCULL/renderer code, ASan+UBSan, Core 918 code as
+        control): BO2-shaped frames wait at 23/23 reads (127.8 ms); 918 code with the lever on still waits (22 arms
+        refused by the 561 cap); Core 919 2/23 (11.6 ms), model frame 34.89 -> 30.05 ms; 561 under its cap 106.3 ->
+        4.4 ms. Host model; no FPS claim.
+      - Engine `8210faf`, source `6699e616`, request `e2f3e211`, run `42815113270` green (Core job 129826118660, Apple
+        host job 129826118284); artifact 13765658019 (30,501,489 B, zip = API digest `b5800c2e`); dylib
+        `04f44a94…0913` (80,937,424 B), fingerprint `a74a9cf6…56e7`, identities PPU a987639e / SPU 477a3fa4
+        unchanged, markers present; pin_errors verified, pin `44527c61`. Local: closure, codegen, fold, route, 13
+        guards, the 912-918 tests and the full driver pass.
+    - **Next:** IPA 721 (delivered 10 Nov, run `42822649775`, holds Core 919); the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
+      `ZCULLWATCH660 slots=`/`taken=` and `ZCULLDEMAND619 waits` decide whether this lever acts; GOW3 from a fresh
+      boot as before.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -1744,25 +1782,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-- **Current maintainer complement, 10 Nov — relayed by Codex to the same owner (message 19, queued/unread at verification).**
-  Preserve the ongoing lot 9 work, validated lots 1–6/8 and closed production-excluded
-  lot 7 prototype. New P0 priorities: Mario 3D World/Bowser's Fury presentation SIGSEGV
-  in `presentCAMetalDrawable` (IPA 718 / Core 717), and Switch skin commands lost after
-  Menu→game; then long pipeline/syncpoint/GC/cache hitches. The reported stack is a
-  lead, not proof of a use-after-free or shared cause with input. Require production
-  corrections, discriminating executed before/after checks, resource/callback/session
-  lifetime invariants and separate host/iPhone results. Referenced capture source
-  `45923d133e5ec9325b6c64f44844f7dafba6f404`, binary prefix `f565e10bba1e`;
-  it does not validate newer candidates. Exact relay SHA-256
-  `70e24fa48a2a312b14b62b6788d129e58a67b3fa8c6a90363e0cd9eff4537dba`.
-  No new log file attached by Codex; original availability remains for the owner to
-  verify, with no old namesake substitution. UI set once from Fable 5.2 / Max to
-  **Opus 5.5 / High** for the next message; native `rb-effort-high` requested, return not
-  observed. Current request not stopped/replaced. Coordinate shared skin/overlay paths
-  with the existing owner; main retains integration/pins/Core CI/IPA. Public 0.0.11
-  publication is on hold at the maintainer's request. This is a targeted complement,
-  not a parallel diagnosis or new worker.
-
+- **Active maintainer goal, 10 Nov — Hogwarts playability, FPS and RAM.** Continue autonomous
+  evidence→production correction→executed test→comparable measurement cycles in this same
+  session until Hogwarts is demonstrably playable on iPhone 16 Pro Max, native 1×, correct
+  game speed and stable 30 presented FPS, with controlled allocations/footprint and no
+  recurrent long pauses. Target about 33.3 ms/frame; report p50/p95/p99, 50/100/500 ms
+  outliers, short-window FPS, long-session memory slope/headroom and thermal conditions.
+  A ≤ 4 GiB footprint is an initial target if required resources permit, never a quality
+  or correctness shortcut. A green CI/host benchmark is not iPhone playability.
+  Preserve validated lots 1–6/8, closed nonproduction lot 7, the crash/skin fixes in 720 and
+  ongoing 721 cache work; finish useful gates/CI without duplicate dispatch. Keep missing
+  device proof explicit and the mission open; continue independent fixes.
+  **Relay verified:** formal context/criteria prompt queued once for the owner's next
+  turn (Ctrl+Enter; current work left running), 21846 UTF-8 bytes, SHA-256
+  `5f1f9167574d8fa7b1e1efb744ac5d25e69f61bcf8ee5da5eee5973287057422`.
+  UI remains **Opus 5.5**, changed High→**Max** for named GC suspension/cache ownership/
+  concurrency ambiguities; High for bounded understood work thereafter. Native effective
+  effort return not observed; no claim to change the in-flight request.
+  Baseline 720 / Core 719 and run 42798677772 are verified delivery evidence, not gameplay.
+  Current 721 preparation/77-gate run were still local/in progress; MoltenVK
+  [run 42822060210](https://github.com/TarbleFR/RewindBox/actions/runs/42822060210)
+  succeeded on `5af777be`, artifact/IPA identity still to verify by owner.
+  Main retains integration/pins/Core CI/IPA; public 0.0.11 stays on hold. No new
+  worker, workflow, pin, IPA or periodic relaunch created by this relay.
 
 - **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643" to "IPA 657"),
   [621 logs](melonx-621-measurement-2026-11-03.md). Main owns compilation/pins/integration.
@@ -3267,6 +3309,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   on the Dolphin session harness only, the same failure as on the framing run (not from
   these branches).
   [Sheets](evidence/skins-realistic-press/). Not observed on an iPhone.
+- **State of the 10 Nov skins work (owner's update after integration):**
+  [PR166](https://github.com/TarbleFR/RewindBox/pull/166) framing merged `80aa7ac7`,
+  [PR167](https://github.com/TarbleFR/RewindBox/pull/167) realistic press merged `b6a9deee`,
+  both packaged in private IPA 720 (main's receipt `evidence/rewind720/delivery.json`);
+  final archive identities on `Claude` = the PR167 ones. Harness fix
+  [PR168](https://github.com/TarbleFR/RewindBox/pull/168) (`c9e3f26c`, merged `11ee0f5a`,
+  tests only): the three skin harnesses wait for the Menu / system-button delivery, at
+  most 2 s, instead of a fixed 20 ms (one failure of `testWiiButtonsLandscape` on
+  identical sources, run `42795464202`); run `42800736698` green; one green run does not
+  prove the instability gone.
+  - Open, maintainer's decisions: (1) non-4:3 openings keep thin black bands with a 4:3
+    picture (Stretched fills; exact 4:3 openings need new art); (2) `wii-pocket`,
+    `gamecube-pocket`, `ps2-pocket` pressed states left as rendered (PS2 Pocket - Noir mat
+    lights a blue rim).
+  - Open, not started (main's review remarks, no Pocket skin concerned):
+    `screenFrameForBounds:` uses unturned safe-area insets for a Delta portrait-only skin
+    without a screen; an imported `screenCutout` without alpha is not rejected.
+  - Not observed on an iPhone: framing, pressed controls and controls after the in-game
+    menu are for the maintainer to check on IPA 720. Next action: none until the
+    maintainer's device result or decisions.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
@@ -3313,19 +3375,19 @@ or permission for more deletion.
 
 ## Delivered baseline
 
-**Last verified: private RewindBox 0.0.8 (720), iOS 18+/SideStore.** Run `42798677772`
-attempt 1, trigger `8a1884a9`, freeze `e53126a6`, effective `be9afa4f…`; all five jobs
-passed. RPCS3 Core 918, MeloNX Core 719 with the patched MoltenVK 1.4.2, skins PR #166/#167.
-[Manifest](../build-utils/delivery/720.json),
-[delivery](evidence/rewind720/delivery.json),
-[download verification](evidence/rewind720/download720-verification.json).
+**Last verified: private RewindBox 0.0.8 (721), iOS 18+/SideStore.** Run `42822649775`
+attempt 1, trigger `cfb56420`, freeze `f248374c`, effective `e66096fe…`; all five jobs
+passed. RPCS3 Core 919, MeloNX Core 719 with the patched MoltenVK 1.4.2, skins PR #166/#167.
+[Manifest](../build-utils/delivery/721.json),
+[delivery](evidence/rewind721/delivery.json),
+[download verification](evidence/rewind721/download721-verification.json).
 
-IPA: 266993445 bytes; SHA-256
-`e7ad0a2a5eed2e3f6cc87af9f10635ee53ccb3c016b22f5896f1c1fc81af5b64`.
+IPA: 267033667 bytes; SHA-256
+`bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7`.
 Receipt binds 90 images / 44 retained, pins/signing/six validators. Private key deleted.
 Unchanged-source libretro and RPCS3 bridge byte changes (linker stubs only) recorded as
 nonblocking undeclared. Device gameplay/FPS/audio/visual verification remains separate.
-Previous 719 [receipt](evidence/rewind719/delivery.json). The public 0.0.11 candidate stays
+Previous 720 [receipt](evidence/rewind720/delivery.json). The public 0.0.11 candidate stays
 IPA 718 (on hold). Component tables of older builds are not the current pins.
 
 ## Findings to carry forward
