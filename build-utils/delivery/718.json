@@ -505,6 +505,8 @@
    "Frameworks/App.framework/App",
    "Frameworks/MeloNXCore.framework/MeloNXCore",
    "Frameworks/libRPCS3Core.dylib",
+   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
    "Runner"
   ],
   "added": [],
