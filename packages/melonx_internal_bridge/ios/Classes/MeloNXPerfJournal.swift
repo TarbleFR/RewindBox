@@ -511,7 +511,8 @@ final class MeloNXStallWatch {
 //   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
 //   regions=   regions walked / walk time ms ("partial" when the walk hit its region or time bound)
 //   groups=    the 8 largest groups of regions by VM tag, name:dirty+compressed MiB/resident MiB/regions; a name ending
-//              in "~s" is shared memory (an object mapped more than once counts once, its largest mapping)
+//              in "~s" is shared memory, counted per object (an object mapped more than once counts once, in the group
+//              of its tagged mapping, else of its largest one)
 //   top=       the 6 largest regions: address:virtual MiB:group:share mode:dirty+compressed MiB/resident MiB
 // Measurement only: it reads the process's own VM map and calls no engine closure.
 final class MeloNXMemoryBreakdown {
@@ -578,7 +579,7 @@ final class MeloNXMemoryBreakdown {
         let page = UInt64(vm_page_size)
         let begin = DispatchTime.now().uptimeNanoseconds
         var groups: [String: Group] = [:]
-        var sharedObjects: [UInt32: (group: String, dirty: UInt64, resident: UInt64)] = [:]
+        var sharedObjects: [UInt32: (group: String, tagged: Bool, dirty: UInt64, resident: UInt64)] = [:]
         var largest: [Region] = []
         var address: vm_address_t = 0
         var depth: natural_t = 0
@@ -604,11 +605,15 @@ final class MeloNXMemoryBreakdown {
             let shared = mode == SM_SHARED || mode == SM_TRUESHARED || mode == SM_SHARED_ALIASED
             let name = group(info.user_tag) + (shared ? "~s" : "")
             if shared {
-                // Every mapping of one object sees the same pages: the object counts once, at its largest mapping.
-                let previous = sharedObjects[info.object_id]
-                if previous == nil { groups[name, default:Group()].regions += 1 }
-                if dirty > previous?.dirty ?? 0 || previous == nil {
-                    sharedObjects[info.object_id] = (name, max(dirty, previous?.dirty ?? 0), max(resident, previous?.resident ?? 0))
+                // Every mapping of one object sees the same pages: the object counts once, in the group of a tagged mapping
+                // when it has one, else of its largest mapping.
+                let tagged = info.user_tag != 0
+                if let previous = sharedObjects[info.object_id] {
+                    let better = (tagged && !previous.tagged) || (tagged == previous.tagged && dirty > previous.dirty)
+                    sharedObjects[info.object_id] = (better ? name : previous.group, previous.tagged || tagged,
+                                                     max(dirty, previous.dirty), max(resident, previous.resident))
+                } else {
+                    sharedObjects[info.object_id] = (name, tagged, dirty, resident)
                 }
             } else {
                 groups[name, default:Group()].dirty += dirty
@@ -626,6 +631,7 @@ final class MeloNXMemoryBreakdown {
         for object in sharedObjects.values {
             groups[object.group, default:Group()].dirty += object.dirty
             groups[object.group, default:Group()].resident += object.resident
+            groups[object.group, default:Group()].regions += 1
         }
         let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
         parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))

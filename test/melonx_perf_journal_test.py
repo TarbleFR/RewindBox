@@ -271,7 +271,8 @@ exit(0)
         check(perf and float(re.search(r' mgd=([\d.]+)', perf[0]).group(1)) >= 1590, perf[:1])
 
         # Memory breakdown: 96 MiB tagged app-specific 3 (64 MiB written) and 32 MiB of shared memory tagged
-        # app-specific 4, written and mapped twice more (one object, counted once); then the schedule's bound.
+        # app-specific 4, written and mapped twice more without a tag (mach_vm_remap takes none): one object, counted
+        # once in the tagged mapping's group; then the schedule's bound.
         memory_log = work / 'memory.log'
         (work / 'memory').mkdir()
         (work / 'memory' / 'main.swift').write_text(r'''import Foundation
@@ -288,7 +289,7 @@ memset(shared, 2, sharedSize)
 for _ in 0..<2 {
     var alias: mach_vm_address_t = 0
     var current: vm_prot_t = 0, maximum: vm_prot_t = 0
-    guard mach_vm_remap(mach_task_self_, &alias, mach_vm_size_t(sharedSize), 0, VM_FLAGS_ANYWHERE | tag(243), mach_task_self_,
+    guard mach_vm_remap(mach_task_self_, &alias, mach_vm_size_t(sharedSize), 0, VM_FLAGS_ANYWHERE, mach_task_self_,
                         mach_vm_address_t(UInt(bitPattern:shared)), 0, &current, &maximum, VM_INHERIT_SHARE) == KERN_SUCCESS else { exit(5) }
     let bytes = UnsafePointer<UInt8>(bitPattern:UInt(alias))!
     var sum = 0
