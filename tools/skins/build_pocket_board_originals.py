@@ -379,20 +379,26 @@ def pill_mask(extent, x0: int, y0: int, screen: Image.Image | None = None):
     rounded rectangle fitted on its drawn edge (fit_pill). Without: a stadium (rounded
     ends of half its height) one pixel inside the measured outline (board px, exclusive
     right/bottom)."""
-    if screen is not None:
-        px0, py0, px1, py1, r = fit_pill(screen, (extent[0] - x0, extent[1] - y0, extent[2] - x0, extent[3] - y0))
-        bx0, by0 = math.floor(px0), math.floor(py0)
-        w, h, ss = math.ceil(px1) - bx0, math.ceil(py1) - by0, 8
-        big = Image.new('L', (w * ss, h * ss), 0)
-        ImageDraw.Draw(big).rounded_rectangle(((px0 - bx0) * ss, (py0 - by0) * ss, (px1 - bx0) * ss - 1, (py1 - by0) * ss - 1),
-                                              radius=r * ss, fill=255)
-        return bx0, by0, np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128
     ex0, ey0, ex1, ey1 = extent
     w, h, ss = ex1 - ex0, ey1 - ey0, 4
     big = Image.new('L', (w * ss, h * ss), 0)
     ImageDraw.Draw(big).rounded_rectangle((0, 0, w * ss - 1, h * ss - 1), radius=h * ss / 2, fill=255)
-    m = np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128
-    return ex0 - x0, ey0 - y0, _shrink(m, 1)
+    m = _shrink(np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128, 1)
+    if screen is None:
+        return ex0 - x0, ey0 - y0, m
+    # With the board: the measured stadium and the fitted drawn edge together, so that the
+    # control's frame (and its touch area, computed from it) never shrinks, and its sprite
+    # can hold the whole drawn pill.
+    px0, py0, px1, py1, r = fit_pill(screen, (ex0 - x0, ey0 - y0, ex1 - x0, ey1 - y0))
+    bx0, by0 = min(math.floor(px0), ex0 - x0), min(math.floor(py0), ey0 - y0)
+    bx1, by1 = max(math.ceil(px1), ex1 - x0), max(math.ceil(py1), ey1 - y0)
+    fit = Image.new('L', ((bx1 - bx0) * 8, (by1 - by0) * 8), 0)
+    ImageDraw.Draw(fit).rounded_rectangle(((px0 - bx0) * 8, (py0 - by0) * 8, (px1 - bx0) * 8 - 1, (py1 - by0) * 8 - 1),
+                                          radius=r * 8, fill=255)
+    union = np.asarray(fit.resize((bx1 - bx0, by1 - by0), Image.Resampling.BOX)) >= 128
+    ox, oy = ex0 - x0 - bx0, ey0 - y0 - by0
+    union[oy:oy + h, ox:ox + w] |= m
+    return bx0, by0, union
 
 
 def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int = 4) -> dict:
