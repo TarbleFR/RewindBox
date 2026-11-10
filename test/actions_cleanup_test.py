@@ -94,6 +94,32 @@ class FakeAPI:
 
 
 class CleanupSafetyTest(unittest.TestCase):
+    def test_skipped_evidence_checks_pass_through_real_request_boundary(self):
+        runs = records(301)
+        for run in runs:
+            run['conclusion'] = 'skipped'
+        backing = FakeAPI(runs)
+        class Server:
+            def open(inner, request, timeout):
+                path = request.full_url.removeprefix(cleanup.API_URL)
+                if request.method == 'DELETE':
+                    status = backing.delete_run(int(path.rsplit('/', 1)[1]))
+                    response = io.BytesIO(b'')
+                else:
+                    status = 200
+                    response = io.BytesIO(json.dumps(backing.get_json(path)).encode())
+                response.status, response.headers = status, {}
+                return response
+        api = cleanup.GitHubAPI('unit-test-placeholder', opener=Server(), sleep=lambda _: None)
+        with tempfile.TemporaryDirectory() as tmp:
+            env, event = context()
+            result = cleanup.run_cleanup(api, plan_for(runs, skipped_only=True),
+                cleanup.Journal(Path(tmp)), execute=True, environment=env, event=event)
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(backing.deleted, [runs[-1]['id']])
+        self.assertTrue(any('/artifacts?' in path for method, path in backing.requests if method == 'GET'))
+        self.assertTrue(any('/jobs?' in path for method, path in backing.requests if method == 'GET'))
+
     def test_skipped_run_with_execution_or_artifact_is_preserved(self):
         for evidence in ('artifact', 'executed', 'incomplete', 'unknown'):
             with self.subTest(evidence=evidence):

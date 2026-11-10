@@ -21,7 +21,7 @@ jobs:
       github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
-      github.event.before == '249d287dd3488180054b718fbf986a0d60fd32da' &&
+      github.event.before == '6701c91d58393b4e9c0e941ebc9caaeb3134970e' &&
       contains(github.event.head_commit.message, '[actions-cleanup-2026-11-10-followup]')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -43,7 +43,7 @@ jobs:
         run: >-
           python -u build-utils/maintenance/cleanup_actions.py
           --plan build-utils/maintenance/actions-cleanup-2026-11-10-followup.json
-          --expected-plan-sha256 e9bccb3a241e5e223f15fbf67089723800ac67f02536cceea2c1aa89da32813a
+          --expected-plan-sha256 c790165fc34b27f948a635948b978be3adf46b0ea6c0d07b762ede895edcd75c
           --execute
       - name: Preserve the cleanup receipt
         if: always()

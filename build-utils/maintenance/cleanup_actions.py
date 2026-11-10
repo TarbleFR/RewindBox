@@ -240,6 +240,8 @@ class GitHubAPI:
     def request(self, method: str, path: str) -> tuple[int, bytes]:
         allowed_get = (re.fullmatch(re.escape(PREFIX) + r"/actions/runs\?per_page=100&page=[1-9][0-9]*", path)
                        or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/artifacts\?per_page=100", path)
+                       or re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*/jobs\?filter=all&per_page=100", path)
                        or path in (PREFIX + "/git/ref/heads/Claude", PREFIX + "/git/ref/heads/main"))
         allowed_delete = re.fullmatch(re.escape(PREFIX) + r"/actions/runs/[1-9][0-9]*", path)
         if not ((method == "GET" and allowed_get) or (method == "DELETE" and allowed_delete)):
