@@ -954,9 +954,14 @@ def expand_commands(group, spec, listing):
         elif command[0] == 'flutter-behavior':
             command[1] += [path for path in tests if path not in command[1]]
     names = {name for name, _ in commands}
+    argvs = {tuple(argv): name for name, argv in commands}
     for name, argv in additions.get('commands', []):
         require(name not in names, 'Duplicated test command name: ' + name)
+        # One job runs a command once: the same argv on the same tree and runner repeats the same check
+        # (616..718 ran test/rpcs3_diagnostics546_native_test.py twice, under two names, same log bytes).
+        require(tuple(argv) not in argvs, f'{name} repeats the identical command {argvs.get(tuple(argv))} of its group')
         names.add(name)
+        argvs[tuple(argv)] = name
         commands.append([name, list(argv)])
     return commands
 

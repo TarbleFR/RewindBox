@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 718,
   "status": "frozen",
-  "note": "Private common IPA 718 on the delivered and verified 694 (maintainer, 10 Nov: one common IPA after the verified handoffs). RPCS3 Core 914 replaces Core 907 (Cores 908 to 911 and 914: texture memo at 16 ways, writer lock phases, God of War III levers, PUT horizon, accurate no-op PUTLLC wait, prehash budget, the bounded captures started when the in-game menu closes, stall dump complements); host: Menu/Performances placement, test page rows, capture request. MeloNX Core 717 replaces Core 699 (extra array sets, array reference deltas, worker Metal libraries shared to the main cache). Skins/interface: PR #164 main menu bar without labels, PR #165 Switch Pocket skin for MeloNX. No iPhone measurement; no FPS claim.",
+  "note": "Private common IPA 718 on the delivered and verified 694 (maintainer, 10 Nov: one common IPA after the verified handoffs). RPCS3 Core 914 replaces Core 907 (Cores 908 to 911 and 914: texture memo at 16 ways, writer lock phases, God of War III levers, PUT horizon, accurate no-op PUTLLC wait, prehash budget, the bounded captures started when the in-game menu closes, stall dump complements); host: Menu/Performances placement, test page rows, capture request. MeloNX Core 717 replaces Core 699 (extra array sets, array reference deltas, worker Metal libraries shared to the main cache). Skins/interface: PR #164 main menu bar without labels, PR #165 Switch Pocket skin for MeloNX. No iPhone measurement; no FPS claim. Second trigger after a recipe-only fix: the first (run 42741950414, attempt 1) failed only in the native group, on pocket-skin-input-chain (\"No module named 'PIL'\"), a command the recipe had added to the native group although its flutter group already ran it with the pinned Pillow on the same tree (passed there); the native duplicate and the identical second run of test/rpcs3_diagnostics546_native_test.py (rpcs3-timeline-616-foundation, same log bytes as rpcs3-timeline-613-foundation) are dropped; flutter evidence reused from that run; native rerun fresh, with the simulator booted once before the group.",
   "base": {
     "build": 694,
     "source": "43899cee74e3b1455699d234d5edfa8479654c08",
@@ -2395,7 +2395,7 @@
   },
   "tests": {
     "flutter": {
-      "mode": "fresh",
+      "mode": "reuse",
       "additions": {
         "flutterTests": [
           "test/rewindbox_glacier_test.dart",
@@ -2823,7 +2823,18 @@
             "test/armsx2_skin_menu_button_test.py"
           ]
         ]
-      ]
+      ],
+      "reuse": {
+        "source": "b9a451fbf93ab0d4d4848770456e9aaebe8ce859",
+        "run": 42741950414,
+        "attempt": 1,
+        "job": 129585277623,
+        "artifact": 13729494334,
+        "artifactName": "RewindBox-Build718-b9a451fbf93ab0d4d4848770456e9aaebe8ce859-attempt1-tests-flutter",
+        "sha256": "4aa7cf4a31b5dec0461071aa31708cff4d69a10f0d96e7c4d2a1c19314fa1e16",
+        "bytes": 42013,
+        "manifest": "build-utils/delivery/718.json"
+      }
     },
     "native": {
       "mode": "fresh",
@@ -2847,14 +2858,6 @@
           ],
           [
             "rpcs3-timeline-613-foundation",
-            [
-              "python3",
-              "-B",
-              "test/rpcs3_diagnostics546_native_test.py"
-            ]
-          ],
-          [
-            "rpcs3-timeline-616-foundation",
             [
               "python3",
               "-B",
@@ -2931,14 +2934,6 @@
               "python3",
               "-B",
               "test/rpcs3_capture_analyzer_test.py"
-            ]
-          ],
-          [
-            "pocket-skin-input-chain",
-            [
-              "python3",
-              "-B",
-              "test/pocket_skin_input_chain_test.py"
             ]
           ]
         ]
