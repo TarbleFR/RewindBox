@@ -98,6 +98,32 @@ def centered(draw,xy,text,sz,fill,bold=False):
 
 def png(im):
     out=io.BytesIO();im.save(out,format='PNG',compress_level=9);return out.getvalue()
+def pressed_in_place(normal):
+    """A rendered control pushed in, inside its own drawn outline only: the normal sprite
+    with the same outline (no shape moved or redrawn), its face shaded - a little darker,
+    more from the upper left where the lip of its seat shades it, highlights flattened -
+    and its drop shadow halved (the cap is closer to the body). The same treatment as the
+    board packs' light pills (build_pocket_board_originals.pressed_face)."""
+    from scipy import ndimage
+    a=np.asarray(normal.convert('RGBA')).astype(np.float32)
+    rgb,m=a[...,:3],a[...,3]/255
+    S=max(m.shape)
+    solid=m>=0.98
+    inner=ndimage.distance_transform_edt(np.pad(solid,1))[1:-1,1:-1]
+    core=np.clip(inner/(0.012*S),0,1)
+    dx,dy=round(0.012*S),round(0.022*S)
+    outside=np.pad(1-solid.astype(np.float32),((dy,0),(dx,0)),constant_values=1)[:m.shape[0],:m.shape[1]]
+    lip=ndimage.gaussian_filter(outside,0.018*S)
+    shade=1-core*(0.16+0.30*np.clip(lip*1.5,0,1))
+    face=rgb*shade[...,None]
+    lum=face.mean(axis=2,keepdims=True)
+    flat=np.where(lum>200,200+(face-200)*0.6,face)
+    face=face+(flat-face)*core[...,None]
+    alpha=np.where(solid,m,m*0.5)
+    out=np.dstack([np.clip(np.round(face),0,255),np.clip(np.round(alpha*255),0,255)]).astype(np.uint8)
+    return Image.fromarray(out,'RGBA')
+
+
 def compose(L, files, pressed=False):
     W,H=L['mappingSize'].values()
     im=Image.open(io.BytesIO(files[L['assets']['large']])).convert('RGBA').resize((W*SCALE,H*SCALE),Image.Resampling.LANCZOS)
@@ -210,7 +236,9 @@ def build(out,body_dir):
                 for item in L['items']:
                     if isinstance(item['inputs'],list):names.update(item['inputs'])
         for n in sorted(names|{'dpad'}):
-            for held in [False,True]:files[f'controls/{n}{"-pressed" if held else ""}.png']=png(control(n,console,held))
+            # Pressed: the same drawn outline, pushed in place (pressed_in_place).
+            normal=control(n,console,False)
+            files[f'controls/{n}.png']=png(normal);files[f'controls/{n}-pressed.png']=png(pressed_in_place(normal))
         for n in ['main']+(['cstick'] if console=='gc' else []):
             for held in [False,True]:files[f'controls/{n}-base{"-pressed" if held else ""}.png']=png(base(held,cstick=n=='cstick'))
             files[f'controls/{n}-knob.png']=png(knob(n=='cstick'))
