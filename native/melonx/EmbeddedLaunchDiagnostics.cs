@@ -42,7 +42,38 @@ public static partial class EmbeddedLaunchDiagnostics
         // Darwin's open mode is a variadic argument. Let the runtime create
         // the file with its platform ABI, then append via the two-argument call.
         using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite)) { }
+        if (Path.GetFileName(path) == "MeloNX-core.log")
+        {
+            try { MakeRoomAtStart(path); } catch { }
+        }
         lock (Gate) { JournalPath = path; JournalFailure = ""; }
+    }
+
+    // A process starts with room for its whole journal. The file is shared by every session and was only rotated when a
+    // record found it at 5 MiB: the IPA 724 Hogwarts session (pid 49375) lost its first 415 records to
+    // MeloNX-core.log.1 that way, and the export carries MeloNX-core.log only. When the file already holds
+    // JournalStartLimit, it becomes .1 and the new file starts with its last complete lines (at most JournalStartKeep:
+    // the sessions just before this one), so this process has about 4 MiB before the rotation in Persist.
+    private const long JournalStartLimit = 3L * 1024 * 1024;
+    private const int JournalStartKeep = 1024 * 1024;
+
+    private static void MakeRoomAtStart(string path)
+    {
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length < JournalStartLimit) return;
+        byte[] tail = new byte[JournalStartKeep];
+        int read;
+        using (var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            source.Seek(-JournalStartKeep, SeekOrigin.End);
+            read = source.ReadAtLeast(tail, tail.Length, throwOnEndOfStream: false);
+        }
+        // From the first complete line; a tail without a line break is not kept (it is whole in .1).
+        int start = Array.IndexOf(tail, (byte)'\n', 0, read) + 1;
+        if (start == 0) start = read;
+        File.Move(path, path + ".1", overwrite: true);
+        using var next = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        next.Write(tail, start, read - start);
     }
 
     // Engine warnings and errors repeat: a guest that keeps touching a bad
