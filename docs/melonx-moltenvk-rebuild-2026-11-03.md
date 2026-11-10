@@ -156,3 +156,25 @@ developer switch outside the menus or two IPAs.
 - No IPA carries the rebuild yet.
 - Measurement: none on the iPhone. The change applies to every title that uses argument buffers once the switch is
   set, so a second game is to be checked as well as Hogwarts Legacy.
+
+## 10 Nov 2026: v1.4.2 with the three-part recipe patch (MeloNX lot 9, for IPA 722)
+
+`moltenvk-rebuild.json` now names `build-utils/melonx/moltenvk/rewindbox-moltenvk.patch` (SHA-256 `394e6aef…59d4`,
+19 302 bytes, seven files): the drawable ownership part above, unchanged; `MVKPipelineCache::countData()` counting each
+entry's serialized size once and keeping it on its shader library (the size query RewindBox asks during play no longer
+serializes every entry again); and a private `VkPipelineCacheCreateInfo` pNext (sType `0x52425831`, 'RBX1') that makes
+the load reference each library's compressed MSL in the caller's data instead of copying it into the heap. Causes,
+benches and the Core gate are in the MeloNX lot 9 entry of the board (MeloNX session `012mUASkkFGHaPcEUx9dsp8q`).
+
+Build (MeloNX session, run `42822060210`, job `129849807904`, on `5af777be`, 7 min 17 s): artifact `13768042590`
+(13 880 272 bytes, `sha256:7323e63e…4a92`, kept until 10 Dec 2026), `ios/MoltenVK.framework/MoltenVK` SHA-256
+`6f65b2a60d46d6424fc0c4c993680bda0bde3aaab88eac1e446298dc03bf2927`, 4 838 816 bytes, arm64, iOS minimum 15.0, SDK 26.5
+(Xcode 26.6, 17F113). It supersedes the never-packaged cache-size rebuild of run `42814845169`.
+
+Checked by main before pinning (API metadata, then the downloaded artifact, offline): run and job succeeded on that
+commit, an ancestor of `Claude` after the lot 9 merge; the zip is the API digest and size; the binary is the digest its
+`identity.json` gives; the identity names the tag, the commit and the patch digest of `moltenvk-rebuild.json`; the patch
+in `sources/` is byte for byte the repository's; its three markers are in the binary (3/3); 8/8 entry points; 428/428
+exports of the kept binary. `moltenvk-rebuild-pin.json` pins that run; the packager's `fetch_rebuild` accepts it and
+`test/melonx_standalone_parity_test.py` passes (64 checks). Not run on an iPhone.
+
