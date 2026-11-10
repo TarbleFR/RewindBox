@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_bgc_keepalive', _HOLD)
@@ -52,8 +52,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-bgc-keepalive-') as temporary:
             changed = adapter.apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(adapter.BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # Core 719: adapt_bgc_fragmentation_guard edits the same class later; control_source() proved that control
+                # plus this adapter plus the later ones is the final preparation, so only untouched files compare here.
+                later = files_edited_later('adapt_bgc_keepalive')
                 for name in adapter.BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    if name not in later:
+                        check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         texts[variant] = (work / adapter.SESSION).read_text(encoding='utf-8-sig')
         result = subprocess.run([DOTNET, 'build', str(work / 'src/Ryujinx.Library/Ryujinx.Library.csproj'), '-c', 'Release',
                                  '-nologo', '-m:1', '-p:NuGetAudit=false'], capture_output=True, text=True, timeout=1800, env=environment, cwd=work)

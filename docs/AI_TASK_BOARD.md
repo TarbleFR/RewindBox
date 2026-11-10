@@ -3006,6 +3006,59 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     No new correction is warranted by these proofs; only the documented device trials remain for this mission.
     Performance watch closed; no new prompt, worker, build, pin or IPA dispatched by Codex.
 
+- **MeloNX lot 9: presentation crash, skin after the menu, long stutters (Claude Code session 012mUASkkFGHaPcEUx9dsp8q,
+  10 Nov; owner: this session; branch `work/melonx-fps-stability-20261103` (real merge of Claude `d09db191`); inputs:
+  IPA 718 / Core 717 journals (Hogwarts pid 44597, SSBU pids 45272/45591); the Mario crash journal (pid 45805,
+  `MeloNX-crash(2).log`) is not accessible to this session: its stack and figures come from the maintainer's message):**
+  - Chronology (718 only; 688-694 history not compared): Hogwarts 03:40:00-03:42:59 UTC (first frame 03:40:12, 14 host
+    memory warnings, device 4-9 %, close passed); SSBU 03:55:09-03:58:54 (backgrounded, no close); SSBU relaunch 45591
+    04:18:39-04:18:58 (380 variants of 200 programs planned, 11 replayed, 46 planned not built yet).
+  - **P0 crash, presentation (Mario, SIGSEGV objc_retain <- _Block_copy <- MTLDispatchListAppendBlock <-
+    presentCAMetalDrawable).** Cause in MoltenVK v1.4.2 source (KhronosGroup/MoltenVK#2791, open, no upstream fix):
+    MeloNX submits asynchronously (`SynchronousQueueSubmits = false`), so a present runs on MoltenVK's submission
+    thread; with no image free (vsync unbounded) `acquireNextImage` returns an image still in flight and
+    `acquireAndSignalWhenAvailable` released `_mtlDrawable` without a lock while that image's earlier present copied it
+    into its Metal handler blocks. Fix: `build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch` (MVKImage.{h,mm}
+    only; `_mtlDrawableLock`; each present takes its drawable, its completion handler releases it; acquisition releases
+    nothing; `nextDrawable` never under the lock), pinned in `moltenvk-rebuild.json` (commit `9936f295`). Host model
+    (`test/melonx_moltenvk_drawable_ownership_test.py`): reported interleaving under ASan = heap-use-after-free in the
+    block copy before, none after; TSan 20 000 presents = race before, none after, every drawable released once.
+    iOS rebuild run 42760131591 green: artifact 13736999411 (13 872 142 B, digest `a36145bc…`), binary `6d3a8d03…`
+    (4 822 256 B, arm64, minos 15.0, marker 1/1, 428/428 exports). Not packaged as MeloNXMoltenVKStandalone (main),
+    not run on an iPhone.
+  - **P0 skin touches after the in-game menu.** `MeloNXSkinSession.sync` ran once at the resume; a menu action can run
+    while its sheet is still being dismissed, so `skin.interactive` (no presented controller) left the overlay with
+    `isUserInteractionEnabled = NO` until a rotation. Fix (commit `6ddc96fd`, coordinated with the skins owner):
+    `MLXSkinInteraction` (`MeloNXSkinInteraction.{h,m}`) applies the rule at the resume and again when the presentation
+    has gone (transition end, else 50 ms polling, at most 2 s), stops when paused again/closing/another session.
+    Simulator (`MeloNXSkinOverlayTests`, real sheet and dismissal): the previous single sync stays without touches; the
+    fix gives the first contact to A after 4 round trips with the left stick held at opening, no replay of the held
+    finger, usual order kept, follow-up stopped when no longer wanted. CI run 42759701871: `MeloNXSkinOverlayTests` 19/19 (job 129642253987); the same run (all steps) failed in libretro `diagnostic_routing_test.m` and the Dolphin session harness (Recording/SessionMenu), not touched here and not classified against Claude.
+  - **SSBU 355.873 ms blocking gen2 (index 66).** Trigger: .NET 10 `generation_to_condemn` with
+    `System.GC.ConserveMemory 5`: a gen2 decided above a gen2 + LOH fragmentation of 0.5 is blocking, LOH compacted
+    above its own 0.5 (here 0.51 / 0.57); the Core 693 keep-alive asks for a gen2 every 12-16 s. Reproduced on the host
+    runtime (ratio 0.627: the request ran blocking and compacting, 253.5 ms; 0.281: background). Fix
+    `adapt_bgc_fragmentation_guard` (EmbeddedSession.cs, keep-alive only): no request above 0.48; a request that still
+    ran blocking journaled (`gcKeepAlive elevated`) and counted. Gate bgc-fragmentation-guard, 21 checks (both Library
+    assemblies built; control reproduces, candidate skips, compact heap keeps its background gen2).
+  - **Hogwarts 3666.692 ms background final pause (index 211, ratio 0.31) and a second ~2.3 s pause seconds later:**
+    not the conserve rule. Facts: the BGC thread used little CPU over 03:41:53-03:42:01 (not in the top threads);
+    managed host calls were blocked (host sampler lines 2-4 s late, a render-thread log line held 2.43 s); the render
+    thread's descriptor time rose to 2 488 ms in that window. Hypothesis: suspension waiting for a thread, not marking.
+    Decisive reading added: host journal `mgd=` (the engine call's own duration) next to `.NET_BGC` CPU (bridge commit
+    `db8e2203`, test 24 checks). Not fixed yet.
+  - **Pipeline cache.** `cacheSizeProbe` 2 461 ms = MoltenVK sizing every library (4 667 x 0.52 ms, its own statistic)
+    under the main lock (render creations sent to the empty side cache), to conclude +1.36 MiB, no write. SSBU's in-play
+    write 889 MiB in 4 936 ms holds the same lock. Next: skip the probe when the learned per-pipeline growth cannot reach
+    the write threshold (the first estimate uses 128 KiB per pipeline, 20x the measured 6 KB).
+  - **Core 719 candidate (number provisional, main to confirm):** Core 717 + adapt_bgc_fragmentation_guard; all 76 gates
+    passed locally on the final preparation (four taught the new replacements or the pinned MoltenVK patch, rerun green);
+    contract `38b3a5b7` (195 inputs, 206 members, 76 fresh gates), contract test 449 checks with the baseline archive
+    (commit `b31a38a4`). Not compiled for iOS: Core build, pin, MoltenVK packaging and IPA are main's.
+    [Receipts](evidence/melonx-719-gates/run.json), [device protocol](evidence/melonx-719-gates/device-protocol.md).
+  - Next: Core CI and IPA (main); on the device, the protocol's three parts; then the probe skip, Hogwarts' long pause
+    from `mgd=`, Smash's replay order.
+
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS

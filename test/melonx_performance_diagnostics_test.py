@@ -131,7 +131,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     # Core 693: adapt_bgc_keepalive's own replacements in the session file (keep-alive start/stop and its class) are
     # undone before the comparison; its gate (bgc-keepalive) binds them.
     import adapt_bgc_keepalive as _bgc
+    import adapt_bgc_fragmentation_guard as _guard
     session_core = session_after
+    # Core 719: adapt_bgc_fragmentation_guard's replacements inside that class are undone first (applied after it); its
+    # gate (bgc-fragmentation-guard) binds them.
+    for _old, _new in reversed(((_guard.ENUM_OLD, _guard.ENUM_NEW), (_guard.RUN_OLD, _guard.RUN_NEW), (_guard.SEAMS_OLD, _guard.SEAMS_NEW),
+                                (_guard.SUMMARY_OLD, _guard.SUMMARY_NEW), (_guard.LOOP_OLD, _guard.LOOP_NEW))):
+        assert session_core.count(_new) <= 1
+        session_core = session_core.replace(_new, _old)
     for _new, _old in ((_bgc.TAIL_NEW, _bgc.TAIL_OLD), (_bgc.START_NEW, _bgc.START_OLD), (_bgc.STOP_NEW, _bgc.STOP_OLD)):
         assert session_core.count(_new) <= 1
         session_core = session_core.replace(_new, _old)
@@ -174,7 +181,7 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
                'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
                'build-utils/melonx/adapt_teardown_phase_marks.py',
-               'build-utils/melonx/adapt_bgc_keepalive.py',
+               'build-utils/melonx/adapt_bgc_keepalive.py', 'build-utils/melonx/adapt_bgc_fragmentation_guard.py',
                'test/melonx_adapter_control.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}

@@ -6,6 +6,7 @@ run-name: MoltenVK rebuild from Khronos source • ${{ github.sha }}
   push:
     branches:
     - Claude
+    - work/melonx-fps-stability-20261103
     paths:
     - .github/workflows/melonx-moltenvk-rebuild.yml
     - build-utils/melonx/build_moltenvk_rebuild.py

@@ -3,8 +3,8 @@
   "repository": "https://github.com/KhronosGroup/MoltenVK.git",
   "tag": "v1.4.2",
   "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
-  "patch": null,
-  "patchSha256": null,
+  "patch": "build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch",
+  "patchSha256": "9a6867b729ed0324680528a9a4eaf9095412a12e9bea23769dbc9229cb73448b",
   "platform": "ios",
   "license": "Apache-2.0",
   "agreement": "Maintainer, 3 Nov 2026: 14:40 agreement to recompile MoltenVK or replace its kept binary; 15:04 go-ahead for this workflow and its runs; 15:23 'keep the latest MoltenVK library, the most recent one'.",
@@ -17,5 +17,9 @@
     "exportedVulkanEntryPoints": 428,
     "exportedVulkanEntryPointsSha256": "42a254c69fc3eb79c3cba8ab808ccfdada98e1a8d7372458e6d64af324e314d9"
   },
-  "why": "v1.4.2 (newest Khronos release) enables MTLResidencySet on iOS 18 (mvkOSVersionIsAtLeast(15.0, 18.0, 2.0), Apple6 GPUs) and defers useResource in deduplicated lists, which removes upstream the per-descriptor walk measured in 629; the RewindBox argument buffer patch written for 1.4.0 no longer applies and is retired. MVKConfiguration is unchanged from 1.4.0."
+  "why": "v1.4.2 (newest Khronos release) enables MTLResidencySet on iOS 18 (mvkOSVersionIsAtLeast(15.0, 18.0, 2.0), Apple6 GPUs) and defers useResource in deduplicated lists, which removes upstream the per-descriptor walk measured in 629; the RewindBox argument buffer patch written for 1.4.0 no longer applies and is retired. MVKConfiguration is unchanged from 1.4.0.",
+  "patchMarkers": [
+    "RewindBox drawable ownership: taken by each present, guarded by _mtlDrawableLock"
+  ],
+  "patchWhy": "MVKPresentableSwapchainImage drawable ownership (KhronosGroup/MoltenVK#2791, open, no upstream fix): acquireAndSignalWhenAvailable released _mtlDrawable without a lock on the vkAcquireNextImageKHR thread while, with MeloNX's asynchronous queue submission, the image's earlier present read it and copied it into its Metal handler blocks on the submission thread (SIGSEGV objc_retain <- _Block_copy <- MTLDispatchListAppendBlock <- presentCAMetalDrawable, Super Mario 3D World, vsync unbounded, IPA 718). Each present now takes its drawable under _mtlDrawableLock and its completion handler releases it; acquisition releases nothing; nextDrawable is never called with the lock held. Model and sanitizer checks: test/melonx_moltenvk_drawable_ownership_test.py."
 }

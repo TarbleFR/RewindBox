@@ -26,7 +26,8 @@ app = project.new_target(:application, 'SkinHarness', :ios, '17.4')
 tests = project.new_target(:unit_test_bundle, 'SkinOverlayTests', :ios, '17.4')
 tests.add_dependency(app)
 classes = File.join(package, 'ios/Classes')
-[File.join(__dir__, 'MeloNXSkinHarness.mm'), File.join(classes, 'MeloNXSkinOverlay.mm')].each do |path|
+[File.join(__dir__, 'MeloNXSkinHarness.mm'), File.join(classes, 'MeloNXSkinOverlay.mm'),
+ File.join(classes, 'MeloNXSkinInteraction.m')].each do |path|
   app.source_build_phase.add_file_reference(project.main_group.new_file(path))
 end
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'MeloNXSkinOverlayTests.mm')))
