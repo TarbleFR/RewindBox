@@ -3303,7 +3303,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   ps2-pocket-original `18712f79` 7366935, switch-pocket `c56f9a37` 9934222; ps2-pocket
   unchanged. Proof (host): verifier 7 packs (exact ratio, body = approved image away from
   its window), input chain 20 layouts, contracts, Flutter skins 156/156, rebuild
-  byte-identical. Simulator: pending (this branch added to the workflow). Controls and
+  byte-identical. Simulator: run `42816409184` (`c8bd4096`): ARMSX2 and Dolphin skin overlay
+  harnesses (both Dolphin Pocket pairs, four sizes, turn/menu/skin change/relaunch)
+  passed; host step failed for a missing scipy in its venv and the MeloNX upright
+  test-pattern minimum (0.870-0.892 for the 14 pt corners of the 216 pt window) —
+  both fixed in `c148755e`; run `42820466523` (`c148755e`): host step and MeloNX harness
+  passed (green). Controls and
   touch areas unchanged; the windows are smaller where the drawn opening was wider/taller
   (appearance change, maintainer's request). Not observed on an iPhone.
   [Record](skins-screen-framing-2026-11-10.md), [sheets](evidence/skins-native-ratio/).

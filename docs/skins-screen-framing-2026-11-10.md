@@ -236,6 +236,11 @@ byte-identical. Before / after sheets against IPA 720 (`render_screen_framing.py
 ca6fd891`): [docs/evidence/skins-native-ratio/](evidence/skins-native-ratio/). Host
 compositions, not captures; not observed on an iPhone.
 
+Simulator: run `42816409184` on `c8bd4096` (ARMSX2 and Dolphin skin overlay harnesses
+passed; its host step lacked scipy and the MeloNX upright minimum was too strict for the
+16:9 window's corners, both fixed in `c148755e`) and run `42820466523` on `c148755e`
+(host step and MeloNX harness passed). The pocket host step now installs scipy.
+
 ## Limits and compromises
 
 - **Dolphin, both orientations chosen.** The Core bridge has no call to resize the
