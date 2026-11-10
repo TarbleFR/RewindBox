@@ -3720,6 +3720,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   156/156, rebuild byte-identical. Simulator: run `42850730582` (`8bfc9b47`) green: host
   step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined to the outline
   and clearly visible, released = rest, real touches). [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
+- **GameCube / Wii Pocket pressed states (10 Nov evening):** maintainer: the same base
+  for the GameCube and Wii RewindBox skins, each pressed button following its true drawn
+  outline. Branch `work/skins-pocket-press-20261110` from Claude `8dee8873`. Finding: the
+  rendered packs' pressed sprite was a second render, cap moved 7 px down with another
+  shadow: its outline was not the drawn one. Change: `pressed_in_place`
+  (build_pocket_skins.py) derives it from the normal sprite: same outline, face shaded
+  darker (upper-left lip, highlights flattened), drop shadow halved; sticks unchanged.
+  Archives: wii-pocket `8650e532` 8329179, gamecube-pocket `214c29d6` 8646547 (others
+  unchanged). Proof (host): verifier 7 packs, input chain 20 layouts, Dolphin chrome,
+  Flutter skins 156/156, rebuild byte-identical. Simulator: pending on this branch.
+  [Sheets](evidence/skins-press-precision/) (wii-pocket-*, gamecube-pocket-*). Not observed
+  on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
