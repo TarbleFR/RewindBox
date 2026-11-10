@@ -166,6 +166,8 @@ LOT_FILES = {
     'adapt_worker_library_share': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Core 719: the GC keep-alive's fragmentation guard (no file held here).
     'adapt_bgc_fragmentation_guard': [],
+    # Core 721: the main pipeline cache referenced in its mapped file.
+    'adapt_pipeline_cache_mapped_data': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0

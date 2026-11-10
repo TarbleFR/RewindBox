@@ -23,6 +23,7 @@ namespace Silk.NET.Vulkan {
     struct PhysicalDeviceProperties { public uint VendorID, DeviceID, DriverVersion; }
     unsafe struct PipelineCacheCreateInfo {
         public StructureType SType;
+        public void* PNext; // as Silk.NET's (Core 721 sets it for the main snapshot)
         public PipelineCacheCreateFlags Flags;
         public nuint InitialDataSize;
         public void* PInitialData;
