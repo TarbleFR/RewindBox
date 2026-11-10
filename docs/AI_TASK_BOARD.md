@@ -237,6 +237,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Current maintainer instruction (10 Nov; conditional common IPA):** finish the current
+  principal work and wait for every participating owner's verified handoff (RPCS3,
+  MeloNX, skins/interface and approved content), then review/integrate, freeze, compile,
+  verify the downloaded plaintext IPA and privately deliver one common package without
+  asking again. This lifts the earlier no-IPA instruction for that delivery only; no
+  partial/duplicate delivery or unapproved Switch 2 experiment. Preserve Vulkan/MoltenVK
+  work and the selected renderer. Main retains Core/pin/CI/delivery ownership.
+  Codex queued this exact instruction once in the principal session on 10 Nov; the UI
+  showed it unread while current work continued (no interruption or duplicate dispatch).
+  - **Read by the principal session and handoff state (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** The instruction
+    was received from the maintainer while the RPCS3 capture preparation was finishing; that work was not interrupted
+    and no IPA was started. State of the handoffs, each to be verified (commits/PR, tests really run, identities,
+    limits) before the freeze:
+    - RPCS3 (main): Core 912 source `4c5566b6`, compile request `02023496`, run `42728150899` in progress; it becomes
+      the RPCS3 Core of this IPA once both jobs are green, the artifacts are verified offline and it is pinned. The
+      Core 913 comparison witness (run `42729856621`, source `466e3f70`) is **not** part of this IPA.
+    - MeloNX (session `012mUASkkFGHaPcEUx9dsp8q`): handoff requested once on 10 Nov (which Core is the handoff among
+      713, 715 refrozen `ab0df1a5` and 717 frozen `f751f1f7`; commits, runs, tests, limits). Awaiting the answer.
+    - Skins/interface (session `012mUASjgVWk8DKKjVbwTD2n`): handoff requested once on 10 Nov. Awaiting the answer.
+    - Approved content: what is already merged on `Claude`; nothing added without a request. Switch 2 stays on its
+      branch. Renderer selection unchanged (Vulkan/MoltenVK kept; the native Metal tests compiling changes nothing).
+    - Next action: wait for the two targeted handoffs (no diagnostic relaunch, no worker), pin Core 912, then
+      review, integrate, freeze, standard recipe, one common build, verification of the downloaded plaintext IPA.
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
@@ -1137,6 +1160,68 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       which is the missing discriminant before any deferral or reordering. 4/16 ways: the capacity is the compile-time
       constant `ways` of IOSTextureLookupMemo.h; there is no runtime selector, so a 4-way witness is another Core build,
       not a setting. `miss_evicted` reads a ring of the last 16 evictions per slot: a lower bound on capacity misses.
+  - **Preparation of the iPhone captures after Core 911 (10 Nov, maintainer prompt "Prépare les prochains essais iPhone
+    pour qu'ils répondent aux questions encore ouvertes"; owner: Claude Code; open until Core 912 is pinned; no device
+    run in this mission).** Protocol, matrix and
+    limits: [rpcs3-capture-protocol-912.md](rpcs3-capture-protocol-912.md).
+    - Input identity: branch `Claude` at `71e985a1` (Core 911 pinned, run 42709542308, Apple rerun 42713366820, dylib
+      43509d9f). Delivered fixes kept as they are; no synchronisation protocol changed.
+    - **Availability, verified along the whole path (emitter, activation, host route, exported file).** Already there on
+      Core 911: SPUWAIT551, RANGELOCKPROF wl_putllc + phases (908), FRAMEPROF527, COREPROF frames (thread CPU), EPOCH909
+      put_deferred/put_patched (910), OPT581/583 worker_used (911), TEXMEMO660 ways/miss_evicted, RPASS652/655 to_* (910),
+      FREEZE_DUMP ppu_poller/lwcond/sema. Missing and added in Core 912: the content of the heavy PUTLLC, a PPU region
+      profile, the main thread's semaphores listed first, the FIFO position, a test page row for the PUT horizon A/B.
+      "Resolved title policy" lines are not exported: a lever is read from levers627 (digits 19 to 21 new).
+    - **Finding that changed the design: the in-game menu never pauses the emulation** (the bridge never calls
+      rpcs3_ios_pause_emulation; every HOST_STATE line of the exported journals at hand, 347 of them, says
+      menu_pauses_emulation=0). A capture started on
+      "pause left" would never have started on the device. Core 912 starts a capture on a request of the host: when the
+      menu is dismissed and the capture's lever digit of the last boot is on, the bridge writes "Enabled" to that capture's
+      setting of the running title through the existing rpcs3_ios_set_game_setting export; the Core takes that write, for
+      a capture enabled at boot, as "start one capture now" before its idle contract, and loads, changes and saves
+      nothing. No new export, ABI 30, no pause. The journal carries CAPTURE_REQUEST (host) and part=armed
+      trigger=menu_closed or part=refused reason=... (Core).
+    - **REWINDBOX_CAPTURE_912** (ios/IOSCapture912.h, SPUThread.cpp do_putllc, RPCS3IOSFreezeDump.cpp, RPCS3IOS.cpp).
+      COREPROF PUTLLCTRACE912: per SPU thread, its consecutive data-changing accurate PUTLLC, 512 entries x 8 threads x
+      80 bytes = 327,680 bytes allocated once, stop on all buffers full, 3 s or emulation not running, 2 per boot; each
+      event: delay, SPU pc, line, outcome (stored, time, owner, precheck, compare, exchange), lanes changed, reservation
+      time held, the lane read at GETLLAR, the lane asked, the lane found with its mask (only where the path read memory:
+      the precheck of a collecting capture compares the copy it records; nothing is read again later), one time base for
+      every thread (t0_us per line). after_full, threads_dropped and the declared line count show what was lost. Idle
+      cost: one relaxed load per data-changing accurate PUTLLC. COREPROF PPUPROF912: PPU threads sampled about every
+      millisecond for at most 5 s (5000 samples), 256-byte regions, running/waiting, the waited call, same_pc/distinct/
+      overflow, 3 per boot. Stall dump: rsx fifo_pos/last_cmd/args_left; 32 semaphores collected, the main thread's
+      first, 12 listed.
+    - Independent review (rb-core-review, read only) before the build: no high-severity defect; fixed from it: the
+      unlocked second read of the precheck (now copy, then compare the copy), a separate outcome for a failed 16-byte
+      exchange, per-boot trigger and limits with the session recorded at arming, seq_cst writer/stop handshake, the PPU
+      sampler releases the thread objects itself. Guard findings fixed: the two capture settings were bound to the PUT
+      horizon entry, and the three test page settings were not per-game.
+    - **Limits stated, not worked around.** The PPU LLVM recompiler writes cia only at indirect transfers, system calls
+      and reservation instructions: PPUPROF912 names regions of the last such point, not instructions
+      (pc_scope=last_indirect_transfer_syscall_or_reservation); an exact profile needs host-PC sampling against the
+      compiled function table, not in Core 912. The thread that should have signalled a waited object is recorded
+      nowhere. The bridge change is Objective-C++ that only an IPA build compiles: covered by static checks here.
+    - Analyzer `tools/rpcs3/capture_analyzer.py` (tests: test/rpcs3_capture_analyzer_test.py, synthetic journals marked as
+      such; checked on the 694 exports: AC1 pid 41776 window 41 found with its origin, BO2/AC1 comparison refused):
+      per title, application build, pid, boot session and window; absent and inactive never shown as 0; origin of every
+      value; journal losses (LOG_ROTATION, LOG_BACKLOG, LOG_BUDGET) and incomplete captures flagged; scene comparison on a
+      shared label with differing settings and the memo variant stated; cumulated thread time never presented as time
+      per frame; host requests and Core refusals listed.
+    - **Core 912 (reference)**: engine commits cd296ef to 3e1549e over 135dc0c; canonical 70dfe005 (448), source
+      `4c5566b6`; MoltenVK dependency run `42724924537` (library d19d3a42 identical, host bridge c98b6f36 recorded; the
+      first request, run 42719779212, recorded the bridge with the three test page keys only). Local: route, codegen
+      audit (one more exact SPUThread.cpp alias, c7f903e3 -> b9bc0cfe), fold chain, 13 host guards, Build 435 guard,
+      capture test (plain, TSan, ASan/UBSan, 7 negative controls), analyzer test, full driver: PASS. Compile request
+      `02023496`, run `42728150899` (in progress when this was written; not verified, not pinned).
+    - **Core 913 (Assassin's Creed comparison witness, never pinned, not for a common IPA)**: Core 912 with one
+      constant, `ways = 4` in rpcs3/ios/IOSTextureLookupMemo.h (the two trees differ by that file only); canonical
+      789eb6b5; build 913 so that artifact names and the identity type differ; TEXMEMO660 reports ways=4. Same local
+      checks PASS (the memo test takes --expect-ways 4 and refuses 16 on that tree). Source `32c0a426`, compile request
+      `466e3f70`, run `42729856621` (in progress); `ee1f5c78` restores the exact Core 912 files at the head of the
+      branch. The next reference Core is 914. The 16/4 comparison needs two IPAs that differ by the Core only.
+    - Remaining blocker: none on the preparation side. Next action: verify both artifacts offline, pin Core 912 only,
+      record the witness identity under docs/evidence/rpcs3-core913-ac1-ways4-witness/.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -2528,9 +2613,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     three-launch protocol of the record (collection, reuse, reuse after removing the app's com.apple.metal cache).
     The library stage is the next lot (lot 8): redundant creations first; a creation deferred to first use counts as
     a gain only where it removes work instead of moving it.
-- **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9 Nov; owner: this
-  session, integration and Core build; open; Core 715 = Core 713 + adapt_extra_set_binds + adapt_array_reference_deltas,
-  refrozen `ab0df1a5`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
+- **MeloNX lot 8: render CPU and Metal library cost (Claude Code session 012mUASkkFGHaPcEUx9dsp8q, 9-10 Nov; owner:
+  this session, integration and Core build; Core 715 validated; Core 717 = Core 715 + adapt_worker_library_share, frozen
+  `f751f1f7`; no IPA (maintainer); branch `work/melonx-lot8-render-cpu`):**
   - Goal: less render-thread work per frame and fewer repeated native compilations, every title, same draws and results.
   - Base: Core 713 validated (contract `01e2f624`, run 42689230667 attempt 3, binary `ff3f2333…`).
   - Fix 1 (DescriptorSetUpdater.cs): an update of the uniform or storage set alone looked the bindless array set up
@@ -2555,17 +2640,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and submission. Checked after it: CommandBufferPool.SubmissionCount grows at every submission of an index; array
     setters run on the render thread (threaded commands). Not judged: MoltenVK re-encoding bound sets in a new encoder
     (the delivered early return already depends on it).
-  - Core CI: first freeze `28c53540` run 42714314353 on `9f90df80` red at step 8, gate cold-texture-release: the new
-    AddNewReferences held the statement that gate binds its proof to (one line of TextureArray.cs, required once); the
-    local reruns had covered only the gates declaring the two files. Revised (same behaviour), all 74 gates run locally
-    and green, refrozen `ab0df1a5`, contract test 445 checks; requested by the commit carrying this line.
+  - Core 715 CI: first freeze `28c53540` run 42714314353 red (gate cold-texture-release: the new AddNewReferences held
+    the statement that gate binds its proof to, required once). Revised (same behaviour), all 74 gates run locally,
+    refrozen `ab0df1a5`: run 42722916222 on `a2e0d7a4` green (job 129521127453; artifact 13722528871, 91 020 474 B,
+    sha256 `f658127c…`; iPhone binary `63653e35…` 38 407 032 B, simulator `7922bdf8…`; 74 fresh Apple gates,
+    simulator-validated, not gameplay tested). [Receipts](evidence/melonx-715-gates/run.json).
   - Not claimed: render-thread milliseconds on the iPhone, FPS. To read on the next device run (same route, 1x): the
     pass detail line's array reference passes and references added, array current binds, descriptors in draw and compute
     prepare against 1 121 / 394 ms per 108 frames.
-  - Next (Metal libraries): MoltenVK v1.4.2 keeps libraries per VkPipelineCache; MeloNX's workers take any work item and
-    compile into their own cache, merged into main only before a recycle, so variants of one new program on two workers
-    convert and compile the same MSL twice in a session. Candidate fix: a bounded play-time merge of the worker's cache
-    into main by the owning worker under the main lock, so the next worker's main lookup finds the library.
+  - Fix 3, Core 717 (PipelineCacheManager.cs, PipelineState.cs): MoltenVK v1.4.2 keeps Metal libraries per
+    VkPipelineCache; a worker's cache reached main only before a recycle or at the close, so a variant taken by the
+    other worker converted and compiled the same MSL again. After a creation compiled in its own cache, the worker
+    merges that cache into main (references copied, nothing compiled) under the main lock, announced as a holder so
+    render-thread creations go to the side cache; never waiting (busy: retried at the next own compile), not into a
+    Frozen main, not under low memory, not past main's estimated budget (checked before and under the lock). The
+    announcement became a count of holders for every holder of the file (a holder could clear another's flag).
+  - Real backend (MoltenVK v1.4.2 unpatched, macOS runner Metal; runs 42717015439 and 42720455975, two rounds each;
+    [measure](evidence/melonx-717-gates/library-share-measure.json)): MSL compiles 40 -> 27, the one-cache lower bound,
+    SPIR-V conversions 39 -> 26; 24 merges in 0.2 ms; peak footprint +0.5 to +0.7 MiB. Not removed: two workers
+    compiling the same library at once (40 in the synchronised concurrent case, 12 overlapping pairs); a
+    merge-then-reset strategy made 49, batches of 8 made 40 (rejected). Moved, not added: a variant served from main
+    creates its pipeline state under the main lock (166-185 ms per 60 requests against 4-6 ms): a render-thread creation
+    meeting it waits.
+  - Gate worker-library-share (real manager, content double; 63 checks): alternating variants 27 -> 15 libraries (14
+    distinct); busy lock, Frozen main, recycle, render creations during shares, close and next launch: same content;
+    another holder announced while a worker fails the lock: render thread to the side cache in about 2 ms, a variant
+    clearing announcements leaves it waiting; budget refused near the bound, credit kept apart from measures. Reviews:
+    maintainer (protocol, budget under the lock, bench sync) and rb-core-review (estimate accounting): fixed. All 75
+    gates green locally; contract `f751f1f7` (194 inputs), contract test 447 checks.
+    [Receipts](evidence/melonx-717-gates/run.json).
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
