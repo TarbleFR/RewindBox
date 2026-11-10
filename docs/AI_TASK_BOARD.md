@@ -3725,27 +3725,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Actions history cleanup — Codex
 
-- **10 Nov maintainer request — completed and independently audited.**
-  [Run 42735827450](https://github.com/TarbleFR/RewindBox/actions/runs/42735827450)
-  / job `129564695680`, attempt 1, source `633af034`: success.
-  Exactly **1,311** reviewed completed/skipped first attempts have distinct,
-  ordered DELETE **204** receipts; their IDs equal the immutable plan selection
-  (SHA-256 `1f6d5f04…868c3e`). Zero 404, conflicts or unselected snapshot losses.
-  All **1,208 protected snapshot runs** remain, including executed/active/rerun/
-  referenced runs and the newest 300. ZIP `13729243116` downloaded and hashed;
-  all five evidence files audited against plan, journal and complete listings.
-  Final listing: 1,269 = 1,208 retained + 61 distinct new runs; independent
-  13-page audit: 1,287 = 1,208 retained + 79 distinct new runs. Counts reflect
-  new product runs, not additional deletion. No duplicate dispatch or mutation
-  beyond the reviewed cleanup; no Core/pin/product/IPA action by this audit.
-  [Audited receipt](evidence/github-cleanup-2026-11-10.json) preserves exact IDs,
-  file hashes and checks. Completion surveillance
-  `Automation_0196817728ec8191be81faafe4584741` **disabled** after verification.
+- **10 Nov follow-up — completed and independently audited.**
+  [Run 42893521842](https://github.com/TarbleFR/RewindBox/actions/runs/42893521842),
+  job `130100499242`, attempt 1, source `34ff0056`: success.
+  **383** old completed/skipped first attempts removed; ordered HTTP204 receipts
+  match the reviewed plan (SHA-256 `c790165f…edcd75c`). All **1,276 protected
+  snapshot runs** remain, including the newest 300 and every executed run.
+  Jobs from all attempts and attached artifacts are checked before deletion;
+  active/changed/new/rerun/evidence-bearing runs stay protected.
+  26 safety tests pass locally and in CI. The first attempt `42893040902`
+  stopped with **zero DELETEs** because the two new evidence GETs were absent
+  from the internal request allowlist; a real-request-boundary test reproduced
+  the failure before the exact read-only fix. DELETE scope is unchanged.
+  [Follow-up audit](evidence/github-cleanup-2026-11-10-followup.json)
+  retains source/plan/artifact identities, exact deletions and final verification.
+  No product, Core, pin, IPA or public-release change.
 
-Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
-all initial artifacts/retained producers preserved, Dependabot151 retained.
-[Audited receipt](evidence/github-cleanup-2026-11-04.json). Not current inventory
-or permission for more deletion.
+Previous verified cleanups remain recorded:
+[1,311 skipped runs on 10 Nov](evidence/github-cleanup-2026-11-10.json);
+[4 Nov cleanup](evidence/github-cleanup-2026-11-04.json).
+The old completion surveillance remains disabled; no new automation was created.
 
 ## Delivered baseline
 
