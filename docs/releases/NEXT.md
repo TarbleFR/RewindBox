@@ -53,6 +53,11 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   the same on every device (setting "Busy wait reference duration"). The performance report counts what the scheduler
   did for the app in each window and, for the first minutes of a game, compares this setting and the Core 917 one by
   alternating them between its windows. Host tests only; no FPS claim.
+- RPCS3 Core 919 pinned on 10 November 2026 ([record](../rpcs3-core919-zcull-bo2.md); run `42815113270`, dylib `04f44a94…`,
+  pin `44527c61…`): in Call of Duty: Black Ops II the game's main processor threads waited up to a fifth of their time for
+  occlusion results the GPU could have finished long before, because the work behind them was sent to the GPU only when
+  the game asked; that work is now sent as soon as possible, as it already was for Assassin's Creed. Host model only
+  (waits at 23 of 23 reads before, 2 after); no FPS claim before an iPhone measurement.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

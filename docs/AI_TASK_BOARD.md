@@ -1561,10 +1561,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       comparison passes sit at counted windows 7-22, 45-60 and 83-98 since boot, menus included (0:30-1:50,
       3:40-5:00, 6:50-8:10): play each game until nine minutes after its launch, in the same zone. BO2 has no device
       measurement since build 694 (Core 907): Cores 910, 911, 914, 916, 917 and 918 are all unmeasured on it.
-    - **Next:** the journals of build 719 or 720 (IPA 720, delivered on 10 Nov, holds the same Core 918: payload
-      `78f2defd` read in both files), one export per game (BO2 nine minutes from launch in the slow scene; GOW3 from
-      a fresh boot, nine minutes), then the fix they select among those listed under "What the next export decides"
-      (the GETLLAR thresholds are off that list).
+    - **Core 919 (10 Nov, BO2 ZCULL waits; maintainer: "les diagnostics sont suffisamment fournis pour avancer";
+      [record](rpcs3-core919-zcull-bo2.md)).** Device evidence, IPA 676 (Core 905, PID 25658, session 3, windows
+      9-19, 20-26 FPS, GPU 32 %): PPU threads wait 205-1,165 ms per 5 s window on 42-113 pending ZCULL report reads
+      (ZCULLDEMAND619, fault_threads ppu); the oldest pending report had been queued 5.0-15.0 ms before (ZCULLLEAD659)
+      while a command buffer needs 2.2 ms GPU + 1.5 ms queue: submitted only on demand. Core 660 had excluded BO2 from
+      the watched flush on a host model (reads right after the report) that the device contradicts; and the 561 cap
+      (5.9 of 6 per frame used) would refuse its arms anyway.
+      - `REWINDBOX_ZCULL_WATCHED_BO2_919` (BO2 joins the watched flush) and `REWINDBOX_ZCULL_WATCHED_OWN_BUDGET_919`
+        (watched arms refused only by their own budget of 2 per frame; a watched submission no longer counts in the
+        561 cap). Only command buffer boundaries move; values, order and read moments unchanged; no codegen input.
+      - Control (test/rpcs3_zcull_watched919_test.py, real ZCULL/renderer code, ASan+UBSan, Core 918 code as
+        control): BO2-shaped frames wait at 23/23 reads (127.8 ms); 918 code with the lever on still waits (22 arms
+        refused by the 561 cap); Core 919 2/23 (11.6 ms), model frame 34.89 -> 30.05 ms; 561 under its cap 106.3 ->
+        4.4 ms. Host model; no FPS claim.
+      - Engine `8210faf`, source `6699e616`, request `e2f3e211`, run `42815113270` green (Core job 129826118660, Apple
+        host job 129826118284); artifact 13765658019 (30,501,489 B, zip = API digest `b5800c2e`); dylib
+        `04f44a94…0913` (80,937,424 B), fingerprint `a74a9cf6…56e7`, identities PPU a987639e / SPU 477a3fa4
+        unchanged, markers present; pin_errors verified, pin `44527c61`. Local: closure, codegen, fold, route, 13
+        guards, the 912-918 tests and the full driver pass.
+    - **Next:** IPA 721 with Core 919; then the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
+      `ZCULLWATCH660 slots=`/`taken=` and `ZCULLDEMAND619 waits` decide whether this lever acts; GOW3 from a fresh
+      boot as before.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
