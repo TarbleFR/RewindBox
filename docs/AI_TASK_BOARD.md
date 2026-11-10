@@ -2851,18 +2851,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Actions history cleanup — Codex
 
-- **10 Nov maintainer request, current plan:** a fresh complete inventory has 2,519 runs.
-  The reviewed one-shot plan targets exactly 1,311 older skipped-only first attempts;
-  newest 300, all executed jobs (success/failure/cancelled), active/rerun/referenced
-  runs are protected. No Core/pin/product/build/delivery change. Existing cleanup
-  script and 24 guard tests pass; snapshot dry-run selects 1,311 with zero mutations.
-  Running: [42735827450](https://github.com/TarbleFR/RewindBox/actions/runs/42735827450),
-  source `633af034`, plan SHA-256 `1f6d5f04…868c3e`. GitHub guard tests passed;
-  deletion step active, final count/receipt not yet verified. No second dispatch.
-  The other delivery workflows triggered by the push skipped every job.
-  Completion verification is scheduled in bounded automation
-  `Automation_0196817728ec8191be81faafe4584741` (hourly, at most four checks;
-  disable after verified result or terminal blocker). No duplicate cleanup run.
+- **10 Nov maintainer request — completed and independently audited.**
+  [Run 42735827450](https://github.com/TarbleFR/RewindBox/actions/runs/42735827450)
+  / job `129564695680`, attempt 1, source `633af034`: success.
+  Exactly **1,311** reviewed completed/skipped first attempts have distinct,
+  ordered DELETE **204** receipts; their IDs equal the immutable plan selection
+  (SHA-256 `1f6d5f04…868c3e`). Zero 404, conflicts or unselected snapshot losses.
+  All **1,208 protected snapshot runs** remain, including executed/active/rerun/
+  referenced runs and the newest 300. ZIP `13729243116` downloaded and hashed;
+  all five evidence files audited against plan, journal and complete listings.
+  Final listing: 1,269 = 1,208 retained + 61 distinct new runs; independent
+  13-page audit: 1,287 = 1,208 retained + 79 distinct new runs. Counts reflect
+  new product runs, not additional deletion. No duplicate dispatch or mutation
+  beyond the reviewed cleanup; no Core/pin/product/IPA action by this audit.
+  [Audited receipt](evidence/github-cleanup-2026-11-10.json) preserves exact IDs,
+  file hashes and checks. Completion surveillance
+  `Automation_0196817728ec8191be81faafe4584741` **disabled** after verification.
 
 Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
 all initial artifacts/retained producers preserved, Dependabot151 retained.
