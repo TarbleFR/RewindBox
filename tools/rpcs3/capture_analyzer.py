@@ -30,7 +30,8 @@ import sys
 LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET dropped=')
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
-                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917', 'SCHED918')
+                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917', 'SCHED918',
+                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -364,7 +365,19 @@ COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527',
            ('memo_ways', 'TEXMEMO660', 'ways'), ('memo_lookups', 'TEXMEMO660', 'lookups'), ('memo_hits', 'TEXMEMO660', 'hits'),
            ('miss_empty', 'TEXMEMO660', 'miss_empty'), ('miss_evicted', 'TEXMEMO660', 'miss_evicted'), ('memo_lookup_ms', 'TEXMEMO660', 'lookup_ms'),
            ('pass_begins', 'RPASS652', 'begins'), ('same_target', 'RPASS652', 'same_target'), ('ended_empty', 'RPASS652', 'ended_empty'),
-           ('to_transfer_dst', 'RPASS655', 'to_transfer_dst'))
+           ('to_transfer_dst', 'RPASS655', 'to_transfer_dst'),
+           # Frame pacing of the window beyond p95, and the age of the last guest flip at the report (a stopped or frozen
+           # window can repeat old statistics: this tells).
+           ('median_ms', 'FRAMEPROF527', 'median_ms'), ('p99_ms', 'FRAMEPROF527', 'p99_ms'), ('max_ms', 'FRAMEPROF527', 'max_ms'),
+           ('over50', 'FRAMEPROF527', 'over50ms'), ('over100', 'FRAMEPROF527', 'over100ms'), ('last_flip_ms', 'FRAMEPROF527', 'last_guest_flip_age_ms'),
+           # ZCULL (Black Ops II, Cores 919 and 920): what the guest waits for, the age of the reports it waits for (oldest:
+           # ZCULLLEAD659; the one it waits for last: ZCULLCOST920), whether the watched flush learns and arms, what its
+           # submissions cost, against all submissions of the RSX thread.
+           ('zc_waits', 'ZCULLDEMAND619', 'waits'), ('zc_oldest_lead', 'ZCULLLEAD659', 'leads'), ('zc_slots', 'ZCULLWATCH660', 'slots'),
+           ('zc_taken', 'ZCULLWATCH660', 'taken'), ('zc_newest', 'ZCULLCOST920', 'newest'), ('zc_newest_1ms', 'ZCULLCOST920', 'newest_over_1ms'),
+           ('zc_watched_submit', 'ZCULLCOST920', 'watched_submit'), ('rsx_submit', 'RSXSYNC551', 'submit'),
+           # Memory of the process, sampled in the window (bytes).
+           ('footprint', 'MEMPROF527', 'footprint'), ('compressed', 'MEMPROF527', 'compressed'))
 # levers627= of CONFIG_LAYERS part=rsx: one digit per lever in this order; 1 = on, +2 = set explicitly for the test.
 # The "Resolved title policy" lines are not among the exported kinds: this field is what an export proves.
 LEVERS = ('zcull_wait_guard', 'zcull_cond_no_wait', 'zcull_conservative_reports', 'spu_noop_spin_wait', 'spu_qos_below_rsx', 'fifo_nop_fast_path',
@@ -457,7 +470,11 @@ def levers(digits) -> dict:
     return out
 
 
-UNITS = ('fps and cores are averages over the window; gpu_busy is a share of the window; wl_putllc is count:acquire_ms:hold_ms cumulated over '
+UNITS = ('zc_waits, zc_oldest_lead, zc_newest, zc_watched_submit and rsx_submit are count:total_ms:max_ms per window; zc_slots is '
+         'learned:refreshed:expired:evicted:short_lead and zc_taken draw_start:after_textures:fallback:carried (ZCULLWATCH660, inactive when '
+         'the watched flush is off for the title); zc_newest_1ms the waiting reads whose last report was 1 ms old or more; footprint and '
+         'compressed are bytes; median/p99/max_ms and over50/over100 are guest frame intervals of the window; '
+         'fps and cores are averages over the window; gpu_busy is a share of the window; wl_putllc is count:acquire_ms:hold_ms cumulated over '
          'all SPU threads (thread time, not frame time); getllar_sleep is count:total_ms; pass, epoch and memo counters are per window; '
          'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count; '
          'spurs_relaxed is stored:undone:refused, the PUTLLC of SPU threads on SPURS header lines with relaxed reservations (Core 916), per '
