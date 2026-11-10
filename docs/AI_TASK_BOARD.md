@@ -3213,10 +3213,38 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     decision: ship, next Core adds a bounded `gcKeepAlive dormant` line and a separate miss count, gate holding the ratio
     above 0.48 for 20 s. Watch: after a present `_mtlDrawable` is nil; only MetalFX (refused by the host) reads a
     swapchain texture before reacquisition.
-  - Next: main integrates Core 721 + the mapped-cache MoltenVK (one IPA, no duplicate build); device trials per both
-    protocols. Then, against the maintainer's goal (Hogwarts 30 FPS at 1x, footprint toward 4 GiB): the managed heap
-    (823 MiB, 249 MiB fragmented in play) and GPU memory shares, the GPU thread's binding commits (1 010 ms and 25 MiB
-    allocated per 5 s in play), Hogwarts' long pause from `mgd=`, F1, `NS_SWIFT_NAME`, and
+  - **718 Hogwarts, what holds 30 FPS (local reading of the journals, 10 Nov):** at t=58-60 s the host sampler shows
+    27.7-31.9 FPS with 33 ms gaps (render thread 50-71 % of a core, GPU.MainThread 34-49 %, guest MainThread ~46 %);
+    from t=61 s the footprint is 5.19 GB with 7-8 % of the device available, thermal `serious` from t=64 s, 3-15 FPS.
+    Inventory at 03:41:42: footprint 5 482 MiB, GC committed 822 MiB (LOH 507 MiB, 247 MiB of it free), texture cache
+    154, buffer cache 107; the rest (guest memory, the MoltenVK cache copy Core 721 removes, JIT, Metal objects) about
+    4.4 GiB. So memory and heat come first; render-thread work also feeds the heat and the GPU thread's waits.
+  - **Render thread, 97-frame window (03:41:20):** busy 2 870 of 5 077 ms; DrawIndexed 80 191 calls 1 433 ms (draw
+    descriptors 933.5, pipelines 162.7, auto-flushes 907 calls 136.8), DispatchCompute 5 233 calls 365 ms (compute
+    descriptors 302 ms for 5 472 programs of up to 32 descriptors: 55 us each), SetTextureArraySeparate 50 841 calls
+    248.6 ms, BufferSetData 133.5, CreateSync 1 594 calls 116.2; submits 2 385 (264.7 ms, about 25 command buffers per
+    frame); texture-array reference passes 23 644 (1.53 M references, 243.5 ms: one pass per array per command buffer);
+    the GPU thread waited 519.6 ms on it.
+  - **Descriptor write cost on real MoltenVK** (run 42835169847, macOS runner, the recipe patch): the runner's GPU is an
+    Apple Paravirtual device without Metal3, so MoltenVK used encoder argument buffers, not the iPhone's Metal3 path,
+    and the run failed its Metal3 requirement; figures as an upper bound only: a 74-descriptor template write 4.39 us
+    (0.059 us per descriptor, 4.34 us when the content repeats), a bind recording 0.03 us. At that speed the 718
+    window's 5.39 M descriptors are about 0.32 s of its 1.24 s of descriptor time: most of it is the managed
+    preparation (reference passes, buffer resolution), not MoltenVK's write.
+  - **Ready, not wired (Core 723 candidates, each with its gate run locally on the Core 721 preparation):**
+    `adapt_gc_keepalive_dormant` (F1, `4a3d3d7b`, 50 checks); `adapt_extra_array_dirty` (`352a8616`, 71 checks);
+    `adapt_gc_pause_journal` (`5870365b`, 32 checks: each ephemeral collection's pause, promotion and gen0/gen1 sizes;
+    per-generation counts from GC.CollectionCount, since the record index is shared by every kind of collection: a
+    first version counted each gen2 as a missed ephemeral one, caught by the gate's real-runtime part);
+    `adapt_array_barrier_epoch` (`3287fee7`, 117 checks: a texture array skips its write-to-read barrier pass when no
+    attachment was loaded or stored since a pass covering the same stages; the production members of control and
+    candidate give identical barrier logs and final states over 3 configurations x 3 seeds x 60 000 operations, four
+    wrong variants diverge; detail-line counters for passes run, skipped, rebuilt).
+  - Next: main pins Core 721 and builds IPA 722 (device trials per both protocols: mapped-cache RAM, stall lines). Then
+    Core 723 with the four adapters above (ORDER, prepare_embedded, plan, gates touching EmbeddedSession.cs,
+    DescriptorSetUpdater.cs, TextureStorage.cs and TextureArray.cs, freeze). Also open: the compute descriptor cost (55 us
+    per small program), command buffers per frame (reference passes, submits), the managed heap (LOH holes), mirror
+    settle step, Hogwarts' long pause from `mgd=` and the stall lines, `NS_SWIFT_NAME`, and
     `test/melonx_capture_journal_test.py` (red on Linux since before 719).
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
