@@ -168,6 +168,12 @@ LOT_FILES = {
     'adapt_bgc_fragmentation_guard': [],
     # Core 721: the main pipeline cache referenced in its mapped file.
     'adapt_pipeline_cache_mapped_data': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 723 (lot 9): the keep-alive's dormant line and pause journal (no file held here); the separate-array dirty bit
+    # (DescriptorSetUpdater.cs is outside this composition) and the texture array barrier epoch.
+    'adapt_gc_keepalive_dormant': [],
+    'adapt_gc_pause_journal': [],
+    'adapt_extra_array_dirty': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
+    'adapt_array_barrier_epoch': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
 }
 
 checks = 0

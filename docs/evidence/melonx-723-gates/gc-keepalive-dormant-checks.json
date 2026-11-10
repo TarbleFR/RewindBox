@@ -1,0 +1,85 @@
+{
+  "result": "passed",
+  "checks": 50,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Library/EmbeddedSession.cs": "ada8f577b6bec5c6d7111132298146305f8b7de2e6a2953cfceccbe47f388e5f"
+  },
+  "report": {
+    "controlHold": {
+      "requests": 1,
+      "requestsCounted": 1,
+      "journal": [
+        "gcKeepAlive/started: background gen2 requested 12-16 s after the previous one (adapt_bgc_keepalive)",
+        "gcKeepAlive/summary: background gen2 requests 1, windows missed 0, small-heap skips 0, background records seen 2, fragmented skips 1, requests run blocking 0 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard)"
+      ]
+    },
+    "candidateHold": {
+      "requests": 1,
+      "requestsCounted": 1,
+      "journal": [
+        "gcKeepAlive/dormant: window closed with gen2 + LOH fragmentation 0.600 above 0.48: no request until the runtime's next background gen2 (adapt_gc_keepalive_dormant)",
+        "gcKeepAlive/started: background gen2 requested 12-16 s after the previous one (adapt_bgc_keepalive)",
+        "gcKeepAlive/summary: background gen2 requests 1, windows missed 0, small-heap skips 0, background records seen 2, fragmented skips 1, requests run blocking 0, dormant after a fragmented skip 1 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard, adapt_gc_keepalive_dormant)"
+      ]
+    },
+    "candidateRecovers": {
+      "requests": 2,
+      "requestsCounted": 2,
+      "journal": [
+        "gcKeepAlive/started: background gen2 requested 12-16 s after the previous one (adapt_bgc_keepalive)",
+        "gcKeepAlive/summary: background gen2 requests 2, windows missed 0, small-heap skips 0, background records seen 1, fragmented skips 1, requests run blocking 0, dormant after a fragmented skip 0 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard, adapt_gc_keepalive_dormant)"
+      ]
+    },
+    "candidateMissed": {
+      "requests": 0,
+      "requestsCounted": 0,
+      "journal": [
+        "gcKeepAlive/summary: background gen2 requests 0, windows missed 1, small-heap skips 0, background records seen 1, fragmented skips 0, requests run blocking 0, dormant after a fragmented skip 0 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard, adapt_gc_keepalive_dormant)"
+      ]
+    },
+    "controlMissed": {
+      "requests": 0,
+      "requestsCounted": 0,
+      "journal": [
+        "gcKeepAlive/summary: background gen2 requests 0, windows missed 1, small-heap skips 0, background records seen 1, fragmented skips 0, requests run blocking 0 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard)"
+      ]
+    },
+    "candidateBound": {
+      "requests": 0,
+      "requestsCounted": 0,
+      "journal": [
+        "gcKeepAlive/dormant: window closed with gen2 + LOH fragmentation 0.700 above 0.48: no request until the runtime's next background gen2 (adapt_gc_keepalive_dormant)",
+        "gcKeepAlive/dormant: window closed with gen2 + LOH fragmentation 0.700 above 0.48: no request until the runtime's next background gen2 (adapt_gc_keepalive_dormant)",
+        "gcKeepAlive/dormant: window closed with gen2 + LOH fragmentation 0.700 above 0.48: no request until the runtime's next background gen2 (adapt_gc_keepalive_dormant)",
+        "gcKeepAlive/dormant: window closed with gen2 + LOH fragmentation 0.700 above 0.48: no request until the runtime's next background gen2 (adapt_gc_keepalive_dormant)",
+        "gcKeepAlive/summary: background gen2 requests 0, windows missed 0, small-heap skips 0, background records seen 6, fragmented skips 6, requests run blocking 0, dormant after a fragmented skip 6 (adapt_bgc_keepalive, adapt_bgc_fragmentation_guard, adapt_gc_keepalive_dormant)"
+      ]
+    },
+    "maxDormantLines": 4,
+    "limit": 0.48
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionLibraryAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/EmbeddedSession.cs": "fb620f855a7946e97682592d047ff06eba9210ff6520a1c13ace740a048bbb06"
+  },
+  "comparison": {
+    "controlSilentWhenDormant": true,
+    "candidateDormantLines": 1,
+    "candidateDormantCounted": 1,
+    "refusedWindowNotAMiss": true,
+    "plainMissCounted": true,
+    "dormantLinesBounded": 4,
+    "requestsUnchanged": true
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_gc_keepalive_dormant.py": "1ed181188de36bc48734cbbd4c726d7deb664106eb3e83ad692ed93bf38b8ef9",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_gc_keepalive_dormant_test.py": "adf061c3f998cd37542c6045ebf32441ce702fbc4647172031a599b40ae85e79",
+    "test/melonx_gc_keepalive_dormant/Program.cs": "e80a93d41ecacf83734e75dfc69b3bc36fc9528dfa9cbd0b6660fc3ce3bf3bcb",
+    "test/melonx_adapter_control.py": "c12717101284cf83c3f5141af958bc75afb803717ac5b2b2d135b8706640351a"
+  }
+}

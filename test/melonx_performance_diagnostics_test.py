@@ -133,6 +133,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     import adapt_bgc_keepalive as _bgc
     import adapt_bgc_fragmentation_guard as _guard
     session_core = session_after
+    # Core 723: adapt_gc_pause_journal's, then adapt_gc_keepalive_dormant's replacements inside that class are undone first
+    # (applied after the guard, latest first); their gates (gc-pause-journal, gc-keepalive-dormant) bind them.
+    import adapt_gc_keepalive_dormant as _dormant
+    import adapt_gc_pause_journal as _pause
+    for _module in (_pause, _dormant):
+        for _old, _new in reversed(_module.PAIRS):
+            assert session_core.count(_new) <= 1
+            session_core = session_core.replace(_new, _old)
     # Core 719: adapt_bgc_fragmentation_guard's replacements inside that class are undone first (applied after it); its
     # gate (bgc-fragmentation-guard) binds them.
     for _old, _new in reversed(((_guard.ENUM_OLD, _guard.ENUM_NEW), (_guard.RUN_OLD, _guard.RUN_NEW), (_guard.SEAMS_OLD, _guard.SEAMS_NEW),

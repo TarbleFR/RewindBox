@@ -164,6 +164,10 @@ from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
 from adapt_worker_library_share import apply as adapt_worker_library_share
 from adapt_bgc_fragmentation_guard import apply as adapt_bgc_fragmentation_guard
 from adapt_pipeline_cache_mapped_data import apply as adapt_pipeline_cache_mapped_data
+from adapt_gc_keepalive_dormant import apply as adapt_gc_keepalive_dormant
+from adapt_gc_pause_journal import apply as adapt_gc_pause_journal
+from adapt_extra_array_dirty import apply as adapt_extra_array_dirty
+from adapt_array_barrier_epoch import apply as adapt_array_barrier_epoch
 
 
 def replace_once(path, old, new):
@@ -465,6 +469,15 @@ def main():
     # Hogwarts at 5.4-5.5 GiB): the main snapshot is referenced in its read-only mapping (RewindBox MoltenVK patch), kept
     # mapped until main is destroyed.
     adapted += [source / name for name in adapt_pipeline_cache_mapped_data(source)]
+    # Core 723 (lot 9): the GC keep-alive says when it goes dormant after a window refused for fragmentation (F1, review of
+    # 719), then journals every ephemeral collection's pause and sizes with per-generation counts (decides the gen0 budget).
+    adapted += [source / name for name in adapt_gc_keepalive_dormant(source)]
+    adapted += [source / name for name in adapt_gc_pause_journal(source)]
+    # Core 723 (lot 9, render thread, IPA 718 Hogwarts): a separate texture array change no longer rewrites the main texture
+    # set; a texture array skips its write-to-read barrier pass when no attachment was loaded or stored since a pass over the
+    # same storages covering the same stages.
+    adapted += [source / name for name in adapt_extra_array_dirty(source)]
+    adapted += [source / name for name in adapt_array_barrier_epoch(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -592,7 +605,11 @@ def main():
                  'adapt_array_reference_deltas.py',
                  'adapt_worker_library_share.py',
                  'adapt_bgc_fragmentation_guard.py',
-                 'adapt_pipeline_cache_mapped_data.py']:
+                 'adapt_pipeline_cache_mapped_data.py',
+                 'adapt_gc_keepalive_dormant.py',
+                 'adapt_gc_pause_journal.py',
+                 'adapt_extra_array_dirty.py',
+                 'adapt_array_barrier_epoch.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
