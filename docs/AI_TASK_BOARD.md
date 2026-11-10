@@ -3147,8 +3147,60 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - MeloNX owner (lot 8): no objection, not editing the bridge files touched here; no Core/ABI
     change. Handed off once to main (PR164 + PR165, PR165 marked ready). Not observed on an
     iPhone; no MeloNX game run with the skin; no IPA from here.
+- **Game screen framing of the RewindBox Pocket skins (10 Nov request, high selector):**
+  branch `work/skins-screen-framing-20261110` from `3c2a8e5c`, product commit `c90b86c8`.
+  The two Wii captures arrived after the fix (iPhone 956 × 440 pt, `wii-pocket-original`
+  sideways, in game and during shader compilation; not stored): surface = the old declared
+  rectangle within 2 px, navy strips 7.7 / 6.5 pt above and below, square corners over the
+  rounded frame; the measured opening matches the capture within 1 px. **Cause 1
+  confirmed on that layout; cause 2 is not what they show.**
+  [Record and per-layout tables](skins-screen-framing-2026-11-10.md),
+  [evidence](evidence/skins-screen-framing/).
+  - Input identity: the 7 bundled packs of `assets/skins/pocket/catalog.json` at `d09db191`
+    (`wii-pocket` and `gamecube-pocket` share the wordmarked body).
+  - Findings: (1) metadata: `outputFrame` was a hand-placed 4:3 / 16:9 rectangle, not the
+    drawn opening: navy bands of the skin on one or two sides (1.5 to 33.8 pt), square
+    corners over the rounded frame, Switch landscape 0.6 to 1.3 pt over the frame;
+    `ps2-pocket` exact. (2) layout code: `lockRenderSurface` sized the Dolphin surface from
+    the bounds at launch, which can still be those of the screen that opened the session
+    (found in code, not observed).
+  - Change: `tools/skins/screen_opening.py` measures the opening on each body:
+    `screenCutout` (the body's mask in the three overlays, scaled with the body) +
+    `outputFrame` = its bounding box; six packs rebuilt, items/frames/touch areas/bodies
+    identical; Dolphin surface sized for the settled bounds (`DOLPolicyBoundsWillTurn`,
+    `screenFrameForBounds:`), point for point over its screen. Emulators keep their own
+    aspect mode inside the surface.
+  - Archives (SHA-256, bytes): wii-pocket `27e11106` 6546456; gamecube-pocket `3d89d8ed`
+    6842144; wii-pocket-original `83155de2` 5099520; gamecube-pocket-original `0dec9ae5`
+    6170332; ps2-pocket-original `cad86ccd` 7287187; switch-pocket `f8f5326b` 9614981;
+    ps2-pocket `2106e5f7` unchanged. **Main: legal/source declarations of the six changed
+    archives to revise.**
+  - Proof (host): verifier 7 packs (opening re-measured); rebuild of the 7 packs
+    byte-identical; input chain 20 layouts (4880014 sprite points reach their own control);
+    ARMSX2 menu, portrait lock, Dolphin chrome contracts; policy cases; Flutter skin suites
+    156/156. Simulator, run [42764238520](https://github.com/TarbleFR/RewindBox/actions/runs/42764238520)
+    on `c90b86c8`: host step on the 7 archives, the three iPhone compiles, the MeloNX, ARMSX2
+    and Dolphin skin overlay harnesses (declared frame, hole = cutout, four-edge test pattern,
+    turn, menu, skin change, relaunch) and the Dolphin orientation tests **passed**. The run
+    is red on its last step only, the Dolphin session harness: `SessionMenuTests` (menu rows
+    now cheats/controls/console where the tests expect the older list; `TCGameCubePad` /
+    `TCWiiPad` NIB not in the harness bundle), 21 failures. **Not from this branch**: it does
+    not touch `DolphinSessionMenu.mm`, the session tests or `test_session_ui.rb`, and the
+    same suites fail on `work/melonx-fps-stability-20261103` (run `42759701871`, MeloNX
+    owner). For main to assign; not fixed here.
+  - Limits: Dolphin with both orientations chosen keeps the surface of the orientation it
+    started in (fitted, 4 to 7 pt bands on `wii-pocket`; a relaunch fills) — **Core need for
+    main: a surface-resize export in the Dolphin Core bridge**; Switch Pocket upright:
+    HOME/Capture tab over the top 16–18 pt of the container's middle (not reached by the
+    default 16:9 picture); standard-iPhone openings of wii/gamecube-pocket far from 4:3
+    (body art). `DolphinInternalBridgePlugin.mm` is compiled by the IPA build only.
+  - Not observed on an iPhone; no game run (loading, shader compilation, play not observed).
+    A 4:3 picture keeps thin black bands in the non-4:3 openings unless Stretched is
+    chosen (6.9 pt above and below on the captured layout): maintainer's choice of format,
+    or new art. Next: main reviews/integrates the PR; maintainer checks on the iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
-  (Switch geometry/hit test/orientation; the menu change done under it).
+  (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
+  the 10 Nov session, not invoked again after its context compaction.
 
 ### Codex orchestration — Codex
 

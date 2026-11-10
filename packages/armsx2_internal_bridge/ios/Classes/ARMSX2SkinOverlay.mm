@@ -160,6 +160,8 @@ static NSData* A2SkinAlphaMap(NSString* path, CGSize* size) {
 @property(nonatomic, copy) NSArray<A2SkinItem*>* items;
 @property(nonatomic, assign) BOOL hasScreen;
 @property(nonatomic, assign) CGRect screen;
+/// The pack's own cutout of its screen (`screens[].screenCutout`), nil without one.
+@property(nonatomic, copy, nullable) NSString* cutoutPath;
 @property(nonatomic, assign) BOOL translucent;
 @end
 @implementation A2SkinRepresentation
@@ -367,6 +369,7 @@ static A2SkinRepresentation* A2SkinParse(NSDictionary* layout, NSString* root, B
       if ([entry isKindOfClass:NSDictionary.class] && A2SkinRect(entry[@"outputFrame"], &screen)) {
         representation.hasScreen = YES;
         representation.screen = screen;
+        representation.cutoutPath = A2SkinFile(root, entry[@"screenCutout"]);
         break;
       }
     }
@@ -453,6 +456,9 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   CGRect _skinRect;
   UIImageView* _background;
   CAShapeLayer* _backgroundMask;
+  CALayer* _cutoutMask;
+  NSString* _cutoutPath;
+  UIImage* _cutoutImage;
   NSMutableArray<UIImageView*>* _itemViews;
   NSMutableArray<UIImageView*>* _knobViews;
   NSMapTable<UITouch*, A2SkinTrack*>* _tracks;
@@ -514,6 +520,8 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   _background.contentMode = UIViewContentModeScaleToFill;
   _backgroundMask = [CAShapeLayer layer];
   _backgroundMask.fillRule = kCAFillRuleEvenOdd;
+  _cutoutMask = [CALayer layer];
+  _cutoutMask.contentsGravity = kCAGravityResize;
   [self addSubview:_background];
   _itemViews = [NSMutableArray array];
   _knobViews = [NSMutableArray array];
@@ -570,6 +578,21 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   }
 }
 
+/// The current skin's own screen cutout, read once per file; nil without one.
+- (UIImage*)screenCutout {
+  NSString* path = _current.cutoutPath;
+  if (path == nil) return nil;
+  if (![path isEqualToString:_cutoutPath]) {
+    _cutoutPath = [path copy];
+    _cutoutImage = [UIImage imageWithContentsOfFile:path];
+  }
+  return _cutoutImage.CGImage != NULL ? _cutoutImage : nil;
+}
+
+- (BOOL)screenCutoutActive {
+  return _current.hasScreen && _background.layer.mask == _cutoutMask && _cutoutMask.contents != nil;
+}
+
 - (void)layoutSubviews {
   [super layoutSubviews];
   const CGRect bounds = self.bounds;
@@ -613,7 +636,19 @@ static CGRect A2SkinAspectFit(CGRect bounds, CGFloat aspect) {
   _background.hidden = _current.backgroundPath == nil;
   _background.frame = _skinRect;
   _background.image = A2SkinImage(_current.backgroundPath, _skinRect.size);
-  if (_current.hasScreen) {
+  UIImage* cutout = _current.hasScreen ? [self screenCutout] : nil;
+  if (cutout != nil) {
+    // A RewindBox Pocket pack ships the cutout of its own screen: its alpha is where
+    // the body stays. As the body's mask it is scaled with the body, so the game shows
+    // through the opening the body draws (rounded corners, any shape) on every device,
+    // and never over its frame. `screenFrame` (the emulator's surface) is its bounding box.
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    _cutoutMask.frame = _background.bounds;
+    _cutoutMask.contents = (__bridge id)cutout.CGImage;
+    [CATransaction commit];
+    _background.layer.mask = _cutoutMask;
+  } else if (_current.hasScreen) {
     // The game always shows through the skin's screen, transparent or not.
     UIBezierPath* path = [UIBezierPath bezierPathWithRect:_background.bounds];
     [path appendPath:[UIBezierPath bezierPathWithRect:[self convertRect:_screenFrame toView:_background]]];

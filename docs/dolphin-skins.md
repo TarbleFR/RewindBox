@@ -120,7 +120,12 @@ and the session is exactly as before.
 - **Pictures.** The background is a PNG/JPEG, or a PDF drawn at the size of
   the skin. Item pictures (`asset.normal`, `asset.pressed`) and knobs are
   drawn too. The background is cut out at the game's screen, so the game
-  shows through even when the art is opaque there.
+  shows through even when the art is opaque there. A pack that ships the
+  cutout of its own screen (`screens[].screenCutout`, the RewindBox Pocket
+  packs) is cut by it instead of by a rectangle: the cutout is the body's
+  mask, scaled with the body, so the game shows through the opening the body
+  draws (rounded corners, any shape) and `outputFrame` is its bounding box
+  ([record](skins-screen-framing-2026-11-10.md)).
 - **Touch.** Multi-touch is supported:
   - A finger slides from button to button.
   - A finger that started on a stick keeps it.
@@ -142,9 +147,14 @@ and the session is exactly as before.
     the app goes to the background.
 - **Game image.** Dolphin reads its render surface once, when the core
   starts (`lockRenderSurface`, called just before `neostation_dolphin_launch`).
-  Before that, the Metal view takes the shape of the skin's screen. After
-  it, its size is fixed and only a transform moves it, as on the external
-  screen (`DolphinExternalDisplay`, fixed drawable). While the game is on an
+  Before that, the Metal view takes the shape of the skin's screen. At that
+  moment it is sized for the skin's screen in the bounds the session settles
+  in (`DOLPolicyBoundsWillTurn`, `screenFrameForBounds:`): UIKit may still
+  give the bounds of the screen that opened the session. After it, its size
+  is fixed: over the screen it was read for it lies point for point, anywhere
+  else one scale fits it inside, as on the external screen
+  (`DolphinExternalDisplay`, fixed drawable). Inside the surface Dolphin keeps
+  its own aspect setting. While the game is on an
   AirPlay or adapter screen, the skin never moves the Metal view. When the
   game comes back, it returns to the skin's screen.
 - **Orientation.** The mask follows what the player CHOSE (game first, then
@@ -171,10 +181,12 @@ and the session is exactly as before.
   slider and no position editor, unlike the libretro skins.
 - The manager shows no preview of the **default** (the DolphiniOS pad), or of
   a skin whose background is a PDF.
-- If a game started with the phone sideways and is then turned upright onto
-  a portrait skin, the Metal view keeps its landscape drawable. The game is
-  then fitted into the skin's screen at a smaller size. A game started
-  upright fills the skin's screen.
+- With a skin chosen for both orientations, the Metal view keeps the
+  drawable of the orientation the game started in (the Core bridge has no
+  surface-resize call). In the other orientation the game is fitted inside
+  the skin's screen with one scale, with bands when the two screens differ in
+  ratio. A portrait-only or landscape-only choice always fills its screen,
+  whatever way the phone was held when the game was opened.
 
 ## What remains on the iPhone
 

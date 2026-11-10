@@ -1,6 +1,7 @@
 #import <XCTest/XCTest.h>
 #import "DOLSkinOverlay.h"
 #import "SkinOverlayRecorder.h"
+#import "SkinFrameCheck.h"
 
 // The production DOLSkinOverlay on the REAL GameCube / Wii Pocket Original
 // archives (unpacked by test_skin_overlay_ui.rb into DOLPHIN_SKIN_FIXTURE),
@@ -20,6 +21,9 @@
 
 static NSString* const kGC = @"gamecube-pocket-original";
 static NSString* const kWii = @"wii-pocket-original";
+// The packs whose body bears the RewindBox wordmark (one body for both consoles).
+static NSString* const kGCPocket = @"gamecube-pocket";
+static NSString* const kWiiPocket = @"wii-pocket";
 
 @interface DolphinSkinOverlayTests : XCTestCase
 @end
@@ -40,7 +44,7 @@ static NSString* const kWii = @"wii-pocket-original";
   [NSFileManager.defaultManager removeItemAtPath:libretro error:nil];
   _skins = [libretro stringByAppendingPathComponent:@"Skins"];
   [NSFileManager.defaultManager createDirectoryAtPath:_skins withIntermediateDirectories:YES attributes:nil error:nil];
-  for (NSString* identifier in @[ kGC, kWii ]) {
+  for (NSString* identifier in @[ kGC, kWii, kGCPocket, kWiiPocket ]) {
     NSError* error = nil;
     [NSFileManager.defaultManager copyItemAtPath:[fixture stringByAppendingPathComponent:identifier]
                                           toPath:[_skins stringByAppendingPathComponent:identifier] error:&error];
@@ -62,12 +66,18 @@ static NSString* const kWii = @"wii-pocket-original";
 - (NSDictionary*)layout:(NSString*)skin portrait:(BOOL)portrait {
   NSDictionary* info = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:
       [[_skins stringByAppendingPathComponent:skin] stringByAppendingPathComponent:@"info.json"]] options:0 error:nil];
-  return info[@"representations"][@"iphone"][@"edgeToEdge"][portrait ? @"portrait" : @"landscape"];
+  // DOLSkinLayoutFor: edge-to-edge first on a tall iPhone, standard first otherwise, then
+  // the other one (the Originals ship edge-to-edge only).
+  const CGSize native = UIScreen.mainScreen.nativeBounds.size;
+  const BOOL tall = MAX(native.width, native.height) / MIN(native.width, native.height) > 2.0;
+  NSDictionary* iphone = info[@"representations"][@"iphone"];
+  NSDictionary* display = iphone[tall ? @"edgeToEdge" : @"standard"] ?: iphone[tall ? @"standard" : @"edgeToEdge"];
+  return display[portrait ? @"portrait" : @"landscape"];
 }
 
 /// The overlay laid out at `size` (the mapping size unless given).
 - (DOLSkinOverlay*)overlay:(NSString*)skin portrait:(BOOL)portrait size:(CGSize)size {
-  DOLSkinOverlay* overlay = [[DOLSkinOverlay alloc] initWithWii:[skin isEqualToString:kWii] gameKey:nil];
+  DOLSkinOverlay* overlay = [[DOLSkinOverlay alloc] initWithWii:[skin hasPrefix:@"wii"] gameKey:nil];
   XCTAssertTrue(overlay.hasSkin);
   __weak DolphinSkinOverlayTests* weakSelf = self;
   overlay.menuHandler = ^{
@@ -497,6 +507,131 @@ static NSString* const kWii = @"wii-pocket-original";
   for (NSString* skin in @[ kGC, kWii ]) {
     [self checkPressedDrawing:skin portrait:YES];
     [self checkPressedDrawing:skin portrait:NO];
+  }
+}
+
+#pragma mark The game's place: the opening the skin's body draws (test/skin_frame/SkinFrameCheck.h)
+
+/// `skin` chosen for both orientations of its console (the Originals are chosen by setUp).
+- (void)choose:(NSString*)skin {
+  NSString* frontend = [[[self documents] stringByAppendingPathComponent:@"Libretro"] stringByAppendingPathComponent:@"Config/Frontend"];
+  NSData* data = [NSJSONSerialization dataWithJSONObject:@{@"console" : @{@"skin.portrait" : skin, @"skin.landscape" : skin}}
+                                                 options:0 error:nil];
+  [data writeToFile:[frontend stringByAppendingPathComponent:[skin hasPrefix:@"wii"] ? @"wii.json" : @"gc.json"] atomically:YES];
+}
+
+- (void)checkFrameOf:(DOLSkinOverlay*)overlay skin:(NSString*)skin portrait:(BOOL)portrait tag:(NSString*)tag evidence:(BOOL)evidence {
+  // A rounded corner hides a few points at each end of the test pattern's bands.
+  static const double minimum[4] = {0.9, 0.9, 0.9, 0.9};
+  NSString* renders = NSProcessInfo.processInfo.environment[@"DOLPHIN_RENDER_DIR"];
+  NSString* file = evidence && renders.length > 0
+      ? [renders stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-%@-test-pattern.png", skin, tag]] : nil;
+  SkinFrameCheck(self, overlay, overlay.screenFrame, overlay.screenCutoutActive, [self layout:skin portrait:portrait],
+                 [_skins stringByAppendingPathComponent:skin], [NSString stringWithFormat:@"%@ %@", skin, tag], minimum, file);
+}
+
+/// A (GameCube) or A (Wii Remote) pressed and released at its drawn centre.
+- (void)pressAOn:(DOLSkinOverlay*)overlay skin:(NSString*)skin portrait:(BOOL)portrait what:(NSString*)what {
+  NSDictionary* item = [self item:@"a" of:[self layout:skin portrait:portrait]];
+  const CGSize size = overlay.bounds.size;
+  NSDictionary* mapping = [self layout:skin portrait:portrait][@"mappingSize"];
+  const CGSize m = CGSizeMake([mapping[@"width"] doubleValue], [mapping[@"height"] doubleValue]);
+  const CGFloat scale = MIN(size.width / m.width, size.height / m.height);
+  const CGRect f = [self rect:item[@"frame"]];
+  SkinFakeTouch* finger = [self touch:CGPointMake((size.width - m.width * scale) / 2 + CGRectGetMidX(f) * scale,
+                                                  (size.height - m.height * scale) / 2 + CGRectGetMidY(f) * scale)];
+  [self begin:finger on:overlay];
+  XCTAssertEqualObjects([self held], [self commandsOf:item wii:[skin hasPrefix:@"wii"]], @"%@: A answers %@", skin, what);
+  [self end:finger on:overlay];
+  XCTAssertEqualObjects([self held], [NSSet set], @"%@: A released %@", skin, what);
+}
+
+/// Every Dolphin Pocket pack, both orientations, at the mapping size and at real phone
+/// sizes (the skin fitted with one scale).
+- (void)testTheGameFillsTheDrawnOpening {
+  for (NSString* skin in @[ kWiiPocket, kGCPocket, kWii, kGC ]) {
+    [self choose:skin];
+    for (NSNumber* portraitValue in @[ @YES, @NO ]) {
+      const BOOL portrait = portraitValue.boolValue;
+      NSString* name = portrait ? @"portrait" : @"landscape";
+      for (NSValue* value in @[ [NSValue valueWithCGSize:CGSizeZero], [NSValue valueWithCGSize:CGSizeMake(393, 852)],
+                                [NSValue valueWithCGSize:CGSizeMake(375, 812)], [NSValue valueWithCGSize:CGSizeMake(430, 932)] ]) {
+        CGSize size = value.CGSizeValue;
+        if (!portrait) size = CGSizeMake(size.height, size.width);
+        DOLSkinOverlay* overlay = [self overlay:skin portrait:portrait size:size];
+        [self checkFrameOf:overlay skin:skin portrait:portrait
+                       tag:size.width >= 1 ? [NSString stringWithFormat:@"%@-%.0fx%.0f", name, size.width, size.height] : name
+                  evidence:size.width < 1];
+        [self pressAOn:overlay skin:skin portrait:portrait what:@"in its place"];
+      }
+    }
+  }
+}
+
+/// One overlay through what a session does to it: a turn, the session menu over it (inputs
+/// released, touches off then on again, hidden then shown), a turn back.
+- (void)testTheGameScreenAndControlsAfterRotationAndMenu {
+  for (NSString* skin in @[ kWiiPocket, kGCPocket, kWii, kGC ]) {
+    [self choose:skin];
+    DOLSkinOverlay* overlay = [self overlay:skin portrait:YES size:CGSizeMake(393, 852)];
+    [self checkFrameOf:overlay skin:skin portrait:YES tag:@"portrait" evidence:NO];
+    void (^turn)(CGSize) = ^(CGSize size) {
+      overlay.frame = CGRectMake(0, 0, size.width, size.height);
+      [overlay setNeedsLayout];
+      [overlay layoutIfNeeded];
+    };
+    turn(CGSizeMake(852, 393));
+    [self checkFrameOf:overlay skin:skin portrait:NO tag:@"landscape after a turn" evidence:NO];
+    [self pressAOn:overlay skin:skin portrait:NO what:@"after a turn"];
+    [overlay releaseAllInputs];
+    overlay.userInteractionEnabled = NO;
+    overlay.hidden = YES;
+    overlay.hidden = NO;
+    overlay.userInteractionEnabled = YES;
+    [overlay setNeedsLayout];
+    [overlay layoutIfNeeded];
+    [self checkFrameOf:overlay skin:skin portrait:NO tag:@"landscape after the menu" evidence:NO];
+    [self pressAOn:overlay skin:skin portrait:NO what:@"after the menu closed"];
+    turn(CGSizeMake(393, 852));
+    [self checkFrameOf:overlay skin:skin portrait:YES tag:@"portrait after turning back" evidence:NO];
+    [self pressAOn:overlay skin:skin portrait:YES what:@"after turning back"];
+  }
+}
+
+/// Another skin chosen, then the session launched again (a new overlay reads the files):
+/// each skin gets its own game place and its controls; "default" leaves no overlay.
+- (void)testTheGameScreenFollowsASkinChangeAndARelaunch {
+  for (NSString* skin in @[ kWiiPocket, kWii, kWiiPocket, kGCPocket, kGC, kGCPocket ]) {
+    [self choose:skin];
+    for (NSNumber* portrait in @[ @YES, @NO ]) {
+      DOLSkinOverlay* overlay = [self overlay:skin portrait:portrait.boolValue size:CGSizeZero];
+      [self checkFrameOf:overlay skin:skin portrait:portrait.boolValue
+                     tag:[NSString stringWithFormat:@"%@ after a skin change", portrait.boolValue ? @"portrait" : @"landscape"] evidence:NO];
+      [self pressAOn:overlay skin:skin portrait:portrait.boolValue what:@"after a skin change"];
+    }
+  }
+  [self choose:@"default"];
+  XCTAssertFalse([[DOLSkinOverlay alloc] initWithWii:NO gameKey:nil].hasSkin, @"skin off: no overlay, the game keeps the whole view");
+}
+
+/// The surface the core reads once at launch: the session asks for the game's place in
+/// the bounds it settles in (DOLPolicyBoundsWillTurn), whatever the overlay is laid out
+/// in at that moment. It is the same rectangle as the layout gives once turned.
+- (void)testTheScreenForTheSettledBoundsIsTheOneOfTheLayout {
+  for (NSString* skin in @[ kWiiPocket, kGCPocket, kWii, kGC ]) {
+    [self choose:skin];
+    const CGSize upright = CGSizeMake(393, 852), sideways = CGSizeMake(852, 393);
+    // Laid out sideways (the screen that opened the session), asked for the upright bounds.
+    DOLSkinOverlay* overlay = [self overlay:skin portrait:NO size:sideways];
+    const CGRect asked = [overlay screenFrameForBounds:CGRectMake(0, 0, upright.width, upright.height)];
+    XCTAssertTrue(CGRectEqualToRect([overlay screenFrameForBounds:overlay.bounds], overlay.screenFrame), @"%@: the current bounds", skin);
+    overlay.frame = CGRectMake(0, 0, upright.width, upright.height);
+    [overlay setNeedsLayout];
+    [overlay layoutIfNeeded];
+    XCTAssertTrue(CGRectEqualToRect(asked, overlay.screenFrame), @"%@: asked %@, laid out %@", skin, NSStringFromCGRect(asked),
+                  NSStringFromCGRect(overlay.screenFrame));
+    XCTAssertTrue(asked.size.width > asked.size.height, @"%@: the upright skin's screen is wider than tall, not the sideways view", skin);
+    XCTAssertTrue(CGRectIsNull([overlay screenFrameForBounds:CGRectZero]));
   }
 }
 

@@ -39,6 +39,9 @@ FOUNDATION_EXPORT NSString* _Nullable ARMSX2SkinConsoleOfGameType(NSString* _Nul
 @property(nonatomic, readonly) BOOL hasMenuControl;
 /// Where the game goes, in the overlay's coordinates (CGRectNull without one).
 @property(nonatomic, readonly) CGRect screenFrame;
+/// The current skin cuts its screen with the pack's own cutout (`screens[].screenCutout`):
+/// the opening its body draws, not a rectangle.
+@property(nonatomic, readonly) BOOL screenCutoutActive;
 /// A digital pad button changed (ARMSX2PadButton 0...15).
 @property(nonatomic, copy, nullable) void (^buttonChanged)(uint32_t button, BOOL pressed);
 /// Both sticks, each -1...1, positive Y down.

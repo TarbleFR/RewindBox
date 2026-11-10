@@ -1,6 +1,7 @@
 #import <XCTest/XCTest.h>
 #import "MeloNXSkinOverlay.h"
 #import "MeloNXSkinInteraction.h"
+#import "SkinFrameCheck.h"
 
 // The production MeloNXSkinOverlay on the REAL shipped Switch Pocket archive
 // (unpacked by test_skin_overlay_ui.rb into MELONX_SKIN_FIXTURE), driven by touches
@@ -174,8 +175,6 @@
   MeloNXSkinOverlay* overlay = [self overlayPortrait:portrait];
   XCTAssertTrue(overlay.layoutActive);
   XCTAssertTrue(CGRectGetWidth(overlay.screenFrame) > 0);
-  XCTAssertEqualWithAccuracy(CGRectGetWidth(overlay.screenFrame) / CGRectGetHeight(overlay.screenFrame), 16.0 / 9.0, 0.01,
-                             @"the Switch's 16:9 screen");
   NSDictionary<NSString*, NSNumber*>* pad = MLXTestPad();
   for (NSString* name in pad) {
     NSDictionary* item = [self itemNamed:name portrait:portrait];
@@ -821,5 +820,102 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
 
 - (void)testPressedDrawingStaysInsideTheOutlineInPortrait { [self checkPressedDrawingPortrait:YES]; }
 - (void)testPressedDrawingStaysInsideTheOutlineInLandscape { [self checkPressedDrawingPortrait:NO]; }
+
+#pragma mark The game's place: the opening the skin's body draws (test/skin_frame/SkinFrameCheck.h)
+
+/// The part of each band of the test pattern that must show: a rounded corner hides a
+/// few points at each end. Upright, the body's HOME / Capture tab reaches 16 to 18 points
+/// into the top of the opening over its middle (the board's drawing): the top band shows
+/// on both sides of it only, and the opening's sides lean a little.
+- (const double*)frameMinimum:(NSString*)skin portrait:(BOOL)portrait {
+  static const double upright[4] = {0.35, 0.85, 0.88, 0.82};
+  static const double sideways[4] = {0.9, 0.9, 0.9, 0.9};
+  return portrait ? upright : sideways;
+}
+
+- (NSDictionary*)infoOf:(NSString*)skin {
+  return [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:
+      [[[[self documents] stringByAppendingPathComponent:@"Libretro/Skins"] stringByAppendingPathComponent:skin]
+          stringByAppendingPathComponent:@"info.json"]] options:0 error:nil];
+}
+
+/// `skin` is the one `_info` describes (the class's own, or the one a test just chose).
+- (void)checkFrameOf:(MeloNXSkinOverlay*)overlay skin:(NSString*)skin portrait:(BOOL)portrait tag:(NSString*)tag evidence:(BOOL)evidence {
+  NSString* directory = [[[self documents] stringByAppendingPathComponent:@"Libretro/Skins"] stringByAppendingPathComponent:skin];
+  NSString* renders = NSProcessInfo.processInfo.environment[@"MELONX_RENDER_DIR"];
+  NSString* file = evidence && renders.length > 0
+      ? [renders stringByAppendingPathComponent:[NSString stringWithFormat:@"%@-%@-test-pattern.png", skin, tag]] : nil;
+  SkinFrameCheck(self, overlay, overlay.screenFrame, overlay.screenCutoutActive, [self layoutForPortrait:portrait], directory,
+                 [NSString stringWithFormat:@"%@ %@", skin, tag], [self frameMinimum:skin portrait:portrait], file);
+}
+
+- (void)checkGameScreenPortrait:(BOOL)portrait {
+  NSString* name = portrait ? @"portrait" : @"landscape";
+  // The mapping size, then real phone sizes (the skin fitted with one scale).
+  for (NSValue* value in @[ [NSValue valueWithCGSize:CGSizeZero], [NSValue valueWithCGSize:CGSizeMake(393, 852)],
+                           [NSValue valueWithCGSize:CGSizeMake(375, 812)], [NSValue valueWithCGSize:CGSizeMake(430, 932)] ]) {
+    CGSize size = value.CGSizeValue;
+    if (!portrait) size = CGSizeMake(size.height, size.width);
+    MeloNXSkinOverlay* overlay = [self overlayPortrait:portrait];
+    if (size.width >= 1) {
+      overlay.frame = CGRectMake(0, 0, size.width, size.height);
+      [overlay setNeedsLayout];
+      [overlay layoutIfNeeded];
+    }
+    [self checkFrameOf:overlay skin:[self skinId] portrait:portrait
+                   tag:size.width >= 1 ? [NSString stringWithFormat:@"%@-%.0fx%.0f", name, size.width, size.height] : name
+              evidence:size.width < 1];
+  }
+}
+
+- (void)testTheGameFillsTheDrawnOpeningInPortrait { [self checkGameScreenPortrait:YES]; }
+- (void)testTheGameFillsTheDrawnOpeningInLandscape { [self checkGameScreenPortrait:NO]; }
+
+- (void)pressOn:(MeloNXSkinOverlay*)overlay portrait:(BOOL)portrait what:(NSString*)what {
+  [_events removeAllObjects];
+  MLXFakeTouch* finger = [self touchAt:[self centerOf:[self itemNamed:@"a" portrait:portrait] fx:0.5 fy:0.5]];
+  [self begin:finger on:overlay];
+  [self end:finger on:overlay];
+  XCTAssertEqualObjects(_events, (@[ @"b0+", @"b0-" ]), @"the controls answer %@", what);
+}
+
+/// One overlay through what a session does to it: a turn, the session menu over it (inputs
+/// released, touches off then on again, hidden then shown), a turn back. The game's place
+/// is right each time and the controls answer again.
+- (void)testTheGameScreenAndControlsAfterRotationAndMenu {
+  MeloNXSkinOverlay* overlay = [self overlayPortrait:YES];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:YES tag:@"portrait" evidence:NO];
+  [self layout:overlay portrait:NO];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:NO tag:@"landscape after a turn" evidence:NO];
+  [self pressOn:overlay portrait:NO what:@"after a turn"];
+  [overlay releaseAllInputs];
+  overlay.userInteractionEnabled = NO;
+  overlay.hidden = YES;
+  overlay.hidden = NO;
+  overlay.userInteractionEnabled = YES;
+  [overlay setNeedsLayout];
+  [overlay layoutIfNeeded];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:NO tag:@"landscape after the menu" evidence:NO];
+  [self pressOn:overlay portrait:NO what:@"after the menu closed"];
+  [self layout:overlay portrait:YES];
+  [self checkFrameOf:overlay skin:[self skinId] portrait:YES tag:@"portrait after turning back" evidence:NO];
+  [self pressOn:overlay portrait:YES what:@"after turning back"];
+}
+
+/// The skin turned off, then chosen again, then the session launched again (a new overlay
+/// reads the files): no overlay without a skin, the same game place with it.
+- (void)testTheGameScreenFollowsASkinChangeAndARelaunch {
+  [self writeSelection:@{@"console" : @{@"skin.portrait" : @"default", @"skin.landscape" : @"default"}}];
+  XCTAssertFalse([[MeloNXSkinOverlay alloc] initWithGameKey:@"game.iso"].hasSkin, @"skin off: no overlay, the game keeps the whole view");
+  for (int launch = 0; launch < 2; launch++) {
+    [self writeSelection:@{@"console" : @{@"skin.portrait" : [self skinId], @"skin.landscape" : [self skinId]}}];
+    for (NSNumber* portrait in @[ @YES, @NO ]) {
+      MeloNXSkinOverlay* overlay = [self overlayPortrait:portrait.boolValue];
+      [self checkFrameOf:overlay skin:[self skinId] portrait:portrait.boolValue
+                     tag:[NSString stringWithFormat:@"%@ after choosing the skin again", portrait.boolValue ? @"portrait" : @"landscape"] evidence:NO];
+      [self pressOn:overlay portrait:portrait.boolValue what:@"after choosing the skin again"];
+    }
+  }
+}
 
 @end

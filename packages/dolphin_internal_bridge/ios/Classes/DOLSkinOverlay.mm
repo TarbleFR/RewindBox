@@ -243,6 +243,8 @@ static NSData* DOLSkinAlphaMap(NSString* path, CGSize* size) {
 @property(nonatomic, copy) NSArray<DOLSkinItem*>* items;
 @property(nonatomic, assign) BOOL hasScreen;
 @property(nonatomic, assign) CGRect screen;
+/// The pack's own cutout of its screen (`screens[].screenCutout`), nil without one.
+@property(nonatomic, copy, nullable) NSString* cutoutPath;
 @property(nonatomic, assign) BOOL translucent;
 @end
 @implementation DOLSkinRepresentation
@@ -450,6 +452,7 @@ static DOLSkinRepresentation* DOLSkinParse(NSDictionary* layout, NSString* root,
       if ([entry isKindOfClass:NSDictionary.class] && DOLSkinRect(entry[@"outputFrame"], &screen)) {
         representation.hasScreen = YES;
         representation.screen = screen;
+        representation.cutoutPath = DOLSkinFile(root, entry[@"screenCutout"]);
         break;
       }
     }
@@ -518,6 +521,29 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
                     width, height);
 }
 
+/// Where a skin and the game go in `bounds`: the skin fitted with one scale and centred
+/// (or, Delta portrait without a screen, at the bottom at full width), the game in the
+/// skin's screen scaled and moved by that same transform. One function for the layout and
+/// for the surface the core reads at launch (`screenFrameForBounds:`).
+static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeInsets insets, CGRect* skinRect) {
+  const CGSize mapping = skin.mappingSize;
+  const CGFloat width = bounds.size.width, height = bounds.size.height;
+  const CGFloat pinnedHeight = width * mapping.height / mapping.width;
+  CGRect gameArea = bounds;
+  if (skin.portrait && !skin.hasScreen && pinnedHeight <= height) {
+    // Delta portrait: the controller at the bottom at full width, the game
+    // above it (below the safe area's top).
+    *skinRect = CGRectMake(0, height - pinnedHeight, width, pinnedHeight);
+    const CGFloat top = MIN(insets.top, skinRect->origin.y);
+    gameArea = CGRectMake(0, top, width, skinRect->origin.y - top);
+    if (gameArea.size.height < 1) gameArea = CGRectMake(0, 0, width, MAX(skinRect->origin.y, 1));
+  } else {
+    // Fitted in the whole bounds, safe areas ignored (Delta).
+    *skinRect = DOLSkinAspectFit(bounds, mapping.width / mapping.height);
+  }
+  return skin.hasScreen ? DOLSkinScaled(skin.screen, mapping, *skinRect) : gameArea;
+}
+
 #pragma mark - Overlay
 
 @interface DOLSkinTrack : NSObject
@@ -539,6 +565,9 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
   CGRect _skinRect;
   UIImageView* _background;
   CAShapeLayer* _backgroundMask;
+  CALayer* _cutoutMask;
+  NSString* _cutoutPath;
+  UIImage* _cutoutImage;
   NSMutableArray<UIImageView*>* _itemViews;
   NSMutableArray<UIImageView*>* _knobViews;
   NSMapTable<UITouch*, DOLSkinTrack*>* _tracks;
@@ -605,6 +634,8 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
   _background.contentMode = UIViewContentModeScaleToFill;
   _backgroundMask = [CAShapeLayer layer];
   _backgroundMask.fillRule = kCAFillRuleEvenOdd;
+  _cutoutMask = [CALayer layer];
+  _cutoutMask.contentsGravity = kCAGravityResize;
   [self addSubview:_background];
   _itemViews = [NSMutableArray array];
   _knobViews = [NSMutableArray array];
@@ -661,6 +692,29 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
   }
 }
 
+/// The current skin's own screen cutout, read once per file; nil without one.
+- (UIImage*)screenCutout {
+  NSString* path = _current.cutoutPath;
+  if (path == nil) return nil;
+  if (![path isEqualToString:_cutoutPath]) {
+    _cutoutPath = [path copy];
+    _cutoutImage = [UIImage imageWithContentsOfFile:path];
+  }
+  return _cutoutImage.CGImage != NULL ? _cutoutImage : nil;
+}
+
+- (CGRect)screenFrameForBounds:(CGRect)bounds {
+  if (bounds.size.width < 1 || bounds.size.height < 1) return CGRectNull;
+  DOLSkinRepresentation* skin = bounds.size.height > bounds.size.width ? _portrait : _landscape;
+  if (skin == nil) return CGRectNull;
+  CGRect skinRect;
+  return DOLSkinPlace(skin, bounds, self.safeAreaInsets, &skinRect);
+}
+
+- (BOOL)screenCutoutActive {
+  return _current.hasScreen && _background.layer.mask == _cutoutMask && _cutoutMask.contents != nil;
+}
+
 - (void)layoutSubviews {
   [super layoutSubviews];
   const CGRect bounds = self.bounds;
@@ -685,26 +739,24 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
     return;
   }
   const CGSize mapping = _current.mappingSize;
-  const CGFloat width = bounds.size.width, height = bounds.size.height;
-  const CGFloat pinnedHeight = width * mapping.height / mapping.width;
-  CGRect gameArea = bounds;
-  if (_current.portrait && !_current.hasScreen && pinnedHeight <= height) {
-    // Delta portrait: the controller at the bottom at full width, the game
-    // above it (below the safe area's top).
-    _skinRect = CGRectMake(0, height - pinnedHeight, width, pinnedHeight);
-    const CGFloat top = MIN(insets.top, _skinRect.origin.y);
-    gameArea = CGRectMake(0, top, width, _skinRect.origin.y - top);
-    if (gameArea.size.height < 1) gameArea = CGRectMake(0, 0, width, MAX(_skinRect.origin.y, 1));
-  } else {
-    // Fitted in the whole bounds, safe areas ignored (Delta).
-    _skinRect = DOLSkinAspectFit(bounds, mapping.width / mapping.height);
-  }
-  _screenFrame = _current.hasScreen ? DOLSkinScaled(_current.screen, mapping, _skinRect) : gameArea;
+  _screenFrame = DOLSkinPlace(_current, bounds, insets, &_skinRect);
 
   _background.hidden = _current.backgroundPath == nil;
   _background.frame = _skinRect;
   _background.image = DOLSkinImage(_current.backgroundPath, _skinRect.size);
-  if (_current.hasScreen) {
+  UIImage* cutout = _current.hasScreen ? [self screenCutout] : nil;
+  if (cutout != nil) {
+    // A RewindBox Pocket pack ships the cutout of its own screen: its alpha is where
+    // the body stays. As the body's mask it is scaled with the body, so the game shows
+    // through the opening the body draws (rounded corners, any shape) on every device,
+    // and never over its frame. `screenFrame` (the emulator's surface) is its bounding box.
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    _cutoutMask.frame = _background.bounds;
+    _cutoutMask.contents = (__bridge id)cutout.CGImage;
+    [CATransaction commit];
+    _background.layer.mask = _cutoutMask;
+  } else if (_current.hasScreen) {
     // The game always shows through the skin's screen, transparent or not.
     UIBezierPath* path = [UIBezierPath bezierPathWithRect:_background.bounds];
     [path appendPath:[UIBezierPath bezierPathWithRect:[self convertRect:_screenFrame toView:_background]]];

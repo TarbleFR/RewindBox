@@ -78,6 +78,11 @@ files byte-for-byte identically, including both archives.
 | Wii Pocket | 5760549 | `5a8a4db1d7480269c8011939a3dc6d288bd05687f21f24d8d503972aa9c2b9d5` |
 | GameCube Pocket – Ivory | 6053003 | `d37fbd2138c47a271f37e8b352b76b04624abc8b45e8996ea87dd5886316b13b` |
 
+Since 10 November both archives are rebuilt with the game's place measured on the body
+(same bodies, controls and bindings): Wii Pocket 6546456 B `27e11106…afaf`, GameCube
+Pocket – Ivory 6842144 B `3d89d8ed…8fa7`
+([record](skins-screen-framing-2026-11-10.md)).
+
 After testing, the shared branch advanced through `792d72c9` to `71459be5`.
 Those changes concern the RPCS3 workflow, MeloNX Core preparation and
 related documentation. Every tested source hash was checked again and still

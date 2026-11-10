@@ -38,6 +38,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 import build_pocket_skins as bp
+import screen_opening
 
 ROOT = bp.ROOT
 BOARDS = ROOT / 'docs/design/pocket'
@@ -649,8 +650,14 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15),
                    spill=spec.get('spill', False), margin=spec.get('extend_margin', 0),
                    fine=spec.get('spill_fine', False))
+    # The game's container is the window the board draws (its rounded corners, a part of
+    # the body reaching into it), measured on the body itself; `screen_rect` (the picture's
+    # own ratio centred in it) only kept the touch extensions clear, unchanged.
+    coverage = screen_opening.opening(up, ((sx + sw / 2 - x0) * UPSCALE, (sy + sh / 2 - y0) * UPSCALE))
+    files[f'screens/{orientation}.png'] = screen_opening.cutout(coverage)
+    opening = {'outputFrame': screen_opening.frame(coverage, (W, H)), 'screenCutout': f'screens/{orientation}.png'}
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
-            'screens': [{'outputFrame': screen_rect}], 'items': items, 'translucent': False}
+            'screens': [opening], 'items': items, 'translucent': False}
 
 
 def label_targets(spec, masks, x0, y0, k, H, orientation):
@@ -805,7 +812,7 @@ def build(out: Path):
             (out / f'{pack["id"]}-{orientation}-pressed.png').write_bytes(
                 bp.png(compose(reps['edgeToEdge'][orientation], files, pressed=True)))
         info = {'name': pack['name'], 'identifier': f'org.rewindbox.{pack["id"]}', 'author': 'RewindBox',
-                'gameTypeIdentifier': pack['gameType'], 'version': 1, 'license': LICENSE_LABEL,
+                'gameTypeIdentifier': pack['gameType'], 'version': 2, 'license': LICENSE_LABEL,
                 'previewImages': {o: f'previews/{o}.png' for o in ('portrait', 'landscape')},
                 'provenance': {'status': 'approved-board', 'board': f'docs/design/pocket/{pack["board"]}',
                                'boardSha256': hashlib.sha256(board_path.read_bytes()).hexdigest(),
