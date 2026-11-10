@@ -11,6 +11,7 @@
 // - UIKit only on main; prepare/boot/shutdown only on the session queue.
 #import "XeniaInternalBridgePlugin.h"
 #import "XeniaCoreABI.h"
+#import "XeniaJitBridgePlugin.h"
 
 #import <Foundation/Foundation.h>
 #import <GameController/GameController.h>
@@ -242,6 +243,9 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   plugin.sessionQueue = dispatch_queue_create("rewindbox.xenia.session", DISPATCH_QUEUE_SERIAL);
   gXeniaPlugin = plugin;
   [registrar addMethodCallDelegate:plugin channel:plugin.channel];
+  // Dedicated XeniOS JIT helper transaction (channel neostation/xenia_jit),
+  // derived from the ARMSX2 helper by tools/xenia/derive_jit_helper.py.
+  [XeniaJitBridgePlugin registerWithRegistrar:registrar];
   NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
   [center addObserver:plugin selector:@selector(applicationWillResignActive)
                  name:UIApplicationWillResignActiveNotification object:nil];
@@ -254,6 +258,8 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
     result([self availability]);
   } else if ([call.method isEqualToString:@"isSessionActive"]) {
     result(@(self.session != nil));
+  } else if ([call.method isEqualToString:@"jitState"]) {
+    result([self jitState]);
   } else if ([call.method isEqualToString:@"launch"]) {
     [self launch:call.arguments result:result];
   } else {
@@ -273,6 +279,22 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
   NSMutableDictionary* state = [@{@"state" : @"ready", @"osVersion" : os} mutableCopy];
   if (self.api && self.api->source_revision) state[@"sourceRevision"] = @(self.api->source_revision);
   return state;
+}
+
+// What the next launch needs from the JIT helper, decided by the Core itself
+// (NeoXeniaAPI jit_state). Loads the Core, which only runs static
+// initializers (a PROT_NONE reservation of the code region): no emulator.
+- (NSDictionary*)jitState {
+  NSString* loadError = [self loadCore];
+  if (loadError) return @{@"error" : loadError, @"detail" : self.loadDetail ?: @""};
+  const uint32_t state = self.api->jit_state();
+  return @{
+    @"needsTool" : @((state & NEO_XENIA_JIT_NEEDS_TOOL) != 0),
+    @"toolAttached" : @((state & NEO_XENIA_JIT_TOOL_ATTACHED) != 0),
+    @"debugged" : @((state & NEO_XENIA_JIT_CS_DEBUGGED) != 0),
+    @"brokerPath" : @((state & NEO_XENIA_JIT_BROKER_PATH) != 0),
+    @"handshakeActive" : @(XeniaJitHasActiveCoreHandshake()),
+  };
 }
 
 // Loads the Core once per process. RTLD_LOCAL keeps its symbols private;
@@ -394,15 +416,35 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
       configuration.context = nullptr;
       char failure[512] = {0};
       NSString* stage = nil;
-      if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {
+      NSString* jitDetail = nil;
+      // A helper attached for the Core's handshake must answer the host
+      // nonce probe (brk #0xf00d, x16=3) before the Core runs: a tool that
+      // set CS_DEBUGGED and left would make the Core's prepare fatal.
+      const BOOL handshake = XeniaJitHasActiveCoreHandshake();
+      if (handshake && !XeniaJitConfirmCoreLoadHandoff()) {
+        stage = @"jitHandshakeFailed";
+      } else if (!api->prepare(&configuration, kXeniaPrepareTimeoutMs, failure, sizeof failure)) {
         stage = @"prepareFailed";
       } else if (!api->validate_jit(failure, sizeof failure)) {
         stage = @"jitUnavailable";
       } else if (!api->boot(gamePath.fileSystemRepresentation, kind.unsignedIntValue,
                             kXeniaBootTimeoutMs, failure, sizeof failure)) {
         stage = @"bootFailed";
+      } else if (handshake) {
+        // Emulator::Setup ran the Core's one-time prepare (x16=1) and detach
+        // (x16=0): the helper must confirm it detached with CS_DEBUGGED kept.
+        NSString* message = nil;
+        if (!XeniaJitWaitForDetach(120.0, &message)) {
+          stage = @"jitDetachFailed";
+          jitDetail = message;
+        }
       }
-      NSString* detail = @(failure);
+      if (stage && handshake && ![stage isEqualToString:@"jitDetachFailed"]) {
+        // The tool may stay attached for the next attempt (the Core reuses
+        // it until its region is prepared); only this transaction ends.
+        XeniaJitAbortTransaction();
+      }
+      NSString* detail = jitDetail ?: @(failure);
       dispatch_async(dispatch_get_main_queue(), ^{
         if (stage) {
           [self teardownWithReason:stage detail:detail notify:NO];

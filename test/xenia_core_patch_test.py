@@ -70,8 +70,27 @@ def check_patch() -> None:
                    'FRAMEWORK TRUE', '"-fobjc-arc"', 'xe_target_defaults(XeniaCore)'):
         if needed not in target:
             fail(f'target.cmake lacks {needed}')
+    # ABI 2: the JIT decision comes from the Core (IOSJitMemory).
+    abi = (ROOT / 'packages/xenia_internal_bridge/ios/Classes/XeniaCoreABI.h').read_text()
+    for needed in ('NEO_XENIA_JIT_NEEDS_TOOL', 'NEO_XENIA_JIT_TOOL_ATTACHED', 'uint32_t (*jit_state)(void);'):
+        if needed not in abi:
+            fail(f'XeniaCoreABI.h lacks {needed}')
+    for needed in ('IOSJitMemory::NeedsAttachedTool()', 'IOSJitMemory::ToolAttached()', 'JitState,'):
+        if needed not in facade:
+            fail(f'XeniaCore.mm lacks {needed}')
+    # Dedicated helper: derived from the ARMSX2 reference, no drift.
+    subprocess.run([sys.executable, str(ROOT / 'tools/xenia/derive_jit_helper.py'), '--check'], check=True)
+    # Bridge order: nonce probe before the Core runs, Core-issued detach
+    # confirmed after boot, never the other way round.
+    order = [plugin.index(token) for token in (
+        'XeniaJitHasActiveCoreHandshake()', 'XeniaJitConfirmCoreLoadHandoff()',
+        'api->prepare(&configuration', 'api->validate_jit(', 'api->boot(', 'XeniaJitWaitForDetach(')]
+    if order != sorted(order):
+        fail('the bridge must probe, prepare, validate, boot, then wait for the detach')
+    if '[XeniaJitBridgePlugin registerWithRegistrar:registrar];' not in plugin:
+        fail('the dedicated JIT channel is not registered')
     pin = json.loads((XENIA / 'source.json').read_text())
-    if pin['abi_version'] != 1 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
+    if pin['abi_version'] != 2 or not re.fullmatch('[0-9a-f]{40}', pin['revision']):
         fail('source.json pin is malformed')
 
 

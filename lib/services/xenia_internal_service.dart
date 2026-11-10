@@ -14,6 +14,7 @@ import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 import 'storage/storage_stat_ffi.dart';
 import 'xenia_content.dart';
+import 'xenia_jit_service.dart';
 import 'xenia_settings_service.dart';
 
 /// Outcome of one picked file in an Xbox 360 import. [reason] is a
@@ -436,6 +437,10 @@ abstract final class XeniaInternalService {
     if (!runtime.ready) {
       return XeniaLaunchOutcome.failure(runtime.state.name, runtime.detail);
     }
+    // The dedicated XeniOS JIT helper, only when the Core needs it
+    // (docs/xenios-playlist.md § JIT helper).
+    final jit = await XeniaJitService.ensure();
+    if (!jit.success) return XeniaLaunchOutcome.failure(jit.error, jit.detail);
     final kind = contentKindFor(romPath);
     if (kind == null) return const XeniaLaunchOutcome.failure('unsupported');
     if (!await File(romPath).exists()) {

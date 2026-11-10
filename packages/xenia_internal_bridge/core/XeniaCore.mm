@@ -29,6 +29,7 @@
 #include "XeniaCoreInput.h"
 
 #include "xenia/base/cvar.h"
+#include "xenia/cpu/backend/jit_memory_ios.h"
 #include "xenia/base/logging.h"
 #include "xenia/hid/input.h"
 #include "xenia/hid/input_driver.h"
@@ -233,7 +234,26 @@ int Prepare(const NeoXeniaConfiguration* configuration, uint32_t /*timeout_ms*/,
   return 1;
 }
 
+uint32_t JitState(void) {
+  using xe::cpu::backend::IOSJitMemory;
+  uint32_t state = 0;
+  if (IOSJitMemory::NeedsAttachedTool()) state |= NEO_XENIA_JIT_NEEDS_TOOL;
+  if (IOSJitMemory::ToolAttached()) state |= NEO_XENIA_JIT_TOOL_ATTACHED;
+  if (xe_is_cs_debugged()) state |= NEO_XENIA_JIT_CS_DEBUGGED;
+  if (IOSJitMemory::PacksCode()) state |= NEO_XENIA_JIT_BROKER_PATH;
+  return state;
+}
+
 int ValidateJit(char* error, size_t capacity) {
+  // Before the one-time prepare, a tool that set CS_DEBUGGED and left would
+  // turn the Core's prepare brk into a fatal "JIT was turned off" error.
+  const uint32_t state = JitState();
+  if ((state & NEO_XENIA_JIT_NEEDS_TOOL) && !(state & NEO_XENIA_JIT_TOOL_ATTACHED)) {
+    Copy(error, capacity,
+         "JIT unavailable: the JIT helper must stay attached until the first game prepares "
+         "its code region (iOS 26 TXM)");
+    return 0;
+  }
   if (xe_check_jit_available()) return 1;
   Copy(error, capacity,
        xe_ios_requires_debugger_broker()
@@ -358,6 +378,7 @@ const NeoXeniaAPI kAPI = {
     Shutdown,
     SetButtons,
     SetAxes,
+    JitState,
 };
 
 }  // namespace

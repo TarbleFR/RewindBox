@@ -11,7 +11,8 @@
 extern "C" {
 #endif
 
-#define NEO_XENIA_ABI_VERSION 1u
+// ABI 2 adds jit_state (the JIT helper decision). ABI 1 was never built.
+#define NEO_XENIA_ABI_VERSION 2u
 
 // The Core is built from XeniOS with its upstream iOS 26.0 deployment
 // target (XeniOS CMakeLists.txt:4-11). The host app targets iOS 18: the
@@ -23,6 +24,20 @@ extern "C" {
 #define NEO_XENIA_CONTENT_DISC_IMAGE 1u  // .iso (XGD/XISO)
 #define NEO_XENIA_CONTENT_ZAR 2u         // .zar (ZArchive)
 #define NEO_XENIA_CONTENT_EXECUTABLE 3u  // loose default.xex in its folder
+
+// jit_state() bits (XeniOS cpu/backend/jit_memory_ios.h and
+// ui/ios/shared/ios_system_utils.h). Callable right after dlopen, before
+// prepare: nothing is initialized.
+// The next title can only boot while a JIT tool is attached that answers
+// the Core's brk #0xf00d prepare (x16=1) and detach (x16=0) requests: TXM
+// device on iOS 26+, code region not yet prepared in this process.
+#define NEO_XENIA_JIT_NEEDS_TOOL (1u << 0)
+// A debugger is attached now (P_TRACED).
+#define NEO_XENIA_JIT_TOOL_ATTACHED (1u << 1)
+// The process is CS_DEBUGGED (stays set after the tool detaches).
+#define NEO_XENIA_JIT_CS_DEBUGGED (1u << 2)
+// The Core uses the TXM broker path (dual-mapped, prepared region).
+#define NEO_XENIA_JIT_BROKER_PATH (1u << 3)
 
 // Events reported by the Core on any thread. `event` is one of:
 // "firstFrame", "paused", "resumed", "stopped", "error". `message` is a
@@ -86,6 +101,8 @@ typedef struct NeoXeniaAPI {
   void (*set_buttons)(uint32_t buttons);
   void (*set_axes)(float left_x, float left_y, float right_x, float right_y,
                    float left_trigger, float right_trigger);
+  // ABI 2: NEO_XENIA_JIT_* bits; any thread.
+  uint32_t (*jit_state)(void);
 } NeoXeniaAPI;
 
 typedef const NeoXeniaAPI* (*NeoXeniaGetAPI)(uint32_t version);

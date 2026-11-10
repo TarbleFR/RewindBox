@@ -3766,6 +3766,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   build_core.sh,verify_core.py}`, dispatch-only `.github/workflows/xenia-core.yml`
   (`checks` on macos-26; `core` opt-in, needs an Xcode 27 runner). Executed here: patch
   test on the pinned checkout, facade C++ `-Werror` check against pinned headers, validator.
+- **JIT helper (written, not compiled; IPA wiring = main):** XeniOS needs a tool only on
+  TXM + iOS 26+, once per process (`brk #0xf00d`, x16=1 prepare x0/x1→x0, x16=0 detach,
+  issued by the Core). Helper derived from the ARMSX2 reference by
+  `tools/xenia/derive_jit_helper.py` (`--check` = no drift; script byte-equal to
+  ARMSX2/RPCS3): `native/xenia_internal_helper`, `packages/xenia_jit_helper`,
+  `XeniaJitBridgePlugin` (`neostation/xenia_jit`, bundle `…xeniajithelper`, marker
+  `NeoStationXeniaJITHelper`), `build-utils/configure_xenia_ios.py`. ABI 2 `jit_state` from
+  `IOSJitMemory`; `lib/services/xenia_jit_service.dart` plans none/reuse/handshake/classic;
+  bridge: nonce probe before prepare, detach confirmed after boot. Validator rows and
+  `ios-ci.yml` call listed for main in the contract.
 - **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
   `xbox360` entry (existing system id); Consoles tab grouped by application, external-
   RetroArch-only and missing-engine consoles removed from the tab only (maintainer
@@ -3786,19 +3796,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
   tab rule), `docs/storage-audit-cleanup.md`.
 - **Validation (Flutter 3.47.2 host):** new XeniOS + catalog/Consoles tests 65/65;
-  shader-converter validator unit tests 7/7; `xenia_core_patch_test.py` and
+  JIT plan/failures + XeniOS suites 72/72; shader-converter validator 7/7;
+  `xenia_core_patch_test.py` (incl. helper drift and bridge order) and
   `xenia_core_cpp_test.sh` OK; workflow-scanning Python tests = same set as Claude;
   storage contract 24/24; 41 Dart suites touching changed files
   373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
   refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
   failure set as HEAD (19, shallow-history/baseline). Analyzer: no new issue.
-- **Blockers:** first real compile of the facade/plugin/framework (dispatch of
-  `xenia-core.yml` by main on an Xcode 27 runner); converter redistribution decision;
-  dedicated JIT helper. Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
+- **Blockers:** first real compile of the facade/plugins/helper/framework (dispatch of
+  `xenia-core.yml` by main; Core needs Xcode 27); converter redistribution decision; IPA
+  wiring of `XeniaJITHelper` (main). Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
   no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
   Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
-- **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`); component fixes
-  what the compile reports, then the JIT helper identity and the first device session.
+- **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`) and wires the
+  helper; component fixes what the compile reports, then touch controls and the first
+  TXM-iPhone session (helper attach, launch, quit, second launch without attach).
 
 ### Codex orchestration — Codex
 

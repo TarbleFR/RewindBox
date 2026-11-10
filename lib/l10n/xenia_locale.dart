@@ -71,6 +71,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "No Xbox 360 games yet",
       'emptyBody': "Import your .iso or .zar games from Files with the import button.",
       'shaderConverterMissing': "This version of RewindBox contains the XeniOS engine without Apple's Metal Shader Converter, which it needs to display games.",
+      'pairingRequired': "A RemotePairing file is required to enable JIT for XeniOS.",
+      'jitAttachFailed': "The JIT helper could not attach to RewindBox. Check that LocalDevVPN is connected, then try again.",
+      'jitHelperIncomplete': "The JIT helper did not finish. Restart RewindBox, then try again.",
     },
     'es': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -139,6 +142,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Aún no hay juegos de Xbox 360",
       'emptyBody': "Importa tus juegos .iso o .zar desde Archivos con el botón de importar.",
       'shaderConverterMissing': "Esta versión de RewindBox incluye el motor XeniOS sin el Metal Shader Converter de Apple, necesario para mostrar los juegos.",
+      'pairingRequired': "Se necesita un archivo RemotePairing para activar el JIT de XeniOS.",
+      'jitAttachFailed': "El asistente JIT no pudo conectarse a RewindBox. Comprueba que LocalDevVPN esté conectado y vuelve a intentarlo.",
+      'jitHelperIncomplete': "El asistente JIT no terminó. Reinicia RewindBox y vuelve a intentarlo.",
     },
     'ru': <String, String>{
       'importMenu': "XeniOS / Импорт",
@@ -207,6 +213,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Игр Xbox 360 пока нет",
       'emptyBody': "Импортируйте игры .iso или .zar из «Файлов» кнопкой импорта.",
       'shaderConverterMissing': "Эта версия RewindBox содержит движок XeniOS без Metal Shader Converter от Apple, который нужен для вывода изображения игр.",
+      'pairingRequired': "Для включения JIT в XeniOS нужен файл RemotePairing.",
+      'jitAttachFailed': "Помощнику JIT не удалось подключиться к RewindBox. Убедитесь, что LocalDevVPN подключён, и повторите попытку.",
+      'jitHelperIncomplete': "Помощник JIT не завершил работу. Перезапустите RewindBox и повторите попытку.",
     },
     'zh': <String, String>{
       'importMenu': "XeniOS / 导入",
@@ -275,6 +284,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "还没有 Xbox 360 游戏",
       'emptyBody': "使用导入按钮从“文件”导入你的 .iso 或 .zar 游戏。",
       'shaderConverterMissing': "此版本的 RewindBox 包含 XeniOS 引擎，但缺少显示游戏所需的 Apple Metal Shader Converter。",
+      'pairingRequired': "需要 RemotePairing 文件才能为 XeniOS 启用 JIT。",
+      'jitAttachFailed': "JIT 助手无法连接到 RewindBox。请确认 LocalDevVPN 已连接，然后重试。",
+      'jitHelperIncomplete': "JIT 助手未完成。请重新启动 RewindBox 后重试。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "XeniOS / 匯入",
@@ -343,6 +355,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "尚無 Xbox 360 遊戲",
       'emptyBody': "使用匯入按鈕從「檔案」匯入你的 .iso 或 .zar 遊戲。",
       'shaderConverterMissing': "此版本的 RewindBox 包含 XeniOS 引擎，但缺少顯示遊戲所需的 Apple Metal Shader Converter。",
+      'pairingRequired': "需要 RemotePairing 檔案才能為 XeniOS 啟用 JIT。",
+      'jitAttachFailed': "JIT 輔助程式無法連接到 RewindBox。請確認 LocalDevVPN 已連線，然後再試一次。",
+      'jitHelperIncomplete': "JIT 輔助程式未完成。請重新啟動 RewindBox 後再試一次。",
     },
     'pt': <String, String>{
       'importMenu': "XeniOS / Importar",
@@ -411,6 +426,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Ainda não há jogos de Xbox 360",
       'emptyBody': "Importe seus jogos .iso ou .zar do app Arquivos com o botão de importar.",
       'shaderConverterMissing': "Esta versão do RewindBox contém o motor XeniOS sem o Metal Shader Converter da Apple, necessário para exibir os jogos.",
+      'pairingRequired': "É necessário um arquivo RemotePairing para ativar o JIT do XeniOS.",
+      'jitAttachFailed': "O assistente de JIT não conseguiu se conectar ao RewindBox. Verifique se o LocalDevVPN está conectado e tente novamente.",
+      'jitHelperIncomplete': "O assistente de JIT não terminou. Reinicie o RewindBox e tente novamente.",
     },
     'fr': <String, String>{
       'importMenu': "XeniOS / Importer",
@@ -479,6 +497,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Aucun jeu Xbox 360 pour l’instant",
       'emptyBody': "Importez vos jeux .iso ou .zar depuis Fichiers avec le bouton d’import.",
       'shaderConverterMissing': "Cette version de RewindBox contient le moteur XeniOS sans le Metal Shader Converter d’Apple, nécessaire à l’affichage des jeux.",
+      'pairingRequired': "Un fichier RemotePairing est nécessaire pour activer le JIT de XeniOS.",
+      'jitAttachFailed': "L’assistant JIT n’a pas pu s’attacher à RewindBox. Vérifiez que LocalDevVPN est connecté, puis réessayez.",
+      'jitHelperIncomplete': "L’assistant JIT n’a pas terminé. Redémarrez RewindBox, puis réessayez.",
     },
     'de': <String, String>{
       'importMenu': "XeniOS / Import",
@@ -547,6 +568,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Noch keine Xbox-360-Spiele",
       'emptyBody': "Importiere deine .iso- oder .zar-Spiele mit der Import-Taste aus Dateien.",
       'shaderConverterMissing': "Diese RewindBox-Version enthält die XeniOS-Engine ohne Apples Metal Shader Converter, den sie zur Anzeige von Spielen benötigt.",
+      'pairingRequired': "Für den XeniOS-JIT wird eine RemotePairing-Datei benötigt.",
+      'jitAttachFailed': "Der JIT-Helfer konnte sich nicht mit RewindBox verbinden. Prüfe, ob LocalDevVPN verbunden ist, und versuche es erneut.",
+      'jitHelperIncomplete': "Der JIT-Helfer wurde nicht abgeschlossen. Starte RewindBox neu und versuche es erneut.",
     },
     'it': <String, String>{
       'importMenu': "XeniOS / Importa",
@@ -615,6 +639,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Ancora nessun gioco Xbox 360",
       'emptyBody': "Importa i tuoi giochi .iso o .zar da File con il pulsante di importazione.",
       'shaderConverterMissing': "Questa versione di RewindBox contiene il motore XeniOS senza il Metal Shader Converter di Apple, necessario per visualizzare i giochi.",
+      'pairingRequired': "Per attivare il JIT di XeniOS serve un file RemotePairing.",
+      'jitAttachFailed': "L’assistente JIT non è riuscito a collegarsi a RewindBox. Verifica che LocalDevVPN sia connesso e riprova.",
+      'jitHelperIncomplete': "L’assistente JIT non ha terminato. Riavvia RewindBox e riprova.",
     },
     'id': <String, String>{
       'importMenu': "XeniOS / Impor",
@@ -683,6 +710,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Belum ada game Xbox 360",
       'emptyBody': "Impor game .iso atau .zar dari Files dengan tombol impor.",
       'shaderConverterMissing': "Versi RewindBox ini berisi mesin XeniOS tanpa Metal Shader Converter dari Apple, yang diperlukan untuk menampilkan game.",
+      'pairingRequired': "File RemotePairing diperlukan untuk mengaktifkan JIT XeniOS.",
+      'jitAttachFailed': "Pembantu JIT tidak dapat terhubung ke RewindBox. Pastikan LocalDevVPN tersambung, lalu coba lagi.",
+      'jitHelperIncomplete': "Pembantu JIT tidak selesai. Mulai ulang RewindBox, lalu coba lagi.",
     },
     'ja': <String, String>{
       'importMenu': "XeniOS / 読み込み",
@@ -751,6 +781,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "Xbox 360 のゲームはまだありません",
       'emptyBody': "読み込みボタンで「ファイル」から .iso または .zar のゲームを読み込んでください。",
       'shaderConverterMissing': "このバージョンの RewindBox には XeniOS エンジンが含まれていますが、ゲームの表示に必要な Apple の Metal Shader Converter がありません。",
+      'pairingRequired': "XeniOS の JIT を有効にするには RemotePairing ファイルが必要です。",
+      'jitAttachFailed': "JIT ヘルパーが RewindBox に接続できませんでした。LocalDevVPN が接続されていることを確認してから、もう一度お試しください。",
+      'jitHelperIncomplete': "JIT ヘルパーが完了しませんでした。RewindBox を再起動してから、もう一度お試しください。",
     },
     'ko': <String, String>{
       'importMenu': "XeniOS / 가져오기",
@@ -819,6 +852,9 @@ abstract final class XeniaLocale {
       'emptyTitle': "아직 Xbox 360 게임이 없습니다",
       'emptyBody': "가져오기 버튼으로 파일 앱에서 .iso 또는 .zar 게임을 가져오세요.",
       'shaderConverterMissing': "이 버전의 RewindBox에는 XeniOS 엔진이 포함되어 있지만 게임 표시에 필요한 Apple Metal Shader Converter가 없습니다.",
+      'pairingRequired': "XeniOS의 JIT를 사용하려면 RemotePairing 파일이 필요합니다.",
+      'jitAttachFailed': "JIT 도우미가 RewindBox에 연결하지 못했습니다. LocalDevVPN이 연결되어 있는지 확인한 후 다시 시도하세요.",
+      'jitHelperIncomplete': "JIT 도우미가 완료되지 않았습니다. RewindBox를 다시 시작한 후 다시 시도하세요.",
     },
   };
 
@@ -848,7 +884,12 @@ abstract final class XeniaLocale {
     'sessionActive' ||
     'restartRequired' ||
     'gameUnreadable' ||
-    'shaderConverterMissing' => error!,
+    'shaderConverterMissing' ||
+    'pairingRequired' ||
+    'jitAttachFailed' ||
+    'jitHelperIncomplete' => error!,
+    'jitHandshakeFailed' => 'jitAttachFailed',
+    'jitDetachFailed' => 'jitHelperIncomplete',
     _ => 'launchFailed',
   };
 

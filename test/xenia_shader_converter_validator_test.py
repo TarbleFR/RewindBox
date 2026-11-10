@@ -126,9 +126,9 @@ class ShaderConverterValidator(unittest.TestCase):
         self.assertIn('libmetalirconverter.dylib', plugin)
         self.assertEqual(PIN['shader_converter']['package_path'], 'Frameworks/libmetalirconverter.dylib')
         self.assertEqual(PIN['revision'], 'cf7c7ee452314913124d205e41e325b33891aacb')
-        self.assertEqual(PIN['abi_version'], 1)
+        self.assertEqual(PIN['abi_version'], 2)
         header = (ROOT / 'packages' / 'xenia_internal_bridge' / 'ios' / 'Classes' / 'XeniaCoreABI.h').read_text()
-        self.assertIn('#define NEO_XENIA_ABI_VERSION 1u', header)
+        self.assertIn('#define NEO_XENIA_ABI_VERSION 2u', header)
 
 
 if __name__ == '__main__':

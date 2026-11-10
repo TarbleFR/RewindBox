@@ -13,5 +13,7 @@
   "src/xenia/base/logging.h": "fce4c8b9c815a4c8c9406ab7aaf738764c57c9f2882c7a2c31cd2ad24faa7a7e",
   "src/xenia/ui/ios/shared/ios_system_utils.h": "5c5155db7f61b92e9f4ac5bf20d15ca7e5cdf468242c7b02184664aecf48e1cc",
   "src/xenia/gpu/metal/metal_command_processor.cc": "b05199de8e1b073f7e16d5f092904cff3ee13ab155636455265eedacfbe5816b",
-  "src/xenia/kernel/xconfig.cc": "c4ea70930b905a9c284d64e2fcdaef97dabd8c0ec091e134f1b10d958a53e552"
+  "src/xenia/kernel/xconfig.cc": "c4ea70930b905a9c284d64e2fcdaef97dabd8c0ec091e134f1b10d958a53e552",
+  "src/xenia/cpu/backend/jit_memory_ios.h": "f873fe4f20ba468c31ff49354364b5fba282de06ce5e9e81ad9931f01d729ab1",
+  "src/xenia/cpu/backend/jit_memory_ios.cc": "02d4fedb27183494c1d594722a881228aeec037e074cc6e086ccaee1e92ff716"
 }

@@ -145,6 +145,64 @@ abstract final class XeniaInternalBridge {
     }
   }
 
+  static const MethodChannel _jitChannel = MethodChannel(
+    'neostation/xenia_jit',
+  );
+
+  /// What the next launch needs from the JIT helper, decided by the Core
+  /// (`needsTool`, `toolAttached`, `debugged`, `brokerPath`,
+  /// `handshakeActive`), or `error` when the Core cannot be loaded.
+  static Future<Map<String, dynamic>> jitState() async {
+    try {
+      final result = await _channel.invokeMapMethod<String, dynamic>(
+        'jitState',
+      );
+      return Map<String, dynamic>.from(result ?? const {});
+    } on MissingPluginException {
+      return const <String, dynamic>{'error': 'engineMissing'};
+    } on PlatformException catch (error) {
+      return <String, dynamic>{'error': error.code, 'detail': error.message};
+    }
+  }
+
+  /// Attaches the dedicated XeniOS JIT helper to RewindBox. With
+  /// [requiresCoreHandshake] it stays attached for the Core's own prepare
+  /// and detach requests (the launch then waits for its detach); without,
+  /// it is a classic attach to finish with [completeJit].
+  static Future<Map<String, dynamic>> prepareJit({
+    required String pairingFilePath,
+    required bool requiresCoreHandshake,
+  }) async {
+    try {
+      final result = await _jitChannel
+          .invokeMapMethod<String, dynamic>('prepareJit', <String, Object?>{
+            'pairingFilePath': pairingFilePath,
+            'requiresCoreHandshake': requiresCoreHandshake,
+          });
+      return Map<String, dynamic>.from(result ?? const {});
+    } on MissingPluginException {
+      return const <String, dynamic>{
+        'success': false,
+        'message': 'engineMissing',
+      };
+    }
+  }
+
+  /// Waits for a classic attach to detach, leaving CS_DEBUGGED.
+  static Future<Map<String, dynamic>> completeJit() async {
+    try {
+      final result = await _jitChannel.invokeMapMethod<String, dynamic>(
+        'completeJit',
+      );
+      return Map<String, dynamic>.from(result ?? const {});
+    } on MissingPluginException {
+      return const <String, dynamic>{
+        'success': false,
+        'message': 'engineMissing',
+      };
+    }
+  }
+
   static Future<bool> isSessionActive() async {
     try {
       return await _channel.invokeMethod<bool>('isSessionActive') ?? false;

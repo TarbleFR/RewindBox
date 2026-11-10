@@ -17,7 +17,7 @@ or library is embedded.
   s.dependency 'Flutter'
   s.platform = :ios, '18.0'
   s.ios.deployment_target = '18.0'
-  s.frameworks = 'UIKit', 'Foundation', 'GameController', 'QuartzCore'
+  s.frameworks = 'UIKit', 'Foundation', 'GameController', 'QuartzCore', 'Security'
   s.libraries = 'c++'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

@@ -4,7 +4,7 @@
   "repository": "https://github.com/xenios-jp/XeniOS.git",
   "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
   "revision_evidence": "XeniOS 2.3.1 (11662) IPA attestation commitShort=cf7c7ee45, upstream HEAD on 2026-11-10",
-  "abi_version": 1,
+  "abi_version": 2,
   "core_deployment_target": "26.0",
   "host_deployment_target": "18.0",
   "shader_converter": {

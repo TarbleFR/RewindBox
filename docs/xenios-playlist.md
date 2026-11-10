@@ -218,17 +218,74 @@ downloaded and compared on 10 Nov 2026: same code as the IPA copy
 signature differs. It is fetched at build time, digest- and
 signature-checked, and kept out of every artifact.
 
+## JIT helper
+
+**What XeniOS needs** (`cpu/backend/jit_memory_ios.{h,cc}` at the pin):
+
+- Non-TXM device, or iOS below 26: only `CS_DEBUGGED`; the Core never asks
+  the debugger anything (`IOSUseTXMBrokerPath` false, plain mapping).
+- TXM device on iOS 26+: a 512 MiB code region below 8 GB, prepared once per
+  process at the first game boot (`IOSJitMemory::Initialize`), through
+  `brk #0xf00d` with `x16=1`, `x0`=start, `x1`=length, prepared address
+  returned in `x0` (all 64 bits), then `x16=0` to detach — issued by the
+  Core itself. Later sessions reuse the region with no request. If no
+  debugger answers, the Core stops with "JIT was turned off".
+
+**RewindBox's side**: the dedicated helper is derived from the ARMSX2
+reference by `tools/xenia/derive_jit_helper.py` (identity renames plus the
+attach-mode rule; `--check` fails on drift). The universal script is
+byte-equal to the ARMSX2/RPCS3 one and already implements those commands
+(x16 0 detach, 1 prepare with BigInt registers, 3 host nonce probe).
+
+| Identity | Value |
+| --- | --- |
+| Extension | `native/xenia_internal_helper` (`XeniaJITRequestHandler`, share-services point, marker `NeoStationXeniaJITHelper`) |
+| Pod | `packages/xenia_jit_helper` (`XeniaJITRequestHandlerBase.swift`, `xenia-universal.js`) |
+| Host bridge | `XeniaJitBridgePlugin` in `xenia_internal_bridge`, channel `neostation/xenia_jit`, request type `com.neogamelab.neostation.xenia-jit-request` |
+| Bundle / target | `com.neogamelab.neostation.xeniajithelper` / `XeniaJITHelper` (`build-utils/configure_xenia_ios.py`) |
+
+**Decision, before every launch** (`lib/services/xenia_jit_service.dart`):
+the bridge loads the Core and reads `jit_state` (ABI 2:
+`NeedsAttachedTool`, `ToolAttached`, `CS_DEBUGGED`, broker path).
+
+| Core state | Plan |
+| --- | --- |
+| no tool needed, debugged | nothing (second and later sessions) |
+| tool needed, still attached (an earlier boot failed before the prepare) | reuse it |
+| tool needed, not attached | pairing file → LocalDevVPN route probe → helper with the core handshake → launch: nonce probe (x16=3) **before** `prepare`, `validate_jit` refuses a missing tool, `boot` runs the Core's prepare and detach, then the helper's detach is confirmed (`XeniaJitWaitForDetach`) |
+| no tool needed, not debugged | classic attach, then `completeJit` |
+
+Helper connected, expected PID attached and `CS_DEBUGGED` are checked as
+separate facts; each failure has its own message in the 12 locales
+(`pairingRequired`, `jitAttachFailed`, `jitHelperIncomplete`,
+`jitUnavailable`). Manual LocalDevVPN only; no external JIT app.
+
+**IPA wiring, for the main session** (delivery files, not edited here):
+call `build-utils/configure_xenia_ios.py` after the XeniaCore pin (it
+requires `dist/xenia/XeniaCore.framework`), add the `XeniaJITHelper` pod
+path to `ios-ci.yml`'s lists, and add the extension row (suffix
+`xeniajithelper`, principal class `XeniaJITRequestHandler`, marker
+`NeoStationXeniaJITHelper`) wherever helper extensions are enumerated:
+`build-utils/validate_single_ipa_distribution.py` (`EXPECTED_EXTENSIONS`),
+`build-utils/validate_stikjit_ipa.py`, `build-utils/validate_rpcs3_ipa.py`,
+`build-utils/validate_armsx2_ipa.py`,
+`packages/dolphin_internal_bridge/ci/verify_ipa.py`,
+`.github/diagnostics/standard_delivery.py` and the rewind608/609 checks;
+plus `XeniaCore.framework` and the converter in `Frameworks/` once its
+supply is decided.
+
 ## State and limits (10 Nov 2026)
 
 - Implemented and host-tested: catalog, policy, Consoles tab, playlist import
   button, import service, settings service and screens, per-game entry in
-  the game card, launch route and session monitoring, bridge Dart API.
+  the game card, launch route and session monitoring, bridge Dart API, the
+  JIT plan and its failures (`test/xenia_jit_service_test.dart`).
 - Written, **not compiled**: the Objective-C++ plugin (no macOS/Xcode here).
-- Written, not compiled: the XeniaCore facade, target and build (above);
-  compiling needs a macOS runner with Xcode 27 and a dispatch by the main
-  session. Not implemented: the JIT
-  handshake (XeniOS needs an attached debugger: a dedicated helper identity,
-  like the other engines); touch controls/skin; folder (XEX/GOD) import.
+- Written, not compiled: the XeniaCore facade, target and build, the JIT
+  helper extension, pod and bridge (above); compiling needs a macOS runner
+  (Xcode 27 for the Core) and a dispatch by the main session. Not
+  implemented: the IPA wiring of the helper (main session); touch
+  controls/skin; rumble; folder (XEX/GOD) import.
 - Until the Core ships, every launch returns `engineMissing` (or
   `requiresIOS26`): no fake success. No iPhone observation exists.
 
@@ -236,6 +293,7 @@ signature-checked, and kept out of every artifact.
 
 Main session: dispatch `xenia-core.yml` (`checks`, then `build_core` on a
 runner with Xcode 27), fix what the real compile reports, pin the Core.
-Component: the dedicated JIT helper identity (XeniOS needs an attached
-debugger; RewindBox's helper path, not StikDebug hand-off), touch controls,
-then the first device session (launch, menu, quit, second launch).
+Main session: wire `XeniaJITHelper` into the IPA (list above). Component:
+fix what the first compile reports, touch controls, then the first device
+session (launch with the helper on a TXM iPhone, menu, quit, second launch
+without a new attach).
