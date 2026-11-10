@@ -3356,8 +3356,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     and 723 protocols (mapped-cache RAM, stall lines, gcPause, the descriptor and barrier counters, memory lines, a
     second launch for the variant replay). Also open: the compute descriptor cost (55 us per small program), command
     buffers per frame (texture-array reference passes 243.5 ms per 5 s, submits), the auto-flush timer on MoltenVK,
-    the managed heap (LOH holes), the mirror settle step, `NS_SWIFT_NAME`, and `test/melonx_capture_journal_test.py`
-    (red on Linux since before 719).
+    the managed heap (LOH holes), `NS_SWIFT_NAME`, and `test/melonx_capture_journal_test.py` (red on Linux since before
+    719).
+  - **Mirror pending pages, parked (`50576fc8`):** the harness is now a gate (26 checks on the Core 723 preparation:
+    identical fills and uploads, pages exactly those the pending ranges overlap, all returned; a variant without
+    Release breaks it), but the gain without the settle step is small: random partial updates keep about 70 % of a
+    32 MiB buffer in pages, 400 random buffers about 81 % of their full copies, and a buffer under 16 KiB would hold a
+    whole page. In 718 the buffer cache held 107-119 MiB in play, which bounds what full copies can hold; the device
+    share (memory lines, then a count of the copies) decides whether the settle step is worth its risk.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
