@@ -1114,14 +1114,20 @@ class EffectiveTree611(unittest.TestCase):
 class PocketSkinRevisionReview(unittest.TestCase):
     """720, 10 November 2026: PR 166 and PR 167 rebuilt six Pocket packs in place and the declaration chain of the
     application refused the effective tree ("Pocket board Originals added packs differ from the review"). The revision
-    review binds every rebuilt pack to the identity an earlier review gave it."""
+    review binds every rebuilt pack to the identity an earlier review gave it. 722: PR 169 rebuilt the same six packs
+    again; a second revision review binds each to the identity of the first, and only the last revision is checked
+    against the catalog."""
 
-    REVIEW = 'docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json'
+    REVIEWS = ('docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json',
+               'docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json')
     CATALOG = 'assets/skins/pocket/catalog.json'
 
     def setUp(self):
-        if not (ROOT / self.REVIEW).is_file():
+        self.present = [name for name in self.REVIEWS if (ROOT / name).is_file()]
+        if not self.present:
             self.skipTest('no Pocket skin revision review in this tree')
+        # The last revision is the one the catalog must match.
+        self.REVIEW = self.present[-1]
         import importlib.util
         spec = importlib.util.spec_from_file_location('source_evidence_revision',
                                                       ROOT / 'build-utils/collect_build_source_evidence.py')
@@ -1132,7 +1138,7 @@ class PocketSkinRevisionReview(unittest.TestCase):
         _, manifest = current_manifest()
         head = manifest['product'].get('freezeCommit') or REPO.commit('HEAD')
         self.paths = set(tree['effective']) | {path for path in REPO.entries(head) if sd.is_recipe(path)}
-        self.paths |= {self.REVIEW}
+        self.paths |= set(self.present)
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
@@ -1204,6 +1210,36 @@ class PocketSkinRevisionReview(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, 'archive differs from the catalog'):
             self.collect({archive: self.read(self.root, self.root / archive) + b'x'})
         # And the unchanged tree still passes after the controls.
+        self.assertTrue('pubspec.lock' in self.collect())
+
+    def test_a_later_revision_is_bound_to_the_one_before(self):
+        if len(self.present) < 2:
+            self.skipTest('a single Pocket skin revision review in this tree')
+        first, last = self.present[-2], self.present[-1]
+        later = json.loads(self.read(self.root, self.root / last))
+        self.assertEqual(later['baseline_inventory'], first)
+        self.assertTrue('pubspec.lock' in self.collect())
+        # A later revision without the one before it binds nothing.
+        with self.assertRaisesRegex(SystemExit, 'lacks the revision before it'):
+            self.collect(absent=[first])
+        # The earlier revision edited after the later one bound it (its digest is the later one's baseline).
+        earlier = json.loads(self.read(self.root, self.root / first))
+        earlier['scope'] += ' '
+        with self.assertRaisesRegex(SystemExit, 'different baseline or dependency scope'):
+            self.collect({first: json.dumps(earlier).encode()})
+
+        def changed_later(edit):
+            value = json.loads(json.dumps(later))
+            edit(value['bundled_assets'])
+            return {last: json.dumps(value).encode()}
+
+        # A pack the later revision rebuilds from an identity the earlier revision did not give it.
+        rebuilt = sorted(later['bundled_assets']['revised_skins'])[0]
+        with self.assertRaisesRegex(SystemExit, 'differ from the review|does not bind the reviewed pack'):
+            self.collect(changed_later(lambda b: b['revised_skins'][rebuilt]['previous'].update(sha256='0' * 64)))
+        # A later revision that does not start from the earlier revision's catalog.
+        with self.assertRaisesRegex(SystemExit, 'catalog changed since review'):
+            self.collect(changed_later(lambda b: b.update(previous_catalog_sha256='0' * 64)))
         self.assertTrue('pubspec.lock' in self.collect())
 
 

@@ -43,6 +43,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 INCREMENT = ROOT / 'build-utils/rpcs3/core919-from-918.patch'
+# The increments of later Cores, newest first: reversed before this one when the tree under test holds them.
+LATER = (ROOT / 'build-utils/rpcs3/core920-from-919.patch',)
 LEVERS = 'rpcs3/ios/IOSTitleLevers.h'
 WATCHED = 'rpcs3/ios/IOSZcullWatched.h'
 RENDER = 'rpcs3/Emu/RSX/VK/VKGSRender.cpp'
@@ -73,6 +75,10 @@ def control_tree(source: Path, work: Path) -> Path:
     for extra in ('Utilities', 'util'):
         if (source / extra).is_dir():
             shutil.copytree(source / extra, tree / extra, symlinks=True)
+    for later in LATER:
+        if later.is_file() and subprocess.run(['git', 'apply', '-R', '--check', '--whitespace=nowarn', str(later)], cwd=tree,
+                                              capture_output=True).returncode == 0:
+            subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', str(later)], cwd=tree, check=True, capture_output=True)
     reverse = subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', str(INCREMENT)], cwd=tree, capture_output=True, text=True)
     require(reverse.returncode == 0, 'the Core 919 increment does not reverse on the tree under test:\n' + reverse.stderr[-3000:])
     return tree

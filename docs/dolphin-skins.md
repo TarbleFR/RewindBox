@@ -184,8 +184,9 @@ and the session is exactly as before.
 - With a skin chosen for both orientations, the Metal view keeps the
   drawable of the orientation the game started in (the Core bridge has no
   surface-resize call). In the other orientation the game is fitted inside
-  the skin's screen with one scale, with bands when the two screens differ in
-  ratio. A portrait-only or landscape-only choice always fills its screen,
+  the skin's screen with one scale; the RewindBox Pocket screens are all 4:3,
+  so it fills it (a third-party skin whose two screens differ in ratio keeps
+  bands). A portrait-only or landscape-only choice always fills its screen,
   whatever way the phone was held when the game was opened.
 
 ## What remains on the iPhone

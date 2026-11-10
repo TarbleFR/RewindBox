@@ -63,6 +63,12 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   occlusion results the GPU could have finished long before, because the work behind them was sent to the GPU only when
   the game asked; that work is now sent as soon as possible, as it already was for Assassin's Creed. Host model only
   (waits at 23 of 23 reads before, 2 after); no FPS claim before an iPhone measurement.
+- RPCS3 Core 920 pinned on 10 November 2026 ([record](../rpcs3-core920-lever-comparison.md); run `42838028676`, dylib
+  `79d70a4d…`, pin `f9f2b478…`), for the private IPA 722: the emulator no longer switches two of its settings off and on
+  again by itself during the first minutes of every game to compare them (up to three minutes with one of them off);
+  that comparison now runs only when asked for with the new setting "Lever comparison between report windows". The
+  performance report also tells, for Black Ops II, how old the occlusion result is that each wait is for and what
+  sending it early costs. Host tests only; no FPS claim.
 - Next public release explicitly requested: **RewindBox 0.0.11**, tag `0.0.11`, Build 718.
   [Prepared English notes](pending-0.0.11/release-notes.md), [source draft](pending-0.0.11/source.json)
   and [publication state](pending-0.0.11/publication.json). **Not published yet:** browser/file access and

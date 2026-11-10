@@ -1342,6 +1342,16 @@ static void print_json(run_state& s, const char* scenario, const char* variant)
 	std::printf("\"demand\":{\"services\":%llu,\"waits\":%llu,\"wait_us\":%llu,\"timeouts\":%llu,\"stale\":%llu,\"faults_report\":%llu,\"tripped\":%u,\"leads\":%llu},",
 		static_cast<ullong>(od.services.load()), static_cast<ullong>(od.waits.load()), static_cast<ullong>(od.wait_us.load()), static_cast<ullong>(od.timeouts.load()),
 		static_cast<ullong>(od.stale.load()), static_cast<ullong>(od.faults_report.load()), static_cast<unsigned>(od.tripped.load()), static_cast<ullong>(od.leads.load()));
+#ifdef ZCULL_COST_920
+	// REWINDBOX_ZCULL_COST_920 (test/rpcs3_zcull_cost920_test.py): the age of the newest awaited report and the watched submissions' cost.
+	{
+		auto& zw920 = rpcs3::ios::zcull_watched::counters();
+		std::printf("\"cost920\":{\"lead_us\":%llu,\"newest_leads\":%llu,\"newest_us\":%llu,\"newest_max_us\":%llu,\"newest_over_1ms\":%llu,\"watched_submits\":%llu,\"watched_submit_ticks\":%llu},",
+			static_cast<ullong>(od.lead_us.load()), static_cast<ullong>(od.newest_leads.load()), static_cast<ullong>(od.newest_lead_us.load()),
+			static_cast<ullong>(od.newest_lead_max_us.load()), static_cast<ullong>(od.newest_leads_over_1ms.load()),
+			static_cast<ullong>(zw920.watched_submits.load()), static_cast<ullong>(zw920.watched_submit_ticks.load()));
+	}
+#endif
 	std::printf("\"gpu\":{\"busy_us\":%llu,\"idle_us\":%llu},\"pages_accessed\":%d,\"demand_tripped\":%d,\"pending_writes_left\":%zu,\"service_iterations\":%llu,",
 		static_cast<ullong>(r.gpu_busy_us), static_cast<ullong>(r.gpu_idle_us), r.pages_accessed() ? 1 : 0, r.demand_tripped() ? 1 : 0, r.pending_writes(),
 		static_cast<ullong>(r.service_iterations));

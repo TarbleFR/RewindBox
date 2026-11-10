@@ -1,0 +1,876 @@
+{
+ "before": "ca6fd891cfbe0fd945e7ede27fd6f0d169268b1b",
+ "composition": "host (tools/skins/render_screen_framing.py); no emulator, no iPhone",
+ "sheets": {
+  "wii-pocket-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      6.457,
+      73.384,
+      380.086,
+      288.001
+     ],
+     "surface": [
+      6,
+      73,
+      381,
+      289
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      7.38,
+      75.602,
+      378.701,
+      284.026
+     ],
+     "surface": [
+      7,
+      75,
+      380,
+      285
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      207.118,
+      26.784,
+      436.841,
+      320.497
+     ],
+     "surface": [
+      207,
+      26,
+      437,
+      322
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      212.491,
+      26.785,
+      426.096,
+      319.572
+     ],
+     "surface": [
+      212,
+      26,
+      427,
+      321
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "wii-pocket-standard.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      6.161,
+      57.45,
+      362.678,
+      225.465
+     ],
+     "surface": [
+      6,
+      57,
+      363,
+      226
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      38.133,
+      58.173,
+      299.174,
+      224.381
+     ],
+     "surface": [
+      38,
+      58,
+      300,
+      225
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      162.145,
+      25.558,
+      341.988,
+      305.817
+     ],
+     "surface": [
+      162,
+      25,
+      343,
+      307
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      162.457,
+      50.235,
+      341.363,
+      256.022
+     ],
+     "surface": [
+      162,
+      50,
+      342,
+      257
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "gamecube-pocket-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      6.457,
+      73.384,
+      380.086,
+      288.001
+     ],
+     "surface": [
+      6,
+      73,
+      381,
+      289
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      7.38,
+      75.602,
+      378.701,
+      284.026
+     ],
+     "surface": [
+      7,
+      75,
+      380,
+      285
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      207.118,
+      26.784,
+      436.841,
+      320.497
+     ],
+     "surface": [
+      207,
+      26,
+      437,
+      322
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      212.491,
+      26.785,
+      426.096,
+      319.572
+     ],
+     "surface": [
+      212,
+      26,
+      427,
+      321
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "gamecube-pocket-standard.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      6.161,
+      57.45,
+      362.678,
+      225.465
+     ],
+     "surface": [
+      6,
+      57,
+      363,
+      226
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      38.133,
+      58.173,
+      299.174,
+      224.381
+     ],
+     "surface": [
+      38,
+      58,
+      300,
+      225
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      162.145,
+      25.558,
+      341.988,
+      305.817
+     ],
+     "surface": [
+      162,
+      25,
+      343,
+      307
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      162.457,
+      50.235,
+      341.363,
+      256.022
+     ],
+     "surface": [
+      162,
+      50,
+      342,
+      257
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "wii-pocket-original-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      6.815,
+      115.158,
+      383.535,
+      274.874
+     ],
+     "surface": [
+      6,
+      115,
+      385,
+      276
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      15.902,
+      115.584,
+      365.361,
+      274.021
+     ],
+     "surface": [
+      15,
+      115,
+      367,
+      275
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      210.551,
+      26.344,
+      415.159,
+      323.523
+     ],
+     "surface": [
+      210,
+      26,
+      416,
+      324
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      210.61,
+      32.64,
+      415.041,
+      311.281
+     ],
+     "surface": [
+      210,
+      32,
+      416,
+      312
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "gamecube-pocket-original-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      7.193,
+      114.779,
+      383.536,
+      273.36
+     ],
+     "surface": [
+      7,
+      114,
+      384,
+      275
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      16.911,
+      114.779,
+      364.478,
+      273.359
+     ],
+     "surface": [
+      16,
+      114,
+      366,
+      275
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      205.305,
+      27.043,
+      403.267,
+      323.174
+     ],
+     "surface": [
+      205,
+      27,
+      404,
+      324
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      205.655,
+      37.799,
+      402.217,
+      301.663
+     ],
+     "surface": [
+      205,
+      37,
+      403,
+      303
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "ps2-pocket-original-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      7.193,
+      114.401,
+      383.914,
+      276.009
+     ],
+     "surface": [
+      7,
+      114,
+      385,
+      277
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      15.523,
+      114.638,
+      366.876,
+      275.157
+     ],
+     "surface": [
+      15,
+      114,
+      368,
+      276
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      212.65,
+      23.896,
+      416.208,
+      302.188
+     ],
+     "surface": [
+      212,
+      23,
+      417,
+      304
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      219.704,
+      23.896,
+      402.45,
+      301.837
+     ],
+     "surface": [
+      219,
+      23,
+      404,
+      303
+     ],
+     "cutout": true
+    }
+   }
+  },
+  "ps2-pocket-edgeToEdge.jpg": {
+   "unchangedPack": true,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      8.0,
+      76.0,
+      377.0,
+      282.75
+     ],
+     "surface": [
+      8,
+      76,
+      377,
+      283
+     ],
+     "cutout": false
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      8.0,
+      76.0,
+      377.0,
+      282.75
+     ],
+     "surface": [
+      8,
+      76,
+      377,
+      283
+     ],
+     "cutout": false
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      252.0,
+      66.0,
+      348.0,
+      261.0
+     ],
+     "surface": [
+      252,
+      66,
+      348,
+      261
+     ],
+     "cutout": false
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      252.0,
+      66.0,
+      348.0,
+      261.0
+     ],
+     "surface": [
+      252,
+      66,
+      348,
+      261
+     ],
+     "cutout": false
+    }
+   }
+  },
+  "ps2-pocket-standard.jpg": {
+   "unchangedPack": true,
+   "portrait": {
+    "before": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      8.0,
+      48.0,
+      359.0,
+      269.25
+     ],
+     "surface": [
+      8,
+      48,
+      359,
+      270
+     ],
+     "cutout": false
+    },
+    "after": {
+     "phone": [
+      375,
+      667
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      8.0,
+      48.0,
+      359.0,
+      269.25
+     ],
+     "surface": [
+      8,
+      48,
+      359,
+      270
+     ],
+     "cutout": false
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      166.0,
+      50.0,
+      336.0,
+      252.0
+     ],
+     "surface": [
+      166,
+      50,
+      336,
+      252
+     ],
+     "cutout": false
+    },
+    "after": {
+     "phone": [
+      667,
+      375
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      166.0,
+      50.0,
+      336.0,
+      252.0
+     ],
+     "surface": [
+      166,
+      50,
+      336,
+      252
+     ],
+     "cutout": false
+    }
+   }
+  },
+  "switch-pocket-edgeToEdge.jpg": {
+   "unchangedPack": false,
+   "portrait": {
+    "before": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      2.977,
+      219.265,
+      385.185,
+      282.47
+     ],
+     "surface": [
+      2,
+      219,
+      387,
+      283
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      393,
+      852
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      3.35,
+      252.295,
+      384.068,
+      216.038
+     ],
+     "surface": [
+      3,
+      252,
+      385,
+      217
+     ],
+     "cutout": true
+    }
+   },
+   "landscape": {
+    "before": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      172.072,
+      75.888,
+      487.272,
+      283.358
+     ],
+     "surface": [
+      172,
+      75,
+      488,
+      285
+     ],
+     "cutout": true
+    },
+    "after": {
+     "phone": [
+      852,
+      393
+     ],
+     "scale": 1.0,
+     "screenFrame": [
+      171.965,
+      80.392,
+      487.163,
+      274.029
+     ],
+     "surface": [
+      171,
+      80,
+      489,
+      275
+     ],
+     "cutout": true
+    }
+   }
+  }
+ }
+}

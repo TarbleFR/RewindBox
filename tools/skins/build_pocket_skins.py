@@ -31,9 +31,9 @@ RECONSTRUCTION = {
     'status': 'reconstructed-after-workspace-maintenance',
     'geometrySource': 'RewindBox_Pocket_Collection_v1.zip / Sources/Approved_Pocket',
     'controls': 'new deterministic distance-field renders; not recovered original bytes',
-    'bodyTextures': 'approved raw images copied byte-for-byte',
-    'layoutVersion': 3,
-    'gameScreen': 'the opening drawn on the body, measured on the raw image (screen_opening.py); cutout shipped as screens/*.png',
+    'bodyTextures': 'approved raw images; only the game window and 7 points around it are redrawn at 4:3 (screen_opening.reframe), per layout',
+    'layoutVersion': 4,
+    'gameScreen': 'the opening drawn on the body, redrawn at the game\'s 4:3 from the raw image (screen_opening.reframe); cutout shipped as screens/*.png, outputFrame exactly 4:3',
 }
 
 
@@ -140,7 +140,8 @@ def validate(console,reps,files):
             assert expected<=provided,(console,display,orientation,expected-provided)
             # The game's container is the opening the body draws, not a hand-placed rectangle.
             body=Image.open(io.BytesIO(files[L['assets']['large']]));cov=screen_opening.coverage_of(files[L['screens'][0]['screenCutout']])
-            assert cov.shape==(body.height,body.width) and screen==screen_opening.frame(cov,(W,H)),(console,display,orientation,'opening')
+            assert cov.shape==(body.height,body.width) and screen==screen_opening.native_frame(cov,(W,H),4/3),(console,display,orientation,'opening')
+            assert abs(screen['width']/screen['height']-4/3)<1e-4,(console,display,orientation,'4:3')
             if display=='edgeToEdge':
                 for aw,ah in [(375,812),(390,844),(393,852),(430,932)]:
                     if orientation=='landscape':aw,ah=ah,aw
@@ -176,21 +177,34 @@ def archive(target,files):
 
 
 def build(out,body_dir):
-    out.mkdir(parents=True,exist_ok=True);entries=[];receipts={}
+    out.mkdir(parents=True,exist_ok=True);entries=[];receipts={};bodies_cache={}
     raw_bodies={f'body-{o}.png':read_body(body_dir,o) for o in ['portrait','landscape']}
     for console,pid,name in [('wii','wii-pocket','Wii Pocket'),('gc','gamecube-pocket','GameCube Pocket – Ivory')]:
         reps={display:{orientation:layout(console,display,orientation) for orientation in ['portrait','landscape']} for display in ['edgeToEdge','standard']}
-        files={'LICENSE.txt':LICENSE.encode(),**raw_bodies};names=set()
-        # The game's container: the navy opening each raw body draws (one cutout per body,
-        # shared by the edge-to-edge and home-button layouts, which scale the same image).
+        files={'LICENSE.txt':LICENSE.encode()};names=set()
+        # The game's container: the opening the body draws, redrawn at the game's 4:3
+        # (screen_opening.reframe): one body and one cutout per layout, because the
+        # home-button layouts show the same raw image scaled differently on each axis.
         for orientation in ['portrait','landscape']:
-            body=Image.open(io.BytesIO(raw_bodies[f'body-{orientation}.png']))
+            raw=Image.open(io.BytesIO(raw_bodies[f'body-{orientation}.png'])).convert('RGB')
             hand=reps['edgeToEdge'][orientation];W0,H0=hand['mappingSize'].values();r=hand['screens'][0]['outputFrame']
-            cov=screen_opening.opening(body,((r['x']+r['width']/2)*body.width/W0,(r['y']+r['height']/2)*body.height/H0))
-            files[f'screens/{orientation}.png']=screen_opening.cutout(cov)
+            cov=screen_opening.opening(raw,((r['x']+r['width']/2)*raw.width/W0,(r['y']+r['height']/2)*raw.height/H0))
             for display in reps:
-                L=reps[display][orientation]
-                L['screens']=[{'outputFrame':screen_opening.frame(cov,tuple(L['mappingSize'].values())),'screenCutout':f'screens/{orientation}.png'}]
+                L=reps[display][orientation];mapping=tuple(L['mappingSize'].values())
+                key=bodies_cache.get((orientation,display))
+                if key is None:
+                    body,_,changed=screen_opening.reframe(raw,cov,mapping,4/3)
+                    nc=screen_opening.opening(body,((r['x']+r['width']/2)*raw.width/W0,(r['y']+r['height']/2)*raw.height/H0))
+                    key=bodies_cache[(orientation,display)]=(png(body),screen_opening.cutout(nc),screen_opening.native_frame(nc,mapping,4/3),changed)
+                # The controls are separate rendered sprites (the body carries none): the frame
+                # brought forward may pass under their transparent margins; the verifier still
+                # checks that no control or touch area reaches the new window.
+                suffix='' if display=='edgeToEdge' else 'standard-'
+                files[f'body-{suffix}{orientation}.png']=key[0]
+                files[f'screens/{suffix}{orientation}.png']=key[1]
+                name=f'body-{suffix}{orientation}.png'
+                L['assets']={'small':name,'medium':name,'large':name}
+                L['screens']=[{'outputFrame':key[2],'screenCutout':f'screens/{suffix}{orientation}.png'}]
         for orientations in reps.values():
             for L in orientations.values():
                 for item in L['items']:
@@ -206,7 +220,7 @@ def build(out,body_dir):
             (out/f'{pid}-{orientation}.png').write_bytes(image)
             (out/f'{pid}-{orientation}-pressed.png').write_bytes(png(compose(reps['edgeToEdge'][orientation],files,pressed=True)))
             (out/f'{pid}-standard-{orientation}.png').write_bytes(png(compose(reps['standard'][orientation],files)))
-        info={'name':name,'identifier':f'org.rewindbox.{pid}','author':'RewindBox','gameTypeIdentifier':f'public.aoshuang.game.{"wii" if console=="wii" else "ngc"}','version':3,'license':LICENSE_LABEL,'previewImages':{o:f'previews/{o}.png' for o in ['portrait','landscape']},'provenance':RECONSTRUCTION,'representations':{'iphone':reps}}
+        info={'name':name,'identifier':f'org.rewindbox.{pid}','author':'RewindBox','gameTypeIdentifier':f'public.aoshuang.game.{"wii" if console=="wii" else "ngc"}','version':4,'license':LICENSE_LABEL,'previewImages':{o:f'previews/{o}.png' for o in ['portrait','landscape']},'provenance':RECONSTRUCTION,'representations':{'iphone':reps}}
         files['info.json']=(json.dumps(info,indent=2,ensure_ascii=False)+'\n').encode()
         checks=validate(console,reps,files)
         for path,data in files.items():

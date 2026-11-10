@@ -297,9 +297,16 @@ Since 10 November 2026 the MoltenVK loaded for every MeloNX title
 (`MeloNXMoltenVKStandalone.framework`, Khronos MoltenVK v1.4.2, commit
 `db66022459ffb663aa2b50f6b018bc2e124f5edf`) is built from that source with one
 RewindBox modification:
+[rewindbox-moltenvk.patch](../build-utils/melonx/moltenvk/rewindbox-moltenvk.patch)
+(SHA-256 `394e6aef49f8aa64c2acfd75ec2f9947b3dc4194728a52e9a239c2f8717459d4`, since IPA 722;
+three parts: drawable ownership, cache size query counted once, compressed MSL
+referenced in a mapped pipeline cache), which changes `Common/MVKStrings.h`,
+`MoltenVK/MoltenVK/GPUObjects/MVKImage.h`, `MVKImage.mm`, `MVKPipeline.h`,
+`MVKPipeline.mm`, `MVKShaderModule.h` and `MoltenVK/MoltenVK/Utility/MVKCodec.h`.
+IPAs 720 and 721 carried its first part alone,
 [rewindbox-drawable-ownership.patch](../build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch)
-(SHA-256 `9a6867b729ed0324680528a9a4eaf9095412a12e9bea23769dbc9229cb73448b`), which
-changes `MoltenVK/MoltenVK/GPUObjects/MVKImage.h` and `MVKImage.mm`. The app
+(SHA-256 `9a6867b729ed0324680528a9a4eaf9095412a12e9bea23769dbc9229cb73448b`,
+`MVKImage.h` and `MVKImage.mm`). The app
 carries the Apache-2.0 license text, a notice naming the modification and a
 copy of the patch under `Legal/MeloNX/StandaloneMoltenVK/`; the build's artifact
 holds the Khronos source archive, the patch and the sources of MoltenVK's

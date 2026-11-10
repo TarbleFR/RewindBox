@@ -271,6 +271,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 722 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
+  (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
+  - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
+    thread suspended by the watch itself, no lock held while reading, ports released, six stalls at most; the four macOS
+    measure workflows run only on the MeloNX branch). MoltenVK pinned `9d81daa2`: run `42822060210`, artifact
+    13768042590 (zip `7323e63e`), binary `6f65b2a6` (4,838,816 B), patch `394e6aef` byte for byte, markers 3/3, entry
+    points 8/8, exports 428/428; `fetch_rebuild` accepts it; parity test 64 checks. The never-packaged rebuild
+    42814845169 stays out. MeloNX Core 721 dispatched on `9d81daa2`: run `42839257625` (in progress); pin script ready
+    (`gh` used for search only: run metadata read through the GitHub tools).
+  - **Skins:** PR 169 head `a96f2ac7` merged as `c3e99f67`; all seven archives rebuilt byte-identically from the
+    generators (Pillow 12.3.0, numpy/scipy in a scratch venv); verifier 22 checks on 7 packs; input chain and Dolphin
+    chrome tests pass. Legal `a32101e9`: second revision review bound to the first, chained rule in
+    `collect_build_source_evidence.py`, contract tests (on the 721 effective tree with the PR 169 files: chain passes,
+    ten negative controls refused). Simulator suites on the merged tree: run `42843268978` (in progress).
+  - **Tools:** `48faa4f8` capture analyzer reads ZCULLDEMAND619/ZCULLLEAD659/ZCULLWATCH660/ZCULLCOST920/MEMPROF527 and
+    frame pacing per window (checked on the 676 BO2 journals).
+  - **Pre-existing, not touched:** `test/legal_bundle_preflight_test.py` fails 3 of 8 (an RA evidence path missing from
+    its temporary tree), identical on `ac788759`; `test/neo_swap_core_pin_test.py` normal mode fails on the old binary
+    pin `cfe92344` (source-only mode passes), identical on `ac788759`.
+  - **Next:** pin MeloNX Core 721, classify the simulator run, draft (spec ready, recipient key 722 generated outside
+    Git), freeze, contract, trigger, verify, receipt, send.
+
 - **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
   Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
   tests-only PR 168 merge and a journal test fix. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
@@ -484,6 +506,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   no receipt yet. Next: authorized Codex browser re-attachment, then main verifies.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
+
+- **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
+  Codex transmitted the full formal context prompt to main
+  `012mUAShv9k6pSCnpW7oAF63`; UI shows the submitted user message and
+  **Claude is responding**. Opus 5.5 retained, High→**Max** verified for hard
+  PPU/SPU/RSX/concurrency/memory ambiguities; High requested for understood bounded
+  corrections thereafter. Native effective effort return not yet observed.
+  Continue evidence→production fix→discriminating executed test→comparable measurement
+  cycles without renewed approval, until playability is demonstrated on iPhone 16 Pro Max.
+  Include frame pacing, freezes, actual game speed, audio, physical footprint/allocation
+  rate, long-session slope and resource lifetime. No artificial 30 FPS cap or reduced
+  rendering; no gain inferred from host models.
+  Explicitly authorized: correct the automatic production A/B alternations acknowledged
+  in the principal's last response, preserving validated levers and explicit user
+  preferences; comparisons must be deliberate, bounded, not forced during ordinary play.
+  Preserve Core 919 ZCULL own-budget fix and existing reservation/JIT safeguards;
+  do not reopen refuted GETLLAR threshold tuning without new evidence.
+  Core 919/IPA 721 are delivered references, not measured BO2 gameplay of the new Core.
+  Continue useful independent fixes while a decisive device observation is unavailable;
+  record the exact remaining question, no fake closure or empty infinite relaunch.
+  Main retains integration/Core/pin/CI/common-private-delivery ownership and existing
+  MeloNX/skins handoffs. Public 0.0.11 remains on hold. No workflow/pin/IPA dispatched
+  by Codex for this relay; no new logs attached.
+
 
 - **Packaged:** 645 timeout mix in IPA 650; [record](rpcs3-core645-2026-11-04.md).
   Eight IPA643/PID6665 inputs verified, raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
@@ -1597,9 +1643,54 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         `04f44a94…0913` (80,937,424 B), fingerprint `a74a9cf6…56e7`, identities PPU a987639e / SPU 477a3fa4
         unchanged, markers present; pin_errors verified, pin `44527c61`. Local: closure, codegen, fold, route, 13
         guards, the 912-918 tests and the full driver pass.
-    - **Next:** IPA 721 (delivered 10 Nov, run `42822649775`, holds Core 919); the journals of BO2 (nine minutes from launch, slow scene, `.1` files):
-      `ZCULLWATCH660 slots=`/`taken=` and `ZCULLDEMAND619 waits` decide whether this lever acts; GOW3 from a fresh
-      boot as before.
+    - **Core 920 (10 Nov, formal maintainer instruction: no automatic alternation in ordinary play;
+      [record](rpcs3-core920-lever-comparison.md)).** Defect: Cores 917-919 switched Writer lock park spin and Busy wait
+      reference duration off and on between 5 s report windows whenever their settings were Automatic (the default):
+      three passes (counted windows 7-22, 45-60, 83-98 since boot) in heavy PUTLLC storms, up to 24 windows with the spin
+      off, 24 with the scale at 1, 36 (3 min) with at least one lever off per boot.
+      - `REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920`: new diagnostic setting Lever comparison between report windows
+        (default Automatic). Automatic/Disabled never alternate (levers as their own settings resolve: Automatic = on);
+        Enabled = the old bounded passes, only for an Automatic lever, logged (PARKCMP917), both on afterwards. Policy line
+        `Resolved title policy 920`. No app per-title profile writes these keys (searched); title levers do not touch them.
+      - `REWINDBOX_ZCULL_COST_920`: `COREPROF ZCULLCOST920 newest=` (age of the report each waiting read waits for
+        last; the watched flush learns from it, ZCULLLEAD659 only gives the oldest) and `watched_submit=` (RSX-thread
+        cost of the 919 watched submissions). Build 676 has no BO2 learning data: every session 3 `ZCULLWATCH660` line
+        is `enabled=0 slots=0:0:0:0:0`.
+      - Control (test/rpcs3_lever_comparison920_test.py, real header/report block/policy statements, Core 919 code as
+        control, g++ ASan+UBSan and clang): 919 defaults switch the spin 24x and the scale 12x (24+24 windows off, 48
+        PARKCMP steps); 920: 0 switches in 18 boots (comparison Automatic/Disabled x 9 lever combinations) and in boots
+        after a compared boot; Enabled switches only Automatic levers inside the passes and ends both on. ZCULL cost
+        (test/rpcs3_zcull_cost920_test.py): newest age recorded with every lead, watched submissions timed = taken (22
+        on bo2read), 0 with the lever off. Host model; no FPS claim.
+      - Engine `4c4961b` (base `8210faf`), increment 9 files, canonical `9377bd66`, delta `87c02e84`. Local: closure,
+        codegen (no input change), fold (0 tree changes), route, 912-920 tests, guards, pin `--source-only` pass. The
+        normal mode of test/neo_swap_core_pin_test.py fails on the old binary pin `cfe92344` (lacks
+        test/rpcs3_restore_eof_test.py) identically on a clean `ac788759` worktree: pre-existing, unrelated.
+      - Source `753ce921`, request `f0404065`, run `42838028676` green first try (Core job 129905367194, Apple host job
+        129905366604, 15 host commands passed); artifact 13776266781 (30,505,496 B, zip = API digest `83451bc3`; the first
+        download got "ServerBusy", retried); dylib `79d70a4d…8e9a` (80,937,600 B), fingerprint `71bb1c59…6e52`,
+        identities PPU a987639e / SPU 477a3fa4 unchanged, markers present (`Resolved title policy 920`, `COREPROF
+        ZCULLCOST920`, the setting's name); pin_errors verified, pin `f9f2b478`.
+    - **Finding (10 Nov, IPA 676 journals re-read with the extended analyzer, BO2 PID 25658 session 3; no new device
+      data):** in play (windows 9-17, 20-26 FPS) the PPU threads use 0.91-1.07 core, the SPU threads 2.8-3.5, the RSX
+      thread 0.52-0.59, the GPU 30-36 %: the frame follows the PPU. Heavy PUTLLC 1.08-1.60 M per 5 s window, their writer
+      locks 2.4-2.9 s of SPU thread time per window, PPU timed range waits (`vm_range_episode`) 14-16 k for 0.93-1.06 s,
+      PPU grace deferrals 4.4-5.7 k (0.73-0.81 s). Window 8 (60 FPS) holds 53.2 M successful PUTLLC of which 0.37 M heavy:
+      unchanged-data PUTLLC in a loop. Windows 18-23 spiral down to a stop: heavy PUTLLC 2.18 -> 7.15 M, failed PUTLLC
+      0.32 -> 2.40 M, SPU event waits 212 -> 0, GPU 21 % -> 0, FPS 20.1 -> 0 while the PPU threads stay at 0.95-1.18
+      core: the SPU threads spin on PUTLLC instead of waiting, and every heavy one parks the PPU threads. The exact
+      correction depends on the pattern (pc, line, lanes) of these PUTLLC and on where the PPU main thread spins: the
+      automatic storm capture (`AUTOSTORM917` -> `PUTLLCTRACE912`) and PPU region profile (`AUTOPPU916` -> `PPUPROF912`)
+      of Cores 917+ record both; no BO2 export since build 694 holds them. Rejected without that data: delaying or
+      throttling an SPU PUTLLC (an arbitrary delay), relaxed PUTLLC, GETLLAR thresholds. Upstream checked (rb-research,
+      10 Nov): no exact non-TSX PUTLLC, per-range PPU exclusion or faster PPU parking exists upstream; its PUTLLC16 path
+      (one 16-byte chunk by u128 CAS under a range lock) is already in our base behind accurate reservations = off and
+      is a relaxation (not atomic over 128 bytes against PPU stores): rejected; the ARM64 GETLLAR snapshot fence
+      (upstream 4017ffc) is already in our base (`atomic_fence_acquire()` after `mov_rdata`, then the time re-check).
+    - **Next:** IPA 722 (Core 920 with the MeloNX and skins lots); device question below. BO2 journals (nine minutes from
+      launch, slow scene, `.1` files, Lever comparison left on Automatic): `ZCULLWATCH660 slots=`/`taken=`,
+      `ZCULLCOST920 newest=`/`newest_over_1ms`/`watched_submit=`, `ZCULLDEMAND619 waits`, `RSXSYNC551 submit=` and FPS
+      decide the 919 lever; GOW3 from a fresh boot as before. Rejected: GETLLAR threshold tuning, relaxed PUTLLC.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3423,6 +3514,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Not observed on an iPhone: framing, pressed controls and controls after the in-game
     menu are for the maintainer to check on IPA 720. Next action: none until the
     maintainer's device result or decisions.
+- **Second framing pass, windows at the game's ratio (10 Nov afternoon, high selector):**
+  maintainer: framing only; proportions wrong on the other skins too, Switch the same.
+  Branch `work/skins-native-ratio-20261110` from `ca6fd891`: tools `55923d18`, packs
+  `255d2af3`, docs `318e0f68`. Finding: the drawn openings (IPA 720 containers) were not
+  4:3 / 16:9, so a native picture kept bands (Switch upright 32.9 pt top/bottom, wii/gc
+  Pocket home-button layouts 31 pt per side, Originals 6–10 pt). Change:
+  `screen_opening.reframe` redraws each window at the game's ratio from the body's own rim
+  and surroundings; `outputFrame` exact ratio (`native_frame`); wii/gc Pocket one body per
+  layout. Archives: wii-pocket `487137d5` 8276918, gamecube-pocket `9127f7b8` 8573159,
+  wii-pocket-original `31506cda` 5282357, gamecube-pocket-original `e769c708` 6352280,
+  ps2-pocket-original `18712f79` 7366935, switch-pocket `c56f9a37` 9934222; ps2-pocket
+  unchanged. Proof (host): verifier 7 packs (exact ratio, body = approved image away from
+  its window), input chain 20 layouts, contracts, Flutter skins 156/156, rebuild
+  byte-identical. Simulator: run `42816409184` (`c8bd4096`): ARMSX2 and Dolphin skin overlay
+  harnesses (both Dolphin Pocket pairs, four sizes, turn/menu/skin change/relaunch)
+  passed; host step failed for a missing scipy in its venv and the MeloNX upright
+  test-pattern minimum (0.870-0.892 for the 14 pt corners of the 216 pt window) —
+  both fixed in `c148755e`; run `42820466523` (`c148755e`): host step and MeloNX harness
+  passed (green). Controls and
+  touch areas unchanged; the windows are smaller where the drawn opening was wider/taller
+  (appearance change, maintainer's request). Not observed on an iPhone.
+  [Record](skins-screen-framing-2026-11-10.md), [sheets](evidence/skins-native-ratio/).
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.

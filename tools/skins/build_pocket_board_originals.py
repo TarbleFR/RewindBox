@@ -674,12 +674,27 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15),
                    spill=spec.get('spill', False), margin=spec.get('extend_margin', 0),
                    fine=spec.get('spill_fine', False))
-    # The game's container is the window the board draws (its rounded corners, a part of
-    # the body reaching into it), measured on the body itself; `screen_rect` (the picture's
-    # own ratio centred in it) only kept the touch extensions clear, unchanged.
-    coverage = screen_opening.opening(up, ((sx + sw / 2 - x0) * UPSCALE, (sy + sh / 2 - y0) * UPSCALE))
+    # The game's container is the window the board draws (its rounded corners), redrawn at
+    # the picture's own ratio (screen_opening.reframe: the frame comes forward where the
+    # drawn window is wider or taller than the game); `screen_rect` only kept the touch
+    # extensions clear, unchanged.
+    seed = ((sx + sw / 2 - x0) * UPSCALE, (sy + sh / 2 - y0) * UPSCALE)
+    drawn = screen_opening.opening(up, seed)
+    body, _, changed = screen_opening.reframe(up, drawn, (W, H), aspect)
+    # Each control's sprite is the board's own pixels: none of them may be redrawn (the rest
+    # state must stay the body under it). Its transparent margin may meet the new frame.
+    kx, ky = up.width / W, up.height / H
+    for index, item in enumerate(items):
+        f = item['frame']
+        with Image.open(io.BytesIO(files[item['asset']['normal']])) as sprite:
+            drawn = np.asarray(sprite.convert('RGBA').getchannel('A')) > 0
+        bx0, by0 = round(f['x'] * kx), round(f['y'] * ky)
+        under = changed[by0:by0 + drawn.shape[0], bx0:bx0 + drawn.shape[1]]
+        assert not (under & drawn[:under.shape[0], :under.shape[1]]).any(), (console, orientation, index, item['inputs'], 'control redrawn')
+    files[name] = bp.png(body)
+    coverage = screen_opening.opening(body, seed)
     files[f'screens/{orientation}.png'] = screen_opening.cutout(coverage)
-    opening = {'outputFrame': screen_opening.frame(coverage, (W, H)), 'screenCutout': f'screens/{orientation}.png'}
+    opening = {'outputFrame': screen_opening.native_frame(coverage, (W, H), aspect), 'screenCutout': f'screens/{orientation}.png'}
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
             'screens': [opening], 'items': items, 'translucent': False}
 
@@ -836,7 +851,7 @@ def build(out: Path):
             (out / f'{pack["id"]}-{orientation}-pressed.png').write_bytes(
                 bp.png(compose(reps['edgeToEdge'][orientation], files, pressed=True)))
         info = {'name': pack['name'], 'identifier': f'org.rewindbox.{pack["id"]}', 'author': 'RewindBox',
-                'gameTypeIdentifier': pack['gameType'], 'version': 2, 'license': LICENSE_LABEL,
+                'gameTypeIdentifier': pack['gameType'], 'version': 3, 'license': LICENSE_LABEL,
                 'previewImages': {o: f'previews/{o}.png' for o in ('portrait', 'landscape')},
                 'provenance': {'status': 'approved-board', 'board': f'docs/design/pocket/{pack["board"]}',
                                'boardSha256': hashlib.sha256(board_path.read_bytes()).hexdigest(),

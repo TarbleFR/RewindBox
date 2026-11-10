@@ -339,7 +339,11 @@ def static_checks(source: Path) -> None:
     require('resolved.writer_park_spin = resolve_mode(g_cfg.ios_experimental.writer_park_spin, true);' in policy and
             'rpcs3::ios::writer_park::spin_enabled.store(resolved.writer_park_spin, std::memory_order_relaxed);' in policy and
             '"Resolved title policy 917: writer_park_spin=%d spin_budget_us=%u compare_in_storm=%d"' in policy, 'Automatic is every title; the resolution is logged')
-    require('resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic;' in policy and
+    # REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920: from Core 920 the comparison also needs Lever Comparison Between Report
+    # Windows = Enabled (test/rpcs3_lever_comparison920_test.py executes both rules); before it, Automatic alone.
+    require(('resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic;' in policy or
+             'resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic &&\n'
+             '\t\tg_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled;' in policy) and
             'rpcs3::ios::writer_park::compare::allowed.store(resolved.writer_park_compare, std::memory_order_relaxed);' in policy,
             'the comparison runs on Automatic only: Enabled and Disabled are what the user chose')
     require(settings.count('SETTING("experimental.writer_park_spin", "Experimental", "FPS Experiments", "Writer lock park spin"') == 1 and

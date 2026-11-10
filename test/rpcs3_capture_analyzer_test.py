@@ -32,6 +32,15 @@ def journal():
         a.append(record(100, t + 0.03, 'RANGELOCKPROF session=1 episodes=3 wl_putllc=1200:1.500:0.010 wl_putllc_phases=0.1:0.2:1.2'))
         a.append(record(100, t + 0.04, 'COREPROF frames=150 avg_fps=30 ppu_cores=0.900 spu_cores=3.100 rsx_thread_cpu=0.500'))
     a.append(record(100, 20.05, 'COREPROF TEXMEMO660 session=1 window=2 mode=0 ways=16 hits=0 miss_evicted=0'))
+    # Core 920 ZCULL lines (Black Ops II): the oldest and the newest age of the reports read, the watched flush off in
+    # window 1 (inactive, not 0) and armed in window 2, its cost; memory and pacing fields of FRAMEPROF527.
+    a.append(record(100, 10.06, 'COREPROF ZCULLWATCH660 session=1 window=1 enabled=0 slots=0:0:0:0:0 taken=0:0:0:0'))
+    a.append(record(100, 20.06, 'COREPROF ZCULLWATCH660 session=1 window=2 enabled=1 slots=12:300:0:1:4 taken=40:5:2:0'))
+    a.append(record(100, 20.07, 'COREPROF ZCULLDEMAND619 session=1 window=2 tuple=count:total_ms:max_ms enabled=1 waits=9:31.500:6.200'))
+    a.append(record(100, 20.08, 'COREPROF ZCULLLEAD659 session=1 window=2 leads=9:90.000:15.000 leads_over_15ms=1'))
+    a.append(record(100, 20.09, 'COREPROF ZCULLCOST920 session=1 window=2 newest=9:27.000:4.000 newest_over_1ms=7 watched_submit=47:11.750:0.900 '
+                    'scope=process_window window_boundary_approximate=1'))
+    a.append(record(100, 20.10, 'COREPROF MEMPROF527 session=1 window=2 samples=10 valid=1 footprint=2684377392 compressed=376291328'))
     events = ' '.join(f'{n}:2584:2e20880:1:01:0:{0x100 + n:x}:{"%032x" % (n % 2)}:{"%032x" % ((n + 1) % 2)}:=' for n in range(6))
     # Five failed PUTLLC, one per way the event describes memory at the decision (snapshot 0, asked 1).
     zero, one, other = '%032x' % 0, '%032x' % 1, '%032x' % 7
@@ -245,6 +254,14 @@ def main() -> int:
         check(a['title'] == 'AAAA00001' and a['title_origin'].startswith('RPCS3-performance.log:') and data['200:3']['title'] == 'BBBB00002', 'titles from CONFIG_LAYERS')
         check(data['300:1']['title'] == 'unknown', 'no CONFIG_LAYERS: unknown title')
         check(sorted(a['windows']) == ['1', '2'] and a['windows']['2']['SPUWAIT551']['putllc_heavy'] == '1200', 'windows of the session')
+        cost = a['windows']['2'].get('ZCULLCOST920', {})
+        check(cost.get('newest') == '9:27.000:4.000' and cost.get('newest_over_1ms') == '7' and cost.get('watched_submit') == '47:11.750:0.900' and
+              a['windows']['2']['ZCULLWATCH660'].get('taken') == '40:5:2:0' and a['windows']['2']['MEMPROF527'].get('footprint') == '2684377392',
+              'Core 920 ZCULL cost, watched flush and memory lines attached to their window')
+        row1 = next(line for line in text.splitlines() if line.startswith('      1 '))
+        row2 = next(line for line in text.splitlines() if line.startswith('      2 '))
+        check(' inactive inactive ' in row1 and ' 9:31.500:6.200 9:90.000:15.000 12:300:0:1:4 40:5:2:0 9:27.000:4.000 7 47:11.750:0.900 ' in row2 and
+              ' 2684377392 376291328 ' in row2, 'the ZCULL columns: inactive when the watched flush is off, the values otherwise: ' + row2[-260:])
         check(a['windows']['1']['FRAMEPROF527']['_origin'].startswith('RPCS3-causes.log:1') or a['windows']['1']['FRAMEPROF527']['_origin'].startswith('RPCS3-performance.log:3'), 'provenance kept, the copy counted once')
         check(a['windows']['2']['frames']['spu_cores'] == '3.100' and a['windows']['2']['RANGELOCKPROF']['wl_putllc_phases'] == '0.1:0.2:1.2', 'burst lines attached to their window')
         check(a['levers']['spu_noop_spin_wait'] == 'on' and a['levers']['put_epoch_horizon'] == 'on' and a['levers']['heavy_putllc_trace'] == 'on (explicit)'
