@@ -1160,6 +1160,68 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       which is the missing discriminant before any deferral or reordering. 4/16 ways: the capacity is the compile-time
       constant `ways` of IOSTextureLookupMemo.h; there is no runtime selector, so a 4-way witness is another Core build,
       not a setting. `miss_evicted` reads a ring of the last 16 evictions per slot: a lower bound on capacity misses.
+  - **Preparation of the iPhone captures after Core 911 (10 Nov, maintainer prompt "Prépare les prochains essais iPhone
+    pour qu'ils répondent aux questions encore ouvertes"; owner: Claude Code; open until Core 912 is pinned; no device
+    run in this mission).** Protocol, matrix and
+    limits: [rpcs3-capture-protocol-912.md](rpcs3-capture-protocol-912.md).
+    - Input identity: branch `Claude` at `71e985a1` (Core 911 pinned, run 42709542308, Apple rerun 42713366820, dylib
+      43509d9f). Delivered fixes kept as they are; no synchronisation protocol changed.
+    - **Availability, verified along the whole path (emitter, activation, host route, exported file).** Already there on
+      Core 911: SPUWAIT551, RANGELOCKPROF wl_putllc + phases (908), FRAMEPROF527, COREPROF frames (thread CPU), EPOCH909
+      put_deferred/put_patched (910), OPT581/583 worker_used (911), TEXMEMO660 ways/miss_evicted, RPASS652/655 to_* (910),
+      FREEZE_DUMP ppu_poller/lwcond/sema. Missing and added in Core 912: the content of the heavy PUTLLC, a PPU region
+      profile, the main thread's semaphores listed first, the FIFO position, a test page row for the PUT horizon A/B.
+      "Resolved title policy" lines are not exported: a lever is read from levers627 (digits 19 to 21 new).
+    - **Finding that changed the design: the in-game menu never pauses the emulation** (the bridge never calls
+      rpcs3_ios_pause_emulation; every HOST_STATE line of the exported journals at hand, 347 of them, says
+      menu_pauses_emulation=0). A capture started on
+      "pause left" would never have started on the device. Core 912 starts a capture on a request of the host: when the
+      menu is dismissed and the capture's lever digit of the last boot is on, the bridge writes "Enabled" to that capture's
+      setting of the running title through the existing rpcs3_ios_set_game_setting export; the Core takes that write, for
+      a capture enabled at boot, as "start one capture now" before its idle contract, and loads, changes and saves
+      nothing. No new export, ABI 30, no pause. The journal carries CAPTURE_REQUEST (host) and part=armed
+      trigger=menu_closed or part=refused reason=... (Core).
+    - **REWINDBOX_CAPTURE_912** (ios/IOSCapture912.h, SPUThread.cpp do_putllc, RPCS3IOSFreezeDump.cpp, RPCS3IOS.cpp).
+      COREPROF PUTLLCTRACE912: per SPU thread, its consecutive data-changing accurate PUTLLC, 512 entries x 8 threads x
+      80 bytes = 327,680 bytes allocated once, stop on all buffers full, 3 s or emulation not running, 2 per boot; each
+      event: delay, SPU pc, line, outcome (stored, time, owner, precheck, compare, exchange), lanes changed, reservation
+      time held, the lane read at GETLLAR, the lane asked, the lane found with its mask (only where the path read memory:
+      the precheck of a collecting capture compares the copy it records; nothing is read again later), one time base for
+      every thread (t0_us per line). after_full, threads_dropped and the declared line count show what was lost. Idle
+      cost: one relaxed load per data-changing accurate PUTLLC. COREPROF PPUPROF912: PPU threads sampled about every
+      millisecond for at most 5 s (5000 samples), 256-byte regions, running/waiting, the waited call, same_pc/distinct/
+      overflow, 3 per boot. Stall dump: rsx fifo_pos/last_cmd/args_left; 32 semaphores collected, the main thread's
+      first, 12 listed.
+    - Independent review (rb-core-review, read only) before the build: no high-severity defect; fixed from it: the
+      unlocked second read of the precheck (now copy, then compare the copy), a separate outcome for a failed 16-byte
+      exchange, per-boot trigger and limits with the session recorded at arming, seq_cst writer/stop handshake, the PPU
+      sampler releases the thread objects itself. Guard findings fixed: the two capture settings were bound to the PUT
+      horizon entry, and the three test page settings were not per-game.
+    - **Limits stated, not worked around.** The PPU LLVM recompiler writes cia only at indirect transfers, system calls
+      and reservation instructions: PPUPROF912 names regions of the last such point, not instructions
+      (pc_scope=last_indirect_transfer_syscall_or_reservation); an exact profile needs host-PC sampling against the
+      compiled function table, not in Core 912. The thread that should have signalled a waited object is recorded
+      nowhere. The bridge change is Objective-C++ that only an IPA build compiles: covered by static checks here.
+    - Analyzer `tools/rpcs3/capture_analyzer.py` (tests: test/rpcs3_capture_analyzer_test.py, synthetic journals marked as
+      such; checked on the 694 exports: AC1 pid 41776 window 41 found with its origin, BO2/AC1 comparison refused):
+      per title, application build, pid, boot session and window; absent and inactive never shown as 0; origin of every
+      value; journal losses (LOG_ROTATION, LOG_BACKLOG, LOG_BUDGET) and incomplete captures flagged; scene comparison on a
+      shared label with differing settings and the memo variant stated; cumulated thread time never presented as time
+      per frame; host requests and Core refusals listed.
+    - **Core 912 (reference)**: engine commits cd296ef to 3e1549e over 135dc0c; canonical 70dfe005 (448), source
+      `4c5566b6`; MoltenVK dependency run `42724924537` (library d19d3a42 identical, host bridge c98b6f36 recorded; the
+      first request, run 42719779212, recorded the bridge with the three test page keys only). Local: route, codegen
+      audit (one more exact SPUThread.cpp alias, c7f903e3 -> b9bc0cfe), fold chain, 13 host guards, Build 435 guard,
+      capture test (plain, TSan, ASan/UBSan, 7 negative controls), analyzer test, full driver: PASS. Compile request
+      `02023496`, run `42728150899` (in progress when this was written; not verified, not pinned).
+    - **Core 913 (Assassin's Creed comparison witness, never pinned, not for a common IPA)**: Core 912 with one
+      constant, `ways = 4` in rpcs3/ios/IOSTextureLookupMemo.h (the two trees differ by that file only); canonical
+      789eb6b5; build 913 so that artifact names and the identity type differ; TEXMEMO660 reports ways=4. Same local
+      checks PASS (the memo test takes --expect-ways 4 and refuses 16 on that tree). Source `32c0a426`, compile request
+      `466e3f70`, run `42729856621` (in progress); `ee1f5c78` restores the exact Core 912 files at the head of the
+      branch. The next reference Core is 914. The 16/4 comparison needs two IPAs that differ by the Core only.
+    - Remaining blocker: none on the preparation side. Next action: verify both artifacts offline, pin Core 912 only,
+      record the witness identity under docs/evidence/rpcs3-core913-ac1-ways4-witness/.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
