@@ -292,6 +292,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     near 0); (2) the next CPU correction: the per-window lines of the play windows (RANGELOCKPROF phases, SCHED918,
     SPUWAIT551) and the automatic storm captures (`AUTOSTORM917` -> `PUTLLCTRACE912`, `PPUPROF912`), which the IPA 722
     export lost in its missing `.1` generation. A close and second launch, then Zombies if available, complete it.
+    On IPA 723 the performance journal still rotates at 2 MiB (~5 min per generation): share both
+    `RPCS3-performance.log` and `RPCS3-performance.1.log` (or export within 10 min of game entry); from IPA 724 the
+    current generation alone holds ~21 min (`REWINDBOX_PERFORMANCE_RETENTION_724`).
 - **Common IPA 722 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
   (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
   - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
@@ -1776,6 +1779,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         TEXCACHE621 `texture_mib` / JITMEM `gpu_textures_requested` stop growing, MEMPROF527 lose its 64 MiB steps,
         TEXSWEEP921 `released` > 0, and what does `sweep_ms` cost per window against FPS/p95 of build 721? Refuted if
         `texture_mib` stays linear with `released` near 0.
+    - **Finding (10 Nov evening, BO2 GPU pools re-read; no new device data):** JITMEM of the BO2 sessions of builds 650-676
+      (PIDs 9046, 10471, 13540, 13941, 25658): system 337-338 MiB constant, surfaces 153-183 MiB flat after game entry,
+      scratch 18-28, other 36 -> 139 then flat, textures 45 -> 307 MiB still climbing; VMA unused 26-63 -> 148-298 MiB.
+      The growth is the texture pool only (Core 921's target); no second memory correction is shown by these data.
+    - **Collection defect fixed (`REWINDBOX_PERFORMANCE_RETENTION_724`, host bridge, commit `11828899`):** a running
+      window writes 32-37 KB to `RPCS3-performance.log` (50-52 windows per 2 MiB generation, builds 662/676/721), so a
+      generation held ~5 min and the pair ~10; `AUTOSTORM917`/`AUTOPPU916` fire once per boot in the second qualifying
+      window: a 20-min protocol always lost them (both 718 and 722 exports lacked them), and the PS3 report held 1 MiB
+      (~2.6 min) of the current generation only. Now 8 MiB per generation (~21 min, ~42 with `.1`), the report exports
+      the whole current generation and the newest 4 MiB of `.1`; disk only (16 MiB at most), no Core/guest/timing change.
+      Native rotation test updated (130 x 64 KiB: one rotation, 133 records kept); it runs on macOS in the IPA 724
+      native group (not run on Linux: Foundation).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
