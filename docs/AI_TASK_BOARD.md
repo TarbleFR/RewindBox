@@ -251,24 +251,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   public version `0.0.11`, exact feed version/build `0.0.8`/`718` plus
   `marketingVersion: 0.0.11` (no repack). JSON metadata and message lengths checked;
   permissions are derived from frozen host inputs and await comparison with the exact IPA.
-  Blocked: GitHub browser signed out; connected tools lack release/asset writes; current
-  workspace has no plaintext 718. Automatic review rejected Claude/Discord access,
-  applying the superseded cleanup-only scope; no bypass, release/tag, active source or
-  Discord post. Next: restore publication access, verify/upload the exact IPA, activate
-  root `source.json` after live download verification, resolve the channel and post once.
-  Keep public baseline 0.0.10 until publication is confirmed.
-  **Main session, 10 Nov (publication phase):** exact plaintext IPA re-verified (263465367 B,
-  `001957b9…623c29a`, ZIP OK, 5594 entries; app `com.neogamelab.neostation` 0.0.8 / 718, minOS 18.0;
-  7 appex at 0.0.8 / 718). Signed-entitlement union and privacy-key union match the staged
-  `source.json`: no correction needed (recorded in `publication.json` `ipa_verification`). No
-  0.0.11 release or tag exists. **Blocked:** the main session has no release-creation or
-  asset-upload operation (GitHub tools are read-only for releases; `gh` is limited to search here
-  and its token is reported invalid). Nothing created, no tag, root `source.json` not activated, no
-  workaround. Byte-identical assets staged privately in the main scratchpad
-  (`RewindBox-0.0.11.ipa`, `source.json` `331a5162…`, `SHA256SUMS`). Exact pending action: draft
-  "RewindBox 0.0.11", tag `0.0.11` at `34fbf8ebb6a8acacc8fccada952083db30efef56`, body =
-  `release-notes.md`, these three assets; download-verify size/SHA-256; publish; then activate
-  root `source.json` and check the served JSON. Discord stays after that verified result.
+  **Maintainer reconfirmed; access rechecked:** main completed the exact IPA/plist/
+  signed-entitlement/privacy-key checks (receipt `ipa_verification`, `f377ab2c`).
+  Codex downloaded that file card independently: same 263465367 B / full SHA-256,
+  ZIP test passed (5594 entries), bundle/version/build/minOS matched; byte-identical
+  upload assets, JSON and SHA256SUMS staged. The earlier automatic scope refusal is
+  cleared. Real blockers: GitHub sign-in returned “Incorrect username or password”;
+  main's release-write tool is absent/gh token invalid; Discord requires a human
+  hCaptcha after secure sign-in. User browser authentication/verification is needed,
+  **not another publication approval**. No challenge attempted, tag/release/source
+  activation or Discord post. Keep public baseline 0.0.10 until publication confirmed.
   **Additional maintainer instructions (same request):** after publication, integrate
   `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
   branches and PRs. Classify each candidate against integrated content, active owners,
@@ -277,6 +269,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   branding/legal documentation; `Claude` ahead 1453 at the check). No forced ref update:
   reconcile these changes through a reviewed merge. The earlier 1311-run cleanup is
   already verified and closed; this follow-up is separate and has not started.
+  Read-only cleanup review: 8 old product PRs (154–160,162) have exact integration/
+  replacement evidence for closure while retaining their unique histories; 3 ancestor
+  branches are candidates after live head/owner checks. Preserve Dependabot163,
+  active owner branches, and the 608/609/610/497 workflow inputs still used by current
+  delivery. No merge, closure, branch/run/workflow deletion has been performed.
 
 - **Maintainer follow-up (10 Nov, recipe duration):** shorten the delivery recipe with measured
   before/after timings against comparable successful runs (694, then 718 attempt `42741950414`),
