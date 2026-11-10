@@ -172,29 +172,79 @@ main's to revise at integration.
 - **Installed copies.** A pack already installed is replaced by the new archive at the
   next start (existing refresh of bundled packs by SHA-256); choices are kept.
 
+## Second pass, same day: the openings at the game's ratio
+
+After IPA 720 the maintainer asked to deal with framing only and to fix the proportions of
+every skin, Switch Pocket included. The first pass made the game's container the opening
+each body draws, but those openings are not exactly 4:3 (16:9 on Switch Pocket): a picture
+at the console's ratio kept bands inside them (up to 33 pt on Switch Pocket upright, 31 pt
+on the home-button iPhones), and stretching it would deform it.
+
+**Change.** `screen_opening.reframe` redraws each layout's opening at the game's ratio: the
+largest rounded rectangle of that ratio inside the drawn opening, centred on it, with the
+drawn corner radius. Where the drawn opening was wider (or taller) than the game, the
+skin's frame comes forward:
+
+- the window's rim (bevel, highlight, shadow) is the drawn rim, measured side by side
+  across the edge and laid along the new edge;
+- beyond it, the body is the body around the opening carried inward, with its own grain;
+  lettering, controls and coloured trims (Switch Pocket's rails) are left out of that fill;
+- nothing changes outside the drawn opening and 7 points around it; no control sprite of
+  the board packs is touched (generator assertion), no control or touch area reaches the
+  new window (verifier).
+
+`outputFrame` is the rectangle of exactly that ratio over the redrawn opening
+(`native_frame`). The wii/gamecube Pocket packs now carry one body per layout
+(`body-standard-*.png` beside `body-*.png`), because the home-button layouts show the same
+raw image scaled differently on each axis; outside the window the bodies are the approved
+raw images, pixel for pixel (verifier).
+
+| Pack | Layout | IPA 720 container | Bands of a native picture in it | Now |
+| --- | --- | --- | --- | --- |
+| wii-pocket, gamecube-pocket | edge-to-edge portrait | 380.1 × 288.0 (1.320) | 1.5 pt above and below | 378.7 × 284.0 (4:3) |
+| | edge-to-edge landscape | 436.8 × 320.5 (1.363) | 4.8 pt left and right | 426.1 × 319.6 (4:3) |
+| | standard portrait | 362.7 × 225.5 (1.609) | 31.0 pt left and right | 299.2 × 224.4 (4:3) |
+| | standard landscape | 342.0 × 305.8 (1.118) | 24.7 pt above and below | 341.4 × 256.0 (4:3) |
+| wii-pocket-original | portrait | 383.5 × 274.9 (1.395) | 8.5 pt left and right | 365.4 × 274.0 (4:3) |
+| | landscape | 415.2 × 323.5 (1.283) | 6.1 pt above and below | 415.0 × 311.3 (4:3) |
+| gamecube-pocket-original | portrait | 383.5 × 273.4 (1.403) | 9.5 pt left and right | 364.5 × 273.4 (4:3) |
+| | landscape | 403.3 × 323.2 (1.248) | 10.4 pt above and below | 402.2 × 301.7 (4:3) |
+| ps2-pocket-original | portrait | 383.9 × 276.0 (1.391) | 8.0 pt left and right | 366.9 × 275.2 (4:3) |
+| | landscape | 416.2 × 302.2 (1.377) | 6.6 pt left and right | 402.4 × 301.8 (4:3) |
+| switch-pocket | portrait | 385.2 × 282.5 (1.364) | 32.9 pt above and below | 384.1 × 216.0 (16:9) |
+| | landscape | 487.3 × 283.4 (1.720) | 4.6 pt above and below | 487.2 × 274.0 (16:9) |
+| ps2-pocket | all four | 4:3 already | none | unchanged |
+
+With the emulators' default display mode (Dolphin Automatic / 4:3, ARMSX2 4:3, MeloNX
+16:9) the picture now fills the opening edge to edge, with no band and no deformation.
+Switch Pocket upright: the HOME / Capture tab no longer reaches into the window (the window
+starts 15 pt under it). Dolphin with a skin chosen for both orientations: the two screens
+now have the same ratio, so the orientation the game did not start in is the same picture
+scaled, without bands.
+
+The verifier now requires the exact ratio (1e-4) and the body unchanged away from its
+window; the MeloNX simulator harness requires 90 % of each test-pattern edge upright too
+(the tab exception is gone).
+
 ## Limits and compromises
 
 - **Dolphin, both orientations chosen.** The Core bridge has no call to resize the
-  surface after launch. The surface has the shape of the screen of the orientation the
-  game started in; in the other orientation it is fitted inside that screen with one
-  scale, never stretched, with black bands when the two openings differ in ratio
-  (1.320 against 1.363 on edge-to-edge iPhones for `wii-pocket`: 4 to 7 pt on two sides;
-  more on the Originals and on standard iPhones). A relaunch in that orientation fills it. Removing
-  this needs a surface-resize export in the Dolphin Core bridge: a Core need for main, not
-  part of this change.
-- **Switch Pocket upright.** The body's HOME / Capture tab reaches 16 to 18 pt into the top
-  of the opening over about half of its width (the board's drawing). The container is the
-  opening's bounding box, so the tab covers that part of it. With the default 16:9 mode
-  the picture starts 33 pt lower and is not touched; a stretched mode passes under the
-  tab. The alternative (a container starting under the tab) would leave both shoulders of
-  the opening empty.
+  surface after launch. Since the second pass both screens are 4:3, so the other
+  orientation shows the same picture scaled (its drawable keeps the first orientation's
+  pixel count: slightly softer or sharper, no band). A surface-resize export in the Dolphin
+  Core bridge would remove that last difference: a Core need for main.
+- **Switch Pocket upright (first pass).** The tab reached 16 to 18 pt into the drawn
+  opening; resolved by the second pass (window redrawn at 16:9, 15 pt under the tab).
+- **Appearance (second pass).** The skins' windows are smaller where the drawn opening
+  was not the game's ratio: the frame is wider there (up to 31 pt on each side on the
+  home-button iPhones, 33 pt above and below on Switch Pocket upright). Buttons, sticks
+  and touch areas do not move.
 - **Hand-drawn edges.** Along the straight edges the frame hides at most 0.9 pt of the
   surface (1.1 pt on Switch Pocket upright); the rounded corners hide 1 % of its area
   (5 % with the tab on Switch Pocket upright).
 - **Standard iPhones, wii-pocket and gamecube-pocket.** The standard layouts reuse the
-  edge-to-edge body scaled differently on each axis, so their openings are far from 4:3
-  (1.609 upright, 1.118 sideways). The container now fits them; a 4:3 picture keeps large
-  bands inside. Only new body art would change that.
+  edge-to-edge body scaled differently on each axis (openings 1.609 upright, 1.118
+  sideways); since the second pass they have their own body with a 4:3 window.
 
 ## Checks
 
