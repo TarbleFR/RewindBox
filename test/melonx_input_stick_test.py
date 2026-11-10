@@ -243,7 +243,10 @@ check('MeloNXPerfJournal.setInput(owner: self, nil)' in close and close.index('r
       'counters not removed at close')
 # The journal file stays compilable alone (melonx_perf_journal_test, capture test).
 check('MeloNXInputCounters' not in journal and 'MeloNXInputRouter' not in journal, 'perf journal depends on the router')
-check(journal.count('MeloNXStdioCapture.appendLine(') == 4, 'journal writes changed')
+# Lot 9 adds the stall watch's two writes in its own class (bound by melonx_perf_journal_test); the sampler's own
+# writes stay these four.
+sampler = journal[:journal.index('final class MeloNXStallWatch {')]
+check(sampler.count('MeloNXStdioCapture.appendLine(') == 4 and journal.count('MeloNXStdioCapture.appendLine(') == 6, 'journal writes changed')
 
 # --- Launch-journal state line ---
 state = block(router, 'func journalState(_ reason: String)')

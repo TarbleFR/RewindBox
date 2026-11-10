@@ -72,10 +72,31 @@ check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.appe
 check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
       'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
 check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
-check(journal.count('MeloNXStdioCapture.appendLine(') == journal.count(', to:path, limit:Self.fileLimit)') == 4 and 'open(' not in journal, 'journal writes outside the shared writer or under the general cap')
+# Lot 9: the stall watch writes its two kinds of lines through the same writer under the same cap.
+check(journal.count('MeloNXStdioCapture.appendLine(') == 6 and journal.count(', to:path, limit:Self.fileLimit)') == 4 and
+      journal.count(', to:path, limit:MeloNXPerfJournal.fileLimit)') == 2 and 'open(' not in journal,
+      'journal writes outside the shared writer or under the general cap')
 check('static let fileLimit: Int64 = 8 * 1024 * 1024' in journal and 'if !isPaused && rate > 0 {' in journal, 'journal cap or FPS average')
 check('qos:.utility' in journal and 'func stop() {\n        queue.async' in journal, 'sampler priority or synchronous stop')
 check('mach_port_deallocate(mach_task_self_, list[index])' in journal and 'vm_deallocate(mach_task_self_' in journal, 'thread ports leak')
+
+# Stall watch (lot 9): the three engine calls of a sample are announced; the watch never calls the engine, never
+# suspends a thread, and is bounded.
+check('stalls.enter("fps")\n        let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n'
+      '        let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000\n        stalls.exit()\n' in journal,
+      'the fps() call is announced around the mgd= measure')
+check('stalls.enter("audio")\n        let pacing = audio()\n        stalls.exit()\n' in journal and
+      'stalls.enter("memory")\n        let footprint = memory()\n        stalls.exit()\n' in journal, 'audio() and memory() announced')
+watch = journal[journal.index('final class MeloNXStallWatch {'):]
+check(all(name not in watch for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'thread_resume',
+                                         'task_suspend', 'DispatchQueue.main')), 'the watch calls no engine closure and suspends nothing')
+check('static let stagesMs: [Double] = [300, 1300, 3300]' in watch and 'static let maxStalls = 6' in watch and
+      'static let maxFrames = 8' in watch and 'usleep(50_000)' in watch, 'stall bounds')
+check(watch.count('vm_read_overwrite(') == 1 and 'thread_get_state(thread, thread_state_flavor_t(ARM_THREAD_STATE64)' in watch and
+      'guard thread != me else { continue }' in watch and watch.count('mach_port_deallocate(mach_task_self_, list[index])') == 1 and
+      'mach_port_deallocate(mach_task_self_, me)' in watch, 'safe reads, own thread skipped, ports released')
+check(journal.index('            stalls.start()\n') < journal.index('    func stop() {') and
+      'queue.async { [self] in\n            stalls.stop()\n' in journal, 'watch started with the journal and stopped with it')
 
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
@@ -162,6 +183,71 @@ exit(2)
               in body[-1], body[-1])
         check(f'{total * 3} late DSP episodes ({total * 7.5:.1f} ms), {total} skipped' in body[-1], body[-1])
         check(f'{total} audio starvations ({total * 12:.1f} ms)' in body[-1] and 'game FPS 59.5 on average' in body[-1], body[-1])
+        # Stall watch: one engine call blocked 1.6 s while a named thread spins and another waits, then seven of
+        # 500 ms (only six stalls are recorded), then quick calls.
+        stall_log = work / 'stall.log'
+        (work / 'stall.swift').write_text(r'''import Foundation
+import Darwin
+let path = CommandLine.arguments[1]
+let spinner = Thread {
+    var x = 0.0
+    while !Thread.current.isCancelled { for i in 0..<100_000 { x += sqrt(Double(i)) } }
+    if x < 0 { print(x) }
+}
+spinner.name = "Stall Spinner"
+spinner.start()
+let gate = DispatchSemaphore(value:0)
+let waiter = Thread { gate.wait() }
+waiter.name = "Stall Waiter"
+waiter.start()
+usleep(100_000)
+let lock = NSLock()
+var calls = 0
+let journal = MeloNXPerfJournal(path:path, interval:0.1, lineLimit:100,
+    fps:{
+        lock.lock(); calls += 1; let call = calls; lock.unlock()
+        if call == 1 { usleep(1_600_000) } else if call <= 8 { usleep(500_000) }
+        return ["gameFps":30.0,"gameFrameTimeMs":33.3,"fifoPercent":10.0]
+    },
+    presentation:{ MeloNXPerfJournal.Presentation() }, audio:{ nil })
+journal.start()
+while true { lock.lock(); let done = calls >= 11; lock.unlock(); if done { break }; usleep(20_000) }
+journal.stop()
+usleep(400_000)
+spinner.cancel(); gate.signal()
+exit(0)
+''')
+        stall_executable = work / 'stall'
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'stall.swift'), '-o', str(stall_executable)], check=True)
+        result = subprocess.run([str(stall_executable), str(stall_log)], capture_output=True, text=True, timeout=120)
+        check(result.returncode == 0, result)
+        stall_lines = [line.removeprefix('[MeloNX:stall] ') for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:stall] ')]
+        headers = [line for line in stall_lines if re.match(r'#\d+\.\d+ \w+ in flight \d+ ms, \d+ threads', line)]
+        check([h.split(' ')[0] for h in headers] == ['#1.0', '#1.1', '#2.0', '#3.0', '#4.0', '#5.0', '#6.0'], headers)
+        check(300 <= int(re.search(r'in flight (\d+) ms', headers[0]).group(1)) < 600 and
+              1300 <= int(re.search(r'in flight (\d+) ms', headers[1]).group(1)) < 1600, headers[:2])
+        ends = [line for line in stall_lines if re.match(r'#\d+ end: fps returned after', line)]
+        check([e.split(' ')[0] for e in ends] == ['#1', '#2', '#3', '#4', '#5', '#6'], ends)
+        first = float(re.search(r'after ([\d.]+) ms', ends[0]).group(1))
+        check(1590 <= first < 1900 and all(490 <= float(re.search(r'after ([\d.]+) ms', e).group(1)) < 900 for e in ends[1:]), ends)
+        def row(stage, thread):
+            found = [line for line in stall_lines if line.startswith(stage + ' t') and (' ' + thread + ' ') in line]
+            check(len(found) == 1, (stage, thread, found))
+            return found[0]
+        spin0, spin1 = row('#1.0', 'Stall_Spinner'), row('#1.1', 'Stall_Spinner')
+        wait0, wait1 = row('#1.0', 'Stall_Waiter'), row('#1.1', 'Stall_Waiter')
+        check(re.search(r' Stall_Spinner R s0 p\d+/\d+ c[\d.]+ pc=\S+\+0x[0-9a-f]+ lr=', spin0), spin0)
+        check(float(re.search(r' c\+([\d.]+) ', spin1).group(1)) >= 200, 'the spinner ran between the two records: ' + spin1)
+        check(re.search(r' Stall_Waiter W s0 p\d+/\d+ c[\d.]+ pc=libsystem_kernel\.dylib\+0x[0-9a-f]+ ', wait0), wait0)
+        check(float(re.search(r' c\+([\d.]+) ', wait1).group(1)) < 20, 'the waiter did not run: ' + wait1)
+        check(all(len(re.search(r' bt=(\S+)', line).group(1).split(',')) <= 8 for line in stall_lines if ' bt=' in line), 'frames bounded')
+        check(not any(' RewindBox.MeloNX.StallWa ' in line for line in stall_lines), 'the watch does not list itself')
+        # The blocked engine call is visible too: the journal's queue thread waits (usleep) with the stall.
+        check(any(re.search(r' W s0 p\d+/\d+ c[\d.]+ pc=libsystem_kernel\.dylib\+0x', line) and line.startswith('#1.0') for line in stall_lines),
+              'a waiting thread in the kernel')
+        perf = [line for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:perf] t=')]
+        check(perf and float(re.search(r' mgd=([\d.]+)', perf[0]).group(1)) >= 1590, perf[:1])
     print('Executed the performance journal on macOS.')
 
 print(f'PASS {checks} performance journal checks')

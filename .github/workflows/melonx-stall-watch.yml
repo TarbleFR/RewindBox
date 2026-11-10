@@ -1,0 +1,40 @@
+name: MeloNX stall watch
+run-name: Stall watch on macOS and iOS typecheck • ${{ github.sha }}
+# Lot 9. The host performance journal's native stall watch (MeloNXStallWatch in MeloNXPerfJournal.swift), executed on
+# a real macOS arm64 runner: an engine call blocked while a named thread spins and another waits must be recorded with
+# the right states, CPU deltas and kernel/user images, bounded to six stalls. The journal files are then typechecked
+# for the iOS SDK at the bridge's deployment target. Nothing is built for delivery, packaged or pinned.
+'on':
+  push:
+    branches:
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/melonx-stall-watch.yml
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift
+    - test/melonx_perf_journal_test.py
+    - test/melonx_input_stick_test.py
+permissions:
+  contents: read
+concurrency:
+  group: melonx-stall-watch-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  stall-watch:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Execute the performance journal and its stall watch on macOS
+      run: python3 test/melonx_perf_journal_test.py
+    - name: Execute the input journal checks on macOS
+      run: python3 test/melonx_input_stick_test.py
+    - name: Typecheck the journal for the iOS SDK (arm64, iOS 18.0, the bridge's deployment target)
+      run: |
+        xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -target arm64-apple-ios18.0 \
+          -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+          packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift \
+          packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift
+        echo "iOS typecheck passed"
