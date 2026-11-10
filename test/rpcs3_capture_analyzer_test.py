@@ -37,7 +37,7 @@ def journal():
     zero, one, other = '%032x' % 0, '%032x' % 1, '%032x' % 7
     events += ''.join(f' 9:2584:2e20880:{result}:01:0:{0x200 + index:x}:{zero}:{one}:{observed}' for index, (result, observed) in enumerate((
         (2, '-'), (4, one + '/01@0'), (5, other + '/01@0'), (5, other + '/02@1'), (6, '='))))
-    a.append(record(100, 21.0, 'COREPROF PUTLLCTRACE912 session=1 capture=1 part=begin threads=1 threads_dropped=0 events=11 after_full=2 capacity=512 elapsed_us=900 end=time'))
+    a.append(record(100, 21.0, 'COREPROF PUTLLCTRACE912 session=1 capture=1 part=begin generation=3 stale_rejected=1 threads=1 threads_dropped=0 events=11 after_full=2 capacity=512 elapsed_us=900 end=time'))
     a.append(record(100, 21.1, 'COREPROF PUTLLCTRACE912 session=1 capture=1 part=events thread=0x2000000 first=0 last=10 of=11 after_full=2 t0_us=100 ev=' + events))
     # A second thread of the same capture: it stored the value 7 in lane 0 of the same line at 105 us, before the first
     # thread's failed comparison found 7 there (events 0..5 take 0+1+2+3+4+5 us after 100, then 9 us each).
@@ -71,6 +71,72 @@ def journal():
     return '\n'.join(a) + '\n', '\n'.join(b) + '\nnot a record\n'
 
 
+def identity_cases(check) -> None:
+    """Synthetic counterexamples (10 Nov review): two launches that reuse a process id and a session number, the same
+    text in two launches, and a line of a new session arriving before that session's first window."""
+    def rec(pid, build, time, message):
+        return json.dumps({'pid': pid, 'build': build, 'timestamp': time, 'stage': 'core_log', 'message': message})
+    rows = [
+        # Launch A and launch B: same pid 42, same session 1, another title and another application build.
+        rec(42, '700', 1.0, 'CONFIG_LAYERS title=AAAA00001 name=database_config frame_limit=30'),
+        rec(42, '700', 10.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=guest_unclassified wall_guest_fps=21.0 p95_ms=50.0'),
+        rec(42, '700', 15.0, 'COREPROF FRAMEPROF527 session=1 window=2 phase=guest_unclassified wall_guest_fps=21.0 p95_ms=50.0'),
+        rec(42, '701', 1000.0, 'CONFIG_LAYERS title=BBBB00002 name=database_config frame_limit=Off'),
+        rec(42, '701', 1010.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=guest_unclassified wall_guest_fps=35.0 p95_ms=30.0'),
+        # Two launches of pid 43, one second apart, whose first window line has the same text.
+        rec(43, '700', 100.0, 'CONFIG_LAYERS title=CCCC00003 name=database_config'),
+        rec(43, '700', 100.2, 'COREPROF FRAMEPROF527 session=1 window=1 phase=preparation wall_guest_fps=30.0 p95_ms=33.0'),
+        rec(43, '700', 100.6, 'CONFIG_LAYERS title=CCCC00003 name=database_config'),
+        rec(43, '700', 101.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=preparation wall_guest_fps=30.0 p95_ms=33.0'),
+        # pid 44: no boot marker at all, the window numbers of session 1 start again: two launches, not told apart safely.
+        rec(44, '700', 10.0, 'COREPROF FRAMEPROF527 session=1 window=7 phase=guest_unclassified wall_guest_fps=25.0 p95_ms=40.0'),
+        rec(44, '700', 500.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=guest_unclassified wall_guest_fps=28.0 p95_ms=40.0'),
+        # pid 45: a line that says session=2 arrives right after the last window of session 1 and before the first
+        # window of session 2; a line of session 3 never gets a window.
+        rec(45, '700', 1.0, 'CONFIG_LAYERS title=DDDD00004 name=database_config'),
+        rec(45, '700', 10.0, 'COREPROF FRAMEPROF527 session=1 window=3 phase=guest_unclassified wall_guest_fps=30.0 p95_ms=33.0'),
+        rec(45, '700', 10.5, 'RANGELOCKPROF session=2 episodes=1 wl_putllc=9:9.000:9.000'),
+        rec(45, '700', 11.0, 'COREPROF FRAMEPROF527 session=2 window=1 phase=guest_unclassified wall_guest_fps=31.0 p95_ms=33.0'),
+        rec(45, '700', 20.0, 'RANGELOCKPROF session=3 episodes=1 wl_putllc=7:7.000:7.000'),
+    ]
+    with tempfile.TemporaryDirectory(prefix='analyzer-identity-') as temporary:
+        folder = Path(temporary)
+        (folder / 'RPCS3-performance.log').write_text('\n'.join(rows) + '\n')
+        out = folder / 'out.json'
+        run = lambda *extra: subprocess.run([sys.executable, '-B', str(TOOL), str(folder), *extra], capture_output=True, text=True)
+        result = run('--json', str(out))
+        check(result.returncode == 0, 'identity cases: the tool runs: ' + result.stderr[-400:])
+        data = json.loads(out.read_text()) if out.exists() else {}
+        # 1. Two launches sharing pid and session are two entries, each with its own title, build and windows.
+        a, b = data.get('42:1#1', {}), data.get('42:1#2', {})
+        check(a.get('title') == 'AAAA00001' and b.get('title') == 'BBBB00002' and a.get('build') == '700' and b.get('build') == '701',
+              'two launches with the same pid and session stay apart: ' + repr(sorted(data)))
+        check(sorted(a.get('windows', {})) == ['1', '2'] and sorted(b.get('windows', {})) == ['1'] and
+              a.get('windows', {}).get('1', {}).get('FRAMEPROF527', {}).get('wall_guest_fps') == '21.0' and
+              b.get('windows', {}).get('1', {}).get('FRAMEPROF527', {}).get('wall_guest_fps') == '35.0', 'each launch keeps its own windows and values')
+        check('42:1' not in data, 'no merged entry under the bare pid:session')
+        ambiguous = run('--compare', '42:1', '42:1').stdout
+        check('comparison refused' in ambiguous and 'launches share' in ambiguous, 'a pid:session shared by two launches cannot be compared by that name')
+        check('comparison refused: titles differ' in run('--compare', '42:1#1', '42:1#2').stdout, 'the two launches named exactly: still another title')
+        # 2. The same text in two launches is two events.
+        c1, c2 = data.get('43:1#1', {}), data.get('43:1#2', {})
+        check(sorted(c1.get('windows', {})) == ['1'] and sorted(c2.get('windows', {})) == ['1'], 'the same text in two launches is kept twice: ' + repr(sorted(data)))
+        # 3. Launches that the journal does not tell apart safely are separated, flagged, and never compared.
+        d1, d2 = data.get('44:1#1', {}), data.get('44:1#2', {})
+        check(sorted(d1.get('windows', {})) == ['7'] and sorted(d2.get('windows', {})) == ['1'] and
+              'window_regression' in str(d2.get('boot_evidence')) and d2.get('boot_ambiguous') is True, 'window numbers starting again: another launch, flagged ambiguous')
+        check('BOOT AMBIGUITY' in result.stdout, 'the ambiguity is stated in the report')
+        refused = run('--compare', '44:1#1', '44:1#2').stdout
+        check('comparison refused' in refused, 'an ambiguous launch is not compared: ' + refused[:200])
+        # 4. A line that names its session never joins a window of another session.
+        s1, s2, s3 = data.get('45:1', {}), data.get('45:2', {}), data.get('45:3', {})
+        check('RANGELOCKPROF' not in s1.get('windows', {}).get('3', {}), 'a session=2 line is not attached to the last window of session 1')
+        check(s2.get('windows', {}).get('1', {}).get('RANGELOCKPROF', {}).get('wl_putllc') == '9:9.000:9.000', 'it waits for the first window of its own session')
+        check(len(s3.get('unattached', [])) == 1 and s3['unattached'][0].get('wl_putllc') == '7:7.000:7.000' and s3.get('windows') == {},
+              'a line whose session never gets a window is kept as unattached data: ' + repr(s3)[:200])
+        check('unattached' in result.stdout, 'unattached lines are stated in the report')
+
+
 def main() -> int:
     failures = []
 
@@ -101,6 +167,9 @@ def main() -> int:
         thread = trace['threads']['0x2000000']
         check(trace['complete'] and thread['events'] == 11 and thread['sequence_without_hole'] and thread['after_full'] == 2, 'capture reassembled')
         check(trace['armed_after_window'] == 2 and trace['lines_declared'] == '4' and trace['lines_received'] == 4, 'capture placed after its window, every line received')
+        check(trace['generation'] == '3' and trace['stale_rejected'] == '1' and trace['threads_dropped'] == '0' and trace['after_full'] == '2' and
+              a['putllc_traces']['2']['generation'] == 'absent' and 'events_of_an_earlier_capture_rejected=1' in text,
+              'the capture states its generation and what it rejected or dropped; an older capture says absent')
         across = trace['across_threads']
         check(across['failed_events_showing_the_value_found'] == 3 and across['value_stored_earlier_by_another_recorded_thread'] == 1 and
               across['value_stored_earlier_by_the_same_thread'] == 1 and across['no_recorded_store_of_that_value'] == 1 and
@@ -124,7 +193,10 @@ def main() -> int:
         check(dump['first_ppu_semaphores'] == ['0x96003900'] and dump['rsx']['fifo_pos'] == '0x14', 'freeze dump: the semaphore of the first PPU thread and the FIFO position')
         row1 = next(line for line in text.splitlines() if line.startswith('      1 '))
         row2 = next(line for line in text.splitlines() if line.startswith('      2 '))
-        check(' absent ' in row1 and ' 0 ' in row1 and 'label:slow_scene' in row2 and ' inactive ' in row2, 'absent, inactive and a real 0 are three different outputs')
+        check(' absent_or_lost ' in row1 and ' absent ' not in row1 and ' 0 ' in row1 and 'label:slow_scene' in row2 and ' inactive ' in row2,
+              'absent (said possibly lost when the journal reports losses), inactive and a real 0 are different outputs')
+        other = next(line for line in text.splitlines() if line.startswith('      7 '))
+        check(' absent ' in other and 'absent_or_lost' not in other, 'without a reported loss a missing line is absent')
         check('comparison refused: titles differ or are unknown (AAAA00001 / BBBB00002)' in text, 'a comparison across two titles is refused')
         check('cumulated' in text and 'not frame time' in text and 'lines that are not journal records: 1' in text, 'units and skipped lines stated')
         same = subprocess.run([sys.executable, '-B', str(TOOL), str(folder), '--compare', '100:1', '100:1'], capture_output=True, text=True)
@@ -139,6 +211,7 @@ def main() -> int:
               'the comparison keeps the labelled scene only')
         check('miss_evicted: inactive / 300.000 (n=1)  (not comparable: one side has no such value)' in scene and
               'put_deferred: ' not in scene, 'a probe off on one side is said inactive, not 0; a line absent on both sides is not compared')
+    identity_cases(check)
     if failures:
         print('FAIL: ' + '; '.join(failures))
         return 1

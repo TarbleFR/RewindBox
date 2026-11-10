@@ -48,10 +48,10 @@ def number(value):
 
 
 class Line:
-    __slots__ = ('pid', 'build', 'time', 'message', 'origin')
+    __slots__ = ('pid', 'build', 'time', 'message', 'origin', 'order')
 
-    def __init__(self, pid, build, time, message, origin):
-        self.pid, self.build, self.time, self.message, self.origin = pid, build, time, message, origin
+    def __init__(self, pid, build, time, message, origin, order=0):
+        self.pid, self.build, self.time, self.message, self.origin, self.order = pid, build, time, message, origin, order
 
 
 def read(paths: list) -> tuple:
@@ -59,6 +59,7 @@ def read(paths: list) -> tuple:
     for path in paths:
         files += sorted(p for p in path.rglob('*') if p.is_file()) if path.is_dir() else [path]
     lines, seen, skipped = [], {}, 0
+    order = 0
     for file in files:
         with file.open(errors='replace') as stream:
             for index, raw in enumerate(stream, 1):
@@ -76,57 +77,119 @@ def read(paths: list) -> tuple:
                     skipped += 1
                     continue
                 # The same line copied into several files (their timestamps differ slightly by the copy): one record.
-                # The same text again more than two seconds later is another event (an idle window repeats its line).
+                # Only a line of ANOTHER file, of the same process and application build, within two seconds, is a copy:
+                # the same text twice in one file at two different times is two events (an idle window repeats its
+                # line; two launches may print the same first line).
                 time = float(record.get('timestamp') or 0)
-                if any(abs(time - other) < 2.0 for other in seen.get((pid, message), ())):
+                build = str(record.get('build', '?'))
+                key = (pid, build, message)
+                # The very same record again (same timestamp to the digit) is a copy wherever it is: a report file
+                # quotes journal excerpts several times.
+                if any(time == other or (abs(time - other) < 2.0 and name != file.name) for other, name in seen.get(key, ())):
                     continue
-                seen.setdefault((pid, message), []).append(time)
-                lines.append(Line(int(pid), str(record.get('build', '?')), float(record.get('timestamp') or 0), message, f'{file.name}:{index}'))
-    lines.sort(key=lambda line: (line.pid, line.time))
+                seen.setdefault(key, []).append((time, file.name))
+                order += 1
+                lines.append(Line(int(pid), build, time, message, f'{file.name}:{index}', order))
+    # Journal time, then reading order: two lines with one timestamp keep the order of their file.
+    lines.sort(key=lambda line: (line.pid, line.time, line.order))
     return lines, skipped, len(files)
 
 
 def analyse(lines: list, labels: dict) -> dict:
-    sessions: dict = {}
-    title_of_pid: dict = {}
-    pending: dict = {}   # pid -> burst lines waiting for their window
-    last_window: dict = {}
+    """Entries keyed by (pid, process, session).
 
-    def session_of(line, session):
-        key = (line.pid, int(session))
+    Within one process the session number is the boot: the Core counts its boots, prints CONFIG_LAYERS for each, and the
+    last lines of a session may still arrive after the CONFIG_LAYERS of the next one. So CONFIG_LAYERS names the title
+    of the NEXT session that starts, and is never a boundary by itself. What the pair (pid, session) cannot tell is a
+    process id used again by another process. The journal shows that by:
+      build_change        another application build for the same process id;
+      window_repeated     a window line that the session already holds (copies between files are removed before);
+      window_regression   the window numbers of a session start again.
+    A process told apart by its windows alone, with no CONFIG_LAYERS since the previous lines of that session, has no
+    established title: it is flagged ambiguous, keeps the title "unknown" and is never compared. A session whose first
+    line in the files is not its first window, or that no CONFIG_LAYERS precedes, also keeps the title "unknown".
+    A line that names its session only ever joins that session."""
+    sessions: dict = {}
+    state: dict = {}     # pid -> what is known of its current process
+    losses: dict = {}    # pid -> what the journal itself says it lost
+    loose: dict = {}     # pid -> burst lines that name no session and found no window
+
+    def fresh_state(line, boot, evidence, ambiguous):
+        return {'boot': boot, 'build': line.build, 'config': None, 'policy': {}, 'evidence': evidence, 'ambiguous': ambiguous,
+                'session': None, 'last_window': None, 'pending': []}
+
+    def launch_of(line):
+        if line.pid not in state:
+            state[line.pid] = fresh_state(line, 1, ['first_lines_of_the_process_id'], False)
+        return state[line.pid]
+
+    def new_launch(line, why):
+        old = state[line.pid]
+        flush(line.pid)
+        # The CONFIG_LAYERS block read since the last session started, if any, belongs to the new process.
+        config = old['config'] if why != 'build_change' else None
+        state[line.pid] = fresh_state(line, old['boot'] + 1, [f'{why} at {line.origin}'], why != 'build_change' and config is None)
+        state[line.pid]['config'], state[line.pid]['policy'] = config, (old['policy'] if config else {})
+        return state[line.pid]
+
+    def session_of(line, session, first_window=None):
+        launch = state[line.pid]
+        key = (line.pid, launch['boot'], int(session))
         if key not in sessions:
-            sessions[key] = {'pid': line.pid, 'session': int(session), 'build': line.build, 'title': title_of_pid.get(line.pid, 'unknown'),
-                             'title_origin': title_of_pid.get((line.pid, 'origin'), '-'), 'windows': {},
-                             'config': dict(pending.get((line.pid, 'config'), {})), 'policies': dict(pending.get((line.pid, 'policy'), {})),
+            # The title: the CONFIG_LAYERS block that precedes the start of this session. A session met in its middle
+            # (its first line here is a later window) may be the tail of the previous boot printed after the next
+            # boot's block: it shows that title but does not use the block up, and its title is marked uncertain.
+            config = launch['config']
+            certain = config is not None and first_window in (None, 1)
+            policy = dict(launch['policy']) if config is not None else {}
+            if certain:
+                launch['config'], launch['policy'] = None, {}
+            sessions[key] = {'pid': line.pid, 'boot': launch['boot'], 'session': int(session), 'build': line.build,
+                             'title': (config or {}).get('title', 'unknown'), 'title_origin': (config or {}).get('_origin', '-'),
+                             'windows': {}, 'config': {k: v for k, v in (config or {}).items() if k != '_origin'}, 'policies': dict(policy),
                              'freeze_episodes': [], 'freeze_dumps': [], 'putllc_traces': {}, 'ppu_profiles': {}, 'kinds': set(),
-                             'capture_requests': [], 'capture_refusals': []}
+                             'capture_requests': [], 'capture_refusals': [], 'unattached': [],
+                             'title_certain': certain, 'first_window_seen': first_window,
+                             'boot_evidence': launch['evidence'], 'boot_ambiguous': launch['ambiguous']}
         return sessions[key]
 
-    current_session: dict = {}
-    losses: dict = {}    # pid -> what the journal itself says it lost
+    def flush(pid):
+        """Burst lines still waiting when a process ends (or at the end): kept, never dropped."""
+        launch = state.get(pid)
+        if not launch:
+            return
+        for kind, data, burst in launch['pending']:
+            row = {'kind': kind, **data, '_origin': burst.origin}
+            if 'session' in data:
+                session_of(burst, data['session'])['unattached'].append(row)
+            else:
+                loose.setdefault(pid, []).append({**row, 'boot': launch['boot']})
+        launch['pending'] = []
+
     for line in lines:
         message = line.message
+        launch = launch_of(line)
+        if line.build != launch['build']:
+            launch = new_launch(line, 'build_change')
         for marker in LOSS_MARKERS:
             if marker in message:
                 losses.setdefault(line.pid, []).append({'what': marker.split()[0], **fields(message[message.index(marker):]), 'origin': line.origin})
         for part in message.split('\n'):
             if 'CONFIG_LAYERS ' in part and 'title=' in part:
                 data = fields(part)
-                title_of_pid[line.pid] = data.get('title', 'unknown')
-                if title_of_pid.get((line.pid, 'origin')) is None or 'name=database_config' in part:
-                    title_of_pid[(line.pid, 'origin')] = line.origin
-                if pending.pop((line.pid, 'used'), False):
-                    pending[(line.pid, 'config')] = {}  # a new boot: the previous boot's values do not carry over
-                    pending[(line.pid, 'policy')] = {}
-                pending.setdefault((line.pid, 'config'), {}).update(data)
+                block = launch['config']
+                if block is None or block.get('title') != data.get('title'):
+                    block = launch['config'] = {'_origin': line.origin}
+                    launch['policy'] = {}
+                if 'name=database_config' in part:
+                    block['_origin'] = line.origin
+                block.update(data)
         match = re.search(r'Resolved (?:title|boot) policy(?: (\d+))?: (.*)', message)
         if match:
-            pending.setdefault((line.pid, 'policy'), {})[match.group(1) or 'boot'] = fields(match.group(2))
-        if 'CAPTURE_REQUEST ' in message and line.pid in current_session:
+            launch['policy'][match.group(1) or 'boot'] = fields(match.group(2))
+        if 'CAPTURE_REQUEST ' in message and launch['session'] is not None:
             # The host says it asked the Core to start a capture (the in-game menu closed with the capture enabled).
-            owner = sessions.get((line.pid, int(current_session[line.pid])))
-            if owner is not None:
-                owner['capture_requests'].append({**fields(message[message.index('CAPTURE_REQUEST '):]), 'origin': line.origin})
+            session_of(line, launch['session'])['capture_requests'].append({**fields(message[message.index('CAPTURE_REQUEST '):]), 'origin': line.origin})
         at = message.find('COREPROF ')
         kind = None
         if at >= 0:
@@ -139,13 +202,30 @@ def analyse(lines: list, labels: dict) -> dict:
         if kind is None:
             continue
         data = fields(message[at:] if at >= 0 else message)
-        session = data.get('session', current_session.get(line.pid))
-        if session is None:
-            pending.setdefault((line.pid, 'burst'), []).append((kind, data, line))
+        named = data.get('session') if data.get('session', '').isdigit() else None
+        is_window = 'window' in data and kind in WINDOW_KINDS and data['window'].isdigit()
+        if named is not None and is_window:
+            held = sessions.get((line.pid, launch['boot'], int(named)))
+            if held is not None and held['windows']:
+                index, highest = int(data['window']), max(held['windows'])
+                if kind in held['windows'].get(index, {}):
+                    launch = new_launch(line, 'window_repeated')
+                elif index < highest - 1:
+                    launch = new_launch(line, 'window_regression')
+        if kind in BURST_KINDS:
+            # A burst line joins a window of its own session only; one that names no session, the last window if close.
+            last = launch['last_window']
+            if last and abs(last[2] - line.time) <= BURST_SECONDS and (named is None or int(named) == last[0]['session']):
+                last[0]['windows'][last[1]].setdefault(kind, {**data, '_origin': line.origin})
+                last[0]['kinds'].add(kind)
+            else:
+                launch['pending'].append((kind, data, line))
             continue
-        current_session[line.pid] = session
-        entry = session_of(line, session)
-        pending[(line.pid, 'used')] = True
+        session = named if named is not None else launch['session']
+        if session is None:
+            continue
+        launch['session'] = session
+        entry = session_of(line, session, int(data['window']) if is_window else None)
         entry['kinds'].add(kind)
         if kind == 'FREEZE':
             if 'FREEZE_EPISODE ' in message:
@@ -158,9 +238,11 @@ def analyse(lines: list, labels: dict) -> dict:
         elif kind == 'PUTLLCTRACE912':
             capture = entry['putllc_traces'].setdefault(data.get('capture', '?'), {'parts': [], 'threads': {}, 'origin': line.origin})
             capture['parts'].append(data.get('part'))
+            last = launch['last_window']
             if data.get('part') == 'armed':
-                # The capture starts here: after the last report window seen for this process.
-                capture['armed_after_window'] = last_window[line.pid][1] if line.pid in last_window else None
+                # The capture starts here: after the last report window seen for this launch.
+                capture['armed_after_window'] = last[1] if last else None
+                capture['armed'] = data
             elif data.get('part') == 'end':
                 capture['end'] = data
             if data.get('part') == 'begin':
@@ -172,7 +254,7 @@ def analyse(lines: list, labels: dict) -> dict:
                 items = message[message.index(' ev=') + 4:].split()
                 thread['events'] += items
                 # Time of each event against the start of the capture: t0_us for the first event of the line, then the
-                # event's own delay. None when the line carries no time base.
+                # event's own delay. None when the line carries no usable time base.
                 clock = int(data['t0_us']) if data.get('t0_us', '').isdigit() else None
                 for index, item in enumerate(items):
                     delay = item.split(':', 1)[0]
@@ -182,32 +264,48 @@ def analyse(lines: list, labels: dict) -> dict:
         elif kind == 'PPUPROF912':
             capture = entry['ppu_profiles'].setdefault(data.get('capture', '?'), {'threads': [], 'origin': line.origin})
             if data.get('part') == 'armed':
-                capture['armed_after_window'] = last_window[line.pid][1] if line.pid in last_window else None
+                capture['armed_after_window'] = launch['last_window'][1] if launch['last_window'] else None
             if data.get('part') == 'begin':
                 capture['begin'] = data
             elif data.get('part') == 'thread':
                 capture['threads'].append(data)
-        elif 'window' in data and kind in WINDOW_KINDS:
-            window = entry['windows'].setdefault(int(data['window']), {})
+        elif is_window:
+            index = int(data['window'])
+            window = entry['windows'].setdefault(index, {})
             window[kind] = {**data, '_origin': line.origin}
             window.setdefault('_time', line.time)
-            last_window[line.pid] = (entry, int(data['window']), line.time)
-            for burst_kind, burst_data, burst_line in pending.pop((line.pid, 'burst'), []):
-                if abs(burst_line.time - line.time) <= BURST_SECONDS:
+            launch['last_window'] = (entry, index, line.time)
+            waiting = []
+            for burst_kind, burst_data, burst_line in launch['pending']:
+                own = 'session' not in burst_data or int(burst_data['session']) == entry['session']
+                if own and abs(burst_line.time - line.time) <= BURST_SECONDS:
                     window.setdefault(burst_kind, {**burst_data, '_origin': burst_line.origin})
-        elif kind in BURST_KINDS and line.pid in last_window and abs(last_window[line.pid][2] - line.time) <= BURST_SECONDS:
-            owner, index, _ = last_window[line.pid]
-            owner['windows'][index].setdefault(kind, {**data, '_origin': line.origin})
-        elif kind in BURST_KINDS:
-            pending.setdefault((line.pid, 'burst'), []).append((kind, data, line))
-    for (pid, session), entry in sessions.items():
+                    entry['kinds'].add(burst_kind)
+                elif 'session' in burst_data and int(burst_data['session']) >= entry['session'] and line.time - burst_line.time <= BURST_SECONDS:
+                    waiting.append((burst_kind, burst_data, burst_line))  # its own session may still open a window
+                else:
+                    row = {'kind': burst_kind, **burst_data, '_origin': burst_line.origin}
+                    if 'session' in burst_data:
+                        session_of(burst_line, burst_data['session'])['unattached'].append(row)
+                    else:
+                        loose.setdefault(line.pid, []).append({**row, 'boot': launch['boot']})
+            launch['pending'] = waiting
+    for pid in list(state):
+        flush(pid)
+    shared: dict = {}
+    for (pid, boot, session) in sessions:
+        shared.setdefault((pid, session), []).append(boot)
+    for (pid, boot, session), entry in sessions.items():
+        entry['launches_sharing_pid_and_session'] = len(shared[(pid, session)])
+        entry['name'] = f'{pid}:{session}' if len(shared[(pid, session)]) == 1 else f'{pid}:{session}#{boot}'
+        entry['labels'] = {}
         for window in entry['windows']:
-            entry.setdefault('labels', {})
-            for (label_pid, label_session, first, last), name in labels.items():
-                if (label_pid, label_session) == (pid, session) and first <= window <= last:
+            for (label_pid, label_session, label_boot, first, last), name in labels.items():
+                if (label_pid, label_session) == (pid, session) and label_boot in (None, boot) and first <= window <= last:
                     entry['labels'][window] = name
         entry['kinds'] = sorted(entry['kinds'])
         entry['journal_losses'] = losses.get(pid, [])
+        entry['lines_without_session_or_window'] = [row for row in loose.get(pid, []) if row['boot'] == boot]
     return sessions
 
 
@@ -232,9 +330,11 @@ def phase(entry: dict, window: int, data: dict) -> str:
     return data.get('FRAMEPROF527', {}).get('phase', 'absent')
 
 
-def value(data: dict, kind: str, key: str) -> str:
+def value(data: dict, kind: str, key: str, lossy: bool = False) -> str:
+    """absent: no such line for the window; absent_or_lost: none, and the journal of the process reports losses;
+    inactive: the probe says it is off; anything else is what the line says, 0 included."""
     if kind not in data:
-        return 'absent'
+        return 'absent_or_lost' if lossy else 'absent'
     row = data[kind]
     if row.get('enabled') == '0' or row.get('mode') == '0' and kind == 'TEXMEMO660':
         return 'inactive'
@@ -329,7 +429,11 @@ def across_threads(capture: dict) -> dict:
 def putllc_summary(capture: dict) -> dict:
     declared = capture.get('end', {}).get('lines')
     received = sum(part in ('begin', 'events', 'end') for part in capture['parts'])
-    out = {'origin': capture['origin'], 'begin': capture.get('begin', {}), 'threads': {}, 'armed_after_window': capture.get('armed_after_window'),
+    begin = capture.get('begin', {})
+    out = {'origin': capture['origin'], 'begin': begin, 'threads': {}, 'armed_after_window': capture.get('armed_after_window'),
+           # The capture's own identity and what it says it left out (absent on a Core older than 914).
+           'generation': begin.get('generation', 'absent'), 'stale_rejected': begin.get('stale_rejected', 'absent'),
+           'threads_dropped': begin.get('threads_dropped', 'absent'), 'after_full': begin.get('after_full', 'absent'),
            'lines_declared': declared, 'lines_received': received,
            'complete': 'begin' in capture['parts'] and 'end' in capture['parts'] and (declared is None or int(declared) == received)}
     for thread, data in capture['threads'].items():
@@ -365,10 +469,24 @@ def putllc_summary(capture: dict) -> dict:
 
 def report(sessions: dict, skipped: int, files: int, select) -> str:
     out = [f'files read: {files}; lines that are not journal records: {skipped}', 'units: ' + UNITS, '']
-    for (pid, session), entry in sorted(sessions.items()):
+    for (pid, boot, session), entry in sorted(sessions.items()):
         if not select(entry):
             continue
-        out.append(f"== title {entry['title']} (from {entry['title_origin']}) build {entry['build']} pid {pid} session {session}")
+        out.append(f"== title {entry['title']} (from {entry['title_origin']}) build {entry['build']} pid {pid} session {session} "
+                   f"process {boot} seen with this pid [name {entry['name']}]")
+        out.append('   process told apart by: ' + '; '.join(entry['boot_evidence'])
+                   + ('' if entry['title'] != 'unknown' else '; no CONFIG_LAYERS precedes the start of this session in the files: title unknown')
+                   + ('' if entry['title_certain'] or entry['title'] == 'unknown' else
+                      f"; TITLE NOT CERTAIN: the first line of this session in the files is window {entry['first_window_seen']}, so the "
+                      'CONFIG_LAYERS before it may belong to the next boot (add the file that holds its first window)'))
+        if entry['boot_ambiguous'] or entry['launches_sharing_pid_and_session'] > 1:
+            out.append(f"   BOOT AMBIGUITY: {entry['launches_sharing_pid_and_session']} processes share pid {pid} and session {session} in these files"
+                       + ('; this one is told apart by its window numbers only, so its title is not established and it is never compared'
+                          if entry['boot_ambiguous'] else '; name it with #launch'))
+        if entry['unattached'] or entry['lines_without_session_or_window']:
+            out.append(f"   unattached lines (kept, joined to no window): {len(entry['unattached'])} naming this session"
+                       + ''.join(f" [{row['kind']} {row['_origin']}]" for row in entry['unattached'][:6])
+                       + f"; {len(entry['lines_without_session_or_window'])} naming no session in this launch")
         config = entry['config']
         out.append('   config: ' + (' '.join(f'{k}={config[k]}' for k in ('accurate_res', 'rsx_res', 'frame_limit', 'max_spurs', 'ppu_decoder', 'levers627') if k in config) or 'absent'))
         out.append('   levers: ' + ' '.join(f'{k}={v}' for k, v in levers(config.get('levers627')).items()))
@@ -387,7 +505,7 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             out.append(f'   windows {len(entry["windows"])}, with frames {len(fps)}: wall fps median {statistics.median(fps):.2f} min {min(fps):.2f} max {max(fps):.2f}')
         out.append('   window phase ' + ' '.join(name for name, _, _ in COLUMNS))
         for window, data in sorted(entry['windows'].items()):
-            out.append(f'   {window:>4} {phase(entry, window, data)} ' + ' '.join(value(data, kind, key) for _, kind, key in COLUMNS) +
+            out.append(f'   {window:>4} {phase(entry, window, data)} ' + ' '.join(value(data, kind, key, bool(entry['journal_losses'])) for _, kind, key in COLUMNS) +
                        f"   [{data.get('FRAMEPROF527', data.get('GPUTIME621', {})).get('_origin', '-')}]")
         for episode in entry['freeze_episodes']:
             out.append(f"   freeze episode {episode.get('episode')} {episode['edge']} no_frames_s={episode.get('no_frames_s')} outcome={episode.get('outcome')} [{episode['origin']}]")
@@ -406,7 +524,9 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
         for number_, capture in sorted(entry['putllc_traces'].items()):
             summary = putllc_summary(capture)
             out.append(f"   heavy PUTLLC capture {number_} [{summary['origin']}] armed after window {summary['armed_after_window']}; complete={summary['complete']} "
-                       f"(lines {summary['lines_received']}/{summary['lines_declared']}) end={summary['begin'].get('end')} threads_dropped={summary['begin'].get('threads_dropped')}")
+                       f"(lines {summary['lines_received']}/{summary['lines_declared']}) end={summary['begin'].get('end')} generation={summary['generation']} "
+                       f"threads_dropped={summary['threads_dropped']} after_full={summary['after_full']} "
+                       f"events_of_an_earlier_capture_rejected={summary['stale_rejected']}")
             for thread, data in summary['threads'].items():
                 out.append(f"      thread {thread}: {data['events']}/{data['declared']} events, sequence without hole: {data['sequence_without_hole']}, not recorded after full: {data['after_full']}, "
                            f"results {data['results']}, stores of a value read within the 4 previous stores: {data['stored_writing_a_value_this_thread_read_within_its_4_previous_stores']}")
@@ -425,12 +545,38 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
     return '\n'.join(out)
 
 
-def compare(sessions: dict, left: tuple, right: tuple) -> str:
-    a, b = sessions.get(left), sessions.get(right)
-    if not a or not b:
-        return 'comparison refused: a side is absent from the files'
+def find(sessions: dict, name: str):
+    """An entry by its name PID:SESSION or PID:SESSION#LAUNCH; (entry, refusal)."""
+    where, _, boot = name.partition('#')
+    pid, _, session = where.partition(':')
+    if not (pid.isdigit() and session.isdigit() and (not boot or boot.isdigit())):
+        return None, f'{name} is not PID:SESSION or PID:SESSION#LAUNCH'
+    matches = [entry for (p_, b_, s_), entry in sessions.items() if (p_, s_) == (int(pid), int(session)) and (not boot or b_ == int(boot))]
+    if not matches:
+        return None, f'{name} is absent from the files'
+    if len(matches) > 1:
+        return None, (f'{len(matches)} launches share pid {pid} and session {session} in these files; name one of '
+                      + ', '.join(entry['name'] for entry in matches))
+    return matches[0], None
+
+
+def compare(sessions: dict, left: str, right: str) -> str:
+    (a, why_a), (b, why_b) = find(sessions, left), find(sessions, right)
+    if why_a or why_b:
+        return 'comparison refused: ' + (why_a or why_b)
+    if a is b:
+        pass  # a session against itself is allowed (a check of the tool)
+    for entry in (a, b):
+        if entry['boot_ambiguous']:
+            return (f"comparison refused: launch {entry['name']} is told apart from another process by its window numbers only; "
+                    'its title and settings are not established')
+    left, right = (a['pid'], a['name'].partition(':')[2]), (b['pid'], b['name'].partition(':')[2])
     if a['title'] != b['title'] or 'unknown' in (a['title'], b['title']):
         return f"comparison refused: titles differ or are unknown ({a['title']} / {b['title']})"
+    for entry in (a, b):
+        if not entry['title_certain']:
+            return (f"comparison refused: the title of {entry['name']} is not certain (its first line in the files is window "
+                    f"{entry['first_window_seen']}); add the file that holds the start of that session")
     out = [f"comparison of {a['title']}: pid {left[0]} session {left[1]} (build {a['build']}) against pid {right[0]} session {right[1]} (build {b['build']})"]
     # What differs between the two sides besides what is measured.
     keys = sorted(set(a['config']) | set(b['config']))
@@ -473,25 +619,26 @@ def main() -> int:
     parser.add_argument('--title')
     parser.add_argument('--pid', type=int)
     parser.add_argument('--session', type=int)
-    parser.add_argument('--label', action='append', default=[], help='PID:SESSION:FROM-TO=name (from the test protocol)')
-    parser.add_argument('--compare', nargs=2, metavar='PID:SESSION')
+    parser.add_argument('--label', action='append', default=[], help='PID:SESSION[#LAUNCH]:FROM-TO=name (from the test protocol)')
+    parser.add_argument('--compare', nargs=2, metavar='PID:SESSION[#LAUNCH]')
     args = parser.parse_args()
     labels = {}
     for item in args.label:
         where, name = item.split('=', 1)
         pid, session, span = where.split(':')
+        session, _, boot = session.partition('#')
         first, last = span.split('-')
-        labels[(int(pid), int(session), int(first), int(last))] = name
+        labels[(int(pid), int(session), int(boot) if boot else None, int(first), int(last))] = name
     lines, skipped, files = read(args.paths)
     sessions = analyse(lines, labels)
     select = lambda entry: ((not args.title or entry['title'] == args.title) and (args.pid is None or entry['pid'] == args.pid) and
                             (args.session is None or entry['session'] == args.session))
     print(report(sessions, skipped, files, select))
     if args.compare:
-        print(compare(sessions, *(tuple(int(part) for part in side.split(':')) for side in args.compare)))
+        print(compare(sessions, *args.compare))
     if args.json:
-        payload = {f'{pid}:{session}': {**entry, 'levers': levers(entry['config'].get('levers627')), 'putllc_traces': {k: putllc_summary(v) for k, v in entry['putllc_traces'].items()}}
-                   for (pid, session), entry in sessions.items() if select(entry)}
+        payload = {entry['name']: {**entry, 'levers': levers(entry['config'].get('levers627')), 'putllc_traces': {k: putllc_summary(v) for k, v in entry['putllc_traces'].items()}}
+                   for entry in sessions.values() if select(entry)}
         args.json.write_text(json.dumps(payload, indent=1, default=str) + '\n')
     return 0
 

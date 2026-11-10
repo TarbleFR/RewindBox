@@ -69455,10 +69455,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..cf7726c
+index 0000000..3ab3636
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,172 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -69559,6 +69559,11 @@ index 0000000..cf7726c
 +    # snapshot only.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "c7f903e345e1577dbb141a2584b1dc71bd179817bf491e785c9114d7b4dd6195")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_CAPTURE_914: SPUThread.cpp changes in the host body of do_putllc() only (the capture
++    # generation taken when an event starts and handed to record()). Same effective hash, exact snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "a1b9099f2424779aa60b9401f265e556a5073115d568f7781852128ac6d44187")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -79386,7 +79391,7 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..5b76823 100644
+index bc9ec5e..3f30608 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,22 @@
@@ -79789,7 +79794,7 @@ index bc9ec5e..5b76823 100644
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		else if (size)
-@@ -3439,6 +3603,25 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3439,6 +3603,26 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  	// Store conditionally
  	const u32 addr = args.eal & -128;
@@ -79800,6 +79805,7 @@ index bc9ec5e..5b76823 100644
 +	// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h, putllc_trace): the outcome of a data-changing accurate PUTLLC while a
 +	// capture collects, and the line as memory held it on the two paths that read it and saw a difference.
 +	u8 ios_trace_result = 0;
++	u32 ios_trace_generation = 0; // REWINDBOX_CAPTURE_914: the capture this event is prepared under
 +	bool ios_trace_observed = false;
 +	bool ios_trace_exchange = false;
 +	spu_rdata_t ios_trace_memory;
@@ -79807,7 +79813,7 @@ index bc9ec5e..5b76823 100644
 +	{
 +		if (ios_trace_result)
 +		{
-+			rpcs3::ios::capture912::putllc_trace::record(id, pc, addr, rtime, utils::get_tsc(), ios_trace_result, rdata,
++			rpcs3::ios::capture912::putllc_trace::record(ios_trace_generation, id, pc, addr, rtime, utils::get_tsc(), ios_trace_result, rdata,
 +				_ptr<spu_rdata_t>(args.lsa & 0x3ff80), ios_trace_observed ? &ios_trace_memory : nullptr);
 +		}
 +	};
@@ -79815,7 +79821,7 @@ index bc9ec5e..5b76823 100644
  
  	if ([&]()
  	{
-@@ -3450,6 +3633,66 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3634,73 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -79873,16 +79879,23 @@ index bc9ec5e..5b76823 100644
 +		}
 +
 +		// REWINDBOX_CAPTURE_912: until a later point says otherwise, this PUTLLC fails on the reservation time below.
++		// REWINDBOX_CAPTURE_914: the capture is identified here, when the event starts; record() accepts the event only
++		// while that same capture still collects.
 +		if (accurate && rpcs3::ios::capture912::putllc_trace::is_collecting() && !cmp_rdata(to_write, rdata))
 +		{
-+			ios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_time;
++			ios_trace_generation = rpcs3::ios::capture912::putllc_trace::token();
++
++			if (ios_trace_generation)
++			{
++				ios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_time;
++			}
 +		}
 +#endif
 +
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3700,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3708,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -79929,7 +79942,7 @@ index bc9ec5e..5b76823 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3738,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3746,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -79944,7 +79957,7 @@ index bc9ec5e..5b76823 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3503,29 +3759,78 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3503,29 +3767,78 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (!_ok)
  		{
@@ -80025,7 +80038,7 @@ index bc9ec5e..5b76823 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3537,6 +3842,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3537,6 +3850,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  					{
  						return true;
  					}
@@ -80035,7 +80048,7 @@ index bc9ec5e..5b76823 100644
  				}
  				else
  				{
-@@ -3545,13 +3853,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3545,13 +3861,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  				}
  			}
  
@@ -80108,7 +80121,7 @@ index bc9ec5e..5b76823 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3946,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3954,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -80119,7 +80132,7 @@ index bc9ec5e..5b76823 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +4002,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +4010,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -80128,7 +80141,7 @@ index bc9ec5e..5b76823 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +4011,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +4019,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -80148,7 +80161,7 @@ index bc9ec5e..5b76823 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +4098,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +4106,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -80162,7 +80175,7 @@ index bc9ec5e..5b76823 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +4113,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +4121,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -80172,7 +80185,7 @@ index bc9ec5e..5b76823 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4270,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4278,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -80190,7 +80203,7 @@ index bc9ec5e..5b76823 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4338,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4346,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -80201,7 +80214,7 @@ index bc9ec5e..5b76823 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4263,8 +4661,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
+@@ -4263,8 +4669,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
  	return busy_waiting_switch;
  }
  
@@ -80249,7 +80262,7 @@ index bc9ec5e..5b76823 100644
  	// Stall infinitely if MFC queue is full
  	while (mfc_size >= 16) [[unlikely]]
  	{
-@@ -4273,11 +4710,57 @@ bool spu_thread::process_mfc_cmd()
+@@ -4273,11 +4718,57 @@ bool spu_thread::process_mfc_cmd()
  
  		if (test_stopped())
  		{
@@ -80309,7 +80322,7 @@ index bc9ec5e..5b76823 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4288,11 +4771,76 @@ bool spu_thread::process_mfc_cmd()
+@@ -4288,11 +4779,76 @@ bool spu_thread::process_mfc_cmd()
  
  		if (is_stopped(old))
  		{
@@ -80387,7 +80400,7 @@ index bc9ec5e..5b76823 100644
  
  	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
  	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
-@@ -4306,6 +4854,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4862,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -80413,7 +80426,7 @@ index bc9ec5e..5b76823 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4882,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4890,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -80422,7 +80435,7 @@ index bc9ec5e..5b76823 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4922,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4930,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -80438,7 +80451,7 @@ index bc9ec5e..5b76823 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4940,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4948,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -80447,7 +80460,7 @@ index bc9ec5e..5b76823 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +5014,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +5022,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -80456,7 +80469,7 @@ index bc9ec5e..5b76823 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +5025,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +5033,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -80475,7 +80488,7 @@ index bc9ec5e..5b76823 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +5057,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +5065,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -80487,7 +80500,7 @@ index bc9ec5e..5b76823 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +5112,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +5120,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -80503,7 +80516,7 @@ index bc9ec5e..5b76823 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +5131,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +5139,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -80512,7 +80525,7 @@ index bc9ec5e..5b76823 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +5149,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +5157,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -80528,7 +80541,7 @@ index bc9ec5e..5b76823 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +5262,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +5270,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -80537,7 +80550,7 @@ index bc9ec5e..5b76823 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5680,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5688,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80546,7 +80559,7 @@ index bc9ec5e..5b76823 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5688,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5696,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -80562,7 +80575,7 @@ index bc9ec5e..5b76823 100644
  		}
  	}
  
-@@ -5163,7 +5768,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5776,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -80571,7 +80584,7 @@ index bc9ec5e..5b76823 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5776,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5784,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80580,7 +80593,7 @@ index bc9ec5e..5b76823 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5849,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5857,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -80589,7 +80602,7 @@ index bc9ec5e..5b76823 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5957,7 @@ retry:
+@@ -5352,6 +5965,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -80597,7 +80610,7 @@ index bc9ec5e..5b76823 100644
  		}
  	}
  
-@@ -5400,29 +6006,155 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +6014,155 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -80685,7 +80698,7 @@ index bc9ec5e..5b76823 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
- 			}
++			}
 +			for (const auto& e : due_entries)
 +			{
 +				// Retain the thread while publishing work, outside the timer lock.
@@ -80700,7 +80713,7 @@ index bc9ec5e..5b76823 100644
 +						spu->cpu_thread::notify();
 +					}
 +				}
-+			}
+ 			}
 +			due_entries.clear();
  		}
  	}
@@ -80765,7 +80778,7 @@ index bc9ec5e..5b76823 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6492,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6500,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -80782,7 +80795,7 @@ index bc9ec5e..5b76823 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6532,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6540,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -80791,7 +80804,7 @@ index bc9ec5e..5b76823 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6669,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6677,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -80800,7 +80813,7 @@ index bc9ec5e..5b76823 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6689,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6697,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80809,7 +80822,7 @@ index bc9ec5e..5b76823 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6769,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6777,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80818,7 +80831,7 @@ index bc9ec5e..5b76823 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6796,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6804,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -80833,7 +80846,7 @@ index bc9ec5e..5b76823 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +7200,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +7208,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -80843,7 +80856,7 @@ index bc9ec5e..5b76823 100644
  		return true;
  	}
  
-@@ -6479,6 +7230,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +7238,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -80852,7 +80865,7 @@ index bc9ec5e..5b76823 100644
  		return true;
  	}
  
-@@ -6509,6 +7262,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +7270,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -121191,10 +121204,10 @@ index 0000000..317bb2e
 +}
 diff --git a/rpcs3/ios/IOSCapture912.h b/rpcs3/ios/IOSCapture912.h
 new file mode 100644
-index 0000000..657821c
+index 0000000..bab9a4d
 --- /dev/null
 +++ b/rpcs3/ios/IOSCapture912.h
-@@ -0,0 +1,548 @@
+@@ -0,0 +1,644 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -121289,6 +121302,7 @@ index 0000000..657821c
 +inline std::atomic<std::uint32_t> g_writers{0};
 +inline std::atomic<std::uint32_t> g_threads_dropped{0}; // threads beyond max_threads
 +inline std::atomic<event*> g_events{nullptr};
++inline std::atomic<std::uint32_t> g_stale_rejected{0};  // events prepared under an earlier capture, refused by this one
 +inline std::atomic<std::uint64_t> g_start_tsc{0};       // the time base of a capture: every thread's events refer to it
 +inline std::array<slot, max_threads> g_slots{};
 +
@@ -121325,6 +121339,7 @@ index 0000000..657821c
 +
 +	g_slots_used.store(0, std::memory_order_relaxed);
 +	g_threads_dropped.store(0, std::memory_order_relaxed);
++	g_stale_rejected.store(0, std::memory_order_relaxed);
 +	g_start_tsc.store(now_tsc, std::memory_order_relaxed);
 +	g_generation.fetch_add(1, std::memory_order_release);
 +	g_state.store(collecting, std::memory_order_release);
@@ -121372,9 +121387,24 @@ index 0000000..657821c
 +	return true;
 +}
 +
-+// SPU thread, after its PUTLLC decided. snapshot/written: the 128 bytes of the reservation copy and of the
++// SPU thread, when it starts to prepare an event (REWINDBOX_CAPTURE_914): the identity of the capture collecting
++// now, or 0. The event is recorded only by that same capture: a thread held between its PUTLLC and record() while
++// the capture is exported and another one starts must not leave its old event in the new capture.
++inline std::uint32_t token() noexcept
++{
++	const std::uint32_t generation = g_generation.load(std::memory_order_seq_cst);
++
++	if (g_state.load(std::memory_order_seq_cst) != collecting || g_generation.load(std::memory_order_seq_cst) != generation)
++	{
++		return 0;
++	}
++
++	return generation;
++}
++
++// SPU thread, after its PUTLLC decided. generation: what token() gave when the event was prepared. snapshot/written: the 128 bytes of the reservation copy and of the
 +// write-back; observed: the 128 bytes of memory copied at the decision, or null when the path did not read them.
-+inline void record(std::uint32_t thread_id, std::uint32_t pc, std::uint32_t addr, std::uint64_t rtime, std::uint64_t tsc,
++inline void record(std::uint32_t generation, std::uint32_t thread_id, std::uint32_t pc, std::uint32_t addr, std::uint64_t rtime, std::uint64_t tsc,
 +	std::uint8_t outcome, const void* snapshot, const void* written, const void* observed) noexcept
 +{
 +	g_writers.fetch_add(1, std::memory_order_seq_cst);
@@ -121389,9 +121419,16 @@ index 0000000..657821c
 +		return;
 +	}
 +
++	// The capture collecting now is not the one this event was prepared under (start() moves the generation before it
++	// lets writers in): the event is refused and counted, never stored.
++	if (!generation || g_generation.load(std::memory_order_seq_cst) != generation)
++	{
++		g_stale_rejected.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++
 +	static thread_local std::uint32_t t_generation = 0;
 +	static thread_local std::uint32_t t_slot = ~0u;
-+	const std::uint32_t generation = g_generation.load(std::memory_order_acquire);
 +
 +	if (t_generation != generation)
 +	{
@@ -121532,7 +121569,7 @@ index 0000000..657821c
 +	std::vector<std::string> lines;
 +	const std::uint32_t used = std::min<std::uint32_t>(g_slots_used.load(std::memory_order_acquire), static_cast<std::uint32_t>(max_threads));
 +	const event* events = g_events.load(std::memory_order_acquire);
-+	char head[320];
++	char head[512];
 +	std::uint64_t total = 0, lost = 0;
 +
 +	for (std::uint32_t i = 0; i < used; i++)
@@ -121541,11 +121578,12 @@ index 0000000..657821c
 +		lost += g_slots[i].after_full.load(std::memory_order_relaxed);
 +	}
 +
-+	std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=begin threads=%u threads_dropped=%u events=%llu "
++	std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=begin generation=%u stale_rejected=%u threads=%u threads_dropped=%u events=%llu "
 +		"after_full=%llu capacity=%zu elapsed_us=%llu end=%s scope=accurate_data_changing_putllc order=per_thread "
 +		"time_base=capture_start t0_us=first_event_of_the_line "
 +		"fields=dt_us:pc:addr:result:lanes:lane:rtime:snapshot:written:observed",
-+		static_cast<unsigned long long>(session), capture, used, g_threads_dropped.load(std::memory_order_relaxed),
++		static_cast<unsigned long long>(session), capture, g_generation.load(std::memory_order_relaxed),
++		g_stale_rejected.load(std::memory_order_relaxed), used, g_threads_dropped.load(std::memory_order_relaxed),
 +		static_cast<unsigned long long>(total), static_cast<unsigned long long>(lost), capacity,
 +		static_cast<unsigned long long>(elapsed_us), end_reason);
 +	lines.emplace_back(head);
@@ -121572,10 +121610,21 @@ index 0000000..657821c
 +				// thread share one time base (each event is stamped when it is recorded, after its PUTLLC decided).
 +				const std::uint64_t base = g_start_tsc.load(std::memory_order_relaxed);
 +				const std::uint64_t stamp = events[i * capacity + first].tsc;
-+				const std::uint64_t t0 = tsc_hz && stamp >= base ? (stamp - base) * 1'000'000ull / tsc_hz : 0;
++				// A stamp before the start of the capture is said so, never shown as time 0.
++				char t0[32];
++
++				if (tsc_hz && stamp >= base)
++				{
++					std::snprintf(t0, sizeof(t0), "%llu", static_cast<unsigned long long>((stamp - base) * 1'000'000ull / tsc_hz));
++				}
++				else
++				{
++					std::snprintf(t0, sizeof(t0), "before_start");
++				}
++
 +				std::snprintf(head, sizeof(head), "COREPROF PUTLLCTRACE912 session=%llu capture=%u part=events thread=0x%x first=%u last=%u of=%u "
-+					"after_full=%u t0_us=%llu ev=", static_cast<unsigned long long>(session), capture, g_slots[i].thread_id, first, n - 1, count,
-+					g_slots[i].after_full.load(std::memory_order_relaxed), static_cast<unsigned long long>(t0));
++					"after_full=%u t0_us=%s ev=", static_cast<unsigned long long>(session), capture, g_slots[i].thread_id, first, n - 1, count,
++					g_slots[i].after_full.load(std::memory_order_relaxed), t0);
 +				lines.emplace_back(head + line);
 +				line.clear();
 +				first = n;
@@ -121742,6 +121791,66 @@ index 0000000..657821c
 +	ppu.store(false, std::memory_order_release);
 +}
 +} // namespace start_request
++
++// What the diagnostic thread keeps per boot (REWINDBOX_CAPTURE_914): the limits belong to one boot session, and a
++// request that cannot be served has a reason.
++struct boot_limits
++{
++	std::uint64_t session = ~0ull;
++	std::uint32_t putllc = 0; // captures started in this boot
++	std::uint32_t ppu = 0;
++
++	// True when `now` is another boot: the limits start again and a request left by the previous game is dropped.
++	bool enter(std::uint64_t now) noexcept
++	{
++		if (now == session)
++		{
++			return false;
++		}
++
++		session = now;
++		putllc = 0;
++		ppu = 0;
++		start_request::clear();
++		return true;
++	}
++};
++
++enum class refusal : std::uint8_t { none, limit_per_boot, previous_capture_not_exported };
++
++inline const char* refusal_name(refusal why) noexcept
++{
++	return why == refusal::limit_per_boot ? "limit_per_boot" : why == refusal::previous_capture_not_exported ? "previous_capture_not_exported" : "none";
++}
++
++// Diagnostic thread: serve one start request of the heavy PUTLLC trace. On refusal::none the capture collects and
++// boot.putllc is its number in this boot.
++inline refusal serve_putllc(boot_limits& boot, std::uint64_t now_tsc) noexcept
++{
++	if (boot.putllc >= putllc_trace::max_captures)
++	{
++		return refusal::limit_per_boot;
++	}
++
++	if (!putllc_trace::start(now_tsc))
++	{
++		return refusal::previous_capture_not_exported;
++	}
++
++	boot.putllc++;
++	return refusal::none;
++}
++
++// Diagnostic thread: may a PPU region profile start? The caller starts it and counts it on refusal::none.
++inline refusal admit_ppu(const boot_limits& boot, bool previous_still_running) noexcept
++{
++	if (previous_still_running)
++	{
++		return refusal::previous_capture_not_exported;
++	}
++
++	return boot.ppu >= ppu_profile::max_captures ? refusal::limit_per_boot : refusal::none;
++}
 +} // namespace rpcs3::ios::capture912
 diff --git a/rpcs3/ios/IOSCompileAdmission.h b/rpcs3/ios/IOSCompileAdmission.h
 new file mode 100644
@@ -136646,10 +136755,10 @@ index 8fba197..c135e3e 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..8453ee6
+index 0000000..a3de958
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,914 @@
+@@ -0,0 +1,909 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -137280,8 +137389,7 @@ index 0000000..8453ee6
 +{
 +namespace capture = rpcs3::ios::capture912;
 +
-+u64 s_capture_session = ~0ull;  // the boot session the limits below belong to
-+u32 s_putllc_captures = 0;      // captures armed in this boot session
++capture::boot_limits s_boot;    // the boot session and the captures started in it
 +u32 s_putllc_number = 0;        // the capture in progress: its number and the boot session that armed it
 +u64 s_putllc_session = 0;
 +u64 s_putllc_started_us = 0;
@@ -137385,7 +137493,6 @@ index 0000000..8453ee6
 +};
 +
 +ppu_sampling* s_ppu = nullptr; // one capture at a time; deleted by the diagnostic thread after the join
-+u32 s_ppu_captures = 0;
 +
 +void emit_ppu_profile(ppu_sampling& run)
 +{
@@ -137427,14 +137534,10 @@ index 0000000..8453ee6
 +	const bool running = status == system_state::running;
 +	namespace trace = capture::putllc_trace;
 +
-+	if (session != s_capture_session)
++	if (s_boot.enter(session))
 +	{
 +		// Another boot: the per-boot limits start again, a start request of the previous game starts nothing, and a
 +		// capture of the previous boot ends now; it is exported under the session that started it.
-+		s_capture_session = session;
-+		capture::start_request::clear();
-+		s_putllc_captures = 0;
-+		s_ppu_captures = 0;
 +
 +		if (trace::is_collecting())
 +		{
@@ -137457,20 +137560,19 @@ index 0000000..8453ee6
 +	// Heavy PUTLLC trace.
 +	if (start_putllc)
 +	{
-+		if (s_putllc_captures >= trace::max_captures)
++		const capture::refusal why = capture::serve_putllc(s_boot, utils::get_tsc());
++
++		if (why != capture::refusal::none)
 +		{
-+			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu part=refused reason=limit_per_boot max=%u", session, trace::max_captures);
-+		}
-+		else if (!trace::start(utils::get_tsc()))
-+		{
-+			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu part=refused reason=previous_capture_not_exported", session);
++			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu part=refused reason=%s max=%u", session, capture::refusal_name(why),
++				trace::max_captures);
 +		}
 +		else
 +		{
 +			putllc_started = true;
 +			s_putllc_started_us = get_system_time();
 +			s_putllc_session = session;
-+			s_putllc_number = ++s_putllc_captures;
++			s_putllc_number = s_boot.putllc;
 +			ios_freeze_dump.notice("COREPROF PUTLLCTRACE912 session=%llu capture=%u part=armed trigger=menu_closed capacity=%u max_threads=%u max_ms=%u",
 +				s_putllc_session, s_putllc_number, static_cast<u32>(trace::capacity), static_cast<u32>(trace::max_threads),
 +				static_cast<u32>(trace::max_capture_ns / 1'000'000));
@@ -137506,7 +137608,8 @@ index 0000000..8453ee6
 +	{
 +		if (start_ppu)
 +		{
-+			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=previous_capture_not_exported", session);
++			ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u", session,
++				capture::refusal_name(capture::admit_ppu(s_boot, true)), capture::ppu_profile::max_captures);
 +		}
 +
 +		if (!running)
@@ -137522,9 +137625,10 @@ index 0000000..8453ee6
 +			s_ppu = nullptr;
 +		}
 +	}
-+	else if (start_ppu && s_ppu_captures >= capture::ppu_profile::max_captures)
++	else if (start_ppu && capture::admit_ppu(s_boot, false) != capture::refusal::none)
 +	{
-+		ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=limit_per_boot max=%u", session, capture::ppu_profile::max_captures);
++		ios_freeze_dump.notice("COREPROF PPUPROF912 session=%llu part=refused reason=%s max=%u", session,
++			capture::refusal_name(capture::admit_ppu(s_boot, false)), capture::ppu_profile::max_captures);
 +	}
 +	else if (start_ppu)
 +	{
@@ -137550,7 +137654,7 @@ index 0000000..8453ee6
 +		{
 +			run->started_us = get_system_time();
 +			run->session = session;
-+			run->number = ++s_ppu_captures;
++			run->number = ++s_boot.ppu;
 +			const u32 listed = static_cast<u32>(run->threads.size());
 +			s_ppu = run.release();
 +			s_ppu->worker = std::thread([state = s_ppu] { state->run(); });

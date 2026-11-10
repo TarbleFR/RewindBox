@@ -76,7 +76,7 @@ int main()
 
 	{ // inactive
 		make(1, 5, snap, written);
-		t::record(0x2000000, 0x2584, 0x2e20880, 0x100, 10, t::stored, snap.b, written.b, nullptr);
+		t::record(t::token(), 0x2000000, 0x2584, 0x2e20880, 0x100, 10, t::stored, snap.b, written.b, nullptr);
 		CHECK(!t::is_collecting() && t::g_writers.load() == 0 && t::g_slots_used.load() == 0);
 		CHECK(!t::quiescent() && !t::full());
 		scenarios++;
@@ -93,7 +93,7 @@ int main()
 			const bool read = outcome >= t::failed_precheck;
 			memory = snap;
 			if (!memory_equal(outcome, n)) memory.b[memory_lane(n) * 16 + 9] ^= 0x5a;
-			t::record(0x2000003, 0x2584 + n % 3, 0x2e20880 + 128 * (n % 2), 0x1000 + n, 1'000'000 + n * 7000ull, outcome, snap.b, written.b, read ? memory.b : nullptr);
+			t::record(t::token(), 0x2000003, 0x2584 + n % 3, 0x2e20880 + 128 * (n % 2), 0x1000 + n, 1'000'000 + n * 7000ull, outcome, snap.b, written.b, read ? memory.b : nullptr);
 		}
 		CHECK(t::g_slots_used.load() == 1 && t::g_slots[0].count.load() == t::capacity && t::g_slots[0].after_full.load() == 88 && t::full());
 		const t::event* e = t::g_events.load();
@@ -172,7 +172,7 @@ int main()
 					// that is still filling: the concurrent read is part of the scenario, not a scheduling accident.
 					while (n == 350 && !polls.load()) std::this_thread::yield();
 					make(0x40 + id, n, s, w);
-					t::record(0x2000000 + id, 0x2600, 0x2e20c00, n, n, t::stored, s.b, w.b, nullptr);
+					t::record(t::token(), 0x2000000 + id, 0x2600, 0x2e20c00, n, n, t::stored, s.b, w.b, nullptr);
 				}
 			});
 		}
@@ -224,7 +224,7 @@ int main()
 		t::stop();
 		CHECK(!t::is_collecting() && t::quiescent());
 		make(9, 1, snap, written);
-		t::record(0x2000009, 1, 2, 3, 4, t::stored, snap.b, written.b, nullptr);
+		t::record(t::token(), 0x2000009, 1, 2, 3, 4, t::stored, snap.b, written.b, nullptr);
 		CHECK(t::g_slots[0].after_full.load() == 700 - t::capacity); // nothing recorded, nothing counted after stop
 		CHECK(t::g_threads_dropped.load() == 2 && t::g_slots_used.load() == t::max_threads); // and no slot asked for
 		t::g_writers.fetch_add(1);
@@ -232,7 +232,7 @@ int main()
 		t::g_writers.fetch_sub(1);
 		t::release();
 		CHECK(t::start() && t::g_slots_used.load() == 0 && t::g_slots[0].count.load() == 0 && t::g_threads_dropped.load() == 0);
-		t::record(0x2000042, 1, 2, 3, 4, t::failed_time, snap.b, written.b, nullptr);
+		t::record(t::token(), 0x2000042, 1, 2, 3, 4, t::failed_time, snap.b, written.b, nullptr);
 		CHECK(t::g_slots_used.load() == 1 && t::g_slots[0].thread_id == 0x2000042 && t::g_slots[0].count.load() == 1 && !t::full());
 		std::vector<std::string> lines;
 		drain("time", &lines);
@@ -282,6 +282,73 @@ int main()
 		scenarios++;
 	}
 
+	{ // REWINDBOX_CAPTURE_914: an event prepared under one capture never enters another
+		// The 10 Nov counterexample: capture A collects, a thread prepares an event and is held before record(); A is
+		// stopped and exported; capture B starts; the thread resumes.
+		CHECK(t::token() == 0); // nothing collects: no identity, and such an event stores nothing
+		CHECK(t::start(1000));
+		const std::uint32_t held = t::token();
+		CHECK(held != 0 && held == t::token());
+		make(7, 1, snap, written);
+		std::vector<std::string> lines;
+		drain("time", &lines); // A exported with no event; idle again
+		CHECK(lines.front().find("events=0") != std::string::npos && lines.front().find("stale_rejected=0") != std::string::npos);
+		t::record(held, 0x2000007, 0x2584, 0x2e20880, 0x77, 500, t::stored, snap.b, written.b, nullptr); // between captures: nothing
+		CHECK(t::g_stale_rejected.load() == 0 && t::g_writers.load() == 0);
+		CHECK(t::start(9000));
+		const std::uint32_t fresh = t::token();
+		CHECK(fresh != 0 && fresh != held);
+		t::record(held, 0x2000007, 0x2584, 0x2e20880, 0x77, 500, t::stored, snap.b, written.b, nullptr); // the held thread resumes in B
+		CHECK(t::g_slots_used.load() == 0 && t::g_slots[0].count.load() == 0 && t::g_stale_rejected.load() == 1);
+		t::record(0, 0x2000007, 0x2584, 0x2e20880, 0x78, 9500, t::stored, snap.b, written.b, nullptr); // prepared while nothing collected
+		CHECK(t::g_slots_used.load() == 0 && t::g_stale_rejected.load() == 2);
+		t::record(fresh, 0x2000008, 0x2584, 0x2e20880, 0x79, 9600, t::stored, snap.b, written.b, nullptr); // B's own event
+		CHECK(t::g_slots_used.load() == 1 && t::g_slots[0].count.load() == 1 && t::g_slots[0].thread_id == 0x2000008);
+		// A writer still in its path when the capture stops: its event is not stored and the export waits for nobody.
+		const std::uint32_t late = t::token();
+		t::stop();
+		CHECK(t::token() == 0);
+		t::record(late, 0x2000008, 0x2584, 0x2e20880, 0x7a, 9700, t::stored, snap.b, written.b, nullptr);
+		CHECK(t::g_slots[0].count.load() == 1 && t::quiescent());
+		lines = t::format_capture(2, 7, 1'000'000'000ull, 1, "time");
+		t::release();
+		CHECK(lines.front().find(" events=1 ") != std::string::npos && lines.front().find("stale_rejected=2") != std::string::npos &&
+			lines.front().find("generation=") != std::string::npos);
+		unsigned generation = 0;
+		CHECK(std::sscanf(lines.front().c_str() + lines.front().find(" generation="), " generation=%u", &generation) == 1 && generation == fresh);
+		// A stamp before the start of its capture is said so, never shown as time 0.
+		CHECK(t::start(5'000'000));
+		t::record(t::token(), 0x2000009, 0x2584, 0x2e20880, 0x7b, 1'000'000, t::stored, snap.b, written.b, nullptr);
+		drain("time", &lines);
+		CHECK(lines.size() == 3 && lines[1].find(" t0_us=before_start ") != std::string::npos && lines.front().find("stale_rejected=0") != std::string::npos);
+		scenarios++;
+	}
+
+	{ // REWINDBOX_CAPTURE_914: limits per boot, refusals with their reason, another game
+		c::boot_limits boot;
+		CHECK(boot.enter(1) && !boot.enter(1));
+		CHECK(c::serve_putllc(boot, 100) == c::refusal::none && boot.putllc == 1 && t::is_collecting());
+		CHECK(c::serve_putllc(boot, 200) == c::refusal::previous_capture_not_exported && boot.putllc == 1); // still collecting
+		t::stop();
+		CHECK(c::serve_putllc(boot, 200) == c::refusal::previous_capture_not_exported); // stopped, not exported yet
+		drain("time");
+		CHECK(c::serve_putllc(boot, 300) == c::refusal::none && boot.putllc == 2);
+		drain("time");
+		CHECK(c::serve_putllc(boot, 400) == c::refusal::limit_per_boot && boot.putllc == 2 && !t::is_collecting());
+		CHECK(std::string(c::refusal_name(c::refusal::limit_per_boot)) == "limit_per_boot" &&
+			std::string(c::refusal_name(c::refusal::previous_capture_not_exported)) == "previous_capture_not_exported");
+		boot.ppu = c::ppu_profile::max_captures;
+		CHECK(c::admit_ppu(boot, false) == c::refusal::limit_per_boot && c::admit_ppu(boot, true) == c::refusal::previous_capture_not_exported);
+		// Another game: the limits start again and a request left by the previous game is dropped.
+		t::armed.store(true);
+		CHECK(c::start_request::offer("experimental.heavy_putllc_trace", "Enabled"));
+		CHECK(boot.enter(2) && boot.putllc == 0 && boot.ppu == 0 && !c::start_request::take(c::start_request::putllc, true));
+		CHECK(c::admit_ppu(boot, false) == c::refusal::none && c::serve_putllc(boot, 500) == c::refusal::none && boot.putllc == 1);
+		if (t::is_collecting()) drain("time"); // a wrong refusal above must fail the check, not hang the test
+		t::armed.store(false);
+		scenarios++;
+	}
+
 	std::printf("{\"scenarios\": %u, \"failures\": %d, \"event_bytes\": %zu, \"buffer_bytes\": %zu}\n", scenarios, failures, sizeof(t::event),
 		sizeof(t::event) * t::capacity * t::max_threads);
 	return failures ? 1 : 0;
@@ -295,6 +362,12 @@ MUTATIONS = [
      '\tif (key == "experimental.heavy_putllc_trace")\n', False),
     ('request_kept_while_stopped', '\treturn request.exchange(false, std::memory_order_acq_rel) && running;\n',
      '\treturn running && request.exchange(false, std::memory_order_acq_rel);\n', False),
+    ('stale_event_accepted', '\tif (!generation || g_generation.load(std::memory_order_seq_cst) != generation)\n\t{\n'
+     '\t\tg_stale_rejected.fetch_add(1, std::memory_order_relaxed);\n\t\treturn;\n\t}\n', '', False),
+    ('token_outside_a_capture', '\tif (g_state.load(std::memory_order_seq_cst) != collecting || g_generation.load(std::memory_order_seq_cst) != generation)\n',
+     '\tif (false)\n', False),
+    ('limits_kept_across_boots', '\t\tputllc = 0;\n', '', False),
+    ('no_limit_per_boot', '\tif (boot.putllc >= putllc_trace::max_captures)\n\t{\n\t\treturn refusal::limit_per_boot;\n\t}\n', '', False),
     ('no_time_base', '\tg_start_tsc.store(now_tsc, std::memory_order_relaxed);\n', '', False),
     ('copy_not_marked_read', '\t\te.observed_read = 1;\n', '', False),
     ('lane_shown_not_recorded', '\t\t\te.observed_lane = static_cast<std::uint8_t>(shown);\n', '', False),
@@ -343,17 +416,22 @@ def static_checks(source: Path) -> None:
     # The precheck of a collecting capture decides on the copy it records: one read of the line, no second one.
     precheck = body[body.index('if (ios_trace_result)\n\t\t\t{\n\t\t\t\tmov_rdata(ios_trace_memory, super_data);'):body.index('else if (!cmp_rdata(rdata, super_data))')]
     require(precheck.count('super_data') == 1 and 'ios_trace_observed = true;' in precheck and 'return false;' in precheck, 'precheck: copy once, compare the copy')
-    require('rpcs3::ios::capture912::putllc_trace::record(id, pc, addr, rtime, utils::get_tsc(), ios_trace_result, rdata,\n'
+    require('rpcs3::ios::capture912::putllc_trace::record(ios_trace_generation, id, pc, addr, rtime, utils::get_tsc(), ios_trace_result, rdata,\n'
             '\t\t\t\t_ptr<spu_rdata_t>(args.lsa & 0x3ff80), ios_trace_observed ? &ios_trace_memory : nullptr);' in body, 'the record call')
+    # REWINDBOX_CAPTURE_914: the capture's identity is taken when the event starts and handed to record().
+    token = 'ios_trace_generation = rpcs3::ios::capture912::putllc_trace::token();\n\n\t\t\tif (ios_trace_generation)\n\t\t\t{\n\t\t\t\tios_trace_result = rpcs3::ios::capture912::putllc_trace::failed_time;'
+    require(body.count(token) == 1 and body.count('ios_trace_generation') == 4 and
+            body.index('putllc_trace::is_collecting()') < body.index(token) < body.index('vm::reservation_acquire(addr);'), 'the generation is taken where the event starts')
     dump = (source / 'rpcs3/ios/RPCS3IOSFreezeDump.cpp').read_text()
-    for needle in ('void rewindbox_capture912_tick(unsigned long long session)', 'trace::start(utils::get_tsc())', 'trace::stop();', 'trace::quiescent()',
+    for needle in ('void rewindbox_capture912_tick(unsigned long long session)', 'trace::stop();', 'trace::quiescent()',
                    'trace::format_capture(s_putllc_number, s_putllc_session,', 'trace::release();',
                    'capture::start_request::take(capture::start_request::putllc, running)',
                    'capture::start_request::take(capture::start_request::ppu, running)',
-                   'if (session != s_capture_session)', 'capture::start_request::clear();', 's_putllc_end = "session_change";',
-                   'part=armed trigger=menu_closed', 'part=refused reason=limit_per_boot', 'part=refused reason=previous_capture_not_exported',
+                   'if (s_boot.enter(session))', 'capture::serve_putllc(s_boot, utils::get_tsc())', 's_putllc_end = "session_change";',
+                   'part=armed trigger=menu_closed', 'COREPROF PUTLLCTRACE912 session=%llu part=refused reason=%s', 'COREPROF PPUPROF912 session=%llu part=refused reason=%s',
+                   'capture::admit_ppu(s_boot, true)', 'capture::admit_ppu(s_boot, false) != capture::refusal::none',
                    'part=refused reason=thread_list_unavailable',
-                   's_putllc_number = ++s_putllc_captures;', 'run->number = ++s_ppu_captures;', 'run->session = session;',
+                   's_putllc_number = s_boot.putllc;', 'run->number = ++s_boot.ppu;', 'run->session = session;',
                    'COREPROF PPUPROF912 session=%llu capture=%u part=thread', 'fifo_pos=0x%x last_cmd=0x%x args_left=%u',
                    'semaphores.size() >= 32', 'std::stable_partition(semaphores.begin(), semaphores.end()'):
         require(needle in dump, 'diagnostic thread: ' + needle)
@@ -361,7 +439,7 @@ def static_checks(source: Path) -> None:
             'stop, quiescent, export, release')
     # A new boot resets the limits and drops a pending request before requests are consulted; the worker releases the PPU thread
     # objects itself before it reports done.
-    require(dump.index('if (session != s_capture_session)') < dump.index('capture::start_request::take('), 'session reset before the requests')
+    require(dump.index('if (s_boot.enter(session))') < dump.index('capture::start_request::take('), 'session reset before the requests')
     require('system_state::paused' not in dump[dump.index('void rewindbox_capture912_tick('):], 'no start depends on a pause: the host menu does not pause the emulation')
     # The settings API: the request is recognised for the running title only, before the idle contract refuses the write,
     # and that branch returns without loading or saving anything.
@@ -413,6 +491,8 @@ def static_checks(source: Path) -> None:
     dismissed = dismissed[:dismissed.index('};')]
     require('bridge.hostMenuOpen = NO;' in dismissed and dismissed.index('[bridge publishHostState];') < dismissed.index('[bridge requestEnabledCaptures];'),
             'host: the request leaves when the menu is dismissed')
+    require('const BOOL wasOpen = bridge.hostMenuOpen;' in dismissed and 'if (wasOpen) [bridge requestEnabledCaptures];' in dismissed and
+            dismissed.index('const BOOL wasOpen') < dismissed.index('bridge.hostMenuOpen = NO;'), 'host: one request per closing (open to closed only)')
     require(plugin.index('static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(') < plugin.index('- (void)requestEnabledCaptures {') <
             plugin.index('[bridge requestEnabledCaptures];') and plugin.count('requestEnabledCaptures') == 2, 'host: defined once, after the helper it reads, used once')
     for index, (key, title) in enumerate((('put_epoch_horizon', 'testPutEpochHorizon'), ('heavy_putllc_trace', 'testHeavyPutllcTrace'),
@@ -442,7 +522,7 @@ def main() -> int:
             return folder
         real = variant('real', header)
         code, result, output = run(build(args.cxx, real, 'plain', ['-O2', '-Werror']))
-        require(code == 0 and result.get('failures') == 0 and result.get('scenarios') == 6, 'the collectors: ' + output)
+        require(code == 0 and result.get('failures') == 0 and result.get('scenarios') == 8, 'the collectors: ' + output)
         require(result['buffer_bytes'] <= 400 * 1024, 'the memory bound')
         report['plain'] = result
         sanitize = not args.no_sanitizers and sys.platform.startswith('linux')
