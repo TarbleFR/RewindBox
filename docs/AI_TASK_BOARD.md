@@ -271,7 +271,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
-- **Common IPA 722 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
+- **Common IPA 722 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
   (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
   - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
     thread suspended by the watch itself, no lock held while reading, ports released, six stalls at most; the four macOS
@@ -300,7 +300,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     4 x 64 MiB (IPA 721 was already 99.5 % of it; PR 169 adds about 3.9 MB). Fix `ea8152d9` (product path): four
     pieces of at most 96 MiB, test with a payload over 256 MiB (old splitter refuses it, new accepts). Refrozen
     (`b0305c6a`, effective `2528a3dc`), second request `c7ca5d37`, run `42852972508` (both groups fresh).
-  - **Next:** verify the second run, receipt, send.
+  - **State:** second request `c7ca5d37`, run `42852972508` attempt 1, five jobs green. IPA 271385645 B, SHA-256
+    `e9aad8d2c84b0e464ff1ce3e1a51b3fd0057396ee88c3ae04fedcf5dd89f245d`, build 722, `passed-offline-checks` (6 validators
+    0, 90 images); changed images: Runner, libRPCS3Core, MeloNXCore, MeloNXMoltenVKStandalone, melonx_internal_bridge,
+    and rpcs3_internal_bridge by linker stubs only (the two `objc_msgSend` slots exchanged; bind tables and GOT equal).
+    [Receipt](evidence/rewind722/delivery.json), twelve proof files with the signed inventory (can be a base); key 722
+    deleted; sent privately as a file. Not run on an iPhone; no FPS claim.
+  - **Device question (BO2, IPA 722, default settings, Lever comparison left on Automatic):** launch, play a slow scene
+    until nine minutes after the launch (or until a stop if one comes), export at once with the `.1` files. For the RAM
+    slope, a second session of at least 20 minutes, then export. These journals carry the PUTLLC storm capture, the PPU
+    region profile, ZCULLCOST920 and ZCULLWATCH660, RANGELOCKPROF (ppu_main_parked) and MEMPROF527.
 
 - **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
   Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
