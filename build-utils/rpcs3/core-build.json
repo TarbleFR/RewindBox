@@ -115,7 +115,8 @@
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-   "test/neo_swap_core_pin_test.py"
+   "test/neo_swap_core_pin_test.py",
+   "test/rpcs3_build351_gow3_engine_test.py"
   ]
  },
  "new_canonical_upstream": [
