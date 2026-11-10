@@ -62,6 +62,10 @@
     {
       "service": "Discord",
       "observed": "Automatic approval review refused opening the project invite, citing the former cleanup-only restrictions. No message sent; no alternate posting route used."
+    },
+    {
+      "service": "GitHub release API (main session)",
+      "observed": "No release-creation or asset-upload operation is available to the main session: the GitHub MCP tools only list/read releases, and the gh CLI is restricted to search in this session (its GH_TOKEN is also reported invalid). Not attempted through any other route. Exact pending action: create draft release \"RewindBox 0.0.11\", tag 0.0.11 at 34fbf8ebb6a8acacc8fccada952083db30efef56, body = docs/releases/pending-0.0.11/release-notes.md, assets RewindBox-0.0.11.ipa (263465367 B, 001957b9...), source.json, SHA256SUMS; download-verify, publish, then activate root source.json."
     }
   ],
   "checks_completed": [
@@ -94,5 +98,38 @@
     ],
     "requires_reviewed_merge": true,
     "force_push_authorized": false
+  },
+  "ipa_verification": {
+    "at": "2026-11-10",
+    "by": "main Claude Code session 012mUAShv9k6pSCnpW7oAF63",
+    "file": "RewindBox-718.ipa (to be published byte-identical as RewindBox-0.0.11.ipa)",
+    "bytes": 263465367,
+    "sha256": "001957b9dec316bad97ad19a1e1fcecaeed5c3d5168415443b7c65478623c29a",
+    "source": "34fbf8ebb6a8acacc8fccada952083db30efef56",
+    "run": 42747501121,
+    "zip": "testzip OK, 5594 entries",
+    "app": {
+      "CFBundleIdentifier": "com.neogamelab.neostation",
+      "CFBundleShortVersionString": "0.0.8",
+      "CFBundleVersion": "718",
+      "MinimumOSVersion": "18.0"
+    },
+    "extensions": "7 appex, all 0.0.8 (718); MinimumOSVersion 17.4 (JIT helpers, NeoSwapDonor) or 18.0",
+    "signedEntitlementsUnion": [
+      "com.apple.developer.kernel.extended-virtual-addressing",
+      "com.apple.developer.kernel.increased-debugging-memory-limit",
+      "com.apple.developer.kernel.increased-memory-limit",
+      "get-task-allow"
+    ],
+    "privacyKeysUnion": [
+      "NSLocalNetworkUsageDescription",
+      "NSMotionUsageDescription",
+      "NSPhotoLibraryAddUsageDescription"
+    ],
+    "stagedSourceJson": "matches (bundle id, version 0.0.8, build 718, minOS 18.0, size, entitlement union, privacy key union; app texts used); no correction needed"
+  },
+  "release_checks": {
+    "existing_0.0.11_release": "none (releases: 0.0.10, 0.0.9-fix.1, 0.0.9)",
+    "existing_0.0.11_tag": "none (git ls-remote)"
   }
 }

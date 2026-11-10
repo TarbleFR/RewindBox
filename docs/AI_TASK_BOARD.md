@@ -257,6 +257,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Discord post. Next: restore publication access, verify/upload the exact IPA, activate
   root `source.json` after live download verification, resolve the channel and post once.
   Keep public baseline 0.0.10 until publication is confirmed.
+  **Main session, 10 Nov (publication phase):** exact plaintext IPA re-verified (263465367 B,
+  `001957b9…623c29a`, ZIP OK, 5594 entries; app `com.neogamelab.neostation` 0.0.8 / 718, minOS 18.0;
+  7 appex at 0.0.8 / 718). Signed-entitlement union and privacy-key union match the staged
+  `source.json`: no correction needed (recorded in `publication.json` `ipa_verification`). No
+  0.0.11 release or tag exists. **Blocked:** the main session has no release-creation or
+  asset-upload operation (GitHub tools are read-only for releases; `gh` is limited to search here
+  and its token is reported invalid). Nothing created, no tag, root `source.json` not activated, no
+  workaround. Byte-identical assets staged privately in the main scratchpad
+  (`RewindBox-0.0.11.ipa`, `source.json` `331a5162…`, `SHA256SUMS`). Exact pending action: draft
+  "RewindBox 0.0.11", tag `0.0.11` at `34fbf8ebb6a8acacc8fccada952083db30efef56`, body =
+  `release-notes.md`, these three assets; download-verify size/SHA-256; publish; then activate
+  root `source.json` and check the served JSON. Discord stays after that verified result.
   **Additional maintainer instructions (same request):** after publication, integrate
   `Claude` into `main` preserving history, then clean obsolete workflow files, Actions,
   branches and PRs. Classify each candidate against integrated content, active owners,
