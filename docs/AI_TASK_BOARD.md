@@ -271,6 +271,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   **Next:** complete authenticated About/eligible-ref cleanup; keep publication
   on hold until the maintainer asks to resume. No new authorization requested.
 
+- **Common IPA 722 in preparation (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 721 with RPCS3 Core 920
+  (pin `f9f2b478`, no lever alternation in ordinary play, ZCULL cost line), MeloNX lot 9 for 722 and skins PR 169.
+  - **MeloNX:** handoff branch `3993e2bf` merged as `940ad82c` (no conflict; integration review of the stall watch: no
+    thread suspended by the watch itself, no lock held while reading, ports released, six stalls at most; the four macOS
+    measure workflows run only on the MeloNX branch). MoltenVK pinned `9d81daa2`: run `42822060210`, artifact
+    13768042590 (zip `7323e63e`), binary `6f65b2a6` (4,838,816 B), patch `394e6aef` byte for byte, markers 3/3, entry
+    points 8/8, exports 428/428; `fetch_rebuild` accepts it; parity test 64 checks. The never-packaged rebuild
+    42814845169 stays out. MeloNX Core 721 dispatched on `9d81daa2`: run `42839257625` (in progress); pin script ready
+    (`gh` used for search only: run metadata read through the GitHub tools).
+  - **Skins:** PR 169 head `a96f2ac7` merged as `c3e99f67`; all seven archives rebuilt byte-identically from the
+    generators (Pillow 12.3.0, numpy/scipy in a scratch venv); verifier 22 checks on 7 packs; input chain and Dolphin
+    chrome tests pass. Legal `a32101e9`: second revision review bound to the first, chained rule in
+    `collect_build_source_evidence.py`, contract tests (on the 721 effective tree with the PR 169 files: chain passes,
+    ten negative controls refused). Simulator suites on the merged tree: run `42843268978` (in progress).
+  - **Tools:** `48faa4f8` capture analyzer reads ZCULLDEMAND619/ZCULLLEAD659/ZCULLWATCH660/ZCULLCOST920/MEMPROF527 and
+    frame pacing per window (checked on the 676 BO2 journals).
+  - **Pre-existing, not touched:** `test/legal_bundle_preflight_test.py` fails 3 of 8 (an RA evidence path missing from
+    its temporary tree), identical on `ac788759`; `test/neo_swap_core_pin_test.py` normal mode fails on the old binary
+    pin `cfe92344` (source-only mode passes), identical on `ac788759`.
+  - **Next:** pin MeloNX Core 721, classify the simulator run, draft (spec ready, recipient key 722 generated outside
+    Git), freeze, contract, trigger, verify, receipt, send.
+
 - **Common IPA 721 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 720 with RPCS3
   Core 919 (Black Ops II joins the ZCULL watched flush with its own budget; [record](rpcs3-core919-zcull-bo2.md)), the
   tests-only PR 168 merge and a journal test fix. MeloNX Core 719 and MeloNXMoltenVKStandalone retained.
