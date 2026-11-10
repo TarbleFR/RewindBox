@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 912,
- "identity_type": "rpcs3-ios-core912",
- "summary": "RPCS3 Core 912 = Core 911 plus diagnostics for the open questions, all off by default. REWINDBOX_CAPTURE_912: two bounded captures enabled by a test page row for the next boot, started when the host reports that its in-game menu closed and stopped by themselves: COREPROF PUTLLCTRACE912 (Black Ops II: per SPU thread, up to 512 consecutive data-changing accurate PUTLLC with the values read, asked and found) and COREPROF PPUPROF912 (God of War III: regions of the PPU threads sampled for at most 5 s). The stall dump lists the FIFO position and the semaphores of the main thread first. levers627 gains digits 19 to 21. No lock, barrier, reservation result or wait changes. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged (one exact SPUThread.cpp alias, audited). The compile run, the artifact digests and the device status of this Core are recorded in build-utils/rpcs3/core-pin.json and docs/AI_TASK_BOARD.md, not in this summary.",
+ "build": 913,
+ "identity_type": "rpcs3-ios-core913",
+ "summary": "RPCS3 Core 913 is a COMPARISON WITNESS, not a reference Core: the Core 912 source with one constant changed, the texture lookup memo capacity (rpcs3/ios/IOSTextureLookupMemo.h: ways = 4 instead of 16, the Core 907 value), to compare 4 and 16 ways on Assassin's Creed. Every fix, setting, diagnostic and lever digit of Core 912 is unchanged; COREPROF TEXMEMO660 reports ways=4. It is never pinned and no later Core is based on it. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. The compile run and the artifact digests of this witness are recorded in docs/AI_TASK_BOARD.md, not in build-utils/rpcs3/core-pin.json.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "70dfe005c289118543b214dd861f09ddb382e9123944e5bce6fe6379a72d4bbf",
+  "patch_sha256": "789eb6b533f15dd28dacc18cc41982e0aef716cc70114b2b171ce8c54bf68fef",
   "postimages": 448,
   "records": [
    "core610_20261101",
@@ -59,7 +59,8 @@
    "core909_20261109",
    "core910_20261109",
    "core911_20261109",
-   "core912_20261110"
+   "core912_20261110",
+   "core913_20261110"
   ]
  },
  "reference": {
@@ -99,10 +100,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core912_20261110",
-  "manifest": "build-utils/rpcs3/core912-delta.json",
-  "patch": "build-utils/rpcs3/core912-delta.patch",
-  "patch_sha256": "a60d1c573c337e5f89093732494c3e4e937e86add6212eb4fcfd528699f445d5"
+  "record": "core913_20261110",
+  "manifest": "build-utils/rpcs3/core913-delta.json",
+  "patch": "build-utils/rpcs3/core913-delta.patch",
+  "patch_sha256": "4dff61786572501841856751108feb90f036647fedd995fc95cdb0af2593f82b"
  },
  "exports": 92,
  "core_inputs": {
@@ -428,28 +429,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core912_codegen_test.py",
+     "test/rpcs3_core913_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 910 touch no codegen input; Core 911 and Core 912 each change one, SPUThread.cpp, in the host body of do_putllc() only (912 adds one include), each with one exact alias in JITCacheCompatibility.cmake (the Core 627 procedure, audited: process_mfc_cmd, get_ch_value, set_ch_value and SPUThread.h unchanged) (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp, RSXFIFO, the texture cache and the iOS profiler, memo, prehash, policy and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 910 touch no codegen input; Core 911 and Core 912 each change one, SPUThread.cpp, in the host body of do_putllc() only (912 adds one include), each with one exact alias in JITCacheCompatibility.cmake (the Core 627 procedure, audited: process_mfc_cmd, get_ch_value, set_ch_value and SPUThread.h unchanged) (Utilities/JITIOS.cpp, rsx_cache.h, rpcs3/ios/RPCS3IOSSettings.cpp, the VK/Metal renderer files, the NV47 method handlers, Emu/Memory/vm.cpp, PPUModule.cpp and sys_spu.cpp, RSXFIFO, the texture cache and the iOS profiler, memo, prehash, policy and freeze dump files are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit; the Core 913 witness changes rpcs3/ios/IOSTextureLookupMemo.h only, which is not a codegen input"
    },
    {
-    "name": "core912",
+    "name": "core913",
     "argv": [
      "python3",
-     "test/rpcs3_core912_test.py",
+     "test/rpcs3_core913_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core912.json"
+     "{out}/core913.json"
     ],
-    "reason": "Core 901 to 912 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); the Core 910 levers (memo capacity-miss counterexamples, the scoped revalidation executed on the real texture cache against a global-epoch witness, the PUT horizon model on the real decision, the prehash budget); the Core 911 levers (the accurate no-op PUTLLC wait executed on the real block, the prehash used-result count); the Core 912 captures (collectors executed, plain and with the sanitizers) and the export analyzer; then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 913 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); the retired-override bodies executed (906); the texture lookup memo header executed with 16 and 4 ways (908); the God of War III levers (909: epoch sources and MLAA report executed, scoped NV308A/NV0039 writes wiring); the Core 910 levers (memo capacity-miss counterexamples, the scoped revalidation executed on the real texture cache against a global-epoch witness, the PUT horizon model on the real decision, the prehash budget); the Core 911 levers (the accurate no-op PUTLLC wait executed on the real block, the prehash used-result count); the Core 912 captures (collectors executed, plain and with the sanitizers) and the export analyzer; then the Core 668 driver on the reverted tree; the texture lookup memo test expects the 4 ways this witness declares"
    },
    {
     "name": "lr-full-queue",
