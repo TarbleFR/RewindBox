@@ -64,6 +64,26 @@ def journal():
     for window, fps in ((1, '58.0'), (2, '24.5')):
         a.append(record(400, 10.0 * window, f'COREPROF FRAMEPROF527 session=1 window={window} phase=guest_unclassified wall_guest_fps={fps} p95_ms=40.0'))
         a.append(record(400, 10.0 * window + 0.05, f'COREPROF TEXMEMO660 session=1 window={window} mode=1 ways=4 lookups=1000 hits=100 miss_empty=800 miss_evicted=300 lookup_ms=9.5'))
+    # Process 500, a Core 916 journal: the relaxed SPURS store counters, the MLAA plan, the profile asked by the report,
+    # a stopped window printed whole (2) then a compact one (3), and a stall dump with the queue of a condition and a stack.
+    a.append(record(500, 1.0, 'CONFIG_LAYERS title=CCCC00003 name=database_config accurate_res=false rsx_res=75'))
+    a.append(record(500, 1.1, 'CONFIG_LAYERS part=rsx title=CCCC00003 levers627=010111011111111112100 legacy_custom=1'))
+    a.append(record(500, 10.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=guest_unclassified wall_guest_fps=11.2 p95_ms=120.0'))
+    a.append(record(500, 10.01, 'COREPROF SPUWAIT551 session=1 window=1 getllar_sleep=5:1.250 putllc_ok=9000 putllc_fail=3 putllc_heavy=0 spurs_relaxed=900:2:14 spurs_relaxed_tuple=stored:merged:refused'))
+    a.append(record(500, 10.02, 'COREPROF GOW3MLAA909 session=1 window=1 executable=PPU-4d5c51503a81a327c2a99427390a395b8dcb3767 ppu=applied spu_images=6 spu_matched=0 '
+                    'spu_words_patched=0 unmatched_spu=SPU-c551925d scope=process_since_boot ppu_patch=100 ppu_call_word=0x4bfffa05 savestate_patched=-1'))
+    a.append(record(500, 10.03, 'COREPROF AUTOPPU916 session=1 window=1 busiest_ppu_cores=0.931 bound_cores=0.85 windows=2 request=ppu_region_profile'))
+    a.append(record(500, 10.5, 'COREPROF PPUPROF912 session=1 capture=1 part=armed trigger=auto_ppu_bound threads=3 max_samples=5000'))
+    a.append(record(500, 20.0, 'COREPROF FRAMEPROF527 session=1 window=2 phase=stopped wall_guest_fps=0.000 p95_ms=0.0'))
+    a.append(record(500, 20.01, 'COREPROF SPUWAIT551 session=1 window=2 getllar_sleep=0:0.000 putllc_ok=0 putllc_fail=0 putllc_heavy=0 spurs_relaxed=0:0:0'))
+    a.append(record(500, 30.0, 'COREPROF FRAMEPROF527 session=1 window=3 phase=stopped wall_guest_fps=0.000 p95_ms=0.0'))
+    a.append(record(500, 30.01, 'COREPROF IDLE916 session=1 window=3 consecutive=2 detail=frameprof_only last_guest_flip_age_ms=15000.000 scope=stopped_windows_after_the_first'))
+    a.append(record(500, 12.0, 'FREEZE_DUMP snapshot\nFREEZE_DUMP begin dump=1 episode=1\nFREEZE_DUMP rsx present=1 get=0x10 put=0x10 in_begin_end=0\n'
+                    'FREEZE_DUMP ppu id=0x1000000 name=main func=_sys_lwcond_queue_wait wait_s=9.6\n'
+                    'FREEZE_DUMP lwcond id=0x97000100 name=_cnd1 lwmutex_id=0x95000200 control=0x10203040 control_data=0102 lwmutex=0x10203000 lwmutex_data=0304 '
+                    'waiters=0x1000000:0x1000009 queue=kernel more=0 lwmutex_waiters=0\n'
+                    'FREEZE_DUMP ppu_stack id=0x1000000 func=_sys_lwcond_queue_wait sp=0xd0010000 lr=0x2c05a94 chain=0x2c05a94:0x5e3408 scope=saved_return_addresses_innermost_first\n'
+                    'FREEZE_DUMP end dump=1'))
     b.append(a[2])  # the same window line exported in a second file
     b.append(record(200, 5.0, 'CONFIG_LAYERS title=BBBB00002 name=database_config accurate_res=false'))
     b.append(record(200, 15.0, 'COREPROF FRAMEPROF527 session=3 window=7 phase=guest_unclassified wall_guest_fps=21.7 p95_ms=55.0'))
@@ -154,7 +174,21 @@ def main() -> int:
                                  '--compare', '100:1', '200:3'], capture_output=True, text=True)
         check(result.returncode == 0, 'the tool runs: ' + result.stderr[-500:])
         text, data = result.stdout, json.loads(out.read_text())
-        check(set(data) == {'100:1', '200:3', '300:1', '400:1'}, 'four sessions, never merged')
+        check(set(data) == {'100:1', '200:3', '300:1', '400:1', '500:1'}, 'five sessions, never merged')
+        # Core 916 lines (process 500), and a line of an older Core that has no such field (process 100).
+        core916 = text[text.index('== title CCCC00003'):]
+        rows = {n: next(line for line in core916.splitlines() if line.startswith(f'      {n} ')) for n in (1, 2, 3)}
+        check(' 900:2:14 ' in rows[1] and ' 0:0:0 ' in rows[2] and ' stopped ' in rows[2], 'the relaxed SPURS store counters of a window; a stopped window printed whole')
+        check(' stopped(compact) ' in rows[3] and ' compact ' in rows[3] and 'absent' not in rows[3], 'a compact stopped window is said compact, not absent or lost')
+        check(' no_field ' in next(line for line in text.splitlines() if line.startswith('      1 ')), 'a line of an older Core without the field: no_field, not absent')
+        check('lwcond 0x97000100 _cnd1 lwmutex_id=0x95000200 waiters=0x1000000:0x1000009 queue=kernel more=0 lwmutex_waiters=0' in core916 and
+              'ppu_stack 0x1000000 func=_sys_lwcond_queue_wait lr=0x2c05a94 return addresses, innermost first: 0x2c05a94:0x5e3408' in core916,
+              'stall dump: the queue of the condition and the return addresses')
+        check('lwcond and ppu_stack lines: absent from this dump' in text[:text.index('== title CCCC00003')], 'a dump without those lines says so')
+        check('God of War III MLAA bypass (last report): executable=PPU-4d5c51503a81a327c2a99427390a395b8dcb3767 ppu=applied ppu_patch=100 '
+              'ppu_call_word=0x4bfffa05 savestate_patched=-1' in core916, 'the MLAA plan applied to the executable')
+        check('PPU region profile asked by the report at window 1: busiest_ppu_cores=0.931' in core916 and
+              'PPU region profile 1 [' in core916, 'the profile asked by the report and its capture')
         a = data['100:1']
         check(a['title'] == 'AAAA00001' and a['title_origin'].startswith('RPCS3-performance.log:') and data['200:3']['title'] == 'BBBB00002', 'titles from CONFIG_LAYERS')
         check(data['300:1']['title'] == 'unknown', 'no CONFIG_LAYERS: unknown title')

@@ -30,7 +30,7 @@ import sys
 LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET dropped=')
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
-                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551')
+                'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -311,7 +311,7 @@ def analyse(lines: list, labels: dict) -> dict:
 
 def freeze_dump(message: str, origin: str) -> dict:
     parts = message.split('\n')
-    result = {'origin': origin, 'rsx': None, 'first_ppu': None, 'semaphores': [], 'lines': len(parts)}
+    result = {'origin': origin, 'rsx': None, 'first_ppu': None, 'semaphores': [], 'lwconds': [], 'stacks': [], 'lines': len(parts)}
     for part in parts:
         if part.startswith('FREEZE_DUMP rsx'):
             result['rsx'] = fields(part)
@@ -319,6 +319,10 @@ def freeze_dump(message: str, origin: str) -> dict:
             result['first_ppu'] = fields(part)
         elif part.startswith('FREEZE_DUMP sema '):
             result['semaphores'].append(fields(part))
+        elif part.startswith('FREEZE_DUMP lwcond '):
+            result['lwconds'].append(fields(part))
+        elif part.startswith('FREEZE_DUMP ppu_stack '):
+            result['stacks'].append(fields(part))
     first = result['first_ppu'] or {}
     result['first_ppu_semaphores'] = [s['id'] for s in result['semaphores'] if first.get('id') and first['id'] in s.get('ids', '').split(':')]
     return result
@@ -327,23 +331,29 @@ def freeze_dump(message: str, origin: str) -> dict:
 def phase(entry: dict, window: int, data: dict) -> str:
     if window in entry.get('labels', {}):
         return 'label:' + entry['labels'][window]
-    return data.get('FRAMEPROF527', {}).get('phase', 'absent')
+    # Core 916: a stopped window after the first of a row has its FRAMEPROF527 line and an IDLE916 line only.
+    return data.get('FRAMEPROF527', {}).get('phase', 'absent') + ('(compact)' if 'IDLE916' in data else '')
 
 
 def value(data: dict, kind: str, key: str, lossy: bool = False) -> str:
     """absent: no such line for the window; absent_or_lost: none, and the journal of the process reports losses;
+    compact: a stopped window the Core reports in two lines (Core 916); no_field: the line is there without this field;
     inactive: the probe says it is off; anything else is what the line says, 0 included."""
     if kind not in data:
+        if 'IDLE916' in data:
+            return 'compact'  # Core 916: the Core did not print this line for a stopped window; not a loss
         return 'absent_or_lost' if lossy else 'absent'
     row = data[kind]
     if row.get('enabled') == '0' or row.get('mode') == '0' and kind == 'TEXMEMO660':
         return 'inactive'
-    return row.get(key, 'absent')
+    # The line is there without this field (a Core older than the field): not the same as a line that is absent.
+    return row.get(key, 'no_field')
 
 
 COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527', 'p95_ms'), ('gpu_busy', 'GPUTIME621', 'busy_share'),
            ('ppu_cores', 'frames', 'ppu_cores'), ('spu_cores', 'frames', 'spu_cores'), ('rsx_thread', 'frames', 'rsx_thread_cpu'),
            ('putllc_ok', 'SPUWAIT551', 'putllc_ok'), ('putllc_heavy', 'SPUWAIT551', 'putllc_heavy'), ('getllar_sleep', 'SPUWAIT551', 'getllar_sleep'),
+           ('spurs_relaxed', 'SPUWAIT551', 'spurs_relaxed'),
            ('wl_putllc', 'RANGELOCKPROF', 'wl_putllc'), ('wl_phases', 'RANGELOCKPROF', 'wl_putllc_phases'),
            ('epoch_put', 'EPOCH909', 'put'), ('put_deferred', 'EPOCH909', 'put_deferred'), ('put_patched', 'EPOCH909', 'put_patched'),
            ('lookahead', 'OPT583', 'lookahead'), ('worker_used', 'OPT583', 'worker_used'), ('worker_hashes', 'OPT581', 'worker_hashes'),
@@ -373,7 +383,8 @@ def levers(digits) -> dict:
 
 UNITS = ('fps and cores are averages over the window; gpu_busy is a share of the window; wl_putllc is count:acquire_ms:hold_ms cumulated over '
          'all SPU threads (thread time, not frame time); getllar_sleep is count:total_ms; pass, epoch and memo counters are per window; '
-         'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count')
+         'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count; '
+         'spurs_relaxed is stored:merged:refused, the PUTLLC of SPU threads on SPURS header lines with relaxed reservations (Core 916), per window')
 
 
 PUTLLC_RESULTS = {'1': 'stored', '2': 'failed_time', '3': 'failed_owner', '4': 'failed_precheck', '5': 'failed_compare',
@@ -514,6 +525,27 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             out.append(f"   freeze dump [{dump['origin']}]: first PPU thread {first.get('id')} {first.get('name')} func={first.get('func')} wait_s={first.get('wait_s')}; "
                        f"semaphores listing it: {dump['first_ppu_semaphores'] or 'none listed'}; rsx get={rsx.get('get')} put={rsx.get('put')} "
                        f"fifo_pos={rsx.get('fifo_pos', 'absent')} last_cmd={rsx.get('last_cmd', 'absent')} args_left={rsx.get('args_left', 'absent')} in_begin_end={rsx.get('in_begin_end')}")
+            # Core 916: the waiters of a lightweight condition are its own queue; the return addresses come from the stack back chain.
+            for cond in dump['lwconds']:
+                out.append(f"      lwcond {cond.get('id')} {cond.get('name')} lwmutex_id={cond.get('lwmutex_id')} waiters={cond.get('waiters')} "
+                           f"queue={cond.get('queue', 'absent (before Core 916: matched by r3)')} more={cond.get('more', 'absent')} "
+                           f"lwmutex_waiters={cond.get('lwmutex_waiters', 'absent')} control_data={cond.get('control_data')} lwmutex_data={cond.get('lwmutex_data')}")
+            for stack in dump['stacks']:
+                out.append(f"      ppu_stack {stack.get('id')} func={stack.get('func')} lr={stack.get('lr')} return addresses, innermost first: {stack.get('chain')}")
+            if not dump['lwconds'] and not dump['stacks']:
+                out.append('      lwcond and ppu_stack lines: absent from this dump')
+        mlaa = [w['GOW3MLAA909'] for _, w in sorted(entry['windows'].items()) if 'GOW3MLAA909' in w]
+        if mlaa:
+            last = mlaa[-1]
+            out.append(f"   God of War III MLAA bypass (last report): executable={last.get('executable')} ppu={last.get('ppu')} "
+                       f"ppu_patch={last.get('ppu_patch', 'absent (before Core 916)')} ppu_call_word={last.get('ppu_call_word', 'absent')} "
+                       f"savestate_patched={last.get('savestate_patched', 'absent')} spu_matched={last.get('spu_matched')} unmatched_spu={last.get('unmatched_spu')} "
+                       f"[{last.get('_origin')}]")
+        for window, data in sorted(entry['windows'].items()):
+            if 'AUTOPPU916' in data:
+                asked = data['AUTOPPU916']
+                out.append(f"   PPU region profile asked by the report at window {window}: busiest_ppu_cores={asked.get('busiest_ppu_cores')} "
+                           f"(bound {asked.get('bound_cores')}, {asked.get('windows')} windows in a row) [{asked.get('_origin')}]")
         armed = levers(config.get('levers627'))
         if any(armed[name].startswith('on') for name in ('heavy_putllc_trace', 'ppu_region_profile')) or entry['capture_requests'] or entry['capture_refusals']:
             out.append(f"   captures: heavy_putllc_trace {armed['heavy_putllc_trace']}, ppu_region_profile {armed['ppu_region_profile']} at boot; "
