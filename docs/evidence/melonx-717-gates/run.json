@@ -142,5 +142,13 @@
  ],
  "physicalDeviceTested": false,
  "ipa": "none (maintainer)",
- "ciRuns": []
+ "ciRuns": [
+  {
+   "commit": "45923d13",
+   "contract": "f751f1f7",
+   "run": 42728675479,
+   "attempt": 1,
+   "status": "requested 2026-11-10T00:29Z"
+  }
+ ]
 }
