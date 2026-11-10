@@ -151,6 +151,28 @@ def without_core914(raw: bytes) -> bytes:
     return result
 
 
+CORE924_SHA = '8cc8b519ea4fc31b3e0b4b1cf7cfd75f83dd9602e0c141aca0d495f18f0ed6b6'
+
+
+def without_core924(raw: bytes) -> bytes:
+    """Core 924 changes SPUThread.cpp inside do_putllc and adds one include (REWINDBOX_GATE_BEFORE_LINE_924). The
+    reviewed increment is taken out first and must give back the exact Core 916 file."""
+    if sha(raw) != CORE924_SHA:
+        return raw
+    increment = json.loads((ROOT / 'build-utils/rpcs3/core924-delta.json').read_text())['increment_from_core923']
+    with tempfile.TemporaryDirectory(prefix='lr-core924-') as temporary:
+        folder = Path(temporary)
+        target = folder / CPP
+        target.parent.mkdir(parents=True)
+        target.write_bytes(raw)
+        subprocess.run(['git', 'init', '-q'], cwd=folder, check=True)
+        subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', '--include=' + CPP, str(ROOT / increment['patch'])], cwd=folder, check=True)
+        result = target.read_bytes()
+    if sha(result) != CORE916_SHA:
+        raise AssertionError('SPUThread.cpp without the Core 924 increment is not the Core 916 file')
+    return result
+
+
 def without_core916(raw: bytes) -> bytes:
     """Core 916 changes SPUThread.cpp inside do_putllc and adds one include (REWINDBOX_SPURS_RELAXED_STORE_916). The
     reviewed increment is taken out first and must give back the exact Core 914 file."""
@@ -171,7 +193,7 @@ def without_core916(raw: bytes) -> bytes:
 
 
 def contract(source: Path, baseline: Path) -> dict:
-    old_raw, new_raw = (baseline / CPP).read_bytes(), without_core627(without_core911(without_core912(without_core914(without_core916((source / CPP).read_bytes())))))
+    old_raw, new_raw = (baseline / CPP).read_bytes(), without_core627(without_core911(without_core912(without_core914(without_core916(without_core924((source / CPP).read_bytes()))))))
     if sha(old_raw) != BASELINE_SHA or sha(new_raw) != CANDIDATE_SHA:
         raise AssertionError('SPUThread.cpp is not the delivered/reviewed pair covered by the exact cache alias')
     old, new = old_raw.decode(), new_raw.decode()
