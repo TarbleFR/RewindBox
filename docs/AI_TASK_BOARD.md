@@ -3198,6 +3198,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     A 4:3 picture keeps thin black bands in the non-4:3 openings unless Stretched is
     chosen (6.9 pt above and below on the captured layout): maintainer's choice of format,
     or new art. Next: main reviews/integrates the PR; maintainer checks on the iPhone.
+- **Realistic pressed controls (10 Nov request, medium selector loaded):** branch
+  `work/skins-realistic-press-20261110`, **stacked on the framing branch** (same archives).
+  The pressed state of the board packs was a flat grey; `pressed_face` now sinks the cap
+  into its well inside the same outline (see `tools/skins/README.md`). Rebuilt:
+  wii-pocket-original `cf8656e0` 5149739, gamecube-pocket-original `6526734e` 6218381,
+  ps2-pocket-original `a18f94ee` 7320164, switch-pocket `5fb3c3c0` 9662152 (only the
+  `*-pressed.png` control sprites differ from the framing archives; these identities
+  replace the framing ones for these four). wii-pocket, gamecube-pocket and ps2-pocket
+  unchanged: they already render a sunk state. Inert Switch HOME/Capture still never look
+  pressed. Proof: verifier 7 packs, rebuild byte-identical; input chain 20 layouts ok;
+  Flutter install/catalog/Switch playlist 40/40; run
+  [42766013942](https://github.com/TarbleFR/RewindBox/actions/runs/42766013942) on
+  `63e1ad6a`: host step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined
+  to the outline and clearly visible, released = rest) and Dolphin orientation passed; red
+  on the Dolphin session harness only, the same failure as on the framing run (not from
+  these branches).
+  [Sheets](evidence/skins-realistic-press/). Not observed on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.

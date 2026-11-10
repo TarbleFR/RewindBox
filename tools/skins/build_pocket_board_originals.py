@@ -396,18 +396,42 @@ def cap_radius(r: float) -> float:
 
 
 def pressed_face(normal: Image.Image, alpha: Image.Image, scale: int) -> Image.Image:
-    """Pressed in, inside the control's own outline only: darker face, a shade along the
-    upper edge (the lip it sinks under) and softened highlights. Same alpha as the normal
-    sprite, so nothing outside the outline ever changes."""
-    a = np.asarray(normal.convert('RGB')).astype(np.float32)
+    """The control pushed into its well, inside its own outline only (same alpha as the
+    normal sprite, so nothing outside the outline ever changes).
+
+    What a real button does when a thumb pushes it, seen from above with the board's
+    light (upper left): the whole cap, label and bevel included, moves down and away
+    (shifted 1.3 board pixels, 3 % smaller); the wall of the well appears above it, in
+    shadow; the lip of the well shades the cap's upper left; the cap's lower lip and its
+    drop shadow go under the outline; the face loses a little light and its highlights."""
+    w, h = normal.size
+    rgb = normal.convert('RGB')
+    a = np.asarray(rgb).astype(np.float32)
     m = np.asarray(alpha).astype(np.float32) / 255
+    shrink, drop = 0.97, 1.3 * scale
+    # The cap, smaller around its centre and lower.
+    sw, sh = max(1, round(w * shrink)), max(1, round(h * shrink))
+    ox, oy = (w - sw) // 2, (h - sh) // 2 + round(drop)
+    cap = Image.new('RGB', (w, h))
+    cap.paste(rgb.resize((sw, sh), Image.Resampling.LANCZOS), (ox, oy))
+    cap_alpha = Image.new('L', (w, h), 0)
+    cap_alpha.paste(alpha.resize((sw, sh), Image.Resampling.LANCZOS), (ox, oy))
+    c = np.asarray(cap).astype(np.float32)
+    ca = np.asarray(cap_alpha).astype(np.float32) / 255
+    # The well behind it: the control's own colours in deep shade, darkest at the top.
+    ramp = np.linspace(0.34, 0.52, h, dtype=np.float32)[:, None, None]
+    well = a * ramp
+    # The well's lip shades the cap from the upper left; the cap's own contact shadow
+    # falls on the wall just around it.
     outside = Image.fromarray(((1 - m) * 255).astype(np.uint8), 'L')
-    lip = np.asarray(ImageChops.offset(outside, 0, round(1.6 * scale)).filter(
-        ImageFilter.GaussianBlur(1.6 * scale))).astype(np.float32) / 255
-    factor = 0.80 - 0.30 * np.clip(lip * 1.6, 0, 1)
-    out = a * factor[..., None]
-    lum = out.mean(axis=2, keepdims=True)
-    out = np.where(lum > 175, 175 + (out - 175) * 0.55, out)  # highlights flatten when pressed
+    lip = np.asarray(ImageChops.offset(outside, round(1.2 * scale), round(2.2 * scale)).filter(
+        ImageFilter.GaussianBlur(1.8 * scale))).astype(np.float32) / 255
+    face = c * (0.88 - 0.34 * np.clip(lip * 1.5, 0, 1))[..., None]
+    lum = face.mean(axis=2, keepdims=True)
+    face = np.where(lum > 190, 190 + (face - 190) * 0.6, face)  # a pushed-in face catches less light
+    soft = np.asarray(cap_alpha.filter(ImageFilter.GaussianBlur(0.9 * scale))).astype(np.float32) / 255
+    well = well * (1 - 0.35 * np.clip(soft - ca, 0, 1))[..., None]
+    out = face * ca[..., None] + well * (1 - ca[..., None])
     rgba = np.dstack([np.clip(out, 0, 255).astype(np.uint8), np.asarray(alpha)])
     return Image.fromarray(rgba, 'RGBA')
 
