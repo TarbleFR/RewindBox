@@ -485,6 +485,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
+- **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
+  Codex transmitted the full formal context prompt to main
+  `012mUAShv9k6pSCnpW7oAF63`; UI shows the submitted user message and
+  **Claude is responding**. Opus 5.5 retained, High→**Max** verified for hard
+  PPU/SPU/RSX/concurrency/memory ambiguities; High requested for understood bounded
+  corrections thereafter. Native effective effort return not yet observed.
+  Continue evidence→production fix→discriminating executed test→comparable measurement
+  cycles without renewed approval, until playability is demonstrated on iPhone 16 Pro Max.
+  Include frame pacing, freezes, actual game speed, audio, physical footprint/allocation
+  rate, long-session slope and resource lifetime. No artificial 30 FPS cap or reduced
+  rendering; no gain inferred from host models.
+  Explicitly authorized: correct the automatic production A/B alternations acknowledged
+  in the principal's last response, preserving validated levers and explicit user
+  preferences; comparisons must be deliberate, bounded, not forced during ordinary play.
+  Preserve Core 919 ZCULL own-budget fix and existing reservation/JIT safeguards;
+  do not reopen refuted GETLLAR threshold tuning without new evidence.
+  Core 919/IPA 721 are delivered references, not measured BO2 gameplay of the new Core.
+  Continue useful independent fixes while a decisive device observation is unavailable;
+  record the exact remaining question, no fake closure or empty infinite relaunch.
+  Main retains integration/Core/pin/CI/common-private-delivery ownership and existing
+  MeloNX/skins handoffs. Public 0.0.11 remains on hold. No workflow/pin/IPA dispatched
+  by Codex for this relay; no new logs attached.
+
+
 - **Packaged:** 645 timeout mix in IPA 650; [record](rpcs3-core645-2026-11-04.md).
   Eight IPA643/PID6665 inputs verified, raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
 - **Pinned:** 651 low-ring mix ([record](rpcs3-core651-2026-11-04.md)): run `41865042684`,
