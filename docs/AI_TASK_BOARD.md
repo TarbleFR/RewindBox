@@ -237,6 +237,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Current maintainer instruction (10 Nov; conditional common IPA):** finish the current
+  principal work and wait for every participating owner's verified handoff (RPCS3,
+  MeloNX, skins/interface and approved content), then review/integrate, freeze, compile,
+  verify the downloaded plaintext IPA and privately deliver one common package without
+  asking again. This lifts the earlier no-IPA instruction for that delivery only; no
+  partial/duplicate delivery or unapproved Switch 2 experiment. Preserve Vulkan/MoltenVK
+  work and the selected renderer. Main retains Core/pin/CI/delivery ownership.
+  Codex queued this exact instruction once in the principal session on 10 Nov; the UI
+  showed it unread while current work continued (no interruption or duplicate dispatch).
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
