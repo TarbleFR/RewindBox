@@ -3172,6 +3172,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `a4970f96…` (196 inputs, 206 members, 77 gates), contract test 451 checks. Extrapolated, not measured: about
     -0.75 GiB for Hogwarts' cache. [Receipts](evidence/melonx-721-gates/run.json),
     [device protocol](evidence/melonx-721-gates/device-protocol.md). Handoff to main: Core CI, pin, MoltenVK packaging.
+  - **Maintainer goal (10 Nov, Hogwarts 30 FPS at 1x, owner loop):** handed to main for IPA 722: Core 721 (contract
+    `29e58115…`: `a4970f96` plus build_core.sh keeping `Ryujinx.Library.symbols.txt.gz` and the library UUID beside the
+    unchanged binary), MoltenVK `6f65b2a6`, bridge `8fd23a71` with **MeloNXStallWatch** (MeloNXPerfJournal.swift: a native
+    thread that never calls the engine records every thread's run state, CPU, priorities and pc/lr/8 frames as
+    image+offset when one of the journal's engine calls has been in flight 300 ms, again at 1.3/3.3 s, then the call's
+    duration; at most 6 stalls; decides what the 3.67 s Hogwarts pause waits for). Facts checked first: no
+    `SuppressGCTransition` anywhere in the Core sources; guest code is entered through marshalled delegates (preemptive
+    while it runs, transitions on every callback). macOS run 42833802905: perf journal 110 checks executed (a call
+    blocked 1.6 s while one thread spins and one waits: R with CPU growing, W in libsystem_kernel, ends with durations,
+    6-stall bound), input 66, iOS 18 typecheck passed.
+  - **First CPU obstacle to 30 FPS, from the 718 journals (Hogwarts in play):** the render thread is busy 50-78 % of
+    every 5 s (29.6 ms per frame in a 97-frame window); draw descriptors 9.6 ms/frame and compute descriptors 3.1 ms are
+    the largest part of draw preparation (pipelines 1.7, submits 2.7); 5.39 M descriptors written per 5 s (texture sets
+    63 517, uniform 86 339); GPU busy 33 %; MoltenVK uses Metal3 argument buffers. Found in the source:
+    SetTextureArraySeparate (17 000-93 500 calls per 5 s) marked the whole texture set dirty although set 2 never holds
+    the separate arrays. **adapt_extra_array_dirty** (committed `352a8616`, not wired): its own dirty bit, the extra
+    sets still rebound; gate 71 checks locally on the Core 721 preparation (all same-program-descriptors scenarios plus
+    separate switches: 140 observations identical in control and candidate, texture set writes 427 -> 23, 400 switching
+    dispatches 400 -> 0 set 2 writes with the same 400 array binds, the no-rebind variant fails). The write cost itself
+    on real MoltenVK is being measured (run 42835169847, macOS). Also ready, not wired: **adapt_gc_keepalive_dormant**
+    (F1, `4a3d3d7b`, gate 50 checks locally). Both wait for main to pin Core 721 (test/melonx_adapter_control.py is bound
+    by its contract), then go into the next Core with their gates and the full gate set.
+  - **GC pauses in play (718, derived from the per-window collection counts):** about 29 ms per gen0 and about 135 ms per
+    gen1 (one gen1 every ~5 s): a recurring hitch. The gen0 budget is 64 MiB since build 620 (MeloNXRuntimeAPI.swift,
+    chosen for the start's 610 gen0 collections); not changed without per-collection data (next Core: ephemeral lines).
   - **RAM, next lever (managed heap; in progress, not wired):** IPA 718 Hogwarts: the large object heap stays at about
     507 MiB in play with 213-267 MiB of holes after each background gen2 (it never compacts; only the first-frame
     compaction brought it to 266 MiB, refilled within 20 s); in-play GC pauses are 130-190 ms per 5 s for 2-3 collections
