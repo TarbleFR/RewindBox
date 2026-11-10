@@ -206,7 +206,7 @@ main's to revise at integration.
 | `test/armsx2_skin_menu_button_test.py`, `test/skin_portrait_lock_contract_test.py`, `test/dolphin_session_chrome_test.py` | passed |
 | `test/orientation_policy/policy_test.c` with the seven `DOLPolicyBoundsWillTurn` cases | passed |
 | Flutter skin suites (`test/*skin*_test.dart`: install, catalog, manager, Switch playlist path) | 156 passed |
-| Simulator (`skin-orientation-checks.yml`): the three real overlays, see below | see the board entry for the run |
+| Simulator (`skin-orientation-checks.yml`, run `42764238520` on `c90b86c8`): the three real overlays, see below | MeloNX, ARMSX2 and Dolphin skin overlay harnesses passed, Dolphin orientation tests passed. The run's last step (Dolphin session harness, `SessionMenuTests`) fails on files this change does not touch, as it does on another branch (run `42759701871`) |
 
 **Simulator harnesses** (`test/skin_frame/SkinFrameCheck.h`, used by the Dolphin, ARMSX2
 and MeloNX harnesses on the shipped archives): for each pack and orientation, at the

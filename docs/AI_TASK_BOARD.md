@@ -2951,7 +2951,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Proof (host): verifier 7 packs (opening re-measured); rebuild of the 7 packs
     byte-identical; input chain 20 layouts (4880014 sprite points reach their own control);
     ARMSX2 menu, portrait lock, Dolphin chrome contracts; policy cases; Flutter skin suites
-    156/156. Simulator: run [42764238520](https://github.com/TarbleFR/RewindBox/actions/runs/42764238520) on `c90b86c8` **in progress when this entry was written; result not yet known**.
+    156/156. Simulator, run [42764238520](https://github.com/TarbleFR/RewindBox/actions/runs/42764238520)
+    on `c90b86c8`: host step on the 7 archives, the three iPhone compiles, the MeloNX, ARMSX2
+    and Dolphin skin overlay harnesses (declared frame, hole = cutout, four-edge test pattern,
+    turn, menu, skin change, relaunch) and the Dolphin orientation tests **passed**. The run
+    is red on its last step only, the Dolphin session harness: `SessionMenuTests` (menu rows
+    now cheats/controls/console where the tests expect the older list; `TCGameCubePad` /
+    `TCWiiPad` NIB not in the harness bundle), 21 failures. **Not from this branch**: it does
+    not touch `DolphinSessionMenu.mm`, the session tests or `test_session_ui.rb`, and the
+    same suites fail on `work/melonx-fps-stability-20261103` (run `42759701871`, MeloNX
+    owner). For main to assign; not fixed here.
   - Limits: Dolphin with both orientations chosen keeps the surface of the orientation it
     started in (fitted, 4 to 7 pt bands on `wii-pocket`; a relaunch fills) — **Core need for
     main: a surface-resize export in the Dolphin Core bridge**; Switch Pocket upright:
