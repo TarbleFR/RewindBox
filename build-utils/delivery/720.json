@@ -268,6 +268,10 @@
    {
     "commit": "c6cb583707088f6b167b3a5d84ca2a61627657f6",
     "note": "Pocket skin revision review for the six packs rebuilt by PR 166 and PR 167 (docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json, chained to the Switch Pocket review) and its rule in collect_build_source_evidence.py: an earlier review accepts a rebuilt pack only at the identity the revision gives it, when the revision names the identity that review recorded. Contract test with six negative controls."
+   },
+   {
+    "commit": "bad024ec682c25e07bdec1df9e4145b71ed4f494",
+    "note": "Host test only: test/libretro_host/frontend/diagnostic_routing_test.m accepts the repository root that test/libretro_frontend_test.py has passed as a second argument since PR 152 (it reads argv[1] only; its own driver still passes one argument). No file of the application changes."
    }
   ],
   "sourceOnly": [],
