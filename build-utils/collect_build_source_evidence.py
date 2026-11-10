@@ -20,8 +20,10 @@ BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026
 PS2_ORIGINAL_REVIEW = "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json"
 SWITCH_POCKET_REVIEW = "docs/evidence/switch-pocket-declarations-2026-11-10.json"
 SKIN_REVISION_REVIEW = "docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json"
-# Revisions in place, in order; each binds the packs of the one before it (PR #169: the windows at the game's ratio).
-SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json")
+# Revisions in place, in order; each binds the packs of the one before it (PR #169: the windows at the game's ratio;
+# PR #170: the precise pressed states of the board packs).
+SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json",
+                         "docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json")
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
@@ -254,7 +256,8 @@ def repository_inputs(root: Path) -> dict[str, str]:
                 (not later_ps2_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("PS2 Pocket catalog changed since review")
     # RewindBox Pocket skins revised in place (PR #166 screen framing, PR #167 pressed controls; then PR #169, the
-    # windows at the game's ratio): packs of the catalog are rebuilt, none is added. Each revision review binds each pack
+    # windows at the game's ratio; then PR #170, the precise pressed states): packs of the catalog are rebuilt, none is
+    # added. Each revision review binds each pack
     # it rebuilds to the identity the review before it gave that pack; the earlier reviews below then check the identity
     # of the last revision, never an unreviewed one. A revision counts only with every revision before it.
     revision_path = root / SKIN_REVISION_REVIEW
@@ -388,11 +391,11 @@ def repository_inputs(root: Path) -> dict[str, str]:
         raw = read_input(root, root / design.get("path", "missing"))
         if len(raw) != design.get("size") or sha256(raw) != design.get("sha256"):
             raise SystemExit("Switch Pocket approved design differs from the review")
-    # RewindBox Pocket skins revised in place (PR #166 and PR #167; then PR #169): no pack added or removed, no package,
-    # dependency, framework, engine or native source declaration change. Each revision binds the catalog before it (the
-    # Switch Pocket review's for the first, the previous revision's after), its own catalog, and for every pack its exact
-    # id, size and SHA-256, with the identity each revised pack replaces. The last revision is checked against the
-    # catalog and the archives; an earlier one against the packs the next revision starts from.
+    # RewindBox Pocket skins revised in place (PR #166 and PR #167; then PR #169; then PR #170): no pack added or
+    # removed, no package, dependency, framework, engine or native source declaration change. Each revision binds the
+    # catalog before it (the Switch Pocket review's for the first, the previous revision's after), its own catalog, and
+    # for every pack its exact id, size and SHA-256, with the identity each revised pack replaces. The last revision is
+    # checked against the catalog and the archives; an earlier one against the packs the next revision starts from.
     for index, (name, revision) in enumerate(revisions):
         baseline = revisions[index - 1][0] if index else SWITCH_POCKET_REVIEW
         prior_switch = json.loads(read_input(root, root / baseline))

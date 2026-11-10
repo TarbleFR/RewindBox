@@ -1116,10 +1116,12 @@ class PocketSkinRevisionReview(unittest.TestCase):
     application refused the effective tree ("Pocket board Originals added packs differ from the review"). The revision
     review binds every rebuilt pack to the identity an earlier review gave it. 722: PR 169 rebuilt the same six packs
     again; a second revision review binds each to the identity of the first, and only the last revision is checked
-    against the catalog."""
+    against the catalog. 724: PR 170 rebuilt four of them a third time (precise pressed states); a third revision
+    review binds each to the identity of the second."""
 
     REVIEWS = ('docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json',
-               'docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json')
+               'docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json',
+               'docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json')
     CATALOG = 'assets/skins/pocket/catalog.json'
 
     def setUp(self):
