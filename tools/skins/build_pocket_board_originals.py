@@ -225,6 +225,13 @@ def board_screen(board: Image.Image, spec: dict) -> Image.Image:
     text = ~navy
     # Interior only (2 px in): the window's own light border stays.
     text[:3, :] = False; text[-3:, :] = False; text[:, :3] = False; text[:, -3:] = False
+    if 'window_text' in spec:
+        # Only the placeholder text's own box (a window shaped around another part of
+        # the body, e.g. the Switch board's top tab, keeps that part).
+        tx0, ty0, tx1, ty1 = spec['window_text']
+        keep = np.zeros_like(text)
+        keep[ty0 - wy0:ty1 - wy0, tx0 - wx0:tx1 - wx0] = True
+        text &= keep
     box[navy | text] = board_navy
     a[wy0 - y0:wy1 - y0, wx0 - x0:wx1 - x0] = box
     return Image.fromarray(a.astype(np.uint8), 'RGB')
@@ -254,7 +261,7 @@ def _shrink(mask: np.ndarray, n: int) -> np.ndarray:
     return np.asarray(Image.fromarray(mask.astype(np.uint8) * 255, 'L').filter(ImageFilter.MinFilter(2 * n + 1))) > 127
 
 
-def _segment(screen: Image.Image, box, pad: int, close: int):
+def _segment(screen: Image.Image, box, pad: int, close: int, cuts=()):
     bx, by, bw, bh = box
     x0, y0 = max(0, bx - pad), max(0, by - pad)
     x1, y1 = min(screen.width, bx + bw + pad), min(screen.height, by + bh + pad)
@@ -271,11 +278,16 @@ def _segment(screen: Image.Image, box, pad: int, close: int):
     holes = ~_flood_from(~inside, _border(lum.shape)) & ~inside
     filled = inside | holes
     mask = _shrink(filled, close) | (stroke & filled)
+    # Seams between controls drawn touching (screen px): no outline crosses them.
+    for cx0, cy0, cx1, cy1 in cuts:
+        line = Image.new('L', (mask.shape[1], mask.shape[0]), 0)
+        ImageDraw.Draw(line).line((cx0 - x0, cy0 - y0, cx1 - x0, cy1 - y0), fill=255, width=1)
+        mask &= np.asarray(line) == 0
     mask = _flood_from(mask, [(bx + bw // 2 - x0, by + bh // 2 - y0)])
     return x0, y0, mask
 
 
-def shape_mask(screen: Image.Image, box, reach: int = 10):
+def shape_mask(screen: Image.Image, box, reach: int = 10, cuts=()):
     """The control's real outline in the board screen (board pixels): everything enclosed
     by its drawn stroke (or its coloured face), reached from the centre of `box` (the
     box measured by hand on the board). Several margins and gap closings are tried; the
@@ -285,7 +297,7 @@ def shape_mask(screen: Image.Image, box, reach: int = 10):
     best = None
     for pad in (8, 12, 22):
         for close in (1, 2, 3):
-            x0, y0, mask = _segment(screen, box, pad, close)
+            x0, y0, mask = _segment(screen, box, pad, close, cuts)
             ys, xs = np.nonzero(mask)
             if xs.size == 0: continue
             left, top, right, bottom = x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1
@@ -303,6 +315,17 @@ def shape_mask(screen: Image.Image, box, reach: int = 10):
     return x0, y0, _shrink(mask, 1)
 
 
+def pill_mask(extent, x0: int, y0: int):
+    """A stadium (rounded ends of half its height) through a measured outline (board
+    px, exclusive right/bottom), one pixel inside it, as (x, y, mask) in screen px."""
+    ex0, ey0, ex1, ey1 = extent
+    w, h, ss = ex1 - ex0, ey1 - ey0, 4
+    big = Image.new('L', (w * ss, h * ss), 0)
+    ImageDraw.Draw(big).rounded_rectangle((0, 0, w * ss - 1, h * ss - 1), radius=h * ss / 2, fill=255)
+    m = np.asarray(big.resize((w, h), Image.Resampling.BOX)) >= 128
+    return ex0 - x0, ey0 - y0, _shrink(m, 1)
+
+
 def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int = 4) -> dict:
     """Every button's outline in one layout, made disjoint: each one stays within its
     measured box (plus `margin`), and a pixel claimed by two controls (a shared drop
@@ -312,7 +335,13 @@ def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int 
         label, kind, (bx, by, bw, bh) = entry[:3]
         if kind.startswith('stick') or kind == 'label': continue
         box = (bx - x0, by - y0, bw, bh)
-        mx, my, m = shape_mask(screen, box, reach=10)
+        cuts = [(cx0 - x0, cy0 - y0, cx1 - x0, cy1 - y0) for cx0, cy0, cx1, cy1 in spec.get('cuts', ())]
+        if label in spec.get('shapes', {}):
+            # A light 3D pill whose faint upper outline no stroke threshold closes (Switch
+            # Pocket): its outline measured on the board (pill_extent), one pixel inside.
+            mx, my, m = pill_mask(spec['shapes'][label], x0, y0)
+        else:
+            mx, my, m = shape_mask(screen, box, reach=10, cuts=cuts)
         full = np.zeros((screen.height, screen.width), bool)
         full[my:my + m.shape[0], mx:mx + m.shape[1]] = m
         clip = np.zeros_like(full)
@@ -482,10 +511,11 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     W, H = MAPPING_WIDTH[orientation], round((y1 - y0) * k, 3)
     wx0, wy0, wx1, wy1 = spec['window']
     ww, wh = wx1 - wx0, wy1 - wy0
-    if ww / wh > 4 / 3:
-        sw, sh = wh * 4 / 3, wh
+    aspect = spec.get('aspect', 4 / 3)  # the game's own ratio (Switch: 16:9)
+    if ww / wh > aspect:
+        sw, sh = wh * aspect, wh
     else:
-        sw, sh = ww, ww * 3 / 4
+        sw, sh = ww, ww / aspect
     sx, sy = wx0 + (ww - sw) / 2, wy0 + (wh - sh) / 2
     screen_rect = bp.rect(round((sx - x0) * k, 3), round((sy - y0) * k, 3), round(sw * k, 3), round(sh * k, 3))
     masks = layout_masks(screen, spec, x0, y0)
@@ -539,6 +569,16 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
                 cut = Image.new('L', base.size, 0)
                 ImageDraw.Draw(cut).rectangle(tuple(round(v * UPSCALE) - o for v, o in zip(
                     (px0, py0, px1, py1), (box[0], box[1], box[0], box[1]))), fill=255)
+                disk = ImageChops.subtract(disk, cut)
+            for other in spec.get('socket_cuts', {}).get(label, ()):
+                # A control drawn on this stick's socket ring (Switch L3/R3 pills): the
+                # socket leaves out its outline (one board pixel wider), so the drawn
+                # shapes never overlap and the pill answers its own touches.
+                ox, oy, m = masks[other]
+                grown = Image.fromarray(_grow(m, 1).astype(np.uint8) * 255, 'L')
+                grown = grown.resize((grown.width * UPSCALE, grown.height * UPSCALE), Image.Resampling.NEAREST)
+                cut = Image.new('L', base.size, 0)
+                cut.paste(grown, (ox * UPSCALE - box[0], oy * UPSCALE - box[1]))
                 disk = ImageChops.subtract(disk, cut)
             files[f'controls/{key}-base.png'] = bp.png(with_alpha(base, disk))
             # Held: the socket only darkens a little under the moving cap (no other change).
@@ -594,7 +634,9 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
             alpha = Image.fromarray(full.astype(np.uint8) * 255, 'L').resize(normal.size, Image.Resampling.BILINEAR)
             alpha = alpha.filter(ImageFilter.GaussianBlur(0.35 * UPSCALE))
             files[f'controls/{key}.png'] = bp.png(with_alpha(normal, alpha))
-            files[f'controls/{key}-pressed.png'] = bp.png(pressed_face(normal, alpha, UPSCALE))
+            # An inert control (Switch HOME/Capture: no Core input) does not look pressed.
+            files[f'controls/{key}-pressed.png'] = bp.png(
+                with_alpha(normal, alpha) if label in spec.get('inert', ()) else pressed_face(normal, alpha, UPSCALE))
             inputs = {d: d for d in ('up', 'down', 'left', 'right')} if kind == 'dpad' else [label]
             frame = bp.rect(round(fx0 * k, 3), round(fy0 * k, 3), round((fx1 - fx0) * k, 3), round((fy1 - fy0) * k, 3))
             item = {'frame': frame, 'inputs': inputs,
@@ -605,7 +647,8 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     # No invisible extension into the home-indicator band of the smallest edge-to-edge
     # iPhone (34 pt portrait = 36 mapping pt; 21 pt landscape, 7 pt of it letterbox).
     extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15),
-                   spill=spec.get('spill', False))
+                   spill=spec.get('spill', False), margin=spec.get('extend_margin', 0),
+                   fine=spec.get('spill_fine', False))
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
             'screens': [{'outputFrame': screen_rect}], 'items': items, 'translucent': False}
 
@@ -668,7 +711,7 @@ def _shape_raster(item, shape, W, H):
     return g
 
 
-def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, spill=False):
+def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, spill=False, margin=0, fine=False):
     """Invisible extended edges until each touch area reaches `target` mapping pt (44 pt fitted
     on the smallest edge-to-edge iPhone, 375 x 812). An extension never covers another
     control's frame or touch area (frames may overlap where the board's shapes interlock;
@@ -682,7 +725,9 @@ def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, 
         g = np.zeros((int(math.ceil(H * GRID)), int(math.ceil(W * GRID))), bool)
         for j, o in enumerate(items):
             if j != i: g |= _raster(hit(o), W, H)
-        return g
+        # `margin` grid cells of clearance (Switch Pocket's tightly packed top band): two
+        # extensions never meet in a coarser sampling either.
+        return _grow(g, margin) if margin else g
     for i, item in enumerate(items):
         f = item['frame']
         frame = _raster((f['x'], f['y'], f['x'] + f['width'], f['y'] + f['height']), W, H)
@@ -716,6 +761,9 @@ def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, 
                     else:
                         grown = True
                         break
+                if not grown and fine and step > need / 160:
+                    step /= 2  # `fine` (Switch Pocket): the last free fraction of a step too
+                    continue
                 if not grown: break
 
 

@@ -84,6 +84,20 @@
       },
       "author": "RewindBox",
       "license": "RewindBox approved board; console names and marks belong to their owners"
+    },
+    {
+      "id": "switch-pocket",
+      "name": "Switch Pocket",
+      "console": "switch",
+      "archiveAsset": "assets/skins/pocket/switch-pocket.manicskin",
+      "sha256": "9df1b5da562f904d3657c950314874ff6f23ac59e025c312d9a8bfa34b871abd",
+      "size": 9607850,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/switch-pocket-portrait.png",
+        "landscape": "assets/skins/pocket/switch-pocket-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "RewindBox approved board; console names and marks belong to their owners"
     }
   ]
 }

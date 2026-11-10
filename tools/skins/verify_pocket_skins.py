@@ -31,9 +31,14 @@ ESSENTIALS = {
     "ps2": {"cross", "circle", "square", "triangle", "l1", "l2", "r1", "r2", "select", "start", "l3", "r3", "menu",
             "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight",
             "rstickUp", "rstickDown", "rstickLeft", "rstickRight"},
+    # Switch (MeloNX): MeloNXSkinOverlay's names; home / capture are drawn and said
+    # (the embedded Core has no index for them), menu is the RewindBox session menu.
+    "switch": {"a", "b", "x", "y", "l", "r", "zl", "zr", "minus", "plus", "l3", "r3", "home", "capture", "menu",
+               "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight",
+               "rstickUp", "rstickDown", "rstickLeft", "rstickRight"},
 }
-STICKS = {"gc": 2, "wii": 1, "ps2": 2}
-GAME_TYPES = {"gc": {"ngc", "gc", "gamecube"}, "wii": {"wii"}, "ps2": {"ps2"}}
+STICKS = {"gc": 2, "wii": 1, "ps2": 2, "switch": 2}
+GAME_TYPES = {"gc": {"ngc", "gc", "gamecube"}, "wii": {"wii"}, "ps2": {"ps2"}, "switch": {"switch"}}
 RAW_BODY_CONSOLES = {"gc", "wii"}
 BOARD_DIR = Path(__file__).resolve().parents[2]/"docs/design/pocket"
 # Physical model for packs drawn from an approved board (device points, portrait
@@ -47,18 +52,41 @@ HOUSINGS = {(375, 812): ((209, 30, 0), 39), (390, 844): ((162, 33, 0), 47),
 # Closed list, keyed by (pack, orientation, first canonical input): any other intrusion
 # fails. Each one is measured in the report and handed to the maintainer as a decision.
 KNOWN_HOUSING_DEVIATIONS = {("gamecube-pocket-original", "landscape"): {"x", "cUp", "menu"},
-                            ("ps2-pocket-original", "landscape"): {"circle"}}
+                            ("ps2-pocket-original", "landscape"): {"circle"},
+                            # Switch Pocket: the board draws a narrower housing over its left
+                            # rail; the iPhone's (11-48 pt from the edge) reaches the outer
+                            # corner of the left stick's and the D-pad's touch squares (their
+                            # drawn cap and arms stay clear) and, in the opposite rotation,
+                            # the right stick's square and the outer edge of A.
+                            ("switch-pocket", "landscape"): {"a", "stickUp", "up", "rstickUp"}}
 # Board-faithful targets the approved board leaves no room to grow to 44 pt (PS2
 # Original landscape: L3/R3 labels stacked between the cap and SELECT/START, above the
 # home-indicator band). Closed list keyed like the housing deviations, each with the
 # smallest mapping size allowed; measured in the report, never presented as 44 pt.
-KNOWN_SMALL_TARGETS = {("ps2-pocket-original", "landscape"): {"l3": 25.0, "r3": 25.0, "select": 38.0, "start": 38.0}}
+KNOWN_SMALL_TARGETS = {("ps2-pocket-original", "landscape"): {"l3": 25.0, "r3": 25.0, "select": 38.0, "start": 38.0},
+                       # Switch Pocket, touch areas grown into the free body (a side blocked by
+                       # a neighbour gives its share to the other): portrait R3 sits on its
+                       # stick's ring 7.7 pt above the home-indicator band, so it stops at
+                       # 37.8 pt (growing more would cover the stick's square or enter the
+                       # system gesture band); landscape L3 45.5 and R3 44.0 mapping pt
+                       # (44 pt on a 393 pt iPhone, ~42-43 pt on a 375 pt one).
+                       ("switch-pocket", "portrait"): {"r3": 37.5},
+                       ("switch-pocket", "landscape"): {"l3": 45.0, "r3": 43.9}}
 # Board placements drawn deeper than 3 pt into the home-indicator band (the PS2 board
 # puts SELECT/START level with its own home bar, in the bottom corners, away from the
 # centred indicator): closed list with the depth allowed, measured in the report.
 KNOWN_BAND_DEPTHS = {("ps2-pocket-original", "landscape"): {"select": 5.5, "start": 5.5}}
 EXPECTED_PACKS = {"wii-pocket": "wii", "gamecube-pocket": "gc", "ps2-pocket": "ps2",
                   "gamecube-pocket-original": "gc", "wii-pocket-original": "wii", "ps2-pocket-original": "ps2"}
+# Switch Pocket (MeloNX), built from the maintainer's original reference board like the
+# Originals (build_switch_pocket.py checks the PNG's SHA-256).
+EXPECTED_PACKS["switch-pocket"] = "switch"
+BOARD_PACKS = {"gamecube-pocket-original", "wii-pocket-original", "ps2-pocket-original", "switch-pocket"}
+# The game's own picture ratio in the skin's screen (the host fits the game into it).
+SCREEN_RATIO = {"switch": 16/9}
+# Drawn console buttons with no input in the embedded Core (MeloNX has no HOME/Capture
+# index): they never look pressed, the session says so (MeloNXSkinSession).
+INERT_CONTROLS = {"switch-pocket": {"home", "capture"}}
 
 
 def native_layout(representations, tall):
@@ -163,7 +191,7 @@ def canonical(console, raw):
     for prefix in ("rightthumbstick", "rightstick", "rightanalog", "cstick", "c"):
         for direction in ("Up", "Down", "Left", "Right"):
             if key == prefix+direction.lower():
-                return {"gc": "c", "wii": "pointer", "ps2": "rstick"}[console]+direction
+                return {"gc": "c", "wii": "pointer", "ps2": "rstick", "switch": "rstick"}[console]+direction
     for direction in ("up", "down", "left", "right"):
         if key in (direction, "dpad"+direction):
             return direction
@@ -172,6 +200,10 @@ def canonical(console, raw):
         aliases.update({"r1": "z", "l2": "l", "r2": "r", "lefttrigger": "l", "righttrigger": "r"})
     elif console == "wii":
         aliases.update({"1": "one", "2": "two", "nunchukc": "c", "nunchukz": "z"})
+    elif console == "switch":
+        aliases = {"pause": "menu", "options": "menu", "select": "minus", "back": "minus", "start": "plus",
+                   "leftstickclick": "l3", "lsclick": "l3", "ls": "l3", "rightstickclick": "r3", "rsclick": "r3",
+                   "rs": "r3", "screenshot": "capture"}
     else:
         aliases = {"pause": "menu", "options": "menu"}
     result = aliases.get(key, key)
@@ -230,7 +262,7 @@ def drawn_rect(item, resource):
     return x+box[0]*sx, y+box[1]*sy, (box[2]-box[0])*sx, (box[3]-box[1])*sy
 
 
-def board_touch_checks(layout, resource, label):
+def board_touch_checks(layout, resource, label, inert=frozenset()):
     """Board Originals: what the eye sees, what the finger reaches and what a press
     changes are the control's own drawn shape (the defect seen on device: opaque
     rectangular sprites flashing a box around a pressed control, a stick cap off its
@@ -267,8 +299,11 @@ def board_touch_checks(layout, resource, label):
             require(rest.mean() <= 1.5, f"{label}/{index}: the rest sprite differs from the board ({rest.mean():.2f})")
             inside = np.asarray(normal.resize(under.size).getchannel("A")) >= 250
             lum = lambda im: np.asarray(im.convert("RGB")).astype(np.float32).sum(axis=2)[inside].mean()
-            require(lum(Image.fromarray(over(pressed).astype(np.uint8))) < lum(under) * 0.9,
-                    f"{label}/{index}: the press is not clearly visible")
+            if isinstance(item["inputs"], list) and set(item["inputs"]) <= inert:
+                pass  # an inert control never looks pressed (checked in validate_pack)
+            else:
+                require(lum(Image.fromarray(over(pressed).astype(np.uint8))) < lum(under) * 0.9,
+                        f"{label}/{index}: the press is not clearly visible")
         g = np.zeros((int(math.ceil(mapping[1]*2)), int(math.ceil(mapping[0]*2))), bool)
         x0, y0 = int(round(frame[0]*2)), int(round(frame[1]*2))
         w, h = max(1, int(round(frame[2]*2))), max(1, int(round(frame[3]*2)))
@@ -311,7 +346,7 @@ def validate_pack(assets, body_sources, row):
     require(info.get("identifier") == f"org.rewindbox.{row['id']}" or row["id"] in ("wii-pocket", "gamecube-pocket", "ps2-pocket"),
             f"{row['id']}: identifier does not match the catalog id")
     board = info.get("provenance", {}).get("status") == "approved-board"
-    require(board == row["id"].endswith("-original"), f"{row['id']}: approved-board provenance mismatch")
+    require(board == (row["id"] in BOARD_PACKS), f"{row['id']}: approved-board provenance mismatch")
     board_binding = None
     if board:
         board_file = BOARD_DIR/Path(info["provenance"]["board"]).name
@@ -356,7 +391,8 @@ def validate_pack(assets, body_sources, row):
             require(len(screens) == 1, f"{label}: expected a single game screen")
             for screen in screens:
                 require(inside(screen, bounds), f"{label}: screen outside mapping")
-                require(abs(screen[2]/screen[3]-4/3) < 0.001, f"{label}: screen is not 4:3")
+                ratio = SCREEN_RATIO.get(console, 4/3)
+                require(abs(screen[2]/screen[3]-ratio) < 0.001, f"{label}: screen is not {ratio:.4f}")
                 # Approved raw body images stay byte-identical. Their game
                 # windows are cut out by DOLSkinOverlay's even-odd layer mask
                 # at runtime, rather than by altering the bitmap alpha.
@@ -378,7 +414,10 @@ def validate_pack(assets, body_sources, row):
                 provided.update(canonical(console, name) for name in raw_inputs(item))
                 normal, pressed = item["asset"]["normal"], item["asset"]["pressed"]
                 a, b = resource(normal), resource(pressed)
-                require(a.size == b.size and a.tobytes() != b.tobytes(), f"{label}/{index}: pressed state not distinct")
+                inert = {canonical(console, name) for name in raw_inputs(item)} <= INERT_CONTROLS.get(row["id"], set())
+                # An inert control (no Core input) must NOT look pressed; every other one must.
+                require(a.size == b.size and (a.tobytes() == b.tobytes()) == inert,
+                        f"{label}/{index}: pressed state {'shown on an inert control' if inert else 'not distinct'}")
                 if "thumbstick" in item:
                     stick_count += 1
                     knob = item["thumbstick"]
@@ -389,7 +428,7 @@ def validate_pack(assets, body_sources, row):
                 # Interlocking board shapes may share frame corners; the overlay answers
                 # by the drawn shape (DOLSkinHitTest.h), so the shapes and every invisible
                 # extension must be disjoint, and a press may change only the shape.
-                board_touch_checks(layout, resource, label)
+                board_touch_checks(layout, resource, label, INERT_CONTROLS.get(row["id"], frozenset()))
             require(ESSENTIALS[console] <= provided, f"{label}: missing controls {ESSENTIALS[console]-provided}")
             require(stick_count == STICKS[console], f"{label}: wrong movable stick count")
             menus = [item for item in layout["items"] if "menu" in [canonical(console, name) for name in raw_inputs(item)]]
@@ -477,9 +516,9 @@ def main():
         require(catalog.get("schemaVersion") == 1, "unsupported catalog schema")
         rows = catalog["skins"]
         require(len(rows) == len(EXPECTED_PACKS) and {row["id"]: row["console"] for row in rows} == EXPECTED_PACKS,
-                "expected exactly the Wii, GameCube, PS2 Pocket packs and the three board Originals")
+                "expected exactly the Wii, GameCube, PS2 Pocket packs, the three board Originals and Switch Pocket")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
-                  "all PNG decodes", "every iPhone layout", "4:3 game windows for native background masking", "all essential bindings", "exactly one Menu control in every layout",
+                  "all PNG decodes", "every iPhone layout", "4:3 game windows (16:9 for the Switch) for native background masking", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
                   "approved board SHA-256 binding (Originals)",
                   "Originals: sprites transparent outside the outline, press confined to it, rest = board, cap at the touch centre",

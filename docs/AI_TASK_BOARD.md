@@ -2768,66 +2768,57 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
   fallback.
 
-### Skins/orientation and additive PS2 Original — existing owner
+### Skins/orientation, PS2/Switch Pocket and main menu bar — existing owner
 
 - **History:** PR152 `705e90c7`; PS2 playlist entry `b8794226`; PR155 Originals in 643;
-  PR157 contour/press/stick fix in 650; PR158 PS2 Pocket — Original in 653 (simulator ARMSX2
-  28/28, run `41870604467`; landscape L3/R3 ~26 pt, SELECT/START ~40 pt and the housing over
-  Circle await the maintainer); PR159 installed-copy refresh integrated `ae36a67` (after 653).
-  [Touch proofs](evidence/pocket-originals/touch-fix/), [PS2 Original](evidence/pocket-originals/ps2-original/),
-  [refresh](evidence/pocket-originals/installed-copy-refresh/analysis.json),
-  [pack record](pocket-originals-2026-11-03.md).
-- **Device check on 653 (21:02 recording `33dc53cc…25df`, private):** the GameCube Original
-  still drew the 643 copy (stick regions `f61e10dd` 7.9/6.8 against `ec382133` 11.4/14.2;
-  rectangle on A and the D-pad), while the same iPhone had the 653-only PS2 Original
-  (`07f4b6fb`, 1.05/255 at rest). So the stale copy was confirmed and PR159 is needed on
-  device; record on `work/skins-device-653-check-20261104` `4eb0ab3` (docs only).
-- **PR160 (in IPA 657):** stick top face only, `90aabdb`, run `41910671261`, integrated
-  `57e21ae2` + legal `873b0ad2`; [evidence](evidence/pocket-originals/stick-top/). Replaced below.
-- **Sticks: the whole circle moves (high selector).**
-  - Input: `ScreenRecording_11-05-2026_01-55-08_1.mp4`, 11060839 B, `9903bbbd…b359`, private,
-    IPA 657: "Tu as rogner sur les deux analogue…"; then, on the zones of PR161: "je veux le
-    cercle entier de chaque analogue … homogène, comme … la PS2 ou la Wii. Reprends de Zéro".
-  - Rejected: PR157 1.12 r disc (drags socket); PR160 face circle (bevel, wall and C yellow
-    ring left behind: 5.7–33.7 % of the cap); PR161 stadium (`7b53931`, closed, not
-    integrated: top measured 7–9 px into the socket, not a circle).
-  - Finding: `tools/skins/measure_stick_caps.py` (180 rays, outermost cap/socket edge):
-    every GameCube/Wii cap, side wall and yellow ring included, is a circle (semi-axes within
-    1 %, p90 ≤ 0.23 px).
-  - Fix: branch `work/skins-stick-circle-20261105` from Claude `3d1639b`, commit `592c4d1`,
-    [PR162](https://github.com/TarbleFR/RewindBox/pull/162). Knob = the whole measured circle
-    (pixel-snapped, one centre with its frame); harmonic socket fill, homogeneous; PS2 as is.
-    - GameCube `995038e88b4597fce27cb32100e9feb14ff0d22dc352117b8846070a093af2ff` (6166556 B);
-    - Wii `337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790` (5095619 B);
-    - PS2 Original byte-identical; reproducible (3 archives + 6 previews).
-  - Proof:
-    - CI run [41950787918](https://github.com/TarbleFR/RewindBox/actions/runs/41950787918) green:
-      Dolphin skin simulator 9/9 on the new archives, pocket host step (native steps skipped:
-      no native change);
-    - host: verifier passed, input chain 18 layouts, menu button, portrait lock, session
-      chrome 32 layouts; Flutter skin/pocket 240/240;
-    - before → after: cap left behind 5.7–33.7 % → 0 %; socket texture in the knob ≤ 8.1 % →
-      ≤ 0.2 %; yellow under the C 100 % → 0 %; misrouted 0 %; travel 9.1–11.4 pt.
-    - [Evidence](evidence/pocket-originals/stick-circle/) (zones, before/after, measurement).
-  - Handed off once to main (PR162 `592c4d1` + docs). Main: integrate PR162 (not PR161),
-    update the legal declaration for the two new archives, next common IPA. Not observed on
-    an iPhone.
-- **Switch Pocket (new request, in progress).**
-  - Maquette needed as an original file: the chat image is not saved as a file, and I do not
-    build from a recompressed copy.
-  - Path found: MeloNX has no skin overlay, and the Dart skin consoles are gc/wii/ps2 only.
-    Needed: a `switch` console, a MeloNX playlist Skins entry, and a native MeloNX skin
-    overlay (drawn-shape hit test, router input, Menu, 16:9 game in the skin screen,
-    Melo-Controller hidden).
-  - Core ABI verified: 17 buttons, `EmbeddedInput.cs:42`; order checked by
-    `test/melonx_input_test.py:69-73`: A B X Y − Guide + L3 R3 L R up down left right ZL ZR;
-    sticks 1/2.
-  - Capture: no index. Home: only `Guide` (5), with no evidence the guest reacts, so both are
-    Core needs for main, not silent buttons.
-- **Effort observed:** `rb-effort-high` returned "Effective effort reported by Claude Code:
-  high" at each native phase. `rb-effort-low` returned "low" for the IPA status question.
-- **MeloNX export:** private ZIP 900515 B `12b5f019…2f04` (skins attachment `d585ba9d…`).
-  Native attach refused (project channel→thread only); Codex re-attaches.
+  PR157 in 650; PR158 PS2 Pocket — Original in 653 (landscape L3/R3 ~26 pt, SELECT/START
+  ~40 pt and the housing over Circle await the maintainer); PR159 installed-copy refresh;
+  PR160 stick tops in 657; PR162 whole-circle sticks (`592c4d1`, measured by
+  `tools/skins/measure_stick_caps.py`) in 662. [Pack record](pocket-originals-2026-11-03.md),
+  [stick evidence](evidence/pocket-originals/stick-circle/).
+- **References of 9 Nov (maintainer):** menu `RewindBox-menu-principal-reference.png`, PNG
+  1162×198, 73048 B, `d7f20bdd…ea65`. Switch: first inline copy re-encoded as WEBP (103444 B,
+  `fa0bc3d8…`, not used for the pack); then ZIP 1797253 B `ea785d7f…1323944` with
+  `RewindBox-Switch-Pocket-reference-exacte.png` 1939331 B `b89f7cce…6ae108` and SHA256.txt:
+  **received and identical** ([receipt](evidence/switch-pocket/reference-receipt.json)), now
+  `docs/design/pocket/approved-switch.png`; the WEBP copy and provisional mode are removed.
+- **Main menu bar without labels:** branch `work/main-nav-no-labels-20261109` from
+  `f477f469`, commit `00a83e69`, [PR164](https://github.com/TarbleFR/RewindBox/pull/164),
+  independent review. No tab name in any style or stored mode; Semantics (button, selected,
+  name) kept; no label band (59.8 → 46.7 pt in the reference style), Glacier cell
+  1.81 → 1.4; the ineffective "Tab labels" rows removed (stored value kept).
+  - Proof: `test/main_nav_no_labels_test.dart` 5/5 (4 styles × 3 stored modes); full
+    `flutter test` +4187 ~8 −25, the 25 identical on `f477f469` (baseline);
+    [renders](evidence/main-nav-no-labels/). Not observed on an iPhone.
+- **Switch Pocket for MeloNX (high selector):** branch `work/skins-switch-pocket-20261109`
+  from `f477f469`: `8e2f4bd1` (path: overlay, hit test, session, router hooks, `switch`
+  console, playlist Skins entry), `df985d3f` (generator, checks, CI), `36c7bdf2` (final pack
+  from the PNG), [PR165](https://github.com/TarbleFR/RewindBox/pull/165).
+  - Pack `switch-pocket` (7th bundled pack, 6 earlier unchanged; Originals byte-identical;
+    rebuild byte-identical): board pixels, no control resized/redrawn; portrait +81 plain
+    top-band rows to the iPhone ratio, landscape letterboxed ~8 pt, 16:9 game. Core indices
+    A0 B1 X2 Y3 −4 +6 L3 7 R3 8 L9 R10 D-pad 11–14 ZL15 ZR16, sticks 1/2, ≡ = session menu;
+    HOME/Capture inert (never drawn pressed, notice, nothing sent; no Core change asked).
+  - Touch areas: L3 46.0/45.5 pt, R3 landscape 44.0, others ≥ 46.3. **Compromises
+    (documented, maquette unchanged):** portrait R3 37.8 pt (on the stick's ring, 7.7 pt
+    above the home-indicator band); landscape island: D-pad respected (arms ≥ 25 pt clear),
+    left stick ~1 pt under at rest on 393×852 (3.4 pt clear on 430×932) and up to 11.3 pt
+    pushed fully left; full respect = move the drawn left column ~12 pt (maintainer's call).
+    Opposite rotation: outer ~15 pt of A. [Record](switch-pocket-2026-11-09.md).
+  - Proof (final pack): verifier 7 packs; input chain 20 layouts (4880014 drawn points reach
+    their own control, simultaneous fingers); `test/melonx_playlist_skins_test.dart` 4/4
+    (playlist → Skins → manager `switch` → both orientations → stored → read back → overlay
+    paths); `bundled_controller_skins_test` 7 packs; full `flutter test` +4191 ~8 −25 (the 25
+    baseline); CI run [42722406496](https://github.com/TarbleFR/RewindBox/actions/runs/42722406496)
+    green: host step on 7 archives, MeloNX iPhone compile, `MeloNXSkinOverlayTests` 17/17 in
+    the simulator (not an iPhone). Earlier run `42717148612` was the WEBP provisional pack
+    (16/17; centre-vector rounding fixed in `36c7bdf2`), not this pack.
+    [Evidence](evidence/switch-pocket/).
+  - MeloNX owner (lot 8): no objection, not editing the bridge files touched here; no Core/ABI
+    change. Handed off once to main (PR164 + PR165, PR165 marked ready). Not observed on an
+    iPhone; no MeloNX game run with the skin; no IPA from here.
+- **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
+  (Switch geometry/hit test/orientation; the menu change done under it).
 
 ### Codex orchestration — Codex
 
