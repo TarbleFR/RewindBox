@@ -826,10 +826,12 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
 
 /// The part of each band of the test pattern that must show: a rounded corner hides a
 /// few points at each end. The opening is redrawn at 16:9 in both orientations (the
-/// HOME / Capture tab no longer reaches into it upright).
+/// HOME / Capture tab no longer reaches into it upright); upright the window is 216 pt
+/// tall, so its 14 pt corners hide about 11 % of the left and right bands.
 - (const double*)frameMinimum:(NSString*)skin portrait:(BOOL)portrait {
-  static const double minimum[4] = {0.9, 0.9, 0.9, 0.9};
-  return minimum;
+  static const double upright[4] = {0.88, 0.88, 0.85, 0.85};
+  static const double sideways[4] = {0.9, 0.9, 0.9, 0.9};
+  return portrait ? upright : sideways;
 }
 
 - (NSDictionary*)infoOf:(NSString*)skin {
