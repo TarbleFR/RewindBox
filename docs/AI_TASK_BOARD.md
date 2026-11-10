@@ -2803,6 +2803,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   source `633af034`, plan SHA-256 `1f6d5f04…868c3e`. GitHub guard tests passed;
   deletion step active, final count/receipt not yet verified. No second dispatch.
   The other delivery workflows triggered by the push skipped every job.
+  Completion verification is scheduled in bounded automation
+  `Automation_0196817728ec8191be81faafe4584741` (hourly, at most four checks;
+  disable after verified result or terminal blocker). No duplicate cleanup run.
 
 Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
 all initial artifacts/retained producers preserved, Dependabot151 retained.
