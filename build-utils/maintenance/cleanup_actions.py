@@ -396,6 +396,19 @@ def refresh_selection(plan: dict, current: list[dict], sticky: dict[int, set[str
     return sorted(candidates, key=run_key)
 
 
+def has_execution_or_artifact(api, run_id: int) -> bool:
+    """Keep a nominally skipped run if any attempt has executed or stored data."""
+    artifacts = api.get_json(PREFIX + f'/actions/runs/{run_id}/artifacts?per_page=100')
+    if artifacts.get('total_count') != 0 or artifacts.get('artifacts') != []:
+        return True
+    jobs = api.get_json(PREFIX + f'/actions/runs/{run_id}/jobs?filter=all&per_page=100')
+    rows = jobs.get('jobs')
+    if not isinstance(rows, list) or jobs.get('total_count') != len(rows) or len(rows) >= 100:
+        return True
+    return any(job.get('status') != 'completed' or job.get('conclusion') != 'skipped'
+               or job.get('steps') not in (None, []) for job in rows)
+
+
 class Journal:
     def __init__(self, output: Path, plan_sha256: str = "", execute: bool = False):
         self.output = output
@@ -512,6 +525,10 @@ def run_cleanup(api, plan: dict, journal: Journal, *, execute: bool = False,
                     sticky.setdefault(rid, set()).add('changed_at_individual_pre_delete_check')
                     journal.event('preserved_changed_run', run_id=rid)
                     continue
+                if has_execution_or_artifact(api, rid):
+                    sticky.setdefault(rid, set()).add('execution_or_artifact_evidence')
+                    journal.event('preserved_evidence', run_id=rid)
+                    continue
             journal.state["delete_attempts"] += 1
             attempted.add(rid)
             journal.event("delete_requested", run_id=rid, head_sha=run["head_sha"], created_at=run["created_at"])
@@ -596,3 +613,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
