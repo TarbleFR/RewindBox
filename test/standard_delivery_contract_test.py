@@ -1558,6 +1558,28 @@ class DownloadedDelivery(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 verifier.transport(downloads, artifacts, name, source, run + 1, build)
 
+    def test_pieces_hold_a_payload_over_the_former_256_mib(self):
+        """722, 10 November 2026: the encrypted IPA passed 4 x 64 MiB (run 42848698413, split_encrypted_delivery.py
+        refused it after the application was built and sealed). Four pieces of at most 96 MiB carry it."""
+        with tempfile.TemporaryDirectory(prefix='standard-split-') as directory:
+            work = Path(directory)
+            encrypted = work / 'encrypted'
+            encrypted.mkdir()
+            payload_bytes = 4 * 64 * 1024 * 1024 + 4096
+            with (encrypted / 'artifact.tar.enc').open('wb') as output:
+                output.truncate(payload_bytes)
+            (encrypted / 'format.json').write_text(json.dumps({'cipher': 'AES-256-CBC PBKDF2 200000', 'keyEnvelope': 'RSA OAEP SHA256',
+                                                               'content': 'tar', 'publication': 'encrypted delivery only'}))
+            (encrypted / 'password.rsa').write_bytes(b'envelope')
+            environment = dict(os.environ, GITHUB_SHA='d' * 40, GITHUB_RUN_ID='77', BUILD_NUMBER='901')
+            result = subprocess.run([sys.executable, 'build-utils/split_encrypted_delivery.py', str(encrypted), str(work / 'parts')],
+                                    cwd=ROOT, env=environment, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+            manifest = json.loads(result.stdout)
+            self.assertEqual([part['index'] for part in manifest['parts']], [0, 1, 2, 3])
+            self.assertEqual(sum(part['bytes'] for part in manifest['parts']), payload_bytes)
+            self.assertTrue(all(64 * 1024 * 1024 < part['bytes'] <= 96 * 1024 * 1024 for part in manifest['parts']))
+
 
 class TriggerCommit(unittest.TestCase):
     def test_subject_parsing(self):
