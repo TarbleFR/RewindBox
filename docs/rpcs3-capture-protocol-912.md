@@ -9,7 +9,7 @@ restent hors de Git.
 | Rôle | Core | Identité | Différence |
 |---|---|---|---|
 | Référence (à épingler) | 914 | run `42736141716` (source `ce12d397`)  artifact 13728211847  dylib `14e6f691` (80 919 144 B)  fingerprint `df98e75d`, épinglé | Core 912 + corrections de collecte du 10 novembre (un événement n'entre que dans la capture où il a été préparé). Mémo de textures à 16 voies. |
-| Témoin de comparaison AC1 (jamais épinglé) | 915 | @@WITNESS_IDENTITY@@ | Core 914 avec une seule constante changée : `ways = 4` dans `rpcs3/ios/IOSTextureLookupMemo.h`. |
+| Témoin de comparaison AC1 (jamais épinglé) | 915 | run `42737889347` (source `b5f70a2a`), artifact 13728955880, dylib `b4ece6df` (80 919 144 B), fingerprint `b8759812`, jamais épinglé ; [identité](evidence/rpcs3-core915-ac1-ways4-witness/identity.json) | Core 914 avec une seule constante changée : `ways = 4` dans `rpcs3/ios/IOSTextureLookupMemo.h`. |
 | Remplacés, ni épinglés ni livrés | 912 / 913 | runs `42728150899` / `42729856621` | Première paire référence/témoin, avant la correction de la collecte. Ne jamais comparer 913 à 914. |
 
 Un témoin n'est comparable qu'à la référence dont il est issu : 915 avec 914 seulement.

@@ -1261,8 +1261,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       stale_rejected=/before_start/part=refused present; pin_errors and bundle clean. Not run on the iPhone; no FPS claim.
     - **Core 915 (AC1 4-way witness of Core 914, never pinned, not for a common IPA)**: engine commit e36fe47 = 7aa8ab7 with
       `ways = 4`; the canonical trees differ by rpcs3/ios/IOSTextureLookupMemo.h only; canonical d679d066. Route, codegen,
-      fold, memo test with --expect-ways 4: PASS; guards and driver running.
-    - Next action: verify the Core 914 artifacts offline and pin it; build, verify and record Core 915 separately.
+      fold, memo test with --expect-ways 4, 13 host guards, full driver: PASS. Request `b5f70a2a`, run `42737889347` green
+      first try; verified offline against the downloaded Core 914: type rpcs3-ios-core915, same codegen identities, the
+      built source identities differ by rpcs3/ios/IOSTextureLookupMemo.h only. Artifact 13728955880, dylib `b4ece6df`,
+      fingerprint `b8759812`; [identity](evidence/rpcs3-core915-ac1-ways4-witness/identity.json). Never pinned.
+    - Preparation closed: reference 914 pinned, witness 915 recorded separately. Remaining: iPhone measurements only.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
