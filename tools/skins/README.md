@@ -46,6 +46,12 @@ unchanged. [Sheets](../../docs/evidence/skins-realistic-press/).
 
 ## The game's place (10 November)
 
+Second pass the same day: `screen_opening.reframe` redraws each layout's window at the
+game's own ratio (4:3; Switch Pocket 16:9) from the body's rim and surroundings, and
+`native_frame` gives the exactly-proportioned `outputFrame`; the wii/gamecube Pocket packs
+carry one body per layout (`body-standard-*.png`). Outside the window the bodies stay the
+approved images (verifier).
+
 `screen_opening.py` measures the navy opening each body image draws and gives the pack
 its game container: `screens[0].screenCutout` (a PNG the size of the body, alpha where
 the body stays, used by the overlays as the body's mask) and `screens[0].outputFrame`

@@ -681,13 +681,16 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     seed = ((sx + sw / 2 - x0) * UPSCALE, (sy + sh / 2 - y0) * UPSCALE)
     drawn = screen_opening.opening(up, seed)
     body, _, changed = screen_opening.reframe(up, drawn, (W, H), aspect)
+    # Each control's sprite is the board's own pixels: none of them may be redrawn (the rest
+    # state must stay the body under it). Its transparent margin may meet the new frame.
     kx, ky = up.width / W, up.height / H
     for index, item in enumerate(items):
-        f, e = item['frame'], item.get('extendedEdges', {})
-        bx0, by0 = int((f['x'] - e.get('left', 0)) * kx), int((f['y'] - e.get('top', 0)) * ky)
-        bx1 = int((f['x'] + f['width'] + e.get('right', 0)) * kx) + 1
-        by1 = int((f['y'] + f['height'] + e.get('bottom', 0)) * ky) + 1
-        assert not changed[max(0, by0):by1, max(0, bx0):bx1].any(), (console, orientation, index, 'control under the redrawn window')
+        f = item['frame']
+        with Image.open(io.BytesIO(files[item['asset']['normal']])) as sprite:
+            drawn = np.asarray(sprite.convert('RGBA').getchannel('A')) > 0
+        bx0, by0 = round(f['x'] * kx), round(f['y'] * ky)
+        under = changed[by0:by0 + drawn.shape[0], bx0:bx0 + drawn.shape[1]]
+        assert not (under & drawn[:under.shape[0], :under.shape[1]]).any(), (console, orientation, index, item['inputs'], 'control redrawn')
     files[name] = bp.png(body)
     coverage = screen_opening.opening(body, seed)
     files[f'screens/{orientation}.png'] = screen_opening.cutout(coverage)
