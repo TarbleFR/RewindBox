@@ -2792,7 +2792,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   requirements without product/pin/CI/permission changes. Keep only current state
   here. Verified 640 watch is complete; do not recreate it from an old status.
 
-### Completed housekeeping — no new cleanup requested
+### Actions history cleanup — Codex
+
+- **10 Nov maintainer request, current plan:** a fresh complete inventory has 2,519 runs.
+  The reviewed one-shot plan targets exactly 1,311 older skipped-only first attempts;
+  newest 300, all executed jobs (success/failure/cancelled), active/rerun/referenced
+  runs are protected. No Core/pin/product/build/delivery change. Existing cleanup
+  script and 24 guard tests pass; snapshot dry-run selects 1,311 with zero mutations.
+  Execution is not yet verified; follow the exact cleanup run and retain its receipt.
 
 Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
 all initial artifacts/retained producers preserved, Dependabot151 retained.
