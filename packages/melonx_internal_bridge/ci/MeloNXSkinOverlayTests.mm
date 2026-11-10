@@ -825,11 +825,11 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
 #pragma mark The game's place: the opening the skin's body draws (test/skin_frame/SkinFrameCheck.h)
 
 /// The part of each band of the test pattern that must show: a rounded corner hides a
-/// few points at each end. Upright, the body's HOME / Capture tab reaches 16 to 18 points
-/// into the top of the opening over its middle (the board's drawing): the top band shows
-/// on both sides of it only, and the opening's sides lean a little.
+/// few points at each end. The opening is redrawn at 16:9 in both orientations (the
+/// HOME / Capture tab no longer reaches into it upright); upright the window is 216 pt
+/// tall, so its 14 pt corners hide about 11 % of the left and right bands.
 - (const double*)frameMinimum:(NSString*)skin portrait:(BOOL)portrait {
-  static const double upright[4] = {0.35, 0.85, 0.88, 0.82};
+  static const double upright[4] = {0.88, 0.88, 0.85, 0.85};
   static const double sideways[4] = {0.9, 0.9, 0.9, 0.9};
   return portrait ? upright : sideways;
 }

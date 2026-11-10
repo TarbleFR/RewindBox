@@ -259,7 +259,7 @@ def build(out: Path) -> dict:
         sys.exit(f'commands {sorted(used)} differ from {sorted(INPUTS)}')
     board_sha = hashlib.sha256(path.read_bytes()).hexdigest()
     info = {'name': NAME, 'identifier': f'org.rewindbox.{PACK_ID}', 'author': 'RewindBox',
-            'gameTypeIdentifier': GAME_TYPE, 'version': 2, 'license': LICENSE_LABEL,
+            'gameTypeIdentifier': GAME_TYPE, 'version': 3, 'license': LICENSE_LABEL,
             'previewImages': {o: f'previews/{o}.png' for o in ('portrait', 'landscape')},
             'provenance': {'status': status, 'board': f'docs/design/pocket/{path.name}', 'boardSha256': board_sha,
                            'generator': 'tools/skins/build_switch_pocket.py',

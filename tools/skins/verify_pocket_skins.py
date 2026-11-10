@@ -88,6 +88,10 @@ RECTANGULAR_WINDOWS = {"ps2-pocket"}
 # Drawn console buttons with no input in the embedded Core (MeloNX has no HOME/Capture
 # index): they never look pressed, the session says so (MeloNXSkinSession).
 INERT_CONTROLS = {"switch-pocket": {"home", "capture"}}
+# The game picture's own ratio (width / height); every other pack 4:3.
+NATIVE_RATIO = {"switch-pocket": 16/9}
+# Points around a drawn opening that screen_opening.reframe may redraw (rim + feather).
+REDRAWN_AROUND_OPENING = 7.0
 
 
 def game_opening(pack, layout, files, resource, mapping, label):
@@ -121,10 +125,37 @@ def game_opening(pack, layout, files, resource, mapping, label):
     shipped = screen_opening.coverage_of(files[name])
     require(shipped.shape == measured.shape, f"{label}: the cutout is not the body's size")
     require(float(np.abs(shipped-measured).max()) <= 1/255+1e-6, f"{label}: the cutout is not the opening its body draws")
-    require(all(abs(frame[k]-opening[k]) <= 0.0011 for k in ("x", "y", "width", "height")),
-            f"{label}: outputFrame {frame} is not the opening's box {opening}")
+    # The opening is drawn at the game's own ratio (screen_opening.reframe): outputFrame is
+    # exactly that ratio and covers the opening's visible part.
+    ratio = NATIVE_RATIO.get(pack, 4/3)
+    require(abs(frame["width"]/frame["height"]-ratio) < 1e-4, f"{label}: screen is not {ratio:.4f}")
+    native = screen_opening.native_frame(measured, mapping, ratio)
+    require(all(abs(frame[k]-native[k]) <= 0.0011 for k in ("x", "y", "width", "height")),
+            f"{label}: outputFrame {frame} is not the opening's {ratio:.4f} frame {native}")
+    require(abs(native["width"]-opening["width"]) < 2.0 and abs(native["height"]-opening["height"]) < 2.0,
+            f"{label}: the drawn opening {opening} is not at the game's ratio")
     require(float((shipped > 0).mean()) > 0.05, f"{label}: no opening")
     return shipped
+
+
+def raw_body_unchanged_outside_window(raw_bytes, body, layout, label):
+    """A Pocket body is the approved raw image except its game window and the few points
+    around it that screen_opening.reframe redraws."""
+    import numpy as np
+    from scipy import ndimage
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import screen_opening
+    raw = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+    shipped = body.convert("RGB")
+    require(raw.size == shipped.size, f"{label}: body size differs from the approved raw image")
+    frame = layout["screens"][0]["outputFrame"]
+    mapping = (layout["mappingSize"]["width"], layout["mappingSize"]["height"])
+    kx, ky = raw.width/mapping[0], raw.height/mapping[1]
+    drawn = screen_opening.opening(raw, ((frame["x"]+frame["width"]/2)*kx, (frame["y"]+frame["height"]/2)*ky)) >= 0.5
+    distance = ndimage.distance_transform_edt(~drawn, sampling=(1/ky, 1/kx))
+    far = distance > REDRAWN_AROUND_OPENING + 0.5
+    differ = (np.asarray(raw) != np.asarray(shipped)).any(axis=-1)
+    require(not (differ & far).any(), f"{label}: the body differs from the approved raw image away from its window")
 
 
 def over_opening(hit, coverage, mapping):
@@ -400,13 +431,14 @@ def validate_pack(assets, body_sources, row):
         require(board_binding == info["provenance"]["boardSha256"], f"{row['id']}: approved board changed")
     source_bodies = json.loads((body_sources/"provenance.json").read_text())["files"]
     source_bindings = {}
+    raw_sources = {}
     for name in (("body-portrait.png", "body-landscape.png") if console in RAW_BODY_CONSOLES and not board else ()):
         source = (body_sources/name).read_bytes()
         digest = hashlib.sha256(source).hexdigest()
         require(digest == source_bodies[name]["sha256"], f"{name}: source provenance digest mismatch")
         require(len(source) == source_bodies[name]["bytes"], f"{name}: source provenance size mismatch")
-        require(files.get(name) == source, f"{console}: approved source body changed: {name}")
         source_bindings[name] = digest
+        raw_sources[name] = source
 
     def resource(name):
         safe_name(name)
@@ -432,14 +464,17 @@ def validate_pack(assets, body_sources, row):
             for name in backgrounds.values():
                 resource(name)
                 if console in RAW_BODY_CONSOLES and not board:
-                    require(name == f"body-{orientation}.png", f"{label}: changed approved body reference")
+                    expected = f"body-{'' if display == 'edgeToEdge' else 'standard-'}{orientation}.png"
+                    require(name == expected, f"{label}: unexpected body reference {name}")
+                    raw_body_unchanged_outside_window(raw_sources[f"body-{orientation}.png"], resource(name), layout, label)
             screens = [rect(screen["outputFrame"]) for screen in layout["screens"]]
             require(len(screens) == 1, f"{label}: expected a single game screen")
             for screen in screens:
                 require(inside(screen, bounds), f"{label}: screen outside mapping")
-            # The game's container is the opening the body draws (screen_opening.py): the
-            # approved raw body images stay byte-identical, the pack ships the cutout of
-            # its opening and the overlays use it as the body's mask.
+            # The game's container is the opening the body draws, at the game's ratio
+            # (screen_opening.py): the approved raw body images are unchanged outside their
+            # window, the pack ships the cutout of its opening and the overlays use it as
+            # the body's mask.
             coverage = game_opening(row["id"], layout, files, resource, mapping, label)
             hits, provided, stick_count = [], set(), 0
             for index, item in enumerate(layout["items"]):
@@ -567,8 +602,8 @@ def main():
         require(len(rows) == len(EXPECTED_PACKS) and {row["id"]: row["console"] for row in rows} == EXPECTED_PACKS,
                 "expected exactly the Wii, GameCube, PS2 Pocket packs, the three board Originals and Switch Pocket")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
-                  "all PNG decodes", "every iPhone layout", "game screen = the opening the body draws: shipped cutout re-measured on the body, outputFrame = its box (PS2 Pocket: its rectangular 4:3 window)", "all essential bindings", "exactly one Menu control in every layout",
-                  "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
+                  "all PNG decodes", "every iPhone layout", "game screen = the opening the body draws, at the game's ratio (4:3; Switch 16:9): shipped cutout re-measured on the body, outputFrame exactly that ratio over it (PS2 Pocket: its rectangular 4:3 window)", "all essential bindings", "exactly one Menu control in every layout",
+                  "approved raw body provenance SHA-256, body unchanged outside its redrawn window (Pocket packs)",
                   "approved board SHA-256 binding (Originals)",
                   "Originals: sprites transparent outside the outline, press confined to it, rest = board, cap at the touch centre",
                   "Originals: drawn shapes disjoint, invisible extensions reach no other control", "native layout selection per iPhone",
