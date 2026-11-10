@@ -115,7 +115,10 @@ check('static let maxRegions = 400_000' in breakdown and 'static let maxWalkMs =
       'qos:.utility' in breakdown and breakdown.count('MeloNXStdioCapture.appendLine(') == 1, 'breakdown bounds')
 check('task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO)' in breakdown and
       'vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)' in breakdown and
-      'sharedObjects[info.object_id]' in breakdown, 'ledgers, the recursive region walk, shared objects counted once')
+      'vm_region_submap_short_info_data_64_t()' in breakdown and 'VM_REGION_TOP_INFO' in breakdown and
+      'vm_region_submap_info_data_64_t' not in breakdown and 'if info.is_submap != 0 { continue }' in breakdown and
+      'sharedObjects[info.object_id]' in breakdown,
+      'ledgers, two O(1) queries per top-level region (no page walk, the shared region skipped), shared objects counted once')
 
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
@@ -317,11 +320,12 @@ exit(0)
                        r'purgeable=\d+\+\d+ regions=(\d+)/[\d.]+ms groups=\S+ top=\S+$', line), line)
         check(int(re.search(r' footprint=(\d+)/', line).group(1)) >= 96 and int(re.search(r' regions=(\d+)/', line).group(1)) > 50, line)
         groups = {g.split(':')[0]: [int(v) for v in g.split(':')[1].split('/')] for g in re.search(r' groups=(\S+)', line).group(1).split(',')}
-        check('app3' in groups and 64 <= groups['app3'][0] < 80 and groups['app3'][1] >= 64, 'the tagged private region: ' + str(groups))
-        check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][2] == 1,
+        check('app3' in groups and 64 <= groups['app3'][0] < 80 and groups['app3'][1] == 1, 'the tagged private region: ' + str(groups))
+        check('app4~s' in groups and 32 <= groups['app4~s'][0] < 48 and groups['app4~s'][1] == 1,
               'the shared object mapped three times counts once: ' + str(groups))
+        check(float(re.search(r' regions=\d+/([\d.]+)ms', line).group(1)) < 40, 'the walk is quick (no page walk): ' + line)
         top = re.search(r' top=(\S+)', line).group(1).split(',')
-        check(len(top) <= 6 and any(entry.startswith(tagged + ':96:app3:private:') and int(entry.split(':')[4].split('/')[0]) >= 64 for entry in top),
+        check(len(top) <= 6 and any(entry.startswith(tagged + ':96:app3:private:') and int(entry.split(':')[4]) >= 64 for entry in top),
               'the tagged region is among the largest: ' + str(top))
         written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
         check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written), 'three scheduled lines, then the bound: ' + str(written))

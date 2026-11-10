@@ -509,11 +509,13 @@ final class MeloNXStallWatch {
 //   footprint= phys_footprint / its peak MiB (the figure iOS kills the process on)
 //   graphics=  the kernel's graphics ledger (Metal and IOAccelerator memory charged to the process) + its compressed part
 //   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
-//   regions=   regions walked / walk time ms ("partial" when the walk hit its region or time bound)
-//   groups=    the 8 largest groups of regions by VM tag, name:dirty+compressed MiB/resident MiB/regions; a name ending
-//              in "~s" is shared memory, counted per object (an object mapped more than once counts once, in the group
-//              of its tagged mapping, else of its largest one)
-//   top=       the 6 largest regions: address:virtual MiB:group:share mode:dirty+compressed MiB/resident MiB
+//   regions=   top-level regions read / time ms ("partial" when the walk hit its region or time bound); two O(1)
+//              queries per region, no page walk; the dyld shared region is skipped
+//   groups=    the 8 largest groups of regions by resident memory, name:resident MiB/regions, by VM tag ("file" for
+//              file-backed mappings, whose clean pages are not footprint); a name ending in "~s" is shared memory,
+//              counted per object (an object mapped more than once counts once, in the group of its tagged mapping,
+//              else of its largest one); compressed memory is the ledger's total (compressed=)
+//   top=       the 6 largest regions by resident memory: address:virtual MiB:group:share mode:resident MiB
 // Measurement only: it reads the process's own VM map and calls no engine closure.
 final class MeloNXMemoryBreakdown {
     static let maxRegions = 400_000
@@ -556,8 +558,8 @@ final class MeloNXMemoryBreakdown {
         _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + Self.describe(seconds:seconds), context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
     }
 
-    private struct Group { var dirty: UInt64 = 0, resident: UInt64 = 0, regions = 0 }
-    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, dirty: UInt64, resident: UInt64 }
+    private struct Group { var resident: UInt64 = 0, regions = 0 }
+    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64 }
 
     static func describe(seconds: Int) -> String {
         var parts = ["t=\(seconds)"]
@@ -576,68 +578,78 @@ final class MeloNXMemoryBreakdown {
             parts.append("ledgers=\(vmStatus)")
         }
 
+        // Two O(1) queries per top-level region (no page walk, so the VM map is never held long): its tag, share mode,
+        // object and pager (submap short info, depth 0), then its resident pages from the object's own counters (top
+        // info). The dyld shared region (a submap) is skipped; compressed memory is the ledger's total above.
         let page = UInt64(vm_page_size)
         let begin = DispatchTime.now().uptimeNanoseconds
         var groups: [String: Group] = [:]
-        var sharedObjects: [UInt32: (group: String, tagged: Bool, dirty: UInt64, resident: UInt64)] = [:]
+        var sharedObjects: [UInt32: (group: String, tagged: Bool, resident: UInt64)] = [:]
         var largest: [Region] = []
         var address: vm_address_t = 0
-        var depth: natural_t = 0
         var regions = 0
         var partial = false
         while true {
             if regions >= maxRegions || Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6 > maxWalkMs { partial = true; break }
             var size: vm_size_t = 0
-            var info = vm_region_submap_info_data_64_t()
-            var count = mach_msg_type_number_t(MemoryLayout<vm_region_submap_info_data_64_t>.size / MemoryLayout<natural_t>.size)
+            var depth: natural_t = 0
+            var info = vm_region_submap_short_info_data_64_t()
+            var count = mach_msg_type_number_t(MemoryLayout<vm_region_submap_short_info_data_64_t>.size / MemoryLayout<natural_t>.size)
             let status = withUnsafeMutablePointer(to:&info) {
                 $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) {
                     vm_region_recurse_64(mach_task_self_, &address, &size, &depth, $0, &count)
                 }
             }
             guard status == KERN_SUCCESS else { break } // past the last region
-            if info.is_submap != 0 { depth += 1; continue }
+            let regionAddress = address
+            address &+= size
+            if info.is_submap != 0 { continue }
             regions += 1
-            let dirty = (UInt64(info.pages_dirtied) + UInt64(info.pages_swapped_out)) * page
-            let resident = UInt64(info.pages_resident) * page
+            var top = vm_region_top_info_data_t()
+            var topCount = mach_msg_type_number_t(MemoryLayout<vm_region_top_info_data_t>.size / MemoryLayout<natural_t>.size)
+            var topAddress = regionAddress, topSize: vm_size_t = 0
+            var object: mach_port_t = 0
+            let topStatus = withUnsafeMutablePointer(to:&top) {
+                $0.withMemoryRebound(to:Int32.self, capacity:Int(topCount)) {
+                    vm_region_64(mach_task_self_, &topAddress, &topSize, VM_REGION_TOP_INFO, $0, &topCount, &object)
+                }
+            }
+            guard topStatus == KERN_SUCCESS, topAddress == regionAddress else { continue }
+            let resident = (UInt64(top.private_pages_resident) + UInt64(top.shared_pages_resident)) * page
             let share = UInt8(truncatingIfNeeded:info.share_mode)
             let mode = Int32(share)
             let shared = mode == SM_SHARED || mode == SM_TRUESHARED || mode == SM_SHARED_ALIASED
-            let name = group(info.user_tag) + (shared ? "~s" : "")
+            let name = (info.external_pager != 0 ? "file" : group(info.user_tag)) + (shared ? "~s" : "")
             if shared {
-                // Every mapping of one object sees the same pages: the object counts once, in the group of a tagged mapping
-                // when it has one, else of its largest mapping.
+                // Every mapping of one object counts the same pages: the object counts once, in the group of a tagged
+                // mapping when it has one, else of its largest mapping.
                 let tagged = info.user_tag != 0
                 if let previous = sharedObjects[info.object_id] {
-                    let better = (tagged && !previous.tagged) || (tagged == previous.tagged && dirty > previous.dirty)
-                    sharedObjects[info.object_id] = (better ? name : previous.group, previous.tagged || tagged,
-                                                     max(dirty, previous.dirty), max(resident, previous.resident))
+                    let better = (tagged && !previous.tagged) || (tagged == previous.tagged && resident > previous.resident)
+                    sharedObjects[info.object_id] = (better ? name : previous.group, previous.tagged || tagged, max(resident, previous.resident))
                 } else {
-                    sharedObjects[info.object_id] = (name, tagged, dirty, resident)
+                    sharedObjects[info.object_id] = (name, tagged, resident)
                 }
             } else {
-                groups[name, default:Group()].dirty += dirty
                 groups[name, default:Group()].resident += resident
                 groups[name, default:Group()].regions += 1
             }
-            if dirty > 0 && (largest.count < topRegions || dirty > largest[largest.count - 1].dirty) {
-                largest.append(Region(address:UInt64(address), size:UInt64(size), group:name, share:share, dirty:dirty, resident:resident))
-                largest.sort { $0.dirty > $1.dirty }
+            if resident > 0 && (largest.count < topRegions || resident > largest[largest.count - 1].resident) {
+                largest.append(Region(address:UInt64(regionAddress), size:UInt64(size), group:name, share:share, resident:resident))
+                largest.sort { $0.resident > $1.resident }
                 if largest.count > topRegions { largest.removeLast() }
             }
-            address &+= size
             if address == 0 { break } // wrapped past the top of the address space
         }
         for object in sharedObjects.values {
-            groups[object.group, default:Group()].dirty += object.dirty
             groups[object.group, default:Group()].resident += object.resident
             groups[object.group, default:Group()].regions += 1
         }
         let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
         parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))
-        let ranked = groups.sorted { $0.value.dirty != $1.value.dirty ? $0.value.dirty > $1.value.dirty : $0.key < $1.key }
-        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.dirty))/\(mib($0.value.resident))/\($0.value.regions)" }.joined(separator:","))
-        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.dirty))/\(mib($0.resident))" }.joined(separator:","))
+        let ranked = groups.sorted { $0.value.resident != $1.value.resident ? $0.value.resident > $1.value.resident : $0.key < $1.key }
+        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.resident))/\($0.value.regions)" }.joined(separator:","))
+        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.resident))" }.joined(separator:","))
         return parts.joined(separator:" ")
     }
 
