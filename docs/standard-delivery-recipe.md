@@ -23,6 +23,22 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   build sont déclarés dans son manifeste.
 - **Échec** : une livraison échouée est relancée en ne modifiant que la recette, et ses jobs de test
   réussis sont réutilisés.
+- **Enchaînement Core puis IPA** (ajout du 10 novembre 2026, demande du mainteneur : livrer plus vite sans
+  retirer de contrôle ; durées mesurées sur les Cores 921 à 923 et l'IPA 723) :
+  - **un seul Core par livraison** : les corrections prêtes avant une livraison sont regroupées dans le même
+    Core ; un Core intermédiaire compilé n'est ni épinglé ni livré (le 922, remplacé par le 923) ;
+  - **la demande de compilation part dès que les contrôles ciblés passent** (clôture des sources, tests
+    nouveaux ou modifiés, audit des identités de code généré, chaîne de repli, route, gardes : environ
+    1 min) ; le pilote historique complet (environ 23 min) tourne en parallèle, en local et dans le job
+    Apple du run ; un pilote rouge interdit l'épinglage, il ne retarde plus la demande ;
+  - **l'IPA n'est demandée qu'une fois tous ses Cores épinglés** ; pendant leur compilation, la clé de
+    destinataire, la spécification et le brouillon sont préparés, jamais déclenchés ;
+  - **une seule compilation à la fois** par route ; une demande n'est pas doublée pour « rattraper » une
+    file d'attente de runners ;
+  - **ce qui reste incompressible** : compilation du Core (19 min) et tests hôte Apple (28 min) en
+    parallèle, livraison (environ 25 min), files d'attente macOS. Piste non appliquée : exécuter en
+    parallèle, dans le pilote, les tests d'incréments indépendants (hors tests sensibles au temps) ; à
+    mesurer sur un Core avant d'en faire la règle.
 
 ## 2. Ce qui est en place (première cible : 611)
 
