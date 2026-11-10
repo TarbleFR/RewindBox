@@ -37,5 +37,33 @@
   "fileModified": false,
   "gameplayValidatedHere": false,
   "cryptographicSignatureVerificationPerformedHere": false,
-  "appleProvisioningVerifiedHere": false
+  "appleProvisioningVerifiedHere": false,
+  "rootSources": {
+    "bytes": 10622,
+    "sha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "urls": [
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json",
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json"
+    ],
+    "bothHTTPDownloadsVerified": true
+  },
+  "documentation": {
+    "readmeBlob": "34a51eb3988662c65acb09d60b3b5e5bdac16843",
+    "branches": [
+      "main",
+      "Claude"
+    ],
+    "downloadLabel": "Download 0.0.11 · Build 721",
+    "oldDownloadAndPendingSectionsRemoved": true,
+    "sourceRecipeTag": "0.0.11",
+    "browserRenderedReadmeVerified": true,
+    "screenshot": "docs/evidence/release-0.0.11-readme.png",
+    "concurrentWorkPreserved": "c91fe6a owner updates reconciled by true merge a2667976; later owner commits retained"
+  },
+  "temporarySourceBranch": {
+    "name": "release/0.0.11-build721",
+    "deleted": true,
+    "absenceVerified": true,
+    "tagSourceRetained": "cfb564205c71eb3894d2c42be21899d3d7d67233"
+  }
 }

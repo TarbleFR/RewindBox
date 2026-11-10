@@ -45,7 +45,14 @@
       "main",
       "Claude"
     ],
-    "publicDownloadVerified": true
+    "publicDownloadVerified": true,
+    "rootSourceVerified": true,
+    "servedSHA256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "served_bytes": 10622,
+    "served_urls_verified": [
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json",
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json"
+    ]
   },
   "expected_urls": {
     "release": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
@@ -74,9 +81,7 @@
     "No build, Core/pin change, tag, release or Discord post performed"
   ],
   "remaining": [
-    "Verify served root source on both main and Claude after this commit, and confirm rendered README latest links/heading/source recipe all identify 0.0.11/721.",
-    "Post the prepared English announcement in the verified Discord release channel when authenticated access permits; record actual message IDs.",
-    "Remove temporary source-anchor release branch only after confirming tag 0.0.11 retains cfb56420; preserve component work and unique history."
+    "Post the prepared English announcement and public IPA link in the verified Discord release channel when authenticated access permits; record message IDs. No post has been claimed."
   ],
   "follow_up": {
     "status": "main-about-and-selective-cleanup-completed-publication-browser-blocked",
@@ -476,5 +481,24 @@
   "previousBrowserFailure": {
     "phase": "draft download/edit",
     "outcome": "publication subsequently observed as public through connected GitHub; fresh public file downloaded and verified without editing or recreating the release"
+  },
+  "documentation_verification": {
+    "readmeBlob": "34a51eb3988662c65acb09d60b3b5e5bdac16843",
+    "branches": [
+      "main",
+      "Claude"
+    ],
+    "downloadLabel": "Download 0.0.11 · Build 721",
+    "oldDownloadAndPendingSectionsRemoved": true,
+    "sourceRecipeTag": "0.0.11",
+    "browserRenderedReadmeVerified": true,
+    "screenshot": "docs/evidence/release-0.0.11-readme.png",
+    "concurrentWorkPreserved": "c91fe6a owner updates reconciled by true merge a2667976; later owner commits retained"
+  },
+  "temporary_source_branch": {
+    "name": "release/0.0.11-build721",
+    "deleted": true,
+    "absenceVerified": true,
+    "tagSourceRetained": "cfb564205c71eb3894d2c42be21899d3d7d67233"
   }
 }

@@ -266,11 +266,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   and preserve concurrent work. About description already updated/API-verified.
   [Cleanup/ref audit](evidence/github-cleanup-refs-2026-11-10.json),
   [cleanup result](evidence/github-cleanup-post-release-0.0.11-result.json).
-  **Remaining:** verify served root sources and visible README after push;
-  remove the temporary source-anchor branch now that the tag protects cfb56420;
-  post the English list and IPA link in the verified Discord release channel,
-  recording actual message IDs. Discord historical hCaptcha/access was not solved
-  or claimed complete. Never re-announce 722–724 work as part of public721.
+  **Follow-through verified:** main and Claude serve identical root sources
+  (10622 B, SHA-256 `4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812`).
+  The real GitHub README page displays the 0.0.11 heading and Build721 component
+  table; [rendered proof](evidence/release-0.0.11-readme.png). Both README blobs match
+  `34a51eb3`; no 0.0.10 download link, old What's new heading or pending-publication
+  section remains. Source recipe checks out tag0.0.11. Temporary source-anchor
+  branch removed; its 404 and tag cfb56420 preservation verified.
+  Concurrent owner changes (`c91fe6a`) preserved by true merge `a2667976`;
+  later owner work remains intact. No force, new build, Core or pin edit by Codex.
+  **Remaining:** Discord announcement only, after authenticated access to the verified
+  release channel; record actual message IDs. Historical Discord hCaptcha was not
+  solved and no Discord post is claimed. The GitHub publication/document/source
+  correction is complete; do not repeat it or re-announce later private builds.
 
 - **Common IPA 723 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 722 with RPCS3 Core 921
   (pin `d4864cab`: idle iOS textures whose guest bytes changed are released); MeloNX Core 721 (pin `784fcc5d`), MoltenVK

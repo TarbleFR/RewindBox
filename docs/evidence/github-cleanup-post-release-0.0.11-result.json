@@ -184,7 +184,13 @@
       "mutation": false
     },
     "status": "Ten fully integrated branch refs removed; every absence checked through connected GitHub. Restore offered in UI; all commits remain in Claude/main history.",
-    "receipt": "docs/evidence/github-cleanup-refs-2026-11-10.json"
+    "receipt": "docs/evidence/github-cleanup-refs-2026-11-10.json",
+    "temporaryReleaseBranchRetired": {
+      "name": "release/0.0.11-build721",
+      "deleted": true,
+      "absenceVerified": true,
+      "tagSourceRetained": "cfb564205c71eb3894d2c42be21899d3d7d67233"
+    }
   },
   "about": {
     "currentDescription": "RewindBox — independent iPhone/iPad frontend forked from NeoStation, with embedded RPCS3, MeloNX (Switch), Dolphin, ARMSX2 and Libretro; unified library, Pocket touch skins, cheats, HD textures and supported RetroAchievements.",
@@ -194,32 +200,29 @@
   "publication": {
     "name": "RewindBox 0.0.11",
     "tag": "0.0.11",
-    "status": "draft-uploaded-publication-blocked-browser",
+    "status": "published-public-download-verified-root-source-live",
+    "releaseId": 440810980,
+    "releaseURL": "https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11",
     "source": "cfb564205c71eb3894d2c42be21899d3d7d67233",
     "ipa": {
       "name": "RewindBox-0.0.11.ipa",
       "bytes": 267033667,
       "sha256": "bc640a83a01de8a623c16fb0b5977edf16ac6010b61c9c2489ae334d3db3c0d7"
     },
-    "sourceJSONSha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
-    "draftId": 440810980,
-    "draftURL": "https://github.com/TarbleFR/RewindBox/releases/tag/untagged-ed6388388e6a33f3ae3a",
-    "rootSourceActivated": false,
-    "discordPosted": false,
-    "hold": {
-      "active": false,
-      "supersededBy": "Maintainer explicitly instructed publishing existing IPA 721 as RewindBox 0.0.11 while later work compiles, then confirmed: Tu peux commencer !. This supersedes the earlier publication hold for this exact IPA. README/About, reviewed main synchronization, selective obsolete branch/PR/workflow cleanup and Discord release announcement remain authorized."
-    },
-    "blockers": [
-      {
-        "service": "GitHub publication",
-        "observed": "Apple and GitHub Mobile sign-in succeeded. Draft 440810980 contains the verified files. A draft asset download timed out and left the tab on chrome-error://chromewebdata/. The next Edit interaction was explicitly rejected by browser security policy for its unsupported protocol; no automated workaround or publication was attempted."
-      },
-      {
-        "service": "Discord",
-        "observed": "Historical sign-in required hCaptcha. Not rechecked or posted in this continuation; announcement remains gated on verified public release."
-      }
+    "rootSourceActivated": true,
+    "rootSourceURLsVerified": [
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/main/source.json",
+      "https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/source.json"
     ],
+    "sourceJSONSha256": "4bc5a097bdb9692727c34152f23718267f2c699d008bf2cf6d6df8da959ab812",
+    "readmeUpdatedAndRendered": true,
+    "notesArchived": "docs/releases/0.0.11.md",
+    "nextInventoryReset": true,
+    "discordPosted": false,
+    "remaining": [
+      "Post the prepared English announcement and public IPA link in the verified Discord release channel when authenticated access permits; record message IDs. No post has been claimed."
+    ],
+    "verificationReceipt": "docs/evidence/release-0.0.11-public-download.json",
     "noIPACompilationOrRepack": true
   },
   "workflows": {
