@@ -40,10 +40,10 @@ void WriteCache(string path, IEnumerable<ulong> ids, byte[] uuid = null)
     File.WriteAllBytes(path, data);
 }
 
-(PipelineCacheManager Manager, Vk Vk, Lock MainLock) Open(string dir, int refuseIntact = 0, int loadMs = 0, bool wait = true)
+(PipelineCacheManager Manager, Vk Vk, Lock MainLock) Open(string dir, int refuseIntact = 0, int loadMs = 0, bool wait = true, int failMerges = 0)
 {
     Ryujinx.Common.Configuration.AppDataManager.BaseDirPath = dir;
-    var vk = new Vk { RefuseIntact = refuseIntact, SnapshotLoadMs = loadMs };
+    var vk = new Vk { RefuseIntact = refuseIntact, SnapshotLoadMs = loadMs, FailMerges = failMerges };
     var mainLock = new Lock();
     vk.MainLock = mainLock;
     var properties = new PhysicalDeviceProperties { VendorID = vk.Vendor, DeviceID = vk.DeviceId, DriverVersion = Driver };
@@ -186,6 +186,31 @@ object Attempts(Vk vk, long mainLength) => vk.Attempts.Select(a => new Dictionar
         ["pendingAtClose"] = pendingAtClose, ["referencedAttempt"] = attempt.Referenced, ["referenceCreations"] = l.Vk.ReferenceCreations,
         ["mappedAfterLoad"] = Vk.IsMapped(attempt.Ptr, attempt.Len), ["journalLines"] = Mapped("mainDataMapped") - journalBefore,
         ["invalidReads"] = l.Vk.InvalidReads, ["fileKept"] = OnDisk(dir).Count == 50,
+    };
+}
+
+// S5: the merge of the accepted snapshot into main reports an error (main may already reference part of it): main stays
+// Frozen as before (its file kept), and the snapshot stays mapped until main is destroyed.
+{
+    string dir = Path.Combine(root, "mergeFailed");
+    WriteCache(MainPath(dir), Enumerable.Range(1, 50).Select(i => (ulong)i));
+    long mainLength = new FileInfo(MainPath(dir)).Length;
+    int journalBefore = Mapped("mainDataMapped");
+    var l = Open(dir, failMerges: 1);
+    var attempt = l.Vk.Attempts.Single(a => a.Len == mainLength);
+    bool mappedAfterLoad = Vk.IsMapped(attempt.Ptr, attempt.Len);
+    int journalLines = Mapped("mainDataMapped") - journalBefore;
+    AddToMain(l, new ulong[] { 9100 });
+    l.Vk.Touch(l.Manager.MainCache);
+    l.Manager.MergeAndSave();
+    bool mappedBeforeDispose = Vk.IsMapped(attempt.Ptr, attempt.Len);
+    l.Manager.Dispose();
+    report["mergeFailed"] = new Dictionary<string, object>
+    {
+        ["referencedAttempt"] = attempt.Referenced, ["mappedAfterLoad"] = mappedAfterLoad, ["journalLines"] = journalLines,
+        ["mappedBeforeDispose"] = mappedBeforeDispose, ["mappedAfterDispose"] = Vk.IsMapped(attempt.Ptr, attempt.Len),
+        ["mainDestroyedWithValidRegions"] = l.Vk.MainDestroyedWithValidRegions, ["invalidReads"] = l.Vk.InvalidReads,
+        ["validReads"] = l.Vk.ValidReads, ["fileKept"] = OnDisk(dir).SetEquals(Enumerable.Range(1, 50).Select(i => (ulong)i)),
     };
 }
 

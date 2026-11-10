@@ -394,13 +394,13 @@
     },
     "pipeline-cache-mapped-data": {
       "report": "pipeline-cache-mapped-data-checks.json",
-      "sha256": "34cdcb634eb9b0be0b7585b31ccee003cea76cdb784cbfd6d16a729cbbbdbee9",
-      "checks": 52
+      "sha256": "1f8ed662101616dec54da80653bb522d7f9145ac5a2f9c7d364e0dae5d1d1fc3",
+      "checks": 55
     }
   },
-  "allGatesLocally": "77 of 77 passed on the final preparation (10 Nov); first pass 75: pipeline-checkpoint (its Vulkan double lacked PipelineCacheCreateInfo.PNext, added as in Silk.NET) and hogwarts-dma-copies (later-adapter table taught the new adapter) rerun green; new gate pipeline-cache-mapped-data 51 checks",
+  "allGatesLocally": "77 of 77 passed on the final preparation (10 Nov); first pass 75: pipeline-checkpoint (its Vulkan double lacked PipelineCacheCreateInfo.PNext, added as in Silk.NET) and hogwarts-dma-copies (later-adapter table taught the new adapter) rerun green; new gate pipeline-cache-mapped-data 55 checks (after the review: a merge into main reporting an error keeps the mapping until main is destroyed; rerun on the final preparation)",
   "contract": {
-    "sha256": "9eb112f10e773afed9852fdaeb624fe4cc8e3d816f2fde57953b52b2a4636556",
+    "sha256": "a4970f969174d77ff3779b81021c7db22fe07e337c2f4549280ebef077480265",
     "preparationInputs": 196,
     "preparedMembers": 206,
     "freshAppleGates": 77,
@@ -454,5 +454,6 @@
   "ipa": null,
   "ciRuns": [
     42822060210
-  ]
+  ],
+  "review": "independent read-only core review (subagent, 10 Nov) of the adapter and MoltenVK part 3: no defect found on lifetime (no read after the mapping is released on any path: refused, foreign, exception, failed merge, load racing the close, main never a merge source, no decompression after the cache is destroyed), mutation (read-only view, main written beside then renamed), double dispose, lock order, bounds/offset/truncation and save format. Its iOS hypotheses checked: no default-data-protection entitlement and no file protection API (default class, readable while locked after the first unlock); extended-virtual-addressing on (configure_melonx_ios.py). Latent, not reachable today: MVKShaderLibrary::operator= keeps the destination entry size (never called); Documents is visible in Files, so a user replacing the cache file in place while a game runs is not excluded."
 }

@@ -3750,7 +3750,8 @@
     "comparison.invalidReadsCandidate": 0,
     "comparison.sameContentOnDisk": true,
     "comparison.overtakenReleased": true,
-    "comparison.sensitivityVariantsFailed": 3
+    "comparison.sensitivityVariantsFailed": 3,
+    "comparison.mergeFailedKeptUntilMainDestroyed": true
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"

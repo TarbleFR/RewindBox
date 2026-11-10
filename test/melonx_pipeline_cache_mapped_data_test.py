@@ -12,7 +12,7 @@ destination (MoltenVK v1.4.2 MVKShaderLibraryCache::merge copies each library wi
 which copies the compressor and so its external pointer); each later merge, write and destroy checks the region is still
 mapped (msync) and still holds the data it read. Scenarios (Program.cs): a session (main 200 libraries + worker 20, load,
 play, pause checkpoint replacing the main file, play, close, next launch); a snapshot refused once; a file of another
-driver identity; the close overtaking the background load. Sensitivity: releasing the snapshot at the end of the
+driver identity; the close overtaking the background load; the merge into main reporting an error after merging. Sensitivity: releasing the snapshot at the end of the
 creation (before the merge), never releasing it, or keeping it after the close destroyed main must each fail.
 The RAM measured on the real MoltenVK is the melonx-mapped-cache run (macOS, not an iPhone). Static: main is never a
 merge source or recycled and its file is only replaced (written beside it, then moved) or deleted. Isolated
@@ -203,6 +203,13 @@ for name, r in (('control', c), ('candidate', k)):
           name + ': a file of another driver identity is released at once and written again')
     check(r['overtaken']['pendingAtClose'] and not r['overtaken']['mappedAfterLoad'] and r['overtaken']['journalLines'] == 0 and
           r['overtaken']['invalidReads'] == 0 and r['overtaken']['fileKept'], name + ': a close overtaking the load: released when it returns')
+m = k['mergeFailed']
+check(m['referencedAttempt'] and m['mappedAfterLoad'] and m['mappedBeforeDispose'] and not m['mappedAfterDispose'] and
+      m['mainDestroyedWithValidRegions'] == 1 and m['invalidReads'] == 0 and m['validReads'] >= 2 and m['fileKept'] and m['journalLines'] == 1,
+      'candidate: a merge reporting an error after it may have referenced the data keeps the mapping until main is destroyed: ' + str(m))
+check(c['mergeFailed']['fileKept'] and not c['mergeFailed']['mappedAfterLoad'] and c['mergeFailed']['invalidReads'] == 0,
+      'control: the failed merge leaves main Frozen, its file kept, as before')
+check(reports['releasedEarly']['mergeFailed']['invalidReads'] > 0, 'sensitivity: released before the merge, the failed merge path reads it too')
 check(k['refused']['referencedAttempt'] and k['foreign']['referencedAttempt'] and k['overtaken']['referenceCreations'] == 1,
       'candidate: those creations asked for the reference too')
 check(reports['releasedEarly']['session']['invalidReads'] > 0, 'sensitivity: a snapshot released before the merge is read after its release')
@@ -219,7 +226,8 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                postimages={p: sha(FINAL_SOURCE / p) for p in adapter.BASELINE} if FINAL_PREPARATION else {},
                comparison=dict(mainReferenced=True, workerCopied=True, mappedUntilMainDestroyed=True, invalidReadsCandidate=ks['invalidReads'],
                                validReadsCandidate=ks['validReads'], sameContentOnDisk=True, refusedReleasedAtOnce=True,
-                               foreignReleasedAtOnce=True, overtakenReleased=True, sensitivityVariantsFailed=3),
+                               foreignReleasedAtOnce=True, overtakenReleased=True, mergeFailedKeptUntilMainDestroyed=True,
+                               sensitivityVariantsFailed=3),
                reports=reports, sdk=sdk, physicalDeviceTested=False, productionVulkanSourceExecuted=True,
                driverModel='MoltenVK with the RewindBox patch referencing the cache data (pointers kept, carried by merges, '
                            'checked with msync and the content); the RAM measure on the real MoltenVK is the melonx-mapped-cache '

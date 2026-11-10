@@ -1,6 +1,6 @@
 {
   "result": "passed",
-  "checks": 52,
+  "checks": 55,
   "finalPreparationBound": true,
   "sourceKind": "finalPreparationWithReversedControl",
   "postimages": {
@@ -16,6 +16,7 @@
     "refusedReleasedAtOnce": true,
     "foreignReleasedAtOnce": true,
     "overtakenReleased": true,
+    "mergeFailedKeptUntilMainDestroyed": true,
     "sensitivityVariantsFailed": 3
   },
   "reports": {
@@ -76,8 +77,20 @@
         "invalidReads": 0,
         "fileKept": true
       },
+      "mergeFailed": {
+        "referencedAttempt": false,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": -1,
+        "invalidReads": 0,
+        "validReads": 0,
+        "fileKept": true
+      },
       "warnings": [
-        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
       ]
     },
     "candidate": {
@@ -137,8 +150,20 @@
         "invalidReads": 0,
         "fileKept": true
       },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
       "warnings": [
-        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
       ]
     },
     "releasedEarly": {
@@ -198,8 +223,20 @@
         "invalidReads": 1,
         "fileKept": true
       },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 0,
+        "invalidReads": 4,
+        "validReads": 0,
+        "fileKept": true
+      },
       "warnings": [
-        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
       ]
     },
     "neverReleased": {
@@ -259,8 +296,20 @@
         "invalidReads": 0,
         "fileKept": true
       },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": true,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
       "warnings": [
-        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
       ]
     },
     "keptAfterClose": {
@@ -320,8 +369,20 @@
         "invalidReads": 0,
         "fileKept": true
       },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
       "warnings": [
-        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
       ]
     }
   },
@@ -336,9 +397,9 @@
     "build-utils/melonx/adapt_pipeline_cache_mapped_data.py": "56db663293f0d8a6b8f9727904635c04d6b2d979c22a0614bece61b277e650a3",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch": "394e6aef49f8aa64c2acfd75ec2f9947b3dc4194728a52e9a239c2f8717459d4",
-    "test/melonx_pipeline_cache_mapped_data_test.py": "a39b959ead5f1e9fdee5511997a8354966e2def032ebac099f99cc229ccd2615",
-    "test/melonx_pipeline_cache_mapped_data/Program.cs": "02d292e7fb816d815bc4b1872c2f4f57c8acb94b13fe81bda1f315880fd1242f",
-    "test/melonx_pipeline_cache_mapped_data/Double.cs": "e79a6e203cfdb131e7a81caf5c3ca51f3aada64660d375de669218ea70cb4ab8",
+    "test/melonx_pipeline_cache_mapped_data_test.py": "233633099bd7ed14795adbf0867cd645ecd1ea1053069d931fb5f83623e05a60",
+    "test/melonx_pipeline_cache_mapped_data/Program.cs": "5b32ef97515f7b69efea22d96ece76d1dde198419e2d4aaebd29162a24311378",
+    "test/melonx_pipeline_cache_mapped_data/Double.cs": "5a4551643a0347dc2437a08eef892026810b1ebf8ab9b9d4c9a851ff1ec43fc5",
     "test/melonx_adapter_control.py": "20cefdcbd44ca9db32c4760a03fc2d56aeb620ecc2ac2049ebdd2f55065cabe5"
   }
 }

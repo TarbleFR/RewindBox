@@ -116,6 +116,9 @@ namespace Silk.NET.Vulkan {
         public readonly Dictionary<ulong, List<(IntPtr Ptr, long Len)>> Regions = new();
         public readonly List<(IntPtr Ptr, long Len, bool Referenced)> Attempts = new();
         public long ReferenceCreations, ValidReads, InvalidReads, MainDestroyedWithValidRegions = -1;
+        // The next FailMerges merges report an error after merging (the worst case: the destination may already
+        // reference the source's data).
+        public int FailMerges;
         [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)] private static extern int msync(IntPtr address, UIntPtr length, int flags);
         public static bool IsMapped(IntPtr ptr, long len) {
             long page = 4096, start = (long)ptr & ~(page - 1);
@@ -201,6 +204,7 @@ namespace Silk.NET.Vulkan {
                         if (target.TryAdd(id, length)) MergeAddedEntries++;
                     }
                 }
+                if (FailMerges > 0) { FailMerges--; return Result.ErrorOutOfHostMemory; }
             }
             return Result.Success;
         }

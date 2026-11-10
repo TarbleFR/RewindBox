@@ -3161,12 +3161,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     only): the main snapshot is created with that structure and stays mapped until main is destroyed (released at the
     end of the load under the main lock, or at once when the close already destroyed main; refused/foreign snapshots
     released at once; worker snapshots copied as before); main is never a merge source nor recycled and its file is only
-    replaced by rename or deleted, so the mapped bytes stay what MoltenVK read. Gate pipeline-cache-mapped-data (51
+    replaced by rename or deleted, so the mapped bytes stay what MoltenVK read. Gate pipeline-cache-mapped-data (55
     checks): real manager over a reference-mode double (msync + content check at each merge/write/destroy): candidate
-    mapped through play, pause checkpoint (file replaced) and close, every read valid; three sensitivity variants
-    (released before the merge, never released, kept after the close) fail. All 77 gates green on the final
+    mapped through play, pause checkpoint (file replaced) and close, every read valid; a merge into main reporting an
+    error keeps the mapping until main is destroyed; three sensitivity variants (released before the merge, never
+    released, kept after the close) fail. Independent core review (read-only): no lifetime, mutation, double-dispose,
+    lock-order, bounds or format defect; its iOS hypotheses checked (no data-protection entitlement, extended virtual
+    addressing on). All 77 gates green on the final
     preparation (pipeline-checkpoint's double taught `PNext`, hogwarts-dma-copies taught the adapter); contract
-    `9eb112f1…` (196 inputs, 206 members, 77 gates), contract test 451 checks. Extrapolated, not measured: about
+    `a4970f96…` (196 inputs, 206 members, 77 gates), contract test 451 checks. Extrapolated, not measured: about
     -0.75 GiB for Hogwarts' cache. [Receipts](evidence/melonx-721-gates/run.json),
     [device protocol](evidence/melonx-721-gates/device-protocol.md). Handoff to main: Core CI, pin, MoltenVK packaging.
   - Independent review (main, read-only): F1, a window refused for fragmentation leaves the keep-alive dormant until the
