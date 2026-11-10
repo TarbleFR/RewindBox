@@ -154,7 +154,10 @@ void main() {
       expect(yaml, contains('SPU Block Size: Mega'));
       expect(yaml, contains('Shader Precision: Ultra'));
       expect(yaml, contains('Write Color Buffers: true'));
-      expect(yaml, contains('Asynchronous Texture Streaming: true'));
+      // IPA 724 (device): unplayable graphics with the entry's asynchronous
+      // texture streaming; the iOS adapter no longer applies that one value.
+      expect(yaml, isNot(contains('Asynchronous Texture Streaming')));
+      expect(yaml, isNot(contains('Vulkan:')));
       // Maintainer, 10 November 2026: 100 % by default, no title profile.
       expect(yaml, isNot(contains('Resolution Scale')));
       expect(yaml, isNot(contains('Multithreaded RSX')));
