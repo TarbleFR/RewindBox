@@ -312,15 +312,26 @@ if (MOLTENVK / 'MoltenVK/GPUObjects/MVKPipeline.mm').is_file():
     moltenvk = {path: hashlib.sha256((mvk / path).read_bytes()).hexdigest() for path in
                 ('GPUObjects/MVKPipeline.mm', 'GPUObjects/MVKDevice.mm', 'Commands/MVKCmdDraw.mm',
                  'Commands/MVKCommandEncoderState.mm', 'Commands/MVKCommandEncoderState.h')}
+def shipped_patch_keeps_private_api_off(pin):
+    """Unmodified, or a pinned patch (lot 9: drawable ownership) that leaves the private API and its switch alone."""
+    if pin['patch'] is None:
+        return True
+    text = (ROOT / pin['patch']).read_text()
+    files = re.findall(r'^diff --git a/(\S+)', text, re.M)
+    return (hashlib.sha256((ROOT / pin['patch']).read_bytes()).hexdigest() == pin['patchSha256'] and
+            'MVK_USE_METAL_PRIVATE_API' not in text and 'useMetalPrivateAPI' not in text and
+            files == ['MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm'])
+
+
 build_script = (ROOT / 'build-utils/melonx/build_moltenvk_rebuild.py').read_text()
 pin = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
 check("run(['make', 'ios'], cwd=target)" in build_script and 'MVK_USE_METAL_PRIVATE_API' not in build_script and
-      pin['tag'] == 'v1.4.2' and pin['patch'] is None, 'the shipped MoltenVK is v1.4.2 built without the private API')
+      pin['tag'] == 'v1.4.2' and shipped_patch_keeps_private_api_off(pin), 'the shipped MoltenVK is v1.4.2 built without the private API')
 
 inputs = ['build-utils/melonx/adapt_warmup_key_parity.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_adapter_control.py',
           'test/melonx_warmup_key_parity_test.py', 'test/melonx_warmup_key_parity/gpu/Program.cs',
           'test/melonx_warmup_key_parity/vulkan/Program.cs', 'build-utils/melonx/build_moltenvk_rebuild.py',
-          'build-utils/melonx/moltenvk-rebuild.json']
+          'build-utils/melonx/moltenvk-rebuild.json', 'build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 summary = dict(controlGeometryAsComputeMisses=control_vtg_misses, mergedRestartPairs=merged, createdChanges=changed_created,
                loggedTopologyMiss=LOGGED_TOPOLOGY, loggedRestartMiss=LOGGED_RESTART)
