@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 719,
  "status": "draft",
- "note": "Private common IPA 719 = the content of the delivered 718 with RPCS3 Core 917 in place of Core 914 (maintainer, 10 Nov: Black Ops II and God of War III must run faster). Base: the delivered and verified 694, as for 718, because the receipt of 718 does not hold its signed image inventory (its four proof files are the API metadata and the offline verification; the recipient key was deleted after the verified delivery, as required, before the inventory was copied) and so cannot authenticate a base; every commit 718 reviewed is reviewed again with the same classification, and this build copies its inventory into its receipt. RPCS3 Core 917 replaces Core 907 of the base (Cores 908 to 914 as in 718; Core 916: the PUTLLC of an SPU on a SPURS header with relaxed reservations no longer overwrites a plain guest store, the God of War III MLAA bypass knows the installed 01.00 executable at a fresh boot, stall dump walks, compact stopped windows, the PPU region profile asked by the report; Core 917: a reservation write lock spins for 8 us before its first core hand-off, both sides compared by the report in a storm of heavy PUTLLC, park counters, captures asked on a storm). MeloNX Core 717, the host, the skins and the interface are those of 718. No iPhone measurement; no FPS claim.",
+ "note": "Private common IPA 719 = the content of the delivered 718 with RPCS3 Core 918 in place of Core 914 (maintainer, 10 Nov: Black Ops II and God of War III must run faster). Base: the delivered and verified 694, as for 718, because the receipt of 718 does not hold its signed image inventory (its four proof files are the API metadata and the offline verification; the recipient key was deleted after the verified delivery, as required, before the inventory was copied) and so cannot authenticate a base; every commit 718 reviewed is reviewed again with the same classification, and this build copies its inventory into its receipt. RPCS3 Core 918 replaces Core 907 of the base (Cores 908 to 914 as in 718; Core 916: the PUTLLC of an SPU on a SPURS header with relaxed reservations no longer overwrites a plain guest store, the God of War III MLAA bypass knows the installed 01.00 executable at a fresh boot, stall dump walks, compact stopped windows, the PPU region profile asked by the report; Core 917: a reservation write lock spins for 8 us before its first core hand-off, park counters, captures asked on a storm of heavy PUTLLC; Core 918: the active waits (utils::busy_wait) keep the duration they have on the 24 MHz reference counter on this device's 1 GHz counter, where they lasted 42 times less; scheduler counts per report window; with the settings on Automatic the report compares the levers between its windows, in three passes per boot). MeloNX Core 717, the host, the skins and the interface are those of 718. No iPhone measurement; no FPS claim.",
  "base": {
   "build": 694,
   "source": "43899cee74e3b1455699d234d5edfa8479654c08",
@@ -43,9 +43,9 @@
    "verifier": ".github/diagnostics/rpcs3_core_component.py",
    "pin": "build-utils/rpcs3/core-pin.json",
    "image": "Frameworks/libRPCS3Core.dylib",
-   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 917)",
+   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 918)",
    "unchangedFromBase": false,
-   "pinSha256": "708e4109914a7eb3e11efe7af9e6952ee3784617173f258226f9bb649cd15be3"
+   "pinSha256": "3d8ec315b8758c7aab582fbfc8e4de73d977da9398437880ef29cfd382f7fb80"
   },
   "melonx": {
    "mode": "replace",
@@ -448,6 +448,14 @@
    {
     "commit": "d506a8ed1fa85c0f5769f427547f489d74277bfd",
     "note": "merge d506a8ed: the delivery line realigned on the Claude history (first parent 263abc36). One change against its first parent: the RPCS3 Core 916 and 917 sources with their tests and the export analyzer (312b2ddc, d27ec230, 7fb79306, dcc79df0, 02559160, af82eb82: 28 product paths under build-utils/rpcs3, test and tools/rpcs3, folded into the pinned Core or run as host tests), and the main sync of 10 November (8283f341, d09db191: documentation, evidence, retired workflows, and one product path, the embedded credit text assets/legal/libretro/LIBRETRO_CORES.md in the wording of the published Build 530)"
+   },
+   {
+    "commit": "cd325180a0dad40e455db429b46ef5a2ab21fd0c",
+    "note": "RPCS3 Core 918 source: active waits at their reference duration on a 1 GHz counter, scheduler counts, levers compared between report windows (build description, tests, analyzer; folded into the pinned Core or run as host tests)"
+   },
+   {
+    "commit": "66760ea87c82cb3d8c14441f3ce5b9faf38ef838",
+    "note": "RPCS3 Core 918 host test: the long-hold scenario holds the line 6 to 8 times the whole spin"
    }
   ],
   "sourceOnly": [
