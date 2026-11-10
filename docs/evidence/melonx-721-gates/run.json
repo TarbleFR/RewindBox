@@ -1,0 +1,459 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "session": "012mUASkkFGHaPcEUx9dsp8q",
+  "core": "721 (provisional number, to confirm by main)",
+  "lot": 9,
+  "base": {
+    "core": 719,
+    "contract": "32082206 (refrozen Core 719, preparation identical to the delivered 38b3a5b7)",
+    "source": "45923d133e5ec9325b6c64f44844f7dafba6f404"
+  },
+  "change": "adapt_pipeline_cache_mapped_data (src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs): the main pipeline cache snapshot is created with the RewindBox pNext structure (RBX1) so the patched MoltenVK references its compressed MSL in the read-only mapping instead of copying it; the mapping is kept until main is destroyed, released at the end of the load under the main lock (or at once when the close already destroyed main); worker snapshots copied as before",
+  "preparation": "only PipelineCacheManager.cs differs from the Core 719 preparation",
+  "gatesRun": {
+    "bindless-array-deltas": {
+      "report": "bindless-array-delta-checks.json",
+      "sha256": "e42fe4ff342c9f70d928cbe170806b2669decbcab7997be7c985d26b635eda09",
+      "checks": 303
+    },
+    "fragmented-reads": {
+      "report": "fragmented-reads-checks.json",
+      "sha256": "84f2b731ee0951a49c38babd538277d0779d6e876a5467a95e95cde1615009b5",
+      "checks": 66
+    },
+    "performance-diagnostics": {
+      "report": "performance-diagnostics-checks.json",
+      "sha256": "3f02eb782b579dac2da61a100e127d17600e01d95caaa4022ce1cf04c467e8eb",
+      "checks": null
+    },
+    "binding-data-snapshots": {
+      "report": "binding-data-snapshot-checks.json",
+      "sha256": "3fbb8b61fa23782c231055cd531027b1acda5fa19b51900779a4f341b0ced969",
+      "checks": null
+    },
+    "hogwarts-dma-copies": {
+      "report": "hogwarts-dma-copies-checks.json",
+      "sha256": "fae220dcd14ce0f55232f7d9348c9fdc73b955552fe80c9a36ac6dd85cd8214b",
+      "checks": 172
+    },
+    "pipeline-checkpoint": {
+      "report": "pipeline-checkpoint-checks.json",
+      "sha256": "3d0453887bcef131b6e25054db7d14c54152310eca6824266135000bb63e1ec6",
+      "checks": null
+    },
+    "scalar-texture-descriptors": {
+      "report": "scalar-texture-descriptor-checks.json",
+      "sha256": "d46e3f76041a28c3f30c5522ff8dd392823453af6ec70302a7c9312ea85b258b",
+      "checks": null
+    },
+    "fallback-descriptor-scratch": {
+      "report": "fallback-descriptor-scratch-checks.json",
+      "sha256": "e9e4a5cafbdf4bb24dd1b0d37dc024cd320a3f27936d7457939b00e77d88bfde",
+      "checks": null
+    },
+    "single-resource-bindings": {
+      "report": "single-resource-binding-checks.json",
+      "sha256": "97ad8a90960fdd58aa67f1cae0ab5c78b5c984d341aca7e2479963183e16c5a2",
+      "checks": null
+    },
+    "bounded-binding-snapshots": {
+      "report": "bounded-binding-snapshot-checks.json",
+      "sha256": "42ebe9f04d9b5e75dc0455e7552ec75e9db41bb98fd1a5278caa58420aae9561",
+      "checks": null
+    },
+    "counter-report-compaction": {
+      "report": "counter-report-compaction-final-checks.json",
+      "sha256": "2035cb2353416b0c0375746425dca6713b8ec0e419357040bb954c10b07978ff",
+      "checks": null
+    },
+    "single-virtual-dependency": {
+      "report": "single-virtual-dependency-final-checks.json",
+      "sha256": "6d7cd785cbcafddf719d96d4d51f3e2a5f833542ee22a9ea7e091c76d73bfd80",
+      "checks": null
+    },
+    "pipeline-warmup-parity": {
+      "report": "pipeline-warmup-parity-checks.json",
+      "sha256": "53350955b76505823111c16711ae463717fbb5e2e77513b27e97bbd68dfb39b1",
+      "checks": 10
+    },
+    "device-short-trim": {
+      "report": "device-short-trim-checks.json",
+      "sha256": "3acc64e5768a5ca0acc9528a2384a0ca2c40f8ae6abf6ac568e4f5fec3b27c2a",
+      "checks": 7
+    },
+    "moltenvk-barrier-ordering": {
+      "report": "moltenvk-barrier-ordering-checks.json",
+      "sha256": "abecdd2aad19c848dcf72da1df950eeeeddeb41d91ba182ef283a968a0039394",
+      "checks": 14
+    },
+    "descriptor-scratch-all-titles": {
+      "report": "descriptor-scratch-all-titles-checks.json",
+      "sha256": "d0fbea0a6b05f1fb08803d9d4c2db6787466dc18ec7ce60bbf6d917ac35ca869",
+      "checks": 9
+    },
+    "readback-occupied-attribution": {
+      "report": "readback-occupied-attribution-checks.json",
+      "sha256": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+      "checks": 10
+    },
+    "pipeline-miss-context": {
+      "report": "pipeline-miss-context-checks.json",
+      "sha256": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+      "checks": 4
+    },
+    "barrier-compaction": {
+      "report": "barrier-compaction-checks.json",
+      "sha256": "b3339ea44ab00087acf23625c6ae6031936ab31a2572650e5984454e9d7d24fe",
+      "checks": 7
+    },
+    "readback-receivers": {
+      "report": "readback-receivers-checks.json",
+      "sha256": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+      "checks": 53
+    },
+    "present-source-attribution": {
+      "report": "present-source-attribution-checks.json",
+      "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+      "checks": 20
+    },
+    "teardown-compile-cancel": {
+      "report": "teardown-compile-cancel-checks.json",
+      "sha256": "d884ecf6c678a697706bd97f985c110c1ab62d89b324a0515a0e5f67ca848fe0",
+      "checks": 25
+    },
+    "pause-guest-threads": {
+      "report": "pause-guest-threads-checks.json",
+      "sha256": "90c0ec41dbde40d9d7a0adfd128476cc041c06ac494cab4930b24a0d9db76224",
+      "checks": 18
+    },
+    "teardown-phase-marks": {
+      "report": "teardown-phase-marks-checks.json",
+      "sha256": "fa14ac62fe680845de6d233184fd70a8ac5788b3017f9d2412b39d2d4bee19ff",
+      "checks": 10
+    },
+    "binder-teardown": {
+      "report": "binder-teardown-checks.json",
+      "sha256": "dc1f0c72a4f503e2f0a4c9dba20decb8d1993c20790b2c94f6e492b3e8011bd0",
+      "checks": 40
+    },
+    "gc-events": {
+      "report": "gc-events-checks.json",
+      "sha256": "14780e409fcadc1eb971c2e9287328932ae2bb3d9f56b52c0664cd695d484e51",
+      "checks": 47
+    },
+    "artifact-counters": {
+      "report": "artifact-counters-checks.json",
+      "sha256": "a70d609e7d76d05f38f0211de4c68a7460f546e47f1e83d2e9a81aaee4be6eb3",
+      "checks": 118
+    },
+    "array-rebuild-allocations": {
+      "report": "array-rebuild-allocations-checks.json",
+      "sha256": "a837256559e8575b977d07f20daa181a641a869db5345be0f69de0bf46ff1d36",
+      "checks": 322
+    },
+    "present-pacing": {
+      "report": "present-pacing-checks.json",
+      "sha256": "f84ac524e1f55bdb512218f65e8d110934d5ae922ad80e1e8fd5ad22befa8fb0",
+      "checks": 783
+    },
+    "present-drawable-residency": {
+      "report": "present-drawable-residency-checks.json",
+      "sha256": "91e1f3df86a5cfee0d2bc37dfcb753b14d7808ba568ccc47a3497d0c7dab03b7",
+      "checks": 26
+    },
+    "present-pacer-fixes": {
+      "report": "present-pacer-fixes-checks.json",
+      "sha256": "c1abed119cad1e8634e2d139e6cef0623e84e129dbba7e777b38065a17493749",
+      "checks": 784
+    },
+    "shader-save-poll": {
+      "report": "shader-save-poll-checks.json",
+      "sha256": "4a2a85b06cf428f9191fb07dfc973d2c842dfd1f3fe865194afeb179b3689e82",
+      "checks": 78
+    },
+    "warmup-key-parity": {
+      "report": "warmup-key-parity-checks.json",
+      "sha256": "440a8234831d46d035fbd442b5789ef904f0678f964e48fba3d0334791063fc7",
+      "checks": 1371
+    },
+    "setprogram-warmup": {
+      "report": "setprogram-warmup-checks.json",
+      "sha256": "6efbc46b609c72f7261bcad4fbd080b3c83fa60aabc0950c48ca0e953dcbb0f9",
+      "checks": 103
+    },
+    "teardown-cache": {
+      "report": "teardown-cache-checks.json",
+      "sha256": "15e263c45609f7a56c156e3a10222ba6f87338222eca579ec7864d03b1475347",
+      "checks": 53
+    },
+    "forced-syncpoint-wait": {
+      "report": "forced-syncpoint-wait-checks.json",
+      "sha256": "0ce1f196ab40b1f2df467a2f2dc31745ca162f0c2a9b1e8d647aa439ca11e425",
+      "checks": 84
+    },
+    "session-retention": {
+      "report": "session-retention-checks.json",
+      "sha256": "56a43252f588f845fa0d866428df1db8aa520a3bf715900698534285c84aa96f",
+      "checks": 121
+    },
+    "memory-inventory": {
+      "report": "memory-inventory-checks.json",
+      "sha256": "f8212c3da29bbf67d4fdeedffff785c3986a143f0434afa755db3eb5803f7793",
+      "checks": 26
+    },
+    "guest-fault-context": {
+      "report": "guest-fault-context-checks.json",
+      "sha256": "116aec27e2271beec635861c025f691d18f9a0f50c6b217b204cf34c6a7b5e79",
+      "checks": 53
+    },
+    "gc-fallback": {
+      "report": "gc-fallback-checks.json",
+      "sha256": "8fe444f515d7e54ba8494455192d0c8c91f22f21d4304c9d464ac1281b0cdf61",
+      "checks": 60
+    },
+    "host-warning-trim": {
+      "report": "host-warning-trim-checks.json",
+      "sha256": "ab546f6f2e81f00ff0abdcb2f63e1b178d4d343f332858b8b2309ecdf89da594",
+      "checks": 21
+    },
+    "safe-point-compaction": {
+      "report": "safe-point-compaction-checks.json",
+      "sha256": "5961fae71ee51a74882e20abbb9d42b83f63f67a65709852e1a79d8f1a60860b",
+      "checks": 59
+    },
+    "cold-texture-release": {
+      "report": "cold-texture-release-checks.json",
+      "sha256": "4603ed92459e77b8df6232ea3382a8ec6f5d0dd7ffee5affbc8d51a46907ef98",
+      "checks": 131
+    },
+    "bindless-retention": {
+      "report": "bindless-retention-checks.json",
+      "sha256": "3c1298eb4307ca4f68537eba711eb1950c3095ea6ddc755f3d455148a1ed3cdb",
+      "checks": 312
+    },
+    "moltenvk-stage-ordering": {
+      "report": "moltenvk-stage-ordering-checks.json",
+      "sha256": "7b5336f8ee089bfadf3f47566416b4090f6530156216b08002a73b62ade36a86",
+      "checks": 75
+    },
+    "display-native": {
+      "report": "display-checks.json",
+      "sha256": "2b0df9802c9eab1d50c38f9d1bcbcbf0941ed996c179dc923ba3444ff9c04283",
+      "checks": null
+    },
+    "core667-fixes": {
+      "report": "core667-fixes-checks.json",
+      "sha256": "cf4c330bfa63d7968aa2136851eaad94bca021d2c627bf98cb24110c4f02012d",
+      "checks": 55
+    },
+    "nan-scrub": {
+      "report": "nan-scrub-checks.json",
+      "sha256": "575e534042d11136868b3852e2be46edee427009d95b9f7d1fef09a3fa5e28f2",
+      "checks": 57
+    },
+    "main-cache-checkpoint": {
+      "report": "main-cache-checkpoint-checks.json",
+      "sha256": "98d4594a5c1d0912658295f1a04e2fa7d3606f5746abd369eaad75fd80b60a87",
+      "checks": 29
+    },
+    "checkpoint-side-cache": {
+      "report": "checkpoint-side-cache-checks.json",
+      "sha256": "05c101f18dc15248083baadec3d63ec69695d507b6e952b2927ef911efbee26d",
+      "checks": 24
+    },
+    "evicted-buffer-recreate": {
+      "report": "evicted-buffer-recreate-checks.json",
+      "sha256": "f03d15f24c7bb27e0cc36df99d4baa39c7b19cf2dcaa0e0a8785a0ab614e87ab",
+      "checks": 22
+    },
+    "audio-start-deferred": {
+      "report": "audio-start-deferred-checks.json",
+      "sha256": "faaa5e4f530f3cd0da5aed799d622f3a652be020c2b0c5632db5c0fa0acc3613",
+      "checks": 16
+    },
+    "pipeline-cache-room": {
+      "report": "pipeline-cache-room-checks.json",
+      "sha256": "2bcc6844a79c2950043aa1737052a1b5fddff018190511b8c40ba9fd169dfde3",
+      "checks": 23
+    },
+    "pipeline-cache-persist": {
+      "report": "pipeline-cache-persist-checks.json",
+      "sha256": "e05faeb6e3a6b7cad100f7729651b3120e6a71d909ad76c7c5c6deef7c3517b9",
+      "checks": 30
+    },
+    "pipeline-build-journal": {
+      "report": "pipeline-build-journal-checks.json",
+      "sha256": "d7a075502b474c2f554d7af818dccfcb82f2409ce1f7769666f98bc2e264918d",
+      "checks": 30
+    },
+    "pipeline-cache-growth": {
+      "report": "pipeline-cache-growth-checks.json",
+      "sha256": "c07b7dba2c89ba9c0d62d13ae10864d156dff0e8b6c02b26cc3ae978589d8e9e",
+      "checks": 37
+    },
+    "occupied-readback-buffers": {
+      "report": "occupied-readback-buffers-checks.json",
+      "sha256": "915437f582f620c41cd6af2b644a30b83ab7b6bae5e28738386b3fa2f223fa39",
+      "checks": 44
+    },
+    "async-regenerated-targets": {
+      "report": "async-regenerated-targets-checks.json",
+      "sha256": "88d047baa900b3777c7b26ac48a07cde84fc75221d9e32fd1fb19be70d1b4317",
+      "checks": 37
+    },
+    "released-texture-flush": {
+      "report": "released-texture-flush-checks.json",
+      "sha256": "31402cf1667dbf6895308f411a05470580ce6b69d4ceccc3461a0dc344094b12",
+      "checks": 26
+    },
+    "pipeline-failure-identity": {
+      "report": "pipeline-failure-identity-checks.json",
+      "sha256": "fac2d58be8a105688f309d280150b4951818a87aca091565cd34e0ccdc57e73f",
+      "checks": 16
+    },
+    "worker-main-cache-lookup": {
+      "report": "worker-main-cache-lookup-checks.json",
+      "sha256": "0c8a888c26861642b076c47b08f4d3ca50998bd386fb3dca883c881a56dba1fd",
+      "checks": 19
+    },
+    "compute-switch-bindings": {
+      "report": "compute-switch-bindings-checks.json",
+      "sha256": "70e50e18f2cf946e209bfb627d0ff91058460400f187af001d80b4f8915c2c03",
+      "checks": 24
+    },
+    "bgc-keepalive": {
+      "report": "bgc-keepalive-checks.json",
+      "sha256": "7be7a00a46dacf64f3b0ee3d3b2c6eba4898ae9ea87ea246d442138d9f179084",
+      "checks": 25
+    },
+    "pipeline-cache-background": {
+      "report": "pipeline-cache-background-checks.json",
+      "sha256": "3324983315cd4196cb4a82432285f1d101fec67dc7e1bce111368945b393ad98",
+      "checks": 34
+    },
+    "sync-wait-attribution": {
+      "report": "sync-wait-attribution-checks.json",
+      "sha256": "c02aceb2803d4de9d020b248075acd30c3f0109a85bfc9083a4d9ed54c0e8845",
+      "checks": 57
+    },
+    "synced-buffer-reads": {
+      "report": "synced-buffer-reads-checks.json",
+      "sha256": "e4874dfda18f8930cf485d50d75c9c243c90a136123c4417192712f9ce33a316",
+      "checks": 60
+    },
+    "layout-used-types": {
+      "report": "layout-used-types-checks.json",
+      "sha256": "7046424dca23e28497edbdcd0c2114a0dd86c49de937ec2118b294a084ab4c27",
+      "checks": 590
+    },
+    "same-program-descriptors": {
+      "report": "same-program-descriptors-checks.json",
+      "sha256": "f32751fcb3b86356c18da0b2545098d32a299855865948dbf71ddec6325f4467",
+      "checks": 79
+    },
+    "retention-chain": {
+      "report": "retention-chain-checks.json",
+      "sha256": "57415f8b5fceecdd4be70b9732e15e15099e65d307bb9a6550ac53face498fea",
+      "checks": 45
+    },
+    "texture-pool-allocations": {
+      "report": "texture-pool-allocations-checks.json",
+      "sha256": "a5b1c08f8da5a18b5113298a7834444a2095e8f04e9e78f78710a0285fcb347d",
+      "checks": 95
+    },
+    "pipeline-variant-replay": {
+      "report": "pipeline-variant-replay-checks.json",
+      "sha256": "5b9b173c98421b0681d3e66f131ec1b335b1beba898f33019fb2efebc240fa24",
+      "checks": 107
+    },
+    "pipeline-snapshot-retire": {
+      "report": "pipeline-snapshot-retire-checks.json",
+      "sha256": "59740eee401221907aa00cdf93ff3a9e30996edbc68fdfafdd02d74bb1b0791a",
+      "checks": 105
+    },
+    "extra-set-binds": {
+      "report": "extra-set-binds-checks.json",
+      "sha256": "ac414a63ad44b25b68b0a7c838cb12a1a00e820bdfb01656273d5a69fef9e1a3",
+      "checks": 154
+    },
+    "array-reference-deltas": {
+      "report": "array-reference-deltas-checks.json",
+      "sha256": "e5645d75a83c6a7e3d8d07ed07f085fe3d8aeac2ba9c58c0a86cb279bcb9820c",
+      "checks": 46
+    },
+    "worker-library-share": {
+      "report": "worker-library-share-checks.json",
+      "sha256": "1b2d14ad82707122078ead972a8ef7e0a90415cb157feb0a97901d5db37a3ffe",
+      "checks": 62
+    },
+    "bgc-fragmentation-guard": {
+      "report": "bgc-fragmentation-guard-checks.json",
+      "sha256": "becd8012e1ede5af8e93ea82139ac8f87ebcc28b2b93e1159d4b412565d4e277",
+      "checks": 21
+    },
+    "pipeline-cache-mapped-data": {
+      "report": "pipeline-cache-mapped-data-checks.json",
+      "sha256": "1f8ed662101616dec54da80653bb522d7f9145ac5a2f9c7d364e0dae5d1d1fc3",
+      "checks": 55
+    }
+  },
+  "allGatesLocally": "77 of 77 passed on the final preparation (10 Nov); first pass 75: pipeline-checkpoint (its Vulkan double lacked PipelineCacheCreateInfo.PNext, added as in Silk.NET) and hogwarts-dma-copies (later-adapter table taught the new adapter) rerun green; new gate pipeline-cache-mapped-data 55 checks (after the review: a merge into main reporting an error keeps the mapping until main is destroyed; rerun on the final preparation)",
+  "contract": {
+    "sha256": "a4970f969174d77ff3779b81021c7db22fe07e337c2f4549280ebef077480265",
+    "preparationInputs": 196,
+    "preparedMembers": 206,
+    "freshAppleGates": 77,
+    "contractTestChecks": 451
+  },
+  "moltenvk": {
+    "patch": "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch",
+    "patchSha256": "394e6aef49f8aa64c2acfd75ec2f9947b3dc4194728a52e9a239c2f8717459d4",
+    "markers": [
+      "RewindBox drawable ownership: taken by each present, guarded by _mtlDrawableLock",
+      "RewindBox cache size: entry sizes counted once and kept on each shader library",
+      "RewindBox mapped cache data: compressed MSL referenced in the mapped file, not copied"
+    ],
+    "run": 42822060210,
+    "job": 129849807904,
+    "artifact": 13768042590,
+    "artifactBytes": 13880272,
+    "artifactDigest": "7323e63ebcfbb3074d72de0820041465a32d0929842945d63ae5fa74175a4a92",
+    "binarySha256": "6f65b2a60d46d6424fc0c4c993680bda0bde3aaab88eac1e446298dc03bf2927",
+    "binaryBytes": 4838816,
+    "build": "arm64, minos 15.0, SDK 26.5, Xcode 26.6, markers 3/3, entry points 8/8, 428/428 kept Vulkan exports",
+    "packaged": false,
+    "note": "packaging as MeloNXMoltenVKStandalone and the delivered pin stay with the principal session; supersedes the cache-size rebuild 42814845169 (binary 91fb1c38..., markers 2/2), never packaged"
+  },
+  "measures": {
+    "mappedCacheMacOS": {
+      "run": 42818483337,
+      "cacheBytes": 44128382,
+      "pipelines": 2400,
+      "footprintAtLoadMiB": {
+        "copied": 77.8,
+        "referenced": 32.4
+      },
+      "footprintAfterPipelinesMiB": {
+        "copied": 246,
+        "referenced": 199
+      },
+      "sameBytesWritten": true,
+      "missing": 0,
+      "spirvCompiled": 0,
+      "note": "macOS runner, real Metal; the reference covers the whole compressed MSL; an iPhone footprint is not measured"
+    },
+    "cacheSizeProbeMacOS": {
+      "run": 42811818840,
+      "queries": 480,
+      "msBefore": "24.6-24.9",
+      "msAfter": "2.1-2.7"
+    }
+  },
+  "physicalDeviceTested": false,
+  "ipa": null,
+  "ciRuns": [
+    42822060210
+  ],
+  "review": "independent read-only core review (subagent, 10 Nov) of the adapter and MoltenVK part 3: no defect found on lifetime (no read after the mapping is released on any path: refused, foreign, exception, failed merge, load racing the close, main never a merge source, no decompression after the cache is destroyed), mutation (read-only view, main written beside then renamed), double dispose, lock order, bounds/offset/truncation and save format. Its iOS hypotheses checked: no default-data-protection entitlement and no file protection API (default class, readable while locked after the first unlock); extended-virtual-addressing on (configure_melonx_ios.py). Latent, not reachable today: MVKShaderLibrary::operator= keeps the destination entry size (never called); Documents is visible in Files, so a user replacing the cache file in place while a game runs is not excluded."
+}

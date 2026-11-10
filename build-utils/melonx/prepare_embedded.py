@@ -163,6 +163,7 @@ from adapt_extra_set_binds import apply as adapt_extra_set_binds
 from adapt_array_reference_deltas import apply as adapt_array_reference_deltas
 from adapt_worker_library_share import apply as adapt_worker_library_share
 from adapt_bgc_fragmentation_guard import apply as adapt_bgc_fragmentation_guard
+from adapt_pipeline_cache_mapped_data import apply as adapt_pipeline_cache_mapped_data
 
 
 def replace_once(path, old, new):
@@ -460,6 +461,10 @@ def main():
     # Core 719 (lot 9: at a gen2 + LOH fragmentation above 0.5 the keep-alive's request was the blocking compacting gen2
     # the conserve-memory rule makes, in play: SSBU 355.873 ms): no request above the limit; one that ran blocking journaled.
     adapted += [source / name for name in adapt_bgc_fragmentation_guard(source)]
+    # Core 721 (lot 9, RAM: MoltenVK copied the 790 MiB main pipeline cache into anonymous memory for the whole session,
+    # Hogwarts at 5.4-5.5 GiB): the main snapshot is referenced in its read-only mapping (RewindBox MoltenVK patch), kept
+    # mapped until main is destroyed.
+    adapted += [source / name for name in adapt_pipeline_cache_mapped_data(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -586,7 +591,8 @@ def main():
                  'adapt_extra_set_binds.py',
                  'adapt_array_reference_deltas.py',
                  'adapt_worker_library_share.py',
-                 'adapt_bgc_fragmentation_guard.py']:
+                 'adapt_bgc_fragmentation_guard.py',
+                 'adapt_pipeline_cache_mapped_data.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -3179,8 +3179,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `db8e2203`, test 24 checks). Not fixed yet.
   - **Pipeline cache.** `cacheSizeProbe` 2 461 ms = MoltenVK sizing every library (4 667 x 0.52 ms, its own statistic)
     under the main lock (render creations sent to the empty side cache), to conclude +1.36 MiB, no write. SSBU's in-play
-    write 889 MiB in 4 936 ms holds the same lock. Next: skip the probe when the learned per-pipeline growth cannot reach
-    the write threshold (the first estimate uses 128 KiB per pipeline, 20x the measured 6 KB).
+    write 889 MiB in 4 936 ms holds the same lock. Fix (MoltenVK recipe patch, second part, in the Core 721 MoltenVK
+    rebuild below): `MVKPipelineCache::countData()` counts each entry's serialized size once and keeps it on its shader
+    library; macOS bench run 42811818840: 480 size queries 24.6-24.9 ms -> 2.1-2.7 ms, same bytes and data hash. Still
+    open: skipping the probe when the learned per-pipeline growth cannot reach the write threshold.
   - **Core 719 (delivered in IPA 720, not run on an iPhone):** Core 717 + adapt_bgc_fragmentation_guard; all 76 gates
     passed locally on the final preparation (four taught the new replacements or the pinned MoltenVK patch, rerun green);
     contract `38b3a5b7` (195 inputs, 206 members, 76 fresh gates), contract test 449 checks with the baseline archive
@@ -3193,14 +3195,78 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     main in `65a9e633` with the Dart contract. Lesson (recipe § 3.11): a Swift call to an Objective-C selector comes with
     a macOS compile of the bridge. [Receipts](evidence/melonx-719-gates/run.json),
     [device protocol](evidence/melonx-719-gates/device-protocol.md).
+  - **RAM, the main pipeline cache (Core 721 candidate, frozen, not delivered, not run on an iPhone).** Fact (IPA 718
+    Hogwarts): RewindBox maps the 790 MiB main cache file read-only, but MoltenVK v1.4.2 copies every library's
+    compressed MSL into the heap (staging cache), the merge into main copies it again, and the mapping closes: 2 090 ->
+    4 256 MiB at 5 s, then the copy stays for the session (5.4-5.5 GiB in play, 4-9 % available, thermal `serious`,
+    8-13 FPS from t=96 s). Fix, two parts: (1) MoltenVK recipe patch, third part (`rewindbox-moltenvk.patch`, sha256
+    `394e6aef…`, marker 3): a private `VkPipelineCacheCreateInfo` pNext (sType `0x52425831`, 'RBX1') makes the load
+    reference each compressed MSL in the caller's data (`MVKCompressor` external pointer; `MVKShaderLibrary`'s copy
+    keeps it, so the merge into main keeps the reference; data written back byte-identical). macOS bench run
+    42818483337 (real Metal, 44 MB cache, 2 400 pipelines): +77.8 MiB copied vs +32.4 MiB referenced at load, 246 vs
+    199 MiB after the pipelines, 0 missing, 0 SPIR-V compiled; iOS rebuild run 42822060210 green (artifact 13768042590,
+    13 880 272 B, digest `7323e63e…`; binary `6f65b2a6…`, 4 838 816 B, markers 3/3, 428/428 exports; supersedes the
+    never-packaged cache-size rebuild 42814845169). (2) `adapt_pipeline_cache_mapped_data` (PipelineCacheManager.cs
+    only): the main snapshot is created with that structure and stays mapped until main is destroyed (released at the
+    end of the load under the main lock, or at once when the close already destroyed main; refused/foreign snapshots
+    released at once; worker snapshots copied as before); main is never a merge source nor recycled and its file is only
+    replaced by rename or deleted, so the mapped bytes stay what MoltenVK read. Gate pipeline-cache-mapped-data (55
+    checks): real manager over a reference-mode double (msync + content check at each merge/write/destroy): candidate
+    mapped through play, pause checkpoint (file replaced) and close, every read valid; a merge into main reporting an
+    error keeps the mapping until main is destroyed; three sensitivity variants (released before the merge, never
+    released, kept after the close) fail. Independent core review (read-only): no lifetime, mutation, double-dispose,
+    lock-order, bounds or format defect; its iOS hypotheses checked (no data-protection entitlement, extended virtual
+    addressing on). All 77 gates green on the final
+    preparation (pipeline-checkpoint's double taught `PNext`, hogwarts-dma-copies taught the adapter); contract
+    `a4970f96…` (196 inputs, 206 members, 77 gates), contract test 451 checks. Extrapolated, not measured: about
+    -0.75 GiB for Hogwarts' cache. [Receipts](evidence/melonx-721-gates/run.json),
+    [device protocol](evidence/melonx-721-gates/device-protocol.md). Handoff to main: Core CI, pin, MoltenVK packaging.
+  - **Maintainer goal (10 Nov, Hogwarts 30 FPS at 1x, owner loop):** handed to main for IPA 722: Core 721 (contract
+    `29e58115…`: `a4970f96` plus build_core.sh keeping `Ryujinx.Library.symbols.txt.gz` and the library UUID beside the
+    unchanged binary), MoltenVK `6f65b2a6`, bridge `8fd23a71` with **MeloNXStallWatch** (MeloNXPerfJournal.swift: a native
+    thread that never calls the engine records every thread's run state, CPU, priorities and pc/lr/8 frames as
+    image+offset when one of the journal's engine calls has been in flight 300 ms, again at 1.3/3.3 s, then the call's
+    duration; at most 6 stalls; decides what the 3.67 s Hogwarts pause waits for). Facts checked first: no
+    `SuppressGCTransition` anywhere in the Core sources; guest code is entered through marshalled delegates (preemptive
+    while it runs, transitions on every callback). macOS run 42833802905: perf journal 110 checks executed (a call
+    blocked 1.6 s while one thread spins and one waits: R with CPU growing, W in libsystem_kernel, ends with durations,
+    6-stall bound), input 66, iOS 18 typecheck passed.
+  - **First CPU obstacle to 30 FPS, from the 718 journals (Hogwarts in play):** the render thread is busy 50-78 % of
+    every 5 s (29.6 ms per frame in a 97-frame window); draw descriptors 9.6 ms/frame and compute descriptors 3.1 ms are
+    the largest part of draw preparation (pipelines 1.7, submits 2.7); 5.39 M descriptors written per 5 s (texture sets
+    63 517, uniform 86 339); GPU busy 33 %; MoltenVK uses Metal3 argument buffers. Found in the source:
+    SetTextureArraySeparate (17 000-93 500 calls per 5 s) marked the whole texture set dirty although set 2 never holds
+    the separate arrays. **adapt_extra_array_dirty** (committed `352a8616`, not wired): its own dirty bit, the extra
+    sets still rebound; gate 71 checks locally on the Core 721 preparation (all same-program-descriptors scenarios plus
+    separate switches: 140 observations identical in control and candidate, texture set writes 427 -> 23, 400 switching
+    dispatches 400 -> 0 set 2 writes with the same 400 array binds, the no-rebind variant fails). The write cost itself
+    on real MoltenVK is being measured (run 42835169847, macOS). Also ready, not wired: **adapt_gc_keepalive_dormant**
+    (F1, `4a3d3d7b`, gate 50 checks locally). Both wait for main to pin Core 721 (test/melonx_adapter_control.py is bound
+    by its contract), then go into the next Core with their gates and the full gate set.
+  - **GC pauses in play (718, derived from the per-window collection counts):** about 29 ms per gen0 and about 135 ms per
+    gen1 (one gen1 every ~5 s): a recurring hitch. The gen0 budget is 64 MiB since build 620 (MeloNXRuntimeAPI.swift,
+    chosen for the start's 610 gen0 collections); not changed without per-collection data (next Core: ephemeral lines).
+  - **RAM, next lever (managed heap; in progress, not wired):** IPA 718 Hogwarts: the large object heap stays at about
+    507 MiB in play with 213-267 MiB of holes after each background gen2 (it never compacts; only the first-frame
+    compaction brought it to 266 MiB, refilled within 20 s); in-play GC pauses are 130-190 ms per 5 s for 2-3 collections
+    (about 45-60 ms each). One mechanism found in the source: on a tile-based GPU every host-mapped Vulkan buffer updated
+    while in flight keeps `_pendingData = new byte[Size]`, a managed copy of the whole buffer, until it is disposed (and
+    the buffer cache recreates buffers when it merges ranges). `adapt_mirror_pending_pages` (committed, NOT wired) keeps
+    those bytes in 16 KiB pooled pages instead; the differential check (126 000 operations against the delivered copy and
+    the real `BufferMirrorRangeList.FillData`) shows no difference. Limit: data stays pending until rewritten, so a
+    per-frame ring becomes pending almost everywhere; the general gain needs the settle step (write the ranges no command
+    buffer uses any more to the mapped buffer, the direct path's own condition) with its own gate. Its share of the
+    266 MiB live LOH is not measured; the adapter's `bufferMirrors pendingPages` line gives it on the device.
   - Independent review (main, read-only): F1, a window refused for fragmentation leaves the keep-alive dormant until the
     next background gen2 (as after an elevated request in Core 717) and counts it as a fragmented skip, not a miss;
     decision: ship, next Core adds a bounded `gcKeepAlive dormant` line and a separate miss count, gate holding the ratio
     above 0.48 for 20 s. Watch: after a present `_mtlDrawable` is nil; only MetalFX (refused by the host) reads a
     swapchain texture before reacquisition.
-  - Next: the maintainer's device trials of IPA 720 (protocol's three parts); then the probe skip, Hogwarts' long pause
-    from `mgd=`, Smash's replay order, F1, `NS_SWIFT_NAME` on the selector, and `test/melonx_capture_journal_test.py`
-    (red on Linux since before 719, "controller removed lines").
+  - Next: main integrates Core 721 + the mapped-cache MoltenVK (one IPA, no duplicate build); device trials per both
+    protocols. Then, against the maintainer's goal (Hogwarts 30 FPS at 1x, footprint toward 4 GiB): the managed heap
+    (823 MiB, 249 MiB fragmented in play) and GPU memory shares, the GPU thread's binding commits (1 010 ms and 25 MiB
+    allocated per 5 s in play), Hogwarts' long pause from `mgd=`, F1, `NS_SWIFT_NAME`, and
+    `test/melonx_capture_journal_test.py` (red on Linux since before 719).
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard

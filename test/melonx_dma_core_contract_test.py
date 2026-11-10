@@ -170,6 +170,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'worker-library-share': 'delivered',
             # Core 719 (lot 9): the GC keep-alive's fragmentation guard.
             'bgc-fragmentation-guard': 'delivered',
+            'pipeline-cache-mapped-data': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -514,7 +515,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_extra_set_binds.py',
                                                      'build-utils/melonx/adapt_array_reference_deltas.py',
                                                      'build-utils/melonx/adapt_worker_library_share.py',
-                                                     'build-utils/melonx/adapt_bgc_fragmentation_guard.py'} and
+                                                     'build-utils/melonx/adapt_bgc_fragmentation_guard.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_mapped_data.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -540,7 +542,8 @@ if not args.helpers_only:
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 195 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
+    check(len(frozen['preparationInputs']) == 196 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

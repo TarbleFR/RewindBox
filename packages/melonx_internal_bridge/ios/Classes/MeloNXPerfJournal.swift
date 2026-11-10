@@ -42,6 +42,8 @@ import Darwin
 //          overridden); b button changes sent; d inputs dropped while paused
 //          or closed; e writes the engine refused, count:last code
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
+// "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
+// has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
@@ -66,6 +68,7 @@ final class MeloNXPerfJournal {
     private let presentation: () -> Presentation
     private let audio: () -> [Int64]?
     private let memory: () -> String?
+    private let stalls: MeloNXStallWatch
     private let queue = DispatchQueue(label:"RewindBox.MeloNX.Perf", qos:.utility)
     private let lock = NSLock()
     private var paused = false
@@ -94,6 +97,7 @@ final class MeloNXPerfJournal {
         self.path = path; self.interval = interval; self.lineLimit = lineLimit
         self.context = context
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
+        self.stalls = MeloNXStallWatch(path:path, context:context)
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -122,12 +126,14 @@ final class MeloNXPerfJournal {
             source.setEventHandler { [weak self] in self?.sample() }
             timer = source
             source.resume()
+            stalls.start()
         }
     }
 
     // Asynchronous: never waits on the sampler from the caller's thread.
     func stop() {
         queue.async { [self] in
+            stalls.stop()
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -142,9 +148,11 @@ final class MeloNXPerfJournal {
         samples += 1
         var fields = ["t=" + String(Int((now - started).rounded()))]
 
+        stalls.enter("fps")
         let callStart = ProcessInfo.processInfo.systemUptime
         let engine = fps()
         let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000
+        stalls.exit()
         if let rate = engine["gameFps"] as? Double {
             let time = engine["gameFrameTimeMs"] as? Double ?? 0, fifo = engine["fifoPercent"] as? Double ?? 0
             fields.append("fps=\(Self.decimal(rate))/\(Self.decimal(time))/\(Int(fifo.rounded()))")
@@ -166,7 +174,10 @@ final class MeloNXPerfJournal {
         if !shown.acquireGapsMs.isEmpty { fields.append("acq=" + shown.acquireGapsMs.map { String($0) }.joined(separator:",")) }
         if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
 
-        if let values = audio(), values.count == 9 {
+        stalls.enter("audio")
+        let pacing = audio()
+        stalls.exit()
+        if let values = pacing, values.count == 9 {
             let before = previousAudio ?? values
             previousAudio = values
             func delta(_ index: Int) -> Int64 { max(0, values[index] - before[index]) }
@@ -197,7 +208,10 @@ final class MeloNXPerfJournal {
         }
         fields.append(cpu)
 
-        if let text = memory() { fields.append("mem=" + text) }
+        stalls.enter("memory")
+        let footprint = memory()
+        stalls.exit()
+        if let text = footprint { fields.append("mem=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
@@ -253,4 +267,234 @@ final class MeloNXPerfJournal {
             }
         }
     }
+}
+
+// RewindBox (lot 9): who holds the engine during a long stop. IPA 718, Hogwarts Legacy: a background GC's final pause of
+// 3666.692 ms and another of about 2.3 s seconds later, while the per-second journal itself ran 2-4 s late because its
+// own call into the managed engine waited (entering managed code waits while a GC suspends it). The journal tells it
+// enters one of its engine calls (enter/exit around fps(), audio() and memory()); a native thread that never calls the
+// engine and takes no lock the engine takes looks every 50 ms. Once a call has been in flight 300 ms it records every
+// thread of the process once: kernel run state (R running, W waiting, U uninterruptible, T stopped, H halted; i idle),
+// suspend count, base/current priority, CPU ms (total, then +ms since the previous record of the same stall), and where
+// it is: program counter, link register and up to 8 frame-pointer return addresses, each as image+offset (the library
+// file's name), "jit:" for executable anonymous memory (translated guest code) or "anon:". Again at 1.3 s and 3.3 s of
+// the same call (who progressed meanwhile), then one line with the call's duration. At most 6 stalls per journal.
+// Reading: a GC suspension that waits for a thread shows the collecting thread in its suspension loop, the other managed
+// threads parked in the runtime's wait, and the one it waits for elsewhere; a GC that works shows its thread running.
+// Offsets inside the engine read with the Core artifact's symbol map (Ryujinx.Library.symbols.txt.gz,
+// build_core.sh). It never suspends a thread itself: thread_get_state stops a running thread for the read only, in the
+// kernel. Measurement only.
+final class MeloNXStallWatch {
+    static let stagesMs: [Double] = [300, 1300, 3300]
+    static let maxStalls = 6
+    static let maxFrames = 8
+    static let addressMask: UInt64 = 0x0000_FFFF_FFFF_FFFF
+    private static let timebase: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
+
+    private let path: String
+    private let context: [String:String]
+    private let lock = NSLock()
+    // Guarded by lock: the call in flight (0 when none), the call the watch records (flagged) and when it returned.
+    private var callStart: UInt64 = 0, callName = ""
+    private var flagged: UInt64 = 0, flaggedEnd: UInt64 = 0
+    private var running = false
+    // Confined to the watch thread.
+    private var watched: UInt64 = 0, watchedName = "", stage = 0, stalls = 0
+    private var previousCpu: [UInt64: UInt64] = [:]
+
+    init(path: String, context: [String:String]) {
+        self.path = path; self.context = context
+    }
+
+    static func milliseconds(_ ticks: UInt64) -> Double {
+        Double(ticks) * Double(timebase.numer) / Double(timebase.denom) / 1e6
+    }
+
+    func enter(_ name: String) {
+        let now = mach_absolute_time()
+        lock.lock(); callStart = now; callName = name; lock.unlock()
+    }
+
+    func exit() {
+        let now = mach_absolute_time()
+        lock.lock()
+        if callStart != 0 && callStart == flagged { flaggedEnd = now }
+        callStart = 0
+        lock.unlock()
+    }
+
+    func start() {
+        lock.lock(); defer { lock.unlock() }
+        guard !running else { return }
+        running = true
+        let thread = Thread { [self] in watch() }
+        thread.name = "RewindBox.MeloNX.StallWatch"
+        thread.qualityOfService = .userInteractive
+        thread.start()
+    }
+
+    // Asynchronous: the watch thread ends at its next look (after writing the end of a stall it was recording).
+    func stop() { lock.lock(); running = false; lock.unlock() }
+
+    private func watch() {
+        while true {
+            usleep(50_000)
+            lock.lock()
+            let alive = running, start = callStart, name = callName, ended = flaggedEnd
+            lock.unlock()
+            if watched != 0 && start != watched {
+                let took = ended != 0 ? Self.decimal(Self.milliseconds(ended &- watched)) : "?"
+                header("#\(stalls) end: \(watchedName) returned after \(took) ms")
+                watched = 0; stage = 0
+            }
+            guard alive else { return }
+            guard start != 0 else { continue }
+            let age = Self.milliseconds(mach_absolute_time() &- start)
+            if start != watched {
+                guard stalls < Self.maxStalls, age >= Self.stagesMs[0] else { continue }
+                stalls += 1; watched = start; watchedName = name; stage = 0; previousCpu = [:]
+                lock.lock()
+                // The call may have returned since it was read: its end is then unknown ("?"), never another call's.
+                if callStart == start { flagged = start; flaggedEnd = 0 } else { flagged = 0; flaggedEnd = 0 }
+                lock.unlock()
+            }
+            if stage < Self.stagesMs.count && age >= Self.stagesMs[stage] {
+                snapshot(age: age)
+                stage += 1
+            }
+        }
+    }
+
+    private func header(_ text: String) {
+        _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:stall] " + text, context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
+    }
+
+    private func snapshot(age: Double) {
+        var list: thread_act_array_t?
+        var count: mach_msg_type_number_t = 0
+        guard task_threads(mach_task_self_, &list, &count) == KERN_SUCCESS, let list else { return }
+        defer {
+            for index in 0..<Int(count) { mach_port_deallocate(mach_task_self_, list[index]) }
+            vm_deallocate(mach_task_self_, vm_address_t(UInt(bitPattern:list)), vm_size_t(Int(count) * MemoryLayout<thread_act_t>.stride))
+        }
+        let me = mach_thread_self()
+        defer { mach_port_deallocate(mach_task_self_, me) }
+        var lines: [String] = []
+        var places: [UInt64: String] = [:]
+        var cpu: [UInt64: UInt64] = [:]
+        // Every thread is read first; the file is written after, so no thread is read late because of a write.
+        for index in 0..<Int(count) {
+            let thread = list[index]
+            guard thread != me else { continue }
+            var identifier = thread_identifier_info_data_t()
+            var extended = thread_extended_info_data_t()
+            var basic = thread_basic_info_data_t()
+            guard Self.info(thread, THREAD_IDENTIFIER_INFO, &identifier), Self.info(thread, THREAD_EXTENDED_INFO, &extended),
+                  Self.info(thread, THREAD_BASIC_INFO, &basic) else { continue }
+            let id = identifier.thread_id
+            let used = extended.pth_user_time &+ extended.pth_system_time
+            cpu[id] = used
+            let spent = previousCpu[id].map { "+" + Self.decimal(Double(used &- $0) / 1e6) } ?? Self.decimal(Double(used) / 1e6)
+            var bytes = extended.pth_name
+            var name = withUnsafeBytes(of:&bytes) { raw in String(decoding:raw.prefix(while:{ $0 != 0 }), as:UTF8.self) }
+            name = String(name.map { $0.isWhitespace || $0 == ":" || $0 == "/" ? "_" : $0 }.prefix(24))
+            if name.isEmpty { name = "thread\(id)" }
+            var text = "t\(id) \(name) \(Self.state(basic.run_state))\(basic.flags & TH_FLAGS_IDLE != 0 ? "i" : "")" +
+                " s\(basic.suspend_count) p\(extended.pth_priority)/\(extended.pth_curpri) c\(spent)"
+            #if arch(arm64)
+            var state = arm_thread_state64_t()
+            var stateCount = mach_msg_type_number_t(MemoryLayout<arm_thread_state64_t>.size / MemoryLayout<natural_t>.size)
+            let read = withUnsafeMutablePointer(to:&state) { pointer in
+                pointer.withMemoryRebound(to:natural_t.self, capacity:Int(stateCount)) {
+                    thread_get_state(thread, thread_state_flavor_t(ARM_THREAD_STATE64), $0, &stateCount)
+                }
+            }
+            if read == KERN_SUCCESS {
+                text += " pc=" + place(state.__pc, &places) + " lr=" + place(state.__lr, &places)
+                let frames = Self.frames(from:state.__fp)
+                if !frames.isEmpty { text += " bt=" + frames.map { place($0, &places) }.joined(separator:",") }
+            }
+            #endif
+            lines.append(text)
+        }
+        previousCpu = cpu
+        header("#\(stalls).\(stage) \(watchedName) in flight \(Int(age)) ms, \(lines.count) threads")
+        for line in lines { _ = MeloNXStdioCapture.appendLine("[MeloNX:stall] #\(stalls).\(stage) " + line, to:path, limit:MeloNXPerfJournal.fileLimit) }
+    }
+
+    private static func state(_ value: Int32) -> String {
+        switch value {
+        case TH_STATE_RUNNING: return "R"
+        case TH_STATE_STOPPED: return "T"
+        case TH_STATE_WAITING: return "W"
+        case TH_STATE_UNINTERRUPTIBLE: return "U"
+        case TH_STATE_HALTED: return "H"
+        default: return "?\(value)"
+        }
+    }
+
+    // The frame records from fp: each is {previous fp, return address}; read with vm_read_overwrite, which fails on an
+    // unmapped address instead of faulting; stops on a null, misaligned or non-increasing fp.
+    private static func frames(from start: UInt64) -> [UInt64] {
+        var result: [UInt64] = []
+        var fp = start & addressMask
+        while result.count < maxFrames, fp != 0, fp & 0xF == 0 {
+            var record = (UInt64(0), UInt64(0))
+            var size = vm_size_t(0)
+            let status = withUnsafeMutableBytes(of:&record) { raw in
+                vm_read_overwrite(mach_task_self_, vm_address_t(fp), 16, vm_address_t(UInt(bitPattern:raw.baseAddress)), &size)
+            }
+            guard status == KERN_SUCCESS, size == 16, record.1 != 0 else { break }
+            result.append(record.1 & addressMask)
+            let next = record.0 & addressMask
+            guard next > fp else { break }
+            fp = next
+        }
+        return result
+    }
+
+    private func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String {
+        let address = raw & Self.addressMask
+        guard address != 0 else { return "0" }
+        if let known = cache[address] { return known }
+        var info = Dl_info()
+        let text: String
+        if let pointer = UnsafeRawPointer(bitPattern:UInt(address)), dladdr(pointer, &info) != 0, let file = info.dli_fname {
+            let image = (String(cString:file) as NSString).lastPathComponent
+            text = image + "+0x" + String(address &- UInt64(UInt(bitPattern:info.dli_fbase)), radix:16)
+        } else {
+            text = (Self.executable(address) ? "jit:0x" : "anon:0x") + String(address, radix:16)
+        }
+        cache[address] = text
+        return text
+    }
+
+    private static func executable(_ address: UInt64) -> Bool {
+        var region = vm_address_t(address)
+        var size = vm_size_t(0)
+        var info = vm_region_basic_info_data_64_t()
+        var count = mach_msg_type_number_t(MemoryLayout<vm_region_basic_info_data_64_t>.size / MemoryLayout<Int32>.size)
+        var object: mach_port_t = 0
+        let status = withUnsafeMutablePointer(to:&info) { pointer in
+            pointer.withMemoryRebound(to:Int32.self, capacity:Int(count)) {
+                vm_region_64(mach_task_self_, &region, &size, VM_REGION_BASIC_INFO_64, $0, &count, &object)
+            }
+        }
+        return status == KERN_SUCCESS && UInt64(region) <= address && info.protection & VM_PROT_EXECUTE != 0
+    }
+
+    private static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
+        var count = mach_msg_type_number_t(MemoryLayout<T>.size / MemoryLayout<natural_t>.size)
+        return withUnsafeMutablePointer(to:&value) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) {
+                thread_info(thread, thread_flavor_t(flavor), $0, &count) == KERN_SUCCESS
+            }
+        }
+    }
+
+    private static func decimal(_ value: Double) -> String { String(format:"%.1f", value) }
 }

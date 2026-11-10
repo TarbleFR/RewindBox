@@ -54,6 +54,16 @@ test -s "$CORE"
 # Retain the successfully compiled binary even if a subsequent audit fails.
 mkdir -p "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME"
 cp "$CORE" "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME/"
+# RewindBox: the engine's symbol map (address, kind, name; nm -n of the library's own symbol table), to read the
+# image+offset addresses of the host stall journal ([MeloNX:stall], MeloNXStallWatch) and of crash reports. NativeAOT
+# publishes the library stripped and keeps its symbols in the dSYM beside it; the binary itself is unchanged.
+if [ -d "$CORE.dSYM" ]; then
+  SYMBOLS="$CORE.dSYM/Contents/Resources/DWARF/$(basename "$CORE")"
+else
+  SYMBOLS="$CORE"
+fi
+xcrun nm -n --defined-only "$SYMBOLS" | gzip -9 > "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME/Ryujinx.Library.symbols.txt.gz"
+xcrun dwarfdump --uuid "$CORE" > "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME/Ryujinx.Library.uuid.txt"
 xcrun lipo "$CORE" -verify_arch arm64
 xcrun nm -gU "$CORE" > "$TASK_ROOT/dist/melonx/exports.txt"
 otool -L "$CORE" > "$TASK_ROOT/dist/melonx/dependencies.txt"

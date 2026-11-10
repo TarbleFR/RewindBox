@@ -1,0 +1,405 @@
+{
+  "result": "passed",
+  "checks": 55,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "d10d5ad7a3eda7b5dc92ae2ac822d972bc1b532f45918990730c43f8eb756138"
+  },
+  "comparison": {
+    "mainReferenced": true,
+    "workerCopied": true,
+    "mappedUntilMainDestroyed": true,
+    "invalidReadsCandidate": 0,
+    "validReadsCandidate": 6,
+    "sameContentOnDisk": true,
+    "refusedReleasedAtOnce": true,
+    "foreignReleasedAtOnce": true,
+    "overtakenReleased": true,
+    "mergeFailedKeptUntilMainDestroyed": true,
+    "sensitivityVariantsFailed": 3
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "session": {
+        "attempts": [
+          {
+            "role": "main",
+            "bytes": 6556836,
+            "referenced": false
+          },
+          {
+            "role": "worker",
+            "bytes": 655716,
+            "referenced": false
+          }
+        ],
+        "referenceCreations": 0,
+        "mainRegions": 0,
+        "mappedAfterLoad": false,
+        "entriesAfterLoad": 220,
+        "journalLines": 0,
+        "checkpointWrote": true,
+        "mappedAfterCheckpoint": false,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "validReads": 0,
+        "invalidReads": 0,
+        "mainDestroyedWithValidRegions": -1,
+        "onDisk": 260,
+        "allOnDisk": true,
+        "entriesNextLaunch": 260,
+        "invalidReadsNextLaunch": 0,
+        "mappedAfterNextDispose": false
+      },
+      "refused": {
+        "referencedAttempt": false,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "foreign": {
+        "referencedAttempt": false,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "rewritten": true
+      },
+      "overtaken": {
+        "pendingAtClose": true,
+        "referencedAttempt": false,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "mergeFailed": {
+        "referencedAttempt": false,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": -1,
+        "invalidReads": 0,
+        "validReads": 0,
+        "fileKept": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
+      ]
+    },
+    "candidate": {
+      "variant": "candidate",
+      "session": {
+        "attempts": [
+          {
+            "role": "main",
+            "bytes": 6556836,
+            "referenced": true
+          },
+          {
+            "role": "worker",
+            "bytes": 655716,
+            "referenced": false
+          }
+        ],
+        "referenceCreations": 1,
+        "mainRegions": 1,
+        "mappedAfterLoad": true,
+        "entriesAfterLoad": 220,
+        "journalLines": 1,
+        "checkpointWrote": true,
+        "mappedAfterCheckpoint": true,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "validReads": 6,
+        "invalidReads": 0,
+        "mainDestroyedWithValidRegions": 1,
+        "onDisk": 260,
+        "allOnDisk": true,
+        "entriesNextLaunch": 260,
+        "invalidReadsNextLaunch": 0,
+        "mappedAfterNextDispose": false
+      },
+      "refused": {
+        "referencedAttempt": true,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "foreign": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "rewritten": true
+      },
+      "overtaken": {
+        "pendingAtClose": true,
+        "referencedAttempt": true,
+        "referenceCreations": 1,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
+      ]
+    },
+    "releasedEarly": {
+      "variant": "releasedEarly",
+      "session": {
+        "attempts": [
+          {
+            "role": "main",
+            "bytes": 6556836,
+            "referenced": true
+          },
+          {
+            "role": "worker",
+            "bytes": 655716,
+            "referenced": false
+          }
+        ],
+        "referenceCreations": 1,
+        "mainRegions": 1,
+        "mappedAfterLoad": false,
+        "entriesAfterLoad": 220,
+        "journalLines": 0,
+        "checkpointWrote": true,
+        "mappedAfterCheckpoint": false,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "validReads": 0,
+        "invalidReads": 6,
+        "mainDestroyedWithValidRegions": 0,
+        "onDisk": 260,
+        "allOnDisk": true,
+        "entriesNextLaunch": 260,
+        "invalidReadsNextLaunch": 3,
+        "mappedAfterNextDispose": false
+      },
+      "refused": {
+        "referencedAttempt": true,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "foreign": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "rewritten": true
+      },
+      "overtaken": {
+        "pendingAtClose": true,
+        "referencedAttempt": true,
+        "referenceCreations": 1,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 1,
+        "fileKept": true
+      },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "mappedBeforeDispose": false,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 0,
+        "invalidReads": 4,
+        "validReads": 0,
+        "fileKept": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
+      ]
+    },
+    "neverReleased": {
+      "variant": "neverReleased",
+      "session": {
+        "attempts": [
+          {
+            "role": "main",
+            "bytes": 6556836,
+            "referenced": true
+          },
+          {
+            "role": "worker",
+            "bytes": 655716,
+            "referenced": false
+          }
+        ],
+        "referenceCreations": 1,
+        "mainRegions": 1,
+        "mappedAfterLoad": true,
+        "entriesAfterLoad": 220,
+        "journalLines": 1,
+        "checkpointWrote": true,
+        "mappedAfterCheckpoint": true,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": true,
+        "validReads": 6,
+        "invalidReads": 0,
+        "mainDestroyedWithValidRegions": 1,
+        "onDisk": 260,
+        "allOnDisk": true,
+        "entriesNextLaunch": 260,
+        "invalidReadsNextLaunch": 0,
+        "mappedAfterNextDispose": true
+      },
+      "refused": {
+        "referencedAttempt": true,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "foreign": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "rewritten": true
+      },
+      "overtaken": {
+        "pendingAtClose": true,
+        "referencedAttempt": true,
+        "referenceCreations": 1,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": true,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
+      ]
+    },
+    "keptAfterClose": {
+      "variant": "keptAfterClose",
+      "session": {
+        "attempts": [
+          {
+            "role": "main",
+            "bytes": 6556836,
+            "referenced": true
+          },
+          {
+            "role": "worker",
+            "bytes": 655716,
+            "referenced": false
+          }
+        ],
+        "referenceCreations": 1,
+        "mainRegions": 1,
+        "mappedAfterLoad": true,
+        "entriesAfterLoad": 220,
+        "journalLines": 1,
+        "checkpointWrote": true,
+        "mappedAfterCheckpoint": true,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "validReads": 6,
+        "invalidReads": 0,
+        "mainDestroyedWithValidRegions": 1,
+        "onDisk": 260,
+        "allOnDisk": true,
+        "entriesNextLaunch": 260,
+        "invalidReadsNextLaunch": 0,
+        "mappedAfterNextDispose": false
+      },
+      "refused": {
+        "referencedAttempt": true,
+        "referenceCreations": 0,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "foreign": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": false,
+        "journalLines": 0,
+        "invalidReads": 0,
+        "rewritten": true
+      },
+      "overtaken": {
+        "pendingAtClose": true,
+        "referencedAttempt": true,
+        "referenceCreations": 1,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "invalidReads": 0,
+        "fileKept": true
+      },
+      "mergeFailed": {
+        "referencedAttempt": true,
+        "mappedAfterLoad": true,
+        "journalLines": 1,
+        "mappedBeforeDispose": true,
+        "mappedAfterDispose": false,
+        "mainDestroyedWithValidRegions": 1,
+        "invalidReads": 0,
+        "validReads": 4,
+        "fileKept": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty.",
+        "Vulkan pipeline cache merge failed: ErrorOutOfHostMemory."
+      ]
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanSourceExecuted": true,
+  "driverModel": "MoltenVK with the RewindBox patch referencing the cache data (pointers kept, carried by merges, checked with msync and the content); the RAM measure on the real MoltenVK is the melonx-mapped-cache run (macOS); no device",
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "a59d72ae5da387f9405b5945a8e3afbeef00a2e25e1b12b4dbb26a425a6a29f8"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_cache_mapped_data.py": "56db663293f0d8a6b8f9727904635c04d6b2d979c22a0614bece61b277e650a3",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch": "394e6aef49f8aa64c2acfd75ec2f9947b3dc4194728a52e9a239c2f8717459d4",
+    "test/melonx_pipeline_cache_mapped_data_test.py": "233633099bd7ed14795adbf0867cd645ecd1ea1053069d931fb5f83623e05a60",
+    "test/melonx_pipeline_cache_mapped_data/Program.cs": "5b32ef97515f7b69efea22d96ece76d1dde198419e2d4aaebd29162a24311378",
+    "test/melonx_pipeline_cache_mapped_data/Double.cs": "5a4551643a0347dc2437a08eef892026810b1ebf8ab9b9d4c9a851ff1ec43fc5",
+    "test/melonx_adapter_control.py": "20cefdcbd44ca9db32c4760a03fc2d56aeb620ecc2ac2049ebdd2f55065cabe5"
+  }
+}

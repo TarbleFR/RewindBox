@@ -74,7 +74,8 @@
   "build-utils/melonx/adapt_extra_set_binds.py",
   "build-utils/melonx/adapt_array_reference_deltas.py",
   "build-utils/melonx/adapt_worker_library_share.py",
-  "build-utils/melonx/adapt_bgc_fragmentation_guard.py"
+  "build-utils/melonx/adapt_bgc_fragmentation_guard.py",
+  "build-utils/melonx/adapt_pipeline_cache_mapped_data.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -267,7 +268,10 @@
   "test/melonx_same_program_descriptors/Boundaries.cs",
   "test/melonx_retention_chain/Program.cs",
   "test/melonx_texture_pool_allocations/Program.cs",
-  "test/melonx_bgc_fragmentation_guard/Program.cs"
+  "test/melonx_bgc_fragmentation_guard/Program.cs",
+  "test/melonx_pipeline_cache_mapped_data/Program.cs",
+  "test/melonx_pipeline_cache_mapped_data/Double.cs",
+  "build-utils/melonx/moltenvk/rewindbox-moltenvk.patch"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -3721,6 +3725,36 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/EmbeddedSession.cs"
+   ]
+  },
+  {
+   "name": "pipeline-cache-mapped-data",
+   "script": "test/melonx_pipeline_cache_mapped_data_test.py",
+   "report": "pipeline-cache-mapped-data-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3000,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanSourceExecuted": true,
+    "comparison.mainReferenced": true,
+    "comparison.workerCopied": true,
+    "comparison.mappedUntilMainDestroyed": true,
+    "comparison.invalidReadsCandidate": 0,
+    "comparison.sameContentOnDisk": true,
+    "comparison.overtakenReleased": true,
+    "comparison.sensitivityVariantsFailed": 3,
+    "comparison.mergeFailedKeptUntilMainDestroyed": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
    ]
   }
  ]
