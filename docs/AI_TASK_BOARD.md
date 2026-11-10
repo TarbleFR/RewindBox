@@ -2705,6 +2705,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     session; load, compilations left, long frames, render-thread waits, memory, image). Compilation counts are reduced
     on the runner; time there is a macOS bench figure; smoothness and the effect of the 166-185 ms lock total (summed
     over the runner scenario) on render-thread waits are to be measured in play.
+  - **Codex closure review (10 Nov):** checked the live successful CI/job, final-source gate receipts and
+    source adapter (holder count, nonblocking share, under-lock budget, separate merge credit/recreation),
+    negative controls, array invalidations/resource ownership, real Metal/macOS results and simulator limits.
+    API artifact 13726531152 size/digest matches the published Core 717 receipt. Native session tool receipt
+    confirms the complete handoff to principal `012mUAShv9k6pSCnpW7oAF63` with status `delivered` (later priority);
+    this is a handoff, not a pin or IPA. MeloNX UI is idle on Opus 5.5 / High, mission task done.
+    No new correction is warranted by these proofs; only the documented device trials remain for this mission.
+    Performance watch closed; no new prompt, worker, build, pin or IPA dispatched by Codex.
+
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
   relativeOffset 0x40000018). All five sessions ran ten mutually exclusive resolution cheats at once (Handheld RRS
