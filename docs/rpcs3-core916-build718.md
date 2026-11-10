@@ -52,27 +52,40 @@ cette écriture fait perdre sa réservation au SPU et son PUTLLC échoue.
 1. la ligne entière est comparée à la copie du GETLLAR : toute écriture antérieure fait échouer le PUTLLC ;
 2. chaque portion de 16 octets que le SPU a modifiée est échangée atomiquement contre sa valeur du GETLLAR ; une
    portion non modifiée n'est jamais écrite ;
-3. une écriture qui atteint une portion modifiée pendant le stockage : si rien n'a encore été écrit, le PUTLLC
-   échoue, ligne intacte ; sinon les octets de l'invité sont conservés et les autres octets du SPU écrits.
+3. une écriture qui atteint une portion modifiée pendant le stockage fait échouer le PUTLLC : les portions déjà
+   écrites reprennent leur valeur du GETLLAR (un octet que l'invité y aurait écrit entre-temps est conservé). La
+   ligne finit telle que le GETLLAR l'avait lue, plus les écritures de l'invité — l'ordre « écriture invité, puis
+   PUTLLC qui échoue » — quelle que soit la largeur de l'écriture. Comme la mémoire a été écrite un instant, le temps
+   de réservation avance et les threads en attente sur la ligne sont prévenus.
 
 Même verrou qu'avant (le verrou exclusif du mot de réservation), pas de verrou d'écriture global, pas d'attente,
 pas de délai, pas de résultat forcé. Le chemin « précis » et toutes les autres adresses sont inchangés.
 
-**Test discriminant** (`test/rpcs3_spurs_relaxed_store916_test.py`, en-tête réel compilé) : 8 scénarios ordonnés
-sur la ligne du dump et une exécution concurrente (un écrivain simple à côté de cinq threads GETLLAR/PUTLLC).
-Contrôle négatif : le même banc avec l'ancien stockage.
+Une première forme conservait l'écriture concurrente à côté des octets du SPU, octet par octet. La relecture
+indépendante du 10 novembre a montré qu'une écriture de plusieurs octets pouvait alors finir coupée en deux (une
+valeur que ni l'invité ni le SPU n'avait écrite) : cette forme est remplacée par le retour arrière ci-dessus et sert
+de second contrôle négatif. La même relecture n'a trouvé aucun défaut de verrou, d'avance du temps de réservation,
+de blocage ni de réveil manqué ; elle a vérifié que tous les autres écrivains de la ligne respectent le verrou.
 
-| | Ancien stockage | Core 916 |
-|---|---|---|
-| Scénarios ordonnés échoués | 9 vérifications sur 16 | 0 |
-| Écritures invité perdues (exécution concurrente) | 278 650 environ, sur 1,7 à 6,3 millions | 0 |
-| Incréments SPU réussis absents de la mémoire | — | 0 |
+**Test discriminant** (`test/rpcs3_spurs_relaxed_store916_test.py`, en-tête réel compilé) : 10 scénarios ordonnés
+sur la ligne du dump et une exécution concurrente (deux écrivains simples à côté de cinq threads GETLLAR/PUTLLC).
+Contrôles négatifs : le même banc avec l'ancien stockage, puis avec la fusion octet par octet.
+
+| | Ancien stockage | Fusion octet par octet | Core 916 |
+|---|---|---|---|
+| Vérifications échouées (scénarios ordonnés) | 12 | 6 (dont l'écriture de deux octets coupée) | 0 sur 19 |
+| Écritures invité perdues (exécution concurrente) | 344 320 à 364 010, sur 1,8 million | — | 0, sur 4,9 à 9,5 millions |
+| PUTLLC interrompus puis annulés | — | — | 98 173 à 176 233, tous restitués |
+| Incréments SPU en mémoire | — | — | exactement ceux des PUTLLC réussis |
 
 Passe aussi sous ASan/UBSan.
 
 **Limites.** Reproduit sur hôte, pas sur iPhone. Le correctif s'applique à tout titre SPURS dont le profil désactive
 les réservations précises (AC1, GOW3) ; il n'est démontré comme cause que pour l'arrêt d'AC1. Compteur exporté :
-`COREPROF SPUWAIT551 … spurs_relaxed=écrits:fusionnés:refusés` par fenêtre.
+`COREPROF SPUWAIT551 … spurs_relaxed=écrits:annulés:refusés` par fenêtre. Ce qu'une comparaison de données ne peut
+pas voir reste comme partout dans cet émulateur : une écriture invité de la valeur déjà présente. S'y ajoute un cas
+de second ordre : deux écritures invité pendant un même PUTLLC, dont l'une écrit, dans une portion en cours de
+restitution, exactement l'octet que le SPU venait d'y écrire.
 
 ## 3. Lot 2 — GOW3 : le contournement MLAA n'était appliqué à rien (corrigé)
 

@@ -384,7 +384,8 @@ def levers(digits) -> dict:
 UNITS = ('fps and cores are averages over the window; gpu_busy is a share of the window; wl_putllc is count:acquire_ms:hold_ms cumulated over '
          'all SPU threads (thread time, not frame time); getllar_sleep is count:total_ms; pass, epoch and memo counters are per window; '
          'miss_evicted reads a bounded history of the last evictions of a slot: a lower bound on capacity misses, not their count; '
-         'spurs_relaxed is stored:merged:refused, the PUTLLC of SPU threads on SPURS header lines with relaxed reservations (Core 916), per window')
+         'spurs_relaxed is stored:undone:refused, the PUTLLC of SPU threads on SPURS header lines with relaxed reservations (Core 916), per '
+         'window: undone = interrupted by a guest store and taken back, refused = the line had changed since GETLLAR')
 
 
 PUTLLC_RESULTS = {'1': 'stored', '2': 'failed_time', '3': 'failed_owner', '4': 'failed_precheck', '5': 'failed_compare',

@@ -69,7 +69,7 @@ def journal():
     a.append(record(500, 1.0, 'CONFIG_LAYERS title=CCCC00003 name=database_config accurate_res=false rsx_res=75'))
     a.append(record(500, 1.1, 'CONFIG_LAYERS part=rsx title=CCCC00003 levers627=010111011111111112100 legacy_custom=1'))
     a.append(record(500, 10.0, 'COREPROF FRAMEPROF527 session=1 window=1 phase=guest_unclassified wall_guest_fps=11.2 p95_ms=120.0'))
-    a.append(record(500, 10.01, 'COREPROF SPUWAIT551 session=1 window=1 getllar_sleep=5:1.250 putllc_ok=9000 putllc_fail=3 putllc_heavy=0 spurs_relaxed=900:2:14 spurs_relaxed_tuple=stored:merged:refused'))
+    a.append(record(500, 10.01, 'COREPROF SPUWAIT551 session=1 window=1 getllar_sleep=5:1.250 putllc_ok=9000 putllc_fail=3 putllc_heavy=0 spurs_relaxed=900:2:14 spurs_relaxed_tuple=stored:undone:refused'))
     a.append(record(500, 10.02, 'COREPROF GOW3MLAA909 session=1 window=1 executable=PPU-4d5c51503a81a327c2a99427390a395b8dcb3767 ppu=applied spu_images=6 spu_matched=0 '
                     'spu_words_patched=0 unmatched_spu=SPU-c551925d scope=process_since_boot ppu_patch=100 ppu_call_word=0x4bfffa05 savestate_patched=-1'))
     a.append(record(500, 10.03, 'COREPROF AUTOPPU916 session=1 window=1 busiest_ppu_cores=0.931 bound_cores=0.85 windows=2 request=ppu_region_profile'))

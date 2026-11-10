@@ -10,12 +10,16 @@ header copied the SPU's whole 128-byte line into memory once the reservation tim
 between GETLLAR and PUTLLC (it does not advance that time) was overwritten.
 
 The driver compiles the real rpcs3/ios/IOSSpursRelaxedStore.h in test/native/rpcs3_spurs_relaxed_store916_test.cpp:
-8 ordered scenarios on the dumped line (the store before the PUTLLC, into an untouched lane, into the first and
-into a later changed lane while the line is stored, twice, onto the SPU's own byte) and one concurrent run (a
-plain-store writer beside five GETLLAR/PUTLLC threads on the same lane and another lane; every SPU increment and
-every guest store must be in memory). Negative control: the same harness with the previous store (-DCONTROL_OLD_STORE)
-must lose the store in the ordered scenarios. Static: do_putllc calls the store on the relaxed SPURS path, releases
-the unique lock on both outcomes and keeps no unconditional copy of the line on iOS.
+10 ordered scenarios on the dumped line (the store before the PUTLLC, into an untouched lane, into the first and
+into a later changed lane while the line is stored, twice, onto the SPU's own byte, a two-byte store of which one
+byte keeps its value, three changed lanes) and one concurrent run (two plain-store writers beside five
+GETLLAR/PUTLLC threads on both lanes; every successful SPU increment and no other, and every guest store, must be
+in memory). A PUTLLC that a guest store interrupts fails and gives back what it had stored: the line is what
+GETLLAR read plus the guest's stores. Negative controls: the same harness with the previous store
+(-DCONTROL_OLD_STORE) must lose the store, and with the first form of this correction (-DCONTROL_BYTE_MERGE, which
+kept the store beside the SPU's bytes) must split the two-byte store. Static: do_putllc calls the store on the
+relaxed SPURS path, releases the unique lock on every outcome, advances the reservation time whenever memory was
+written and keeps no unconditional copy of the line on iOS.
 Host behaviour only: nothing here measures an iPhone.
 
     python3 test/rpcs3_spurs_relaxed_store916_test.py --source CORE [--cxx g++] [--no-sanitizers] [--report OUT.json]
@@ -52,13 +56,18 @@ def static_checks(source: Path) -> None:
     require('rpcs3::ios::spurs_relaxed_store::store(vm::_ptr<unsigned char>(addr)' in ios and 'mov_rdata' not in ios,
             'iOS stores the line through the lane store, never by a copy of the whole line')
     require('atomic_storage<u128>::compare_exchange(*reinterpret_cast<u128*>(lane), comp, exch)' in ios, 'each lane is one atomic exchange')
-    require('res += ios_spurs_stored ? 64 : 0 - 64;\n\t\t\t\treturn ios_spurs_stored;' in ios, 'the unique lock is released on both outcomes')
+    require("res += ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_changed ? 0 - 64 : 64;" in ios,
+            'the unique lock is released on every outcome; the time stays only when nothing was written')
+    require("if (ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_undone)\n\t\t\t\t{\n\t\t\t\t\tvm::reservation_notifier_notify(addr, rtime);" in ios and
+            "return ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::stored;" in ios,
+            'a store that was taken back tells the waiters and fails the PUTLLC')
     require('mov_rdata(*vm::_ptr<spu_rdata_t>(addr), to_write);\n\t\t\t\tres += 64;\n\t\t\t\treturn true;' in other, 'the upstream path is kept for other platforms')
     require(body.index('auto [_oldd, _ok] = res.fetch_op(') < body.index('if (relaxed_spurs)\n'), 'the store runs under the unique lock of the reservation word')
     require('const bool relaxed_spurs = !accurate && addr - spurs_addr <= 0x80;' in body, 'the scope is the two SPURS header lines with relaxed reservations')
     require(text.count('#include "ios/IOSSpursRelaxedStore.h"') == 1, 'the include')
     header = (source / HEADER).read_text()
     require('std::memcmp(memory, getllar, line_bytes) != 0' in header and 'if (!written)' in header, 'the header compares the line and refuses before any write')
+    require('return result::refused_undone;' in header and 'stored_merged' not in header, 'an interrupted store is taken back, never merged')
 
 
 def build(cxx: str, source: Path, folder: Path, name: str, flags: list) -> Path:
@@ -92,7 +101,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix='spurs916-') as temporary:
         folder = Path(temporary)
         result = run(build(args.cxx, source, folder, 'plain', plain))
-        require(result['returncode'] == 0 and result['failures'] == 0 and result['checks'] == 16, 'the lane store: ' + repr(result))
+        require(result['returncode'] == 0 and result['failures'] == 0 and result['checks'] == 19, 'the lane store: ' + repr(result))
         report['plain'] = result
         if not args.no_sanitizers and sys.platform.startswith('linux'):
             result = run(build(args.cxx, source, folder, 'asan', ['-O1', '-g', '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
@@ -108,8 +117,12 @@ def main() -> int:
         counted = [line for line in concurrent['output'] if line.startswith('concurrent:') and 'lost_guest_stores=0 ' not in line]
         require(concurrent['returncode'] != 0 and counted, 'the previous store must lose guest stores in the concurrent run: ' + repr(concurrent))
         report['control_previous_store_concurrent'] = concurrent
-    print('PASS: a PUTLLC on a SPURS header keeps every plain guest store (%d checks; the previous store fails %d of the ordered checks)'
-          % (report['plain']['checks'], report['control_previous_store']['failures']))
+        merge = run(build(args.cxx, source, folder, 'control_merge', plain + ['-DCONTROL_BYTE_MERGE']), '--deterministic')
+        split = [line for line in merge['output'] if 'a two-byte guest store is never split' in line]
+        require(merge['returncode'] != 0 and split, 'the byte merge must split the two-byte store: ' + repr(merge))
+        report['control_byte_merge'] = merge
+    print('PASS: a PUTLLC on a SPURS header keeps every plain guest store (%d checks; the previous store fails %d of the ordered checks, '
+          'the byte merge %d)' % (report['plain']['checks'], report['control_previous_store']['failures'], report['control_byte_merge']['failures']))
     for name in ('plain', 'control_previous_store_concurrent'):
         for line in report[name]['output']:
             if line.startswith('concurrent:'):

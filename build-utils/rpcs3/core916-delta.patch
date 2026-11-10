@@ -65635,7 +65635,7 @@ index a446d58..bada453 100644
  
  	switch (get_class())
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-index 7f0f61d..8c66dfc 100644
+index 7f0f61d..aba9151 100644
 --- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -72,6 +72,45 @@ function(neostation_codegen_compatible_hash source actual output)
@@ -65679,7 +65679,7 @@ index 7f0f61d..8c66dfc 100644
 +    # adds that one include. No emitter, helper signature, SPU layout or relocation target changes: the
 +    # objects call the same host function. Same effective hash, exact snapshot.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "19b239a1c264c5e4c65c3dfe47148474e73fcbd68f2efa5f69e7ed33afc79245")
++           actual STREQUAL "28b20cc80a3974315ed0eb3797733b7c56e6ca8c6f26cf01c587021b5b196a23")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
      # CELL559: compile() builds the LLVM analysis managers and the function pass
      # pipeline only when no cached object is linked. A miss runs the same passes
@@ -67065,7 +67065,7 @@ index 5cdf309..6a38c2c 100644
  
  					// Disable certain thing
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index dead8f4..0bb627f 100644
+index dead8f4..2f7c20c 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -36,6 +36,9 @@
@@ -67205,7 +67205,7 @@ index dead8f4..0bb627f 100644
  			// Already locked or updated: give up
  			return false;
  		}
-@@ -3691,9 +3782,29 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3691,9 +3782,38 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		{
  			if (relaxed_spurs)
  			{
@@ -67213,8 +67213,8 @@ index dead8f4..0bb627f 100644
 +				// REWINDBOX_SPURS_RELAXED_STORE_916 (ios/IOSSpursRelaxedStore.h): the line is stored only if it still is
 +				// what GETLLAR read, lane by lane, and no byte this SPU did not change is written: a plain guest store
 +				// made since GETLLAR (the PPU's sysSrvMessage wake-up, for one) is no longer overwritten by the copy
-+				// read before it. The unique lock taken above is released either way.
-+				const bool ios_spurs_stored = rpcs3::ios::spurs_relaxed_store::store(vm::_ptr<unsigned char>(addr),
++				// read before it, and it fails this PUTLLC. The unique lock taken above is released on every outcome.
++				const rpcs3::ios::spurs_relaxed_store::result ios_spurs_result = rpcs3::ios::spurs_relaxed_store::store(vm::_ptr<unsigned char>(addr),
 +					reinterpret_cast<const unsigned char*>(&rdata), reinterpret_cast<const unsigned char*>(&to_write),
 +					[](unsigned char* lane, rpcs3::ios::spurs_relaxed_store::lane_t& expected, const rpcs3::ios::spurs_relaxed_store::lane_t& desired)
 +					{
@@ -67224,9 +67224,18 @@ index dead8f4..0bb627f 100644
 +						const bool ok = atomic_storage<u128>::compare_exchange(*reinterpret_cast<u128*>(lane), comp, exch);
 +						std::memcpy(expected.bytes, &comp, sizeof(comp));
 +						return ok;
-+					}) != rpcs3::ios::spurs_relaxed_store::result::refused_changed;
-+				res += ios_spurs_stored ? 64 : 0 - 64;
-+				return ios_spurs_stored;
++					});
++				// The reservation time advances whenever memory was written: by a store, and by a store that was taken
++				// back because a guest store reached it (a copy of the line read across it must not pass for unchanged;
++				// those who wait for this line are told). A refusal that wrote nothing leaves the time as it was.
++				res += ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_changed ? 0 - 64 : 64;
++
++				if (ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::refused_undone)
++				{
++					vm::reservation_notifier_notify(addr, rtime);
++				}
++
++				return ios_spurs_result == rpcs3::ios::spurs_relaxed_store::result::stored;
 +#else
  				mov_rdata(*vm::_ptr<spu_rdata_t>(addr), to_write);
  				res += 64;
@@ -67235,7 +67244,7 @@ index dead8f4..0bb627f 100644
  			}
  		}
  #ifndef RPCS3_IOS
-@@ -3724,7 +3835,22 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3724,7 +3844,22 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  			// differs from the GETLLAR snapshot cannot be stored by this PUTLLC,
  			// so fail it before parking every PPU thread. Only the comparison
  			// under the lock below can succeed; the protocol is unchanged.
@@ -67259,7 +67268,7 @@ index dead8f4..0bb627f 100644
  			{
  				rpcs3::ios::record_writer_lock_avoided(static_cast<u32>(vm::writer_lock_source::spu_putllc));
  				return false;
-@@ -3745,6 +3871,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3745,6 +3880,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  					{
  						return true;
  					}
@@ -67269,7 +67278,7 @@ index dead8f4..0bb627f 100644
  				}
  				else
  				{
-@@ -3753,15 +3882,71 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3753,15 +3891,71 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  				}
  			}
  
@@ -67341,7 +67350,7 @@ index dead8f4..0bb627f 100644
  #endif
  		if (raddr)
  		{
-@@ -3792,6 +3977,7 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3792,6 +3986,7 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	{
  #ifdef RPCS3_IOS
  		rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::putllc_fail);
@@ -97515,10 +97524,10 @@ index 0000000..62dc2dd
 +}
 diff --git a/rpcs3/ios/IOSSpursRelaxedStore.h b/rpcs3/ios/IOSSpursRelaxedStore.h
 new file mode 100644
-index 0000000..4607dfa
+index 0000000..bc4c6ae
 --- /dev/null
 +++ b/rpcs3/ios/IOSSpursRelaxedStore.h
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,130 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -97540,13 +97549,22 @@ index 0000000..4607dfa
 +// not advance the reservation time) made between the SPU's GETLLAR and its PUTLLC was overwritten by the copy read
 +// before it. On the console that store loses the SPU its reservation and the PUTLLC fails.
 +//
-+// This store never writes a byte the SPU did not change, and fails when the line no longer is what GETLLAR read:
++// This store never writes a byte the SPU did not change, fails when the line no longer is what GETLLAR read, and when
++// it fails it leaves the line as the guest's own stores made it:
 +//   1. the whole line is compared with the GETLLAR copy: any guest store made before this PUTLLC fails it;
 +//   2. each 16-byte lane the SPU changed is exchanged against its GETLLAR value (one atomic exchange per lane), in
 +//      address order; a lane the SPU did not change is not written;
-+//   3. a guest store that reaches a changed lane after step 1: if no lane was written yet the PUTLLC fails with the
-+//      line untouched (the store came first); otherwise part of the PUTLLC is already visible and the store is
-+//      ordered after it: the bytes it changed are kept and the SPU's other bytes of that lane are written.
++//   3. a guest store that reaches a changed lane after step 1: the PUTLLC fails. The lanes it had already stored are
++//      given their GETLLAR value back (an exchange against what it stored; a byte the guest stored into such a lane in
++//      between is kept), so the line ends as GETLLAR read it plus the guest's stores: the order "guest store, then a
++//      PUTLLC that fails", whatever the width of the store. Memory was written for a moment: the caller advances the
++//      reservation time for that outcome too, so no copy of the line read across it passes for unchanged.
++// An earlier form kept such a store beside the SPU's bytes, byte by byte (the order "PUTLLC, then the store"). A store
++// wider than one byte whose bytes partly equalled the ones GETLLAR read could then end split, a value neither side
++// wrote (independent review, 10 November): the PUTLLC is refused instead.
++// What a comparison of data cannot see stays as in every reservation of this emulator: a guest store of the value the
++// byte already had; and, here, a guest store into a lane already stored that writes the very byte this PUTLLC wrote,
++// while that lane is being given back (two guest stores inside one PUTLLC).
 +// The caller holds the unique lock of the line's reservation word (other SPUs and PPU reservation stores are excluded
 +// and a GETLLAR retries), as before; only plain guest stores can run beside this.
 +namespace rpcs3::ios::spurs_relaxed_store
@@ -97558,11 +97576,12 @@ index 0000000..4607dfa
 +enum class result : std::uint8_t
 +{
 +	stored,          // every lane the SPU changed holds its bytes
-+	stored_merged,   // as stored, and a concurrent guest store into a changed lane was kept
 +	refused_changed, // the line was not what GETLLAR read: nothing written
++	refused_undone,  // a guest store reached a changed lane while the line was stored: the lanes already stored were
++	                 // given back. Memory was written: the reservation time must advance
 +};
 +
-+inline std::atomic<std::uint64_t> stored_count{0}, merged_count{0}, refused_count{0};
++inline std::atomic<std::uint64_t> stored_count{0}, undone_count{0}, refused_count{0};
 +
 +struct lane_t
 +{
@@ -97580,8 +97599,7 @@ index 0000000..4607dfa
 +		return result::refused_changed;
 +	}
 +
-+	bool written = false;
-+	bool merged = false;
++	unsigned written = 0; // one bit per lane stored
 +
 +	for (std::size_t lane = 0; lane < lanes; lane++)
 +	{
@@ -97598,7 +97616,7 @@ index 0000000..4607dfa
 +
 +		if (exchange(memory + at, expected, desired))
 +		{
-+			written = true;
++			written |= 1u << lane;
 +			continue;
 +		}
 +
@@ -97608,28 +97626,36 @@ index 0000000..4607dfa
 +			return result::refused_changed;
 +		}
 +
-+		// `expected` is the lane now. A byte that differs from the GETLLAR copy was stored by the guest after this
-+		// PUTLLC began: it stays. Every other byte takes the SPU's value.
-+		for (;;)
++		// The guest stored into this lane after step 1. Give back the lanes already stored, last one first.
++		for (std::size_t back = lane; back-- > 0;)
 +		{
-+			lane_t next;
-+
-+			for (std::size_t i = 0; i < lane_bytes; i++)
++			if (!(written & (1u << back)))
 +			{
-+				next.bytes[i] = expected.bytes[i] != getllar[at + i] ? expected.bytes[i] : to_write[at + i];
++				continue;
 +			}
 +
-+			if (exchange(memory + at, expected, next))
++			const std::size_t from = back * lane_bytes;
++			lane_t stored, before;
++			std::memcpy(stored.bytes, to_write + from, lane_bytes);
++			std::memcpy(before.bytes, getllar + from, lane_bytes);
++
++			while (!exchange(memory + from, stored, before))
 +			{
-+				break;
++				// `stored` is the lane now. A byte that is not the one this PUTLLC stored was stored by the guest
++				// since: it stays. Every other byte takes its GETLLAR value back.
++				for (std::size_t i = 0; i < lane_bytes; i++)
++				{
++					before.bytes[i] = stored.bytes[i] != to_write[from + i] ? stored.bytes[i] : getllar[from + i];
++				}
 +			}
 +		}
 +
-+		merged = true;
++		undone_count.fetch_add(1, std::memory_order_relaxed);
++		return result::refused_undone;
 +	}
 +
-+	(merged ? merged_count : stored_count).fetch_add(1, std::memory_order_relaxed);
-+	return merged ? result::stored_merged : result::stored;
++	stored_count.fetch_add(1, std::memory_order_relaxed);
++	return result::stored;
 +}
 +} // namespace rpcs3::ios::spurs_relaxed_store
 diff --git a/rpcs3/ios/IOSTextureCacheProfile.h b/rpcs3/ios/IOSTextureCacheProfile.h
@@ -102346,7 +102372,7 @@ index 0000000..655b3e7
 +};
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..4810d82 100644
+index 08e293e..d9da97c 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -103084,7 +103110,7 @@ index 08e293e..4810d82 100644
                  "COREPROF SPUWAIT551 session=%llu window=%llu tuple=count:total_ms getllar_poll=%llu:%.3f getllar_sleep=%llu:%.3f "
 -                "event_wait=%llu:%.3f putllc_ok=%llu putllc_fail=%llu putllc_heavy=%llu scope=process_window_all_spu_threads",
 +                "event_wait=%llu:%.3f putllc_ok=%llu putllc_fail=%llu putllc_heavy=%llu scope=process_window_all_spu_threads "
-+                "spurs_relaxed=%llu:%llu:%llu spurs_relaxed_tuple=stored:merged:refused",
++                "spurs_relaxed=%llu:%llu:%llu spurs_relaxed_tuple=stored:undone:refused",
                  profile_session, profile_window,
                  d[wait::getllar_polls], milliseconds(d[wait::getllar_poll_ticks]),
                  d[wait::getllar_sleeps], milliseconds(d[wait::getllar_sleep_ticks]),
@@ -103093,7 +103119,7 @@ index 08e293e..4810d82 100644
 +                d[wait::putllc_ok], d[wait::putllc_fail], d[wait::putllc_heavy],
 +                // REWINDBOX_SPURS_RELAXED_STORE_916: PUTLLC on a SPURS header with relaxed reservations in this window.
 +                rpcs3::ios::spurs_relaxed_store::stored_count.exchange(0, std::memory_order_relaxed),
-+                rpcs3::ios::spurs_relaxed_store::merged_count.exchange(0, std::memory_order_relaxed),
++                rpcs3::ios::spurs_relaxed_store::undone_count.exchange(0, std::memory_order_relaxed),
 +                rpcs3::ios::spurs_relaxed_store::refused_count.exchange(0, std::memory_order_relaxed));
          }
          // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
