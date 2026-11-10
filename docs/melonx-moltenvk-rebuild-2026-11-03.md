@@ -39,6 +39,37 @@ One MoltenVK in the app (written, not delivered):
 - `test/melonx_standalone_parity_test.py` (45 checks) covers the artifact path with a fake artifact (digests,
   license, notice, a changed artifact refused) and the menu's removal; its translated rows stay in `ui-strings.json`.
 
+## 10 Nov 2026: v1.4.2 with the drawable ownership patch (MeloNX lot 9)
+
+The pin is no longer an unmodified build. `moltenvk-rebuild.json` names one patch,
+`build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch` (SHA-256 `9a6867b7…448b`, `MVKImage.h` and
+`MVKImage.mm` only; cause and host model in the MeloNX lot 9 entry of the board: a present that ran on MoltenVK's
+submission thread read a drawable the next acquisition was releasing, KhronosGroup/MoltenVK#2791).
+
+Build (MeloNX session, run `42760131591`, job `129643612419`, on `9936f295`, 7 min 36 s): artifact `13736999411`
+(13 872 142 bytes, `sha256:a36145bc…c358`, kept until 10 Dec 2026), `ios/MoltenVK.framework/MoltenVK` SHA-256
+`6d3a8d0358c17eeb021603b79f00056b43bf6e34f09cd74c64adc546ad7ad17a`, 4 822 256 bytes, arm64, iOS minimum 15.0, SDK
+26.5 (Xcode 26.6, 17F113).
+
+Checked by main before pinning (API metadata, then the downloaded artifact, offline): the run and its job succeeded on
+that commit, which is an ancestor of `Claude`; the zip is the API digest and size; the binary is the digest its
+`identity.json` gives; that identity names the tag, the commit and the patch digest of `moltenvk-rebuild.json`; the
+patch in `sources/` is byte for byte the one of the repository; its marker is in the binary (1/1); 8/8 entry points;
+428/428 exports of the kept binary. `moltenvk-rebuild-pin.json` now pins that run and carries `patchSha256`.
+
+Packaging (`package_standalone_moltenvk.py`), which refused every patched source and whose notice said "unmodified":
+- the pin, `moltenvk-rebuild.json` and the artifact must agree on the patch (digest in the pin, the same patch in the
+  artifact's sources and in the repository, the build's own identity naming it, every marker reported present); a pin
+  of an unmodified build is refused for a patched source and the reverse;
+- the app's `Legal/MeloNX/StandaloneMoltenVK/NOTICE.txt` says the source was built with one RewindBox modification,
+  names the patch, its digest and the two files, and a copy of the patch sits next to it and the Apache-2.0 license;
+  the embedded receipt carries `patch` and `patchSha256`.
+
+`test/melonx_standalone_parity_test.py`: 64 checks (45 before), with the cases above on a fake artifact, six refusals
+as negative controls and the repository's own pin against its source. The previous packager fails the first patched
+case. The real pin and the real artifact pass `fetch_rebuild` and `embed` on the host (the macOS-only framework steps
+run in the delivery). Not run on an iPhone.
+
 ## Source
 
 - Khronos MoltenVK tag `v1.4.0`, commit `458870543b9bcf6b0edd6f90aaa776707b310d96` (lightweight tag, checked with

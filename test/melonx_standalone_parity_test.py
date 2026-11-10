@@ -145,6 +145,139 @@ with tempfile.TemporaryDirectory() as temporary:
     check(refused, 'a changed artifact was accepted')
     (standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT, standalone.REBUILD_SOURCE, standalone.REBUILD_PIN,
      standalone.REBUILD_DIR, standalone.download_artifact) = saved
+# A rebuild that carries one RewindBox patch (lot 9, 10 Nov 2026: rewindbox-drawable-ownership.patch). Before that
+# day the packager refused every patched source, and its notice said "unmodified". The pin, the source and the artifact
+# must agree on the patch; the app then says the source was modified and carries the patch (Apache-2.0, section 4 b).
+with tempfile.TemporaryDirectory() as temporary:
+    work = Path(temporary)
+    revision, binary = 'd' * 40, b'patched-binary RewindBox marker'
+    license_text = b'Apache License\nVersion 2.0, January 2004\n'
+    patch_text = (b'diff --git a/MoltenVK/A.h b/MoltenVK/A.h\n--- a/MoltenVK/A.h\n+++ b/MoltenVK/A.h\n@@ -1 +1,2 @@\n x\n+// RewindBox: y\n'
+                  b'diff --git a/MoltenVK/A.mm b/MoltenVK/A.mm\n--- a/MoltenVK/A.mm\n+++ b/MoltenVK/A.mm\n@@ -1 +1,2 @@\n x\n+// RewindBox: z\n')
+    patch_sha = hashlib.sha256(patch_text).hexdigest()
+    patch_path = 'build-utils/melonx/moltenvk/test-ownership.patch'
+    (work / 'build-utils/melonx/moltenvk').mkdir(parents=True)
+    (work / patch_path).write_bytes(patch_text)
+    shutil.copy2(ROOT / 'build-utils/melonx/native-dependencies.json', work / 'build-utils/melonx/native-dependencies.json')
+    tar_buffer = io.BytesIO()
+    with tarfile.open(fileobj=tar_buffer, mode='w:gz') as archive:
+        for name, data in [('MoltenVK/LICENSE', license_text), ('MoltenVK/README.md', b'x')]:
+            member = tarfile.TarInfo(name); member.size = len(data)
+            archive.addfile(member, io.BytesIO(data))
+    origin = {'repository': 'https://github.com/KhronosGroup/MoltenVK.git', 'tag': 'v9.9.9', 'revision': revision,
+              'patch': patch_path, 'patchSha256': patch_sha, 'patchMarkers': ['RewindBox marker']}
+    artifact = work / 'artifact-source.zip'
+
+    def write_artifact(built_patch=patch_text, pinned=origin, markers=None, with_patch_file=True):
+        identity = {'pin': pinned, 'binary': {'sha256': hashlib.sha256(binary).hexdigest()},
+                    'markers': {'RewindBox marker': True} if markers is None else markers,
+                    'entryPoints': {'_vkGetInstanceProcAddr': True}, 'keptBinaryVulkanExports': {'missing': []}}
+        with zipfile.ZipFile(artifact, 'w') as content:
+            content.writestr('ios/MoltenVK.framework/MoltenVK', binary)
+            content.writestr('identity.json', json.dumps(identity))
+            content.writestr(f'sources/MoltenVK-{revision}.tar.gz', tar_buffer.getvalue())
+            if with_patch_file:
+                content.writestr('sources/test-ownership.patch', built_patch)
+
+    def write_pin(source=origin, patched=True):
+        (work / 'build-utils/melonx/moltenvk-rebuild.json').write_text(json.dumps(source))
+        pin = {'tag': 'v9.9.9', 'revision': revision, 'run': 7, 'artifact': 8, 'artifactBytes': artifact.stat().st_size,
+               'artifactDigest': 'sha256:' + hashlib.sha256(artifact.read_bytes()).hexdigest(),
+               'binarySha256': hashlib.sha256(binary).hexdigest()}
+        if patched:
+            pin['patchSha256'] = patch_sha
+        (work / 'build-utils/melonx/moltenvk-rebuild-pin.json').write_text(json.dumps(pin))
+        return pin
+
+    saved = (standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT, standalone.REBUILD_SOURCE, standalone.REBUILD_PIN,
+             standalone.REBUILD_DIR, standalone.download_artifact)
+    standalone.ROOT = work
+    standalone.REBUILD_SOURCE = work / 'build-utils/melonx/moltenvk-rebuild.json'
+    standalone.REBUILD_PIN = work / 'build-utils/melonx/moltenvk-rebuild-pin.json'
+    standalone.REBUILD_DIR = work / 'dist/melonx/moltenvk-rebuild'
+    standalone.download_artifact = lambda number, target: shutil.copy2(artifact, target)
+
+    def refused():
+        cached = standalone.REBUILD_DIR / 'artifact.zip'
+        if cached.is_file():
+            cached.unlink()
+        try:
+            standalone.fetch_rebuild()
+            return False
+        except (AssertionError, KeyError):
+            return True
+
+    write_artifact()
+    pin = write_pin()
+    check(not refused(), 'a rebuild whose pin, source and artifact agree on the patch was refused')
+    check((standalone.REBUILD_DIR / 'test-ownership.patch').read_bytes() == patch_text, 'the patch of the artifact is not kept')
+    framework = work / 'frameworks' / f'{standalone.NAME}.framework'
+    framework.mkdir(parents=True)
+    (framework / standalone.NAME).write_bytes(binary)
+    receipt = work / 'receipt.json'
+    receipt.write_text(json.dumps({'packagedSha256': hashlib.sha256(binary).hexdigest(), 'repository': origin['repository'],
+                                   'revision': revision, 'tag': 'v9.9.9', 'run': 7, 'sourceSha256': pin['binarySha256'],
+                                   'sourceBuilt': True, 'patch': patch_path, 'patchSha256': patch_sha}))
+    standalone.FRAMEWORKS, standalone.RECEIPT = work / 'frameworks', receipt
+    app = work / 'Runner.app'
+    (app / 'Frameworks').mkdir(parents=True)
+    standalone.embed(app)
+    notice = (app / standalone.LEGAL / 'NOTICE.txt').read_text()
+    check('with one modification by RewindBox' in notice and 'unmodified' not in notice, notice)
+    check('test-ownership.patch' in notice and patch_sha in notice and 'MoltenVK/A.h and MoltenVK/A.mm' in notice, notice)
+    check('workflow run 7' in notice and pin['binarySha256'] in notice and
+          'Apache License, Version 2.0' in ' '.join(notice.split()), notice)
+    check((app / standalone.LEGAL / 'test-ownership.patch').read_bytes() == patch_text, 'the patch is not carried next to its notice')
+    check((app / standalone.LEGAL / 'LICENSE.txt').read_bytes() == license_text, 'license not copied verbatim')
+    embedded = json.loads((app / 'MeloNX-standalone-moltenvk-identity.json').read_text())
+    check(embedded['patchSha256'] == patch_sha and embedded['patch'] == patch_path, embedded)
+    (work / patch_path).write_bytes(patch_text + b'+tampered\n')
+    try:
+        standalone.embed(app)
+        embedded_changed = True
+    except AssertionError:
+        embedded_changed = False
+    check(not embedded_changed, 'a patch that differs from the receipt was embedded')
+    check(refused(), 'a repository patch that differs from its pin was accepted')
+    (work / patch_path).write_bytes(patch_text)
+
+    # The state of the repository when lot 9 arrived: the source names the patch, the pin is still the unmodified build.
+    write_artifact(pinned=dict(origin, patch=None, patchSha256=None), with_patch_file=False, markers={})
+    write_pin(patched=False)
+    check(refused(), 'the pin of an unmodified build was accepted for a patched source')
+    # The pin claims the patch, the artifact was built without it.
+    write_pin(patched=True)
+    check(refused(), 'an artifact built without the patch was accepted for a patched pin')
+    # The artifact holds another patch than the pinned one.
+    write_artifact(built_patch=patch_text + b'+other\n')
+    write_pin()
+    check(refused(), 'an artifact holding another patch was accepted')
+    # The binary lacks the marker of the patch.
+    write_artifact(markers={'RewindBox marker': False})
+    write_pin()
+    check(refused(), 'a binary without the marker of the patch was accepted')
+    write_artifact(markers={})
+    write_pin()
+    check(refused(), 'a build that reports no marker was accepted for a patched pin')
+    # An unmodified source and pin, an artifact built with a patch.
+    write_artifact()
+    write_pin(source=dict(origin, patch=None, patchSha256=None), patched=False)
+    check(refused(), 'a patched artifact was accepted for an unmodified source')
+    # And the agreeing case still passes after all those refusals.
+    write_artifact()
+    write_pin()
+    check(not refused(), 'the agreeing patched rebuild is refused after the negative controls')
+    (standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT, standalone.REBUILD_SOURCE, standalone.REBUILD_PIN,
+     standalone.REBUILD_DIR, standalone.download_artifact) = saved
+# The pin of this repository agrees with its source on the patch (the packager would stop the delivery otherwise).
+repo_source = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
+repo_pin = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild-pin.json').read_text())
+check((repo_pin['tag'], repo_pin['revision'], repo_pin.get('patchSha256')) ==
+      (repo_source['tag'], repo_source['revision'], repo_source.get('patchSha256') if repo_source.get('patch') else None),
+      'moltenvk-rebuild-pin.json does not pin the build of moltenvk-rebuild.json (tag, revision, patch)')
+if repo_source.get('patch'):
+    check(hashlib.sha256((ROOT / repo_source['patch']).read_bytes()).hexdigest() == repo_source['patchSha256'],
+          'the MoltenVK patch differs from moltenvk-rebuild.json')
 package = (ROOT / 'build-utils/melonx/package_runtime.py').read_text()
 check("NAMES = {'MeloNXMoltenVK','MeloNXSDL3','MeloNXAvUtil','MeloNXAvCodec','MeloNXJitSupport'}" in package, 'source-built set changed')
 

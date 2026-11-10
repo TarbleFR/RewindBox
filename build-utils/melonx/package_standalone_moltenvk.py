@@ -6,6 +6,12 @@ the framework is Khronos MoltenVK rebuilt from source by .github/workflows/melon
 moltenvk-rebuild.json), taken from that run's artifact by its API digest and binary digest, with the Apache-2.0
 license of its own source archive. Without that pin, the former behaviour below applies.
 
+Since 10 Nov 2026 the rebuild may carry one RewindBox patch (moltenvk-rebuild.json patch and patchSha256; lot 9:
+rewindbox-drawable-ownership.patch). The pin then names the same patch digest, the artifact must hold that patch
+next to the Khronos source archive and report its markers in the binary, and the app carries a notice that says the
+source was modified, with a copy of the patch (Apache-2.0, section 4 b). A pin and a source that disagree on the
+patch, in either direction, are refused.
+
 Former behaviour: package the standalone MeloNX app's own MoltenVK as a second private framework.
 
 The one prebuilt engine library RewindBox ships, by the maintainer's explicit
@@ -53,6 +59,25 @@ also holds the sources of MoltenVK's External dependencies with their notices.
 RewindBox loads this MoltenVK for every title. MeloNXMoltenVK.framework (Khronos
 MoltenVK v1.3.0 built from source) is loaded only after this one failed to load.
 """
+PATCHED_NOTICE = """{name}.framework
+
+This framework is Khronos MoltenVK {tag} (commit {revision}, {repository}), built
+from source for iOS by RewindBox's workflow run {run} (binary SHA-256
+{sha256}) with one modification by RewindBox: the patch
+{patch} (SHA-256 {patch_sha256}),
+a copy of which is next to this file. The patch changes {files}
+and lists every changed line. The install name was also changed to
+@rpath/{name}.framework/{name}.
+
+MoltenVK (The Brenwill Workshop Ltd., Khronos Group) is licensed under the Apache
+License, Version 2.0; the license text is in LICENSE.txt next to this file, copied
+from the MoltenVK source archive of that build ({archive}). The build's artifact
+also holds that archive, the patch and the sources of MoltenVK's External
+dependencies with their notices.
+
+RewindBox loads this MoltenVK for every title. MeloNXMoltenVK.framework (Khronos
+MoltenVK v1.3.0 built from source) is loaded only after this one failed to load.
+"""
 LEGAL = 'Legal/MeloNX/StandaloneMoltenVK'
 NOTICE = """MeloNXMoltenVKStandalone.framework
 
@@ -90,7 +115,8 @@ def download_artifact(artifact, target):
 def fetch_rebuild():
     """The rebuilt MoltenVK of the pinned run: its artifact by the API digest, its binary by its own digest."""
     pin, source = json.loads(REBUILD_PIN.read_text()), json.loads(REBUILD_SOURCE.read_text())
-    assert (pin['tag'], pin['revision']) == (source['tag'], source['revision']) and not source.get('patch'), \
+    wanted = source.get('patchSha256') if source.get('patch') else None
+    assert (pin['tag'], pin['revision'], pin.get('patchSha256')) == (source['tag'], source['revision'], wanted), \
         'the rebuild pin does not match moltenvk-rebuild.json'
     REBUILD_DIR.mkdir(parents=True, exist_ok=True)
     archive = REBUILD_DIR / 'artifact.zip'
@@ -102,13 +128,23 @@ def fetch_rebuild():
         binary = content.read('ios/MoltenVK.framework/MoltenVK')
         identity = json.loads(content.read('identity.json'))
         sources = content.read(f"sources/MoltenVK-{pin['revision']}.tar.gz")
+        patch = content.read('sources/' + Path(source['patch']).name) if wanted else None
     assert hashlib.sha256(binary).hexdigest() == pin['binarySha256'] == identity['binary']['sha256'], \
         'The rebuilt MoltenVK binary differs from its pin'
+    # The build itself says which patch it applied; an unmodified pin must come from an unmodified build.
+    built_with = identity['pin'].get('patchSha256') if identity['pin'].get('patch') else None
+    assert built_with == wanted, 'The rebuilt MoltenVK was not built with the pinned patch state'
+    if wanted:
+        assert (hashlib.sha256(patch).hexdigest() == wanted == sha(ROOT / source['patch']) and
+                identity.get('markers') and all(identity['markers'].values())), \
+            'The rebuilt MoltenVK does not carry the pinned patch'
     assert (identity['pin']['revision'] == pin['revision'] and all(identity['entryPoints'].values()) and
             identity['keptBinaryVulkanExports']['missing'] == []), 'The rebuilt MoltenVK lacks an entry point'
     (REBUILD_DIR / 'MoltenVK').write_bytes(binary)
     (REBUILD_DIR / 'identity.json').write_text(json.dumps(identity, indent=2) + '\n')
     (REBUILD_DIR / f"MoltenVK-{pin['revision']}.tar.gz").write_bytes(sources)
+    if wanted:
+        (REBUILD_DIR / Path(source['patch']).name).write_bytes(patch)
     return REBUILD_DIR / 'MoltenVK', pin, source
 
 
@@ -151,6 +187,8 @@ def materialize(source):
                        run=rebuilt['run'], artifact=rebuilt['artifact'], artifactDigest=rebuilt['artifactDigest'],
                        sourceSha256=rebuilt['binarySha256'], sourceBuilt=True,
                        exception='maintainer: one MoltenVK for every title, the latest (3 Nov 2026)')
+        if origin.get('patch'):
+            receipt.update(patch=origin['patch'], patchSha256=origin['patchSha256'])
     RECEIPT.parent.mkdir(parents=True, exist_ok=True)
     RECEIPT.write_text(json.dumps(receipt, indent=2) + '\n')
     print(json.dumps(receipt, indent=2))
@@ -185,7 +223,17 @@ def embed(app):
     legal.mkdir(parents=True, exist_ok=True)
     archive, member, data = moltenvk_license(receipt)
     (legal / 'LICENSE.txt').write_bytes(data)
-    if receipt.get('sourceBuilt'):
+    if receipt.get('sourceBuilt') and receipt.get('patchSha256'):
+        patch = (ROOT / receipt['patch']).read_bytes()
+        assert hashlib.sha256(patch).hexdigest() == receipt['patchSha256'], 'The MoltenVK patch differs from the packaged receipt'
+        files = [line[len('+++ b/'):].strip() for line in patch.decode().splitlines() if line.startswith('+++ b/')]
+        assert files, 'The MoltenVK patch names no file'
+        (legal / Path(receipt['patch']).name).write_bytes(patch)
+        (legal / 'NOTICE.txt').write_text(PATCHED_NOTICE.format(
+            tag=receipt['tag'], revision=receipt['revision'], repository=receipt['repository'], run=receipt['run'],
+            sha256=receipt['sourceSha256'], name=NAME, archive=archive, patch=Path(receipt['patch']).name,
+            patch_sha256=receipt['patchSha256'], files=' and '.join(files)))
+    elif receipt.get('sourceBuilt'):
         (legal / 'NOTICE.txt').write_text(REBUILD_NOTICE.format(tag=receipt['tag'], revision=receipt['revision'],
                                                                 repository=receipt['repository'], run=receipt['run'],
                                                                 sha256=receipt['sourceSha256'], name=NAME, archive=archive))

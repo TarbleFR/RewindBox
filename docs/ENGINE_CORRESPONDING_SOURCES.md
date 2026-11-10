@@ -293,6 +293,18 @@ not the dependencies redistributed by this build. Private MoltenVK, SDL and
 FFmpeg are rebuilt from pinned sources; BreakpointJIT is replaced by the
 RewindBox assembly helper. Device/gameplay validation remains outstanding.
 
+Since 10 November 2026 the MoltenVK loaded for every MeloNX title
+(`MeloNXMoltenVKStandalone.framework`, Khronos MoltenVK v1.4.2, commit
+`db66022459ffb663aa2b50f6b018bc2e124f5edf`) is built from that source with one
+RewindBox modification:
+[rewindbox-drawable-ownership.patch](../build-utils/melonx/moltenvk/rewindbox-drawable-ownership.patch)
+(SHA-256 `9a6867b729ed0324680528a9a4eaf9095412a12e9bea23769dbc9229cb73448b`), which
+changes `MoltenVK/MoltenVK/GPUObjects/MVKImage.h` and `MVKImage.mm`. The app
+carries the Apache-2.0 license text, a notice naming the modification and a
+copy of the patch under `Legal/MeloNX/StandaloneMoltenVK/`; the build's artifact
+holds the Khronos source archive, the patch and the sources of MoltenVK's
+External dependencies ([record](melonx-moltenvk-rebuild-2026-11-03.md)).
+
 ### Historical staged inventory
 
 The existing source recipes preserve upstream and reconstructed LibHac source
