@@ -54,7 +54,7 @@ jobs:
           cc -O2 -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/s2arm/runtime/rewriter" \
             -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
             -o proof/s2arm_prepare_cli native/s2arm/prepare/s2arm_prepare.c native/s2arm/prepare/s2arm_addr_need.c \
-            native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
+            native/s2arm/prepare/s2arm_modules.c native/s2arm/prepare/s2arm_nro.c native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
           bash tools/s2arm_prototype/run_prepare_test.sh proof/s2arm_prepare_cli "$RUNNER_TEMP/rewriter/s2a-rewrite" \
             "$RUNNER_TEMP/prepare-work" proof/prepare-report.txt
       - name: Compare the address-need table with S2Arm's addr_need.py
@@ -62,6 +62,12 @@ jobs:
           set -euo pipefail
           python3 tools/s2arm_prototype/run_addr_need_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli \
             "$RUNNER_TEMP/addr-need-work" | tee proof/addr-need-report.txt
+      - name: Compare the GPU driver list, NRO exports and NRO conversion with S2Arm
+        run: |
+          set -euo pipefail
+          # Originals need only python-lz4 (installed above, pinned in S2Arm's tools/rewriter-requirements.txt); no zstandard, no capstone.
+          python3 tools/s2arm_prototype/run_modules_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli \
+            "$RUNNER_TEMP/modules-work" | tee proof/modules-report.txt
       - name: The library compiles for iOS arm64
         if: runner.os == 'macOS'
         run: |
@@ -72,6 +78,11 @@ jobs:
           xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
             -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
             -c native/s2arm/prepare/s2arm_addr_need.c -o proof/ios-s2arm_addr_need.o
+          for unit in s2arm_modules s2arm_nro; do
+            xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+              -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
+              -c native/s2arm/prepare/$unit.c -o proof/ios-$unit.o
+          done
           echo "iOS arm64 object compiled"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -80,4 +91,5 @@ jobs:
           path: |
             proof/prepare-report.txt
             proof/addr-need-report.txt
+            proof/modules-report.txt
           retention-days: 30
