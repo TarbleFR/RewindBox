@@ -701,9 +701,10 @@ static int layout(ctx_t *x, const char *root, char *const *names, size_t count, 
             int64_t fill = (hi < lim ? hi : lim) - lo;
             int64_t pre = lb && lo == 0 ? lb : 0;
             int64_t ln = pre + hi - lo;
-            if (!(pymod(ln, PG) == 0 && 0 <= fill && fill <= hi - lo))   // blocks are whole 16 KiB pages (vm_remap)
-                return fail(x, RB_S2ARM_PACK_INVALID, "%s: block %d is not whole pages (length 0x%llx, filled 0x%llx)", name, cuts[c].kind,
-                            (unsigned long long)ln, (unsigned long long)fill);
+            if (!(pymod(ln, PG) == 0 && 0 <= fill && fill <= hi - lo))   // blocks are whole 16 KiB pages (vm_remap); the file holds the block
+                return fail(x, RB_S2ARM_PACK_INVALID, "%s: block %d does not hold (length %s0x%llx, from the file %s0x%llx)", name, cuts[c].kind,
+                            ln < 0 ? "-" : "", (unsigned long long)(ln < 0 ? -ln : ln), fill < 0 ? "-" : "",
+                            (unsigned long long)(fill < 0 ? -fill : fill));
             pieces_t *target = cuts[c].kind == 1 ? &L->data : &L->code;
             uint64_t *at = cuts[c].kind == 1 ? &doff : &coff;
             int ok = (!pre || piece_add(target, NULL, 0, (uint64_t)pre)) && (!fill || piece_add(target, bin, (uint64_t)lo, (uint64_t)fill)) &&
