@@ -1,0 +1,64 @@
+name: S2Arm preparation Core (iOS)
+# Builds the on-device preparation library for iOS arm64 as an xcframework.
+# Switch 2 test IPAs only; nothing here is part of the common IPA.
+'on':
+  workflow_dispatch:
+  push:
+    branches: [work/s2arm-switch2-prototype-20261110]
+    paths:
+      - .github/workflows/s2arm-core.yml
+      - build-utils/s2arm/**
+      - native/s2arm/prepare/**
+      - tools/s2arm_prototype/pin.json
+permissions:
+  contents: read
+concurrency:
+  group: s2arm-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare-core:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch S2Arm and its rewriter dependencies at the pins
+        run: |
+          set -euo pipefail
+          commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
+          repository=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['repository'])")
+          git init -q "$RUNNER_TEMP/s2arm"
+          git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"
+          git -C "$RUNNER_TEMP/s2arm" checkout -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
+          python3 "$RUNNER_TEMP/s2arm/runtime/rewriter/prepare_deps.py" "$RUNNER_TEMP/deps"
+      - name: Build S2ArmPrepare.xcframework
+        run: |
+          set -euo pipefail
+          bash build-utils/s2arm/build_prepare_xcframework.sh "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/deps" "$RUNNER_TEMP/core"
+          mkdir -p proof
+          cp "$RUNNER_TEMP/core/S2ArmPrepare.xcframework.zip" "$RUNNER_TEMP/core/sha256.txt" "$RUNNER_TEMP/core/undefined.txt" proof/
+          python3 - <<'PY'
+          import json, os, subprocess
+          pin = json.load(open('tools/s2arm_prototype/pin.json'))
+          identity = {
+              'component': 'S2ArmPrepare.xcframework',
+              'source': os.environ['GITHUB_SHA'],
+              's2arm': pin['s2arm']['commit'],
+              'dependencies': {name: entry['sha256'] for name, entry in pin['dependencies'].items()},
+              'sha256': dict(reversed(line.split()) for line in open('proof/sha256.txt').read().splitlines()),
+              'xcode': subprocess.run(['xcodebuild', '-version'], capture_output=True, text=True).stdout.split('\n')[0],
+          }
+          json.dump(identity, open('proof/S2ArmPrepare-identity.json', 'w'), indent=2, sort_keys=True)
+          print(json.dumps(identity, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: S2ArmPrepare-${{ github.sha }}
+          path: proof/
+          retention-days: 30
