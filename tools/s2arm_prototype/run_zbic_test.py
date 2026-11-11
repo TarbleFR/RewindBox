@@ -17,7 +17,15 @@ Frame and NSO inputs go through both batch drivers (ZbicBatch and `s2arm_prepare
 every input must succeed in both with the same bytes or fail in both. A subset then goes through
 the real `nx_unpack --nso-normalize` and our `nso-normalize` (exit status, output presence, bytes),
 with the samples `ZbicTest --emit` writes and the expected files it derives from them.
+
+Ours only (deliberate difference: a host cap, default 1 GiB, on the whole normalised NSO, checked
+before anything is decoded): decompression bombs of a few dozen KiB declaring 1 to 3 GiB must fail
+at once with exit 1 and a clear message, the CLI running under a 512 MiB address-space limit on
+Linux (RLIMIT_AS; set RB_TEST_NO_RLIMIT=1 for a sanitizer build, which needs more address space);
+an RLE NSO inside the cap, the host cap option and the cancel callback are checked too.
 """
+import os
+import time
 import base64
 import hashlib
 import random
@@ -246,6 +254,40 @@ def build_corpus(corpus, checkout):
     addn(z[:0x100], 'ZBIC NSO header only')
     addn(z[:len(z) - 1], 'ZBIC NSO one byte short')
     addn(b'', 'empty file')
+    addn(zbic.rle_bomb_nso([3 << 20, 2 << 20, 1 << 20]), 'RLE-only NSO inside the cap (6 MiB)')
+
+
+def limited():   # preexec for our CLI only: 512 MiB of address space (Linux enforces RLIMIT_AS; macOS does not)
+    import resource
+    resource.setrlimit(resource.RLIMIT_AS, (512 << 20, 512 << 20))
+
+
+def bomb_checks(cli, work):
+    """Ours only: bombs refused before any large allocation, the host cap and the cancel callback."""
+    rlimit = sys.platform.startswith('linux') and os.environ.get('RB_TEST_NO_RLIMIT') != '1'
+    pre = limited if rlimit else None
+    where = 'under RLIMIT_AS 512 MiB' if rlimit else 'without an address-space limit (not Linux, or RB_TEST_NO_RLIMIT=1)'
+    d = work / 'bombs'
+    d.mkdir()
+    cases = [('three 1 GiB segments', zbic.rle_bomb_nso([1 << 30] * 3), [], 'above the limit'),
+             ('two 1 GiB segments', zbic.rle_bomb_nso([1 << 30, 1 << 30, 0x1000]), [], 'above the limit'),
+             ('just above the 1 GiB default cap', zbic.rle_bomb_nso([1 << 29, 1 << 29, 0x10]), [], 'above the limit'),
+             ('48 MiB inside the cap', zbic.rle_bomb_nso([16 << 20] * 3), [], None),
+             ('48 MiB with the host cap at 48 MiB', zbic.rle_bomb_nso([16 << 20] * 3), ['--max-bytes', str(48 << 20)], 'above the limit'),
+             ('48 MiB with the host cap at its exact size', zbic.rle_bomb_nso([16 << 20] * 3), ['--max-bytes', str((48 << 20) + 0x100)], None),
+             ('48 MiB cancelled after 10 polls', zbic.rle_bomb_nso([16 << 20] * 3), ['--cancel-after-polls', '10'], 'result=5')]
+    for n, (tag, data, extra, message) in enumerate(cases):
+        src, out = d / f'{n}.nso', d / f'{n}.out'
+        src.write_bytes(data)
+        t = time.time()
+        r = subprocess.run([str(cli), 'nso-normalize', str(src), str(out), *extra], capture_output=True, text=True, preexec_fn=pre)
+        took = time.time() - t
+        if message:
+            ok = r.returncode == 1 and message in r.stderr and not out.exists() and took < 20
+        else:
+            body = out.read_bytes() if out.exists() else b''
+            ok = r.returncode == 0 and len(body) == 0x100 + (48 << 20) and body[0x100:0x104] == b'AAAA' and body[-4:] == b'CCCC'
+        report(ok, f'bomb: {tag} ({len(data)} bytes)', f'{where}; rc={r.returncode} in {took:.2f} s: {r.stderr.strip()[-160:]!r}')
 
 
 def batch(command, manifest):
@@ -290,6 +332,7 @@ def main():
         report(same == [15, 20, 459], 'one-byte changes of A1 that still decode to the text = S2Arm D1 (15, 20, 459)', str(same))
         enc = [i for i, (_, _, _, tag) in enumerate(corpus.jobs) if tag.startswith('encoder seed') and tag.endswith('bytes)')]
         report(all(mine[i][0] == 'ok' for i in enc), 'encoder frames decode', f'{len(enc)} frames')
+        bomb_checks(cli, work)
         print(f"{state['ran']} checks, {state['failed']} failed; {sum(v[0] == 'ok' for v in mine.values())} of {len(mine)} inputs decode")
         sys.exit(1 if state['failed'] else 0)
 
@@ -339,6 +382,7 @@ def main():
         if not same:
             differ.append(f'{tag}: nx_unpack rc={rr.returncode} {rr.stderr.strip()[-120:]!r}; mine rc={mr.returncode} {mr.stderr.strip()[-120:]!r}')
     report(not differ, 'nx_unpack --nso-normalize vs s2arm_prepare_cli nso-normalize', f'{len(inputs)} files' if not differ else str(differ[:5]))
+    bomb_checks(cli, work)
     r = subprocess.run([str(zbictest)], capture_output=True, text=True)
     print(f'note: S2Arm ZbicTest itself exits {r.returncode}: {(r.stdout.strip().splitlines() or [""])[-1]}')
 

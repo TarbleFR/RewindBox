@@ -182,6 +182,21 @@ class Runner:
             last = problem or last
         report(ok, name, f'{len(a)} entries identical' if ok else f'mine rc={rc_m}: {last}; differing: {different[:8]}')
 
+    def ours_only(self, name, export, args, message):
+        """Deliberate difference (module cap, default 1 GiB, checked before decoding): must fail at once with
+        exit 1 and `message`, under a 512 MiB address-space limit on Linux (RB_TEST_NO_RLIMIT=1 lifts it)."""
+        out = self.work / name / 'out'
+        shutil.rmtree(out, ignore_errors=True)
+        rlimit = sys.platform.startswith('linux') and os.environ.get('RB_TEST_NO_RLIMIT') != '1'
+
+        def limited():
+            import resource
+            resource.setrlimit(resource.RLIMIT_AS, (512 << 20, 512 << 20))
+        r = subprocess.run([str(self.cli), 'ns2-dump', str(export), str(out), *args], capture_output=True, text=True,
+                           preexec_fn=limited if rlimit else None)
+        ok = r.returncode == 1 and message in r.stderr and not out.exists() and not Path(str(out) + '.tmp').exists()
+        report(ok, name, f'ours only, {"RLIMIT_AS 512 MiB" if rlimit else "no address-space limit"}: rc={r.returncode} {r.stderr.strip()[-160:]!r}')
+
     def detect(self, name, folder):
         r = subprocess.run([str(self.cli), 'ns2-detect', str(folder)], capture_output=True, text=True)
         if self.mine_only:
@@ -364,6 +379,16 @@ def main():
         p.unlink()
     (f9 / 'base/exefs/main').unlink()
     run.case('no-main', f9, expect='fail')
+    # 10. decompression bombs and the host cap (ours only)
+    b1 = mk(inputs / 'ZbicBomb')
+    w(b1 / 'updates/458752/exefs/main', zbic.rle_bomb_nso([1 << 30] * 3))
+    run.ours_only('bomb-zbic-main-3GiB', b1, (), 'above the limit')
+    b2 = mk(inputs / 'Lz4Bomb')
+    w(b2 / 'updates/458752/exefs/subsdk0', zbic.lz4_bomb_nso([1 << 30] * 3))
+    run.ours_only('bomb-lz4-save-kind-scan-3GiB', b2, (), 'above the module limit')
+    b3 = mk(inputs / 'ZbicCap')
+    w(b3 / 'updates/458752/exefs/main', zbic_module(7))
+    run.ours_only('host-module-cap-zbic', b3, ('--max-module-bytes', '4096'), 'above the limit')
 
     print(f"{state['ran']} cases, {state['failed']} failed")
     sys.exit(1 if state['failed'] or state['ran'] < 20 else 0)

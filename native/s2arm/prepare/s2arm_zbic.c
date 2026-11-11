@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define ZBIC_MAGIC 0x4349425Au   // "ZBIC"
 #define ZSTD_MAGIC 0xFD2FB528u   // standard zstd: reported as "not ZBIC"
@@ -19,7 +20,9 @@
 typedef struct {
     char *error;
     size_t error_size;
-    const char *prefix;   // "<name>: NSO segment <i> ZBIC data cannot be decoded (" ... ")" when set
+    const char *prefix;                    // "<name>: NSO segment <i> ZBIC data cannot be decoded (" ... ")" when set
+    const rb_s2arm_zbic_options *options;  // cancellation (may be NULL)
+    int *stopped;                          // set to 1 when the cancel callback stopped the work (may be NULL)
 } ctx_t;
 
 #if defined(__GNUC__)
@@ -36,6 +39,14 @@ static int bad(ctx_t *x, const char *fmt, ...) {
         else snprintf(x->error, x->error_size, "%s", message);
     }
     return -1;
+}
+
+// Polls the cancel callback; when it asks to stop, records it and fails like an error.
+static int stop_requested(ctx_t *x) {
+    if (!x->options || !x->options->cancelled || !x->options->cancelled(x->options->context)) return 0;
+    if (x->stopped) *x->stopped = 1;
+    if (x->error && x->error_size) snprintf(x->error, x->error_size, "cancelled");
+    return 1;
 }
 
 static uint32_t le32(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -581,6 +592,7 @@ static int64_t frame_run(dec_t *z, const uint8_t *src, size_t src_len, size_t *i
     int64_t block_max = window < BLOCK_MAX ? window : BLOCK_MAX;
     size_t op = start;
     for (;;) {
+        if (stop_requested(x)) return -1;   // between blocks: at most 128 KiB of output each
         if (src_len - p < 3) return bad(x, "block header truncated");
         int h = src[p] | src[p + 1] << 8 | src[p + 2] << 16;
         p += 3;
@@ -677,7 +689,7 @@ static int decompress(ctx_t *x, const uint8_t *src, size_t src_len, uint8_t *dst
 }
 
 int rb_s2arm_zbic_decompress(const uint8_t *src, size_t src_len, uint8_t *dst, size_t expected, char *error, size_t error_size) {
-    ctx_t x = {error, error_size, NULL};
+    ctx_t x = {error, error_size, NULL, NULL, NULL};
     if ((!src && src_len) || (!dst && expected)) return bad(&x, "invalid arguments"), RB_S2ARM_ZBIC_INVALID;
     return decompress(&x, src, src_len, dst, expected) ? RB_S2ARM_ZBIC_INVALID : RB_S2ARM_ZBIC_OK;
 }
@@ -814,9 +826,22 @@ static void sha256(const uint8_t *data, size_t len, uint8_t out[32]) {
 #define NSO_KNOWN (0x3Fu | NSO_BIT6 | NSO_ZBIC)
 static const size_t SEG_HDR[3] = {0x10, 0x20, 0x30};
 
-int rb_s2arm_nso_normalize(const uint8_t *v, size_t len, const char *name, uint8_t **out, size_t *out_len, char *error,
-                           size_t error_size) {
-    ctx_t x = {error, error_size, NULL};
+static size_t output_cap(const rb_s2arm_zbic_options *options) {
+    size_t cap = options && options->max_output ? options->max_output : RB_S2ARM_ZBIC_DEFAULT_MAX_OUTPUT;
+    return cap < RB_S2ARM_ZBIC_FILE_CAP ? cap : RB_S2ARM_ZBIC_FILE_CAP;
+}
+
+static int unknown_flags(ctx_t *x, const char *name, uint32_t flags) {
+    return bad(x,
+               "%s: NSO flags 0x%x have unknown bits 0x%x (known: LZ4 bits 0-2, hash bits 3-5, 0x40, ZBIC 0x80); compression "
+               "unknown, not decoded",
+               name, flags, flags & ~NSO_KNOWN);
+}
+
+int rb_s2arm_nso_normalize_ex(const uint8_t *v, size_t len, const char *name, const rb_s2arm_zbic_options *options, uint8_t **out,
+                              size_t *out_len, char *error, size_t error_size) {
+    int stopped = 0;
+    ctx_t x = {error, error_size, NULL, options, &stopped};
     if (!out || !out_len || (!v && len)) return bad(&x, "invalid arguments"), RB_S2ARM_ZBIC_INVALID;
     *out = NULL;
     *out_len = 0;
@@ -824,172 +849,186 @@ int rb_s2arm_nso_normalize(const uint8_t *v, size_t len, const char *name, uint8
     if (len < 0x100 || memcmp(v, "NSO0", 4)) return RB_S2ARM_ZBIC_OK;
     if (len > RB_S2ARM_ZBIC_FILE_CAP) return bad(&x, "%s: file too large", name), RB_S2ARM_ZBIC_INVALID;
     uint32_t flags = le32(v + 0x0C);
-    if (flags & ~NSO_KNOWN)
-        return bad(&x,
-                   "%s: NSO flags 0x%x have unknown bits 0x%x (known: LZ4 bits 0-2, hash bits 3-5, 0x40, ZBIC 0x80); compression "
-                   "unknown, not decoded",
-                   name, flags, flags & ~NSO_KNOWN),
-               RB_S2ARM_ZBIC_INVALID;
+    if (flags & ~NSO_KNOWN) return unknown_flags(&x, name, flags), RB_S2ARM_ZBIC_INVALID;
     if (!(flags & NSO_ZBIC)) return RB_S2ARM_ZBIC_OK;
-    uint8_t *seg[3] = {NULL, NULL, NULL};
-    size_t seg_len[3] = {0, 0, 0};
+
+    // Pass 1, nothing decoded or allocated yet: the checks the C# makes per segment that need no
+    // decoding (bounds, negative or mismatched sizes), and the size of the result, which every
+    // accepted input has exactly (a decoded segment must equal its declared size, an uncompressed
+    // one its file size): header and module name up to the first segment, then the three segments.
+    int32_t off[3], size[3], fsz[3];
     size_t first = len;
-    int code = RB_S2ARM_ZBIC_INVALID;
+    uint64_t total = 0;
     for (int i = 0; i < 3; i++) {
-        int32_t off = (int32_t)le32(v + SEG_HDR[i]), size = (int32_t)le32(v + SEG_HDR[i] + 8), fsz = (int32_t)le32(v + 0x60 + 4 * i);
-        if (off < 0x100 || fsz < 0 || (int64_t)off + fsz > (int64_t)len) {
-            bad(&x, "%s: NSO segment %d runs past the file (offset 0x%x, size 0x%x, file 0x%zx)", name, i, (unsigned)off, (unsigned)fsz, len);
-            goto done;
+        off[i] = (int32_t)le32(v + SEG_HDR[i]);
+        size[i] = (int32_t)le32(v + SEG_HDR[i] + 8);
+        fsz[i] = (int32_t)le32(v + 0x60 + 4 * i);
+        if (off[i] < 0x100 || fsz[i] < 0 || (int64_t)off[i] + fsz[i] > (int64_t)len)
+            return bad(&x, "%s: NSO segment %d runs past the file (offset 0x%x, size 0x%x, file 0x%zx)", name, i, (unsigned)off[i],
+                       (unsigned)fsz[i], len),
+                   RB_S2ARM_ZBIC_INVALID;
+        if ((size_t)off[i] < first) first = (size_t)off[i];
+        if ((flags >> i) & 1) {
+            if (size[i] < 0)
+                return bad(&x, "%s: NSO segment %d ZBIC data cannot be decoded (expected length is negative)", name, i), RB_S2ARM_ZBIC_INVALID;
+            if ((size_t)size[i] > RB_S2ARM_ZBIC_SEGMENT_CAP)
+                return bad(&x, "%s: NSO segment %d decompressed size 0x%x above the limit", name, i, (unsigned)size[i]), RB_S2ARM_ZBIC_INVALID;
+            total += (uint64_t)size[i];
+        } else {
+            if (fsz[i] != size[i])
+                return bad(&x, "%s: NSO segment %d is not compressed but its file size 0x%x differs from its size 0x%x", name, i,
+                           (unsigned)fsz[i], (unsigned)size[i]),
+                       RB_S2ARM_ZBIC_INVALID;
+            total += (uint64_t)fsz[i];
         }
-        if ((size_t)off < first) first = (size_t)off;
-        const uint8_t *raw = v + off;
+    }
+    total += first;
+    size_t cap = output_cap(options);
+    if (total > cap)
+        return bad(&x, "%s: the normalised NSO would be 0x%llx bytes, above the limit 0x%zx", name, (unsigned long long)total, cap),
+               RB_S2ARM_ZBIC_INVALID;
+
+    // Pass 2: one buffer of that size; each segment decoded (or copied) straight into its place.
+    uint8_t *n = malloc(total ? (size_t)total : 1);
+    if (!n) return bad(&x, "out of memory"), RB_S2ARM_ZBIC_IO;
+    memcpy(n, v, first);
+    size_t at = first;
+    for (int i = 0; i < 3; i++) {
+        size_t length = (flags >> i) & 1 ? (size_t)size[i] : (size_t)fsz[i];
+        const uint8_t *raw = v + off[i];
+        if (stop_requested(&x)) {
+            free(n);
+            return RB_S2ARM_ZBIC_CANCELLED;
+        }
         if ((flags >> i) & 1) {
             char prefix[300];
             snprintf(prefix, sizeof prefix, "%s: NSO segment %d ZBIC data cannot be decoded (", name, i);
-            ctx_t inner = {error, error_size, prefix};
-            if (size < 0) {
-                bad(&inner, "expected length is negative");
-                goto done;
+            ctx_t inner = {error, error_size, prefix, options, &stopped};
+            if (decompress(&inner, raw, (size_t)fsz[i], n + at, length)) {
+                free(n);
+                if (stopped && error && error_size) snprintf(error, error_size, "cancelled");
+                return stopped ? RB_S2ARM_ZBIC_CANCELLED : RB_S2ARM_ZBIC_INVALID;
             }
-            if ((size_t)size > RB_S2ARM_ZBIC_SEGMENT_CAP) {
-                bad(&x, "%s: NSO segment %d decompressed size 0x%x above the limit", name, i, (unsigned)size);
-                goto done;
-            }
-            seg[i] = malloc(size ? (size_t)size : 1);
-            if (!seg[i]) {
-                bad(&x, "out of memory");
-                code = RB_S2ARM_ZBIC_IO;
-                goto done;
-            }
-            if (decompress(&inner, raw, (size_t)fsz, seg[i], (size_t)size)) goto done;
-            seg_len[i] = (size_t)size;
-        } else {
-            if (fsz != size) {
-                bad(&x, "%s: NSO segment %d is not compressed but its file size 0x%x differs from its size 0x%x", name, i, (unsigned)fsz,
-                    (unsigned)size);
-                goto done;
-            }
-            seg[i] = malloc(fsz ? (size_t)fsz : 1);
-            if (!seg[i]) {
-                bad(&x, "out of memory");
-                code = RB_S2ARM_ZBIC_IO;
-                goto done;
-            }
-            memcpy(seg[i], raw, (size_t)fsz);
-            seg_len[i] = (size_t)fsz;
-        }
+        } else
+            memcpy(n + at, raw, length);
         if ((flags >> (3 + i)) & 1) {
             uint8_t digest[32];
-            sha256(seg[i], seg_len[i], digest);
+            sha256(n + at, length, digest);
             if (memcmp(digest, v + 0xA0 + 0x20 * i, 32)) {
-                bad(&x, "%s: NSO segment %d SHA-256 after decoding differs from the header (file corrupt or modified)", name, i);
-                goto done;
+                free(n);
+                return bad(&x, "%s: NSO segment %d SHA-256 after decoding differs from the header (file corrupt or modified)", name, i),
+                       RB_S2ARM_ZBIC_INVALID;
             }
         }
+        at += length;
     }
-    {
-        // New layout: header + what lies between it and the first segment (module name) + the three segments back to back.
-        uint64_t total = first;
-        for (int i = 0; i < 3; i++) total += seg_len[i];
-        if (total > RB_S2ARM_ZBIC_FILE_CAP) {
-            bad(&x, "%s: normalised NSO too large", name);
-            goto done;
-        }
-        uint8_t *n = malloc((size_t)total);
-        if (!n) {
-            bad(&x, "out of memory");
-            code = RB_S2ARM_ZBIC_IO;
-            goto done;
-        }
-        memcpy(n, v, first);
-        size_t at = first;
-        for (int i = 0; i < 3; i++) {
-            put32(n + SEG_HDR[i], (uint32_t)at);
-            put32(n + 0x60 + 4 * i, (uint32_t)seg_len[i]);
-            memcpy(n + at, seg[i], seg_len[i]);
-            at += seg_len[i];
-        }
-        put32(n + 0x0C, flags & ~(NSO_ZBIC | 0x7u));
-        *out = n;
-        *out_len = (size_t)total;
-        code = RB_S2ARM_ZBIC_OK;
+    // New layout: header + what lies between it and the first segment (module name) + the three segments back to back.
+    at = first;
+    for (int i = 0; i < 3; i++) {
+        size_t length = (flags >> i) & 1 ? (size_t)size[i] : (size_t)fsz[i];
+        put32(n + SEG_HDR[i], (uint32_t)at);
+        put32(n + 0x60 + 4 * i, (uint32_t)length);
+        at += length;
     }
-done:
-    for (int i = 0; i < 3; i++) free(seg[i]);
-    return code;
+    put32(n + 0x0C, flags & ~(NSO_ZBIC | 0x7u));
+    *out = n;
+    *out_len = (size_t)total;
+    return RB_S2ARM_ZBIC_OK;
 }
 
-static int read_file(const char *path, uint8_t **data, size_t *len) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return -1;
-    size_t cap = 1 << 16, n = 0;
-    uint8_t *buf = malloc(cap);
-    if (!buf) {
-        fclose(f);
-        return -1;
-    }
-    for (;;) {
-        if (n == cap) {
-            if (cap > RB_S2ARM_ZBIC_FILE_CAP) {
-                free(buf);
-                fclose(f);
-                return -2;
-            }
-            uint8_t *nb = realloc(buf, cap * 2);
-            if (!nb) {
-                free(buf);
-                fclose(f);
-                return -1;
-            }
-            buf = nb;
-            cap *= 2;
-        }
-        size_t got = fread(buf + n, 1, cap - n, f);
-        n += got;
-        if (got == 0) break;
-    }
-    int failed = ferror(f);
-    fclose(f);
-    if (failed) {
+int rb_s2arm_nso_normalize(const uint8_t *v, size_t len, const char *name, uint8_t **out, size_t *out_len, char *error,
+                           size_t error_size) {
+    return rb_s2arm_nso_normalize_ex(v, len, name, NULL, out, out_len, error, error_size);
+}
+
+// Reads a whole open file of at most `cap` bytes into one exact allocation: 0, -1 read error /
+// out of memory, -2 larger than cap (checked from its size before anything is allocated).
+static int read_capped(FILE *f, size_t cap, uint8_t **data, size_t *len) {
+    struct stat st;
+    if (fstat(fileno(f), &st) || st.st_size < 0) return -1;
+    if ((uint64_t)st.st_size > cap) return -2;
+    size_t want = (size_t)st.st_size;
+    uint8_t *buf = malloc(want + 1);
+    if (!buf) return -1;
+    if (fseek(f, 0, SEEK_SET)) {
         free(buf);
         return -1;
     }
-    if (n > RB_S2ARM_ZBIC_FILE_CAP) {
+    size_t n = 0, got;
+    while (n <= want && (got = fread(buf + n, 1, want + 1 - n, f)) > 0) n += got;
+    if (ferror(f) || n > want) {   // read error, or the file grew while being read
+        int code = ferror(f) ? -1 : -2;
         free(buf);
-        return -2;
+        return code;
     }
     *data = buf;
     *len = n;
     return 0;
 }
 
-int rb_s2arm_nso_normalize_file(const char *in, const char *out, char *error, size_t error_size) {
-    ctx_t x = {error, error_size, NULL};
+static int write_out(const char *path, const uint8_t *head, size_t head_len, FILE *rest, const uint8_t *bytes, size_t n) {
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+    int bad_write = (head_len && fwrite(head, 1, head_len, f) != head_len) || (n && fwrite(bytes, 1, n, f) != n);
+    if (rest && !bad_write) {   // stream the remainder of the input (copy without loading it)
+        char block[1 << 16];
+        size_t got;
+        while ((got = fread(block, 1, sizeof block, rest)) > 0)
+            if (fwrite(block, 1, got, f) != got) {
+                bad_write = 1;
+                break;
+            }
+        bad_write |= ferror(rest) != 0;
+    }
+    bad_write |= fclose(f) != 0;
+    if (bad_write) remove(path);
+    return bad_write ? -1 : 0;
+}
+
+int rb_s2arm_nso_normalize_file_ex(const char *in, const char *out, const rb_s2arm_zbic_options *options, char *error, size_t error_size) {
+    ctx_t x = {error, error_size, NULL, options, NULL};
     if (!in || !out) return bad(&x, "invalid arguments"), RB_S2ARM_ZBIC_INVALID;
-    uint8_t *data = NULL, *result = NULL;
-    size_t len = 0, rlen = 0;
-    int r = read_file(in, &data, &len);
-    if (r == -2) return bad(&x, "%s: file too large", in), RB_S2ARM_ZBIC_INVALID;
-    if (r) return bad(&x, "cannot read %s", in), RB_S2ARM_ZBIC_IO;
     const char *base = strrchr(in, '/');
     base = base ? base + 1 : in;
-    int code = rb_s2arm_nso_normalize(data, len, base, &result, &rlen, error, error_size);
-    if (code == RB_S2ARM_ZBIC_OK) {
-        const uint8_t *bytes = result ? result : data;
-        size_t n = result ? rlen : len;
-        FILE *f = fopen(out, "wb");
-        int bad_write = !f;
-        if (f) {
-            bad_write = n && fwrite(bytes, 1, n, f) != n;
-            bad_write |= fclose(f) != 0;
-        }
-        if (bad_write) {
-            remove(out);
-            bad(&x, "cannot write %s", out);
-            code = RB_S2ARM_ZBIC_IO;
-        }
+    FILE *f = fopen(in, "rb");
+    if (!f) return bad(&x, "cannot read %s", in), RB_S2ARM_ZBIC_IO;
+    uint8_t head[0x100];
+    size_t got = fread(head, 1, sizeof head, f);
+    if (ferror(f)) {
+        fclose(f);
+        return bad(&x, "cannot read %s", in), RB_S2ARM_ZBIC_IO;
+    }
+    int nso = got == sizeof head && !memcmp(head, "NSO0", 4);
+    uint32_t flags = nso ? le32(head + 0x0C) : 0;
+    if (nso && (flags & ~NSO_KNOWN)) {
+        fclose(f);
+        return unknown_flags(&x, base, flags), RB_S2ARM_ZBIC_INVALID;
+    }
+    if (!nso || !(flags & NSO_ZBIC)) {   // nothing to normalise: the same bytes, streamed
+        int r = write_out(out, head, got, f, NULL, 0);
+        fclose(f);
+        return r ? (bad(&x, "cannot write %s", out), RB_S2ARM_ZBIC_IO) : RB_S2ARM_ZBIC_OK;
+    }
+    // A ZBIC NSO is read whole, as the original does, but never above the output cap.
+    size_t cap = output_cap(options);
+    uint8_t *data = NULL;
+    size_t len = 0;
+    int r = read_capped(f, cap, &data, &len);
+    fclose(f);
+    if (r == -2) return bad(&x, "%s: the ZBIC NSO file is above the limit 0x%zx", base, cap), RB_S2ARM_ZBIC_INVALID;
+    if (r) return bad(&x, "cannot read %s", in), RB_S2ARM_ZBIC_IO;
+    uint8_t *result = NULL;
+    size_t rlen = 0;
+    int code = rb_s2arm_nso_normalize_ex(data, len, base, options, &result, &rlen, error, error_size);
+    free(data);
+    if (code == RB_S2ARM_ZBIC_OK && write_out(out, NULL, 0, NULL, result, rlen)) {
+        bad(&x, "cannot write %s", out);
+        code = RB_S2ARM_ZBIC_IO;
     }
     free(result);
-    free(data);
     return code;
+}
+
+int rb_s2arm_nso_normalize_file(const char *in, const char *out, char *error, size_t error_size) {
+    return rb_s2arm_nso_normalize_file_ex(in, out, NULL, error, error_size);
 }

@@ -10,6 +10,11 @@
 //
 // The input is untrusted: every read and write is bounds-checked, no recursion depends
 // on the input beyond 7 levels (the BIC header tree), and sizes are capped (below).
+// Memory: normalisation checks the declared size of the result against a total cap before
+// anything is decoded, then decodes every segment straight into its place in one buffer
+// of that size (the input file, the result and about 200 KiB of decoder state are all
+// that is held). Deliberate difference: the C# original tries any result up to its ~2 GiB
+// array limit; the cap here defaults to 1 GiB and is set by the host.
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -20,15 +25,24 @@ extern "C" {
 
 enum {
     RB_S2ARM_ZBIC_OK = 0,
-    RB_S2ARM_ZBIC_INVALID = 1,  // not a ZBIC frame / corrupt / truncated / wrong length / unknown NSO flag
-    RB_S2ARM_ZBIC_IO = 2,       // a file could not be read or written, or out of memory
+    RB_S2ARM_ZBIC_INVALID = 1,    // not a ZBIC frame / corrupt / truncated / wrong length / unknown NSO flag / above the size cap
+    RB_S2ARM_ZBIC_IO = 2,         // a file could not be read or written, or out of memory
+    RB_S2ARM_ZBIC_CANCELLED = 5,  // the cancel callback asked to stop
 };
 
-// Largest decompressed NSO segment accepted. The C# original would try up to its array
-// limit (about 2 GiB); real segments are far smaller and a phone cannot hold that much.
+// Largest decompressed NSO segment accepted, whatever the total cap.
 #define RB_S2ARM_ZBIC_SEGMENT_CAP ((size_t)1 << 30)
-// Largest file and largest normalised NSO: the C# array limit (Array.MaxLength).
+// Largest file and largest normalised NSO the C# original can produce (Array.MaxLength);
+// a host cap above it is lowered to it.
 #define RB_S2ARM_ZBIC_FILE_CAP ((size_t)0x7FFFFFC7)
+// Default cap on a whole normalised NSO (and on a ZBIC NSO file read into memory).
+#define RB_S2ARM_ZBIC_DEFAULT_MAX_OUTPUT ((size_t)1 << 30)
+
+typedef struct {
+    size_t max_output;                // largest normalised NSO / ZBIC NSO file; 0 = RB_S2ARM_ZBIC_DEFAULT_MAX_OUTPUT
+    int (*cancelled)(void *context);  // polled between blocks and segments; non-zero stops (may be NULL)
+    void *context;
+} rb_s2arm_zbic_options;
 
 // Decompresses all frames of src (ZBIC frames, skippable frames allowed between them) into
 // dst, which must be exactly `expected` bytes long: the total must equal `expected`, as
@@ -44,12 +58,17 @@ int rb_s2arm_zbic_decompress(const uint8_t *src, size_t src_len, uint8_t *dst, s
 // header and whatever lies between the header and the first segment (the module name),
 // flags without 0x80 and bits 0-2 (hash bits 3-5 and 0x40 kept, the stored SHA-256 being
 // those of the decompressed segments, checked when their bit is set). `name` (may be NULL)
-// prefixes the error messages as in the original.
+// prefixes the error messages as in the original. `options` may be NULL (default cap, no
+// cancellation).
+int rb_s2arm_nso_normalize_ex(const uint8_t *nso, size_t len, const char *name, const rb_s2arm_zbic_options *options, uint8_t **out,
+                              size_t *out_len, char *error, size_t error_size);
 int rb_s2arm_nso_normalize(const uint8_t *nso, size_t len, const char *name, uint8_t **out, size_t *out_len, char *error,
                            size_t error_size);
 
 // nx_unpack --nso-normalize <in> <out>: reads `in`, normalises it and writes `out` (a copy
-// of the input when there is nothing to normalise). Nothing is left at `out` on failure.
+// of the input when there is nothing to normalise, streamed without loading it). Nothing
+// is left at `out` on failure.
+int rb_s2arm_nso_normalize_file_ex(const char *in, const char *out, const rb_s2arm_zbic_options *options, char *error, size_t error_size);
 int rb_s2arm_nso_normalize_file(const char *in, const char *out, char *error, size_t error_size);
 
 // XXH64 with seed 0 (used for the frame checksum; exposed for the tests).

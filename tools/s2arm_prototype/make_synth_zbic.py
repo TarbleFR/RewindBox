@@ -660,6 +660,48 @@ def zbic_nso(nso, rng, extra_flags=0, hashes=True, compress=(True, True, True)):
     return bytes(head + body)
 
 
+def rle_frame(size, value=0x41):
+    """One ZBIC frame of `size` bytes made only of 128 KiB RLE blocks (4 bytes each): ~32 KiB per GiB."""
+    out = bytearray(MAGIC) + bytes([0x00, 0x38])   # no content size, no checksum; window 2^17 = 128 KiB
+    left = size
+    while True:
+        n = min(left, BLOCK_MAX)
+        left -= n
+        out += (int(left == 0) | 1 << 1 | n << 3).to_bytes(3, 'little') + bytes([value])
+        if left == 0:
+            return bytes(out)
+
+
+def rle_bomb_nso(sizes, flags=0x87):
+    """A tiny NSO whose ZBIC segments declare and decode to `sizes` bytes (decompression-bomb tests)."""
+    head = bytearray(0x100)
+    head[:4] = b'NSO0'
+    struct.pack_into('<I', head, 0xC, flags)
+    body, at, mem = bytearray(), 0x100, 0
+    for i, size in enumerate(sizes):
+        stored = rle_frame(size, 0x41 + i)
+        struct.pack_into('<III', head, 0x10 + 0x10 * i, at, mem, size)
+        struct.pack_into('<I', head, 0x60 + 4 * i, len(stored))
+        body += stored
+        at += len(stored)
+        mem += size
+    return bytes(head + body)
+
+
+def lz4_bomb_nso(sizes):
+    """An NSO whose LZ4 segments (flags 0-2) declare `sizes` bytes but hold a few bytes of LZ4 data."""
+    head = bytearray(0x100)
+    head[:4] = b'NSO0'
+    struct.pack_into('<I', head, 0xC, 0x07)
+    lz4 = bytes([0x10, 0x41])   # one literal "A"
+    at = 0x100
+    for i, size in enumerate(sizes):
+        struct.pack_into('<III', head, 0x10 + 0x10 * i, at, 0, size)
+        struct.pack_into('<I', head, 0x60 + 4 * i, len(lz4))
+        at += len(lz4)
+    return bytes(head) + lz4 * len(sizes)
+
+
 if __name__ == '__main__':
     # make_synth_zbic.py <plain in> <zbic out> [seed]   or   --nso <nso in> <nso out> [seed]
     a = sys.argv[1:]

@@ -29,7 +29,7 @@
 
 #define NACP_SIZE 0x4000
 #define MAX_DEPTH 256
-#define IMAGE_CAP ((size_t)1 << 30)   // LZ4 segment / module image limit (the original would need that much RAM too)
+#define DEFAULT_MODULE_CAP ((size_t)1 << 30)   // default cap on one module's decoded image (see max_module_bytes)
 #define KEY_TAG "rewindbox-ns2-dump-1"
 
 typedef struct {
@@ -65,6 +65,11 @@ static void note(ctx_t *x, const char *fmt, ...) {
 }
 
 static int cancelled(ctx_t *x) { return x->request && x->request->cancelled && x->request->cancelled(x->request->context); }
+
+static size_t module_cap(const ctx_t *x) {
+    size_t cap = x->request && x->request->max_module_bytes ? x->request->max_module_bytes : DEFAULT_MODULE_CAP;
+    return cap < RB_S2ARM_ZBIC_FILE_CAP ? cap : RB_S2ARM_ZBIC_FILE_CAP;
+}
 
 static uint32_t le32(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
 static uint64_t le64(const uint8_t *p) { return (uint64_t)le32(p) | (uint64_t)le32(p + 4) << 32; }
@@ -244,38 +249,30 @@ static int utf8_replace(sb_t *out, const uint8_t *s, size_t n) {
 }
 
 // ---------------- files ----------------
-static int read_all(const char *path, size_t cap, uint8_t **data, size_t *len) {   // 0, -1 unreadable, -2 too large
+// Reads a whole file of at most `cap` bytes into one exact allocation; the cap is checked from
+// the file size before anything is allocated. 0, -1 unreadable / out of memory, -2 too large.
+static int read_all(const char *path, size_t cap, uint8_t **data, size_t *len) {
     FILE *f = fopen(path, "rb");
     if (!f) return -1;
-    size_t size = 1 << 16, n = 0;
-    uint8_t *buf = malloc(size);
+    struct stat st;
+    if (fstat(fileno(f), &st) || st.st_size < 0) {
+        fclose(f);
+        return -1;
+    }
+    if ((uint64_t)st.st_size > cap) {
+        fclose(f);
+        return -2;
+    }
+    size_t want = (size_t)st.st_size, n = 0, got;
+    uint8_t *buf = malloc(want + 1);
     if (!buf) {
         fclose(f);
         return -1;
     }
-    for (;;) {
-        if (n == size) {
-            if (size > cap) {
-                free(buf);
-                fclose(f);
-                return -2;
-            }
-            uint8_t *nb = realloc(buf, size * 2);
-            if (!nb) {
-                free(buf);
-                fclose(f);
-                return -1;
-            }
-            buf = nb;
-            size *= 2;
-        }
-        size_t got = fread(buf + n, 1, size - n, f);
-        n += got;
-        if (!got) break;
-    }
+    while (n <= want && (got = fread(buf + n, 1, want + 1 - n, f)) > 0) n += got;
     int bad = ferror(f);
     fclose(f);
-    if (bad || n > cap) {
+    if (bad || n > want) {   // read error, or the file grew while being read
         free(buf);
         return bad ? -1 : -2;
     }
@@ -739,55 +736,72 @@ static int contains(const uint8_t *hay, size_t n, const char *needle) {
 }
 
 // nso_image(): the three segments decoded and joined (not laid out by address), or the whole file when it is not an NSO.
+// Memory: the joined image is bounded (sum of the declared LZ4 sizes and of the stored lengths) and
+// checked against the module cap before anything is decoded; segments are decoded into one buffer.
 static int nso_image(ctx_t *x, const char *path, uint8_t **image, size_t *image_len) {
     uint8_t *d = NULL;
-    size_t n = 0;
-    int r = read_all(path, RB_S2ARM_ZBIC_FILE_CAP, &d, &n);
+    size_t n = 0, cap = module_cap(x);
+    int r = read_all(path, cap, &d, &n);
     if (r == -1) return fail(x, RB_S2ARM_NS2_IO, "cannot read %s", path);
-    if (r) return fail(x, RB_S2ARM_NS2_INVALID, "%s is too large", path);
+    if (r) return fail(x, RB_S2ARM_NS2_INVALID, "%s is larger than the module limit 0x%zx", path, cap);
     if (n < 0x100 || memcmp(d, "NSO0", 4)) {
         *image = d;
         *image_len = n;
         return 0;
     }
     uint32_t fl = le32(d + 0x0C);
-    sb_t out = {0};
-    int code = 0;
-    for (int i = 0; i < 3 && !code; i++) {
+    size_t start[3], rawlen[3];
+    uint64_t bound = 0;
+    for (int i = 0; i < 3; i++) {
         uint32_t fo = le32(d + 0x10 + 0x10 * i), size = le32(d + 0x18 + 0x10 * i), csz = le32(d + 0x60 + 4 * i);
         uint64_t want = (fl & (1u << i)) ? csz : size;
-        size_t start = fo < n ? fo : n, end = (uint64_t)fo + want < n ? (size_t)(fo + want) : n;   // Python slice clamps
-        size_t rawlen = end > start ? end - start : 0;
-        const uint8_t *raw = d + start;
-        if ((fl & (1u << i)) && rawlen) {
-            if (size > 0x7FFFFFFFu) {
-                code = fail(x, RB_S2ARM_NS2_INVALID, "%s: LZ4 segment %d size invalid", path, i);
-                break;
+        size_t end = (uint64_t)fo + want < n ? (size_t)(fo + want) : n;   // Python slice clamps
+        start[i] = fo < n ? fo : n;
+        rawlen[i] = end > start[i] ? end - start[i] : 0;
+        if ((fl & (1u << i)) && rawlen[i]) {
+            if (size > 0x7FFFFFFFu) {   // python-lz4 refuses an uncompressed size above INT_MAX
+                free(d);
+                return fail(x, RB_S2ARM_NS2_INVALID, "%s: LZ4 segment %d size invalid", path, i);
             }
-            if (size > IMAGE_CAP || rawlen > 0x7FFFFFFFu) {
+            bound += size;
+        } else
+            bound += rawlen[i];
+    }
+    if (bound > cap) {
+        free(d);
+        return fail(x, RB_S2ARM_NS2_INVALID, "%s: decoded module would be up to 0x%llx bytes, above the module limit 0x%zx", path,
+                    (unsigned long long)bound, cap);
+    }
+    uint8_t *out = malloc(bound ? (size_t)bound : 1);
+    if (!out) {
+        free(d);
+        return fail(x, RB_S2ARM_NS2_IO, "out of memory");
+    }
+    size_t at = 0;
+    int code = 0;
+    for (int i = 0; i < 3 && !code; i++) {
+        const uint8_t *raw = d + start[i];
+        if ((fl & (1u << i)) && rawlen[i]) {
+            uint32_t size = le32(d + 0x18 + 0x10 * i);
+            if (rawlen[i] > 0x7FFFFFFFu) {
                 code = fail(x, RB_S2ARM_NS2_INVALID, "%s: LZ4 segment %d too large", path, i);
                 break;
             }
-            char *plain = malloc(size ? size : 1);
-            if (!plain) {
-                code = fail(x, RB_S2ARM_NS2_IO, "out of memory");
-                break;
-            }
-            int got = LZ4_decompress_safe((const char *)raw, plain, (int)rawlen, (int)size);
+            int got = LZ4_decompress_safe((const char *)raw, (char *)out + at, (int)rawlen[i], (int)size);
             if (got < 0) code = fail(x, RB_S2ARM_NS2_INVALID, "%s: LZ4 segment %d does not decompress", path, i);
-            else if (!sb_add(&out, plain, (size_t)got))
-                code = fail(x, RB_S2ARM_NS2_IO, "out of memory");
-            free(plain);
-        } else if (rawlen && !sb_add(&out, (const char *)raw, rawlen))
-            code = fail(x, RB_S2ARM_NS2_IO, "out of memory");
+            else at += (size_t)got;
+        } else {
+            memcpy(out + at, raw, rawlen[i]);
+            at += rawlen[i];
+        }
     }
     free(d);
     if (code) {
-        free(out.p);
+        free(out);
         return code;
     }
-    *image = (uint8_t *)out.p;
-    *image_len = out.n;
+    *image = out;
+    *image_len = at;
     return 0;
 }
 
@@ -798,6 +812,10 @@ static int save_kinds(ctx_t *x, const char *exefs, int found[3]) {
     int code = 0;
     for (size_t i = 0; i < names.n && !code; i++) {
         if (strcmp(names.v[i], "main") && strncmp(names.v[i], "subsdk", 6)) continue;
+        if (cancelled(x)) {
+            code = fail(x, RB_S2ARM_NS2_CANCELLED, "cancelled");
+            break;
+        }
         char *p = pjoin(exefs, names.v[i]);
         uint8_t *img = NULL;
         size_t len = 0;
@@ -1173,8 +1191,13 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
                     code = fail(x, RB_S2ARM_NS2_IO, "cannot create %s", tmp_exefs);
                     goto done;
                 }
-                int r = rb_s2arm_nso_normalize_file(ex.abs[i], dst, why, sizeof why);
+                rb_s2arm_zbic_options zopt = {module_cap(x), rq->cancelled, rq->context};
+                int r = rb_s2arm_nso_normalize_file_ex(ex.abs[i], dst, &zopt, why, sizeof why);
                 free(dst);
+                if (r == RB_S2ARM_ZBIC_CANCELLED) {
+                    code = fail(x, RB_S2ARM_NS2_CANCELLED, "cancelled");
+                    goto done;
+                }
                 if (r) {
                     code = fail(x, r == RB_S2ARM_ZBIC_IO ? RB_S2ARM_NS2_IO : RB_S2ARM_NS2_INVALID, "%s: ZBIC does not decode: %s", ex.abs[i], why);
                     goto done;

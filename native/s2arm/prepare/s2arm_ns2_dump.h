@@ -22,7 +22,8 @@
 // .ns2_dump_key (the original hashes its own script and the nx_unpack binary; this port
 // hashes a version tag of its own); <out>.tmp is removed on failure; case-insensitive
 // path collisions are detected with ASCII case folding (Python lower() also folds
-// non-ASCII letters); version and DLC folder names are ASCII only.
+// non-ASCII letters); version and DLC folder names are ASCII only; a module above
+// max_module_bytes (default 1 GiB) is refused.
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
@@ -49,8 +50,12 @@ typedef struct {
     //    device can read the exported files in place. exefs, ctl and the tables are written as usual.
     int reference_data;
     void (*note)(void *context, const char *line);  // progress / information lines (may be NULL)
-    int (*cancelled)(void *context);                // polled between files (may be NULL)
+    int (*cancelled)(void *context);                // polled between files and ZBIC blocks (may be NULL)
     void *context;
+    // Cap on one module in memory: a ZBIC module's normalised size (and its file) and a module's
+    // decoded image in the save-kind scan; 0 = 1 GiB. Checked before anything is decoded.
+    // Deliberate difference: the originals try anything up to ~2 GiB.
+    size_t max_module_bytes;
 } rb_s2arm_ns2_dump_request;
 
 // ns2_dump.py --detect: root itself or one of its subfolders (in name order) holding

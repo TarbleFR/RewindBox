@@ -4,8 +4,11 @@
 //   s2arm_prepare_cli gpu-drivers <exefs> <output>
 //   s2arm_prepare_cli nro-exports <romfs> <output>
 //   s2arm_prepare_cli nro-to-nso <romfs> <output dir>
-//   s2arm_prepare_cli nso-normalize <in> <out>          (nx_unpack --nso-normalize: exit 0, or 1 with a line on stderr)
-//   s2arm_prepare_cli ns2-dump <export dir> <out dir> [--name N] [--reference]   (exit 0, or 1 with a line on stderr)
+//   s2arm_prepare_cli nso-normalize <in> <out> [--max-bytes N] [--cancel-after-polls N]
+//                                     (nx_unpack --nso-normalize: exit 0, or 1 with a line on stderr; the options test the
+//                                      host cap and the cancel callback)
+//   s2arm_prepare_cli ns2-dump <export dir> <out dir> [--name N] [--reference] [--max-module-bytes N]
+//                                     (exit 0, or 1 with a line on stderr)
 //   s2arm_prepare_cli ns2-detect <dir>                  (prints "<PROGRAM ID>\t<folder>", exit 0; 1 when not an export)
 //   s2arm_prepare_cli zbic-batch <manifest>             (one "frame|nso<TAB>input<TAB>expected<TAB>output" per line;
 //                                                        writes output on success, prints "<line> ok|err <message>")
@@ -28,6 +31,12 @@ static void progress(void *context, const char *module, int index, int count) {
 static int cancelled(void *context) {
     (void)context;
     return g_cancel_after >= 0 && g_seen >= g_cancel_after;
+}
+
+static long g_polls, g_cancel_after_polls = -1;
+static int cancel_after_polls(void *context) {   // stops once the callback has been polled N times
+    (void)context;
+    return g_cancel_after_polls >= 0 && g_polls++ >= g_cancel_after_polls;
 }
 
 static void ns2_note(void *context, const char *line) {
@@ -86,13 +95,20 @@ static int zbic_batch(const char *manifest) {
 
 int main(int argc, char **argv) {
     if (argc >= 2 && !strcmp(argv[1], "nso-normalize")) {
-        if (argc != 4) {
-            fprintf(stderr, "usage: %s nso-normalize <in> <out>\n", argv[0]);
+        rb_s2arm_zbic_options options = {0, cancel_after_polls, NULL};
+        int bad_usage = argc < 4;
+        for (int i = 4; !bad_usage && i < argc; i++) {
+            if (!strcmp(argv[i], "--max-bytes") && i + 1 < argc) options.max_output = (size_t)strtoull(argv[++i], NULL, 0);
+            else if (!strcmp(argv[i], "--cancel-after-polls") && i + 1 < argc) g_cancel_after_polls = strtol(argv[++i], NULL, 0);
+            else bad_usage = 1;
+        }
+        if (bad_usage) {
+            fprintf(stderr, "usage: %s nso-normalize <in> <out> [--max-bytes N] [--cancel-after-polls N]\n", argv[0]);
             return 64;
         }
         char error[512] = "";
-        int result = rb_s2arm_nso_normalize_file(argv[2], argv[3], error, sizeof error);
-        if (result) fprintf(stderr, "%s\n", error);
+        int result = rb_s2arm_nso_normalize_file_ex(argv[2], argv[3], &options, error, sizeof error);
+        if (result) fprintf(stderr, "result=%d %s\n", result, error);
         return result ? 1 : 0;
     }
     if (argc == 3 && !strcmp(argv[1], "zbic-batch")) return zbic_batch(argv[2]);
@@ -104,12 +120,13 @@ int main(int argc, char **argv) {
         return 0;
     }
     if (argc >= 4 && !strcmp(argv[1], "ns2-dump")) {
-        rb_s2arm_ns2_dump_request request = {argv[2], argv[3], NULL, 0, ns2_note, NULL, NULL};
+        rb_s2arm_ns2_dump_request request = {argv[2], argv[3], NULL, 0, ns2_note, NULL, NULL, 0};
         for (int i = 4; i < argc; i++) {
             if (!strcmp(argv[i], "--name") && i + 1 < argc) request.name = argv[++i];
             else if (!strcmp(argv[i], "--reference")) request.reference_data = 1;
+            else if (!strcmp(argv[i], "--max-module-bytes") && i + 1 < argc) request.max_module_bytes = (size_t)strtoull(argv[++i], NULL, 0);
             else {
-                fprintf(stderr, "usage: %s ns2-dump <export dir> <out dir> [--name N] [--reference]\n", argv[0]);
+                fprintf(stderr, "usage: %s ns2-dump <export dir> <out dir> [--name N] [--reference] [--max-module-bytes N]\n", argv[0]);
                 return 64;
             }
         }
