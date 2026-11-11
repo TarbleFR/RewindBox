@@ -63,7 +63,7 @@ import single_ipa_distribution_test as fixtures  # noqa: E402
 RECIPE = ROOT / line.RECIPE
 # The recipe file the launcher inventory was reviewed against (commit 687ea833). A different file is not an
 # error of the recipe: it asks for a review of RECIPE_INVENTORY and HANDLING, then for this value.
-REVIEWED_RECIPE_SHA256 = '6508c07d769b8253d026492aef9e6eef3e9b1adc66c4bdf50221646bc14a1799'
+REVIEWED_RECIPE_SHA256 = '503fe296c8764bcb3a16cac01ac0f7e202737d6e94058a2b2d806219f9271a41'
 MODEL = 724   # stand-in model of the common line until 725 is delivered
 REDIRECTED = {'BRANCH', 'WORKFLOW', 'TRIGGER', 'TRIGGER_MARKER', 'subject_build', 'trigger_paths', 'verify_base',
               'authenticate_base'}
