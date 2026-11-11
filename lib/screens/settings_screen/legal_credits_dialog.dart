@@ -58,6 +58,20 @@ class LegalCreditsDialog {
       'assets/legal/melonx/MeloNX-Ryujinx-LICENSE.txt',
     ),
     _LegalEntry(
+      'XeniOS (Xenia for iOS)',
+      'Ben Vanik, the Xenia project and XeniOS contributors',
+      'BSD-3-Clause; component notices in Legal/XeniOS',
+      'https://github.com/xenios-jp/XeniOS',
+      'assets/legal/XeniOS-BSD-3-Clause.txt',
+    ),
+    _LegalEntry(
+      'Apple Metal Shader Converter (runtime used by XeniOS)',
+      'Apple Inc.',
+      'Apple software license agreement EA1844; headers Apache-2.0; Apple acknowledgements',
+      'https://developer.apple.com/metal/shader-converter/',
+      'assets/legal/Apple-Metal-Shader-Converter-NOTICES.txt',
+    ),
+    _LegalEntry(
       'Melo-Controller',
       'stossy11 and contributors; original controls and editor',
       'Original license retained',

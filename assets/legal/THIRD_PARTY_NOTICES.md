@@ -358,6 +358,27 @@ statement are both recorded; the separately pinned Melo-Controller is GPLv3.
 An upstream list does not prove which source/configuration produced a bundled
 native dependency. See the next-release review before binary distribution.
 
+## XeniOS (Xbox 360) and Apple Metal Shader Converter
+
+The Xbox 360 playlist embeds XeniaCore, built from XeniOS (Xenia for iOS,
+https://github.com/xenios-jp/XeniOS) at `cf7c7ee452314913124d205e41e325b33891aacb`
+with RewindBox's guarded adaptation patch (`build-utils/xenia/`). XeniOS is
+BSD-3-Clause (`XeniOS-BSD-3-Clause.txt`); its third-party notices are in
+`xenios/XeniOS-Acknowledgements.json` and inside `XeniaCore.framework`.
+
+XeniaCore uses Apple's Metal Shader Converter runtime
+(`Frameworks/libmetalirconverter.dylib`) only to convert Xbox 360 shaders.
+It is Apple software under Apple's « Software License Agreement for Metal
+Shader Converter » (EA1844, 5/31/2023; `metal-shader-converter/`), with
+Apple's acknowledgements for the components it contains (zlib/libpng, MIT,
+BSD-2-Clause, LLVM/NCSA). The headers alone are Apache-2.0. The runtime is
+shipped with its bytes unchanged apart from the code signature iOS requires,
+for free private builds only; it is not sold, rented, hosted or sublicensed.
+Open points recorded by the maintainer's dossier
+(`docs/evidence/xenia-metal-shader-converter/README.md`) are not resolved by
+this notice: whether EA1844 governs the pinned `ios-4.0.3` runtime, the
+runtime's provenance, and re-signing under clause 2.E.
+
 ## Game boxes, cover scans and manuals
 
 The 3D viewer displays existing user-supplied or ScreenScraper artwork and

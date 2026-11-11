@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-12",
+  "scope": "XeniOS (Xenia for iOS) notices for XeniaCore.framework, RewindBox's embedded Xbox 360 engine built from the pinned revision (build-utils/xenia/source.json). The framework also carries LICENSE.txt and Acknowledgements.json.",
+  "components": [
+    {
+      "component": "XeniOS",
+      "repository": "https://github.com/xenios-jp/XeniOS",
+      "revision": "cf7c7ee452314913124d205e41e325b33891aacb",
+      "files": [
+        {
+          "path": "XeniOS-LICENSE.txt",
+          "sha256": "369ea6b0f7ba57544067e9d470ca82a927da787fb0a749b11cb55f1fd0ba47ae",
+          "bytes": 1481,
+          "upstream_path": "LICENSE",
+          "source_blob_sha": "bc759869a1975823a4e1b1c78cb4e5356cadb7bf",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/LICENSE",
+          "content": "BSD-3-Clause",
+          "exact_copy": true
+        },
+        {
+          "path": "XeniOS-Acknowledgements.json",
+          "sha256": "8ceebb73ee6854ab7b8ade3752ad7b5360aca3958dc4e623840fb35ec3af785d",
+          "bytes": 225235,
+          "upstream_path": "assets/apple/Acknowledgements.json",
+          "source_blob_sha": "e02596832fa470c33c7d46834f174970d4278676",
+          "source_url": "https://github.com/xenios-jp/XeniOS/blob/cf7c7ee452314913124d205e41e325b33891aacb/assets/apple/Acknowledgements.json",
+          "content": "XeniOS's third-party notices, as its app shows them",
+          "exact_copy": true
+        }
+      ]
+    }
+  ]
+}
