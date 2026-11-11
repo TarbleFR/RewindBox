@@ -21,7 +21,7 @@ import re
 from pathlib import Path
 
 NATIVE_PROBES = {
-    'deko3d texture layout (port, zlib)': re.compile(r'(^|[/_])nvn_tex\.o\b|deko3d', re.IGNORECASE),
+    'deko3d texture layout (port, zlib)': re.compile(r'(^|[/_(])nvn_tex(\.c)?\.o\b|deko3d', re.IGNORECASE),
 }
 
 
@@ -105,17 +105,41 @@ def native(map_text: str) -> dict[str, dict]:
     return dict(objectFiles=len(objects), probes=report)
 
 
+def licence_material(nuget: Path, managed_report: dict) -> dict:
+    """For each package with kept code: the nuspec's licence fields and the licence-like files the package carries."""
+    result = {}
+    for name, entry in managed_report.items():
+        if not entry['kept']:
+            continue
+        folder = nuget / name.lower() / entry['version'].lower()
+        nuspec = next(iter(sorted(folder.glob('*.nuspec'))), None) if folder.is_dir() else None
+        text = nuspec.read_text(errors='replace') if nuspec else ''
+        def field(tag):
+            match = re.search(r'<%s\b([^>]*)>(.*?)</%s>' % (tag, tag), text, re.S)
+            return dict(attributes=match.group(1).strip(), value=match.group(2).strip()) if match else None
+        repository = re.search(r'<repository\b([^>]*)/?>', text)
+        files = sorted(str(p.relative_to(folder)) for p in folder.rglob('*') if p.is_file() and
+                       re.search(r'licen[cs]e|notice|copying|third.?party', p.name, re.I)) if folder.is_dir() else []
+        result[name] = dict(version=entry['version'], folder=folder.is_dir(), license=field('license'),
+                            licenseUrl=field('licenseUrl'), repository=repository.group(1).strip() if repository else None,
+                            files=files)
+    return result
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--services-nm', type=Path, required=True)
     parser.add_argument('--assets', type=Path, action='append', default=[])
     parser.add_argument('--link-map', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--nuget', type=Path, help='NuGet packages folder: report the licence material of kept packages')
     args = parser.parse_args(argv)
     names = symbol_names(args.services_nm.read_text(errors='replace'))
     found = packages(args.assets)
     report = dict(servicesSymbols=len(names), assetsFiles=[str(p) for p in args.assets],
                   managed=managed(names, found), native=native(args.link_map.read_text(errors='replace')))
+    if args.nuget:
+        report['licenceMaterial'] = licence_material(args.nuget, report['managed'])
     args.out.write_text(json.dumps(report, indent=1, default=sorted) + '\n')
     kept = sorted(name for name, entry in report['managed'].items() if entry['kept'])
     print(f"kept-code inventory: {len(names)} services symbols, {len(found)} packages, {len(kept)} with kept code")

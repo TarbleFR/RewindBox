@@ -253,7 +253,8 @@ jobs:
           while IFS= read -r f; do assets+=(--assets "$f"); done < <(find "$S2A_RUN_ROOT" services graphics platform tests/visual -name project.assets.json -path '*obj*' 2>/dev/null | sort -u)
           echo "assets files: ${#assets[@]}"
           python3 -B "$GITHUB_WORKSPACE/build-utils/s2arm/engine/kept_code_inventory.py" --services-nm "$RUNNER_TEMP/services-nm.txt" \
-            "${assets[@]}" --link-map "$map" --out "$out/kept-code-inventory.json" | tee "$out/kept-code-inventory.txt"
+            "${assets[@]}" --link-map "$map" --nuget "$RUNNER_TEMP/nuget" --out "$out/kept-code-inventory.json" | tee "$out/kept-code-inventory.txt"
+          python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(json.dumps(d.get('licenceMaterial',{}),indent=1))" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
           python3 -c "import json,sys;d=json.load(open(sys.argv[1]));[print(('KEPT  ' if v['kept'] else 'none  ')+k+' '+v['version']+' '+str(sum(a['symbols'] for a in v['assemblies'].values()))) for k,v in sorted(d['managed'].items())]" "$out/kept-code-inventory.json" | tee -a "$out/kept-code-inventory.txt"
           gzip -c "$map" > "$out/S2ArmEngine.map.gz"
       - name: Collect the engine's licence and notice texts from its pinned sources
