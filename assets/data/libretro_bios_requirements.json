@@ -121,7 +121,6 @@
       "consoles": ["nes"],
       "cores": ["nestopia", "mesen"],
       "names": ["disksys.rom"],
-      "coreNames": {"mesen": ["FdsBios.bin", "disksys.rom"]},
       "locations": ["system"],
       "level": "conditional",
       "condition": {

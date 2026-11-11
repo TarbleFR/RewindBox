@@ -57,8 +57,6 @@ class Armsx2LibraryService {
     String romPath, {
     String uiLocale = 'en',
   }) async {
-    // A refusal below must not show the prerequisite of an earlier launch.
-    StikJitArmsx2Service.resetLastError();
     if (romPath.trim().isEmpty) return false;
 
     if (isVirtualLibraryPath(romPath)) {

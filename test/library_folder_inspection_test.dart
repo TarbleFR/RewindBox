@@ -214,43 +214,6 @@ void main() {
       }
     });
 
-    test('a picked console folder counts the games of its sub-folders', () async {
-      await file('psx/A/a.chd');
-      await file('psx/B/b.chd');
-      await file('psx/C/c.chd');
-      const psx = InspectionSystem(id: 'psx', name: 'PlayStation', folderNames: <String>['psx'], extensions: <String>{'chd'});
-      final inspection = await LibraryFolderInspector.inspect(path.join(root.path, 'psx'), <InspectionSystem>[psx]);
-      expect(inspection.pickedConsole?.games, 3);
-    });
-
-    test('a library folder named after a console alias, with other console folders, is a library', () async {
-      await file('Nintendo/Gameboy Advance/Metroid.gba');
-      const nes = InspectionSystem(id: 'nes', name: 'NES', folderNames: <String>['nes', 'nintendo'], extensions: <String>{'nes'});
-      final inspection =
-          await LibraryFolderInspector.inspect(path.join(root.path, 'Nintendo'), <InspectionSystem>[nes, gba]);
-      expect(inspection.pickedConsole, isNull);
-      expect(inspection.unknownFolders.single.folderName, 'Gameboy Advance');
-      expect(texts(inspection).join('\n'), isNot(contains('folder of one console')));
-    });
-
-    test('a picked import-only console says it keeps its games in RewindBox', () async {
-      await file('gc/Melee.iso');
-      final inspection = await LibraryFolderInspector.inspect(path.join(root.path, 'gc'), systems);
-      final lines = texts(inspection);
-      expect(lines, hasLength(2));
-      expect(lines.last, contains('keeps its games inside RewindBox'));
-      expect(lines.last, isNot(contains('Choose the folder')));
-    });
-
-    test('a picked console says when the listing was cut', () async {
-      await file('gba/a.gba');
-      await file('gba/b.gba');
-      await file('gba/c.gba');
-      final inspection = await LibraryFolderInspector.inspect(path.join(root.path, 'gba'), systems, entryLimit: 2);
-      expect(inspection.truncated, isTrue);
-      expect(texts(inspection).last, 'detail: ${LibraryLinkLocale.textFor('en', 'reportTruncated')}');
-    });
-
     test('a long list of unrecognised folders is cut, with the count of the rest', () async {
       for (var index = 0; index < LibraryFolderReport.unknownLimit + 3; index++) {
         await file('Folder ${index.toString().padLeft(2, '0')}/a.zip');

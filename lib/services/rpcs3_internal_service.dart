@@ -433,25 +433,14 @@ class Rpcs3InternalService {
         // (iOS version, development signature, pairing file, helper) the
         // user gets its sentence, and the journal keeps the native text.
         final nativeMessage = jit['message']?.toString();
-        var known = LaunchPrerequisites.classifyText(nativeMessage);
-        // "An RPCS3 JIT operation is already running." only comes from a
-        // transaction the bridge keeps locked on purpose (Dart never runs two
-        // RPCS3 starts at once): waiting does not help, reopening RewindBox does.
-        if (known == LaunchPrerequisite.jitBusy) known = LaunchPrerequisite.jitHelper;
+        final known = LaunchPrerequisites.classifyText(nativeMessage);
         if (nativeMessage != null) {
           _log.w('RPCS3 JIT preparation refused: $nativeMessage');
         }
         throw Rpcs3InternalException(
           jit['code']?.toString() ?? 'RPCS3_JIT_ATTACH_FAILED',
           known != null
-              ? [
-                  _prerequisite(known),
-                  // The native cause stays visible under the sentence.
-                  if (nativeMessage != null &&
-                      nativeMessage.trim().isNotEmpty &&
-                      nativeMessage.trim() != _prerequisite(known))
-                    nativeMessage.trim(),
-                ].join('\n')
+              ? _prerequisite(known)
               : nativeMessage ?? _ui('operationFailed'),
         );
       }
@@ -893,7 +882,6 @@ class Rpcs3InternalService {
     String titleId, {
     required String uiLocale,
     String? savestateId,
-    String? contentPath,
   }) async {
     final normalized = titleId.trim().toUpperCase();
     if (normalized.isEmpty) return false;
@@ -937,7 +925,6 @@ class Rpcs3InternalService {
         engine: 'rpcs3',
         system: 'ps3',
         language: uiLocale,
-        contentPath: contentPath,
       );
     } catch (error) {
       _log.w('RPCS3 RetroAchievements preparation skipped: $error');

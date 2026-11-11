@@ -50,12 +50,6 @@ class StikJitArmsx2Service {
     });
   }
 
-  /// Forgets the outcome of an earlier launch.
-  static void resetLastError() {
-    _lastError = null;
-    _lastErrorKey = null;
-  }
-
   static Future<bool> launch({
     required String gamePath,
     String uiLocale = 'en',
@@ -180,8 +174,7 @@ class StikJitArmsx2Service {
       );
 
       raLaunch = await RetroAchievementsSessionService.shared.prepareLaunch(
-        engine: 'armsx2', system: 'ps2', language: uiLocale, systemMenu: bootBios,
-        contentPath: bootBios ? null : gamePath);
+        engine: 'armsx2', system: 'ps2', language: uiLocale, systemMenu: bootBios);
       final launch = await Armsx2InternalBridge.launch(
         transaction: transaction,
         gamePath: normalized,

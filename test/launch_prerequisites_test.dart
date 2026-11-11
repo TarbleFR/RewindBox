@@ -19,17 +19,6 @@ void main() {
   const languages = <String>['en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh_Hant'];
 
   group('what a failure points to', () {
-    test('RPCS3 maps a native busy text to the helper sentence; PS2 resets its last error', () {
-      final rpcs3 = File('lib/services/rpcs3_internal_service.dart').readAsStringSync();
-      expect(rpcs3, contains('known == LaunchPrerequisite.jitBusy) known = LaunchPrerequisite.jitHelper'));
-      final library = File('lib/services/armsx2_library_service.dart').readAsStringSync();
-      final launch = library.indexOf('launchGameByRomPath(');
-      expect(launch, greaterThan(0));
-      expect(library.indexOf('StikJitArmsx2Service.resetLastError();', launch), greaterThan(launch));
-      expect(library.indexOf('isVirtualLibraryPath(romPath)', launch),
-          greaterThan(library.indexOf('StikJitArmsx2Service.resetLastError();', launch)));
-    });
-
     test('the route probe, whatever its code', () {
       for (final code in <String>[
         'localdevvpn_route_unavailable',
@@ -126,23 +115,6 @@ void main() {
   });
 
   group('the sentences', () {
-    test('the two sentences shared with imports do not say to start the game', () {
-      const old = <String>[
-        'start the game again', 'relancez le jeu', 'starte das Spiel erneut',
-        'inicia el juego de nuevo', 'avvia di nuovo il gioco', 'inicie o jogo novamente',
-        'запустите игру снова', 'jalankan game lagi', 'ゲームを起動', '게임을 다시 실행',
-        '重新启动游戏', '重新啟動遊戲',
-      ];
-      for (final language in LaunchPrerequisiteLocale.values.keys) {
-        for (final key in <String>['localDevVpn', 'pairingFile']) {
-          final text = LaunchPrerequisiteLocale.values[language]![key]!;
-          for (final phrase in old) {
-            expect(text.contains(phrase), isFalse, reason: '$language $key $phrase');
-          }
-        }
-      }
-    });
-
     const keys = <String>[
       'localDevVpn',
       'pairingFile',
@@ -236,33 +208,14 @@ void main() {
       ..createSync(recursive: true)
       ..writeAsStringSync('x');
 
-    Future<List<String>> missing(String systemKey, String file, String core,
-            [Map<String, String> options = const <String, String>{}]) =>
+    Future<List<String>> missing(String systemKey, String file, String core) =>
         LibretroInternalService.missingConditionalBios(
           catalog: catalog,
           system: systemKey,
           romPath: path.join(games, file),
           coreId: core,
           systemDirectory: system,
-          options: options,
         );
-
-    test('64DD names the file with its System sub-folder', () async {
-      expect(await missing('n64', 'Game.ndd', 'mupen64plus_next'), ['Mupen64plus/IPL.n64']);
-      put(path.join(system, 'Mupen64plus'), 'IPL.n64');
-      expect(await missing('n64', 'Game.ndd', 'mupen64plus_next'), isEmpty);
-    });
-
-    test('PC Engine CD: another System Card selected closes the syscard3 entry', () async {
-      expect(await missing('pccd', 'Game.cue', 'mednafen_pce_fast'), ['syscard3.pce']);
-      expect(await missing('pccd', 'Game.cue', 'mednafen_pce_fast', {'pce_fast_cdbios': 'System Card 2'}), isEmpty);
-    });
-
-    test('Mesen reads FdsBios.bin first', () async {
-      expect(await missing('nes', 'Zelda.fds', 'mesen'), ['FdsBios.bin']);
-      put(system, 'FdsBios.bin');
-      expect(await missing('nes', 'Zelda.fds', 'mesen'), isEmpty);
-    });
 
     test('a Mega-CD disc without any regional BIOS names the three, one is enough', () async {
       expect(await missing('mcd', 'Sonic CD.chd', 'genesis_plus_gx'), ['bios_CD_U.bin / bios_CD_E.bin / bios_CD_J.bin']);

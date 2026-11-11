@@ -39,21 +39,12 @@ abstract final class LibraryFolderReport {
       // choose instead, and nothing else (its games are not "loose").
       lines.add(LibraryReportLine(
         LibraryReportLineKind.problem,
-        picked.system.importOnly
-            ? t('reportImportOnly', {
-                'console': picked.system.name,
-                'folder': picked.folderName,
-                'count': picked.games,
-              })
-            : t('reportPickedConsole', {
-                'folder': picked.folderName,
-                'console': picked.system.name,
-                'count': picked.games,
-              }),
+        t('reportPickedConsole', {
+          'folder': picked.folderName,
+          'console': picked.system.name,
+          'count': picked.games,
+        }),
       ));
-      if (inspection.truncated) {
-        lines.add(LibraryReportLine(LibraryReportLineKind.detail, t('reportTruncated')));
-      }
       return lines;
     }
     if (!inspection.recognised) {

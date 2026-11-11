@@ -390,7 +390,7 @@ abstract final class LibretroInternalService {
     }
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-      core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
+      core: coreId, language: locale.toLanguageTag());
     final request = <String, Object?>{
       'coreId': coreId,
       'contentPath': path.normalize(romPath),
@@ -435,7 +435,7 @@ abstract final class LibretroInternalService {
         _log.w('Beetle PSX HW: Vulkan unavailable (${result['message'] ?? ''}); relaunching with the software renderer');
         await raService.finishLaunch(raLaunch);
         raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-          core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
+          core: coreId, language: locale.toLanguageTag());
         result = await LibretroInternalBridge.launch(<String, Object?>{
           ...request,
           'raSessionId': raLaunch['raSessionId'],
@@ -501,35 +501,6 @@ abstract final class LibretroInternalService {
     'LIBRETRO_CORE_STOPPED',
   };
 
-  /// Stored options of every core (`Config/*.json` `values`), as the BIOS
-  /// checker reads them; empty when unreadable.
-  static Future<Map<String, String>> _allStoredOptions() async {
-    final options = <String, String>{};
-    try {
-      final directory = await configDirectory();
-      if (!await directory.exists()) return options;
-      final files = await directory
-          .list(followLinks: false)
-          .where((entity) => entity is File && entity.path.toLowerCase().endsWith('.json'))
-          .toList();
-      files.sort((a, b) => a.path.compareTo(b.path));
-      for (final file in files) {
-        try {
-          final json = jsonDecode(await File(file.path).readAsString());
-          final values = json is Map ? json['values'] : null;
-          if (values is Map) {
-            for (final entry in values.entries) {
-              if (entry.value is String) options[entry.key.toString()] = entry.value as String;
-            }
-          }
-        } catch (_) {}
-      }
-    } catch (error) {
-      _log.w('Core options unreadable: $error');
-    }
-    return options;
-  }
-
   static Future<List<String>> _missingConditionalBios({
     required String system,
     required String romPath,
@@ -538,7 +509,6 @@ abstract final class LibretroInternalService {
   }) async {
     try {
       return await missingConditionalBios(
-        options: await _allStoredOptions(),
         catalog: await LibretroBiosCatalog.load(),
         system: system,
         romPath: romPath,
@@ -564,16 +534,12 @@ abstract final class LibretroInternalService {
     required String romPath,
     required String coreId,
     required String systemDirectory,
-    Map<String, String> options = const <String, String>{},
   }) async {
     final extension = path.extension(romPath).replaceFirst('.', '').toLowerCase();
     final systemKey = system.toLowerCase();
     final groups = <String, List<LibretroBiosEntry>>{};
     for (final entry in catalog.entries) {
       if (entry.level != LibretroBiosLevel.conditional || !entry.cores.contains(coreId)) continue;
-      // The core option that selects another file closes this entry's gate.
-      final gates = entry.optionGates.where((gate) => gate.core == coreId);
-      if (gates.isNotEmpty && !gates.any((gate) => gate.all.every((c) => c.isOn(options)))) continue;
       final clauses = entry.condition?.games ?? const <LibretroBiosGameClause>[];
       final called = clauses.any((clause) =>
           clause.systems.contains(systemKey) && (clause.extensions.isEmpty || clause.extensions.contains(extension)));
@@ -585,12 +551,7 @@ abstract final class LibretroInternalService {
       final expected = <String>[];
       for (final entry in group) {
         final names = entry.coreNames[coreId] ?? entry.names;
-        if (names.isNotEmpty) {
-          // Named relative to the System folder the message points to.
-          final inRoot = entry.locations.any((l) => l.subdirectory.isEmpty && !l.gameFolder);
-          final sub = entry.locations.where((l) => l.subdirectory.isNotEmpty);
-          expected.add(inRoot || sub.isEmpty ? names.first : '${sub.first.subdirectory.join('/')}/${names.first}');
-        }
+        if (names.isNotEmpty) expected.add(names.first);
         for (final location in entry.locations) {
           final directory = location.gameFolder
               ? path.dirname(romPath)
