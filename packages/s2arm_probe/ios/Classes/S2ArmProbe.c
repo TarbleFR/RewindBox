@@ -38,6 +38,7 @@ extern void rb_s2arm_probe_gate(void);
 
 static struct {
     rb_s2arm_log_fn log;
+    uint32_t flags;
     int modes;
     uint8_t *window;
     uint64_t window_size;
@@ -257,6 +258,11 @@ static void probe_fixed(rb_s2arm_prepare_fn prepare) {
         say("fixedAlias", protect == KERN_SUCCESS ? "passed" : "failed", "%s: cur=%d max=%d, vm_protect RX kr=%d", parts[i].name, current, maximum, protect);
         if (protect != KERN_SUCCESS) return;
     }
+    if (!(g.flags & RB_S2ARM_PROBE_FIXED_EXECUTE)) {
+        // Build 801 on device: this execution never returned under the attached helper (launch hung).
+        say("fixedExecuteText", "skipped", "not executed while the helper is attached (build 801: no result, launch hung)");
+        return;
+    }
     if (!run_stub("fixedExecuteText", NULL, g.slot + TEXT_LEN - STUB_BACK)) return;
     if (!run_stub("fixedExecutePatch", g.code_rw + CODE_LEN - STUB_BACK, g.slot + SPAN - STUB_BACK)) return;
     g.modes |= RB_S2ARM_MODE_FIXED;
@@ -334,6 +340,7 @@ static void probe_mapped(rb_s2arm_prepare_fn prepare) {
 int rb_s2arm_probe_attached(rb_s2arm_prepare_fn prepare, rb_s2arm_log_fn log, uint32_t flags) {
     if (!prepare || !log || g.log) return -1;
     g.log = log;
+    g.flags = flags;
     say("phase1", "begin", "module sha256=%s span=%#llx text=%#llx patchAt=%#llx flags=%#x footprint=%.1f MiB", RB_S2ARM_SYNTH_SHA256,
         (unsigned long long)SPAN, (unsigned long long)TEXT_LEN, (unsigned long long)PATCH_AT, flags, footprint_mib());
     // Order: the path with device evidence first, the never-exercised remap last.

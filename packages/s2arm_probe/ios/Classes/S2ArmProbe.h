@@ -18,6 +18,12 @@ enum {
     // Reserved. It used to gate the process-mapped placement, which now always runs: it is
     // the placement the RPCS3 Core of this app already uses on device.
     RB_S2ARM_PROBE_SELF_MAPPED = 1u << 0,
+    // Executes the fixed placement (helper pages mapped again at the chosen address) while the
+    // helper is attached. Off by default: on device (build 801, 11 Nov 2026, iOS 26+, universal
+    // helper) its first execution never returned and the launch hung there, while the process-mapped
+    // and arena placements had just run. A fault taken under the attached helper does not reach
+    // the process as a signal, so the probe cannot catch it. Kept for the host checks.
+    RB_S2ARM_PROBE_FIXED_EXECUTE = 1u << 1,
 };
 enum { // result bits of rb_s2arm_probe_attached
     RB_S2ARM_MODE_FIXED = 1 << 0,  // helper-allocated code mapped again at a chosen address (vm_remap)

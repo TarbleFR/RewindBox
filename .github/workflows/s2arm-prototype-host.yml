@@ -91,14 +91,31 @@ jobs:
           fi
           clang -O1 -Wall -Wextra -I "$classes" -o proof/device_probe_host_test \
             tools/s2arm_prototype/device_probe_host_test.c "$classes/S2ArmProbe.c" "$classes/S2ArmProbeGate.S"
+          # Flags 0x2: every placement executed, as before build 801.
           set +e
-          proof/device_probe_host_test 0 > proof/device-probe-host.txt 2>&1; status=$?
+          proof/device_probe_host_test 0x2 > proof/device-probe-host.txt 2>&1; status=$?
           set -e
           cat proof/device-probe-host.txt
           test "$status" = 0
           for mode in mapped fixed arena; do
             grep -q "${mode}Run passed signal=0 checks=16/16" proof/device-probe-host.txt
           done
+          # Flags 0, what the bridge passes on device: the fixed placement is set up but never
+          # executed (build 801 hung at its first execution); mapped and arena still run in full.
+          set +e
+          proof/device_probe_host_test 0 > proof/device-probe-host-default.txt 2>&1; status=$?
+          set -e
+          cat proof/device-probe-host-default.txt
+          test "$status" = 0
+          for mode in mapped arena; do
+            grep -q "${mode}Run passed signal=0 checks=16/16" proof/device-probe-host-default.txt
+          done
+          grep -q "fixedAlias passed" proof/device-probe-host-default.txt
+          grep -q "fixedExecuteText skipped" proof/device-probe-host-default.txt
+          if grep -Eq "fixedExecute(Text|Patch) (begin|passed)|fixedRun" proof/device-probe-host-default.txt; then
+            echo "::error::the fixed placement executed with flags 0"; exit 1
+          fi
+          grep -q "modes mapped=1 fixed=0 arena=1" proof/device-probe-host-default.txt
           sdk=$(xcrun --sdk iphoneos --show-sdk-path)
           for source in S2ArmProbe.c S2ArmProbeGate.S S2ArmProbePlugin.m; do
             xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$sdk" -fobjc-arc -Wall -Wextra -Werror \
