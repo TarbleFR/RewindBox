@@ -28,6 +28,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "A Switch 2 game is being prepared or is running. Try again when it has ended.",
       'deleteFailed': "The game could not be deleted.",
       'deleted': "{name} deleted.",
+      'emptyHint': "Use the button at the top right to import games: pick each game's export folder. You can import prod.keys there too (shared with MeloNX); Switch 2 games do not need them.",
     },
     'es': <String, String>{
       'importMenu': "Switch 2 / Importar",
@@ -52,6 +53,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Un juego de Switch 2 se está preparando o en ejecución. Inténtalo de nuevo cuando termine.",
       'deleteFailed': "No se pudo eliminar el juego.",
       'deleted': "{name} eliminado.",
+      'emptyHint': "Usa el botón de arriba a la derecha para importar juegos: elige la carpeta de exportación de cada juego. También puedes importar prod.keys allí (compartidas con MeloNX); los juegos de Switch 2 no las necesitan.",
     },
     'ru': <String, String>{
       'importMenu': "Switch 2 / Импорт",
@@ -76,6 +78,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Игра Switch 2 готовится или запущена. Повторите попытку после её завершения.",
       'deleteFailed': "Не удалось удалить игру.",
       'deleted': "{name} удалена.",
+      'emptyHint': "Чтобы импортировать игры, нажмите кнопку в правом верхнем углу и выберите папку экспорта каждой игры. Там же можно импортировать prod.keys (общие с MeloNX); играм Switch 2 они не нужны.",
     },
     'zh': <String, String>{
       'importMenu': "Switch 2 / 导入",
@@ -100,6 +103,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "有 Switch 2 游戏正在准备或运行。请在其结束后重试。",
       'deleteFailed': "无法删除该游戏。",
       'deleted': "已删除 {name}。",
+      'emptyHint': "使用右上角的按钮导入游戏：选择每个游戏的导出文件夹。也可以在那里导入 prod.keys（与 MeloNX 共用）；Switch 2 游戏不需要它们。",
     },
     'zh_Hant': <String, String>{
       'importMenu': "Switch 2 / 匯入",
@@ -124,6 +128,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "有 Switch 2 遊戲正在準備或執行。請在其結束後重試。",
       'deleteFailed': "無法刪除該遊戲。",
       'deleted': "已刪除 {name}。",
+      'emptyHint': "使用右上角的按鈕匯入遊戲：選擇每個遊戲的匯出資料夾。也可以在那裡匯入 prod.keys（與 MeloNX 共用）；Switch 2 遊戲不需要它們。",
     },
     'pt': <String, String>{
       'importMenu': "Switch 2 / Importar",
@@ -148,6 +153,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Um jogo de Switch 2 está sendo preparado ou em execução. Tente novamente quando terminar.",
       'deleteFailed': "Não foi possível excluir o jogo.",
       'deleted': "{name} excluído.",
+      'emptyHint': "Use o botão no canto superior direito para importar jogos: escolha a pasta de exportação de cada jogo. Você também pode importar prod.keys ali (compartilhadas com o MeloNX); os jogos de Switch 2 não precisam delas.",
     },
     'fr': <String, String>{
       'importMenu': "Switch 2 / Importer",
@@ -172,6 +178,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Un jeu Switch 2 est en préparation ou en cours d’exécution. Réessayez quand il sera terminé.",
       'deleteFailed': "Le jeu n’a pas pu être supprimé.",
       'deleted': "{name} supprimé.",
+      'emptyHint': "Utilisez le bouton en haut à droite pour importer des jeux : choisissez le dossier exporté de chaque jeu. Vous pouvez aussi y importer prod.keys (partagé avec MeloNX) ; les jeux Switch 2 n'en ont pas besoin.",
     },
     'de': <String, String>{
       'importMenu': "Switch 2 / Import",
@@ -196,6 +203,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Ein Switch-2-Spiel wird vorbereitet oder läuft. Versuche es erneut, wenn es beendet ist.",
       'deleteFailed': "Das Spiel konnte nicht gelöscht werden.",
       'deleted': "{name} gelöscht.",
+      'emptyHint': "Importiere Spiele über die Schaltfläche oben rechts: Wähle den Exportordner jedes Spiels. Dort kannst du auch prod.keys importieren (gemeinsam mit MeloNX); Switch-2-Spiele brauchen sie nicht.",
     },
     'it': <String, String>{
       'importMenu': "Switch 2 / Importa",
@@ -220,6 +228,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Un gioco Switch 2 è in preparazione o in esecuzione. Riprova quando sarà terminato.",
       'deleteFailed': "Impossibile eliminare il gioco.",
       'deleted': "{name} eliminato.",
+      'emptyHint': "Usa il pulsante in alto a destra per importare i giochi: scegli la cartella di esportazione di ogni gioco. Lì puoi importare anche prod.keys (condivise con MeloNX); i giochi Switch 2 non ne hanno bisogno.",
     },
     'id': <String, String>{
       'importMenu': "Switch 2 / Impor",
@@ -244,6 +253,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Sebuah game Switch 2 sedang disiapkan atau berjalan. Coba lagi setelah selesai.",
       'deleteFailed': "Game tidak dapat dihapus.",
       'deleted': "{name} dihapus.",
+      'emptyHint': "Gunakan tombol di kanan atas untuk mengimpor game: pilih folder ekspor setiap game. Kamu juga bisa mengimpor prod.keys di sana (dipakai bersama MeloNX); game Switch 2 tidak memerlukannya.",
     },
     'ja': <String, String>{
       'importMenu': "Switch 2 / 読み込み",
@@ -268,6 +278,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Switch 2 のゲームを準備中または実行中です。終了してからもう一度お試しください。",
       'deleteFailed': "ゲームを削除できませんでした。",
       'deleted': "{name} を削除しました。",
+      'emptyHint': "右上のボタンからゲームをインポートします。各ゲームのエクスポートフォルダーを選んでください。prod.keys もそこでインポートできます（MeloNX と共用）。Switch 2 のゲームには不要です。",
     },
     'ko': <String, String>{
       'importMenu': "Switch 2 / 가져오기",
@@ -292,6 +303,7 @@ abstract final class Switch2LibraryLocale {
       'deleteBusy': "Switch 2 게임을 준비 중이거나 실행 중입니다. 끝난 후 다시 시도하세요.",
       'deleteFailed': "게임을 삭제하지 못했습니다.",
       'deleted': "{name}을(를) 삭제했습니다.",
+      'emptyHint': "오른쪽 위 버튼으로 게임을 가져오세요. 각 게임의 내보내기 폴더를 선택합니다. 그곳에서 prod.keys도 가져올 수 있습니다(MeloNX와 공유). Switch 2 게임에는 필요하지 않습니다.",
     },
   };
 

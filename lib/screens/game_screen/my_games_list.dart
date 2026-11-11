@@ -8,6 +8,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/rpcs3_ui_locale.dart';
 import 'package:neostation/l10n/xenia_locale.dart';
+import 'package:neostation/l10n/switch2_library_locale.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/providers/neo_assets_provider.dart';
@@ -1248,7 +1249,11 @@ class _SystemGamesListState extends State<SystemGamesList> {
         systemName: widget.system.shortName ?? widget.system.realName,
         onBack: _goBack,
         // How to add games, under the title (Switch: none).
-        hint: _isXeniaLibrary ? XeniaLocale.text(context, 'emptyBody') : null,
+        hint: _isXeniaLibrary
+            ? XeniaLocale.text(context, 'emptyBody')
+            : _isS2ArmLibrary
+            ? Switch2LibraryLocale.text(context, 'emptyHint')
+            : null,
       );
     }
     final isRpcs3Library =
