@@ -19,6 +19,9 @@ PS2_POCKET_REVIEW = "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json
 BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026-11-04.json"
 PS2_ORIGINAL_REVIEW = "docs/evidence/ps2-pocket-original-declarations-2026-11-04.json"
 SWITCH_POCKET_REVIEW = "docs/evidence/switch-pocket-declarations-2026-11-10.json"
+GLACIER_REVIEW = "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json"
+# The Switch 2 tile of the Glacier pack, chained after the Glacier review (it moves the pack index on).
+SWITCH2_TILE_REVIEW = "docs/evidence/switch2-glacier-tile-declarations-2026-11-11.json"
 SKIN_REVISION_REVIEW = "docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json"
 # Revisions in place, in order; each binds the packs of the one before it (PR #169: the windows at the game's ratio;
 # PR #170: the precise pressed states of the board packs; PR #171: the pressed buttons of the two rendered packs).
@@ -64,6 +67,47 @@ def read_input(root: Path, path: Path) -> bytes:
     if not data:
         raise SystemExit(f"Empty source evidence: {path.relative_to(root)}")
     return data
+
+
+def check_switch2_glacier_tile(root: Path, pubspec_lock_sha256: str) -> None:
+    """The Switch 2 tile review, chained after the Glacier review: the pack gains backgrounds/switch2.webp (the
+    official Nintendo Switch 2 logo on red, supplied by the maintainer to identify the system; Nintendo trademark,
+    not BAXY-guided, not CC BY content) and aliases.json, theme.json and CREDITS.md declare it. No package, dependency,
+    framework, engine or native source change. The review binds the previous index (the Glacier review's), the new
+    one, and the size and SHA-256 of each added or changed file, checked against the index and the bytes."""
+    review = json.loads(read_input(root, root / SWITCH2_TILE_REVIEW))
+    glacier = json.loads(read_input(root, root / GLACIER_REVIEW))
+    if (review.get("schema") != 1 or review.get("baseline_inventory") != GLACIER_REVIEW or
+            review.get("baseline_inventory_sha256") != sha256(read_input(root, root / GLACIER_REVIEW)) or
+            review.get("pubspec_lock_sha256") != pubspec_lock_sha256 or
+            review.get("complete_corresponding_source_attested") is not False or
+            review.get("dependency_changes") != {"external_packages_added": [], "external_packages_removed": [],
+                                                 "system_frameworks_added": {}}):
+        raise SystemExit("Switch 2 Glacier tile review has a different baseline or dependency scope")
+    if review.get("declarations") != {}:
+        raise SystemExit("Switch 2 Glacier tile declaration review scope changed")
+    bundle = review.get("bundled_assets", {})
+    index_path = bundle.get("index", "")
+    if (index_path != "assets/system_art/rewindbox-glacier/bundle-index.json" or
+            bundle.get("previous_index_sha256") != glacier.get("bundled_assets", {}).get("index_sha256") or
+            bundle.get("index_sha256") != sha256(read_input(root, root / index_path))):
+        raise SystemExit("RewindBox Glacier bundled pack index changed since the Switch 2 tile review")
+    added = bundle.get("added_files", {})
+    changed = bundle.get("changed_files", {})
+    reviewed = dict(added)
+    for name, change in changed.items():
+        reviewed[name] = {"size": change.get("size"), "sha256": change.get("sha256")}
+    index = json.loads(read_input(root, root / index_path))
+    entries = {entry.get("path"): {"size": entry.get("size"), "sha256": entry.get("sha256")}
+               for entry in index.get("files", [])}
+    if (set(added) != {"backgrounds/switch2.webp"} or set(changed) != {"aliases.json", "theme.json", "CREDITS.md"} or
+            len(entries) != bundle.get("files") or any(entries.get(name) != identity for name, identity in reviewed.items())):
+        raise SystemExit("Switch 2 Glacier tile files differ from the review")
+    pack = root / PurePosixPath(index_path).parent
+    for name, identity in reviewed.items():
+        raw = read_input(root, pack / name)
+        if len(raw) != identity["size"] or sha256(raw) != identity["sha256"]:
+            raise SystemExit("Switch 2 Glacier tile file differs from the index: " + name)
 
 
 def repository_inputs(root: Path) -> dict[str, str]:
@@ -199,9 +243,13 @@ def repository_inputs(root: Path) -> dict[str, str]:
             declarations[name] = update["after"]
         bundle = glacier.get("bundled_assets", {})
         index_path = bundle.get("index", "")
+        # A later review overlay may move the pack index on (the Switch 2 tile); it binds this digest.
+        later_glacier_index = (root / SWITCH2_TILE_REVIEW).is_file()
         if (index_path != "assets/system_art/rewindbox-glacier/bundle-index.json" or
-                bundle.get("index_sha256") != sha256(read_input(root, root / index_path))):
+                (not later_glacier_index and bundle.get("index_sha256") != sha256(read_input(root, root / index_path)))):
             raise SystemExit("RewindBox Glacier bundled pack index changed since review")
+        if later_glacier_index:
+            check_switch2_glacier_tile(root, package_audit["pubspec_lock_sha256"])
     # RewindBox Pocket originals: pubspec.yaml declares the two bundled original
     # skin packs. No package, dependency, engine or native source changes; the
     # catalog binds each archive to its size and SHA-256.

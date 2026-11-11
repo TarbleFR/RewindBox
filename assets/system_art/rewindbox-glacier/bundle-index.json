@@ -4,17 +4,17 @@
  "name": "RewindBox Glacier",
  "version": "1.0.0",
  "catalogueCommit": "0ec7450d2e0c6ea03189303563cad82b1fb10ca8",
- "contentDigest": "f1e88a6f394c16fb48eae5ec538c2d37c0b6585940979450f85b7c702c438ab6",
+ "contentDigest": "2866ecc6951eb9d98c2ab69fa67620ebe98043c962d1a989f31726ad58eca44a",
  "files": [
   {
    "path": "theme.json",
-   "size": 8436,
-   "sha256": "e4c6653105eb40febcddd1854206dd8747989c01fce0eaa027353333fe173295"
+   "size": 8451,
+   "sha256": "b4181766f79de9cef149be960dcac99187ce2c38438713d1173b5dd74242fffc"
   },
   {
    "path": "aliases.json",
-   "size": 128614,
-   "sha256": "abc128caf85eff37c3184512ef1e793bc5691faf445991ba767b5e6f2699ed0c"
+   "size": 129221,
+   "sha256": "133503d8f45971d2938c0aae15f6c52e1921b246a2126c597fa24ae71d790756"
   },
   {
    "path": "preview.webp",
@@ -23,8 +23,8 @@
   },
   {
    "path": "CREDITS.md",
-   "size": 1395,
-   "sha256": "77889e2f93b4181ebbf6061743a0912b15b2cfa2742eea929f6452cdc1c41267"
+   "size": 1762,
+   "sha256": "ea7720fed07fca2533d9de7751253f94efeb3b6a81fc998de20b492f45d9c26c"
   },
   {
    "path": "CC-BY-4.0.txt",
@@ -535,6 +535,11 @@
    "path": "backgrounds/switch.webp",
    "size": 16234,
    "sha256": "4a6e8c3ec800368cbc6dc16cf3768e06140efd956c01a7891e5bf1bf9aa1f607"
+  },
+  {
+   "path": "backgrounds/switch2.webp",
+   "size": 11182,
+   "sha256": "46e2fb681760a6cc6f2369e985a321dc054310d256cca76a41cece251a83ea2d"
   },
   {
    "path": "backgrounds/tg16.webp",

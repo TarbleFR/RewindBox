@@ -19,6 +19,9 @@ import '../../services/logger_service.dart';
 import '../../services/melonx_internal_service.dart';
 import '../../services/xenia_internal_service.dart';
 import '../../l10n/xenia_locale.dart';
+import '../../l10n/s2arm_engine_locale.dart';
+import '../../l10n/switch2_library_locale.dart';
+import '../../services/s2arm_internal_service.dart';
 import 'package:xenia_internal_bridge/xenia_internal_bridge.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import '../../widgets/library_folder_report_dialog.dart';
@@ -104,6 +107,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   /// XeniOS on this device and build; null until known.
   XeniaRuntimeAvailability? _xenia;
 
+  /// S2Arm (Switch 2) on this device and build; null until known.
+  S2ArmRuntimeAvailability? _s2arm;
+
   /// Captured while the page is shown, so the outcome of an operation is
   /// still announced, in the user's language, after a tab switch disposed
   /// the page.
@@ -153,6 +159,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     XeniaInternalService.availability().then((availability) {
       if (mounted) setState(() => _xenia = availability);
     });
+    S2ArmInternalService.availability().then((availability) {
+      if (mounted) setState(() => _s2arm = availability);
+    });
   }
 
   @override
@@ -201,6 +210,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   bool _unavailable(ConsoleEntry entry) {
     if (entry.engine == ConsoleEngine.melonx) return !_melonxAvailable;
     if (entry.engine == ConsoleEngine.xenia) return !(_xenia?.ready ?? false);
+    if (entry.engine == ConsoleEngine.s2arm) return !(_s2arm?.ready ?? false);
     final bundled = _bundled;
     if (bundled == null || entry.engine != ConsoleEngine.libretro) return false;
     final console = entry.libretro;
@@ -233,6 +243,25 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         XeniaRuntimeState.unsupportedPlatform => 'unsupportedPlatform',
         _ => 'engineMissing',
       });
+
+  /// Why the S2Arm engine cannot run, for the Switch 2 row.
+  String _s2armUnavailableLine() {
+    switch (_s2arm?.state) {
+      case S2ArmRuntimeState.requiresIOS26:
+        return Switch2LibraryLocale.forLocale(_locale, 'requiresIOS26');
+      case S2ArmRuntimeState.systemDataMissing:
+        return S2ArmEngineLocale.text(_locale, 'systemDataMissing');
+      case S2ArmRuntimeState.jitHelperMissing:
+        return S2ArmEngineLocale.text(_locale, 'jitUnavailable');
+      case S2ArmRuntimeState.unsupportedPlatform:
+      case S2ArmRuntimeState.unknown:
+        return S2ArmEngineLocale.text(_locale, 'unavailable');
+      case S2ArmRuntimeState.ready:
+      case S2ArmRuntimeState.engineMissing:
+      case null:
+        return S2ArmEngineLocale.text(_locale, 'engineChainMissing');
+    }
+  }
 
   /// The system games of [console] are imported into, from the provider's
   /// systems (the database when they are not loaded yet).
@@ -567,7 +596,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     final provider = context.read<SqliteConfigProvider>();
     final missing = <ConsoleEntry>[
       for (final entry in _listed)
-        if ((entry.engine != ConsoleEngine.xenia ||
+        if (((entry.engine != ConsoleEngine.xenia &&
+                    entry.engine != ConsoleEngine.s2arm) ||
                 _policy.isConsoleEnabled(entry.id)) &&
             !LibretroMainMenu.stateOfEntry(
               entry,
@@ -906,6 +936,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'});
       case ConsoleEngine.xenia:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'XeniOS'});
+      case ConsoleEngine.s2arm:
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'S2Arm'});
       case ConsoleEngine.retroarch:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'RetroArch'});
     }
@@ -1036,6 +1068,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
           Icons.block,
           entry.engine == ConsoleEngine.xenia
               ? _xeniaUnavailableLine()
+              : entry.engine == ConsoleEngine.s2arm
+              ? _s2armUnavailableLine()
               : _c(ConsoleManagerLocale.unavailable),
           key: ValueKey('console-unavailable-${entry.id}'),
         )

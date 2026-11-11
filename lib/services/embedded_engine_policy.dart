@@ -33,8 +33,12 @@ class EmbeddedEnginePolicy extends ChangeNotifier {
   static const String enabledPreferenceKey = 'console_engines_enabled_v1';
 
   /// Consoles whose built-in engine starts switched off until the user turns
-  /// it on (Xbox 360: docs/xenios-playlist.md § Consoles tab).
-  static const Set<String> defaultDisabledConsoles = <String>{'xbox360'};
+  /// it on (Xbox 360: docs/xenios-playlist.md § Consoles tab; Switch 2:
+  /// docs/s2arm-switch2-library.md).
+  static const Set<String> defaultDisabledConsoles = <String>{
+    'xbox360',
+    'switch2',
+  };
 
   /// Embedded engines exist in the iOS app only.
   static bool get isSupportedPlatform =>

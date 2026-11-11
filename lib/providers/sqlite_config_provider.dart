@@ -4,6 +4,9 @@ import 'dart:async';
 import '../services/dolphin_internal_v2_service.dart';
 import '../services/armsx2_internal_service.dart';
 import '../services/xenia_internal_service.dart';
+import '../services/s2arm_internal_service.dart';
+import '../services/switch2_export_content.dart';
+import 'package:path/path.dart' as s2arm_path;
 /* DOLPHIN_ISOLATION_END: provider_import */
 import 'dart:io';
 import 'package:flutter/foundation.dart';
