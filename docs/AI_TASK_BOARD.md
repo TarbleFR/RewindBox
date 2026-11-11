@@ -3780,6 +3780,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (its run `42933024817`), reviewed here against the probe: signatures, phase order, journal match.
   It runs only with `RewindBoxS2ArmProbe`, on the first JIT transaction, with the universal helper
   (iOS 26).
+- **Parallel studies (11 Nov, maintainer request; reading only):** [JIT helpers of the other
+  engines, runtime cohabitation, preparation chain, proposed batches](s2arm-study-2026-11-11.md).
+  Findings: only the MeloNX bridge limits JIT to one transaction per process (ARMSX2 re-attaches
+  at every launch); RPCS3 already reserves chosen address ranges for JIT (asked main how, and
+  whether device-observed); S2Arm installs signal handlers without chaining and links its
+  NativeAOT services statically; no complete on-device preparation exists upstream. No batch
+  is started or committed to.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
   IPA are main's to add.
