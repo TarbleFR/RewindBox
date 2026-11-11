@@ -649,7 +649,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     PATCHRELIEF932 lines, the MoltenVK setting and the whole canary file). Its Apple host job passed 14/15 and failed in the
     core932 driver on `import yaml` (no PyYAML in the runner's Python): the lot test now reads the canary file with a reader
     of its YAML subset, compared with PyYAML wherever installed, every check kept (`c54a09ef`); Apple-only rerun requested
-    (`dba7158e`, run `43073197832`). Pin after that rerun.
+    (`dba7158e`, run `43073197832`). Attempt 1 failed on the mock ZCULL race below; attempt 2 on the same commit:
+    **15/15 green** (job `130722521703`, report `13884722914` `a5470c58`). **Core 932 pinned:** `core-pin.json`
+    `71b26a0b`, verified (core job `130690402755`, artifact `13877983017`, payload fingerprint `d405ca4d`; replaces Core
+    931, fingerprint `17802f8e`).
   - **Core 933 (source `cab3606b`, request `bbef3768`, run `43077626247`):** iPhone Core job **green** (artifact
     `13884331357`, zip `98a5f3a8` 30,567,592 B, dylib `fb1d3f0f` 81,096,000 B, identity `rpcs3-ios-core933`, ABI 30; the
     library holds `Resolved title policy 933`, `COREPROF LOCALPROFILE933`, the profile header and path). Apple host job:
@@ -673,7 +676,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Core 934 candidate rejected with evidence:** the stale texture sweep costs 14-29 ms per 5 s window on average (max
     46 ms), about 1 % of the RSX thread, in the IPA 723/724 BO2 journals, and released 1,151 MiB over 106 windows; cutting
     it when hot would save almost nothing and keep that memory.
-  - **Open / next:** pin Core 932 (after the Apple rerun), then Core 933 (after its Apple host job).
+  - **Open / next:** pin Core 933 (its Apple host job passed, 18:57).
     IPA 725 BO2: Core 925 packing observed (vma_unused 32-106 MiB vs 45-360 on 724; footprint 2.60-2.97 GB vs 3.40-4.06);
     FPS 53.7 → 18.3 in 127 s with constant work per frame and doubled unit costs as the device heats (SPU waits sleep, not
     spin). Nothing measured on an iPhone for 932/933; no IPA before the other sessions are ready.

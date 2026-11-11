@@ -14,6 +14,15 @@ absent du Python du runner). Depuis `c54a09ef`, le test du lot lit le fichier ca
 il est écrit. Partout où PyYAML est installé, les deux lectures sont comparées : aucun contrôle n'est sauté. Les seuls
 harnais Apple ont été relancés (`dba7158e`, run `43073197832`).
 
+Relance Apple, tentative 1 : un seul contrôle en échec, dans le harnais ZCULL hérité du Core 630 (ASan, arbre ramené au
+Core 630) : `forced_passes >= 1` lu à 0. Cause : une course dans le fil RSX simulé du test, qui comptait sa passe forcée
+après avoir libéré les pages ; l'attente de l'invité se termine dès que sa page est libérée. Le Core n'est pas en cause.
+Reproduite sur l'arbre 630 reconstruit, corrigée dans le test sans retirer de contrôle (`31684e4d`). Tentative 2 (même
+commit, sans la correction) : **15 commandes sur 15 vertes** (travail `130722521703`, rapport `13884722914`, `a5470c58…`).
+
+**Épinglé** : `core-pin.json` `71b26a0b…`, statut `verified`. Travail Core `130690402755` (run `43068680664`), artefact
+`13877983017`, empreinte de charge `d405ca4d…`. Remplace le Core 931 (run `43038892948`, empreinte `17802f8e…`).
+
 Moteur : branche `core932-armsx3` (base Core 931 `605901a`), commits `f361e35`, `025a03a` (correctif de revue) puis
 `94354ea` (les entrées MLAA de Killzone 3 gardent leur défaut de la base, § 2.9). Canonique `9a113440` (472 fichiers), delta
 `702d293a`, build 932.
