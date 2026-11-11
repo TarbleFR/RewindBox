@@ -33,6 +33,20 @@ abstract final class LibraryFolderReport {
         LibraryLinkLocale.textFor(language, key, values);
 
     final lines = <LibraryReportLine>[LibraryReportLine(LibraryReportLineKind.folder, t('reportFolder', {'folder': location}))];
+    final picked = inspection.pickedConsole;
+    if (picked != null) {
+      // The user chose the folder of one console: say which folder to
+      // choose instead, and nothing else (its games are not "loose").
+      lines.add(LibraryReportLine(
+        LibraryReportLineKind.problem,
+        t('reportPickedConsole', {
+          'folder': picked.folderName,
+          'console': picked.system.name,
+          'count': picked.games,
+        }),
+      ));
+      return lines;
+    }
     if (!inspection.recognised) {
       lines.add(LibraryReportLine(
         LibraryReportLineKind.problem,
@@ -109,6 +123,8 @@ class LibraryFolderReportDialog extends StatefulWidget {
     required this.lines,
     required this.confirmLabel,
     required this.positive,
+    this.title,
+    this.showCancel = true,
   });
 
   final List<LibraryReportLine> lines;
@@ -118,13 +134,42 @@ class LibraryFolderReportDialog extends StatefulWidget {
   /// another choice (neutral colour).
   final bool positive;
 
-  /// [confirmKey] is the `LibraryLinkLocale` key of the confirm button.
+  /// The dialog's title; the library-folder title when null.
+  final String? title;
+
+  /// Whether a cancel button stands next to the confirm one. A plain report
+  /// (nothing to decide) has a single button.
+  final bool showCancel;
+
+  /// Shows a result that is too long for a notice (every file an import
+  /// refused, each with its reason) until the user closes it. One button;
+  /// the gamepad scrolls with up and down and closes with A or B.
+  static Future<void> showLines(
+    BuildContext context, {
+    required String title,
+    required List<LibraryReportLine> lines,
+    String? closeLabel,
+  }) => showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => LibraryFolderReportDialog(
+      lines: lines,
+      confirmLabel: closeLabel ?? AppLocale.ok.getString(ctx),
+      positive: false,
+      title: title,
+      showCancel: false,
+    ),
+  );
+
+  /// [confirmKey] is the `LibraryLinkLocale` key of the confirm button;
+  /// [confirmLabel], when given, is shown instead.
   static Future<bool> show(
     BuildContext context, {
     required LibraryFolderInspection inspection,
     required String location,
     required List<String> exampleFolders,
     required String confirmKey,
+    String? confirmLabel,
     bool positive = true,
   }) async {
     final language = LibraryLinkLocale.languageOf(Localizations.localeOf(context));
@@ -138,7 +183,7 @@ class LibraryFolderReportDialog extends StatefulWidget {
           location: location,
           exampleFolders: exampleFolders,
         ),
-        confirmLabel: LibraryLinkLocale.textFor(language, confirmKey),
+        confirmLabel: confirmLabel ?? LibraryLinkLocale.textFor(language, confirmKey),
         positive: positive,
       ),
     );
@@ -231,7 +276,7 @@ class _LibraryFolderReportDialogState extends State<LibraryFolderReportDialog> {
           SizedBox(width: 8.r),
           Flexible(
             child: Text(
-              LibraryLinkLocale.textFor(language, 'reportTitle'),
+              widget.title ?? LibraryLinkLocale.textFor(language, 'reportTitle'),
               style: theme.textTheme.titleMedium?.copyWith(
                 fontSize: 14.r,
                 color: accent,
@@ -268,32 +313,33 @@ class _LibraryFolderReportDialogState extends State<LibraryFolderReportDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          key: const ValueKey('library-folder-report-cancel'),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: Image.asset(
-                  'assets/images/gamepad/Xbox_B_button.png',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  colorBlendMode: BlendMode.srcIn,
+        if (widget.showCancel)
+          TextButton(
+            key: const ValueKey('library-folder-report-cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 18.r,
+                  height: 18.r,
+                  child: Image.asset(
+                    'assets/images/gamepad/Xbox_B_button.png',
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    colorBlendMode: BlendMode.srcIn,
+                  ),
                 ),
-              ),
-              SizedBox(width: 4.r),
-              Text(
-                AppLocale.cancel.getString(context),
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 12.r,
+                SizedBox(width: 4.r),
+                Text(
+                  AppLocale.cancel.getString(context),
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    fontSize: 12.r,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
         ElevatedButton(
           key: const ValueKey('library-folder-report-confirm'),
           style: ElevatedButton.styleFrom(

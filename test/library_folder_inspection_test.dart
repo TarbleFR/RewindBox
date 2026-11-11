@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/l10n/library_link_locale.dart';
 import 'package:neostation/models/system_model.dart';
+import 'package:neostation/screens/libretro/libretro_library_actions.dart';
+import 'package:neostation/services/neostation_rom_library.dart';
 import 'package:neostation/services/library_folder_inspection.dart';
 import 'package:neostation/services/library_folder_linker.dart';
 import 'package:neostation/widgets/library_folder_report_dialog.dart';
@@ -168,6 +171,49 @@ void main() {
       expect(lines, contains('warning: “My games”: 1 file(s). No console uses this folder name.'));
     });
 
+    test('the folder of one console, picked instead of the one that contains it, says which to choose', () async {
+      // The user opened "gba" itself: its games lie directly in the picked folder.
+      final picked = Directory(path.join(root.path, 'GBA'));
+      await picked.create();
+      await File(path.join(picked.path, 'Metroid.gba')).writeAsString('x');
+      await File(path.join(picked.path, 'Zelda.gba')).writeAsString('x');
+      await File(path.join(picked.path, 'notes.txt')).writeAsString('x');
+      final inspection = await LibraryFolderInspector.inspect(picked.path, systems);
+      expect(inspection.recognised, isFalse);
+      expect(inspection.pickedConsole?.system.id, 'gba');
+      expect(inspection.pickedConsole?.games, 2);
+      expect(inspection.pickedConsole?.folderName, 'GBA');
+      final lines = texts(inspection);
+      expect(lines, hasLength(2));
+      expect(lines.first, 'folder: Folder: Roms');
+      expect(
+        lines.last,
+        'problem: “GBA” is the folder of one console (Game Boy Advance: 2 game(s) inside). '
+        'Choose the folder that contains “GBA” instead: a library folder holds one folder per console.',
+      );
+    });
+
+    test('a library folder that happens to bear a console name is read as a library', () async {
+      // "snes" containing console folders is a library: the name alone decides nothing.
+      final library = Directory(path.join(root.path, 'snes'));
+      await File(path.join(library.path, 'gba', 'Metroid.gba')).create(recursive: true);
+      final inspection = await LibraryFolderInspector.inspect(library.path, systems);
+      expect(inspection.recognised, isTrue);
+      expect(inspection.pickedConsole, isNull);
+    });
+
+    test('the picked-console sentence exists in the twelve languages', () {
+      const languages = ['en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh_Hant'];
+      final english = LibraryLinkLocale.textFor('en', 'reportPickedConsole');
+      for (final language in languages) {
+        final text = LibraryLinkLocale.textFor(language, 'reportPickedConsole');
+        for (final placeholder in ['{folder}', '{console}', '{count}']) {
+          expect(text, contains(placeholder), reason: '$language $placeholder');
+        }
+        if (language != 'en') expect(text, isNot(english), reason: language);
+      }
+    });
+
     test('a long list of unrecognised folders is cut, with the count of the rest', () async {
       for (var index = 0; index < LibraryFolderReport.unknownLimit + 3; index++) {
         await file('Folder ${index.toString().padLeft(2, '0')}/a.zip');
@@ -232,6 +278,57 @@ void main() {
         LibraryFolderLinker.ensureReadable(path.join(root.path, 'missing')),
         throwsA(isA<FileSystemException>()),
       );
+    });
+  });
+
+  group('moving a library into RewindBox', () {
+    test('a move of nothing replaces nothing: the folders registered in the picked folder stay', () {
+      expect(libraryMoveReplacesSource(const RomLibraryMove()), isFalse,
+          reason: 'no console folder was recognised: an empty move used to count as complete');
+      expect(libraryMoveReplacesSource(const RomLibraryMove(ownLibrary: true)), isFalse,
+          reason: 'RewindBox\'s own folder was picked');
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 3)), isTrue);
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 1, alreadyPresent: 2, notRemoved: 1)), isTrue);
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 3, failed: 1)), isFalse,
+          reason: 'a game is still only in the source');
+    });
+
+    test('a plan is movable when it holds a game the move takes', () async {
+      await file('gc/Melee.iso');
+      final onlyKept = LibraryMovePlan(
+        location: 'Roms',
+        inspection: await LibraryFolderInspector.inspect(root.path, systems),
+        exampleFolders: const <String>['snes'],
+      );
+      expect(onlyKept.movable, isFalse, reason: 'GameCube keeps its games in RewindBox: its folder is not moved');
+      await file('snes/Zelda.sfc');
+      final withGames = LibraryMovePlan(
+        location: 'Roms',
+        inspection: await LibraryFolderInspector.inspect(root.path, systems),
+        exampleFolders: const <String>['snes'],
+      );
+      expect(withGames.movable, isTrue);
+    });
+
+    test('the folders of consoles that keep their games in RewindBox are left in the source', () async {
+      await file('source/snes/Zelda.sfc');
+      await file('source/gc/Melee.iso');
+      final roms = Directory(path.join(root.path, 'roms'));
+      await roms.create();
+      final moved = <String>{
+        for (final console in systems)
+          if (!console.importOnly) ...console.folderNames,
+      };
+      final move = await NeoStationRomLibrary.moveLibrary(
+        sourceRoot: path.join(root.path, 'source'),
+        romsRoot: roms.path,
+        consoleFolderNames: moved,
+      );
+      expect(move.moved, 1);
+      expect(File(path.join(roms.path, 'snes', 'Zelda.sfc')).existsSync(), isTrue);
+      expect(File(path.join(root.path, 'source', 'gc', 'Melee.iso')).existsSync(), isTrue,
+          reason: 'moved into roms it would show in no playlist');
+      expect(Directory(path.join(roms.path, 'gc')).existsSync(), isFalse);
     });
   });
 }

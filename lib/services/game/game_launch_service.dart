@@ -12,6 +12,7 @@ import 'package:neostation/l10n/rpcs3_library_file_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/console_manager_locale.dart';
+import 'package:neostation/l10n/launch_prerequisite_locale.dart';
 import 'package:neostation/l10n/melonx_locale.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:path/path.dart' as path;
@@ -28,6 +29,7 @@ import 'package:neostation/services/libretro_internal_service.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
+import 'package:neostation/services/launch_prerequisites.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/retired_ports_backup.dart';
 
@@ -219,8 +221,23 @@ class GameLaunchService {
           nativeStillActive: report['sessionActive'] == true,
         );
         final error = report['error']?.toString() ?? 'launchFailed';
+        // "JIT could not be authorized" covered a VPN that is off, a pairing
+        // file that was not chosen, an iOS that is too old and an
+        // installation that can never run JIT: each has its own sentence.
+        final prerequisite = error == 'jitPairingCancelled'
+            ? LaunchPrerequisite.pairingFile
+            : error == 'jitUnavailable'
+            ? LaunchPrerequisites.classifyText(
+                '${report['nativeStatus'] ?? ''} ${report['diagnostic'] ?? ''}',
+              )
+            : null;
         final localized = report['requiresRestart'] == true
             ? MelonxLaunchFailureLocale.text(locale, 'quarantined')
+            : prerequisite != null
+            ? LaunchPrerequisiteLocale.textFor(
+                LaunchPrerequisiteLocale.languageOf(locale),
+                prerequisite.key,
+              )
             : error == 'profileUnavailable' ||
                   report['diagnostic']?.toString().contains(
                         'profileUnavailable',
@@ -323,8 +340,16 @@ class GameLaunchService {
         );
         if (!context.mounted) return GameLaunchResult.failure('', '');
         if (!report.ready) {
+          // LocalDevVPN off, no pairing file, an installation without JIT…:
+          // the sentence that says what to do; the stage, the runtime
+          // message and the log stay in the technical details.
+          final prerequisite = LaunchPrerequisites.classifyText(
+            '${report.failedStage ?? ''} ${report.errorCode ?? ''} ${report.message}',
+          );
           return GameLaunchResult.failure(
-            DolphinImportLocale.text(context, 'launchFailed'),
+            prerequisite != null
+                ? LaunchPrerequisiteLocale.text(context, prerequisite.key)
+                : DolphinImportLocale.text(context, 'launchFailed'),
             'Dolphin stage: ${report.failedStage ?? "unknown"}\n'
             'Runtime message: ${report.message}\n'
             'Log: ${report.logPath}',
@@ -451,7 +476,7 @@ class GameLaunchService {
             if (!context.mounted) return GameLaunchResult.failure('', '');
             if (!outcome.success) {
               return GameLaunchResult.failure(
-                LibretroLocale.launchError(locale, outcome.errorCode, outcome.technicalDetails),
+                LibretroLocale.launchError(locale, outcome.errorCode, outcome.messageFiles),
                 outcome.technicalDetails,
               );
             }
@@ -533,11 +558,19 @@ class GameLaunchService {
             if (isArmsx2OwnedRom || isArmsx2VirtualRom) {
               final nativeError = Armsx2LibraryService.lastLaunchError?.trim();
               if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
+              final launchLocaleNow = Localizations.localeOf(context);
+              // What is missing and what to do (no BIOS, LocalDevVPN off, no
+              // pairing file, …) when the launch stopped for a known reason;
+              // the technical text stays in the details.
+              final prerequisite = Armsx2LibraryService.lastLaunchPrerequisite(
+                LaunchPrerequisiteLocale.languageOf(launchLocaleNow),
+              );
               return failExternal(GameLaunchResult.failure(
-                ConsoleManagerLocale.forLocale(
-                  Localizations.localeOf(context),
-                  ConsoleManagerLocale.launchArmsx2Failed,
-                ),
+                prerequisite ??
+                    ConsoleManagerLocale.forLocale(
+                      launchLocaleNow,
+                      ConsoleManagerLocale.launchArmsx2Failed,
+                    ),
                 nativeError != null && nativeError.isNotEmpty
                     ? nativeError
                     : game.romPath,

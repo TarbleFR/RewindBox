@@ -42,6 +42,7 @@ class _FakeClient implements Armsx2TextureClient {
   Map<String, dynamic> state;
   final calls = <List<Object?>>[];
   Map<String, dynamic> pickAnswer = const {'success': false, 'cancelled': true};
+  Object? pickThrows;
   Completer<Map<String, dynamic>>? installAnswer;
   Map<String, dynamic> installResult = const {'success': true};
   final progressEvents = StreamController<Map<String, dynamic>>.broadcast();
@@ -58,6 +59,8 @@ class _FakeClient implements Armsx2TextureClient {
     required bool folder,
   }) async {
     calls.add(['pick', gamePath, folder]);
+    final failure = pickThrows;
+    if (failure != null) throw failure;
     return pickAnswer;
   }
 
@@ -390,6 +393,21 @@ void main() {
     await tester.tap(find.byKey(Armsx2TexturePanel.rowKey('importArchive')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Espace libre insuffisant'), findsOneWidget);
+  });
+
+  testWidgets('a bridge exception ends the busy state and names the cause', (
+    tester,
+  ) async {
+    final client = _FakeClient(_status());
+    client.pickThrows = PlatformException(code: 'E', message: 'picker gone');
+    await pump(tester, client, locale: const Locale('en'));
+    await tester.tap(find.byKey(Armsx2TexturePanel.rowKey('importArchive')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('picker gone'), findsOneWidget);
+    client.pickThrows = MissingPluginException();
+    await tester.tap(find.byKey(Armsx2TexturePanel.rowKey('importArchive')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('MissingPluginException'), findsOneWidget);
   });
 
   testWidgets('progress is shown and the import can be cancelled', (

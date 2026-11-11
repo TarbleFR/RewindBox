@@ -4,6 +4,31 @@ import 'package:path/path.dart' as path;
 
 import 'libretro_core_catalog.dart';
 import 'logger_service.dart';
+import 'storage/storage_roots.dart';
+
+/// Why a game of a library move is not (fully) moved.
+enum RomLibraryFailureReason {
+  /// An iCloud placeholder: the game is not downloaded on this device.
+  icloud,
+
+  /// The copy has not the size of the original.
+  sizeMismatch,
+
+  /// The file could not be moved or copied.
+  copyError,
+
+  /// Copied, but the original could not be removed.
+  notRemoved,
+}
+
+/// One game that [NeoStationRomLibrary.moveLibrary] did not fully move.
+class RomLibraryFailure {
+  const RomLibraryFailure(this.name, this.reason);
+
+  /// File name (an iCloud placeholder `.Name.ext.icloud` shows as `Name.ext`).
+  final String name;
+  final RomLibraryFailureReason reason;
+}
 
 /// Outcome of [NeoStationRomLibrary.moveLibrary].
 class RomLibraryMove {
@@ -12,7 +37,20 @@ class RomLibraryMove {
     this.alreadyPresent = 0,
     this.notRemoved = 0,
     this.failed = 0,
+    this.ownLibrary = false,
+    this.unrecognisedFolders = const <String>[],
+    this.failures = const <RomLibraryFailure>[],
   });
+
+  /// The picked folder is NeoStation's own `roms` folder, holds it, or is
+  /// inside it: nothing was looked at.
+  final bool ownLibrary;
+
+  /// Sub-folders of the source that are not console folders, sorted.
+  final List<String> unrecognisedFolders;
+
+  /// The games that are not (fully) moved, with the cause.
+  final List<RomLibraryFailure> failures;
 
   /// Games now in NeoStation's library and gone from the source.
   final int moved;
@@ -47,6 +85,17 @@ abstract final class NeoStationRomLibrary {
       {for (final console in LibretroCoreCatalog.consoles.values) console.importFolder}.toList()
         ..sort();
 
+  /// A few console folder names to show as examples of what a library must
+  /// contain (up to five, real names of [consoleFolders]).
+  static List<String> exampleFolders() {
+    final folders = consoleFolders();
+    final preferred = <String>[
+      for (final name in const <String>['gba', 'snes', 'psp', 'ps1', '3ds'])
+        if (folders.contains(name)) name,
+    ];
+    return preferred.isNotEmpty ? preferred : folders.take(5).toList();
+  }
+
   /// Creates `<romsRoot>/<console>` for every console of the embedded engine;
   /// existing folders and their games are kept. Returns the folders created.
   static Future<int> createConsoleFolders(String romsRoot) async {
@@ -80,18 +129,37 @@ abstract final class NeoStationRomLibrary {
   }) async {
     final source = path.normalize(sourceRoot);
     final destination = path.normalize(romsRoot);
-    if (source == destination || path.isWithin(destination, source) || path.isWithin(source, destination)) {
-      return const RomLibraryMove();
+    // iOS spells one folder `/var/…` or `/private/var/…`; a symlink too.
+    final canonicalSource = storageCanonicalPath(_resolved(source));
+    final canonicalDestination = storageCanonicalPath(_resolved(destination));
+    if (canonicalSource == canonicalDestination ||
+        path.isWithin(canonicalDestination, canonicalSource) ||
+        path.isWithin(canonicalSource, canonicalDestination)) {
+      return const RomLibraryMove(ownLibrary: true);
     }
     final names = {for (final name in consoleFolderNames) name.trim().toLowerCase()};
     final files = <File>[];
     var failed = 0;
+    final failures = <RomLibraryFailure>[];
+    final unrecognised = <String>[];
     await for (final entity in Directory(source).list(followLinks: false)) {
-      if (entity is! Directory || !names.contains(path.basename(entity.path).trim().toLowerCase())) continue;
+      if (entity is! Directory) continue;
+      if (!names.contains(path.basename(entity.path).trim().toLowerCase())) {
+        final name = path.basename(entity.path);
+        if (!name.startsWith('.')) unrecognised.add(name);
+        continue;
+      }
       await for (final item in entity.list(recursive: true, followLinks: false)) {
         if (item is! File) continue;
         if (path.basename(item.path).startsWith('.')) {
-          if (item.path.endsWith('.icloud')) failed++;
+          final hidden = path.basename(item.path);
+          // An iCloud placeholder is `.<name>.icloud`; `.icloud` and
+          // `..icloud` hold no name: plain hidden files.
+          if (hidden.endsWith('.icloud') && hidden.length > '.icloud'.length + 1) {
+            failed++;
+            final name = hidden.substring(1, hidden.length - '.icloud'.length);
+            failures.add(RomLibraryFailure(name, RomLibraryFailureReason.icloud));
+          }
           continue;
         }
         files.add(item);
@@ -123,6 +191,7 @@ abstract final class NeoStationRomLibrary {
           if (await copied.length() != length) {
             await copied.delete();
             failed++;
+            failures.add(RomLibraryFailure(path.basename(file.path), RomLibraryFailureReason.sizeMismatch));
             continue;
           }
           try {
@@ -131,11 +200,13 @@ abstract final class NeoStationRomLibrary {
           } catch (error) {
             _log.w('Library move kept the original of ${file.path}: $error');
             notRemoved++;
+            failures.add(RomLibraryFailure(path.basename(file.path), RomLibraryFailureReason.notRemoved));
           }
         }
       } catch (error) {
         _log.w('Library move skipped ${file.path}: $error');
         failed++;
+        failures.add(RomLibraryFailure(path.basename(file.path), RomLibraryFailureReason.copyError));
       } finally {
         onProgress?.call(moved + alreadyPresent + notRemoved + failed, total);
       }
@@ -144,7 +215,22 @@ abstract final class NeoStationRomLibrary {
       'Library moved from $source to $destination: moved=$moved alreadyPresent=$alreadyPresent '
       'notRemoved=$notRemoved failed=$failed',
     );
-    return RomLibraryMove(moved: moved, alreadyPresent: alreadyPresent, notRemoved: notRemoved, failed: failed);
+    return RomLibraryMove(
+      moved: moved,
+      alreadyPresent: alreadyPresent,
+      notRemoved: notRemoved,
+      failed: failed,
+      unrecognisedFolders: unrecognised..sort(),
+      failures: failures,
+    );
+  }
+
+  static String _resolved(String directory) {
+    try {
+      return Directory(directory).existsSync() ? Directory(directory).resolveSymbolicLinksSync() : directory;
+    } catch (_) {
+      return directory;
+    }
   }
 
   static Future<File> _unique(File file) async {

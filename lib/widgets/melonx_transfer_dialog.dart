@@ -165,6 +165,8 @@ Future<bool> showMelonxTransfer(
       final bookmark =
           'rewindbox.melonx.transfer.${DateTime.now().microsecondsSinceEpoch}';
       if (kind != 'archive') {
+        // A failed pick throws an ExternalFolderAccessException with its
+        // native reason; the caller turns it into the folder sentence.
         final selected = await ExternalFolderAccess.pickAndActivateFolder(
           key: bookmark,
         );

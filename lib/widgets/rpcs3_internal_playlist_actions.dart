@@ -12,6 +12,7 @@ import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_rap_licence_service.dart';
 import 'rpcs3_firmware_preflight_dialog.dart';
 import 'rpcs3_rap_import_report_dialog.dart';
+import 'rpcs3_import_report.dart';
 
 /// Owns the PS3 firmware gate and, once installed, the library import menu.
 /// The host mounts this over the library before loading or displaying games.
@@ -118,11 +119,20 @@ class _Rpcs3InternalPlaylistActionsState
     _interaction(true);
   }
 
-  void _notice(String message) {
+  void _notice(String message, {Duration? duration}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: duration ?? const Duration(seconds: 4),
+      ),
+    );
   }
+
+  /// Picker and disk-space failures get a localized sentence; anything else
+  /// keeps the generic text followed by the raw cause.
+  String _describe(Object error) =>
+      Rpcs3ImportMessages.describeKnownError(error, _t) ?? '$_failed $error';
 
   Future<void> _checkFirmware() async {
     setState(() {
@@ -181,7 +191,7 @@ class _Rpcs3InternalPlaylistActionsState
     } on Rpcs3InternalException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (error) {
-      if (mounted) setState(() => _error = '$_failed $error');
+      if (mounted) setState(() => _error = _describe(error));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -234,28 +244,60 @@ class _Rpcs3InternalPlaylistActionsState
     });
     _showOperationOverlay();
     _interaction(true);
+    // More refused files than a notice names: the whole result is shown in
+    // a dialog, once the operation overlay (a root entry that would cover
+    // it) is gone.
+    Rpcs3ImportResult? fullReport;
+    String? fullReportRefreshError;
     try {
       if (action == 'games') {
         final result = await Rpcs3ContentImportService.importGames();
+        final refreshError = result is Rpcs3GamesImportResult
+            ? result.libraryRefreshError
+            : null;
         if (result.imported > 0) await widget.onLibraryChanged();
-        if (result.rejected > 0) {
-          _notice(result.errors.isNotEmpty ? result.errors.first : _failed);
+        // The texts below read the context: the list may have been left
+        // during a long installation.
+        if (!mounted) return;
+        if (result.rejected > 0 || refreshError != null) {
+          if (rpcs3ImportNeedsReport(result.errors)) {
+            fullReport = result;
+            fullReportRefreshError = refreshError;
+          } else {
+            final lines = <String>[
+              if (result.imported > 0)
+                _tf('gamesImported', {'count': result.imported}),
+              if (result.rejected > 0)
+                result.errors.isNotEmpty
+                    ? Rpcs3ImportMessages.refusalSummary(result.errors, _t)
+                    : _t('importRejected'),
+              ?refreshError,
+            ];
+            _notice(lines.join('\n'), duration: const Duration(seconds: 12));
+          }
         }
       } else if (action == 'folder') {
         if (await Rpcs3ContentImportService.importExtractedGameFolder()) {
           await widget.onLibraryChanged();
+          // The sentence says the installation is done and how to see it.
+          final refreshError = Rpcs3ContentImportService.lastFolderRefreshError;
+          if (refreshError != null) {
+            _notice(refreshError, duration: const Duration(seconds: 12));
+          }
         }
       } else if (action == 'saves') {
         await Rpcs3InternalService.exportSaveData();
+        if (!mounted) return;
         _notice(_t('savesAvailable'));
       } else if (action == 'restoreSaves') {
         final imported = await Rpcs3InternalService.importSaveDataFromFiles();
+        if (!mounted) return;
         _notice(_tf('savesImported', {'count': imported}));
       }
     } on Rpcs3InternalException catch (error) {
       _notice(error.message);
     } catch (error) {
-      _notice('$_failed $error');
+      if (mounted) _notice(_describe(error));
     } finally {
       if (mounted) {
         setState(() {
@@ -266,6 +308,14 @@ class _Rpcs3InternalPlaylistActionsState
         _hideOperationOverlay();
         _interaction(false);
       }
+    }
+    if (fullReport != null && mounted) {
+      await showRpcs3ImportReport(
+        context,
+        imported: fullReport.imported,
+        errors: fullReport.errors,
+        refreshError: fullReportRefreshError,
+      );
     }
   }
 
@@ -294,7 +344,10 @@ class _Rpcs3InternalPlaylistActionsState
         error: error,
         stackTrace: stack,
       );
-      if (mounted) _notice(Rpcs3RapLocale.text(context, 'rapImportFailed'));
+      if (mounted) {
+        final known = Rpcs3ImportMessages.describeKnownError(error, _t);
+        _notice(known ?? Rpcs3RapLocale.text(context, 'rapImportFailed'));
+      }
     } finally {
       if (mounted) {
         setState(() {

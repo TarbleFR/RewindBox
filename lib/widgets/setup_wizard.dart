@@ -28,10 +28,11 @@ import '../utils/gamepad_nav.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/library_link_locale.dart';
+import 'package:neostation/services/libretro_internal_service.dart';
+import 'package:neostation/widgets/library_folder_report_dialog.dart';
 import 'package:neostation/l10n/ios_setup_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/screens/libretro/libretro_library_actions.dart';
-import 'package:neostation/widgets/confirm_action_dialog.dart';
 
 import '../widgets/tv_directory_picker.dart';
 import '../widgets/folder_not_empty_dialog.dart';
@@ -2087,15 +2088,19 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
       } else {
         final outcome = await moveLibraryIntoNeoStation(
           provider,
-          confirm: (source) async {
-            if (!mounted) return false;
-            return ConfirmActionDialog.show(
+          confirm: (plan) async {
+            if (!mounted) return LibraryMoveChoice.cancel;
+            final confirmed = await LibraryFolderReportDialog.show(
               context,
-              title: LibretroLocale.text(context, 'libraryMoveConfirmTitle'),
-              body: LibretroLocale.formatContext(context, 'libraryMoveConfirmBody', {'folder': source}),
-              confirmLabel: LibretroLocale.text(context, 'libraryMoveConfirm'),
-              icon: Icons.drive_file_move_outline,
+              inspection: plan.inspection,
+              location: plan.location,
+              exampleFolders: plan.exampleFolders,
+              confirmKey: 'actionChooseAnother',
+              confirmLabel: plan.movable ? LibretroLocale.text(context, 'libraryMoveConfirm') : null,
+              positive: plan.movable,
             );
+            if (!confirmed) return LibraryMoveChoice.cancel;
+            return plan.movable ? LibraryMoveChoice.move : LibraryMoveChoice.another;
           },
           onProgress: (done, total) {
             if (mounted) {
@@ -2110,14 +2115,10 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
           final move = outcome.move;
           AppNotification.showNotification(
             context,
-            move.total == 0
-                ? LibretroLocale.formatContext(context, 'libraryMoveNothing', {'folder': outcome.source})
-                : LibretroLocale.formatContext(context, 'libraryMoved', {
-                    'moved': move.moved + move.notRemoved,
-                    'kept': move.alreadyPresent,
-                    'failed': move.failed,
-                  }),
-            type: move.complete ? NotificationType.info : NotificationType.error,
+            // Same sentences as the consoles screen: what moved, and each
+            // game that did not with its reason.
+            LibretroImportMessages.forMove(Localizations.localeOf(context), move, outcome.source),
+            type: move.complete && move.total > 0 ? NotificationType.info : NotificationType.error,
           );
           ready = move.total > 0;
         }
