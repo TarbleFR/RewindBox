@@ -11,6 +11,9 @@ headers, the synthetic modules of make_synth_nso.py, ZBIC modules from make_synt
 an NPDM with only the fields read. For each case both sides convert the same folder; a
 success needs the same tree (names, directories, bytes; the content of .ns2_dump_key is
 excluded, see s2arm_ns2_dump.h), a failure of the original needs a failure of ours.
+The "views" cases run ours with --reference (RomFS and DLC read in place through relative
+symlinks): the tree seen through the links must be the original's copy, every link relative
+and inside the export folder.
 """
 import os
 import random
@@ -207,6 +210,57 @@ class Runner:
         report(ok, name, f'reference rc={e.returncode} {e.stdout.strip()!r}; mine rc={r.returncode} {r.stdout.strip()!r}')
 
 
+def view_tree(root, export):
+    """tree() seen through the symlinks of --reference (followed); None and a reason when a link is
+    absolute, dangling or leaves the export folder."""
+    out, root, top = {}, Path(root), os.path.realpath(export)
+    if not root.is_dir():
+        return None, 'no output'
+
+    def visit(p, rel):
+        for name in sorted(os.listdir(p)):
+            q, r = p / name, (rel + '/' if rel else '') + name
+            if q.is_symlink():
+                target = os.readlink(q)
+                real = os.path.realpath(q)
+                if os.path.isabs(target) or not os.path.exists(real) or os.path.commonpath([real, top]) != top:
+                    return f'link {r} -> {target}'
+            if q.is_dir():
+                out[r + '/'] = 'dir'
+                problem = visit(q, r)
+                if problem:
+                    return problem
+            elif name == '.ns2_dump_key':
+                out[r] = 'key'
+            else:
+                out[r] = q.read_bytes()
+        return None
+    problem = visit(root, '')
+    return (None, problem) if problem else (out, None)
+
+
+def check_views(run, name, export, args=()):
+    """Ours with --reference against the original's copy (ours in copy mode with --mine-only)."""
+    d = run.work / f'{name}-views'
+    shutil.rmtree(d, ignore_errors=True)
+    copy, view = d / 'copy', d / 'view'
+    if run.mine_only:
+        rc_c, log_c = run.mine(export, copy, args)
+    else:
+        rc_c, log_c = run.reference(export, copy, args)
+    rc_v, log_v = run.mine(export, view, (*args, '--reference'))
+    if rc_c != 0:
+        report(rc_v != 0, f'{name}-views', f'copy fails ({log_c[-120:]}); views rc={rc_v}')
+        return
+    want = tree(copy)
+    got, problem = view_tree(view, export)
+    links = sum(1 for p in view.rglob('*') if p.is_symlink()) if view.is_dir() else 0
+    different = sorted(k for k in set(want) | set(got or {}) if want.get(k) != (got or {}).get(k)) if got is not None else []
+    ok = rc_v == 0 and got is not None and not different and links > 0
+    report(ok, f'{name}-views', f'{len(want)} entries through {links} links' if ok else
+           f'rc={rc_v} {log_v[-160:]}; {problem or ""} differing: {different[:8]}')
+
+
 def unpack(out):
     return dict(line.rstrip('\n').split('\t', 1) for line in open(Path(out) / 'unpack.tsv', encoding='utf-8'))
 
@@ -379,7 +433,18 @@ def main():
         p.unlink()
     (f9 / 'base/exefs/main').unlink()
     run.case('no-main', f9, expect='fail')
-    # 10. decompression bombs and the host cap (ours only)
+    # 10. in-place views (--reference): directory link, per-file links (overlay, .listing, empty folder), DLC layouts
+    check_views(run, 'full-update', full)
+    check_views(run, 'delta-update', inputs / 'Delta')
+    check_views(run, 'base-only-from-parent', b.parent)
+    check_views(run, 'no-base-romfs-dlc-layouts', d5)
+    v1 = mk(inputs / 'ViewListing')
+    w(v1 / 'updates/458752/romfs/A/.listing', b'x')
+    check_views(run, 'romfs-with-listing', v1)
+    v2 = mk(inputs / 'ViewEmptyDir')
+    (v2 / 'updates/458752/romfs/E/F').mkdir(parents=True)
+    check_views(run, 'romfs-with-empty-folder', v2)
+    # 11. decompression bombs and the host cap (ours only)
     b1 = mk(inputs / 'ZbicBomb')
     w(b1 / 'updates/458752/exefs/main', zbic.rle_bomb_nso([1 << 30] * 3))
     run.ours_only('bomb-zbic-main-3GiB', b1, (), 'above the limit')

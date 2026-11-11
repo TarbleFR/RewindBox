@@ -7,7 +7,7 @@
 #if defined(__APPLE__)
 #define _DARWIN_C_SOURCE
 #else
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700   // realpath, symlink
 #endif
 #include "s2arm_ns2_dump.h"
 #include "lz4.h"
@@ -1045,19 +1045,90 @@ static int src_key(ctx_t *x, const char *dump, int reference, char key[17]) {
     return 0;
 }
 
-// ---------------- the conversion ----------------
+// ---------------- in-place views (reference mode) ----------------
+// Relative path from directory `from` to `to` (both absolute and resolved), as os.path.relpath.
+static char *relpath(const char *to, const char *from) {
+    size_t i = 0, common = 0;
+    while (to[i] && from[i] && to[i] == from[i]) {
+        if (to[i] == '/') common = i;
+        i++;
+    }
+    if ((!to[i] || to[i] == '/') && (!from[i] || from[i] == '/')) common = i;
+    sb_t b = {0};
+    const char *rest = from + common;
+    while (*rest == '/') rest++;
+    int ok = 1;
+    while (*rest && ok) {
+        ok = sb_str(&b, b.n ? "/.." : "..");
+        const char *slash = strchr(rest, '/');
+        rest = slash ? slash + 1 : rest + strlen(rest);
+        while (*rest == '/') rest++;
+    }
+    const char *tail = to + common;
+    while (*tail == '/') tail++;
+    if (ok && *tail) ok = (!b.n || sb_str(&b, "/")) && sb_str(&b, tail);
+    if (ok && !b.n) ok = sb_str(&b, ".");
+    if (!ok) {
+        free(b.p);
+        return NULL;
+    }
+    return b.p;
+}
+
+// 1 when a directory holds only real directories (none empty) and regular files other than
+// ".listing": the walk then sees exactly its content, and a directory symlink can stand for the copy.
+static int tree_clean(const char *dir, int depth) {
+    if (depth > MAX_DEPTH) return 0;
+    list_t names = {0};
+    if (listdir(dir, &names) || !names.n) {
+        list_free(&names);
+        return 0;
+    }
+    int ok = 1;
+    for (size_t i = 0; i < names.n && ok; i++) {
+        char *p = pjoin(dir, names.v[i]);
+        struct stat st;
+        if (!p || lstat(p, &st)) ok = 0;
+        else if (S_ISDIR(st.st_mode)) ok = tree_clean(p, depth + 1);
+        else ok = S_ISREG(st.st_mode) && strcmp(names.v[i], ".listing");
+        free(p);
+    }
+    list_free(&names);
+    return ok;
+}
+
 typedef struct {
-    sb_t sources;   // data_sources.tsv in reference mode
+    char *final_out;   // the resolved path the output will have once renamed into place
+    char *real_dump;   // the resolved export folder
+    const char *dump;  // the export folder as given: every source path starts with it
+    size_t dump_len;
 } out_t;
+
+// A relative symlink at <tmp>/<area>/<rel> (rel may be empty: the area itself) to a path under the export folder.
+static int link_view(ctx_t *x, out_t *o, const char *src, const char *tmp, const char *area, const char *rel) {
+    char *at = *rel ? pjoin3(tmp, area, rel) : pjoin(tmp, area);
+    const char *tail = !strncmp(src, o->dump, o->dump_len) ? src + o->dump_len : NULL;
+    while (tail && *tail == '/') tail++;
+    char *real = tail ? (*tail ? pjoin(o->real_dump, tail) : sdup(o->real_dump)) : NULL;
+    char *where = *rel ? pjoin3(o->final_out, area, rel) : pjoin(o->final_out, area);
+    char *slash = where ? strrchr(where, '/') : NULL;
+    if (slash) *slash = 0;   // the directory the link lives in
+    char *target = real && where ? relpath(real, where) : NULL;
+    int r = -1;
+    if (at && target && !make_parent(at)) {
+        unlink(at);
+        r = symlink(target, at);
+    }
+    free(at);
+    free(real);
+    free(where);
+    free(target);
+    return r ? fail(x, RB_S2ARM_NS2_IO, "cannot link %s", src) : 0;
+}
 
 static int place(ctx_t *x, out_t *o, const char *src, const char *tmp, const char *area, const char *rel) {
     if (cancelled(x)) return fail(x, RB_S2ARM_NS2_CANCELLED, "cancelled");
-    if (x->request->reference_data) {
-        if (!sb_str(&o->sources, area) || !sb_str(&o->sources, "\t") || !sb_str(&o->sources, rel) || !sb_str(&o->sources, "\t") ||
-            !sb_str(&o->sources, src) || !sb_str(&o->sources, "\n"))
-            return fail(x, RB_S2ARM_NS2_IO, "out of memory");
-        return 0;
-    }
+    if (x->request->reference_data) return link_view(x, o, src, tmp, area, rel);
     char *dst = pjoin3(tmp, area, rel);
     int r = dst ? copy_file(src, dst) : -1;
     free(dst);
@@ -1080,7 +1151,7 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
     char *icon = NULL, *dumpname = NULL;
     list_t ups = {0}, dlcs = {0};
     map_t ex = {0}, rb = {0}, ru = {0};
-    out_t o = {{0}};
+    out_t o = {NULL, NULL, NULL, 0};
     sb_t builds = {0}, aoc_rows = {0}, aoc_idx = {0}, text = {0}, nm = {0}, nzh = {0}, dver = {0};
     uint8_t *nacp = malloc(NACP_SIZE);
     uint64_t tid = 0, tid2 = 0;
@@ -1116,6 +1187,23 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
         goto done;
     }
     sprintf(tmp, "%s.tmp", out);
+    if (rq->reference_data) {   // views are relative to where the output will be, and point into the resolved export
+        char *parent = sdup(out), *slash = parent ? strrchr(parent, '/') : NULL;
+        const char *base_name = strrchr(out, '/') ? strrchr(out, '/') + 1 : out;
+        if (slash == parent && parent) parent[1] = 0;
+        else if (slash) *slash = 0;
+        char *rp = parent ? realpath(slash ? parent : ".", NULL) : NULL;
+        o.final_out = rp ? pjoin(rp, base_name) : NULL;
+        o.real_dump = realpath(dump, NULL);
+        o.dump = dump;
+        o.dump_len = strlen(dump);
+        free(rp);
+        free(parent);
+        if (!o.final_out || !o.real_dump) {
+            code = fail(x, RB_S2ARM_NS2_IO, "cannot resolve the output or export folder");
+            goto done;
+        }
+    }
     {
         uint8_t head[64];
         size_t got = 0;
@@ -1317,6 +1405,16 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
             }
         list_free(&all);
     }
+    if (rq->reference_data && !overlay) {   // one export folder holds the whole RomFS: a directory symlink when nothing is left out
+        char *dir = pjoin(use_update_only ? upd : base, "romfs");
+        int whole = dir && tree_clean(dir, 0);
+        if (whole && (code = link_view(x, &o, dir, tmp, "romfs", ""))) {
+            free(dir);
+            goto done;
+        }
+        free(dir);
+        if (whole) goto romfs_done;
+    }
     {
         const map_t *first = use_update_only ? &ru : &rb;
         for (size_t i = 0; i < first->n; i++) {
@@ -1327,6 +1425,7 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
             for (size_t i = 0; i < ru.n; i++)
                 if ((code = place(x, &o, ru.abs[i], tmp, "romfs", ru.rel[i]))) goto done;
     }
+romfs_done:
 
     // DLC
     {
@@ -1540,13 +1639,6 @@ static int convert(ctx_t *x, const char *dump, const char *out, const char *name
         char keyline[18];
         snprintf(keyline, sizeof keyline, "%s\n", key);
         ok = ok && p && k && !write_all(p, u.p, u.n) && !write_all(k, keyline, 17);
-        if (ok && rq->reference_data) {
-            char *s = pjoin(tmp, "data_sources.tsv");
-            sb_t all = {0};
-            ok = s && sb_str(&all, "area\tpath\tsource\n") && (!o.sources.n || sb_add(&all, o.sources.p, o.sources.n)) && !write_all(s, all.p, all.n);
-            free(s);
-            free(all.p);
-        }
         free(p);
         free(k);
         free(u.p);
@@ -1569,7 +1661,7 @@ done:
     free(nacp);
     list_free(&ups), list_free(&dlcs);
     map_free(&ex), map_free(&rb), map_free(&ru);
-    free(o.sources.p), free(builds.p), free(aoc_rows.p), free(aoc_idx.p), free(text.p), free(nm.p), free(nzh.p), free(dver.p);
+    free(o.final_out), free(o.real_dump), free(builds.p), free(aoc_rows.p), free(aoc_idx.p), free(text.p), free(nm.p), free(nzh.p), free(dver.p);
     return code;
 }
 

@@ -45,9 +45,11 @@ typedef struct {
     const char *output_dir;  // unpack directory; replaced; <output_dir>.tmp is used while working
     const char *name;        // title used when the export has no control.nacp (--name); NULL or "" = folder name
     // 0: copy the RomFS and DLC files into output_dir (the original's tree; CI compares it).
-    // 1: do not copy them; list them instead in output_dir/data_sources.tsv
-    //    ("area<TAB>relative path<TAB>source path", area = romfs or aoc/<index>) so that the
-    //    device can read the exported files in place. exefs, ctl and the tables are written as usual.
+    // 1: read them in place: romfs/ is a relative symlink to the export's RomFS folder when that one
+    //    folder holds the whole RomFS and the walk leaves nothing out (no .listing, no symlink, no
+    //    empty folder), otherwise a tree of relative symlinks to the export's files (delta update:
+    //    base overlaid by the update); aoc/<index>/ is always such a tree. The walk through the
+    //    views sees the same files and bytes as the copy. exefs, ctl and the tables are written as usual.
     int reference_data;
     void (*note)(void *context, const char *line);  // progress / information lines (may be NULL)
     int (*cancelled)(void *context);                // polled between files and ZBIC blocks (may be NULL)
