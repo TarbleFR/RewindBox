@@ -69455,10 +69455,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..aba9151
+index 0000000..23ddd61
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,186 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -69571,6 +69571,13 @@ index 0000000..aba9151
 +    # objects call the same host function. Same effective hash, exact snapshot.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "28b20cc80a3974315ed0eb3797733b7c56e6ca8c6f26cf01c587021b5b196a23")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_GATE_BEFORE_LINE_924: SPUThread.cpp changes in the host body of do_putllc() only (the
++    # deferral to a starving PPU is made before the line is locked, through ios/IOSPassiveLockGate.h)
++    # and adds that one include. No emitter, helper signature, SPU layout or relocation target changes:
++    # the objects call the same host function. Same effective hash, exact snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "8cc8b519ea4fc31b3e0b4b1cf7cfd75f83dd9602e0c141aca0d495f18f0ed6b6")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -79428,10 +79435,10 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..2f7c20c 100644
+index bc9ec5e..98a7cd0 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
-@@ -25,11 +25,23 @@
+@@ -25,11 +25,24 @@
  
  #include <unordered_set>
  
@@ -79449,13 +79456,14 @@ index bc9ec5e..2f7c20c 100644
 +#include "ios/IOSSpuNoopSpin.h"
 +#include "ios/IOSCapture912.h"
 +#include "ios/IOSSpursRelaxedStore.h" // REWINDBOX_SPURS_RELAXED_STORE_916
++#include "ios/IOSPassiveLockGate.h" // REWINDBOX_GATE_BEFORE_LINE_924
  #ifdef ARCH_ARM64
  #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
 +#include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
  #endif
  #endif
  
-@@ -309,6 +321,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
+@@ -309,6 +322,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
  #endif
  }
  
@@ -79470,7 +79478,7 @@ index bc9ec5e..2f7c20c 100644
  #if defined(ARCH_X64)
  static FORCE_INLINE void mov_rdata_avx(__m256i* dst, const __m256i* src)
  {
-@@ -407,6 +427,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -407,6 +428,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79497,7 +79505,7 @@ index bc9ec5e..2f7c20c 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -417,6 +457,9 @@ __forceinline
+@@ -417,6 +458,9 @@ __forceinline
  #endif
  extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  {
@@ -79507,7 +79515,7 @@ index bc9ec5e..2f7c20c 100644
  	const auto rhs = reinterpret_cast<const v128*>(_src);
  	const v128 a = gv_add32(rhs[0], rhs[1]);
  	const v128 c = gv_add32(rhs[4], rhs[5]);
-@@ -425,6 +468,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
+@@ -425,6 +469,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  	const v128 r = gv_add32(gv_add32(a, b), gv_add32(c, d));
  	const v128 r1 = gv_add32(r, gv_shuffle32<1, 0, 3, 2>(r));
  	return r1._u32[0] + r1._u32[2];
@@ -79515,7 +79523,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  #if defined(ARCH_X64)
-@@ -491,6 +535,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -491,6 +536,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -79542,7 +79550,7 @@ index bc9ec5e..2f7c20c 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -539,6 +603,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
+@@ -539,6 +604,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
  extern thread_local u64 g_tls_fault_spu;
  
@@ -79555,7 +79563,7 @@ index bc9ec5e..2f7c20c 100644
  const extern spu_decoder<spu_itype> g_spu_itype;
  const extern spu_decoder<spu_iflag> g_spu_iflag;
  
-@@ -549,14 +619,29 @@ namespace vm
+@@ -549,14 +620,29 @@ namespace vm
  	// Defined here for performance reasons
  	writer_lock::~writer_lock() noexcept
  	{
@@ -79589,7 +79597,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  }
  
-@@ -661,6 +746,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
+@@ -661,6 +747,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
  		{
  			res[1] = umax;
  		}
@@ -79601,7 +79609,7 @@ index bc9ec5e..2f7c20c 100644
  
  		break;
  	}
-@@ -1352,6 +1442,7 @@ void spu_thread::cpu_init()
+@@ -1352,6 +1443,7 @@ void spu_thread::cpu_init()
  
  	ch_events.raw() = {};
  	interrupts_enabled = false;
@@ -79609,7 +79617,7 @@ index bc9ec5e..2f7c20c 100644
  	raddr = 0;
  
  	ch_dec_start_timestamp = get_timebased_time();
-@@ -1485,6 +1576,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
+@@ -1485,6 +1577,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
  
  void spu_thread::cpu_task()
  {
@@ -79618,7 +79626,7 @@ index bc9ec5e..2f7c20c 100644
  #ifdef __APPLE__
  	jit_write_protect(true);
  #endif
-@@ -1566,7 +1659,7 @@ void spu_thread::cpu_task()
+@@ -1566,7 +1660,7 @@ void spu_thread::cpu_task()
  		{
  			if (state) [[unlikely]]
  			{
@@ -79627,7 +79635,7 @@ index bc9ec5e..2f7c20c 100644
  					break;
  			}
  
-@@ -1586,6 +1679,7 @@ void spu_thread::cpu_task()
+@@ -1586,6 +1680,7 @@ void spu_thread::cpu_task()
  			}
  
  			spu_runtime::g_gateway(*this, _ptr<u8>(0), nullptr);
@@ -79635,7 +79643,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  
  		if (unsavable && is_stopped(state - cpu_flag::stop))
-@@ -1632,7 +1726,10 @@ void spu_thread::cpu_work()
+@@ -1632,7 +1727,10 @@ void spu_thread::cpu_work()
  		return;
  	}
  
@@ -79647,7 +79655,7 @@ index bc9ec5e..2f7c20c 100644
  
  	bool work_left = false;
  
-@@ -1676,13 +1773,19 @@ void spu_thread::cpu_work()
+@@ -1676,13 +1774,19 @@ void spu_thread::cpu_work()
  
  	bool gen_interrupt = false;
  
@@ -79670,7 +79678,7 @@ index bc9ec5e..2f7c20c 100644
  			{
  				mask &= ~SPU_EVENT_LR;
  			}
-@@ -1691,7 +1794,16 @@ void spu_thread::cpu_work()
+@@ -1691,7 +1795,16 @@ void spu_thread::cpu_work()
  		}
  
  		gen_interrupt = check_mfc_interrupts(pc);
@@ -79688,7 +79696,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	in_cpu_work = false;
-@@ -1713,7 +1825,7 @@ void spu_thread::cpu_work()
+@@ -1713,7 +1826,7 @@ void spu_thread::cpu_work()
  		});
  	}
  
@@ -79697,7 +79705,7 @@ index bc9ec5e..2f7c20c 100644
  	{
  		// Interrupt! escape everything and restart execution
  		spu_runtime::g_escape(this);
-@@ -1738,6 +1850,7 @@ struct raw_spu_cleanup
+@@ -1738,6 +1851,7 @@ struct raw_spu_cleanup
  
  void spu_thread::cleanup()
  {
@@ -79705,7 +79713,7 @@ index bc9ec5e..2f7c20c 100644
  	// Deallocate local storage
  	ensure(vm::dealloc(vm_offset(), vm::spu, &shm));
  
-@@ -1941,6 +2054,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
+@@ -1941,6 +2055,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
  
  	serialize_common(ar);
  
@@ -79719,7 +79727,7 @@ index bc9ec5e..2f7c20c 100644
  	raddr = ::narrow<u32>(ar.pop<u64>());
  
  	if (raddr)
-@@ -2079,6 +2199,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2079,6 +2200,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  
  	u32 eal = args.eal;
  	u32 lsa = args.lsa & 0x3ffff;
@@ -79742,7 +79750,7 @@ index bc9ec5e..2f7c20c 100644
  
  	// Keep src point to const
  	u8* dst = nullptr;
-@@ -2304,6 +2440,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2304,6 +2441,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				}
  				}
  
@@ -79751,7 +79759,7 @@ index bc9ec5e..2f7c20c 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -2340,7 +2478,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2340,7 +2479,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			}
  		}
  
@@ -79762,7 +79770,7 @@ index bc9ec5e..2f7c20c 100644
  		{
  			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
  			{
-@@ -2535,6 +2675,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2535,6 +2676,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  			}
  
@@ -79772,7 +79780,7 @@ index bc9ec5e..2f7c20c 100644
  			return;
  		}
  		else
-@@ -2747,6 +2890,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2747,6 +2891,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  			std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  		}
  
@@ -79782,7 +79790,7 @@ index bc9ec5e..2f7c20c 100644
  		return;
  	}
  
-@@ -2823,6 +2969,9 @@ plain_access:
+@@ -2823,6 +2970,9 @@ plain_access:
  		dump.block_hash = _this->block_hash;
  		std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
  	}
@@ -79792,7 +79800,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
-@@ -2878,6 +3027,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
+@@ -2878,6 +3028,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
  
  bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  {
@@ -79806,7 +79814,7 @@ index bc9ec5e..2f7c20c 100644
  	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
  
  	// Amount of elements to fetch in one go
-@@ -3298,8 +3454,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3298,8 +3455,11 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		// Avoid inlining huge transfers because it intentionally drops range lock unlock
@@ -79819,7 +79827,7 @@ index bc9ec5e..2f7c20c 100644
  			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
  			{
  				rsx_lock.update_if_enabled(addr, size, range_lock);
-@@ -3378,6 +3537,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+@@ -3378,6 +3538,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
  			}
  			}
  
@@ -79832,7 +79840,7 @@ index bc9ec5e..2f7c20c 100644
  			arg_lsa += utils::align<u32>(size, 16);
  		}
  		else if (size)
-@@ -3439,6 +3604,26 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3439,6 +3605,26 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  	// Store conditionally
  	const u32 addr = args.eal & -128;
@@ -79859,7 +79867,7 @@ index bc9ec5e..2f7c20c 100644
  
  	if ([&]()
  	{
-@@ -3450,6 +3635,73 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3636,73 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -79933,7 +79941,7 @@ index bc9ec5e..2f7c20c 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3709,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3710,33 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -79980,7 +79988,7 @@ index bc9ec5e..2f7c20c 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3747,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3748,17 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -79991,11 +79999,15 @@ index bc9ec5e..2f7c20c 100644
 +#ifdef RPCS3_IOS
 +		// Resolve RSX readback before owning the line; fetch_op below revalidates rtime.
 +		if (accurate) utils::trigger_write_page_fault(vm::base(addr));
++
++		// REWINDBOX_GATE_BEFORE_LINE_924 (ios/IOSPassiveLockGate.h): the deferral to a starving PPU, or to the window
++		// it opened, is made here, before this line is locked; the writer lock below does not defer again.
++		const rpcs3::ios::passive_gate::ahead_scope ios_gate_ahead(accurate);
 +#endif
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3503,29 +3768,107 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3503,29 +3773,107 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (!_ok)
  		{
@@ -80105,7 +80117,7 @@ index bc9ec5e..2f7c20c 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3537,6 +3880,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3537,6 +3885,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  					{
  						return true;
  					}
@@ -80115,7 +80127,7 @@ index bc9ec5e..2f7c20c 100644
  				}
  				else
  				{
-@@ -3545,13 +3891,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3545,13 +3896,72 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  				}
  			}
  
@@ -80188,7 +80200,7 @@ index bc9ec5e..2f7c20c 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3984,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3989,10 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -80199,7 +80211,7 @@ index bc9ec5e..2f7c20c 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +4040,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +4045,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -80208,7 +80220,7 @@ index bc9ec5e..2f7c20c 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +4049,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +4054,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -80228,7 +80240,7 @@ index bc9ec5e..2f7c20c 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +4136,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +4141,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -80242,7 +80254,7 @@ index bc9ec5e..2f7c20c 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +4151,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +4156,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -80252,7 +80264,7 @@ index bc9ec5e..2f7c20c 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4308,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4313,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -80270,7 +80282,7 @@ index bc9ec5e..2f7c20c 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4376,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4381,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -80281,7 +80293,7 @@ index bc9ec5e..2f7c20c 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4263,8 +4699,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
+@@ -4263,8 +4704,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
  	return busy_waiting_switch;
  }
  
@@ -80329,7 +80341,7 @@ index bc9ec5e..2f7c20c 100644
  	// Stall infinitely if MFC queue is full
  	while (mfc_size >= 16) [[unlikely]]
  	{
-@@ -4273,11 +4748,57 @@ bool spu_thread::process_mfc_cmd()
+@@ -4273,11 +4753,57 @@ bool spu_thread::process_mfc_cmd()
  
  		if (test_stopped())
  		{
@@ -80389,7 +80401,7 @@ index bc9ec5e..2f7c20c 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4288,11 +4809,76 @@ bool spu_thread::process_mfc_cmd()
+@@ -4288,11 +4814,76 @@ bool spu_thread::process_mfc_cmd()
  
  		if (is_stopped(old))
  		{
@@ -80467,7 +80479,7 @@ index bc9ec5e..2f7c20c 100644
  
  	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
  	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
-@@ -4306,6 +4892,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4897,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -80493,7 +80505,7 @@ index bc9ec5e..2f7c20c 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4920,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4925,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -80502,7 +80514,7 @@ index bc9ec5e..2f7c20c 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4960,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4965,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -80518,7 +80530,7 @@ index bc9ec5e..2f7c20c 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4978,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4983,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -80527,7 +80539,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +5052,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +5057,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -80536,7 +80548,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +5063,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +5068,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -80555,7 +80567,7 @@ index bc9ec5e..2f7c20c 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +5095,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +5100,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -80567,7 +80579,7 @@ index bc9ec5e..2f7c20c 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +5150,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +5155,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -80583,7 +80595,7 @@ index bc9ec5e..2f7c20c 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +5169,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +5174,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -80592,7 +80604,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +5187,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +5192,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -80608,7 +80620,7 @@ index bc9ec5e..2f7c20c 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +5300,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +5305,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -80617,7 +80629,7 @@ index bc9ec5e..2f7c20c 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5718,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5723,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80626,7 +80638,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5726,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5731,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -80642,7 +80654,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  	}
  
-@@ -5163,7 +5806,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5811,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -80651,7 +80663,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5814,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5819,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -80660,7 +80672,7 @@ index bc9ec5e..2f7c20c 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5887,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5892,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -80669,7 +80681,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5995,7 @@ retry:
+@@ -5352,6 +6000,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -80677,7 +80689,7 @@ index bc9ec5e..2f7c20c 100644
  		}
  	}
  
-@@ -5400,29 +6044,155 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +6049,155 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -80734,7 +80746,8 @@ index bc9ec5e..2f7c20c 100644
 -			if (state.none_of(cpu_flag::pending))
 +			const u64 now = get_timebased_time();
 +			sleep_us = umax;
-+			{
+ 			{
+-				state += cpu_flag::pending;
 +				std::lock_guard lock(mutex);
 +				u64 sleep_scaled_ticks = umax;
 +				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
@@ -80764,10 +80777,9 @@ index bc9ec5e..2f7c20c 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
-+			}
+ 			}
 +			for (const auto& e : due_entries)
- 			{
--				state += cpu_flag::pending;
++			{
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -80780,7 +80792,7 @@ index bc9ec5e..2f7c20c 100644
 +						spu->cpu_thread::notify();
 +					}
 +				}
- 			}
++			}
 +			due_entries.clear();
  		}
  	}
@@ -80845,7 +80857,7 @@ index bc9ec5e..2f7c20c 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6530,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6535,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -80862,7 +80874,7 @@ index bc9ec5e..2f7c20c 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6570,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6575,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -80871,7 +80883,7 @@ index bc9ec5e..2f7c20c 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6707,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6712,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -80880,7 +80892,7 @@ index bc9ec5e..2f7c20c 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6727,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6732,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80889,7 +80901,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6807,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6812,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -80898,7 +80910,7 @@ index bc9ec5e..2f7c20c 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6834,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6839,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -80913,7 +80925,7 @@ index bc9ec5e..2f7c20c 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +7238,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +7243,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -80923,7 +80935,7 @@ index bc9ec5e..2f7c20c 100644
  		return true;
  	}
  
-@@ -6479,6 +7268,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +7273,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -80932,7 +80944,7 @@ index bc9ec5e..2f7c20c 100644
  		return true;
  	}
  
-@@ -6509,6 +7300,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +7305,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -82036,7 +82048,7 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..d36f750 100644
+index e7f55d7..e7c1b4f 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -12,7 +12,12 @@
@@ -82208,23 +82220,24 @@ index e7f55d7..d36f750 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +596,15 @@ namespace vm
+@@ -494,6 +596,16 @@ namespace vm
  			}
  		}
  
 +#ifdef RPCS3_IOS
 +		// CELL571_PASSIVE_LOCK_FAIRNESS: let a starving passive locker through before
 +		// publishing this lock (bounded; ios/IOSPassiveLockGate.h).
++		// REWINDBOX_GATE_BEFORE_LINE_924: unless the caller already did, before locking its line.
 +		if (range_lock)
 +		{
-+			rpcs3::ios::passive_gate::defer_writer();
++			rpcs3::ios::passive_gate::defer_writer_once();
 +		}
 +#endif
 +
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,13 +650,21 @@ namespace vm
+@@ -539,13 +651,21 @@ namespace vm
  
  		if (range_lock)
  		{
@@ -82247,7 +82260,7 @@ index e7f55d7..d36f750 100644
  				}
  			}
  
-@@ -589,18 +708,50 @@ namespace vm
+@@ -589,18 +709,50 @@ namespace vm
  
  				reservation_lock_wait(wait_iteration);
  			}
@@ -82298,7 +82311,7 @@ index e7f55d7..d36f750 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1195,7 @@ namespace vm
+@@ -1044,7 +1196,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -82307,7 +82320,7 @@ index e7f55d7..d36f750 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1472,7 @@ namespace vm
+@@ -1321,7 +1473,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -82316,7 +82329,7 @@ index e7f55d7..d36f750 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1512,7 @@ namespace vm
+@@ -1361,7 +1513,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -82325,7 +82338,7 @@ index e7f55d7..d36f750 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1566,7 @@ namespace vm
+@@ -1415,7 +1567,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82334,7 +82347,7 @@ index e7f55d7..d36f750 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1586,101 @@ namespace vm
+@@ -1435,6 +1587,101 @@ namespace vm
  			return 0;
  		}
  
@@ -82436,7 +82449,7 @@ index e7f55d7..d36f750 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1740,7 @@ namespace vm
+@@ -1494,7 +1741,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -82445,7 +82458,7 @@ index e7f55d7..d36f750 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1971,52 @@ namespace vm
+@@ -1725,6 +1972,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -82498,7 +82511,7 @@ index e7f55d7..d36f750 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +2049,7 @@ namespace vm
+@@ -1757,6 +2050,7 @@ namespace vm
  			}
  		}
  
@@ -82506,7 +82519,7 @@ index e7f55d7..d36f750 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2101,7 @@ namespace vm
+@@ -1808,7 +2102,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -82515,7 +82528,7 @@ index e7f55d7..d36f750 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2142,13 @@ namespace vm
+@@ -1849,6 +2143,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -82529,7 +82542,7 @@ index e7f55d7..d36f750 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2703,7 @@ namespace vm
+@@ -2403,7 +2704,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -125792,10 +125805,10 @@ index 0000000..31c14fd
 +}
 diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
 new file mode 100644
-index 0000000..0fe3d1f
+index 0000000..3d51930
 --- /dev/null
 +++ b/rpcs3/ios/IOSPassiveLockGate.h
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,353 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -126088,6 +126101,65 @@ index 0000000..0fe3d1f
 +	}
 +
 +	return true;
++}
++
++// REWINDBOX_GATE_BEFORE_LINE_924: an accurate PUTLLC takes its line's reservation lock
++// (rsrv_unique_lock) and only then the writer lock, whose deferral above ran with that
++// line locked. During the window a
++// starving PPU opened on leaving, the first SPU to reach its writer lock therefore kept its
++// line locked for the whole window: a PPU whose next step is a conditional store on that
++// same line (ppu_store_reservation fails on a locked line) spent every window failing it.
++// IPA 724, Call of Duty: Black Ops II, pid 50194: the main thread waits for a semaphore, the
++// PPU thread Secondary holds a reservation on 0x2e208d8 whose word shows the lock of another
++// thread for 27 us across the dump, and six SPUs complete 1.5 million PUTLLC per second on
++// that line (7.5 million per 5 s window, none sleeping), 6010 windows opened and 8671 writer
++// locks deferred 115 us each in the same window; no frame for the rest of the session.
++// The deferral is now made before the line is locked, and the writer lock that follows does
++// not defer a second time. The same waits, in the same bound; the reservation time and the
++// line's contents are validated after it exactly as before (the lock is taken by the same
++// fetch_op, the comparison is made under the same writer lock). Nothing is skipped: a PUTLLC
++// whose line changed while it deferred fails, as it does when the line changes at any other
++// moment before its lock. A PPU's conditional store of a full line and a 128-byte store keep
++// the earlier order (they lock their line, then defer in the writer lock): neither is on the
++// path observed, and PPUThread.cpp is an input of the PPU cache identity.
++inline thread_local bool deferred_ahead = false;
++
++class ahead_scope
++{
++public:
++	// `active` false: no deferral here, and the writer lock defers as before.
++	explicit ahead_scope(bool active = true) noexcept
++		: m_active(active)
++	{
++		if (active)
++		{
++			defer_writer();
++			deferred_ahead = true;
++		}
++	}
++
++	ahead_scope(const ahead_scope&) = delete;
++	ahead_scope& operator=(const ahead_scope&) = delete;
++
++	~ahead_scope()
++	{
++		if (m_active)
++		{
++			deferred_ahead = false;
++		}
++	}
++
++private:
++	const bool m_active;
++};
++
++// vm::writer_lock: defers unless the caller did so before locking its line.
++inline void defer_writer_once() noexcept
++{
++	if (!deferred_ahead)
++	{
++		defer_writer();
++	}
 +}
 +}
 diff --git a/rpcs3/ios/IOSPipelineQueue.h b/rpcs3/ios/IOSPipelineQueue.h

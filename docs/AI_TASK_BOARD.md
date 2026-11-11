@@ -1844,6 +1844,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       locally (no Flutter). Source `e6510aeb`, request `367b8980`, run `42899482941` in progress. Risk: the database turns
       Asynchronous Texture Streaming on for GOW3, never run on the device. MeloNX Core 723 pinned `249d287d` (run `42883532005`).
       **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
+    - **Device results, IPA 724 (build 724 = Core 923, one process PID 50194; private journals, not in Git) and Core 924.**
+      - **BO2 (BLES01717, session 8, database entry + 1 per-game override, accurate reservations):** play windows 10-40 at
+        20-35 fps, four stops of 0.6-1.1 s (windows 25, 31, 32, 39), then no frame from window 41 on. Frozen windows:
+        `SPUWAIT551 putllc_ok` 7.6 and 8.5 M per 5 s (2.0 M in play), `putllc_heavy` 6.0 and 6.7 M, `getllar_sleep` 0;
+        `PPUGRACE664` 6010 and 6155 windows opened, 8671 and 8768 writer locks deferred 994 and 1012 ms. `FREEZE_DUMP`: main on a
+        semaphore 3.2 s; PPU Secondary (0.97 core) holds a reservation on 0x2e208d8 at time 0x83d1ee800 while the line word
+        reads 0x83d1ee840 (another thread's lock) on two reads 27 us apart; six SPUs on GETLLAR/PUTLLC of 0x2e20880/0x2e20c00.
+        **Rejected hypothesis:** the reservation word does not go backwards; the dump reads its line records before its thread
+        records (`ts=`), which explains the build 723 reading. **Cause (source):** `do_putllc` locks its line
+        (`rsrv_unique_lock`), then `vm::writer_lock` defers to the starving PPU and its grace window with the line locked, and
+        `ppu_store_reservation` fails on a locked line. **Core 924 (`REWINDBOX_GATE_BEFORE_LINE_924`):** the deferral is made
+        before the line lock (`passive_gate::ahead_scope`), the writer lock does not defer again; same waits and bound, same
+        validation after; `do_putllc` only (PPU full-line store and 128-byte store unchanged: not on the observed path,
+        PPUThread.cpp is a PPU identity input); one exact SPUThread.cpp alias, identities unchanged. Host model
+        (`test/rpcs3_gate_line924_test.py`, g++/clang++/ASan+UBSan): line word 64 before, 0 after while a writer defers; PPU
+        stores on the polled line x3 to x13 in the storm model (writer stores drop there; not a device figure). Engine `72e79fb`,
+        source `2fdda673`, request `db9b8618`, run `42926781861`. [Doc](rpcs3-core924-bo2-gate-before-line.md). **Remaining
+        BO2 cost:** every data-changing accurate PUTLLC still parks every PPU (273 k/s in play): the 20-35 fps ceiling and its
+        oscillation. **New measurement:** MEMPARTS923 graphics ledger 0.91 -> 1.39 GB and footprint 3.40 -> 4.06 GB in 2 min
+        of play while `texture_mib` stays 100-110: unattributed, next memory task.
+      - **GOW3 (BCES00510, database entry as is: async_tex=true, 100 %, mt_rsx=false):** maintainer reports unplayable graphics
+        errors on fresh boots (sessions 1-3) and savestates (4, 6); no journal line names the setting. By elimination against
+        build 723 (async_tex=false, 75 %, mt_rsx=true) and the Build 552/610 withdrawals, `sanitiseForIOS` no longer applies
+        `Asynchronous Texture Streaming: true` from the database (179 of 2187 entries; `c2519a25`; Dart tests run in the
+        delivery's Flutter group). **Hypothesis, to confirm on the device.** Confirmed: `GOW3MLAA909 ppu=savestate_applied`,
+        no 1280x720 read-back after the second window. `SPUPROF923` (sessions 4, 6, 11-17 fps): three Big SPURS kernels running
+        91-93 %, the Little one 86-92 %, samples spread over many regions (real work, not one polling pc); 180-360 k heavy
+        PUTLLC per window also park the PPU main thread (0.90-0.96 core). Next GOW3 lever not chosen yet.
+      - **Next:** pin Core 924 when its run is green, IPA 725 (Core 924 + database rule; skins PR 171 not integrated yet).
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
