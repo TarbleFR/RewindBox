@@ -63,6 +63,11 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Install the build tools S2Arm's makefiles call
+        run: |
+          set -euo pipefail
+          command -v rg > /dev/null || brew install ripgrep
+          rg --version | head -1 | tee -a proof/inputs.txt
       - name: Build S2Arm's iOS engine with no game (make ios)
         working-directory: ${{ runner.temp }}/s2arm
         env:
@@ -70,15 +75,23 @@ jobs:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
           S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
           NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        shell: bash --noprofile --norc {0}
         run: |
-          set -uo pipefail
+          set -u
+          out="$GITHUB_WORKSPACE/proof"
           export DOTNET="$(command -v dotnet)"
-          dotnet --info | head -20 | tee -a "$GITHUB_WORKSPACE/proof/inputs.txt"
+          dotnet --info > "$out/dotnet-info.txt" 2>&1
+          head -8 "$out/dotnet-info.txt" >> "$out/inputs.txt"
           start=$(date +%s)
-          make ios > "$GITHUB_WORKSPACE/proof/make-ios.log" 2>&1; status=$?
-          echo "make ios exit=$status seconds=$(( $(date +%s) - start ))" | tee "$GITHUB_WORKSPACE/proof/result.txt"
-          tail -60 "$GITHUB_WORKSPACE/proof/make-ios.log"
-          for f in build/cs/*.err; do [ -s "$f" ] && { echo "== $f"; tail -40 "$f"; cp "$f" "$GITHUB_WORKSPACE/proof/"; }; done
+          status=0
+          make ios > "$out/make-ios.log" 2>&1 || status=$?
+          echo "make ios exit=$status seconds=$(( $(date +%s) - start ))" | tee "$out/result.txt"
+          tail -60 "$out/make-ios.log"
+          for f in build/cs/*.err; do [ -s "$f" ] && { echo "== $f"; tail -60 "$f"; cp "$f" "$out/"; }; done
+          find "$S2A_RUN_ROOT" -name publish.log -print 2>/dev/null | while read -r f; do
+            echo "== $f"; grep -E " error |error [A-Z]+[0-9]+" "$f" | sort -u | head -40
+            cp "$f" "$out/nxaot-publish-$(basename "$(dirname "$f")").log"
+          done
           exit $status
       - name: Inventory the engine (images, sizes, symbols)
         if: always()
