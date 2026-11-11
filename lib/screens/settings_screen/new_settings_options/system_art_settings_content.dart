@@ -594,6 +594,8 @@ class _NeoThemeCard extends StatelessWidget {
       return Image.network(
         normalizedPreviewUrl,
         fit: BoxFit.cover,
+        // Same decode cap as the local previews: a card, not a full screen.
+        cacheWidth: 384,
         errorBuilder: (_, error, stackTrace) {
           _log.w(
             'Theme preview failed for "${item.folder}" '
