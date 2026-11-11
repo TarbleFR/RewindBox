@@ -2102,7 +2102,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           session for a corrected head. Corrected head 150dcac4 merged as 7298c4ba: the gate was wrong (CoreCLR host threads
           read class 0 and get EPERM; the NativeAOT fixture puts system, Thread and pool threads in 0x21: runs 43008139574,
           43008463899); macOS acceptance = answer agreeing with the class read back + the required NativeAOT system test.
-          Contract 5769e41d, 91 gates, 483/419, reads 440, arrays 545. Core CI again: run 43009346249. Not run on an iPhone.
+          Contract 5769e41d, 91 gates, 483/419, reads 440, arrays 545. Core CI again: run 43009346249 **failed** at
+          melonx_compute_switch_bindings_test (job 130484730640): control 48.0 ms vs candidate 139.8 ms for 350000 backend
+          calls, "FAILED: steady compute/graphics pairs are cheaper"; host-thread-class not reached. Not pinned, not rerun;
+          Core 731 stays pinned; reported to the MeloNX session. Lot 13 (bridge heap sampler, cc611f3c) merged as 991e5e83
+          (contract unchanged; heap report 13, perf journal 61 checks). Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
