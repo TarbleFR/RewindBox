@@ -2086,6 +2086,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           last named call, not the wait); (2) the exact reservation writer lock parks every PPU for each heavy PUTLLC (8-10 k per
           frame); (3) pipelines compiled in play (12 blocking builds in 2 min). **No IPA is compiled until the other sessions are
           ready** (Core builds and pins continue).
+        - **Core 929 compile request 1 (f235abc4, run 42996349275) refused before compiling:** "Current compiled/host input differs:
+          Rpcs3InternalBridgePlugin.mm" — the MoltenVK dependency of run 42957981240 recorded the bridge before the menu change; of
+          its 12 recorded inputs only the bridge differs. Dependency requested again (f52d92ce, run 42998604606); then core-build.json
+          links it (library expected byte-identical d19d3a42, checked on the download) and the compile is requested again.
+          Core 930 delta regenerated locally (222 files, applies on a pristine upstream clone), not committed until the 929 request is out.
         - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
