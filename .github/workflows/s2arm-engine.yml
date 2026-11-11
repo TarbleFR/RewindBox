@@ -1,0 +1,117 @@
+name: S2Arm engine (iOS) build check
+# Builds S2Arm's own iOS engine at the pinned commit, unmodified (`make ios`: runtime, graphics,
+# NativeAOT services, codecs, NS2Pro), with no game. It proves the toolchain on GitHub's macOS
+# runners and records what the engine is made of (images, sizes, exported and undefined symbols),
+# before any change that would host it inside RewindBox. Switch 2 test line only; nothing here is
+# part of the common IPA and no game, key or Nintendo file is used.
+'on':
+  workflow_dispatch:
+  push:
+    branches: [work/s2arm-switch2-prototype-20261110]
+    paths:
+      - .github/workflows/s2arm-engine.yml
+      - build-utils/s2arm/engine/**
+      - tools/s2arm_prototype/pin.json
+permissions:
+  contents: read
+concurrency:
+  group: s2arm-engine-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch S2Arm at the pinned commit
+        run: |
+          set -euo pipefail
+          commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
+          repository=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['repository'])")
+          git init -q "$RUNNER_TEMP/s2arm"
+          git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"
+          git -C "$RUNNER_TEMP/s2arm" checkout -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
+          mkdir -p proof
+          echo "s2arm $commit" > proof/inputs.txt
+      - name: Select the newest installed Xcode with an iPhoneOS SDK
+        run: |
+          set -euo pipefail
+          ls -d /Applications/Xcode*.app | tee proof/xcodes.txt
+          best=
+          for app in $(ls -d /Applications/Xcode*.app | sort -V); do
+            [ -L "$app" ] && continue
+            if DEVELOPER_DIR="$app/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version > /dev/null 2>&1; then best=$app; fi
+          done
+          test -n "$best"
+          echo "DEVELOPER_DIR=$best/Contents/Developer" >> "$GITHUB_ENV"
+          {
+            echo "selected $best"
+            DEVELOPER_DIR="$best/Contents/Developer" xcodebuild -version
+            echo "iphoneos SDK $(DEVELOPER_DIR="$best/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version)"
+            echo "S2Arm pins: $(grep -E '^(IPHONEOS_DEPLOYMENT_TARGET|IPHONEOS_SDK_MAJOR)=' "$RUNNER_TEMP/s2arm/tools/toolchain.env" | tr '\n' ' ')"
+          } | tee -a proof/inputs.txt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build S2Arm's iOS engine with no game (make ios)
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -uo pipefail
+          export DOTNET="$(command -v dotnet)"
+          dotnet --info | head -20 | tee -a "$GITHUB_WORKSPACE/proof/inputs.txt"
+          start=$(date +%s)
+          make ios > "$GITHUB_WORKSPACE/proof/make-ios.log" 2>&1; status=$?
+          echo "make ios exit=$status seconds=$(( $(date +%s) - start ))" | tee "$GITHUB_WORKSPACE/proof/result.txt"
+          tail -60 "$GITHUB_WORKSPACE/proof/make-ios.log"
+          for f in build/cs/*.err; do [ -s "$f" ] && { echo "== $f"; tail -40 "$f"; cp "$f" "$GITHUB_WORKSPACE/proof/"; }; done
+          exit $status
+      - name: Inventory the engine (images, sizes, symbols)
+        if: always()
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -uo pipefail
+          out="$GITHUB_WORKSPACE/proof"
+          app=build/ios/S2Arm.app
+          [ -d "$app" ] || { echo "no $app" | tee "$out/inventory.txt"; exit 0; }
+          {
+            echo "== bundle"; du -sh "$app"
+            echo "== files"; find "$app" -type f -exec ls -l {} + | awk '{print $5, $9}' | sort -k2
+            echo "== Mach-O images"
+            find "$app" -type f | while read -r f; do file "$f" | grep -q Mach-O && { echo "-- $f"; xcrun size -m "$f" | grep -E 'Segment|total' | head -12; otool -L "$f" | tail -n +2; }; done
+            echo "== executable: defined external symbols"; nm -gU "$app/S2Arm" | wc -l
+            echo "== executable: undefined symbols (count, then non-system)"; nm -u "$app/S2Arm" | wc -l
+          } > "$out/inventory.txt" 2>&1
+          nm -gU "$app/S2Arm" | awk '{print $3}' | sort > "$out/executable-exports.txt"
+          nm -u "$app/S2Arm" | sort > "$out/executable-undefined.txt"
+          lib=$(find "$S2A_RUN_ROOT" -name libs2a_cs.a 2>/dev/null | head -1)
+          if [ -n "$lib" ]; then
+            ls -l "$lib" >> "$out/inventory.txt"
+            nm -gU "$lib" | awk '{print $3}' | sort > "$out/services-exports.txt"
+            echo "services library external symbols: $(wc -l < "$out/services-exports.txt")" >> "$out/inventory.txt"
+            cat "$(dirname "$lib")/ldflags.txt" > "$out/services-ldflags.txt" 2>/dev/null || true
+          fi
+          grep -h "_S2A_\|_s2a_" "$out/executable-exports.txt" | head -400 > "$out/executable-s2a-exports.txt" || true
+          cat "$out/inventory.txt" | head -150
+        env:
+          S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        if: always()
+        with:
+          name: s2arm-engine-${{ matrix.os }}-${{ github.sha }}
+          path: proof/
+          retention-days: 30
