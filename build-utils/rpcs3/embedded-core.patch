@@ -118055,17 +118055,18 @@ index 87bbe4b..dd1aefb 100644
  				mvk_layer_settings_create_info.sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT;
  				mvk_layer_settings_create_info.pNext = next_info;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-index 3db1b27..72bd887 100644
+index 3db1b27..5baed61 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,7 @@
 +#ifdef RPCS3_IOS
 +#include "ios/IOSGPUMemoryProfile.h"
++#include "ios/IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +#endif
  #include "device.h"
  #include "memory.h"
  #include "VRAMBudgetPolicy.h"
-@@ -174,6 +177,13 @@ namespace vk
+@@ -174,6 +178,13 @@ namespace vk
  
  		VkPhysicalDeviceMemoryProperties memory_properties;
  		vkGetPhysicalDeviceMemoryProperties(pdev, &memory_properties);
@@ -118079,7 +118080,7 @@ index 3db1b27..72bd887 100644
  
  		std::vector<VkDeviceSize> heap_limits;
  		const auto configured_vram_allocation_limit = g_cfg.video.vk.vram_allocation_limit * 0x100000ull;
-@@ -212,6 +222,9 @@ namespace vk
+@@ -212,6 +223,9 @@ namespace vk
  		}
  
  		CHECK_RESULT(vmaCreateAllocator(&allocatorInfo, &m_allocator));
@@ -118089,7 +118090,7 @@ index 3db1b27..72bd887 100644
  
  		// Allow fastest possible allocation on start
  		set_fastest_allocation_flags();
-@@ -237,6 +250,9 @@ namespace vk
+@@ -237,6 +251,9 @@ namespace vk
  	void mem_allocator_vma::destroy()
  	{
  		vmaDestroyAllocator(m_allocator);
@@ -118099,7 +118100,7 @@ index 3db1b27..72bd887 100644
  	}
  
  	mem_allocator_vk::mem_handle_t mem_allocator_vma::alloc(const memory_allocation_request& request)
-@@ -256,6 +272,15 @@ namespace vk
+@@ -256,9 +273,33 @@ namespace vk
  				create_info.memoryTypeBits = 1u << memory_type_index;
  				create_info.flags = m_allocation_flags;
  
@@ -118111,11 +118112,29 @@ index 3db1b27..72bd887 100644
 +					// makes is already its own VkDeviceMemory.
 +					create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 +				}
++#ifdef RPCS3_IOS
++				// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): from 1 MiB up, memory of its own.
++				const bool ios_packed = !request.dedicated && rpcs3::ios::gpu_memory_packing::wants_dedicated(
++					rpcs3::ios::gpu_memory_packing::enabled.load(std::memory_order_relaxed), mem_req.size);
++				if (ios_packed)
++				{
++					create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
++				}
++#endif
 +
  				error_code = vmaAllocateMemory(m_allocator, &mem_req, &create_info, &vma_alloc, nullptr);
  				if (error_code == VK_SUCCESS)
  				{
-@@ -347,6 +372,16 @@ namespace vk
++#ifdef RPCS3_IOS
++					if (ios_packed)
++					{
++						rpcs3::ios::gpu_memory_packing::note_dedicated(mem_req.size);
++					}
++#endif
+ 					return { VK_SUCCESS, memory_type_index };
+ 				}
+ 			}
+@@ -347,6 +388,16 @@ namespace vk
  	f32 mem_allocator_vma::get_memory_usage()
  	{
  		vmaGetHeapBudgets(m_allocator, stats.data());
@@ -118132,6 +118151,21 @@ index 3db1b27..72bd887 100644
  
  		// Filter out the Re-BAR heap
  		if (::size32(stats) > m_rebar_heap_idx)
+@@ -385,6 +436,14 @@ namespace vk
+ 
+ 	void mem_allocator_vma::set_fastest_allocation_flags()
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_MEMORY_PACKING_925: the smallest free range that fits, as under pressure.
++		if (rpcs3::ios::gpu_memory_packing::enabled.load(std::memory_order_relaxed))
++		{
++			m_allocation_flags = VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT;
++			return;
++		}
++#endif
+ 		m_allocation_flags = VMA_ALLOCATION_CREATE_STRATEGY_MIN_TIME_BIT;
+ 	}
+ 
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.h b/rpcs3/Emu/RSX/VK/vkutils/memory.h
 index 352aaba..5837ecc 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.h
@@ -120326,7 +120360,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..a924a14 100644
+index 7072922..78e6b50 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -120356,7 +120390,7 @@ index 7072922..a924a14 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,45 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,47 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -120382,6 +120416,8 @@ index 7072922..a924a14 100644
 +		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
 +		// REWINDBOX_STALE_TEXTURE_SWEEP_921 (ios/IOSStaleTextureSweep.h): Automatic enables it for every title.
 +		cfg::_enum<ios_experimental_mode> stale_texture_sweep{ this, "Stale Texture Release", ios_experimental_mode::automatic };
++		// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> gpu_memory_packing{ this, "GPU Memory Packing", ios_experimental_mode::automatic };
 +		// CELL579_WRITER_YIELD: Automatic enables it for every title.
 +		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
 +		// REWINDBOX_WRITER_PARK_SPIN_917 (ios/IOSWriterParkSpin917.h): Automatic enables it for every title.
@@ -120402,7 +120438,7 @@ index 7072922..a924a14 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +184,65 @@ struct cfg_root : cfg::node
+@@ -134,6 +186,65 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -123665,6 +123701,62 @@ index 0000000..598eda7
 +	return executable[0] ? std::string(executable.data()) : std::string("-");
 +}
 +} // namespace rpcs3::ios::gow3_mlaa
+diff --git a/rpcs3/ios/IOSGpuMemoryPacking.h b/rpcs3/ios/IOSGpuMemoryPacking.h
+new file mode 100644
+index 0000000..2bd4633
+--- /dev/null
++++ b/rpcs3/ios/IOSGpuMemoryPacking.h
+@@ -0,0 +1,50 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_GPU_MEMORY_PACKING_925: the Vulkan memory allocator (VMA) carves every allocation under half a block out
++// of 64 MiB blocks (VRAMBudgetPolicy.h), and on an Apple GPU MoltenVK backs each block with one placement MTLHeap of
++// that size: a block is physical memory for as long as one allocation lives in it. Upstream picks VMA's fastest
++// strategy until the allocator's load exceeds 75 % of the heap, and the heap MoltenVK reports is the unified memory of
++// the device (7.4 GiB), so on iOS the fastest strategy is the only one ever used.
++//
++// IPA 724, Call of Duty: Black Ops II, pid 50194, session 8 (JITMEM, one sample per 5 s): the bytes allocated reach
++// 805 MiB after 2 minutes and stay there (777-813 MiB), while the blocks go from 648 to 1136 MiB in steps of 64 MiB
++// and the unused part of the blocks from 45 to 360 MiB; the kernel's graphics ledger (COREPROF MEMPARTS923) follows the
++// blocks, not the allocations (ledger minus blocks: 198, 209, 250-290 MiB; ledger minus allocations: 293, 448,
++// 580 MiB), and the footprint goes from 3.40 to 4.06 GB. The textures the title streams are allocated and released all
++// the time, in every size; each release leaves a hole only an allocation of that size or smaller can take.
++//
++// With the lever on:
++// - an allocation of `dedicated_from` bytes or more gets device memory of its own (VMA dedicated memory, as it already
++//   does unasked above half a block): its memory goes back to the system when it is released, and it leaves no hole;
++// - the smaller ones are placed in the smallest free range that fits (VMA's minimum-memory strategy, the one upstream
++//   switches to under pressure) instead of the first one found.
++// What is allocated, when, and its contents do not change; only where the allocator places it.
++// Host experiment on the pinned VMA 3.3.0 behind a mock device (test/rpcs3_gpu_memory_packing925_test.py), a Black Ops
++// II-shaped load (521 MiB that stay, textures of 16 KiB to 4 MiB allocated and released at random up to 290 MiB):
++// unused block bytes 166-204 MiB before, 28-51 MiB after. Not measured on an iPhone.
++namespace rpcs3::ios::gpu_memory_packing
++{
++inline std::atomic<bool> enabled{false};
++
++// Allocations from this size up get memory of their own.
++inline constexpr std::uint64_t dedicated_from = 1024 * 1024;
++
++constexpr bool wants_dedicated(bool lever_on, std::uint64_t size) noexcept
++{
++	return lever_on && size >= dedicated_from;
++}
++
++// Since boot: allocations this lever gave memory of their own, and their bytes (COREPROF GPUPACK925).
++inline std::atomic<std::uint64_t> dedicated_allocations{0};
++inline std::atomic<std::uint64_t> dedicated_bytes{0};
++
++inline void note_dedicated(std::uint64_t size) noexcept
++{
++	dedicated_allocations.fetch_add(1, std::memory_order_relaxed);
++	dedicated_bytes.fetch_add(size, std::memory_order_relaxed);
++}
++} // namespace rpcs3::ios::gpu_memory_packing
 diff --git a/rpcs3/ios/IOSGpuTiming.h b/rpcs3/ios/IOSGpuTiming.h
 new file mode 100644
 index 0000000..b42617f
@@ -137430,10 +137522,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..1cfb5bb 100644
+index 7c3389b..8a2a26d 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,41 @@
+@@ -1,10 +1,42 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -137455,6 +137547,7 @@ index 7c3389b..1cfb5bb 100644
 +#include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
 +#include "IOSTextureResidency.h"
 +#include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +#include "IOSTitleLevers.h"
 +#include "IOSLoadOpClear907.h"
 +#include "IOSThreadQoS.h"
@@ -137475,7 +137568,7 @@ index 7c3389b..1cfb5bb 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +44,122 @@ namespace
+@@ -13,6 +45,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -137598,7 +137691,7 @@ index 7c3389b..1cfb5bb 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +174,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +175,91 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -137690,7 +137783,7 @@ index 7c3389b..1cfb5bb 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +279,134 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +280,138 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -137780,6 +137873,10 @@ index 7c3389b..1cfb5bb 100644
 +	// 527 MiB of sections and a 568 MiB pool after 4.4 minutes, build 666); the pass releases only those that changed.
 +	resolved.stale_texture_sweep = resolve_mode(g_cfg.ios_experimental.stale_texture_sweep, true);
 +	rpcs3::ios::stale_texture_sweep::enabled.store(resolved.stale_texture_sweep, std::memory_order_relaxed);
++	// REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): Automatic is every title. Black Ops II, build 724:
++	// 805 MiB allocated in 1136 MiB of 64 MiB blocks, each a placement heap the kernel counts whole.
++	resolved.gpu_memory_packing = resolve_mode(g_cfg.ios_experimental.gpu_memory_packing, true);
++	rpcs3::ios::gpu_memory_packing::enabled.store(resolved.gpu_memory_packing, std::memory_order_relaxed);
 +	// CELL575_TITLE_LEVERS: with the texture epoch, Call of Duty: Black Ops II and Bladestorm;
 +	// CELL589_TITLE_LEVERS: Assassin's Creed.
 +	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
@@ -137825,7 +137922,7 @@ index 7c3389b..1cfb5bb 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +418,276 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +423,280 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -138044,6 +138141,10 @@ index 7c3389b..1cfb5bb 100644
 +	ios_experimental_log.notice("Resolved title policy 921: stale_texture_sweep=%d bytes_per_pass=%u sections_per_pass=%u idle_frames=%u",
 +		resolved.stale_texture_sweep, static_cast<u32>(rpcs3::ios::stale_texture_sweep::bytes_per_pass),
 +		static_cast<u32>(rpcs3::ios::stale_texture_sweep::sections_per_pass), static_cast<u32>(rpcs3::ios::texture_residency::min_idle_frames));
++	// REWINDBOX_GPU_MEMORY_PACKING_925: its own line.
++	ios_experimental_log.notice("Resolved title policy 925: gpu_memory_packing=%d dedicated_from=%u strategy=%s",
++		resolved.gpu_memory_packing, static_cast<u32>(rpcs3::ios::gpu_memory_packing::dedicated_from),
++		resolved.gpu_memory_packing ? "min_memory" : "min_time");
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -138113,7 +138214,7 @@ index 7c3389b..1cfb5bb 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..a9457cb 100644
+index 8fba197..9e60749 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -138124,7 +138225,7 @@ index 8fba197..a9457cb 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,47 @@ struct experimental_policy
+@@ -12,6 +13,49 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -138150,6 +138251,8 @@ index 8fba197..a9457cb 100644
 +	bool texture_residency = false;
 +	// REWINDBOX_STALE_TEXTURE_SWEEP_921: idle textures whose guest bytes changed are released.
 +	bool stale_texture_sweep = false;
++	// REWINDBOX_GPU_MEMORY_PACKING_925: GPU allocations of 1 MiB or more get memory of their own, the others the best fit.
++	bool gpu_memory_packing = false;
 +	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
 +	bool scoped_texture_revalidation = false;
 +	// CELL579_WRITER_YIELD: a writer holding its exclusive bit yields without Darwin's priority depression.
@@ -138172,7 +138275,7 @@ index 8fba197..a9457cb 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +62,140 @@ struct experimental_policy
+@@ -20,14 +64,140 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -140083,10 +140186,10 @@ index 0000000..cee4f58
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..745f8cc 100644
+index d800542..f93aee9 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,246 @@
+@@ -1,26 +1,247 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -140125,6 +140228,7 @@ index d800542..745f8cc 100644
 +#include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
 +#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
 +#include "IOSStaleTextureSweep.h" // REWINDBOX_STALE_TEXTURE_SWEEP_921
++#include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
 +#include "IOSTextureResidency.h"
 +#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
 +#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
@@ -140333,7 +140437,7 @@ index d800542..745f8cc 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +258,564 @@ u64 process_memory_footprint()
+@@ -38,31 +259,564 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -140908,7 +141012,7 @@ index d800542..745f8cc 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +825,10 @@ public:
+@@ -72,10 +826,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -140921,7 +141025,7 @@ index d800542..745f8cc 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +861,1674 @@ public:
+@@ -108,12 +862,1684 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -142172,6 +142276,16 @@ index d800542..745f8cc 100644
 +                "external=%llu reusable=%llu scope=kernel_ledger_at_report graphics_scope=ledger_tag_graphics_footprint",
 +                profile_session, profile_window, parts.valid ? 1u : 0u, parts.graphics, parts.graphics_compressed, parts.internal,
 +                parts.compressed, parts.external, parts.reusable);
++            // REWINDBOX_GPU_MEMORY_PACKING_925 (ios/IOSGpuMemoryPacking.h): what the lever placed alone, since boot;
++            // JITMEM vma_block_bytes, vma_allocated and vma_unused carry the result.
++            namespace packing = rpcs3::ios::gpu_memory_packing;
++            ios_core_profiler.notice(
++                "COREPROF GPUPACK925 session=%llu window=%llu enabled=%d dedicated_from=%llu dedicated=%llu:%llu "
++                "dedicated_tuple=allocations:bytes scope=process_since_boot",
++                profile_session, profile_window, packing::enabled.load(std::memory_order_relaxed) ? 1 : 0,
++                static_cast<unsigned long long>(packing::dedicated_from),
++                static_cast<unsigned long long>(packing::dedicated_allocations.load(std::memory_order_relaxed)),
++                static_cast<unsigned long long>(packing::dedicated_bytes.load(std::memory_order_relaxed)));
 +        }
 +        ios_core_profiler.notice(
 +            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
@@ -142598,7 +142712,7 @@ index d800542..745f8cc 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2536,93 @@ private:
+@@ -121,6 +2547,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -142692,7 +142806,7 @@ index d800542..745f8cc 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2630,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2641,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -142786,7 +142900,7 @@ index d800542..745f8cc 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2727,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2738,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -142915,7 +143029,7 @@ index d800542..745f8cc 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2858,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2869,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -143522,7 +143636,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..4d3078e 100644
+index b7b0474..99f9924 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,21 +1,45 @@
@@ -143587,7 +143701,7 @@ index b7b0474..4d3078e 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +147,78 @@ const std::array catalog{
+@@ -122,21 +147,79 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -143610,6 +143724,7 @@ index b7b0474..4d3078e 100644
 +	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
 +	SETTING("experimental.stale_texture_sweep", "Experimental", "FPS Experiments", "Stale texture release", "Each frame, the textures no draw has used for 64 frames are checked against the game memory they came from, a few megabytes at a time; those whose memory the game has since filled with other data are released, as their next use would have released them. A texture whose memory is unchanged is kept however long it stays unused, and the textures in use are not checked. Limits the memory held by textures the game no longer has. Automatic enables it for every title; Disabled keeps every texture until it is used again. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.stale_texture_sweep, 0, 0, 0),
++	SETTING("experimental.gpu_memory_packing", "Experimental", "FPS Experiments", "GPU memory packing", "Graphics memory is taken from the system in blocks of 64 MB, and a block stays allocated while anything remains in it. With this setting, a texture, buffer or render target of 1 MB or more gets memory of its own, returned to the system when it is released, and the smaller ones are placed in the smallest free space that fits. What is drawn does not change; only the memory the graphics blocks keep unused. Automatic enables it for every title; Disabled places every allocation in the first free space of a block as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_memory_packing, 0, 0, 0),
 +	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
@@ -143668,7 +143783,7 @@ index b7b0474..4d3078e 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +287,89 @@ const std::array catalog{
+@@ -205,6 +288,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -143758,7 +143873,7 @@ index b7b0474..4d3078e 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +738,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +739,151 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
