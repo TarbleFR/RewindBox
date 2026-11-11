@@ -3774,11 +3774,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `RewindBoxS2ArmProbe` and `RewindBoxS2ArmProbeMapped`, test IPA only; first game launch of the
   process only; journal lines `s2armProbe.<step>` in `MeloNX-launch.log` with `fsync`; it also fixes
   a helper-script defect (a debugserver error code returned as an address). The probe now rejects
-  such a reply (`d14e7f5`, CI run pending).
-- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Session 01
-  waits for the maintainer's agreement before touching the JIT bridge; then main adds the package
-  and builds a test IPA.
-- **Next:** confirm the CI run of `d14e7f5`; once the hook exists, hand main the package line and
+  such a reply (`d14e7f5`, run `42932102875` passed). Session 01 reports the maintainer told it
+  to write the hook now.
+- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Waiting for
+  session 01's hook commit; then main adds the package and builds a test IPA.
+- **Next:** review the hook against the probe, hand main the package line and the Info.plist key,
   give the maintainer the test steps.
 
 ### Codex orchestration — Codex
