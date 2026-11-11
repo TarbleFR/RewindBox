@@ -81,7 +81,9 @@
   "build-utils/melonx/adapt_gc_pause_journal.py",
   "build-utils/melonx/adapt_extra_array_dirty.py",
   "build-utils/melonx/adapt_array_barrier_epoch.py",
-  "build-utils/melonx/adapt_variant_replay_all.py"
+  "build-utils/melonx/adapt_variant_replay_all.py",
+  "build-utils/melonx/adapt_pause_checkpoint_growth.py",
+  "build-utils/melonx/adapt_vulkan_memory_journal.py"
  ],
  "productionChanges": [
   "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs",
@@ -168,7 +170,9 @@
   "src/Ryujinx.Library/EmbeddedSession.cs",
   "src/Ryujinx.Library/Library.cs",
   "src/Ryujinx.Library/Window/WindowBase.cs",
-  "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs"
+  "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+  "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs",
+  "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs"
  ],
  "productionAdditions": [],
  "fixtureInputs": [
@@ -283,7 +287,11 @@
   "test/melonx_gc_pause_journal/Program.cs",
   "test/melonx_extra_array_dirty/Program.cs",
   "test/melonx_extra_array_dirty/Boundaries.cs",
-  "test/melonx_array_barrier_epoch/Program.cs"
+  "test/melonx_array_barrier_epoch/Program.cs",
+  "test/melonx_allocator_range_updates/Program.cs",
+  "test/melonx_allocator_range_updates/RangeListProbe.cs",
+  "test/melonx_allocator_blocks/Boundaries.cs",
+  "test/melonx_allocator_blocks/Program.cs"
  ],
  "fixtureProductionInputs": [
   "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -3905,6 +3913,101 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+   ]
+  },
+  {
+   "name": "pause-checkpoint-growth",
+   "script": "test/melonx_pause_checkpoint_growth_test.py",
+   "report": "pause-checkpoint-growth-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "control.pauseIpa724": true,
+    "candidate.pauseIpa724": false,
+    "candidate.pause8MiB": true,
+    "candidate.play1MiBAfter11Min": true
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+   ]
+  },
+  {
+   "name": "vulkan-memory-journal",
+   "script": "test/melonx_vulkan_memory_journal_test.py",
+   "report": "vulkan-memory-journal-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 2400,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false,
+    "productionVulkanAssemblyBuilt": true,
+    "linesAfter13Windows": 3
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
+   ]
+  },
+  {
+   "name": "allocator-range-update",
+   "script": "test/melonx_allocator_range_updates_test.py",
+   "report": "allocator-range-update-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "physicalDeviceTested": false,
+    "finalPreparationBound": true,
+    "completeProductionAllocator": true,
+    "sourceKind": "deliveredPreparedWithFinalCandidate"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs"
+   ]
+  },
+  {
+   "name": "allocator-blocks",
+   "script": "test/melonx_allocator_blocks_test.py",
+   "report": "allocator-blocks-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "physicalDeviceTested": false,
+    "finalPreparationBound": true,
+    "sourceKind": "deliveredPreparedWithFinalCandidate"
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs"
    ]
   }
  ]

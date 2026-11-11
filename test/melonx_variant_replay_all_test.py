@@ -32,7 +32,7 @@ SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, postimage  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 CONTROL, FINAL_PREPARATION = control_source(SOURCE, 'adapt_variant_replay_all', _HOLD)
@@ -77,13 +77,21 @@ def dotnet(*arguments, cwd, timeout=2400):
 
 
 check(FINAL_PREPARATION, 'the source given is a final preparation containing adapt_variant_replay_all')
-check(not files_edited_later('adapt_variant_replay_all'), 'no later adapter edits the file: the candidate is the final preparation')
+# Core 727: adapt_pause_checkpoint_growth edits the same file later (the pause decision, not the replay). The static
+# comparison reads this adapter's postimage (the later adapters reversed, checked to reproduce the final file); the
+# executed part runs the final preparation, whose replay code is this adapter's.
+LATER = sorted(files_edited_later('adapt_variant_replay_all'))
+check(LATER in ([], [adapter.MANAGER]), 'only the manager is shared with later adapters: %s' % LATER)
 temporary = tempfile.TemporaryDirectory(prefix='melonx-variant-replay-all-')
 WORK = Path(temporary.name).resolve()
 
 # --- Static: the control is the pinned Core 723 file; the candidate is the control plus the two replacements only ---
 control_text = (CONTROL / adapter.MANAGER).read_text(encoding='utf-8-sig')
-candidate_text = (FINAL_SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig')
+POST = WORK / 'post'
+postimage('adapt_variant_replay_all', FINAL_SOURCE, POST)
+candidate_text = (POST / adapter.MANAGER).read_text(encoding='utf-8-sig')
+check(member(candidate_text, 'internal void Pump()') == member((FINAL_SOURCE / adapter.MANAGER).read_text(encoding='utf-8-sig'), 'internal void Pump()'),
+      'the final preparation keeps this adapter\'s Pump')
 check(sha(CONTROL / adapter.MANAGER) == adapter.BASELINE[adapter.MANAGER], 'control is the Core 723 preparation')
 rebuilt = control_text
 for old, new in adapter.PAIRS:

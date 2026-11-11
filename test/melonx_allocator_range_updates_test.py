@@ -16,6 +16,10 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
+# Core 727 form: <delivered control> --candidate-source <final preparation>. The control's allocator is this adapter's
+# postimage (the delivered Core's); the candidate is the final preparation's, which adapt_vulkan_memory_journal extends
+# with two read-only methods (Block.FreeBytes, AddUsage). Both must give the same allocator behaviour, byte for byte.
+FINAL = Path(sys.argv[sys.argv.index('--candidate-source') + 1]).resolve() if '--candidate-source' in sys.argv else None
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_allocator_range_updates import apply, BASELINE, RELATIVE
@@ -26,6 +30,14 @@ PREIMAGES = {
     'src/Ryujinx.Graphics.Vulkan/VulkanException.cs': '6a889a31001fa3973eebcaafe9eb82615a840a791edb823ef0379c5db1120294',
     'src/Ryujinx.Common/Utilities/BitUtils.cs': '3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261',
 }
+if FINAL is not None:
+    import adapt_vulkan_memory_journal as journal
+    PREIMAGES[RELATIVE] = journal.BASELINE[RELATIVE]  # the delivered postimage of this adapter
+    final_text = (FINAL / RELATIVE).read_text(encoding='utf-8-sig')
+    for old, new in reversed(journal.EDITS[RELATIVE]):
+        assert final_text.count(new) == 1, 'journal edit present once'
+        final_text = final_text.replace(new, old)
+    assert final_text == (SOURCE / RELATIVE).read_text(encoding='utf-8-sig'), 'final allocator = delivered + the journal additions only'
 for relative, expected in PREIMAGES.items():
     assert hashlib.sha256((SOURCE / relative).read_bytes()).hexdigest() == expected, relative
 boundary = ROOT / 'test/melonx_allocator_blocks/Boundaries.cs'
@@ -41,7 +53,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-range-updates-') as temporary:
                 target = work / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(SOURCE / relative, target)
-            if variant == 'candidate':
+            if variant == 'candidate' and FINAL is not None:
+                shutil.copyfile(FINAL / RELATIVE, work / RELATIVE)
+                changed = [work / RELATIVE]
+                hashes = {RELATIVE: hashlib.sha256((work / RELATIVE).read_bytes()).hexdigest()}
+                postimages = hashes
+            elif variant == 'candidate':
                 changed = apply(work)
                 hashes = {str(p.relative_to(work)): hashlib.sha256(p.read_bytes()).hexdigest() for p in changed}
                 if postimages: assert hashes == postimages
@@ -73,7 +90,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-range-updates-') as temporary:
 
 assert len({v['semanticDigest'] for report in reports.values() for v in report.values()}) == 1
 old, new = [reports[v]['movement']['benchmarks'] for v in ('control', 'candidate')]
-for a, b in zip(old, new, strict=True):
+if FINAL is not None:
+    # Both sides carry the range update: every benchmark identical, the journal methods move nothing.
+    keys = ('holes', 'shape', 'iterations', 'allocatedBytes', 'shiftedElements')
+    assert [{k: a.get(k) for k in keys} for a in old] == [{k: b.get(k) for k in keys} for b in new], 'final allocator behaves as the delivered one'
+for a, b in ([] if FINAL is not None else zip(old, new, strict=True)):
     assert (a['holes'], a['shape'], a['iterations']) == (b['holes'], b['shape'], b['iterations'])
     assert a['allocatedBytes'] == b['allocatedBytes'] == 0
     if a['shape'] == 'prefix-tail':
@@ -87,7 +108,10 @@ for a, b in zip(old, new, strict=True):
 inputs = ['build-utils/melonx/adapt_allocator_range_updates.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_allocator_range_updates_test.py', 'test/melonx_allocator_range_updates/Program.cs',
           'test/melonx_allocator_range_updates/RangeListProbe.cs', 'test/melonx_allocator_blocks/Boundaries.cs']
-receipt = dict(result='passed', reports=reports, upstreamRevision='13700519f3abc4e6d7ed8a065b118b2cc59bcd67',
+if FINAL is not None:
+    inputs.append('build-utils/melonx/adapt_vulkan_memory_journal.py')
+receipt = dict(result='passed', reports=reports, finalPreparationBound=FINAL is not None,
+               sourceKind='deliveredPreparedWithFinalCandidate' if FINAL is not None else 'pristineUpstream', upstreamRevision='13700519f3abc4e6d7ed8a065b118b2cc59bcd67',
     dotnet='10.0.100', physicalDeviceTested=False, nativeDriverDoubled=True,
     completeProductionAllocator=True, movementInstrumentedSeparately=True,
     upstreamInputs=PREIMAGES, postimages=postimages, compiledSourceInputs=compiled,

@@ -16,6 +16,9 @@ enum MeloNXLaunchJournal {
         categorized = false
     }
 
+    // The journal file's path (nil before configuration), for native writers that append their own lines.
+    static var path: String? { fileLock.lock(); defer { fileLock.unlock() }; return fileURL?.path }
+
     static func configureDiagnostics(directory: URL) throws {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         fileLock.lock(); defer { fileLock.unlock() }

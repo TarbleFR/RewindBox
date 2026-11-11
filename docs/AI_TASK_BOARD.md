@@ -3681,6 +3681,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       compressed MSL copied|referenced in the caller's data; pNext types 0x…|none", and its marker (four markers). The
       bench requires the line of each mode in both flows. The iOS rebuild runs on that push; **the delivered MoltenVK
       pin is main's to move** (a tree whose patch and pin disagree is refused by the packaging).
+  - **Maintainer goal restated (11 Nov): gain 56 ms per frame.** IPA 724 warm pass (t >= 88 s): 88.9 ms per frame
+    against the 33.3 ms of 30 FPS; 36.2 ms of the excess come from the 220 gaps over 100 ms (56.9 s of 121.8 s), 20.0 ms
+    from frames of 34-100 ms; at t=28-72 s (30 FPS held) the excess was 5.9 ms. Per-thread CPU per frame (performance
+    journal, top threads), t=28-72 s against t >= 107 s: guest `<MainThread>` 12.5 -> 27.6 ms, `GPU.MainThread` 7.4 ->
+    34.5 ms, `NeoStation.MeloNX.Render` 9.3 -> 31.9 ms, `<RenderThread_1>` 5.4 -> 15.1 ms, `.NET_BGC` 1.0 -> 5.8 ms, the
+    device at 5-8 % available throughout; the render thread's own busy time stays 20-27 ms per frame (engine windows
+    after 23:01:58). Reading: the slow frames are the same work made slower (page faults on compressed memory), not more
+    work; memory is the lever for both the stalls and the slow frames. MoltenVK's read timings do not decide the cache
+    question ("Decompress MSL" 0.062 ms and "Read MSL" 0.605 ms per library in 724, 0.055 and 0.561 in 718: file
+    read-ahead can make both modes look alike); the equal load curves of 718 (copy by construction) and 724 remain the
+    evidence that 724 copied too.
+  - **Core 727 frozen (11 Nov, this branch, on Core 725; not delivered, not run on an iPhone): contract `1aa56e30…`
+    (203 inputs, 207 members, 86 gates; contract test 472 checks; [receipts](evidence/melonx-727-gates/run.json)).** `adapt_pause_checkpoint_growth`
+    (a pause rewrites the main cache from 8 MiB of new content only; gate 15 checks) and `adapt_vulkan_memory_journal`
+    ("vulkanMemory sample" about every 30 s: the Vulkan allocator's blocks, dedicated, mapped and pooled free bytes by
+    memory type; gate 26 checks), commit `1b0c13ea`. S2Arm diagnostic hook in the bridge for session 04
+    (`d32738b5`, test IPAs only, macOS run 42933024817 green).
     - **Open, decided by the next device journals (protocol: evidence/melonx-725-gates/device-protocol.md):** why the
       mapped main cache saved nothing on the device (Core side: `pipelineCache mainDataMapped` at the start of
       `MeloNX-core.log`, now kept in the exported file; driver side: the load line above in `MeloNX-stderr.log`), and
