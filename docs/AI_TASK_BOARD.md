@@ -4222,22 +4222,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   data, RomFS index, package layout not ported.
 - **Who builds (11 Nov, per the authorization section):** main compiled A (725, delivered); this
   session compiles B (801) from this branch. The maintainer can correct this reading.
-- **IPA B = 801, requested, not built yet.** Source `0cade99d` (frozen manifest
-  `build-utils/delivery/801.json`), run 42985983425 attempt 1, workflow `s2arm-delivery.yml`,
-  in progress. Base 724 with the classification of the frozen 725 manifest (taking 725 as base
-  would require App.framework to change; the probe adds no reached Dart); main agreed.
-  Effective tree = 725's plus 10 probe files, `pubspec.yaml` and the collector block of the
-  source declaration review (compared file by file); `68846c65`, `f3a4180f` and the § 3.9 merge
-  `746d2d2d` are source only. Core pins unchanged (RPCS3 928, MeloNX 731). Tests: flutter and
-  native fresh, plus the legal-review negative controls. The standard recipe is unchanged
-  (launcher under `.github/diagnostics/s2arm/`).
-- **Checked offline before the request:** contract 63 tests (4 skipped), freeze, trigger-paths,
-  materialize, request/recipient guards, source-contract, legal gate, 8 negative controls on
-  the effective tree, 32 line tests. **Not run before CI:** API-backed contract, pod build of the
-  probe in the application, the built-app probe check.
-- **Next:** follow the run to its end; on failure read the job log, fix, refreeze, rerun. On
-  success download, verify, compare the signed image inventory with 725, give the IPA to the
-  maintainer, send main number/size/SHA-256, delete the private key; then his device run.
+- **IPA B = 801: attempt 1 failed, nothing built.** Source `0cade99d`, run 42985983425/1,
+  workflow `s2arm-delivery.yml`. preflight (contract with API), republish, flutter and native
+  (incl. the 8 legal-review negative controls): success. application 130407923269: failure at
+  the common step "Build canonical StikJIT from pinned sources", before any probe compile.
+- **Cause (read in the job log):** the StikJIT interface cache of `Claude` is not readable
+  from this branch (cache miss), so the from-source build runs (it passes) and then
+  `test/stikjit_unified_build_test.py:41` fails: `Runtime JIT changed:
+  packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm`. That file is the one
+  of 725 (blob `fcdc577c`); it differs from the test's reference `23825537` by 6 lines (the
+  debug log moved to `Documents/Diagnostics/PS2/`). Common-line latent defect on a cold cache;
+  not a file of this line, so not edited here. Reported to main with three options.
+- **Content of 801 (unchanged for the retry):** base 724 with the classification of the frozen
+  725 manifest; effective tree = 725's plus 10 probe files, `pubspec.yaml` and the collector
+  block of the source declaration review; Core pins unchanged (RPCS3 928, MeloNX 731).
+- **Still never run:** pod build of the probe in the application, the built-app probe check.
+- **Next:** main's decision on the StikJIT test; apply it as a reviewed change, refreeze, rerun,
+  follow to the end; then verify, compare the signed inventory with 725, give the IPA to the
+  maintainer, send main number/size/SHA-256, delete the private key.
 
 ### Codex orchestration — Codex
 
