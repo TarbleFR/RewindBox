@@ -44,8 +44,9 @@ void main() {
     test('every iOS-runnable system belongs to exactly one console', () {
       final systems = iosSystems();
       // 107 until assets/systems/ports.json left with Dusklight (20 October
-      // 2026); 107 again since xbox360.json names the embedded XeniOS.
-      expect(systems.length, 107);
+      // 2026); 107 again since xbox360.json names the embedded XeniOS; 108
+      // with switch2.json, which names the embedded S2Arm.
+      expect(systems.length, 108);
       for (final id in systems.keys) {
         final entry = ConsoleCatalog.entryForKey(id);
         expect(entry, isNotNull, reason: '$id has no console');
@@ -76,6 +77,7 @@ void main() {
           case ConsoleEngine.armsx2:
           case ConsoleEngine.rpcs3:
           case ConsoleEngine.xenia:
+          case ConsoleEngine.s2arm:
             expect(definitions, everyElement(containsPair('embedded', true)), reason: entry.id);
           case ConsoleEngine.libretro:
             expect(LibretroCoreCatalog.handles(entry.importSystem), isTrue, reason: entry.id);
@@ -88,6 +90,7 @@ void main() {
         ConsoleEngine.rpcs3: 1,
         ConsoleEngine.melonx: 1,
         ConsoleEngine.xenia: 1,
+        ConsoleEngine.s2arm: 1,
         // 61 before lot 1, whose 21 consoles moved to the libretro engine
         // with their ids (docs/libretro-consoles-lot1.md), then 4 more with
         // lot 2 (docs/libretro-consoles-lot2.md).
@@ -130,6 +133,16 @@ void main() {
       // XeniOS (docs/xenios-playlist.md): the existing xbox360 system id.
       expect(ConsoleCatalog.byId('xbox360')!.engine, ConsoleEngine.xenia);
       expect(ConsoleCatalog.byId('xbox360')!.retroArchFallback, isFalse);
+      // S2Arm (docs/s2arm-switch2-library.md): its own system id, apart from
+      // the `switch` system MeloNX runs.
+      final switch2 = ConsoleCatalog.byId('switch2')!;
+      expect(switch2.engine, ConsoleEngine.s2arm);
+      expect(switch2.name, 'Nintendo Switch 2');
+      expect(switch2.importSystem, 'switch2');
+      expect(switch2.systems, <String>{'switch2'});
+      expect(switch2.retroArchFallback, isFalse);
+      expect(switch2.application, 'S2Arm');
+      expect(ConsoleCatalog.byId('switch')!.engine, ConsoleEngine.melonx);
     });
 
     test('the Consoles tab lists engines of this build, grouped by application', () {
@@ -146,14 +159,19 @@ void main() {
           applications.add(entry.application);
         }
       }
-      expect(applications, <String>['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'MeloNX', 'XeniOS']);
-      // A missing engine is not listed, except Xbox 360, whose row says why.
+      expect(applications, <String>['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'MeloNX', 'XeniOS', 'S2Arm']);
+      // A missing engine is not listed, except Xbox 360 and Switch 2, whose
+      // rows say why.
       final missing = ConsoleCatalog.listed(
-        isMissing: (entry) => entry.id == 'switch' || entry.id == 'nes' || entry.id == 'xbox360',
+        isMissing: (entry) => entry.id == 'switch' ||
+            entry.id == 'nes' ||
+            entry.id == 'xbox360' ||
+            entry.id == 'switch2',
       );
       expect(missing.map((entry) => entry.id), isNot(contains('switch')));
       expect(missing.map((entry) => entry.id), isNot(contains('nes')));
       expect(missing.map((entry) => entry.id), contains('xbox360'));
+      expect(missing.map((entry) => entry.id), contains('switch2'));
     });
   });
 
@@ -199,10 +217,11 @@ void main() {
       final policy = EmbeddedEnginePolicy();
       await policy.load();
       expect(policy.useEmbedded, isFalse);
-      // Xbox 360 is off by default (docs/xenios-playlist.md § Consoles tab).
-      expect(policy.disabledConsoles, {'psx', 'xbox360'});
+      // Xbox 360 and Switch 2 are off by default (docs/xenios-playlist.md and
+      // docs/s2arm-switch2-library.md § Consoles tab).
+      expect(policy.disabledConsoles, {'psx', 'xbox360', 'switch2'});
       expect(await policy.enableAllConsoles(), isTrue);
-      expect(policy.disabledConsoles, {'xbox360'});
+      expect(policy.disabledConsoles, {'xbox360', 'switch2'});
       expect(policy.useEmbedded, isFalse, reason: 'Restore defaults leaves the global switch');
     });
 
@@ -223,6 +242,26 @@ void main() {
       expect(policy.allows('xbox360'), isTrue);
       expect(await policy.enableAllConsoles(), isTrue);
       expect(policy.isConsoleEnabled('xbox360'), isFalse);
+      expect(preferences.getStringList(EmbeddedEnginePolicy.enabledPreferenceKey), isEmpty);
+    });
+
+    test('Switch 2 starts off, its choice survives a restart and restore turns it off again', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      var policy = EmbeddedEnginePolicy();
+      await policy.load();
+      expect(policy.isConsoleEnabled('switch2'), isFalse);
+      expect(policy.allows('switch2'), isFalse);
+      expect(await policy.setConsoleEnabled('switch2', true), isTrue);
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getStringList(EmbeddedEnginePolicy.enabledPreferenceKey), ['switch2']);
+      expect(preferences.getStringList(EmbeddedEnginePolicy.disabledPreferenceKey), isNull);
+      policy = EmbeddedEnginePolicy();
+      await policy.load();
+      expect(policy.allows('switch2'), isTrue);
+      // Xbox 360 keeps its own default.
+      expect(policy.isConsoleEnabled('xbox360'), isFalse);
+      expect(await policy.enableAllConsoles(), isTrue);
+      expect(policy.isConsoleEnabled('switch2'), isFalse);
       expect(preferences.getStringList(EmbeddedEnginePolicy.enabledPreferenceKey), isEmpty);
     });
 

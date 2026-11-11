@@ -58,6 +58,7 @@ import 'package:neostation/services/ios_linked_library_folders.dart';
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/xenia_internal_service.dart';
+import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
@@ -428,6 +429,18 @@ void main() async {
     } on Object catch (error) {
       log.w('XeniOS layout not ready at startup: $error');
     }
+    // Switch 2 playlist storage (folders only; nothing is scanned here), on the
+    // same rule: off by default, a folder error is logged and never blocks
+    // start-up (refreshS2ArmInternalLibrary sets the root again).
+    if (Platform.isIOS) {
+      try {
+        await S2ArmInternalService.ensureLayout();
+        ConfigService.linkedS2ArmGameFolderPath =
+            (await S2ArmInternalService.gamesDirectory()).path;
+      } on Object catch (error) {
+        log.w('S2Arm layout not ready at startup: $error');
+      }
+    }
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
 
@@ -543,9 +556,7 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(
-    initLang.isNotEmpty ? initLang : 'en',
-  );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
   // Where the saved in-game sign-in was found at each read (Keychain, the
   // private copy, or none): codes only, into the app log.
   RetroAchievementsNativeClient.diagnostics = log.i;
@@ -909,9 +920,7 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(
-    initLang.isNotEmpty ? initLang : 'en',
-  );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }

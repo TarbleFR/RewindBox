@@ -257,6 +257,41 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Common IPA 726 triggered (11 Nov 20:50 UTC, main).** All sessions ready (queue below). Draft `8a627b46` = freeze
+  commit, trigger `0fbb5ac8`, run `43098367088` (in progress; not delivered yet). Base: the delivered 725 (run
+  `42973548971`, receipt `a84cb29a`, 90 signed images). Replaced: RPCS3 Core 933 (pin `3fdc9f3b`), MeloNX Core 735
+  (pin `3939c7a9`, replaces 731). Retained: Dolphin, ARMSX2, libretro, MeloNX dependencies, standalone MoltenVK
+  `99605a2b` (inputs unchanged since 725). Added image: `xenia_internal_bridge.framework` (PR 172 plugin; XeniaCore,
+  the shader converter and the JIT helper appex are not in the build). Effective digest `27f4a0f0`, 7755 product
+  files, legal check of the effective tree passed; 27 reviewed, 4 source-only, 38 recipe commits.
+  - **Delivery line restored (`c8f39557`, recipe § 3.9):** the MeloNX session merged origin/Claude into its branch
+    (`d769ef7c`, first parent its board note `52049ff6`) and Claude moved forward on it, so the first-parent line hid
+    the 21 Claude commits `41c76404..594e1d31` behind one merge. `c8f39557` has the tree of `eb7a88c4`, first parent
+    `594e1d31`, second `eb7a88c4`; it brings the Switch 2 library (`99e527c5`) and two board notes. No rewrite.
+  - **Port of the 725 message fixes** (`68846c65`, `f3a4180f`, source only): steps `2293b563` (source only, 12 paths at
+    the 725 bytes), `ecf6ace6` (reviewed; the three files that carry the deferred b06888a9 lines merged without them,
+    no conflict, the left-out lines exactly those of 725), `86970b20` (source only, target 727; tree = tree before).
+  - **Whole Flutter suite on `eb7a88c4`:** 4399 passed, 28 failed. 26 fail the same way at the 725 source
+    `e5a82821` (checked file by file; not changed, not in the delivery groups): `library_ui_hub_favorites` (6),
+    `library_ui_local_view` (3), `storage_log_rotation` (2), `rpcs3_import_spu_build230_contract` (2), `dolphin_import_ui`
+    (2), and one each in `rpcs3_saves_locale`, `rpcs3_firmware_preflight`, `neoplay_locale`, `neo_glass_bubble`,
+    `melonx_presentation_widgets`, `melonx_library`, `melonx_display`, `library_ui_hub`, `library_ui_details_screen`,
+    `legal_credits_dialog`, `external_display_locale`. Two were new and are fixed in `9c8f95fa` (tests only): the
+    Xbox 360 seed pin now reads the default per OS (PR 172 adds the iOS XeniOS default, as PS3/PS2 have; a second
+    flagged Android entry still fails it), and `switch2` joins the systems the pinned Canvas System Art list does not
+    cover (Switch 2 library).
+  - **Found by running the manifest's Flutter group on the materialized effective tree:** the base command
+    `translation-source` failed: `1b7d18e1` (PR 172) had split the two `setLanguage(initLang.isNotEmpty ...)` calls
+    of `lib/main.dart` that the contract counts. `a5acf378` restores the one-line form (same statement). Flutter
+    analysis, the 73 test files and every other command of the group passed on the effective tree exported just before
+    `a5acf378` (which changes only those two statements; `flutter analyze lib/main.dart` clean after it); the three
+    commands that need git history (delivery contract, libretro frontend contract, translation contract) pass in the
+    checkout with the final effective tree applied, then restored. Analyzer infos left out of the analyzed list (not errors): `lib/services/s2arm_internal_service.dart`
+    433-434 (`use_null_aware_elements`, new, session 04) and `lib/screens/game_screen/my_games_list.dart` 712 (older).
+  - **Metadata error recorded, not rewritten:** the PR 172 merge `945bec13` (made by main) carries session 03's
+    `Claude-Session` line.
+  - **Next:** download, verify offline, receipts, record, delete the key, send the file; give session 04 the freeze
+    commit for 803 (sibling of 726).
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
   - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
@@ -277,6 +312,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
     IPA 724/725 (idle game list heat, battery under a game).
+  - **Switch 2 library layer integrated (`99e527c5`, session 04, head `a13a0db8`):** inert in the common app (no plugin,
+    native code, entitlement or extension; `switch2` off by default; the Consoles tab disables the engine switch while
+    S2Arm is unavailable, so only the engine-off route is reachable; startup only creates the empty S2Arm Games folder);
+    checked by main in the code. Merged tree: flutter test 27 files 197/197, libretro/storage contracts, workflow guard,
+    tile controls, legal chain with the RA podspec at its reviewed bytes (227 inputs); session 04 CI run `43091021846`.
+    The next common build (726) carries it; 803 is then a sibling of 726 with the declared S2Arm delta.
+  - **MeloNX:** nothing in progress for 726; Core 735 (`4d391b8d`) ships; its pin note merged (`d769ef7c`).
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
     legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
     tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
@@ -4554,9 +4596,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Not in this lot:** the dispatch's own repeated work (mapped-size scans, the shader lookup forced on the next
       draw: about 2 µs a dispatch on the host) and the exact-length arrays of the delta runs; after the device run.
     - **Not measured on a device; no frame, heat or memory gain is claimed.** Remaining for the verdict: as lot 12.
-    - **Next action:** main runs Core CI on the Core 735 source and ships it with this head's bridge in the next
-      private IPA; the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample
-      against IPA 725's.
+    - **Core 735 pinned by main (11 Nov, checked on `Claude` 4d391b8d):** merged as d2053e98 after main's review (no
+      defect); Core CI run 43044568458 green at the first attempt, all 92 fresh Apple gates (the three corrected for
+      Core 733 and remap-sweep-range included); artifact 13870293486, iPhone binary 264a2f18 (38 472 792 B), contract
+      47b596a9, pin 3939c7a9. Core 733 stays the fallback. Not run on an iPhone.
+    - **Next action:** the next private IPA (main, when every session is ready) with Core 735 and this head's bridge;
+      the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample against IPA 725's,
+      the frame times from t=130, `en=`/`sw=`/`th=`, the `[MeloNX:heap]` lines and the diagnostics queue's `cpu=`.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**

@@ -22,6 +22,9 @@ enum ConsoleEngine {
   /// XeniOS, the Xenia Xbox 360 engine, embedded (docs/xenios-playlist.md).
   xenia,
 
+  /// S2Arm, the Switch 2 engine, embedded (docs/s2arm-switch2-library.md).
+  s2arm,
+
   /// The RetroArch app, external.
   retroarch,
 }
@@ -158,6 +161,7 @@ abstract final class ConsoleCatalog {
     ConsoleEngine.rpcs3,
     ConsoleEngine.melonx,
     ConsoleEngine.xenia,
+    ConsoleEngine.s2arm,
   ];
 
   static String applicationFor(ConsoleEngine engine) => switch (engine) {
@@ -167,6 +171,7 @@ abstract final class ConsoleCatalog {
     ConsoleEngine.rpcs3 => 'RPCS3',
     ConsoleEngine.melonx => 'MeloNX',
     ConsoleEngine.xenia => 'XeniOS',
+    ConsoleEngine.s2arm => 'S2Arm',
     ConsoleEngine.retroarch => 'RetroArch',
   };
 
@@ -177,14 +182,17 @@ abstract final class ConsoleCatalog {
   /// [entries] so routing, stored switches and libraries are unchanged.
   /// Xbox 360 stays listed while its engine is missing or the device is
   /// below iOS 26: its row states why it cannot run (maintainer decision,
-  /// docs/xenios-playlist.md § Consoles tab).
+  /// docs/xenios-playlist.md § Consoles tab). Switch 2 does the same
+  /// (docs/s2arm-switch2-library.md).
   static List<ConsoleEntry> listed({
     required bool Function(ConsoleEntry entry) isMissing,
   }) => <ConsoleEntry>[
     for (final engine in applicationOrder)
       for (final entry in entries)
         if (entry.engine == engine &&
-            (engine == ConsoleEngine.xenia || !isMissing(entry)))
+            (engine == ConsoleEngine.xenia ||
+                engine == ConsoleEngine.s2arm ||
+                !isMissing(entry)))
           entry,
   ];
 
@@ -260,6 +268,15 @@ abstract final class ConsoleCatalog {
         engine: ConsoleEngine.xenia,
         importSystem: 'xbox360',
         systems: <String>{'xbox360'},
+      ),
+      // Switch 2 export folders (assets/systems/switch2.json), distinct from
+      // the `switch` system MeloNX runs.
+      const ConsoleEntry(
+        id: 'switch2',
+        name: 'Nintendo Switch 2',
+        engine: ConsoleEngine.s2arm,
+        importSystem: 'switch2',
+        systems: <String>{'switch2'},
       ),
       for (final system in retroArchSystems.entries)
         ConsoleEntry(

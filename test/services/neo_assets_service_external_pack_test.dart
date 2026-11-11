@@ -113,13 +113,14 @@ void main() {
           .where((id) => NeoAssetsService.canvasCapsuleFor(id) == null)
           .toSet();
       // The pack has no capsule for these systems; their cards keep the
-      // default appearance.
+      // default appearance. switch2: the pinned pack lists 'switch' only.
       expect(uncovered, {
         'amazon',
         'gog',
         'music',
         'pet',
         'pico',
+        'switch2',
         'vc4k',
       });
     });
