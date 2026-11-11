@@ -4000,16 +4000,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
   not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
   data, RomFS index, package layout not ported.
-- **Maintainer decision (11 Nov, this session, replaces the separate IPA and its distinct
-  identifier):** "installe ton chantier directement dans l'IPA principal dans le pire des cas elle
-  ne fera que crash l'application et tu auras ta réponse et je pourrai reprendre une nouvelle IPA
-  pour continuer avec MeloNX". The probe goes into the next common IPA, built by main as usual.
-  No separate workflow, key pair or identifier: the 801 recipient key is removed, its private
-  half deleted, nothing was built.
-- **Next:** main integrates `packages/s2arm_probe` (root pubspec workspace + dependency) and
-  sets `RewindBoxS2ArmProbe` in that common IPA (handoff sent 11 Nov); then the maintainer's
-  device run and the `s2armProbe.*` lines of `MeloNX-launch.log`. The probe then runs at the first
-  Switch launch of every app session of that IPA, until an IPA without the key replaces it.
+- **Maintainer decisions (11 Nov):** here, "installe ton chantier directement dans l'IPA
+  principal …"; in the principal session, main compiles both IPAs: A (fixes) then B (A + this
+  lot). This session builds no IPA: no delivery workflow written, nothing built, 801 key removed.
+- **Next:** main builds trial IPA B from [the handoff](s2arm-trial-ipa-handoff.md) (probe package,
+  pubspec lines, `RewindBoxS2ArmProbe`); this session fixes any pod build error; then the
+  maintainer's device run and the `s2armProbe.*` lines of `MeloNX-launch.log`.
 
 ### Codex orchestration — Codex
 
