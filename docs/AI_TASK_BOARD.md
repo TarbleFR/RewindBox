@@ -1846,7 +1846,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
     - **Device results, IPA 724 (build 724 = Core 923, one process PID 50194; private journals, not in Git) and Core 924.**
       - **BO2 (BLES01717, session 8, database entry + 1 per-game override, accurate reservations):** play windows 10-40 at
-        20-35 fps, four stops of 0.6-1.1 s (windows 25, 31, 32, 39), then no frame from window 41 on. Frozen windows:
+        20-35 fps, four stops of 0.6-1.1 s (windows 25, 31, 32, 39: **synchronous Metal shader compiles, not the freeze**,
+        `SHADERSTALL538_EVENT` 535-946 ms each with 474-814 ms in the fragment library and 4-9 ms of RSX thread CPU; 13 such
+        compiles in build 723's BO2 session, no costly fingerprint common to both sessions; shader mode Legacy, the iOS
+        default), then no frame from window 41 on. Frozen windows:
         `SPUWAIT551 putllc_ok` 7.6 and 8.5 M per 5 s (2.0 M in play), `putllc_heavy` 6.0 and 6.7 M, `getllar_sleep` 0;
         `PPUGRACE664` 6010 and 6155 windows opened, 8671 and 8768 writer locks deferred 994 and 1012 ms. `FREEZE_DUMP`: main on a
         semaphore 3.2 s; PPU Secondary (0.97 core) holds a reservation on 0x2e208d8 at time 0x83d1ee800 while the line word
@@ -1863,7 +1866,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         source `2fdda673`, request `db9b8618`, run `42926781861`. [Doc](rpcs3-core924-bo2-gate-before-line.md). **Remaining
         BO2 cost:** every data-changing accurate PUTLLC still parks every PPU (273 k/s in play): the 20-35 fps ceiling and its
         oscillation. **New measurement:** MEMPARTS923 graphics ledger 0.91 -> 1.39 GB and footprint 3.40 -> 4.06 GB in 2 min
-        of play while `texture_mib` stays 100-110: unattributed, next memory task.
+        of play while `texture_mib` stays 100-110. **Attributed (11 Nov):** JITMEM `vma_allocated` plateaus at 777-813 MiB
+        while `vma_block_bytes` goes 648 -> 1136 MiB in 64 MiB steps (`vma_unused` 45 -> 360); the ledger follows the blocks
+        (each a placement MTLHeap). iOS only ever used VMA's fastest strategy (load < 50 % of a 7.4 GiB unified heap).
+        **Core 925 in preparation (`REWINDBOX_GPU_MEMORY_PACKING_925`, engine `ecbc453`):** allocations >= 1 MiB get dedicated
+        memory, the others the minimum-memory strategy; setting GPU Memory Packing (Automatic = on), `COREPROF GPUPACK925`.
+        Host model on the pinned VMA 3.3.0 behind a mock device, BO2-shaped load: unused 169-210 -> 31-50 MiB
+        (`test/rpcs3_gpu_memory_packing925_test.py`). Not modelled: the time Metal takes to create a heap per allocation.
       - **GOW3 (BCES00510, database entry as is: async_tex=true, 100 %, mt_rsx=false):** maintainer reports unplayable graphics
         errors on fresh boots (sessions 1-3) and savestates (4, 6); no journal line names the setting. By elimination against
         build 723 (async_tex=false, 75 %, mt_rsx=true) and the Build 552/610 withdrawals, `sanitiseForIOS` no longer applies
