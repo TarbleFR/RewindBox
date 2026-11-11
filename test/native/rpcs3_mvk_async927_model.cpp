@@ -455,6 +455,9 @@ static std::uint64_t gather(dispatch_queue_t mvk, dispatch_queue_t gpu, bool enc
 
 // ---- 4. The background gate (real class) ------------------------------------------------------------------------
 // iOS: a command buffer committed while the application is in the background is refused.
+// From Core 928 the gate closes at the deactivation and its settle function takes a second argument: its scenarios,
+// these ones included, are in test/native/rpcs3_gpu_gate928_model.cpp, and this part is compiled for Core 927 only.
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
 struct metal_model
 {
 	std::atomic<bool> background{false};
@@ -740,6 +743,7 @@ static gate_results gate_model(dispatch_queue_t mvk)
 
 	return results;
 }
+#endif // REWINDBOX_GPU_DEACTIVATION_GATE_928
 
 int main()
 {
@@ -761,21 +765,28 @@ int main()
 	CHECK(result_old == 7 && result_new == 7); // the same answer
 	CHECK(spins_old > 100 && spins_new == 0);  // without a spin
 
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
 	const gate_results gate = gate_model(mvk);
 	CHECK(gate.refused_without_gate > 0 && gate.refused_with_gate == 0);
 	CHECK(gate.refused_async_without_settle > 0 && gate.refused_async_with_settle == 0);
+#endif
 
 	queues.begin_device(0, 0);
 	dispatch_release(mvk);
 	dispatch_release(gpu);
 
 	std::printf("{\"failures\": %d, \"semaphore\": {\"neverSignaledOldRule\": %d, \"neverSignaledStrict\": %d}, "
-		"\"query\": {\"notReadySpinsOldRule\": %llu, \"notReadySpinsEncodeWait\": %llu}, "
-		"\"gate\": {\"refusedWithoutGate\": %llu, \"refusedWithGate\": %llu, \"refusedQueuedWithoutSettle\": %llu, "
-		"\"refusedQueuedWithSettle\": %llu}}\n",
+		"\"query\": {\"notReadySpinsOldRule\": %llu, \"notReadySpinsEncodeWait\": %llu}, ",
 		g_failures, hazards_old, hazards_strict, static_cast<unsigned long long>(spins_old),
-		static_cast<unsigned long long>(spins_new), static_cast<unsigned long long>(gate.refused_without_gate),
+		static_cast<unsigned long long>(spins_new));
+#ifndef REWINDBOX_GPU_DEACTIVATION_GATE_928
+	std::printf("\"gate\": {\"refusedWithoutGate\": %llu, \"refusedWithGate\": %llu, \"refusedQueuedWithoutSettle\": %llu, "
+		"\"refusedQueuedWithSettle\": %llu}}\n",
+		static_cast<unsigned long long>(gate.refused_without_gate),
 		static_cast<unsigned long long>(gate.refused_with_gate), static_cast<unsigned long long>(gate.refused_async_without_settle),
 		static_cast<unsigned long long>(gate.refused_async_with_settle));
+#else
+	std::printf("\"gate\": null}\n");
+#endif
 	return g_failures ? 1 : 0;
 }
