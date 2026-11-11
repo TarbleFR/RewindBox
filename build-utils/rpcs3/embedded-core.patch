@@ -130092,6 +130092,139 @@ index 0000000..7167ee8
 +		return sum;
 +	}
 +}
+diff --git a/rpcs3/ios/IOSSpuWaitSite930.h b/rpcs3/ios/IOSSpuWaitSite930.h
+new file mode 100644
+index 0000000..2e42575
+--- /dev/null
++++ b/rpcs3/ios/IOSSpuWaitSite930.h
+@@ -0,0 +1,127 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_SPU_WAIT_SITE_930: what a waiting SPU thread waits on, for the SPU region profile (COREPROF SPUPROF923).
++//
++// Build 725, Call of Duty: Black Ops II (PID 52378, session 2): the six SPURS kernel threads were sampled waiting in 41 %
++// of 5,000 samples each, and the profile named sys_spu_thread_send_event for about 98 % of those. That name is not the
++// wait: spu_thread::current_func is set by spu_function_logger and only cleared when a call is aborted, so it is the
++// last named call, whatever the thread waited on after it. The SPU LLVM recompiler stores the program counter before
++// every call that can block (channel reads and writes, MFC commands, STOP: SPULLVMRecompiler.cpp update_pc()), so the
++// instruction at that address in local storage, the MFC command the thread issued last and the thread's state flags say
++// what a waiting thread waits on. Read by the profile's sampling thread only; it changes nothing in the SPU thread.
++namespace rpcs3::ios::spu_wait_site
++{
++// Channel numbers (static_assert against SPUThread.h where the sampler is compiled).
++constexpr std::uint32_t ch_rd_event_stat = 0, ch_rd_sig_notify1 = 3, ch_rd_sig_notify2 = 4, ch_mfc_cmd = 21, ch_wr_tag_update = 23,
++	ch_rd_tag_stat = 24, ch_rd_list_stall_stat = 25, ch_rd_atomic_stat = 27, ch_wr_out_mbox = 28, ch_rd_in_mbox = 29,
++	ch_wr_out_intr_mbox = 30;
++// SPU opcodes (the top 11 bits, SPUOpcodes.h spu_decode) and the STOP codes of sys_spu.h that wait.
++constexpr std::uint32_t op_stop = 0x000, op_rdch = 0x00d, op_rchcnt = 0x00f, op_wrch = 0x10d;
++constexpr std::uint32_t code_stop_yield = 0x100, code_stop_receive_event = 0x110, code_stop_try_receive_event = 0x111;
++
++enum site : std::uint8_t
++{
++	flag_pause,          // suspended by cpu_thread::suspend_all (cpu_flag::pause)
++	flag_suspend,        // the thread group is suspended (cpu_flag::suspend)
++	flag_memory,         // must release the memory lock (cpu_flag::memory)
++	flag_debug,          // emulation or thread paused (dbg_global_pause / dbg_pause)
++	rdch_event,          // rdch SPU_RdEventStat: waits for an event (lock-line reservation lost, mailbox, signal, ...)
++	rdch_in_mbox,        // rdch SPU_RdInMbox
++	rdch_signal,         // rdch SPU_RdSigNotify1 or 2
++	rdch_tag_status,     // rdch MFC_RdTagStat: waits for DMA tags
++	rdch_atomic_status,  // rdch MFC_RdAtomicStat
++	rdch_list_stall,     // rdch MFC_RdListStallStat
++	rdch_other,
++	rchcnt_wait,         // rchcnt on a channel (counted in a wait: the recompiler's wait_on_spu_channel)
++	wrch_out_mbox,       // wrch SPU_WrOutMbox (outbound mailbox full)
++	wrch_out_intr_mbox,  // wrch SPU_WrOutIntrMbox (sys_spu_thread_send_event, throw event, ...)
++	wrch_tag_update,     // wrch MFC_WrTagUpdate
++	mfc_getllar,         // wrch MFC_Cmd, GETLLAR
++	mfc_putllc,          // wrch MFC_Cmd, PUTLLC (line lock, writer lock, deferral to a starving PPU)
++	mfc_putlluc,         // wrch MFC_Cmd, PUTLLUC / PUTQLLUC
++	mfc_get,             // wrch MFC_Cmd, GET family (incl. lists)
++	mfc_put,             // wrch MFC_Cmd, PUT family (incl. lists)
++	mfc_other,           // wrch MFC_Cmd, SNDSIG, barriers, SDCR
++	wrch_other,
++	stop_receive_event,  // STOP 0x110 / 0x111: sys_spu_thread_receive_event
++	stop_yield,          // STOP 0x100: group yield
++	stop_other,          // other STOP codes
++	not_a_call,          // the saved pc is not a blocking instruction: the wait is outside a call-out (or pc is stale)
++	count
++};
++
++constexpr const char* names[count] = {
++	"flag_pause", "flag_suspend", "flag_memory", "flag_debug",
++	"rdch_event", "rdch_in_mbox", "rdch_signal", "rdch_tag_status", "rdch_atomic_status", "rdch_list_stall", "rdch_other",
++	"rchcnt_wait", "wrch_out_mbox", "wrch_out_intr_mbox", "wrch_tag_update",
++	"mfc_getllar", "mfc_putllc", "mfc_putlluc", "mfc_get", "mfc_put", "mfc_other", "wrch_other",
++	"stop_receive_event", "stop_yield", "stop_other", "not_a_call",
++};
++
++struct state_bits
++{
++	bool pause = false, suspend = false, memory = false, debug = false;
++};
++
++// MFC command families (MFC.h): bits 0-1 are the barrier and fence modifiers, bit 2 the list form, bit 3 the start form.
++constexpr site classify_mfc(std::uint8_t cmd) noexcept
++{
++	if (cmd == 0xd0) return mfc_getllar;
++	if (cmd == 0xb4) return mfc_putllc;
++	if (cmd == 0xb0 || cmd == 0xb8) return mfc_putlluc;
++	const std::uint8_t family = cmd & 0xf0;
++	if (family == 0x40) return mfc_get;
++	if (family == 0x20 || family == 0x30) return mfc_put;
++	return mfc_other;
++}
++
++// `insn` is the big-endian instruction word at the saved pc, already in host order; `mfc_cmd` the last command written
++// to MFC_Cmd. The flags come first: a thread stopped by them waits for them, wherever its pc is.
++constexpr site classify(state_bits flags, std::uint32_t insn, std::uint8_t mfc_cmd) noexcept
++{
++	if (flags.pause) return flag_pause;
++	if (flags.suspend) return flag_suspend;
++	if (flags.memory) return flag_memory;
++	if (flags.debug) return flag_debug;
++
++	const std::uint32_t op = insn >> 21;
++	const std::uint32_t channel = (insn >> 7) & 0x7f;
++
++	switch (op)
++	{
++	case op_rdch:
++		switch (channel)
++		{
++		case ch_rd_event_stat: return rdch_event;
++		case ch_rd_in_mbox: return rdch_in_mbox;
++		case ch_rd_sig_notify1:
++		case ch_rd_sig_notify2: return rdch_signal;
++		case ch_rd_tag_stat: return rdch_tag_status;
++		case ch_rd_atomic_stat: return rdch_atomic_status;
++		case ch_rd_list_stall_stat: return rdch_list_stall;
++		default: return rdch_other;
++		}
++	case op_rchcnt: return rchcnt_wait;
++	case op_wrch:
++		switch (channel)
++		{
++		case ch_mfc_cmd: return classify_mfc(mfc_cmd);
++		case ch_wr_out_mbox: return wrch_out_mbox;
++		case ch_wr_out_intr_mbox: return wrch_out_intr_mbox;
++		case ch_wr_tag_update: return wrch_tag_update;
++		default: return wrch_other;
++		}
++	case op_stop:
++	{
++		const std::uint32_t code = insn & 0x3fff;
++		if (code == code_stop_receive_event || code == code_stop_try_receive_event) return stop_receive_event;
++		if (code == code_stop_yield) return stop_yield;
++		return stop_other;
++	}
++	default: return not_a_call;
++	}
++}
++}
 diff --git a/rpcs3/ios/IOSSpursRelaxedStore.h b/rpcs3/ios/IOSSpursRelaxedStore.h
 new file mode 100644
 index 0000000..bc4c6ae
@@ -138775,10 +138908,10 @@ index 8fba197..77f7b66 100644
  // function pointer from resolve_experimental_policy().
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..a3f1443
+index 0000000..a84f338
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,1078 @@
+@@ -0,0 +1,1118 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -138795,6 +138928,7 @@ index 0000000..a3f1443
 +#include "ios/IOSSignalTrace.h" // REWINDBOX_FREEZE_LABELS_909
 +#include "ios/IOSCapture912.h" // REWINDBOX_CAPTURE_912
 +#include "ios/IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
++#include "ios/IOSSpuWaitSite930.h" // REWINDBOX_SPU_WAIT_SITE_930
 +#include "Emu/RSX/RSXFIFO.h"
 +#include <cstring>
 +#include "Emu/Memory/vm_reservation.h"
@@ -139479,6 +139613,18 @@ index 0000000..a3f1443
 +
 +// REWINDBOX_CAPTURE_912 (ios/IOSCapture912.h): the diagnostic-thread side of the two captures. Called by the
 +// profiler sampler every 500 ms; nothing here runs on an emulated thread except the PPU sampler's own reads.
++// REWINDBOX_SPU_WAIT_SITE_930: the classifier's channel numbers are the engine's.
++static_assert(rpcs3::ios::spu_wait_site::ch_rd_event_stat == SPU_RdEventStat && rpcs3::ios::spu_wait_site::ch_rd_sig_notify1 == SPU_RdSigNotify1 &&
++	rpcs3::ios::spu_wait_site::ch_rd_sig_notify2 == SPU_RdSigNotify2 && rpcs3::ios::spu_wait_site::ch_mfc_cmd == MFC_Cmd &&
++	rpcs3::ios::spu_wait_site::ch_wr_tag_update == MFC_WrTagUpdate && rpcs3::ios::spu_wait_site::ch_rd_tag_stat == MFC_RdTagStat &&
++	rpcs3::ios::spu_wait_site::ch_rd_list_stall_stat == MFC_RdListStallStat && rpcs3::ios::spu_wait_site::ch_rd_atomic_stat == MFC_RdAtomicStat &&
++	rpcs3::ios::spu_wait_site::ch_wr_out_mbox == SPU_WrOutMbox && rpcs3::ios::spu_wait_site::ch_rd_in_mbox == SPU_RdInMbox &&
++	rpcs3::ios::spu_wait_site::ch_wr_out_intr_mbox == SPU_WrOutIntrMbox);
++static_assert(rpcs3::ios::spu_wait_site::code_stop_yield == SYS_SPU_THREAD_STOP_YIELD &&
++	rpcs3::ios::spu_wait_site::code_stop_receive_event == SYS_SPU_THREAD_STOP_RECEIVE_EVENT &&
++	rpcs3::ios::spu_wait_site::code_stop_try_receive_event == SYS_SPU_THREAD_STOP_TRY_RECEIVE_EVENT);
++static_assert(rpcs3::ios::spu_wait_site::op_rdch == spu_decode(0x01a00000u) && rpcs3::ios::spu_wait_site::op_wrch == spu_decode(0x21a00000u));
++
 +namespace
 +{
 +namespace capture = rpcs3::ios::capture912;
@@ -139499,6 +139645,8 @@ index 0000000..a3f1443
 +	std::vector<stx::shared_ptr<named_thread<spu_thread>>> spu_threads;
 +	std::array<capture::ppu_profile::histogram, rpcs3::ios::auto_spu_profile::max_threads> spu_tracked{};
 +	std::array<std::array<std::pair<const char*, u32>, 6>, rpcs3::ios::auto_spu_profile::max_threads> spu_wait_calls{};
++	// REWINDBOX_SPU_WAIT_SITE_930: what each waiting sample waited on (spu_wait_calls is the last named call, not the wait).
++	std::array<std::array<u32, rpcs3::ios::spu_wait_site::count>, rpcs3::ios::auto_spu_profile::max_threads> spu_wait_sites{};
 +	std::array<std::string, rpcs3::ios::auto_spu_profile::max_threads> spu_names;
 +	u32 spu_count = 0;
 +	u32 spu_listed = 0;
@@ -139578,6 +139726,19 @@ index 0000000..a3f1443
 +				}
 +
 +				spu_tracked[i].add_waiting();
++				{
++					// REWINDBOX_SPU_WAIT_SITE_930: the flags, the instruction at the pc saved before the blocking call and the
++					// last MFC command (racy reads of the sampled thread, as for pc above; nothing is written there).
++					namespace site = rpcs3::ios::spu_wait_site;
++					const auto flags = +spu.state;
++					site::state_bits bits;
++					bits.pause = !!(flags & cpu_flag::pause);
++					bits.suspend = !!(flags & cpu_flag::suspend);
++					bits.memory = !!(flags & cpu_flag::memory);
++					bits.debug = !!(flags & (cpu_flag::dbg_global_pause + cpu_flag::dbg_pause));
++					const u32 insn = spu._ref<u32>(spu.pc & 0x3fffc);
++					spu_wait_sites[i][site::classify(bits, insn, static_cast<u8>(spu.ch_mfc_cmd.cmd))]++;
++				}
 +				const char* call = spu.current_func;
 +
 +				for (auto& [name, count] : spu_wait_calls[i])
@@ -139661,7 +139822,8 @@ index 0000000..a3f1443
 +
 +	// REWINDBOX_SPU_PROFILE_923: the SPU threads of the same capture.
 +	ios_freeze_dump.notice("COREPROF SPUPROF923 session=%llu capture=%u part=begin samples=%u period_us=1000 elapsed_us=%llu spu_threads=%u "
-+		"tracked=%u region_bytes=256 pc_scope=last_compiled_chunk_entry_or_call_out top_fields=region:samples:first_pc", session, s_ppu_captures,
++		"tracked=%u region_bytes=256 pc_scope=last_compiled_chunk_entry_or_call_out top_fields=region:samples:first_pc "
++		"wait_calls_scope=last_named_call wait_sites_scope=flags_then_instruction_at_saved_pc", session, s_ppu_captures,
 +		run.samples, run.ended_us - run.started_us, run.spu_listed, run.spu_count);
 +
 +	for (u32 i = 0; i < run.spu_count; i++)
@@ -139677,10 +139839,21 @@ index 0000000..a3f1443
 +			}
 +		}
 +
++		// REWINDBOX_SPU_WAIT_SITE_930: every site with at least one waiting sample, in the classifier's order.
++		std::string sites;
++
++		for (u32 k = 0; k < rpcs3::ios::spu_wait_site::count; k++)
++		{
++			if (const u32 n = run.spu_wait_sites[i][k])
++			{
++				fmt::append(sites, "%s%s:%u", sites.empty() ? "" : ",", rpcs3::ios::spu_wait_site::names[k], n);
++			}
++		}
++
 +		std::string line = fmt::format("COREPROF SPUPROF923 session=%llu capture=%u part=thread id=0x%x name=%s running=%llu "
-+			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id,
++			"waiting=%llu same_pc=%llu distinct=%u overflow=%llu wait_sites=%s wait_calls=%s top=%s", session, s_ppu_captures, h.thread_id,
 +			run.spu_names[i].empty() ? std::string("-") : sanitize_token(run.spu_names[i]), h.running, h.waiting, h.same_pc, h.distinct, h.overflow,
-+			calls.empty() ? std::string("-") : calls, h.top(24));
++			sites.empty() ? std::string("-") : sites, calls.empty() ? std::string("-") : calls, h.top(24));
 +		ios_freeze_dump.notice("%s", bound_line(line));
 +	}
 +

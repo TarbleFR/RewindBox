@@ -2086,6 +2086,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           last named call, not the wait); (2) the exact reservation writer lock parks every PPU for each heavy PUTLLC (8-10 k per
           frame); (3) pipelines compiled in play (12 blocking builds in 2 min). **No IPA is compiled until the other sessions are
           ready** (Core builds and pins continue).
+        - **Core 929 compile request 1 (f235abc4, run 42996349275) refused before compiling:** "Current compiled/host input differs:
+          Rpcs3InternalBridgePlugin.mm" — the MoltenVK dependency of run 42957981240 recorded the bridge before the menu change; of
+          its 12 recorded inputs only the bridge differs. Dependency requested again (f52d92ce, run 42998604606); then core-build.json
+          links it (library expected byte-identical d19d3a42, checked on the download) and the compile is requested again.
+          Core 930 delta regenerated locally (222 files, applies on a pristine upstream clone), not committed until the 929 request is out.
+        - **MeloNX lot 12 merged by main (e747321a, head e96fb37d, no conflict): number MeloNX Core 733.** Contract file
+          b2a748e7, FRESH_GATES 91 in both verifiers; dma contract test 419 checks (current contract verified), reads 440,
+          arrays 545, hot spots 14, perf journal 52, frame budget 12; RPCS3 Core 929 source closure unchanged. Liveness, gpu,
+          performance and guard contract tests fail identically before the merge (superseded). Core build dispatched:
+          melonx-core.yml run 42999377576 on e747321a. **Failed** at the new gate host-thread-class (job 130451413290,
+          macos-26): "FAILED: macOS: the thread is in the user-interactive class after the call: {... \"value\": false,
+          \"requests\": [], \"applePlatform\": true, \"classBefore\": 0, \"classAfter\": 0}" (test line 224); the two gates
+          before it passed. Not pinned, not rerun (deterministic); Core 731 fa54e14a stays pinned. Reported to the MeloNX
+          session for a corrected head. Not run on an iPhone.
+        - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
+          (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
+          verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
+          authentication step). Request 1's Apple host harness job passed on f235abc4.
+        - **Core 930 (`REWINDBOX_SPU_WAIT_SITE_930`, engine `e0ab634`, point 1 of the order):** source dd461ee7, canonical
+          5078f1d4 (461 postimages), delta 733644e4, build 930; driver passed locally (1449 s) with closure, feature tests
+          924-930, codegen (no input change), fold chain, route, analyzer, pin, guards. Compile request 454e6495, run
+          43004512353. [Record](rpcs3-core930-spu-wait-sites.md) (points 2 and 3: no safe change / interpreter needs approval).
+        - **Other sessions (11 Nov):** session 04 delivered IPA 802 on its own line (run 42997316389, 272236941 B,
+          fb9f07cd…, Switch 2 probe; not observed on a device); MeloNX lot 12 = Core 733 above.
         - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
