@@ -100,6 +100,11 @@ class NeoAssetsTheme {
   /// Preview file of a pack installed on the device (its `preview.*`).
   final String? previewFile;
 
+  /// Version published by the catalogue ('' when it publishes none). An
+  /// installed pack whose local theme.json carries another version can be
+  /// updated.
+  final String version;
+
   /// The pack ships inside the application and installs offline.
   bool get isBundled => source == 'bundled';
 
@@ -113,6 +118,7 @@ class NeoAssetsTheme {
     this.source = '',
     this.previewAsset,
     this.previewFile,
+    this.version = '',
   });
 
   factory NeoAssetsTheme.fromJson(Map<String, dynamic> json) {
@@ -125,6 +131,7 @@ class NeoAssetsTheme {
       previewSource: previewSource,
       isAi: _parseAi(json['ai']),
       source: json['source']?.toString() ?? '',
+      version: json['version']?.toString().trim() ?? '',
     );
   }
 
@@ -138,6 +145,7 @@ class NeoAssetsTheme {
     String? source,
     String? previewAsset,
     String? previewFile,
+    String? version,
   }) {
     return NeoAssetsTheme(
       name: name ?? this.name,
@@ -149,6 +157,7 @@ class NeoAssetsTheme {
       source: source ?? this.source,
       previewAsset: previewAsset ?? this.previewAsset,
       previewFile: previewFile ?? this.previewFile,
+      version: version ?? this.version,
     );
   }
 
@@ -294,6 +303,7 @@ class NeoAssetsService {
           previewUrl: _canvasPreviewUrl,
           previewSource: _canvasPreviewUrl,
           isAi: false,
+          version: canvasEsDeRevision,
         ),
       );
     }
@@ -330,11 +340,13 @@ class NeoAssetsService {
   /// this fallback the list collapses to just "None" while the theme is in
   /// fact still applied and rendering from cache).
   static Future<List<NeoAssetsTheme>> fetchThemes() async {
+    _catalogIsLive = false;
     if (_cachedThemes != null) return _cachedThemes!;
     // The embedded pack is always listed first, online or not.
     final bundled = await _bundledThemes();
 
     final remote = await _fetchRemoteThemes();
+    _catalogIsLive = remote != null;
     if (remote != null) {
       _registerNeoAssets(remote);
       final merged = await _mergeWithLocalThemes(
@@ -744,6 +756,28 @@ class NeoAssetsService {
       _log.w('Error fetching theme metadata for "$themeFolder": $e');
       return null;
     }
+  }
+
+  /// Whether the last [fetchThemes] came from the live catalogue. An offline
+  /// manifest may predate an installed pack, so it never reports updates.
+  static bool _catalogIsLive = false;
+
+  /// Folders of installed packs whose catalogue version differs from the
+  /// version recorded at installation. The embedded pack, packs that are not
+  /// installed and catalogues without a version are never reported.
+  static Future<Set<String>> foldersWithUpdates(
+    List<NeoAssetsTheme> themes, {
+    bool? live,
+  }) async {
+    if (!(live ?? _catalogIsLive)) return {};
+    final result = <String>{};
+    for (final theme in themes) {
+      if (theme.isBundled || BundledSystemArt.isBundled(theme.folder)) continue;
+      if (theme.version.isEmpty || theme.folder.isEmpty) continue;
+      final local = (await readLocalThemeVersion(theme.folder))?.trim() ?? '';
+      if (local.isNotEmpty && local != theme.version) result.add(theme.folder);
+    }
+    return result;
   }
 
   /// Reads the version string from the locally cached theme metadata.

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'dart:async';
 
 import '../services/neo_assets_service.dart';
@@ -7,6 +8,8 @@ import '../services/system_art/bundled_system_art.dart';
 import '../services/system_art/system_art_alias_table.dart';
 import '../repositories/config_repository.dart';
 import '../services/logger_service.dart';
+import '../services/global_notification_service.dart';
+import '../l10n/system_art_update_locale.dart';
 
 final _log = LoggerService.instance;
 
@@ -32,6 +35,12 @@ class NeoAssetsProvider extends ChangeNotifier {
   /// Normalized download progress (0.0 to 1.0).
   double _downloadProgress = 0.0;
 
+  /// Installed packs whose catalogue version differs from the local one.
+  Set<String> _updatableFolders = {};
+
+  /// Id of the bell notification announcing System Art updates.
+  static const String updateNotificationId = 'system-art-updates';
+
   /// Internal flag to ensure initialization logic runs only once.
   bool _initialized = false;
 
@@ -41,6 +50,10 @@ class NeoAssetsProvider extends ChangeNotifier {
   bool get downloading => _downloading;
   double get downloadProgress => _downloadProgress;
   bool get hasActiveTheme => _activeThemeFolder.isNotEmpty;
+  Set<String> get updatableFolders => Set.unmodifiable(_updatableFolders);
+
+  /// Whether the installed pack in [folder] can be updated.
+  bool hasUpdate(String folder) => _updatableFolders.contains(folder);
 
   /// Initializes the theme cache directory and loads the active theme from the database.
   ///
@@ -84,12 +97,44 @@ class NeoAssetsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _themes = await NeoAssetsService.fetchThemes();
+      _updatableFolders = await NeoAssetsService.foldersWithUpdates(_themes);
+      publishUpdateNotification();
     } catch (e) {
       _log.e('Error loading themes: $e');
     } finally {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  /// Shows (or withdraws) the bell notification listing updatable packs.
+  @visibleForTesting
+  void publishUpdateNotification() {
+    final notifications = GlobalNotificationService();
+    final names = [
+      for (final t in _themes)
+        if (_updatableFolders.contains(t.folder)) t.name,
+    ];
+    if (names.isEmpty) {
+      notifications.dismiss(updateNotificationId);
+      return;
+    }
+    notifications.show(
+      id: updateNotificationId,
+      title: SystemArtUpdateLocale.title(),
+      message: SystemArtUpdateLocale.message(names),
+      icon: Icons.system_update_alt,
+      type: GlobalNotificationType.info,
+    );
+  }
+
+  /// Test hook: sets the catalogue and the updatable packs without network.
+  @visibleForTesting
+  void debugSetThemes(List<NeoAssetsTheme> themes, Set<String> updatable) {
+    _themes = themes;
+    _updatableFolders = {...updatable};
+    publishUpdateNotification();
+    notifyListeners();
   }
 
   /// Deselects the current theme and resets the active selection.
@@ -170,6 +215,7 @@ class NeoAssetsProvider extends ChangeNotifier {
 
       _activeThemeFolder = themeFolder;
       await ConfigRepository.updateActiveTheme(themeFolder);
+      if (_updatableFolders.remove(themeFolder)) publishUpdateNotification();
 
       // /download is the official counting endpoint. A catalog/preview
       // request must never increment statistics or redownload an old pack.
