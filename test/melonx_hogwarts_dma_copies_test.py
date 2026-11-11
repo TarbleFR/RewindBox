@@ -174,6 +174,18 @@ LOT_FILES = {
     'adapt_gc_pause_journal': [],
     'adapt_extra_array_dirty': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
     'adapt_array_barrier_epoch': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Core 725 (lot 9): every recorded pipeline state replayed at launch (the session cap is the journal's bound).
+    'adapt_variant_replay_all': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 727 (lot 9): the pause checkpoint threshold; the Vulkan allocator's blocks in the journal.
+    'adapt_pause_checkpoint_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_vulkan_memory_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_pipeline_cache_compact': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 731 (lot 11): the buffer cache's trim while only the device is short (Buffer.cs is outside this composition).
+    'adapt_cold_buffer_trim': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # Core 733 (lot 12): the host thread class (Common, HLE and Audio files: none is held in this composition).
+    'adapt_host_thread_class': [],
+    # Core 735 (lot 14): the remap sweep of the partially mapped textures.
+    'adapt_remap_sweep_range': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
 }
 
 checks = 0

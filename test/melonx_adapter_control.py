@@ -41,7 +41,10 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_pipeline_variant_replay', 'adapt_pipeline_snapshot_retire',
          'adapt_extra_set_binds', 'adapt_array_reference_deltas', 'adapt_worker_library_share',
          'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data',
-         'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch')
+         'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch',
+         'adapt_variant_replay_all', 'adapt_pause_checkpoint_growth',
+         'adapt_vulkan_memory_journal', 'adapt_pipeline_cache_compact', 'adapt_cold_buffer_trim',
+         'adapt_host_thread_class', 'adapt_remap_sweep_range')
 
 
 def sha(path: Path) -> str:
@@ -188,6 +191,36 @@ def reverse_present(target: Path, module_name: str, only=None) -> list:
     finally:
         module.once, module.BASELINE = original, baseline
     return present
+
+
+JOURNAL_START_CALL = '''        if (Path.GetFileName(path) == "MeloNX-core.log")
+        {
+            try { MakeRoomAtStart(path); } catch { }
+        }
+'''
+
+
+def journal_without_start_room(text: str) -> str:
+    """The engine journal (EmbeddedLaunchDiagnostics.cs) without Core 725's room at the start of a process: the call in
+    ConfigureJournal and the block that follows it (two constants and MakeRoomAtStart). What is left must be the journal
+    the earlier Cores were prepared with; a journal without the addition is returned as it is."""
+    if 'MakeRoomAtStart' not in text:
+        return text
+    assert text.count(JOURNAL_START_CALL) == 1 and text.count('MakeRoomAtStart') == 2, 'unexpected journal start-room edit'
+    start = text.index('    // A process starts with room for its whole journal.')
+    end = text.index('    // Engine warnings and errors repeat:')
+    assert start < end and text.index(JOURNAL_START_CALL) < start
+    return (text[:start] + text[end:]).replace(JOURNAL_START_CALL, '')
+
+
+def journal_of_earlier_cores(text: str) -> str:
+    """The engine journal the Cores before 725 were prepared with: Core 733's kept snapshot reversed first (the exact
+    pairs of build-utils/melonx/core733_native.py), then Core 725's room at the start of a process taken out. A journal
+    without either addition is returned as it is."""
+    import core733_native
+    if core733_native.present(text, core733_native.JOURNAL):
+        text = core733_native.reverse(text, core733_native.JOURNAL)
+    return journal_without_start_room(text)
 
 
 def use_authenticated_libhac_feed(tree: Path, root: Path) -> bool:

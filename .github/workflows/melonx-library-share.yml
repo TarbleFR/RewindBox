@@ -26,7 +26,7 @@ jobs:
         persist-credentials: false
     - name: Build MoltenVK v1.4.2 for macOS and measure the library publication strategies
       run: python3 test/melonx_library_share/run_share.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-library-share-${{ github.sha }}

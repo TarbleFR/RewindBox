@@ -6,7 +6,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SOURCE="$(cd "${1:?Expected the XeniOS checkout}" && pwd)"
-CXX="${CXX:-clang++}"
+# CXX may be a command with arguments (the workflow passes "xcrun clang++").
+read -r -a CXX_COMMAND <<< "${CXX:-clang++}"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 cat > "$TMP/check.cc" <<'CC'
@@ -24,7 +25,7 @@ int main() {
   return ok && !neo_xenia::SetCvar("not_a_cvar", "1") ? 0 : 1;
 }
 CC
-"$CXX" -std=c++20 -fsyntax-only -Werror \
+"${CXX_COMMAND[@]}" -std=c++20 -fsyntax-only -Werror \
   -I "$ROOT/packages/xenia_internal_bridge/core" -I "$SOURCE/src" -I "$SOURCE" -I "$SOURCE/third_party" \
   "$TMP/check.cc"
 echo "xenia core C++ parts: OK"

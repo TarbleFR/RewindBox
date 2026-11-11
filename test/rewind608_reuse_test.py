@@ -185,7 +185,9 @@ class ExactInputs(unittest.TestCase):
             pattern = r'^  ' + name + r':\n(.*?)(?=^  [a-z0-9_-]+:\n|\Z)'
             old = re.search(pattern, original, re.M | re.S).group()
             new = re.search(pattern, rendered, re.M | re.S).group()
-            self.assertEqual(new.replace('    if: ' + reuse.SKIP + '\n', '', 1), old)
+            normalized = new.replace('    if: ' + reuse.SKIP + '\n', '', 1)
+            normalized = normalized.replace('uses: ' + reuse.IPA_UPLOAD_GUARD, 'uses: actions/upload-artifact@v4')
+            self.assertEqual(normalized, old)
             self.assertIn(f"needs.{name}.result == 'skipped'", reuse.APP_GATE)
             self.assertIn(f"needs.{name}.result == 'success'", reuse.APP_GATE)
         self.assertIn("needs.preflight.result == 'success'", reuse.APP_GATE)

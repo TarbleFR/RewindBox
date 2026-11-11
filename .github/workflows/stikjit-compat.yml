@@ -36,7 +36,7 @@ jobs:
           command -v xcodegen || brew install xcodegen
           python3 build-utils/build_patched_stikjit.py
           python3 test/stikjit_unified_build_test.py
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: StikJIT-source-validated-${{ github.sha }}
           path: |
@@ -46,7 +46,7 @@ jobs:
             build/stikjit-current/host-commit.txt
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: failure()
         with:
           name: StikJIT-source-build-failure-${{ github.sha }}

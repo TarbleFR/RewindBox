@@ -1,0 +1,323 @@
+{
+  "result": "passed",
+  "checks": 43,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparation",
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "5c54b92e810c247dc10a748185a70713bd3970dc999f391355d85ea9632398db",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs": "b5842f6d9e00122be3a35737fc66dbbe0a7eaf4de0d2aa49c1ad53b93ffdd611"
+  },
+  "preimages": {
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs": "eb143b14be90261baf92788713a8bb73b11d9d921f420bf2b9b7ad65f5068658",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs": "97737b97bb425d1310aea4bc119821def33750aee3539573a9dff2cb573e71f1"
+  },
+  "productionCommonBuilt": true,
+  "comparison": {
+    "steps": 192,
+    "sameAnswersAsControl": true,
+    "snapshotBytes": 157054,
+    "controlBytesPerQuietPoll": 907317,
+    "candidateBytesPerQuietPoll": 0,
+    "controlBytesPerChangingPoll": 929452,
+    "candidateBytesPerChangingPoll": 0,
+    "sensitivityVariantsFailed": 3
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "functional": {
+        "steps": 192,
+        "digest": "5bbbcd6163855561ec6f0d80a4da4c806b9d21f0cf235659e4fc7528e7e1609a",
+        "exportTwiceAndSnapshotEqual": 192,
+        "parsed": 192,
+        "unparsed": 0,
+        "statusNotZero": 0,
+        "maxEvents": 64,
+        "maxBytes": 157258,
+        "firstDifferences": [],
+        "watched": {
+          "file begin": "2502ffa35b29083e",
+          "begin again": "a571a174a11b2d2d",
+          "performance refused": "66ac0624231d5c56",
+          "performance sample": "0bae9b554b75c8fa",
+          "long 149": "235023bd8a1c5678"
+        },
+        "journalLines": 157
+      },
+      "capacity": {
+        "size": 157054,
+        "nullOutput": -157054,
+        "zeroCapacity": -157054,
+        "capacityOfTheSize": -157054,
+        "untouchedWhenRefused": true,
+        "capacityOfTheSizePlusOne": 0,
+        "terminated": true,
+        "sameBytes": true
+      },
+      "allocations": {
+        "snapshotBytes": 157054,
+        "quietPolls": 1000,
+        "quietBytesPerPoll": 907317,
+        "changingPolls": 200,
+        "changingBytesPerPoll": 929452,
+        "quietWritten": 0,
+        "quietKept": 0,
+        "changingWritten": 0,
+        "changingKept": 0
+      },
+      "observer": {
+        "calls": 30,
+        "status": 0
+      },
+      "concurrent": {
+        "polls": true,
+        "invalid": 0,
+        "unordered": 0,
+        "overfull": 0,
+        "backwards": 0,
+        "finalEqualsSnapshot": true,
+        "finalEvents": 64
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "functional": {
+        "steps": 192,
+        "digest": "5bbbcd6163855561ec6f0d80a4da4c806b9d21f0cf235659e4fc7528e7e1609a",
+        "exportTwiceAndSnapshotEqual": 192,
+        "parsed": 192,
+        "unparsed": 0,
+        "statusNotZero": 0,
+        "maxEvents": 64,
+        "maxBytes": 157258,
+        "firstDifferences": [],
+        "watched": {
+          "file begin": "2502ffa35b29083e",
+          "begin again": "a571a174a11b2d2d",
+          "performance refused": "66ac0624231d5c56",
+          "performance sample": "0bae9b554b75c8fa",
+          "long 149": "235023bd8a1c5678"
+        },
+        "journalLines": 157
+      },
+      "capacity": {
+        "size": 157054,
+        "nullOutput": -157054,
+        "zeroCapacity": -157054,
+        "capacityOfTheSize": -157054,
+        "untouchedWhenRefused": true,
+        "capacityOfTheSizePlusOne": 0,
+        "terminated": true,
+        "sameBytes": true
+      },
+      "allocations": {
+        "snapshotBytes": 157054,
+        "quietPolls": 1000,
+        "quietBytesPerPoll": 0,
+        "changingPolls": 200,
+        "changingBytesPerPoll": 0,
+        "quietWritten": 0,
+        "quietKept": 1000,
+        "changingWritten": 200,
+        "changingKept": 0
+      },
+      "observer": {
+        "calls": 30,
+        "status": 0
+      },
+      "concurrent": {
+        "polls": true,
+        "invalid": 0,
+        "unordered": 0,
+        "overfull": 0,
+        "backwards": 0,
+        "finalEqualsSnapshot": true,
+        "finalEvents": 64
+      }
+    },
+    "stringsNotCompared": {
+      "variant": "stringsNotCompared",
+      "functional": {
+        "steps": 192,
+        "digest": "e422836227c5941dfb5872d09e3eaa6b961fdb0a0a4b1fe5e0dc3a0d816c3612",
+        "exportTwiceAndSnapshotEqual": 192,
+        "parsed": 192,
+        "unparsed": 0,
+        "statusNotZero": 0,
+        "maxEvents": 64,
+        "maxBytes": 157258,
+        "firstDifferences": [],
+        "watched": {
+          "file begin": "2502ffa35b29083e",
+          "begin again": "42d064aa61288c3b",
+          "performance refused": "a58c4afb4161112c",
+          "performance sample": "0bae9b554b75c8fa",
+          "long 149": "235023bd8a1c5678"
+        },
+        "journalLines": 157
+      },
+      "capacity": {
+        "size": 157054,
+        "nullOutput": -157054,
+        "zeroCapacity": -157054,
+        "capacityOfTheSize": -157054,
+        "untouchedWhenRefused": true,
+        "capacityOfTheSizePlusOne": 0,
+        "terminated": true,
+        "sameBytes": true
+      },
+      "allocations": {
+        "snapshotBytes": 157054,
+        "quietPolls": 1000,
+        "quietBytesPerPoll": 0,
+        "changingPolls": 200,
+        "changingBytesPerPoll": 0,
+        "quietWritten": 0,
+        "quietKept": 1000,
+        "changingWritten": 200,
+        "changingKept": 0
+      },
+      "observer": {
+        "calls": 30,
+        "status": 0
+      },
+      "concurrent": {
+        "polls": true,
+        "invalid": 0,
+        "unordered": 0,
+        "overfull": 0,
+        "backwards": 0,
+        "finalEqualsSnapshot": true,
+        "finalEvents": 64
+      }
+    },
+    "bufferNotReset": {
+      "variant": "bufferNotReset",
+      "functional": {
+        "steps": 192,
+        "digest": "3ccb2a22d5ff00d402e87bb09d230897d0e9da754b6c0f55d03e88a5dff30391",
+        "exportTwiceAndSnapshotEqual": 57,
+        "parsed": 2,
+        "unparsed": 55,
+        "statusNotZero": 135,
+        "maxEvents": 0,
+        "maxBytes": 82,
+        "firstDifferences": [
+          "long 19",
+          "long 20",
+          "long 21"
+        ],
+        "watched": {
+          "file begin": "643b8baefd9f8363",
+          "begin again": "1d4066326a52ee5f",
+          "performance refused": "0674977c0a3b11f6",
+          "performance sample": "79ac1bffaacfe181",
+          "long 149": "7860265ca9f8fb90"
+        },
+        "journalLines": 157
+      },
+      "capacity": {
+        "size": 0,
+        "nullOutput": -18870281,
+        "zeroCapacity": -18870281,
+        "capacityOfTheSize": -18870281,
+        "untouchedWhenRefused": true,
+        "capacityOfTheSizePlusOne": -18870281,
+        "terminated": false,
+        "sameBytes": true
+      },
+      "allocations": {
+        "snapshotBytes": 0,
+        "quietPolls": 1000,
+        "quietBytesPerPoll": 0,
+        "changingPolls": 200,
+        "changingBytesPerPoll": 335544,
+        "quietWritten": 0,
+        "quietKept": 1000,
+        "changingWritten": 200,
+        "changingKept": 0
+      },
+      "observer": {
+        "calls": 30,
+        "status": -50937682
+      },
+      "concurrent": {
+        "polls": true,
+        "invalid": 230951,
+        "unordered": 0,
+        "overfull": 0,
+        "backwards": 0,
+        "finalEqualsSnapshot": false,
+        "finalEvents": -1
+      }
+    },
+    "sequenceNotCompared": {
+      "variant": "sequenceNotCompared",
+      "functional": {
+        "steps": 192,
+        "digest": "1c0ef839ea36daa8b27abe1780f6b14d960ea832f0927668f2f6e3d311bfc7a0",
+        "exportTwiceAndSnapshotEqual": 192,
+        "parsed": 192,
+        "unparsed": 0,
+        "statusNotZero": 0,
+        "maxEvents": 5,
+        "maxBytes": 540,
+        "firstDifferences": [],
+        "watched": {
+          "file begin": "2502ffa35b29083e",
+          "begin again": "a571a174a11b2d2d",
+          "performance refused": "66ac0624231d5c56",
+          "performance sample": "66ac0624231d5c56",
+          "long 149": "66ac0624231d5c56"
+        },
+        "journalLines": 157
+      },
+      "capacity": {
+        "size": 540,
+        "nullOutput": -540,
+        "zeroCapacity": -540,
+        "capacityOfTheSize": -540,
+        "untouchedWhenRefused": true,
+        "capacityOfTheSizePlusOne": 0,
+        "terminated": true,
+        "sameBytes": true
+      },
+      "allocations": {
+        "snapshotBytes": 540,
+        "quietPolls": 1000,
+        "quietBytesPerPoll": 0,
+        "changingPolls": 200,
+        "changingBytesPerPoll": 0,
+        "quietWritten": 0,
+        "quietKept": 1000,
+        "changingWritten": 0,
+        "changingKept": 200
+      },
+      "observer": {
+        "calls": 30,
+        "status": 0
+      },
+      "concurrent": {
+        "polls": true,
+        "invalid": 0,
+        "unordered": 0,
+        "overfull": 0,
+        "backwards": 0,
+        "finalEqualsSnapshot": true,
+        "finalEvents": 5
+      }
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "deviceEvidence": "IPA 725, Hogwarts Legacy, pid 51986 (private journals): gen0 collection of 2 673.6 ms run by the host's diagnostics thread (priority 20; 15.6 ms of CPU in 961 ms; 148 threads waiting), frame gap 3 034 ms; the thread polls this snapshot every 300 ms",
+  "inputs": {
+    "native/melonx/EmbeddedLaunchDiagnostics.cs": "5c54b92e810c247dc10a748185a70713bd3970dc999f391355d85ea9632398db",
+    "native/melonx/EmbeddedRuntime.cs": "b5842f6d9e00122be3a35737fc66dbbe0a7eaf4de0d2aa49c1ad53b93ffdd611",
+    "build-utils/melonx/core733_native.py": "48e4f9be8505fb1b15965b484a3a95ed5bdf91c448471906bb6caf7a83bf94e3",
+    "test/melonx_diagnostics_snapshot_reuse_test.py": "545915e2ae1329c7b25efbac9368bdd61e9d71cb884e73b9449835485cd10c37",
+    "test/melonx_diagnostics_snapshot_reuse/Program.cs": "18e422db3a0f6f617f33c5007b9241802c49e2d37b576aabb032887149309fce"
+  },
+  "limitation": "Host runtime (the allocation counts are this runtime's; the ring of the fixture holds 64 records of about 2.6 KiB). What the device gains is read in the next session: no collection run by the diagnostics thread in the stall records, the gcPause summary, the background collections per minute."
+}

@@ -31,7 +31,8 @@ LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET droppe
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
                 'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917', 'SCHED918',
-                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527', 'TEXCACHE621', 'TEXSWEEP921')
+                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527', 'TEXCACHE621', 'TEXSWEEP921',
+                'ENERGY931', 'THERMAL931')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -360,6 +361,14 @@ COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527',
            ('park_spin', 'RANGELOCKPROF', 'park_spin'), ('park_hist', 'RANGELOCKPROF', 'wl_putllc_park_hist'), ('slow_park_ms', 'RANGELOCKPROF', 'wl_putllc_slow_park_ms'),
            ('over_budget', 'RANGELOCKPROF', 'wl_putllc_over_budget'), ('ppu_parked', 'RANGELOCKPROF', 'ppu_parked'), ('ppu_main_parked', 'RANGELOCKPROF', 'ppu_main_parked'),
            ('busy_scale', 'SCHED918', 'busy_wait_scale'), ('mach_traps', 'SCHED918', 'mach_traps'), ('ctx_switches', 'SCHED918', 'context_switches'),
+           # REWINDBOX_ENERGY_931 and REWINDBOX_THERMAL_POLICY_931: energy billed by the system, its part on the performance
+           # cores, the short timer wakeups, the thermal state and whether the event waits ran in the window.
+           ('energy_mj', 'ENERGY931', 'cpu_energy_mj'), ('mj_per_frame', 'ENERGY931', 'mj_per_frame'), ('p_share', 'ENERGY931', 'p_share'),
+           ('timer_wake_2ms', 'ENERGY931', 'timer_wakeups_2ms'), ('thermal', 'THERMAL931', 'thermal_state'), ('event_waits', 'THERMAL931', 'event_waits'),
+           # Core 932: storage traffic of the window, and whether it held one thermal state (REWINDBOX_DISK_IO_932,
+           # REWINDBOX_THERMAL_LEDGER_932).
+           ('disk_write_mib', 'ENERGY931', 'disk_write_mib'), ('logical_write_mib', 'ENERGY931', 'logical_write_mib'),
+           ('thermal_mixed', 'THERMAL931', 'window_mixed'),
            ('epoch_put', 'EPOCH909', 'put'), ('put_deferred', 'EPOCH909', 'put_deferred'), ('put_patched', 'EPOCH909', 'put_patched'),
            ('lookahead', 'OPT583', 'lookahead'), ('worker_used', 'OPT583', 'worker_used'), ('worker_hashes', 'OPT581', 'worker_hashes'),
            ('memo_ways', 'TEXMEMO660', 'ways'), ('memo_lookups', 'TEXMEMO660', 'lookups'), ('memo_hits', 'TEXMEMO660', 'hits'),
@@ -393,6 +402,107 @@ SHOWN_LEVERS = ('spu_noop_spin_wait', 'texture_lookup_memo', 'ppu_grace', 'put_e
 
 
 STORM_BOUND = 100000  # heavy PUTLLC per report window: the bound of the Core (IOSAutoStorm917.h, IOSWriterParkSpin917.h)
+
+
+def thermal_comparison(windows: dict) -> list:
+    """Cores 931 and 932: process CPU energy per frame by thermal state, and with and without the event waits, at equal
+    conditions.
+
+    From COREPROF ENERGY931 (the CPU energy the system attributes to the process in the window, not the battery's
+    consumption; its part on the performance cores; timer wakeups due within 2 ms) and COREPROF THERMAL931 (thermal
+    state, whether the event waits ran). Left out, and counted: windows without frames or without an available energy
+    line; windows whose energy is invalid (a counter that went back, discontinuities=, Core 932); windows that held more
+    than one thermal state or whose event waits changed inside them (window_mixed=1, event_waits_window=mixed, Core
+    932). A Core 931 journal has no transitions: its windows are classified by the state read at their end, which the
+    output says. The event waits are compared only between windows of the SAME thermal state and the SAME other levers
+    (park_spin of RANGELOCKPROF, busy_wait_scale of SCHED918, and the pass of the Core's comparison when it announced
+    one, PARKCMP917). The order is checked: when every window of one side precedes every window of the other, the
+    comparison mixes the waits with the passing time (the device heats up while it plays) and says so."""
+    numbered = {}
+    for window, data in windows.items():
+        try:
+            numbered[int(window)] = data
+        except (TypeError, ValueError):
+            continue
+    announced = any('PARKCMP917' in data for data in numbered.values())
+    rows = []
+    left_out = {'mixed': 0, 'invalid_energy': 0}
+    ledger_seen = False
+    for number_window, data in sorted(numbered.items()):
+        fps = number(value(data, 'FRAMEPROF527', 'wall_guest_fps'))
+        if not fps or value(data, 'ENERGY931', 'energy') != 'available':
+            continue
+        mixed = value(data, 'THERMAL931', 'window_mixed')
+        waits_window = value(data, 'THERMAL931', 'event_waits_window')
+        if mixed in ('0', '1', 'unknown'):
+            ledger_seen = True
+        if mixed in ('1', 'unknown') or waits_window in ('mixed', 'unknown'):
+            left_out['mixed'] += 1
+            continue
+        if (number(value(data, 'ENERGY931', 'discontinuities')) or 0) > 0 or value(data, 'ENERGY931', 'mj_per_frame') == 'invalid':
+            left_out['invalid_energy'] += 1
+            continue
+        cycle = 0
+        if announced:
+            step = numbered.get(number_window - 1, {}).get('PARKCMP917', {})
+            cycle = int(number(step.get('next_cycle', '0')) or 0) if step.get('next_step', '0') != '0' else 0
+        rows.append({'window': number_window, 'fps': fps, 'state': value(data, 'THERMAL931', 'thermal_state'),
+                     'waits': waits_window if waits_window in ('on', 'off') else value(data, 'THERMAL931', 'event_waits'),
+                     'levers': (value(data, 'RANGELOCKPROF', 'park_spin'), value(data, 'SCHED918', 'busy_wait_scale'), cycle),
+                     'mj_per_frame': number(value(data, 'ENERGY931', 'mj_per_frame')), 'energy_mj': number(value(data, 'ENERGY931', 'cpu_energy_mj')),
+                     'p_share': number(value(data, 'ENERGY931', 'p_share')), 'timer_wakeups': number(value(data, 'ENERGY931', 'timer_wakeups_2ms')),
+                     'disk_write_mib': number(value(data, 'ENERGY931', 'disk_write_mib')),
+                     'context_switches': number(value(data, 'SCHED918', 'context_switches')) if value(data, 'SCHED918', 'task_events') == 'available' else None})
+    if not rows and not any(left_out.values()):
+        return []
+
+    def median(group, key, digits=3):
+        values = [row[key] for row in group if row[key] is not None]
+        return ('%.' + str(digits) + 'f') % statistics.median(values) if values else 'absent'
+
+    def describe(group):
+        return (f"windows {len(group)} ({','.join(str(row['window']) for row in sorted(group, key=lambda r: r['window']))}) fps {median(group, 'fps', 2)} "
+                f"mj_per_frame {median(group, 'mj_per_frame')} energy_mj {median(group, 'energy_mj', 1)} p_share {median(group, 'p_share')} "
+                f"timer_wakeups_2ms {median(group, 'timer_wakeups', 0)} context_switches {median(group, 'context_switches', 0)} "
+                f"disk_write_mib {median(group, 'disk_write_mib', 2)}")
+
+    out = ['   energy per frame (medians per window; ENERGY931, THERMAL931):',
+           '      scope: the CPU energy the system attributes to the process, not the battery; gpu_utilisation_delta is a raw counter']
+    if not ledger_seen:
+        out.append('      windows classified by the thermal state read at their end (no transition recorded inside a window before Core 932)')
+    if any(left_out.values()):
+        out.append(f"      left out: {left_out['mixed']} mixed window(s) (more than one thermal state, or event waits switched), "
+                   f"{left_out['invalid_energy']} with an invalid energy counter")
+    by_state = {}
+    for row in rows:
+        by_state.setdefault(row['state'], []).append(row)
+    for state, group in sorted(by_state.items()):
+        out.append(f"      thermal_state={state}: {describe(group)}")
+        strata = {}
+        for row in group:
+            strata.setdefault(row['levers'], []).append(row)
+        compared = [(levers, members) for levers, members in sorted(strata.items(), key=lambda item: str(item[0]))
+                    if {row['waits'] for row in members} >= {'on', 'off'}]
+        for levers, members in compared:
+            indent = '         '
+            if len(strata) > 1:
+                spin, scale, cycle = levers
+                out.append(f"{indent}other levers park_spin={spin} busy_wait_scale={scale}" + (f" pass={cycle}" if cycle else '') + ':')
+                indent += '   '
+            sides = {}
+            for row in members:
+                sides.setdefault(row['waits'], []).append(row)
+            out.append(f"{indent}event_waits=off: {describe(sides['off'])}")
+            out.append(f"{indent}event_waits=on: {describe(sides['on'])}")
+            off_windows = [row['window'] for row in sides['off']]
+            on_windows = [row['window'] for row in sides['on']]
+            if max(off_windows) < min(on_windows) or max(on_windows) < min(off_windows):
+                first = 'off' if max(off_windows) < min(on_windows) else 'on'
+                out.append(f"{indent}order: every event_waits={first} window comes first: not counterbalanced, the difference also holds "
+                           'the time the device spent playing')
+            else:
+                out.append(f"{indent}order: interleaved")
+    return out
 
 
 def park_comparison(windows: dict) -> list:
@@ -640,6 +750,7 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             if not dump['lwconds'] and not dump['stacks']:
                 out.append('      lwcond and ppu_stack lines: absent from this dump')
         out.extend(park_comparison(entry['windows']))
+        out.extend(thermal_comparison(entry['windows']))
         steps = [w['PARKCMP917'] for _, w in sorted(entry['windows'].items()) if 'PARKCMP917' in w]
         if steps:
             out.append(f"   comparison steps printed by the Core: {len(steps)} (first [{steps[0].get('_origin')}], last next_cycle={steps[-1].get('next_cycle', 'no_field')} "
@@ -689,7 +800,10 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             for thread in capture['threads']:
                 running, waiting = number(thread.get('running')) or 0, number(thread.get('waiting')) or 0
                 share = f'{100 * running / (running + waiting):.1f} %' if running + waiting else 'absent'
-                out.append(f"      {thread.get('id')} {thread.get('name')}: running {share} of its samples, overflow {thread.get('overflow')}, waits {thread.get('wait_calls')}, top {thread.get('top')}")
+                # REWINDBOX_SPU_WAIT_SITE_930: wait_sites is what a waiting sample waited on; wait_calls is the last named call.
+                waits = (f"waits on {thread.get('wait_sites')} (last named call {thread.get('wait_calls')})" if thread.get('wait_sites')
+                         else f"waits {thread.get('wait_calls')}")
+                out.append(f"      {thread.get('id')} {thread.get('name')}: running {share} of its samples, overflow {thread.get('overflow')}, {waits}, top {thread.get('top')}")
         out.append('')
     return '\n'.join(out)
 

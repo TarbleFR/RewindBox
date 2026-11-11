@@ -1,7 +1,7 @@
 # REWINDBOX_METAL_NATIVE: fast checks of the native Metal 4 renderer on the Metal branch (no IPA, no Core artifact).
-# The renderer sources come from the canonical Core delta (Core 924: M1-M4, M5 part 1, the M3 gaps, the parity items, the timed report, the AC GPU levers, the 908 memo/profiler/freeze-dump levers, the 909 God of War III levers, the 910 PUT horizon, prehash budget and pass shape census the 911 SPU polling wait, the 912 captures, the 916 corrections, the 917 writer park spin, the 918 busy wait duration, the 919 ZCULL watched flush of Black Ops II, the 920 lever comparison on request, the 921 release of stale idle textures, the 922 savestate MLAA bypass, the 923 SPU region profile and the 924 deferral before the line lock folded), materialized
+# The renderer sources come from the canonical Core delta (Core 933: M1-M4, M5 part 1, the M3 gaps, the parity items, the timed report, the AC GPU levers, the 908 memo/profiler/freeze-dump levers, the 909 God of War III levers, the 910 PUT horizon, prehash budget and pass shape census the 911 SPU polling wait, the 912 captures, the 916 corrections, the 917 writer park spin, the 918 busy wait duration, the 919 ZCULL watched flush of Black Ops II, the 920 lever comparison on request, the 921 release of stale idle textures, the 922 savestate MLAA bypass, the 923 SPU region profile, the 924 deferral before the line lock, the 925 GPU memory packing, the 926 Black Ops II FPS levers, the 927 asynchronous MoltenVK submits, the 928 GPU gate closed at the deactivation, the 929 savestate memory left as saved, the 930 SPU wait sites, the 931 thermal chantier, the 932 lot and the 933 local profile folded), materialized
 # on the pinned upstream commit, plus the work in progress of a next stage when the branch carries it
-# (build-utils/rpcs3/metal-wip-from-924.patch; not a Core: the next Core folds it with its records).
+# (build-utils/rpcs3/metal-wip-from-933.patch; not a Core: the next Core folds it with its records).
 name: RPCS3 Metal renderer checks
 run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
 'on':
@@ -32,6 +32,15 @@ run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
       - 'build-utils/rpcs3/metal-wip-from-922.patch'
       - 'build-utils/rpcs3/metal-wip-from-923.patch'
       - 'build-utils/rpcs3/metal-wip-from-924.patch'
+      - 'build-utils/rpcs3/metal-wip-from-925.patch'
+      - 'build-utils/rpcs3/metal-wip-from-926.patch'
+      - 'build-utils/rpcs3/metal-wip-from-927.patch'
+      - 'build-utils/rpcs3/metal-wip-from-928.patch'
+      - 'build-utils/rpcs3/metal-wip-from-929.patch'
+      - 'build-utils/rpcs3/metal-wip-from-930.patch'
+      - 'build-utils/rpcs3/metal-wip-from-931.patch'
+      - 'build-utils/rpcs3/metal-wip-from-932.patch'
+      - 'build-utils/rpcs3/metal-wip-from-933.patch'
       - 'test/native/rpcs3_metal_*'
       - 'test/native/build_rpcs3_metal_shader_stack.sh'
       - '.github/workflows/rpcs3-metal-checks.yml'
@@ -67,7 +76,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Check the folded Metal M2 to M5 sources (Core 924)
+      - name: Check the folded Metal M2 to M5 sources (Core 933)
         shell: bash
         run: |
           set -euo pipefail
@@ -83,6 +92,33 @@ jobs:
           # Core 903 folds the M3 and M4 work (metal-wip-from-902.patch, identical to core903-from-902.patch) over Core 902,
           # which folded the M2 work (metal-wip-from-901.patch): reverse the M3/M4 work, check that the M2 work reverses
           # from that Core 902 state, then apply the M3/M4 work again (the source is unchanged afterwards).
+          # Core 933 folds metal-wip-from-932.patch (identical to core933-from-932.patch) over Core 932.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-932.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core933-from-932.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-932.patch"
+          # Core 932 folds metal-wip-from-931.patch (identical to core932-from-931.patch) over Core 931.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-931.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core932-from-931.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-931.patch"
+          # Core 931 folds metal-wip-from-930.patch (identical to core931-from-930.patch) over Core 930.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-930.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core931-from-930.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-930.patch"
+          # Core 930 folds metal-wip-from-929.patch (identical to core930-from-929.patch) over Core 929.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-929.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core930-from-929.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-929.patch"
+          # Core 929 folds metal-wip-from-928.patch (identical to core929-from-928.patch) over Core 928.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-928.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core929-from-928.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-928.patch"
+          # Core 928 folds metal-wip-from-927.patch (identical to core928-from-927.patch) over Core 927.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-927.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core928-from-927.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-927.patch"
+          # Core 927 folds metal-wip-from-926.patch (identical to core927-from-926.patch) over Core 926.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-926.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core927-from-926.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-926.patch"
+          # Core 926 folds metal-wip-from-925.patch (identical to core926-from-925.patch) over Core 925.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-925.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core926-from-925.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-925.patch"
+          # Core 925 folds metal-wip-from-924.patch (identical to core925-from-924.patch) over Core 924.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-924.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core925-from-924.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-924.patch"
           # Core 924 folds metal-wip-from-923.patch (identical to core924-from-923.patch) over Core 923.
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-923.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core924-from-923.patch"
           git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-923.patch"
@@ -163,14 +199,23 @@ jobs:
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-921.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-922.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-923.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-924.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-925.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-926.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-927.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-928.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-929.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-930.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-931.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-932.patch"
           echo "PASS: the M2 to M5 work and the vendored SPIRV-Cross are part of the canonical source"
-      - name: Apply the work in progress of a next stage (metal-wip-from-924.patch)
+      - name: Apply the work in progress of a next stage (metal-wip-from-933.patch)
         shell: bash
         run: |
           set -euo pipefail
-          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-924.patch"
+          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-933.patch"
           if [ ! -f "$WIP" ]; then
-            echo "No work in progress over Core 924 on this commit"
+            echo "No work in progress over Core 933 on this commit"
             exit 0
           fi
           git -C "$RPCS3_SOURCE" apply --whitespace=nowarn "$WIP"

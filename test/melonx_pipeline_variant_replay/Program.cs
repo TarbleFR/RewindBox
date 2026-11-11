@@ -426,11 +426,18 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     // Temporary (the creation fails while device memory is at 8 % or less, or the renderer throws): no strike.
     var scheduler = NewScheduler();
     string name = "failure";
+    // One program per variant, offered one after the other: each replay is alone in flight, so its outcome is classified
+    // with the memory reading meant for it whatever the number of compile workers and the order of the plan. With the
+    // four variants under one program the order of their replays followed the millisecond each was noted in (all in
+    // one: by id; otherwise as noted), and on a host with one compile worker (fewer than 8 processors) the replay of
+    // 901, run before the others, waited on that worker for outcomes it had still to produce: Core CI run 43016327008
+    // on macOS read [4, 0, 1, 2] for a launch, reproduced here with 3 ms between the notes.
+    ulong[] programs = { 0xDDD0, 0xDDD1, 0xDDD2, 0xDDD3 };
     var s1 = Open(name);
-    s1.NoteLate(0xDDDD, Variant(900), 70, false); // fails deterministically
-    s1.NoteLate(0xDDDD, Variant(901), 70, false); // fails under memory pressure
-    s1.NoteLate(0xDDDD, Variant(902), 70, false); // the renderer throws while creating it
-    s1.NoteLate(0xDDDD, Variant(903), 70, false); // builds
+    s1.NoteLate(programs[0], Variant(900), 70, false); // fails deterministically
+    s1.NoteLate(programs[1], Variant(901), 70, false); // fails under memory pressure
+    s1.NoteLate(programs[2], Variant(902), 70, false); // the renderer throws while creating it
+    s1.NoteLate(programs[3], Variant(903), 70, false); // builds
     WaitFile(JournalPath(name), 16);
     ulong v900 = PipelineVariantJournal.Checksum64(Variant(900)), v901 = PipelineVariantJournal.Checksum64(Variant(901));
     ulong v902 = PipelineVariantJournal.Checksum64(Variant(902));
@@ -440,25 +447,25 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
         device = 60;
         var journal = Open(name, () => device);
         var local = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
-        // 901 fails, and memory is short when it does. Memory goes short only once every other replay of this launch has
-        // its outcome (two run at once: set earlier, the deterministic failure of 900 could be classified while memory
-        // reads short, which the journal rightly counts as temporary; Core 711 CI run 42671662153 on macOS).
+        // 901 fails, and memory goes short while it is being created: its outcome alone is classified with that reading
+        // (a deterministic failure classified while memory reads short is rightly counted as temporary: Core 711 CI run
+        // 42671662153 on macOS, when two replays ran at once here).
         local.Cost = r => (10, r.Id == v900 || r.Id == v901);
         local.Throw = r => r.Id == v902;
         local.OnStart = _ => { };
-        local.OnEnd = r =>
+        local.OnEnd = r => { if (r.Id == v901) device = 5; };
+        foreach (ulong program in programs)
         {
-            if (r.Id == v901)
+            int outcomes = journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary, scheduled = local.Seen.Count;
+            journal.Offer(program, local);
+            // A program whose variant is suppressed (two strikes) has nothing planned: nothing is scheduled for it.
+            if (local.Seen.Count > scheduled)
             {
-                WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded - 1, 3000);
-                device = 5;
+                WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary > outcomes, 3000);
             }
-        };
-        journal.Offer(0xDDDD, local);
-        WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded, 1500);
-        device = 60;
-        journal.Pump(); // the minute summary does this on the device
-        WaitUntil(() => journal.Replayed + journal.ReplayFailed + journal.ReplayTemporary >= journal.Loaded, 3000);
+            device = 60;
+        }
+        journal.Pump(); // the minute summary does this on the device: nothing is left to start
         Thread.Sleep(50);
         WaitFile(JournalPath(name), 16);
         return journal;
@@ -466,7 +473,7 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     var l2 = Launch();
     var l3 = Launch();
     var l4 = Launch();
-    l4.NoteLate(0xDDDD, Variant(900), 70, false); // a draw creates it successfully
+    l4.NoteLate(programs[0], Variant(900), 70, false); // a draw creates it successfully
     WaitFile(JournalPath(name), 16);
     var l5 = Open(name);
     report["failure"] = new Dictionary<string, object>
@@ -481,7 +488,7 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     device = 5;
     var s6 = Open(name, () => device);
     var target6 = new Target { Scheduler = scheduler, Order = new(), Executions = new() };
-    s6.Offer(0xDDDD, target6);
+    foreach (ulong program in programs) s6.Offer(program, target6);
     Thread.Sleep(150);
     int whileShort = target6.Executions.Values.Sum();
     int holds = s6.MemoryHolds;
@@ -666,7 +673,7 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
 }
 
 {
-    // Per-session cap: 600 planned states of 1 ms replay 512.
+    // Per-session cap: 600 planned states of 1 ms replay 512 (all 600 once adapt_variant_replay_all lifted the cap).
     var scheduler = NewScheduler();
     string name = "cap";
     var s1 = Open(name);
@@ -676,8 +683,38 @@ bool WaitUntil(Func<bool> condition, int timeoutMs)
     var s2 = Open(name);
     for (int p = 0; p < 50; p++) s2.Offer(0xF000UL + (ulong)p, target);
     WaitUntil(() => s2.Replayed >= 512, 20000);
+    WaitUntil(() => s2.Replayed >= 600, 3000); // reached only without the cap
     Thread.Sleep(300);
     report["cap"] = new Dictionary<string, object> { ["planned"] = s2.Loaded, ["replayed"] = s2.Replayed, ["executed"] = target.Executions.Values.Sum() };
+    scheduler.Dispose();
+}
+
+{
+    // IPA 724's list: 1357 planned states over 97 programs, 1 ms each. With the 512 cap the replay stops there; without
+    // it every state runs once, never more than two in flight. Then the same list offered with the device's memory at
+    // 5 %: nothing starts, whatever the cap.
+    var scheduler = NewScheduler();
+    string name = "all";
+    var s1 = Open(name);
+    for (int v = 0; v < 1357; v++) s1.NoteLate(0xA000UL + (ulong)(v % 97), Variant(5000 + v), 5, false);
+    WaitFile(JournalPath(name), 16 + 1357L * 40);
+    var target = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = _ => (1, false) };
+    var s2 = Open(name);
+    for (int p = 0; p < 97; p++) s2.Offer(0xA000UL + (ulong)p, target);
+    WaitUntil(() => s2.Replayed >= 512, 30000);
+    WaitUntil(() => s2.Replayed >= 1357, 10000); // reached only without the cap
+    Thread.Sleep(300);
+    var heldTarget = new Target { Scheduler = scheduler, Order = new(), Executions = new(), Cost = _ => (1, false) };
+    var s3 = Open(name, () => 5);
+    for (int p = 0; p < 97; p++) s3.Offer(0xA000UL + (ulong)p, heldTarget);
+    Thread.Sleep(300);
+    report["all"] = new Dictionary<string, object>
+    {
+        ["planned"] = s2.Loaded, ["replayed"] = s2.Replayed, ["executed"] = target.Executions.Values.Sum(),
+        ["distinct"] = target.Executions.Count, ["mostExecutions"] = target.Executions.Values.DefaultIfEmpty(0).Max(),
+        ["maxInFlight"] = target.MaxInFlight, ["failed"] = s2.ReplayFailed,
+        ["heldPlanned"] = s3.Loaded, ["heldExecuted"] = heldTarget.Executions.Values.Sum(), ["heldReplayed"] = s3.Replayed, ["holds"] = s3.MemoryHolds,
+    };
     scheduler.Dispose();
 }
 

@@ -63,7 +63,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Shared installation, version diagnostics and source notes in UIKit
         run: python3 test/unified_catalog_browser_ui_test.py --native --followup478-only --result evidence/cheats478.xcresult
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: cheats478-sources-${{ needs.publish.outputs.tested_commit }}

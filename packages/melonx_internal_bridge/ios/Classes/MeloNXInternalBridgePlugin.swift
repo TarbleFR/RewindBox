@@ -73,7 +73,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
 
     private func drainDiagnostics(_ runtime: MeloNXRuntimeAPI) {
-        let report = runtime.diagnostics()
+        // The engine builds this report in managed memory, every 300 ms, on this utility queue: in the
+        // user-interactive class for the call (MeloNXEngineCallClass).
+        let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }
         for event in report["events"] as? [[String:Any]] ?? [] {
             let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
             guard sequence > nativeSequence else { continue }
@@ -109,6 +111,13 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         // or this build does not carry it.
         var moltenVk = MeloNXMoltenVKChoice.preferred
         if !MeloNXMoltenVKChoice.available(moltenVk,frameworks:frameworks) { moltenVk = 0 }
+        // One NativeAOT engine per process. The Switch 2 engine exports rb_s2arm_engine_loaded (same contract as
+        // rb_melonx_core_loaded, MeloNXCoreLoaded.h): once it has begun loading, MeloNXCore is not loaded after it.
+        if let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "rb_s2arm_engine_loaded"),
+           unsafeBitCast(symbol, to:(@convention(c) () -> Int32).self)() != 0 {
+            throw MeloNXHostError.load("A Switch 2 game already ran in this session of the app: restart RewindBox before starting a Switch game.")
+        }
+        rb_melonx_core_mark_loading()
         let runtime: MeloNXRuntimeAPI
         do { runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root,moltenVk:moltenVk) }
         catch {

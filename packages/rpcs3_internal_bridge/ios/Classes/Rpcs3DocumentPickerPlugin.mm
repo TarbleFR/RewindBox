@@ -2,7 +2,7 @@
 
 static NSString* const kRpcs3DocumentsChannel = @"neostation/rpcs3_documents";
 
-@interface Rpcs3DocumentPickerPlugin ()
+@interface Rpcs3DocumentPickerPlugin () <UIAdaptivePresentationControllerDelegate>
 @property(nonatomic, strong) FlutterMethodChannel* channel;
 @property(nonatomic, copy) FlutterResult pendingResult;
 @property(nonatomic, assign) BOOL pickingFolder;
@@ -23,26 +23,56 @@ static NSString* const kRpcs3DocumentsChannel = @"neostation/rpcs3_documents";
   [registrar addMethodCallDelegate:instance channel:channel];
 }
 
-static UIViewController* RPCS3DocumentsRootController(void) {
-  UIWindow* keyWindow = nil;
+// The window the picker is presented from: a visible window of a foreground
+// scene (any scene when none is active yet), the key one first. Same rule as
+// the folder picker of external_folder_access.
+static UIWindow* RPCS3DocumentsPresentingWindow(void) {
+  NSMutableArray<UIWindow*>* active = [NSMutableArray new];
+  NSMutableArray<UIWindow*>* any = [NSMutableArray new];
   for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
-    if (![scene isKindOfClass:UIWindowScene.class] ||
-        scene.activationState != UISceneActivationStateForegroundActive) {
-      continue;
-    }
+    if (![scene isKindOfClass:UIWindowScene.class]) continue;
     for (UIWindow* window in ((UIWindowScene*)scene).windows) {
-      if (window.isKeyWindow) {
-        keyWindow = window;
-        break;
+      if (window.hidden || window.rootViewController == nil) continue;
+      [any addObject:window];
+      if (scene.activationState == UISceneActivationStateForegroundActive) {
+        [active addObject:window];
       }
     }
-    if (keyWindow) break;
   }
-  UIViewController* controller = keyWindow.rootViewController;
-  while (controller.presentedViewController) {
+  NSArray<UIWindow*>* usable = active.count > 0 ? active : any;
+  for (UIWindow* window in usable) {
+    if (window.isKeyWindow) return window;
+  }
+  for (UIWindow* window in usable) {
+    if (window.windowLevel == UIWindowLevelNormal) return window;
+  }
+  return usable.firstObject;
+}
+
+// The controller to present from. A controller that is being dismissed
+// cannot present: the walk stops below it.
+static UIViewController* RPCS3DocumentsRootController(void) {
+  UIViewController* controller = RPCS3DocumentsPresentingWindow().rootViewController;
+  while (controller.presentedViewController != nil &&
+         !controller.presentedViewController.isBeingDismissed) {
     controller = controller.presentedViewController;
   }
   return controller;
+}
+
+// Whether a document picker is shown right now, anywhere in the presented
+// chain (something may be presented above it), and not on its way out.
+static BOOL RPCS3DocumentPickerIsOnScreen(void) {
+  UIViewController* controller = RPCS3DocumentsPresentingWindow().rootViewController;
+  while (controller.presentedViewController != nil) {
+    UIViewController* presented = controller.presentedViewController;
+    if ([presented isKindOfClass:UIDocumentPickerViewController.class] &&
+        !presented.isBeingDismissed) {
+      return YES;
+    }
+    controller = presented;
+  }
+  return NO;
 }
 
 - (void)releaseScopedResources {
@@ -56,18 +86,28 @@ static UIViewController* RPCS3DocumentsRootController(void) {
 }
 
 - (void)presentPickerForFolder:(BOOL)folder result:(FlutterResult)result {
-  if (self.pendingResult != nil) {
+  if (self.pendingResult != nil && RPCS3DocumentPickerIsOnScreen()) {
     result([FlutterError errorWithCode:@"PICKER_BUSY"
-                               message:@"Another RPCS3 document picker is already open."
-                               details:nil]);
+                                 message:@"Another RPCS3 document picker is already open."
+                                 details:nil]);
     return;
   }
   UIViewController* root = RPCS3DocumentsRootController();
   if (!root) {
+    // Nothing to present from (no window yet): a pick that may still be
+    // shown is left alone, only this request is refused.
     result([FlutterError errorWithCode:@"NO_ROOT_VC"
                                message:@"No view controller is available for the RPCS3 picker."
                                details:nil]);
     return;
+  }
+  if (self.pendingResult != nil) {
+    // The previous picker sheet went away without a delegate call: its
+    // caller is answered as cancelled (left pending, it waited forever and
+    // its button stayed disabled), then this pick goes on.
+    FlutterResult stale = self.pendingResult;
+    self.pendingResult = nil;
+    stale(nil);
   }
 
   [self releaseScopedResources];
@@ -79,6 +119,7 @@ static UIViewController* RPCS3DocumentsRootController(void) {
       [[UIDocumentPickerViewController alloc] initWithDocumentTypes:types
                                                              inMode:UIDocumentPickerModeOpen];
   picker.delegate = self;
+  picker.presentationController.delegate = self;
   picker.allowsMultipleSelection = !folder;
   [root presentViewController:picker animated:YES completion:nil];
 }
@@ -119,6 +160,12 @@ static UIViewController* RPCS3DocumentsRootController(void) {
   }
 
   if (self.pickingFolder) {
+    if (paths.firstObject == nil) {
+      callback([FlutterError errorWithCode:@"EMPTY_PATH"
+                                   message:@"The picker returned an empty path."
+                                   details:nil]);
+      return;
+    }
     callback(paths.firstObject);
   } else {
     callback(paths);
@@ -126,6 +173,12 @@ static UIViewController* RPCS3DocumentsRootController(void) {
 }
 
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController*)controller {
+  FlutterResult callback = self.pendingResult;
+  self.pendingResult = nil;
+  if (callback) callback(nil);
+}
+
+- (void)presentationControllerDidDismiss:(UIPresentationController*)presentationController {
   FlutterResult callback = self.pendingResult;
   self.pendingResult = nil;
   if (callback) callback(nil);

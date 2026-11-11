@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT / 'test'))
 import melonx_adapter_control as control_tools  # noqa: E402
 from melonx_adapter_control import use_authenticated_libhac_feed  # noqa: E402
 import core667_native  # noqa: E402
+import core733_native  # noqa: E402
 import adapt_buffer_array_barriers, adapt_hogwarts_precise_math, adapt_shader_save_journal  # noqa: E402,E401
 
 DOTNET = os.environ.get('DOTNET', 'dotnet')
@@ -104,9 +105,12 @@ for module in ADAPTERS:
 for name, native in core667_native.NATIVE.items():
     final_text = read(FINAL_SOURCE, name)
     check(final_text == (ROOT / native).read_text(encoding='utf-8'), 'final preparation holds this checkout\'s ' + native)
-    restored = core667_native.reverse(final_text, name)
+    # Core 733 (core733_native) changed the diagnostics export in the runtime after this lot: reversed first, exactly;
+    # the diagnostics-snapshot-reuse gate covers that change.
+    lot_text = core733_native.reverse(final_text, name) if name in core733_native.EDITS else final_text
+    restored = core667_native.reverse(lot_text, name)
     check(restored == git_show(native), 'reversed ' + native + ' is the Core 663 source (9022c1a1)')
-    check(core667_native.apply(restored, name) == final_text, 'the Core 667 edits applied to Core 663 give ' + native)
+    check(core667_native.apply(restored, name) == lot_text, 'the Core 667 edits applied to Core 663 give ' + native + ' (before Core 733)')
     (CONTROL / name).write_text(restored, encoding='utf-8')
 for name, expected in CORE663_NATIVE.items():
     check(sha(CONTROL / name) == expected, 'control native file is the Core 663 preparation: ' + name)
@@ -278,7 +282,8 @@ check(journal.count('"shaderCache"') == 2 and 'written: programs made in play qu
 check('"shaderCache"' not in control['journal'], 'control journals no save line')
 
 inputs = ['build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
-          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/core667_native.py', 'build-utils/melonx/adapt_session.py',
+          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/core667_native.py', 'build-utils/melonx/core733_native.py',
+          'build-utils/melonx/adapt_session.py',
           'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedLaunchPreflight.cs', 'test/melonx_core667_fixes_test.py',
           'test/melonx_core667_fixes/Program.cs', 'test/melonx_core667_fixes/StubMoltenVK.c', 'test/melonx_adapter_control.py',
           'build-utils/melonx/adapt_array_barrier_epoch.py']

@@ -15,7 +15,7 @@ FOUNDATION_EXPORT NSString* const XeniaTouchLayoutKey;
 /// so its drawing and touch area stay together, and the shared editor edits
 /// them in place. The state is an Xbox 360 pad of user 0: X_INPUT_GAMEPAD_*
 /// bits, sticks in [-1, 1] with Y up (XInput), triggers in [0, 1].
-@interface XeniaTouchControlsView : UIView <NeoTouchLayoutEditorHost>
+@interface RBXeniaTouchControlsView : UIView <NeoTouchLayoutEditorHost>
 - (instancetype)initWithLocale:(nullable NSString*)locale NS_DESIGNATED_INITIALIZER;
 - (instancetype)initWithFrame:(CGRect)frame NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;

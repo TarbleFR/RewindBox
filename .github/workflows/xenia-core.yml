@@ -1,8 +1,13 @@
 name: XeniOS native core
 run-name: XeniOS native core • ${{ github.sha }}
-# Dispatch only: the main session owns Core builds, pins and IPA delivery
+# The main session owns Core builds, pins and IPA delivery
 # (docs/AI_TASK_BOARD.md). docs/xenios-playlist.md § Core adaptation plan.
+# A push to the playlist's own branch runs the host checks only (asked by the
+# main session before #172 merges; to be revisited before it is removed):
+# compiling XeniaCore stays a dispatch with build_core.
 on:
+  push:
+    branches: [work/playlists-xenios-20261110]
   workflow_dispatch:
     inputs:
       build_core:
@@ -24,8 +29,11 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
+      # Full history: the StikJIT build's baseline test reads files at a pinned
+      # older commit (git show), as in every workflow that builds StikJIT.
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -53,6 +61,10 @@ jobs:
         run: git -C .native-sources/XeniOS submodule update --init --depth=1 third_party/tomlplusplus third_party/fmt third_party/cxxopts
       - name: Pin, upstream API files and adaptation patch
         run: python3 test/xenia_core_patch_test.py --upstream .native-sources/XeniOS
+      - name: Bridge Objective-C classes never share a name with XeniOS
+        run: python3 test/xenia_objc_namespace_test.py --upstream .native-sources/XeniOS
+      - name: Launch ends its JIT transaction on every failure
+        run: python3 test/xenia_launch_transaction_test.py
       - name: Shader converter validator
         run: python3 test/xenia_shader_converter_validator_test.py
       - name: Dedicated JIT helper matches its ARMSX2 reference
@@ -116,11 +128,78 @@ jobs:
             -F "$STIK" -module-name xenia_jit_helper \
             packages/xenia_jit_helper/ios/Classes/XeniaJITRequestHandlerBase.swift
 
+  plugin_app:
+    name: Plugin compiles and links in a Flutter app (simulator, no XeniaCore)
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      # The app's own pubspec is a workspace whose other plugins need prebuilt
+      # engines; this throwaway app holds only the XeniOS bridge and the shared
+      # touch layer, compiled and linked exactly as CocoaPods builds them in
+      # the app (Core loaded at run time, so not needed here).
+      - name: Throwaway app with xenia_internal_bridge
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/xenia_plugin_app"
+          flutter create --platforms ios --org com.rewindbox.check --project-name xenia_plugin_app "$APP"
+          mkdir -p "$APP/local"
+          cp -R packages/xenia_internal_bridge packages/neo_touch_layout "$APP/local/"
+          python3 - "$APP" <<'PY'
+          import re, sys
+          from pathlib import Path
+          app = Path(sys.argv[1])
+          for name in ('xenia_internal_bridge', 'neo_touch_layout'):
+              manifest = app / 'local' / name / 'pubspec.yaml'
+              manifest.write_text(re.sub(r'(?m)^resolution: workspace\n', '', manifest.read_text()))
+          pubspec = app / 'pubspec.yaml'
+          text = pubspec.read_text()
+          text = text.replace('dependencies:\n  flutter:\n    sdk: flutter\n',
+                              'dependencies:\n  flutter:\n    sdk: flutter\n'
+                              '  xenia_internal_bridge:\n    path: local/xenia_internal_bridge\n'
+                              '  neo_touch_layout:\n    path: local/neo_touch_layout\n', 1)
+          assert 'xenia_internal_bridge' in text
+          pubspec.write_text(text)
+          main = app / 'lib' / 'main.dart'
+          main.write_text("import 'package:flutter/widgets.dart';\n"
+                          "import 'package:xenia_internal_bridge/xenia_internal_bridge.dart';\n\n"
+                          "void main() {\n  WidgetsFlutterBinding.ensureInitialized();\n"
+                          "  XeniaInternalBridge.availability(isIOS: true);\n}\n")
+          PY
+          rm -rf "$APP/test"
+          cd "$APP"
+          # pub get writes ios/Podfile from Flutter's template once plugins exist.
+          flutter pub get
+          test -f ios/Podfile
+          # RewindBox's minimum (iOS 18), not Flutter's template default.
+          sed -i '' -E "s/^# ?platform :ios, '[0-9.]+'/platform :ios, '18.0'/" ios/Podfile
+          grep -q "platform :ios, '18.0'" ios/Podfile
+          flutter build ios --simulator --debug --no-codesign
+          APPDIR=build/ios/iphonesimulator/Runner.app
+          test -d "$APPDIR"
+          # Proof the bridge was compiled and linked into the app, whatever the
+          # pod linkage: its Objective-C class names are in the built binaries.
+          for class in XeniaInternalBridgePlugin XeniaJitBridgePlugin RBXeniaSessionController \
+                       RBXeniaTouchControlsView RBXeniaJitSession NeoTouchLayoutPlugin; do
+            grep -rlaq "$class" "$APPDIR" || { echo "::error::$class is not in the built app"; exit 1; }
+            echo "$class: linked"
+          done
+
   core:
     name: Compile pinned XeniaCore iOS framework
     needs: checks
-    if: ${{ inputs.build_core }}
-    runs-on: ${{ inputs.runner }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_core }}
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     timeout-minutes: 180
     env:
       HOMEBREW_NO_AUTO_UPDATE: '1'

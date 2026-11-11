@@ -125,7 +125,7 @@ jobs:
     - name: Retain unchanged import checks; bind the 553 MeloNX re-run, the 550 interface, the 552 fix and the 554 import receipts on the delivered 554 tree, the 557 receipt on the delivered 557 tree, the 558 receipts on the delivered 558 tree, the 559 receipts on the delivered 559 tree, the 560 receipts on the delivered 560 tree, the 561 Core receipt on the delivered 561 tree, the 562 host run on the delivered 562 tree, the 563 Core receipt on the delivered 563 tree, the 564 engine run on the delivered 564 tree, the 565 Core receipt on the delivered 565 tree, the 566 engine run on the delivered 566 tree, the 567 Core receipt on the delivered 567 tree, the 572 engine run on the delivered 572 tree, the 573 Core receipt on the delivered 573 tree, the 575 Core receipt on the delivered 575 tree, and the 576 engine run on the pinned tree
       run: python3 .github/diagnostics/melonxwarm576_delivery.py --retain-checks
     - name: Retain exact input-bound test receipts
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: MeloNX-warm576-checks-${{ github.sha }}
         path: build/delivery/*.json
@@ -773,7 +773,7 @@ jobs:
 
         '
     - name: Preserve sealed recovery piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part00
         path: build/encrypted-recovery-parts/part00/
@@ -781,7 +781,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part01
         path: build/encrypted-recovery-parts/part01/
@@ -789,7 +789,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part02
         path: build/encrypted-recovery-parts/part02/
@@ -797,7 +797,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Preserve sealed recovery piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-recovery-part03
         path: build/encrypted-recovery-parts/part03/
@@ -870,7 +870,7 @@ jobs:
 
         '
     - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build/encrypted-delivery/
@@ -880,7 +880,7 @@ jobs:
     - name: Prepare bounded encrypted transport pieces
       run: python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
     - name: Upload encrypted transport piece 1 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part00
         path: build/encrypted-delivery-parts/part00/
@@ -888,7 +888,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 2 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part01
         path: build/encrypted-delivery-parts/part01/
@@ -896,7 +896,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 3 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part02
         path: build/encrypted-delivery-parts/part02/
@@ -904,7 +904,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted transport piece 4 of 4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-part03
         path: build/encrypted-delivery-parts/part03/
@@ -925,7 +925,7 @@ jobs:
         '
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-diagnostics
         path: build/encrypted-diagnostics/

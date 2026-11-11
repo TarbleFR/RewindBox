@@ -277,7 +277,12 @@ check(rf['readyBeforeUse'] == 10 and rf['usedStillPlanned'] and not rf['unusedSt
 co = r['costly']
 check(co['replayed'] == 5 and co['maxInFlightOnceCostly'] == 1, 'one in flight once replays are costly: %s' % co)
 check(co['joinedOther'] == 1 and co['joinedOtherMs'] == 12 and co['new'] == 1, 'joined draws and new late states counted apart: %s' % co)
-check(r['cap']['replayed'] == 512 and r['cap']['executed'] == 512, 'at most 512 replays per session: %s' % r['cap'])
+# adapt_variant_replay_all (Core 725, later in the order, same file) makes the journal's own bound the cap: the final
+# preparation run here then replays the 600 planned states, each once. This adapter's postimage keeps 512 (the bound
+# checked above on that postimage); melonx_variant_replay_all_test.py runs both sides (512 against all).
+cap = 600 if 'adapt_variant_replay_all' in LATER else 512
+check(r['cap']['planned'] == 600 and r['cap']['replayed'] == cap and r['cap']['executed'] == cap,
+      'at most %d replays of 600 planned per session, each run once: %s' % (cap, r['cap']))
 
 inputs = ['build-utils/melonx/adapt_pipeline_variant_replay.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_pipeline_variant_replay_test.py', 'test/melonx_pipeline_variant_replay/Program.cs', 'test/melonx_adapter_control.py']

@@ -33,7 +33,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           python3 test/rpcs3_writer521_probe.py "$SOURCE"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-cell521-probe-${{ github.sha }}
           path: build/rpcs3-writer521-probe/

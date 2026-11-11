@@ -42,7 +42,38 @@ public static partial class EmbeddedLaunchDiagnostics
         // Darwin's open mode is a variadic argument. Let the runtime create
         // the file with its platform ABI, then append via the two-argument call.
         using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite)) { }
+        if (Path.GetFileName(path) == "MeloNX-core.log")
+        {
+            try { MakeRoomAtStart(path); } catch { }
+        }
         lock (Gate) { JournalPath = path; JournalFailure = ""; }
+    }
+
+    // A process starts with room for its whole journal. The file is shared by every session and was only rotated when a
+    // record found it at 5 MiB: the IPA 724 Hogwarts session (pid 49375) lost its first 415 records to
+    // MeloNX-core.log.1 that way, and the export carries MeloNX-core.log only. When the file already holds
+    // JournalStartLimit, it becomes .1 and the new file starts with its last complete lines (at most JournalStartKeep:
+    // the sessions just before this one), so this process has about 4 MiB before the rotation in Persist.
+    private const long JournalStartLimit = 3L * 1024 * 1024;
+    private const int JournalStartKeep = 1024 * 1024;
+
+    private static void MakeRoomAtStart(string path)
+    {
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length < JournalStartLimit) return;
+        byte[] tail = new byte[JournalStartKeep];
+        int read;
+        using (var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        {
+            source.Seek(-JournalStartKeep, SeekOrigin.End);
+            read = source.ReadAtLeast(tail, tail.Length, throwOnEndOfStream: false);
+        }
+        // From the first complete line; a tail without a line break is not kept (it is whole in .1).
+        int start = Array.IndexOf(tail, (byte)'\n', 0, read) + 1;
+        if (start == 0) start = read;
+        File.Move(path, path + ".1", overwrite: true);
+        using var next = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        next.Write(tail, start, read - start);
     }
 
     // Engine warnings and errors repeat: a guest that keeps touching a bad
@@ -213,36 +244,93 @@ public static partial class EmbeddedLaunchDiagnostics
         catch { } // A diagnostic observer cannot alter the queried engine result.
         lock (Gate)
         {
-            using var memory = new MemoryStream();
-            using (var json = new Utf8JsonWriter(memory))
-            {
-                json.WriteStartObject();
-                json.WriteString("stage", Stage); json.WriteString("errorCode", ErrorCode);
-                json.WriteString("diagnostic", ErrorDetail);
-                json.WriteString("journalError", JournalFailure);
-                json.WriteStartArray("events");
-                foreach (var item in Events)
-                {
-                    json.WriteStartObject(); json.WriteNumber("sequence", item.Id);
-                    json.WriteString("stage", item.Stage); json.WriteString("status", item.Status);
-                    json.WriteNumber("nativeStatus", item.Code); json.WriteString("diagnostic", item.Detail);
-                    json.WriteEndObject();
-                }
-                json.WriteEndArray();
-                void WritePerformance(string name, (long Id, long Generation, string Stage, string Status, int Code, string Detail, string Timestamp) value)
-                {
-                    json.WriteStartObject(name); json.WriteNumber("sequence", value.Id);
-                    json.WriteNumber("generation", value.Generation);
-                    json.WriteNumber("pid", Environment.ProcessId); json.WriteString("timestamp", value.Timestamp);
-                    json.WriteString("stage", value.Stage); json.WriteString("status", value.Status);
-                    json.WriteNumber("nativeStatus", value.Code); json.WriteString("diagnostic", value.Detail);
-                    json.WriteEndObject();
-                }
-                if (PrecedingPerformance is { } preceding) WritePerformance("precedingPerformance", preceding);
-                if (Performance is { } performance) WritePerformance("performance", performance);
-                json.WriteEndObject();
-            }
-            return memory.ToArray();
+            WriteSnapshot();
+            return SnapshotBuffer.WrittenSpan.ToArray();
         }
+    }
+
+    // The host polls the snapshot every 300 ms for the whole session, from a utility-class thread. Written anew at
+    // every poll (a stream grown to the size of the 64 events, a writer and a copy, most of it in the large object
+    // heap once the ring holds long records), it made that thread one of the engine's allocators: in IPA 725
+    // (pid 51986) a collection its allocation triggered ran at that thread's priority and stopped the game 2.7 s.
+    // The bytes are kept instead: written again, into the same buffer, only when something they hold has changed
+    // (every event and performance record takes a new Sequence; the number of events and the four strings are
+    // compared), and copied to the host's memory without a managed copy.
+    private static readonly System.Buffers.ArrayBufferWriter<byte> SnapshotBuffer = new(64 * 1024);
+    private static Utf8JsonWriter SnapshotWriter;
+    private static long SnapshotSequence = -1;
+    private static int SnapshotEvents;
+    private static string SnapshotStage, SnapshotErrorCode, SnapshotErrorDetail, SnapshotJournalFailure;
+    private static long SnapshotsWritten, SnapshotsKept;
+
+    /// <summary>Snapshots written, and polls answered with the kept bytes, since the process started.</summary>
+    public static (long Written, long Kept) SnapshotCounts { get { lock (Gate) { return (SnapshotsWritten, SnapshotsKept); } } }
+
+    /// <summary>
+    /// Copies the snapshot and a terminating zero to <paramref name="output"/>. Returns 0, or minus the snapshot's
+    /// length when <paramref name="capacity"/> does not exceed it or there is no output (nothing is copied then).
+    /// </summary>
+    public static unsafe int SnapshotTo(byte* output, int capacity)
+    {
+        try { Volatile.Read(ref PerformanceObserver)?.Invoke(); }
+        catch { } // A diagnostic observer cannot alter the queried engine result.
+        lock (Gate)
+        {
+            WriteSnapshot();
+            ReadOnlySpan<byte> data = SnapshotBuffer.WrittenSpan;
+            if (output == null || capacity <= data.Length) return -data.Length;
+            data.CopyTo(new Span<byte>(output, capacity)); output[data.Length] = 0;
+            return 0;
+        }
+    }
+
+    // Under Gate: leaves the current snapshot in SnapshotBuffer.
+    private static void WriteSnapshot()
+    {
+        long sequence = Sequence;
+        string stage = Stage, errorCode = ErrorCode, errorDetail = ErrorDetail, journalFailure = JournalFailure;
+        if (SnapshotWriter != null && SnapshotSequence == sequence && SnapshotEvents == Events.Count && SnapshotStage == stage &&
+            SnapshotErrorCode == errorCode && SnapshotErrorDetail == errorDetail && SnapshotJournalFailure == journalFailure)
+        {
+            SnapshotsKept++;
+            return;
+        }
+        // Not kept until written whole: a write that throws is started again by the next poll.
+        SnapshotSequence = -1;
+        SnapshotBuffer.ResetWrittenCount();
+        if (SnapshotWriter == null) SnapshotWriter = new Utf8JsonWriter(SnapshotBuffer);
+        else SnapshotWriter.Reset(SnapshotBuffer);
+        Utf8JsonWriter json = SnapshotWriter;
+        json.WriteStartObject();
+        json.WriteString("stage", stage); json.WriteString("errorCode", errorCode);
+        json.WriteString("diagnostic", errorDetail);
+        json.WriteString("journalError", journalFailure);
+        json.WriteStartArray("events");
+        foreach (var item in Events)
+        {
+            json.WriteStartObject(); json.WriteNumber("sequence", item.Id);
+            json.WriteString("stage", item.Stage); json.WriteString("status", item.Status);
+            json.WriteNumber("nativeStatus", item.Code); json.WriteString("diagnostic", item.Detail);
+            json.WriteEndObject();
+        }
+        json.WriteEndArray();
+        if (PrecedingPerformance is { } preceding) WritePerformance(json, "precedingPerformance", preceding);
+        if (Performance is { } performance) WritePerformance(json, "performance", performance);
+        json.WriteEndObject();
+        json.Flush();
+        SnapshotSequence = sequence; SnapshotEvents = Events.Count; SnapshotStage = stage; SnapshotErrorCode = errorCode;
+        SnapshotErrorDetail = errorDetail; SnapshotJournalFailure = journalFailure;
+        SnapshotsWritten++;
+    }
+
+    private static void WritePerformance(Utf8JsonWriter json, string name,
+        (long Id, long Generation, string Stage, string Status, int Code, string Detail, string Timestamp) value)
+    {
+        json.WriteStartObject(name); json.WriteNumber("sequence", value.Id);
+        json.WriteNumber("generation", value.Generation);
+        json.WriteNumber("pid", Environment.ProcessId); json.WriteString("timestamp", value.Timestamp);
+        json.WriteString("stage", value.Stage); json.WriteString("status", value.Status);
+        json.WriteNumber("nativeStatus", value.Code); json.WriteString("diagnostic", value.Detail);
+        json.WriteEndObject();
     }
 }

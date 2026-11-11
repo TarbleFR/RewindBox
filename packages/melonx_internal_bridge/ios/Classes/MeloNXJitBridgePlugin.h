@@ -10,6 +10,8 @@
 #endif
 // The Switch controller skin overlay (MeloNXSkinSession, docs/dolphin-skins.md).
 #import "MeloNXSkinOverlay.h"
+// Whether this process has begun loading MeloNXCore (read by another engine through dlsym).
+#import "MeloNXCoreLoaded.h"
 
 @interface MeloNXJitBridgePlugin : NSObject <FlutterPlugin>
 @end

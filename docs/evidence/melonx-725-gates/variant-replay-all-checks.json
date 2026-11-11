@@ -1,0 +1,62 @@
+{
+  "result": "passed",
+  "checks": 39,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "productionVulkanAssemblyBuilt": true,
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b4e716a3ec97718ce67ddb99dde69aa500160b4559196bf3ba0e8754478c9835"
+  },
+  "control": {
+    "cap": {
+      "planned": 600,
+      "replayed": 512,
+      "executed": 512
+    },
+    "all": {
+      "planned": 1357,
+      "replayed": 512,
+      "executed": 512,
+      "distinct": 512,
+      "mostExecutions": 1,
+      "maxInFlight": 1,
+      "failed": 0,
+      "heldPlanned": 1357,
+      "heldExecuted": 0,
+      "heldReplayed": 0,
+      "holds": 97
+    }
+  },
+  "candidate": {
+    "cap": {
+      "planned": 600,
+      "replayed": 600,
+      "executed": 600
+    },
+    "all": {
+      "planned": 1357,
+      "replayed": 1357,
+      "executed": 1357,
+      "distinct": 1357,
+      "mostExecutions": 1,
+      "maxInFlight": 1,
+      "failed": 0,
+      "heldPlanned": 1357,
+      "heldExecuted": 0,
+      "heldReplayed": 0,
+      "holds": 97
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_variant_replay_all.py": "d203ce14ffaa1abc4541be5e263d56a5bd4353365c4cfd856b8bc07e86e480b2",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_variant_replay_all_test.py": "2f0544355e4e93f27b187cf21b3d7ad0e88df71fd7b42a894b0551d0bb04fd0d",
+    "test/melonx_pipeline_variant_replay/Program.cs": "16e3b0bfd42ba979c5452cabcdffb240966d86e18187e5daacb7e38c2bea02e4",
+    "test/melonx_adapter_control.py": "de039cbeef469dab8fd29a3363b4a84d3e547117492caebc31290ee30cd26968"
+  },
+  "limitation": "Host run of the production journal and scheduler; no Vulkan device, a replay creates nothing and costs a simulated 1 ms. Whether every recorded state is built before the draw that needs it, the launch time and the memory on an iPhone are shown only by a device run (journal: \"pipelineVariants summary\")."
+}

@@ -33,8 +33,13 @@ func MeloNXJitWaitForDetach(_ timeout: Double, _ message: inout NSString?) -> Bo
 func MeloNXJitAbortTransaction() {}
 enum MeloNXJitBridgePlugin { static func register(with registrar: FlutterPluginRegistrar) {} }
 enum MeloNXStrings { static var locale="en" }
+// MeloNXCoreLoaded.h: the plugin marks the process before it loads MeloNXCore. Declared here as the bridging header of
+// this test is the registrar's.
+var coreMarkedLoading = 0
+func rb_melonx_core_mark_loading() { coreMarkedLoading += 1 }
 enum MeloNXLaunchJournal {
     static var sink: (([String:Any])->Void)?
+    static var path: String? { nil }
     static func configure(path:String) {}
     static func configureDiagnostics(directory:URL) throws {}
     static func relayCore(_ event:[String:Any]) {}

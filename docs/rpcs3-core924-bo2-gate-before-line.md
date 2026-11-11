@@ -13,7 +13,9 @@ Black Ops II (BLES01717), session 8, entrée de la base + 1 réglage par jeu, r�
 | 41 (gel) | 0 | 7,6 M | 6,0 M | 0 | 6 010 | 8 671 (994 ms) |
 | 42 (gel) | 0 | 8,5 M | 6,7 M | 0 | 6 155 | 8 768 (1 012 ms) |
 
-Avant le gel, quatre arrêts courts de la même forme : 1 067 ms (fenêtre 25), 601 et 598 ms (31, 32), 579 ms (39).
+Les quatre arrêts courts d'avant le gel — 1 067 ms (fenêtre 25), 601 et 598 ms (31, 32), 579 ms (39) — **ne sont pas ce gel** : ce sont
+des compilations de shaders Metal bloquantes (`SHADERSTALL538_EVENT` : 946, 568, 557, 546, 535 et 540 ms, dont 474-814 ms dans la
+compilation de la bibliothèque du fragment shader, 4-9 ms de CPU sur le thread RSX). Voir la section 7 bis.
 
 Relevé de gel (`FREEZE_DUMP`, 3,0 s sans image, 4,4 cœurs occupés) :
 
@@ -109,6 +111,26 @@ ppu=savestate_applied`, plus aucune relecture du tampon 1280×720 après la deux
 0x5b00, 0x9900 pour les « Big » ; 0x4900 pour 20-24 % du « Little »). C'est du travail réparti, pas une boucle d'attente sur
 une adresse. Le jeu demande 3,3-3,4 cœurs de SPU sur un appareil à 2 cœurs performants ; 180 000 à 360 000 PUTLLC lourds par
 fenêtre garent en plus le PPU principal (0,90-0,96 cœur).
+
+## 7 bis. Arrêts de 0,3 à 0,9 s : compilation synchrone des shaders (pas encore corrigé)
+
+Mode de shaders effectif : « Legacy Recompiler (single-threaded) », le défaut iOS de ce Core (`RPCS3IOSGPUDefaults.h`) : un
+pipeline inconnu est compilé sur le thread RSX, qui attend Metal. Durées relevées (`SHADERSTALL538_EVENT`, étape 2) :
+
+| Export | Jeu | Compilations ≥ 50 ms | Durée de chacune | Dont bibliothèque du fragment shader |
+|---|---|---|---|---|
+| build 723, PID 48320 | Black Ops II | 13 en 50 s (fenêtres 18 à 28) | 248-892 ms | 214-635 ms |
+| build 724, PID 50194 | Black Ops II | 9 en 70 s (fenêtres 25 à 39) | 105-946 ms | 215-814 ms |
+| build 723, PID 48447 | God of War III | 2 (fenêtre 29) | 261 et 542 ms | 246 et 457 ms |
+
+Aucune empreinte de pipeline coûteux n'est commune aux deux sessions de Black Ops II (`SHADERPIPE543_COSTLY`, 9 et 7
+empreintes) : rien n'indique que le cache recompile deux fois le même shader. Le thread RSX ne consomme que 4-9 ms de CPU par
+compilation : le temps est passé dans le compilateur Metal, y compris quand le processus est peu chargé (God of War III :
+0,4 cœur occupé pendant une compilation de 542 ms). Chaque nouveau shader rencontré en jeu arrête donc l'image 0,3-0,9 s.
+
+Le mode « Async Recompiler with Shader Interpreter » (défaut de RPCS3 sur PC) dessine avec un interpréteur pendant la
+compilation ; il n'a jamais tourné sur l'iPhone (`SHADERCFG536 interpreter_supported=1`). C'est un essai que le réglage
+« Shader mode » (GPU → Rendering) permet sans nouvelle build.
 
 ## 8. Protocole iPhone
 

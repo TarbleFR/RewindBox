@@ -15,9 +15,16 @@ enum XeniaJitPlan {
   /// (its code region is already prepared, or the device has no TXM).
   ready,
 
-  /// A tool is still attached from an earlier attempt in this process and the
-  /// Core has not prepared its region yet: it will answer the Core's requests.
+  /// The helper prepared for an earlier attempt is still attached with its
+  /// handshake live (`handshakeActive`): the launch's nonce probe confirms
+  /// it, and it answers the Core's requests.
   reuseAttachedTool,
+
+  /// A debugger is attached but no live helper handshake answers for it
+  /// (its transaction was closed): the Core's prepare request would reach a
+  /// closed helper, and a new helper cannot attach over it. Refused with
+  /// `restartRequired`; nothing is attempted.
+  staleTool,
 
   /// TXM device on iOS 26+, region not prepared: attach the helper with the
   /// universal script for the Core's prepare (x16=1) and detach (x16=0).
@@ -77,10 +84,12 @@ abstract final class XeniaJitService {
     final needsTool = state['needsTool'] == true;
     final attached = state['toolAttached'] == true;
     final debugged = state['debugged'] == true;
+    final handshake = state['handshakeActive'] == true;
     if (needsTool) {
-      return attached
+      if (!attached) return XeniaJitPlan.attachForCoreHandshake;
+      return handshake
           ? XeniaJitPlan.reuseAttachedTool
-          : XeniaJitPlan.attachForCoreHandshake;
+          : XeniaJitPlan.staleTool;
     }
     return debugged ? XeniaJitPlan.ready : XeniaJitPlan.attachClassic;
   }
@@ -93,6 +102,12 @@ abstract final class XeniaJitService {
     }
     final plan = planFor(state);
     _log.i('XeniOS JIT: state=$state plan=${plan.name}');
+    if (plan == XeniaJitPlan.staleTool) {
+      return const XeniaJitOutcome.failure(
+        'restartRequired',
+        'a debugger is attached without a live XeniOS helper handshake',
+      );
+    }
     if (plan == XeniaJitPlan.ready || plan == XeniaJitPlan.reuseAttachedTool) {
       return XeniaJitOutcome.ok(plan);
     }

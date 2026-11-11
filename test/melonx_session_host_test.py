@@ -21,10 +21,28 @@ flutter_root = Path(os.environ['FLUTTER_ROOT'])
 flutter = flutter_root / 'bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
 assert (flutter / 'Flutter.framework/Flutter').is_file(), flutter
 jit_header = header.with_name('MeloNXJitBridgePlugin.h')
-subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', sdk,
-                '-target', 'arm64-apple-ios18.0', '-F',str(flutter),
-                '-import-objc-header',str(jit_header), '-module-name','melonx_internal_bridge',
-                *map(str, [*sources,*controller_sources])], check=True)
+# In the application the pod's umbrella header shows Swift every Objective-C header of the bridge. Here one bridging
+# header stands for it: the JIT header (which imports the skin overlay and the S2Arm hook) plus the headers of the
+# Objective-C classes the Swift sources name directly. MLXSkinInteraction (skin touches after the in-game menu,
+# 6ddc96fd) was named by MeloNXMetalSessionViewController.swift without being bridged here: this check failed with
+# "cannot find 'MLXSkinInteraction' in scope" while the application compiled.
+swift_text = '\n'.join(path.read_text(encoding='utf-8') for path in sources)
+bridged = [jit_header]
+for objc_header in sorted(header.parent.glob('*.h')):
+    if objc_header == jit_header or objc_header == header:
+        continue
+    declared = [line.split()[1].split(':')[0].split('(')[0].rstrip(';')
+                for line in objc_header.read_text(encoding='utf-8').splitlines() if line.startswith('@interface ')]
+    if any(name and (name + '.') in swift_text or name and (name + '(') in swift_text for name in declared):
+        bridged.append(objc_header)
+assert header.with_name('MeloNXSkinInteraction.h') in bridged, bridged
+with tempfile.TemporaryDirectory(prefix='melonx-bridging-') as bridging:
+    umbrella = Path(bridging) / 'typecheck-bridging.h'
+    umbrella.write_text(''.join('#import "%s"\n' % path for path in bridged), encoding='utf-8')
+    subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', sdk,
+                    '-target', 'arm64-apple-ios18.0', '-F',str(flutter),
+                    '-import-objc-header',str(umbrella), '-module-name','melonx_internal_bridge',
+                    *map(str, [*sources,*controller_sources])], check=True)
 subprocess.run(['xcrun','clang++','-fsyntax-only','-fobjc-arc','-fmodules','-fcxx-modules','-std=c++20',
                 '-target','arm64-apple-ios18.0','-isysroot',sdk,'-F',str(flutter),
                 str(jit_header.with_suffix('.mm'))],check=True)

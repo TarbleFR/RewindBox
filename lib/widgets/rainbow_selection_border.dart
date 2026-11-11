@@ -2,11 +2,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'ambient_motion.dart';
+
 /// Lightweight animated rainbow outline used for the currently selected game.
 ///
 /// The child is retained by [AnimatedBuilder], so only the custom painter is
 /// repainted while the gradient rotates. This keeps artwork/video widgets from
-/// rebuilding every animation tick.
+/// rebuilding every animation tick. The gradient only turns while
+/// [AmbientMotion] allows it (never under an embedded game, in Low Power Mode
+/// or with reduced motion); otherwise a still outline is drawn.
 class RainbowSelectionBorder extends StatefulWidget {
   final Widget child;
   final BorderRadius borderRadius;
@@ -30,14 +34,19 @@ class RainbowSelectionBorder extends StatefulWidget {
 }
 
 class _RainbowSelectionBorderState extends State<RainbowSelectionBorder>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with SingleTickerProviderStateMixin, AmbientMotion {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration)
-      ..repeat();
+  void onAmbientMotionChanged(bool allowed) {
+    if (allowed) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      _controller.stop();
+    }
   }
 
   @override
@@ -45,7 +54,7 @@ class _RainbowSelectionBorderState extends State<RainbowSelectionBorder>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.duration != widget.duration) {
       _controller.duration = widget.duration;
-      if (!_controller.isAnimating) _controller.repeat();
+      if (ambientMotionAllowed) _controller.repeat();
     }
   }
 
@@ -57,10 +66,8 @@ class _RainbowSelectionBorderState extends State<RainbowSelectionBorder>
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    if (reduceMotion) {
-      return _buildFrame(progress: 0, child: widget.child);
+    if (!ambientMotionAllowed) {
+      return _buildFrame(progress: _controller.value, child: widget.child);
     }
 
     return AnimatedBuilder(

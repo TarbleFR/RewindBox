@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
+import '../l10n/launch_prerequisite_locale.dart';
 import '../services/armsx2_bios_service.dart';
 
 /// Returns the explicit, persisted choice; cancellation never changes it.
@@ -19,8 +20,12 @@ Future<String?> showArmsx2BiosPicker(BuildContext context) async {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
+              // No BIOS yet: what is needed and where it is imported, not
+              // only "import one first".
               files.isEmpty
-                  ? Armsx2UiLocale.text(context, 'importBiosFirst')
+                  ? LaunchPrerequisiteLocale.text(context, 'ps2BiosMissing', {
+                      'action': Armsx2UiLocale.text(context, 'importBios'),
+                    })
                   : Armsx2UiLocale.text(context, 'biosChoiceHelp'),
             ),
             const SizedBox(height: 12),

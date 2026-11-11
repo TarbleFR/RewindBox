@@ -53,6 +53,7 @@ import 'package:path/path.dart' as path;
 import 'package:neostation/services/retroarch_library_service.dart';
 // LIBRARY_RELOCATION_BEGIN: imports
 import 'package:neostation/services/ios_library_root_relocation.dart';
+import 'package:neostation/services/ios_linked_library_folders.dart';
 // LIBRARY_RELOCATION_END: imports
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
@@ -384,11 +385,25 @@ void main() async {
   if (Platform.isIOS) {
     ConfigService.linkedExternalFolderPath =
         await ExternalFolderAccess.resolveBookmarkedFolder();
+    // LIBRARY_LINK_BEGIN: startup_folders
+    // A linked folder iOS does not give back is said in the journal (it was
+    // silent: the folder then just "did not exist"). Its games are kept.
+    final linkFailure = ExternalFolderAccess.resolveFailure();
+    if (linkFailure != null) {
+      log.w(
+        'Linked folder not given back by iOS at this launch: $linkFailure. '
+        'Its games are kept; link the folder again in Settings > Directories.',
+      );
+    }
+    // The folders added with "Add ROM folder", each with its own access.
+    final linkedFolders = await IosLinkedLibraryFolders.activateAtStartup();
+    // LIBRARY_LINK_END: startup_folders
     // LIBRARY_RELOCATION_BEGIN: startup_folders
     // iOS can move an app's container when it is reinstalled: find the saved
     // library folders at their new paths before the configuration reads them.
     await IosLibraryRootRelocation.run(
       linkedFolder: ConfigService.linkedExternalFolderPath,
+      linkedFolders: linkedFolders,
     );
     // LIBRARY_RELOCATION_END: startup_folders
 
@@ -406,16 +421,25 @@ void main() async {
     // Load the last exported emulator libraries so direct-launch matching
     // works immediately after a cold start without forcing a fresh sync.
     await RetroArchLibraryService.loadCachedLibrary();
-    // Xbox 360 playlist storage (folders only; nothing is scanned here).
-    await XeniaInternalService.ensureLayout();
-    // Switch 2 playlist storage (folders only; nothing is scanned here). Not
-    // reaching the layout never blocks start-up: the playlist just stays empty.
+    // Xbox 360 playlist storage (folders only; nothing is scanned here). A
+    // console disabled by default never keeps RewindBox from starting: a
+    // folder error is logged and the layout is retried by the playlist.
+    try {
+      await XeniaInternalService.ensureLayout();
+    } on Object catch (error) {
+      log.w('XeniOS layout not ready at startup: $error');
+    }
+    // Switch 2 playlist storage (folders only; nothing is scanned here), on the
+    // same rule: off by default, a folder error is logged and never blocks
+    // start-up (refreshS2ArmInternalLibrary sets the root again).
     if (Platform.isIOS) {
       try {
         await S2ArmInternalService.ensureLayout();
         ConfigService.linkedS2ArmGameFolderPath =
             (await S2ArmInternalService.gamesDirectory()).path;
-      } catch (_) {}
+      } on Object catch (error) {
+        log.w('S2Arm layout not ready at startup: $error');
+      }
     }
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
@@ -532,7 +556,9 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  await AchievementTranslationClient.shared.setLanguage(
+    initLang.isNotEmpty ? initLang : 'en',
+  );
   // Where the saved in-game sign-in was found at each read (Keychain, the
   // private copy, or none): codes only, into the app log.
   RetroAchievementsNativeClient.diagnostics = log.i;
@@ -896,7 +922,9 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  await AchievementTranslationClient.shared.setLanguage(
+    initLang.isNotEmpty ? initLang : 'en',
+  );
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }

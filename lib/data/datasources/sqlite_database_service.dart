@@ -10,6 +10,8 @@ import 'package:neostation/services/android_service.dart';
 import 'package:neostation/services/saf_directory_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/config_service.dart';
+import 'package:neostation/services/ios_library_root_relocation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:neostation/services/xenia_content.dart';
 import 'package:neostation/services/switch2_export_content.dart';
 
@@ -340,10 +342,27 @@ class SqliteDatabaseService {
       );
     }
 
+    // LIBRARY_ROOT_UNREACHABLE_BEGIN: keep_rows
+    // iOS reads a library folder outside the app's container only through
+    // its saved access, and may not give it back at a launch (after an
+    // update, a restore…). The folder is then not gone: the games it holds
+    // keep their rows (play time, favourites, scraped data) until the folder
+    // opens again or the user removes it in the settings.
+    // A folder of RewindBox's own container needs no saved access: when it
+    // is missing it was really deleted, and its games go as before.
+    final unreachableRoots = Platform.isIOS
+        ? await unreachableLibraryRoots(
+            romFolders,
+            ownContainer: await _ownIosContainer(),
+          )
+        : const <String>[];
+    // LIBRARY_ROOT_UNREACHABLE_END: keep_rows
+
     // Clean orphaned entries (files deleted from disk)
     final cleanup = await _cleanupOrphanedRomsOptimized(
       system.id!,
       romEntries.map((e) => e.path).toSet(),
+      protectedRoots: unreachableRoots,
     );
     final removedCount = cleanup.removed;
 
@@ -909,11 +928,69 @@ class SqliteDatabaseService {
         lowerPath.startsWith('rpcs3-library://');
   }
 
+  // LIBRARY_ROOT_UNREACHABLE_BEGIN: helpers
+  static Future<String?>? _ownIosContainerLookup;
+
+  /// The data container of the app on iOS (`…/Application/<UUID>`).
+  static Future<String?> _ownIosContainer() =>
+      _ownIosContainerLookup ??= () async {
+        try {
+          final documents = (await getApplicationDocumentsDirectory()).path;
+          return IosLibraryRootRelocation.split(documents)?.container;
+        } catch (error) {
+          _log.w('Own container not resolved for the library scan: $error');
+          return null;
+        }
+      }();
+
+  /// The plain-path library folders of [roots] that do not open right now
+  /// and lie outside [ownContainer] (the app's own data container, where a
+  /// missing folder is a deleted folder).
+  static Future<List<String>> unreachableLibraryRoots(
+    Iterable<String> roots, {
+    String? ownContainer,
+    Future<bool> Function(String folder)? exists,
+  }) async {
+    final reachable = exists ?? (folder) => Directory(folder).exists();
+    // iOS spells the same container with or without the /private prefix.
+    String? container(String folder) => IosLibraryRootRelocation.split(
+      folder,
+    )?.container.replaceFirst(RegExp(r'^/private'), '');
+    final own = ownContainer == null ? null : container(ownContainer);
+    final unreachable = <String>[];
+    for (final root in roots) {
+      if (root.isEmpty || root.contains('://')) continue;
+      if (own != null && container(root) == own) continue;
+      try {
+        if (!await reachable(root)) unreachable.add(root);
+      } on FileSystemException {
+        unreachable.add(root);
+      }
+    }
+    return unreachable;
+  }
+
+  /// Whether [romPath] is a file of one of the library folders [roots].
+  static bool isUnderLibraryRoot(String romPath, Iterable<String> roots) {
+    final file = path.posix.normalize(romPath);
+    for (final root in roots) {
+      final folder = path.posix.normalize(root);
+      if (file.length > folder.length + 1 &&
+          file.startsWith(folder) &&
+          file.codeUnitAt(folder.length) == 0x2F) {
+        return true;
+      }
+    }
+    return false;
+  }
+  // LIBRARY_ROOT_UNREACHABLE_END: helpers
+
   static Future<({int removed, Set<String> knownPaths})>
   _cleanupOrphanedRomsOptimized(
     String systemId,
-    Set<String> existingRomPaths,
-  ) async {
+    Set<String> existingRomPaths, {
+    List<String> protectedRoots = const <String>[],
+  }) async {
     try {
       final db = await SqliteService.getDatabase();
       final existingRoms = await db.rawQuery(
@@ -940,6 +1017,10 @@ class SqliteDatabaseService {
         }
 
         if (existingRomPaths.contains(path)) {
+          knownPaths.add(path);
+        } else if (protectedRoots.isNotEmpty &&
+            isUnderLibraryRoot(path, protectedRoots)) {
+          // LIBRARY_ROOT_UNREACHABLE: the folder does not open right now.
           knownPaths.add(path);
         } else {
           romsToDelete.add(path);

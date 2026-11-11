@@ -60,7 +60,8 @@ def read(path, pid):
             if not match:
                 continue
             fields = body.split(' ')
-            second = dict(t=int(match.group(1)), paused='paused' in fields, fps=None, gaps=[], footprint=None, device=None, thermal=None)
+            second = dict(t=int(match.group(1)), paused='paused' in fields, fps=None, gaps=[], footprint=None, device=None, thermal=None,
+                          cpu=None, vm=None, hw=None, en=None, sw=None, threads=[], pc=None)
             for field in fields:
                 if field.startswith('fps=') and field != 'fps=-':
                     second['fps'] = float(field[4:].split('/')[0])
@@ -74,6 +75,19 @@ def read(path, pid):
                         second['device'] = int(parts[2])
                 elif field.startswith('th='):
                     second['thermal'] = field[3:]
+                elif field.startswith('cpu=') and field[4:].isdigit():
+                    second['cpu'] = int(field[4:])
+                elif field.startswith('pc='):
+                    # Per cent of each listed thread's CPU time on performance cores, in the order of the cpu= entries.
+                    second['pc'] = field[3:].split(',')
+                elif '=' not in field and re.fullmatch(r'.+:\d+/-?\d+', field):
+                    # A cpu= thread entry: name:per cent of one core/priority.
+                    name, _, rest = field.rpartition(':')
+                    second['threads'].append((name, int(rest.split('/')[0]), int(rest.split('/')[1])))
+                elif field[:3] in ('vm=', 'hw=', 'en=', 'sw='):
+                    # Raw parts: vm= MiB compressed/pages decompressed/faults/page-ins, hw= GHz/instructions per
+                    # cycle/% on performance cores/% ready without a core; "-" where the journal could not tell.
+                    second[field[:2]] = field[3:].split('/')
             seconds.append(second)
     return seconds, ended
 

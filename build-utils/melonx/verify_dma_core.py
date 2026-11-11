@@ -102,8 +102,16 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # (lot 8: a worker's Metal libraries published to the main cache during play); 76 with Core 719 (lot 9: no keep-alive
 # request on a fragmented heap); 77 with Core 721 (lot 9: the main pipeline cache referenced in its mapped file); 81 with
 # Core 723 (lot 9: the keep-alive's dormant line, the ephemeral pause journal, no main texture set write on a separate
-# array change, texture array barrier passes skipped when nothing changed).
-FRESH_GATES = 81
+# array change, texture array barrier passes skipped when nothing changed); 82 with Core 725 (lot 9: every recorded
+# pipeline state replayed at launch, the 512-replay session cap gone); 84 with Core 727 (lot 9: a pause rewrites the
+# main pipeline cache only for 8 MiB of new content; the Vulkan allocator's blocks in the journal, and the allocator
+# range-update and block gates run again on the final allocator: 86); 87 with Core 729 (lot 10: the main pipeline cache
+# file written again once at the load when it is at least twice main's data); 88 with Core 731 (lot 11: while only the
+# device is short the buffer cache gives back the buffers unused for a minute of play); 91 with Core 733 (lot 12: the
+# threads a frame or the sound waits for in the user-interactive class; the diagnostics snapshot keeps its bytes; the
+# kernel timer proof run again on the final timer manager, whose worker asks the class); 92 with Core 735 (lot 14: a
+# Map or Unmap re-queues the partially mapped textures it can concern, not all of them).
+FRESH_GATES = 92
 HISTORICAL_RECEIPTS = 61
 
 

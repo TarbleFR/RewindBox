@@ -37,13 +37,9 @@ partial class Library
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_diagnostics")]
     public static unsafe int EmbeddedDiagnostics(byte* output, int capacity)
     {
-        try
-        {
-            byte[] data = EmbeddedLaunchDiagnostics.Snapshot();
-            if (output == null || capacity <= data.Length) return -data.Length;
-            data.CopyTo(new Span<byte>(output, capacity)); output[data.Length] = 0;
-            return 0;
-        }
+        // Copied from the bytes the journal keeps while nothing changes (EmbeddedLaunchDiagnostics.SnapshotTo): the
+        // host polls this every 300 ms, and the managed copy made here was an allocation of the snapshot's size each time.
+        try { return EmbeddedLaunchDiagnostics.SnapshotTo(output, capacity); }
         catch { return -1; }
     }
 

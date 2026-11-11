@@ -66,6 +66,7 @@ from adapt_pipeline_failure_identity import BASELINE as C691_PIPELINE_FAILURE_ID
 from adapt_worker_main_cache_lookup import BASELINE as C691_WORKER_MAIN_CACHE_LOOKUP  # noqa: E402
 from adapt_compute_switch_bindings import BASELINE as C693_COMPUTE_SWITCH_BINDINGS  # noqa: E402
 from adapt_bgc_keepalive import BASELINE as C693_BGC_KEEPALIVE  # noqa: E402
+from adapt_host_thread_class import BASELINE as C733_HOST_THREAD_CLASS  # noqa: E402
 from adapt_array_delta_invalidated import BASELINE as C697_ARRAY_DELTA_INVALIDATED  # noqa: E402
 from adapt_pipeline_cache_background import BASELINE as C697_PIPELINE_CACHE_BACKGROUND  # noqa: E402
 from adapt_sync_wait_attribution import BASELINE as C699_SYNC_WAIT_ATTRIBUTION  # noqa: E402
@@ -175,6 +176,23 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # texture array barrier epoch.
             'gc-keepalive-dormant': 'delivered', 'gc-pause-journal': 'delivered', 'extra-array-dirty': 'delivered',
             'array-barrier-epoch': 'delivered',
+            # Core 725 (lot 9): every recorded pipeline state replayed at launch.
+            'variant-replay-all': 'delivered',
+            # Core 727 (lot 9): the pause checkpoint threshold; the Vulkan allocator's blocks in the journal.
+            'pause-checkpoint-growth': 'delivered', 'vulkan-memory-journal': 'delivered',
+            # Core 727: the allocator range-update proof run again on the final allocator (journal methods added).
+            'allocator-range-update': 'delivered', 'allocator-blocks': 'delivered',
+            # Core 729 (lot 10): the main pipeline cache file written again once when it is at least twice main's data.
+            'pipeline-cache-compact': 'delivered',
+            # Core 731 (lot 11): the buffer cache's trim while only the device is short.
+            'cold-buffer-trim': 'delivered',
+            # Core 733 (lot 12): the threads a frame or the sound waits for in the user-interactive class; the engine's
+            # diagnostics snapshot keeps its bytes (native journal and export, against the delivered ones).
+            'host-thread-class': 'delivered', 'diagnostics-snapshot-reuse': 'delivered',
+            # Core 733: the kernel timer proof run again on the final timer manager (its worker asks the class).
+            'kernel-timer-allocations': 'delivered',
+            # Core 735 (lot 14): the remap sweep of the partially mapped textures.
+            'remap-sweep-range': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -192,6 +210,10 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 667: its adapters' files and the native launch preflight (the arena choice and the launch title).
            set(C667_BUFFER_ARRAY_BARRIERS) | set(C667_HOGWARTS_PRECISE_MATH) | set(C667_SHADER_SAVE_JOURNAL) |
            {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
+           # Core 725: the engine journal (a process starts with room for its whole journal).
+           {'src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs'} |
+           # Core 727: the Vulkan allocator's two files (its blocks in the journal).
+           {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs'} |
            # Core 671: the translator and host shader cache files of the NaN scrub.
            set(C671_NAN_SCRUB) |
            # Core 673: the pipeline cache manager and pipeline state (already changed files).
@@ -226,7 +248,10 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 715: DescriptorSetUpdater.cs, TextureArray.cs (already changed).
            set(C715_EXTRA_SET_BINDS) | set(C715_ARRAY_REFERENCE_DELTAS) |
            # Core 717: PipelineCacheManager.cs, PipelineState.cs (already changed).
-           set(C717_WORKER_LIBRARY_SHARE))
+           set(C717_WORKER_LIBRARY_SHARE) |
+           # Core 733: the eight files of the host thread class (SurfaceFlinger.cs already changed; KThread.cs,
+           # KTimeManager.cs and AudioProcessor.cs prepared members changed for the first time; four files new).
+           set(C733_HOST_THREAD_CLASS))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -240,7 +265,13 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json')),
          # Core 661: adapt_safe_point_compaction changes EmbeddedMemory.cs, which the native display fixture declares.
-         CORE87[:-len('historical-core87/')] + 'display-checks.json'}
+         CORE87[:-len('historical-core87/')] + 'display-checks.json',
+         # Core 727: adapt_vulkan_memory_journal adds read-only methods to the allocator's two files, which these two
+         # core87 receipts declare; both are run again on the final allocator against the delivered one.
+         CORE87 + 'allocator-range-update-checks.json', CORE87 + 'allocator-blocks-checks.json',
+         # Core 733: adapt_host_thread_class adds the class request to KTimeManager.cs, which this core87 receipt
+         # declares; it is run again on the final timer manager against the delivered one.
+         CORE87 + 'kernel-timer-allocations-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
@@ -283,6 +314,14 @@ JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs'}
 JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/IRenderer.cs'}
 # Core 703 (adapt_layout_used_types): ShaderInfoBuilder.cs joins the prepared source.
 JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Shader/ShaderInfoBuilder.cs'}
+# Core 727 (adapt_vulkan_memory_journal): MemoryAllocator.cs joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs'}
+# Core 733 (adapt_host_thread_class): the sleep pool (Ryujinx.Common), the kernel context (HLE) and two audio files join
+# the prepared source; like the other files outside the GPU closure they are read from no control (their gate rebuilds
+# its control from the final preparation).
+C733_JOINED = {'src/Ryujinx.Common/PreciseSleep/NanosleepPool.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelContext.cs',
+               'src/Ryujinx.Audio/Renderer/Server/AudioRendererManager.cs', 'src/Ryujinx.Audio/AudioManager.cs'}
+JOINED = JOINED | C733_JOINED
 REUSED_FRESH = set()
 
 
@@ -452,8 +491,9 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 84 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins). Core 727: 87.
+    # Core 733: 94 (seven of the eight files of the host thread class; SurfaceFlinger.cs was already changed).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 94 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -524,14 +564,23 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_gc_keepalive_dormant.py',
                                                      'build-utils/melonx/adapt_gc_pause_journal.py',
                                                      'build-utils/melonx/adapt_extra_array_dirty.py',
-                                                     'build-utils/melonx/adapt_array_barrier_epoch.py'} and
+                                                     'build-utils/melonx/adapt_array_barrier_epoch.py',
+                                                     'build-utils/melonx/adapt_variant_replay_all.py',
+                                                     'build-utils/melonx/adapt_pause_checkpoint_growth.py',
+                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_compact.py',
+                                                     'build-utils/melonx/adapt_cold_buffer_trim.py',
+                                                     'build-utils/melonx/adapt_host_thread_class.py',
+                                                     'build-utils/melonx/adapt_remap_sweep_range.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
                                                        # Core 661: the guest fault context handler.
                                                        'native/melonx/EmbeddedRuntime.cs',
                                                        # Core 667: the launch title's note (arena choice, math mode).
-                                                       'native/melonx/EmbeddedLaunchPreflight.cs'},
+                                                       'native/melonx/EmbeddedLaunchPreflight.cs',
+                                                       # Core 725: a process starts with room for its whole journal.
+                                                       'native/melonx/EmbeddedLaunchDiagnostics.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
@@ -552,7 +601,11 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 200 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    # Core 727: MemoryAllocator.cs joins; Core 729: adapt_pipeline_cache_compact.py joins the preparation inputs.
+    # Core 731: adapt_cold_buffer_trim.py joins them; the same 207 prepared members.
+    # Core 733: adapt_host_thread_class.py joins them; four files join the prepared members (211).
+    # Core 735: adapt_remap_sweep_range.py joins them; the same 211 prepared members.
+    check(len(frozen['preparationInputs']) == 207 and len(frozen['preparedMembers']) == 211, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -574,6 +627,27 @@ if not args.helpers_only:
     OUTSIDE_GPU |= set(C679_AUDIO_START_DEFERRED)
     # Core 693: the session file (Library assembly) is bound by the bgc-keepalive gate.
     OUTSIDE_GPU |= set(C693_BGC_KEEPALIVE)
+    # Core 725: the engine journal (Ryujinx.Common) is bound by the performance-diagnostics gate, which requires its final
+    # postimage and the digest of the journal its fixture compiled.
+    JOURNAL_FILE = 'src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs'
+    check(JOURNAL_FILE in gate['performance-diagnostics']['requiredPostimages'] and
+          JOURNAL_FILE in {b['productionPath'] for b in gate['performance-diagnostics']['compiledBindings']},
+          'The engine journal is not bound by the performance-diagnostics gate')
+    OUTSIDE_GPU |= {JOURNAL_FILE}
+    # Core 727: the allocator's two files are bound by vulkan-memory-journal (both) and the allocator gates (block list).
+    ALLOCATOR_FILES = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs'}
+    check(ALLOCATOR_FILES <= set(gate['vulkan-memory-journal']['requiredPostimages']) and
+          'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs' in set(gate['allocator-blocks']['requiredPostimages']) &
+          set(gate['allocator-range-update']['requiredPostimages']), 'The allocator files are not bound by their gates')
+    OUTSIDE_GPU |= ALLOCATOR_FILES
+    # Core 733: the eight files of the host thread class (Ryujinx.Common, HLE and Ryujinx.Audio) are bound by its gate,
+    # which builds the production HLE closure from the final preparation; the journal and the export of the diagnostics
+    # snapshot by theirs.
+    check(set(C733_HOST_THREAD_CLASS) == set(gate['host-thread-class']['requiredPostimages']) and
+          gate['host-thread-class']['assertions'].get('productionHleBuilt') is True and
+          set(gate['diagnostics-snapshot-reuse']['requiredPostimages']) == {JOURNAL_FILE, 'src/Ryujinx.Library/EmbeddedRuntime.cs'},
+          'The Core 733 changes are not bound by their gates')
+    OUTSIDE_GPU |= set(C733_HOST_THREAD_CLASS)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -608,13 +682,23 @@ if not args.helpers_only:
     c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
     delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED and path not in C671_JOINED}
     delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
+    # Core 727: the allocator gates, run again on the final allocator against the delivered one, also read the upstream
+    # MemoryAllocation.cs from the delivered control (unchanged upstream file, its pinned digest).
+    ALLOCATION = 'src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs'
+    check(unadapted['delivered'].get(ALLOCATION) == '8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2',
+          'MemoryAllocation.cs is the upstream file')
+    delivered_graphics[ALLOCATION] = unadapted['delivered'][ALLOCATION]
     check(unadapted == {'delivered': delivered_graphics,
                         'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},
                         # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
                         # gates read them, from the final preparation.
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
                                          **{path: digest for path, digest in graphics.items()
-                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle}},
+                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle and
+                                            # Core 727: MemoryAllocator.cs joins, read only by its own gates (delivered control).
+                                            path != 'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs' and
+                                            # Core 733: the four files outside the GPU closure are read from no control.
+                                            path not in C733_JOINED}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

@@ -23,6 +23,9 @@ enum XeniaRuntimeState {
 
   /// The framework is there but exposes another ABI version.
   abiMismatch,
+
+  /// The framework is there but dyld could not load it ([detail]).
+  coreLoadFailed,
 }
 
 class XeniaRuntimeAvailability {
@@ -191,6 +194,17 @@ abstract final class XeniaInternalBridge {
         'success': false,
         'message': 'engineMissing',
       };
+    }
+  }
+
+  /// Ends the JIT transaction prepared for a launch that was not attempted
+  /// (a Dart-side failure between [prepareJit] and [launch]); a session in
+  /// progress keeps its own.
+  static Future<void> abortJit() async {
+    try {
+      await _channel.invokeMethod<void>('abortJit');
+    } on MissingPluginException {
+      // No bridge, no transaction.
     }
   }
 

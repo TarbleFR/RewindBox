@@ -220,15 +220,22 @@ List<(int Worker, ulong[] Libraries)> Program12(ulong baseId)
 }
 
 // S6: render-thread creations (main or side cache through EnterMainCreation) while two workers publish: no lost entry.
+// Whatever the speed of the three threads: the render thread starts once both workers have published a first program
+// and makes its 2 000 creations; each worker publishes its 300 programs, then asks for them again until the render
+// thread is done (120 s at most), so every creation happens while the workers publish. (Until Core 731 the render
+// thread was stopped when the workers finished, and the count of 2 000 held only if it was the faster: 1 878 on a
+// loaded runner, with every entry on disk.)
 {
     string dir = Path.Combine(root, "threads");
     var l = Open(dir);
-    var stop = new ManualResetEventSlim();
+    var workersPublishing = new CountdownEvent(2);
+    var renderDone = new ManualResetEventSlim();
     var renderIds = new List<ulong>();
     var render = new Thread(() =>
     {
+        workersPublishing.Wait();
         ulong id = 900_000;
-        while (!stop.IsSet && renderIds.Count < 2000)
+        while (renderIds.Count < 2000)
         {
             l.Manager.EnterMainCreation(l.MainLock, false, out PipelineCache target);
             try { l.Vk.Add(target, id, EntryBytes); renderIds.Add(id++); }
@@ -236,17 +243,23 @@ List<(int Worker, ulong[] Libraries)> Program12(ulong baseId)
             l.Manager.NotifyMainPipelineCreated();
             Thread.Sleep(0);
         }
+        renderDone.Set();
     }) { Name = "render" };
     render.Start();
+    var watch = Stopwatch.StartNew();
+    var requests = new int[2];
     var workers = Enumerable.Range(0, 2).Select(w => new Thread(() =>
     {
         int localHits = 0;
-        for (ulong i = 0; i < 300; i++) Request(l, w, new ulong[] { 800_000 + (ulong)w * 1000 + i, 800_500 + (i % 40) }, ref localHits);
+        for (ulong i = 0; i < 300 || (!renderDone.IsSet && watch.ElapsedMilliseconds < 120_000); i++)
+        {
+            Request(l, w, new ulong[] { 800_000 + (ulong)w * 1000 + (i % 300), 800_500 + (i % 40) }, ref localHits);
+            if (++requests[w] == 1) workersPublishing.Signal();
+        }
     }) { Name = "worker" + w }).ToArray();
     foreach (var t in workers) t.Start();
     foreach (var t in workers) t.Join();
-    stop.Set();
-    render.Join();
+    bool renderFinished = render.Join(120_000);
     l.Manager.MergeAndSave();
     l.Manager.Dispose();
     var disk = OnDisk(dir);
@@ -254,6 +267,7 @@ List<(int Worker, ulong[] Libraries)> Program12(ulong baseId)
     report["threads"] = new Dictionary<string, object>
     {
         ["renderCreations"] = renderIds.Count, ["allRenderOnDisk"] = renderIds.All(disk.Contains), ["allWorkerOnDisk"] = allWorker,
+        ["renderFinished"] = renderFinished, ["workerRequests"] = requests,
     };
 }
 

@@ -319,13 +319,62 @@ def static_checks(source: Path) -> None:
             '\t\t\t\t\t{\n\t\t\t\t\t\trpcs3::ios::passive_gate::relax();\n\t\t\t\t\t}\n#endif\n'
             '\t\t\t\t\tfor (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)\n\t\t\t\t\t{\n'
             '\t\t\t\t\t\treservation_lock_wait(wait_iteration);\n\t\t\t\t\t}\n\t\t\t\t}\n')
-    require(ctor.count(loop) == 1, 'the park wait: same condition, the budget in front of the previous wait, which is untouched')
+    # REWINDBOX_THERMAL_POLICY_931: from Core 931 the same budgeted spin, with the same condition and in front of the same
+    # untouched wait, waits on the PPU thread's state word instead of a yield hint when the event waits are on (hot);
+    # with them off its body is the relax above. test/rpcs3_thermal931_test.py executes that rule; here the text is exact.
+    loop931 = ('\t\t\t\tif (auto ptr = +*lock)\n'
+               '\t\t\t\t{\n'
+               '#ifdef RPCS3_IOS\n'
+               '\t\t\t\t\tstatic_assert(sizeof(ptr->state.raw()) == sizeof(u32) && sizeof(bs_t<cpu_flag>) == sizeof(u32));\n'
+               '\t\t\t\t\twhile (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); },\n'
+               '\t\t\t\t\t\tios_event_wait ? 1 : rpcs3::ios::writer_park::clock_interval))\n'
+               '\t\t\t\t\t{\n'
+               '\t\t\t\t\t\tif (ios_event_wait)\n'
+               '\t\t\t\t\t\t{\n'
+               '\t\t\t\t\t\t\t// The condition is tested on the very value the wait compares (no lost wake: a PPU thread that\n'
+               "\t\t\t\t\t\t\t// parked between the loop's test and this load is seen here, and one that parks after it\n"
+               "\t\t\t\t\t\t\t// clears the monitor). XNU's event stream ends a WFE within about 1 us in any case.\n"
+               '\t\t\t\t\t\t\tconst void* ios_word = &ptr->state.raw();\n'
+               '\t\t\t\t\t\t\tconst u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);\n'
+               '\t\t\t\t\t\t\tbs_t<cpu_flag> ios_flags{};\n'
+               '\t\t\t\t\t\t\tstd::memcpy(&ios_flags, &ios_seen, sizeof(ios_seen));\n'
+               '\t\t\t\t\t\t\tif (!(ios_flags & cpu_flag::wait))\n'
+               '\t\t\t\t\t\t\t{\n'
+               '\t\t\t\t\t\t\t\trpcs3::ios::event_wait::once32(ios_word, ios_seen);\n'
+               '\t\t\t\t\t\t\t}\n'
+               '\t\t\t\t\t\t\trpcs3::ios::thermal::count(rpcs3::ios::thermal::writer_park);\n'
+               '\t\t\t\t\t\t}\n'
+               '\t\t\t\t\t\telse\n'
+               '\t\t\t\t\t\t{\n'
+               '\t\t\t\t\t\t\trpcs3::ios::passive_gate::relax();\n'
+               '\t\t\t\t\t\t}\n'
+               '\t\t\t\t\t}\n'
+               '#endif\n'
+               '\t\t\t\t\tfor (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)\n'
+               '\t\t\t\t\t{\n'
+               '\t\t\t\t\t\treservation_lock_wait(wait_iteration);\n'
+               '\t\t\t\t\t}\n'
+               '\t\t\t\t}\n')
+    # REWINDBOX_EVENT_WAIT_LATENCY_932: from Core 932 the comment of that wait no longer states a WFE latency as a fact; the
+    # code is the same, character for character.
+    loop932 = loop931.replace("\t\t\t\t\t\t\t// clears the monitor). XNU's event stream ends a WFE within about 1 us in any case.\n",
+                              "\t\t\t\t\t\t\t// clears the monitor). The spin budget bounds the loop; how long each WFE lasts on the device is\n"
+                              "\t\t\t\t\t\t\t// measured (REWINDBOX_EVENT_WAIT_LATENCY_932, THERMAL931 wfe_latency_us), not assumed.\n")
+    require(loop932 != loop931, 'the Core 932 alternative differs from the Core 931 text')
+    require(ctor.count(loop) + ctor.count(loop931) + ctor.count(loop932) == 1,
+            'the park wait: same condition, the budget in front of the previous wait, which is untouched')
     require('\twait_iteration = 0;' not in ctor and 'continue;' not in ctor[ctor.index('rpcs3::ios::writer_park::waiter ios_park;'):],
             'the previous wait starts at its first iteration: nothing rewinds or skips its counter')
     require(ctor.count('ios_park.spin(') == 1 and ctor.count('reservation_lock_wait(wait_iteration);') == 2, 'the range-lock wait is untouched')
     require('const bool ios_park_spin = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);' in ctor and
             'utils::get_tsc_freq() / (1\'000\'000\'000 / rpcs3::ios::writer_park::spin_budget_ns)' in ctor, 'the lever and its budget')
-    require('rpcs3::ios::writer_park::record_park(phase_park_end - phase_ranges_end, utils::get_tsc_freq(), ios_park.spent);' in ctor, 'the park phase is counted by duration')
+    # REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931: from Core 931 the same values are kept by the constructor and published
+    # after the release by the same thread (ios/IOSWriterLockRecord931.h); the park phase is still counted by duration.
+    record931 = source / 'rpcs3/ios/IOSWriterLockRecord931.h'
+    require('rpcs3::ios::writer_park::record_park(phase_park_end - phase_ranges_end, utils::get_tsc_freq(), ios_park.spent);' in ctor or
+            (ctor.count('rpcs3::ios::writer_lock_record::defer(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,\n\t\t\t\t\tphase_park_end - phase_ranges_end, phase_flagged, slow_threshold, utils::get_tsc_freq(), ios_park.spent);') == 1 and record931.is_file() and
+             'writer_park::record_park(slot.park, slot.ticks_per_second, slot.budget_spent);' in record931.read_text()),
+            'the park phase is counted by duration')
     passive = vm[vm.index('\tvoid passive_lock(cpu_thread& cpu)\n'):vm.index('\tbool temporary_unlock(cpu_thread& cpu) noexcept')]
     require('rpcs3::ios::writer_park::record_ppu_park(cpu.id == 0x01000000u, utils::get_tsc() - begin);' in passive and
             'if (!get_range_lock_bits(true)) [[likely]]' in passive and 'utils::spin_ns(67);' in passive and 'atomic_wait_timeout{50\'000}' in passive,

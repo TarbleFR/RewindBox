@@ -1,0 +1,488 @@
+{
+ "schema": 1,
+ "date": "2026-11-11",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "729 (provisional number, to confirm by main)",
+ "lot": 10,
+ "base": {
+  "core": 727,
+  "contract": "1aa56e303b31da0983f40ffca706a98d72891b17bae83e6aaec909093e9d36ea",
+  "contractOnClaude": "f494197a7706ed1264f13926edbe3ae49e3b2ace35a6cc08ddbc8e7968dcbd75"
+ },
+ "change": "One adapter after adapt_vulkan_memory_journal: adapt_pipeline_cache_compact (PipelineCacheManager.cs: at the end of the background load a main pipeline cache file at least twice main's data, by 8 MiB or more, is written again once; the budget estimate and the growth rule take main's data). The contract binds the MoltenVK recipe patch with its fifth part (cache keys, sha256 560669f0b982c10a82c7591fe43ef875125beb7f3c0033140458e430c7921d6e, five markers).",
+ "preparation": "only PipelineCacheManager.cs differs from the Core 727 preparation",
+ "moltenvk": {
+  "patchSha256": "560669f0b982c10a82c7591fe43ef875125beb7f3c0033140458e430c7921d6e",
+  "iosRebuildRun": 42943460512,
+  "macosMeasureRun": 42943460686,
+  "macosReport": "cache-keys-macos-report.json",
+  "mappedCacheRun": 42943460436
+ },
+ "bridge": {
+  "commit": "49290aba",
+  "field": "vm= (MiB compressed / pages decompressed / faults / page-ins per second)",
+  "macosRun": 42945472943
+ },
+ "device724": {
+  "cacheData": "792.03 MiB for 4 669 libraries, 177 876 bytes each; 1 305 resource bindings of 134 bytes per vertex or fragment library of a two-stage program",
+  "load": "footprint 2 060 MiB at t=1, +1 078 during the read, +913 in the second of the merge, 3 596 at t=18",
+  "pipelineLookups": "worker lookups in main 64 per 0.3 s (4.7 ms each); late creations 869 in 4 955 ms",
+  "reference": "after 88 s: 1 370 frames in 121.9 s, mean 89.0 ms, excess +55.6 = stutters +36.2 + slow frames +19.9 - 0.5"
+ },
+ "gatesRun": {
+  "bindless-array-deltas": {
+   "report": "bindless-array-delta-checks.json",
+   "sha256": "a117a19e229e60ffaa7b18dfe9dbb4bbb18e88bf9fe36aa58a0c24a2d8cda775",
+   "checks": 303
+  },
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "e3dd0d9cbb6656e87f8eb5c4fc4d37d973738fa8dc08004d46ef89b1f32978ab",
+   "checks": 66
+  },
+  "performance-diagnostics": {
+   "report": "performance-diagnostics-checks.json",
+   "sha256": "813bb482892aa859eab2f64130b7791646a5f9da7067c8c72830e82a0af653b5",
+   "checks": null
+  },
+  "binding-data-snapshots": {
+   "report": "binding-data-snapshot-checks.json",
+   "sha256": "36b6418230299fab15a4038bf8e12c9dd5fc91c7181c6ff6b3084642c50c2e59",
+   "checks": null
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "62d080b1412b28d1a2d5e5f35c11f57548f3f27de281bd09abe3a6e58e83f880",
+   "checks": 172
+  },
+  "pipeline-checkpoint": {
+   "report": "pipeline-checkpoint-checks.json",
+   "sha256": "fc7109590fdc0551c7ddbb981252fc7b9c1f4642819c499d2ba063320ce27589",
+   "checks": null
+  },
+  "scalar-texture-descriptors": {
+   "report": "scalar-texture-descriptor-checks.json",
+   "sha256": "db3077767ac8b3fb23c78102059faec7dba81a5940e674b3850942bbc3d0ece2",
+   "checks": null
+  },
+  "fallback-descriptor-scratch": {
+   "report": "fallback-descriptor-scratch-checks.json",
+   "sha256": "800693ec826cf5dc9e26191ccd08ab2e1d1e170dc47d504f83bbd2067440dd2d",
+   "checks": null
+  },
+  "single-resource-bindings": {
+   "report": "single-resource-binding-checks.json",
+   "sha256": "a60e31790041a158962eaf87656bac5ae4b5e91abe11709e6b0bb16cda984cee",
+   "checks": null
+  },
+  "bounded-binding-snapshots": {
+   "report": "bounded-binding-snapshot-checks.json",
+   "sha256": "ce40adbf2d3df14bc869538e7096ee3ee7ce8b3515126f957d7912eb6885ca46",
+   "checks": null
+  },
+  "counter-report-compaction": {
+   "report": "counter-report-compaction-final-checks.json",
+   "sha256": "7de510bb3211a3a68b870af27a4a2af6528868348402ac0d61b0d2f13a440f73",
+   "checks": null
+  },
+  "single-virtual-dependency": {
+   "report": "single-virtual-dependency-final-checks.json",
+   "sha256": "000fffc9ea6328717c5d3eeedfe9fdde9f365c3060fcb04443029d9b555925b6",
+   "checks": null
+  },
+  "pipeline-warmup-parity": {
+   "report": "pipeline-warmup-parity-checks.json",
+   "sha256": "8de1020c21e18c5561acb5186178830ec16aefba0791fb5d6708bf172ee95411",
+   "checks": 10
+  },
+  "device-short-trim": {
+   "report": "device-short-trim-checks.json",
+   "sha256": "243b8e5a3676071471652a4e1a9800bde47069a225f157e1f05e155f96b62f85",
+   "checks": 7
+  },
+  "moltenvk-barrier-ordering": {
+   "report": "moltenvk-barrier-ordering-checks.json",
+   "sha256": "f3c6e3c1ade561221c2961b8f4607aa4d1a77a1e70e271361df8eb16b8f43463",
+   "checks": 14
+  },
+  "descriptor-scratch-all-titles": {
+   "report": "descriptor-scratch-all-titles-checks.json",
+   "sha256": "d0fbea0a6b05f1fb08803d9d4c2db6787466dc18ec7ce60bbf6d917ac35ca869",
+   "checks": 9
+  },
+  "readback-occupied-attribution": {
+   "report": "readback-occupied-attribution-checks.json",
+   "sha256": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+   "checks": 10
+  },
+  "pipeline-miss-context": {
+   "report": "pipeline-miss-context-checks.json",
+   "sha256": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+   "checks": 4
+  },
+  "barrier-compaction": {
+   "report": "barrier-compaction-checks.json",
+   "sha256": "9421c2b361ac97a1ce089872bd184d2b408db5049ccd3ad6b92c0230eb4162f9",
+   "checks": 7
+  },
+  "readback-receivers": {
+   "report": "readback-receivers-checks.json",
+   "sha256": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+   "checks": 53
+  },
+  "present-source-attribution": {
+   "report": "present-source-attribution-checks.json",
+   "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+   "checks": 20
+  },
+  "teardown-compile-cancel": {
+   "report": "teardown-compile-cancel-checks.json",
+   "sha256": "202dc2f61b0188b3d0b6afbc1a9ea9b8c9394a0bfd553ebf6fea7fd5730230d3",
+   "checks": 25
+  },
+  "pause-guest-threads": {
+   "report": "pause-guest-threads-checks.json",
+   "sha256": "90c0ec41dbde40d9d7a0adfd128476cc041c06ac494cab4930b24a0d9db76224",
+   "checks": 18
+  },
+  "teardown-phase-marks": {
+   "report": "teardown-phase-marks-checks.json",
+   "sha256": "f8ba6f267557dacd719e588faafddf379a47b39af6af357966684a4fb7de4106",
+   "checks": 10
+  },
+  "binder-teardown": {
+   "report": "binder-teardown-checks.json",
+   "sha256": "5a3b1f7cd8e0c450615cc68c5551a7084eba277f4f3687c6b6c4745011658c6e",
+   "checks": 40
+  },
+  "gc-events": {
+   "report": "gc-events-checks.json",
+   "sha256": "e899e9270e383f0259091ef551318d09d0a64c5b4be0925597b5a3ebe5965b81",
+   "checks": 49
+  },
+  "artifact-counters": {
+   "report": "artifact-counters-checks.json",
+   "sha256": "842e8a9a9ea3ef488159bf3e810e569a9f40330e454b33eed37bce34efe73ff6",
+   "checks": 118
+  },
+  "array-rebuild-allocations": {
+   "report": "array-rebuild-allocations-checks.json",
+   "sha256": "3c02c2ebb67dcc113128d4b214bdf9ddcee3c57b010fdd1022ff40fcc0f88a12",
+   "checks": 322
+  },
+  "present-pacing": {
+   "report": "present-pacing-checks.json",
+   "sha256": "d2465a4fd1a66ff48eb88336f853028f5264716c8519b6b2fa9b4d7e384bab0e",
+   "checks": 783
+  },
+  "present-drawable-residency": {
+   "report": "present-drawable-residency-checks.json",
+   "sha256": "91e1f3df86a5cfee0d2bc37dfcb753b14d7808ba568ccc47a3497d0c7dab03b7",
+   "checks": 26
+  },
+  "present-pacer-fixes": {
+   "report": "present-pacer-fixes-checks.json",
+   "sha256": "b8775abb9760bd42906d61d68d8453c4bdb8e034ce3830a39e94a0136eb8c4db",
+   "checks": 784
+  },
+  "shader-save-poll": {
+   "report": "shader-save-poll-checks.json",
+   "sha256": "865311a21c85fa5877b07193802964f8c19e5e42b6e510d8576ed14a3042c564",
+   "checks": 78
+  },
+  "warmup-key-parity": {
+   "report": "warmup-key-parity-checks.json",
+   "sha256": "793c88e6d74d074dcdec581d65f265d8e2a48eff7fa039a6e09339535d4a1051",
+   "checks": 1371
+  },
+  "setprogram-warmup": {
+   "report": "setprogram-warmup-checks.json",
+   "sha256": "39439e3a5984fe0b26756b53d377c929d7b76d04abd25dc2f1dd1a61239abbb0",
+   "checks": 103
+  },
+  "teardown-cache": {
+   "report": "teardown-cache-checks.json",
+   "sha256": "535615a69498ea007c18f6060440d5871bcd634e2816dfc165054afeadea621c",
+   "checks": 53
+  },
+  "forced-syncpoint-wait": {
+   "report": "forced-syncpoint-wait-checks.json",
+   "sha256": "85f2697e89c5180f4943aa2a02d2757f638d86c5ef34d5e8df05f0270df160db",
+   "checks": 84
+  },
+  "session-retention": {
+   "report": "session-retention-checks.json",
+   "sha256": "84c4285600b747642964f3a898ed7f54de2760f6143c8038f14bde90061fe16c",
+   "checks": 121
+  },
+  "memory-inventory": {
+   "report": "memory-inventory-checks.json",
+   "sha256": "b1e913616befc981505e828e2ede591f02a1d59e45df5ef494a07320da115f13",
+   "checks": 26
+  },
+  "guest-fault-context": {
+   "report": "guest-fault-context-checks.json",
+   "sha256": "d566734d22edfcff604fc710da8cccc36dd37cbf5ebafb7ddf7a76c808ceb6c9",
+   "checks": 53
+  },
+  "gc-fallback": {
+   "report": "gc-fallback-checks.json",
+   "sha256": "4c998130fa0bdf9cbf342de345cbe09106be2b46349c8e796724cfba52881e1c",
+   "checks": 60
+  },
+  "host-warning-trim": {
+   "report": "host-warning-trim-checks.json",
+   "sha256": "0768c5573ed9008c7cd7884bb6cd707308706b71641de12b83bd922c453fd29e",
+   "checks": 21
+  },
+  "safe-point-compaction": {
+   "report": "safe-point-compaction-checks.json",
+   "sha256": "724c1dc2d190f7002d261fd003df0e292ea2c3325f383fbe592fd9e495112ec2",
+   "checks": 59
+  },
+  "cold-texture-release": {
+   "report": "cold-texture-release-checks.json",
+   "sha256": "5a402e90d256e14ca6e6b2c6fc905543dcc7bd67b4328e02bc5c66f373b09f9f",
+   "checks": 131
+  },
+  "bindless-retention": {
+   "report": "bindless-retention-checks.json",
+   "sha256": "efda2d863e62b59939664868a4a27a02919deb6a77bf5370a743a30ddf88fd3f",
+   "checks": 312
+  },
+  "moltenvk-stage-ordering": {
+   "report": "moltenvk-stage-ordering-checks.json",
+   "sha256": "48759b85c38324569ffee7444f1af7c582a241121ec715bf7897c7753b362630",
+   "checks": 75
+  },
+  "display-native": {
+   "report": "display-checks.json",
+   "sha256": "d65c1234b3e5aee16e93648e5f4911ed72af3c29092456c5df77932b08bfd5ac",
+   "checks": null
+  },
+  "core667-fixes": {
+   "report": "core667-fixes-checks.json",
+   "sha256": "d8f18abc4ea240fc8380c141192e85f38f9c5757d37c58ae0a8cc87d1c735d0a",
+   "checks": 56
+  },
+  "nan-scrub": {
+   "report": "nan-scrub-checks.json",
+   "sha256": "9c95df125ccadcf93f5e6abd075f890d412041ba7d9c9e252c9a343e4b7954d0",
+   "checks": 57
+  },
+  "main-cache-checkpoint": {
+   "report": "main-cache-checkpoint-checks.json",
+   "sha256": "f779c3fea9bf4b20f86d82387048a28ed07dcdbc966b8316fa531fb2b23938ae",
+   "checks": 29
+  },
+  "checkpoint-side-cache": {
+   "report": "checkpoint-side-cache-checks.json",
+   "sha256": "f92143bdad67f10eeda9de4e56cc0f2ebe129b21e51029df940908c99fa44004",
+   "checks": 24
+  },
+  "evicted-buffer-recreate": {
+   "report": "evicted-buffer-recreate-checks.json",
+   "sha256": "0cf9c4d7de8ea5cd0fd64167c15b9d58c89f478d31991411d0ab22b19f508108",
+   "checks": 22
+  },
+  "audio-start-deferred": {
+   "report": "audio-start-deferred-checks.json",
+   "sha256": "c15cabea88e6f1ae741ad34c756984725329e7a71e21a9f7d827f707eb31553d",
+   "checks": 16
+  },
+  "pipeline-cache-room": {
+   "report": "pipeline-cache-room-checks.json",
+   "sha256": "4b62326a1beffcef166c1c7b33bcce464b6fefdab06b7242c0fab8f607146a23",
+   "checks": 23
+  },
+  "pipeline-cache-persist": {
+   "report": "pipeline-cache-persist-checks.json",
+   "sha256": "ea7fef4c3bbbed53c13b9b05512a3ddea7079c4922e6b257b83af4dc5e1d182c",
+   "checks": 30
+  },
+  "pipeline-build-journal": {
+   "report": "pipeline-build-journal-checks.json",
+   "sha256": "f3ce9f1a6c5862019b7c4b89836a6f40a800868c008780da81fd44156dfb0769",
+   "checks": 30
+  },
+  "pipeline-cache-growth": {
+   "report": "pipeline-cache-growth-checks.json",
+   "sha256": "1d22b8be196328e29f229cdcabec69d5e7c3be382dffb71e877f2d010a4c8357",
+   "checks": 37
+  },
+  "occupied-readback-buffers": {
+   "report": "occupied-readback-buffers-checks.json",
+   "sha256": "c4a1338ec40693ec8f8a83106b8623f8e339781d03d34ab13e6331659c142acf",
+   "checks": 44
+  },
+  "async-regenerated-targets": {
+   "report": "async-regenerated-targets-checks.json",
+   "sha256": "f2af202cb02d8c67c215e2b5ea9f348747f0c8c4210ef9e0a8817cdcdceed9df",
+   "checks": 37
+  },
+  "released-texture-flush": {
+   "report": "released-texture-flush-checks.json",
+   "sha256": "dbb2c205d9ae28696cd4b48c984e3081dfc28246f036edce96e824d44a3f2ca1",
+   "checks": 26
+  },
+  "pipeline-failure-identity": {
+   "report": "pipeline-failure-identity-checks.json",
+   "sha256": "9181efc0e467d091ab070370a91c3de5050aedc4bc249c0037b8de596875bab9",
+   "checks": 16
+  },
+  "worker-main-cache-lookup": {
+   "report": "worker-main-cache-lookup-checks.json",
+   "sha256": "084da34dedb74e3a16a826e375c417dc59b290e2c23a419663477360da5a61c5",
+   "checks": 19
+  },
+  "compute-switch-bindings": {
+   "report": "compute-switch-bindings-checks.json",
+   "sha256": "f373927e577dd6e18203f6d3429b020e930b9ebc545ab0f81fad83eb66f8aa99",
+   "checks": 24
+  },
+  "bgc-keepalive": {
+   "report": "bgc-keepalive-checks.json",
+   "sha256": "c5c6d4ac555827c5377bbe933c2ba318c2d2edc32a7da1549fbd51ee3633d142",
+   "checks": 25
+  },
+  "pipeline-cache-background": {
+   "report": "pipeline-cache-background-checks.json",
+   "sha256": "a582795a970530714a44b89d581b29c2cc60c20b610b0d87dc046f59aef4d0dc",
+   "checks": 33
+  },
+  "sync-wait-attribution": {
+   "report": "sync-wait-attribution-checks.json",
+   "sha256": "ff44fa8732191866b0db9a5cbecafa5e71dd0503b06834275bd823c354782a82",
+   "checks": 57
+  },
+  "synced-buffer-reads": {
+   "report": "synced-buffer-reads-checks.json",
+   "sha256": "b88829ce8175e4042cf6717bd60be27f07ad8d257b926673a49d365db435b118",
+   "checks": 60
+  },
+  "layout-used-types": {
+   "report": "layout-used-types-checks.json",
+   "sha256": "5c52fd470c3bd83cd51174c21aaf977f3156a5fa411414a58a4b56ad824013b8",
+   "checks": 590
+  },
+  "same-program-descriptors": {
+   "report": "same-program-descriptors-checks.json",
+   "sha256": "1bdecc9f9dac968e35ba35ca1fe495e9d91fbc75e14b5d1fded8453e802b082f",
+   "checks": 79
+  },
+  "retention-chain": {
+   "report": "retention-chain-checks.json",
+   "sha256": "a7b44af82a03f56ad72006a6def76b1bfc7b8b17d0fdff76c5a8d14ccea40344",
+   "checks": 45
+  },
+  "texture-pool-allocations": {
+   "report": "texture-pool-allocations-checks.json",
+   "sha256": "dfdb343d9cb3b547ac0f59742a41bbfc75102c0a4063e1c7a11ac6e8ce75453b",
+   "checks": 95
+  },
+  "pipeline-variant-replay": {
+   "report": "pipeline-variant-replay-checks.json",
+   "sha256": "810977caa30593a940434e76844e79955a5112bbc04e4aeb0f4cb8f9120519a2",
+   "checks": 107
+  },
+  "pipeline-snapshot-retire": {
+   "report": "pipeline-snapshot-retire-checks.json",
+   "sha256": "e048dc4046f8fef74c03ae1cc17aae186e73a3d69b9907f2ed056d01f7aeecb4",
+   "checks": 105
+  },
+  "extra-set-binds": {
+   "report": "extra-set-binds-checks.json",
+   "sha256": "ab1ce4811acef4cb315d8d59a04e78571521e7ba3a0131eb73c308746d06a391",
+   "checks": 153
+  },
+  "array-reference-deltas": {
+   "report": "array-reference-deltas-checks.json",
+   "sha256": "c544122be33318787274e370fee1334137decff779b99f00bde54bc4a9c3ce8a",
+   "checks": 45
+  },
+  "worker-library-share": {
+   "report": "worker-library-share-checks.json",
+   "sha256": "03388155c4f331d9896ecd63ca378ed40db52396f9a836c1a261dd648ab88e7e",
+   "checks": 62
+  },
+  "bgc-fragmentation-guard": {
+   "report": "bgc-fragmentation-guard-checks.json",
+   "sha256": "156a176014d3a3ac2492671078c5ab31114e4e62abc68711c176c72d651362c9",
+   "checks": 20
+  },
+  "pipeline-cache-mapped-data": {
+   "report": "pipeline-cache-mapped-data-checks.json",
+   "sha256": "ca89e08f782c5cd93939e6a10ad8b5eabe66d36887830e983a8a74c35a004b97",
+   "checks": 54
+  },
+  "gc-keepalive-dormant": {
+   "report": "gc-keepalive-dormant-checks.json",
+   "sha256": "43189d46cff4ab041983320f330ae51f4517ca0dbf6b08971c3ce29a90e5527b",
+   "checks": 50
+  },
+  "gc-pause-journal": {
+   "report": "gc-pause-journal-checks.json",
+   "sha256": "16df76558afad49553d52cadd36d726ab878db0ff10168c86438edafa6d82c7c",
+   "checks": 33
+  },
+  "extra-array-dirty": {
+   "report": "extra-array-dirty-checks.json",
+   "sha256": "7a53970034fd91735ad3db9498f106a542fd58efcab5ffd98a3030e4bc1a3ba0",
+   "checks": 72
+  },
+  "array-barrier-epoch": {
+   "report": "array-barrier-epoch-checks.json",
+   "sha256": "4e267640c042a331674631b5545b7ffa9545940a987e11599a353e2f2e3e769a",
+   "checks": 119
+  },
+  "variant-replay-all": {
+   "report": "variant-replay-all-checks.json",
+   "sha256": "c8c4f051e20ad3de6b4bec7e30fe2abb1af393c5cdfbdd221896b23df1629405",
+   "checks": 40
+  },
+  "pause-checkpoint-growth": {
+   "report": "pause-checkpoint-growth-checks.json",
+   "sha256": "f95e091ded090ed8fa10e32fbd554b073406f5f19a23345da26a998977a2ad71",
+   "checks": 16
+  },
+  "vulkan-memory-journal": {
+   "report": "vulkan-memory-journal-checks.json",
+   "sha256": "5c3c5f860bf4e5739012c73c9ac467d16b393d922b686e105b8df7064a9cc461",
+   "checks": 26
+  },
+  "allocator-range-update": {
+   "report": "allocator-range-update-checks.json",
+   "sha256": "1b0a4bac1e3f1174d8d003b66e63e58fce182ee991c67347a5af401085d1d16d",
+   "checks": null
+  },
+  "allocator-blocks": {
+   "report": "allocator-blocks-checks.json",
+   "sha256": "51874e888b18d3f0422451c9b22bf85d1e42be1020d052eeb941e75b95d1f99c",
+   "checks": null
+  },
+  "pipeline-cache-compact": {
+   "report": "pipeline-cache-compact-checks.json",
+   "sha256": "e9ca848ef9b8640b8bc37c4f2483fa86a4f901f33e23bc8ddabce1d8203c91a8",
+   "checks": 51
+  }
+ },
+ "allGatesLocally": "87 of 87 passed on the final preparation (11 Nov). First pass: warmup-key-parity failed on its list of the files the recipe patch may touch (three join with the fifth part; taught, 1 371 checks) and compute-switch-bindings on its load-dependent timing comparison (green alone, as at Core 725).",
+ "contract": {
+  "sha256": "1e9d597bb260f1a0a893dd696ddc688afe5613b8e6fe81501c8e1caaea04dad7",
+  "preparationInputs": 204,
+  "preparedMembers": 207,
+  "freshAppleGates": 87,
+  "contractTestChecks": 474,
+  "frozenBeforeTheMerge": "0501ae302106d6d3b35699d46f78f27ef0497ca98cdfd7d8055ef62c4127eec8",
+  "realignment": "origin/Claude 1a9f2167 merged before the handoff (PR #174, 0284bbf4, replaced the artifact upload step of .github/workflows/melonx-core.yml, a fixed input of the contract). Only inputs['.github/workflows/melonx-core.yml'] differs from the contract frozen before the merge: be62c65b... -> a4fd766d.... freeze_dma_core.py run again on the merged tree gives the same contract as JSON (every key and value); its bytes differ from run to run by the key order of baselineUnadaptedMembers alone (built from a set), so the published file is the frozen one with that one entry. No preparation input, fixture input or gate script changed with the merge: no gate was run again; the contract test passes on the merged tree (474 checks)."
+ },
+ "physicalDeviceTested": false,
+ "ipa": null,
+ "ciRuns": [
+  42943460512,
+  42943460686,
+  42943460436,
+  42945472943
+ ],
+ "workflowUploads": "melonx-cache-keys.yml uploads through TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37 (.github/ipa-protection/check_workflows.py passes on the merged tree; the guard's scan.py run locally on the workflow's two path patterns: 23 files inspected, no plaintext IPA). Not run on a runner since the change."
+}

@@ -24,6 +24,12 @@
 # to start an enabled capture when the in-game menu closes: that menu does not pause the emulation), 10 November 2026; no IPA or release.
 # Run request: the dependency of RPCS3 Core 914 (same MoltenVK source and patch; the host bridge sends the capture request
 # only when the menu goes from open to closed), 10 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 928 (same MoltenVK source and patch, same host bridge; this workflow is itself a
+# recorded input and its three artifact uploads go through the protected upload action since #174, so the dependency of
+# run 42733987255 no longer authenticates: Core compile run 42954625215 refused it), 11 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 929 (same MoltenVK source and patch; the host bridge shows the applied resolution
+# in the in-game menu, 5fd59775, so the dependency of run 42957981240 no longer authenticates: Core compile run 42996349275
+# refused it), 11 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
@@ -98,7 +104,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.log
       - name: Preserve preflight receipts and failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-preflight-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/
@@ -138,7 +144,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/ios-producer.log
       - name: Preserve actual iOS dependency and all producer receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-ios-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/
@@ -187,7 +193,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/metal-probe.log
       - name: Preserve real Metal results and producer failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-metal-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/

@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "790664dabecf00279456657bb854b6de229ab715",
-  "run": 42883532005,
-  "job": 130065784537,
+  "source": "d2053e980a9364a3fe994ebd127a15f3fe0eafb5",
+  "run": 43044568458,
+  "job": 130604996031,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13799060992,
-  "name": "MeloNX-engine-790664dabecf00279456657bb854b6de229ab715",
-  "bytes": 100452266,
-  "sha256": "f90a7a9389b13d594fbb9c32ab8a52951e96789f3b3452b51821780093fefa4b",
-  "expiresAt": "2026-11-24T20:03:42Z",
+  "artifact": 13870293486,
+  "name": "MeloNX-engine-d2053e980a9364a3fe994ebd127a15f3fe0eafb5",
+  "bytes": 100535666,
+  "sha256": "f940778e15a68e25a59d8723659d907285432c161d7d6d2159c13869b7cf31bd",
+  "expiresAt": "2026-11-25T16:06:12Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "f8ffafe54f25712284ad968438e197561c766ae216b88b43c2504c4c77306838",
-      "bytes": 38439888
+      "sha256": "264a2f18fcdcd6068ae638f6e60c6495e5596483dafa23552de6dc1f1814f744",
+      "bytes": 38472792
     },
     "iossimulator-arm64": {
-      "sha256": "3ba1ec0da46048a7a958f3d8f629f54011c6842450fd1a806cda80fa9841e747",
-      "bytes": 38756808
+      "sha256": "1b5832908c5389ab0ae143daf361ae4c4677ee8bddf9114c6345ab84789f55dc",
+      "bytes": 38789976
     }
   },
   "identities": {
-    "ios-arm64": "b29beb00597c1ff01272128f19c13885a07ec850e8d5586b21266ee6eeb18c52",
-    "iossimulator-arm64": "506358abbe0632dba71c6f313d6c27a248080ae32579ab5244f9ab059f187cc2"
+    "ios-arm64": "036d3f3b4cfa21b5def0df15b22c4db408889d10c7c9d087279132277e398ab3",
+    "iossimulator-arm64": "88ae0d31f350c3b07024b721fdf1847e9949e8e299fea9f39d166d0e8f89b82f"
   },
-  "contractSha256": "091195dacb1b0e567b6c5e5885ffa27bb739201e8116480abb894e65aa66d981",
-  "resultSha256": "3ef2e01b55b3399ed4fbbfdb18e5610c354908ae9c46c259cbb070bba9c1e167",
-  "packagedFingerprint": "3bccab5472d09963d97ebbd70ef4927385396737c60692ca9d3010660e5fc18b",
+  "contractSha256": "47b596a9697db6e86f99208b0d1a956c6b6600d350768d689e612b2bca28de9e",
+  "resultSha256": "e7719e2e049015d39b4e42a9ae494e79e94d0a7adeea1a0cef218040e80dd63a",
+  "packagedFingerprint": "a60542da6a6cd4643fb8796ab7daf27016ce78204ac84af6086ac7da02791b40",
   "replaces": {
-    "source": "9d81daa26d6dcee32c2357a87f20be7a1fd2b3c1",
-    "run": 42839257625,
-    "artifact": 13779212424,
-    "packagedFingerprint": "b1584100bca4a960f44a25640b00177c3f04c2a38f7a4e46cf87df88ee0db37c",
-    "reason": "MeloNX lot for IPA 724 (handoff of session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov, branch head 253cafd3, merged as 790664da): Core 723 = Core 721 + four adapters: GC keep-alive dormant line (F1), GC pause journal, separate-array dirty bit (extra_array_dirty), texture array barrier epoch (array_barrier_epoch); the mirror pending pages gate stays parked; contract 091195da. MoltenVK 6f65b2a6 unchanged. Replaces Core 721 of IPAs 722 and 723. 81 fresh Apple gates; not run on an iPhone; no FPS claim."
+    "source": "f4f25c9a6c3bf81aa1444040347c925fb5777673",
+    "run": 43025166594,
+    "artifact": 13862341640,
+    "packagedFingerprint": "6c1f18d8fe65ef8023b295b506066d0a5817fed7a2d794a9daa96989681fd44a",
+    "reason": "MeloNX lot 14 (branch work/melonx-fps-stability-20261103, head 1db5e54d, merged as d2053e98; engine built at d2053e98): Core 735 = Core 733 + adapt_remap_sweep_range (TextureCache.cs, Texture.cs, TexturePool.cs: a guest Map or Unmap re-queues only the partially mapped textures it can concern: those it overlaps, those never swept, those no pool references, and those a pool of its address space references over a range it intersects; IPA 725 Hogwarts: pool-array delta updates 0.43 to 0.68 s of the GPU thread per 5.1 s); the host diagnostics reader decodes only changed bytes (MeloNXRuntimeAPI.swift); one NativeAOT engine per process (rb_melonx_core_loaded). Contract 47b596a9, 92 fresh Apple gates (the new differential gate remap-sweep-range compares control and candidate engines at every step). Same five-part MoltenVK as Core 733. Replaces Core 733 (run 43025166594), which stays the fallback. Not run on an iPhone; no FPS or memory claim."
   }
 }

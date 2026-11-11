@@ -30,6 +30,7 @@ FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_guest_fault_context', _HOLD)
 from adapt_guest_fault_context import apply, BASELINE, CONTEXT_CLASS  # noqa: E402
 import core667_native  # noqa: E402
+import core733_native  # noqa: E402
 
 KERNEL = 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs'
 RUNTIME = 'src/Ryujinx.Library/EmbeddedRuntime.cs'
@@ -77,7 +78,9 @@ if FINAL_PREPARATION and sha(SOURCE / RUNTIME) != RUNTIME_BASELINE:
     # native source prepare_embedded.py copies, so the control copy still holds this checkout's handler. The Core 658
     # file is this checkout's native runtime without the added subscription (checked against RUNTIME_BASELINE).
     native_runtime = (ROOT / NATIVE_RUNTIME).read_text(encoding='utf-8')
-    # Core 667 (core667_native): the arena choice and the launch title's math mode are reversed first, exactly.
+    # Core 733 (core733_native): the diagnostics export's copy from the kept snapshot is reversed first, exactly.
+    native_runtime = core733_native.reverse(native_runtime, core733_native.RUNTIME)
+    # Core 667 (core667_native): the arena choice and the launch title's math mode are reversed next, exactly.
     native_runtime = core667_native.reverse(native_runtime, core667_native.RUNTIME)
     check(native_runtime.count(SUBSCRIPTION_ADDED) == 1, 'the native runtime holds the added subscription once')
     (SOURCE / RUNTIME).write_text(native_runtime.replace(SUBSCRIPTION_ADDED, '', 1), encoding='utf-8')
@@ -158,7 +161,8 @@ check('GetX(' not in CONTEXT_CLASS and 'GetGuestRegisterPrintout' in CONTEXT_CLA
       all(register in CONTEXT_CLASS for register in ('"FP:"', '"LR:"', '"SP:"', '"PC:"')), 'only FP, LR, SP and PC kept')
 runtime = candidate[RUNTIME]
 # Core 667 (core667_native): this gate reads its own subscription on the Core 663 runtime; the Core 667 gate covers the rest.
-runtime = core667_native.reverse(runtime, core667_native.RUNTIME)
+# Core 733 (core733_native): the diagnostics export's change is reversed first; the diagnostics-snapshot-reuse gate covers it.
+runtime = core667_native.reverse(core733_native.reverse(runtime, core733_native.RUNTIME), core667_native.RUNTIME)
 crash_line = '        AppDomain.CurrentDomain.UnhandledException += (_, e) => EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject);\n'
 check(runtime.count(SUBSCRIPTION_ADDED) == 1 and runtime.replace(SUBSCRIPTION_ADDED, '', 1) == control[RUNTIME] and
       runtime.index(crash_line) + len(crash_line) == runtime.index(SUBSCRIPTION_ADDED),
@@ -202,7 +206,7 @@ check(unit['hugeLength'] == 3600, 'text cut at 3600 characters')
 
 inputs = ['build-utils/melonx/adapt_guest_fault_context.py', 'build-utils/melonx/adapt_session.py', NATIVE_RUNTIME,
           'test/melonx_guest_fault_context_test.py', FIXTURE, 'test/melonx_adapter_control.py',
-          'build-utils/melonx/core667_native.py']
+          'build-utils/melonx/core667_native.py', 'build-utils/melonx/core733_native.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',

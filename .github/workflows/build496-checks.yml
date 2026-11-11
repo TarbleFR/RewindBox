@@ -29,7 +29,7 @@ jobs:
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/psp496-inputs"
       - name: Alternate 32 and 64 MiB PSP sessions and another core in one process
         run: python3 test/psp_relaunch496.py simulator run --cores dist/libretro --inputs "$RUNNER_TEMP/psp496-inputs" --evidence build/psp496/simulator --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: psp496-${{ github.sha }}

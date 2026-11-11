@@ -22,7 +22,9 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CLASSES = ROOT / 'packages/rpcs3_internal_bridge/ios/Classes'
-SOURCES = ('Rpcs3InternalBridgePlugin.mm', 'Rpcs3SessionMenu.mm')
+# Rpcs3DocumentPickerPlugin.mm (11 November 2026): the PS3 file and folder picker, changed without a compiler at hand
+# (a pick whose sheet was dismissed is answered instead of blocking every later pick).
+SOURCES = ('Rpcs3InternalBridgePlugin.mm', 'Rpcs3SessionMenu.mm', 'Rpcs3DocumentPickerPlugin.mm')
 IMPORT = re.compile(r'^\s*#\s*(?:import|include)\s*<([A-Za-z0-9_]+)/[^>]+>', re.M)
 
 
@@ -53,6 +55,9 @@ FOUNDATION_EXPORT NSObject* const FlutterMethodNotImplemented;
 @interface FlutterMethodCall : NSObject
 @property(nonatomic, readonly) NSString* method;
 @property(nonatomic, readonly) id arguments;
+@end
+@interface FlutterError : NSObject
++ (instancetype)errorWithCode:(NSString*)code message:(NSString* _Nullable)message details:(id _Nullable)details;
 @end
 @interface FlutterMethodChannel : NSObject
 + (instancetype)methodChannelWithName:(NSString*)name

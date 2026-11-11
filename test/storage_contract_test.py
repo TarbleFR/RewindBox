@@ -196,18 +196,21 @@ LOOP_SITES = (
      'if (length == 0 || length != sourceLength) {',
      'verifiedCopies[source] = length;',
      'for (final file in selection.files) {',
-     # A cue sheet reads its tracks from the picker's folder first.
-     ('_copyReferencedTracks(File(source), destination);',)),
+     # A cue sheet reads its tracks from the picker's folder first (the helper answers the tracks it did not find
+     # since 11 November 2026; the order is unchanged).
+     ('copyReferencedTracks(File(source), destination);',)),
     ('lib/services/dolphin_internal_v2_service.dart',
      'static Future<DolphinImportResult> importGames(',
      'if (sourceLength <= 0 || sourceLength != outputLength) {',
      'verifiedCopies[sourcePath] = outputLength;',
      'for (final picked in selection.files) {',
      ()),
+    # Since 11 November 2026 the copy and its length check are one helper per engine (COPY_HELPERS below): the loop
+    # refuses what the helper refused, then records the length the helper verified.
     ('lib/services/armsx2_internal_service.dart',
      'static Future<Armsx2ImportResult> _copySelection(',
-     'if (sourceLength <= 0 || sourceLength != outputLength) {',
-     'verifiedCopies[sourcePath] = outputLength;',
+     'if (code != null) {',
+     'verifiedCopies[sourcePath] = outcome.length;',
      'for (final picked in files) {',
      ()),
     # Xbox 360 playlist (docs/xenios-playlist.md § Import).
@@ -220,11 +223,26 @@ LOOP_SITES = (
     # The Dolphin import the menu really uses (dolphin_internal_playlist_actions).
     ('lib/services/dolphin_smart_import_service.dart',
      'static Future<DolphinSmartImportResult> importGames(',
-     'if (sourceLength <= 0 || sourceLength != outputLength) {',
-     'verifiedCopies[sourcePath] = outputLength;',
+     'if (code != null) {',
+     'verifiedCopies[sourcePath] = outcome.length;',
      'for (final picked in selection.files) {',
      ()),
 )
+
+# The helpers those two loops call: file -> (signature, the length check, the answer after a verified copy, the
+# removal of the file a failed copy created).
+COPY_HELPERS = {
+    'lib/services/armsx2_internal_service.dart': (
+        'static Future<Armsx2CopyOutcome> copyFile(',
+        'if (sourceLength <= 0 || sourceLength != outputLength) {',
+        'return Armsx2CopyOutcome.copied(sourceLength);',
+        'if (await output.exists()) await output.delete();'),
+    'lib/services/dolphin_smart_import_service.dart': (
+        'static Future<DolphinCopyOutcome> copyImage(',
+        'if (sourceLength <= 0 || sourceLength != outputLength) {',
+        'return DolphinCopyOutcome.copied(sourceLength);',
+        'await _deleteIfExists(output);'),
+}
 
 # Every allowed caller of the helpers outside lib/services/storage/:
 # file -> method signatures (§ 4). Extending this list is a contract change.
@@ -344,6 +362,20 @@ class PickerCopiesAfterAVerifiedImport(unittest.TestCase):
                 self.assertIn('copy.key', call)
                 self.assertIn('expectedLength: copy.value', call)
                 self.assertEqual(span.count('verifiedCopies['), 1, 'one recording line')
+
+    def test_the_copy_helpers_verify_the_length_before_they_answer_copied(self) -> None:
+        for relative, (signature, verification, copied, removal) in COPY_HELPERS.items():
+            with self.subTest(site=relative):
+                span = Span(Source(relative), signature)
+                check = span.find(verification)
+                answer = span.find(copied)
+                removed = span.find(removal)
+                self.assertLess(span.block_end(verification), answer, 'copied is answered once the length is verified')
+                self.assertLess(check, removed, 'a copy of another length is removed')
+                self.assertLess(removed, answer, 'removed before any answer of success')
+                self.assertEqual(span.count(copied), 1)
+                # The file removed is the one this copy created: an exclusive create (_claimDestination).
+                self.assertLess(span.find('final output = claim.file!;'), check)
 
     def test_armsx2_games_and_bios_share_the_verified_copy(self) -> None:
         source = Source('lib/services/armsx2_internal_service.dart')
@@ -758,8 +790,10 @@ PICKS = ('FilePicker.pickFiles(', 'FilePicker.getDirectoryPath(', 'FilePicker.sa
 # edit; its copy waits the picker's hour like any other).
 NOT_IMPORTS = {
     'lib/providers/sqlite_config_provider/scanning.dart': {'FilePicker.getDirectoryPath(': 1},
+    # The two folder picks of the settings (the RetroArch card and, since 11 November 2026, "Add ROM folder" on iOS)
+    # link a library folder in place: nothing is copied into the application's storage.
     'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart': {
-        'FilePicker.getDirectoryPath(': 3, 'ExternalFolderAccess.pickAndBookmarkFolder(': 1},
+        'FilePicker.getDirectoryPath(': 3, 'ExternalFolderAccess.pickAndActivateFolder(': 2},
     'lib/widgets/setup_wizard.dart': {
         'FilePicker.getDirectoryPath(': 2, 'ExternalFolderAccess.pickAndActivateFolder(': 1},
     'lib/widgets/system_emulator_settings_dialog.dart': {'FilePicker.pickFiles(': 2},

@@ -4,14 +4,17 @@
 Refuses anything that is not the embedded Core RewindBox's bridge expects:
 an arm64 iPhoneOS framework with minos 26.0, install name @rpath, a non-weak
 @rpath/libmetalirconverter.dylib dependency and NeoXenia_GetAPI as its only
-exported symbol; no main(), no absolute build path. The shader converter is
-never copied into dist (docs/xenios-playlist.md § Shader converter).
+exported symbol; no main(), no absolute build path; no Objective-C class
+sharing a name with one of the bridge's (RTLD_LOCAL does not isolate the
+Objective-C runtime). The shader converter is never copied into dist
+(docs/xenios-playlist.md § Shader converter).
 Usage: verify_core.py <ios-build-dir> <dist-dir>
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -19,7 +22,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'build-utils' / 'xenia'))
+sys.path.insert(0, str(ROOT / 'test'))
 import validate_shader_converter as macho  # noqa: E402
+from xenia_objc_namespace_test import bridge_classes  # noqa: E402
+
+
+def defined_objc_classes(nm_output: str) -> set[str]:
+    """Classes the binary defines (`nm -m`, every symbol, undefined ones left out)."""
+    names = set()
+    for line in nm_output.splitlines():
+        if '(undefined)' in line:
+            continue
+        match = re.search(r'_OBJC_CLASS_\$_([A-Za-z_]\w*)', line)
+        if match:
+            names.add(match.group(1))
+    return names
 
 
 def run(*args: str) -> str:
@@ -54,6 +71,12 @@ def main() -> None:
     nm = run('xcrun', 'nm', '-gU', str(binary))
     if ' _main\n' in nm:
         failures.append('main() is exported')
+    core_classes = defined_objc_classes(run('xcrun', 'nm', '-m', str(binary)))
+    if not core_classes and '__objc_classlist' in run('xcrun', 'otool', '-l', str(binary)):
+        failures.append('Objective-C classes present but not listed by nm -m (stripped?): cannot check names')
+    clash = sorted(core_classes & bridge_classes())
+    if clash:
+        failures.append(f'Objective-C classes shared with the bridge: {clash}')
     for resource in ('LICENSE.txt', 'Acknowledgements.json', 'Info.plist'):
         if not (framework / resource).is_file():
             failures.append(f'{resource} missing from the framework')
@@ -71,6 +94,7 @@ def main() -> None:
         'sdk': facts['sdk'],
         'dependencies': facts['dependencies'],
         'exports': exported,
+        'objc_classes': len(core_classes),
         'source': json.loads((ROOT / 'build-utils' / 'xenia' / 'source.json').read_text())['revision'],
     }
     (dist / 'XeniaCore.json').write_text(json.dumps(report, indent=2) + '\n')

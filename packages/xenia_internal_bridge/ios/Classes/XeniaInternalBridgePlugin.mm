@@ -28,6 +28,11 @@ static NSString* const kXeniaChannel = @"rewindbox/xenia_internal";
 static const uint32_t kXeniaPrepareTimeoutMs = 30000;
 static const uint32_t kXeniaBootTimeoutMs = 60000;
 static const uint32_t kXeniaShutdownTimeoutMs = 15000;
+// The Core issues its prepare (x16=1) and detach (x16=0) inside
+// Emulator::Setup, which boot waits for: the helper's confirmation follows
+// at once. The wait still holds the session queue while the title runs and
+// the menu is not offered yet, so it stays short.
+static const NSTimeInterval kXeniaDetachTimeout = 30.0;
 
 // Settings keys the Core accepts (mirrors XeniaSettingsService.managedKeys).
 static NSSet<NSString*>* XeniaManagedKeys(void) {
@@ -78,17 +83,21 @@ static UIViewController* XeniaTopViewController(void) {
   return controller;
 }
 
-@class XeniaSessionController;
+@class RBXeniaSessionController;
 
 @interface XeniaInternalBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
 @property(nonatomic, strong) dispatch_queue_t sessionQueue;
-@property(nonatomic, strong) XeniaSessionController* session;
+@property(nonatomic, strong) RBXeniaSessionController* session;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
 @property(nonatomic, copy) NSString* loadDetail;
 - (void)deliverEvent:(NSString*)event transaction:(uint64_t)transaction message:(NSString*)message;
 - (void)requestStopFromMenu;
 - (void)setUserPaused:(BOOL)paused;
+/// The launch reported success and no teardown runs: the menu, quit and
+/// pause act only then (a Quit during the presentation would queue a
+/// shutdown before prepare and boot).
+- (BOOL)sessionRunning;
 @end
 
 static std::atomic<uint64_t> gXeniaTransaction{0};
@@ -107,7 +116,7 @@ static void XeniaEventCallback(void* /*context*/, uint64_t transaction,
 // controls (shared touch-layout layer), a Menu button (Resume / touch
 // controls / Quit) and the game-controller relay. No XeniOS launcher,
 // library or onboarding.
-@interface XeniaSessionController : UIViewController
+@interface RBXeniaSessionController : UIViewController
 @property(nonatomic, weak) XeniaInternalBridgePlugin* owner;
 @property(nonatomic, assign) const NeoXeniaAPI* api;
 @property(nonatomic, strong) UIView* renderView;
@@ -142,10 +151,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   return merged;
 }
 
-@implementation XeniaSessionController {
+@implementation RBXeniaSessionController {
   CADisplayLink* _input;
   UIButton* _menuButton;
-  XeniaTouchControlsView* _touch;
+  RBXeniaTouchControlsView* _touch;
   NeoTouchControllerMonitor* _monitor;
   NeoTouchLayoutEditor* _editor;
 }
@@ -167,12 +176,12 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
         UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.renderView];
   }
-  _touch = [[XeniaTouchControlsView alloc] initWithLocale:self.locale];
+  _touch = [[RBXeniaTouchControlsView alloc] initWithLocale:self.locale];
   _touch.frame = self.view.bounds;
   _touch.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
   _touch.gameKey = self.touchGameKey;
   [self.view addSubview:_touch];
-  __weak XeniaSessionController* weakSelf = self;
+  __weak RBXeniaSessionController* weakSelf = self;
   _monitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(BOOL) {
     [weakSelf updateTouchVisibility];
   }];
@@ -297,7 +306,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 - (void)openMenu {
-  if (self.menuOpen || self.editingTouchControls) return;
+  if (self.menuOpen || self.editingTouchControls || !self.owner.sessionRunning) return;
   self.menuOpen = YES;
   [self updateTouchVisibility];
   [self sendNeutralPad];
@@ -306,7 +315,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
       [UIAlertController alertControllerWithTitle:self.gameTitle
                                           message:nil
                                    preferredStyle:UIAlertControllerStyleAlert];
-  __weak XeniaSessionController* weakSelf = self;
+  __weak RBXeniaSessionController* weakSelf = self;
   [menu addAction:[UIAlertAction actionWithTitle:[self text:@"resume" fallback:@"Resume"]
                                            style:UIAlertActionStyleCancel
                                          handler:^(UIAlertAction*) {
@@ -341,9 +350,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
                                                 locale:self.locale
                                                  store:NeoTouchLayoutStore.sharedStore];
   _editor.controllerConnected = _monitor.connected;
-  __weak XeniaSessionController* weakSelf = self;
+  __weak RBXeniaSessionController* weakSelf = self;
   _editor.finished = ^(BOOL) {
-    XeniaSessionController* strongSelf = weakSelf;
+    RBXeniaSessionController* strongSelf = weakSelf;
     if (!strongSelf) return;
     [strongSelf->_touch endEditingOverride];
     strongSelf->_touch.userInteractionEnabled = YES;
@@ -378,6 +387,28 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   // process (the same rule as MeloNX's quarantine).
   BOOL _quarantined;
   NSString* _endReason;
+  // Between presenting the session and the launch result: the result alone
+  // reports the outcome, so a Core stop/error event of this window is kept
+  // for it instead of being reported a second time as `ended`.
+  BOOL _launchPending;
+  NSString* _pendingEndReason;
+  NSString* _pendingEndDetail;
+  // A Core that cannot be used (ABI mismatch, dlopen failure) stays refused
+  // for the process: it is not opened again on every call.
+  NSString* _loadFailure;
+}
+
+- (BOOL)sessionRunning {
+  return self.session != nil && !_launchPending && !_stopping;
+}
+
+// Every launch that fails ends the JIT transaction Dart opened for it, as
+// ARMSX2 does (Armsx2InternalBridgePlugin failTransaction): otherwise the
+// helper session stays registered and every later prepareJit is refused
+// until RewindBox restarts. A launch still in flight keeps its own.
+- (void)failLaunch:(NSDictionary*)report result:(FlutterResult)result {
+  if (!_launchPending) XeniaJitAbortTransaction();
+  result(report);
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -409,6 +440,10 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
     result([self jitState]);
   } else if ([call.method isEqualToString:@"launch"]) {
     [self launch:call.arguments result:result];
+  } else if ([call.method isEqualToString:@"abortJit"]) {
+    // Dart could not reach `launch` after preparing JIT (docs/xenios-playlist.md § JIT helper).
+    if (!self.session) XeniaJitAbortTransaction();
+    result(nil);
   } else {
     result(FlutterMethodNotImplemented);
   }
@@ -422,6 +457,9 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   }
   if (![NSFileManager.defaultManager fileExistsAtPath:XeniaShaderConverterPath()]) {
     return @{@"state" : @"shaderConverterMissing", @"osVersion" : os};
+  }
+  if (_loadFailure) {
+    return @{@"state" : _loadFailure, @"osVersion" : os, @"detail" : self.loadDetail ?: @""};
   }
   NSMutableDictionary* state = [@{@"state" : @"ready", @"osVersion" : os} mutableCopy];
   if (self.api && self.api->source_revision) state[@"sourceRevision"] = @(self.api->source_revision);
@@ -449,6 +487,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 // handlers are process-lifetime, XeniOS jit_memory_ios.cc:100-113).
 - (NSString*)loadCore {
   if (self.api) return nil;
+  if (_loadFailure) return _loadFailure;
   if (!XeniaSupportedOS()) return @"requiresIOS26";
   NSString* path = XeniaFrameworkPath();
   if (![NSFileManager.defaultManager fileExistsAtPath:path]) return @"engineMissing";
@@ -460,12 +499,18 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   if (!handle) {
     const char* reason = dlerror();
     self.loadDetail = reason ? @(reason) : @"";
-    return @"coreLoadFailed";
+    _loadFailure = @"coreLoadFailed";
+    return _loadFailure;
   }
   NeoXeniaGetAPI getAPI = (NeoXeniaGetAPI)dlsym(handle, "NeoXenia_GetAPI");
   const NeoXeniaAPI* api = getAPI ? getAPI(NEO_XENIA_ABI_VERSION) : nullptr;
   if (!api || api->version != NEO_XENIA_ABI_VERSION || api->size < sizeof(NeoXeniaAPI)) {
-    return @"abiMismatch";
+    // The image stays mapped (its initializers ran); it is never used.
+    self.loadDetail = api ? [NSString stringWithFormat:@"ABI %u, bridge %u", api->version,
+                                                       NEO_XENIA_ABI_VERSION]
+                          : @"NeoXenia_GetAPI missing or refused the bridge ABI";
+    _loadFailure = @"abiMismatch";
+    return _loadFailure;
   }
   self.api = api;
   return nil;
@@ -473,11 +518,12 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)launch:(id)arguments result:(FlutterResult)result {
   if (_quarantined) {
-    result(@{@"success" : @NO, @"error" : @"restartRequired"});
+    [self failLaunch:@{@"success" : @NO, @"error" : @"restartRequired"} result:result];
     return;
   }
   if (self.session || _stopping) {
-    result(@{@"success" : @NO, @"error" : @"sessionActive"});
+    // failLaunch keeps the transaction of a launch still in flight.
+    [self failLaunch:@{@"success" : @NO, @"error" : @"sessionActive"} result:result];
     return;
   }
   NSDictionary* args = [arguments isKindOfClass:NSDictionary.class] ? arguments : @{};
@@ -489,16 +535,17 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   if (![gamePath isKindOfClass:NSString.class] || ![storage isKindOfClass:NSString.class] ||
       ![content isKindOfClass:NSString.class] || ![cache isKindOfClass:NSString.class] ||
       ![kind isKindOfClass:NSNumber.class]) {
-    result(@{@"success" : @NO, @"error" : @"invalidArguments"});
+    [self failLaunch:@{@"success" : @NO, @"error" : @"invalidArguments"} result:result];
     return;
   }
   if (![NSFileManager.defaultManager isReadableFileAtPath:gamePath]) {
-    result(@{@"success" : @NO, @"error" : @"gameUnreadable"});
+    [self failLaunch:@{@"success" : @NO, @"error" : @"gameUnreadable"} result:result];
     return;
   }
   NSString* loadError = [self loadCore];
   if (loadError) {
-    result(@{@"success" : @NO, @"error" : loadError, @"detail" : self.loadDetail ?: @""});
+    [self failLaunch:@{@"success" : @NO, @"error" : loadError, @"detail" : self.loadDetail ?: @""}
+              result:result];
     return;
   }
   NSDictionary* rawSettings = [args[@"settings"] isKindOfClass:NSDictionary.class] ? args[@"settings"] : @{};
@@ -518,14 +565,17 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   _userPaused = NO;
   _backgroundPaused = NO;
   _endReason = nil;
+  _pendingEndReason = nil;
+  _pendingEndDetail = nil;
 
   char error[512] = {0};
   UIView* render = (__bridge UIView*)api->create_render_view(error, sizeof error);
   if (!render) {
-    result(@{@"success" : @NO, @"error" : @"renderViewFailed", @"detail" : @(error)});
+    [self failLaunch:@{@"success" : @NO, @"error" : @"renderViewFailed", @"detail" : @(error)}
+              result:result];
     return;
   }
-  XeniaSessionController* controller = [[XeniaSessionController alloc] init];
+  RBXeniaSessionController* controller = [[RBXeniaSessionController alloc] init];
   controller.owner = self;
   controller.api = api;
   controller.renderView = render;
@@ -539,10 +589,11 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   if (!presenter) {
     self.session = nil;
     api->release_render_view();
-    result(@{@"success" : @NO, @"error" : @"noPresenter"});
+    [self failLaunch:@{@"success" : @NO, @"error" : @"noPresenter"} result:result];
     return;
   }
 
+  _launchPending = YES;
   [presenter presentViewController:controller animated:YES completion:^{
     dispatch_async(self.sessionQueue, ^{
       std::vector<std::string> storageKeys, storageValues;
@@ -584,24 +635,37 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
         // Emulator::Setup ran the Core's one-time prepare (x16=1) and detach
         // (x16=0): the helper must confirm it detached with CS_DEBUGGED kept.
         NSString* message = nil;
-        if (!XeniaJitWaitForDetach(120.0, &message)) {
+        if (!XeniaJitWaitForDetach(kXeniaDetachTimeout, &message)) {
           stage = @"jitDetachFailed";
           jitDetail = message;
         }
       }
-      if (stage && handshake && ![stage isEqualToString:@"jitDetachFailed"]) {
-        // The tool may stay attached for the next attempt (the Core reuses
-        // it until its region is prepared); only this transaction ends.
-        XeniaJitAbortTransaction();
-      }
+      // Any failure ends this launch's transaction, the detach failure
+      // included (ARMSX2's rule). A debugger the helper left attached then
+      // shows as toolAttached without a live handshake, which Dart refuses
+      // with restartRequired instead of answering the Core's requests
+      // with a closed helper (XeniaJitService.planFor).
+      if (stage) XeniaJitAbortTransaction();
       NSString* detail = jitDetail ?: @(failure);
       dispatch_async(dispatch_get_main_queue(), ^{
-        if (stage) {
-          [self teardownWithReason:stage detail:detail notify:NO];
-          result(@{@"success" : @NO, @"error" : stage, @"detail" : detail});
+        NSString* outcome = stage;
+        NSString* outcomeDetail = detail;
+        if (!outcome && self->_pendingEndReason) {
+          // The title stopped or failed between boot and this result.
+          outcome = @"bootFailed";
+          outcomeDetail = self->_pendingEndDetail ?: self->_pendingEndReason;
+          XeniaJitAbortTransaction();
+        }
+        self->_launchPending = NO;
+        self->_pendingEndReason = nil;
+        self->_pendingEndDetail = nil;
+        if (outcome) {
+          [self teardownWithReason:outcome detail:outcomeDetail notify:NO];
+          result(@{@"success" : @NO, @"error" : outcome, @"detail" : outcomeDetail ?: @""});
         } else {
           result(@{@"success" : @YES});
           [self.channel invokeMethod:@"sessionEvent" arguments:@{@"event" : @"launched"}];
+          [self applyPause];  // the app may have gone to the background during boot
         }
       });
     });
@@ -610,6 +674,14 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 
 - (void)deliverEvent:(NSString*)event transaction:(uint64_t)transaction message:(NSString*)message {
   if (transaction != _transaction || !self.session) return;  // late callback
+  if (_launchPending) {
+    // Reported once, by the launch result (see _launchPending).
+    if ([event isEqualToString:@"stopped"] || [event isEqualToString:@"error"]) {
+      _pendingEndReason = event;
+      _pendingEndDetail = message;
+    }
+    return;
+  }
   if ([event isEqualToString:@"stopped"] || [event isEqualToString:@"error"]) {
     [self teardownWithReason:([event isEqualToString:@"error"] ? @"error" : @"stopped")
                       detail:message
@@ -625,7 +697,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 - (void)applyPause {
-  if (self.api && self.session && !_stopping) self.api->set_paused(_userPaused || _backgroundPaused);
+  if (self.api && self.sessionRunning) self.api->set_paused(_userPaused || _backgroundPaused);
 }
 
 - (void)applicationWillResignActive {
@@ -639,7 +711,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
 }
 
 - (void)requestStopFromMenu {
-  if (!self.api || !self.session || _stopping) return;
+  if (!self.api || !self.sessionRunning) return;
   self.api->request_stop();
   [self teardownWithReason:@"userQuit" detail:@"" notify:YES];
 }
@@ -651,7 +723,7 @@ static XeniaPadState XeniaMergePads(const XeniaPadState& a, const XeniaPadState&
   if (_stopping || !self.session) return;
   _stopping = YES;
   _transaction = 0;
-  XeniaSessionController* controller = self.session;
+  RBXeniaSessionController* controller = self.session;
   [controller stopInput];
   const NeoXeniaAPI* api = self.api;
   dispatch_async(self.sessionQueue, ^{

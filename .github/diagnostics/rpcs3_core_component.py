@@ -62,6 +62,23 @@ CORE_FIELDS = ('type', 'dylibBytes', 'dylibSha256', 'identitySha256', 'proofMemb
 HEX64 = re.compile(r'[0-9a-f]{64}')
 HEX40 = re.compile(r'[0-9a-f]{40}')
 CANARY_MARKER = re.compile(rb'rewindbox-mvk-async-[0-9]+\.txt')
+# Core 927 (REWINDBOX_MVK_ASYNC_DEFINITIVE_927, maintainer's order of 11 November 2026) removed the boot record of
+# asynchronous MoltenVK submits. A Core that carries the 927 policy line must carry none of the record's markers and
+# every marker of what replaced it; an earlier Core must carry the record's markers, as before.
+BOOT_RECORD_MARKERS = (
+    b'canary=%s confirmed=%u exec_queues=%u',
+    b'MoltenVK asynchronous submits stay off for %s: its last asynchronous boot did not finish (crash or forced exit)',
+)
+DEFINITIVE_927 = b'Resolved title policy 927: mvk_async=%d rule=%s texture_streaming=%d boot_record=none'
+DEFINITIVE_927_MARKERS = (
+    b'boot_record=none exec_queues=%u',                   # COREPROF OPT587 without the record fields
+    b'fence_encode_waits=%llu:%.3f:%.3f',                 # waits for a submission to be encoded
+    b'automatic_every_title',                             # the Automatic rule
+)
+# The GPU gate reports under the number of the Core that gave it its rule: closed by the background notification
+# (Core 927), closed when the application is deactivated (REWINDBOX_GPU_DEACTIVATION_GATE_928, from Core 928). A Core
+# without boot record carries exactly one of the two lines.
+GATE_MARKERS = (b'COREPROF GPUGATE927', b'COREPROF GPUGATE928')
 
 
 def require(value, message):
@@ -379,6 +396,28 @@ def validate_rpc_core_identity(pin, identity):
     require(identity == bundle(pin)['identity'], 'RPCS3 Core identity differs')
 
 
+def check_runtime_markers(packaged, markers):
+    """The runtime markers of a packaged Core. Returns whether the Core is one without a boot record (927 or later)."""
+    definitive = DEFINITIVE_927 in packaged
+    for marker in markers:
+        file_name = bool(CANARY_MARKER.fullmatch(marker))
+        if definitive and (file_name or marker in BOOT_RECORD_MARKERS):
+            require(not (CANARY_MARKER.search(packaged) if file_name else marker in packaged),
+                    'A Core without boot record still carries a marker of it: ' + repr(marker))
+        elif file_name:
+            # The MoltenVK asynchronous-submit canary file is named after the Core that sets it (Cores 587-624:
+            # rewindbox-mvk-async-587.txt; Core 627: rewindbox-mvk-async-627.txt), so a new Core starts a fresh canary.
+            require(CANARY_MARKER.search(packaged), 'Core runtime marker missing: the MoltenVK async canary file name')
+        else:
+            require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+    if definitive:
+        for marker in DEFINITIVE_927_MARKERS:
+            require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+        require(sum(marker in packaged for marker in GATE_MARKERS) == 1,
+                'Core runtime marker missing or doubled: the GPU gate report line ' + repr(GATE_MARKERS))
+    return definitive
+
+
 def compare_core_pinned(pin, packaged, raw, signed):
     """validate_rpcs3_core604_ipa.compare_core with the export set bound to this pin.
 
@@ -400,13 +439,7 @@ def compare_core_pinned(pin, packaged, raw, signed):
     require(fingerprint == candidate.payload_fingerprint(raw) == pin['core']['payloadFingerprint'],
             'Signing/packaging changed Core code, data or ABI metadata')
     metadata = core604.compare_signature_metadata(raw, packaged) if signed or packaged != raw else {}
-    for marker in candidate.CORE_MARKERS:
-        if CANARY_MARKER.fullmatch(marker):
-            # The MoltenVK asynchronous-submit canary file is named after the Core that sets it (Cores 587-624:
-            # rewindbox-mvk-async-587.txt; Core 627: rewindbox-mvk-async-627.txt), so a new Core starts a fresh canary.
-            require(CANARY_MARKER.search(packaged), 'Core runtime marker missing: the MoltenVK async canary file name')
-        else:
-            require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+    check_runtime_markers(packaged, candidate.CORE_MARKERS)
     return dict(compiledPayloadFingerprint=fingerprint, installName=after['id'],
                 signed=after['codeSignature'], definedSymbols=len(after['definedSymbols']), metadata=metadata)
 

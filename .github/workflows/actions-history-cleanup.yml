@@ -47,7 +47,7 @@ jobs:
           --execute
       - name: Preserve the cleanup receipt
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: Actions-history-cleanup-${{ github.run_id }}
           path: cleanup-output/

@@ -77,26 +77,65 @@ abstract final class IosLibraryRootRelocation {
     return changed ? folders : null;
   }
 
-  /// Runs once at startup, after the linked folder's bookmark was resolved
-  /// ([linkedFolder], null when none) and before the configuration provider
-  /// reads the ROM folders.
-  static Future<void> run({String? linkedFolder}) async {
+  /// The folders of [before] that [after] holds at a new place: the same
+  /// path inside another container. A folder that was only dropped as a
+  /// duplicate of one already listed moves nowhere.
+  static List<({String from, String to})> moves(List<String> before, List<String> after) {
+    final pairs = <({String from, String to})>[];
+    final arrived = after.where((folder) => !before.contains(folder)).toList();
+    for (final folder in before) {
+      if (after.contains(folder)) continue;
+      final parts = split(folder);
+      if (parts == null) continue;
+      for (final candidate in arrived) {
+        if (split(candidate)?.relative == parts.relative) {
+          pairs.add((from: folder, to: candidate));
+          break;
+        }
+      }
+    }
+    return pairs;
+  }
+
+  /// Runs once at startup, after the linked folders' bookmarks were resolved
+  /// ([linkedFolder] for the single-slot link, [linkedFolders] for the
+  /// folders added since; none when nothing is linked) and before the
+  /// configuration provider reads the ROM folders.
+  static Future<void> run({
+    String? linkedFolder,
+    Iterable<String> linkedFolders = const <String>[],
+  }) async {
     try {
       final containers = <String>[];
       final own = split((await getApplicationDocumentsDirectory()).path)?.container;
       if (own != null) containers.add(own);
-      final linked = linkedFolder == null ? null : split(linkedFolder)?.container;
-      if (linked != null && !containers.contains(linked)) containers.add(linked);
+      for (final folder in <String?>[linkedFolder, ...linkedFolders]) {
+        final linked = folder == null ? null : split(folder)?.container;
+        if (linked != null && !containers.contains(linked)) containers.add(linked);
+      }
       if (containers.isEmpty) return;
       final registered = await SqliteService.getUserRomFolders();
       final folders = await relocate(registered, containers: containers);
       if (folders == null) return;
       await SqliteService.saveUserRomFolders(folders);
       relocatedThisLaunch = true;
+      // The games follow their folder: the same rows at the new path, so
+      // play time, favourites and scraped data are kept. Without this the
+      // next scan dropped every row of the old path and indexed the files
+      // again as new games.
+      var followed = 0;
+      try {
+        for (final move in moves(registered, folders)) {
+          followed += await SqliteService.relocateRomPaths(move.from, move.to);
+        }
+      } catch (error) {
+        _log.w('Games of a moved library folder keep their old rows: $error');
+      }
       _log.i(
         'Library folders found again after a container move: '
         '${registered.where((folder) => !folders.contains(folder)).toList()} -> '
-        '${folders.where((folder) => !registered.contains(folder)).toList()}',
+        '${folders.where((folder) => !registered.contains(folder)).toList()} '
+        '($followed game row(s) follow their folder)',
       );
     } catch (error) {
       _log.e('Library folder relocation failed: $error');

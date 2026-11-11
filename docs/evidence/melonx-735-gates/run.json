@@ -1,0 +1,537 @@
+{
+ "schema": 1,
+ "date": "2026-11-11",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "735 (provisional number, to confirm by main)",
+ "lot": 14,
+ "base": {
+  "core": 733,
+  "contract": "8a223efc169ec6d86e87e523a1457412b63ba5b4a10c138b4f8d36fae67a29f2",
+  "pin": "ab36fa4a"
+ },
+ "change": "One adapter after adapt_host_thread_class: adapt_remap_sweep_range (TextureCache.cs, Texture.cs, TexturePool.cs). At every guest Map or Unmap, TextureCache.MemoryUnmappedHandler queued an update of the pool mappings of every texture of its partially mapped set; each was then restored by TexturePool.ProcessDereferenceQueue and re-recorded and re-sent by every pool array that binds it. Now a member is swept only when the event can concern it: physically overlapped, never swept yet, without a pool owner, or with a pool owner of the event's address space whose range the event intersects. Host side (bridge, a contract input): MeloNXDiagnosticsReader decodes the engine's diagnostics report only when its bytes changed.",
+ "preparation": "differs from the Core 733 preparation by the three files of the adapter",
+ "device725": {
+  "source": "IPA 725, Hogwarts Legacy, pid 51986, Core 731 (private journals, not in Git): the engine's 5.1 s performance samples",
+  "arrayDeltas": "UpdateFromPoolDelta 390 to 570 calls per sample (4 to 5 a frame), 53 to 160 ids visited per call of which 88 % changed, 0.43 to 0.68 s of the GPU thread per sample, 18 to 34 KiB allocated per call, in the 20 s at 30 FPS as well",
+  "compute": "compute dispatches 130 to 150 us each including the array deltas nested in them; 42 to 66 us without them; queue back-pressure 0 to 77 ms per sample; read copies 0.1 per dispatch",
+  "gpuThread": "GPU thread dispatch 3.0 to 3.8 s of 5.1 s in the stretches at 20 to 22 FPS: 27 to 34 ms a frame"
+ },
+ "hostProfile": {
+  "where": "scratchpad delta-profile/ (not in Git): copies of the Core 733 preparation, real TextureManager, TextureBindingsManager, TextureBindingsArrayCache, TexturePool, TextureCache, Texture and GPU MemoryManager over a fake backend; Linux x64, tiered compilation off; host figures are not device figures",
+  "perId": "descriptor flip to an existing texture or remap keeping the mapping: 0.3 to 3 us per changed id; restore of a partially mapped texture 8 to 10 us and 352 B; a remap moving the mapping 23 to 108 us; a new texture 11 to 90 us",
+  "sticky": "75 partially mapped textures, 4 array entries, an unrelated guest Map at every update: 664 to 850 us for the first entry and 26 to 31 KiB per call, 32 to 91 us for each following one; with the change the pool is not modified and no entry is updated (21 to 176 us per commit against 768 to 1 122)",
+  "computeDispatch": "5.4 us per dispatch warm and 0 bytes on the host: the code path of a dispatch is not the device's cost"
+ },
+ "gate": {
+  "name": "remap-sweep-range",
+  "checks": 1041,
+  "comparison": {
+   "steps": 440,
+   "seed": 20261111,
+   "digestsEqual": 440,
+   "unrelatedEvents": 185,
+   "concerningEvents": 195,
+   "controlQueued": 21096,
+   "candidateQueued": 250,
+   "controlDeltaChanged": 40311,
+   "candidateDeltaChanged": 964,
+   "controlSetTexturesElements": 97269,
+   "candidateSetTexturesElements": 2024,
+   "sensitivityVariantsFailed": 6
+  },
+  "note": "the same seeded script of 440 steps (Map and Unmap of unrelated ranges and of the other address space, hole fills, partial unmaps, remaps, descriptor rewrites, a commit after each) on control and candidate engines: identical state at every step (what each array element and binding shows, each pool item and its range, the partially mapped set); a dependencies scene (views, copy dependencies) identical as well; six wrong variants of the change caught"
+ },
+ "gatesRun": {
+  "bindless-array-deltas": {
+   "report": "bindless-array-delta-checks.json",
+   "sha256": "56166f3e0e64cdf87ab04ffb6a156d993799473a84c622a047407dd2a277eb97",
+   "checks": 303
+  },
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "88caeb1a6c296cdf35adc4a5199583ca2dbea2df18b73de8d0910e08b4b485e8",
+   "checks": 66
+  },
+  "performance-diagnostics": {
+   "report": "performance-diagnostics-checks.json",
+   "sha256": "049ec7be7796909afb8440293e0040f8d221c59537d4b39d7a6195cdcf090233",
+   "checks": null
+  },
+  "binding-data-snapshots": {
+   "report": "binding-data-snapshot-checks.json",
+   "sha256": "255bc0f3296af2208f2006ddc05f54d9b2317fa78921487a32457807bd0f94f4",
+   "checks": null
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "79a7a260db172a049c0a70a2597e3fd1422a235ca176a895ab50fa0a3234e0cd",
+   "checks": 172
+  },
+  "pipeline-checkpoint": {
+   "report": "pipeline-checkpoint-checks.json",
+   "sha256": "fc7109590fdc0551c7ddbb981252fc7b9c1f4642819c499d2ba063320ce27589",
+   "checks": null
+  },
+  "scalar-texture-descriptors": {
+   "report": "scalar-texture-descriptor-checks.json",
+   "sha256": "135d29e1cae0fdb7e28caab340dcfc147d8b8c7dd265618d9329ec61087e51ab",
+   "checks": null
+  },
+  "fallback-descriptor-scratch": {
+   "report": "fallback-descriptor-scratch-checks.json",
+   "sha256": "800693ec826cf5dc9e26191ccd08ab2e1d1e170dc47d504f83bbd2067440dd2d",
+   "checks": null
+  },
+  "single-resource-bindings": {
+   "report": "single-resource-binding-checks.json",
+   "sha256": "a60e31790041a158962eaf87656bac5ae4b5e91abe11709e6b0bb16cda984cee",
+   "checks": null
+  },
+  "bounded-binding-snapshots": {
+   "report": "bounded-binding-snapshot-checks.json",
+   "sha256": "ce40adbf2d3df14bc869538e7096ee3ee7ce8b3515126f957d7912eb6885ca46",
+   "checks": null
+  },
+  "counter-report-compaction": {
+   "report": "counter-report-compaction-final-checks.json",
+   "sha256": "0701da5865167c13b38a0c8ae4e837dc033d087e00822abdbcffe49304f346ad",
+   "checks": null
+  },
+  "single-virtual-dependency": {
+   "report": "single-virtual-dependency-final-checks.json",
+   "sha256": "acf62527aad8ca7b4ecd70634faabdadd485be315319d0c96e85f9f1c95363a2",
+   "checks": null
+  },
+  "pipeline-warmup-parity": {
+   "report": "pipeline-warmup-parity-checks.json",
+   "sha256": "f82965b579173d0ab8cb9b5ee1718db439fa44f2f5fc5d56dfc341f85ca51f39",
+   "checks": 10
+  },
+  "device-short-trim": {
+   "report": "device-short-trim-checks.json",
+   "sha256": "cad2cfe866b1554199931d8ac53b3d169c65d421fb5c5d80abe4f4edb02b1421",
+   "checks": 7
+  },
+  "moltenvk-barrier-ordering": {
+   "report": "moltenvk-barrier-ordering-checks.json",
+   "sha256": "f3c6e3c1ade561221c2961b8f4607aa4d1a77a1e70e271361df8eb16b8f43463",
+   "checks": 14
+  },
+  "descriptor-scratch-all-titles": {
+   "report": "descriptor-scratch-all-titles-checks.json",
+   "sha256": "d0fbea0a6b05f1fb08803d9d4c2db6787466dc18ec7ce60bbf6d917ac35ca869",
+   "checks": 9
+  },
+  "readback-occupied-attribution": {
+   "report": "readback-occupied-attribution-checks.json",
+   "sha256": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+   "checks": 10
+  },
+  "pipeline-miss-context": {
+   "report": "pipeline-miss-context-checks.json",
+   "sha256": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+   "checks": 4
+  },
+  "barrier-compaction": {
+   "report": "barrier-compaction-checks.json",
+   "sha256": "482821e72ebc8c185feeb0a140bfbc3f11a0230ae215dc0f19bdf129aa1fa85b",
+   "checks": 7
+  },
+  "readback-receivers": {
+   "report": "readback-receivers-checks.json",
+   "sha256": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+   "checks": 53
+  },
+  "present-source-attribution": {
+   "report": "present-source-attribution-checks.json",
+   "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+   "checks": 20
+  },
+  "teardown-compile-cancel": {
+   "report": "teardown-compile-cancel-checks.json",
+   "sha256": "d2e51b7d33260a3fabd4e18bf0c136973a94beb8fd666de81e2e36f70a42fd5e",
+   "checks": 25
+  },
+  "pause-guest-threads": {
+   "report": "pause-guest-threads-checks.json",
+   "sha256": "90c0ec41dbde40d9d7a0adfd128476cc041c06ac494cab4930b24a0d9db76224",
+   "checks": 18
+  },
+  "teardown-phase-marks": {
+   "report": "teardown-phase-marks-checks.json",
+   "sha256": "f8ba6f267557dacd719e588faafddf379a47b39af6af357966684a4fb7de4106",
+   "checks": 10
+  },
+  "binder-teardown": {
+   "report": "binder-teardown-checks.json",
+   "sha256": "1441e32e7bcf8f4bdb86c7eb7865e61a7887a8e967960ac53284823bb1ce3bad",
+   "checks": 39
+  },
+  "gc-events": {
+   "report": "gc-events-checks.json",
+   "sha256": "df89aac7542bf6e6d9a2684905d95f371e9441198b8467ee9dec05443d795d5d",
+   "checks": 49
+  },
+  "artifact-counters": {
+   "report": "artifact-counters-checks.json",
+   "sha256": "752754c3b55568049dcc8619f6fca055262cc934e76620ec3ab7393da8c02c87",
+   "checks": 118
+  },
+  "array-rebuild-allocations": {
+   "report": "array-rebuild-allocations-checks.json",
+   "sha256": "b47179fa9edffb5443fe5c239df3f63fee874b71b1593067f1c5c051f44f79e9",
+   "checks": 322
+  },
+  "present-pacing": {
+   "report": "present-pacing-checks.json",
+   "sha256": "c9925aa0adae1a55e9a6f666890a50385078701b7f08976aa91f4633ba2b2ab0",
+   "checks": 783
+  },
+  "present-drawable-residency": {
+   "report": "present-drawable-residency-checks.json",
+   "sha256": "91e1f3df86a5cfee0d2bc37dfcb753b14d7808ba568ccc47a3497d0c7dab03b7",
+   "checks": 26
+  },
+  "present-pacer-fixes": {
+   "report": "present-pacer-fixes-checks.json",
+   "sha256": "41b8298ced10ff23b269aae913e8925d0d90074dd7c942dd5a2edd594678392d",
+   "checks": 784
+  },
+  "shader-save-poll": {
+   "report": "shader-save-poll-checks.json",
+   "sha256": "ce7581dbe414efa6cc29929aaa356ce549bfb4434b6324aa822cb547af4c5cfb",
+   "checks": 78
+  },
+  "warmup-key-parity": {
+   "report": "warmup-key-parity-checks.json",
+   "sha256": "5df23c423f0fefdd9ceffbe38f74913c6c00738625a72d1d6c785f4150733d57",
+   "checks": 1371
+  },
+  "setprogram-warmup": {
+   "report": "setprogram-warmup-checks.json",
+   "sha256": "d3711f983163e9ec4744aee8a67c4c7e483ea2f21bcdb1c5e87fb8ad5cd90dcc",
+   "checks": 103
+  },
+  "teardown-cache": {
+   "report": "teardown-cache-checks.json",
+   "sha256": "cf8b18c3f7436fad071cf80777e13754ac18bfb2c8661252e8c60949da35921f",
+   "checks": 53
+  },
+  "forced-syncpoint-wait": {
+   "report": "forced-syncpoint-wait-checks.json",
+   "sha256": "d7483e2a2ea09a76af5da9f48996ec3c8d91327e7d19efd1c93d32ab49fd7aec",
+   "checks": 84
+  },
+  "session-retention": {
+   "report": "session-retention-checks.json",
+   "sha256": "7866a5c828d8347c93cd1bd3e8a4f78a2151cd0c3d63b89420b1d94ee8781d03",
+   "checks": 121
+  },
+  "memory-inventory": {
+   "report": "memory-inventory-checks.json",
+   "sha256": "85dae39826377f93c5f4a0201b6aa6f3328f4c4add9d4a8ad65971701854a96c",
+   "checks": 26
+  },
+  "guest-fault-context": {
+   "report": "guest-fault-context-checks.json",
+   "sha256": "70240614a34747a1c2667b425ac5f04a90c2fa855bb5be68459f338e3b3a1d24",
+   "checks": 53
+  },
+  "gc-fallback": {
+   "report": "gc-fallback-checks.json",
+   "sha256": "8c0363515666aad7a3f49d42879cdede1f09bc56ebb9d0423e03b33687aa468a",
+   "checks": 60
+  },
+  "host-warning-trim": {
+   "report": "host-warning-trim-checks.json",
+   "sha256": "18b8f96f70453e6eba62967c13894fd56603123fe9a17fb58dc7091d69126a66",
+   "checks": 21
+  },
+  "safe-point-compaction": {
+   "report": "safe-point-compaction-checks.json",
+   "sha256": "8ffef4d2bdac799808712d7419229bd8f2147e1986bbd584513063c071054c78",
+   "checks": 59
+  },
+  "cold-texture-release": {
+   "report": "cold-texture-release-checks.json",
+   "sha256": "197f0ff92ffeb40a7c01f2c3247932601059202f0e04104e494551ffea7add0c",
+   "checks": 131
+  },
+  "bindless-retention": {
+   "report": "bindless-retention-checks.json",
+   "sha256": "ea301a8af859ef3577ee45dd5549282ca089736759491ed7e6f73f95e99b4c48",
+   "checks": 312
+  },
+  "moltenvk-stage-ordering": {
+   "report": "moltenvk-stage-ordering-checks.json",
+   "sha256": "3e38499df65c27a00ee9684dd5514e912b2b99f96a7751ee8bb04643d63dee00",
+   "checks": 75
+  },
+  "display-native": {
+   "report": "display-checks.json",
+   "sha256": "a6e47d998be132a4f7659bc85e987f7385b415247ff27efc845f7435a6ca5075",
+   "checks": null
+  },
+  "core667-fixes": {
+   "report": "core667-fixes-checks.json",
+   "sha256": "723b2c75abe79a9473708f64805940d936ba4a5ab6dbd542e92ef04eb9547907",
+   "checks": 56
+  },
+  "nan-scrub": {
+   "report": "nan-scrub-checks.json",
+   "sha256": "956796265e8d1032dab907f7a173227ac8f04a5c904d3cbc3db181158a10fb6f",
+   "checks": 57
+  },
+  "main-cache-checkpoint": {
+   "report": "main-cache-checkpoint-checks.json",
+   "sha256": "e955fc4f98e626b669cb3f2343bb3aa235b64fa9cd97f70ee9ff43720953957d",
+   "checks": 29
+  },
+  "checkpoint-side-cache": {
+   "report": "checkpoint-side-cache-checks.json",
+   "sha256": "85c7cd47217570a293cf80b1d617846f6a451f1a91c3ba8c34b485e47db87f8c",
+   "checks": 24
+  },
+  "evicted-buffer-recreate": {
+   "report": "evicted-buffer-recreate-checks.json",
+   "sha256": "2dac3933c1b6d7c2e25762b50dab6a58f07e13535d28538b7f3f950fae0af224",
+   "checks": 28
+  },
+  "audio-start-deferred": {
+   "report": "audio-start-deferred-checks.json",
+   "sha256": "fb7897879c2f61dbe592175ed344d7217aea131f0e9c8cabbe4e2f0b9368048b",
+   "checks": 16
+  },
+  "pipeline-cache-room": {
+   "report": "pipeline-cache-room-checks.json",
+   "sha256": "239c03965be964afeff022e8a4ad90f60055dcf3479d637947be191fb31ae73e",
+   "checks": 23
+  },
+  "pipeline-cache-persist": {
+   "report": "pipeline-cache-persist-checks.json",
+   "sha256": "bb2f95aab177344fb33a0d12fc029315a2bb6b5c743bec3f2754eff68afeefd0",
+   "checks": 30
+  },
+  "pipeline-build-journal": {
+   "report": "pipeline-build-journal-checks.json",
+   "sha256": "67f48a74a1738716b23c8290718fc5f4f64671add3070fcb3ee8b3179826c3c9",
+   "checks": 30
+  },
+  "pipeline-cache-growth": {
+   "report": "pipeline-cache-growth-checks.json",
+   "sha256": "ef9831b49bf4ede3f3cd763673fe28a597431cfbe99576f16c3fa041842b7972",
+   "checks": 37
+  },
+  "occupied-readback-buffers": {
+   "report": "occupied-readback-buffers-checks.json",
+   "sha256": "43fe8ff57d678b30dda51c7bae3bdb9801ebf901116ee9908d84f776412fc46e",
+   "checks": 44
+  },
+  "async-regenerated-targets": {
+   "report": "async-regenerated-targets-checks.json",
+   "sha256": "055066d79961c74393e6ef5bfb8d98db0b60f45357c01da783eb71189fa0d702",
+   "checks": 37
+  },
+  "released-texture-flush": {
+   "report": "released-texture-flush-checks.json",
+   "sha256": "55d9249caa990501e5b0058cde6a004bba1b606cec2abdb681b6c0a7fdbc2081",
+   "checks": 26
+  },
+  "pipeline-failure-identity": {
+   "report": "pipeline-failure-identity-checks.json",
+   "sha256": "a31b2f2eeca8f9e9328879afaa7299c3a210285e12bd2f9bd2e4a518ab6fd18f",
+   "checks": 16
+  },
+  "worker-main-cache-lookup": {
+   "report": "worker-main-cache-lookup-checks.json",
+   "sha256": "9a093100637305b8cac7c21dc04b8c5a6177dcbefd70730c78cdd75343224b9e",
+   "checks": 19
+  },
+  "compute-switch-bindings": {
+   "report": "compute-switch-bindings-checks.json",
+   "sha256": "5166e601f471ee06dafec2159527b8c1bc27168eda992c4ccba56f3d2d70a3e0",
+   "checks": 25
+  },
+  "bgc-keepalive": {
+   "report": "bgc-keepalive-checks.json",
+   "sha256": "5ba8b11f66375995c39583f643b03c3e6e35153515535bc47c741a4cb527c803",
+   "checks": 25
+  },
+  "pipeline-cache-background": {
+   "report": "pipeline-cache-background-checks.json",
+   "sha256": "0cd50cf8326e83755ab918bdda456bbd3f416f32ed52c33b8e7a0034125c1bfd",
+   "checks": 33
+  },
+  "sync-wait-attribution": {
+   "report": "sync-wait-attribution-checks.json",
+   "sha256": "e1307b03c7703b0ff5657acd2afef63331782d552b19562f81e3f9d9872b05db",
+   "checks": 57
+  },
+  "synced-buffer-reads": {
+   "report": "synced-buffer-reads-checks.json",
+   "sha256": "f1bdbe9c914bfab211bed7cb7be7942d8ab4773bbf50bcd795681a4d7ccf6d87",
+   "checks": 59
+  },
+  "layout-used-types": {
+   "report": "layout-used-types-checks.json",
+   "sha256": "b2a4a17ff77ef502451d5ced21cf612bbb79e1fa1ff8477113b45cef4e7900e7",
+   "checks": 590
+  },
+  "same-program-descriptors": {
+   "report": "same-program-descriptors-checks.json",
+   "sha256": "cb9700c7179577ac34d0b06be366a51ac191e9a7b1e57b0b843dfb8bc24f5001",
+   "checks": 79
+  },
+  "retention-chain": {
+   "report": "retention-chain-checks.json",
+   "sha256": "8782e9d82406e3d5a497cbf7bf52771286550adf853194a831b9b30cdc104f53",
+   "checks": 45
+  },
+  "texture-pool-allocations": {
+   "report": "texture-pool-allocations-checks.json",
+   "sha256": "f0aaafe013f450614fe980de9f745952af34211080ead6685654dab413333b47",
+   "checks": 94
+  },
+  "pipeline-variant-replay": {
+   "report": "pipeline-variant-replay-checks.json",
+   "sha256": "16fca2930812d8226e3dbac5fdf2876d9ba3043d74e75eb6ecc598808236e4aa",
+   "checks": 107
+  },
+  "pipeline-snapshot-retire": {
+   "report": "pipeline-snapshot-retire-checks.json",
+   "sha256": "8b905e2717c5f4a71bcec4b4a46b07b45ab5f2005c640928638b56d763e88fa3",
+   "checks": 105
+  },
+  "extra-set-binds": {
+   "report": "extra-set-binds-checks.json",
+   "sha256": "15e72a94817505305bd05a6739b03399d2ca272fd0bcc241c9b25fa50f2faf43",
+   "checks": 153
+  },
+  "array-reference-deltas": {
+   "report": "array-reference-deltas-checks.json",
+   "sha256": "7b042c85872f1b42d6c8080d3a0e37be015476a0096a2a20ed09cd40e8f83e11",
+   "checks": 45
+  },
+  "worker-library-share": {
+   "report": "worker-library-share-checks.json",
+   "sha256": "5fc2fc38b5b95aa226e0f12d1123ef70ea502ddce40d7cd7b08aec37a7c57d32",
+   "checks": 62
+  },
+  "bgc-fragmentation-guard": {
+   "report": "bgc-fragmentation-guard-checks.json",
+   "sha256": "b0fc3c8084dd9b036ed1fef510f7b32058c9c3e3958c50e780b0baea52fedb49",
+   "checks": 20
+  },
+  "pipeline-cache-mapped-data": {
+   "report": "pipeline-cache-mapped-data-checks.json",
+   "sha256": "e0bd1b1ce344436d4d8fd259f5bedd42aa56fc47e7fabf12f8edfe4b6b6dfc15",
+   "checks": 54
+  },
+  "gc-keepalive-dormant": {
+   "report": "gc-keepalive-dormant-checks.json",
+   "sha256": "295c667436c8681a857d693cad87b7f7f9b21a31b5b5dd5281ec504b0118ed44",
+   "checks": 50
+  },
+  "gc-pause-journal": {
+   "report": "gc-pause-journal-checks.json",
+   "sha256": "193592dd74c7ace3cdca87bd247c4028e31adbc82c6e06268d3fbf0f7e568280",
+   "checks": 33
+  },
+  "extra-array-dirty": {
+   "report": "extra-array-dirty-checks.json",
+   "sha256": "daa8dc8d22f19be7670f9c1d2998050a88cb1bb557d71270d15ffea04ab0e62c",
+   "checks": 72
+  },
+  "array-barrier-epoch": {
+   "report": "array-barrier-epoch-checks.json",
+   "sha256": "6a3a37fe370fe9e9fe372454cf2efdc90159c91b6f89c193b35f4ef901a41c58",
+   "checks": 119
+  },
+  "variant-replay-all": {
+   "report": "variant-replay-all-checks.json",
+   "sha256": "8cdb1953280e38574b3592b95228399a4228e3de63fc04b31db1ac7be429e71d",
+   "checks": 40
+  },
+  "pause-checkpoint-growth": {
+   "report": "pause-checkpoint-growth-checks.json",
+   "sha256": "075aaa658118d48b4420c56bce0a62fb66f2a2ccd4083a96b02affa2f68cfd4f",
+   "checks": 16
+  },
+  "vulkan-memory-journal": {
+   "report": "vulkan-memory-journal-checks.json",
+   "sha256": "1eeb66d2bdda32318448534c29b6b032c4456ea3bb44161a12960d8d876f4793",
+   "checks": 26
+  },
+  "allocator-range-update": {
+   "report": "allocator-range-update-checks.json",
+   "sha256": "d0174e9c6f82f1d53d3a37d2fec7c7ba3a0229efa16aa29238d80c382ecdf048",
+   "checks": null
+  },
+  "allocator-blocks": {
+   "report": "allocator-blocks-checks.json",
+   "sha256": "348d94762103d0ed058ddef208281419dfba2c7906f4fd51a822a95842ff9130",
+   "checks": null
+  },
+  "pipeline-cache-compact": {
+   "report": "pipeline-cache-compact-checks.json",
+   "sha256": "04e82fbc790d3d96dd48910bb3db794be0bd4753d2b6390feb1d6bb335b2b8f9",
+   "checks": 51
+  },
+  "cold-buffer-trim": {
+   "report": "cold-buffer-trim-checks.json",
+   "sha256": "fe3f77fc62de0888250d85f16fca57ba11a4de4bc7d6b8188bc8c844b06335cc",
+   "checks": 66
+  },
+  "host-thread-class": {
+   "report": "host-thread-class-checks.json",
+   "sha256": "cb6eef8f5f50b9ac7cd19748b2d273004598a8e039153eb183c99ac57a2e7914",
+   "checks": 99
+  },
+  "diagnostics-snapshot-reuse": {
+   "report": "diagnostics-snapshot-reuse-checks.json",
+   "sha256": "1432fbe52b041af0ff880a82ba8e45da07d3c42fd3a73fca4732e5ac58c3130f",
+   "checks": 43
+  },
+  "kernel-timer-allocations": {
+   "report": "kernel-timer-allocations-checks.json",
+   "sha256": "7f73ec3629a7390e2067da9629228dedfb0694bb4f2a38529f99f7603cd1e50c",
+   "checks": 103769
+  },
+  "remap-sweep-range": {
+   "report": "remap-sweep-range-checks.json",
+   "sha256": "26eb9e50d5af3c486df428f2d49c95622bf7df1db0e7db69202c6357bc459f9d",
+   "checks": 1041
+  }
+ },
+ "allGatesLocally": "92 gates on the final preparation: 90 green in one series under three parallel gates; released-texture-flush failed on its check that the final Texture.cs is its own adapter's (adapt_remap_sweep_range now edits it later) and was taught files_edited_later, as the other gates sharing a file; it and remap-sweep-range then green in the Core gate form",
+ "contract": {
+  "sha256": "47b596a9697db6e86f99208b0d1a956c6b6600d350768d689e612b2bca28de9e",
+  "preparationInputs": 207,
+  "preparedMembers": 211,
+  "freshAppleGates": 92,
+  "contractTestChecks": 485
+ },
+ "rejected": [
+  "the code path of a compute dispatch as the cause of its 130 to 150 us (host 5.4 us; the device figure includes the nested deltas)",
+  "flips between existing textures as the cause of 14 to 20 us per changed element (host about 1 us)",
+  "two counters of the sweep in the performance sample: the sample's JSON bound (4 000 characters at maximum width) has no room; the existing arrDeltaElems, arrDeltaChanged and gpuWork.arrayDelta decide instead"
+ ],
+ "notInThisLot": "the dispatch's own repeated work (mapped-size scans of storage buffers, the shader lookup forced on the next draw) and the exact-length arrays of the delta runs: measured on the host, small next to the sweep; to take after the device run",
+ "physicalDeviceTested": false,
+ "ipa": null,
+ "ciRuns": [],
+ "hostReader": {
+  "run": 43042778334,
+  "workflow": "melonx-stall-watch.yml",
+  "head": "98454d05",
+  "checks": 205,
+  "read": "every changed report decoded once (same length, shorter, longer, back to an older one), an unchanged one never, a broken one again, a refusal empty",
+  "cpuPerPollUs": {
+   "unchangedReportBytes": 26320,
+   "keptBuffer": 2.5,
+   "beforeLot14": 125.1
+  },
+  "note": "macOS runner; the iPhone figure is unmeasured (IPA 725: the poll thread had 5.1 s of CPU by t=120)"
+ }
+}

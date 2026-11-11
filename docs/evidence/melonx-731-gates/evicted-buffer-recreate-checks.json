@@ -1,0 +1,143 @@
+{
+  "result": "passed",
+  "checks": 28,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "4887dc48c79ab6ae97aa4f0203b03a9459900068ca22fcea5dced071e8246f88"
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "trackingOff": {
+        "resident": {
+          "sameBuffer": true,
+          "created": 0
+        },
+        "evictedBinding": {
+          "exception": "NullReferenceException"
+        },
+        "partialAfterEviction": {
+          "contained": false,
+          "disposed": false,
+          "resident": true
+        },
+        "sparseAfterEviction": {
+          "found": false,
+          "contained": false
+        },
+        "multiRange": {
+          "subBuffersEvictedDuringCreation": 1,
+          "cachedBytesWithinLimitAfter": true
+        }
+      },
+      "trackingOn": {
+        "resident": {
+          "sameBuffer": true,
+          "created": 0
+        },
+        "evictedBinding": {
+          "contained": true,
+          "disposed": false,
+          "resident": true,
+          "evictedBefore": true,
+          "cachedBytesWithinLimit": true
+        },
+        "partialAfterEviction": {
+          "contained": true,
+          "disposed": false,
+          "resident": true
+        },
+        "sparseAfterEviction": {
+          "found": true,
+          "contained": true
+        },
+        "multiRange": {
+          "subBuffersEvictedDuringCreation": 0,
+          "cachedBytesWithinLimitAfter": true
+        }
+      }
+    },
+    "candidate": {
+      "variant": "candidate",
+      "trackingOff": {
+        "resident": {
+          "sameBuffer": true,
+          "created": 0
+        },
+        "evictedBinding": {
+          "contained": true,
+          "disposed": false,
+          "resident": true,
+          "evictedBefore": true,
+          "cachedBytesWithinLimit": true
+        },
+        "partialAfterEviction": {
+          "contained": true,
+          "disposed": false,
+          "resident": true
+        },
+        "sparseAfterEviction": {
+          "found": true,
+          "contained": true
+        },
+        "multiRange": {
+          "subBuffersEvictedDuringCreation": 0,
+          "cachedBytesWithinLimitAfter": true
+        }
+      },
+      "trackingOn": {
+        "resident": {
+          "sameBuffer": true,
+          "created": 0
+        },
+        "evictedBinding": {
+          "contained": true,
+          "disposed": false,
+          "resident": true,
+          "evictedBefore": true,
+          "cachedBytesWithinLimit": true
+        },
+        "partialAfterEviction": {
+          "contained": true,
+          "disposed": false,
+          "resident": true
+        },
+        "sparseAfterEviction": {
+          "found": true,
+          "contained": true
+        },
+        "multiRange": {
+          "subBuffersEvictedDuringCreation": 0,
+          "cachedBytesWithinLimitAfter": true
+        }
+      }
+    }
+  },
+  "compiledSources": {
+    "control": {
+      "Members.cs": "67a78263ae4cbea4a58d889567b27b1399cda34e700932961bbc066ceda91526",
+      "MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "Program.cs": "8931cb7f082e30157eea90df0b1dc99d83d62cfc95293f8ac071b1c04d9e8eea"
+    },
+    "candidate": {
+      "Members.cs": "0a124ac0e9b2a3d3ed884ab8786a8414dcd37d59cb72a2f2b552d9b7afa4841a",
+      "MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "Program.cs": "8931cb7f082e30157eea90df0b1dc99d83d62cfc95293f8ac071b1c04d9e8eea"
+    }
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_evicted_buffer_recreate.py": "dbad56b34636ef0241632d3fe93aa1a66ef6e2b96a0bcd59c42f2801257557fd",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_evicted_buffer_recreate_test.py": "9afb619330824818decb00e83f2af5e58ebf5873ae7ab7303ca784f835015dce",
+    "test/melonx_evicted_buffer_recreate/Program.cs": "8931cb7f082e30157eea90df0b1dc99d83d62cfc95293f8ac071b1c04d9e8eea",
+    "test/melonx_adapter_control.py": "b3c7949c1bf4aab40e1504a11ec64257ae5c990a854f19ee78bae32ad027264e"
+  },
+  "limitation": "Host fixture of the real BufferCache.cs members with doubles for the physical buffer, the range list and the creation bodies. The IPA 674 abort is known only from a device run."
+}

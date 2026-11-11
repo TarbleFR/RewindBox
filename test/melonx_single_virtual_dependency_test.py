@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_single_virtual_dependency import apply, RELATIVE, CONSUMERS
 from adapt_fragmented_reads import BUFFER_UPLOADS
 from adapt_synced_buffer_reads import BUFFER_OLD as SYNCED_READ_OLD, BUFFER_NEW as SYNCED_READ_NEW
+from adapt_cold_buffer_trim import FIELD_OLD as USE_EPOCH_OLD, FIELD_NEW as USE_EPOCH_NEW
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 paths = ['src/Ryujinx.Graphics.Gpu/Memory/' + name + '.cs' for name in ('Buffer','MultiRangeBuffer','BufferModifiedRangeList','BufferMigration')]
@@ -33,7 +34,7 @@ retained = ['test/melonx_virtual_buffer_readback/Program.cs','test/melonx_virtua
 owned = ['build-utils/melonx/adapt_single_virtual_dependency.py','test/melonx_single_virtual_dependency_test.py',
          'test/melonx_single_virtual_dependency/Extra.cs','test/melonx_single_virtual_dependency/CostRunner.cs','test/melonx_single_virtual_dependency/JournalBoundary.cs',
          'build-utils/melonx/adapt_fragmented_reads.py','test/melonx_single_virtual_dependency/RegionBoundary.cs',
-         'build-utils/melonx/adapt_synced_buffer_reads.py']
+         'build-utils/melonx/adapt_synced_buffer_reads.py', 'build-utils/melonx/adapt_cold_buffer_trim.py']
 REGION = 'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'
 # Later reviewed adapters own these Buffer.cs scopes; each must appear exactly this often.
 WORK_SCOPES = (('BufferLoad', 2), ('BufferFlush', 1))
@@ -94,6 +95,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-single-dependency-') as temporar
                 # Core 701 (adapt_synced_buffer_reads): FlushImpl reads after the sync of its writes.
                 assert plain.count(SYNCED_READ_NEW) == 1 and plain.count(SYNCED_READ_OLD) == 0, 'wrong synced read edit'
                 plain = plain.replace(SYNCED_READ_NEW, SYNCED_READ_OLD)
+                # Core 731 (adapt_cold_buffer_trim): one field, the buffer cache's use epoch (no member reads it here).
+                assert plain.count(USE_EPOCH_NEW) == 1 and plain.count('LastUseEpoch') == 1, 'wrong use epoch field edit'
+                plain = plain.replace(USE_EPOCH_NEW, USE_EPOCH_OLD)
                 assert plain == optimized, 'final Buffer changes beyond reviewed branch, counters, work scopes and pooled uploads'
                 for path in paths:
                     if path != RELATIVE: assert sha(CANDIDATE / path) == preimages[path], 'changed retained consumer: ' + path

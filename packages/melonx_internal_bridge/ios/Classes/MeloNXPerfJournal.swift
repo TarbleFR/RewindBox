@@ -35,16 +35,64 @@ import Darwin
 //          31 default, 20 utility, 4 background)
 //   mem=   footprint MiB / headroom MiB / device available % / live donors
 //          (host-supplied; absent when the host gives none)
+//   vm=    the kernel's counters for this process over the interval (absent on
+//          the first line): MiB of its memory newly compressed / pages
+//          decompressed back (16 KiB each on an iPhone) / page faults / pages
+//          read from files. Compression and decompression running together
+//          are memory being pushed out and pulled back: time the threads
+//          spend in the kernel instead of the game ("-" for a counter that
+//          wrapped)
 //   in=    input the session's router handled in the interval (absent when
 //          none): tL/tR touch and pL/pR controller events for the left/right
 //          stick as count/largest magnitude; oL/oR the largest magnitude sent
 //          to the engine for that stick (a source moving while oL stays 0 was
 //          overridden); b button changes sent; d inputs dropped while paused
 //          or closed; e writes the engine refused, count:last code
+//   en=    watts of the process's CPU work (all cores / performance cores), from the kernel's energy accounting
+//   sw=    context switches / system calls / wakeups by interrupt, per second
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
 // has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
 // "[MeloNX:memory]" lines (MeloNXMemoryBreakdown, below): the footprint's ledgers and regions, every 60 s.
+// "[MeloNX:hot]" lines (MeloNXHotSpots.swift): where the busiest threads are, sampled for 3 s when the game runs slow
+// and when it runs on target.
+
+// A call into the engine from a utility queue (the sampler below, the plugin's diagnostics drain) is made by a thread of
+// the user-interactive class, which the caller waits for. The engine's collector stops every engine thread and runs on
+// the thread whose allocation triggered it, and a thread inside the engine must reach a safe point before a collection
+// can start: served at a utility queue's class, either leaves the game stopped meanwhile (IPA 725, pid 51986: a
+// collection run by the diagnostics queue's thread at priority 20 received 15.6 ms of CPU in 961 ms; the frame gap was
+// 3 034 ms). The queue's own work keeps its class. One call at a time; a call made from within a call runs in place.
+// (A QoS override of the queue's own thread was tried first: on macOS it left the thread's priority at 20, run 42991898055.)
+enum MeloNXEngineCallClass {
+    static let threadName = "RewindBox.MeloNX.EngineCalls"
+    private static let gate = NSLock()
+    private static let ready = DispatchSemaphore(value:0), done = DispatchSemaphore(value:0)
+    // Guarded by gate; body is handed to the thread between ready and done.
+    private static var runner: Thread?
+    private static var body: (() -> Void)?
+
+    static func interactive<T>(_ call: () -> T) -> T {
+        if Thread.current.name == threadName { return call() }
+        gate.lock(); defer { gate.unlock() }
+        if runner == nil {
+            let thread = Thread { while true { ready.wait(); body?(); done.signal() } }
+            thread.name = threadName
+            thread.qualityOfService = .userInteractive
+            thread.start()
+            runner = thread
+        }
+        var result: T?
+        withoutActuallyEscaping(call) { escapable in
+            body = { result = escapable() }
+            ready.signal()
+            done.wait()
+            body = nil
+        }
+        return result!
+    }
+}
+
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
@@ -54,6 +102,17 @@ final class MeloNXPerfJournal {
         static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
+    struct VmCounters { let compressedBytes: UInt64; let decompressions: Int64; let faults: Int64; let pageins: Int64 }
+    struct HwCounters {
+        let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64
+        var performanceCycles: UInt64 = 0
+        // en= and sw= (lot 13): energy the kernel charges the process (nJ; all cores, performance cores), its wakeups by
+        // interrupt, and the task's context switches and system calls (32-bit counters that wrap).
+        var energy: UInt64 = 0, performanceEnergy: UInt64 = 0, wakeups: UInt64 = 0
+        var switches: UInt32 = 0, calls: UInt32 = 0
+        var events = false
+    }
+    struct LevelTimes { let performance: UInt64; let total: UInt64 }
     static let topThreads = 6
     // The classified journal rotates at 8 MiB, retaining one previous file.
     // Host samples are also bounded to lineLimit lines per game. Native
@@ -71,6 +130,7 @@ final class MeloNXPerfJournal {
     private let memory: () -> String?
     private let stalls: MeloNXStallWatch
     private let breakdown: MeloNXMemoryBreakdown
+    private let hot: MeloNXHotSpots
     private let queue = DispatchQueue(label:"RewindBox.MeloNX.Perf", qos:.utility)
     private let lock = NSLock()
     private var paused = false
@@ -101,6 +161,7 @@ final class MeloNXPerfJournal {
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
         self.breakdown = MeloNXMemoryBreakdown(path:path, context:context)
+        self.hot = MeloNXHotSpots(path:path, context:context)
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -121,7 +182,7 @@ final class MeloNXPerfJournal {
             started = ProcessInfo.processInfo.systemUptime; last = started
             // Baselines; this read also clears the engine's audio maxima.
             previousShown = presentation()
-            previousAudio = audio()
+            previousAudio = MeloNXEngineCallClass.interactive { audio() }
             for thread in Self.threads() { previousThreads[thread.id] = thread.cpuNs }
             MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] begin: every \(interval) s, \(ProcessInfo.processInfo.activeProcessorCount) cores, audio counters \(previousAudio == nil ? "unavailable" : "available")",context:context), to:path, limit:Self.fileLimit)
             let source = DispatchSource.makeTimerSource(queue:queue)
@@ -131,14 +192,209 @@ final class MeloNXPerfJournal {
             source.resume()
             stalls.start()
             breakdown.start()
+            hot.start()
         }
     }
 
     // Asynchronous: never waits on the sampler from the caller's thread.
+    // vm= field: the differences of TASK_VM_INFO's lifetime compression and decompression counts and TASK_EVENTS_INFO's
+    // fault and page-in counts since the previous line. Two task_info calls on the sampler queue; nothing is changed.
+    private var previousVm: VmCounters?
+
+    static func vmCounters() -> VmCounters? {
+        var vm = task_vm_info_data_t()
+        var vmCount = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let vmResult = withUnsafeMutablePointer(to:&vm) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(vmCount)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &vmCount) }
+        }
+        var events = task_events_info_data_t()
+        var eventsCount = mach_msg_type_number_t(MemoryLayout<task_events_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let eventsResult = withUnsafeMutablePointer(to:&events) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(eventsCount)) { task_info(mach_task_self_, task_flavor_t(TASK_EVENTS_INFO), $0, &eventsCount) }
+        }
+        guard vmResult == KERN_SUCCESS, eventsResult == KERN_SUCCESS else { return nil }
+        return VmCounters(compressedBytes:UInt64(vm.compressed_lifetime), decompressions:Int64(vm.decompressions),
+                          faults:Int64(events.faults), pageins:Int64(events.pageins))
+    }
+
+    static func vmField(from before: VmCounters, to now: VmCounters) -> String {
+        // The kernel keeps the three counts on 32 bits: a wrap gives a smaller value, written "-".
+        func count(_ now: Int64, _ before: Int64) -> String { now >= before ? String(now - before) : "-" }
+        let compressed = now.compressedBytes >= before.compressedBytes ? String((now.compressedBytes - before.compressedBytes) >> 20) : "-"
+        return "\(compressed)/\(count(now.decompressions, before.decompressions))/\(count(now.faults, before.faults))/\(count(now.pageins, before.pageins))"
+    }
+
+    private func vmActivity() -> String? {
+        guard let now = Self.vmCounters() else { return nil }
+        defer { previousVm = now }
+        guard let before = previousVm else { return nil }
+        return Self.vmField(from:before, to:now)
+    }
+
+    // hw= field: how the process's CPU time was served since the previous line, from proc_pid_rusage (RUSAGE_INFO_V6),
+    // six values: the clock of that time (cycles per nanosecond of CPU time: GHz), instructions per cycle, the per cent
+    // of it spent on performance cores, the time its threads waited for a core, per cent of the CPU time used (the
+    // kernel's runnable time counts the time running as well: it is taken off), then the clock of the time spent on
+    // performance cores and the clock of the rest, GHz. The bridge of IPA 725 wrote four values, the fourth with the
+    // time running left in (100 more). The ratios need no unit; the first clock divides by the CPU time of the thread
+    // samples of the same line, the two others by the kernel's own times (its time unit, in nanoseconds, is the
+    // host's timebase). One call on the sampler queue, nothing is changed; absent on the first line and where the call
+    // or the flavor is missing.
+    private var previousHw: HwCounters?
+    private static let processUsage: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage") else { return nil }
+        return unsafeBitCast(symbol, to:(@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32).self)
+    }()
+
+    static func hwCounters() -> HwCounters? {
+        guard let usage = processUsage else { return nil }
+        var info = rusage_info_v6()
+        let result = withUnsafeMutablePointer(to:&info) { usage(getpid(), RUSAGE_INFO_V6, UnsafeMutableRawPointer($0)) }
+        guard result == 0 else { return nil }
+        var counters = HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
+                                  performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time,
+                                  performanceCycles:info.ri_pcycles)
+        counters.energy = info.ri_energy_nj; counters.performanceEnergy = info.ri_penergy_nj
+        counters.wakeups = info.ri_interrupt_wkups
+        var events = task_events_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_events_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let status = withUnsafeMutablePointer(to:&events) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_EVENTS_INFO), $0, &count) }
+        }
+        if status == KERN_SUCCESS {
+            counters.switches = UInt32(bitPattern:events.csw)
+            counters.calls = UInt32(bitPattern:events.syscalls_unix) &+ UInt32(bitPattern:events.syscalls_mach)
+            counters.events = true
+        }
+        return counters
+    }
+
+    // en= field: the power of the process's CPU work over the interval, in watts, from the energy the kernel charges it
+    // (proc_pid_rusage, ri_energy_nj): all cores, then the part on performance cores ("-" for a counter that went
+    // backwards). What heats the device from this process's CPU side; the GPU's energy is not in it. Absent where the
+    // host counts no energy (a virtual machine) and on the first line.
+    static func energyField(from before: HwCounters, to now: HwCounters, seconds: Double) -> String? {
+        guard seconds > 0, now.energy > 0, now.energy >= before.energy else { return nil }
+        let watts = Double(now.energy - before.energy) / 1e9 / seconds
+        let performance = now.performanceEnergy >= before.performanceEnergy
+            ? String(format:"%.2f", Double(now.performanceEnergy - before.performanceEnergy) / 1e9 / seconds) : "-"
+        return String(format:"%.2f", watts) + "/" + performance
+    }
+
+    // sw= field: per second over the interval, the task's context switches, its system calls (Unix and Mach together)
+    // and its wakeups by interrupt (timers and input/output ending a wait): threads that sleep and wake at a high
+    // rate keep cores out of their idle states for little work. From task_info(TASK_EVENTS_INFO), whose 32-bit
+    // counters wrap, and proc_pid_rusage ("-" for wakeups that went backwards). Absent on the first line and where
+    // the task's events are not readable.
+    static func switchField(from before: HwCounters, to now: HwCounters, seconds: Double) -> String? {
+        guard seconds > 0, before.events, now.events else { return nil }
+        func rate(_ value: Double) -> String { String(Int((value / seconds).rounded())) }
+        let wakeups = now.wakeups >= before.wakeups ? rate(Double(now.wakeups - before.wakeups)) : "-"
+        return rate(Double(now.switches &- before.switches)) + "/" + rate(Double(now.calls &- before.calls)) + "/" + wakeups
+    }
+
+    /// Nanoseconds in one of the kernel's time units (125/3 on an iPhone).
+    static let timeUnitNs: Double = {
+        var base = mach_timebase_info_data_t()
+        return mach_timebase_info(&base) == KERN_SUCCESS && base.denom != 0 ? Double(base.numer) / Double(base.denom) : 1
+    }()
+
+    static func hwField(from before: HwCounters, to now: HwCounters, cpuNs: UInt64, timeUnitNs: Double = MeloNXPerfJournal.timeUnitNs) -> String? {
+        guard now.cycles >= before.cycles, now.instructions >= before.instructions, now.time > before.time, cpuNs > 0 else { return nil }
+        let cycles = Double(now.cycles - before.cycles), time = Double(now.time - before.time)
+        // A counter that went backwards is written "-", as is the ratio to cycles where the host counts none (a virtual machine).
+        let clock = String(format:"%.1f", cycles / Double(cpuNs))
+        let perCycle = cycles > 0 ? String(format:"%.2f", Double(now.instructions - before.instructions) / cycles) : "-"
+        var performance = "-", waiting = "-", performanceClock = "-", otherClock = "-"
+        if now.runnable >= before.runnable {
+            // Runnable is running or waiting for a core: the time running is the CPU time.
+            waiting = String(Int((max(0, Double(now.runnable - before.runnable) - time) / time * 100).rounded()))
+        }
+        if now.performanceTime >= before.performanceTime {
+            let performanceTime = Double(now.performanceTime - before.performanceTime)
+            performance = String(Int((performanceTime / time * 100).rounded()))
+            if now.performanceCycles >= before.performanceCycles, cycles > 0, timeUnitNs > 0 {
+                let performanceCycles = Double(now.performanceCycles - before.performanceCycles)
+                if performanceTime > 0, performanceCycles > 0 { performanceClock = String(format:"%.1f", performanceCycles / (performanceTime * timeUnitNs)) }
+                if time > performanceTime, cycles > performanceCycles { otherClock = String(format:"%.1f", (cycles - performanceCycles) / ((time - performanceTime) * timeUnitNs)) }
+            }
+        }
+        return "\(clock)/\(perCycle)/\(performance)/\(waiting)/\(performanceClock)/\(otherClock)"
+    }
+
+    private func hwActivity(cpuNs: UInt64, seconds: Double) -> (hw: String?, energy: String?, switches: String?) {
+        guard let now = Self.hwCounters() else { return (nil, nil, nil) }
+        defer { previousHw = now }
+        guard let before = previousHw else { return (nil, nil, nil) }
+        return (Self.hwField(from:before, to:now, cpuNs:cpuNs), Self.energyField(from:before, to:now, seconds:seconds),
+                Self.switchField(from:before, to:now, seconds:seconds))
+    }
+
+    // pc= field: for each thread listed in cpu=, in the same order, the per cent of its CPU time of the interval spent
+    // on performance cores ("-" when unknown: a thread without a previous sample, or no counts for it). From
+    // proc_pidinfo(PROC_PIDTHREADCOUNTS, 34: per thread and performance level, instructions, cycles, user and system
+    // time, energy), looked up at run time; the level named "Performance" by hw.perflevelN.name. At most
+    // levelThreads calls on the sampler queue, for the threads that used a millisecond or more; nothing is changed.
+    // Absent where the call, the flavor or the levels are missing, or when no value is known.
+    static let levelThreads = 48
+    private var previousLevels: [UInt64: LevelTimes] = [:]
+    private static let threadCounts: (@convention(c) (Int32, Int32, UInt64, UnsafeMutableRawPointer, Int32) -> Int32)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pidinfo") else { return nil }
+        return unsafeBitCast(symbol, to:(@convention(c) (Int32, Int32, UInt64, UnsafeMutableRawPointer, Int32) -> Int32).self)
+    }()
+    private static let performanceLevel: (index: Int, levels: Int)? = {
+        var levels: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        guard sysctlbyname("hw.nperflevels", &levels, &size, nil, 0) == 0, levels >= 1, levels <= 8 else { return nil }
+        for index in 0..<Int(levels) {
+            var name = [CChar](repeating:0, count:64)
+            var length = name.count - 1
+            guard sysctlbyname("hw.perflevel\(index).name", &name, &length, nil, 0) == 0 else { continue }
+            if String(cString:name) == "Performance" { return (index:index, levels:Int(levels)) }
+        }
+        return nil
+    }()
+
+    static func levelTimes(thread id: UInt64) -> LevelTimes? {
+        guard let counts = threadCounts, let level = performanceLevel else { return nil }
+        // struct proc_threadcounts: a 16-bit count of levels in the first eight bytes, then five 64-bit values per level.
+        var words = [UInt64](repeating:0, count:1 + level.levels * 5)
+        let size = Int32(words.count * MemoryLayout<UInt64>.size)
+        let copied = words.withUnsafeMutableBytes { counts(getpid(), 34, id, $0.baseAddress!, size) }
+        guard copied == size, Int(words[0] & 0xFFFF) == level.levels else { return nil }
+        var total: UInt64 = 0, performance: UInt64 = 0
+        for index in 0..<level.levels {
+            let time = words[1 + index * 5 + 2] &+ words[1 + index * 5 + 3]
+            total &+= time
+            if index == level.index { performance = time }
+        }
+        return LevelTimes(performance:performance, total:total)
+    }
+
+    static func performanceShare(from before: LevelTimes, to now: LevelTimes) -> String {
+        guard now.total > before.total, now.performance >= before.performance else { return "-" }
+        return String(Int((Double(now.performance - before.performance) / Double(now.total - before.total) * 100).rounded()))
+    }
+
+    // `threads`: this interval's threads by CPU time used, the busiest first; `listed`: how many of them cpu= lists.
+    private func performanceShares(threads: [(id: UInt64, ns: UInt64)], listed: Int) -> String? {
+        var current: [UInt64: LevelTimes] = [:]
+        for thread in threads.prefix(Self.levelThreads) where thread.ns >= 1_000_000 {
+            if let times = Self.levelTimes(thread:thread.id) { current[thread.id] = times }
+        }
+        defer { previousLevels = current }
+        let shares = threads.prefix(listed).map { thread -> String in
+            guard let now = current[thread.id], let before = previousLevels[thread.id] else { return "-" }
+            return Self.performanceShare(from:before, to:now)
+        }
+        return shares.contains { $0 != "-" } ? shares.joined(separator:",") : nil
+    }
+
     func stop() {
         queue.async { [self] in
             stalls.stop()
             breakdown.stop()
+            hot.stop()
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -155,7 +411,7 @@ final class MeloNXPerfJournal {
 
         stalls.enter("fps")
         let callStart = ProcessInfo.processInfo.systemUptime
-        let engine = fps()
+        let engine = MeloNXEngineCallClass.interactive { fps() }
         let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000
         stalls.exit()
         if let rate = engine["gameFps"] as? Double {
@@ -180,7 +436,7 @@ final class MeloNXPerfJournal {
         if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
 
         stalls.enter("audio")
-        let pacing = audio()
+        let pacing = MeloNXEngineCallClass.interactive { audio() }
         stalls.exit()
         if let values = pacing, values.count == 9 {
             let before = previousAudio ?? values
@@ -193,7 +449,7 @@ final class MeloNXPerfJournal {
         } else { fields.append("dsp=- out=-") }
 
         var current: [UInt64: UInt64] = [:]
-        var busy: [(name: String, ns: UInt64, priority: Int32)] = []
+        var busy: [(id: UInt64, name: String, ns: UInt64, priority: Int32)] = []
         var total: UInt64 = 0
         for thread in Self.threads() {
             current[thread.id] = thread.cpuNs
@@ -202,7 +458,7 @@ final class MeloNXPerfJournal {
             guard thread.cpuNs >= before else { continue }
             let used = thread.cpuNs - before
             total &+= used
-            busy.append((name:thread.name, ns:used, priority:thread.priority))
+            busy.append((id:thread.id, name:thread.name, ns:used, priority:thread.priority))
         }
         previousThreads = current
         busy.sort { $0.ns > $1.ns }
@@ -212,11 +468,22 @@ final class MeloNXPerfJournal {
             cpu += " \(thread.name):\(percent(thread.ns))/\(thread.priority)"
         }
         fields.append(cpu)
+        // "[MeloNX:hot]" profiles (MeloNXHotSpots): asked for here, taken by its own thread.
+        hot.observe(second:Int((now - started).rounded()), fps:engine["gameFps"] as? Double, paused:isPaused,
+                    threads:busy.prefix(MeloNXHotSpots.maxThreads).filter { $0.ns > 0 }.map {
+                        MeloNXHotSpots.Target(id:$0.id, name:$0.name, priority:$0.priority) })
 
         stalls.enter("memory")
         let footprint = memory()
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
+        if let text = vmActivity() { fields.append("vm=" + text) }
+        let served = hwActivity(cpuNs:total, seconds:elapsed)
+        if let text = served.hw { fields.append("hw=" + text) }
+        if let text = served.energy { fields.append("en=" + text) }
+        if let text = served.switches { fields.append("sw=" + text) }
+        let listed = busy.prefix(Self.topThreads).filter { $0.ns > 0 }.count
+        if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
@@ -262,6 +529,16 @@ final class MeloNXPerfJournal {
                                        priority:extended.pth_priority))
         }
         return result
+    }
+
+    /// The calling thread's base and scheduled priorities now (47 user-interactive, 20 utility): what
+    /// MeloNXEngineCallClass raises for the duration of an engine call.
+    static func currentPriorities() -> (base: Int32, scheduled: Int32)? {
+        let thread = mach_thread_self()
+        defer { mach_port_deallocate(mach_task_self_, thread) }
+        var extended = thread_extended_info_data_t()
+        guard info(thread, THREAD_EXTENDED_INFO, &extended) else { return nil }
+        return (extended.pth_priority, extended.pth_curpri)
     }
 
     private static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
@@ -419,9 +696,9 @@ final class MeloNXStallWatch {
                 }
             }
             if read == KERN_SUCCESS {
-                text += " pc=" + place(state.__pc, &places) + " lr=" + place(state.__lr, &places)
+                text += " pc=" + Self.place(state.__pc, &places) + " lr=" + Self.place(state.__lr, &places)
                 let frames = Self.frames(from:state.__fp)
-                if !frames.isEmpty { text += " bt=" + frames.map { place($0, &places) }.joined(separator:",") }
+                if !frames.isEmpty { text += " bt=" + frames.map { Self.place($0, &places) }.joined(separator:",") }
             }
             #endif
             lines.append(text)
@@ -444,10 +721,10 @@ final class MeloNXStallWatch {
 
     // The frame records from fp: each is {previous fp, return address}; read with vm_read_overwrite, which fails on an
     // unmapped address instead of faulting; stops on a null, misaligned or non-increasing fp.
-    private static func frames(from start: UInt64) -> [UInt64] {
+    static func frames(from start: UInt64, limit: Int = maxFrames) -> [UInt64] {
         var result: [UInt64] = []
         var fp = start & addressMask
-        while result.count < maxFrames, fp != 0, fp & 0xF == 0 {
+        while result.count < limit, fp != 0, fp & 0xF == 0 {
             var record = (UInt64(0), UInt64(0))
             var size = vm_size_t(0)
             let status = withUnsafeMutableBytes(of:&record) { raw in
@@ -462,7 +739,7 @@ final class MeloNXStallWatch {
         return result
     }
 
-    private func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String {
+    static func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String {
         let address = raw & Self.addressMask
         guard address != 0 else { return "0" }
         if let known = cache[address] { return known }
@@ -492,7 +769,7 @@ final class MeloNXStallWatch {
         return status == KERN_SUCCESS && UInt64(region) <= address && info.protection & VM_PROT_EXECUTE != 0
     }
 
-    private static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
+    static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
         var count = mach_msg_type_number_t(MemoryLayout<T>.size / MemoryLayout<natural_t>.size)
         return withUnsafeMutablePointer(to:&value) {
             $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) {
@@ -509,19 +786,29 @@ final class MeloNXStallWatch {
 //   footprint= phys_footprint / its peak MiB (the figure iOS kills the process on)
 //   graphics=  the kernel's graphics ledger (Metal and IOAccelerator memory charged to the process) + its compressed part
 //   internal= compressed= device= media= neural= purgeable=  the other TASK_VM_INFO ledgers, MiB
-//   regions=   top-level regions read / time ms ("partial" when the walk hit its region or time bound); two O(1)
-//              queries per region, no page walk; the dyld shared region is skipped
-//   groups=    the 8 largest groups of regions by resident memory, name:resident MiB/regions, by VM tag ("file" for
-//              file-backed mappings, whose clean pages are not footprint); a name ending in "~s" is shared memory,
-//              counted per object (an object mapped more than once counts once, in the group of its tagged mapping,
-//              else of its largest one); compressed memory is the ledger's total (compressed=)
-//   top=       the 6 largest regions by resident memory: address:virtual MiB:group:share mode:resident MiB
+//   regions=   top-level regions read / time ms ("partial" when the walk hit its region or time bound, 1.2 s); one O(1)
+//              query per region; the dyld shared region is skipped
+//   private=   resident+compressed MiB of the private anonymous regions walked (the footprint's memory); unwalked=
+//              count/virtual MiB of private regions over 256 MiB (not page-walked: resident only, no compressed part);
+//              sharedSmall= count/virtual MiB of shared regions under 1 MiB (the guest memory lease), only counted
+//   zones=     the four largest malloc zones, name:MiB in use/MiB held from the system
+//   groups=    the 12 largest groups of regions, name:resident+compressed MiB/regions, by VM tag ("file" for file-backed
+//              mappings, whose clean pages are not footprint; the malloc zones apart); a name ending in "~s" is shared
+//              memory of 1 MiB or more, counted per object (an object mapped more than once counts once, in the group
+//              of its tagged mapping, else of its largest one), resident only
+//   top=       the 10 largest regions: address:virtual MiB:group:share mode:resident+compressed MiB
+// IPA 724 (Hogwarts): the first version read two counters per region and stopped at its 400 ms bound inside the 65 536
+// regions of the guest lease, and gave resident memory only, while most of the footprint was compressed.
 // Measurement only: it reads the process's own VM map and calls no engine closure.
 final class MeloNXMemoryBreakdown {
     static let maxRegions = 400_000
-    static let maxWalkMs = 400.0
-    static let topGroups = 8
-    static let topRegions = 6
+    static let maxWalkMs = 1200.0
+    static let topGroups = 12
+    static let topRegions = 10
+    // A private region larger than this is not page-walked (about 2 ms of VM map hold at this size).
+    static let maxPageWalkBytes: UInt64 = 256 << 20
+    // A shared region smaller than this is only counted (the guest memory lease is 64 KiB regions).
+    static let minSharedQueryBytes: UInt64 = 1 << 20
 
     private let path: String
     private let context: [String:String]
@@ -558,8 +845,8 @@ final class MeloNXMemoryBreakdown {
         _ = MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:memory] " + Self.describe(seconds:seconds), context:context), to:path, limit:MeloNXPerfJournal.fileLimit)
     }
 
-    private struct Group { var resident: UInt64 = 0, regions = 0 }
-    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64 }
+    private struct Group { var resident: UInt64 = 0, compressed: UInt64 = 0, regions = 0 }
+    private struct Region { let address: UInt64, size: UInt64, group: String, share: UInt8, resident: UInt64, compressed: UInt64 }
 
     static func describe(seconds: Int) -> String {
         var parts = ["t=\(seconds)"]
@@ -578,9 +865,15 @@ final class MeloNXMemoryBreakdown {
             parts.append("ledgers=\(vmStatus)")
         }
 
-        // Two O(1) queries per top-level region (no page walk, so the VM map is never held long): its tag, share mode,
-        // object and pager (submap short info, depth 0), then its resident pages from the object's own counters (top
-        // info). The dyld shared region (a submap) is skipped; compressed memory is the ledger's total above.
+        // One O(1) query per top-level region (submap short info, depth 0: tag, share mode, object, pager); the dyld
+        // shared region (a submap) is skipped. Then, by kind:
+        // - private anonymous memory (what the footprint is made of): its resident and compressed pages, from the
+        //   kernel's walk of that region's pages (submap info). A region over maxPageWalkBytes is not walked (the VM map
+        //   would be held too long): its resident pages come from the object's counters and it is listed in "unwalked";
+        // - file-backed and large shared regions: resident pages from the object's counters (top info), a shared object
+        //   counted once;
+        // - shared regions under minSharedQueryBytes (the guest memory lease is 65 536 of them, IPA 724: the walk stopped
+        //   at its 400 ms bound before the private regions above them): counted and sized only ("sharedSmall").
         let page = UInt64(vm_page_size)
         let begin = DispatchTime.now().uptimeNanoseconds
         var groups: [String: Group] = [:]
@@ -589,6 +882,9 @@ final class MeloNXMemoryBreakdown {
         var address: vm_address_t = 0
         var regions = 0
         var partial = false
+        var privateResident: UInt64 = 0, privateCompressed: UInt64 = 0
+        var unwalked = 0, unwalkedBytes: UInt64 = 0
+        var sharedSmall = 0, sharedSmallBytes: UInt64 = 0
         while true {
             if regions >= maxRegions || Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6 > maxWalkMs { partial = true; break }
             var size: vm_size_t = 0
@@ -605,21 +901,47 @@ final class MeloNXMemoryBreakdown {
             address &+= size
             if info.is_submap != 0 { continue }
             regions += 1
-            var top = vm_region_top_info_data_t()
-            var topCount = mach_msg_type_number_t(MemoryLayout<vm_region_top_info_data_t>.size / MemoryLayout<natural_t>.size)
-            var topAddress = regionAddress, topSize: vm_size_t = 0
-            var object: mach_port_t = 0
-            let topStatus = withUnsafeMutablePointer(to:&top) {
-                $0.withMemoryRebound(to:Int32.self, capacity:Int(topCount)) {
-                    vm_region_64(mach_task_self_, &topAddress, &topSize, VM_REGION_TOP_INFO, $0, &topCount, &object)
-                }
-            }
-            guard topStatus == KERN_SUCCESS, topAddress == regionAddress else { continue }
-            let resident = (UInt64(top.private_pages_resident) + UInt64(top.shared_pages_resident)) * page
             let share = UInt8(truncatingIfNeeded:info.share_mode)
             let mode = Int32(share)
             let shared = mode == SM_SHARED || mode == SM_TRUESHARED || mode == SM_SHARED_ALIASED
-            let name = (info.external_pager != 0 ? "file" : group(info.user_tag)) + (shared ? "~s" : "")
+            let file = info.external_pager != 0
+            let name = (file ? "file" : group(info.user_tag)) + (shared ? "~s" : "")
+            var resident: UInt64 = 0, compressed: UInt64 = 0
+            if shared && UInt64(size) < minSharedQueryBytes {
+                sharedSmall += 1
+                sharedSmallBytes += UInt64(size)
+                if address == 0 { break }
+                continue
+            }
+            if !shared && !file && UInt64(size) <= maxPageWalkBytes {
+                var full = vm_region_submap_info_data_64_t()
+                var fullCount = mach_msg_type_number_t(MemoryLayout<vm_region_submap_info_data_64_t>.size / MemoryLayout<natural_t>.size)
+                var fullAddress = regionAddress, fullSize: vm_size_t = 0
+                var fullDepth: natural_t = 0
+                let fullStatus = withUnsafeMutablePointer(to:&full) {
+                    $0.withMemoryRebound(to:integer_t.self, capacity:Int(fullCount)) {
+                        vm_region_recurse_64(mach_task_self_, &fullAddress, &fullSize, &fullDepth, $0, &fullCount)
+                    }
+                }
+                guard fullStatus == KERN_SUCCESS, fullAddress == regionAddress else { continue }
+                resident = UInt64(full.pages_resident) * page
+                compressed = UInt64(full.pages_swapped_out) * page
+                privateResident += resident
+                privateCompressed += compressed
+            } else {
+                var top = vm_region_top_info_data_t()
+                var topCount = mach_msg_type_number_t(MemoryLayout<vm_region_top_info_data_t>.size / MemoryLayout<natural_t>.size)
+                var topAddress = regionAddress, topSize: vm_size_t = 0
+                var object: mach_port_t = 0
+                let topStatus = withUnsafeMutablePointer(to:&top) {
+                    $0.withMemoryRebound(to:Int32.self, capacity:Int(topCount)) {
+                        vm_region_64(mach_task_self_, &topAddress, &topSize, VM_REGION_TOP_INFO, $0, &topCount, &object)
+                    }
+                }
+                guard topStatus == KERN_SUCCESS, topAddress == regionAddress else { continue }
+                resident = (UInt64(top.private_pages_resident) + UInt64(top.shared_pages_resident)) * page
+                if !shared && !file { unwalked += 1; unwalkedBytes += UInt64(size) }
+            }
             if shared {
                 // Every mapping of one object counts the same pages: the object counts once, in the group of a tagged
                 // mapping when it has one, else of its largest mapping.
@@ -632,11 +954,13 @@ final class MeloNXMemoryBreakdown {
                 }
             } else {
                 groups[name, default:Group()].resident += resident
+                groups[name, default:Group()].compressed += compressed
                 groups[name, default:Group()].regions += 1
             }
-            if resident > 0 && (largest.count < topRegions || resident > largest[largest.count - 1].resident) {
-                largest.append(Region(address:UInt64(regionAddress), size:UInt64(size), group:name, share:share, resident:resident))
-                largest.sort { $0.resident > $1.resident }
+            let weight = resident + compressed
+            if weight > 0 && (largest.count < topRegions || weight > largest[largest.count - 1].resident + largest[largest.count - 1].compressed) {
+                largest.append(Region(address:UInt64(regionAddress), size:UInt64(size), group:name, share:share, resident:resident, compressed:compressed))
+                largest.sort { $0.resident + $0.compressed > $1.resident + $1.compressed }
                 if largest.count > topRegions { largest.removeLast() }
             }
             if address == 0 { break } // wrapped past the top of the address space
@@ -647,19 +971,47 @@ final class MeloNXMemoryBreakdown {
         }
         let walkMs = Double(DispatchTime.now().uptimeNanoseconds - begin) / 1e6
         parts.append("regions=\(regions)/\(String(format:"%.1f", walkMs))ms" + (partial ? "/partial" : ""))
-        let ranked = groups.sorted { $0.value.resident != $1.value.resident ? $0.value.resident > $1.value.resident : $0.key < $1.key }
-        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.resident))/\($0.value.regions)" }.joined(separator:","))
-        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.resident))" }.joined(separator:","))
+        parts.append("private=\(mib(privateResident))+\(mib(privateCompressed)) unwalked=\(unwalked)/\(mib(unwalkedBytes)) sharedSmall=\(sharedSmall)/\(mib(sharedSmallBytes))")
+        parts.append("zones=" + zones())
+        let ranked = groups.sorted {
+            let a = $0.value.resident + $0.value.compressed, b = $1.value.resident + $1.value.compressed
+            return a != b ? a > b : $0.key < $1.key
+        }
+        parts.append("groups=" + ranked.prefix(topGroups).map { "\($0.key):\(mib($0.value.resident))+\(mib($0.value.compressed))/\($0.value.regions)" }.joined(separator:","))
+        parts.append("top=" + largest.map { "0x" + String($0.address, radix:16) + ":\(mib($0.size)):\($0.group):\(shareName($0.share)):\(mib($0.resident))+\(mib($0.compressed))" }.joined(separator:","))
         return parts.joined(separator:" ")
     }
 
     private static func mib<T: BinaryInteger>(_ bytes: T) -> String { String(Int64(clamping:bytes) >> 20) }
 
+    // The malloc zones' own counts: bytes in use / bytes held from the system (the difference is free space the
+    // allocator keeps), the four largest by bytes held. Each zone is asked once (its locks are taken briefly).
+    static func zones() -> String {
+        var addresses: UnsafeMutablePointer<vm_address_t>? = nil
+        var count: UInt32 = 0
+        guard malloc_get_all_zones(mach_task_self_, nil, &addresses, &count) == KERN_SUCCESS, let addresses else { return "-" }
+        var found: [(name: String, used: UInt64, held: UInt64)] = []
+        for index in 0..<Int(count) {
+            guard let zone = UnsafeMutablePointer<malloc_zone_t>(bitPattern:UInt(addresses[index])) else { continue }
+            var statistics = malloc_statistics_t()
+            malloc_zone_statistics(zone, &statistics)
+            let raw = malloc_get_zone_name(zone).map { String(cString:$0) } ?? "zone\(index)"
+            let name = String(raw.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+            found.append((name.isEmpty ? "zone\(index)" : name, UInt64(statistics.size_in_use), UInt64(statistics.size_allocated)))
+        }
+        found.sort { $0.held != $1.held ? $0.held > $1.held : $0.name < $1.name }
+        return found.isEmpty ? "-" : found.prefix(4).map { "\($0.name):\(mib($0.used))/\(mib($0.held))" }.joined(separator:",")
+    }
+
     // VM tags (mach/vm_statistics.h): the malloc zones together, the app-specific ones by number.
     private static func group(_ tag: UInt32) -> String {
         switch tag {
         case 0: return "untagged"
-        case 1...13: return "malloc"
+        case 3, 4, 8, 9: return "malloc.large"
+        case 2, 12: return "malloc.small"
+        case 7: return "malloc.tiny"
+        case 11: return "malloc.nano"
+        case 1, 5, 6, 10, 13: return "malloc"
         case 20: return "mach_msg"
         case 21: return "iokit"
         case 30: return "stack"

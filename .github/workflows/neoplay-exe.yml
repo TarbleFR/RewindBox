@@ -29,7 +29,7 @@ jobs:
           $p = Start-Process -FilePath '.\dist\win-unpacked\NeoPlay.exe' -ArgumentList '--smoke-test', '--report=embedded-smoke.json' -Wait -PassThru
           if ($p.ExitCode -ne 0) { exit $p.ExitCode }
           npm run build:installer
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: NeoPlay-0.8.0-${{ github.sha }}
           path: |

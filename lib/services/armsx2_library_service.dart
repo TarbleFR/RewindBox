@@ -24,6 +24,12 @@ class Armsx2LibraryService {
 
   static String? get lastLaunchError => StikJitArmsx2Service.lastError;
 
+  /// What the user has to put right after a launch that stopped for a known
+  /// reason (no BIOS, LocalDevVPN off, no pairing file, …), in [language];
+  /// null otherwise.
+  static String? lastLaunchPrerequisite(String language) =>
+      StikJitArmsx2Service.lastErrorText(language);
+
   static const String _virtualScheme = 'armsx2';
   static const String _legacyExportCacheKey = 'armsx2_library_cache_v1';
 
@@ -51,6 +57,8 @@ class Armsx2LibraryService {
     String romPath, {
     String uiLocale = 'en',
   }) async {
+    // A refusal below must not show the prerequisite of an earlier launch.
+    StikJitArmsx2Service.resetLastError();
     if (romPath.trim().isEmpty) return false;
 
     if (isVirtualLibraryPath(romPath)) {

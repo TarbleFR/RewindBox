@@ -168,6 +168,13 @@ from adapt_gc_keepalive_dormant import apply as adapt_gc_keepalive_dormant
 from adapt_gc_pause_journal import apply as adapt_gc_pause_journal
 from adapt_extra_array_dirty import apply as adapt_extra_array_dirty
 from adapt_array_barrier_epoch import apply as adapt_array_barrier_epoch
+from adapt_variant_replay_all import apply as adapt_variant_replay_all
+from adapt_pause_checkpoint_growth import apply as adapt_pause_checkpoint_growth
+from adapt_vulkan_memory_journal import apply as adapt_vulkan_memory_journal
+from adapt_pipeline_cache_compact import apply as adapt_pipeline_cache_compact
+from adapt_cold_buffer_trim import apply as adapt_cold_buffer_trim
+from adapt_host_thread_class import apply as adapt_host_thread_class
+from adapt_remap_sweep_range import apply as adapt_remap_sweep_range
 
 
 def replace_once(path, old, new):
@@ -478,6 +485,30 @@ def main():
     # same storages covering the same stages.
     adapted += [source / name for name in adapt_extra_array_dirty(source)]
     adapted += [source / name for name in adapt_array_barrier_epoch(source)]
+    # Core 725 (lot 9, IPA 724 Hogwarts: "replays built 512 ... still planned 843 of 1357", 701 of them created late by the
+    # render thread): every recorded pipeline state is replayed at launch; the session cap is the journal's own bound.
+    adapted += [source / name for name in adapt_variant_replay_all(source)]
+    # Core 727 (lot 9, IPA 724 Hogwarts: a pause rewrote the 793 MiB main cache for +1.06 MiB, 10.9 s, and the game resumed
+    # into it at 0-0.3 FPS for 8 s): a pause rewrites the file only for 8 MiB of new content, as play does.
+    adapted += [source / name for name in adapt_pause_checkpoint_growth(source)]
+    # Core 727 (lot 9, RAM diagnosis): what the Vulkan memory allocator holds, by memory type, every ~30 s (IPA 724: MoltenVK
+    # 1 269 MB allocated, the texture and buffer caches 290 MiB of it).
+    adapted += [source / name for name in adapt_vulkan_memory_journal(source)]
+    # Core 729 (lot 10, RAM and pipeline cache size; IPA 724 Hogwarts: 792 MiB of cache data, about nine tenths the binding
+    # tables MoltenVK no longer keeps or writes): a main file at least twice main's data is written again at the load.
+    adapted += [source / name for name in adapt_pipeline_cache_compact(source)]
+    # Core 731 (lot 11, IPA 724 Hogwarts: 24 cache trims in 150 s with the device at 4-9 % each evicted a quarter to a half of
+    # the buffers in use, recreated at once: 1 400 to 7 026 buffers per 5 s window): while only the device is short the
+    # buffer cache gives back what nothing used for a minute of play.
+    adapted += [source / name for name in adapt_cold_buffer_trim(source)]
+    # Core 733 (lot 12, IPA 725 Hogwarts: the guest's threads at priority 31 spend 20 to 35 % of their time on performance
+    # cores in the stretches at 20 FPS, the render and GPU threads at 47 spend 80 to 97 %): the threads a frame or the
+    # sound waits for ask the user-interactive class.
+    adapted += [source / name for name in adapt_host_thread_class(source)]
+    # Core 735 (lot 14, IPA 725 Hogwarts: pool-array delta updates 0.43 to 0.68 s per 5.1 s on the GPU thread, 53 to 160 ids
+    # per call of which 88 % changed, in steady scenes too): a Map or Unmap re-queues the partially mapped textures it can
+    # concern, not all of them.
+    adapted += adapt_remap_sweep_range(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -609,7 +640,14 @@ def main():
                  'adapt_gc_keepalive_dormant.py',
                  'adapt_gc_pause_journal.py',
                  'adapt_extra_array_dirty.py',
-                 'adapt_array_barrier_epoch.py']:
+                 'adapt_array_barrier_epoch.py',
+                 'adapt_variant_replay_all.py',
+                 'adapt_pause_checkpoint_growth.py',
+                 'adapt_vulkan_memory_journal.py',
+                 'adapt_pipeline_cache_compact.py',
+                 'adapt_cold_buffer_trim.py',
+                 'adapt_host_thread_class.py',
+                 'adapt_remap_sweep_range.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

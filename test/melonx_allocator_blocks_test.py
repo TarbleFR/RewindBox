@@ -17,6 +17,10 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
+# Core 727 form: <delivered control> --candidate-source <final preparation>. The control's allocator files are the
+# delivered Core's (this adapter and the range updates applied); the candidate's are the final preparation's, which
+# adapt_vulkan_memory_journal extends with read-only methods. The instrumented run must be identical on both sides.
+FINAL = Path(sys.argv[sys.argv.index('--candidate-source') + 1]).resolve() if '--candidate-source' in sys.argv else None
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_allocator_blocks import apply
@@ -24,6 +28,21 @@ from adapt_allocator_blocks import apply
 PREIMAGES = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs': 'e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs': '8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2', 'src/Ryujinx.Graphics.Vulkan/VulkanException.cs': '979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c', 'src/Ryujinx.Common/Utilities/BitUtils.cs': '3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261'}
 CALLERS = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs': '15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3', 'src/Ryujinx.Graphics.Vulkan/DonatedBufferAllocator.cs': '0c84a345748de604d66c9d94adc4a4dcc7709832cddc416a7c755855406003ee'}
 
+if FINAL is not None:
+    import adapt_vulkan_memory_journal as journal
+    for relative in (journal.BLOCKS, journal.ALLOCATOR):
+        (PREIMAGES if relative in PREIMAGES else CALLERS)[relative] = journal.BASELINE[relative]
+        text = (FINAL / relative).read_text(encoding='utf-8-sig')
+        for old, new in reversed(journal.EDITS[relative]):
+            assert text.count(new) == 1, 'journal edit present once: ' + relative
+            text = text.replace(new, old)
+        assert text == (SOURCE / relative).read_text(encoding='utf-8-sig'), 'final = delivered + the journal additions only: ' + relative
+    # The other inputs are the delivered Core's files, unchanged in the final preparation.
+    for table in (PREIMAGES, CALLERS):
+        for relative in table:
+            if relative not in (journal.BLOCKS, journal.ALLOCATOR):
+                assert (FINAL / relative).read_bytes() == (SOURCE / relative).read_bytes(), 'unchanged in the final preparation: ' + relative
+                table[relative] = hashlib.sha256((SOURCE / relative).read_bytes()).hexdigest()
 for relative, expected in {**PREIMAGES, **CALLERS}.items():
     assert hashlib.sha256((SOURCE / relative).read_bytes()).hexdigest() == expected, relative
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
@@ -38,7 +57,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-allocator-blocks-') as temporary
             for relative in PREIMAGES:
                 target = work / relative; target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(SOURCE / relative, target)
-            if variant == 'candidate':
+            if variant == 'candidate' and FINAL is not None:
+                relative = 'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs'
+                shutil.copyfile(FINAL / relative, work / relative)
+                postimages = {relative: hashlib.sha256((work / relative).read_bytes()).hexdigest()}
+            elif variant == 'candidate':
                 changed = apply(work)
                 hashes = {str(path.relative_to(work)): hashlib.sha256(path.read_bytes()).hexdigest() for path in changed}
                 if postimages: assert postimages == hashes
@@ -78,7 +101,19 @@ with tempfile.TemporaryDirectory(prefix='melonx-allocator-blocks-') as temporary
             result.check_returncode()
             reports[variant][mode] = json.loads(result.stdout.strip().splitlines()[-1])
             print(json.dumps({variant + '/' + mode: reports[variant][mode]}, sort_keys=True), flush=True)
-for mode in ('instrumented', 'timing'):
+if FINAL is not None:
+    # Both sides carry the block lookup: the instrumented traces (allocation requests, block visits, comparisons,
+    # failures, leaks) must be identical; the journal methods add no visit and no allocation.
+    # Wall-clock fields (elapsedMs) and the probe's own check counter (it counts checks made by racing threads in the
+    # concurrent part, which varies run to run) are left out; every trace, count, size and failure is compared.
+    def stable(value):
+        if isinstance(value, dict):
+            return {k: stable(v) for k, v in value.items() if k not in ('elapsedMs', 'checks')}
+        if isinstance(value, list):
+            return [stable(v) for v in value]
+        return value
+    assert stable(reports['control']['instrumented']) == stable(reports['candidate']['instrumented']), 'final allocator behaves as the delivered one'
+for mode in (() if FINAL is not None else ('instrumented', 'timing')):
     old, new = [reports[v][mode] for v in ('control', 'candidate')]
     for field in ('imported', 'concurrent'):
         assert old[field] == new[field], (mode, field)
@@ -97,6 +132,8 @@ for mode in ('instrumented', 'timing'):
         assert (a['mode'], a['dedicatedCount'], a['queries'], a['allocatedBytes']) == (b['mode'], b['dedicatedCount'], b['queries'], b['allocatedBytes'])
 # Count probes establish the recurring-work reduction without relying on noisy timers.
 old, new = [reports[v]['instrumented'] for v in ('control', 'candidate')]
+if FINAL is not None:
+    old, new = dict(churn=[], searches=[]), dict(churn=[], searches=[])
 for a, b in zip(old['churn'], new['churn'], strict=True):
     assert (a['liveBlocks'], a['operations']) == (b['liveBlocks'], b['operations'])
     assert b['operations'] <= b['blockVisits'] <= 2 * b['operations'] and b['comparisons'] == 0, b
@@ -109,7 +146,10 @@ for a, b in zip(old['searches'], new['searches'], strict=True):
 
 inputs = ['build-utils/melonx/adapt_allocator_blocks.py', 'test/melonx_allocator_blocks_test.py',
           'test/melonx_allocator_blocks/Program.cs', 'test/melonx_allocator_blocks/Boundaries.cs']
-receipt = dict(result='passed', reports=reports, physicalDeviceTested=False,
+if FINAL is not None:
+    inputs.append('build-utils/melonx/adapt_vulkan_memory_journal.py')
+receipt = dict(result='passed', reports=reports, physicalDeviceTested=False, finalPreparationBound=FINAL is not None,
+               sourceKind='deliveredPreparedWithFinalCandidate' if FINAL is not None else 'pristineUpstream',
                completeProductionAllocatorAndHandlesAndRanges=True,
                nativeDriverDoubled=True,
                managedBlockAndPublicationFailuresInjected=True,
