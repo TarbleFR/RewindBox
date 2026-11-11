@@ -2108,7 +2108,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           Core 731 stays pinned; reported to the MeloNX session. Lot 13 (bridge heap sampler, cc611f3c) merged as 991e5e83
           (contract unchanged; heap report 13, perf journal 61 checks). Gate correction 5bb9458e merged as f974efac
           (compute-switch: tiered compilation off, seven rounds each against a same-process reference round, candidate
-          still required below the control; contract 4e0ea3ea, 483/419, reads 440, arrays 545). Core CI: run 43016327008.
+          still required below the control; contract 4e0ea3ea, 483/419, reads 440, arrays 545). Core CI: run 43016327008 **failed** at a
+          third gate, melonx_pipeline_variant_replay_test (job 130508259936): "FAILED: launch 2: one deterministic failure (a strike), two
+          temporary (memory short, renderer throw), one built"; the two corrected gates passed. Not pinned, not rerun; reported.
           Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository

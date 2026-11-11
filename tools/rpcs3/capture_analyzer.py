@@ -31,7 +31,8 @@ LOSS_MARKERS = ('LOG_ROTATION file=', 'LOG_BACKLOG dropped=', 'LOG_BUDGET droppe
 KV = re.compile(r'(\w+)=("[^"]*"|[^\s]+)')
 WINDOW_KINDS = ('FRAMEPROF527', 'GPUTIME621', 'SPUWAIT551', 'WAITPROF527', 'RSXFRAME551', 'EPOCH909', 'OPT559', 'OPT581', 'OPT583',
                 'TEXMEMO660', 'RPASS652', 'RPASS655', 'PPUGRACE664', 'RSXSYNC551', 'IDLE916', 'GOW3MLAA909', 'AUTOPPU916', 'AUTOSTORM917', 'PARKCMP917', 'SCHED918',
-                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527', 'TEXCACHE621', 'TEXSWEEP921')
+                'ZCULLDEMAND619', 'ZCULLLEAD659', 'ZCULLWATCH660', 'ZCULLCOST920', 'MEMPROF527', 'TEXCACHE621', 'TEXSWEEP921',
+                'ENERGY931', 'THERMAL931')
 # Lines without window= (and sometimes without session=): attached to the window reported in the same burst.
 BURST_KINDS = ('frames', 'RANGELOCKPROF')
 BURST_SECONDS = 1.5
@@ -360,6 +361,10 @@ COLUMNS = (('fps', 'FRAMEPROF527', 'wall_guest_fps'), ('p95_ms', 'FRAMEPROF527',
            ('park_spin', 'RANGELOCKPROF', 'park_spin'), ('park_hist', 'RANGELOCKPROF', 'wl_putllc_park_hist'), ('slow_park_ms', 'RANGELOCKPROF', 'wl_putllc_slow_park_ms'),
            ('over_budget', 'RANGELOCKPROF', 'wl_putllc_over_budget'), ('ppu_parked', 'RANGELOCKPROF', 'ppu_parked'), ('ppu_main_parked', 'RANGELOCKPROF', 'ppu_main_parked'),
            ('busy_scale', 'SCHED918', 'busy_wait_scale'), ('mach_traps', 'SCHED918', 'mach_traps'), ('ctx_switches', 'SCHED918', 'context_switches'),
+           # REWINDBOX_ENERGY_931 and REWINDBOX_THERMAL_POLICY_931: energy billed by the system, its part on the performance
+           # cores, the short timer wakeups, the thermal state and whether the event waits ran in the window.
+           ('energy_mj', 'ENERGY931', 'cpu_energy_mj'), ('mj_per_frame', 'ENERGY931', 'mj_per_frame'), ('p_share', 'ENERGY931', 'p_share'),
+           ('timer_wake_2ms', 'ENERGY931', 'timer_wakeups_2ms'), ('thermal', 'THERMAL931', 'thermal_state'), ('event_waits', 'THERMAL931', 'event_waits'),
            ('epoch_put', 'EPOCH909', 'put'), ('put_deferred', 'EPOCH909', 'put_deferred'), ('put_patched', 'EPOCH909', 'put_patched'),
            ('lookahead', 'OPT583', 'lookahead'), ('worker_used', 'OPT583', 'worker_used'), ('worker_hashes', 'OPT581', 'worker_hashes'),
            ('memo_ways', 'TEXMEMO660', 'ways'), ('memo_lookups', 'TEXMEMO660', 'lookups'), ('memo_hits', 'TEXMEMO660', 'hits'),
@@ -393,6 +398,55 @@ SHOWN_LEVERS = ('spu_noop_spin_wait', 'texture_lookup_memo', 'ppu_grace', 'put_e
 
 
 STORM_BOUND = 100000  # heavy PUTLLC per report window: the bound of the Core (IOSAutoStorm917.h, IOSWriterParkSpin917.h)
+
+
+def thermal_comparison(windows: dict) -> list:
+    """Core 931: energy per frame by thermal state, and with and without the event waits.
+
+    From COREPROF ENERGY931 (energy the system billed for the process's CPU work in the window, its part on the
+    performance cores, timer wakeups due within 2 ms) and COREPROF THERMAL931 (thermal state at the report, whether the
+    event waits ran in the window). Windows without frames, or without an available energy line, are left out. The
+    comparison of the event waits is only printed when both sides hold windows in the SAME thermal state: a hot window
+    against a cool one compares the temperature, not the waits."""
+    rows = []
+    for window, data in windows.items():
+        try:
+            number_window = int(window)
+        except (TypeError, ValueError):
+            continue
+        fps = number(value(data, 'FRAMEPROF527', 'wall_guest_fps'))
+        if not fps or value(data, 'ENERGY931', 'energy') != 'available':
+            continue
+        rows.append({'window': number_window, 'fps': fps, 'state': value(data, 'THERMAL931', 'thermal_state'),
+                     'waits': value(data, 'THERMAL931', 'event_waits'),
+                     'mj_per_frame': number(value(data, 'ENERGY931', 'mj_per_frame')), 'energy_mj': number(value(data, 'ENERGY931', 'cpu_energy_mj')),
+                     'p_share': number(value(data, 'ENERGY931', 'p_share')), 'timer_wakeups': number(value(data, 'ENERGY931', 'timer_wakeups_2ms')),
+                     'context_switches': number(value(data, 'SCHED918', 'context_switches')) if value(data, 'SCHED918', 'task_events') == 'available' else None})
+    if not rows:
+        return []
+
+    def median(group, key, digits=3):
+        values = [row[key] for row in group if row[key] is not None]
+        return ('%.' + str(digits) + 'f') % statistics.median(values) if values else 'absent'
+
+    def describe(group):
+        return (f"windows {len(group)} ({','.join(str(row['window']) for row in sorted(group, key=lambda r: r['window']))}) fps {median(group, 'fps', 2)} "
+                f"mj_per_frame {median(group, 'mj_per_frame')} energy_mj {median(group, 'energy_mj', 1)} p_share {median(group, 'p_share')} "
+                f"timer_wakeups_2ms {median(group, 'timer_wakeups', 0)} context_switches {median(group, 'context_switches', 0)}")
+
+    out = ['   energy per frame (medians per window; ENERGY931, THERMAL931):']
+    by_state = {}
+    for row in rows:
+        by_state.setdefault(row['state'], []).append(row)
+    for state, group in sorted(by_state.items()):
+        out.append(f"      thermal_state={state}: {describe(group)}")
+        sides = {}
+        for row in group:
+            sides.setdefault(row['waits'], []).append(row)
+        if 'on' in sides and 'off' in sides:
+            out.append(f"         event_waits=off: {describe(sides['off'])}")
+            out.append(f"         event_waits=on: {describe(sides['on'])}")
+    return out
 
 
 def park_comparison(windows: dict) -> list:
@@ -640,6 +694,7 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             if not dump['lwconds'] and not dump['stacks']:
                 out.append('      lwcond and ppu_stack lines: absent from this dump')
         out.extend(park_comparison(entry['windows']))
+        out.extend(thermal_comparison(entry['windows']))
         steps = [w['PARKCMP917'] for _, w in sorted(entry['windows'].items()) if 'PARKCMP917' in w]
         if steps:
             out.append(f"   comparison steps printed by the Core: {len(steps)} (first [{steps[0].get('_origin')}], last next_cycle={steps[-1].get('next_cycle', 'no_field')} "
