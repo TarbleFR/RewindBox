@@ -9,9 +9,13 @@
 # the generated host and the version stamp, and the probe checks on the built and on the signed
 # application; the S2Arm engine: its JIT helper extension added to the generated host, its frameworks
 # downloaded from their authenticated producer run, placed in the built application with their
-# identity and checked in it and in the signed IPA; two declared edits of common steps (the Dolphin
-# packager run through the launcher with the S2Arm-aware extension set, one extension more in the
-# version check). A push whose subject has no delivery tag runs nothing (every job is skipped).
+# identity and checked in it and in the signed IPA; its host bridge (packages/s2arm_engine_bridge): the
+# preparation library downloaded from its authenticated producer run and installed in the bridge
+# package before CocoaPods, the system data downloaded from its authenticated producer run and placed
+# in the built application before the engine, both recorded in the engine identity and checked with it;
+# two declared edits of common steps (the Dolphin packager run through the launcher with the S2Arm-aware
+# extension set, one extension more in the version check). A push whose subject has no delivery tag
+# runs nothing (every job is skipped).
 name: RewindBox Switch 2 test IPA delivery
 run-name: RewindBox Switch 2 test delivery - ${{ github.sha }}
 'on':
@@ -433,6 +437,12 @@ jobs:
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py component-runs
     - name: Download and authenticate the S2Arm engine frameworks of the pinned producer run
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-download
+    - name: Download and authenticate the S2Arm preparation library of the pinned producer run
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py prepare-download
+    - name: Download and authenticate the S2Arm system data of the pinned producer run
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py sysdata-download
+    - name: Install the S2Arm preparation library in the engine bridge package before CocoaPods
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py prepare-install
     - name: Download the replaced MeloNX Core producer artifact
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py download-melonx
     - name: Authenticate the replaced MeloNX Core inputs, gates and runtime evidence
@@ -660,6 +670,8 @@ jobs:
       run: python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Place the S2Arm system data and its licences in the built application
+      run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py sysdata-embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed the S2Arm engine frameworks and their identity in the built application
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Check the S2Arm engine frameworks, identity and JIT helper in the built application

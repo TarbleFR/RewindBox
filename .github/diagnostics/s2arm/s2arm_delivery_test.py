@@ -12,8 +12,13 @@ The S2Arm engine: its producer run and artifact authenticated (mocked API, synth
 frameworks and identity embedded and checked in a synthetic built application and signed IPA, the in-memory
 S2Arm-aware extension sets of the two common validators (same outcome as the originals without the identity),
 the engine steps and the two declared edits of common steps, a draft carrying the engine, the verifier edit.
+The engine bridge (packages/s2arm_engine_bridge): its preparation library and system data producers authenticated
+(mocked API, synthetic xcframework and system data tree), the library installed where the podspec vendors it, the
+tree placed as S2ArmSystemData, both recorded in the engine identity and checked in the built application, the
+signed IPA and offline (system data against SHA256SUMS, licences, direct chain, registrant, a synthetic Runner's
+symbols and export trie), the four steps and their order, a draft carrying the bridge.
 Not covered here (needs the reshaped history, the network or a macOS build): freeze, the API-backed
-contract checks, the run itself, a real engine framework.
+contract checks, the run itself, a real engine framework, a real xcframework, system data tree or Runner.
 """
 from __future__ import annotations
 
@@ -342,9 +347,13 @@ class Workflow(unittest.TestCase):
             'flutter': [], 'native': [], 'republish': [],
             'application': ['Check the committed recipient public key of this build',
                             'Download and authenticate the S2Arm engine frameworks of the pinned producer run',
+                            'Download and authenticate the S2Arm preparation library of the pinned producer run',
+                            'Download and authenticate the S2Arm system data of the pinned producer run',
+                            'Install the S2Arm preparation library in the engine bridge package before CocoaPods',
                             'Turn the S2Arm device probe on in the generated host',
                             'Add the S2Arm JIT helper extension to the generated host',
                             'Check the S2Arm probe key and code in the compiled application',
+                            'Place the S2Arm system data and its licences in the built application',
                             'Embed the S2Arm engine frameworks and their identity in the built application',
                             'Check the S2Arm engine frameworks, identity and JIT helper in the built application',
                             'Check the S2Arm probe key and code in the signed IPA',
@@ -361,13 +370,15 @@ class Workflow(unittest.TestCase):
         calls = re.findall(r'python3 -B (\S+) (\S+)', self.text)
         recipe_calls = [script for script, _ in calls if 'standard_delivery' in script]
         self.assertEqual(set(recipe_calls), {'.github/diagnostics/s2arm/standard_delivery_s2arm.py'})
-        # The common calls, the three guards, the four engine steps and the routed Dolphin packager.
-        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3 + 5)
+        # The common calls, the three guards, the four engine steps and the routed Dolphin packager, and the four
+        # steps of the engine bridge (preparation library download and install, system data download and placement).
+        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3 + 5 + 4)
         self.assertNotIn('diagnostics/standard_delivery.py', self.text)
         operations = {operation for script, operation in calls if 'standard_delivery' in script}
         self.assertLessEqual(operations, set(self.sd.OPERATIONS) | set(line.LINE_OPERATIONS))
         self.assertLessEqual({'request-guard', 'recipient-guard', 'engine-download', 'engine-embed', 'engine-check-app',
-                              'engine-check-ipa', 'dolphin-package'}, operations)
+                              'engine-check-ipa', 'dolphin-package', 'prepare-download', 'prepare-install',
+                              'sysdata-download', 'sysdata-embed'}, operations)
         self.assertEqual(set(line.LINE_OPERATIONS) - {'inventory'},
                          set(line.PATH_OPERATIONS) | set(line.PLAIN_OPERATIONS))
         self.assertLessEqual(set(line.EXTENDED_OPERATIONS), operations)
@@ -685,6 +696,7 @@ ENGINE_ZIP_SHA = 'f' * 64
 ARTIFACT_ID = 777001
 ENGINE_RUN = 43100000001
 PRODUCER = '9' * 40
+CHAIN = b'0be3f28548fd'
 
 
 def dylib(install_name, dependencies=(), signed=False, filetype=6, rpaths=()):
@@ -715,6 +727,8 @@ def framework_files(name, signed=False):
         f'{name}.framework/Info.plist': plistlib.dumps({'CFBundleExecutable': name, 'CFBundlePackageType': 'FMWK',
                                                          'CFBundleIdentifier': 'org.s2arm.' + name}),
         f'{name}.framework/{name.lower()}.metallib': b'MTLB fixture data'}
+    if name == 'S2ArmEngine':   # written beside the engine by its producer (guest.mk): DMSH_CHAIN of the pin
+        files[f'{name}.framework/{line.DIRECT_CHAIN}'] = CHAIN + b'\n'
     if signed:
         files[f'{name}.framework/_CodeSignature/CodeResources'] = b'<plist>signed</plist>'
     return files
@@ -734,7 +748,8 @@ def zipped(files, symlink=None):
 
 PATCHES = {'build-utils/s2arm/engine/patches/0001-a.patch': b'patch one\n',
            'build-utils/s2arm/engine/patches/0002-b.patch': b'patch two\n'}
-PIN = json.dumps({'s2arm': {'commit': '6b6a571553f7a687af46e03e2cdbf8ef4d77f335'}}).encode()
+PIN = json.dumps({'s2arm': {'commit': '6b6a571553f7a687af46e03e2cdbf8ef4d77f335'},
+                  'dependencies': json.loads((ROOT / line.ENGINE_PIN).read_bytes())['dependencies']}).encode()
 
 
 class FakeRepo:
@@ -782,8 +797,161 @@ def api_for(artifact, run=None, artifacts=None):
     return get
 
 
+# --- The engine bridge: synthetic producers of the preparation library and of the system data ------------------
+PREPARE_RUN = 43100000002
+SYSDATA_RUN = 43100000003
+PREPARE_ARTIFACT_ID = 777002
+SYSDATA_ARTIFACT_ID = 777003
+LIBRARY = b'!<arch>\nS2ArmPrepare.o/ 0 0 0 644 16 `\nrelocatable obj\n'
+REGISTRANT = ('#import "GeneratedPluginRegistrant.h"\n@implementation GeneratedPluginRegistrant\n'
+              '+ (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {\n'
+              '  [S2ArmProbePlugin registerWithRegistrar:[registry registrarForPlugin:@"S2ArmProbePlugin"]];\n'
+              f'  {line.BRIDGE_REGISTRATION}\n}}\n@end\n')
+
+
+def xcframework(library=LIBRARY, entry=None, extra=None, info=None):
+    """S2ArmPrepare.xcframework as xcodebuild -create-xcframework makes it from one iOS arm64 static library."""
+    library_entry = dict(BinaryPath=line.PREPARE_LIBRARY, HeadersPath='Headers', LibraryIdentifier='ios-arm64',
+                         LibraryPath=line.PREPARE_LIBRARY, SupportedArchitectures=['arm64'], SupportedPlatform='ios')
+    library_entry.update(entry or {})
+    plist = dict(AvailableLibraries=[library_entry], CFBundlePackageType='XFWK', XCFrameworkFormatVersion='1.0')
+    plist.update(info or {})
+    root = line.PREPARE_XCFRAMEWORK + '/'
+    files = {root + 'Info.plist': plistlib.dumps(plist), root + 'ios-arm64/' + line.PREPARE_LIBRARY: library,
+             root + 'ios-arm64/Headers/s2arm_prepare.h': b'/* fixture */\n',
+             root + 'ios-arm64/Headers/s2arm_pack.h': b'/* fixture */\n'}
+    files.update(extra or {})
+    return files
+
+
+def prepare_producer(files=None, sums=None, identity=None, undefined=None, extra=None, drop=(), library=LIBRARY,
+                     archive=None):
+    """The s2arm-core.yml artifact: the xcframework archive (built from `files`, or given), sha256.txt, undefined.txt
+    and the identity."""
+    if archive is None:
+        archive = zipped(xcframework(library=library) if files is None else files)
+    listing = (f'{sha(archive)}  {line.PREPARE_ZIP}\n{sha(LIBRARY)}  {line.PREPARE_LIBRARY}\n'.encode()
+               if sums is None else sums)
+    pin = json.loads(PIN)
+    value = dict(component=line.PREPARE_XCFRAMEWORK, source=PRODUCER, s2arm=pin['s2arm']['commit'],
+                 dependencies={name: entry['sha256'] for name, entry in pin['dependencies'].items()},
+                 sha256={line.PREPARE_ZIP: sha(archive), line.PREPARE_LIBRARY: sha(LIBRARY)}, xcode='Xcode 16.4')
+    value.update(identity or {})
+    members = {line.PREPARE_ZIP: archive, line.PREPARE_SUMS: listing,
+               line.PREPARE_UNDEFINED: b'\nlibS2ArmPrepare.a(S2ArmPrepare.o):\n_free\n_malloc\n' if undefined is None
+               else undefined, line.PREPARE_IDENTITY: json.dumps(value).encode(), **(extra or {})}
+    return zipped({name: data for name, data in members.items() if name not in drop}), sha(archive)
+
+
+def sysdata_tree():
+    """The system data tree build_sysdata_bundle.sh makes (open fonts, tz data, synthesised data), without SHA256SUMS."""
+    return {
+        'systemdata/fonts/nintendo_udsg-r_std_003.bfttf': b'open replacement font fixture',
+        'systemdata/fonts/nintendo_ext_003.bfttf': b'pad icon font fixture',
+        'systemdata/010000000000080E/zoneinfo/UTC': b'TZif2 fixture',
+        'systemdata/010000000000080E/binaryList.txt': b'UTC\n',
+        'systemdata/0100000000000802/data.bin': b'empty but well-formed fixture',
+        'systemdata/0100000000000802.synth': '合成：pack/sysdata_synth.py 0100000000000802\n'.encode(),
+        'licenses/fonts/OFL-NotoSans.txt': b'SIL Open Font License 1.1 fixture',
+        'licenses/fonts/OFL-NotoSansCJK.txt': b'SIL Open Font License 1.1 fixture',
+        'licenses/fonts/MANIFEST.tsv': b'font\tsource\n',
+        'licenses/fonts/LICENSES.md': b'# fonts\n',
+        'licenses/tzdata/LICENSE': b'Unless specified below, all files in the tz code and data are in the public domain.\n',
+        'SOURCES.tsv': ('part\tsource\ns2arm\t' + json.loads(PIN)['s2arm']['commit'] + '\nfonts\tfixture\n'
+                        'tzdata\tservices/systemdata/make_tzdata.sh, IANA 2026f\nsynthesised\t0100000000000802\n').encode(),
+    }
+
+
+def sums_of(files):
+    return ''.join(f'{sha(data)}  {path}\n' for path, data in files.items()).encode()
+
+
+def sysdata_producer(tree=None, sums=None, extra=None, drop=(), symlink=None):
+    """The macOS system data artifact of s2arm-prepare.yml: the tree and its SHA256SUMS."""
+    tree = sysdata_tree() if tree is None else tree
+    members = dict(tree, SHA256SUMS=sums_of(tree) if sums is None else sums)
+    members.update(extra or {})
+    return zipped({name: data for name, data in members.items() if name not in drop}, symlink), sha(members['SHA256SUMS'])
+
+
+def producer_api(run_id, workflow, pattern, artifact, artifact_id, run=None, artifacts=None):
+    """The API of one producer run (successful, this branch, PRODUCER) and of its one artifact."""
+    name = pattern.format(source=PRODUCER)
+
+    def get(endpoint):
+        if endpoint == f'actions/runs/{run_id}':
+            return dict(dict(id=run_id, path=workflow, head_branch=line.DELIVERY_BRANCH, status='completed',
+                             conclusion='success', run_attempt=1, head_sha=PRODUCER), **(run or {}))
+        if endpoint == f'actions/runs/{run_id}/artifacts?name={name}&per_page=100':
+            default = [dict(id=artifact_id, name=name, size_in_bytes=len(artifact), digest='sha256:' + sha(artifact),
+                            expired=False, expires_at='2026-12-01T00:00:00Z',
+                            workflow_run=dict(id=run_id, head_sha=PRODUCER))]
+            return dict(artifacts=default if artifacts is None else artifacts(default))
+        raise AssertionError('unexpected endpoint ' + endpoint)
+    return get
+
+
+def prepare_api(artifact, **keywords):
+    return producer_api(PREPARE_RUN, line.PREPARE_WORKFLOW, line.PREPARE_ARTIFACT, artifact, PREPARE_ARTIFACT_ID, **keywords)
+
+
+def sysdata_api(artifact, **keywords):
+    return producer_api(SYSDATA_RUN, line.SYSDATA_WORKFLOW, line.SYSDATA_ARTIFACT, artifact, SYSDATA_ARTIFACT_ID, **keywords)
+
+
+def uleb(value):
+    out = bytearray()
+    while True:
+        byte, value = value & 0x7F, value >> 7
+        out.append(byte | (0x80 if value else 0))
+        if not value:
+            return bytes(out)
+
+
+def export_trie(names):
+    """A dyld export trie: the root's edges are the whole names, each leading to a terminal node (flags 0)."""
+    names = sorted(names)
+    leaf = uleb(3) + b'\x00' + uleb(0x1000) + b'\x00'   # terminal of 3 bytes: flags, address; no child
+    size = 0
+    while True:
+        root = b'\x00' + bytes([len(names)]) + b''.join(
+            name.encode() + b'\0' + uleb(size + index * len(leaf)) for index, name in enumerate(names))
+        if len(root) == size:
+            return root + leaf * len(names)
+        size = len(root)
+
+
+def runner_image(defined=None, undefined=(), exports=None, entitlements=None, dependencies=(), rpaths=()):
+    """A synthetic arm64 iOS Runner: build version, dylibs and rpaths, a symbol table (external definitions and
+    imports), a dyld export trie (LC_DYLD_EXPORTS_TRIE) and a code signature with the given entitlements."""
+    defined = ['_main', *line.RUNNER_DEFINES] if defined is None else list(defined)
+    exports = ['__mh_execute_header', '_main', line.ENGINE_LOADED] if exports is None else list(exports)
+
+    def text(kind, value):
+        raw = value.encode() + b'\0'
+        size = (24 + len(raw) + 7) // 8 * 8
+        return struct.pack('<6I', kind, size, 24, 0, 0, 0) + raw + bytes(size - 24 - len(raw))
+    commands = [struct.pack('<6I', 0x32, 24, 2, 18 << 16, 0, 0)]
+    commands += [text(0xC, item) for item in dependencies] + [text(0x8000001C, item) for item in rpaths]
+    strings, entries = bytearray(b'\0'), bytearray()
+    for name, kind in [(name, 0x0F) for name in defined] + [(name, 0x01) for name in undefined]:
+        entries += struct.pack('<IBBHQ', len(strings), kind, 1 if kind == 0x0F else 0, 0, 0x1000 if kind == 0x0F else 0)
+        strings += name.encode() + b'\0'
+    trie = export_trie(exports)
+    signature = fixtures.macho({} if entitlements is None else entitlements)[48:]
+    size = sum(map(len, commands)) + 24 + 16 + 16
+    symbols = 32 + size
+    trie_offset = symbols + len(entries) + len(strings)
+    commands += [struct.pack('<6I', 2, 24, symbols, len(defined) + len(undefined), symbols + len(entries), len(strings)),
+                 struct.pack('<4I', 0x80000033, 16, trie_offset, len(trie)),
+                 struct.pack('<4I', 0x1D, 16, trie_offset + len(trie), len(signature))]
+    header = struct.pack('<8I', 0xFEEDFACF, 0x0100000C, 0, 2, len(commands), size, 0, 0)
+    return header + b''.join(commands) + bytes(entries) + bytes(strings) + trie + signature
+
+
 class EngineLine(unittest.TestCase):
-    """engine-download, engine-embed, engine-check-app and engine-check-ipa on synthetic producer data."""
+    """engine-download, engine-embed, engine-check-app and engine-check-ipa on synthetic producer data; the engine
+    bridge: prepare-download, prepare-install, sysdata-download, sysdata-embed and its checks in the application."""
     def setUp(self):
         directory = tempfile.TemporaryDirectory(prefix='s2arm-engine-')
         self.addCleanup(directory.cleanup)
@@ -794,8 +962,17 @@ class EngineLine(unittest.TestCase):
         self.script = (ROOT / line.HELPER_SCRIPT).read_bytes()
         (self.root / line.HELPER_SCRIPT).write_bytes(self.script)
         self.artifact, self.zips = producer_artifact()
+        # The engine bridge of the build: the committed podspec, the generated registrant, the two producers.
+        (self.root / line.BRIDGE_PODSPEC).parent.mkdir(parents=True)
+        shutil.copyfile(ROOT / line.BRIDGE_PODSPEC, self.root / line.BRIDGE_PODSPEC)
+        (self.root / line.BRIDGE_REGISTRANT).parent.mkdir(parents=True)
+        (self.root / line.BRIDGE_REGISTRANT).write_text(REGISTRANT)
+        self.prepare_artifact, self.prepare_zip = prepare_producer()
+        self.sysdata_artifact, self.tree = sysdata_producer()
         self.manifest = dict(build=803, images=dict(added=list(line.ENGINE_IMAGES)),
-                             s2arm=dict(engine=dict(workflow=line.ENGINE_WORKFLOW, run=ENGINE_RUN, zips=self.zips)))
+                             s2arm=dict(engine=dict(workflow=line.ENGINE_WORKFLOW, run=ENGINE_RUN, zips=self.zips),
+                                        prepare=dict(workflow=line.PREPARE_WORKFLOW, run=PREPARE_RUN, zip=self.prepare_zip),
+                                        sysdata=dict(workflow=line.SYSDATA_WORKFLOW, run=SYSDATA_RUN, tree=self.tree)))
         for name, value in (('OUT', self.out), ('ROOT', self.root)):
             patcher = mock.patch.object(self.sd, name, value)
             patcher.start()
@@ -803,13 +980,29 @@ class EngineLine(unittest.TestCase):
         patcher = mock.patch.object(self.sd, 'ci_manifest', lambda: self.manifest)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # As the workflow runs them before CocoaPods: the preparation library installed, the system data downloaded.
+        self.prepare()
+        line.prepare_install(self.sd, self.root)
+        self.sysdata()
 
     def download(self, artifact=None, get=None, repo=None):
         artifact = self.artifact if artifact is None else artifact
         return line.engine_download(self.sd, get or api_for(artifact), lambda identifier, path: path.write_bytes(artifact),
                                     repo or FakeRepo(), self.root)
 
-    def application(self, versions=('803', '0.0.8')):
+    def prepare(self, artifact=None, get=None, repo=None):
+        artifact = self.prepare_artifact if artifact is None else artifact
+        return line.prepare_download(self.sd, get or prepare_api(artifact),
+                                     lambda identifier, path: path.write_bytes(artifact), repo or FakeRepo(), self.root)
+
+    def sysdata(self, artifact=None, get=None, repo=None):
+        artifact = self.sysdata_artifact if artifact is None else artifact
+        return line.sysdata_download(self.sd, get or sysdata_api(artifact),
+                                     lambda identifier, path: path.write_bytes(artifact), repo or FakeRepo(), self.root)
+
+    def application(self, versions=('803', '0.0.8'), system_data=True, runner=None):
+        """The built application as the compilation leaves it (Runner linked with the bridge, the JIT helper), and
+        with the system data placed by sysdata-embed, as the workflow does right before engine-embed."""
         app = self.root / 'Runner.app'
         if app.exists():
             shutil.rmtree(app)
@@ -819,9 +1012,12 @@ class EngineLine(unittest.TestCase):
         host = {'CFBundleIdentifier': 'com.neogamelab.neostation', 'CFBundleVersion': versions[0],
                 'CFBundleShortVersionString': versions[1], 'CFBundleExecutable': 'Runner'}
         (app / 'Info.plist').write_bytes(plistlib.dumps(host))
+        (app / 'Runner').write_bytes(runner_image() if runner is None else runner)
         (helper / 'Info.plist').write_bytes(plistlib.dumps(helper_info(*versions)))
         (helper / line.HELPER_EXECUTABLE).write_bytes(helper_image(signed=False))
         (helper / 's2arm-universal.js').write_bytes(self.script)
+        if system_data:
+            line.sysdata_embed(self.sd, app, self.root)
         return app
 
     def test_download_authenticates_the_producer_run_and_its_files(self):
@@ -972,6 +1168,11 @@ class EngineLine(unittest.TestCase):
             for path, data in framework_files(name, signed=True).items():
                 members[fixtures.APP + 'Frameworks/' + path] = data
         members[fixtures.APP + line.PACKAGED_IDENTITY] = (app / line.PACKAGED_IDENTITY).read_bytes()
+        # The engine bridge: the system data as placed, and the signed Runner that links the bridge and S2ArmPrepare.
+        for path in sorted((app / line.SYSTEM_DATA).rglob('*')):
+            if path.is_file():
+                members[fixtures.APP + path.relative_to(app).as_posix()] = path.read_bytes()
+        members[fixtures.APP + 'Runner'] = signed_runner(members[fixtures.APP + 'Runner'])
         if change:
             change(members)
         ipa = self.root / 'dist/NeoStation.ipa'
@@ -1045,6 +1246,537 @@ class EngineLine(unittest.TestCase):
         self.assertIsNone(launcher.engine_check(common, report, work, Repo(dict(self.manifest, s2arm={}))))
         with self.assertRaisesRegex(line.LineError, 'lacks'):
             launcher.engine_check(common, report, work, Repo(self.manifest))
+
+    # --- The engine bridge: its preparation library and system data ---------------------------------------------
+
+    def run_refusals(self, function, cases, errors=(line.LineError,)):
+        for name, case in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(errors):
+                    function(**case)
+
+    def producer_run_cases(self, api, artifact):
+        """The refusals of a producer's run and artifact through the API (the engine's, for another producer)."""
+        other_workflow = line.SYSDATA_WORKFLOW if api is prepare_api else line.PREPARE_WORKFLOW
+        return {
+            'failed run': dict(get=api(artifact, run=dict(conclusion='failure'))),
+            'cancelled run': dict(get=api(artifact, run=dict(conclusion='cancelled'))),
+            'other branch': dict(get=api(artifact, run=dict(head_branch='Claude'))),
+            'other workflow': dict(get=api(artifact, run=dict(path=other_workflow))),
+            'engine workflow': dict(get=api(artifact, run=dict(path=line.ENGINE_WORKFLOW))),
+            'unfinished run': dict(get=api(artifact, run=dict(status='in_progress'))),
+            'no artifact': dict(get=api(artifact, artifacts=lambda items: [])),
+            'two artifacts': dict(get=api(artifact, artifacts=lambda items: items * 2)),
+            'expired': dict(get=api(artifact, artifacts=lambda items: [dict(items[0], expired=True)])),
+            'other run artifact': dict(get=api(artifact, artifacts=lambda items: [
+                dict(items[0], workflow_run=dict(id=1, head_sha=PRODUCER))])),
+            'other commit artifact': dict(get=api(artifact, artifacts=lambda items: [
+                dict(items[0], workflow_run=dict(items[0]['workflow_run'], head_sha='8' * 40))])),
+            'digest differs': dict(get=api(artifact, artifacts=lambda items: [dict(items[0], digest='sha256:' + '0' * 64)])),
+            'size differs': dict(get=api(artifact, artifacts=lambda items: [dict(items[0], size_in_bytes=1)])),
+            'commit not delivered': dict(repo=FakeRepo(ancestor=False)),
+        }
+
+    def test_prepare_download_authenticates_the_producer_run_and_its_library(self):
+        result = self.prepare()
+        producer = result['producer']
+        self.assertEqual((producer['workflow'], producer['run'], producer['source'], producer['branch']),
+                         (line.PREPARE_WORKFLOW, PREPARE_RUN, PRODUCER, line.DELIVERY_BRANCH))
+        self.assertEqual((producer['artifact']['id'], producer['artifact']['name']), (PREPARE_ARTIFACT_ID,
+                                                                                     'S2ArmPrepare-' + PRODUCER))
+        self.assertEqual(result['zip'], self.prepare_zip)
+        self.assertEqual(result['xcframework']['library'], dict(path='ios-arm64/' + line.PREPARE_LIBRARY,
+                                                                sha256=sha(LIBRARY), bytes=len(LIBRARY)))
+        self.assertEqual(result['xcframework']['headers'], ['s2arm_pack.h', 's2arm_prepare.h'])
+        self.assertEqual(result['identity']['s2arm'], json.loads(PIN)['s2arm']['commit'])
+        for name in line.PREPARE_MEMBERS:
+            self.assertTrue((self.root / line.PREPARE_DOWNLOAD / name).is_file(), name)
+        self.assertEqual(json.loads((self.out / 's2arm-prepare-download.json').read_bytes())['result'], 'authenticated')
+
+    def test_prepare_download_refusals(self):
+        self.run_refusals(self.prepare, self.producer_run_cases(prepare_api, self.prepare_artifact),
+                          (line.LineError, KeyError))
+        pin = json.loads(PIN)
+        self.run_refusals(self.prepare, {
+            'pin differs': dict(repo=FakeRepo(files=dict(PATCHES, **{'tools/s2arm_prototype/pin.json': json.dumps(
+                dict(pin, s2arm={'commit': '1' * 40})).encode()}))),
+            'pinned dependencies differ': dict(repo=FakeRepo(files=dict(PATCHES, **{'tools/s2arm_prototype/pin.json': json.dumps(
+                dict(pin, dependencies=dict(pin['dependencies'], lz4=dict(pin['dependencies']['lz4'], sha256='0' * 64)))
+            ).encode()}))),
+        })
+        lz = line.PREPARE_LIBRARY
+        library_entry = dict(BinaryPath=lz, HeadersPath='Headers', LibraryIdentifier='ios-arm64', LibraryPath=lz,
+                             SupportedArchitectures=['arm64'], SupportedPlatform='ios')
+        devices = 'for iOS arm64 devices'
+        artifacts = {   # case: (artifact, the message of the check that must refuse it)
+            'sha256.txt names another archive': (dict(sums=f'{"0" * 64}  {line.PREPARE_ZIP}\n{sha(LIBRARY)}  {lz}\n'.encode()),
+                                                 'sha256.txt must give'),
+            'sha256.txt lacks the library': (dict(sums=f'{{zip}}  {line.PREPARE_ZIP}\n'.encode()), 'sha256.txt must give'),
+            'sha256.txt names another file': (dict(sums=f'{{zip}}  {line.PREPARE_ZIP}\n{sha(LIBRARY)}  {lz}\n'
+                                                        f'{"1" * 64}  other.a\n'.encode()), 'sha256.txt must give'),
+            'sha256.txt malformed': (dict(sums=b'not a listing\n'), 'malformed or repeated'),
+            'identity of another commit': (dict(identity=dict(source='8' * 40)), 'another component or commit'),
+            'identity of another S2Arm': (dict(identity=dict(s2arm='1' * 40)), 'the producer commit pins'),
+            'identity of other dependencies': (dict(identity=dict(dependencies={})), 'the producer commit pins'),
+            'identity digests differ from sha256.txt': (dict(identity=dict(sha256={})), 'digests differ from sha256.txt'),
+            'identity of another component': (dict(identity=dict(component='Other.xcframework')),
+                                              'another component or commit'),
+            'identity without Xcode': (dict(identity=dict(xcode=' ')), 'names no Xcode'),
+            'identity Xcode not a string': (dict(identity=dict(xcode=None)), 'names no Xcode'),
+            'extra member': (dict(extra={'notes.txt': b'x'}), 'must hold exactly'),
+            'missing member': (dict(drop=(line.PREPARE_UNDEFINED,)), 'must hold exactly'),
+            'entry points left undefined': (dict(undefined=b'_free\n_rb_s2arm_prepare_code\n'), 'entry points undefined'),
+            'library differs from sha256.txt': (dict(library=b'!<arch>\nanother library\n'), 'measured'),
+            'not a static library': (dict(files=xcframework(library=dylib('@rpath/libS2ArmPrepare.dylib'))),
+                                     'not a static library'),
+            'simulator slice': (dict(files=xcframework(entry=dict(SupportedPlatformVariant='simulator'))), devices),
+            'other architectures': (dict(files=xcframework(entry=dict(SupportedArchitectures=['arm64', 'x86_64']))),
+                                    devices),
+            'macOS library': (dict(files=xcframework(entry=dict(SupportedPlatform='macos'))), devices),
+            'another library name': (dict(files=xcframework(entry=dict(LibraryPath='libOther.a'))), devices),
+            'two libraries': (dict(files=xcframework(info=dict(AvailableLibraries=[library_entry, library_entry]))),
+                              'exactly one library'),
+            'not an xcframework': (dict(files=xcframework(info=dict(CFBundlePackageType='FMWK'))), 'exactly one library'),
+            'extra library': (dict(files=xcframework(extra={'S2ArmPrepare.xcframework/ios-arm64/libOther.a': LIBRARY})),
+                              'holds other files'),
+            'nested header folder': (dict(files=xcframework(extra={
+                'S2ArmPrepare.xcframework/ios-arm64/Headers/sub/x.h': b'/* */'})), 'holds other files'),
+            'member outside the xcframework': (dict(files=dict(xcframework(), **{'Other/file': b'x'})), 'member outside'),
+            'dynamic image beside it': (dict(files=xcframework(extra={
+                'S2ArmPrepare.xcframework/ios-arm64/Headers/x.h': dylib('@rpath/X.framework/X')})), 'holds a Mach-O image'),
+        }
+        for name, (keywords, message) in artifacts.items():
+            with self.subTest(case=name):
+                # The manifest names each archive, so that the check of the case is the one that refuses it.
+                files = keywords.get('files')
+                archive = zipped(xcframework(library=keywords.get('library', LIBRARY)) if files is None else files)
+                keywords = {key: value for key, value in keywords.items() if key not in ('files', 'library')}
+                if isinstance(keywords.get('sums'), bytes):
+                    keywords['sums'] = keywords['sums'].replace(b'{zip}', sha(archive).encode())
+                artifact, digest = prepare_producer(archive=archive, **keywords)
+                self.assertEqual(digest, sha(archive))
+                self.manifest['s2arm']['prepare'] = dict(self.manifest['s2arm']['prepare'], zip=digest)
+                with self.assertRaisesRegex(line.LineError, message):
+                    self.prepare(artifact)
+        linked = zipped(xcframework(), symlink='S2ArmPrepare.xcframework/ios-arm64/link')
+        artifact, digest = prepare_producer(archive=linked)
+        self.manifest['s2arm']['prepare'] = dict(self.manifest['s2arm']['prepare'], zip=digest)
+        with self.assertRaisesRegex(line.LineError, 'symbolic link'):
+            self.prepare(artifact)
+        self.manifest['s2arm']['prepare'] = dict(self.manifest['s2arm']['prepare'], zip=self.prepare_zip)
+        self.assertEqual(self.prepare()['result'], 'authenticated', 'the refusals above leave the good artifact accepted')
+        other, _ = prepare_producer(files=xcframework(extra={'S2ArmPrepare.xcframework/ios-arm64/Headers/x.h': b'/**/'}))
+        with self.assertRaisesRegex(line.LineError, 'differs from the manifest'):
+            self.prepare(other)
+        for spec in (None, dict(workflow=line.PREPARE_WORKFLOW, run=0, zip=self.prepare_zip),
+                     dict(workflow=line.PREPARE_WORKFLOW, run=PREPARE_RUN, zip=self.prepare_zip.upper()),
+                     dict(workflow=line.PREPARE_WORKFLOW, run=str(PREPARE_RUN), zip=self.prepare_zip),
+                     dict(workflow=line.ENGINE_WORKFLOW, run=PREPARE_RUN, zip=self.prepare_zip),
+                     dict(workflow=line.PREPARE_WORKFLOW, run=PREPARE_RUN, zip=self.prepare_zip, tree=self.tree)):
+            with self.subTest(spec=spec):
+                self.manifest['s2arm'] = dict(self.manifest['s2arm'], prepare=spec)
+                if spec is None:
+                    del self.manifest['s2arm']['prepare']
+                with self.assertRaises(line.LineError):
+                    self.prepare()
+
+    def test_prepare_install_puts_the_library_where_the_podspec_vendors_it(self):
+        for path, data in xcframework().items():
+            self.assertEqual((self.root / line.BRIDGE_FRAMEWORKS / path).read_bytes(), data, path)
+        record = json.loads((self.out / 's2arm-prepare-install.json').read_bytes())
+        self.assertEqual((record['result'], record['path'], record['zip']),
+                         ('installed', 'packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework',
+                          self.prepare_zip))
+        self.assertEqual(record['library']['sha256'], sha(LIBRARY))
+        self.assertEqual(record['files'], line.installed_xcframework(self.root))
+        # The committed podspec vendors exactly that path; the package's .gitignore keeps what is installed out of Git.
+        self.assertEqual(line.check_podspec(ROOT), sha((ROOT / line.BRIDGE_PODSPEC).read_bytes()))
+        self.assertIn('/ios/Frameworks/', (ROOT / 'packages/s2arm_engine_bridge/.gitignore').read_text().splitlines())
+        ignored = subprocess.run(['git', 'check-ignore', '-q', line.BRIDGE_FRAMEWORKS + '/S2ArmPrepare.xcframework/Info.plist'],
+                                 cwd=ROOT)
+        self.assertEqual(ignored.returncode, 0, 'the installed xcframework would show in git status')
+        self.assertEqual(subprocess.run(['git', 'ls-files', line.BRIDGE_FRAMEWORKS], cwd=ROOT, capture_output=True,
+                                        text=True, check=True).stdout, '')
+        with self.assertRaisesRegex(line.LineError, 'not empty'):
+            line.prepare_install(self.sd, self.root)
+        shutil.rmtree(self.root / line.BRIDGE_FRAMEWORKS)
+        downloaded = self.root / line.PREPARE_DOWNLOAD / line.PREPARE_ZIP
+        original = downloaded.read_bytes()
+        downloaded.write_bytes(b'changed')
+        with self.assertRaisesRegex(line.LineError, 'changed after its download'):
+            line.prepare_install(self.sd, self.root)
+        downloaded.write_bytes(original)
+        podspec = (self.root / line.BRIDGE_PODSPEC).read_text()
+        for changed in (podspec.replace(line.BRIDGE_VENDORED, ''),
+                        podspec.replace("'Frameworks/S2ArmPrepare.xcframework'", "'Frameworks/Other.xcframework'"),
+                        podspec.replace(line.BRIDGE_VENDORED, line.BRIDGE_VENDORED + "\n  s.vendored_libraries = 'x.a'")):
+            with self.subTest(podspec=changed[-80:]):
+                (self.root / line.BRIDGE_PODSPEC).write_text(changed)
+                with self.assertRaisesRegex(line.LineError, 'must vendor'):
+                    line.prepare_install(self.sd, self.root)
+        (self.root / line.BRIDGE_PODSPEC).write_text(podspec)
+        self.manifest['build'] = 804
+        with self.assertRaisesRegex(line.LineError, 'not this build'):
+            line.prepare_install(self.sd, self.root)
+        self.manifest['build'] = 803
+        self.assertEqual(line.prepare_install(self.sd, self.root)['result'], 'installed')
+
+    def test_sysdata_download_checks_every_file_against_its_listing(self):
+        result = self.sysdata()
+        producer = result['producer']
+        self.assertEqual((producer['workflow'], producer['run'], producer['artifact']['name']),
+                         (line.SYSDATA_WORKFLOW, SYSDATA_RUN, 's2arm-sysdata-macOS-' + PRODUCER))
+        tree = sysdata_tree()
+        self.assertEqual((result['tree'], result['files'], result['fonts']), (self.tree, len(tree), 2))
+        self.assertEqual(result['bytes'], sum(map(len, tree.values())))
+        self.assertEqual(result['licences'], sorted(path for path in tree if path.startswith('licenses/')))
+        self.assertEqual(result['sources']['s2arm'], json.loads(PIN)['s2arm']['commit'])
+        for path, data in dict(tree, SHA256SUMS=sums_of(tree)).items():
+            self.assertEqual((self.root / line.SYSDATA_DOWNLOAD / 'tree' / path).read_bytes(), data, path)
+
+    def test_sysdata_download_refusals(self):
+        self.run_refusals(self.sysdata, self.producer_run_cases(sysdata_api, self.sysdata_artifact),
+                          (line.LineError, KeyError))
+        tree = sysdata_tree()
+
+        def without(*names):
+            return {path: data for path, data in tree.items() if path not in names}
+        listing = 'differs from its SHA256SUMS'
+        trees = {   # case: (artifact, the message of the check that must refuse it)
+            'missing file': (dict(tree=tree, drop=('licenses/fonts/MANIFEST.tsv',)), listing),
+            'extra file': (dict(tree=tree, extra={'systemdata/0100000000000802/extra.bin': b'x'}), listing),
+            'changed file': (dict(tree=dict(tree, **{'systemdata/fonts/nintendo_ext_003.bfttf': b'other'}),
+                                  sums=sums_of(tree)), 'differ from SHA256SUMS'),
+            'listing malformed': (dict(tree=tree, sums=b'not a listing\n'), 'malformed or repeated'),
+            'listing repeats a path': (dict(tree=tree, sums=sums_of(tree) + sums_of(dict(list(tree.items())[:1]))),
+                                       'malformed or repeated'),
+            'listing without newline': (dict(tree=tree, sums=sums_of(tree)[:-1]), 'not newline-terminated'),
+            'SOURCES.tsv of another S2Arm': (dict(tree=dict(tree, **{'SOURCES.tsv': tree['SOURCES.tsv'].replace(
+                json.loads(PIN)['s2arm']['commit'].encode(), b'1' * 40)})), 'the producer commit pins'),
+            'SOURCES.tsv without header': (dict(tree=dict(tree, **{'SOURCES.tsv': tree['SOURCES.tsv'].split(b'\n', 1)[1]})),
+                                           'no part/source header'),
+            'no SOURCES.tsv': (dict(tree=without('SOURCES.tsv')), 'has no SOURCES.tsv'),
+            'no time zone licence': (dict(tree=without('licenses/tzdata/LICENSE')), 'lacks the time zone licence'),
+            'no open font licence': (dict(tree=without('licenses/fonts/OFL-NotoSans.txt',
+                                                       'licenses/fonts/OFL-NotoSansCJK.txt')), 'open font licence'),
+            'no shared font': (dict(tree=without('systemdata/fonts/nintendo_udsg-r_std_003.bfttf',
+                                                 'systemdata/fonts/nintendo_ext_003.bfttf')), 'no shared font'),
+            'Mach-O file': (dict(tree=dict(tree, **{'systemdata/0100000000000802/code': dylib('@rpath/X.framework/X')})),
+                            'Mach-O image'),
+            'hidden file': (dict(tree=dict(tree, **{'systemdata/.DS_Store': b'x'})), 'unexpected path'),
+            'path outside the tree': (dict(tree=dict(tree, **{'other/file': b'x'})), 'unexpected path'),
+            'bundle-like folder': (dict(tree=dict(tree, **{'systemdata/X.framework/X': b'x'})), 'unexpected path'),
+            'paths that differ by case': (dict(tree=dict(tree, **{'systemdata/010000000000080E/zoneinfo/utc': b'x'})),
+                                          'differ only by case'),
+            'symbolic link': (dict(tree=tree, symlink='systemdata/link'), 'symbolic link'),
+        }
+        for name, (keywords, message) in trees.items():
+            with self.subTest(case=name):
+                artifact, digest = sysdata_producer(**keywords)
+                self.manifest['s2arm']['sysdata'] = dict(self.manifest['s2arm']['sysdata'], tree=digest)
+                with self.assertRaisesRegex(line.LineError, message):
+                    self.sysdata(artifact)
+        self.manifest['s2arm']['sysdata'] = dict(self.manifest['s2arm']['sysdata'], tree=self.tree)
+        other, _ = sysdata_producer(tree=dict(tree, **{'licenses/fonts/MANIFEST.tsv': b'other'}))
+        with self.assertRaisesRegex(line.LineError, 'not the one the manifest names'):
+            self.sysdata(other)
+        for spec in (None, dict(workflow=line.SYSDATA_WORKFLOW, run=0, tree=self.tree),
+                     dict(workflow=line.SYSDATA_WORKFLOW, run=SYSDATA_RUN, tree=self.tree[:-1]),
+                     dict(workflow=line.PREPARE_WORKFLOW, run=SYSDATA_RUN, tree=self.tree),
+                     dict(workflow=line.SYSDATA_WORKFLOW, run=SYSDATA_RUN, zip=self.tree)):
+            with self.subTest(spec=spec):
+                self.manifest['s2arm'] = dict(self.manifest['s2arm'], sysdata=spec)
+                if spec is None:
+                    del self.manifest['s2arm']['sysdata']
+                with self.assertRaises(line.LineError):
+                    self.sysdata()
+
+    def test_sysdata_embed_places_the_downloaded_tree_unchanged(self):
+        app = self.application(system_data=False)
+        result = line.sysdata_embed(self.sd, app, self.root)
+        self.assertEqual((result['path'], result['tree'], result['files']), (line.SYSTEM_DATA, self.tree,
+                                                                              len(sysdata_tree())))
+        self.assertEqual(line.tree_files(app / line.SYSTEM_DATA), dict(sysdata_tree(), SHA256SUMS=sums_of(sysdata_tree())))
+        self.assertEqual(sorted(path.name for path in (app / line.SYSTEM_DATA).iterdir()),
+                         ['SHA256SUMS', 'SOURCES.tsv', 'licenses', 'systemdata'])
+        with self.assertRaisesRegex(line.LineError, 'already'):
+            line.sysdata_embed(self.sd, app, self.root)
+        downloaded = self.root / line.SYSDATA_DOWNLOAD / 'tree'
+        changes = {
+            'file changed after the download': lambda: (downloaded / 'licenses/tzdata/LICENSE').write_bytes(b'x'),
+            'file added after the download': lambda: (downloaded / 'systemdata/extra').write_bytes(b'x'),
+            'file removed after the download': lambda: (downloaded / 'SOURCES.tsv').unlink(),
+        }
+        for name, change in changes.items():
+            with self.subTest(case=name):
+                self.sysdata()
+                change()
+                app = self.application(system_data=False)
+                with self.assertRaises(line.LineError):
+                    line.sysdata_embed(self.sd, app, self.root)
+                self.assertFalse((app / line.SYSTEM_DATA).exists(), 'nothing is placed from a changed tree')
+        self.sysdata()
+        self.manifest['build'] = 804
+        with self.assertRaisesRegex(line.LineError, 'not this build'):
+            line.sysdata_embed(self.sd, self.application(system_data=False), self.root)
+
+    def test_engine_embed_records_and_requires_the_bridge(self):
+        self.download()
+        app = self.application()
+        line.engine_embed(self.sd, app, self.root)
+        identity = json.loads((app / line.PACKAGED_IDENTITY).read_bytes())
+        prepare, system, bridge = identity['prepare'], identity['systemData'], identity['bridge']
+        self.assertEqual((prepare['workflow'], prepare['run'], prepare['zip'], prepare['linkedInto']),
+                         (line.PREPARE_WORKFLOW, PREPARE_RUN, self.prepare_zip, 'Runner'))
+        self.assertEqual((prepare['library']['sha256'], prepare['installedAt']),
+                         (sha(LIBRARY), 'packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework'))
+        self.assertEqual(prepare['producer']['artifact']['name'], 'S2ArmPrepare-' + PRODUCER)
+        self.assertEqual((system['workflow'], system['run'], system['tree'], system['path'], system['files']),
+                         (line.SYSDATA_WORKFLOW, SYSDATA_RUN, self.tree, line.SYSTEM_DATA, len(sysdata_tree())))
+        self.assertIn('licenses/tzdata/LICENSE', system['licences'])
+        self.assertEqual((bridge['pluginClass'], bridge['directChain'], bridge['registrant']['sha256']),
+                         ('S2ArmEngineBridgePlugin', CHAIN.decode(), sha(REGISTRANT.encode())))
+        self.assertEqual((bridge['runnerDefines'], bridge['runnerExports']), (list(line.RUNNER_DEFINES),
+                                                                              ['_rb_s2arm_engine_loaded']))
+        self.assertIs(identity['physicalDeviceTested'], False)
+        installed = self.root / line.BRIDGE_FRAMEWORKS / 'S2ArmPrepare.xcframework/ios-arm64/Headers/s2arm_pack.h'
+        registrant = self.root / line.BRIDGE_REGISTRANT
+        refusals = {
+            'system data not placed': (dict(system_data=False), None, 'Missing'),
+            'system data changed after its placement': (
+                {}, lambda app: (app / line.SYSTEM_DATA / 'SOURCES.tsv').write_bytes(b'x'), 'differ from SHA256SUMS'),
+            'library changed after its installation': ({}, lambda app: installed.write_bytes(b'/* other */'),
+                                                       'after its installation'),
+            'registrant without the bridge': ({}, lambda app: registrant.write_text(REGISTRANT.replace(
+                line.BRIDGE_REGISTRATION, '')), 'does not register'),
+        }
+        for name, (keywords, change, message) in refusals.items():
+            with self.subTest(case=name):
+                saved = installed.read_bytes(), registrant.read_bytes()
+                app = self.application(**keywords)
+                if change:
+                    change(app)
+                with self.assertRaisesRegex(line.LineError, message):
+                    line.engine_embed(self.sd, app, self.root)
+                self.assertFalse((app / line.PACKAGED_IDENTITY).exists() or (app / 'Frameworks/NS2Pro.framework').exists(),
+                                 'nothing is embedded when the bridge is refused')
+                installed.write_bytes(saved[0])
+                registrant.write_bytes(saved[1])
+        for chain, message in ((None, 'has no S2ArmDirectChain.txt'), (b'not a chain', 'not a direct shader chain'),
+                               (b'0be3f28548fd0', 'not a direct shader chain')):
+            with self.subTest(chain=chain):
+                files = {name: framework_files(name) for name in line.ENGINE_FRAMEWORKS}
+                member = f'S2ArmEngine.framework/{line.DIRECT_CHAIN}'
+                if chain is None:
+                    files['S2ArmEngine'].pop(member)
+                else:
+                    files['S2ArmEngine'][member] = chain
+                artifact, zips = producer_artifact(zips={name: zipped(value) for name, value in files.items()})
+                self.manifest['s2arm']['engine'] = dict(self.manifest['s2arm']['engine'], zips=zips)
+                self.download(artifact)
+                with self.assertRaisesRegex(line.LineError, message):
+                    line.engine_embed(self.sd, self.application(), self.root)
+        self.manifest['s2arm']['engine'] = dict(self.manifest['s2arm']['engine'], zips=self.zips)
+        self.download()
+        del self.manifest['s2arm']['prepare']
+        with self.assertRaisesRegex(line.LineError, 'declares no S2Arm preparation library'):
+            line.engine_embed(self.sd, self.application(), self.root)
+
+    def test_the_generated_registrant_registers_the_bridge_once(self):
+        registrant = self.root / line.BRIDGE_REGISTRANT
+        self.assertEqual(line.check_registrant(self.root), dict(path=line.BRIDGE_REGISTRANT, sha256=sha(REGISTRANT.encode()),
+                                                                registers='S2ArmEngineBridgePlugin'))
+        spaced = REGISTRANT.replace(line.BRIDGE_REGISTRATION, '[S2ArmEngineBridgePlugin  registerWithRegistrar: [registry '
+                                                              'registrarForPlugin:@"S2ArmEngineBridgePlugin"] ];')
+        registrant.write_text(spaced)
+        self.assertEqual(line.check_registrant(self.root)['sha256'], sha(spaced.encode()))
+        for text in (REGISTRANT.replace(line.BRIDGE_REGISTRATION, ''), REGISTRANT + line.BRIDGE_REGISTRATION + '\n',
+                     REGISTRANT.replace('registrarForPlugin:@"S2ArmEngineBridgePlugin"', 'registrarForPlugin:@"Other"'),
+                     REGISTRANT.replace('[S2ArmEngineBridgePlugin registerWithRegistrar', '[S2ArmEngineBridge registerWithRegistrar')):
+            with self.subTest(registrant=text[-160:]):
+                registrant.write_text(text)
+                with self.assertRaisesRegex(line.LineError, 'does not register'):
+                    line.check_registrant(self.root)
+        registrant.unlink()
+        with self.assertRaisesRegex(line.LineError, 'Missing generated plugin registrant'):
+            line.check_registrant(self.root)
+
+    def test_the_bridge_is_checked_in_the_built_application(self):
+        self.download()
+        app = self.application()
+        line.engine_embed(self.sd, app, self.root)
+        bridge = line.engine_check_app(self.sd, app, self.root)['bridge']
+        self.assertEqual((bridge['systemData']['tree'], bridge['directChain'], bridge['runner']['exports']),
+                         (self.tree, CHAIN.decode(), ['_rb_s2arm_engine_loaded']))
+        self.assertEqual(bridge['registrant']['registers'], 'S2ArmEngineBridgePlugin')
+        defines = [name for name in line.RUNNER_DEFINES if name != '_rb_s2arm_prepare_code']
+        chain = 'Frameworks/S2ArmEngine.framework/' + line.DIRECT_CHAIN
+        tampering = {
+            'system data file changed': (lambda app: (app / line.SYSTEM_DATA / 'licenses/tzdata/LICENSE').write_bytes(b'x'),
+                                         'differ from SHA256SUMS'),
+            'system data file added': (lambda app: (app / line.SYSTEM_DATA / 'systemdata/extra').write_bytes(b'x'),
+                                       'differs from its SHA256SUMS'),
+            'system data file removed': (lambda app: (app / line.SYSTEM_DATA / 'licenses/fonts/OFL-NotoSans.txt').unlink(),
+                                         'differs from its SHA256SUMS'),
+            'system data listing changed': (lambda app: (app / line.SYSTEM_DATA / 'SHA256SUMS').write_bytes(b''),
+                                            'not the one the manifest names'),
+            'direct chain removed': (lambda app: (app / chain).unlink(), 'differ from the packaged identity|is missing'),
+            'direct chain changed': (lambda app: (app / chain).write_bytes(b'0123\n'), 'differs from the producer archive|'
+                                                                                         'not the one embedded'),
+            'registrant changed after the embedding': (lambda app: (self.root / line.BRIDGE_REGISTRANT).write_text(
+                REGISTRANT + '// regenerated\n'), 'changed after the embedding'),
+            'registrant without the bridge': (lambda app: (self.root / line.BRIDGE_REGISTRANT).write_text(
+                REGISTRANT.replace(line.BRIDGE_REGISTRATION, '')), 'does not register'),
+            'preparation entry point not linked': (lambda app: (app / 'Runner').write_bytes(runner_image(
+                defined=defines)), 'does not define'),
+            'bridge plugin not linked': (lambda app: (app / 'Runner').write_bytes(runner_image(
+                defined=line.RUNNER_DEFINES[1:])), 'does not define'),
+            'rb_s2arm symbol left undefined': (lambda app: (app / 'Runner').write_bytes(runner_image(
+                defined=defines, undefined=['_rb_s2arm_prepare_code'])), 'does not define|undefined'),
+            'undefined import of the flag': (lambda app: (app / 'Runner').write_bytes(runner_image(
+                undefined=['_rb_s2arm_engine_loaded'])), 'undefined'),
+            'flag not exported': (lambda app: (app / 'Runner').write_bytes(runner_image(exports=['_main'])),
+                                  'does not export'),
+            'bridge packaged as a framework': (lambda app: nested(
+                app / 'Frameworks/s2arm_engine_bridge.framework/s2arm_engine_bridge', b'x'), 'packaged on its own|differ'),
+            'preparation library packaged': (lambda app: nested(app / 'Frameworks/libS2ArmPrepare.a', LIBRARY),
+                                             'packaged on its own'),
+        }
+        for name, (tamper, message) in tampering.items():
+            with self.subTest(case=name):
+                (self.root / line.BRIDGE_REGISTRANT).write_text(REGISTRANT)
+                app = self.application()
+                line.engine_embed(self.sd, app, self.root)
+                tamper(app)
+                with self.assertRaisesRegex(line.LineError, message):
+                    line.engine_check_app(self.sd, app, self.root)
+        (self.root / line.BRIDGE_REGISTRANT).write_text(REGISTRANT)
+        app = self.application()
+        line.engine_embed(self.sd, app, self.root)
+        self.manifest['s2arm']['sysdata'] = dict(self.manifest['s2arm']['sysdata'], tree='0' * 64)
+        with self.assertRaisesRegex(line.LineError, 'is not the manifest\'s system data'):
+            line.engine_check_app(self.sd, app, self.root)
+        self.manifest['s2arm']['sysdata'] = dict(self.manifest['s2arm']['sysdata'], tree=self.tree)
+        self.manifest['s2arm']['prepare'] = dict(self.manifest['s2arm']['prepare'], run=PREPARE_RUN + 1)
+        with self.assertRaisesRegex(line.LineError, 'is not the manifest\'s preparation library'):
+            line.engine_check_app(self.sd, app, self.root)
+
+    def test_the_bridge_is_checked_in_the_signed_ipa(self):
+        result = line.engine_check_ipa(self.sd, self.signed_ipa(), self.root)
+        self.assertEqual((result['bridge']['systemData']['tree'], result['bridge']['directChain']),
+                         (self.tree, CHAIN.decode()))
+        self.assertEqual(result['bridge']['runner']['defines'], list(line.RUNNER_DEFINES))
+        app = fixtures.APP
+        data = app + line.SYSTEM_DATA + '/'
+
+        def folders(members):   # what /usr/bin/zip -qry writes besides the files
+            for name in [name for name in members if name.startswith(data)]:
+                parts = name[len(app):].split('/')[:-1]
+                for depth in range(1, len(parts) + 1):
+                    members.setdefault(app + '/'.join(parts[:depth]) + '/', b'')
+        listed = self.signed_ipa(folders)
+        with zipfile.ZipFile(listed) as archive:
+            self.assertIn(data + 'systemdata/fonts/', archive.namelist())
+        self.assertEqual(line.engine_check_ipa(self.sd, listed, self.root)['bridge']['systemData']['tree'], self.tree)
+        chain = app + 'Frameworks/S2ArmEngine.framework/' + line.DIRECT_CHAIN
+        defines = [name for name in line.RUNNER_DEFINES if name != '_rb_s2arm_resource_pack']
+        changes = {
+            'system data file changed': (lambda m: m.update({data + 'SOURCES.tsv': b'x'}), 'differ from SHA256SUMS'),
+            'system data file removed': (lambda m: m.pop(data + 'licenses/tzdata/LICENSE'), 'differs from its SHA256SUMS'),
+            'system data file added': (lambda m: m.update({data + 'systemdata/extra': b'x'}), 'differs from its SHA256SUMS'),
+            'system data absent': (lambda m: [m.pop(name) for name in list(m) if name.startswith(data)],
+                                   f'has no {line.SYSDATA_SUMS}'),
+            'direct chain removed': (lambda m: m.pop(chain), 'differ from the packaged identity|is missing'),
+            'preparation entry point not linked': (lambda m: m.update({app + 'Runner': signed_runner(
+                m[app + 'Runner'], defined=defines)}), 'does not define'),
+            'rb_s2arm symbol left undefined': (lambda m: m.update({app + 'Runner': signed_runner(
+                m[app + 'Runner'], undefined=['_rb_s2arm_caps'])}), 'undefined'),
+            'flag not exported': (lambda m: m.update({app + 'Runner': signed_runner(m[app + 'Runner'], exports=['_main'])}),
+                                  'does not export'),
+            'bridge packaged as a framework': (lambda m: m.update({
+                app + 'Frameworks/s2arm_engine_bridge.framework/Info.plist': b'x'}), 'packaged on its own'),
+        }
+        for name, (change, message) in changes.items():
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(line.LineError, message):
+                    line.engine_check_ipa(self.sd, self.signed_ipa(change), self.root)
+        ipa = self.signed_ipa()
+        self.manifest['s2arm']['prepare'] = dict(self.manifest['s2arm']['prepare'], zip='0' * 64)
+        with self.assertRaisesRegex(line.LineError, 'is not the manifest\'s preparation library'):
+            line.engine_check_ipa(self.sd, ipa, self.root)
+
+    def test_offline_verification_of_the_engine_bridge(self):
+        import verify_downloaded_delivery_s2arm as launcher
+        ipa = self.signed_ipa()
+        work = self.root / 'work'
+        (work / 'effective-tree' / line.HELPER_SCRIPT).parent.mkdir(parents=True)
+        (work / 'effective-tree' / line.HELPER_SCRIPT).write_bytes(self.script)
+        report = dict(execution=dict(source='a' * 40), manifest=dict(path='build-utils/delivery/803.json'))
+
+        class Repo:
+            def __init__(self, value):
+                self.value = value
+
+            def show(self, ref, path):
+                return json.dumps(self.value).encode()
+        result = launcher.engine_check(ipa, report, work, Repo(self.manifest))
+        self.assertEqual((result['bridge']['prepare'], result['bridge']['systemData']['tree']),
+                         (dict(run=PREPARE_RUN, zip=self.prepare_zip), self.tree))
+        s2arm = self.manifest['s2arm']
+        refused = {
+            'manifest without the preparation library': (dict(s2arm, prepare=None), 'declares no S2Arm preparation'),
+            'manifest without the system data': (dict(s2arm, sysdata=None), 'declares no S2Arm system data'),
+            'another preparation run': (dict(s2arm, prepare=dict(s2arm['prepare'], run=PREPARE_RUN + 1)),
+                                        'preparation library'),
+            'another system data tree': (dict(s2arm, sysdata=dict(s2arm['sysdata'], tree='0' * 64)), 'system data'),
+        }
+        for name, (value, message) in refused.items():
+            with self.subTest(case=name):
+                value = {key: item for key, item in value.items() if item is not None}
+                with self.assertRaisesRegex(line.LineError, message):
+                    launcher.engine_check(ipa, report, work, Repo(dict(self.manifest, s2arm=value)))
+        # Offline there is no embedding record to bind the identity's digest: what it records is checked against the IPA.
+        member = fixtures.APP + line.PACKAGED_IDENTITY
+
+        def identity(edit):
+            def change(members):
+                value = json.loads(members[member])
+                edit(value)
+                members[member] = json.dumps(value).encode()
+            return change
+        edited = {
+            'identity records another direct chain': (identity(lambda v: v['bridge'].update(directChain='0' * 12)),
+                                                      'not the one embedded'),
+            'identity records another system data tree': (identity(lambda v: v['systemData'].update(files=1)),
+                                                          'not the tree embedded'),
+            'identity without the bridge': (identity(lambda v: v.pop('bridge')), 'does not record the engine bridge'),
+            'identity without a registration': (identity(lambda v: v['bridge'].update(registrant={})),
+                                                'records no registration'),
+        }
+        for name, (change, message) in edited.items():
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(line.LineError, message):
+                    launcher.engine_check(self.signed_ipa(change), report, work, Repo(self.manifest))
+        common = self.root / 'common.ipa'
+        with zipfile.ZipFile(common, 'w') as archive:
+            archive.writestr(fixtures.APP + 'Info.plist', b'x')
+            archive.writestr(fixtures.APP + line.SYSTEM_DATA + '/SHA256SUMS', b'')
+        with self.assertRaisesRegex(line.LineError, 'carries its bridge'):
+            launcher.engine_check(common, report, work, Repo(dict(self.manifest, s2arm={})))
+        plain = self.root / 'plain.ipa'
+        with zipfile.ZipFile(plain, 'w') as archive:
+            archive.writestr(fixtures.APP + 'Info.plist', b'x')
+        for key in ('prepare', 'sysdata'):
+            with self.subTest(declared=key):
+                with self.assertRaisesRegex(line.LineError, 'carries its bridge'):
+                    launcher.engine_check(plain, report, work, Repo(dict(self.manifest, s2arm={key: s2arm[key]})))
+
+
+def signed_runner(common, **keywords):
+    """The packaged Runner of the common fixture (its entitlements, dylibs and rpaths) linking the engine bridge."""
+    return runner_image(entitlements=distribution_module().embedded_entitlements(common),
+                        dependencies=('@rpath/DolphinCore.framework/DolphinCore',),
+                        rpaths=('@executable_path/Frameworks',), **keywords)
 
 
 def helper_info(version, marketing):
@@ -1285,6 +2017,38 @@ class EngineWorkflow(unittest.TestCase):
         validator = distribution_module()
         self.assertEqual(1 + len(validator.EXPECTED_EXTENSIONS) + 2 + len(validator.S2ARM_EXTENSIONS), 9)
 
+    def test_the_bridge_steps_and_their_order(self):
+        names = self.names
+        engine = names.index('Download and authenticate the S2Arm engine frameworks of the pinned producer run')
+        prepare = 'Download and authenticate the S2Arm preparation library of the pinned producer run'
+        sysdata = 'Download and authenticate the S2Arm system data of the pinned producer run'
+        install = 'Install the S2Arm preparation library in the engine bridge package before CocoaPods'
+        place = 'Place the S2Arm system data and its licences in the built application'
+        self.assertEqual(names[engine + 1:engine + 4], [prepare, sysdata, install])
+        built = 'build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'
+        self.assertEqual([self.step(name)['run'] for name in (prepare, sysdata, install, place)],
+                         [make_workflow.LINE_CALL + operation for operation in
+                          ('prepare-download', 'sysdata-download', 'prepare-install', 'sysdata-embed ' + built)])
+        # The library is in the package before the first pod install (the config-only build, then Configure release
+        # host's own), so CocoaPods links it into Runner; no step before it runs CocoaPods.
+        first_pods = names.index('Configure release host')
+        self.assertIn('pod install', self.step('Configure release host')['run'])
+        self.assertIn('flutter build ios --release --no-codesign --config-only', self.step('Configure release host')['run'])
+        self.assertLess(names.index(install), first_pods)
+        self.assertEqual([name for name in names[:names.index(install)] if 'pod install' in self.step(name).get('run', '') or
+                          'flutter build ios' in self.step(name).get('run', '')], [])
+        # The system data goes into the compiled application right before the engine, which records it, and long
+        # before the signature seals it.
+        self.assertEqual(names[names.index(place) + 1], 'Embed the S2Arm engine frameworks and their identity in the built '
+                                                         'application')
+        self.assertLess(names.index('Compile Release device binary with measured AOT and Xcode phases'), names.index(place))
+        self.assertLess(names.index(place), names.index('Seal every executable, framework and extension for SideStore'))
+        self.assertEqual(self.text.count('sysdata-embed'), 1)
+        self.assertEqual(self.text.count('prepare-install'), 1)
+        for job, first, second in make_workflow.ORDER:
+            if install in (first, second) or place in (first, second):
+                self.assertLess(names.index(first), names.index(second), (first, second))
+
 
 def distribution_module():
     import validate_single_ipa_distribution
@@ -1373,6 +2137,48 @@ class NewFiles(unittest.TestCase):
             text = (ROOT / path).read_text()
             self.assertIsNone(banned.search(text), path + ' names a model')
             self.assertNotIn('PRIVATE' + ' KEY', text, path)
+
+    def test_the_engine_bridge_files(self):
+        sd = line.configure()
+        tracked = subprocess.run(['git', 'ls-files', '-z', '--', line.BRIDGE_PACKAGE], cwd=ROOT, capture_output=True,
+                                 check=True).stdout.decode().split('\0')
+        package = sorted(path for path in tracked if path)
+        self.assertIn(line.BRIDGE_PODSPEC, package)
+        self.assertIn(line.BRIDGE_PACKAGE + '/.gitignore', package)
+        self.assertFalse([path for path in package if path.startswith(line.BRIDGE_FRAMEWORKS + '/')],
+                         'nothing of S2ArmPrepare.xcframework is committed')
+        product = package + ['pubspec.yaml', 'build-utils/collect_build_source_evidence.py']
+        for path in product:
+            self.assertTrue(sd.is_product(path), path + ' reaches the application or its legal gate: it is product')
+        for path in ('docs/s2arm-engine-bridge.md', 'docs/s2arm-legal-notices.md',
+                     'docs/evidence/s2arm-engine-declarations-2026-11-11.json'):
+            self.assertTrue(sd.is_recipe(path), path)
+        banned = re.compile('|'.join(('cl' + 'aude-', 'gp' + 't-', 'son' + 'net', 'op' + 'us', 'hai' + 'ku')), re.I)
+        # The notices name third-party libraries by their own names, among them a codec whose name contains a banned
+        # word: they are checked for keys only.
+        for path in package + ['docs/s2arm-engine-bridge.md', 'docs/evidence/s2arm-engine-declarations-2026-11-11.json']:
+            text = (ROOT / path).read_text()
+            self.assertIsNone(banned.search(text), path + ' names a model')
+            self.assertNotIn('PRIVATE' + ' KEY', text, path)
+        self.assertNotIn('PRIVATE' + ' KEY', (ROOT / 'docs/s2arm-legal-notices.md').read_text())
+        # The functions the bridge calls in S2ArmPrepare are the entry points the Runner check requires.
+        calls = set()
+        for path in (ROOT / line.BRIDGE_PACKAGE / 'ios/Classes').glob('*.m'):
+            calls |= set(re.findall(r'\b(rb_s2arm_\w+)\(', path.read_text()))
+        declared = set(re.findall(r'\b(rb_s2arm_\w+)\(', (ROOT / line.BRIDGE_PACKAGE /
+                                                          'ios/Classes/S2ArmPrepareABI.h').read_text()))
+        self.assertEqual({'_' + name for name in declared}, set(line.PREPARE_ENTRY_POINTS))
+        self.assertEqual({'_' + name for name in calls}, set(line.PREPARE_ENTRY_POINTS) |
+                         {'_rb_s2arm_engine_loaded', '_rb_s2arm_engine_mark_loading'})
+        self.assertIn('S2ARM_ENGINE_LOADED_EXPORT __attribute__((visibility("default"), used))',
+                      (ROOT / line.BRIDGE_PACKAGE / 'ios/Classes/S2ArmEngineLoaded.c').read_text())
+        # The delivery places the whole tree as S2ArmSystemData; the bridge links its systemdata/ folder into each
+        # game's resource pack, where the engine reads systemdata/fonts and systemdata/<id> (S2Arm services Host.cs).
+        preparation = (ROOT / line.BRIDGE_PACKAGE / 'ios/Classes/S2ArmGamePreparation.m').read_text()
+        self.assertEqual(line.SYSTEM_DATA_READ, 'S2ArmSystemData/systemdata')
+        self.assertEqual(preparation.count(f'stringByAppendingPathComponent:@"{line.SYSTEM_DATA_READ}"'), 1)
+        self.assertNotIn(f'@"{line.SYSTEM_DATA}"', preparation)
+        self.assertTrue(all(path.startswith(line.SYSDATA_TOPS) or path == line.SYSDATA_SOURCES for path in sysdata_tree()))
 
 
 if __name__ == '__main__':

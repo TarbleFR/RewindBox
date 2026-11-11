@@ -17,8 +17,12 @@ After the common checks pass, the decrypted IPA is checked for the delta of this
 boolean RewindBoxS2ArmProbe, no RewindBoxS2ArmProbeMapped, the probe class and entry points defined in
 the Runner executable, no separate probe image ("s2armProbe" in the report); and, when the build's
 manifest declares the engine (s2arm.engine), the engine frameworks, their packaged identity against the
-manifest and the JIT helper against the effective source ("s2armEngine"). An IPA and a manifest that
-disagree on the engine are refused.
+manifest and the JIT helper against the effective source ("s2armEngine"), with the engine bridge offline
+against the manifest's s2arm.prepare and s2arm.sysdata: the preparation library the identity records (run,
+archive digest) and its entry points linked into the Runner executable (defined, none left undefined,
+rb_s2arm_engine_loaded exported), S2ArmSystemData complete against the SHA256SUMS the manifest names, with
+its licences, and S2ArmEngine.framework/S2ArmDirectChain.txt. An IPA and a manifest that disagree on the
+engine or on its bridge are refused.
 """
 from __future__ import annotations
 
@@ -60,14 +64,21 @@ def engine_check(ipa, report, work, repo=None):
     sd = line.configure()
     manifest = json.loads((repo or sd.Repo(ROOT)).show(report['execution']['source'], report['manifest']['path']))
     with zipfile.ZipFile(ipa) as archive:
-        carries = 'Payload/NeoStation.app/' + line.PACKAGED_IDENTITY in archive.namelist()
+        names = archive.namelist()
+    carries = 'Payload/NeoStation.app/' + line.PACKAGED_IDENTITY in names
     declared = manifest.get('s2arm', {}).get('engine') is not None
     line.require(carries == declared, f'The IPA {"carries" if carries else "lacks"} the S2Arm engine, its manifest '
                  f'{"declares" if declared else "does not declare"} it')
     if not carries:
+        bridge = sorted(key for key in ('prepare', 'sysdata') if manifest.get('s2arm', {}).get(key) is not None)
+        line.require(not bridge and not any(name.startswith('Payload/NeoStation.app/' + line.SYSTEM_DATA + '/')
+                                            for name in names),
+                     'An IPA without the S2Arm engine carries its bridge: S2ArmSystemData in the IPA, or s2arm.prepare '
+                     f'or s2arm.sysdata in its manifest {bridge}')
         return None
     script = (Path(work) / 'effective-tree' / line.HELPER_SCRIPT).read_bytes()
-    return line.check_engine_ipa(ipa, line.engine_spec(manifest), script)
+    return line.check_engine_ipa(ipa, line.engine_spec(manifest), script, prepare=line.prepare_spec(manifest),
+                                 sysdata=line.sysdata_spec(manifest))
 
 
 def main(argv=None):
