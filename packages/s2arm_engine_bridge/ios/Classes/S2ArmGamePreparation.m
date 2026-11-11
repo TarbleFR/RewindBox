@@ -295,10 +295,13 @@ static NSString *mapPrepareCode(int rc) {
   durations[@"module"] = @((s2arm_code_now_ns() - t0) / 1000000ull);
   sizes[@"imagePack"] = @([[files attributesOfItemAtPath:imagesPath error:nil][NSFileSize] unsignedLongLongValue]);
 
-  // 6. resource pack (RomFS and DLC linked into the product root; system data linked; .applied).
+  // 6. resource pack (RomFS and DLC linked into the product root; system data copied; .applied).
+  // The system data is copied (systemdata_link 0, ~20 MB per game), not linked: it lives in the app bundle, whose path
+  // (/var/containers/Bundle/Application/<UUID>/...) changes with every app update, so a link from this data container
+  // would dangle after an update. RomFS and DLC links stay inside the data container and survive updates.
   [self emit:@"pack" index:5 count:steps fraction:0];
   t0 = s2arm_code_now_ns();
-  rb_s2arm_resource_request resource = {root.fileSystemRepresentation, packDir.fileSystemRepresentation, systemData.fileSystemRepresentation, 1, 1,
+  rb_s2arm_resource_request resource = {root.fileSystemRepresentation, packDir.fileSystemRepresentation, systemData.fileSystemRepresentation, 0, 1,
                                         NULL, prep_cancelled, (__bridge void *)self};
   rc = rb_s2arm_resource_pack(&resource, error, sizeof error);
   if (rc != RB_S2ARM_PACK_OK) {

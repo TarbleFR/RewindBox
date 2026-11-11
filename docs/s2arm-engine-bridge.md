@@ -59,8 +59,8 @@ Every step is one line in `Documents/Diagnostics/Switch2/S2Arm-launch.log`.
 
 `S2ArmGamePreparation` runs the chain of study § 8 on a background queue, with progress and cancel, into the app's private
 `Library/S2Arm/<gid>/` (excluded from backup, never shared or exported): `ns2-dump --reference` (RomFS and DLC read in
-place), code stage, caps, direct skeleton, module directory with the image pack, resource pack with the system data linked
-and `--applied`. It reports sizes and durations by step and maps failures to codes; it never logs game content. The direct
+place), code stage, caps, direct skeleton, module directory with the image pack, resource pack with the system data copied
+(about 20 MB per game: a link into the app bundle would dangle after an app update, whose bundle path changes) and `--applied`. It reports sizes and durations by step and maps failures to codes; it never logs game content. The direct
 chain version comes from `S2ArmEngine.framework/S2ArmDirectChain.txt` and the system data from `<app>/S2ArmSystemData/systemdata`
 (the delivery ships the whole tree as `S2ArmSystemData`, its licences and provenance beside the data; the engine reads a
 resource pack's `systemdata/` folder).
