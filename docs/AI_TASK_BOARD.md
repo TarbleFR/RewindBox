@@ -2106,7 +2106,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           melonx_compute_switch_bindings_test (job 130484730640): control 48.0 ms vs candidate 139.8 ms for 350000 backend
           calls, "FAILED: steady compute/graphics pairs are cheaper"; host-thread-class not reached. Not pinned, not rerun;
           Core 731 stays pinned; reported to the MeloNX session. Lot 13 (bridge heap sampler, cc611f3c) merged as 991e5e83
-          (contract unchanged; heap report 13, perf journal 61 checks). Not run on an iPhone.
+          (contract unchanged; heap report 13, perf journal 61 checks). Gate correction 5bb9458e merged as f974efac
+          (compute-switch: tiered compilation off, seven rounds each against a same-process reference round, candidate
+          still required below the control; contract 4e0ea3ea, 483/419, reads 440, arrays 545). Core CI: run 43016327008.
+          Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
