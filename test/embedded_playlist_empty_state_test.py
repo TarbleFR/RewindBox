@@ -16,6 +16,10 @@ for needle in ("widget.system.folderName == 'switch'", '_isXeniaLibrary', '_isS2
 for getter, folder in (('_isXeniaLibrary', 'xbox360'), ('_isS2ArmLibrary', 'switch2')):
     if f"bool get {getter} =>\n      Platform.isIOS && widget.system.folderName.toLowerCase() == '{folder}';" not in source:
         failures.append(f'{getter} no longer names the iOS {folder} library')
+call = body.split('return SwitchPlaylistEmptyState(', 1)[1].split(');', 1)[0]
+# The hint says how to add games (Switch 2 may join the same parameter).
+if 'hint:' not in call or '_isXeniaLibrary' not in call or "XeniaLocale.text(context, 'emptyBody')" not in call:
+    failures.append('the Xbox 360 empty state no longer says how to import (XeniaLocale emptyBody)')
 for builder in ('_buildXeniaImportAction()', '_buildS2ArmImportAction()'):
     if builder not in source:
         failures.append(builder + ' is no longer shown by the route')
