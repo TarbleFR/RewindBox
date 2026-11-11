@@ -3890,6 +3890,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (two gate scripts, one fixture): contract `518ea8dc…` -> `9de16cd8…`. **Seen, not changed:** the receipts of 24
       gates declare fixture files the contract does not list (among them this gate's `Program.cs` and `Double.cs`);
       to bind in one reviewed step with main.
+    - **Core 731 pinned by main (11 Nov 06:11, checked on `Claude`):** run 42958274015 green on source `840c3fb5`
+      (the worker-library-share gate included), artifact 13830187578, iPhone binary `574a5de9…` 38 456 384 B, contract
+      `518ea8dc…`, 88 fresh gates; it goes into IPA 725 with the five-part MoltenVK `99605a2b…`. The two gate
+      corrections (`e2978c61`, contract `9de16cd8…`, same engine) are merged by main after the 725 delivery; binding
+      every fixture in the contract is agreed for a later lot reviewed together.
     - **Integration (main, 11 Nov 04:18):** IPA 725 carries Core 731, not 727 (merge `840c3fb5` of `e3620e88`, compile
       run 42958274015 queued; fallback Core 729; Core 727 only with the four-part MoltenVK). Reason given to main: with
       the five-part MoltenVK main's data is a fraction of the 792 MiB file, and Core 727's growth rule counts from the
