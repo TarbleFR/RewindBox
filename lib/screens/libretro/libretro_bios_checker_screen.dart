@@ -154,11 +154,15 @@ class _LibretroBiosCheckerScreenState extends State<LibretroBiosCheckerScreen>
         );
         return;
       }
-      _notice(LibretroImportMessages.forRetroArch(Localizations.localeOf(context), copied));
+      _notice(
+        copied.total == 0
+            ? _t('retroArchNothing')
+            : _f('retroArchImported', {'saves': copied.saves, 'states': copied.states, 'system': copied.system}),
+      );
       await _check();
     } catch (error) {
       _log.w('RetroArch copy from the BIOS checker failed: $error');
-      if (mounted) _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error));
+      if (mounted) _notice(_f('importFailed', {'error': error}));
     } finally {
       resumePageNavigation();
       if (mounted) setState(() => _copying = false);

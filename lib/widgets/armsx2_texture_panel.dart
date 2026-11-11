@@ -2,7 +2,6 @@ import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
@@ -10,7 +9,6 @@ import '../l10n/armsx2_texture_locale.dart';
 import '../services/armsx2_texture_service.dart';
 import '../services/gamepad/gamepad_navigation_manager.dart';
 import '../services/rpcs3_save_exchange_service.dart';
-import '../services/logger_service.dart';
 import '../utils/gamepad_nav.dart';
 import 'confirm_action_dialog.dart';
 import 'settings_rows.dart';
@@ -182,13 +180,7 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
       );
       return;
     }
-    final Map<String, dynamic> result;
-    try {
-      result = await widget.client.setEnabled(widget.gamePath, !_switchOn);
-    } catch (error) {
-      _showBridgeError(error);
-      return;
-    }
+    final result = await widget.client.setEnabled(widget.gamePath, !_switchOn);
     if (!mounted) return;
     setState(() {
       _message = result['success'] == true
@@ -196,19 +188,6 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
           : _errorText(result);
     });
     await _reload();
-  }
-
-  /// The native bridge threw (PlatformException, MissingPluginException…):
-  /// say so, with the cause, instead of leaving the panel silent or busy.
-  void _showBridgeError(Object error) {
-    if (!mounted) return;
-    final detail = switch (error) {
-      PlatformException(:final message, :final code) =>
-        (message != null && message.isNotEmpty) ? message : code,
-      MissingPluginException() => 'MissingPluginException',
-      _ => '$error',
-    };
-    setState(() => _message = _f('errBridge', {'detail': detail}));
   }
 
   String _label(String serial, String region) =>
@@ -265,48 +244,11 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
     }
     _setBusy(true);
     setState(() => _message = null);
-    var reload = false;
-    try {
-      reload = await _importFlow(folder: folder);
-    } catch (error) {
-      _showBridgeError(error);
-    } finally {
-      // Whatever threw (pick, install, dialog), the panel never stays busy
-      // and a staged pack that was not installed is released.
-      final staged = _token;
-      _token = null;
-      if (staged != null) {
-        try {
-          await widget.client.discard(staged);
-        } catch (_) {}
-      }
-      if (mounted) {
-        if (_confirming) setState(() => _confirming = false);
-        if (_busy) _setBusy(false);
-      }
-    }
-    // Outside the try: a failing reload must not replace the success text,
-    // and the busy state is already released (a new import owns its token).
-    if (reload && mounted) {
-      try {
-        await _reload();
-      } catch (error) {
-        // The pack is installed and its result is shown; only the rows of
-        // the panel are stale until it is opened again.
-        LoggerService.instance.w(
-          'ARMSX2 textures: the panel could not reload after an install: $error',
-        );
-      }
-    }
-  }
-
-  /// True when a pack was installed and the panel must reload.
-  Future<bool> _importFlow({required bool folder}) async {
     final inspection = await widget.client.pick(
       widget.gamePath,
       folder: folder,
     );
-    if (!mounted) return false;
+    if (!mounted) return;
     final token = inspection['token'] as String?;
     if (inspection['success'] != true || token == null) {
       if (token != null) await widget.client.discard(token);
@@ -315,7 +257,8 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
             ? null
             : _errorText(inspection);
       });
-      return false;
+      _setBusy(false);
+      return;
     }
     _token = token;
     final needsConfirmation = inspection['needsConfirmation'] == true;
@@ -333,12 +276,13 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
         icon: Symbols.texture_rounded,
         accentColor: Theme.of(context).colorScheme.secondary,
       );
-      if (!mounted) return false;
+      if (!mounted) return;
       setState(() => _confirming = false);
       if (!confirmed) {
         await widget.client.discard(token);
         _token = null;
-        return false;
+        _setBusy(false);
+        return;
       }
     }
     final result = await widget.client.install(
@@ -347,9 +291,10 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
     );
     await widget.client.discard(token);
     _token = null;
-    if (!mounted) return false;
+    if (!mounted) return;
     setState(() => _message = _installText(result));
-    return true;
+    _setBusy(false);
+    await _reload();
   }
 
   String _installText(Map<String, dynamic> result) {
@@ -392,13 +337,7 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
       icon: Symbols.delete_rounded,
     );
     if (!confirmed || !mounted) return;
-    final Map<String, dynamic> result;
-    try {
-      result = await widget.client.remove(widget.gamePath);
-    } catch (error) {
-      _showBridgeError(error);
-      return;
-    }
+    final result = await widget.client.remove(widget.gamePath);
     if (!mounted) return;
     setState(() {
       _message = result['success'] == true ? _t('removed') : _errorText(result);

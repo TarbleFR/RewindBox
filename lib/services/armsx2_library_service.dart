@@ -24,12 +24,6 @@ class Armsx2LibraryService {
 
   static String? get lastLaunchError => StikJitArmsx2Service.lastError;
 
-  /// What the user has to put right after a launch that stopped for a known
-  /// reason (no BIOS, LocalDevVPN off, no pairing file, …), in [language];
-  /// null otherwise.
-  static String? lastLaunchPrerequisite(String language) =>
-      StikJitArmsx2Service.lastErrorText(language);
-
   static const String _virtualScheme = 'armsx2';
   static const String _legacyExportCacheKey = 'armsx2_library_cache_v1';
 

@@ -9,7 +9,6 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../l10n/library_link_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../models/game_model.dart';
 import '../models/system_model.dart';
@@ -19,10 +18,8 @@ import 'libretro_3ds_containers.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'libretro_resolution.dart';
-import 'neostation_rom_library.dart';
 import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
-import 'libretro_bios_catalog.dart';
 import 'diagnostics_directory.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
@@ -32,69 +29,11 @@ class LibretroLaunchOutcome {
     required this.success,
     this.errorCode,
     this.technicalDetails = '',
-    this.missingFiles,
   });
 
   final bool success;
   final String? errorCode;
   final String technicalDetails;
-
-  /// The file names the sentence of [errorCode] shows when they are not the
-  /// technical details (a conditional BIOS that is missing: the details
-  /// keep what the core answered).
-  final String? missingFiles;
-
-  /// What fills the `{files}` placeholder of the error sentence.
-  String get messageFiles => missingFiles ?? technicalDetails;
-}
-
-/// Why a picked game was not imported.
-enum LibretroRejectReason {
-  /// The file type is not one this console opens.
-  wrongType,
-
-  /// The file could not be read (not downloaded from iCloud, access lost).
-  unreadable,
-
-  /// No space left on the device, or the copy is shorter than the original.
-  noSpace,
-
-  /// Any other copy error.
-  copyFailed,
-
-  /// The picked file has no content (0 bytes).
-  empty,
-}
-
-/// One picked file that was not imported, and why.
-class LibretroRejectedFile {
-  const LibretroRejectedFile(this.name, this.reason);
-
-  final String name;
-  final LibretroRejectReason reason;
-}
-
-/// A `.cue` / `.m3u` that was imported while some of the files it names
-/// could not be copied next to it. An empty [files] means the sheet itself
-/// could not be read.
-class LibretroMissingTracks {
-  const LibretroMissingTracks(this.name, this.files);
-
-  final String name;
-  final List<String> files;
-}
-
-/// What [LibretroInternalService.copyReferencedTracks] found for one sheet.
-class LibretroTrackCopy {
-  const LibretroTrackCopy({this.missing = const <String>[], this.uncopied = const <String>[]});
-
-  /// Names that do not exist next to the sheet.
-  final List<String> missing;
-
-  /// Names that exist but whose copy failed.
-  final List<String> uncopied;
-
-  bool get isEmpty => missing.isEmpty && uncopied.isEmpty;
 }
 
 class LibretroImportResult {
@@ -105,27 +44,7 @@ class LibretroImportResult {
     this.importedPaths = const <String>[],
     this.systemFolder = '',
     this.createdLibraryRoot,
-    this.rejectedFiles = const <LibretroRejectedFile>[],
-    this.missingTracks = const <LibretroMissingTracks>[],
-    this.uncopiedTracks = const <LibretroMissingTracks>[],
-    this.acceptedExtensions = const <String>[],
-    this.noImportableType = false,
   });
-
-  /// Name and reason of each rejected file ([rejected] counts them).
-  final List<LibretroRejectedFile> rejectedFiles;
-
-  /// Imported cue sheets and playlists whose tracks are not all there.
-  final List<LibretroMissingTracks> missingTracks;
-
-  /// Imported sheets with tracks that exist next to them but failed to copy.
-  final List<LibretroMissingTracks> uncopiedTracks;
-
-  /// File types the console accepts (without the dot), sorted.
-  final List<String> acceptedExtensions;
-
-  /// The console has no file type that can be imported: nothing was asked.
-  final bool noImportableType;
 
   final int imported;
   final int rejected;
@@ -166,27 +85,7 @@ class LibretroRetroArchCopy {
     required this.states,
     required this.system,
     this.emulator3dsFolder = false,
-    this.alreadyPresent = 0,
-    this.skipped = 0,
-    this.skippedNames = const <String>[],
-    this.foundFolders = 0,
-    this.folderName = '',
   });
-
-  /// Files already in RewindBox, kept as they are.
-  final int alreadyPresent;
-
-  /// Files not copied (over the size limit, unreadable, copy error).
-  final int skipped;
-
-  /// The first of the skipped files.
-  final List<String> skippedNames;
-
-  /// How many of `saves`, `states` and `system` the chosen folder holds.
-  final int foundFolders;
-
-  /// Name of the chosen folder.
-  final String folderName;
 
   final int saves;
   final int states;
@@ -390,7 +289,7 @@ abstract final class LibretroInternalService {
     }
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-      core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
+      core: coreId, language: locale.toLanguageTag());
     final request = <String, Object?>{
       'coreId': coreId,
       'contentPath': path.normalize(romPath),
@@ -435,7 +334,7 @@ abstract final class LibretroInternalService {
         _log.w('Beetle PSX HW: Vulkan unavailable (${result['message'] ?? ''}); relaunching with the software renderer');
         await raService.finishLaunch(raLaunch);
         raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-          core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
+          core: coreId, language: locale.toLanguageTag());
         result = await LibretroInternalBridge.launch(<String, Object?>{
           ...request,
           'raSessionId': raLaunch['raSessionId'],
@@ -461,27 +360,6 @@ abstract final class LibretroInternalService {
         if (log is List && log.isNotEmpty) 'Log:\n${log.join('\n')}',
       ].join('\n');
       _log.e('Embedded libretro launch failed\n$details');
-      // The core refused or stopped: a BIOS that only some games need
-      // (Mega-CD, FDS, PC Engine CD, Neo Geo…) and that is not installed is
-      // the first thing to put right, so it is named. Never checked before a
-      // launch: such a file is not always indispensable.
-      if (conditionalBiosFailureCodes.contains(result['code'])) {
-        final missing = await _missingConditionalBios(
-          system: key,
-          romPath: romPath,
-          coreId: coreId,
-          systemDirectory: biosDirectory.path,
-        );
-        if (missing.isNotEmpty) {
-          _log.w('Conditional BIOS missing for $romPath: ${missing.join(', ')}');
-          return LibretroLaunchOutcome(
-            success: false,
-            errorCode: 'LIBRETRO_BIOS_CONDITIONAL_MISSING',
-            technicalDetails: details,
-            missingFiles: missing.join(', '),
-          );
-        }
-      }
       return LibretroLaunchOutcome(
         success: false,
         errorCode: result['code']?.toString(),
@@ -492,83 +370,6 @@ abstract final class LibretroInternalService {
       _log.e('Embedded libretro launch error: $error');
       return LibretroLaunchOutcome(success: false, technicalDetails: '$error');
     }
-  }
-
-  /// Native failure codes after which a missing conditional BIOS is looked
-  /// for: the game reached the core, which refused it or stopped.
-  static const Set<String> conditionalBiosFailureCodes = <String>{
-    'LIBRETRO_GAME_REJECTED',
-    'LIBRETRO_CORE_STOPPED',
-  };
-
-  static Future<List<String>> _missingConditionalBios({
-    required String system,
-    required String romPath,
-    required String coreId,
-    required String systemDirectory,
-  }) async {
-    try {
-      return await missingConditionalBios(
-        catalog: await LibretroBiosCatalog.load(),
-        system: system,
-        romPath: romPath,
-        coreId: coreId,
-        systemDirectory: systemDirectory,
-      );
-    } catch (error) {
-      // The catalogue is an aid for the message, never a reason to fail.
-      _log.w('Conditional BIOS lookup failed: $error');
-      return const <String>[];
-    }
-  }
-
-  /// The BIOS files that only some games need (catalogue level
-  /// `conditional`), that the game at [romPath] of [system] calls for with
-  /// [coreId], and that are in none of the places this core reads them
-  /// from. One line per file; the files of a group replace one another (one
-  /// per region), so a group is missing only when none of them is there.
-  @visibleForTesting
-  static Future<List<String>> missingConditionalBios({
-    required LibretroBiosCatalog catalog,
-    required String system,
-    required String romPath,
-    required String coreId,
-    required String systemDirectory,
-  }) async {
-    final extension = path.extension(romPath).replaceFirst('.', '').toLowerCase();
-    final systemKey = system.toLowerCase();
-    final groups = <String, List<LibretroBiosEntry>>{};
-    for (final entry in catalog.entries) {
-      if (entry.level != LibretroBiosLevel.conditional || !entry.cores.contains(coreId)) continue;
-      final clauses = entry.condition?.games ?? const <LibretroBiosGameClause>[];
-      final called = clauses.any((clause) =>
-          clause.systems.contains(systemKey) && (clause.extensions.isEmpty || clause.extensions.contains(extension)));
-      if (called) groups.putIfAbsent(entry.group ?? entry.id, () => <LibretroBiosEntry>[]).add(entry);
-    }
-    final missing = <String>[];
-    for (final group in groups.values) {
-      var found = false;
-      final expected = <String>[];
-      for (final entry in group) {
-        final names = entry.coreNames[coreId] ?? entry.names;
-        if (names.isNotEmpty) expected.add(names.first);
-        for (final location in entry.locations) {
-          final directory = location.gameFolder
-              ? path.dirname(romPath)
-              : path.joinAll(<String>[systemDirectory, ...location.subdirectory]);
-          for (final name in names) {
-            if (await File(path.join(directory, name)).exists()) {
-              found = true;
-              break;
-            }
-          }
-          if (found) break;
-        }
-        if (found) break;
-      }
-      if (!found && expected.isNotEmpty) missing.add(expected.join(' / '));
-    }
-    return missing;
   }
 
   /// NeoStation's default layer of core options for this launch (applied
@@ -678,7 +479,7 @@ abstract final class LibretroInternalService {
     final indexed = systemExtensions ?? await _indexedExtensions(folder);
     final extensions = LibretroCoreCatalog.importExtensionsFor(folder, indexed: indexed).toList()..sort();
     if (extensions.isEmpty) {
-      return LibretroImportResult(imported: 0, rejected: 0, systemFolder: folder, noImportableType: true);
+      return LibretroImportResult(imported: 0, rejected: 0, systemFolder: folder);
     }
     final selection = await FilePicker.pickFiles(
       allowMultiple: true,
@@ -696,22 +497,13 @@ abstract final class LibretroInternalService {
     var rejected = 0;
     var alreadyPresent = 0;
     final importedPaths = <String>[];
-    final rejectedFiles = <LibretroRejectedFile>[];
-    final missingTracks = <LibretroMissingTracks>[];
-    final uncopiedTracks = <LibretroMissingTracks>[];
     // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
     final verifiedCopies = <String, int>{};
     for (final file in selection.files) {
       final source = file.path;
       final extension = path.extension(file.name).replaceFirst('.', '').toLowerCase();
-      if (source == null) {
+      if (source == null || !extensions.contains(extension)) {
         rejected++;
-        rejectedFiles.add(LibretroRejectedFile(file.name, LibretroRejectReason.unreadable));
-        continue;
-      }
-      if (!extensions.contains(extension)) {
-        rejected++;
-        rejectedFiles.add(LibretroRejectedFile(file.name, LibretroRejectReason.wrongType));
         continue;
       }
       try {
@@ -727,35 +519,17 @@ abstract final class LibretroInternalService {
         if (length == 0 || length != sourceLength) {
           await copied.delete();
           rejected++;
-          rejectedFiles.add(LibretroRejectedFile(
-              file.name, sourceLength == 0 ? LibretroRejectReason.empty : LibretroRejectReason.noSpace));
           continue;
         }
         imported++;
         importedPaths.add(copied.path);
         if (extension == 'cue' || extension == 'm3u') {
-          try {
-            final tracks = await copyReferencedTracks(File(source), destination);
-            if (tracks.missing.isNotEmpty) {
-              missingTracks.add(LibretroMissingTracks(file.name, tracks.missing));
-            }
-            if (tracks.uncopied.isNotEmpty) {
-              uncopiedTracks.add(LibretroMissingTracks(file.name, tracks.uncopied));
-            }
-          } catch (error) {
-            // The sheet is in the library: it counts once, as imported.
-            _log.w('Libretro import could not read the tracks of ${file.name}: $error');
-            missingTracks.add(LibretroMissingTracks(file.name, const <String>[]));
-          }
+          await _copyReferencedTracks(File(source), destination);
         }
-        // The sheet itself is verified, and its tracks were looked for next
-        // to it: the picker's copy is not read again (as before, whatever
-        // the tracks turned out to be).
         verifiedCopies[source] = length;
       } catch (error) {
         _log.w('Libretro import rejected ${file.name}: $error');
         rejected++;
-        rejectedFiles.add(LibretroRejectedFile(file.name, classifyCopyError(error)));
       }
     }
     // Once every pick is handled (a cue sheet reads its tracks from the
@@ -770,50 +544,8 @@ abstract final class LibretroInternalService {
       importedPaths: importedPaths,
       systemFolder: folder,
       createdLibraryRoot: library == null ? destination.parent.path : null,
-      rejectedFiles: rejectedFiles,
-      missingTracks: missingTracks,
-      uncopiedTracks: uncopiedTracks,
-      acceptedExtensions: extensions,
     );
   });
-
-  static int? _osCode(Object error) => error is FileSystemException ? error.osError?.errorCode : null;
-
-  static bool _isNoSpace(Object error) => _osCode(error) == 28;
-
-  static bool _isUnreadable(Object error) =>
-      error is PathNotFoundException || error is PathAccessException || const <int>{1, 2, 13}.contains(_osCode(error));
-
-  /// The reason a copy attempt that threw is reported with.
-  @visibleForTesting
-  static LibretroRejectReason classifyCopyError(Object error) {
-    if (_isNoSpace(error)) return LibretroRejectReason.noSpace;
-    if (_isUnreadable(error)) return LibretroRejectReason.unreadable;
-    return LibretroRejectReason.copyFailed;
-  }
-
-  /// Locale key of the sentence naming the cause of [error] when it is a
-  /// known one (folder access lost, no space left, source unreadable); null
-  /// otherwise, then the raw text is the last resort.
-  static String? knownFailureKey(Object error) {
-    if (error is ExternalFolderAccessException) return 'importErrorFolderAccess';
-    if (_isNoSpace(error)) return 'importErrorNoSpace';
-    final code = _osCode(error);
-    if (error is PathNotFoundException || code == 2) return null;
-    if (error is PathAccessException || code == 1 || code == 13) {
-      final target = error is FileSystemException ? error.path : null;
-      final message = error is FileSystemException ? error.message.toLowerCase() : '';
-      final known = target != null && target.isNotEmpty;
-      if (message.contains('directory listing') ||
-          (known && FileSystemEntity.typeSync(target) == FileSystemEntityType.directory)) {
-        return 'importErrorFolderAccess';
-      }
-      if (known && FileSystemEntity.typeSync(target) == FileSystemEntityType.file) {
-        return 'importErrorUnreadable';
-      }
-    }
-    return null;
-  }
 
   /// [importGames] for a system model: its canonical folder and the
   /// extensions it carries from the database.
@@ -852,11 +584,8 @@ abstract final class LibretroInternalService {
   }
 
   /// A cue sheet or playlist only works with the files it names; copy those
-  /// that sit next to the picked file when the picker granted access. Returns
-  /// the names that are not next to the sheet (missing) and those that are
-  /// but could not be copied (uncopied).
-  @visibleForTesting
-  static Future<LibretroTrackCopy> copyReferencedTracks(File descriptor, Directory destination) async {
+  /// that sit next to the picked file when the picker granted access.
+  static Future<void> _copyReferencedTracks(File descriptor, Directory destination) async {
     final lines = await descriptor.readAsLines();
     final pattern = RegExp(r'FILE\s+"([^"]+)"', caseSensitive: false);
     final names = <String>{
@@ -865,24 +594,11 @@ abstract final class LibretroInternalService {
       if (path.extension(descriptor.path).toLowerCase() == '.m3u')
         ...lines.map((line) => line.trim()).where((line) => line.isNotEmpty && !line.startsWith('#')),
     };
-    final missing = <String>[];
-    final uncopied = <String>[];
     for (final name in names) {
       final source = File(path.join(descriptor.parent.path, name));
       final target = File(path.join(destination.path, path.basename(name)));
-      if (await target.exists()) continue;
-      try {
-        if (await source.exists()) {
-          await source.copy(target.path);
-        } else {
-          missing.add(path.basename(name));
-        }
-      } catch (error) {
-        _log.w('Libretro import could not copy the track $name: $error');
-        uncopied.add(path.basename(name));
-      }
+      if (await source.exists() && !await target.exists()) await source.copy(target.path);
     }
-    return LibretroTrackCopy(missing: missing, uncopied: uncopied);
   }
 
   static Future<File> _uniqueDestination(Directory directory, String name) async {
@@ -908,20 +624,11 @@ abstract final class LibretroInternalService {
     final saves = await _findFolder(root, 'saves');
     final states = await _findFolder(root, 'states');
     final system = await _findFolder(root, 'system');
-    final savesCopy = saves == null ? const _TreeCopy() : await _copyTree(saves, await savesDirectory());
-    final statesCopy = states == null ? const _TreeCopy() : await _copyTree(states, await statesDirectory());
-    final systemCopy = system == null ? const _TreeCopy() : await _copyTree(system, await systemDirectory());
-    final all = <_TreeCopy>[savesCopy, statesCopy, systemCopy];
     return LibretroRetroArchCopy(
-      saves: savesCopy.copied,
-      states: statesCopy.copied,
-      system: systemCopy.copied,
+      saves: saves == null ? 0 : await _copyTree(saves, await savesDirectory()),
+      states: states == null ? 0 : await _copyTree(states, await statesDirectory()),
+      system: system == null ? 0 : await _copyTree(system, await systemDirectory()),
       emulator3dsFolder: await holds3dsUserFolder(root),
-      alreadyPresent: all.fold(0, (sum, copy) => sum + copy.present),
-      skipped: all.fold(0, (sum, copy) => sum + copy.skipped.length),
-      skippedNames: <String>[for (final copy in all) ...copy.skipped].take(3).toList(),
-      foundFolders: <Directory?>[saves, states, system].where((folder) => folder != null).length,
-      folderName: path.basename(path.normalize(picked)),
     );
   });
 
@@ -951,173 +658,22 @@ abstract final class LibretroInternalService {
     return null;
   }
 
-  static Future<_TreeCopy> _copyTree(Directory source, Directory destination) async {
+  static Future<int> _copyTree(Directory source, Directory destination) async {
     var copied = 0;
-    var present = 0;
-    final skipped = <String>[];
     await for (final entity in source.list(recursive: true, followLinks: false)) {
       if (entity is! File) continue;
       final relative = path.relative(entity.path, from: source.path);
       if (relative.split(path.separator).any((part) => part.startsWith('.'))) continue;
       final target = File(path.join(destination.path, relative));
       try {
-        if (await target.exists()) {
-          present++;
-          continue;
-        }
-        if (await entity.length() > _maxSystemFileBytes) {
-          skipped.add(relative);
-          continue;
-        }
+        if (await target.exists() || await entity.length() > _maxSystemFileBytes) continue;
         await target.parent.create(recursive: true);
         await entity.copy(target.path);
         copied++;
       } catch (error) {
         _log.w('RetroArch copy skipped $relative: $error');
-        skipped.add(relative);
       }
     }
-    return _TreeCopy(copied: copied, present: present, skipped: skipped);
-  }
-}
-
-class _TreeCopy {
-  const _TreeCopy({this.copied = 0, this.present = 0, this.skipped = const <String>[]});
-
-  final int copied;
-  final int present;
-  final List<String> skipped;
-}
-
-/// Sentences shown to the user after an import or a library move: what was
-/// refused, and why. Texts come from [LibretroLocale].
-abstract final class LibretroImportMessages {
-  static const int _maxLines = 3;
-
-  static String _reasonText(Locale locale, LibretroRejectReason reason, List<String> extensions) => switch (reason) {
-        LibretroRejectReason.wrongType => LibretroLocale.format(locale, 'importRejectWrongType', {
-            'extensions': extensions.map((extension) => '.$extension').join(', '),
-          }),
-        LibretroRejectReason.unreadable => LibretroLocale.format(locale, 'importRejectUnreadable', const {}),
-        LibretroRejectReason.noSpace => LibretroLocale.format(locale, 'importRejectNoSpace', const {}),
-        LibretroRejectReason.copyFailed => LibretroLocale.format(locale, 'importRejectCopyFailed', const {}),
-        LibretroRejectReason.empty => LibretroLocale.format(locale, 'importRejectEmpty', const {}),
-      };
-
-  static List<String> _lines(Locale locale, List<String> lines) => <String>[
-        ...lines.take(_maxLines),
-        if (lines.length > _maxLines) LibretroLocale.format(locale, 'importAndMore', {'count': lines.length - _maxLines}),
-      ];
-
-  /// Notices about what was not imported, one per entry: the console cannot
-  /// import, rejected files with their cause, cue sheets missing tracks.
-  static List<String> forImport(Locale locale, LibretroImportResult result) {
-    final notices = <String>[];
-    if (result.noImportableType) {
-      notices.add(LibretroLocale.format(locale, 'importNoExtensions', const {}));
-    }
-    if (result.rejected > 0) {
-      if (result.rejectedFiles.isEmpty) {
-        notices.add(LibretroLocale.format(locale, 'gamesRejected', const {}));
-      } else {
-        notices.add(<String>[
-          LibretroLocale.format(locale, 'importRejectedHeader', {'count': result.rejected}),
-          ..._lines(locale, <String>[
-            for (final file in result.rejectedFiles)
-              '${file.name} — ${_reasonText(locale, file.reason, result.acceptedExtensions)}',
-          ]),
-        ].join('\n'));
-      }
-    }
-    for (final tracks in result.missingTracks.take(_maxLines)) {
-      notices.add(
-        tracks.files.isEmpty
-            ? LibretroLocale.format(locale, 'importTracksUnreadable', {'name': tracks.name})
-            : LibretroLocale.format(locale, 'importMissingTracks', {
-                'name': tracks.name,
-                'files': tracks.files.take(5).join(', ') + (tracks.files.length > 5 ? ', …' : ''),
-              }),
-      );
-    }
-    for (final tracks in result.uncopiedTracks.take(_maxLines)) {
-      notices.add(LibretroLocale.format(locale, 'importTracksNotCopied', {
-        'file': tracks.name,
-        'tracks': tracks.files.take(5).join(', ') + (tracks.files.length > 5 ? ', …' : ''),
-      }));
-    }
-    return notices;
-  }
-
-  /// The notice after "Copy RetroArch saves and BIOS" (the 3DS-folder case
-  /// stays with the caller).
-  static String forRetroArch(Locale locale, LibretroRetroArchCopy copy) {
-    final lines = <String>[];
-    if (copy.total > 0) {
-      lines.add(LibretroLocale.format(locale, 'retroArchImported', {
-        'saves': copy.saves,
-        'states': copy.states,
-        'system': copy.system,
-      }));
-    } else if (copy.foundFolders == 0 && copy.alreadyPresent == 0 && copy.skipped == 0 && copy.folderName.isNotEmpty) {
-      lines.add(LibretroLocale.format(locale, 'retroArchNothingFolder', {'folder': copy.folderName}));
-    } else if (copy.alreadyPresent == 0 && copy.skipped == 0) {
-      lines.add(LibretroLocale.format(locale, 'retroArchNothing', const {}));
-    }
-    if (copy.alreadyPresent > 0) {
-      lines.add(LibretroLocale.format(locale, 'retroArchPresent', {'count': copy.alreadyPresent}));
-    }
-    if (copy.skipped > 0) {
-      lines.add(LibretroLocale.format(locale, 'retroArchSkipped', {
-        'count': copy.skipped,
-        'names': copy.skippedNames.join(', ') + (copy.skipped > copy.skippedNames.length ? ', …' : ''),
-      }));
-    }
-    return lines.join('\n');
-  }
-
-  /// The sentence for a failed import or library action: the known cause
-  /// when there is one, else [fallbackKey] with the raw error.
-  static String failure(Locale locale, Object error, {String fallbackKey = 'importFailed'}) {
-    LoggerService.instance.e('Import or library action failed: $error', error: error);
-    if (error is ExternalFolderAccessException) {
-      return LibraryLinkLocale.failureFor(LibraryLinkLocale.languageOf(locale), error);
-    }
-    final key = LibretroInternalService.knownFailureKey(error);
-    return key != null
-        ? LibretroLocale.format(locale, key, const {})
-        : LibretroLocale.format(locale, fallbackKey, {'error': error});
-  }
-
-  /// The notice after a library move.
-  static String forMove(Locale locale, RomLibraryMove move, String source) {
-    if (move.ownLibrary) return LibretroLocale.format(locale, 'libraryMoveOwn', const {});
-    if (move.total == 0) {
-      final examples = NeoStationRomLibrary.exampleFolders().map((name) => '“$name”').join(', ');
-      final lines = <String>[
-        LibretroLocale.format(locale, 'libraryMoveNoConsole', {'folder': source, 'examples': examples}),
-        if (move.unrecognisedFolders.isNotEmpty)
-          LibretroLocale.format(locale, 'libraryMoveUnrecognised', {
-            'folders': move.unrecognisedFolders.take(5).map((name) => '“$name”').join(', ') +
-                (move.unrecognisedFolders.length > 5 ? ', …' : ''),
-          }),
-      ];
-      return lines.join('\n');
-    }
-    final head = LibretroLocale.format(locale, 'libraryMoved', {
-      'moved': move.moved + move.notRemoved,
-      'kept': move.alreadyPresent,
-      'failed': move.failed,
-    });
-    if (move.failures.isEmpty) return head;
-    String reason(RomLibraryFailureReason value) => LibretroLocale.format(locale, switch (value) {
-          RomLibraryFailureReason.icloud => 'libraryFailIcloud',
-          RomLibraryFailureReason.sizeMismatch => 'libraryFailSize',
-          RomLibraryFailureReason.copyError => 'libraryFailCopy',
-          RomLibraryFailureReason.notRemoved => 'libraryFailNotRemoved',
-        }, const {});
-    return <String>[
-      head,
-      ..._lines(locale, <String>[for (final failure in move.failures) '${failure.name} — ${reason(failure.reason)}']),
-    ].join('\n');
+    return copied;
   }
 }

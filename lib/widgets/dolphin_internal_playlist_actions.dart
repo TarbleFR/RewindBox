@@ -126,14 +126,10 @@ class _DolphinInternalPlaylistActionsState
       ) ??
       false;
 
-  void _notice(String message, {bool long = false}) {
-    if (!mounted || message.isEmpty) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: Duration(seconds: long ? 10 : 4),
-      ),
-    );
+  void _notice(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   // Build 486: the console's HD textures page (GameCube, Wii).
@@ -212,16 +208,12 @@ class _DolphinInternalPlaylistActionsState
         final result = await DolphinSmartImportService.importGames(
           requestedSystem: widget.systemFolder,
         );
-        // A file already on disk but missing from the list is shown too.
-        if (result.imported > 0 || result.alreadyPresent > 0) {
-          await _refreshChangedSystems(
-            result.changedSystems.isEmpty
-                ? <String>{widget.systemFolder.toLowerCase()}
-                : result.changedSystems,
-          );
+        if (result.imported > 0) {
+          await _refreshChangedSystems(result.changedSystems);
         }
         if (!mounted) return;
-        _notice(result.summary(_text), long: true);
+        if (result.rejected > 0) _notice(_text('failed'));
+        if (result.imported > 0) count = result.imported;
       } else if (action.startsWith('ipl:')) {
         final region = DolphinIplRegion.values.byName(action.substring(4));
         if (await DolphinInternalV2Service.importIpl(region)) count = 1;
@@ -261,19 +253,15 @@ class _DolphinInternalPlaylistActionsState
       LoggerService.instance.w('Dolphin playlist action failed: $error');
       if (!mounted) return;
       final code = error is DolphinSystemFilesException ? error.code : '';
-      final entry =
-          error is DolphinSystemFilesException ? error.detail : null;
       final key = switch (code) {
-        'invalidWii' => entry == null ? 'invalidWii' : 'invalidWiiEntry',
-        'copyFailed' => 'copyFailedSystem',
-        'unsafePath' => 'unsafePathSystem',
+        'invalidWii' => 'invalidWii',
         'invalidWiiFile' => 'filesHelp',
         'invalidIpl' || 'invalidGameCube' => 'invalidIpl',
         'busy' => 'busy',
         'wiiMenuMissing' => 'wiiMenuMissing',
         _ => error is FormatException ? 'invalidIpl' : 'failed',
       };
-      _notice(_text(key).replaceAll('{entry}', entry ?? ''), long: true);
+      _notice(_text(key));
     } finally {
       if (mounted) {
         setState(() => _busy = false);

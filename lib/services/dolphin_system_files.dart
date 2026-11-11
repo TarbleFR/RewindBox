@@ -8,10 +8,7 @@ import 'package:path/path.dart' as p;
 /// cannot be installed by renaming it or treating it as a GameCube IPL.
 class DolphinSystemFilesException implements Exception {
   final String code;
-
-  /// The entry (file or folder name) that caused the refusal, when known.
-  final String? detail;
-  const DolphinSystemFilesException(this.code, [this.detail]);
+  const DolphinSystemFilesException(this.code);
   @override
   String toString() => code;
 }
@@ -106,7 +103,7 @@ abstract final class DolphinSystemFiles {
         final name = p.basename(entity.path);
         if (_isMetadata(name)) continue;
         if (!wiiFiles.contains(name) && !wiiDirectories.contains(name)) {
-          throw DolphinSystemFilesException('invalidWii', name);
+          throw const DolphinSystemFilesException('invalidWii');
         }
         final type = await FileSystemEntity.type(entity.path, followLinks: false);
         if ((wiiFiles.contains(name) && type != FileSystemEntityType.file) ||

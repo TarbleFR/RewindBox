@@ -10,7 +10,6 @@ import '../services/rpcs3_content_import_service.dart';
 import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_save_exchange_service.dart';
 import '../widgets/rpcs3_firmware_preflight_dialog.dart';
-import '../widgets/rpcs3_import_report.dart';
 import '../widgets/rpcs3_save_exchange_dialogs.dart';
 import '../widgets/glass/glass_banner.dart';
 import '../widgets/glass/glass_button.dart';
@@ -95,20 +94,12 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     super.dispose();
   }
 
-  void _notice(String message, {Duration? duration}) {
+  void _notice(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: duration ?? const Duration(seconds: 4),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
-
-  /// Picker and disk-space failures get a localized sentence; anything else
-  /// keeps its raw text so the cause stays visible.
-  String _describe(Object error) =>
-      Rpcs3ImportMessages.describeKnownError(error, _t) ?? error.toString();
 
   Future<void> _readDiagnostics() async {
     try {
@@ -201,10 +192,8 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
       if (mounted) setState(() => _error = error.message);
       _notice(error.message);
     } catch (error) {
-      if (!mounted) return;
-      final text = _describe(error);
-      setState(() => _error = text);
-      _notice(text);
+      if (mounted) setState(() => _error = error.toString());
+      _notice(error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -220,52 +209,22 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     });
     try {
       final result = await Rpcs3ContentImportService.importGames();
-      final refreshError = result is Rpcs3GamesImportResult
-          ? result.libraryRefreshError
-          : null;
       if (result.imported > 0) {
         await widget.onLibraryChanged();
+        _notice(_tf('gamesImported', {'count': result.imported}));
       }
-      // The texts below read the context: the screen may have been closed
-      // during a long installation.
-      if (!mounted) return;
-      if (rpcs3ImportNeedsReport(result.errors)) {
-        // More refused files than a notice names: every one, with its
-        // reason, until the user closes the report.
-        await showRpcs3ImportReport(
-          context,
-          imported: result.imported,
-          errors: result.errors,
-          refreshError: refreshError,
+      if (result.rejected > 0) {
+        _notice(
+          result.errors.isNotEmpty ? result.errors.first : _t('importRejected'),
         );
-      } else {
-        final lines = <String>[
-          if (result.imported > 0)
-            _tf('gamesImported', {'count': result.imported}),
-          if (result.rejected > 0)
-            result.errors.isNotEmpty
-                ? Rpcs3ImportMessages.refusalSummary(result.errors, _t)
-                : _t('importRejected'),
-          ?refreshError,
-        ];
-        if (lines.isNotEmpty) {
-          _notice(
-            lines.join('\n'),
-            duration: result.rejected > 0 || refreshError != null
-                ? const Duration(seconds: 12)
-                : null,
-          );
-        }
       }
       await _readDiagnostics();
     } on Rpcs3InternalException catch (error) {
       if (mounted) setState(() => _error = error.message);
       _notice(error.message);
     } catch (error) {
-      if (!mounted) return;
-      final text = _describe(error);
-      setState(() => _error = text);
-      _notice(text);
+      if (mounted) setState(() => _error = error.toString());
+      _notice(error.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -287,23 +246,15 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     try {
       if (await Rpcs3ContentImportService.importExtractedGameFolder()) {
         await widget.onLibraryChanged();
-        if (!mounted) return;
-        // The refresh sentence itself says the installation is done.
-        final refreshError = Rpcs3ContentImportService.lastFolderRefreshError;
-        _notice(
-          refreshError ?? _t('folderImported'),
-          duration: refreshError == null ? null : const Duration(seconds: 12),
-        );
+        _notice(_t('folderImported'));
       }
       await _readDiagnostics();
     } on Rpcs3InternalException catch (error) {
       if (mounted) setState(() => _error = error.message);
       _notice(error.message);
     } catch (error) {
-      if (!mounted) return;
-      final text = _describe(error);
-      setState(() => _error = text);
-      _notice(text);
+      if (mounted) setState(() => _error = error.toString());
+      _notice(error.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -337,12 +288,8 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     } on Rpcs3SaveExchangeException catch (error) {
       await _showSaveFailure(error);
     } catch (error) {
-      // Picker and disk-space failures get their sentence, anything else
-      // keeps its raw text.
-      if (!mounted) return;
-      final text = _describe(error);
-      setState(() => _error = text);
-      _notice(text);
+      if (mounted) setState(() => _error = error.toString());
+      _notice(error.toString());
     } finally {
       if (mounted) {
         setState(() {
@@ -382,12 +329,8 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     } on Rpcs3SaveExchangeException catch (error) {
       await _showSaveFailure(error);
     } catch (error) {
-      // Picker and disk-space failures get their sentence, anything else
-      // keeps its raw text.
-      if (!mounted) return;
-      final text = _describe(error);
-      setState(() => _error = text);
-      _notice(text);
+      if (mounted) setState(() => _error = error.toString());
+      _notice(error.toString());
     } finally {
       if (mounted) {
         setState(() {

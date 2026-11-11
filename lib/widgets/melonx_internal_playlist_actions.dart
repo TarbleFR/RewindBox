@@ -8,13 +8,10 @@ import 'melonx_unreal_profile_dialog.dart';
 import 'dart:io';
 import 'dart:async';
 
-import 'package:external_folder_access/external_folder_access.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:provider/provider.dart';
 
-import '../l10n/library_link_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../l10n/melonx_library_locale.dart';
 import '../providers/sqlite_config_provider.dart';
@@ -27,67 +24,6 @@ import '../services/melonx_library_scanner.dart';
 import '../services/melonx_file_transaction.dart';
 import '../services/melonx_import_progress.dart';
 import '../services/storage/storage_import_activity.dart';
-
-/// Localized text for a failed Switch library action.
-///
-/// A message that is a known key (optionally `key:detail`) is translated,
-/// the detail filling `{detail}` or following the sentence. Anything else
-/// (a native diagnostic, a system error, an unexpected exception) is shown
-/// after the generic sentence, so the cause is never hidden. A folder the
-/// system picker could not give (picker already open, access refused or
-/// lost) gets [folderFailure]'s sentence, which names that reason.
-@visibleForTesting
-String melonxFailureMessage(
-  Object error,
-  String Function(String key) t, {
-  String Function(Object error)? folderFailure,
-}) {
-  if (error is ExternalFolderAccessException) {
-    return folderFailure?.call(error) ?? t('folderAccessLost');
-  }
-  if (error is MelonxTransferCancelled) return t('cancelled');
-  if (error.toString().contains('libraryBusy')) return t('libraryBusy');
-  final known = MelonxTransferLocale.values['en']!;
-  String withDetail(String key, String detail) {
-    final text = t(key);
-    if (text.contains('{detail}')) return text.replaceAll('{detail}', detail);
-    if (detail.isEmpty) return text;
-    final shown = detail.length > melonxFailureDetailLimit
-        ? '${detail.substring(0, melonxFailureDetailLimit)}…'
-        : detail;
-    return '$text $shown';
-  }
-
-  if (error is MelonxContentException) {
-    // A specific native code has its own sentence; the generic one is
-    // followed by the native diagnostic.
-    return error.code != 'failed' && known.containsKey(error.code)
-        ? t(error.code)
-        : withDetail('failed', error.message.trim());
-  }
-  final String raw = switch (error) {
-    FormatException() => error.message,
-    FileSystemException() => [
-      error.message,
-      if (error.osError?.message.isNotEmpty == true) error.osError!.message,
-    ].join(' '),
-    PlatformException() => error.message ?? error.code,
-    StateError() => error.message,
-    _ => '$error',
-  };
-  final separator = raw.indexOf(':');
-  final key = separator > 0 ? raw.substring(0, separator) : raw;
-  if (known.containsKey(key)) {
-    return withDetail(
-      key,
-      separator > 0 ? raw.substring(separator + 1).trim() : '',
-    );
-  }
-  return withDetail('failed', raw.trim());
-}
-
-/// Characters of a technical detail shown in a notice; app.log has it all.
-const int melonxFailureDetailLimit = 240;
 
 class MelonxInternalPlaylistActions extends StatefulWidget {
   const MelonxInternalPlaylistActions({
@@ -378,16 +314,23 @@ class _MelonxInternalPlaylistActionsState
         error: error,
         stackTrace: stack,
       );
-      if (mounted) {
+      if (mounted)
         _notice(
-          melonxFailureMessage(
-            error,
-            (key) => MelonxTransferLocale.text(context, key),
-            folderFailure: (failure) =>
-                LibraryLinkLocale.failure(context, failure),
+          MelonxTransferLocale.text(
+            context,
+            error is MelonxTransferCancelled
+                ? 'cancelled'
+                : error.toString().contains('libraryBusy')
+                ? 'libraryBusy'
+                : error is MelonxContentException
+                ? error.code
+                : error is FormatException
+                ? error.message
+                : error is FileSystemException
+                ? error.message
+                : 'failed',
           ),
         );
-      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -432,10 +375,8 @@ class _MelonxInternalPlaylistActionsState
                 report.targets.containsKey(name) ? '${report.targets[name]} — $name' : name,
               if (report.refused.isNotEmpty) ...[
                 '${MelonxTransferLocale.text(ctx, 'rejected')}: ${report.refused.length}',
-                // The stored reason may carry a detail (`copyFailed:<system
-                // text>`): the same translation as every other failure.
                 for (final entry in report.refused.entries)
-                  '${entry.key}: ${melonxFailureMessage(FormatException(entry.value), (key) => MelonxTransferLocale.text(ctx, key))}',
+                  '${entry.key}: ${MelonxTransferLocale.text(ctx, entry.value)}',
               ],
             ].join('\n'),
           ),

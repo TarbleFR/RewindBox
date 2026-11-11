@@ -33,14 +33,8 @@ func MeloNXJitWaitForDetach(_ timeout: Double, _ message: inout NSString?) -> Bo
 func MeloNXJitAbortTransaction() {}
 enum MeloNXJitBridgePlugin { static func register(with registrar: FlutterPluginRegistrar) {} }
 enum MeloNXStrings { static var locale="en" }
-// The S2Arm diagnostic hook of the JIT transaction (MeloNXS2ArmProbeHook.h, d32738b5): the plugin calls it only when
-// Info.plist carries RewindBoxS2ArmProbe, which this fixture does not. Declared here as the bridging header of this
-// test is the registrar's; without them (and the journal's path below) this fixture stopped compiling the plugin.
-func MeloNXS2ArmProbeAttached(_ journalPath: UnsafePointer<CChar>?, _ flags: UInt32) -> Int32 { -1 }
-func MeloNXS2ArmProbeDetached() -> Int32 { 0 }
 enum MeloNXLaunchJournal {
     static var sink: (([String:Any])->Void)?
-    static var path: String? { nil }
     static func configure(path:String) {}
     static func configureDiagnostics(directory:URL) throws {}
     static func relayCore(_ event:[String:Any]) {}

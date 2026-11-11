@@ -160,10 +160,7 @@ class _LibretroInternalPlaylistActionsState
           _notice(_f('gamesImported', {'count': result.imported}));
         }
         if (result.alreadyPresent > 0) _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
-        if (!mounted) return;
-        for (final notice in LibretroImportMessages.forImport(Localizations.localeOf(context), result)) {
-          _notice(notice);
-        }
+        if (result.rejected > 0) _notice(_t('gamesRejected'));
       } else if (action == 'retroarch') {
         final copied = await (widget.copyRetroArch ?? LibretroInternalService.copyRetroArchData)();
         if (copied == null) return;
@@ -176,11 +173,18 @@ class _LibretroInternalPlaylistActionsState
           );
           return;
         }
-        if (!mounted) return;
-        _notice(LibretroImportMessages.forRetroArch(Localizations.localeOf(context), copied));
+        _notice(
+          copied.total == 0
+              ? _t('retroArchNothing')
+              : _f('retroArchImported', {
+                  'saves': copied.saves,
+                  'states': copied.states,
+                  'system': copied.system,
+                }),
+        );
       }
     } catch (error) {
-      if (mounted) _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error));
+      _notice(_f('importFailed', {'error': error}));
     } finally {
       if (mounted) {
         setState(() => _busy = false);

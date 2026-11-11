@@ -8,8 +8,6 @@ import '../../providers/sqlite_config_provider.dart';
 import '../../services/config_service.dart';
 import '../../services/ios_rom_library_root_resolver.dart';
 import '../../services/libretro_internal_service.dart';
-import '../../services/library_folder_inspection.dart';
-import '../../services/library_folder_linker.dart';
 import '../../services/neostation_rom_library.dart';
 import '../../services/storage/storage_import_activity.dart';
 import 'libretro_skin_manager_screen.dart';
@@ -200,94 +198,39 @@ class LibretroLibraryMoveOutcome {
   final RomLibraryMove move;
 }
 
-/// What the user decides once they have seen what a picked library holds.
-enum LibraryMoveChoice { move, another, cancel }
-
-/// What [moveLibraryIntoNeoStation] found in the picked folder, shown to
-/// the user before anything is moved.
-class LibraryMovePlan {
-  const LibraryMovePlan({required this.location, required this.inspection, required this.exampleFolders});
-
-  /// The folder as the user knows it in the Files app.
-  final String location;
-
-  /// Which console folder goes to which playlist, and what is left behind
-  /// with the reason.
-  final LibraryFolderInspection inspection;
-
-  /// Real console folder names, for a folder where none was recognised.
-  final List<String> exampleFolders;
-
-  /// Whether the folder holds at least one game the move takes.
-  bool get movable => inspection.games > 0;
-}
-
 /// Lets the user pick the folder of a library and moves its games into
-/// NeoStation's `roms` folder, one folder per console. [confirm] receives
-/// what the folder holds (which console folder goes to which playlist) and
-/// answers move, pick another folder, or cancel. Once every game is in
+/// NeoStation's `roms` folder, one folder per console. Once every game is in
 /// NeoStation, the library folders registered inside the picked folder are
 /// removed from the library: NeoStation no longer depends on them. Null when
 /// the picker or [confirm] was cancelled.
-///
-/// Nothing is unregistered when nothing was moved (11 November 2026): a
-/// folder without any recognised console folder, or NeoStation's own
-/// folder, used to count as a complete move, and the library folders
-/// registered inside the picked folder were removed with their games.
-/// GameCube, Wii and PlayStation 2 folders are left where they are on iOS:
-/// those playlists read RewindBox's own storage, not `roms`, so games moved
-/// there showed nowhere (they are added from their playlist).
 Future<LibretroLibraryMoveOutcome?> moveLibraryIntoNeoStation(
   SqliteConfigProvider provider, {
-  required Future<LibraryMoveChoice> Function(LibraryMovePlan plan) confirm,
+  required Future<bool> Function(String folder) confirm,
   void Function(int done, int total)? onProgress,
 }) => StorageImportActivity.run(() async {
+  final picked = await ExternalFolderAccess.pickAndActivateFolder(key: libretroLibraryMoveBookmarkKey);
+  if (picked == null) return null;
   final systems =
       provider.availableSystems.isNotEmpty ? provider.availableSystems : await SqliteConfigService.loadAvailableSystems();
   final names = <String>{
     for (final system in systems) ...<String>[system.folderName, ...system.folders],
   };
-  final consoles = await LibraryFolderLinker.inspectionSystems(systems);
-  final moved = <String>{
-    for (final console in consoles)
-      if (!console.importOnly) ...console.folderNames,
-  };
-  String picked;
-  String source;
-  while (true) {
-    final candidate = await ExternalFolderAccess.pickAndActivateFolder(key: libretroLibraryMoveBookmarkKey);
-    if (candidate == null) return null;
-    await LibraryFolderLinker.ensureReadable(candidate);
-    final root = await IosRomLibraryRootResolver.resolveRetroArchScanRoot(
-      linkedRoot: candidate,
-      systemFolderNames: names,
-    );
-    final choice = await confirm(LibraryMovePlan(
-      location: LibraryFolderLinker.describe(root),
-      inspection: await LibraryFolderInspector.inspect(root, consoles),
-      exampleFolders: LibraryFolderLinker.exampleFolders(consoles),
-    ));
-    if (choice == LibraryMoveChoice.another) continue;
-    if (choice == LibraryMoveChoice.cancel) {
-      // The slot of a move that will not happen links nothing.
-      await ExternalFolderAccess.clearBookmark(key: libretroLibraryMoveBookmarkKey);
-      return null;
-    }
-    picked = candidate;
-    source = root;
-    break;
-  }
+  final source = await IosRomLibraryRootResolver.resolveRetroArchScanRoot(
+    linkedRoot: picked,
+    systemFolderNames: names,
+  );
+  if (!await confirm(libretroLibraryLocation(source))) return null;
   final roms = await ConfigService.getDefaultIOSRomsFolder();
   final move = await NeoStationRomLibrary.moveLibrary(
     sourceRoot: source,
     romsRoot: roms,
-    consoleFolderNames: moved,
+    consoleFolderNames: names,
     onProgress: onProgress,
     deleteSource: ExternalFolderAccess.deleteGameFile,
   );
   await registerNeoStationLibrary(provider);
   final pickedRoot = path.normalize(picked);
-  final replaced = libraryMoveReplacesSource(move)
+  final replaced = move.complete
       ? provider.config.romFolders.where((folder) {
           final normalized = path.normalize(folder);
           return normalized != path.normalize(roms) &&
@@ -301,8 +244,3 @@ Future<LibretroLibraryMoveOutcome?> moveLibraryIntoNeoStation(
   if (move.complete) await ExternalFolderAccess.clearBookmark(key: libretroLibraryMoveBookmarkKey);
   return LibretroLibraryMoveOutcome(source: libretroLibraryLocation(source), move: move);
 });
-
-/// Whether the library folders registered inside the picked folder are no
-/// longer needed after [move]: every game it took is in NeoStation's
-/// library, and it did take games. A move of nothing replaces nothing.
-bool libraryMoveReplacesSource(RomLibraryMove move) => move.complete && move.total > 0 && !move.ownLibrary;

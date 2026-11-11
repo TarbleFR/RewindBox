@@ -30,17 +30,8 @@ require(block.count('return GameLaunchResult.failure(') >= 2, 'failures return i
 # Contract change (lot 2, docs/libretro-consoles-lot2.md): the translated
 # message also receives the technical detail, which fills the {files} of the
 # BIOS messages; before, the message showed the placeholder itself.
-# Contract change (11 November 2026, conditional BIOS named after a refused
-# launch): the {files} of the message come from outcome.messageFiles, which is
-# the technical detail as before unless the outcome carries its own file
-# names (LIBRETRO_BIOS_CONDITIONAL_MISSING keeps what the core answered in the
-# details). The detail still reaches the dialog's technical box.
-require('LibretroLocale.launchError(locale, outcome.errorCode, outcome.messageFiles)' in block,
+require('LibretroLocale.launchError(locale, outcome.errorCode, outcome.technicalDetails)' in block,
         'errors are translated with the missing files named')
-require('outcome.technicalDetails,' in block, 'the technical detail still reaches the error dialog')
-internal = (ROOT / 'lib/services/libretro_internal_service.dart').read_text(encoding='utf-8')
-require('String get messageFiles => missingFiles ?? technicalDetails;' in internal,
-        'the file names of a message are the technical detail unless the outcome names its own')
 require('outcome.technicalDetails' in block, 'technical detail kept for diagnostics')
 require(service.index('DolphinInternalV2Service.isDolphinSystem') < service.index('if (Platform.isIOS) {'),
         'Dolphin isolation gate still first')
