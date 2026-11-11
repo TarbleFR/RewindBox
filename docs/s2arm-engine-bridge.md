@@ -3,8 +3,9 @@
 Host side of the embedded Switch 2 engine: the Flutter plugin `packages/s2arm_engine_bridge` and the Dart service
 `lib/services/s2arm_internal_service.dart`. It prepares a game on the phone, loads `S2ArmEngine.framework`, drives the
 engine's guest sequence and the S2Arm JIT helper, and reports every step to a journal. Nothing of S2Arm or of any game is
-stored here; the engine framework, `NS2Pro.framework` and `S2ArmPrepare.xcframework` are supplied by the test line's
-delivery (`docs/s2arm-study-2026-11-11.md` §§ 6–9, `s2arm-engine.yml`, `s2arm-core.yml`). Nothing here has run on a device.
+stored here; the engine framework, `NS2Pro.framework`, `S2ArmPrepare.xcframework` and the system data are supplied by the
+test line's delivery (`docs/s2arm-study-2026-11-11.md` §§ 6–9, `s2arm-engine.yml`, `s2arm-core.yml`, `s2arm-prepare.yml`;
+[Delivery](#delivery-test-line) below). Nothing here has run on a device.
 
 ## Plugin `packages/s2arm_engine_bridge`
 
@@ -60,7 +61,9 @@ Every step is one line in `Documents/Diagnostics/Switch2/S2Arm-launch.log`.
 `Library/S2Arm/<gid>/` (excluded from backup, never shared or exported): `ns2-dump --reference` (RomFS and DLC read in
 place), code stage, caps, direct skeleton, module directory with the image pack, resource pack with the system data linked
 and `--applied`. It reports sizes and durations by step and maps failures to codes; it never logs game content. The direct
-chain version comes from `S2ArmEngine.framework/S2ArmDirectChain.txt` and the system data from `<app>/S2ArmSystemData`.
+chain version comes from `S2ArmEngine.framework/S2ArmDirectChain.txt` and the system data from `<app>/S2ArmSystemData/systemdata`
+(the delivery ships the whole tree as `S2ArmSystemData`, its licences and provenance beside the data; the engine reads a
+resource pack's `systemdata/` folder).
 
 ## Dart service `S2ArmInternalService`
 
@@ -78,6 +81,28 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
   native session-end stream.
 - `messageKey` / `localizedError` map the native codes to `lib/l10n/s2arm_engine_locale.dart` (12 locales).
 
+## Delivery (test line)
+
+Every build of `s2arm-delivery.yml` carries the bridge: `packages/s2arm_engine_bridge` is a workspace member and a path
+dependency of the root `pubspec.yaml` (no `pubspec.lock` change), accepted by the legal gate through
+`docs/evidence/s2arm-engine-declarations-2026-11-11.json`, chained after the probe review. Nothing of S2Arm is committed: each
+piece comes from a successful run of this branch's producer, named in the build's manifest, authenticated through the API by
+`.github/diagnostics/s2arm/standard_delivery_s2arm.py` (run: workflow, branch, success, commit in the delivered history; one
+unexpired artifact named after that commit; its size and digest) and checked again in the application and the signed IPA.
+
+| Piece | Producer, manifest | Steps | Checked |
+| --- | --- | --- | --- |
+| `S2ArmEngine.framework` (with `S2ArmDirectChain.txt`), `NS2Pro.framework` | `s2arm-engine.yml`, `s2arm.engine` | `engine-download`, `engine-embed` | archives against the manifest, identity against the pin and the patch series; byte for byte in the application, payload and signature in the IPA; the chain present, well formed, recorded |
+| `S2ArmPrepare.xcframework` (static `libS2ArmPrepare.a`, only `rb_s2arm_*` visible) | `s2arm-core.yml` (`S2ArmPrepare-<sha>`), `s2arm.prepare` = run, SHA-256 of `S2ArmPrepare.xcframework.zip` | `prepare-download`, `prepare-install` into `ios/Frameworks/` of the package, before the first `pod install` | the zip against the manifest and `sha256.txt`; `S2ArmPrepare-identity.json` against the producer commit's pin (S2Arm commit, Capstone and LZ4 digests) and `sha256.txt`; one iOS arm64 device library, the bytes `sha256.txt` measured, and its headers; `undefined.txt` leaves no `rb_s2arm_*` undefined; the podspec vendors that path alone (`ios/Frameworks/` is ignored by the package `.gitignore`) |
+| System data tree: `systemdata/` (open fonts, tz data, synthesised empty data), `licenses/`, `SOURCES.tsv`, `SHA256SUMS` | `s2arm-prepare.yml` (`s2arm-sysdata-macOS-<sha>`), `s2arm.sysdata` = run, SHA-256 of its `SHA256SUMS` | `sysdata-download`, `sysdata-embed` as `Runner.app/S2ArmSystemData`, right before `engine-embed` | every file against `SHA256SUMS` (missing, extra or changed refused), its digest against the manifest; the OFL and tz licence texts, the fonts; `SOURCES.tsv`'s S2Arm commit against the pin; no Mach-O, bundle, hidden or case-colliding path |
+| The plugin itself | this build (CocoaPods, Xcode) | the compilation | the generated registrant registers `S2ArmEngineBridgePlugin` once; the Runner executable defines the plugin class, `rb_s2arm_engine_loaded`, `rb_s2arm_engine_mark_loading` and the seven `rb_s2arm_*` entry points it calls (nm -gU), leaves no `rb_s2arm_*` undefined (nm -u), and exports `rb_s2arm_engine_loaded` in its dyld export trie; no separate bridge or preparation image |
+
+`engine-embed` records the pieces in `S2Arm-native-identity.json` (`prepare`, `systemData`, `bridge`); `engine-check-app`
+(with the generated registrant), `engine-check-ipa` and, offline against the manifest, `verify_downloaded_delivery_s2arm.py`
+check them. Drafts: `make_manifest.py ... --prepare-run RUN --prepare-zip SHA --sysdata-run RUN --sysdata-tree SHA`.
+Only CI can verify that CocoaPods links the vendored static library into Runner and the real symbol table; only a device the
+rest.
+
 ## Tests
 
 - `test/s2arm_engine_bridge_test.py`: static checks (the flag contract, the channel name, the MeloNX refusal before the
@@ -86,6 +111,9 @@ Shaped like `XeniaInternalService` (PR #172) so the shared library layer calls b
   pieces (the flag, the journal, the `S2AEMB01` reader).
 - `test/s2arm_internal_service_test.dart`: the error mapping across locales, the availability override, and the import
   through a fake channel.
+- `.github/diagnostics/s2arm/s2arm_delivery_test.py` (the delivery steps above on synthetic producers, their refusals, the
+  checks of the application, the IPA and offline) and `s2arm_legal_review_test.py` (the chained declaration reviews; on the
+  effective tree of a build, skipped elsewhere).
 
 Only CI and a device can verify: Swift/Objective-C compilation and linking against the real frameworks, the `dlopen` and
 `dlsym` of the guest entry points, `prepare_code` on device, the detach timing, the spare pool after the detach, the

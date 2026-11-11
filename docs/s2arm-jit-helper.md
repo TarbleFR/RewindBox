@@ -78,7 +78,8 @@ S2Arm tests. Steps: `engine-download` (API: run, branch, workflow, success, comm
 unexpired artifact, digest; files against manifest and producer commit) after the component runs; the
 helper (configure, `pod install`, `check-pods`) after the probe key; `engine-embed` and `engine-check-app`
 after the last embed step; `dolphin-package` instead of the packager call; `engine-check-ipa` after the
-signed-IPA checks. Every build of this workflow now carries the engine. `RewindBoxS2ArmProbe` is still
+signed-IPA checks. Every build of this workflow now carries the engine, and its host bridge with the
+preparation library and the system data (`docs/s2arm-engine-bridge.md`, Delivery). `RewindBoxS2ArmProbe` is still
 set: stopping it is not a one-line change (`set_probe_key.py` checks it at host, app and IPA) and the
 MeloNX hook is still in this branch's tree.
 
