@@ -12,6 +12,7 @@ import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/ios_library_root_relocation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:neostation/services/xenia_content.dart';
 
 import 'dart:io';
 import 'dart:convert';
@@ -133,6 +134,12 @@ class SqliteDatabaseService {
 
     // Support for metadata-only .steam files
     validExtensionsSet.add('steam');
+    // The embedded XeniOS playlist also lists the `.god` package headers its
+    // folder import writes (docs/xenios-playlist.md § Folder import).
+    if ((Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        system.folderName.toLowerCase() == 'xbox360') {
+      validExtensionsSet.addAll(XeniaContent.gameExtensions);
+    }
 
     return await Future.any([
       _performSystemScan(
@@ -189,12 +196,7 @@ class SqliteDatabaseService {
     // GameCube system, so walking each alias in turn finds every file twice and
     // stores it under two different rom_path spellings.
     final scanTargets =
-        <({
-          String dirPath,
-          String canonicalPath,
-          bool useSaf,
-          bool isAlias,
-        })>[];
+        <({String dirPath, String canonicalPath, bool useSaf, bool isAlias})>[];
 
     for (final romFolder in romFolders) {
       final bool useSaf =
@@ -207,7 +209,15 @@ class SqliteDatabaseService {
           system.folderName.toLowerCase() == 'ps2' &&
           armsx2GameDir != null &&
           path.normalize(romFolder) == path.normalize(armsx2GameDir);
-      if (isDirectArmsx2Ps2Root) {
+      // The Xbox 360 playlist's own XeniOS/Games root is scanned as is,
+      // like the ARMSX2 root (docs/xenios-playlist.md § Library).
+      final xeniaGameDir = ConfigService.linkedXeniaGameFolderPath;
+      final isDirectXeniaRoot =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == 'xbox360' &&
+          xeniaGameDir != null &&
+          path.normalize(romFolder) == path.normalize(xeniaGameDir);
+      if (isDirectArmsx2Ps2Root || isDirectXeniaRoot) {
         scanTargets.add((
           dirPath: romFolder,
           canonicalPath: await _canonicalScanPath(romFolder, useSaf: false),
@@ -302,6 +312,15 @@ class SqliteDatabaseService {
     romEntries
       ..clear()
       ..addAll(deduplicatedEntries);
+    // XeniOS: one entry per title folder (its default.xex), none inside a
+    // Games on Demand `.data` folder, each under its own library name.
+    if ((Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        system.folderName.toLowerCase() == 'xbox360') {
+      romEntries.retainWhere(
+        (entry) => XeniaFolderContent.isLibraryEntry(entry.path),
+      );
+      await _assignXeniaLibraryFileNames(system.id!, romEntries);
+    }
 
     // LIBRARY_ROOT_UNREACHABLE_BEGIN: keep_rows
     // iOS reads a library folder outside the app's container only through
@@ -391,6 +410,74 @@ class SqliteDatabaseService {
       total: finalCount,
       systemName: system.realName,
     );
+  }
+
+  /// The iOS-only XeniOS scan rules on a test host.
+  @visibleForTesting
+  static bool xeniaLibraryRulesForTesting = false;
+
+  /// Gives every XeniOS title folder its own library `filename` (see
+  /// XeniaFolderContent.libraryFileNames) and renames, once, the rows of
+  /// this system still stored as `default.xex`. ISO and `.god` rows are not
+  /// touched; a metadata row stored under `default.xex` is left as it was
+  /// (it was shared, so the games are scraped again under their own name).
+  static Future<void> _assignXeniaLibraryFileNames(
+    String systemId,
+    List<RomEntry> entries,
+  ) async {
+    if (!entries.any(
+      (entry) =>
+          path.basename(entry.path).toLowerCase() ==
+          XeniaFolderContent.executableName,
+    )) {
+      return;
+    }
+    final db = await SqliteService.getDatabase();
+    final rows = await db.rawQuery(
+      'SELECT rom_path, filename FROM user_roms WHERE app_system_id = ?',
+      [systemId],
+    );
+    final stored = <String, String>{
+      for (final row in rows)
+        row['rom_path'].toString(): row['filename'].toString(),
+    };
+    final names = XeniaFolderContent.libraryFileNames(
+      entries.map((entry) => entry.path),
+      stored: stored,
+    );
+    final storedByPath = <String, String>{
+      for (final entry in stored.entries) entry.key.toLowerCase(): entry.value,
+    };
+    final batch = db.batch();
+    var renamed = 0;
+    for (var index = 0; index < entries.length; index++) {
+      final entry = entries[index];
+      final name = names[entry.path];
+      if (name == null) continue;
+      if (name != entry.filename) {
+        entries[index] = RomEntry(
+          path: entry.path,
+          filename: name,
+          size: entry.size,
+        );
+      }
+      final previous = storedByPath[entry.path.toLowerCase()];
+      if (previous != null &&
+          previous.toLowerCase() == XeniaFolderContent.executableName) {
+        batch.rawUpdate(
+          'UPDATE user_roms SET filename = ? '
+          "WHERE app_system_id = ? AND rom_path = ? AND lower(filename) = 'default.xex'",
+          [name, systemId, entry.path],
+        );
+        renamed++;
+      }
+    }
+    if (renamed > 0) {
+      await batch.commit(noResult: true);
+      _log.i(
+        'XeniOS library: $renamed default.xex row(s) given their own name.',
+      );
+    }
   }
 
   /// Toggles the favorite status of a game.
@@ -555,6 +642,9 @@ class SqliteDatabaseService {
     final system = await SqliteService.getSystemByFolderName(systemFolderName);
     final systemId = system.id!;
     final isSwitch = systemId == 'switch' || systemId == 'nintendo-switch';
+    final isXbox360 =
+        (Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        systemId == 'xbox360';
 
     if (isSwitch) await SwitchTitleExtractor.loadKeys();
 
@@ -597,6 +687,10 @@ class SqliteDatabaseService {
 
         if (entry.filename.toLowerCase().endsWith('.psvita')) {
           titleId = await VitaTitleExtractor.extractTitleId(entry.path);
+        }
+
+        if (isXbox360 && !entry.path.startsWith('content://')) {
+          titleName = XeniaFolderContent.libraryTitle(entry.path);
         }
 
         if (entry.filename.toLowerCase().endsWith('.steam')) {
@@ -1294,10 +1388,7 @@ class SqliteDatabaseService {
   /// target as an alias.
   static Future<bool> _isDirectSymbolicLink(String dirPath) async {
     try {
-      return await FileSystemEntity.type(
-            dirPath,
-            followLinks: false,
-          ) ==
+      return await FileSystemEntity.type(dirPath, followLinks: false) ==
           FileSystemEntityType.link;
     } catch (_) {
       return false;
@@ -1443,9 +1534,9 @@ class SqliteDatabaseService {
   }) async {
     final entries = <RomEntry>[];
     try {
-      final entities = await Directory(pathStr)
-          .list(recursive: recursive, followLinks: false)
-          .toList();
+      final entities = await Directory(
+        pathStr,
+      ).list(recursive: recursive, followLinks: false).toList();
       for (final entity in entities) {
         if (await _shouldSkipStandardEntity(
           entity,

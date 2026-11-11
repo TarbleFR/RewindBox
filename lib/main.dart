@@ -57,6 +57,7 @@ import 'package:neostation/services/ios_linked_library_folders.dart';
 // LIBRARY_RELOCATION_END: imports
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
+import 'package:neostation/services/xenia_internal_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
@@ -419,6 +420,14 @@ void main() async {
     // Load the last exported emulator libraries so direct-launch matching
     // works immediately after a cold start without forcing a fresh sync.
     await RetroArchLibraryService.loadCachedLibrary();
+    // Xbox 360 playlist storage (folders only; nothing is scanned here). A
+    // console disabled by default never keeps RewindBox from starting: a
+    // folder error is logged and the layout is retried by the playlist.
+    try {
+      await XeniaInternalService.ensureLayout();
+    } on Object catch (error) {
+      log.w('XeniOS layout not ready at startup: $error');
+    }
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
 
@@ -534,7 +543,9 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  await AchievementTranslationClient.shared.setLanguage(
+    initLang.isNotEmpty ? initLang : 'en',
+  );
   // Where the saved in-game sign-in was found at each read (Keychain, the
   // private copy, or none): codes only, into the app log.
   RetroAchievementsNativeClient.diagnostics = log.i;
@@ -898,7 +909,9 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  await AchievementTranslationClient.shared.setLanguage(
+    initLang.isNotEmpty ? initLang : 'en',
+  );
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }

@@ -9,8 +9,6 @@ import 'package:flutter/widgets.dart';
 abstract final class ConsoleManagerLocale {
   static const tabTitle = 'tabTitle';
   static const tabIntro = 'tabIntro';
-  static const sectionEmbedded = 'sectionEmbedded';
-  static const sectionExternal = 'sectionExternal';
   static const filterAll = 'filterAll';
   static const filterShown = 'filterShown';
   static const filterHidden = 'filterHidden';
@@ -49,8 +47,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Consoles',
       tabIntro:
           'Choose which consoles appear in the main menu and whether their games run in RewindBox’s built-in engines. A hidden console keeps its games, covers, saves and settings.',
-      sectionEmbedded: 'Built-in engines',
-      sectionExternal: 'External apps',
       filterAll: 'All',
       filterShown: 'In the main menu',
       filterHidden: 'Hidden',
@@ -98,8 +94,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Consoles',
       tabIntro:
           'Choisissez les consoles affichées dans le menu principal et si leurs jeux tournent dans les moteurs intégrés de RewindBox. Une console masquée conserve ses jeux, jaquettes, sauvegardes et réglages.',
-      sectionEmbedded: 'Moteurs intégrés',
-      sectionExternal: 'Applications externes',
       filterAll: 'Toutes',
       filterShown: 'Dans le menu principal',
       filterHidden: 'Masquées',
@@ -148,8 +142,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Konsolen',
       tabIntro:
           'Wähle, welche Konsolen im Hauptmenü erscheinen und ob ihre Spiele in den integrierten Engines von RewindBox laufen. Eine ausgeblendete Konsole behält ihre Spiele, Cover, Spielstände und Einstellungen.',
-      sectionEmbedded: 'Integrierte Engines',
-      sectionExternal: 'Externe Apps',
       filterAll: 'Alle',
       filterShown: 'Im Hauptmenü',
       filterHidden: 'Ausgeblendet',
@@ -198,8 +190,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Consolas',
       tabIntro:
           'Elige qué consolas aparecen en el menú principal y si sus juegos se ejecutan en los motores integrados de RewindBox. Una consola oculta conserva sus juegos, portadas, partidas guardadas y ajustes.',
-      sectionEmbedded: 'Motores integrados',
-      sectionExternal: 'Aplicaciones externas',
       filterAll: 'Todas',
       filterShown: 'En el menú principal',
       filterHidden: 'Ocultas',
@@ -248,8 +238,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Console',
       tabIntro:
           'Scegli quali console appaiono nel menu principale e se i loro giochi girano nei motori integrati di RewindBox. Una console nascosta conserva giochi, copertine, salvataggi e impostazioni.',
-      sectionEmbedded: 'Motori integrati',
-      sectionExternal: 'App esterne',
       filterAll: 'Tutte',
       filterShown: 'Nel menu principale',
       filterHidden: 'Nascoste',
@@ -298,8 +286,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Consoles',
       tabIntro:
           'Escolha quais consoles aparecem no menu principal e se os jogos deles rodam nos motores integrados do RewindBox. Um console oculto mantém seus jogos, capas, saves e configurações.',
-      sectionEmbedded: 'Motores integrados',
-      sectionExternal: 'Apps externos',
       filterAll: 'Todos',
       filterShown: 'No menu principal',
       filterHidden: 'Ocultos',
@@ -348,8 +334,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Консоли',
       tabIntro:
           'Выберите, какие консоли показываются в главном меню и запускаются ли их игры во встроенных движках RewindBox. Скрытая консоль сохраняет игры, обложки, сохранения и настройки.',
-      sectionEmbedded: 'Встроенные движки',
-      sectionExternal: 'Внешние приложения',
       filterAll: 'Все',
       filterShown: 'В главном меню',
       filterHidden: 'Скрытые',
@@ -398,8 +382,6 @@ abstract final class ConsoleManagerLocale {
       tabTitle: 'Konsol',
       tabIntro:
           'Pilih konsol yang muncul di menu utama dan apakah game-nya berjalan di mesin bawaan RewindBox. Konsol yang disembunyikan tetap menyimpan game, sampul, simpanan, dan pengaturannya.',
-      sectionEmbedded: 'Mesin bawaan',
-      sectionExternal: 'Aplikasi eksternal',
       filterAll: 'Semua',
       filterShown: 'Di menu utama',
       filterHidden: 'Disembunyikan',
@@ -447,8 +429,6 @@ abstract final class ConsoleManagerLocale {
     'ja': {
       tabTitle: 'ゲーム機',
       tabIntro: 'メインメニューに表示するゲーム機と、そのゲームを RewindBox の内蔵エンジンで動かすかどうかを選びます。非表示にしたゲーム機のゲーム、カバー、セーブデータ、設定はそのまま残ります。',
-      sectionEmbedded: '内蔵エンジン',
-      sectionExternal: '外部アプリ',
       filterAll: 'すべて',
       filterShown: 'メインメニューに表示中',
       filterHidden: '非表示',
@@ -485,8 +465,6 @@ abstract final class ConsoleManagerLocale {
     'ko': {
       tabTitle: '콘솔',
       tabIntro: '메인 메뉴에 표시할 콘솔과 해당 게임을 RewindBox 내장 엔진에서 실행할지 선택하세요. 숨긴 콘솔도 게임, 커버, 저장 데이터와 설정은 그대로 유지됩니다.',
-      sectionEmbedded: '내장 엔진',
-      sectionExternal: '외부 앱',
       filterAll: '전체',
       filterShown: '메인 메뉴에 표시됨',
       filterHidden: '숨김',
@@ -523,8 +501,6 @@ abstract final class ConsoleManagerLocale {
     'zh': {
       tabTitle: '游戏机',
       tabIntro: '选择哪些游戏机显示在主菜单中，以及它们的游戏是否在 RewindBox 的内置引擎中运行。隐藏的游戏机会保留其游戏、封面、存档和设置。',
-      sectionEmbedded: '内置引擎',
-      sectionExternal: '外部应用',
       filterAll: '全部',
       filterShown: '在主菜单中',
       filterHidden: '已隐藏',
@@ -561,8 +537,6 @@ abstract final class ConsoleManagerLocale {
     'zh_Hant': {
       tabTitle: '遊戲機',
       tabIntro: '選擇哪些遊戲機顯示在主選單中，以及它們的遊戲是否在 RewindBox 的內建引擎中執行。隱藏的遊戲機會保留其遊戲、封面、存檔和設定。',
-      sectionEmbedded: '內建引擎',
-      sectionExternal: '外部應用程式',
       filterAll: '全部',
       filterShown: '在主選單中',
       filterHidden: '已隱藏',

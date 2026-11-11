@@ -4832,6 +4832,117 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
 
+### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
+
+- **Owner/branch:** session 03, `work/playlists-xenios-20261110` (fast-forwarded to
+  `5738e4ff` before its first commit). Effort `/rb-effort-high`, reported high.
+- **Input:** owner IPA reconstructed outside Git, 49156698 B, SHA-256 `8ba4c18b…600b`,
+  CRCs valid (receipt confirmed by owner); XeniOS 2.3.1 (11662), minos 26.0/SDK 27.2.
+  Upstream `xenios-jp/XeniOS` `cf7c7ee45231…` = IPA attestation `commitShort` = upstream
+  HEAD. Contract: [xenios-playlist.md](xenios-playlist.md).
+- **Shader converter:** no separate `XeniOS.framework`, but `Frameworks/libmetalirconverter.dylib`
+  (Apple Metal Shader Converter, 30171152 B, SHA-256 `923caf5d…90ff`, arm64 iPhoneOS,
+  minos 13.0, SDK 26.4, cryptid 0, system deps only, 188 exports in `IR*`/`DXIL*` only) is a
+  hard dependency: Metal init fails without it on both shader paths. Apple terms
+  (Apache-2.0 = headers only): never committed/rehosted/extracted; supplied out of band,
+  authenticated by `build-utils/xenia/validate_shader_converter.py` against
+  `build-utils/xenia/source.json`. CI source: XeniOS's pinned mirror
+  `xenios-jp/metal-shader-converter` `ios-4.0.3` (`bd6b729d…`), downloaded 10 Nov: same
+  code as the IPA copy (bytes 4096..signature identical), Apple-signed; fetched at build
+  time, never in artifacts. Shipping it in a published IPA: maintainer/legal decision (main).
+- **XeniaCore (written, not compiled):** upstream patch `build-utils/xenia/rewindbox-core.patch`
+  (47 guarded lines, applies to the pin), facade `packages/xenia_internal_bridge/core/`
+  (`XeniaCore.mm` over `EmulatorAppIOS` via `IOSWindowedAppContext`, `XeniaCoreInput.h`,
+  `target.cmake`, exports = `_NeoXenia_GetAPI`), `build-utils/xenia/{prepare_source.py,
+  build_core.sh,verify_core.py}`, dispatch-only `.github/workflows/xenia-core.yml`
+  (`checks` on macos-26; `core` opt-in, needs an Xcode 27 runner). Executed here: patch
+  test on the pinned checkout, facade C++ `-Werror` check against pinned headers, validator.
+- **JIT helper (written, not compiled; IPA wiring = main):** XeniOS needs a tool only on
+  TXM + iOS 26+, once per process (`brk #0xf00d`, x16=1 prepare x0/x1→x0, x16=0 detach,
+  issued by the Core). Helper derived from the ARMSX2 reference by
+  `tools/xenia/derive_jit_helper.py` (`--check` = no drift; script byte-equal to
+  ARMSX2/RPCS3): `native/xenia_internal_helper`, `packages/xenia_jit_helper`,
+  `XeniaJitBridgePlugin` (`neostation/xenia_jit`, bundle `…xeniajithelper`, marker
+  `NeoStationXeniaJITHelper`), `build-utils/configure_xenia_ios.py`. ABI 2 `jit_state` from
+  `IOSJitMemory`; `lib/services/xenia_jit_service.dart` plans none/reuse/handshake/classic;
+  bridge: nonce probe before prepare, detach confirmed after boot. Validator rows and
+  `ios-ci.yml` call listed for main in the contract.
+- **Touch controls (written, not compiled):** `XeniaTouchControls.{h,mm}` on the shared
+  Build 484 layer (layout `xbox360`, Xbox diamond, LB/LT RT/RB, sticks + L3/R3, BACK/START,
+  Y up, triggers 0..1); session: shared hide rule, RPCS3 merge, in-game editor (paused,
+  neutral pad), localized menu (fixes the earlier English-only labels). Shared additions:
+  `xbox360` in `NeoTouchLayoutPlugin.m`, `NeoTouchLayout.consoles`, panel name,
+  `layoutXbox360` ×12 (`generate_strings.py --check` OK), system settings identity. No skin
+  pack (Skins session).
+- **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
+  `xbox360` entry (existing system id); Consoles tab grouped by application, external-
+  RetroArch-only and missing-engine consoles removed from the tab only (maintainer
+  decision 10 Nov), Xbox 360 listed **off by default** (`console_engines_enabled_v1`);
+  playlist import button → Files → validated copy into `Documents/XeniOS/Games`
+  (duplicates, cancel, space, profiles/layouts/XEX refused) → targeted `xbox360` rescan;
+  global + per-game settings (10 cvars with verified core consumers, inherit/reset,
+  title-ID identity) incl. guest language/region; 12 locales; isolated launch route,
+  session-end monitoring; bridge `packages/xenia_internal_bridge` (ABI v1, dlopen on
+  iOS ≥ 26 only, `shaderConverterMissing`/`coreLoadFailed` states, transaction-guarded
+  callbacks, shutdown quarantine). Commits `74f668c2`, `66b09048`; draft PR #172.
+- **Shared-layer edits for main review:** `console_catalog.dart`,
+  `embedded_engine_policy.dart`, `libretro_consoles_screen.dart`,
+  `console_manager_locale.dart` (2 unused section keys removed),
+  `game_launch_service.dart`, `game_launch_manager.dart`, `scanning.dart`,
+  `sqlite_database_service.dart`, `config_service.dart`, `main.dart`, `my_games_list.dart`,
+  `game_settings_emulator_tab.dart`, `assets/systems/xbox360.json`, `pubspec.yaml`,
+  `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
+  tab rule), `docs/storage-audit-cleanup.md`.
+- **Folder import XEX/GOD (11 Nov, host-tested, no device):** menu "Import a game folder"
+  → `XeniaFolderContent.scan` (title folder with `default.xex`; XContent header
+  CON/LIVE/PIRS: SVOD + `<header>.data` with exactly `data_file_count` files, or STFS
+  single file; launchable content types only) → stage `XeniOS/.importing/<n>` → rename
+  to `Games/<title>`; package renamed `<title>.god` + `.god.data` (LaunchPath reads the
+  magic, emulator.cc:761-844, svod_container_device.cc:36-83). Scan on iOS: `god` added,
+  only `default.xex`, nothing under `.data`, title from folder/package. Content kind 4
+  `NEO_XENIA_CONTENT_PACKAGE` accepted by `XeniaCore.mm` (ABI stays 2). Proof:
+  `test/xenia_folder_import_test.dart` 11/11 (synthetic headers). Shared files touched:
+  `sqlite_database_service.dart` (iOS xbox360 only), `storage_contract_test.py`
+  (+`importFolder` import site), `docs/storage-audit-cleanup.md`.
+- **Library names + legal link (11 Nov, review by 00 requested):** defect found by session 04,
+  confirmed: every folder game was stored as `filename` = `default.xex`, the key of scraped
+  metadata (`UNIQUE(app_system_id, filename)`), media and favorites/history. Fix:
+  `<folder>.xex`, digest only when the name is taken, stored names kept, old `default.xex`
+  rows renamed once (`test/xenia_library_names_test.dart` 4/4). Legal gate: new review
+  `docs/evidence/xenios-playlist-declarations-2026-11-11.json` chained after Pocket originals
+  (pubspec.yaml + 3 new local manifests); collector updated. Chain passes with Claude's
+  pre-existing libretro podspec mismatch masked; refuses without the review / with a changed
+  file; legal Python tests = same failing set as Claude `1a10d4a8b`.
+- **Review of #172 by 00 (11 Nov), fixed, host-tested, not compiled:** D1 launch failures end
+  the JIT transaction (Dart checks before `ensure`, `abortJit`; native `failLaunch` + abort on
+  every stage, as ARMSX2); D2 reuse only with `handshakeActive`, else `restartRequired`; R1
+  classes `RBXenia…` + namespace test vs pinned sources + `verify_core.py` `nm -m` check; R2/R3/R4
+  (`sessionRunning`, held events, 30 s detach); cached `abiMismatch`/`coreLoadFailed`; guarded
+  startup layout. CI: push trigger on this branch (checks + `plugin_app` simulator link job),
+  `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
+  `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
+  legal chain still passes. Open: façade `g_host_controller` (first compile).
+- **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
+  91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
+  checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
+  XeniOS, JIT, touch panel and settings suites 92/92; `xenia_touch_controls_test.py`,
+  touch catalogues and host checks PASS; shader-converter validator 7/7;
+  `xenia_core_patch_test.py` (incl. helper drift and bridge order) and
+  `xenia_core_cpp_test.sh` OK; workflow-scanning Python tests = same set as Claude;
+  storage contract 24/24; 41 Dart suites touching changed files
+  373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
+  refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
+  failure set as HEAD (19, baseline; `stikjit_unified_build_test` was a test defect, fixed on Claude by `24a8246f`). Analyzer: no new issue.
+- **Blockers:** first real compile of the facade/plugins/helper/framework (dispatch of
+  `xenia-core.yml` by main; Core needs Xcode 27); converter redistribution decision; IPA
+  wiring of `XeniaJITHelper` (main). Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
+  no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
+  Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
+- **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`) and wires the
+  helper; component fixes what the compile reports, then the first TXM-iPhone session
+  (helper attach, touch/controller play, editor, quit, second launch without attach;
+  one ISO, one title folder, one GOD import and launch).
+
 ### Codex orchestration — Codex
 
 - **Playlists/XeniOS routing — created and started (10 Nov).**

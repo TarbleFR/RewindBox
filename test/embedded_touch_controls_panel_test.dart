@@ -204,8 +204,9 @@ void main() {
     );
   });
 
-  test('only the four embedded consoles have the panel', () {
-    for (final console in ['gc', 'wii', 'ps2', 'ps3']) {
+  test('only the embedded consoles with touch controls have the panel', () {
+    // 'xbox360': XeniOS (docs/xenios-playlist.md § Touch controls).
+    for (final console in ['gc', 'wii', 'ps2', 'ps3', 'xbox360']) {
       expect(EmbeddedTouchControlsPanel.supports(console), isTrue);
     }
     for (final console in ['ports', 'snes', 'psx', '']) {

@@ -146,8 +146,13 @@ require('errorBuilder' in catalog, 'broken thumbnails')
 # tested by test/console_manager_test.dart, the rows by
 # test/libretro_consoles_tab_test.dart.
 console_catalog = read('lib/services/console_catalog.dart')
+# 10 November 2026 (maintainer decision, docs/xenios-playlist.md § Consoles
+# tab): the tab lists ConsoleCatalog.listed, the consoles an engine of this
+# build runs, grouped by application; RetroArch-only systems and consoles
+# whose engine is missing are left out of the tab, not out of the catalog.
 require('for (final console in LibretroCoreCatalog.consoles.values)' in console_catalog
-        and 'for (final entry in ConsoleCatalog.entries)' in consoles, 'every embedded console is listed')
+        and 'ConsoleCatalog.listed(isMissing: _knownMissing)' in consoles
+        and 'for (final engine in applicationOrder)' in console_catalog, 'every embedded console is listed')
 require('LibretroInternalService.importGamesForConsole(' in consoles, 'import for a console without games')
 require('chooseLibretroImportDestination(' in consoles and 'library: destination.library' in consoles,
         "imports land in one of the user's library folders")
@@ -262,7 +267,7 @@ require(re.search(r'SizedBox\.square\(\s*dimension: 16\.r,\s*child: NavTabIcon\(
 def compact(text):
     return re.sub(r'\s+', '', text).replace(',)', ')')
 for call in ('_mainMenu.showEntry(entry, provider)', '_mainMenu.hideEntry(entry, provider)',
-             '_mainMenu.showAll(', '_mainMenu.restoreDefaults(ConsoleCatalog.entries, provider)'):
+             '_mainMenu.showAll(', '_mainMenu.restoreDefaults(_listed, provider)'):
     require(compact(call) in compact(consoles), f'the switch and the bulk actions go through LibretroMainMenu: {call}')
 require('LibretroMainMenu.stateOfEntry(' in consoles, 'each console shows its place in the main menu')
 require('ConsoleManagerLocale.' in consoles, 'the consoles page texts come from ConsoleManagerLocale')

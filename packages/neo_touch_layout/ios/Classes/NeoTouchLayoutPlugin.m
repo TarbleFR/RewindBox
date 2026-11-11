@@ -7,6 +7,8 @@ static NSArray<NSString*>* NeoTouchLayoutKeysForConsole(NSString* console) {
   if ([console isEqualToString:@"wii"]) return @[NeoTouchLayoutKeyWii, NeoTouchLayoutKeyWiiClassic];
   if ([console isEqualToString:@"ps2"]) return @[NeoTouchLayoutKeyPlayStation2];
   if ([console isEqualToString:@"ps3"]) return @[NeoTouchLayoutKeyPlayStation3];
+  // XeniOS (xenia_internal_bridge XeniaTouchControls, docs/xenios-playlist.md).
+  if ([console isEqualToString:@"xbox360"]) return @[@"xbox360"];
   return @[];
 }
 
