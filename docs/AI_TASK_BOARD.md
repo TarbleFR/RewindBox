@@ -4277,6 +4277,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   103 MB, executable 107.5 MB, NativeAOT library 223 MB before link. Toolchain fixes: ripgrep,
   GNU timeout shim, meson/ninja, prefetched codec sources. Session 01 agreed: it removes the probe
   hook and adds `rb_melonx_core_loaded()`; S2Arm side exports `rb_s2arm_engine_loaded()`.
+- **E1 started:** `S2ArmEngine.framework` links (run 43033827604, patch 0002: own image header
+  instead of `_mh_execute_header`); opened `RTLD_GLOBAL` (85 internal `dlsym(RTLD_DEFAULT)`).
+  Session 01 delivered `rb_melonx_core_loaded()` + probe-hook removal (`a18490cb`, its branch).
+  **P1 integrated** (`76e7a14`: image pack, module dir, caps, resource pack writers, system-data
+  bundle, review F1 fix), CI comparison running.
 
 ### Codex orchestration — Codex
 
