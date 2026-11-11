@@ -58,7 +58,8 @@ void main() {
       final noAci = npdm()..[0x80] = 0x58;
       expect(Switch2ExportContent.programIdFromNpdm(noAci), isNull);
       expect(Switch2ExportContent.programIdFromNpdm(Uint8List(0x20)), isNull);
-      expect(Switch2ExportContent.programIdFromNpdm(npdm(length: 0x90)), isNull);
+      // A whole NPDM cut inside its ACI0 header (program id at 0x90..0x98): the helper cannot write past the end.
+      expect(Switch2ExportContent.programIdFromNpdm(Uint8List.fromList(npdm().sublist(0, 0x90))), isNull);
     });
 
     test('titleId reads the file and refuses an oversized one', () {
