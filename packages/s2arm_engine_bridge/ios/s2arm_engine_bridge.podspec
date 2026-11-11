@@ -21,10 +21,16 @@ See docs/s2arm-engine-bridge.md.
   s.ios.deployment_target = '18.0'
   s.frameworks = 'Foundation', 'UIKit', 'Security'
   # rb_s2arm_* come from S2ArmPrepare.xcframework and the s2a_rb_guest_* entry points from S2ArmEngine.framework. Neither is
-  # vendored here (nothing of S2Arm lives in this repo): the test line's delivery embeds and links them (docs/s2arm-engine-bridge.md).
+  # in Git (nothing of S2Arm lives in this repo): the test line's delivery supplies both (docs/s2arm-engine-bridge.md).
   s.static_framework = true
-  # The pod compiles to a static library, so the rb_s2arm_* and s2a_rb_guest_* symbols it references stay unresolved here;
-  # the delivery embeds S2ArmPrepare.xcframework (rb_s2arm_*) and the guest entry points resolve at run time through dlsym.
+  # S2ArmPrepare.xcframework (static libS2ArmPrepare.a, iOS arm64, only rb_s2arm_* visible) is linked into Runner with this pod.
+  # It is not committed (ios/Frameworks/ is ignored by this package's .gitignore): the delivery of the test line downloads it
+  # from its authenticated producer run (.github/workflows/s2arm-core.yml, artifact S2ArmPrepare-<commit>, built by
+  # build-utils/s2arm/build_prepare_xcframework.sh from native/s2arm/prepare) and unzips it here before `pod install`
+  # (.github/diagnostics/s2arm/standard_delivery_s2arm.py prepare-download, prepare-install).
+  s.vendored_frameworks = 'Frameworks/S2ArmPrepare.xcframework'
+  # The s2a_rb_guest_* entry points are not linked: the plugin opens the engine framework with dlopen when a game starts and
+  # looks them up with dlsym.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'CLANG_ENABLE_OBJC_ARC' => 'YES'
