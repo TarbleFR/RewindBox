@@ -146,15 +146,16 @@ class Runner:
         r = subprocess.run([str(self.cli), 'ns2-dump', str(export), str(out), *args], capture_output=True, text=True)
         return r.returncode, (r.stdout + r.stderr).strip()
 
-    def case(self, name, export, args=(), expect=None, check=None, rerun=None, keep=False):
-        ref, mine = self.work / name / 'ref', self.work / name / 'out'
+    def case(self, name, export, args=(), expect=None, check=None, keep=None):
+        """keep: the name of an earlier case whose output directories are converted into again (reuse / redo)."""
+        ref, mine = self.work / (keep or name) / 'ref', self.work / (keep or name) / 'out'
         if not keep:
             for d in (ref, mine, Path(str(ref) + '.tmp'), Path(str(mine) + '.tmp')):
                 shutil.rmtree(d, ignore_errors=True)
         rc_m, log_m = self.mine(export, mine, args)
         last = (log_m.splitlines() or [''])[-1][-200:]
         if self.mine_only:
-            ok = expect is None or (rc_m == 0) == (expect == 'ok')
+            ok = expect is None or (rc_m == 0) == (expect in ('ok', 'reused'))
             if ok and check and rc_m == 0:
                 problem = check(mine)
                 ok = not problem
@@ -163,7 +164,10 @@ class Runner:
             return
         rc_r, log_r = self.reference(export, ref, args)
         ref_last = (log_r.splitlines() or [''])[-1][-200:]
-        if expect is not None and (rc_r == 0) != (expect == 'ok'):
+        if keep and expect == 'reused' and rc_r == 0 and '复用' not in log_r:   # the original prints "reusing" (复用)
+            report(False, name, f'the reference did not reuse its output: {ref_last}')
+            return
+        if expect is not None and (rc_r == 0) != (expect in ('ok', 'reused')):
             report(False, name, f'the reference exits {rc_r}, the test expected {expect}: {ref_last}')
             return
         if rc_r != 0:
@@ -171,7 +175,7 @@ class Runner:
             return
         a, b = tree(ref), tree(mine)
         different = sorted(k for k in set(a) | set(b or {}) if a.get(k) != (b or {}).get(k))
-        ok = rc_m == 0 and not different
+        ok = rc_m == 0 and not different and (expect != 'reused' or 'reusing' in log_m)
         if ok and check:
             problem = check(mine)
             ok = not problem
@@ -221,9 +225,10 @@ def main():
         return None
     full = mk(inputs / 'Game')
     run.case('full-update', full, check=check_full)
-    run.case('full-update-reused', full, keep=True, check=check_full)
+    run.case('full-update-reused', full, keep='full-update', expect='reused', check=check_full)
     w(full / 'updates/458752/romfs/C/c2.bin', b'new')
-    run.case('full-update-changed-source', full, keep=True)
+    run.case('full-update-changed-source', full, keep='full-update',
+             check=lambda o: None if (Path(o) / 'romfs/C/c2.bin').is_file() else 'not redone')
 
     # 2. delta update (no identical file): base overlaid by the update; --name
     run.case('delta-update-name', mk(inputs / 'Delta', full=False), ('--name', 'dk'),
