@@ -13,7 +13,10 @@ void main() {
     expect(menu, contains("ValueKey('s2arm-import-folder')"));
     expect(menu, contains("ValueKey('s2arm-import-keys')"));
     expect(menu, contains("ValueKey('s2arm-delete-game')"));
-    expect(menu.toLowerCase(), isNot(contains('firmware')));
+    // No firmware entry (the file's doc comment says why; S2Arm uses none).
+    expect(menu, isNot(contains("value: 'firmware'")));
+    expect(menu.toLowerCase(), isNot(contains('import-firmware')));
+    expect(menu.toLowerCase(), isNot(contains("_t('importfirmware")));
     expect(menu, contains("_t('importGamesHint')"));
     expect(menu, contains("_t('importKeysHint')"));
   });
