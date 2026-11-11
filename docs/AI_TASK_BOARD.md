@@ -4312,8 +4312,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
-  - **Lot 14 (11 Nov, in progress; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders):
-    GPU thread work per frame. Nothing delivered, nothing run on an iPhone.**
+  - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
+    work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
     - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
       the Core 733 preparation with the real engine classes over a fake backend (scratchpad `delta-profile/` and
       `compute-profile/`; Linux x64, tiered compilation off; host figures are not device figures).
@@ -4338,16 +4338,38 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Rejected:** the code path of a dispatch as the cause of 130-150 µs (5 µs on the host, 50 on the device once
       the nested deltas are taken off); flips between existing textures as the cause of 14-20 µs per changed
       element (1 µs on the host).
-    - **In preparation:** the sweep limited to the partially mapped textures whose pool owner's address range the
-      event intersects, with a differential gate (the same seeded script of Map, Unmap, remap and descriptor
-      rewrites on control and candidate: identical bound textures at every step, fewer re-queues); then the
-      dispatch's own repeated work (mapped-size scans, the forced shader lookup of the next draw) and the
-      exact-length arrays. Host-side: the diagnostics poll decoding only a changed report
-      (`MeloNXRuntimeAPI.diagnostics()`, a contract input, with this lot's freeze). For session 04, in the same
-      bridge lot: the S2Arm probe hook removed and `rb_melonx_core_loaded` exported.
-    - **Next action:** integrate the sweep change as an adapter with its gate once Core 733 is pinned (its fourth
-      build is with main); a counter of re-queued and skipped textures in the performance sample so that the device
-      run confirms or refutes the hypothesis.
+    - **Change (Core 735, `adapt_remap_sweep_range`, TextureCache.cs, Texture.cs, TexturePool.cs):** a member of the
+      partially mapped set is swept at a Map or Unmap only when the event can concern it: physically overlapped, never
+      swept yet (its creation lookups skip the range comparison until then), without a pool owner (a short-cache entry
+      whose hole was filled is invalidated only by the sweep's sequence move), or with a pool owner of the event's
+      address space whose range the event intersects. The two first rules came from the differential gate: the plain
+      "owner range intersects" filter was caught at steps 31 and 53. Two counters of the sweep were drafted and dropped:
+      the performance sample's JSON (4 000 characters at maximum width) has no room; `arrDeltaElems`,
+      `arrDeltaChanged` and `gpuWork.arrayDelta` decide on the device instead.
+    - **Gate `remap-sweep-range` (1 041 checks in the Core form):** the same seeded script of 440 steps on control and
+      candidate engines (real texture cache, pools, memory manager; fake backend): identical state at every step (each
+      array element and binding, each pool item and its range, the partially mapped set), and in a dependencies scene;
+      pool references re-queued 21 096 -> 250, delta ids changed 40 311 -> 964, elements re-sent 97 269 -> 2 024; six
+      wrong variants caught; no timing, no sleep, single-threaded on the engine side; identical receipts plain and with
+      three processors under four busy loops. Host "sticky" bench (75 partially mapped textures, 4 entries, an
+      unrelated Map each update): 768 to 1 122 µs per commit -> 21 to 176 µs, 26 to 31 KiB -> 0.
+    - **Host side (bridge, `MeloNXRuntimeAPI.swift`, a contract input):** `MeloNXDiagnosticsReader` keeps one buffer and
+      decodes the engine's report only when its bytes changed; executed on macOS against a scripted engine (every
+      changed report decoded once, an unchanged one never, a broken one again): 2.5 µs of CPU per poll of an unchanged
+      26 KiB report against 125.1 µs before (stall-watch run 43042778334, 205 checks). For session 04 (bridge
+      `a18490cb`): the S2Arm probe hook removed; `rb_melonx_core_loaded` exported, `rb_s2arm_engine_loaded` read before
+      MeloNXCore is loaded.
+    - **Freeze:** 92 gates on the final preparation, 90 green in one series; `released-texture-flush` failed on its
+      check that the final Texture.cs is its own adapter's and learned `files_edited_later` (a later adapter now edits
+      it), then green with `remap-sweep-range` in the Core form. Contract `47b596a9…` (207 inputs, 211 members, 92
+      gates), contract test 485 with the archive / 421 without. Evidence
+      [run.json](evidence/melonx-735-gates/run.json), [device protocol](evidence/melonx-735-gates/device-protocol.md).
+    - **Not in this lot:** the dispatch's own repeated work (mapped-size scans, the shader lookup forced on the next
+      draw: about 2 µs a dispatch on the host) and the exact-length arrays of the delta runs; after the device run.
+    - **Not measured on a device; no frame, heat or memory gain is claimed.** Remaining for the verdict: as lot 12.
+    - **Next action:** main runs Core CI on the Core 735 source and ships it with this head's bridge in the next
+      private IPA; the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample
+      against IPA 725's.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**
