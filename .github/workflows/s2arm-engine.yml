@@ -67,6 +67,8 @@ jobs:
         run: |
           set -euo pipefail
           command -v rg > /dev/null || brew install ripgrep
+          for tool in meson ninja; do command -v $tool > /dev/null || brew install $tool; done   # services/dav1d/build.sh
+          echo "meson $(meson --version) ninja $(ninja --version)" | tee -a proof/inputs.txt
           rg --version | head -1 | tee -a proof/inputs.txt
           # GNU timeout only (services/nxaot.sh calls it); the BSD tools stay first on PATH.
           if ! command -v timeout > /dev/null; then
