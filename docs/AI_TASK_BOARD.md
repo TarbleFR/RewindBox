@@ -2193,7 +2193,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
             - fold, route, analyzer, pin and guards (13 reruns);
             - Core 931 driver, 1502 s: increments 901 to 931, the 906 to 931 feature tests (917 and 921 included), and the Core
               668 driver on the reverted tree.
-          - Not compiled for iOS yet. Nothing has run on an iPhone; no energy, temperature or FPS gain is claimed.
+          - **Core 931 pinned:**
+            - Request 2 (41427927, run 43038892948, attempt 1): both jobs green.
+            - Artifact 13864619406 (30527835 B, `6fadbf6b`); dylib `9dd2b3f4`, 81010576 B; fingerprint `17802f8e`.
+            - PPU a987639e and SPU 477a3fa4 codegen, unchanged.
+            - The library holds ENERGY931, THERMAL931, the 931 policy line, the setting and the pause queue.
+            - Apple host: 15 commands. The thermal harness passed with `arm64: 1`.
+            - pin_errors clean, bundle complete; pin `a7295abf`.
+            - It replaces Core 930 directly; Core 929 stays the verified fallback.
+          - Nothing has run on an iPhone; no energy, temperature or FPS gain is claimed.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
