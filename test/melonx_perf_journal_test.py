@@ -659,9 +659,18 @@ let small = UnsafeMutablePointer<UnsafeMutableRawPointer?>.allocate(capacity:sma
 func logger() -> UnsafeRawPointer? {
     dlsym(UnsafeMutableRawPointer(bitPattern:-2), "malloc_logger")!.assumingMemoryBound(to:UnsafeRawPointer?.self).pointee
 }
+// The cost of the hook: nanoseconds per malloc and free of 64 bytes, without it and with it.
+@inline(never) func pairs(_ rounds: Int) -> Double {
+    let begin = DispatchTime.now().uptimeNanoseconds
+    for _ in 0..<rounds { let block = malloc(64)!; block.storeBytes(of:1, as:UInt8.self); free(block) }
+    return Double(DispatchTime.now().uptimeNanoseconds - begin) / Double(rounds)
+}
+_ = pairs(200_000)
+let plain = pairs(2_000_000)
 print("LOGGER before \(logger() == nil)")
 print("START \(MeloNXHeapSamplerLink.start()) \(MeloNXHeapSamplerLink.start())")
 print("LOGGER set \(logger() != nil)")
+print(String(format:"PAIRS %.1f %.1f", plain, pairs(2_000_000)))
 keepBig()
 keepSmall()
 let threads = (0..<4).map { index -> Thread in
@@ -703,6 +712,9 @@ exit(0)
         out = result.stdout.splitlines()
         check('LOGGER before true' in out and 'START 1 0' in out and 'LOGGER set true' in out and 'STOP 1 0' in out and 'LOGGER after true' in out,
               'the hook is set once and removed: ' + str([l for l in out if not l.startswith('HEAP ')]))
+        plain_ns, hooked_ns = map(float, next(l for l in out if l.startswith('PAIRS ')).split(' ')[1:])
+        print(f'malloc and free of 64 bytes: {plain_ns} ns without the hook, {hooked_ns} ns with it', flush=True)
+        check(0 < plain_ns and hooked_ns - plain_ns < 1000, 'the hook costs well under a microsecond per malloc and free')
         heap_lines = [l.removeprefix('HEAP ') for l in out if l.startswith('HEAP ')]
         head = re.match(r'window 3 s \(test\): live (\d+) MiB in (\d+) samples, allocated (\d+) MiB in (\d+), interval 256 KiB, (\d+) stacks, '
                         r'(\d+) dropped, (\d+) unwalked; zones=\S+$', heap_lines[0])
