@@ -41,9 +41,14 @@ class _Armsx2InternalPlaylistActionsState
 
   void _interaction(bool active) => widget.onInteractionChanged?.call(active);
 
-  void _notice(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  void _notice(String message, {bool long = false}) {
+    if (!mounted || message.isEmpty) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: Duration(seconds: long ? 10 : 4),
+      ),
+    );
   }
 
   // Build 486: the console's HD textures page (PS2).
@@ -86,17 +91,19 @@ class _Armsx2InternalPlaylistActionsState
     try {
       if (action == 'games') {
         final result = await Armsx2InternalService.importGames();
-        if (result.imported > 0) {
-          await widget.onLibraryChanged();
-          _notice(_tf('gamesImported', {'count': result.imported}));
-        }
-        if (result.rejected > 0) {
-          _notice(
-            result.errors.isNotEmpty
-                ? result.errors.first
-                : _t('gamesRejected'),
-          );
-        }
+        if (result.imported > 0) await widget.onLibraryChanged();
+        final problems = result.problemSummary(_t);
+        _notice(
+          [
+            if (result.imported > 0)
+              _tf('gamesImported', {'count': result.imported}),
+            if (problems.isNotEmpty)
+              problems
+            else if (result.rejected > 0)
+              _t('gamesRejected'),
+          ].join('\n'),
+          long: true,
+        );
       } else if (action == 'choose_bios') {
         await showArmsx2BiosPicker(context);
       } else if (action == 'boot_bios') {
@@ -133,11 +140,21 @@ class _Armsx2InternalPlaylistActionsState
         }
       } else if (action == 'bios') {
         final result = await Armsx2InternalService.importBios();
+        final problems = result.problemSummary(_t);
         if (result.imported > 0) {
-          _notice(_tf('biosImported', {'count': result.imported}));
+          _notice(
+            [
+              _tf('biosImported', {'count': result.imported}),
+              if (problems.isNotEmpty) problems,
+            ].join('\n'),
+            long: true,
+          );
           if (mounted) await showArmsx2BiosPicker(context);
-        } else if (result.rejected > 0) {
-          _notice(result.errors.isNotEmpty ? result.errors.first : _t('biosImportFailed'));
+        } else if (result.rejected > 0 || problems.isNotEmpty) {
+          _notice(
+            problems.isNotEmpty ? problems : _t('biosImportFailed'),
+            long: true,
+          );
         }
       }
     } catch (error) {

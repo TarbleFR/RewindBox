@@ -205,20 +205,37 @@ LOOP_SITES = (
      'verifiedCopies[sourcePath] = outputLength;',
      'for (final picked in selection.files) {',
      ()),
+    # Since 11 November 2026 the copy and its length check are one helper per engine (COPY_HELPERS below): the loop
+    # refuses what the helper refused, then records the length the helper verified.
     ('lib/services/armsx2_internal_service.dart',
      'static Future<Armsx2ImportResult> _copySelection(',
-     'if (sourceLength <= 0 || sourceLength != outputLength) {',
-     'verifiedCopies[sourcePath] = outputLength;',
+     'if (code != null) {',
+     'verifiedCopies[sourcePath] = outcome.length;',
      'for (final picked in files) {',
      ()),
     # The Dolphin import the menu really uses (dolphin_internal_playlist_actions).
     ('lib/services/dolphin_smart_import_service.dart',
      'static Future<DolphinSmartImportResult> importGames(',
-     'if (sourceLength <= 0 || sourceLength != outputLength) {',
-     'verifiedCopies[sourcePath] = outputLength;',
+     'if (code != null) {',
+     'verifiedCopies[sourcePath] = outcome.length;',
      'for (final picked in selection.files) {',
      ()),
 )
+
+# The helpers those two loops call: file -> (signature, the length check, the answer after a verified copy, the
+# removal of the file a failed copy created).
+COPY_HELPERS = {
+    'lib/services/armsx2_internal_service.dart': (
+        'static Future<Armsx2CopyOutcome> copyFile(',
+        'if (sourceLength <= 0 || sourceLength != outputLength) {',
+        'return Armsx2CopyOutcome.copied(sourceLength);',
+        'if (await output.exists()) await output.delete();'),
+    'lib/services/dolphin_smart_import_service.dart': (
+        'static Future<DolphinCopyOutcome> copyImage(',
+        'if (sourceLength <= 0 || sourceLength != outputLength) {',
+        'return DolphinCopyOutcome.copied(sourceLength);',
+        'await _deleteIfExists(output);'),
+}
 
 # Every allowed caller of the helpers outside lib/services/storage/:
 # file -> method signatures (§ 4). Extending this list is a contract change.
@@ -335,6 +352,20 @@ class PickerCopiesAfterAVerifiedImport(unittest.TestCase):
                 self.assertIn('copy.key', call)
                 self.assertIn('expectedLength: copy.value', call)
                 self.assertEqual(span.count('verifiedCopies['), 1, 'one recording line')
+
+    def test_the_copy_helpers_verify_the_length_before_they_answer_copied(self) -> None:
+        for relative, (signature, verification, copied, removal) in COPY_HELPERS.items():
+            with self.subTest(site=relative):
+                span = Span(Source(relative), signature)
+                check = span.find(verification)
+                answer = span.find(copied)
+                removed = span.find(removal)
+                self.assertLess(span.block_end(verification), answer, 'copied is answered once the length is verified')
+                self.assertLess(check, removed, 'a copy of another length is removed')
+                self.assertLess(removed, answer, 'removed before any answer of success')
+                self.assertEqual(span.count(copied), 1)
+                # The file removed is the one this copy created: it comes from the unique-name helper.
+                self.assertLess(span.find('final output = await _uniqueDestination(destination, name);'), check)
 
     def test_armsx2_games_and_bios_share_the_verified_copy(self) -> None:
         source = Source('lib/services/armsx2_internal_service.dart')
