@@ -3736,10 +3736,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       macOS + iOS typecheck run 42945472943 green. Gate `pipeline-cache-compact` (50 checks, real manager on the content
       double in key mode: a 12.5 MiB file is 803 KiB after the load with its 200 libraries, read small at the next launch
       of a killed session; control keeps it whole).
-    - **Core 729 frozen: contract `0501ae30…` (204 inputs, 207 members, 87 gates; contract test 474
-      checks; head `37937b4a`; [receipts](evidence/melonx-729-gates/run.json),
+    - **Core 729 frozen: contract `1e9d597b…` (204 inputs, 207 members, 87 gates; contract test 474
+      checks; [receipts](evidence/melonx-729-gates/run.json),
       [device protocol](evidence/melonx-729-gates/device-protocol.md)).** Main must rebuild/pin MoltenVK from the
       five-part patch with this Core (the contract binds the patch).
+      **Realigned on `Claude` `1a9f2167` (11 Nov, merged here):** the contract frozen at `37937b4a` was `0501ae30…`;
+      PR #174 replaced the upload step of `melonx-core.yml`, a fixed input, so that one entry is `be62c65b…` ->
+      `a4fd766d…` and nothing else differs (a freeze run again on the merged tree is the same JSON; its bytes vary
+      from run to run by the key order of `baselineUnadaptedMembers` alone, so the frozen file with that entry is
+      published). No preparation input, fixture or gate script changed: no gate run again. `melonx-cache-keys.yml`
+      uploads through the protected action (`check_workflows.py` passes; `scan.py` run locally on its two path
+      patterns, 23 files; not run on a runner since).
     - **Reference recomputed (`tools/melonx/frame_budget.py`, pid 49375):** after 88 s 1 370 frames in 121.9 s, mean
       89.0 ms, excess +55.6 = stutters +36.2 (220 gaps over 100 ms) + slow frames +19.9 - 0.5; after 107 s 93.9 ms
       (+60.6). Corrections: 28-72 s is not all play (28-49 s are menus and loading; play starts at t=52: 38.7 ms,

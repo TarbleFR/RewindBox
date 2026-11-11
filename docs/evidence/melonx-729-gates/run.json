@@ -6,7 +6,8 @@
  "lot": 10,
  "base": {
   "core": 727,
-  "contract": "1aa56e303b31da0983f40ffca706a98d72891b17bae83e6aaec909093e9d36ea"
+  "contract": "1aa56e303b31da0983f40ffca706a98d72891b17bae83e6aaec909093e9d36ea",
+  "contractOnClaude": "f494197a7706ed1264f13926edbe3ae49e3b2ace35a6cc08ddbc8e7968dcbd75"
  },
  "change": "One adapter after adapt_vulkan_memory_journal: adapt_pipeline_cache_compact (PipelineCacheManager.cs: at the end of the background load a main pipeline cache file at least twice main's data, by 8 MiB or more, is written again once; the budget estimate and the growth rule take main's data). The contract binds the MoltenVK recipe patch with its fifth part (cache keys, sha256 560669f0b982c10a82c7591fe43ef875125beb7f3c0033140458e430c7921d6e, five markers).",
  "preparation": "only PipelineCacheManager.cs differs from the Core 727 preparation",
@@ -467,11 +468,13 @@
  },
  "allGatesLocally": "87 of 87 passed on the final preparation (11 Nov). First pass: warmup-key-parity failed on its list of the files the recipe patch may touch (three join with the fifth part; taught, 1 371 checks) and compute-switch-bindings on its load-dependent timing comparison (green alone, as at Core 725).",
  "contract": {
-  "sha256": "0501ae302106d6d3b35699d46f78f27ef0497ca98cdfd7d8055ef62c4127eec8",
+  "sha256": "1e9d597bb260f1a0a893dd696ddc688afe5613b8e6fe81501c8e1caaea04dad7",
   "preparationInputs": 204,
   "preparedMembers": 207,
   "freshAppleGates": 87,
-  "contractTestChecks": 474
+  "contractTestChecks": 474,
+  "frozenBeforeTheMerge": "0501ae302106d6d3b35699d46f78f27ef0497ca98cdfd7d8055ef62c4127eec8",
+  "realignment": "origin/Claude 1a9f2167 merged before the handoff (PR #174, 0284bbf4, replaced the artifact upload step of .github/workflows/melonx-core.yml, a fixed input of the contract). Only inputs['.github/workflows/melonx-core.yml'] differs from the contract frozen before the merge: be62c65b... -> a4fd766d.... freeze_dma_core.py run again on the merged tree gives the same contract as JSON (every key and value); its bytes differ from run to run by the key order of baselineUnadaptedMembers alone (built from a set), so the published file is the frozen one with that one entry. No preparation input, fixture input or gate script changed with the merge: no gate was run again; the contract test passes on the merged tree (474 checks)."
  },
  "physicalDeviceTested": false,
  "ipa": null,
@@ -480,5 +483,6 @@
   42943460686,
   42943460436,
   42945472943
- ]
+ ],
+ "workflowUploads": "melonx-cache-keys.yml uploads through TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37 (.github/ipa-protection/check_workflows.py passes on the merged tree; the guard's scan.py run locally on the workflow's two path patterns: 23 files inspected, no plaintext IPA). Not run on a runner since the change."
 }
