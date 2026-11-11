@@ -9,7 +9,7 @@ import 'package:path/path.dart' as path;
 class Switch2Control {
   const Switch2Control({required this.directory, required this.nacp});
 
-  /// Folder that holds control.nacp (and the icon_<Language>.dat files).
+  /// Folder that holds `control.nacp` (and the `icon_<Language>.dat` files).
   final String directory;
   final Uint8List nacp;
 }
