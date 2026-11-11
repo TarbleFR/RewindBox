@@ -3890,6 +3890,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (two gate scripts, one fixture): contract `518ea8dc…` -> `9de16cd8…`. **Seen, not changed:** the receipts of 24
       gates declare fixture files the contract does not list (among them this gate's `Program.cs` and `Double.cs`);
       to bind in one reviewed step with main.
+    - **IPA 725 delivered by main (11 Nov 07:55, receipt read on `Claude` `a0eda772`):** source `e5a82821`, run
+      42973548971, 272 226 282 bytes, sha256 `30f98890…e54a`; MeloNX Core 731, five-part MoltenVK, bridge of
+      `840c3fb5` (`vm=`, `hw=`, `pc=`). Not run on an iPhone yet: every device figure of this entry is IPA 724's.
+      **Waiting for:** the two Hogwarts sessions of the [protocol](evidence/melonx-731-gates/device-protocol.md).
     - **Core 731 pinned by main (11 Nov 06:11, checked on `Claude`):** run 42958274015 green on source `840c3fb5`
       (the worker-library-share gate included), artifact 13830187578, iPhone binary `574a5de9…` 38 456 384 B, contract
       `518ea8dc…`, 88 fresh gates; it goes into IPA 725 with the five-part MoltenVK `99605a2b…`. The two gate
