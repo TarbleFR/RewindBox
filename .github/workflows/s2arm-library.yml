@@ -48,8 +48,5 @@ jobs:
       - name: Switch 2 Glacier tile review (legal gate controls)
         run: python3 -B test/switch2_glacier_tile_review_test.py
 
-      # Not changed by this branch, run for information: at db277ee (PR #172) and at Claude 41c7640 alike it stops on
-      # lib/widgets/header.dart, which no longer contains 'NavTabIcon(spec: navTabSpec(tab), tint: tint)'.
-      - name: Libretro frontend UI contract (fails before this branch, see comment)
-        continue-on-error: true
+      - name: Libretro frontend UI contract
         run: python3 test/libretro_frontend_ui_contract_test.py
