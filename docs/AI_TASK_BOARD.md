@@ -4380,6 +4380,64 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
       `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
       known.
+  - **Lot 14 (11 Nov; maintainer: "une vraie mise à jour pour sentir du changement" on RAM, heat, shaders): GPU thread
+    work per frame. Core 735 frozen here (contract `47b596a9…`), not delivered, not run on an iPhone.**
+    - **Input identity:** the IPA 725 `performance` samples of lot 13 (pid 51986) and two host profiles on copies of
+      the Core 733 preparation with the real engine classes over a fake backend (scratchpad `delta-profile/` and
+      `compute-profile/`; Linux x64, tiered compilation off; host figures are not device figures).
+    - **Finding 1, the compute timer is mostly the array deltas nested in it.** Device: compute minus arrayDelta is
+      42 to 66 µs per dispatch in all 16 samples (83 to 348 ms per 5.1 s) where the inclusive figure was 130 to
+      150 µs; queue back-pressure is 0 to 77 ms per sample (not the regime where a dispatch waits for the render
+      thread); read copies are 0.1 per dispatch (the 5.9 KiB allocated per dispatch are the nested deltas', not a
+      copy of the shader code). Host: a dispatch of 8 textures, 4 images, 6 storage and 3 uniform buffers costs
+      5.4 µs warm, 16 µs with cooled caches, and pushes 1.8 µs onto the next draw (shader lookup forced, every
+      binding re-sent).
+    - **Finding 2, what a pool-array delta update costs on the host:** a descriptor flip to an existing texture or
+      a remap that keeps the mapping 0.3 to 3 µs per changed id; restoring a partially mapped texture 8 to 10 µs
+      and 352 B; a remap that moves the mapping 23 to 108 µs; a new texture 11 to 90 µs. A fixed part per call
+      walks every texture of the array three times (42 µs warm, about 150 µs cooled at 2 048 textures). The bytes
+      come from two exact-length arrays per run of changed elements (`RentBindingScratch`, `ThreadedArrayPool.Copy`).
+    - **Hypothesis under test (fits the device's signature, not proven on it):** `TextureCache.MemoryUnmappedHandler`
+      re-queues every texture of `_partiallyMappedTextures` at every guest Map or Unmap anywhere in the GPU address
+      space; each is then restored by `ProcessDereferenceQueue` and re-recorded and re-sent by the array entries.
+      That gives a near-constant set of ids per call, several calls per frame, in steady scenes too, with
+      allocations per call: the device shows 53 to 160 ids per call (88 % changed), 4 to 5 calls per frame, 18 to
+      34 KiB per call, in the 20 s on target as well.
+    - **Rejected:** the code path of a dispatch as the cause of 130-150 µs (5 µs on the host, 50 on the device once
+      the nested deltas are taken off); flips between existing textures as the cause of 14-20 µs per changed
+      element (1 µs on the host).
+    - **Change (Core 735, `adapt_remap_sweep_range`, TextureCache.cs, Texture.cs, TexturePool.cs):** a member of the
+      partially mapped set is swept at a Map or Unmap only when the event can concern it: physically overlapped, never
+      swept yet (its creation lookups skip the range comparison until then), without a pool owner (a short-cache entry
+      whose hole was filled is invalidated only by the sweep's sequence move), or with a pool owner of the event's
+      address space whose range the event intersects. The two first rules came from the differential gate: the plain
+      "owner range intersects" filter was caught at steps 31 and 53. Two counters of the sweep were drafted and dropped:
+      the performance sample's JSON (4 000 characters at maximum width) has no room; `arrDeltaElems`,
+      `arrDeltaChanged` and `gpuWork.arrayDelta` decide on the device instead.
+    - **Gate `remap-sweep-range` (1 041 checks in the Core form):** the same seeded script of 440 steps on control and
+      candidate engines (real texture cache, pools, memory manager; fake backend): identical state at every step (each
+      array element and binding, each pool item and its range, the partially mapped set), and in a dependencies scene;
+      pool references re-queued 21 096 -> 250, delta ids changed 40 311 -> 964, elements re-sent 97 269 -> 2 024; six
+      wrong variants caught; no timing, no sleep, single-threaded on the engine side; identical receipts plain and with
+      three processors under four busy loops. Host "sticky" bench (75 partially mapped textures, 4 entries, an
+      unrelated Map each update): 768 to 1 122 µs per commit -> 21 to 176 µs, 26 to 31 KiB -> 0.
+    - **Host side (bridge, `MeloNXRuntimeAPI.swift`, a contract input):** `MeloNXDiagnosticsReader` keeps one buffer and
+      decodes the engine's report only when its bytes changed; executed on macOS against a scripted engine (every
+      changed report decoded once, an unchanged one never, a broken one again): 2.5 µs of CPU per poll of an unchanged
+      26 KiB report against 125.1 µs before (stall-watch run 43042778334, 205 checks). For session 04 (bridge
+      `a18490cb`): the S2Arm probe hook removed; `rb_melonx_core_loaded` exported, `rb_s2arm_engine_loaded` read before
+      MeloNXCore is loaded.
+    - **Freeze:** 92 gates on the final preparation, 90 green in one series; `released-texture-flush` failed on its
+      check that the final Texture.cs is its own adapter's and learned `files_edited_later` (a later adapter now edits
+      it), then green with `remap-sweep-range` in the Core form. Contract `47b596a9…` (207 inputs, 211 members, 92
+      gates), contract test 485 with the archive / 421 without. Evidence
+      [run.json](evidence/melonx-735-gates/run.json), [device protocol](evidence/melonx-735-gates/device-protocol.md).
+    - **Not in this lot:** the dispatch's own repeated work (mapped-size scans, the shader lookup forced on the next
+      draw: about 2 µs a dispatch on the host) and the exact-length arrays of the delta runs; after the device run.
+    - **Not measured on a device; no frame, heat or memory gain is claimed.** Remaining for the verdict: as lot 12.
+    - **Next action:** main runs Core CI on the Core 735 source and ships it with this head's bridge in the next
+      private IPA; the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample
+      against IPA 725's.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**

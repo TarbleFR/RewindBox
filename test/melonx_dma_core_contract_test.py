@@ -191,6 +191,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'host-thread-class': 'delivered', 'diagnostics-snapshot-reuse': 'delivered',
             # Core 733: the kernel timer proof run again on the final timer manager (its worker asks the class).
             'kernel-timer-allocations': 'delivered',
+            # Core 735 (lot 14): the remap sweep of the partially mapped textures.
+            'remap-sweep-range': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -568,7 +570,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_vulkan_memory_journal.py',
                                                      'build-utils/melonx/adapt_pipeline_cache_compact.py',
                                                      'build-utils/melonx/adapt_cold_buffer_trim.py',
-                                                     'build-utils/melonx/adapt_host_thread_class.py'} and
+                                                     'build-utils/melonx/adapt_host_thread_class.py',
+                                                     'build-utils/melonx/adapt_remap_sweep_range.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -601,7 +604,8 @@ if not args.helpers_only:
     # Core 727: MemoryAllocator.cs joins; Core 729: adapt_pipeline_cache_compact.py joins the preparation inputs.
     # Core 731: adapt_cold_buffer_trim.py joins them; the same 207 prepared members.
     # Core 733: adapt_host_thread_class.py joins them; four files join the prepared members (211).
-    check(len(frozen['preparationInputs']) == 206 and len(frozen['preparedMembers']) == 211, 'Wrong final composition')
+    # Core 735: adapt_remap_sweep_range.py joins them; the same 211 prepared members.
+    check(len(frozen['preparationInputs']) == 207 and len(frozen['preparedMembers']) == 211, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

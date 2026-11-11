@@ -184,6 +184,8 @@ LOT_FILES = {
     'adapt_cold_buffer_trim': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
     # Core 733 (lot 12): the host thread class (Common, HLE and Audio files: none is held in this composition).
     'adapt_host_thread_class': [],
+    # Core 735 (lot 14): the remap sweep of the partially mapped textures.
+    'adapt_remap_sweep_range': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
 }
 
 checks = 0
