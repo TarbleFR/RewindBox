@@ -136,12 +136,12 @@ def defined_symbols(data):
 
 
 def check_executable(raw, label):
-    """The Runner executable links the probe: its class and its two entry points are defined in it."""
+    """The Runner executable links the probe: its Objective-C class (the symbol the compiler emits for the
+    class object) and its two entry points are defined in it."""
     symbols = defined_symbols(raw)
     missing = [name for name in REQUIRED_SYMBOLS if name not in symbols]
     require(not missing, f'{label} does not define {missing}: the static probe pod is not linked into the '
             'Runner executable (or its symbols were stripped before this check)')
-    require(PLUGIN_CLASS.encode() + b'\0' in arm64_slice(raw), f'{label} has no Objective-C class name {PLUGIN_CLASS}')
     return dict(executable=label, pluginClass=PLUGIN_CLASS, definedSymbols=list(REQUIRED_SYMBOLS))
 
 
