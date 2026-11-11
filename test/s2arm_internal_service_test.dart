@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Locale;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
