@@ -4971,11 +4971,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `ns2_dump` port byte-identical to S2Arm (11 921 frames, 2 323 NSOs, 31 export folders, 9
   code-stage cases incl. ZBIC); memory-safety review running; nothing on a device yet. **P1
   (pack assembly) started** (delegated).
-- **Maintainer (11 Nov): "Vas jusqu'au moteur"** — read as: continue past preparation to running a
+- **Maintainer (11 Nov): go as far as the engine** — read as: continue past preparation to running a
   game with the S2Arm engine inside RewindBox. Mapping the engine (runtime ~44k lines C, services
   ~30k C# NativeAOT, graphics ~264k, Ryujinx tree ~525k) before any code; main asked how a new
   engine component enters the test line's recipe. The MeloNX probe leaves the next test IPA.
-- **Maintainer (11 Nov): "tu peux tout finir"; final test = import of a game and its launch with
+- **Maintainer (11 Nov): finish the whole chantier; final test = import of a game and its launch with
   a controller or touch.** Scope: on-device import (export folder), engine as a guest, graphics,
   input (controller, touch), playlist entry; each milestone proved on device before the next.
 - **Engine plan written** (study doc § 6): engine = one dynamic framework loaded by `dlopen`
