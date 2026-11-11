@@ -13,6 +13,7 @@ import '../services/game_file_deletion.dart';
 import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_library_file_deletion.dart';
 import '../services/rpcs3_library_service.dart';
+import '../services/s2arm_internal_service.dart';
 
 /// Repository for game data access operations.
 class GameRepository {
@@ -156,6 +157,16 @@ class GameRepository {
           romPath: romPath,
         );
         log.i('GameDelete[$operation] rpcs3_library_file_complete');
+      } else if (systemFolderName.toLowerCase() == 'switch2') {
+        // The export folder (only inside RewindBox's S2Arm/Games) and the
+        // prepared data, saves kept; a linked export elsewhere loses its row only.
+        final deletedExport = await S2ArmInternalService.deleteGame(romPath);
+        log.i('GameDelete[$operation] s2arm_complete export=$deletedExport');
+        canRemoveSharedMedia = await SqliteService.deleteGame(
+          appSystemId,
+          filename,
+          romPath: romPath,
+        );
       } else {
         await GameFileDeletion.delete(romPath);
         log.i('GameDelete[$operation] filesystem_complete');

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/s2arm_engine_locale.dart';
 import 'package:neostation/services/s2arm_internal_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// The Switch 2 engine service maps the native error codes to localized messages and the native status to a runtime state,
 /// and imports an export folder through a fake method channel. No native plugin runs here.
@@ -176,6 +177,106 @@ void main() {
       final outcome = await S2ArmInternalService.launch('/export', pairingFilePath: '/pair');
       expect(outcome.success, isFalse);
       expect(S2ArmEngineLocale.text(en, S2ArmInternalService.messageKey(outcome.error)), S2ArmEngineLocale.text(en, 'restartRequired'));
+    });
+  });
+
+  group('engine-absent wording', () {
+    test('a build without the engine says it is not included, in every locale', () {
+      for (final code in S2ArmEngineLocale.values.keys) {
+        final locale = Locale(code == 'zh_Hant' ? 'zh' : code, code == 'zh_Hant' ? 'TW' : null);
+        for (final key in ['engineChainMissing', 'systemDataMissing']) {
+          final text = S2ArmEngineLocale.text(locale, key);
+          expect(text.toLowerCase(), isNot(contains('reinstall')), reason: '$code $key');
+          expect(text.toLowerCase(), isNot(contains('réinstall')), reason: '$code $key');
+        }
+      }
+      expect(S2ArmEngineLocale.text(en, 'engineChainMissing'),
+          'The Switch 2 engine (S2Arm) is not included in this version of RewindBox.');
+    });
+  });
+
+  group('delete', () {
+    late Directory temp;
+    late Directory library;
+    const gid = '0100ABCDEF000000';
+    setUp(() async {
+      temp = await Directory.systemTemp.createTemp('s2arm-delete-');
+      library = await Directory('${temp.path}/Library').create();
+      S2ArmInternalService.documentsDirectory = () async => Directory('${temp.path}/Documents');
+      S2ArmInternalService.libraryDirectory = () async => library;
+      S2ArmInternalService.sessionRunningForTesting = false;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'detectExport') return {'success': true, 'exportDir': call.arguments['exportFolder'], 'gid': gid};
+        return null;
+      });
+    });
+    tearDown(() async {
+      S2ArmInternalService.sessionRunningForTesting = false;
+      S2ArmInternalService.documentsDirectory = getApplicationDocumentsDirectory;
+      S2ArmInternalService.libraryDirectory = getLibraryDirectory;
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+
+    Future<String> makeExport(String parent, String name) async {
+      final exefs = await Directory('$parent/$name/base/exefs').create(recursive: true);
+      final npdm = File('${exefs.path}/main.npdm');
+      await npdm.writeAsBytes(const [1]);
+      return npdm.path;
+    }
+
+    Future<void> makePrepared() async {
+      await Directory('${library.path}/S2Arm/$gid/docs').create(recursive: true);
+      await File('${library.path}/S2Arm/$gid/docs/save.bin').writeAsBytes(const [9]);
+      await Directory('${library.path}/S2Arm/$gid/module').create(recursive: true);
+      await File('${library.path}/S2Arm/$gid/module/image.dylib').writeAsBytes(const [8]);
+      await File('${library.path}/S2Arm/$gid/pack.bin').writeAsBytes(const [7]);
+    }
+
+    test('an export inside Documents/S2Arm/Games is deleted; prepared data goes, saves stay', () async {
+      final npdm = await makeExport('${temp.path}/Documents/S2Arm/Games', 'Test Game');
+      await makePrepared();
+      expect(await S2ArmInternalService.isInsideGames(npdm), isTrue);
+      expect(await S2ArmInternalService.deleteGame(npdm), isTrue);
+      expect(await Directory('${temp.path}/Documents/S2Arm/Games/Test Game').exists(), isFalse);
+      expect(await File('${library.path}/S2Arm/$gid/docs/save.bin').exists(), isTrue);
+      expect(await Directory('${library.path}/S2Arm/$gid/module').exists(), isFalse);
+      expect(await File('${library.path}/S2Arm/$gid/pack.bin').exists(), isFalse);
+    });
+
+    test('a linked export outside the Games folder is left on disk', () async {
+      final npdm = await makeExport('${temp.path}/Linked', 'Other Game');
+      await makePrepared();
+      expect(await S2ArmInternalService.isInsideGames(npdm), isFalse);
+      expect(await S2ArmInternalService.deleteGame(npdm), isFalse);
+      expect(await File(npdm).exists(), isTrue);
+      expect(await File('${library.path}/S2Arm/$gid/pack.bin').exists(), isFalse);
+      expect(await File('${library.path}/S2Arm/$gid/docs/save.bin').exists(), isTrue);
+    });
+
+    test('a sibling folder named like Games is not inside it', () async {
+      final npdm = await makeExport('${temp.path}/Documents/S2Arm/Games-copy', 'Game');
+      expect(await S2ArmInternalService.isInsideGames(npdm), isFalse);
+    });
+
+    test('a running or preparing game refuses the deletion and nothing is deleted', () async {
+      final npdm = await makeExport('${temp.path}/Documents/S2Arm/Games', 'Busy Game');
+      await makePrepared();
+      S2ArmInternalService.sessionRunningForTesting = true;
+      expect(S2ArmInternalService.busy, isTrue);
+      await expectLater(
+        S2ArmInternalService.deleteGame(npdm),
+        throwsA(isA<S2ArmDeleteException>().having((e) => e.code, 'code', 'deleteBusy')),
+      );
+      expect(await File(npdm).exists(), isTrue);
+      expect(await File('${library.path}/S2Arm/$gid/pack.bin').exists(), isTrue);
+    });
+
+    test('an export the engine does not recognise is still deleted, with no prepared data touched', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async => {'success': false, 'code': 'exportInvalid'});
+      final npdm = await makeExport('${temp.path}/Documents/S2Arm/Games', 'Odd Game');
+      await makePrepared();
+      expect(await S2ArmInternalService.deleteGame(npdm), isTrue);
+      expect(await File('${library.path}/S2Arm/$gid/pack.bin').exists(), isTrue);
     });
   });
 }

@@ -15,6 +15,8 @@ import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
+import 'package:neostation/l10n/switch2_library_locale.dart';
+import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:neostation/l10n/enhancements_locale.dart';
 import 'package:neostation/l10n/texture_catalog_locale.dart';
 import 'package:neostation/screens/enhancements/enhancements_screen.dart';
@@ -260,6 +262,11 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
           mounted) {
         await context.read<SqliteConfigProvider>().refreshDetectedSystems();
       }
+      if (Platform.isIOS &&
+          _targetSystemFolder.toLowerCase() == 'switch2' &&
+          mounted) {
+        await context.read<SqliteConfigProvider>().refreshS2ArmInternalLibrary();
+      }
       deleted = true;
     } catch (e) {
       _log.e('Game deletion failed: $e');
@@ -270,6 +277,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
               ? (e.toString().contains('libraryBusy')
                     ? MelonxTransferLocale.text(context, 'libraryBusy')
                     : '${MelonxTransferLocale.text(context, 'deleteFailed')}\n$e')
+              : _targetSystemFolder.toLowerCase() == 'switch2' &&
+                    e is S2ArmDeleteException
+              ? Switch2LibraryLocale.text(context, e.code)
               : e.toString(),
           type: NotificationType.error,
         );
