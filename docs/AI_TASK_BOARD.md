@@ -686,14 +686,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     are boot warm-up and do not count. First full driver run caught the 933 boot line inside the Core 921 hunk (fixed; the 933
     test now checks the direct reverts); independent review: no race or crash, F1-F3 fixed (windows of the previous boot,
     rewrite on each validation, "Unknown" version), F4 documented; 511 checks, 17 controls; full driver 1,713 s green.
-  - **Apple host flake explained (test-only fix, local):** the Apple-only rerun of 932 (run `43073197832`, attempt 1)
+  - **Apple host flake explained (test-only fix):** the Apple-only rerun of 932 (run `43073197832`, attempt 1)
     failed one check of the Core 630 ZCULL harness (ASan): `forced_passes >= 1` read 0. The test's mock RSX `sync()`
     released the pages and counted the forced pass afterwards; the guest's wait ends on `released`, so an RSX thread
     preempted between the two let the check run first. Harness race, not a product race. Reproduced on the rebuilt Core
     630 tree: 20 ms of preemption at that point fails the six `forced_passes >= 1` checks (the Apple line among them);
     counted before the release, the same preemption passes. Fix in `test/rpcs3_core619_test.py` (base mock) and
     `test/rpcs3_core630_test.py` (its replacement), no check removed or relaxed; the 619, 621, 627 and 630 fault harnesses
-    pass on their trees in plain, TSan and ASan.
+    pass on their trees in plain, TSan and ASan, and the full Core 933 driver with the change passes (28 min 51 s, the
+    whole reverted-tree chain). Published `31684e4d`.
   - **Core 934 candidate rejected with evidence:** the stale texture sweep costs 14-29 ms per 5 s window on average (max
     46 ms), about 1 % of the RSX thread, in the IPA 723/724 BO2 journals, and released 1,151 MiB over 106 windows; cutting
     it when hot would save almost nothing and keep that memory.
