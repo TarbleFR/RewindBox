@@ -5003,6 +5003,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
   `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
   legal chain still passes. Open: façade `g_host_controller` (first compile).
+- **IPA lot (12 Nov, maintainer allows the engine and the converter in the next private common IPA; dossier open
+  points 1-3 accepted, not resolved):** done on this branch, not yet handed off: empty-library hint (b072f976f);
+  converter pin with signature-free digest b5263652 equal on the Apple-signed mirror asset and XeniOS's re-signed copy
+  (afc7a4bf7); signing requirements `anchor apple` + observed identity (Software Signing chain, no Team ID) replacing
+  the `grep -q` check that failed run 43119228652 under pipefail (028a0fdf2); legal: EA1844 + acknowledgements RTFs,
+  headers Apache-2.0, XeniOS BSD-3 + acknowledgements, DXBC AMD MIT + RSA MD5 complement, Boost.Context provenance,
+  provenance facts of the mirror asset (35b7c07ec, 028a0fdf2, 108bc002a); `check_app_shader_converter.py` (2.B/2.E/2.D/13);
+  `core_pin.py` pin/verify (+ CI codesign report); generic `pinned-engine` delivery component, XeniaCore first
+  (70a63e627: standard_delivery.py, standard-delivery.yml, 34 contract cases; 726 decisions unchanged). Core built with
+  an iOS 26 SDK (Xcode 26.6: no Xcode 27 on GitHub runners): StateReporting and the external-display accessory are
+  absent even on iOS 27 (logged at start). Pending: XeniaCore run 43121527685 (compiling), core-pin.json, the delivery
+  source-evidence review (FFmpeg fork modifications not enumerated; LGPL-2.1 §6(a) as the chosen means), IPA closed-set
+  validators after 00 integrates session 04's 13d34c25 (identity-file design `Xenia-native-identity.json`).
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
