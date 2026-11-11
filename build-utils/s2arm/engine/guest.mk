@@ -19,4 +19,9 @@ ios-guest: ios
 	@/usr/bin/plutil -create xml1 "$(S2ARM_GUEST_FW)/Info.plist" && for kv in CFBundleIdentifier=com.neogamelab.neostation.S2ArmEngine CFBundleExecutable=S2ArmEngine CFBundleName=S2ArmEngine CFBundlePackageType=FMWK CFBundleDevelopmentRegion=en CFBundleShortVersionString=1.0 CFBundleVersion=1 MinimumOSVersion=$(IPHONEOS_DEPLOYMENT_TARGET); do /usr/bin/plutil -insert $${kv%%=*} -string "$${kv#*=}" "$(S2ARM_GUEST_FW)/Info.plist"; done
 	@/usr/bin/plutil -insert CFBundleSupportedPlatforms -xml '<array><string>iPhoneOS</string></array>' "$(S2ARM_GUEST_FW)/Info.plist"
 	@/usr/bin/plutil -insert S2ACommit -string "$$(git rev-parse HEAD 2> /dev/null || echo unknown)" "$(S2ARM_GUEST_FW)/Info.plist"   # same value as S2Arm.app's (runtime/build.mk)
+	@# The direct shader library chain this engine expects (DMSH_CHAIN of the generated, checked-in dmsh_chain.h, read as
+	@# graphics/widen/scan/closed_loop.sh reads it): RewindBox's preparation stamps the game's shaders/direct skeleton with it.
+	@chain=$$(sed -n 's/^#define DMSH_CHAIN "\([0-9a-f]*\)".*/\1/p' graphics/nvn/gfx/nvn/dmsh_chain.h); \
+	  test -n "$$chain" && test $${#chain} -le 12 || { echo "DMSH_CHAIN not found in graphics/nvn/gfx/nvn/dmsh_chain.h" >&2; exit 1; }; \
+	  printf '%s\n' "$$chain" > "$(S2ARM_GUEST_FW)/S2ArmDirectChain.txt"
 	@echo "Guest framework: $(S2ARM_GUEST_FW) ($$(du -sh "$(S2ARM_GUEST_FW)" | cut -f1))"

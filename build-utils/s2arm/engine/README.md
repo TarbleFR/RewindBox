@@ -20,3 +20,7 @@ Patches 0003–0009 are the guest interface of `runtime/src/rb_guest.h` (host se
 is active unless the host calls `s2a_rb_guest_configure` (the constructor checks of 0003 and 0009 only apply when RewindBox
 loaded the engine: not the main executable, and `rb_s2arm_engine_loaded` exported by the process), so `make ios` builds an
 S2Arm.app that behaves as before. Patch points, file:line and what is still missing: `docs/s2arm-study-2026-11-11.md` § 9.
+
+`guest.mk` also writes `S2ArmDirectChain.txt` at the framework root: the `DMSH_CHAIN` of the pinned, generated
+`graphics/nvn/gfx/nvn/dmsh_chain.h`, which RewindBox's host bridge stamps on each game's `shaders/direct` skeleton
+(`S2ArmGamePreparation.m`); `s2arm-engine.yml` checks it against the header.

@@ -210,6 +210,10 @@ jobs:
           pin=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['s2arm']['commit'])" "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json")
           commit=$(plutil -extract S2ACommit raw -o - "$fw/Info.plist" 2>/dev/null)
           if [ -n "$pin" ] && [ "$commit" = "$pin" ]; then note "ok   Info.plist S2ACommit $commit"; else note "FAIL Info.plist S2ACommit '$commit', expected the S2Arm commit $pin"; status=1; fi
+          # The host bridge stamps each game's direct shader skeleton with this chain (S2ArmGamePreparation.m).
+          chain=$(sed -n 's/^#define DMSH_CHAIN "\([0-9a-f]*\)".*/\1/p' graphics/nvn/gfx/nvn/dmsh_chain.h)
+          shipped=$(cat "$fw/S2ArmDirectChain.txt" 2>/dev/null | tr -d '\n')
+          if [ -n "$chain" ] && [ "$shipped" = "$chain" ]; then note "ok   S2ArmDirectChain.txt $shipped"; else note "FAIL S2ArmDirectChain.txt '$shipped', expected DMSH_CHAIN '$chain'"; status=1; fi
           exit $status
       - name: Package the guest frameworks for RewindBox's delivery (macos-26 only)
         # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
