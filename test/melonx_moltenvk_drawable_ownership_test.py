@@ -55,9 +55,16 @@ def check_patch():
     require(hashlib.sha256(PATCH.read_bytes()).hexdigest() == PIN['patchSha256'], 'the patch digest matches its pin')
     text = PATCH.read_text()
     files = re.findall(r'^diff --git a/(\S+)', text, re.M)
+    # Lot 10, fifth part (cache keys): MVKShaderModule.mm and the converter's configuration join the patch.
     require(files == ['Common/MVKStrings.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.h', 'MoltenVK/MoltenVK/GPUObjects/MVKImage.mm',
                       'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.h', 'MoltenVK/MoltenVK/GPUObjects/MVKPipeline.mm',
-                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/Utility/MVKCodec.h'], files)
+                      'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h', 'MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm',
+                      'MoltenVK/MoltenVK/Utility/MVKCodec.h',
+                      'MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.cpp',
+                      'MoltenVKShaderConverter/MoltenVKShaderConverter/SPIRVToMSLConverter.h'], files)
+    key = added_function(text, 'cacheKey', 'SPIRVToMSLConversionConfiguration')
+    require('bool keep = rb.outIsUsedByShader;' in key and 'kept.outIsUsedByShader && kept.matches(rb)' in key and
+            text.count('rewindBoxCacheKey(') == 4, 'a cached library is kept under its key: added, read and merged')
     # Lot 9, second part: the size query counts each entry once (measured by test/melonx_library_share/run_cache_size.py).
     count = added_function(text, 'countData', 'MVKPipelineCache')
     require('if (entrySize == 0)' in count and 'entrySize = cb.buffSize;' in count and 'total += entrySize;' in count and
