@@ -78,3 +78,32 @@ Still without proof (not resolved by this research):
 - a direct link between the mirror's bytes and an Apple package;
 - re-signing under clause 2.E.
 The maintainer's delivery decision is not an authorisation from the rights holder.
+
+## Direct check of 12 Nov 2026 (`Verification_Directe_XeniOS_2026-11-12.txt`, 15,618 B, SHA-256 `fdf4bc5c…322c`)
+
+Check requested by the maintainer and run by Codex on the real mirror file. No binary was modified and no agreement was
+accepted. Main archived the report; it did not re-run these commands.
+
+Measured on the downloaded `ios-4.0.3` asset:
+- the SHA-256 is exactly `bd6b729d…37aa` (30,189,152 B), and the file is an arm64 iPhoneOS library (min iOS 13.0, SDK 26.4);
+- all 7,309 of 7,309 CodeDirectory page hashes match, and the CodeDirectory identifier is `libmetalirconverter`;
+- `build-utils/xenia/validate_shader_converter.py` at `028a0fdf2` exits 0 on this file (`--require-pinned-digest`), and
+  the signature-free digest matches the pin (`b5263652…fa1e`);
+- the CMS signature verifies mathematically, and its chain (Software Signing → Apple Code Signing Certification
+  Authority → Apple Root CA) leads to the root downloaded separately from Apple's official PKI site (same SHA-256).
+
+**New limit:** the Software Signing leaf and the intermediate both expire on 2026-10-24 17:39:41 UTC, and the CMS
+carries no signing time or timestamp. OpenSSL with its time check fails (certificate has expired); without the time
+check it passes. That second run is a diagnostic only, not a delivery check:
+- no time-check bypass goes into the delivery;
+- the strict `codesign` check stays as it is;
+- its real macOS result must be recorded;
+- the report does not conclude that `codesign` will fail, since Apple's policy was not run on Linux.
+
+Also confirmed in the `028a0fdf2` source: the AMD MIT and RSA/MD5 notices, and the `=anchor apple` requirement plus the
+identifier/CN check in `build_core.sh`. The report does not re-run the Dart tests. The LGPL source-evidence review for
+the shipped binaries is still incomplete at that commit: the XeniOS block of `collect_build_source_evidence.py` still
+declares `engine_binaries_bundled=[]`. CI run `43121527685` was still in progress when inspected.
+
+Still open: points 1–3. A signature check gives neither the Apple package nor its contract, and does not settle
+clause 2.E. The Apple download needs a login; Codex will ask the maintainer for that access to compare the package itself.
