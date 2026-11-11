@@ -4238,10 +4238,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   under the attached helper: process-mapped placement (RPCS3 path) and arena placement executed
   correctly; fixed placement (helper pages `vm_remap`-ed to the chosen address) hung at its first
   execution, so the launch hung and phase 2 never ran. Details: prototype doc, "first device run".
-- **802 requested:** probe fix `7195731` (fixed placement executed only on an opt-in flag; host
-  proof run 42996359351 green), effective tree = 801's except the probe `.c`/`.h`. Source
-  `281e0737`, run 42997316389. Line receipts moved to `docs/evidence/s2arm/`.
-- **Next:** follow 802, verify, give it to the maintainer, same trial; read phase 2 (D, E, F).
+- **802 delivered to the maintainer (11 Nov), not yet observed on a device.** Probe fix `7195731`
+  (fixed placement executed only on an opt-in flag; host proof run 42996359351 green). Source
+  `281e0737`, run 42997316389 attempt 1, all jobs success, tests fresh. IPA 272236941 bytes,
+  SHA-256 `fb9f07cd…c351`, version 0.0.8 (802), probe key true. Verified offline; receipt
+  `docs/evidence/s2arm/rewind802/`; private key deleted. Against 801: App identical; Runner
+  changed (probe); melonx/armsx2/rpcs3 bridges differ only in `__stubs`/`__objc_stubs` (same
+  sizes; linker stubs, compared section by section between the two IPAs).
+- **Next:** the maintainer's run of 802 (Switch game first, send `MeloNX-launch.log`); read phase 2
+  (D gates and redirections, E `brk` after detach, F memory).
 
 ### Codex orchestration — Codex
 
