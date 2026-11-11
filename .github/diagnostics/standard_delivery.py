@@ -595,6 +595,223 @@ def engine_spec_errors(key, spec, manifest):
     return errors
 
 
+# --- Pinned engine components --------------------------------------------------------------------------
+# A built and pinned engine (XeniaCore first): its producer run is authenticated, its artifact downloaded by id and
+# checked against the pin (zip digest, the pin's own verifier), extracted to dist/<key>/; its side images (binaries the
+# artifact never carries, such as Apple's shader converter) are fetched from their pinned source to dist/<key>-side/,
+# byte for byte, never uploaded and never modified. Nothing here runs for a manifest without the kind.
+
+ENGINE_CACHE = 'build/standard-engine'
+
+
+def engine_spec(manifest, key):
+    spec = manifest['components'].get(key)
+    require(spec is not None and spec.get('mode') == 'pinned-engine', f'components.{key} is not a pinned-engine component')
+    return spec
+
+
+def engine_dist(key, root=ROOT):
+    return Path(root) / 'dist' / key
+
+
+def engine_side_dist(key, root=ROOT):
+    return Path(root) / 'dist' / (key + '-side')
+
+
+def engine_member(path):
+    """The path of an app image below dist/<key>/ (the artifact holds Frameworks/<x> at its root as <x>)."""
+    require(path.startswith('Frameworks/'), 'Not a Frameworks path: ' + path)
+    return path[len('Frameworks/'):]
+
+
+def engine_pin_errors(spec, pin):
+    """Problems of a pin file against the component that names it (empty list = usable)."""
+    errors = []
+
+    def check(condition, message):
+        if not condition:
+            errors.append(message)
+    check(pin.get('status') == 'verified', 'the pin is not verified')
+    binaries = pin.get('binaries')
+    check(isinstance(binaries, dict) and binaries and all(
+        isinstance(item, dict) and HEX64.fullmatch(str(item.get('sha256'))) and isinstance(item.get('bytes'), int) and
+        (item.get('fingerprint') is None or HEX64.fullmatch(str(item['fingerprint']))) for item in binaries.values()),
+          'binaries must be {path: {sha256, bytes}} (a Mach-O entry may add fingerprint)')
+    check(HEX64.fullmatch(str(pin.get('packagedFingerprint'))), 'packagedFingerprint')
+    check(pin.get('headSha') is None or HEX40.fullmatch(str(pin['headSha'])), 'headSha must be a full commit')
+    producers = engine_producers(spec)
+    entries = {}
+    for name in producers:
+        entry = pin['producers'].get(name) if isinstance(pin.get('producers'), dict) else (pin if name == 'engine' else None)
+        entries[name] = entry
+        check(isinstance(entry, dict) and all(isinstance(entry.get(field), int) for field in ('run', 'attempt', 'artifact', 'bytes')) and
+              isinstance(entry.get('name'), str) and HEX64.fullmatch(str(entry.get('sha256'))) and
+              (entry.get('headSha') is None or HEX40.fullmatch(str(entry['headSha']))),
+              f'producer {name}: run, attempt, artifact, name, bytes and sha256 are required')
+    if isinstance(pin.get('producers'), dict):
+        check(set(pin['producers']) == set(producers), 'the pin and the component name different producers')
+    zips = pin.get('zips')
+    if zips is not None:
+        check(isinstance(zips, dict) and all(HEX64.fullmatch(str(value)) for value in zips.values()) and
+              all(isinstance(entries.get(name), dict) and entries[name].get('sha256') == value
+                  for name, value in zips.items()), 'zips must be {producer: sha256} equal to the producers\' artifact digests')
+    return errors
+
+
+def engine_pin(spec, root=ROOT):
+    """The pin file a component names, authenticated by pinSha256 when the manifest carries it."""
+    raw = (Path(root) / spec['pin']).read_bytes()
+    require('pinSha256' not in spec or sha(raw) == spec['pinSha256'], 'The pinned engine pin changed after the freeze')
+    pin = json.loads(raw)
+    errors = engine_pin_errors(spec, pin)
+    require(not errors, 'Wrong pinned engine pin: ' + '; '.join(errors))
+    return pin
+
+
+def engine_entry(spec, pin, name):
+    return pin['producers'][name] if isinstance(pin.get('producers'), dict) else pin
+
+
+def authenticate_engine_producer(spec, pin, name, get=None, repo=None):
+    """The producer run is the pinned one: expected branch, concluded success, its head commit an ancestor of HEAD,
+    exactly one unexpired artifact named after that commit with the pinned id, and its digest equal to the pin."""
+    get = get or api
+    entry, producer = engine_entry(spec, pin, name), engine_producers(spec)[name]
+    branch = producer.get('branch') or BRANCH
+    run = get('actions/runs/' + str(entry['run']))
+    label = f'Pinned engine producer {name}: '
+    require(run['id'] == entry['run'] and run['path'] == producer['workflow'] and run['head_branch'] == branch and
+            run['status'] == 'completed' and run['conclusion'] == 'success' and run['run_attempt'] == entry['attempt'],
+            label + 'not the successful pinned run of the expected workflow and branch')
+    head = run['head_sha']
+    require(HEX40.fullmatch(str(head)) and entry.get('headSha', head) == head and pin.get('headSha', head) == head,
+            label + 'the run was built from another commit than the pin names')
+    require((repo or Repo()).is_ancestor(head, 'HEAD'), label + f'commit {head} is not an ancestor of HEAD')
+    require(entry['name'].endswith('-' + head), label + 'the artifact is not named after the run commit')
+    named = [item for item in get(f"actions/runs/{entry['run']}/artifacts")['artifacts'] if item['name'] == entry['name']]
+    require(len(named) == 1 and named[0]['id'] == entry['artifact'] and not named[0]['expired'] and
+            named[0].get('digest') == 'sha256:' + entry['sha256'] and named[0].get('size_in_bytes') == entry['bytes'],
+            label + 'not exactly one unexpired artifact with the pinned id, size and digest')
+    return dict(producer=name, run=entry['run'], attempt=entry['attempt'], artifact=entry['artifact'], head=head,
+                archiveSHA256=entry['sha256'])
+
+
+def extract_engine_zip(path, target, taken):
+    """Extract safe regular members only; a member two zips both hold is refused."""
+    with zipfile.ZipFile(path) as archive:
+        for info in archive.infolist():
+            pure = PurePosixPath(info.filename)
+            require(info.filename and not pure.is_absolute() and '..' not in pure.parts and '\\' not in info.filename and
+                    not stat.S_ISLNK(info.external_attr >> 16), 'Unsafe member in the engine artifact: ' + info.filename)
+            if info.is_dir():
+                continue
+            require(info.filename not in taken, 'Two engine artifacts hold the same member: ' + info.filename)
+            taken.add(info.filename)
+            destination = Path(target) / pure
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(archive.read(info))
+            mode = (info.external_attr >> 16) & 0o777
+            if mode:
+                destination.chmod(mode)
+
+
+def run_engine_verifier(spec, archive, root=ROOT):
+    process = subprocess.run([sys.executable, '-B', str(Path(root) / spec['verifier']), 'verify', str(archive),
+                              '--pin', str(Path(root) / spec['pin'])], capture_output=True, timeout=600)
+    output = (process.stdout + process.stderr).decode(errors='replace').strip()
+    require(process.returncode == 0, 'The engine verifier refused the artifact: ' + output[-500:])
+    return output.splitlines()[-1] if output else ''
+
+
+def converter_module(root=ROOT):
+    import importlib.util
+    path = Path(root) / 'build-utils/xenia/validate_shader_converter.py'
+    found = importlib.util.spec_from_file_location('engine_validate_shader_converter', path)
+    module = importlib.util.module_from_spec(found)
+    found.loader.exec_module(module)
+    return module
+
+
+def engine_side_source(source, root=ROOT):
+    """The pinned record of a side image: {repository, release_tag, asset, bytes, sha256, signature_free_sha256}."""
+    require(source in PINNED_ENGINE_SIDE_SOURCES, 'Side image source is not allow-listed: ' + str(source))
+    path, _, pointer = source.partition('#')
+    value = json.loads((Path(root) / path).read_text())
+    for part in pointer.split('.'):
+        value = value[part]
+    require(all(field in value for field in ('repository', 'release_tag', 'asset', 'bytes', 'sha256',
+                                             'signature_free_sha256')), 'Incomplete side image pin: ' + source)
+    return value
+
+
+def engine_side_url(pinned):
+    return f"https://github.com/{pinned['repository']}/releases/download/{pinned['release_tag']}/{pinned['asset']}"
+
+
+def fetch_url(url):
+    import urllib.request
+    require(url.startswith('https://github.com/'), 'Unexpected side image host: ' + url)
+    with urllib.request.urlopen(url, timeout=900) as response:
+        return response.read()
+
+
+def check_side_image(data, pinned, root=ROOT):
+    """Bytes and digests of the pinned side image; its signature-free digest is the unmodified-redistribution proof."""
+    require(len(data) == pinned['bytes'] and sha(data) == pinned['sha256'],
+            'The side image differs from its pinned bytes or sha256')
+    digest = converter_module(root).signature_free_digest(data)
+    require(digest == pinned['signature_free_sha256'], 'The side image differs from its pin beyond its code signature')
+    return digest
+
+
+def engine_download(key, manifest, root=ROOT, get=None, download=None, fetch=None, verify=None, repo=None):
+    """Authenticate the producers, download and verify the artifacts, extract them, fetch the side images."""
+    spec = engine_spec(manifest, key)
+    root = Path(root)
+    pin = engine_pin(spec, root)
+    download = download or download_artifact
+    fetch = fetch or fetch_url
+    verify = verify or run_engine_verifier
+    target = engine_dist(key, root)
+    if target.exists():
+        shutil.rmtree(target)
+    target.mkdir(parents=True)
+    taken, producers = set(), {}
+    cache = root / ENGINE_CACHE / key
+    cache.mkdir(parents=True, exist_ok=True)
+    for name in engine_producers(spec):
+        entry = engine_entry(spec, pin, name)
+        producers[name] = authenticate_engine_producer(spec, pin, name, get=get, repo=repo)
+        archive = cache / (name + '.zip')
+        download(entry['artifact'], archive)
+        data = archive.read_bytes()
+        require(len(data) == entry['bytes'] and sha(data) == entry['sha256'],
+                f'Downloaded engine artifact {name} differs from the pinned size or sha256')
+        producers[name]['verifier'] = verify(spec, archive, root)
+        extract_engine_zip(archive, target, taken)
+    side_target = engine_side_dist(key, root)
+    if side_target.exists():
+        shutil.rmtree(side_target)
+    side = []
+    for item in spec['sideImages']:
+        pinned = engine_side_source(item['source'], root)
+        data = fetch(engine_side_url(pinned))
+        digest = check_side_image(data, pinned, root)
+        destination = side_target / engine_member(item['path'])
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+        side.append(dict(path=item['path'], sha256=sha(data), signatureFreeSha256=digest, url=engine_side_url(pinned)))
+    return dict(component=key, pinSha256=sha(Path(root, spec['pin']).read_bytes()), producers=producers, sideImages=side,
+                directory=str(target.relative_to(root)))
+
+
+def engine_operation(operation, key):
+    manifest = ci_manifest()
+    if operation == 'engine-present':
+        return dict(present=key in engine_components(manifest))
+    return save(f'standard-engine-{key}-download.json', engine_download(key, manifest))
+
+
 def melonx_component(manifest):
     """The MeloNX Core verifier module the manifest names, bound to the pin it declares."""
     spec = manifest['components']['melonx']

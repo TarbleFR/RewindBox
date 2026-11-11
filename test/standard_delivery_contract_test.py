@@ -14,9 +14,11 @@ checked for everything a draft carries and the pending RPCS3 Core pin is reporte
 from __future__ import annotations
 
 import ast
+import contextlib
 import copy
 from functools import lru_cache
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -1271,6 +1273,212 @@ class PinnedEngineSchema(unittest.TestCase):
         self.assertEqual(sd.manifest_errors(manifests()[726]), [])
         self.assertEqual(sd.manifest_errors(xenia_manifest()), [])
         self.assertEqual(sd.engine_producers({}), {})
+
+
+def load_module(name, path):
+    import importlib.util
+    found = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(found)
+    found.loader.exec_module(module)
+    return module
+
+
+core_pin_test = load_module('xenia_core_pin_test_for_delivery', ROOT / 'test/xenia_core_pin_test.py')
+converter_test = core_pin_test.generator
+NEXT_HEAD = REPO.commit('HEAD')
+XENIA_BRANCH = 'work/playlists-xenios-20261110'
+
+
+class EngineFixture(unittest.TestCase):
+    """A synthetic XeniaCore artifact, pin and side image in a temporary root (no XeniOS or Apple bytes)."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root)
+        xenia = self.root / 'build-utils/xenia'
+        xenia.mkdir(parents=True)
+        for name in ('core_pin.py', 'validate_shader_converter.py'):
+            shutil.copy(ROOT / 'build-utils/xenia' / name, xenia / name)
+        shutil.copy(ROOT / 'build-utils/delivery_benchmark.py', self.root / 'build-utils/delivery_benchmark.py')
+        (self.root / 'packages').symlink_to(ROOT / 'packages')  # the Mach-O reader of payload_fingerprint
+        source = json.loads((ROOT / 'build-utils/xenia/source.json').read_text())
+        self.image = converter_test.ShaderConverterValidator.signed_image()
+        mirror = source['shader_converter']['upstream_mirror']
+        mirror.update(bytes=len(self.image), sha256=sha(self.image),
+                      signature_free_sha256=sd.converter_module().signature_free_digest(self.image))
+        self.mirror = mirror
+        (xenia / 'source.json').write_text(json.dumps(source))
+        self.binary = core_pin_test.core_binary()
+        self.zip = core_pin_test.artifact(self.root, self.binary)
+        self.name = 'XeniaCore-' + NEXT_HEAD
+        module = load_module('core_pin_in_fixture', xenia / 'core_pin.py')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(module.main(['pin', str(self.zip), '--run', '1', '--job', '2', '--attempt', '1', '--artifact', '3',
+                                          '--name', self.name, '--expires', '2026-11-25T00:00:00Z']), 0)
+        self.pin_path = xenia / 'core-pin.json'
+        self.manifest = self.make_manifest()
+
+    def make_manifest(self, **overrides):
+        return xenia_manifest(pinSha256=sha(self.pin_path.read_bytes()), **overrides)
+
+    def rewrite_pin(self, **changes):
+        pin = json.loads(self.pin_path.read_text())
+        pin.update(changes)
+        self.pin_path.write_text(json.dumps(pin, indent=2))
+        self.manifest = self.make_manifest()
+
+    def api(self, branch=XENIA_BRANCH, conclusion='success', artifacts=None, head=NEXT_HEAD, path=None):
+        run = {'id': 1, 'path': path or '.github/workflows/xenia-core.yml', 'head_branch': branch, 'status': 'completed',
+               'conclusion': conclusion, 'run_attempt': 1, 'head_sha': head}
+        listing = artifacts if artifacts is not None else [
+            {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+             'size_in_bytes': self.zip.stat().st_size},
+            {'id': 4, 'name': 'XeniaCore-diagnostics-' + NEXT_HEAD, 'expired': False, 'digest': 'sha256:' + '0' * 64,
+             'size_in_bytes': 1}]
+        return lambda endpoint: run if endpoint == 'actions/runs/1' else {'artifacts': listing}
+
+    def download(self, **options):
+        calls, image = [], options.pop('image', self.image)
+
+        def fetch(url):
+            calls.append(url)
+            return image
+        arguments = dict(root=self.root, get=self.api(), download=lambda artifact, path: shutil.copy(self.zip, path),
+                         fetch=fetch, repo=REPO)
+        arguments.update(options)
+        manifest = arguments.pop('manifest', self.manifest)
+        result = sd.engine_download('xenia', manifest, **arguments)
+        return result, calls
+
+
+class PinnedEngineDownload(EngineFixture):
+    def test_the_pinned_artifact_is_downloaded_verified_and_extracted(self):
+        result, calls = self.download()
+        framework = self.root / 'dist/xenia/XeniaCore.framework/XeniaCore'
+        self.assertEqual(framework.read_bytes(), self.binary)
+        self.assertEqual(result['producers']['engine']['artifact'], 3)
+        self.assertIn('XeniaCore pin: OK', result['producers']['engine']['verifier'])
+        side = self.root / 'dist/xenia-side/libmetalirconverter.dylib'
+        self.assertEqual(side.read_bytes(), self.image, 'the side image is stored byte for byte')
+        self.assertEqual(calls, ['https://github.com/xenios-jp/metal-shader-converter/releases/download/ios-4.0.3/'
+                                 'libmetalirconverter.dylib'])
+        self.assertEqual(result['sideImages'][0]['signatureFreeSha256'], self.mirror['signature_free_sha256'])
+        self.assertFalse((self.root / 'dist/xenia/libmetalirconverter.dylib').exists())
+
+    def test_the_real_verifier_refuses_an_artifact_that_is_not_the_pinned_one(self):
+        other = self.root / 'other'
+        other.mkdir()
+        changed = core_pin_test.artifact(other, core_pin_test.core_binary(
+            dependencies=('/usr/lib/libSystem.B.dylib', '@rpath/libmetalirconverter.dylib', '/usr/lib/libc++.1.dylib')))
+        self.rewrite_pin(sha256=sha(changed.read_bytes()), bytes=changed.stat().st_size)
+        with self.assertRaisesRegex(ValueError, 'engine verifier refused'):
+            self.download(get=self.api(artifacts=[{'id': 3, 'name': self.name, 'expired': False, 'size_in_bytes':
+                                                   changed.stat().st_size, 'digest': 'sha256:' + sha(changed.read_bytes())}]),
+                          download=lambda artifact, path: shutil.copy(changed, path))
+
+    def test_producer_authentication_refusals(self):
+        cases = {
+            'branch': dict(get=self.api(branch='Claude')),
+            'workflow': dict(get=self.api(path='.github/workflows/other.yml')),
+            'conclusion': dict(get=self.api(conclusion='failure')),
+            'head differs from the artifact name': dict(get=self.api(head='1' * 40)),
+            'two artifacts': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}] * 2)),
+            'no artifact': dict(get=self.api(artifacts=[])),
+            'other artifact id': dict(get=self.api(artifacts=[
+                {'id': 9, 'name': self.name, 'expired': False, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}])),
+            'expired': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': True, 'digest': 'sha256:' + sha(self.zip.read_bytes()),
+                 'size_in_bytes': self.zip.stat().st_size}])),
+            'no digest': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'size_in_bytes': self.zip.stat().st_size}])),
+            'digest differs': dict(get=self.api(artifacts=[
+                {'id': 3, 'name': self.name, 'expired': False, 'digest': 'sha256:' + '0' * 64,
+                 'size_in_bytes': self.zip.stat().st_size}])),
+        }
+        for label, options in cases.items():
+            with self.subTest(label), self.assertRaises(ValueError):
+                self.download(**options)
+
+        class Detached:
+            def is_ancestor(self, *_):
+                return False
+        with self.assertRaisesRegex(ValueError, 'not an ancestor'):
+            self.download(repo=Detached())
+        # a named producer branch is what is required; absent, the delivery branch
+        value = self.make_manifest(producers={'engine': {'workflow': '.github/workflows/xenia-core.yml'}})
+        self.download(manifest=value, get=self.api(branch=sd.BRANCH))
+        with self.assertRaises(ValueError):
+            self.download(manifest=value)
+
+    def test_head_sha_of_the_pin_must_be_the_run_commit(self):
+        self.rewrite_pin(headSha=NEXT_HEAD)
+        self.download()
+        self.rewrite_pin(headSha='2' * 40)
+        with self.assertRaises(ValueError):
+            self.download()
+
+    def test_the_artifact_bytes_the_pin_and_the_verifier_are_checked(self):
+        other = self.root / 'tampered.zip'
+        other.write_bytes(self.zip.read_bytes() + b'x')
+        with self.assertRaisesRegex(ValueError, 'pinned size or sha256'):
+            self.download(download=lambda artifact, path: shutil.copy(other, path))
+        with self.assertRaisesRegex(ValueError, 'changed after the freeze'):
+            self.download(manifest=xenia_manifest())
+        with self.assertRaises(ValueError):
+            self.download(verify=lambda *a: sd.require(False, 'refused'))
+        self.rewrite_pin(status='pending')
+        with self.assertRaisesRegex(ValueError, 'not verified'):
+            self.download()
+
+    def test_the_side_image_must_be_the_pinned_one(self):
+        patched = bytearray(self.image)
+        patched[100] ^= 1
+        with self.assertRaisesRegex(ValueError, 'pinned bytes or sha256'):
+            self.download(image=bytes(patched))
+        with self.assertRaisesRegex(ValueError, 'pinned bytes or sha256'):
+            self.download(image=self.image + b'\0')
+        # the right sha256 of a modified image is not enough: the signature-free digest is pinned as well
+        modified = converter_test.ShaderConverterValidator.signed_image(payload=b'code' * 63 + b'cod3')
+        source = json.loads((self.root / 'build-utils/xenia/source.json').read_text())
+        source['shader_converter']['upstream_mirror'].update(bytes=len(modified), sha256=sha(modified))
+        (self.root / 'build-utils/xenia/source.json').write_text(json.dumps(source))
+        with self.assertRaisesRegex(ValueError, 'beyond its code signature'):
+            self.download(image=modified)
+        with self.assertRaises(ValueError):
+            sd.engine_side_source('build-utils/xenia/source.json#shader_converter', self.root)
+
+    def test_unsafe_and_overlapping_members_are_refused(self):
+        for member in ('../escape', '/absolute', 'a\\b'):
+            bad = self.root / 'bad.zip'
+            with zipfile.ZipFile(bad, 'w') as archive:
+                archive.writestr(member, 'x')
+            with self.assertRaisesRegex(ValueError, 'Unsafe member'):
+                sd.extract_engine_zip(bad, self.root / 'out', set())
+        with self.assertRaisesRegex(ValueError, 'same member'):
+            sd.extract_engine_zip(self.zip, self.root / 'out', set(sd.PINNED_ENGINE_CHECKS) | {'XeniaCore.json'})
+
+    def test_several_producers_and_pin_shapes(self):
+        pin = json.loads(self.pin_path.read_text())
+        entry = {key: pin[key] for key in ('run', 'attempt', 'artifact', 'name', 'bytes', 'sha256')}
+        second = dict(entry, artifact=5)
+        spec = xenia_spec(producers={'engine': {'workflow': 'w.yml'}, 'second': {'workflow': 'w.yml'}})
+        multi = dict(pin, producers={'engine': entry, 'second': second}, zips={'engine': entry['sha256']})
+        self.assertEqual(sd.engine_pin_errors(spec, multi), [])
+        self.assertTrue(sd.engine_pin_errors(spec, pin), 'a single-producer pin does not feed two producers')
+        self.assertTrue(sd.engine_pin_errors(spec, dict(multi, zips={'engine': '0' * 64})))
+        self.assertTrue(sd.engine_pin_errors(spec, dict(multi, producers={'engine': entry})))
+        self.assertEqual(sd.engine_pin_errors(xenia_spec(), dict(pin, headSha=NEXT_HEAD, zips={'engine': entry['sha256']})), [])
+        self.assertTrue(sd.engine_pin_errors(xenia_spec(), dict(pin, headSha='abc')))
+        data = dict(pin, binaries=dict(pin['binaries'], **{'Resources/data.bin': {'sha256': 'b' * 64, 'bytes': 2}}))
+        self.assertEqual(sd.engine_pin_errors(xenia_spec(), data), [])
+        self.assertTrue(sd.engine_pin_errors(xenia_spec(), dict(pin, binaries={'x': {'sha256': 'b'}})))
+
+    def test_an_absent_component_is_refused_and_726_has_none(self):
+        with self.assertRaises(ValueError):
+            sd.engine_download('xenia', manifests()[726], root=self.root)
 
 
 class EffectiveTree611(unittest.TestCase):
