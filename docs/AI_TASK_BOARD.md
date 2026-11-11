@@ -4313,6 +4313,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   validator conditional (handoff to main, `a14f67c`), test-line engine download/embed/checks. Four
   other closed extension sets (Dolphin `verify_ipa.py`, `validate_rpcs3_ipa.py`, two `== 8` counts)
   are extended in memory by the launcher for now; main asked to choose native conditionals instead.
+- **Maintainer (11 Nov): Switch 2 off by default in the Consoles tab**, where players enable the
+  engine and the library (PR #172's model). Session 03 asked how to split the shared playlist files;
+  main asked about the base of the test line (needs PR #172's Consoles tab). Host bridge delegated
+  (new files only: `packages/s2arm_engine_bridge`, `lib/services/s2arm_internal_service.dart`).
 
 ### Codex orchestration — Codex
 
