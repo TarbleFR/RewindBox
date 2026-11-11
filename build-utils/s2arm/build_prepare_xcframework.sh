@@ -16,12 +16,12 @@ cmake -S "$s2arm/runtime/rewriter" -B "$out/rewriter" -DS2A_REWRITER_DEPS="$deps
   -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
 cmake --build "$out/rewriter" --target s2a_rewriter --parallel 4
 rewriter_lib=$(find "$out/rewriter" -name 'libs2a_rewriter.a' -print -quit)
-# Building only the rewriter target compiles Capstone's objects without archiving them
-# (run 42942912304: no libcapstone.a), so the objects are taken directly.
-capstone_objects=()
-while IFS= read -r object; do capstone_objects+=("$object"); done < <(find "$out/rewriter" -path '*capstone.dir*' -name '*.o' | sort)
-echo "rewriter: $rewriter_lib"; echo "capstone objects: ${#capstone_objects[@]}"
-test -n "$rewriter_lib" && test "${#capstone_objects[@]}" -gt 0
+# In this build Capstone is an object library: its objects are archived inside
+# libs2a_rewriter.a itself (run 42943537788: 139 duplicate symbols when added again),
+# and there is no separate libcapstone.a (run 42942912304).
+echo "rewriter: $rewriter_lib"
+test -n "$rewriter_lib"
+xcrun nm -g "$rewriter_lib" 2> /dev/null | grep -q ' T _cs_open$' || { echo "Capstone is not inside the rewriter library" >&2; exit 1; }
 
 sources=("$here"/native/s2arm/prepare/s2arm_*.c)
 objects=()
@@ -37,7 +37,7 @@ done
 # and LZ4 cannot collide with copies in other engines of the app.
 xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=$minimum -isysroot "$sdk" -r -nostdlib \
   -Wl,-exported_symbol,'_rb_s2arm_*' -Wl,-force_load,"$rewriter_lib" \
-  "${objects[@]}" "${capstone_objects[@]}" -o "$out/objects/S2ArmPrepare.o"
+  "${objects[@]}" -o "$out/objects/S2ArmPrepare.o"
 xcrun libtool -static -o "$out/libS2ArmPrepare.a" "$out/objects/S2ArmPrepare.o"
 
 cp "$here"/native/s2arm/prepare/s2arm_prepare.h "$out/headers/"
