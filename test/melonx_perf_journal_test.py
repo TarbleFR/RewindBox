@@ -70,22 +70,32 @@ check('self.pacing.gapsMs.count < MeloNXPerfJournal.Presentation.gapLimit' in co
 check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.append("gaps=" + ' in journal, 'journal fields')
 check('if let text = vmActivity() { fields.append("vm=" + text) }' in journal and
       journal.index('fields.append("mem=" + text)') < journal.index('fields.append("vm=" + text)') < journal.index('fields.append("th=" + ') and
-      journal.count('task_flavor_t(TASK_EVENTS_INFO)') == 1 and 'vm.compressed_lifetime' in journal and 'vm.decompressions' in journal,
+      journal.count('task_flavor_t(TASK_EVENTS_INFO)') == 2 and 'vm.compressed_lifetime' in journal and 'vm.decompressions' in journal,
       'vm= field: compression, decompression, faults and page-ins over the interval, read only')
 # hw= field (lot 11): how the CPU time of the interval was served (clock, instructions per cycle, share on performance
 # cores, time waiting for a core, then the clocks of the performance cores and of the others), from one
 # proc_pid_rusage call looked up at run time; after vm=, before th=. The kernel's runnable time counts the time running
 # too (xnu thread.h: "time the thread is runnable (including running)"): the CPU time is taken off it.
-check('if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }' in journal and
+check('let served = hwActivity(cpuNs:total, seconds:elapsed)\n        if let text = served.hw { fields.append("hw=" + text) }' in journal and
       journal.index('fields.append("vm=" + text)') < journal.index('fields.append("hw=" + text)') < journal.index('fields.append("th=" + ') and
       journal.count('dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage")') == 1 and journal.count('RUSAGE_INFO_V6') == 2 and
       'info.ri_user_ptime &+ info.ri_system_ptime' in journal and 'info.ri_runnable_time' in journal and
-      'guard let before = previousHw else { return nil }' in journal,
+      'guard let before = previousHw else { return (nil, nil, nil) }' in journal,
       'hw= field: one read-only call, optional, absent on the first line')
 check('waiting = String(Int((max(0, Double(now.runnable - before.runnable) - time) / time * 100).rounded()))' in journal and
       'performanceCycles:info.ri_pcycles' in journal and 'mach_timebase_info(&base) == KERN_SUCCESS' in journal and
       'return "\\(clock)/\\(perCycle)/\\(performance)/\\(waiting)/\\(performanceClock)/\\(otherClock)"' in journal,
       'hw= field: six values, the time running taken off the runnable time, both clocks from the kernel\'s own times')
+# en= and sw= fields (lot 13, thermal): the watts of the process's CPU work from the kernel's energy accounting (the same
+# proc_pid_rusage answer as hw=), and its context switches, system calls and interrupt wakeups per second; after hw=,
+# read only, absent on the first line; en= absent where the host counts no energy.
+check('if let text = served.energy { fields.append("en=" + text) }\n        if let text = served.switches { fields.append("sw=" + text) }' in journal and
+      journal.index('fields.append("hw=" + text)') < journal.index('fields.append("en=" + text)') < journal.index('fields.append("sw=" + text)')
+      < journal.index('fields.append("pc=" + text)') and
+      'counters.energy = info.ri_energy_nj; counters.performanceEnergy = info.ri_penergy_nj' in journal and
+      'counters.wakeups = info.ri_interrupt_wkups' in journal and 'guard seconds > 0, now.energy > 0, now.energy >= before.energy else { return nil }' in journal and
+      'now.switches &- before.switches' in journal and 'now.calls &- before.calls' in journal,
+      'en= and sw= fields: from the same answer as hw= and the task\'s events, wrapping counters subtracted as such')
 # pc= field (lot 11): the share of each listed thread's CPU time on performance cores, in the order of cpu=, from
 # proc_pidinfo's per-thread counts by performance level (flavor 34), looked up at run time; bounded, optional.
 check('if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }' in journal and
@@ -316,6 +326,22 @@ print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:3_201_000, instruction
 print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:100, performanceTime:40, runnable:110, performanceCycles:400), 1_000_000))
 print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:1_100, performanceTime:40, runnable:110, performanceCycles:400), 0))
 print("timeUnit " + (MeloNXPerfJournal.timeUnitNs > 0 ? "positive" : "zero"))
+// en= and sw= fields: 3 J of 4.5 J on performance cores in 1.5 s; no energy counted; counters that went backwards or wrapped.
+var powerBefore = hwBefore, powerNow = hwBefore
+powerBefore.energy = 1_000_000_000; powerBefore.performanceEnergy = 500_000_000; powerBefore.wakeups = 100
+powerBefore.switches = 4_294_967_000; powerBefore.calls = 1_000; powerBefore.events = true
+powerNow.energy = 5_500_000_000; powerNow.performanceEnergy = 3_500_000_000; powerNow.wakeups = 1_600
+powerNow.switches = 2_704; powerNow.calls = 46_000; powerNow.events = true
+func power(_ now: MeloNXPerfJournal.HwCounters, _ seconds: Double) -> String {
+    (MeloNXPerfJournal.energyField(from:powerBefore, to:now, seconds:seconds) ?? "nil") + " " + (MeloNXPerfJournal.switchField(from:powerBefore, to:now, seconds:seconds) ?? "nil")
+}
+print("power " + power(powerNow, 1.5))
+var powerBack = powerNow; powerBack.performanceEnergy = 1; powerBack.wakeups = 1
+print("power " + power(powerBack, 1.5))
+var powerNone = powerNow; powerNone.energy = 0; powerNone.events = false
+print("power " + power(powerNone, 1.5))
+print("power " + power(powerNow, 0))
+print("powerLive " + (hwNow.events ? "events" : "noEvents") + " " + (hwNow.switches > 0 ? "switches" : "noSwitches"))
 // pc= field: the share is formatted from two samples; no CPU time or a counter that went backwards gives "-". The
 // per-level counts of the busy thread are read when the host has them (a virtual machine may not).
 func share(_ now: MeloNXPerfJournal.LevelTimes) -> String { MeloNXPerfJournal.performanceShare(from:MeloNXPerfJournal.LevelTimes(performance:100, total:200), to:now) }
@@ -421,7 +447,7 @@ exit(2)
         check('paused' not in samples[0] and 'paused' in samples[-1], samples)
         # vm= (the kernel's compression, decompression, fault and page-in counts over the interval): absent on the first
         # line, four counts on the others, before th=.
-        check(' vm=' not in samples[0] and all(re.search(r' vm=\d+/\d+/\d+/\d+ (hw=\S+ )?(pc=\S+ )?(in=\S+ )?th=', line) for line in samples[1:]), samples)
+        check(' vm=' not in samples[0] and all(re.search(r' vm=\d+/\d+/\d+/\d+ (hw=\S+ )?(en=\S+ )?(sw=\S+ )?(pc=\S+ )?(in=\S+ )?th=', line) for line in samples[1:]), samples)
         # pc= (per cent of each listed thread's CPU time on performance cores, in the order of cpu=): absent on the first
         # line and where the host gives no per-level counts; never more values than threads listed.
         levels = [line for line in result.stdout.splitlines() if line.startswith('pcLevels ')]
@@ -441,6 +467,16 @@ exit(2)
         # absent on the first line; on the others four values, "-" where the host counts no cycles (a virtual machine).
         check(' hw=' not in samples[0] and
               all(re.search(r' hw=\d+\.\d/(\d+\.\d\d|-)/(\d+|-)/(\d+|-)/(\d+\.\d|-)/(\d+\.\d|-) ', line) for line in samples[1:]), samples)
+        # en= (watts, all cores / performance cores) only where the host counts energy; sw= (context switches, system
+        # calls and interrupt wakeups per second) on every line after the first.
+        check(' en=' not in samples[0] and ' sw=' not in samples[0] and
+              all(re.search(r' sw=\d+/\d+/(\d+|-) ', line) for line in samples[1:]) and
+              all(re.search(r' en=\d+\.\d\d/(\d+\.\d\d|-) ', line) for line in samples[1:] if ' en=' in line), samples)
+        print('en= on the runner: ' + str(sum(' en=' in line for line in samples[1:])) + ' of ' + str(len(samples) - 1) + ' lines; ' +
+              str([re.search(r' (en=\S+ )?sw=\S+', line).group(0).strip() for line in samples[1:3]]), flush=True)
+        check([line for line in result.stdout.splitlines() if line.startswith('power')] ==
+              ['power 3.00/2.00 2000/30000/1000', 'power 3.00/- 2000/30000/-', 'power nil nil', 'power nil nil', 'powerLive events switches'],
+              [line for line in result.stdout.splitlines() if line.startswith('power')])
         check([line for line in result.stdout.splitlines() if line.startswith('hwField ')] ==
               ['hwField 3.2/2.00/75/25/4.0/0.8', 'hwField 0.0/-/-/0/-/-', 'hwField 2.0/1.00/100/200/2.0/-', 'hwField 3.2/2.00/75/-/-/-',
                'hwField nil', 'hwField nil'] and 'timeUnit positive' in result.stdout.splitlines(), result.stdout)

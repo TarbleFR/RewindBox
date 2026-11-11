@@ -24,10 +24,10 @@ def check(value, message):
     checks += 1
 
 
-def line(pid, t, gaps, cpu, vm=None, hw=None, paused=False, pc=None, threads='Render:40/47 <MainThread>:30/31'):
+def line(pid, t, gaps, cpu, vm=None, hw=None, paused=False, pc=None, threads='Render:40/47 <MainThread>:30/31', en=None, sw=None):
     context = json.dumps(dict(build='731', pid=str(pid)), separators=(',', ':'))
     body = (f't={t} fps={len(gaps):.1f}/33.3/40 mgd=0.2 pres={len(gaps)}/0.0/0/0 long=0/0 gaps={",".join(str(g) for g in gaps)} '
-            f'cpu={cpu} {threads} mem=4000/2000/9/0' + (f' vm={vm}' if vm else '') + (f' hw={hw}' if hw else '') + (f' pc={pc}' if pc else '')
+            f'cpu={cpu} {threads} mem=4000/2000/9/0' + (f' vm={vm}' if vm else '') + (f' hw={hw}' if hw else '') + (f' en={en}' if en else '') + (f' sw={sw}' if sw else '') + (f' pc={pc}' if pc else '')
             + ' in=tL1/0.00,tR1/0.00 th=fair lp=0' + (' paused' if paused else ''))
     return f'[MeloNX:perf] {body} context={context}\n'
 
@@ -40,7 +40,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
             out.write(line(PID, t, [33] * 30, 250, vm='4/1000/5000/2', hw='3.0/2.00/60/110', pc='90,-' if t == 1 else '90,20'))
             out.write(line(PID + 1, t, [500] * 2, 600, vm='900/900000/1/1', hw='9.9/9.99/99/99'))
         for t in range(11, 21):
-            out.write(line(PID, t, [100] * 10, 300, vm='40/30000/90000/5', hw='2.0/1.00/30/50/3.1/1.5'))
+            out.write(line(PID, t, [100] * 10, 300, vm='40/30000/90000/5', hw='2.0/1.00/30/50/3.1/1.5', en='4.20/3.10' if t < 20 else '6.00/-',
+                           sw='52000/61000/900' if t < 20 else '80000/90000/-'))
         out.write(line(PID, 21, [33], 100, vm='-/-/10/0', hw='0.0/-/-/5'))
         out.write(line(PID, 22, [], 5, vm='1/1/1/1', hw='1.0/1.00/1/1', paused=True))
     run = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--window', '1-10', '--window', '11-20', '--window', '21-', '--json'],
@@ -58,6 +59,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     check(good['threads'] == [dict(name='Render', lines=10, corePercentMedian=40, priorities=[47], performanceCoresPercentMedian=90),
                               dict(name='<MainThread>', lines=10, corePercentMedian=30, priorities=[31], performanceCoresPercentMedian=20)],
           'threads of the first window, with their share on performance cores: ' + json.dumps(good['threads']))
+    # Power: ten lines of ten frames; nine at 4.2 W and one at 6 W are 43.8 J for 100 frames.
+    check(good['power'] is None and odd['power'] is None and slow['power'] == dict(
+        lines=10, cpuWattsMedian=4.2, cpuWattsMax=6.0, performanceCoresWattsMedian=3.1, millijoulesPerFrame=438.0,
+        contextSwitchesPerSecondMedian=52000, systemCallsPerSecondMedian=61000, interruptWakeupsPerSecondMedian=900), 'power and wake rates: ' + str(slow['power']))
     check(slow['threads'][0]['performanceCoresPercentMedian'] is None and slow['threads'][0]['corePercentMedian'] == 40,
           'a window without pc=: the threads without a share')
     check(slow['frames'] == 100 and slow['meanMs'] == 100.0 and slow['excessMs'] == 66.7 and slow['slowMs'] == 66.7 and slow['stutterMs'] == 0.0 and

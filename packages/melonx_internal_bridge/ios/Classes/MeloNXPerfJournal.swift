@@ -48,6 +48,8 @@ import Darwin
 //          to the engine for that stick (a source moving while oL stays 0 was
 //          overridden); b button changes sent; d inputs dropped while paused
 //          or closed; e writes the engine refused, count:last code
+//   en=    watts of the process's CPU work (all cores / performance cores), from the kernel's energy accounting
+//   sw=    context switches / system calls / wakeups by interrupt, per second
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
 // has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
@@ -104,6 +106,11 @@ final class MeloNXPerfJournal {
     struct HwCounters {
         let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64
         var performanceCycles: UInt64 = 0
+        // en= and sw= (lot 13): energy the kernel charges the process (nJ; all cores, performance cores), its wakeups by
+        // interrupt, and the task's context switches and system calls (32-bit counters that wrap).
+        var energy: UInt64 = 0, performanceEnergy: UInt64 = 0, wakeups: UInt64 = 0
+        var switches: UInt32 = 0, calls: UInt32 = 0
+        var events = false
     }
     struct LevelTimes { let performance: UInt64; let total: UInt64 }
     static let topThreads = 6
@@ -244,9 +251,46 @@ final class MeloNXPerfJournal {
         var info = rusage_info_v6()
         let result = withUnsafeMutablePointer(to:&info) { usage(getpid(), RUSAGE_INFO_V6, UnsafeMutableRawPointer($0)) }
         guard result == 0 else { return nil }
-        return HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
-                          performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time,
-                          performanceCycles:info.ri_pcycles)
+        var counters = HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
+                                  performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time,
+                                  performanceCycles:info.ri_pcycles)
+        counters.energy = info.ri_energy_nj; counters.performanceEnergy = info.ri_penergy_nj
+        counters.wakeups = info.ri_interrupt_wkups
+        var events = task_events_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_events_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let status = withUnsafeMutablePointer(to:&events) {
+            $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_EVENTS_INFO), $0, &count) }
+        }
+        if status == KERN_SUCCESS {
+            counters.switches = UInt32(bitPattern:events.csw)
+            counters.calls = UInt32(bitPattern:events.syscalls_unix) &+ UInt32(bitPattern:events.syscalls_mach)
+            counters.events = true
+        }
+        return counters
+    }
+
+    // en= field: the power of the process's CPU work over the interval, in watts, from the energy the kernel charges it
+    // (proc_pid_rusage, ri_energy_nj): all cores, then the part on performance cores ("-" for a counter that went
+    // backwards). What heats the device from this process's CPU side; the GPU's energy is not in it. Absent where the
+    // host counts no energy (a virtual machine) and on the first line.
+    static func energyField(from before: HwCounters, to now: HwCounters, seconds: Double) -> String? {
+        guard seconds > 0, now.energy > 0, now.energy >= before.energy else { return nil }
+        let watts = Double(now.energy - before.energy) / 1e9 / seconds
+        let performance = now.performanceEnergy >= before.performanceEnergy
+            ? String(format:"%.2f", Double(now.performanceEnergy - before.performanceEnergy) / 1e9 / seconds) : "-"
+        return String(format:"%.2f", watts) + "/" + performance
+    }
+
+    // sw= field: per second over the interval, the task's context switches, its system calls (Unix and Mach together)
+    // and its wakeups by interrupt (timers and input/output ending a wait): threads that sleep and wake at a high
+    // rate keep cores out of their idle states for little work. From task_info(TASK_EVENTS_INFO), whose 32-bit
+    // counters wrap, and proc_pid_rusage ("-" for wakeups that went backwards). Absent on the first line and where
+    // the task's events are not readable.
+    static func switchField(from before: HwCounters, to now: HwCounters, seconds: Double) -> String? {
+        guard seconds > 0, before.events, now.events else { return nil }
+        func rate(_ value: Double) -> String { String(Int((value / seconds).rounded())) }
+        let wakeups = now.wakeups >= before.wakeups ? rate(Double(now.wakeups - before.wakeups)) : "-"
+        return rate(Double(now.switches &- before.switches)) + "/" + rate(Double(now.calls &- before.calls)) + "/" + wakeups
     }
 
     /// Nanoseconds in one of the kernel's time units (125/3 on an iPhone).
@@ -278,11 +322,12 @@ final class MeloNXPerfJournal {
         return "\(clock)/\(perCycle)/\(performance)/\(waiting)/\(performanceClock)/\(otherClock)"
     }
 
-    private func hwActivity(cpuNs: UInt64) -> String? {
-        guard let now = Self.hwCounters() else { return nil }
+    private func hwActivity(cpuNs: UInt64, seconds: Double) -> (hw: String?, energy: String?, switches: String?) {
+        guard let now = Self.hwCounters() else { return (nil, nil, nil) }
         defer { previousHw = now }
-        guard let before = previousHw else { return nil }
-        return Self.hwField(from:before, to:now, cpuNs:cpuNs)
+        guard let before = previousHw else { return (nil, nil, nil) }
+        return (Self.hwField(from:before, to:now, cpuNs:cpuNs), Self.energyField(from:before, to:now, seconds:seconds),
+                Self.switchField(from:before, to:now, seconds:seconds))
     }
 
     // pc= field: for each thread listed in cpu=, in the same order, the per cent of its CPU time of the interval spent
@@ -433,7 +478,10 @@ final class MeloNXPerfJournal {
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
         if let text = vmActivity() { fields.append("vm=" + text) }
-        if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }
+        let served = hwActivity(cpuNs:total, seconds:elapsed)
+        if let text = served.hw { fields.append("hw=" + text) }
+        if let text = served.energy { fields.append("en=" + text) }
+        if let text = served.switches { fields.append("sw=" + text) }
         let listed = busy.prefix(Self.topThreads).filter { $0.ns > 0 }.count
         if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }

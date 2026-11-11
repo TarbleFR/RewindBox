@@ -109,3 +109,19 @@ writes the 24 call stacks with the most bytes still allocated:
   refute the link: 532 MiB with 230 MiB free again.
 Nothing is to be interpreted on the device: the lines are to be sent with the journal. No memory gain is claimed for
 this lot: it measures.
+
+## 6. Heat (lot 13 bridge, new `en=` and `sw=` fields)
+What IPA 725 showed (t=103-180, 75 lines in play): the process uses 2.9 cores on average (`cpu=` mean 286 %): the
+render thread 45 % of a core, the GPU thread 41 %, the guest's `<MainThread>` 40 %, `<RenderThread_1>` 24 %,
+`<RHIThread>` 15 %, the background collector 6 %, and about 70 % in threads outside the six listed per line; 59 % of
+that time on performance cores; about 105 MiB compressed and as much decompressed every second by the kernel (work
+that heats outside the process's own CPU time); thermal state `fair` for the 182 s (IPA 718: `serious` from t=64 s).
+The journal had no figure for the energy itself. Every per-second line now carries:
+- `en=`: watts of the process's CPU work, all cores / performance cores (the kernel's energy accounting; the GPU's
+  energy is not in it);
+- `sw=`: context switches / system calls / interrupt wakeups per second.
+`frame_budget.py` prints their medians per window and the millijoules of CPU work per frame: that figure, at a given
+frame rate, is what a change must lower to heat less. To read with `th=` over the 20 minutes (the time at which the
+state becomes `serious`, if it does) and with `pc=`: Core 733 puts the guest's threads in the user-interactive class,
+which can move work to the performance cores; more watts on them for the same frames would be a cost of that change
+to weigh against its frame times.

@@ -415,7 +415,7 @@
   },
   "pipeline-variant-replay": {
    "report": "pipeline-variant-replay-checks.json",
-   "sha256": "48a27a9247999476d413a949bc2c8478c8a9cf55c85532fb453f1545cc5974b1",
+   "sha256": "5a0ef5b0dd910ed201d278c1c49136e31908f51022b75b10a387ac394d6892eb",
    "checks": 107
   },
   "pipeline-snapshot-retire": {
@@ -470,7 +470,7 @@
   },
   "variant-replay-all": {
    "report": "variant-replay-all-checks.json",
-   "sha256": "fa6da7206cc8ebd3a5eb51532f5b43d5206c40f90d3bbbcfb42b1e0231e98321",
+   "sha256": "9fb2020621a9f95d8a1efa2ac31df6d5217692742db3bb1bf941da27430f3a4e",
    "checks": 40
   },
   "pause-checkpoint-growth": {
@@ -521,12 +521,12 @@
  },
  "allGatesLocally": "91 gates: 90 in one local series on the final preparation (89 green; pipeline-checkpoint failed once in it, its fixture's removal of its temporary directory racing a write under three parallel gates, and passed five times run alone), then kernel-timer-allocations added as a rerun gate (the freeze requires it: its historical receipt declares KTimeManager.cs) and run alone",
  "contract": {
-  "sha256": "4e0ea3eab99cbc70c22a4c3e900ec70b059d33e33ad9f79f48224fa072baf3c3",
+  "sha256": "8a223efc169ec6d86e87e523a1457412b63ba5b4a10c138b4f8d36fae67a29f2",
   "preparationInputs": 206,
   "preparedMembers": 211,
   "freshAppleGates": 91,
   "contractTestChecks": 483,
-  "previous": "b2a748e7\u2026 then 5769e41d\u2026 (the same preparation and engine each time; the host-thread-class gate, then the compute-switch-bindings gate and their fixtures differ)"
+  "previous": "b2a748e7\u2026, 5769e41d\u2026, 4e0ea3ea\u2026 (the same preparation and engine each time; three gates and their fixtures differ)"
  },
  "notInThisLot": "the collector itself still runs at the class of the thread that triggers it (a second patch of the rebuilt workstation GC was drafted and left out: the three changes above remove the known triggers at utility priority; to revisit with the next run's gcPause summary)",
  "physicalDeviceTested": false,
@@ -559,6 +559,13 @@
    "head": "7298c4ba",
    "result": "failed at the gate compute-switch-bindings (every gate before it passed; host-thread-class not reached)",
    "read": "fastest of five rounds with tiered compilation: control 48.0 ms, candidate 139.8 ms, the same 350 000 backend calls"
+  },
+  {
+   "run": 43016327008,
+   "workflow": "melonx-core.yml",
+   "head": "f974efac",
+   "result": "failed at the gate pipeline-variant-replay (71st of 91 in the plan); compute-switch-bindings, before it, passed on macOS for the first time in its corrected form; host-thread-class (89th) was not reached",
+   "read": "launch2 [4, 0, 1, 2], launch3 [4, 0, 1, 2], launch4 [3, 0, 0, 2] where [4, 1, 1, 2], [4, 1, 1, 2], [3, 1, 0, 2] are expected"
   }
  ],
  "review": "independent read-only review (rb-core-review) of the snapshot reuse and of the host thread class: no defect; two hypotheses left to the device (the composer's 2 ms spin now at the engine threads' priority; a priority inversion if a default-class thread holds the guest kernel's critical section while a raised thread waits)",
@@ -591,5 +598,12 @@
   ],
   "note": "Linux, .NET 10.0.100; under load the milliseconds double and the ratios to the loop stay; not run on macOS yet",
   "firstReference": "a fixed arithmetic loop was tried first as the reference (four runs: control 1.41 to 1.58, candidate 0.95 to 1.14) and replaced: engine code of the same kind follows the processor the same way as the timed rounds"
+ },
+ "variantReplayGate": {
+  "cause": "a race in the fixture, not the lot: four variants are noted under one program; their replay order is by the millisecond each was noted in (all in one: by id; otherwise as noted). On a host with one compile worker (fewer than 8 processors: the runner and this sandbox) and the order \"as noted\", the replay of the variant that must fail under memory pressure runs second and waits, on the only worker, for outcomes that worker has still to produce; it gives up after 3 s, memory then reads short for good and the variant that builds is held",
+  "reproduced": "locally with 3 ms between the four notes: the same three figures as the runner, exactly",
+  "engineUnchanged": "PipelineCacheManager.cs and BackgroundCompilationScheduler.cs are not touched by lot 12",
+  "gate": "one program per variant, offered one after the other: each replay is alone in flight and its outcome is classified with the memory reading meant for it, whatever the number of workers and the order; the expected figures are unchanged",
+  "stress": "with 3 ms after each of the 29 notes of the fixture the gate passes (107 checks); variant-replay-all, which shares the fixture, passes (40 checks)"
  }
 }

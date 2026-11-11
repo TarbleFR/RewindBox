@@ -4146,8 +4146,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Cores: `journal_of_earlier_cores`), `guest-fault-context`, `core667-fixes` (runtime: `core733_native.reverse`
       first). `performance-diagnostics` clears the event queue by reflection: the number of events is part of what
       the kept snapshot is compared on.
-    - **Core 733 frozen: contract `4e0ea3ea…` after the two gate corrections below (first freeze `b2a748e7…`, then
-      `5769e41d…`; the same preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
+    - **Core 733 frozen: contract `8a223efc…` after the three gate corrections below (first freeze `b2a748e7…`, then
+      `5769e41d…` and `4e0ea3ea…`; the same preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
       [receipts](evidence/melonx-733-gates/run.json), [device protocol](evidence/melonx-733-gates/device-protocol.md)).**
       The five-part MoltenVK is unchanged. Local run: 90 gates in one series, 89 green; `pipeline-checkpoint` failed
       once in it (its fixture removes its temporary directory while a write is still landing, under three parallel
@@ -4186,6 +4186,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       same kind. The other gates were read for the same pattern: none compares the speed of two processes (their
       time bounds are absolute, around sleeps of known length). Contract `4e0ea3ea…` (the gate and its fixture are
       inputs; preparation and engine unchanged), contract test 483/419. Not run on macOS yet.
+    - **Core CI red a third time (run 43016327008 on `f974efac`), a third gate, diagnosed and corrected (11 Nov):**
+      the corrected `compute-switch-bindings` passed on macOS; `host-thread-class` (89th of 91 in the plan) was not
+      reached, so its macOS path is still unproven inside Core CI; `pipeline-variant-replay` (71st) read
+      launch2 `[4, 0, 1, 2]`, launch3 `[4, 0, 1, 2]`, launch4 `[3, 0, 0, 2]` (the variant that builds never
+      replayed). Not the lot (neither `PipelineCacheManager.cs` nor the compile scheduler is touched). Cause: a race
+      in the fixture. Its four variants are noted under one program and replayed in the order of the millisecond
+      each was noted in (all in one: by id; otherwise as noted); the scheduler has one compile worker on a host with
+      fewer than 8 processors (the runner, this sandbox). With the order "as noted" the replay that must fail under
+      memory pressure runs second and waits, on the only worker, for outcomes that worker has still to produce; it
+      gives up after 3 s, memory then reads short for good and the last variant is held. Reproduced locally with
+      3 ms between the four notes: the runner's three figures exactly. Corrected fixture: one program per variant,
+      offered one after the other, so that each outcome is classified with the memory reading meant for it whatever
+      the workers and the order; the expected figures are unchanged. With 3 ms after each of the fixture's 29 notes
+      the gate passes (107 checks); `variant-replay-all`, which shares the fixture, passes (40). Contract
+      `8a223efc…`, contract test 483/419. Three gates of mine failed three Core builds in a row on conditions of the
+      runner, none on the engine: the remaining gates are being run here under load before the next dispatch is
+      relied on.
     - **Not in this lot:** the collector still runs at the class of the thread that triggers it; a second patch of
       the rebuilt workstation GC (class raised for the collection) was drafted and left out, the three fixes removing
       the known triggers below the user-interactive class; to revisit with the next `gcPause summary`.
@@ -4266,6 +4283,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       texture cache (`GetForBinding`); a compute dispatch pays its shader lookup, storage buffer sizing and both
       binding commits each time. Target for the next engine lot: the GPU thread under about 25 ms a frame in those
       scenes (compute and deltas are 12 to 14 ms of it).
+    - **Heat (maintainer priority relayed by main, 11 Nov): what the same journals say for MeloNX, and the measure
+      added.** In play (t=103-180, 75 lines) the process uses 2.9 cores on average (`cpu=` mean 286 %): render
+      thread 45 % of a core, GPU thread 41 %, guest `<MainThread>` 40 %, `<RenderThread_1>` 24 %, `<RHIThread>`
+      15 %, `.NET_BGC` 6 %, about 70 % in threads outside the six listed per line; 59 % of the CPU time on
+      performance cores; about 390 million instructions per frame (240 where the game holds 30 FPS, 456 to 531 in
+      the slow stretches); the kernel compresses about 105 MiB and decompresses as much every second; thermal state
+      `fair` for the 182 s (IPA 718: `serious` from t=64 s). No idle spinning shows in the listed threads: the heat
+      of a MeloNX session is the work per frame, so the levers are those of the frame budget above (GPU thread
+      work), the footprint (the compressor's traffic) and the collector. Costs of the diagnostics themselves: the
+      diagnostics queue's thread had used 5.1 s of CPU by t=120 (4 % of a core; the engine's part is removed by
+      Core 733, the host still decodes the whole report at every 300 ms poll: `MeloNXRuntimeAPI.diagnostics()`, an
+      input of the Core contract, to change with the next freeze if `cpu=` still shows it); the memory walk 0.9 s
+      per line each minute; the heap hook of this lot for 120 s. Rejected for now: changing Core 733's thread
+      classes before a measure (they may move work to the performance cores: to weigh with the new figures).
+      **Added (bridge `a4433d7a`):** `en=` (watts of the process's CPU work, all cores / performance cores, from the
+      kernel's energy accounting in the `proc_pid_rusage` answer `hw=` already reads) and `sw=` (context switches,
+      system calls, interrupt wakeups per second); `frame_budget.py` gives their medians and the millijoules of CPU
+      work per frame of a window ([device protocol](evidence/melonx-733-gates/device-protocol.md), section 6).
+      Validation: stall-watch run 43018089586 on `a4433d7a` green (201 checks; iOS typecheck). On the runner `sw=`
+      is written on every line after the first (98/237/11 for the test's idle process) and `en=` on none: a virtual
+      machine counts no energy, so the watts are formatted from synthetic counters only (3.00/2.00 for 4.5 J of
+      which 3 J on performance cores in 1.5 s) and their first real values will be the device's. No heat gain is
+      claimed.
     - **Not measured on a device; no memory or frame gain is claimed.** Remaining to gain for the verdict: the same
       as lot 12 (IPA 725: 22.0 FPS over the 78 s exported, footprint over 4 GiB).
     - **Next action:** main ships the bridge of this head with Core 733 in the next private IPA. From the device

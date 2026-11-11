@@ -61,7 +61,7 @@ def read(path, pid):
                 continue
             fields = body.split(' ')
             second = dict(t=int(match.group(1)), paused='paused' in fields, fps=None, gaps=[], footprint=None, device=None, thermal=None,
-                          cpu=None, vm=None, hw=None, threads=[], pc=None)
+                          cpu=None, vm=None, hw=None, en=None, sw=None, threads=[], pc=None)
             for field in fields:
                 if field.startswith('fps=') and field != 'fps=-':
                     second['fps'] = float(field[4:].split('/')[0])
@@ -84,7 +84,7 @@ def read(path, pid):
                     # A cpu= thread entry: name:per cent of one core/priority.
                     name, _, rest = field.rpartition(':')
                     second['threads'].append((name, int(rest.split('/')[0]), int(rest.split('/')[1])))
-                elif field.startswith('vm=') or field.startswith('hw='):
+                elif field[:3] in ('vm=', 'hw=', 'en=', 'sw='):
                     # Raw parts: vm= MiB compressed/pages decompressed/faults/page-ins, hw= GHz/instructions per
                     # cycle/% on performance cores/% ready without a core; "-" where the journal could not tell.
                     second[field[:2]] = field[3:].split('/')
