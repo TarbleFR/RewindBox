@@ -11,6 +11,7 @@ import 'package:neostation/services/saf_directory_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/xenia_content.dart';
+import 'package:neostation/services/switch2_export_content.dart';
 
 import 'dart:io';
 import 'dart:convert';
@@ -137,6 +138,11 @@ class SqliteDatabaseService {
     if (Platform.isIOS && system.folderName.toLowerCase() == 'xbox360') {
       validExtensionsSet.addAll(XeniaContent.gameExtensions);
     }
+    // The embedded S2Arm playlist lists a Switch 2 export by its base NPDM
+    // (docs/s2arm-switch2-library.md § Library).
+    if (Platform.isIOS && system.folderName.toLowerCase() == 'switch2') {
+      validExtensionsSet.add('npdm');
+    }
 
     return await Future.any([
       _performSystemScan(
@@ -214,7 +220,14 @@ class SqliteDatabaseService {
           system.folderName.toLowerCase() == 'xbox360' &&
           xeniaGameDir != null &&
           path.normalize(romFolder) == path.normalize(xeniaGameDir);
-      if (isDirectArmsx2Ps2Root || isDirectXeniaRoot) {
+      // Likewise the Switch 2 playlist's own S2Arm/Games root.
+      final s2armGameDir = ConfigService.linkedS2ArmGameFolderPath;
+      final isDirectS2ArmRoot =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == 'switch2' &&
+          s2armGameDir != null &&
+          path.normalize(romFolder) == path.normalize(s2armGameDir);
+      if (isDirectArmsx2Ps2Root || isDirectXeniaRoot || isDirectS2ArmRoot) {
         scanTargets.add((
           dirPath: romFolder,
           canonicalPath: await _canonicalScanPath(romFolder, useSaf: false),
@@ -314,6 +327,13 @@ class SqliteDatabaseService {
     if (Platform.isIOS && system.folderName.toLowerCase() == 'xbox360') {
       romEntries.retainWhere(
         (entry) => XeniaFolderContent.isLibraryEntry(entry.path),
+      );
+    }
+    // S2Arm: one entry per export folder (base/exefs/main.npdm), none under
+    // updates/ or dlc/.
+    if (Platform.isIOS && system.folderName.toLowerCase() == 'switch2') {
+      romEntries.retainWhere(
+        (entry) => Switch2ExportContent.isLibraryEntry(entry.path),
       );
     }
 
@@ -553,6 +573,7 @@ class SqliteDatabaseService {
     final systemId = system.id!;
     final isSwitch = systemId == 'switch' || systemId == 'nintendo-switch';
     final isXbox360 = Platform.isIOS && systemId == 'xbox360';
+    final isSwitch2 = Platform.isIOS && systemId == 'switch2';
 
     if (isSwitch) await SwitchTitleExtractor.loadKeys();
 
@@ -599,6 +620,13 @@ class SqliteDatabaseService {
 
         if (isXbox360 && !entry.path.startsWith('content://')) {
           titleName = XeniaFolderContent.libraryTitle(entry.path);
+        }
+
+        if (isSwitch2 && !entry.path.startsWith('content://')) {
+          // Title from the NACP (device language, else the export folder
+          // name) and title id from the NPDM; never RomFS content.
+          titleName = Switch2ExportContent.libraryTitle(entry.path);
+          titleId = Switch2ExportContent.titleId(entry.path) ?? titleId;
         }
 
         if (entry.filename.toLowerCase().endsWith('.steam')) {
