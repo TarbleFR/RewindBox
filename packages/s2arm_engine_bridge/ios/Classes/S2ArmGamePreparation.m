@@ -76,6 +76,79 @@ NSDictionary *S2ArmDetectExport(NSString *folder) {
   };
 }
 
+// NACP (0x4000 bytes): ApplicationTitle[16] of 0x300 (name[0x200] + publisher[0x100]); DisplayVersion UTF-8 at 0x3060 (0x10).
+static NSString *_Nullable nacpString(const uint8_t *nacp, int entry, int offset, int length) {
+  const uint8_t *field = nacp + (size_t)entry * 0x300 + offset;
+  int end = 0;
+  while (end < length && field[end]) end++;
+  if (end == 0) return nil;
+  return [[NSString alloc] initWithBytes:field length:end encoding:NSUTF8StringEncoding];
+}
+
+static int localeLanguageIndex(NSString *localePref) {
+  NSString *code = [[localePref ?: @"" componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"-_"]] firstObject].lowercaseString;
+  NSString *region = @"";
+  NSArray *parts = [localePref componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"-_"]];
+  if (parts.count > 1) region = [parts.lastObject uppercaseString];
+  NSDictionary *map = @{@"en" : @0, @"ja" : @2, @"fr" : @3, @"de" : @4, @"es" : @6, @"it" : @7, @"nl" : @8, @"pt" : @10, @"ru" : @11, @"ko" : @12};
+  if ([code isEqualToString:@"zh"]) return ([region isEqualToString:@"TW"] || [region isEqualToString:@"HK"] || [region isEqualToString:@"MO"]) ? 13 : 14;
+  NSNumber *index = map[code ?: @""];
+  return index ? index.intValue : -1;
+}
+
+static NSString *_Nullable findControlNacp(NSString *root, NSString **iconOut, int depth) {
+  if (depth > 3) return nil;
+  NSFileManager *files = NSFileManager.defaultManager;
+  NSString *control = [root stringByAppendingPathComponent:@"control.nacp"];
+  if ([files fileExistsAtPath:control]) {
+    NSString *icon = [root stringByAppendingPathComponent:@"icon.jpg"];
+    if (iconOut && [files fileExistsAtPath:icon]) *iconOut = icon;
+    return control;
+  }
+  for (NSString *name in [[files contentsOfDirectoryAtPath:root error:nil] sortedArrayUsingSelector:@selector(compare:)]) {
+    if ([name isEqualToString:@"exefs"] || [name isEqualToString:@"romfs"]) continue;
+    NSString *child = [root stringByAppendingPathComponent:name];
+    BOOL directory = NO;
+    if ([files fileExistsAtPath:child isDirectory:&directory] && directory) {
+      NSString *found = findControlNacp(child, iconOut, depth + 1);
+      if (found) return found;
+    }
+  }
+  return nil;
+}
+
+NSDictionary *S2ArmGameInfo(NSString *folder, NSString *localePref) {
+  NSDictionary *detected = S2ArmDetectExport(folder);
+  if (![detected[@"success"] boolValue]) return detected;
+  NSString *exportDir = detected[@"exportDir"];
+  NSMutableDictionary *info = [@{
+    @"success" : @YES,
+    @"titleId" : detected[@"programId"],
+    @"gid" : detected[@"gid"],
+  } mutableCopy];
+  NSString *icon = nil;
+  NSString *control = findControlNacp(exportDir, &icon, 0);
+  NSData *nacp = control ? [NSData dataWithContentsOfFile:control] : nil;
+  if (nacp.length >= 0x4000) {
+    const uint8_t *bytes = nacp.bytes;
+    int preferred = localeLanguageIndex(localePref);
+    NSString *title = preferred >= 0 ? nacpString(bytes, preferred, 0, 0x200) : nil;
+    NSString *publisher = preferred >= 0 ? nacpString(bytes, preferred, 0x200, 0x100) : nil;
+    for (int entry = 0; entry < 16 && title.length == 0; entry++) {
+      title = nacpString(bytes, entry, 0, 0x200);
+      publisher = nacpString(bytes, entry, 0x200, 0x100);
+    }
+    const uint8_t *dv = bytes + 0x3060;
+    int dvLen = 0;
+    while (dvLen < 0x10 && dv[dvLen]) dvLen++;
+    if (title.length) info[@"title"] = title;
+    if (publisher.length) info[@"publisher"] = publisher;
+    if (dvLen) info[@"displayVersion"] = [[NSString alloc] initWithBytes:dv length:dvLen encoding:NSUTF8StringEncoding] ?: @"";
+  }
+  if (icon.length) info[@"iconPath"] = icon;
+  return info;
+}
+
 @implementation S2ArmGamePreparation {
   _Atomic int _cancelled;
 }

@@ -33,6 +33,12 @@ NSString *_Nullable S2ArmShippedSystemData(void);
 /// rb_s2arm_ns2_detect: {success, exportDir, programId, gid} or {success: NO, code, diagnostic}.
 NSDictionary *S2ArmDetectExport(NSString *folder);
 
+/// Light metadata for the library scan and scraping, read without unpacking: the title id (ns2-detect) and, from the first
+/// control.nacp found in the export, the title (NACP, language chosen for localePref) and publisher, the display version,
+/// and the icon.jpg path when one sits beside it. {success, titleId, gid, title, publisher, displayVersion, iconPath} or
+/// {success: NO, code}. No game content is read beyond these display fields.
+NSDictionary *S2ArmGameInfo(NSString *folder, NSString *_Nullable localePref);
+
 typedef void (^S2ArmPrepareProgress)(NSString *step, NSInteger stepIndex, NSInteger stepCount, double fraction);
 
 @interface S2ArmGamePreparation : NSObject

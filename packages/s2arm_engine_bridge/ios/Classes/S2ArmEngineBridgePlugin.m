@@ -39,7 +39,8 @@ static NSString *S2ArmEnginePath(void) {
 @property(nonatomic, strong) dispatch_queue_t workQueue;
 @property(atomic, strong, nullable) S2ArmGamePreparation *activePreparation;
 @property(atomic, strong, nullable) S2ArmJitSession *jitSession;
-@property(atomic, assign) BOOL launchStarted;   // one launch per process
+@property(atomic, assign) BOOL engineLoaded;      // the engine was dlopen'd: one per process, no retry after this
+@property(atomic, assign) BOOL launchInProgress;  // a launch attempt is running now
 @end
 
 @implementation S2ArmEngineBridgePlugin
@@ -65,6 +66,32 @@ static NSString *S2ArmEnginePath(void) {
   if ([call.method isEqualToString:@"detectExport"]) {
     NSString *folder = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"exportFolder"] : nil;
     result(S2ArmDetectExport(folder ?: @""));
+    return;
+  }
+  if ([call.method isEqualToString:@"gameInfo"]) {
+    NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    NSString *folder = [args[@"exportFolder"] isKindOfClass:NSString.class] ? args[@"exportFolder"] : @"";
+    NSString *locale = [args[@"locale"] isKindOfClass:NSString.class] ? args[@"locale"] : nil;
+    result(S2ArmGameInfo(folder, locale));
+    return;
+  }
+  if ([call.method isEqualToString:@"storageInfo"]) {
+    // Free bytes and the file-system number of a path, so the Dart import can tell move (same volume) from copy and check
+    // free space before copying. The destination may not exist yet: its parent is measured.
+    NSString *path = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"path"] : nil;
+    NSFileManager *files = NSFileManager.defaultManager;
+    NSString *probe = path;
+    while (probe.length > 1 && ![files fileExistsAtPath:probe]) probe = probe.stringByDeletingLastPathComponent;
+    NSDictionary *attributes = probe.length ? [files attributesOfFileSystemForPath:probe error:nil] : nil;
+    if (!attributes) {
+      result(@{@"success" : @NO});
+      return;
+    }
+    result(@{
+      @"success" : @YES,
+      @"freeBytes" : attributes[NSFileSystemFreeSize] ?: @0,
+      @"systemNumber" : attributes[NSFileSystemNumber] ?: @0,
+    });
     return;
   }
   if ([call.method isEqualToString:@"prepareGame"]) {
@@ -161,19 +188,27 @@ static NSString *S2ArmEnginePath(void) {
     result(@{@"success" : @NO, @"error" : S2ArmErrorInvalidArguments});
     return;
   }
-  if (self.launchStarted) {
-    result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
-    return;
+  @synchronized(self) {
+    if (self.engineLoaded || rb_s2arm_engine_loaded() != 0) {
+      result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"A Switch 2 game already ran in this process."});
+      return;
+    }
+    if (self.launchInProgress) {
+      result(@{@"success" : @NO, @"error" : @"busy"});
+      return;
+    }
+    self.launchInProgress = YES;
   }
   // MeloNX's Core and this engine cannot share a process (two .NET runtimes). If MeloNX loaded, ask for a restart.
   if (S2ArmMeloNXCoreLoaded()) {
+    self.launchInProgress = NO;
     s2arm_journal("launch", "refused", "\"reason\":\"melonxCoreLoaded\"");
     result(@{@"success" : @NO, @"error" : @"engineRestartRequired", @"diagnostic" : @"MeloNX ran in this session of RewindBox."});
     return;
   }
-  self.launchStarted = YES;
   dispatch_async(self.workQueue, ^{
     NSDictionary *report = [self runLaunchWithGid:gid images:images moduleDir:moduleDir gameData:gameData docs:docs pairing:pairing];
+    self.launchInProgress = NO;
     dispatch_async(dispatch_get_main_queue(), ^{ result(report); });
   });
 }
@@ -211,7 +246,6 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
     // Below iOS 26 the helper's classic attach/detach (not wired in v1) leaves CS_DEBUGGED; here the process must already be
     // JIT-enabled. The whole device path so far is iOS 26+ (study § 6.4), so this branch is a guard, not a tested route.
     if (!S2ArmHostHasGetTaskAllow() || !S2ArmHostIsDebugged()) {
-      self.launchStarted = NO;
       return launchFail(@"jitUnavailable", @"jit", @"Below iOS 26 the process must already be JIT-enabled.");
     }
   }
@@ -237,6 +271,7 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   setenv("DOTNET_GCSegmentSize", kGcSegmentSize.UTF8String, 0);
   setenv("MTL_SHADER_CACHE_SIZE", kShaderCacheSize.UTF8String, 0);
   rb_s2arm_engine_mark_loading();
+  self.engineLoaded = YES;   // from here the engine lives in this process: no second launch, even if the dlopen fails
   s2arm_journal("dlopen", "begin", NULL);
   void *engine = dlopen(enginePath.fileSystemRepresentation, RTLD_NOW | RTLD_GLOBAL);
   if (!engine) {
@@ -305,7 +340,9 @@ static NSDictionary *launchFail(NSString *error, NSString *stage, NSString *deta
   s2arm_journal("start", "passed", NULL);
 
   if (universal) [self detachAfterBootServed:&plan];
-  s2arm_journal("launch", "running", "\"servedBlocks\":%u", ({ s2arm_code_stats s; s2arm_code_stats_get(&s); s.served_blocks; }));
+  s2arm_code_stats finalStats;
+  s2arm_code_stats_get(&finalStats);
+  s2arm_journal("launch", "running", "\"servedBlocks\":%u,\"afterDetach\":%u", finalStats.served_blocks, finalStats.after_detach_blocks);
   return @{@"success" : @YES, @"gid" : gid, @"stage" : @"running"};
 }
 
