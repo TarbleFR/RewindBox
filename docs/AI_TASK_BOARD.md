@@ -138,28 +138,20 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
-**Switch 2 (S2Arm) test IPA, session 04 (maintainer, 11 Nov, in the principal session:
-"Autorise la session Switch 2 à compiler sa propre IPA"):** session 012mUASj3EQnvC86WC56AePw
-may build, verify and privately deliver **its own** Switch 2 test IPA from its branch
-`work/s2arm-switch2-prototype-20261110`, without waiting for main and without asking again.
-- It is a separate IPA line. The common IPA stays main's (Cores, pins, manifests under
-  `build-utils/delivery/`, `[ipa-delivery:N]` on `Claude`) and carries no Switch 2 engine; the
-  bridge's diagnostic hook `d32738b5` is inert there (no file sets `RewindBoxS2ArmProbe`).
-- Session 04 works and triggers on its own branch only (its own workflow and delivery tag;
-  `standard-delivery.yml` runs for `Claude` alone). It does not push to `Claude` or `main`, and
-  changes no pin, contract or manifest of the common line; what should later enter the common
-  IPA still comes to main as a handoff.
-- The rest of this section applies to that IPA unchanged: follow the run to its terminal
-  state, verify the downloaded plaintext IPA (bytes, SHA-256, component and signing
-  identities, receipt) before giving it, keep recipient keys out of Git and delete private
-  keys after the verified delivery, upload artifacts through the protected action only
-  (#174), no public release, tag or post, no raw private log in Git.
-- Build numbers: the Switch 2 line uses its own range from 801 (801, 802, ...), never a
-  number of the shared sequence (common IPAs and MeloNX Cores, 725 onward), so the two lines
-  cannot collide. Default set by main; the maintainer may change it.
-- Open, for the maintainer to settle in session 04: same application identifier as the
-  common IPA (installing one replaces the other, data kept) or a distinct one (both
-  installed, separate data).
+**Switch 2 (S2Arm) test IPA: compiled by main, after the common one (maintainer, 11 Nov, principal session).**
+Three messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux
+fois l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; then, correcting main's reading of the
+first two: "Il y a un malentendu je veux que ça soit toi qui compile une deuxième IPA après les corrections des cores
+et autres correctifs que tu m'aura donner puis tu compile pareillement une IPA mais cette fois avec ceux de la sessions
+Switch 2."
+- **Main compiles both, with the same recipe:** (A) the common IPA with the fixes; then (B) a second IPA = the same
+  base plus the work of session 04 (012mUASj3EQnvC86WC56AePw, branch `work/s2arm-switch2-prototype-20261110`).
+- Session 04 builds no IPA. It hands main a frozen commit of its branch (origin/Claude merged in), the list of what
+  the IPA must contain and activate (packages, Info.plist keys, native libraries), its proofs, the legal entries of
+  what enters the binary, and the device protocol. The earlier reading (session 04 builds its own IPA, build numbers
+  from 801) is withdrawn.
+- The common line stays without a Switch 2 engine: (A) carries only the inert bridge hook `d32738b5`; what (B) adds is
+  not kept in the common line after it. The delivery rules of this section apply to both.
 
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
@@ -3753,10 +3745,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     data file into JIT memory and run to its first svc, host proof first (Linux rewriter, macOS arm64 run), then a
     diagnostic entry for an iPhone trial IPA built by main. Owner of this topic from now on: that session; this one
     keeps MeloNX only.
-  - **Maintainer decision (11 Nov, principal session): "Autorise la session Switch 2 à compiler sa propre IPA".**
-    The trial IPA is no longer built by main: session 04 builds and delivers its own Switch 2 IPA from its branch
-    (rules in "Standing IPA compilation authorization"). The hook `d32738b5` reached `Claude` with the MeloNX Core
-    727 merge `c53ad180` and is inert in the common IPA.
+  - **Maintainer decision (11 Nov, principal session, corrected the same hour):** main compiles the Switch 2 test
+    IPA itself, as a second IPA after the common one, with the same recipe and session 04's work added ("je veux que
+    ça soit toi qui compile ... pareillement une IPA mais cette fois avec ceux de la sessions Switch 2"; full quotes
+    in "Standing IPA compilation authorization"). Session 04 hands its frozen commit to main and builds nothing. The
+    hook `d32738b5` reached `Claude` with the MeloNX Core 727 merge `c53ad180` and is inert in the common IPA.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
