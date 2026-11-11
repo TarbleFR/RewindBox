@@ -5116,6 +5116,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     change, a verifier-only set, or a Dolphin rebuild. The common line meets the same rule when it integrates `ff8ca164`.
   - Shallow clone: the freeze needs the five blobs of 725's `restore` records. They were fetched by id
     (`git fetch origin <blob>`).
+  - Main re-requested 726: freeze `8fb2ee39`, same effective digest, trigger `bd99e8b7`, run `43106533461`. This line
+    follows it with line merge `8b51a5cb` (first parent Claude `52885af4`, second parent `c1d7554c`), whose S2Arm delta
+    equals `5945d9aa`'s.
+  - Engine run `43104715134` succeeded (dispatch on `b7b03844`, both macOS jobs, Xcode 26.6). `S2ArmEngine.framework.zip`
+    `87ea777b…bc75`, `NS2Pro.framework.zip` `dabaa231…b2cc`, 26 licence texts (manifest `cf6e0471…`); re-hashed
+    after download.
+  - 803 draft (sibling of 726, reviewed `8b51a5cb`) is ready with pending `[]`, kept outside Git. The dry run on
+    `8b51a5cb` gives the same single blocker: verify_ipa.py, waiting for main's choice.
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
