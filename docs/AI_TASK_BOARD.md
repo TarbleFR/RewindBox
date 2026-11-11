@@ -4287,6 +4287,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Not ported: `romfs.s2aidx` (C#, services) — to call from the engine after preparation.
 - **Scope (maintainer, 11 Nov):** Switch 2 only until the final test; Switch 1 games through S2Arm
   (player-provided `prod.keys`, as for MeloNX) are deferred, not started. E1 guest patches delegated.
+- **Main's answers (11 Nov 14:43):** engine component = producer workflow on this branch,
+  authenticated by its run in the launcher (no change to `retained_components.py` or common
+  producers). Extensions are a closed set (`validate_single_ipa_distribution.py:28-46`): follow the
+  MeloNX conditional model (:156-168) with an identity file present only in the test IPA that adds
+  `S2ArmJITHelper.appex` and requires the engine frameworks; diff written here, handed to main for
+  review. 5th JIT extension agreed (copy of `rpcs3_jit_helper`); script has no limits of its own;
+  16 MiB per command 1 is RPCS3's choice; core handshake from iOS 26.0.
 
 ### Codex orchestration — Codex
 
