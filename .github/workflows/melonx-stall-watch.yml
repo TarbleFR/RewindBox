@@ -18,10 +18,10 @@ run-name: Stall watch on macOS and iOS typecheck • ${{ github.sha }}
     - packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift
     - test/melonx_perf_journal_test.py
     - test/melonx_input_stick_test.py
-    - packages/melonx_internal_bridge/ios/Classes/MeloNXS2ArmProbeHook.m
-    - packages/melonx_internal_bridge/ios/Classes/MeloNXS2ArmProbeHook.h
+    - test/melonx_core_loaded_test.py
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXCoreLoaded.m
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXCoreLoaded.h
     - packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift
-    - test/melonx_s2arm_probe_hook_test.py
 permissions:
   contents: read
 concurrency:
@@ -39,13 +39,15 @@ jobs:
       run: python3 test/melonx_perf_journal_test.py
     - name: Execute the input journal checks on macOS
       run: python3 test/melonx_input_stick_test.py
-    - name: Execute the S2Arm diagnostic hook on macOS (clang, the launch's Swift call, fake probe)
-      run: python3 test/melonx_s2arm_probe_hook_test.py
-    - name: Compile the S2Arm diagnostic hook for the iOS SDK (arm64, iOS 18.0)
+    - name: Compile the core-loaded flag for the iOS SDK and read it through dlsym on macOS
       run: |
-        xcrun --sdk iphoneos clang -fobjc-arc -Wall -Werror -target arm64-apple-ios18.0 \
-          -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c packages/melonx_internal_bridge/ios/Classes/MeloNXS2ArmProbeHook.m -o /tmp/hook.o
-        echo "iOS compile passed"
+        xcrun --sdk iphoneos clang -Wall -Wextra -Werror -Os -target arm64-apple-ios18.0 \
+          -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c packages/melonx_internal_bridge/ios/Classes/MeloNXCoreLoaded.m -o /tmp/core-loaded.o
+        xcrun --sdk iphoneos clang -target arm64-apple-ios18.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+          -dynamiclib -fvisibility=hidden -Wl,-dead_strip /tmp/core-loaded.o -o /tmp/core-loaded.dylib
+        xcrun nm -gU /tmp/core-loaded.dylib | grep -E " T _rb_melonx_core_(loaded|mark_loading)$" | wc -l | grep -qx " *2"
+        python3 test/melonx_core_loaded_test.py
+        echo "core-loaded flag passed"
     - name: Compile the heap sampler for the iOS SDK (arm64, iOS 18.0)
       run: |
         xcrun --sdk iphoneos clang -Wall -Wextra -Werror -Os -target arm64-apple-ios18.0 \
