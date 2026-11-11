@@ -1,6 +1,7 @@
 // See MeloNXHeapSampler.h. Plain C: nothing here may allocate, log or touch thread-local storage, since every line
 // below the hook runs inside malloc and free.
 #import "MeloNXHeapSampler.h"
+#import <dlfcn.h>
 #import <os/lock.h>
 #import <pthread.h>
 #import <stdatomic.h>
@@ -8,7 +9,8 @@
 #import <string.h>
 
 typedef void(malloc_logger_t)(uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, uintptr_t result, uint32_t skip);
-extern malloc_logger_t *malloc_logger;
+// libmalloc's malloc_logger variable, looked up at the first Start: nothing here links against it.
+static malloc_logger_t **gLogger;
 
 // stack_logging.h
 #define LOG_ALLOCATE 2u
@@ -183,7 +185,9 @@ static void hook(uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, 
 
 int MeloNXHeapSamplerStart(void) {
     if (atomic_exchange(&gActive, 1)) return 0;
-    if (malloc_logger != NULL) { atomic_store(&gActive, 0); return -1; }
+    if (gLogger == NULL) gLogger = (malloc_logger_t **)dlsym(RTLD_DEFAULT, "malloc_logger");
+    if (gLogger == NULL) { atomic_store(&gActive, 0); return -3; }
+    if (*gLogger != NULL) { atomic_store(&gActive, 0); return -1; }
     os_unfair_lock_lock(&gLock);
     for (uint32_t index = 0; index < SLOTS; index++) atomic_store_explicit(&gSlots[index].pointer, 0, memory_order_relaxed);
     memset(gStacks, 0, sizeof(gStacks));
@@ -196,13 +200,13 @@ int MeloNXHeapSamplerStart(void) {
         atomic_store(&gStripes[index].seed, seed);
         atomic_store(&gStripes[index].remaining, (int64_t)(INTERVAL / 2 + (seed >> 33) % INTERVAL));
     }
-    malloc_logger = hook;
+    *gLogger = hook;
     return 1;
 }
 
 int MeloNXHeapSamplerStop(void) {
-    if (malloc_logger != hook) return 0;
-    malloc_logger = NULL;
+    if (gLogger == NULL || *gLogger != hook) return 0;
+    *gLogger = NULL;
     atomic_store(&gActive, 0);
     return 1;
 }

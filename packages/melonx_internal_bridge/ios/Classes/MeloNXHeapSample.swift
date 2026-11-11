@@ -30,7 +30,7 @@ enum MeloNXHeapSamplerLink {
     // low half is the frame count, then 14 frames.
     static let totalsWords = 8, stackWords = 19, frames = 14
 
-    /// 1 set, 0 already set, -1 another logger owns the hook, -2 a build without the sampler.
+    /// 1 set, 0 already set, -1 another logger owns the hook, -2 a build without the sampler, -3 a system without the hook.
     static func start() -> Int32 { startFunction?() ?? -2 }
     @discardableResult static func stop() -> Int32 { stopFunction?() ?? -2 }
 
@@ -80,7 +80,8 @@ final class MeloNXHeapSample {
             if owned["pid"] == nil { owned["pid"] = String(ProcessInfo.processInfo.processIdentifier) }
             let status = MeloNXHeapSamplerLink.start()
             guard status == 1 else {
-                Self.write(["not started: " + (status == -1 ? "another logger owns the hook" : status == -2 ? "no sampler in this build" : "already set")],
+                Self.write(["not started: " + (status == -1 ? "another logger owns the hook" : status == -2 ? "no sampler in this build" :
+                                             status == -3 ? "the system exports no logging hook" : "already set")],
                            path:path, context:owned)
                 return
             }

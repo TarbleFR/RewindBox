@@ -51,6 +51,8 @@ jobs:
         xcrun --sdk iphoneos clang -Wall -Wextra -Werror -Os -target arm64-apple-ios18.0 \
           -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSampler.m -o /tmp/heap-sampler.o
         xcrun nm /tmp/heap-sampler.o | grep -E " T _MeloNXHeapSampler(Start|Stop|Report)$" | wc -l | grep -qx " *3"
+        xcrun --sdk iphoneos clang -target arm64-apple-ios18.0 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+          -dynamiclib /tmp/heap-sampler.o -o /tmp/heap-sampler.dylib
         echo "iOS compile passed"
     - name: Typecheck the journal for the iOS SDK (arm64, iOS 18.0, the bridge's deployment target)
       run: |

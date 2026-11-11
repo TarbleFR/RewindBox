@@ -202,9 +202,10 @@ check(all(name not in hook_code for name in ('malloc(', 'calloc(', 'realloc(', '
       'between the hook and the tables: no allocation, no logging, no thread-local storage, one lock')
 check('address < low || address + 16 > high || (address & 7) != 0' in hook_code and 'if (next <= address) break;' in hook_code,
       'frames are read inside the calling thread\'s own stack only')
-check('if (malloc_logger != NULL) { atomic_store(&gActive, 0); return -1; }' in sampler and
-      sampler.count('malloc_logger = hook;') == 1 and '    if (malloc_logger != hook) return 0;\n    malloc_logger = NULL;' in sampler,
-      'the hook is set only when no other logger owns it, and removed only when it is ours')
+check('if (*gLogger != NULL) { atomic_store(&gActive, 0); return -1; }' in sampler and 'extern' not in sampler and
+      'gLogger = (malloc_logger_t **)dlsym(RTLD_DEFAULT, "malloc_logger");' in sampler and
+      sampler.count('*gLogger = hook;') == 1 and '    if (gLogger == NULL || *gLogger != hook) return 0;\n    *gLogger = NULL;' in sampler,
+      'the hook is looked up, set only when no other logger owns it, and removed only when it is ours')
 HEAP = {name: float(value) for name, value in re.findall(r'static let (windowSeconds|maxStacks|maxPlaces)(?:: \w+)? = ([\d.]+)', heap) +
         re.findall(r'\b(maxPlaces) = ([\d.]+)', heap)}
 check(HEAP == dict(windowSeconds=120, maxStacks=24, maxPlaces=10) and 'static let totalsWords = 8, stackWords = 19, frames = 14' in heap,

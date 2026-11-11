@@ -34,7 +34,7 @@ typedef struct {
 } MeloNXHeapSamplerTotals;
 
 /// Empties the tables and sets the hook. Returns 1 when it was set, 0 when it already is, -1 when another logger
-/// owns malloc_logger.
+/// owns malloc_logger, -3 when the system exports no malloc_logger.
 int MeloNXHeapSamplerStart(void);
 /// Removes the hook (the tables keep what they hold until the next Start). Returns 1 when it was set.
 int MeloNXHeapSamplerStop(void);
