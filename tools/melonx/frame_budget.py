@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Per-frame time budget of one MeloNX session against a frame-time target, from the RewindBox performance journal.
+
+    python3 tools/melonx/frame_budget.py MeloNX-performance.log --pid 49375 --window 52-72 --window 88- [--exclude 197-205]
+        [--target-fps 30] [--json]
+
+For that PID only, over each window of seconds (t= values of the per-second lines, both ends included, paused seconds
+left out), from the presentation gaps of the journal (gaps=: every interval between two presented frames, in ms, written
+on the line of the second in which the later frame was presented; the first frame after a pause starts a new series, so
+the pause itself is not a gap):
+
+- frames (the gaps), their total time, the mean, median, p95 and p99 frame time, the longest;
+- gaps over 50, 100, 500 and 1000 ms, and gaps over 100 ms per minute of the window;
+- the excess over the target: mean - target, in ms per frame, and its split, each class counted once:
+      stutters     sum of (gap - target) over the gaps above 100 ms, divided by all the frames of the window;
+      slow frames  the same over the gaps above the target and up to 100 ms;
+      fast frames  the same over the gaps at or below the target (zero or negative);
+  the three add up to the excess exactly;
+- the engine's game FPS (distinct game frames, fps= first value): mean and median over the seconds of the window;
+- the footprint (max) and the device memory available (min), from mem=.
+
+The journal rounds a gap to the millisecond and the display shows a frame on a refresh: a gap within 1 ms of a multiple
+of 1000/60 ms is taken as that multiple (33 -> 33.33), so a frame on target contributes zero, not -0.33. A journal line
+can cover more than one second when the process stalls: its gaps are all on that line, none is lost.
+
+--exclude removes seconds from every window (an interval that has another, known cause, reported apart).
+The figures are end to end per presented frame; thread times are not in this report and must never be added to it.
+"""
+import argparse
+import json
+import statistics
+import sys
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from playability_verdict import percentile, read  # noqa: E402
+
+REFRESH = 1000 / 60
+
+
+def exact(gap):
+    """The gap on the display's grid when the journal's rounded value is within 1 ms of a refresh multiple."""
+    multiple = round(gap / REFRESH)
+    return multiple * REFRESH if multiple >= 1 and abs(multiple * REFRESH - gap) < 1 else float(gap)
+
+
+def budget(seconds, first, last, target, excluded=()):
+    chosen = [s for s in seconds if s['t'] >= first and (last is None or s['t'] <= last) and not s['paused']
+              and not any(a <= s['t'] <= b for a, b in excluded)]
+    gaps = [exact(gap) for s in chosen for gap in s['gaps']]
+    if not gaps:
+        return dict(window=[first, last], frames=0)
+    frames, total = len(gaps), sum(gaps)
+    mean = total / frames
+
+    def share(selected):
+        return sum(gap - target for gap in selected) / frames
+
+    stutters = [gap for gap in gaps if gap > 100.5]
+    slow = [gap for gap in gaps if target + 0.5 < gap <= 100.5]
+    fast = [gap for gap in gaps if gap <= target + 0.5]
+    rates = [s['fps'] for s in chosen if s['fps'] is not None]
+    footprints = [s['footprint'] for s in chosen if s['footprint'] is not None]
+    devices = [s['device'] for s in chosen if s['device'] is not None and s['device'] >= 0]
+    minutes = total / 60000
+    return dict(window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
+                seconds=round(total / 1000, 1), meanMs=round(mean, 1), medianMs=round(statistics.median(gaps), 1),
+                p95Ms=round(percentile(gaps, 95), 1), p99Ms=round(percentile(gaps, 99), 1), maxMs=round(max(gaps)),
+                presentedFps=round(1000 / mean, 1),
+                over50=sum(1 for gap in gaps if gap > 50.5), over100=len(stutters), over500=sum(1 for gap in gaps if gap > 500),
+                over1000=sum(1 for gap in gaps if gap > 1000), over100PerMinute=round(len(stutters) / minutes, 1),
+                targetMs=round(target, 2), excessMs=round(mean - target, 1),
+                stutterMs=round(share(stutters), 1), stutterSeconds=round(sum(stutters) / 1000, 1),
+                slowMs=round(share(slow), 1), slowFrames=len(slow), fastMs=round(share(fast), 1), fastFrames=len(fast),
+                gameFpsMean=round(statistics.fmean(rates), 1) if rates else None,
+                gameFpsMedian=round(statistics.median(rates), 1) if rates else None,
+                footprintMaxMiB=max(footprints) if footprints else None, deviceAvailableMinPercent=min(devices) if devices else None)
+
+
+def span(text):
+    first, _, last = text.partition('-')
+    return int(first), int(last) if last else None
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('performance')
+    parser.add_argument('--pid', required=True)
+    parser.add_argument('--window', action='append', required=True, help='first-last seconds (t=), last optional: 88- is to the end')
+    parser.add_argument('--exclude', action='append', default=[], help='first-last seconds left out of every window')
+    parser.add_argument('--target-fps', type=float, default=30)
+    parser.add_argument('--json', action='store_true')
+    arguments = parser.parse_args()
+    seconds, ended = read(arguments.performance, arguments.pid)
+    if not seconds:
+        raise SystemExit(f'no per-second line for pid {arguments.pid}')
+    target = 1000 / arguments.target_fps
+    excluded = [span(text) for text in arguments.exclude]
+    assert all(b is not None for _, b in excluded), 'an excluded interval needs both ends'
+    results = [budget(seconds, *span(text), target, excluded) for text in arguments.window]
+    if arguments.json:
+        print(json.dumps(dict(pid=arguments.pid, lastSecond=seconds[-1]['t'], ended=ended, excluded=excluded, windows=results), indent=1))
+        return
+    print(f'pid {arguments.pid}: {len(seconds)} per-second lines, last t={seconds[-1]["t"]}, '
+          f'{"end line present" if ended else "no end line"}; target {target:.2f} ms'
+          + (f'; excluded {", ".join(f"{a}-{b}" for a, b in excluded)}' if excluded else ''))
+    for r in results:
+        if not r['frames']:
+            print(f't={r["window"][0]}-{r["window"][1]}: no presented frame')
+            continue
+        print(f't={r["window"][0]}-{r["window"][1]}: {r["frames"]} frames in {r["seconds"]} s; mean {r["meanMs"]} ms '
+              f'({r["presentedFps"]} presented FPS), median {r["medianMs"]}, p95 {r["p95Ms"]}, p99 {r["p99Ms"]}, max {r["maxMs"]} ms')
+        print(f'    excess {r["excessMs"]:+} ms per frame = stutters {r["stutterMs"]:+} ({r["over100"]} gaps over 100 ms, '
+              f'{r["stutterSeconds"]} s) + slow frames {r["slowMs"]:+} ({r["slowFrames"]}) + fast frames {r["fastMs"]:+} ({r["fastFrames"]})')
+        print(f'    gaps over 50/100/500/1000 ms: {r["over50"]}/{r["over100"]}/{r["over500"]}/{r["over1000"]}; '
+              f'{r["over100PerMinute"]} over 100 ms per minute; game FPS mean {r["gameFpsMean"]}, median {r["gameFpsMedian"]}; '
+              f'footprint max {r["footprintMaxMiB"]} MiB, device available min {r["deviceAvailableMinPercent"]} %')
+
+
+if __name__ == '__main__':
+    main()
