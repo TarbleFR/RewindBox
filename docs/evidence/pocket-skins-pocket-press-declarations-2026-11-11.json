@@ -1,0 +1,79 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-11",
+ "scope": "RewindBox Pocket skins revised in place a fourth time (PR #171, GameCube / Wii Pocket pressed buttons following their drawn outline, merged by the integration session as one merge after the PR #170 revision): two of the seven packs of assets/skins/pocket are rebuilt by RewindBox's own tool (tools/skins/build_pocket_skins.py, pressed_in_place: the pressed sprite of a rendered control is derived from its normal sprite, same outline, face shaded, drop shadow halved; sticks unchanged). No pack is added or removed; ids, console, archive names and previews are kept; the other five packs are byte-identical. No package, dependency, framework, engine or native source declaration changes. The integration session rebuilt both archives from the merged tree and obtained the committed bytes.",
+ "baseline_inventory": "docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json",
+ "baseline_inventory_sha256": "8470192cd5a2058613ceddaecfda8f89af1be337dfb6237edf6ef14006d89b93",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {}
+ },
+ "declarations": {},
+ "bundled_assets": {
+  "catalog": "assets/skins/pocket/catalog.json",
+  "catalog_sha256": "ed915984346528ce2cb58a7871b0851c2562288c19fcb1dd0c405f01059a6083",
+  "previous_catalog_sha256": "7fac23f5fe2409f23a01a0f5e74ff42b0a542b2428d2181fe885602869ca48a7",
+  "catalog_skins": 7,
+  "revised_skins": {
+   "wii-pocket": {
+    "size": 8329179,
+    "sha256": "8650e532c96475f719ccd57c86449a391f3fd99d12905c83d91dfb5daa2f7693",
+    "archiveAsset": "assets/skins/pocket/wii-pocket.manicskin",
+    "previous": {
+     "size": 8276918,
+     "sha256": "487137d55e0a10221d7f7ddf93c38dbe171de02068fdf34efbf69580285a1dc3"
+    }
+   },
+   "gamecube-pocket": {
+    "size": 8646547,
+    "sha256": "214c29d6a4b62ec5208761026745d03ac73fda5f156a1539974297e3298ff1a8",
+    "archiveAsset": "assets/skins/pocket/gamecube-pocket.manicskin",
+    "previous": {
+     "size": 8573159,
+     "sha256": "9127f7b889c810544cb3c07eb9c9a8c101bab15937e53bbcc121ce983317eeda"
+    }
+   }
+  },
+  "unchanged_skins": {
+   "ps2-pocket": {
+    "size": 6117888,
+    "sha256": "2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad",
+    "archiveAsset": "assets/skins/pocket/ps2-pocket.manicskin"
+   },
+   "gamecube-pocket-original": {
+    "size": 6368088,
+    "sha256": "a5f55e973b2b86e640598bd9f23ebe278f330758fbb0d6c19f73414b4789646b",
+    "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+   },
+   "wii-pocket-original": {
+    "size": 5287792,
+    "sha256": "fa0e9522888959134bb9069606ddf7d0eaf0120698b7abce0a9bbc1b767a990b",
+    "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+   },
+   "ps2-pocket-original": {
+    "size": 7379806,
+    "sha256": "f2aadf5787986e5ce07d6a51f35608a178ff18550a1660417112f42294247c65",
+    "archiveAsset": "assets/skins/pocket/ps2-pocket-original.manicskin"
+   },
+   "switch-pocket": {
+    "size": 9967228,
+    "sha256": "b0182254468af984b3825552941d74cde30f6a5a79c441d69eb9300bf3677a10",
+    "archiveAsset": "assets/skins/pocket/switch-pocket.manicskin"
+   }
+  },
+  "review": "tools/skins/README.md",
+  "evidence": [
+   "docs/evidence/skins-press-precision/"
+  ],
+  "pull_requests": [
+   171
+  ],
+  "merges": [
+   "f1c306d7"
+  ]
+ },
+ "revisions": []
+}

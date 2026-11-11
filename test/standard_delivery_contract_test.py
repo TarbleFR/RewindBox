@@ -1122,11 +1122,13 @@ class PocketSkinRevisionReview(unittest.TestCase):
     review binds every rebuilt pack to the identity an earlier review gave it. 722: PR 169 rebuilt the same six packs
     again; a second revision review binds each to the identity of the first, and only the last revision is checked
     against the catalog. 724: PR 170 rebuilt four of them a third time (precise pressed states); a third revision
-    review binds each to the identity of the second."""
+    review binds each to the identity of the second. 725: PR 171 rebuilt the two rendered packs (pressed buttons on
+    their drawn outline); a fourth revision review binds each to the identity the third kept for it."""
 
     REVIEWS = ('docs/evidence/pocket-skins-framing-press-declarations-2026-11-10.json',
                'docs/evidence/pocket-skins-native-ratio-declarations-2026-11-10.json',
-               'docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json')
+               'docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json',
+               'docs/evidence/pocket-skins-pocket-press-declarations-2026-11-11.json')
     CATALOG = 'assets/skins/pocket/catalog.json'
 
     def setUp(self):
@@ -1199,9 +1201,16 @@ class PocketSkinRevisionReview(unittest.TestCase):
         # A revision that does not name the identity the earlier review gave the pack binds nothing.
         bound = sorted(set(bundle['revised_skins']) & {'switch-pocket', 'ps2-pocket-original', 'wii-pocket-original',
                                                        'gamecube-pocket-original'})
-        self.assertTrue(bound, 'no rebuilt pack carries an earlier identity review')
-        with self.assertRaisesRegex(SystemExit, 'does not bind the reviewed pack: ' + bound[0]):
-            self.collect(changed_review(lambda b: b['revised_skins'][bound[0]]['previous'].update(sha256='0' * 64)))
+        if bound:
+            with self.assertRaisesRegex(SystemExit, 'does not bind the reviewed pack: ' + bound[0]):
+                self.collect(changed_review(lambda b: b['revised_skins'][bound[0]]['previous'].update(sha256='0' * 64)))
+        else:
+            # 725: the two rendered packs are in no added-pack review; their identity is the one the revision before
+            # kept for them, and that revision refuses another one.
+            self.assertGreater(len(self.present), 1, 'a first revision must rebuild a pack with an identity review')
+            bound = sorted(bundle['revised_skins'])
+            with self.assertRaisesRegex(SystemExit, 'packs differ from the review'):
+                self.collect(changed_review(lambda b: b['revised_skins'][bound[0]]['previous'].update(sha256='0' * 64)))
         # A pack the catalog holds at another identity than the revision reviewed.
         with self.assertRaisesRegex(SystemExit, 'differ'):
             self.collect(changed_review(lambda b: b['revised_skins'][bound[0]].update(size=1)))
