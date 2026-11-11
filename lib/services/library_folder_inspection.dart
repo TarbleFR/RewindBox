@@ -89,6 +89,7 @@ class LibraryFolderInspection {
     required this.unknownFolders,
     required this.looseGames,
     required this.truncated,
+    this.pickedConsole,
   });
 
   final String root;
@@ -101,6 +102,11 @@ class LibraryFolderInspection {
   /// The folder holds more entries than [LibraryFolderInspector.entryLimit]:
   /// the counts are lower bounds.
   final bool truncated;
+
+  /// The picked folder is itself the folder of one console (the user chose
+  /// `gba` instead of the folder that contains it): nothing can be read
+  /// from it as a library, and the report says which folder to choose.
+  final InspectedConsoleFolder? pickedConsole;
 
   /// Whether at least one console folder was found.
   bool get recognised => consoles.isNotEmpty;
@@ -184,6 +190,8 @@ abstract final class LibraryFolderInspector {
     var truncated = false;
     final directories = <Directory>[];
     var looseGames = 0;
+    // Files lying directly in the picked folder (see `pickedConsole`).
+    final ownGames = <String>[];
     var seen = 0;
     await for (final entity in Directory(root).list(followLinks: false)) {
       if (++seen > entryLimit) {
@@ -193,8 +201,9 @@ abstract final class LibraryFolderInspector {
       if (_hidden(entity.path)) continue;
       if (entity is Directory) {
         directories.add(entity);
-      } else if (entity is File && owners.containsKey(_extension(entity.path))) {
-        looseGames++;
+      } else if (entity is File) {
+        ownGames.add(entity.path);
+        if (owners.containsKey(_extension(entity.path))) looseGames++;
       }
     }
     directories.sort((a, b) => path.basename(a.path).toLowerCase().compareTo(path.basename(b.path).toLowerCase()));
@@ -251,12 +260,27 @@ abstract final class LibraryFolderInspector {
         unknown.add(InspectedUnknownFolder(folderName: name, files: gameLike, suggestion: suggestion));
       }
     }
+    // No console folder inside, and the picked folder bears the name of a
+    // console: its own games lie directly in it.
+    InspectedConsoleFolder? pickedConsole;
+    final own = consoles.isEmpty ? byFolder[path.basename(path.normalize(root)).toLowerCase()] : null;
+    if (own != null) {
+      final games = ownGames.where((file) => own.extensions.contains(_extension(file))).toList()..sort();
+      pickedConsole = InspectedConsoleFolder(
+        system: own,
+        folderName: path.basename(path.normalize(root)),
+        games: games.length,
+        examples: [for (final game in games.take(exampleLimit)) path.basenameWithoutExtension(game)],
+        otherFiles: ownGames.length - games.length,
+      );
+    }
     return LibraryFolderInspection(
       root: root,
       consoles: consoles,
       unknownFolders: unknown,
       looseGames: looseGames,
       truncated: truncated,
+      pickedConsole: pickedConsole,
     );
   }
 }

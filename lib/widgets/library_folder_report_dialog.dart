@@ -33,6 +33,20 @@ abstract final class LibraryFolderReport {
         LibraryLinkLocale.textFor(language, key, values);
 
     final lines = <LibraryReportLine>[LibraryReportLine(LibraryReportLineKind.folder, t('reportFolder', {'folder': location}))];
+    final picked = inspection.pickedConsole;
+    if (picked != null) {
+      // The user chose the folder of one console: say which folder to
+      // choose instead, and nothing else (its games are not "loose").
+      lines.add(LibraryReportLine(
+        LibraryReportLineKind.problem,
+        t('reportPickedConsole', {
+          'folder': picked.folderName,
+          'console': picked.system.name,
+          'count': picked.games,
+        }),
+      ));
+      return lines;
+    }
     if (!inspection.recognised) {
       lines.add(LibraryReportLine(
         LibraryReportLineKind.problem,

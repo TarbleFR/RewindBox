@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neostation/l10n/library_link_locale.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/screens/libretro/libretro_library_actions.dart';
 import 'package:neostation/services/neostation_rom_library.dart';
@@ -168,6 +169,49 @@ void main() {
       final lines = texts(await LibraryFolderInspector.inspect(root.path, systems));
       expect(lines.any((line) => line.startsWith('problem: No console folder was recognised here.') && line.contains('snes, gba')), isTrue);
       expect(lines, contains('warning: “My games”: 1 file(s). No console uses this folder name.'));
+    });
+
+    test('the folder of one console, picked instead of the one that contains it, says which to choose', () async {
+      // The user opened "gba" itself: its games lie directly in the picked folder.
+      final picked = Directory(path.join(root.path, 'GBA'));
+      await picked.create();
+      await File(path.join(picked.path, 'Metroid.gba')).writeAsString('x');
+      await File(path.join(picked.path, 'Zelda.gba')).writeAsString('x');
+      await File(path.join(picked.path, 'notes.txt')).writeAsString('x');
+      final inspection = await LibraryFolderInspector.inspect(picked.path, systems);
+      expect(inspection.recognised, isFalse);
+      expect(inspection.pickedConsole?.system.id, 'gba');
+      expect(inspection.pickedConsole?.games, 2);
+      expect(inspection.pickedConsole?.folderName, 'GBA');
+      final lines = texts(inspection);
+      expect(lines, hasLength(2));
+      expect(lines.first, 'folder: Folder: Roms');
+      expect(
+        lines.last,
+        'problem: “GBA” is the folder of one console (Game Boy Advance: 2 game(s) inside). '
+        'Choose the folder that contains “GBA” instead: a library folder holds one folder per console.',
+      );
+    });
+
+    test('a library folder that happens to bear a console name is read as a library', () async {
+      // "snes" containing console folders is a library: the name alone decides nothing.
+      final library = Directory(path.join(root.path, 'snes'));
+      await File(path.join(library.path, 'gba', 'Metroid.gba')).create(recursive: true);
+      final inspection = await LibraryFolderInspector.inspect(library.path, systems);
+      expect(inspection.recognised, isTrue);
+      expect(inspection.pickedConsole, isNull);
+    });
+
+    test('the picked-console sentence exists in the twelve languages', () {
+      const languages = ['en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh_Hant'];
+      final english = LibraryLinkLocale.textFor('en', 'reportPickedConsole');
+      for (final language in languages) {
+        final text = LibraryLinkLocale.textFor(language, 'reportPickedConsole');
+        for (final placeholder in ['{folder}', '{console}', '{count}']) {
+          expect(text, contains(placeholder), reason: '$language $placeholder');
+        }
+        if (language != 'en') expect(text, isNot(english), reason: language);
+      }
     });
 
     test('a long list of unrecognised folders is cut, with the count of the rest', () async {
