@@ -2091,6 +2091,73 @@ class EngineManifest(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     make_manifest.draft(self.sd, 'sibling', MODEL, 803, engine=engine)
 
+    def test_a_draft_that_carries_the_engine_bridge(self):
+        zips = {name: sha(name.encode()) for name in line.ENGINE_ZIPS}
+        engine = dict(run=ENGINE_RUN, zips=zips)
+        prepare, sysdata = dict(run=PREPARE_RUN, zip=sha(b'prepare')), dict(run=SYSDATA_RUN, tree=sha(b'sysdata'))
+        value = make_manifest.draft(self.sd, 'sibling', MODEL, 803, reviewed=[('1' * 40, 'bridge')], engine=engine,
+                                    prepare=prepare, sysdata=sysdata)
+        self.assertEqual(self.sd.manifest_errors(value), [])
+        self.assertEqual(value['s2arm']['prepare'], dict(workflow=line.PREPARE_WORKFLOW, **prepare))
+        self.assertEqual(value['s2arm']['sysdata'], dict(workflow=line.SYSDATA_WORKFLOW, **sysdata))
+        self.assertEqual((line.prepare_spec(value), line.sysdata_spec(value)),
+                         (value['s2arm']['prepare'], value['s2arm']['sysdata']))
+        self.assertEqual(value['s2arm']['bridgeDelta'], make_manifest.BRIDGE_DELTA)
+        paths = value['s2arm']['deltaPaths']
+        for path in ('pubspec.yaml', 'packages/s2arm_engine_bridge/pubspec.yaml', 'packages/s2arm_engine_bridge/.gitignore',
+                     'packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec',
+                     'packages/s2arm_engine_bridge/ios/Classes/S2ArmGamePreparation.m',
+                     'packages/s2arm_engine_bridge/lib/s2arm_engine_bridge.dart',
+                     'build-utils/collect_build_source_evidence.py'):
+            self.assertIn(path, paths)
+        self.assertTrue(all(self.sd.is_product(path) for path in paths))
+        self.assertFalse([path for path in paths if '/ios/Frameworks/' in path], 'the vendored library is not a product path')
+        self.assertEqual(value['images']['added'], sorted(line.ENGINE_IMAGES), 'the bridge adds no image: it is in Runner')
+        self.assertIn('Runner', value['images']['mustChange'])
+        for group, expected in (('flutter', 's2arm-engine-bridge'), ('native', 's2arm-legal-review')):
+            names = [name for name, _ in value['tests'][group]['additions']['commands']]
+            self.assertEqual(names.count(expected), 1, group)
+            self.assertEqual(len(names), len(set(names)), group)
+        self.assertFalse([text for text in value['s2arm']['pending'] if 's2arm.prepare' in text])
+        self.assertIn('Its host bridge packages/s2arm_engine_bridge', value['note'])
+        self.assertIn(f'run {PREPARE_RUN} of .github/workflows/s2arm-core.yml', value['note'])
+        # The engine alone: the draft says what is missing, and the launcher refuses such a build.
+        alone = make_manifest.draft(self.sd, 'sibling', MODEL, 803, engine=engine)
+        self.assertTrue([text for text in alone['s2arm']['pending'] if text.startswith('s2arm.prepare and s2arm.sysdata')])
+        self.assertNotIn('prepare', alone['s2arm'])
+        with self.assertRaises(line.LineError):
+            line.prepare_spec(alone)
+        refusals = {
+            'preparation library without system data': dict(engine=engine, prepare=prepare),
+            'system data without preparation library': dict(engine=engine, sysdata=sysdata),
+            'bridge without the engine': dict(prepare=prepare, sysdata=sysdata),
+            'archive digest in capitals': dict(engine=engine, prepare=dict(prepare, zip=prepare['zip'].upper()), sysdata=sysdata),
+            'short tree digest': dict(engine=engine, prepare=prepare, sysdata=dict(sysdata, tree=sysdata['tree'][:-1])),
+            'no run': dict(engine=engine, prepare=dict(prepare, run=0), sysdata=sysdata),
+            'run as text': dict(engine=engine, prepare=prepare, sysdata=dict(sysdata, run=str(SYSDATA_RUN))),
+            'no digest': dict(engine=engine, prepare=dict(run=PREPARE_RUN), sysdata=sysdata),
+        }
+        for name, keywords in refusals.items():
+            with self.subTest(case=name):
+                with self.assertRaises(SystemExit):
+                    make_manifest.draft(self.sd, 'sibling', MODEL, 803, **keywords)
+        with tempfile.TemporaryDirectory(prefix='s2arm-draft-') as directory:
+            output = Path(directory) / '803.json'
+            arguments = ['sibling', '--model', str(MODEL), '--build', '803', '--engine-run', str(ENGINE_RUN),
+                         *[item for name, digest in zips.items() for item in ('--engine-zip', f'{name}={digest}')],
+                         '--prepare-run', str(PREPARE_RUN), '--prepare-zip', prepare['zip'],
+                         '--sysdata-run', str(SYSDATA_RUN), '--sysdata-tree', sysdata['tree'], '--output', str(output)]
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(make_manifest.main(arguments), 0)
+            written = json.loads(output.read_bytes())
+            self.assertEqual((written['s2arm']['prepare'], written['s2arm']['sysdata']),
+                             (value['s2arm']['prepare'], value['s2arm']['sysdata']))
+            for missing in ('--prepare-zip', '--sysdata-tree'):
+                index = arguments.index(missing)
+                with self.subTest(missing=missing), contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        make_manifest.main(arguments[:index] + arguments[index + 2:])
+
 
 class Verifier(unittest.TestCase):
     def test_the_in_memory_edit_is_the_declared_one(self):

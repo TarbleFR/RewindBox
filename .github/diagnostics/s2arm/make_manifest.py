@@ -21,6 +21,14 @@ validator diff, three added images) and runs the S2Arm tests in the flutter grou
     ... --engine-run <run id> --engine-zip S2ArmEngine.framework.zip=<sha256> \\
         --engine-zip NS2Pro.framework.zip=<sha256>
 
+With the engine, its host bridge (packages/s2arm_engine_bridge, a plugin of the root pubspec.yaml) needs its
+preparation library and its system data, each from its producer run (BRIDGE_DELTA, s2arm.prepare and
+s2arm.sysdata): the SHA-256 of S2ArmPrepare.xcframework.zip (s2arm-core.yml) and of the SHA256SUMS of the
+macOS system data tree (s2arm-prepare.yml). A draft that names the engine without them is pending; the
+launcher refuses such a build.
+
+    ... --prepare-run <run id> --prepare-zip <sha256> --sysdata-run <run id> --sysdata-tree <sha256>
+
 The output is a DRAFT (status "draft"); only `standard_delivery_s2arm.py freeze <N>` makes it deliverable.
 Nothing is written under build-utils/delivery/ unless --output says so.
 """
@@ -68,6 +76,27 @@ ENGINE_TESTS = (
     ['s2arm-validator', ['python3', '-B', 'test/s2arm_validator_test.py']],
     ['s2arm-configure', ['python3', '-B', 'test/s2arm_configure_test.py']],
 )
+# The engine's host bridge of a build that carries it (docs/s2arm-engine-bridge.md): the plugin in the root pubspec.yaml,
+# reviewed by the legal gate through its chained declaration review; its preparation library and system data come from
+# their producer runs (s2arm.prepare, s2arm.sysdata), authenticated by the launcher. No image is added: the pod and the
+# library are linked into Runner, which already must change.
+BRIDGE_DELTA = dict(
+    package=line.BRIDGE_PACKAGE,
+    pubspec=dict(workspace=line.BRIDGE_PACKAGE, dependency=dict(s2arm_engine_bridge=dict(path=line.BRIDGE_PACKAGE))),
+    legal=dict(review='docs/evidence/s2arm-engine-declarations-2026-11-11.json',
+               collector='build-utils/collect_build_source_evidence.py'),
+    reviewedProductPaths=['pubspec.yaml', line.BRIDGE_PACKAGE + '/', 'build-utils/collect_build_source_evidence.py'],
+    images=dict(mustChange=['Runner'], added=[]),
+    runnerMustDefine=list(line.RUNNER_DEFINES), runnerMustExport=[line.ENGINE_LOADED],
+    prepare=dict(workflow=line.PREPARE_WORKFLOW, branch=line.DELIVERY_BRANCH, artifact=line.PREPARE_ARTIFACT,
+                 members=list(line.PREPARE_MEMBERS), installedAt=line.BRIDGE_FRAMEWORKS + '/' + line.PREPARE_XCFRAMEWORK),
+    sysdata=dict(workflow=line.SYSDATA_WORKFLOW, branch=line.DELIVERY_BRANCH, artifact=line.SYSDATA_ARTIFACT,
+                 placedAt='Runner.app/' + line.SYSTEM_DATA, listing=line.SYSDATA_SUMS),
+)
+BRIDGE_TESTS = {
+    'flutter': (['s2arm-engine-bridge', ['python3', '-B', 'test/s2arm_engine_bridge_test.py']],),
+    'native': (['s2arm-legal-review', ['python3', '-B', '.github/diagnostics/s2arm/s2arm_legal_review_test.py']],),
+}
 # Sections and keys a draft carries; everything else of a frozen manifest is written by the freeze.
 DRAFT_PRODUCT_KEYS = ('reviewedCommits', 'sourceOnly', 'promotedCommits')
 DRAFT_IMAGE_KEYS = ('mustChange', 'added', 'removed', 'replaced', 'retained')
@@ -130,10 +159,34 @@ def engine_pin(engine):
     return value
 
 
-def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, root=ROOT, engine=None):
+def producer_pin(value, key, workflow, digest, errors_of):
+    """s2arm.<key> of a draft from {run, <digest>}; the launcher refuses the same malformed values."""
+    pin = dict(workflow=workflow, run=value.get('run'), **{digest: value.get(digest)})
+    errors = errors_of(pin)
+    require(not errors, '; '.join(errors))
+    return pin
+
+
+def add_commands(tests, group, commands):
+    """Append test commands to a group's additions, skipping a name or a command line already listed."""
+    listed = tests[group].setdefault('additions', {}).setdefault('commands', [])
+    for name, argv in commands:
+        if name not in {item[0] for item in listed} and argv not in [item[1] for item in listed]:
+            listed.append([name, list(argv)])
+
+
+def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, root=ROOT, engine=None, prepare=None,
+          sysdata=None):
     root = Path(root)
     require(build >= line.FIRST_BUILD, f'builds of this line start at {line.FIRST_BUILD}')
     engine = engine_pin(engine) if engine is not None else None
+    require((prepare is None) == (sysdata is None), 'the engine bridge needs both its preparation library and its '
+            'system data (--prepare-run/--prepare-zip with --sysdata-run/--sysdata-tree)')
+    require(prepare is None or engine is not None, 'the engine bridge is declared with the engine it hosts')
+    bridge = prepare is not None
+    if bridge:
+        prepare = producer_pin(prepare, 'prepare', line.PREPARE_WORKFLOW, 'zip', line.prepare_errors)
+        sysdata = producer_pin(sysdata, 'sysdata', line.SYSDATA_WORKFLOW, 'tree', line.sysdata_errors)
     model = json.loads(read(root, sd.manifest_path(model_build)))
     require(model.get('status') == 'frozen' and not sd.manifest_errors(model),
             f'the model manifest {model_build} is not a frozen manifest')
@@ -157,7 +210,8 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
         what = f'the common IPA {model_build} rebuilt from its own base {model["base"]["build"]}'
     base_images = sd.verify_base(value, lambda path: (root / path).read_bytes() if (root / path).is_file() else None)
     paths = delta_paths(root, DELTA['reviewedProductPaths'] +
-                        (ENGINE_DELTA['reviewedProductPaths'] if engine else []))
+                        (ENGINE_DELTA['reviewedProductPaths'] if engine else []) +
+                        (BRIDGE_DELTA['reviewedProductPaths'] if bridge else []))
     derived, unmapped = sd.images_for_paths(paths, set(base_images))
     images['mustChange'] = sorted(set(images['mustChange']) | set(DELTA['images']['mustChange']) | set(derived))
     require(not (set(images['added']) | set(images['removed'])), 'the model adds or removes images')
@@ -174,6 +228,9 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
         additions = tests['flutter'].setdefault('additions', {})
         commands = additions.setdefault('commands', [])
         commands += [copy.deepcopy(command) for command in ENGINE_TESTS if command[0] not in {c[0] for c in commands}]
+    if bridge:
+        for group, commands in BRIDGE_TESTS.items():
+            add_commands(tests, group, commands)
     recipient = line.recipient_path(build)
     key_file = root / recipient
     pending = []
@@ -181,11 +238,18 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
         pending.append(f'recipient: {recipient} is not committed yet (its sha256 is null)')
     if not reviewed:
         pending.append('product.reviewedCommits: the reviewed commit(s) of the delta are not declared yet')
+    if engine and not bridge:
+        pending.append('s2arm.prepare and s2arm.sysdata: the engine bridge in pubspec.yaml needs its preparation library '
+                       'and its system data runs (--prepare-run/--prepare-zip, --sysdata-run/--sysdata-tree)')
     carried = ('' if not engine else
                f' With the S2Arm engine: S2ArmEngine.framework and NS2Pro.framework of run {engine["run"]} of '
                f'{line.ENGINE_WORKFLOW}, their identity {line.PACKAGED_IDENTITY} and the {line.HELPER} extension '
                '(packages/s2arm_jit_helper, build-utils/s2arm/configure_s2arm_ios.py, the S2Arm conditional of '
                'build-utils/validate_single_ipa_distribution.py).')
+    if bridge:
+        carried += (f' Its host bridge {line.BRIDGE_PACKAGE} (a plugin of the root pubspec.yaml, linked into Runner) with '
+                    f'{line.PREPARE_XCFRAMEWORK} of run {prepare["run"]} of {line.PREPARE_WORKFLOW} and the system data '
+                    f'of run {sysdata["run"]} of {line.SYSDATA_WORKFLOW} as {line.SYSTEM_DATA}.')
     value.update(
         note=note or (f'Private Switch 2 (S2Arm) test IPA {build} = {what}, plus the S2Arm device probe'
                       f'{"" if engine else " only"}: '
@@ -202,6 +266,8 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
                    pending=pending))
     if engine:
         value['s2arm'].update(engine=engine, engineDelta=copy.deepcopy(ENGINE_DELTA))
+    if bridge:
+        value['s2arm'].update(prepare=prepare, sysdata=sysdata, bridgeDelta=copy.deepcopy(BRIDGE_DELTA))
     errors = sd.manifest_errors(value)
     require(not errors, 'the recipe refuses the draft: ' + '; '.join(errors))
     return value
@@ -229,13 +295,22 @@ def main(argv=None):
     parser.add_argument('--note')
     parser.add_argument('--engine-run', type=int, help='run id of the S2Arm engine producer (s2arm-engine.yml)')
     parser.add_argument('--engine-zip', action='append', default=[], type=archive_digest, metavar='NAME=SHA256')
+    parser.add_argument('--prepare-run', type=int, help='run id of the preparation library producer (s2arm-core.yml)')
+    parser.add_argument('--prepare-zip', metavar='SHA256', help='SHA-256 of its ' + line.PREPARE_ZIP)
+    parser.add_argument('--sysdata-run', type=int, help='run id of the system data producer (s2arm-prepare.yml)')
+    parser.add_argument('--sysdata-tree', metavar='SHA256', help='SHA-256 of the ' + line.SYSDATA_SUMS + ' of its macOS tree')
     parser.add_argument('--output', type=Path, help='file to write (default: print the draft)')
     args = parser.parse_args(argv)
     sd = line.configure()
     require((args.engine_run is None) == (not args.engine_zip), '--engine-run and --engine-zip go together')
     require(len(dict(args.engine_zip)) == len(args.engine_zip), 'an engine archive is named twice')
+    require((args.prepare_run is None) == (args.prepare_zip is None), '--prepare-run and --prepare-zip go together')
+    require((args.sysdata_run is None) == (args.sysdata_tree is None), '--sysdata-run and --sysdata-tree go together')
     engine = dict(run=args.engine_run, zips=dict(args.engine_zip)) if args.engine_run is not None else None
-    value = draft(sd, args.mode, args.model, args.build, args.reviewed, args.source_only, args.note, engine=engine)
+    prepare = dict(run=args.prepare_run, zip=args.prepare_zip) if args.prepare_run is not None else None
+    sysdata = dict(run=args.sysdata_run, tree=args.sysdata_tree) if args.sysdata_run is not None else None
+    value = draft(sd, args.mode, args.model, args.build, args.reviewed, args.source_only, args.note, engine=engine,
+                  prepare=prepare, sysdata=sysdata)
     text = json.dumps(value, indent=2) + '\n'
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -243,6 +318,7 @@ def main(argv=None):
         print(json.dumps(dict(written=str(args.output), status=value['status'], mode=args.mode, model=args.model,
                               base=value['base']['build'], mustChange=value['images']['mustChange'],
                               added=value['images']['added'], engine=value['s2arm'].get('engine'),
+                              prepare=value['s2arm'].get('prepare'), sysdata=value['s2arm'].get('sysdata'),
                               pending=value['s2arm']['pending']), indent=2))
     else:
         sys.stdout.write(text)
