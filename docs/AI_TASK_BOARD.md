@@ -270,6 +270,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     flutter test 20 files 168/168, libretro frontend and storage contracts, Xenia Python checks, legal chain with the
     RetroAchievements podspec at its reviewed bytes (227 inputs). Conflict: imports of `sqlite_database_service.dart`,
     all kept. Not in the IPA yet: XeniaCore, the shader converter and the JIT helper appex; nothing run on a device.
+    Found after the merge by session 04: `.github/ipa-protection/check_workflows.py` failed on `Claude` (`xenia-core.yml`
+    uploaded with `actions/upload-artifact@v4` twice, bypassing the IPA guard). Main's merge checks had not run that
+    guard, and the `[skip ci]` merge did not trigger it. Fixed on `Claude`: both uploads use the pinned
+    `upload-protected-artifact@3bd75a37`; guard exit 0. The guard is now part of main's merge checks.
   - **PR #177 then #176 integrated (`c06bdfd9`, `4dff0d80`; skins: decorative loops gated under games and decode caps;
     System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
