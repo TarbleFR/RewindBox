@@ -564,7 +564,7 @@
    "run": 43016327008,
    "workflow": "melonx-core.yml",
    "head": "f974efac",
-   "result": "failed at the gate pipeline-variant-replay (host-thread-class and compute-switch-bindings passed on macOS for the first time)",
+   "result": "failed at the gate pipeline-variant-replay (71st of 91 in the plan); compute-switch-bindings, before it, passed on macOS for the first time in its corrected form; host-thread-class (89th) was not reached",
    "read": "launch2 [4, 0, 1, 2], launch3 [4, 0, 1, 2], launch4 [3, 0, 0, 2] where [4, 1, 1, 2], [4, 1, 1, 2], [3, 1, 0, 2] are expected"
   }
  ],

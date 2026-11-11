@@ -4187,7 +4187,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       time bounds are absolute, around sleeps of known length). Contract `4e0ea3ea…` (the gate and its fixture are
       inputs; preparation and engine unchanged), contract test 483/419. Not run on macOS yet.
     - **Core CI red a third time (run 43016327008 on `f974efac`), a third gate, diagnosed and corrected (11 Nov):**
-      `host-thread-class` and `compute-switch-bindings` passed on macOS; `pipeline-variant-replay` then read
+      the corrected `compute-switch-bindings` passed on macOS; `host-thread-class` (89th of 91 in the plan) was not
+      reached, so its macOS path is still unproven inside Core CI; `pipeline-variant-replay` (71st) read
       launch2 `[4, 0, 1, 2]`, launch3 `[4, 0, 1, 2]`, launch4 `[3, 0, 0, 2]` (the variant that builds never
       replayed). Not the lot (neither `PipelineCacheManager.cs` nor the compile scheduler is touched). Cause: a race
       in the fixture. Its four variants are noted under one program and replayed in the order of the millisecond
