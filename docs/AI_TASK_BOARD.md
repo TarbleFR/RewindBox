@@ -4220,17 +4220,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Open or limit:** device questions D, E, F and iOS 26 unobserved; rewriting a converted NRO
   not shown end to end; NROs hidden in other files and ZBIC modules refused; unpack, system
   data, RomFS index, package layout not ported.
-- **Who builds (11 Nov, latest, per the authorization section):** main compiles A (725); this
-  session compiles B = content of 725 + the probe, build 801, from this branch once 725 is
-  delivered. Earlier messages (separate identifier, probe inside the common IPA built by main)
-  are superseded; the maintainer can correct this reading.
-- **State of B: nothing built.** No delivery tooling exists on this line yet. In progress
-  (delegated, isolated worktree): reuse of the standard recipe unchanged through a launcher,
-  an own workflow triggered by `[s2arm-delivery:801]`, a manifest whose base is 725. Questions
-  on the recipe sent to main. Content and trial protocol: [handoff](s2arm-trial-ipa-handoff.md).
-- **Next:** review and integrate that tooling; when main sends the 725 source commit, merge it,
-  freeze the 801 manifest, commit the recipient key, trigger, follow the run, verify the
-  downloaded IPA, give it to the maintainer; then his device run and the `s2armProbe.*` lines.
+- **Who builds (11 Nov, per the authorization section):** main compiled A (725, delivered); this
+  session compiles B (801) from this branch. The maintainer can correct this reading.
+- **IPA B = 801, requested, not built yet.** Source `0cade99d` (frozen manifest
+  `build-utils/delivery/801.json`), run 42985983425 attempt 1, workflow `s2arm-delivery.yml`,
+  in progress. Base 724 with the classification of the frozen 725 manifest (taking 725 as base
+  would require App.framework to change; the probe adds no reached Dart); main agreed.
+  Effective tree = 725's plus 10 probe files, `pubspec.yaml` and the collector block of the
+  source declaration review (compared file by file); `68846c65`, `f3a4180f` and the § 3.9 merge
+  `746d2d2d` are source only. Core pins unchanged (RPCS3 928, MeloNX 731). Tests: flutter and
+  native fresh, plus the legal-review negative controls. The standard recipe is unchanged
+  (launcher under `.github/diagnostics/s2arm/`).
+- **Checked offline before the request:** contract 63 tests (4 skipped), freeze, trigger-paths,
+  materialize, request/recipient guards, source-contract, legal gate, 8 negative controls on
+  the effective tree, 32 line tests. **Not run before CI:** API-backed contract, pod build of the
+  probe in the application, the built-app probe check.
+- **Next:** follow the run to its end; on failure read the job log, fix, refreeze, rerun. On
+  success download, verify, compare the signed image inventory with 725, give the IPA to the
+  maintainer, send main number/size/SHA-256, delete the private key; then his device run.
 
 ### Codex orchestration — Codex
 
