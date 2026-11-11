@@ -9,7 +9,9 @@ delivered), and then lets the recipe's own checker validate the result (manifest
   successor  --model N   the base is the delivered build N (docs/evidence/rewind<N>/delivery.json and
                          signed-payload-identity.json); both Cores are declared unchangedFromBase.
   sibling    --model N   same base, components and classified commits as build N (its frozen manifest),
-                         plus the delta: the test IPA is build N rebuilt with the probe.
+                         plus the delta: the test IPA is build N rebuilt with the probe. The images build N
+                         adds or removes over that base are added or removed by the sibling too (726 adds
+                         the XeniOS bridge); a successor's base already holds them.
 
     python3 -B .github/diagnostics/s2arm/make_manifest.py sibling --model 724 --build 801 \\
         --reviewed <commit>=<note> [--source-only <commit>=<note>] --output build-utils/delivery/801.json
@@ -217,6 +219,8 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
             images['replaced'].pop(key, None)
             images['retained'][key] = [components[key]['image']]
         images['mustChange'] = []
+        # The delivered model is the base: the images it added are base images now, the ones it removed are gone.
+        images['added'], images['removed'] = [], []
         product = dict(reviewedCommits=[], sourceOnly=[], promotedCommits=[])
         what = f'the delivered common IPA {model_build}'
     else:
@@ -229,10 +233,13 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
                         (BRIDGE_DELTA['reviewedProductPaths'] if bridge else []))
     derived, unmapped = sd.images_for_paths(paths, set(base_images))
     images['mustChange'] = sorted(set(images['mustChange']) | set(DELTA['images']['mustChange']) | set(derived))
-    require(not (set(images['added']) | set(images['removed'])), 'the model adds or removes images')
+    # A sibling adds and removes what its model does over the same base.
+    require(not set(images['added']) & set(base_images) and set(images['removed']) <= set(base_images) and
+            not set(images['added']) & set(images['removed']), 'the model\'s added or removed images do not fit the base')
     if engine:
-        require(not set(ENGINE_DELTA['images']['added']) & set(base_images), 'the base already has an engine image')
-        images['added'] = sorted(ENGINE_DELTA['images']['added'])
+        require(not set(ENGINE_DELTA['images']['added']) & (set(base_images) | set(images['added'])),
+                'the base or the model already has an engine image')
+        images['added'] = sorted(set(images['added']) | set(ENGINE_DELTA['images']['added']))
     product['reviewedCommits'] += [dict(commit=commit, note=text) for commit, text in reviewed]
     product['sourceOnly'] += [dict(commit=commit, targetBuild=build + 1, note=text) for commit, text in source_only]
     tests = copy.deepcopy(model['tests'])

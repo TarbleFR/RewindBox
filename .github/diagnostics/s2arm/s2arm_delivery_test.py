@@ -2380,6 +2380,63 @@ class EngineManifest(unittest.TestCase):
                     with self.assertRaises(SystemExit):
                         make_manifest.main(arguments[:index] + arguments[index + 2:])
 
+    def model_with(self, added=(), removed=()):
+        """make_manifest reading the MODEL manifest with these added and removed images, everything else unchanged."""
+        model = manifest()
+        model['images']['added'], model['images']['removed'] = list(added), list(removed)
+        path = Path(self.sd.manifest_path(MODEL))
+        real = make_manifest.read
+
+        def read(root, name):
+            return json.dumps(model).encode() if Path(name) == path else real(root, name)
+        return mock.patch.object(make_manifest, 'read', read)
+
+    def test_the_images_a_model_adds_or_removes(self):
+        zips = {name: sha(name.encode()) for name in line.ENGINE_ZIPS}
+        engine = dict(run=ENGINE_RUN, zips=zips)
+        model = manifest()
+        referenced = set(model['images']['mustChange']) | set(model['images']['replaced'].values()) | {
+            image for images in model['images']['retained'].values() for image in images}
+        base = sorted(self.sd.verify_base(model))
+        gone = next(image for image in base if image not in referenced and '*' not in image)
+        new = 'Frameworks/rb_new_bridge.framework/rb_new_bridge'
+        with self.model_with(added=[new], removed=[gone]):
+            # A sibling is the model rebuilt over the same base: it adds and removes what the model does.
+            sibling = make_manifest.draft(self.sd, 'sibling', MODEL, 803, engine=engine)
+            self.assertEqual(self.sd.manifest_errors(sibling), [])
+            self.assertEqual(sibling['images']['added'], sorted({new} | set(line.ENGINE_IMAGES)))
+            self.assertEqual(sibling['images']['removed'], [gone])
+            plain = make_manifest.draft(self.sd, 'sibling', MODEL, 803)
+            self.assertEqual((plain['images']['added'], plain['images']['removed']), ([new], [gone]))
+            # A successor's base is the delivered model, whose signed inventory already holds its additions.
+            successor = make_manifest.draft(self.sd, 'successor', MODEL, 803, engine=engine)
+            self.assertEqual(successor['images']['added'], sorted(line.ENGINE_IMAGES))
+            self.assertEqual(successor['images']['removed'], [])
+        refusals = {
+            'an added image already in the base': dict(added=[base[0]]),
+            'a removed image not in the base': dict(removed=[new]),
+            'an image both added and removed': dict(added=[new], removed=[new]),
+            'an engine image added by the model': dict(added=[line.ENGINE_IMAGES[0]]),
+        }
+        for name, images in refusals.items():
+            with self.subTest(case=name), self.model_with(**images):
+                with self.assertRaises(SystemExit):
+                    make_manifest.draft(self.sd, 'sibling', MODEL, 803, engine=engine)
+
+    def test_a_sibling_of_726_keeps_the_xenios_bridge(self):
+        # 726, the model of 803, adds the XeniOS bridge over 725; 803 is built from the same tree over the same base.
+        model = manifest(726)
+        self.assertEqual(model['images']['added'], ['Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge'])
+        zips = {name: sha(name.encode()) for name in line.ENGINE_ZIPS}
+        value = make_manifest.draft(self.sd, 'sibling', 726, 803, reviewed=[('1' * 40, 'bridge')],
+                                    engine=dict(run=ENGINE_RUN, zips=zips), prepare=dict(run=PREPARE_RUN, zip=sha(b'prepare')),
+                                    sysdata=dict(run=SYSDATA_RUN, tree=sha(b'sysdata')))
+        self.assertEqual(self.sd.manifest_errors(value), [])
+        self.assertEqual(value['base'], model['base'])
+        self.assertEqual(value['images']['added'], sorted(set(model['images']['added']) | set(line.ENGINE_IMAGES)))
+        self.assertEqual(value['images']['removed'], [])
+        self.assertLessEqual(set(model['images']['mustChange']) | {'Runner'}, set(value['images']['mustChange']))
+
 
 class Verifier(unittest.TestCase):
     def test_the_common_verifier_runs_unchanged(self):
