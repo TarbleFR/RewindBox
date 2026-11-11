@@ -4250,8 +4250,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   placements; a writable alias made after detach let new code be written and executed; the game
   then launched normally. One device, one launch, synthetic module only. Prototype doc, "second
   device run".
-- **Next:** propose the next batches to the maintainer (real module on device needs the unpack
-  route decision); nothing about a game, the runtime or performance is shown.
+- **Unpack route proposed to the maintainer (11 Nov), awaiting his choice:** at the S2Arm pin,
+  Switch 2 games come as a decrypted console export folder or a `.nup` container (public format,
+  no keys); Switch 1 NSP/XCI need LibHac (C#) and the player's keys. Proposed: port to C, like
+  batch 4, the Switch 2 path only (`pack/ns2_dump.py`, `pack/ns2_nup.py`, ZBIC decoder and NSO
+  normalisation of `pack/nx_unpack`, ~1,350 lines), ExeFS first, each stage byte-compared in CI
+  with S2Arm; RomFS read in place later; Switch 1 left to the MeloNX playlist.
+- **Next:** the maintainer's answer; nothing coded for it yet.
 
 ### Codex orchestration — Codex
 
