@@ -5038,6 +5038,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   803 = its sibling + the S2Arm delta. The libretro UI contract passes on `Claude` since `1a10d4a8`: required again in
   `s2arm-library.yml` (`018da606`). Note for 803 (not a blocker): the launch route checks the pairing file before
   availability.
+- **Identity-gated validators and engine notices integrated (11 Nov, `ff8ca164`..`0c864039`, pushed; handoff to main):**
+  native conditionals on `S2Arm-native-identity.json` in Dolphin `verify_ipa.py`, `validate_rpcs3_ipa.py`
+  (`validate_helper_bundles`), the `standard-delivery.yml` bundle count and `verify_downloaded_delivery.py` (common
+  behaviour pinned to the `41c76404` blobs, identical to today's `Claude`); launcher in-memory extensions removed, no
+  step edit left. Notices: `embed_legal_bundle.py --validate-only` requires `Legal/S2Arm` (26 texts listed with digests,
+  incl. S2Arm LICENSE/NOTICE/THIRD_PARTY_LICENSES, .NET notices, codec/glslang/Ryujinx/SPIRV-Cross texts and the
+  no-Nintendo-data notice) when the identity is present; the engine producer collects them from pinned sources; the
+  launcher places and re-checks them. Local: delivery 69, conditional tests, legal bundle 8, licences 5/5 on the pinned
+  tree, single-IPA 26, validators, storage, bridge 61, guard OK, S2Arm legal chain 17/17 (RA podspec at reviewed bytes).
+  Engine run with licences `43097515562` started. Open for main: texts not located (deko3d zlib, Ryujinx NuGet refs,
+  ZstdSharp.Port, LibHac), glslang kept as required, `RTLD_GLOBAL` interposition risk with DolphinCore's weak glslang
+  symbols (803: launch the Switch 2 game from a fresh app start).
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
