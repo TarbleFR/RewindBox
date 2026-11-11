@@ -4259,6 +4259,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Maintainer's choice (11 Nov):** export folder, Switch 2 only, games on the iPhone. In progress
   (delegated, isolated worktree): C ports of the ZBIC decoder + NSO normalisation and of
   `ns2_dump.py`, CI byte comparisons with S2Arm. Nothing merged yet.
+- **Maintainer (11 Nov): "Vas jusqu'au moteur"** — read as: continue past preparation to running a
+  game with the S2Arm engine inside RewindBox. Mapping the engine (runtime ~44k lines C, services
+  ~30k C# NativeAOT, graphics ~264k, Ryujinx tree ~525k) before any code; main asked how a new
+  engine component enters the test line's recipe. The MeloNX probe leaves the next test IPA.
 
 ### Codex orchestration — Codex
 
