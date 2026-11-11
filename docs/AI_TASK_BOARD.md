@@ -258,7 +258,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Common IPA — main Claude Code
 
 - **Common IPA 726 triggered (11 Nov 20:50 UTC, main).** All sessions ready (queue below). Draft `8a627b46` = freeze
-  commit, trigger `0fbb5ac8`, run `43098367088` (in progress; not delivered yet). Base: the delivered 725 (run
+  commit, trigger `0fbb5ac8`, run `43098367088` (queued, not started: githubstatus.com reports a major Actions outage,
+  incident opened 20:56 UTC; every run of the repository has been queued since 20:41; nothing re-triggered). Base: the delivered 725 (run
   `42973548971`, receipt `a84cb29a`, 90 signed images). Replaced: RPCS3 Core 933 (pin `3fdc9f3b`), MeloNX Core 735
   (pin `3939c7a9`, replaces 731). Retained: Dolphin, ARMSX2, libretro, MeloNX dependencies, standalone MoltenVK
   `99605a2b` (inputs unchanged since 725). Added image: `xenia_internal_bridge.framework` (PR 172 plugin; XeniaCore,
