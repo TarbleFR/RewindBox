@@ -4256,9 +4256,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   batch 4, the Switch 2 path only (`pack/ns2_dump.py`, `pack/ns2_nup.py`, ZBIC decoder and NSO
   normalisation of `pack/nx_unpack`, ~1,350 lines), ExeFS first, each stage byte-compared in CI
   with S2Arm; RomFS read in place later; Switch 1 left to the MeloNX playlist.
-- **Maintainer's choice (11 Nov):** export folder, Switch 2 only, games on the iPhone. In progress
-  (delegated, isolated worktree): C ports of the ZBIC decoder + NSO normalisation and of
-  `ns2_dump.py`, CI byte comparisons with S2Arm. Nothing merged yet.
+- **Maintainer's choice (11 Nov):** export folder, Switch 2 only, games on the iPhone. **P0 done
+  in CI** (`92180d1`, run 43023002891, Linux + macOS): ZBIC decoder + NSO normalisation and
+  `ns2_dump` port byte-identical to S2Arm (11 921 frames, 2 323 NSOs, 31 export folders, 9
+  code-stage cases incl. ZBIC); memory-safety review running; nothing on a device yet. **P1
+  (pack assembly) started** (delegated).
 - **Maintainer (11 Nov): "Vas jusqu'au moteur"** — read as: continue past preparation to running a
   game with the S2Arm engine inside RewindBox. Mapping the engine (runtime ~44k lines C, services
   ~30k C# NativeAOT, graphics ~264k, Ryujinx tree ~525k) before any code; main asked how a new
