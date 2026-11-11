@@ -141,14 +141,19 @@ class _Armsx2InternalPlaylistActionsState
           if (!mounted) return;
           // The reason in the user's language when it is a known one (no
           // pairing file, LocalDevVPN off, …), else the technical text.
+          final sentence = StikJitArmsx2Service.lastErrorText(
+            LaunchPrerequisiteLocale.languageOf(Localizations.localeOf(context)),
+          );
+          final cause = StikJitArmsx2Service.lastError?.trim();
+          // The sentence first, the technical cause under it when it differs.
           _notice(
-            StikJitArmsx2Service.lastErrorText(
-                  LaunchPrerequisiteLocale.languageOf(
-                    Localizations.localeOf(context),
-                  ),
-                ) ??
-                StikJitArmsx2Service.lastError ??
-                _t('bootBiosFailed'),
+            sentence != null
+                ? [
+                    sentence,
+                    if (cause != null && cause.isNotEmpty && cause != sentence) cause,
+                  ].join('\n')
+                : cause ?? _t('bootBiosFailed'),
+            long: true,
           );
         }
       } else if (action == 'bios') {

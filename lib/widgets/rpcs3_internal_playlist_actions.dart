@@ -295,7 +295,7 @@ class _Rpcs3InternalPlaylistActionsState
         _notice(_tf('savesImported', {'count': imported}));
       }
     } on Rpcs3InternalException catch (error) {
-      _notice(error.message);
+      _notice(error.message, duration: const Duration(seconds: 12));
     } catch (error) {
       if (mounted) _notice(_describe(error));
     } finally {
