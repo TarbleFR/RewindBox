@@ -158,15 +158,18 @@ check(breakdown.count('vm_region_submap_info_data_64_t()') == 1 and
       'compressed = UInt64(full.pages_swapped_out) * page' in walk and 'resident = UInt64(full.pages_resident) * page' in walk,
       'page walk for private anonymous regions under the bound only')
 
-# Engine calls made from the utility queues (the sampler's two, the plugin's diagnostics drain every 300 ms) run in
-# the user-interactive class for their duration: an override on the calling thread, ended when the call returns.
+# Engine calls made from the utility queues (the sampler's two, the plugin's diagnostics drain every 300 ms) are made
+# by a thread of the user-interactive class the caller waits for, one at a time.
 plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
 helper = journal[journal.index('enum MeloNXEngineCallClass {'):journal.index('final class MeloNXPerfJournal {')]
-check('let override: pthread_override_t? = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)' in helper and
-      'defer { if let override { pthread_override_qos_class_end_np(override) } }' in helper and
-      helper.index('pthread_override_qos_class_start_np') < helper.index('defer {') < helper.index('return try call()'),
-      'the override starts before the call and ends when it returns or throws')
-check('pthread_set_qos_class_self_np' not in helper, 'the queue thread\'s requested class is not changed')
+check('thread.name = threadName' in helper and 'thread.qualityOfService = .userInteractive' in helper and
+      helper.index('thread.qualityOfService = .userInteractive') < helper.index('thread.start()') and
+      'let thread = Thread { while true { ready.wait(); body?(); done.signal() } }' in helper and
+      helper.index('body = { result = escapable() }') < helper.index('ready.signal()') < helper.index('done.wait()') < helper.index('body = nil'),
+      'the call is handed to a user-interactive thread and waited for')
+check('gate.lock(); defer { gate.unlock() }' in helper and 'if Thread.current.name == threadName { return call() }' in helper and
+      'pthread_set_qos_class_self_np' not in helper and 'pthread_override_qos_class_start_np' not in helper,
+      'one call at a time, a call within a call in place; the queue thread\'s own class is not changed')
 check(journal.count('MeloNXEngineCallClass.interactive { fps() }') == 1 and journal.count('MeloNXEngineCallClass.interactive { audio() }') == 2 and
       not re.search(r'(?<!interactive \{ )\b(fps|audio)\(\)(?! \})', journal[journal.index('final class MeloNXPerfJournal {'):journal.index('static func threads()')]),
       'every engine call of the sampler runs under the override')
@@ -282,21 +285,20 @@ print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:100, total:200
 print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:50, total:600)))
 if let levels = MeloNXPerfJournal.levelTimes(thread:worker.id) { print("pcLevels " + (levels.performance <= levels.total && levels.total > 0 ? "plausible" : "implausible")) }
 else { print("pcLevels unavailable") }
-// Engine-call class: on a utility queue's thread the call runs at the user-interactive priority, nested calls too,
-// and the queue's priority is back when the call returns or throws.
-struct EngineCallFailure: Error {}
+// Engine-call class: from a utility queue's thread the call is made at the user-interactive priority (a call within a
+// call too), on one thread, and the queue's own priority is what it was, between and after the calls.
 let classDone = DispatchSemaphore(value:0)
 var classLine = "engineClass unavailable"
 DispatchQueue(label:"Perf.Utility", qos:.utility).async {
     let before = MeloNXPerfJournal.currentPriorities()
-    let (inside, value) = MeloNXEngineCallClass.interactive { (MeloNXPerfJournal.currentPriorities(), 42) }
+    let (inside, value, thread) = MeloNXEngineCallClass.interactive { (MeloNXPerfJournal.currentPriorities(), 42, Thread.current.name ?? "") }
     let nested = MeloNXEngineCallClass.interactive { MeloNXEngineCallClass.interactive { MeloNXPerfJournal.currentPriorities() } }
     let between = MeloNXPerfJournal.currentPriorities()
-    var thrown = false
-    do { try MeloNXEngineCallClass.interactive { throw EngineCallFailure() } } catch { thrown = true }
+    var sum = 0
+    for index in 0..<200 { sum += MeloNXEngineCallClass.interactive { index } }
     let after = MeloNXPerfJournal.currentPriorities()
     if let before, let inside, let nested, let between, let after {
-        classLine = "engineClass \(before.base) \(inside.base) \(nested.base) \(between.base) \(after.base) \(value) \(thrown) \(inside.scheduled > before.scheduled)"
+        classLine = "engineClass \(before.base) \(inside.base) \(nested.base) \(between.base) \(after.base) \(value) \(sum) \(inside.scheduled > before.scheduled) \(thread)"
     }
     classDone.signal()
 }
@@ -400,14 +402,15 @@ exit(2)
               result.stdout)
         check([line for line in result.stdout.splitlines() if line.startswith('hotDecide ')] == ['hotDecide ' + ','.join(expected_decisions)],
               'the profiler decides as the rule: ' + result.stdout)
-        # Engine-call class (base priorities: 47 user-interactive, 20 utility): the utility queue's thread is at the
-        # user-interactive priority inside the call and inside a nested one, and back at its own between and after
-        # (after a call that threw as well); the call's value is returned.
+        # Engine-call class (base priorities: 47 user-interactive, 20 utility): the call made from a utility queue's
+        # thread runs at the user-interactive priority, a call within a call too, on the dedicated thread; the queue's
+        # thread is at its own priority before, between and after; the calls' values are returned (200 in a row).
         engine_class = [line.split(' ')[1:] for line in result.stdout.splitlines() if line.startswith('engineClass ')]
-        check(len(engine_class) == 1 and len(engine_class[0]) == 8, result.stdout)
+        check(len(engine_class) == 1 and len(engine_class[0]) == 9, result.stdout)
         before, inside, nested, between, after = map(int, engine_class[0][:5])
         check(before <= 31 and inside >= 45 and nested == inside and between == before and after == before and
-              engine_class[0][5:] == ['42', 'true', 'true'], 'engine call class on a utility queue: ' + ' '.join(engine_class[0]))
+              engine_class[0][5:] == ['42', str(sum(range(200))), 'true', 'RewindBox.MeloNX.EngineCalls'],
+              'engine call class from a utility queue: ' + ' '.join(engine_class[0]))
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
         check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms, {total} over 50 ms, 0 over 100 ms'

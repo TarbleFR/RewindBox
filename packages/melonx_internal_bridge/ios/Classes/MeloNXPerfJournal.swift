@@ -55,18 +55,39 @@ import Darwin
 // "[MeloNX:hot]" lines (MeloNXHotSpots.swift): where the busiest threads are, sampled for 3 s when the game runs slow
 // and when it runs on target.
 
-// A call into the engine from a utility queue (the sampler below, the plugin's diagnostics drain) runs in the
-// user-interactive class for its duration. The engine's collector stops every engine thread and runs on the thread
-// whose allocation triggered it, and a thread inside the engine must reach a safe point before a collection can start:
-// served at a utility queue's class, either leaves the game stopped meanwhile (IPA 725, pid 51986: a collection run by
-// the diagnostics queue's thread at priority 20 received 15.6 ms of CPU in 961 ms; the frame gap was 3 034 ms). The
-// override ends with the call: the queue's own work keeps its class, and the thread's requested class is unchanged.
+// A call into the engine from a utility queue (the sampler below, the plugin's diagnostics drain) is made by a thread of
+// the user-interactive class, which the caller waits for. The engine's collector stops every engine thread and runs on
+// the thread whose allocation triggered it, and a thread inside the engine must reach a safe point before a collection
+// can start: served at a utility queue's class, either leaves the game stopped meanwhile (IPA 725, pid 51986: a
+// collection run by the diagnostics queue's thread at priority 20 received 15.6 ms of CPU in 961 ms; the frame gap was
+// 3 034 ms). The queue's own work keeps its class. One call at a time; a call made from within a call runs in place.
+// (A QoS override of the queue's own thread was tried first: on macOS it left the thread's priority at 20, run 42991898055.)
 enum MeloNXEngineCallClass {
-    static func interactive<T>(_ call: () throws -> T) rethrows -> T {
-        // The call is declared non-null and returns null when it cannot start the override: kept as an optional.
-        let override: pthread_override_t? = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)
-        defer { if let override { pthread_override_qos_class_end_np(override) } }
-        return try call()
+    static let threadName = "RewindBox.MeloNX.EngineCalls"
+    private static let gate = NSLock()
+    private static let ready = DispatchSemaphore(value:0), done = DispatchSemaphore(value:0)
+    // Guarded by gate; body is handed to the thread between ready and done.
+    private static var runner: Thread?
+    private static var body: (() -> Void)?
+
+    static func interactive<T>(_ call: () -> T) -> T {
+        if Thread.current.name == threadName { return call() }
+        gate.lock(); defer { gate.unlock() }
+        if runner == nil {
+            let thread = Thread { while true { ready.wait(); body?(); done.signal() } }
+            thread.name = threadName
+            thread.qualityOfService = .userInteractive
+            thread.start()
+            runner = thread
+        }
+        var result: T?
+        withoutActuallyEscaping(call) { escapable in
+            body = { result = escapable() }
+            ready.signal()
+            done.wait()
+            body = nil
+        }
+        return result!
     }
 }
 
