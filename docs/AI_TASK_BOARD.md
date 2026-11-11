@@ -2114,7 +2114,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           Not run on an iPhone.
           - Merge f4f25c9a (11 Nov) brings the corrected head 4e31fa00: lot 13 bridge `en=`/`sw=` fields, plus the variant replay
             gate with each replay alone in flight. Reviewed: the test scenario only; same outcomes required.
-          - Core CI run 43025166594 dispatched on f4f25c9a (build 4); result and pin pending. Core 731 stays pinned.
+          - **MeloNX Core 733 pinned (build 4):**
+            - Core CI run 43025166594 on f4f25c9a, job 130537996965 green: all 91 fresh Apple gates pass, the three corrected
+              ones included.
+            - Artifact 13862341640: 100531691 B, `fb81b896`. iPhone binary `31989a90`, 38472792 B. Fingerprint `6c1f18d8`,
+              contract `8a223efc`, pin `49a7087a`.
+            - Verified offline on the downloaded artifact with the component verifier: `engine_evidence` passed, with 91 fresh
+              gates and 17 scoped gates reused. Contract tests passed: 419, reads 440, arrays 545.
+            - Replaces Core 731 (run 42958274015), which stays the fallback with the same five-part MoltenVK.
+            - Not run on an iPhone; no FPS or memory claim.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
