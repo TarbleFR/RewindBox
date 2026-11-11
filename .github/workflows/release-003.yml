@@ -37,7 +37,7 @@ jobs:
           test "$(gh release view 0.0.3 --json isDraft --jq .isDraft)" = true
           gh release upload 0.0.3 release-output/*.ipa release-output/*.zip release-output/*.tar.gz release-output/*.md release-output/*.json release-output/*.txt
           gh release edit 0.0.3 --target "$GITHUB_SHA" --title 'NeoStation iOS 0.0.3' --notes-file docs/RELEASE_0.0.3.md
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox-0.0.3-release-evidence
           path: |

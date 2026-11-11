@@ -1,0 +1,113 @@
+name: Private IPA artifact protection
+
+on:
+  push:
+    branches: [Claude, main, work/private-ipa-protection-20261111]
+    paths:
+      - .github/actions/upload-protected-artifact/**
+      - .github/ipa-protection/**
+      - .github/workflows/**
+  pull_request:
+    paths:
+      - .github/**
+
+permissions:
+  contents: read
+
+jobs:
+  upload-boundary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Exercise the upload boundary, including nested archives
+        run: python3 -m unittest discover -s .github/actions/upload-protected-artifact -p test_scan.py -v
+      - name: Require guarded uploads in every workflow
+        run: python3 .github/ipa-protection/check_workflows.py
+      - name: Prepare harmless boundary probes
+        run: |
+          mkdir -p build/ipa-policy-allowed build/ipa-policy-blocked
+          printf '{"fixture":"public evidence"}\n' > build/ipa-policy-allowed/receipt.json
+          printf 'Harmless test fixture, not an application\n' > build/ipa-policy-blocked/fixture.ipa
+      - name: Prove the real upload action rejects an IPA
+        id: reject
+        continue-on-error: true
+        uses: ./.github/actions/upload-protected-artifact
+        with:
+          name: IPA-policy-must-not-exist-${{ matrix.os }}-${{ github.run_id }}
+          path: build/ipa-policy-blocked/
+          if-no-files-found: error
+      - name: Require rejection
+        if: ${{ always() }}
+        env:
+          REJECTION_OUTCOME: ${{ steps.reject.outcome }}
+        run: test "$REJECTION_OUTCOME" = failure
+      - name: Prove ordinary evidence can still be uploaded
+        id: allowed
+        uses: ./.github/actions/upload-protected-artifact
+        with:
+          name: IPA-policy-boundary-${{ matrix.os }}-${{ github.run_id }}
+          path: build/ipa-policy-allowed/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Require original artifact outputs
+        env:
+          ARTIFACT_ID: ${{ steps.allowed.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.allowed.outputs.artifact-digest }}
+        run: |
+          test -n "$ARTIFACT_ID"
+          test -n "$ARTIFACT_DIGEST"
+  inventory:
+    if: ${{ github.event_name == 'push' && github.repository == 'TarbleFR/RewindBox' && contains(github.event.head_commit.message, '[ipa-artifact-inventory]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Inventory existing artifacts without changing them
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 .github/ipa-protection/audit_artifacts.py --output build/ipa-artifact-audit/inventory.json
+      - name: Preserve the inventory
+        uses: ./.github/actions/upload-protected-artifact
+        with:
+          name: IPA-artifact-inventory-${{ github.run_id }}
+          path: build/ipa-artifact-audit/
+          if-no-files-found: error
+          retention-days: 90
+  inspect-retained-artifacts:
+    if: ${{ github.event_name == 'push' && github.repository == 'TarbleFR/RewindBox' && contains(github.event.head_commit.message, '[ipa-artifact-inspect]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Inspect retained artifacts without changing or deleting them
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -u .github/ipa-protection/inspect_artifacts.py
+      - name: Preserve inspection findings, including incomplete runs
+        if: ${{ always() }}
+        uses: ./.github/actions/upload-protected-artifact
+        with:
+          name: IPA-artifact-inspection-${{ github.run_id }}
+          path: build/ipa-artifact-inspection/
+          if-no-files-found: error
+          retention-days: 90

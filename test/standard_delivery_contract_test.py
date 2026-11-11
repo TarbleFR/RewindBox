@@ -567,8 +567,11 @@ class Workflow(unittest.TestCase):
         embed = next(i for i, r in enumerate(runs) if 'standard_delivery.py embed build/' in r)
         seal = next(i for i, r in enumerate(runs) if 'standard_delivery.py seal' in r)
         encrypted = [i for i, r in enumerate(runs) if 'delivery_cipher.py artifact' in r and 'build/delivery ' not in r]
-        uploads = [i for i, s in enumerate(steps('application')) if s.get('uses', '').startswith('actions/upload-artifact')
+        uploads = [i for i, s in enumerate(steps('application')) if s.get('uses', '').startswith(
+                       'TarbleFR/RewindBox/.github/actions/upload-protected-artifact@')
                    and s['name'] != 'Upload diagnostics' and not s['name'].startswith('Republish ')]
+        self.assertFalse(any(s.get('uses', '').startswith('actions/upload-artifact')
+                             for s in steps('application')), 'Every artifact must pass the IPA upload boundary')
         compile_step = names.index('Compile Release device binary with measured AOT and Xcode phases')
         self.assertLess(compile_step, awaited)
         self.assertEqual(embed, awaited + 1)
@@ -696,10 +699,12 @@ class Workflow(unittest.TestCase):
         pods = step('application', 'Verify central session pod is in the actual generated host')['run']
         self.assertIn("rpcs3_internal_bridge.podspec.json", pods)
         self.assertIn("{'retro_achievements_session', 'achievement_translation'}", pods)
-        for item in steps('application'):
-            if item.get('uses', '').startswith('actions/upload-artifact'):
-                expected = 90 if item['name'].startswith('Republish ') else 14
-                self.assertEqual(item['with']['retention-days'], expected, item['name'])
+        uploads = [item for item in steps('application') if item.get('uses', '').startswith(
+            'TarbleFR/RewindBox/.github/actions/upload-protected-artifact@')]
+        self.assertTrue(uploads, 'The retention assertion must inspect real guarded uploads')
+        for item in uploads:
+            expected = 90 if item['name'].startswith('Republish ') else 14
+            self.assertEqual(item['with']['retention-days'], expected, item['name'])
 
     def test_republication_steps(self):
         _, manifest = current_manifest()

@@ -91,7 +91,7 @@ jobs:
 
         '
     - name: Upload encrypted private transport 1/4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox-Build-525-${{ github.sha }}-core-reuse-part00
         path: build/encrypted-delivery-parts/part00/
@@ -99,7 +99,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted private transport 2/4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox-Build-525-${{ github.sha }}-core-reuse-part01
         path: build/encrypted-delivery-parts/part01/
@@ -107,7 +107,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted private transport 3/4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox-Build-525-${{ github.sha }}-core-reuse-part02
         path: build/encrypted-delivery-parts/part02/
@@ -115,7 +115,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Upload encrypted private transport 4/4
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox-Build-525-${{ github.sha }}-core-reuse-part03
         path: build/encrypted-delivery-parts/part03/
@@ -131,7 +131,7 @@ jobs:
         '
     - name: Upload encrypted diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: RewindBox-Build-525-${{ github.sha }}-diagnostics
         path: build/encrypted-diagnostics/

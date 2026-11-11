@@ -78,7 +78,7 @@ jobs:
         if: always()
         run: |
           python3 build-utils/neoplay/collect_fixtures.py
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoPlay-native-evidence-${{ github.sha }}
@@ -87,7 +87,7 @@ jobs:
             build/neoplay-native/pod-graph.json
             build/neoplay-native/Results.xcresult
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoPlay-encoded-fixtures-${{ github.sha }}
@@ -115,7 +115,7 @@ jobs:
           npm install --no-save --package-lock=false --ignore-scripts playwright@1.63.0
           node playback-smoke.mjs ../../build/neoplay-fixtures/windows.json
           node playback-smoke.mjs ../../build/neoplay-fixtures/frames.json
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoPlay-Windows-playback-${{ github.sha }}
@@ -144,7 +144,7 @@ jobs:
           $p = Start-Process -FilePath '.\dist\win-unpacked\NeoPlay.exe' -ArgumentList '--smoke-test', '--report=embedded-smoke.json' -Wait -PassThru
           if ($p.ExitCode -ne 0) { exit $p.ExitCode }
           npm run build:installer
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: NeoPlay-0.8.0-${{ github.sha }}
           overwrite: true

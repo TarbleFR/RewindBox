@@ -96,7 +96,7 @@ jobs:
         run: >-
           flutter test --no-pub --reporter expanded test/menu_carousel_correction_test.dart
           --name 'full selection deforms|rapid repeated selection'
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RewindBox-UI511-complete-screen-proof

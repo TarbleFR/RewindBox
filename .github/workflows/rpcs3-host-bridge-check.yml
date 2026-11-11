@@ -32,7 +32,7 @@ jobs:
         run: python3 test/rpcs3_host_bridge_ios_syntax_test.py --report build/rpcs3-host-bridge-check/report.json
       - name: Preserve the report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-host-bridge-check-${{ github.sha }}
           path: build/rpcs3-host-bridge-check

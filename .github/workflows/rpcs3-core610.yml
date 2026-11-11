@@ -164,7 +164,7 @@ jobs:
               --dependency-run "$RPCS3_MVK_DEPENDENCY_RUN" --dependency-source "$RPCS3_MVK_DEPENDENCY_SOURCE" \
               2>&1 | tee build/rpcs3-core-diagnostics/core610-preflight.log
       - name: Preserve the authenticated preflight
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ steps.core-build.outputs.build }}-preflight-${{ github.sha }}
           path: |
@@ -273,7 +273,7 @@ jobs:
           (out / 'compiler-cache-observed.json').write_text(json.dumps(receipt, indent=2) + '\n')
           PYCODE
       - name: Upload the verified Core ${{ steps.core-build.outputs.build }} without an application delivery
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ steps.core-build.outputs.build }}-${{ github.sha }}
           path: dist/rpcs3/
@@ -287,7 +287,7 @@ jobs:
           key: rpcs3-mvk-cache-arm64-xcode26.3-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
       - name: Preserve real diagnostics including partial failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ steps.core-build.outputs.build }}-diagnostics-${{ github.sha }}
           path: |
@@ -359,7 +359,7 @@ jobs:
             --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
       - name: Preserve the Apple host harness reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3Core-${{ steps.core-build.outputs.build }}-apple-host-tests-${{ github.sha }}
           path: |

@@ -98,7 +98,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.log
       - name: Preserve preflight receipts and failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-preflight-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/
@@ -138,7 +138,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/ios-producer.log
       - name: Preserve actual iOS dependency and all producer receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-ios-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/
@@ -187,7 +187,7 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/metal-probe.log
       - name: Preserve real Metal results and producer failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RPCS3-MVK-cache-metal-${{ github.sha }}
           path: build/rpcs3-mvk-cache-validation/

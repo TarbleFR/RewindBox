@@ -58,28 +58,28 @@ jobs:
               (Path('parts') / f'part{index:02d}' / 'manifest.json').write_text(text)
           print(text)
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox517-private-transfer-00
           path: parts/part00/
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox517-private-transfer-01
           path: parts/part01/
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox517-private-transfer-02
           path: parts/part02/
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: RewindBox517-private-transfer-03
           path: parts/part03/
