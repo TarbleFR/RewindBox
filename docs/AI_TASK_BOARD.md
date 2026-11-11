@@ -257,6 +257,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Maintainer decision (11 Nov, verbatim): "Oui embarque : libmetalirconverter.dylib".** Relayed to session 03:
+  XeniaCore, the converter (pinned, licence text in the legal chain) and the JIT helper appex come as a handoff for the
+  next common build. Device report on 726: an empty Xbox 360 / Switch 2 library opened the generic recursive-scan
+  panel. Fixed in `79979d07`, with a source-contract test. Asked of session 04: the Switch 2 import menu gets the same
+  entries as Switch (games, prod.keys, firmware if needed), and the engine row says "not included in this version"
+  instead of "reinstall".
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
