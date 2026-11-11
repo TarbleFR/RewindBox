@@ -13,7 +13,7 @@ rm -rf "$out"; mkdir -p "$out/objects" "$out/headers"
 
 cmake -S "$s2arm/runtime/rewriter" -B "$out/rewriter" -DS2A_REWRITER_DEPS="$deps" -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=$minimum \
-  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
+  -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
 cmake --build "$out/rewriter" --target s2a_rewriter --parallel 4
 rewriter_lib=$(find "$out/rewriter" -name 'libs2a_rewriter.a' | head -1)
 capstone_lib=$(find "$out/rewriter" -name 'libcapstone.a' | head -1)
