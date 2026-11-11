@@ -5030,6 +5030,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   and session 03; not run by the test-line manifest).
 - **803 manifest question to main (11 Nov):** sibling of the next common build once the library branch is in `Claude`
   (proposed), or sibling with the library as an extra declared delta.
+- **Library layer integrated into `Claude` (11 Nov, main's merge `99e527c5` of `a13a0db8`, option A):** main checked
+  inertness in the code (no plugin → unavailable; the Consoles tab disables the engine switch of an unavailable console;
+  startup only creates the empty `S2Arm/Games`; scan on the `xbox360` rule) and the merged tree (flutter test 197/197,
+  contracts, workflow guard, tile controls, legal chain with the RA podspec at its reviewed bytes: 227 inputs). Main
+  prepares common build 726 (RPCS3 932/933, MeloNX 735, #172, #176/#177, this library) and will give its frozen commit;
+  803 = its sibling + the S2Arm delta. The libretro UI contract passes on `Claude` since `1a10d4a8`: required again in
+  `s2arm-library.yml` (`018da606`). Note for 803 (not a blocker): the launch route checks the pairing file before
+  availability.
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
