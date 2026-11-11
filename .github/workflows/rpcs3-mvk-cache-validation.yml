@@ -27,6 +27,9 @@
 # Run request: the dependency of RPCS3 Core 928 (same MoltenVK source and patch, same host bridge; this workflow is itself a
 # recorded input and its three artifact uploads go through the protected upload action since #174, so the dependency of
 # run 42733987255 no longer authenticates: Core compile run 42954625215 refused it), 11 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 929 (same MoltenVK source and patch; the host bridge shows the applied resolution
+# in the in-game menu, 5fd59775, so the dependency of run 42957981240 no longer authenticates: Core compile run 42996349275
+# refused it), 11 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
