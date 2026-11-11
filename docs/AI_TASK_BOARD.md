@@ -2107,6 +2107,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
           authentication step). Request 1's Apple host harness job passed on f235abc4.
+        - **Core 929 compiled and verified (run 43000618405, attempt 1, both jobs green):** artifact 13850405143 (c86e1a23),
+          dylib 82d8ce7f 80958696 B, fingerprint eabb95f9, PPU a987639e / SPU 477a3fa4, Apple host 15 commands; pin verified
+          in a tree at 1ea6cf4a (pin_errors clean, bundle) and kept as the fallback in
+          [evidence/rpcs3-core929](evidence/rpcs3-core929/README.md). Not the current pin: Claude carries the Core 930
+          source; the current pin stays Core 928 until Core 930 replaces it.
         - **Core 930 (`REWINDBOX_SPU_WAIT_SITE_930`, engine `e0ab634`, point 1 of the order):** source dd461ee7, canonical
           5078f1d4 (461 postimages), delta 733644e4, build 930; driver passed locally (1449 s) with closure, feature tests
           924-930, codegen (no input change), fold chain, route, analyzer, pin, guards. Compile request 454e6495, run
