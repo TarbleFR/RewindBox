@@ -123,6 +123,8 @@
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
   "host_sha256": "8977315ebff0fcdc6d4dd4813881cef023e7b7f9174a4fbb42dce97387794ca9",
   "reviewed_drift": [
+   ".github/workflows/rpcs3-core.yml",
+   ".github/workflows/rpcs3-memory-audit.yml",
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
