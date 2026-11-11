@@ -689,7 +689,10 @@ def report(sessions: dict, skipped: int, files: int, select) -> str:
             for thread in capture['threads']:
                 running, waiting = number(thread.get('running')) or 0, number(thread.get('waiting')) or 0
                 share = f'{100 * running / (running + waiting):.1f} %' if running + waiting else 'absent'
-                out.append(f"      {thread.get('id')} {thread.get('name')}: running {share} of its samples, overflow {thread.get('overflow')}, waits {thread.get('wait_calls')}, top {thread.get('top')}")
+                # REWINDBOX_SPU_WAIT_SITE_930: wait_sites is what a waiting sample waited on; wait_calls is the last named call.
+                waits = (f"waits on {thread.get('wait_sites')} (last named call {thread.get('wait_calls')})" if thread.get('wait_sites')
+                         else f"waits {thread.get('wait_calls')}")
+                out.append(f"      {thread.get('id')} {thread.get('name')}: running {share} of its samples, overflow {thread.get('overflow')}, {waits}, top {thread.get('top')}")
         out.append('')
     return '\n'.join(out)
 

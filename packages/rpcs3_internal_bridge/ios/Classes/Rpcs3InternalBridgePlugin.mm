@@ -832,13 +832,26 @@ static void RPCS3RememberRsxConfig(const char* message) {
   os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
 }
 
-// key=value tokens of the last line (values percent-decoded), or nil when the
-// last boot that reported one was another title.
-static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(NSString* title) {
-  std::string line;
+// REWINDBOX_MENU_RESOLUTION_729: the other CONFIG_LAYERS line of the boot (the
+// settings layers: rsx_res and the source of each value). Builds 724 and 725 ran
+// God of War III at rsx_res=100 while the menu showed no value at all: the 75 %
+// of builds 674-723 came from the retired full custom file, not from a per-game
+// choice, and nothing on screen said so. The menu now shows the value the last
+// boot applied and checks it in the list.
+static std::string gRPCS3TitleConfigLine;
+
+static void RPCS3RememberTitleConfig(const char* message) {
+  const char* line = strstr(message, "CONFIG_LAYERS title=");
+  if (!line) return;
+  std::string copy(line, strnlen(line, 2048));
   os_unfair_lock_lock(&gRPCS3RsxConfigLock);
-  line = gRPCS3RsxConfigLine;
+  gRPCS3TitleConfigLine.swap(copy);
   os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+}
+
+// key=value tokens of one remembered line (values percent-decoded), or nil when
+// the line is empty or names another title.
+static NSDictionary<NSString*, NSString*>* RPCS3ConfigLineValues(const std::string& line, NSString* title) {
   NSString* text = line.empty() ? nil : [[NSString alloc] initWithBytes:line.data() length:line.size()
                                                                 encoding:NSUTF8StringEncoding];
   if (!text.length || !title.length) return nil;
@@ -850,6 +863,23 @@ static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(NSString* titl
     values[[token substringToIndex:equal.location]] = value.stringByRemovingPercentEncoding ?: value;
   }
   return [values[@"title"] isEqualToString:title] ? values : nil;
+}
+
+// The values of the last boot of `title`: the settings line (rsx_res, ...) and
+// the RSX line (whose keys win), each only when it names that title; nil when
+// the last boot that reported them was another title.
+static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(NSString* title) {
+  std::string line, titled;
+  os_unfair_lock_lock(&gRPCS3RsxConfigLock);
+  line = gRPCS3RsxConfigLine;
+  titled = gRPCS3TitleConfigLine;
+  os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+  NSDictionary<NSString*, NSString*>* rsx = RPCS3ConfigLineValues(line, title);
+  NSDictionary<NSString*, NSString*>* layers = RPCS3ConfigLineValues(titled, title);
+  if (!rsx && !layers) return nil;
+  NSMutableDictionary<NSString*, NSString*>* values = [NSMutableDictionary dictionaryWithDictionary:layers ?: @{}];
+  [values addEntriesFromDictionary:rsx ?: @{}];
+  return values;
 }
 
 // REWINDBOX_GRAPHICS_TESTS_612: the only keys and values the accuracy test page
@@ -974,6 +1004,7 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
   if (!bridge || !message) return;
   // REWINDBOX_GRAPHICS_TESTS_612: kept for the accuracy test page (one line per boot).
   if (strstr(message, "CONFIG_LAYERS part=rsx") != nullptr) RPCS3RememberRsxConfig(message);
+  else if (strstr(message, "CONFIG_LAYERS title=") != nullptr) RPCS3RememberTitleConfig(message);  // REWINDBOX_MENU_RESOLUTION_729
   const std::string executable=RPCS3PPUIdentityFromLog(message);
   if(!executable.empty()) { @synchronized(bridge) {
     if(bridge.observePPUIdentity && !bridge.ppuIdentityConflict) {

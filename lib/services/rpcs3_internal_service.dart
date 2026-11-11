@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../data/datasources/sqlite_service.dart';
+import '../l10n/launch_prerequisite_locale.dart';
 import '../l10n/rpcs3_saves_locale.dart';
 import '../l10n/rpcs3_ui_locale.dart';
 import 'rpcs3_game_deletion.dart';
@@ -18,6 +19,7 @@ import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'logger_service.dart';
 import 'retro_achievements_session_service.dart';
+import 'launch_prerequisites.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'rpcs3_game_profile_service.dart';
@@ -105,6 +107,14 @@ class Rpcs3InternalService {
       FlutterLocalization.instance.currentLocale?.toLanguageTag() ?? 'en';
   static String _ui(String key) =>
       Rpcs3UiLocale.textForLocale(_localeTag, key);
+
+  /// What the user has to put right before RPCS3 can start, in the
+  /// application's language.
+  static String _prerequisite(LaunchPrerequisite prerequisite) =>
+      LaunchPrerequisiteLocale.textFor(
+        LaunchPrerequisiteLocale.currentLanguage(),
+        prerequisite.key,
+      );
 
   static final _log = LoggerService.instance;
   static final _stateController = StreamController<Rpcs3RuntimeState>.broadcast(
@@ -387,11 +397,19 @@ class Rpcs3InternalService {
         await LocalDevVpnRouteService.ensureReachable();
       } on LocalDevVpnRouteException catch (error) {
         _log.w('RPCS3 route unavailable: ${error.message} (nativeRouteCode=${error.code})');
-        throw Rpcs3InternalException('RPCS3_ROUTE_UNAVAILABLE', _ui('operationFailed'));
+        // "RPCS3 operation failed." did not tell a VPN that is off from a
+        // missing file: each prerequisite has its own sentence.
+        throw Rpcs3InternalException(
+          'RPCS3_ROUTE_UNAVAILABLE',
+          _prerequisite(LaunchPrerequisite.localDevVpn),
+        );
       }
 
       if (!await PairingFileService.hasStoredPairingFile()) {
-        throw Rpcs3InternalException('RPCS3_PAIRING_FILE_INVALID', _ui('operationFailed'));
+        throw Rpcs3InternalException(
+          'RPCS3_PAIRING_FILE_INVALID',
+          _prerequisite(LaunchPrerequisite.pairingFile),
+        );
       }
 
       final data = await dataDirectory();
@@ -411,9 +429,30 @@ class Rpcs3InternalService {
         _ui('operationFailed'),
       );
       if (jit['success'] != true) {
+        // The native text is English; when it names a known prerequisite
+        // (iOS version, development signature, pairing file, helper) the
+        // user gets its sentence, and the journal keeps the native text.
+        final nativeMessage = jit['message']?.toString();
+        var known = LaunchPrerequisites.classifyText(nativeMessage);
+        // "An RPCS3 JIT operation is already running." only comes from a
+        // transaction the bridge keeps locked on purpose (Dart never runs two
+        // RPCS3 starts at once): waiting does not help, reopening RewindBox does.
+        if (known == LaunchPrerequisite.jitBusy) known = LaunchPrerequisite.jitHelper;
+        if (nativeMessage != null) {
+          _log.w('RPCS3 JIT preparation refused: $nativeMessage');
+        }
         throw Rpcs3InternalException(
           jit['code']?.toString() ?? 'RPCS3_JIT_ATTACH_FAILED',
-          jit['message']?.toString() ?? _ui('operationFailed'),
+          known != null
+              ? [
+                  _prerequisite(known),
+                  // The native cause stays visible under the sentence.
+                  if (nativeMessage != null &&
+                      nativeMessage.trim().isNotEmpty &&
+                      nativeMessage.trim() != _prerequisite(known))
+                    nativeMessage.trim(),
+                ].join('\n')
+              : nativeMessage ?? _ui('operationFailed'),
         );
       }
       completionPending = jit['requiresCompletion'] == true;

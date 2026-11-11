@@ -16,9 +16,13 @@ import AVFoundation
 /// NeoStation can scan RetroArch's own ROM folder in place instead of
 /// copying files into its own sandbox.
 public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPickerDelegate,
-    UIDocumentInteractionControllerDelegate
+    UIDocumentInteractionControllerDelegate, UIAdaptivePresentationControllerDelegate
 {
     private var pendingResult: FlutterResult?
+    /// The folder each bookmark slot currently holds open. Resolving a slot
+    /// again starts a new access before the previous one is released, so the
+    /// folder stays readable and the accesses do not pile up.
+    private var activeFolders: [String: URL] = [:]
     private var channel: FlutterMethodChannel?
     private var audioSessionObservers: [NSObjectProtocol] = []
     private var audioSessionKnownActive = false
@@ -116,6 +120,8 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
             resolveBookmarkedFolder(key: Self.bookmarkKey(from: call), result: result)
         case "clearBookmark":
             clearBookmark(key: Self.bookmarkKey(from: call), result: result)
+        case "moveBookmark":
+            moveBookmark(call: call, result: result)
         case "openInMenu":
             openInMenu(call: call, result: result)
         case "openRawUrl":
@@ -180,7 +186,32 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
             })
     }
 
+    /// Answers the pick in flight, once. Every way a pick can end goes
+    /// through here: a folder, a failure, a cancel, a sheet pulled down.
+    private func finishPick(_ value: Any?) {
+        guard let result = pendingResult else { return }
+        pendingResult = nil
+        result(value)
+    }
+
     private func pickFolder(key: String, result: @escaping FlutterResult) {
+        if pendingResult != nil {
+            if Self.documentPickerIsOnScreen() {
+                result(
+                    FlutterError(
+                        code: "PICKER_BUSY",
+                        message: "A folder picker is already open",
+                        details: nil
+                    )
+                )
+                return
+            }
+            // A pick that never got its answer (its sheet went away without
+            // a delegate call) is answered as cancelled now: left pending,
+            // its Dart caller waited forever and its button stayed disabled.
+            finishPick(nil)
+        }
+
         guard let rootVC = Self.topViewController() else {
             result(
                 FlutterError(
@@ -192,9 +223,6 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
             return
         }
 
-        // A previous pick that never got a callback (e.g. the app was
-        // killed mid-pick) shouldn't leak a dangling result — just drop it
-        // rather than trying to call it twice.
         pendingResult = result
         pendingBookmarkKey = key
 
@@ -206,8 +234,16 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
         }
         picker.delegate = self
         picker.allowsMultipleSelection = false
+        // Pulling the sheet down does not always reach the document picker's
+        // own delegate: the presentation delegate answers that case.
+        picker.presentationController?.delegate = self
 
         rootVC.present(picker, animated: true, completion: nil)
+    }
+
+    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        guard presentationController.presentedViewController is UIDocumentPickerViewController else { return }
+        finishPick(nil)
     }
 
     public func documentPicker(
@@ -215,8 +251,7 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
         didPickDocumentsAt urls: [URL]
     ) {
         guard let url = urls.first else {
-            pendingResult?(nil)
-            pendingResult = nil
+            finishPick(nil)
             return
         }
 
@@ -238,22 +273,21 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
                 bookmarkData,
                 forKey: Self.bookmarkDefaultsKey(for: pendingBookmarkKey)
             )
-            pendingResult?(url.path)
+            finishPick(url.path)
         } catch {
-            pendingResult?(
+            let native = error as NSError
+            finishPick(
                 FlutterError(
                     code: "BOOKMARK_FAILED",
                     message: error.localizedDescription,
-                    details: nil
+                    details: ["domain": native.domain, "code": native.code]
                 )
             )
         }
-        pendingResult = nil
     }
 
     public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-        pendingResult?(nil)
-        pendingResult = nil
+        finishPick(nil)
     }
 
     // MARK: - Resolve / clear
@@ -291,6 +325,11 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
                 )
                 return
             }
+            // The slot keeps one access: the one just started. The access it
+            // held before is released only now, so the folder never closes.
+            if let previous = activeFolders.updateValue(url, forKey: key) {
+                previous.stopAccessingSecurityScopedResource()
+            }
 
             // Sideload updates/re-signing can make an otherwise resolvable
             // bookmark stale. Refresh it immediately while the security scope
@@ -315,11 +354,12 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
             }
             result(url.path)
         } catch {
+            let native = error as NSError
             result(
                 FlutterError(
                     code: "RESOLVE_FAILED",
                     message: error.localizedDescription,
-                    details: nil
+                    details: ["domain": native.domain, "code": native.code]
                 )
             )
         }
@@ -327,7 +367,43 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
 
     private func clearBookmark(key: String, result: @escaping FlutterResult) {
         UserDefaults.standard.removeObject(forKey: Self.bookmarkDefaultsKey(for: key))
+        if let folder = activeFolders.removeValue(forKey: key) {
+            folder.stopAccessingSecurityScopedResource()
+        }
         result(nil)
+    }
+
+    /// Gives the folder saved under one slot to another slot. The first slot
+    /// is left empty; the folder stays open under the second. Answers false
+    /// when the first slot holds nothing.
+    private func moveBookmark(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+            let from = args["from"] as? String, !from.isEmpty,
+            let to = args["to"] as? String, !to.isEmpty,
+            from != to
+        else {
+            result(
+                FlutterError(
+                    code: "INVALID_ARGS",
+                    message: "moveBookmark requires two distinct slots, 'from' and 'to'",
+                    details: nil
+                )
+            )
+            return
+        }
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: Self.bookmarkDefaultsKey(for: from)) else {
+            result(false)
+            return
+        }
+        defaults.set(data, forKey: Self.bookmarkDefaultsKey(for: to))
+        defaults.removeObject(forKey: Self.bookmarkDefaultsKey(for: from))
+        if let folder = activeFolders.removeValue(forKey: from) {
+            if let previous = activeFolders.updateValue(folder, forKey: to) {
+                previous.stopAccessingSecurityScopedResource()
+            }
+        }
+        result(true)
     }
 
     /// Reacquire only a matching security scope for the entire coordinated
@@ -769,14 +845,35 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
 
     // MARK: - Helpers
 
-    private static func topViewController() -> UIViewController? {
-        let keyWindow = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }
+    /// The window a picker or a menu is shown from: the key window of the
+    /// scene the user is looking at, else a visible window of that scene;
+    /// another scene only when none is active.
+    private static func presentingWindow() -> UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let active = scenes.filter { $0.activationState == .foregroundActive }
+        let windows = (active.isEmpty ? scenes : active).flatMap { $0.windows }
+        let usable = windows.filter { !$0.isHidden && $0.rootViewController != nil }
+        if let key = usable.first(where: { $0.isKeyWindow }) { return key }
+        if let normal = usable.first(where: { $0.windowLevel == .normal }) { return normal }
+        return usable.first
+    }
 
-        var top = keyWindow?.rootViewController
-        while let presented = top?.presentedViewController {
+    /// Whether a document picker is shown right now (not one on its way out).
+    private static func documentPickerIsOnScreen() -> Bool {
+        var controller = presentingWindow()?.rootViewController
+        while let presented = controller?.presentedViewController {
+            if presented is UIDocumentPickerViewController && !presented.isBeingDismissed {
+                return true
+            }
+            controller = presented
+        }
+        return false
+    }
+
+    private static func topViewController() -> UIViewController? {
+        var top = presentingWindow()?.rootViewController
+        // A controller that is being dismissed cannot present: stop below it.
+        while let presented = top?.presentedViewController, !presented.isBeingDismissed {
             top = presented
         }
         return top

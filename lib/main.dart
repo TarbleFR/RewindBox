@@ -53,6 +53,7 @@ import 'package:path/path.dart' as path;
 import 'package:neostation/services/retroarch_library_service.dart';
 // LIBRARY_RELOCATION_BEGIN: imports
 import 'package:neostation/services/ios_library_root_relocation.dart';
+import 'package:neostation/services/ios_linked_library_folders.dart';
 // LIBRARY_RELOCATION_END: imports
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
@@ -382,11 +383,25 @@ void main() async {
   if (Platform.isIOS) {
     ConfigService.linkedExternalFolderPath =
         await ExternalFolderAccess.resolveBookmarkedFolder();
+    // LIBRARY_LINK_BEGIN: startup_folders
+    // A linked folder iOS does not give back is said in the journal (it was
+    // silent: the folder then just "did not exist"). Its games are kept.
+    final linkFailure = ExternalFolderAccess.resolveFailure();
+    if (linkFailure != null) {
+      log.w(
+        'Linked folder not given back by iOS at this launch: $linkFailure. '
+        'Its games are kept; link the folder again in Settings > Directories.',
+      );
+    }
+    // The folders added with "Add ROM folder", each with its own access.
+    final linkedFolders = await IosLinkedLibraryFolders.activateAtStartup();
+    // LIBRARY_LINK_END: startup_folders
     // LIBRARY_RELOCATION_BEGIN: startup_folders
     // iOS can move an app's container when it is reinstalled: find the saved
     // library folders at their new paths before the configuration reads them.
     await IosLibraryRootRelocation.run(
       linkedFolder: ConfigService.linkedExternalFolderPath,
+      linkedFolders: linkedFolders,
     );
     // LIBRARY_RELOCATION_END: startup_folders
 

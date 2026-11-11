@@ -70578,7 +70578,7 @@ index a42ae12..de2bea5 100644
  	static inline const auto& get(bool llvm = false)
  	{
 diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
-index dc78ddc..a8f83e8 100644
+index dc78ddc..1fc82ce 100644
 --- a/rpcs3/Emu/Cell/PPUModule.cpp
 +++ b/rpcs3/Emu/Cell/PPUModule.cpp
 @@ -1,4 +1,7 @@
@@ -70684,7 +70684,7 @@ index dc78ddc..a8f83e8 100644
  	for (const auto& s : elf.shdrs)
  	{
  		ppu_loader.notice("** Section: sh_type=0x%x, addr=0x%llx, size=0x%llx, flags=0x%x", std::bit_cast<u32>(s.sh_type), s.sh_addr, s.sh_size, s._sh_flags);
-@@ -2335,6 +2387,75 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2335,6 +2387,70 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		g_fxo->get<patch_engine>().apply(applied, Emu.GetTitleID() + '-' + hash, [&](u32 addr, u32 size) { return _main.get_ptr<u8>(addr, size); });
  	}
  
@@ -70718,16 +70718,15 @@ index dc78ddc..a8f83e8 100644
 +		rpcs3::ios::gow3_mlaa::savestate_patched.store(ar && mlaa_plan ? (mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32) ? 1 : 0) : -1,
 +			std::memory_order_relaxed);
 +
-+		// REWINDBOX_GOW3_MLAA_SAVESTATE_922: a savestate carries the memory of the boot it was made from. Builds 721 and
-+		// 723 (PIDs 47234 and 48447): every God of War III session resumed from a savestate made without the bypass
-+		// reported ppu=savestate_memory savestate_patched=0 and read the 1280x720 colour buffer back 72-107 times per
-+		// 5 s window (MLAA running, 12-23 FPS), every fresh boot ppu=applied and 0. The guest memory is restored
-+		// before this loader runs (System.cpp: vm::load before ppu_load_exec), so the same pair, behind the same
-+		// content guard, is applied to it: from then on the title schedules no MLAA, as after a fresh boot. A job
-+		// scheduled before the savestate completes on its SPU as it would have.
-+		const bool mlaa_savestate_fix = ar && mlaa_policy && mlaa_plan && mlaa_plan->guarded &&
-+			!mlaa_patch::present(*mlaa_plan, mlaa_read8, mlaa_read32);
-+		if ((!ar || mlaa_savestate_fix) && mlaa_policy && mlaa_plan)
++		// REWINDBOX_GOW3_MLAA_SAVESTATE_UNTOUCHED_929: the pair is written at a fresh boot only, as upstream applies every
++		// executable patch (patch_engine::apply above receives no hash when a savestate is restored). Core 922 wrote it
++		// into the restored memory of a savestate made without it: the game was then running with MLAA set up and its
++		// own flag cleared under it. Builds 724 and 725 (PIDs 50194 and 52378) resumed the 2,098,179,072-byte savestate
++		// that build 723 (PID 48721) resumed: the picture broke at the first pause menu (menu textures with red and blue
++		// exchanged, then flat geometry), on resumed sessions only (maintainer, 11 Nov); build 723 left that memory as
++		// it was (ppu=savestate_memory, MLAA running) and no defect was reported. A savestate made after a fresh boot
++		// holds the pair (savestate_patched=1) and resumes without MLAA.
++		if (!ar && mlaa_policy && mlaa_plan)
 +		{
 +			const mlaa_patch::result mlaa_result = mlaa_patch::apply(*mlaa_plan, mlaa_read8, mlaa_read32,
 +				[&](u32 address, u8 value) { _main.get_ref<u8>(address) = value; },
@@ -70744,12 +70743,8 @@ index dc78ddc..a8f83e8 100644
 +			}
 +			else
 +			{
-+				if (ar)
-+				{
-+					mlaa_state = ppu_state::savestate_applied;
-+				}
-+				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x%s)",
-+					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word, ar ? ", restored savestate memory" : "");
++				ppu_loader.notice("Applied iOS God of War III PPU MLAA bypass to %s (%s, %u writes, replaced word 0x%08x)",
++					hash, mlaa_plan->version, mlaa_result.writes, mlaa_result.call_word);
 +			}
 +		}
 +
@@ -70760,7 +70755,7 @@ index dc78ddc..a8f83e8 100644
  	if (!applied.empty() || ar)
  	{
  		// Compare memory changes in memory after executable code sections end
-@@ -2373,7 +2494,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2373,7 +2489,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  	}
  
  	// Initialize HLE modules
@@ -70774,7 +70769,7 @@ index dc78ddc..a8f83e8 100644
  
  	// Embedded SPU elf patching
  	for (const auto& seg : _main.segs)
-@@ -2650,7 +2777,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2650,7 +2772,14 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		}
  
  		void init_fxo_for_exec(utils::serial* ar, bool full);
@@ -123952,10 +123947,10 @@ index 0000000..df1f2ec
 +} // namespace rpcs3::ios::gow3_mlaa_patch
 diff --git a/rpcs3/ios/IOSGow3MlaaReport.h b/rpcs3/ios/IOSGow3MlaaReport.h
 new file mode 100644
-index 0000000..598eda7
+index 0000000..a300a0d
 --- /dev/null
 +++ b/rpcs3/ios/IOSGow3MlaaReport.h
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,101 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -123979,7 +123974,9 @@ index 0000000..598eda7
 +{
 +	unset = 0, applied, other_executable, savestate, policy_off,
 +	refused_guard, // REWINDBOX_GOW3_MLAA_100_916: the executable is known, its content is not what the patch replaces
-+	savestate_applied // REWINDBOX_GOW3_MLAA_SAVESTATE_922: the pair written into the restored memory of a savestate
++	// REWINDBOX_GOW3_MLAA_SAVESTATE_922: the pair written into the restored memory of a savestate. Not produced since
++	// REWINDBOX_GOW3_MLAA_SAVESTATE_UNTOUCHED_929 (PPUModule.cpp); kept so the reports of builds 724 and 725 read the same.
++	savestate_applied
 +};
 +
 +inline std::atomic<std::uint32_t> ppu{0};

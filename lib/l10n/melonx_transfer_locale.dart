@@ -76,6 +76,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "A new file conflict appeared. Analyze the source again before replacing it.",
       "linkGames": "Link games in the selected folder",
+      "invalidContent": "This is not a readable .nsp file.",
+      "wrongExtension": "Wrong file type. Accepted extensions: {detail}.",
+      "emptyFile": "The selected file is empty.",
+      "fileUnreadable": "The selected file could not be read. Pick a file stored on this iPhone.",
+      "folderAccessLost": "RewindBox cannot read the chosen folder. Pick it again and allow access.",
+      "copyFailed": "The file could not be copied: {detail}",
     },
     "fr": {
       "invalidUpdate": "Aucune mise à jour compatible dans ce fichier. Vérifiez le fichier et vos clés.",
@@ -154,6 +160,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Un nouveau conflit de fichiers est apparu. Analysez de nouveau la source avant remplacement.",
       "linkGames": "Lier les jeux du dossier sélectionné",
+      "invalidContent": "Ce fichier .nsp n’est pas lisible.",
+      "wrongExtension": "Type de fichier incorrect. Extensions acceptées : {detail}.",
+      "emptyFile": "Le fichier sélectionné est vide.",
+      "fileUnreadable": "Le fichier sélectionné est illisible. Choisissez un fichier stocké sur cet iPhone.",
+      "folderAccessLost": "RewindBox ne peut pas lire le dossier choisi. Choisissez-le de nouveau et autorisez l’accès.",
+      "copyFailed": "La copie du fichier a échoué : {detail}",
     },
     "de": {
       "invalidUpdate": "Keine kompatible Aktualisierung in dieser Datei gefunden. Prüfe die Datei und deine Schlüssel.",
@@ -230,6 +242,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Ein neuer Dateikonflikt ist aufgetreten. Quelle vor dem Ersetzen erneut prüfen.",
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
+      "invalidContent": "Dies ist keine lesbare .nsp-Datei.",
+      "wrongExtension": "Falscher Dateityp. Akzeptierte Endungen: {detail}.",
+      "emptyFile": "Die ausgewählte Datei ist leer.",
+      "fileUnreadable": "Die ausgewählte Datei kann nicht gelesen werden. Wähle eine auf diesem iPhone gespeicherte Datei.",
+      "folderAccessLost": "RewindBox kann den gewählten Ordner nicht lesen. Wähle ihn erneut aus und erlaube den Zugriff.",
+      "copyFailed": "Die Datei konnte nicht kopiert werden: {detail}",
     },
     "es": {
       "invalidUpdate": "No se encontró una actualización compatible en este archivo. Comprueba el archivo y tus claves.",
@@ -306,6 +324,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Apareció un nuevo conflicto. Analiza de nuevo el origen antes de reemplazarlo.",
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
+      "invalidContent": "Este archivo .nsp no se puede leer.",
+      "wrongExtension": "Tipo de archivo incorrecto. Extensiones admitidas: {detail}.",
+      "emptyFile": "El archivo seleccionado está vacío.",
+      "fileUnreadable": "No se puede leer el archivo seleccionado. Elige un archivo guardado en este iPhone.",
+      "folderAccessLost": "RewindBox no puede leer la carpeta elegida. Elígela de nuevo y permite el acceso.",
+      "copyFailed": "No se pudo copiar el archivo: {detail}",
     },
     "it": {
       "invalidUpdate": "Nessun aggiornamento compatibile trovato nel file. Controlla il file e le tue chiavi.",
@@ -381,6 +405,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "È apparso un nuovo conflitto. Analizza di nuovo la sorgente prima di sostituire.",
       "linkGames": "Collega i giochi della cartella scelta",
+      "invalidContent": "Questo file .nsp non è leggibile.",
+      "wrongExtension": "Tipo di file errato. Estensioni accettate: {detail}.",
+      "emptyFile": "Il file selezionato è vuoto.",
+      "fileUnreadable": "Impossibile leggere il file selezionato. Scegli un file salvato su questo iPhone.",
+      "folderAccessLost": "RewindBox non riesce a leggere la cartella scelta. Sceglila di nuovo e consenti l’accesso.",
+      "copyFailed": "Impossibile copiare il file: {detail}",
     },
     "pt": {
       "invalidUpdate": "Nenhuma atualização compatível encontrada neste ficheiro. Verifica o ficheiro e as tuas chaves.",
@@ -457,6 +487,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Surgiu um novo conflito. Analise a origem novamente antes de substituir.",
       "linkGames": "Ligar os jogos da pasta selecionada",
+      "invalidContent": "Este ficheiro .nsp não é legível.",
+      "wrongExtension": "Tipo de ficheiro incorreto. Extensões aceites: {detail}.",
+      "emptyFile": "O ficheiro selecionado está vazio.",
+      "fileUnreadable": "Não foi possível ler o ficheiro selecionado. Escolha um ficheiro guardado neste iPhone.",
+      "folderAccessLost": "O RewindBox não consegue ler a pasta escolhida. Escolha-a novamente e permita o acesso.",
+      "copyFailed": "Não foi possível copiar o ficheiro: {detail}",
     },
     "ru": {
       "invalidUpdate": "В файле нет совместимого обновления. Проверьте файл и свои ключи.",
@@ -533,6 +569,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Возник новый конфликт файлов. Повторно проанализируйте источник перед заменой.",
       "linkGames": "Подключить игры из выбранной папки",
+      "invalidContent": "Это не читаемый файл .nsp.",
+      "wrongExtension": "Неверный тип файла. Допустимые расширения: {detail}.",
+      "emptyFile": "Выбранный файл пуст.",
+      "fileUnreadable": "Не удалось прочитать выбранный файл. Выберите файл, сохранённый на этом iPhone.",
+      "folderAccessLost": "RewindBox не может прочитать выбранную папку. Выберите её снова и разрешите доступ.",
+      "copyFailed": "Не удалось скопировать файл: {detail}",
     },
     "id": {
       "invalidUpdate": "Tidak ada pembaruan yang kompatibel dalam berkas ini. Periksa berkas dan kunci Anda.",
@@ -607,6 +649,12 @@ abstract final class MelonxTransferLocale {
       "newConflict":
           "Konflik file baru muncul. Analisis kembali sumber sebelum mengganti.",
       "linkGames": "Tautkan game di folder yang dipilih",
+      "invalidContent": "Ini bukan file .nsp yang dapat dibaca.",
+      "wrongExtension": "Jenis file salah. Ekstensi yang diterima: {detail}.",
+      "emptyFile": "File yang dipilih kosong.",
+      "fileUnreadable": "File yang dipilih tidak dapat dibaca. Pilih file yang tersimpan di iPhone ini.",
+      "folderAccessLost": "RewindBox tidak dapat membaca folder yang dipilih. Pilih lagi dan izinkan akses.",
+      "copyFailed": "File tidak dapat disalin: {detail}",
     },
     "ja": {
       "invalidUpdate": "このファイルに対応する更新データがありません。ファイルとキーを確認してください。",
@@ -674,6 +722,12 @@ abstract final class MelonxTransferLocale {
       "firmwareInstallFailed": "インストールに失敗しました。以前のファームウェアを復元しました。",
       "newConflict": "新しいファイルの競合が発生しました。置き換える前に再解析してください。",
       "linkGames": "選択したフォルダーのゲームをリンク",
+      "invalidContent": "読み取り可能な .nsp ファイルではありません。",
+      "wrongExtension": "ファイルの種類が正しくありません。対応する拡張子：{detail}。",
+      "emptyFile": "選択したファイルは空です。",
+      "fileUnreadable": "選択したファイルを読み込めません。この iPhone に保存されているファイルを選んでください。",
+      "folderAccessLost": "RewindBox は選択したフォルダを読み取れません。もう一度選択してアクセスを許可してください。",
+      "copyFailed": "ファイルをコピーできませんでした：{detail}",
     },
     "ko": {
       "invalidUpdate": "이 파일에 호환되는 업데이트가 없습니다. 파일과 키를 확인하세요.",
@@ -741,6 +795,12 @@ abstract final class MelonxTransferLocale {
       "firmwareInstallFailed": "펌웨어 설치에 실패했습니다. 이전 설치를 복원했습니다.",
       "newConflict": "새 파일 충돌이 발생했습니다. 교체 전에 원본을 다시 분석하세요.",
       "linkGames": "선택한 폴더의 게임 연결",
+      "invalidContent": "읽을 수 있는 .nsp 파일이 아닙니다.",
+      "wrongExtension": "파일 형식이 올바르지 않습니다. 허용되는 확장자: {detail}.",
+      "emptyFile": "선택한 파일이 비어 있습니다.",
+      "fileUnreadable": "선택한 파일을 읽을 수 없습니다. 이 iPhone에 저장된 파일을 선택하세요.",
+      "folderAccessLost": "RewindBox가 선택한 폴더를 읽을 수 없습니다. 다시 선택하고 접근을 허용하세요.",
+      "copyFailed": "파일을 복사하지 못했습니다: {detail}",
     },
     "zh": {
       "invalidUpdate": "此文件中没有兼容的更新。请检查文件和密钥。",
@@ -806,6 +866,12 @@ abstract final class MelonxTransferLocale {
       "firmwareInstallFailed": "固件安装失败，已恢复先前的安装。",
       "newConflict": "出现了新的文件冲突。替换前请重新分析源数据。",
       "linkGames": "关联所选文件夹中的游戏",
+      "invalidContent": "这不是可读取的 .nsp 文件。",
+      "wrongExtension": "文件类型不正确。支持的扩展名：{detail}。",
+      "emptyFile": "所选文件为空。",
+      "fileUnreadable": "无法读取所选文件。请选择保存在此 iPhone 上的文件。",
+      "folderAccessLost": "RewindBox 无法读取所选文件夹。请重新选择并允许访问。",
+      "copyFailed": "无法复制文件：{detail}",
     },
     "zh_Hant": {
       "invalidUpdate": "此檔案中沒有相容的更新。請檢查檔案和金鑰。",
@@ -871,6 +937,12 @@ abstract final class MelonxTransferLocale {
       "firmwareInstallFailed": "韌體安裝失敗，已還原先前的安裝。",
       "newConflict": "出現新的檔案衝突。取代前請重新分析來源資料。",
       "linkGames": "連結所選資料夾中的遊戲",
+      "invalidContent": "這不是可讀取的 .nsp 檔案。",
+      "wrongExtension": "檔案類型不正確。支援的副檔名：{detail}。",
+      "emptyFile": "所選檔案是空的。",
+      "fileUnreadable": "無法讀取所選檔案。請選擇儲存在此 iPhone 上的檔案。",
+      "folderAccessLost": "RewindBox 無法讀取所選資料夾。請重新選擇並允許存取。",
+      "copyFailed": "無法複製檔案：{detail}",
     },
   };
   static String text(BuildContext context, String key) =>

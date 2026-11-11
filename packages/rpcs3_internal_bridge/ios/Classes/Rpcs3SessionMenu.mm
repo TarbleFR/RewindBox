@@ -189,7 +189,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
   if (self.page == RPCS3MenuCheats) [self reloadCheats];
-  if (self.page == RPCS3MenuAccuracy) {
+  if (self.page == RPCS3MenuAccuracy || self.page == RPCS3MenuGraphics || self.page == RPCS3MenuChoices) {
+    // REWINDBOX_MENU_RESOLUTION_729: the graphics page and the resolution list show the last boot's value.
     self.accuracyState = self.readAccuracy ? self.readAccuracy() : nil;
     [self.tableView reloadData];
   }
@@ -343,6 +344,15 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   }];
 }
 
+// REWINDBOX_MENU_RESOLUTION_729: the resolution scale (percent, digits only) of
+// the title's last boot, from its CONFIG_LAYERS line; nil when unknown.
+- (nullable NSString*)appliedResolution {
+  NSString* value = self.accuracyState[@"rsx_res"];
+  if (![value isKindOfClass:NSString.class] || !value.length || value.length > 3) return nil;
+  NSCharacterSet* digits = NSCharacterSet.decimalDigitCharacterSet;
+  return [value rangeOfCharacterFromSet:digits.invertedSet].location == NSNotFound ? value : nil;
+}
+
 - (void)pushChoiceWithTitle:(NSString*)title
                     command:(NSString*)command
                      values:(NSArray*)values
@@ -391,7 +401,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 // last boot's CONFIG_LAYERS part=rsx line.
 - (NSString*)accuracyDetail:(NSDictionary*)lever {
   NSDictionary<NSString*, NSString*>* state = self.accuracyState;
-  if (!state.count) return [self text:@"testUnknown"];
+  // REWINDBOX_MENU_RESOLUTION_729: the snapshot also carries the settings line; the levers read the RSX line only.
+  if (!state.count || ![state[@"part"] isEqual:@"rsx"]) return [self text:@"testUnknown"];
   NSString* key = lever[@"key"];
   NSString* label = nil;
   BOOL explicitValue = NO;
@@ -484,7 +495,11 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuGraphics) {
     if (row == 0) {
       cell.textLabel.text = [self text:@"upscaleTitle"];
-      cell.detailTextLabel.text = [self text:@"perGameRestart"];
+      // REWINDBOX_MENU_RESOLUTION_729: the scale the last boot applied, before the per-game note.
+      NSString* applied = [self appliedResolution];
+      cell.detailTextLabel.text = applied.length
+          ? [NSString stringWithFormat:@"%@%% · %@", applied, [self text:@"perGameRestart"]]
+          : [self text:@"perGameRestart"];
     } else if (row == 1) {
       cell.textLabel.text = [self text:@"stretchTitle"];
       cell.detailTextLabel.text = [self text:@"perGameRestart"];
@@ -559,7 +574,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuChoices) {
     NSDictionary* choice = self.choices[row];
     cell.textLabel.text = choice[@"title"];
-    cell.accessoryType = UITableViewCellAccessoryNone;
+    // REWINDBOX_MENU_RESOLUTION_729: the scale the last boot applied is checked.
+    NSString* applied = [self.choiceCommand isEqual:@"resolution"] ? [self appliedResolution] : nil;
+    const BOOL active = applied.length && [choice[@"value"] isKindOfClass:NSString.class] && [choice[@"value"] isEqual:applied];
+    cell.accessoryType = active ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
     return cell;
   }
 

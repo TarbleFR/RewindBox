@@ -16,7 +16,14 @@ import 'package:neostation/services/esde_import_service.dart';
 import 'package:neostation/services/global_notification_service.dart';
 import 'package:neostation/repositories/config_repository.dart';
 import 'package:neostation/services/config_service.dart';
+import 'package:neostation/data/datasources/sqlite_database_service.dart';
+import 'package:neostation/l10n/library_link_locale.dart';
+import 'package:neostation/services/ios_library_root_relocation.dart';
+import 'package:neostation/services/ios_linked_library_folders.dart';
 import 'package:neostation/services/ios_rom_library_root_resolver.dart';
+import 'package:neostation/services/library_folder_inspection.dart';
+import 'package:neostation/services/library_folder_linker.dart';
+import 'package:neostation/widgets/library_folder_report_dialog.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/permission_service.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -27,6 +34,7 @@ import 'package:neostation/widgets/permission_check_wrapper.dart';
 import 'package:neostation/widgets/restart_required_dialog.dart';
 import 'package:neostation/widgets/tv_directory_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
 
@@ -74,6 +82,10 @@ class DirectoriesSettingsContentState
   // iOS-only security-scoped root linking state for external emulators.
   String? _linkingFolderKey;
   bool _syncingRetroArch = false;
+
+  /// iOS: the registered folders that do not open right now (their saved
+  /// access was not given back, or the folder is gone).
+  Set<String> _unreachableFolders = <String>{};
 
   // Migration progress state (shown inline, no dialog).
   bool _isMigrating = false;
@@ -184,6 +196,7 @@ class DirectoriesSettingsContentState
         'subtitle': AppLocale.pressToRemoveFolder,
         'action': 'remove_rom',
         'path': path,
+        'unavailable': _unreachableFolders.contains(path),
       });
     }
 
@@ -243,6 +256,12 @@ class DirectoriesSettingsContentState
       final userDataFuture = ConfigService.getUserDataPath();
       _currentRomFolders = await foldersFuture;
       _currentUserDataPath = await userDataFuture;
+      if (Platform.isIOS) {
+        _unreachableFolders =
+            (await SqliteDatabaseService.unreachableLibraryRoots(
+              _currentRomFolders,
+            )).toSet();
+      }
     } catch (e) {
       _log.e('Failed to load directory configuration: $e');
     } finally {
@@ -520,6 +539,122 @@ class DirectoriesSettingsContentState
   // iOS: link + sync with RetroArch
   // ---------------------------------------------------------------------------
 
+  /// Bookmark slot a pick of the RetroArch card waits in until the user has
+  /// seen what the folder holds and confirmed: the slot in use (and the
+  /// library it serves) is untouched when they back out.
+  static const String _pendingLinkKey = 'retroarch-pending';
+
+  /// Whether [folder] lies in RewindBox's own container: it needs no saved
+  /// access and is found again by itself when iOS moves the container.
+  Future<bool> _isOwnFolder(String folder) async {
+    try {
+      final documents = (await getApplicationDocumentsDirectory()).path;
+      final own = IosLibraryRootRelocation.split(documents)?.container;
+      final other = IosLibraryRootRelocation.split(folder)?.container;
+      if (own == null || other == null) return false;
+      String bare(String container) =>
+          container.replaceFirst(RegExp(r'^/private'), '');
+      return bare(own) == bare(other);
+    } catch (error) {
+      _log.w('Own container not resolved: $error');
+      return false;
+    }
+  }
+
+  /// Reads a picked library folder and shows what RewindBox will do with
+  /// it: which console folder feeds which playlist, and what is left out
+  /// with the reason (folder name not recognised, console that keeps its
+  /// games in RewindBox, files outside a console folder).
+  ///
+  /// Returns the folder to register (the picked folder, or the folder below
+  /// it that holds the console folders) once the user confirms; `null` when
+  /// they cancel. [_FolderReview.another] asks for another pick.
+  Future<_FolderReview> _reviewLibraryFolder({
+    required String picked,
+    required SqliteConfigProvider provider,
+    required String confirmKey,
+    required bool consoleFolderRequired,
+  }) async {
+    await LibraryFolderLinker.ensureReadable(picked);
+    final available = provider.availableSystems.isNotEmpty
+        ? provider.availableSystems
+        : await ConfigService.loadAvailableSystems();
+    final systems = await LibraryFolderLinker.inspectionSystems(available);
+    // The folder that holds the console folders is found exactly as before
+    // (same names, same rule): a folder linked again resolves to the folder
+    // already registered.
+    final scanRoot = await IosRomLibraryRootResolver.resolveRetroArchScanRoot(
+      linkedRoot: picked,
+      systemFolderNames: available.expand(
+        (system) => <String>[system.folderName, ...system.folders],
+      ),
+    );
+    final inspection = await LibraryFolderInspector.inspect(scanRoot, systems);
+    _log.i(
+      'Library folder read: picked=$picked scanRoot=$scanRoot '
+      'consoles=${inspection.consoles.length} games=${inspection.games} '
+      'unknownFolders=${inspection.unknownFolders.length} '
+      'looseGames=${inspection.looseGames}',
+    );
+    if (!mounted) return const _FolderReview.cancelled();
+    final wrongFolder = consoleFolderRequired && !inspection.recognised;
+    final confirmed = await LibraryFolderReportDialog.show(
+      context,
+      inspection: inspection,
+      location: LibraryFolderLinker.describe(scanRoot),
+      exampleFolders: LibraryFolderLinker.exampleFolders(systems),
+      confirmKey: wrongFolder ? 'actionChooseAnother' : confirmKey,
+      positive: !wrongFolder,
+    );
+    if (!confirmed) return const _FolderReview.cancelled();
+    if (wrongFolder) return const _FolderReview.another();
+    return _FolderReview.accepted(scanRoot, inspection);
+  }
+
+  /// Registers [scanRoot] as a library folder (or reads it again when it is
+  /// already one) and tells the user what was done.
+  Future<void> _registerLibraryFolder({
+    required String scanRoot,
+    required LibraryFolderInspection inspection,
+    required SqliteConfigProvider provider,
+  }) async {
+    final already = provider.config.romFolders.contains(scanRoot);
+    if (already) {
+      await provider.scanSystems();
+    } else {
+      await provider.addRomFolder(scanRoot, scan: true);
+    }
+    if (!provider.config.romFolders.contains(scanRoot)) {
+      throw StateError(
+        provider.error ?? 'ROM folder registration did not complete',
+      );
+    }
+    if (!mounted) return;
+    await _loadCurrentPaths();
+    if (!mounted) return;
+    AppNotification.showNotification(
+      context,
+      already
+          ? LibraryLinkLocale.text(context, 'restored')
+          : inspection.games > 0
+          ? LibraryLinkLocale.text(context, 'added', {
+              'games': inspection.games,
+              'playlists': inspection.playlists,
+            })
+          : LibraryLinkLocale.text(context, 'addedEmpty'),
+      type: NotificationType.info,
+    );
+  }
+
+  void _showLinkFailure(Object error) {
+    if (!mounted) return;
+    AppNotification.showNotification(
+      context,
+      LibraryLinkLocale.failure(context, error),
+      type: NotificationType.error,
+    );
+  }
+
   /// Live-links RetroArch's external folder via a persisted security-scoped
   /// bookmark instead of copying its contents in.
   Future<void> _linkExternalFolder({
@@ -529,67 +664,131 @@ class DirectoriesSettingsContentState
     if (_linkingFolderKey != null) return;
 
     setState(() => _linkingFolderKey = bookmarkKey);
+    var pendingHeld = false;
     try {
-      final selected = await ExternalFolderAccess.pickAndBookmarkFolder(
-        key: bookmarkKey,
-      );
-      if (selected == null || !mounted) return;
-      final resolved = await ExternalFolderAccess.resolveBookmarkedFolder(
-        key: bookmarkKey,
-      );
-      final activePath = resolved ?? selected;
-      if (!mounted) return;
-
-      ConfigService.linkedExternalFolderPath = activePath;
-
       final configProvider = Provider.of<SqliteConfigProvider>(
         context,
         listen: false,
       );
-      final availableSystems = configProvider.availableSystems.isNotEmpty
-          ? configProvider.availableSystems
-          : await ConfigService.loadAvailableSystems();
-      final scanRoot = bookmarkKey == ExternalFolderAccess.defaultBookmarkKey
-          ? await IosRomLibraryRootResolver.resolveRetroArchScanRoot(
-              linkedRoot: activePath,
-              systemFolderNames: availableSystems.expand(
-                (system) => <String>[system.folderName, ...system.folders],
-              ),
-            )
-          : activePath;
-      if (configProvider.config.romFolders.contains(scanRoot)) {
-        await configProvider.scanSystems();
-      } else {
-        await configProvider.addRomFolder(scanRoot, scan: true);
-      }
-      if (!configProvider.config.romFolders.contains(scanRoot)) {
-        throw StateError(
-          configProvider.error ?? 'ROM folder registration did not complete',
+      while (mounted) {
+        // The pick waits in a spare slot: the folder linked until now stays
+        // linked if the user backs out of the report below.
+        final activePath = await ExternalFolderAccess.pickAndActivateFolder(
+          key: _pendingLinkKey,
         );
+        if (activePath == null || !mounted) return;
+        pendingHeld = true;
+
+        final review = await _reviewLibraryFolder(
+          picked: activePath,
+          provider: configProvider,
+          confirmKey: 'actionLink',
+          // The RetroArch card also serves the RetroArch app's own library
+          // (Sync): its folder is linked even when it holds no console
+          // folder; the report then says so.
+          consoleFolderRequired:
+              bookmarkKey != ExternalFolderAccess.defaultBookmarkKey,
+        );
+        if (review.wantsAnother) continue;
+        final scanRoot = review.scanRoot;
+        final inspection = review.inspection;
+        if (scanRoot == null || inspection == null || !mounted) return;
+
+        // The folder linked until now keeps its games readable under a slot
+        // of its own: changing the linked folder no longer strands it.
+        final previous = ConfigService.linkedExternalFolderPath;
+        if (previous != null &&
+            !IosLinkedLibraryFolders.isInside(activePath, previous) &&
+            configProvider.config.romFolders.any(
+              (folder) => IosLinkedLibraryFolders.isInside(folder, previous),
+            )) {
+          final taken = (await IosLinkedLibraryFolders.load()).map(
+            (folder) => folder.key,
+          );
+          final kept = IosLinkedLibraryFolders.newKey(taken);
+          if (await ExternalFolderAccess.moveBookmark(
+            from: bookmarkKey,
+            to: kept,
+          )) {
+            await IosLinkedLibraryFolders.register(key: kept, root: previous);
+          }
+        }
+        if (!await ExternalFolderAccess.moveBookmark(
+          from: _pendingLinkKey,
+          to: bookmarkKey,
+        )) {
+          throw const ExternalFolderAccessException('NOT_ACTIVATED');
+        }
+        pendingHeld = false;
+        ConfigService.linkedExternalFolderPath = activePath;
+
+        await _registerLibraryFolder(
+          scanRoot: scanRoot,
+          inspection: inspection,
+          provider: configProvider,
+        );
+        _log.i('iOS emulator link: root=$activePath romScanRoot=$scanRoot');
+        return;
       }
-      _log.i('iOS emulator link: root=$activePath romScanRoot=$scanRoot');
-      if (!mounted) return;
-
-      await _loadCurrentPaths();
-      if (!mounted) return;
-
-      AppNotification.showNotification(
-        context,
-        successMessage,
-        type: NotificationType.info,
-      );
     } catch (e) {
       _log.e('Link external folder failed ($bookmarkKey): $e');
-      if (mounted) {
-        AppNotification.showNotification(
-          context,
-          AppLocale.iosEmuLinkingFailed
-              .getString(context)
-              .replaceFirst('{error}', e.toString()),
-          type: NotificationType.error,
-        );
-      }
+      _showLinkFailure(e);
     } finally {
+      if (pendingHeld) {
+        await ExternalFolderAccess.clearBookmark(key: _pendingLinkKey);
+      }
+      if (mounted) setState(() => _linkingFolderKey = null);
+    }
+  }
+
+  /// iOS, "Add ROM folder": opens the system folder picker. The folder is
+  /// read first and the user sees which console folder feeds which playlist
+  /// before anything is added. Each folder keeps its own saved access, next
+  /// to the folders registered before: nothing already in the library is
+  /// touched. Adding a folder that is already registered restores its access.
+  Future<void> _addIosLibraryFolder(SqliteConfigProvider provider) async {
+    if (_linkingFolderKey != null) return;
+    final taken = (await IosLinkedLibraryFolders.load()).map(
+      (folder) => folder.key,
+    );
+    if (!mounted) return;
+    final key = IosLinkedLibraryFolders.newKey(taken);
+    setState(() => _linkingFolderKey = key);
+    var kept = false;
+    try {
+      while (mounted) {
+        final picked = await ExternalFolderAccess.pickAndActivateFolder(
+          key: key,
+        );
+        if (picked == null || !mounted) return;
+        final review = await _reviewLibraryFolder(
+          picked: picked,
+          provider: provider,
+          confirmKey: 'actionAdd',
+          consoleFolderRequired: true,
+        );
+        if (review.wantsAnother) continue;
+        final scanRoot = review.scanRoot;
+        final inspection = review.inspection;
+        if (scanRoot == null || inspection == null || !mounted) return;
+        if (!await _isOwnFolder(picked)) {
+          await IosLinkedLibraryFolders.register(key: key, root: picked);
+          kept = true;
+        }
+        await _registerLibraryFolder(
+          scanRoot: scanRoot,
+          inspection: inspection,
+          provider: provider,
+        );
+        _log.i('iOS library folder added: root=$picked romScanRoot=$scanRoot');
+        return;
+      }
+    } catch (e) {
+      _log.e('Adding a library folder failed: $e');
+      _showLinkFailure(e);
+    } finally {
+      // A slot that links nothing is given back.
+      if (!kept) await ExternalFolderAccess.clearBookmark(key: key);
       if (mounted) setState(() => _linkingFolderKey = null);
     }
   }
@@ -632,7 +831,10 @@ class DirectoriesSettingsContentState
     final hasSynced = RetroArchLibraryService.hasSyncedLibrary;
 
     final String statusText;
-    if (!isLinked) {
+    if (!isLinked && ExternalFolderAccess.resolveFailure() != null) {
+      // A folder was linked, and iOS did not give it back at this launch.
+      statusText = LibraryLinkLocale.text(context, 'linkLost');
+    } else if (!isLinked) {
       statusText = AppLocale.iosRetroarchStatusNeedsLink.getString(context);
     } else if (!hasSynced) {
       statusText = AppLocale.iosRetroarchStatusNeedsSync.getString(context);
@@ -791,18 +993,17 @@ class DirectoriesSettingsContentState
           }
         }
       } else if (Platform.isIOS) {
+        // LIBRARY_LINK_BEGIN: add_rom_folder
+        // RewindBox's own roms folder is registered when it is not yet (as
+        // before); once it is, this entry adds another folder with the
+        // system folder picker. It used to show a short English notice and
+        // nothing else: "nothing happens when I press it".
         selected = await ConfigService.getDefaultIOSRomsFolder();
         if (configProvider.config.romFolders.contains(selected)) {
-          if (mounted) {
-            AppNotification.showNotification(
-              context,
-              'Already using the internal roms folder. Drop ROMs into it '
-              'via the Files app under "On My iPhone > RewindBox > roms".',
-              type: NotificationType.info,
-            );
-          }
+          await _addIosLibraryFolder(configProvider);
           return;
         }
+        // LIBRARY_LINK_END: add_rom_folder
       } else {
         selected = await FilePicker.getDirectoryPath(
           dialogTitle: AppLocale.selectRomsFolder.getString(context),
@@ -834,6 +1035,12 @@ class DirectoriesSettingsContentState
     );
     try {
       await configProvider.removeRomFolder(path);
+      if (Platform.isIOS) {
+        // The saved access of a folder nothing uses any more is given back.
+        await IosLinkedLibraryFolders.forgetUnused(
+          configProvider.config.romFolders,
+        );
+      }
       await _loadCurrentPaths();
       if (mounted) {
         AppNotification.showNotification(
@@ -1298,8 +1505,13 @@ class DirectoriesSettingsContentState
                                             ),
                                             SizedBox(height: 2.r),
                                             Text(
-                                              (item['subtitle'] as String)
-                                                  .getString(context),
+                                              item['unavailable'] == true
+                                                  ? LibraryLinkLocale.text(
+                                                      context,
+                                                      'folderUnavailable',
+                                                    )
+                                                  : (item['subtitle'] as String)
+                                                        .getString(context),
                                               style: theme.textTheme.bodySmall
                                                   ?.copyWith(
                                                     color:
@@ -1589,4 +1801,25 @@ class DirectoriesSettingsContentState
       ),
     );
   }
+}
+
+/// The outcome of the report shown for a picked library folder.
+class _FolderReview {
+  const _FolderReview.cancelled()
+    : scanRoot = null,
+      inspection = null,
+      wantsAnother = false;
+
+  /// Nothing usable in the folder: the user asked to pick another one.
+  const _FolderReview.another()
+    : scanRoot = null,
+      inspection = null,
+      wantsAnother = true;
+
+  const _FolderReview.accepted(String this.scanRoot, LibraryFolderInspection this.inspection)
+    : wantsAnother = false;
+
+  final String? scanRoot;
+  final LibraryFolderInspection? inspection;
+  final bool wantsAnother;
 }

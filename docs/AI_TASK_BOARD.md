@@ -138,20 +138,24 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
-**Switch 2 (S2Arm) test IPA: compiled by main, after the common one (maintainer, 11 Nov, principal session).**
-Three messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux
-fois l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; then, correcting main's reading of the
-first two: "Il y a un malentendu je veux que ça soit toi qui compile une deuxième IPA après les corrections des cores
-et autres correctifs que tu m'aura donner puis tu compile pareillement une IPA mais cette fois avec ceux de la sessions
-Switch 2."
-- **Main compiles both, with the same recipe:** (A) the common IPA with the fixes; then (B) a second IPA = the same
-  base plus the work of session 04 (012mUASj3EQnvC86WC56AePw, branch `work/s2arm-switch2-prototype-20261110`).
-- Session 04 builds no IPA. It hands main a frozen commit of its branch (origin/Claude merged in), the list of what
-  the IPA must contain and activate (packages, Info.plist keys, native libraries), its proofs, the legal entries of
-  what enters the binary, and the device protocol. The earlier reading (session 04 builds its own IPA, build numbers
-  from 801) is withdrawn.
+**Switch 2 (S2Arm) test IPA (B): compiled by session 04 (maintainer, 11 Nov, principal session, latest message).**
+Messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux fois
+l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; "Il y a un malentendu je veux que ça soit toi
+qui compile une deuxième IPA …"; then, latest: "Autorise l'autre session à compiler" (read by main as session 04,
+012mUASj3EQnvC86WC56AePw; the maintainer can correct this reading).
+- **Main compiles (A)**, the common IPA 725 with every fix (Core 928, MeloNX 731 + five-part MoltenVK, imports, launch
+  prerequisites, skins PR 171/173), with the standard recipe on `Claude`.
+- **Session 04 compiles (B)** = the same content plus its probe (`packages/s2arm_probe`, the root `pubspec.yaml` workspace
+  and dependency lines, Info.plist `RewindBoxS2ArmProbe` = true, never `RewindBoxS2ArmProbeMapped`, the legal line of its
+  handoff `1ce1b5d9`), from its branch `work/s2arm-switch2-prototype-20261110` with `origin/Claude` merged at the 725
+  source commit once 725 is delivered (so B is A plus the probe, nothing else). It builds, follows the run to its end,
+  verifies the downloaded IPA (bytes, SHA-256, component and signing identities, receipt) before giving it, keeps
+  recipient keys out of Git and deletes private keys after the verified delivery, uploads only through the protected
+  action (#174); no public release, tag or post, no raw private log in Git.
+- It triggers on its own branch only; it does not push to `Claude` or `main` and changes no pin, contract or manifest
+  of the common line. Build numbers of its line from 801, never a number of the shared sequence.
 - The common line stays without a Switch 2 engine: (A) carries only the inert bridge hook `d32738b5`; what (B) adds is
-  not kept in the common line after it. The delivery rules of this section apply to both.
+  not kept in the common line.
 
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
@@ -295,6 +299,36 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   release channel; record actual message IDs. Historical Discord hCaptcha was not
   solved and no Discord post is claimed. The GitHub publication/document/source
   correction is complete; do not repeat it or re-announce later private builds.
+
+- **Common IPA 725 delivered and verified (11 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** Trigger `e5a82821` (frozen on
+  `603ee05d`, effective digest `2b7d639b`, 7629 product files), run `42973548971` green first try (preflight, flutter,
+  native, republish, application; 26 min). Four pieces of 68,284,910 B = API digests; offline verification passed;
+  IPA 272226282 B, SHA-256 `30f98890…e54a`, 90 images, 10 changed exactly as declared, 0 undeclared, 43 retained
+  fingerprints verified; eight receipts copied; key deleted; receipt [rewind725](evidence/rewind725/delivery.json)
+  (12 proofs). Sent privately as a file. Review findings arriving after the trigger (12 message-accuracy defects, no
+  crash or data loss) are fixed in `68846c65` and `f3a4180f` for the next build (a second port is needed for the files
+  carrying the deferred b06888a9 lines). IPA B (Switch 2) is session 04's, on the 725 content plus its probe.
+  **Nothing of this build is observed on the device yet.** Preparation notes:
+ Maintainer requests of 11 Nov: every fix
+  in IPA A (725), then IPA B (726) = A + the S2Arm probe (handoff `1ce1b5d9`, session 04). Ready on `Claude`:
+  - **Cores pinned:** RPCS3 Core 928 `d45b1c80` (run `42960159566`, dylib `2840977c` 80958696 B, fingerprint `b99f76b0`,
+    15 Apple host commands; Core 927 `6669475f` stays the fallback); MeloNX Core 731 `fa54e14a` (run `42958274015`,
+    artifact `13830187578` `d82a8abf`, iPhone `574a5de9` 38456384 B, contract `518ea8dc`, 88 fresh gates) with the
+    five-part MoltenVK `99605a2b` (`576f9fe6`). Core 729 alone (run `42954875678`) stopped at
+    `melonx_worker_library_share_test` (1878/2000 render-thread creations kept): not pinned, not masked, reported.
+  - **Imports and launch prerequisites** (maintainer: every failure says why, which game goes to which playlist,
+    nothing already imported breaks, errors where the user does things wrong): commits `4fd0996a` … `2b8b8ed7`, French
+    note [imports-et-prerequis-2026-11-11.md](imports-et-prerequis-2026-11-11.md). Three delegated lots, each reviewed
+    independently, confirmed findings fixed (one regression caught before delivery: GameCube 'already in the library'
+    compared name and size). Tester's RetroArch crash: no process-ending cause in the journal; real defects fixed;
+    `.ips` needed if it persists. Host checks: melonx-host run `42966944007` green (session host, folder plugin
+    type-check, presentation doubles), rpcs3-host-bridge run `42966947262` green (PS3 picker with the iPhone SDK).
+  - **Delivery blocker found and solved locally:** seven of those commits touch three files that still carry the
+    RetroAchievements work deferred since 611 (`b06888a9`); the freeze refuses them. Port prepared as in 615 (three
+    commits: paths to the 724 bytes, the same reviewed changes from those bytes with `git merge-file` without conflict,
+    the deferred lines put back; final tree identical): dry-run freeze 0 conflicts, legal check passed, delivery contract
+    63/63 on a scratch branch. Applied to `Claude` after the last review of the prerequisite commits.
+  - **Not observed on an iPhone:** nothing of this build. Skins PR 171/173 and the fourth Pocket review (`f36bac74`) go in.
 
 - **Common IPA 724 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 723 with RPCS3 Core 923
   (pin `4398e164`, run `42905444118`, dylib `46520c3d`: Core 922 GOW3 MLAA bypass on savestate resume, RPCS3 database as
@@ -1982,6 +2016,79 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         packs); IPA (A) = Core 928 + MeloNX Core 727 + skins + database rule; then IPA (B) = (A) + session 04's frozen
         commit. Device protocol: `mvk_async=1` at first boot of BO2/GOW3/AC; Control Centre and a short leave in play
         (`GPUGATE928`, no `Device lost`, no freeze episode while closed); `RSXSYNC551 submit` per frame.
+      - **Device results, IPA 725 (build 725 = Core 928, PID 52378; private journals and a screen recording, not in
+        Git; 11 Nov).** Maintainer: BO2 "FPS à 50 et plus puis ça descend ... Pas de gel"; GOW3 "même problème que lors de
+        la dernière IPA"; then "depuis deux ipa plus rien ne fonctionne ! Les diagnostics et les réglages fournis doivent
+        démontrer ce qui as changer et ce qu'il as était tester". [Record](rpcs3-ipa725-constat-appareil.md) (settings
+        actually applied per build from `CONFIG_LAYERS`/boot policy, measured FPS per build and thermal state, each
+        change with its host proof and its device observation).
+        - **BO2 (session 2, 127 s of match):** settings identical from build 694 to 724, only `mvk_async` 0 -> 1 in 725.
+          FPS 53.7, 47.2, 44.8, 38.3, 37.7 (thermal 1) then 40-30 and 32-18 (thermal 2 from 35 s of match). Work per
+          frame constant (12-15 k `putllc_ok`, 1.7-3.3 k draws, about 5 of 6 cores busy) while RSX per-draw setup/vertex
+          cost rises 30-60 % and GPU time per frame 10 -> 12-14.5 ms: consistent with thermal throttling, **inferred**
+          (no CPU frequency in the journals). Same curve in builds 721, 723, 724; in-match medians at thermal 2: 723
+          30.3, 724 28.8, 725 30.1; at thermal 1: 721 30.9, 723 41.0 (7 windows), 725 44.8 (5 windows). **Confirmed on
+          the device:** no freeze episode (Core 924; 724 froze at window 41, so a match over 4 minutes is still needed);
+          `RSXSYNC551 submit` 3.2-5.6 -> 0.06-0.08 ms/frame, `OPT587 acquire_timeouts=0 encode_wait_timeouts=0` (Core
+          927); footprint 2.6 -> 3.0 GB (724: 3.4 -> 4.1), `vma_unused` 32-106 MiB (724: 45 -> 360) (Core 925);
+          `TEXMEMO660` 35-104 k hits per window, 600-1700 verified, 0 mismatches (Core 926); `GPUGATE928` 2
+          deactivations, no device loss. Remaining: 12 blocking pipeline builds in 2 minutes (frames of 0.5-1.7 s); the
+          frame is still bound by PPU/SPU work (SPUPROF923: each SPURS kernel 59 % running over 360-380 regions).
+        - **GOW3 (sessions 3 fresh, 4 savestate; the video is session 4):** `async_tex=false` (c2519a25 applied) and the
+          corruption persists: **the 724 attribution to Asynchronous Texture Streaming is refuted.** Builds 674-723 ran
+          the legacy full custom file (75 %, MT RSX on, relaxed reservations, FIFO cache 4 KiB, GETLLAR backoff on);
+          724/725 run the database entry (100 %, MT RSX off, accurate reservations, FIFO 1 KiB, backoff off) and write
+          the MLAA bypass into restored savestate memory: six settings and one behaviour changed in build 724, the build
+          the corruption starts with; no file under `rpcs3/Emu/RSX` changed between Cores 921 and 923. Video: correct
+          picture after the restore; at the pause menu the menu textures have red and blue exchanged with correct shapes
+          (one probably compressed texture is right); back in play the opaque geometry is flat olive, sky and fog right,
+          and it stays wrong. Menu window: `blit_cpu=22189`, sweep released 234 sections (254 MiB, bytes changed),
+          `flushes=152 flush_misses=31`, `dma_flush_skips=0 rt_reload_skips=0` (the iOS full-overwrite shortcuts did not
+          fire), texture memo off. Every frame of this title flushes one render target to guest memory and uploads it
+          again (`flushes` = frames, `invalidate` = frames); at 100 % `copy_texture` reads the render target image
+          directly, at 75 % through a scaled helper image: a path never run on the iPhone before build 724.
+          **Cause not identified.** Gameplay FPS unchanged between 723 and 724 at thermal 1 (median 14.4 and 13.4);
+          8.0 in 725 at thermal 2 during the recording (5 windows).
+        - **Rejected/closed:** Asynchronous Texture Streaming as the cause of the GOW3 corruption; a BO2 regression in
+          724/725 (not supported by the measurements). **In progress:** two read-only audits of the engine paths selected
+          by 100 % scale and by MT RSX off (blit engine, render-target flush, component order, FIFO epochs).
+          **Next (superseded below):** the device check by per-game settings was not possible (MT RSX is not in the app).
+        - **Maintainer, later on 11 Nov:** "je n'ai pas l'option Multithreaded RSX et je te l'avais déjà signalé" (**rule:
+          the app exposes per game only resolution, stretch, performance overlay, accuracy tests and language; never ask
+          the maintainer to change another RPCS3 setting**); "la résolution à 75 % n'est pas la solution car je l'avais
+          déjà" (journals 724/725: `rsx_res=100`, `sparse_overrides=0`: the 75 % came from the retired full file, the menu
+          showed no value); "le problème de GW3 n'arrive que lorsque je charge une sauvegarde".
+        - **GOW3 cause found (code + device):** Core 922 `REWINDBOX_GOW3_MLAA_SAVESTATE_922` wrote the MLAA pair (flag byte
+          0x52BF2F, call 0x231248) into the restored memory of a savestate made without it; upstream never patches a
+          savestate (`patch_engine::apply(applied, !ar ? hash : std::string{}, ...)`). The same 2,098,179,072-byte
+          savestate resumed correctly in 723 (`savestate_memory`, MLAA running) and broke at the first pause menu in 724
+          and 725 (`savestate_applied`); fresh boots of 724/725 apply the pair before the game initialises and are
+          correct. The six settings changed in 724 also apply to fresh boots: not the cause. **Core 929
+          (`REWINDBOX_GOW3_MLAA_SAVESTATE_UNTOUCHED_929`, engine `4d15b82`):** the loader returns to the 921/upstream rule
+          (pair at a fresh boot only); report value `savestate_applied` kept for reading old journals, never produced.
+          [Record](rpcs3-core929-gow3-savestate-untouched.md). Host proof `test/rpcs3_gow3_mlaa_savestate929_test.py`
+          (13 checks, g++ ASan/UBSan and clang; the Core 922 rule put back is caught; refuses the 928 source).
+          Packaging: core929-from-928.patch (= metal-wip-from-928.patch), core929-delta.json/.patch (5b3386a7), canonical
+          f061803a (460 postimages), core-build.json build 929; closure, fold chain, codegen (PPU a987639e / SPU 477a3fa4
+          unchanged), 919-928 feature tests, route, analyzer, pin, guards pass; Core 929 driver run locally.
+        - **Menu (`REWINDBOX_MENU_RESOLUTION_729`, host bridge):** the in-game resolution row shows the scale the last
+          boot applied (CONFIG_LAYERS title= line remembered next to the part=rsx line) and the list checks it; the
+          accuracy page still reads the RSX line only. Bridge tests reading these files: no new failure (the failing ones
+          fail identically on HEAD: identity pins, macOS-only checks, NeoPlay scope).
+        - **Open, proven by audit, impact not shown:** a jump-to-self the guest patches before the RSX FIFO reaches it
+          starts no texture epoch (`RSXFIFO.cpp` 339-343, 539-557), so a section validated earlier is served unhashed until
+          the next acquire, frame end, invalidation or CPU blit; the 1 KiB FIFO cache sees fewer patches than 4 KiB.
+          Bounded to one epoch inside the texture cache; not linked to any observed defect. MT RSX off: no lost fault,
+          flush or invalidation (refuted).
+        - **Maintainer (11 Nov, after the Core 929 report): "commence par l'ordre défini, ensuite tu attends les autres sessions avant de
+          compiler toute ipa".** Order for Black Ops II: (1) instrument the SPU waits (the 41 % "waiting" of SPUPROF923 is
+          unattributed: `spu_thread::current_func` is never cleared after the call, so `wait_calls=sys_spu_thread_send_event` is the
+          last named call, not the wait); (2) the exact reservation writer lock parks every PPU for each heavy PUTLLC (8-10 k per
+          frame); (3) pipelines compiled in play (12 blocking builds in 2 min). **No IPA is compiled until the other sessions are
+          ready** (Core builds and pins continue).
+        - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
+          the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
+          `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
