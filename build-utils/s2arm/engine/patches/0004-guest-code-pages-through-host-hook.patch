@@ -40,3 +40,25 @@ diff --git a/runtime/src/imgpack.c b/runtime/src/imgpack.c
      void *m = mmap(at, (size_t)len, code ? PROT_READ | PROT_EXEC : PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, p->fd, (off_t)off);
      if (m != at) { if (err) *err = m == MAP_FAILED ? errno : EFAULT; return S2A_IMG_EMAP; }
      if (code && vm_protect(mach_task_self(), (vm_address_t)at, (vm_size_t)len, TRUE, VM_PROT_READ | VM_PROT_EXECUTE) != KERN_SUCCESS) { if (err) *err = EPERM; return S2A_IMG_EPROT; }
+diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
+--- a/runtime/src/vawin.c
++++ b/runtime/src/vawin.c
+@@ -296,11 +296,16 @@
+ int s2a_guest_in_file(uint64_t a, uint64_t n) { return g_gfd >= 0 && n && a >= g_base && a + n <= g_base + g_size; }
+ int s2a_window_ok(void) { return g_ok; }
+ void s2a_window_get(uint64_t *base, uint64_t *size) { *base = g_base; *size = g_size; }
++// RewindBox guest (runtime/src/rb_guest.c): game code sits in pages the host made executable (imgpack.c prepare_code), which a whole-window
++//   mapping might replace. The reset then always takes the per-segment path below, which keeps code pages as it keeps signed ones, so the
++//   new session reuses them in place (loader.c code_same). Weak default = S2Arm.app (never a guest)
++__attribute__((weak)) int s2a_rb_guest_on(void) { return 0; }
+ int s2a_window_session_reset(void) {
+     if (!g_ok || !g_size) return -1;
++    int guest = s2a_rb_guest_on();
+     // 只换客体区；尾部分配器中仍可能有宿主/运行时拥有的映射，不能清空。
+-    if (s2a_guest_zero(g_base, g_size)) return 0;   // 文件后备：整段打洞并重新映射成不可访问
+-    void *p = mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
++    if (!guest && s2a_guest_zero(g_base, g_size)) return 0;   // 文件后备：整段打洞并重新映射成不可访问
++    void *p = guest ? MAP_FAILED : mmap((void *)g_base, g_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
+     if (p == (void *)g_base) return 0;
+     // iOS 上整段盖回 EACCES（11-02 测试设备2 塞尔达设置页切 60 帧「立刻重启」，诊断 251febb68 读数：盖不掉的 6 段全是权限 r-x / 最大 r-x、私有）：
+     //   那是装载器从 App 签名 __TEXT 共享进窗口的客体代码页（loader.c iOS map_image，vm_remap copy=FALSE），系统不许覆盖或解除；外置镜像包的文件代码页同样（11-03 实测）。逐段盖：
