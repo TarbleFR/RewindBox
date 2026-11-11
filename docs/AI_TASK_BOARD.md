@@ -3787,6 +3787,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   whether device-observed); S2Arm installs signal handlers without chaining and links its
   NativeAOT services statically; no complete on-device preparation exists upstream. No batch
   is started or committed to.
+- **Batches 4–6 authorised by the maintainer (11 Nov) before the device result**, the whole to be
+  buildable as an IPA separate from the common one. Batch 4 slice 1: `native/s2arm/prepare/`
+  (rewrite stage as a C library, no bash/Python), compared with S2Arm's command line in
+  `.github/workflows/s2arm-prepare.yml` (`d96d206`, first run `42940786190` not finished). Not
+  linked into the app. Batches 5–6: questions sent to sessions 03 (playlist files) and 02 (skins);
+  none of their paths touched.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
   IPA are main's to add.
