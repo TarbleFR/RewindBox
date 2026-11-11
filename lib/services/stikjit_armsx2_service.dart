@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
 import 'package:flutter/material.dart';
+import 'package:neostation/l10n/armsx2_ui_locale.dart';
+import 'package:neostation/l10n/launch_prerequisite_locale.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
 import 'package:neostation/main.dart' show rootNavigatorKey;
 import 'package:neostation/services/armsx2_bios_service.dart';
@@ -10,6 +12,7 @@ import 'package:neostation/services/armsx2_folder_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/diagnostics_directory.dart';
+import 'package:neostation/services/launch_prerequisites.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/pairing_file_service.dart';
 import 'package:path/path.dart' as path;
@@ -31,6 +34,22 @@ class StikJitArmsx2Service {
 
   static String? get lastError => _lastError;
 
+  /// The `LaunchPrerequisiteLocale` key of what the user has to put right
+  /// when the last launch stopped for a known reason (no BIOS, LocalDevVPN
+  /// off, no pairing file, …); null when it ran or failed for another one.
+  static String? _lastErrorKey;
+  static String? get lastErrorKey => _lastErrorKey;
+
+  /// The sentence of [lastErrorKey] in [language], or null. The technical
+  /// text stays in [lastError] for the details and the journal.
+  static String? lastErrorText(String language) {
+    final key = _lastErrorKey;
+    if (key == null) return null;
+    return LaunchPrerequisiteLocale.textFor(language, key, {
+      'action': Armsx2UiLocale.textFor(language, 'importBios'),
+    });
+  }
+
   static Future<bool> launch({
     required String gamePath,
     String uiLocale = 'en',
@@ -47,17 +66,20 @@ class StikJitArmsx2Service {
   }) async {
     if (!Platform.isIOS || _busy) {
       _lastError = _busy ? 'An ARMSX2 launch is already active.' : null;
+      _lastErrorKey = _busy ? LaunchPrerequisite.jitBusy.key : null;
       return false;
     }
     final normalized = bootBios ? '' : path.normalize(gamePath.trim());
     if (!bootBios &&
         (!path.isAbsolute(normalized) || !await File(normalized).exists())) {
       _lastError = 'The selected PS2 game is not readable.';
+      _lastErrorKey = 'gameUnreadable';
       return false;
     }
 
     _busy = true;
     _lastError = null;
+    _lastErrorKey = null;
     final transaction =
         (DateTime.now().microsecondsSinceEpoch << 8) | ((_transactionSeed++) & 0xff);
 
@@ -74,13 +96,20 @@ class StikJitArmsx2Service {
       var biosFilename = await biosStore.resolve();
       if (biosFilename == null) {
         final context = rootNavigatorKey.currentContext;
+        // No BIOS at all is not the same as a choice the user closed: the
+        // first one needs an import, and says where it is done.
+        final noBios = (await biosStore.list()).isEmpty;
         if (context == null || !context.mounted) {
           _lastError = 'Choose a PS2 BIOS from the PS2 library first.';
+          _lastErrorKey = noBios ? 'ps2BiosMissing' : 'ps2BiosCancelled';
           return false;
         }
         biosFilename = await showArmsx2BiosPicker(context);
         if (biosFilename == null) {
-          _lastError = 'PS2 BIOS selection was cancelled.';
+          _lastError = noBios
+              ? 'No PS2 BIOS is installed.'
+              : 'PS2 BIOS selection was cancelled.';
+          _lastErrorKey = noBios ? 'ps2BiosMissing' : 'ps2BiosCancelled';
           return false;
         }
       }
@@ -91,6 +120,7 @@ class StikJitArmsx2Service {
       final pairingFile = await _ensurePairingFile();
       if (pairingFile == null) {
         _lastError = 'Pairing file selection was cancelled.';
+        _lastErrorKey = LaunchPrerequisite.pairingFile.key;
         return false;
       }
 
@@ -104,6 +134,7 @@ class StikJitArmsx2Service {
       if (!bootBios &&
           !Armsx2FolderService.ownsRomPath(normalized, games.path)) {
         _lastError = 'The selected PS2 game is outside NeoStation/ARMSX2/Games.';
+        _lastErrorKey = 'ps2GameOutside';
         return false;
       }
 
@@ -174,6 +205,9 @@ class StikJitArmsx2Service {
     } catch (error, stackTrace) {
       await RetroAchievementsSessionService.shared.finishLaunch(raLaunch);
       _lastError = error.toString();
+      // LocalDevVPN off, pairing file refused, installation without JIT…:
+      // the display names it; anything else keeps the technical text only.
+      _lastErrorKey = LaunchPrerequisites.classify(error)?.key;
       _log.e(
         'Embedded ARMSX2 launch failed: $error',
         error: error,

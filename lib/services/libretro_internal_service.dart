@@ -22,6 +22,7 @@ import 'libretro_resolution.dart';
 import 'neostation_rom_library.dart';
 import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
+import 'libretro_bios_catalog.dart';
 import 'diagnostics_directory.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
@@ -31,11 +32,20 @@ class LibretroLaunchOutcome {
     required this.success,
     this.errorCode,
     this.technicalDetails = '',
+    this.missingFiles,
   });
 
   final bool success;
   final String? errorCode;
   final String technicalDetails;
+
+  /// The file names the sentence of [errorCode] shows when they are not the
+  /// technical details (a conditional BIOS that is missing: the details
+  /// keep what the core answered).
+  final String? missingFiles;
+
+  /// What fills the `{files}` placeholder of the error sentence.
+  String get messageFiles => missingFiles ?? technicalDetails;
 }
 
 /// Why a picked game was not imported.
@@ -451,6 +461,27 @@ abstract final class LibretroInternalService {
         if (log is List && log.isNotEmpty) 'Log:\n${log.join('\n')}',
       ].join('\n');
       _log.e('Embedded libretro launch failed\n$details');
+      // The core refused or stopped: a BIOS that only some games need
+      // (Mega-CD, FDS, PC Engine CD, Neo Geo…) and that is not installed is
+      // the first thing to put right, so it is named. Never checked before a
+      // launch: such a file is not always indispensable.
+      if (conditionalBiosFailureCodes.contains(result['code'])) {
+        final missing = await _missingConditionalBios(
+          system: key,
+          romPath: romPath,
+          coreId: coreId,
+          systemDirectory: biosDirectory.path,
+        );
+        if (missing.isNotEmpty) {
+          _log.w('Conditional BIOS missing for $romPath: ${missing.join(', ')}');
+          return LibretroLaunchOutcome(
+            success: false,
+            errorCode: 'LIBRETRO_BIOS_CONDITIONAL_MISSING',
+            technicalDetails: details,
+            missingFiles: missing.join(', '),
+          );
+        }
+      }
       return LibretroLaunchOutcome(
         success: false,
         errorCode: result['code']?.toString(),
@@ -461,6 +492,83 @@ abstract final class LibretroInternalService {
       _log.e('Embedded libretro launch error: $error');
       return LibretroLaunchOutcome(success: false, technicalDetails: '$error');
     }
+  }
+
+  /// Native failure codes after which a missing conditional BIOS is looked
+  /// for: the game reached the core, which refused it or stopped.
+  static const Set<String> conditionalBiosFailureCodes = <String>{
+    'LIBRETRO_GAME_REJECTED',
+    'LIBRETRO_CORE_STOPPED',
+  };
+
+  static Future<List<String>> _missingConditionalBios({
+    required String system,
+    required String romPath,
+    required String coreId,
+    required String systemDirectory,
+  }) async {
+    try {
+      return await missingConditionalBios(
+        catalog: await LibretroBiosCatalog.load(),
+        system: system,
+        romPath: romPath,
+        coreId: coreId,
+        systemDirectory: systemDirectory,
+      );
+    } catch (error) {
+      // The catalogue is an aid for the message, never a reason to fail.
+      _log.w('Conditional BIOS lookup failed: $error');
+      return const <String>[];
+    }
+  }
+
+  /// The BIOS files that only some games need (catalogue level
+  /// `conditional`), that the game at [romPath] of [system] calls for with
+  /// [coreId], and that are in none of the places this core reads them
+  /// from. One line per file; the files of a group replace one another (one
+  /// per region), so a group is missing only when none of them is there.
+  @visibleForTesting
+  static Future<List<String>> missingConditionalBios({
+    required LibretroBiosCatalog catalog,
+    required String system,
+    required String romPath,
+    required String coreId,
+    required String systemDirectory,
+  }) async {
+    final extension = path.extension(romPath).replaceFirst('.', '').toLowerCase();
+    final systemKey = system.toLowerCase();
+    final groups = <String, List<LibretroBiosEntry>>{};
+    for (final entry in catalog.entries) {
+      if (entry.level != LibretroBiosLevel.conditional || !entry.cores.contains(coreId)) continue;
+      final clauses = entry.condition?.games ?? const <LibretroBiosGameClause>[];
+      final called = clauses.any((clause) =>
+          clause.systems.contains(systemKey) && (clause.extensions.isEmpty || clause.extensions.contains(extension)));
+      if (called) groups.putIfAbsent(entry.group ?? entry.id, () => <LibretroBiosEntry>[]).add(entry);
+    }
+    final missing = <String>[];
+    for (final group in groups.values) {
+      var found = false;
+      final expected = <String>[];
+      for (final entry in group) {
+        final names = entry.coreNames[coreId] ?? entry.names;
+        if (names.isNotEmpty) expected.add(names.first);
+        for (final location in entry.locations) {
+          final directory = location.gameFolder
+              ? path.dirname(romPath)
+              : path.joinAll(<String>[systemDirectory, ...location.subdirectory]);
+          for (final name in names) {
+            if (await File(path.join(directory, name)).exists()) {
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+        if (found) break;
+      }
+      if (!found && expected.isNotEmpty) missing.add(expected.join(' / '));
+    }
+    return missing;
   }
 
   /// NeoStation's default layer of core options for this launch (applied

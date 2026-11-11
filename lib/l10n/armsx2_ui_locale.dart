@@ -92,8 +92,8 @@ abstract final class Armsx2UiLocale {
   @visibleForTesting
   static Map<String, Map<String, String>> get rawValues => _v;
 
-  /// The text of [key] in the language [code] (English when missing).
-  @visibleForTesting
+  /// The text of [key] in the language [code] (English when missing): for
+  /// code without a context (the reason a launch stopped) and for tests.
   static String textFor(String code, String key) =>
       _v[code]?[key] ?? _v['en']![key] ?? key;
 

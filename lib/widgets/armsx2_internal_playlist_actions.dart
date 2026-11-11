@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
 import '../l10n/console_manager_locale.dart';
+import '../l10n/launch_prerequisite_locale.dart';
 import '../l10n/libretro_locale.dart';
 import '../l10n/texture_catalog_locale.dart';
 import '../services/armsx2_internal_service.dart';
@@ -137,8 +138,16 @@ class _Armsx2InternalPlaylistActionsState
           ended: HomeMusicService.armsx2SessionEnded,
         );
         if (!launched) {
+          if (!mounted) return;
+          // The reason in the user's language when it is a known one (no
+          // pairing file, LocalDevVPN off, …), else the technical text.
           _notice(
-            StikJitArmsx2Service.lastError ??
+            StikJitArmsx2Service.lastErrorText(
+                  LaunchPrerequisiteLocale.languageOf(
+                    Localizations.localeOf(context),
+                  ),
+                ) ??
+                StikJitArmsx2Service.lastError ??
                 _t('bootBiosFailed'),
           );
         }
