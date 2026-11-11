@@ -11,6 +11,11 @@ so it can be installed and used offline.
   hardware, not official photographs. Software systems and collections are
   shown as symbolic objects. The artwork does not declare or enable any
   emulated platform: availability is decided by RewindBox's own catalogue.
+- One tile, `backgrounds/switch2.webp` (Nintendo Switch 2), is not a portrait:
+  it is the official Nintendo Switch 2 logo on red, supplied by the RewindBox
+  maintainer to identify the system. It is neither guided by BAXY views nor
+  CC BY 4.0 content; the trademark belongs to Nintendo (see
+  `assets/images/logos/TRADEMARKS.md`).
 - For the references listed in the pack's `credits-silhouettes.json`, BAXY /
   baxysquare "Systematic" views guided shapes and proportions. The delivered
   illustrations are new interpretations (perspective, lighting and materials

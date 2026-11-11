@@ -680,6 +680,80 @@ extension SqliteConfigScanning on SqliteConfigProvider {
     _notify();
   }
 
+  /// Refreshes only the Switch 2 playlist: RewindBox's Files-visible
+  /// `S2Arm/Games` root plus the user's registered library folders
+  /// (docs/s2arm-switch2-library.md § Library). No other system is scanned.
+  /// Afterwards each export's own icon becomes the box art of rows that have
+  /// none.
+  Future<void> refreshS2ArmInternalLibrary() async {
+    if (!Platform.isIOS) {
+      throw StateError('Embedded S2Arm refresh is available on iOS only.');
+    }
+    await S2ArmInternalService.ensureLayout();
+    ConfigService.linkedS2ArmGameFolderPath =
+        (await S2ArmInternalService.gamesDirectory()).path;
+    if (_availableSystems.isEmpty) await _loadAvailableSystems();
+    final system = _availableSystems.firstWhere(
+      (candidate) => candidate.folderName == S2ArmInternalService.systemFolder,
+    );
+    await SystemRepository.addDetectedSystem(system.id!, system.folderName);
+    if (!_detectedSystems.any((candidate) => candidate.id == system.id)) {
+      _detectedSystems = [..._detectedSystems, system];
+    }
+    await _scanSystemRoms(system);
+    try {
+      await _copyS2ArmIcons(system);
+    } catch (error) {
+      // Box art is a convenience; the library itself is already refreshed.
+      LoggerService.instance.w('S2Arm icons not copied: $error');
+    }
+    await _refreshDetectedSystemsFromDatabase();
+    _sortDetectedSystems();
+    _notify();
+  }
+
+  /// Copies each Switch 2 export's icon to `media/switch2/box2d/<title id>.jpg`
+  /// (the key MeloNX's library uses for its icons) when the row has no box2d
+  /// media yet. Existing or scraped media is never overwritten.
+  Future<void> _copyS2ArmIcons(SystemModel system) async {
+    final db = await SqliteService.getDatabase();
+    final rows = await db.query(
+      'user_roms',
+      columns: ['rom_path', 'title_id'],
+      where: 'app_system_id = ?',
+      whereArgs: [system.id],
+    );
+    final media = Directory(
+      s2arm_path.join(
+        await ConfigService.getMediaPath(),
+        S2ArmInternalService.systemFolder,
+        'box2d',
+      ),
+    );
+    for (final row in rows) {
+      final romPath = row['rom_path']?.toString();
+      final titleId = row['title_id']?.toString().trim();
+      if (romPath == null ||
+          titleId == null ||
+          titleId.isEmpty ||
+          !Switch2ExportContent.isLibraryEntry(romPath)) {
+        continue;
+      }
+      final hasMedia = const ['png', 'jpg', 'jpeg'].any(
+        (extension) =>
+            File(s2arm_path.join(media.path, '$titleId.$extension'))
+                .existsSync(),
+      );
+      if (hasMedia) continue;
+      final icon = Switch2ExportContent.iconFile(
+        Switch2ExportContent.exportFolder(romPath),
+      );
+      if (icon == null) continue;
+      await media.create(recursive: true);
+      await icon.copy(s2arm_path.join(media.path, '$titleId.jpg'));
+    }
+  }
+
   /// Performs an isolated scan for a specific system.
   Future<ScanSummary> _scanSystemRoms(
     SystemModel system, {
@@ -695,10 +769,14 @@ extension SqliteConfigScanning on SqliteConfigProvider {
       final isXeniaInternalSystem =
           Platform.isIOS &&
           system.folderName.toLowerCase() == XeniaInternalService.systemFolder;
+      final isS2ArmInternalSystem =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == S2ArmInternalService.systemFolder;
       final isNativeInternalSystem =
           isDolphinInternalSystem ||
           isArmsx2InternalSystem ||
-          isXeniaInternalSystem;
+          isXeniaInternalSystem ||
+          isS2ArmInternalSystem;
       // Native embedded playlists scan their own roots even when no public ROM
       // folder exists. Every other system retains the original early return.
       if (_config.romFolders.isEmpty &&
@@ -731,6 +809,12 @@ extension SqliteConfigScanning on SqliteConfigProvider {
         // which keep their paths, rows and media.
         nativeScanRoots = <String>[
           (await XeniaInternalService.gamesDirectory()).path,
+          ..._config.romFolders,
+        ];
+      } else if (isS2ArmInternalSystem) {
+        // Imported exports, then the user's own switch2 library folders.
+        nativeScanRoots = <String>[
+          (await S2ArmInternalService.gamesDirectory()).path,
           ..._config.romFolders,
         ];
       } else {

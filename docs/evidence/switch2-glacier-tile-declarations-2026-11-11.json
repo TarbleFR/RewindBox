@@ -1,0 +1,56 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-11",
+ "scope": "RewindBox Glacier System Art pack: one tile added, backgrounds/switch2.webp (Nintendo Switch 2), the official Nintendo Switch 2 logo on red, supplied by the RewindBox maintainer to identify the system. aliases.json (canonical id switch2, keys 'switch2' and 'nintendo switch 2'), theme.json (systems) and CREDITS.md declare it; assets/legal/RewindBox-Glacier-ATTRIBUTION.md names it. Not a BAXY-guided illustration and not CC BY 4.0 content; Nintendo trademark, covered by assets/images/logos/TRADEMARKS.md, used for identification only. No package, dependency, framework, engine or native source change.",
+ "baseline_inventory": "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json",
+ "baseline_inventory_sha256": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {}
+ },
+ "declarations": {},
+ "bundled_assets": {
+  "index": "assets/system_art/rewindbox-glacier/bundle-index.json",
+  "previous_index_sha256": "bd1bc92b1470dabfc106617df15d71da23a2dc963f9cabe27786ae110e45c0c0",
+  "index_sha256": "cc50e3944af7cc96b4ff7ce320a70d7d2de4ad29893492502f3b0ac03c3e66c4",
+  "content_digest": "2866ecc6951eb9d98c2ab69fa67620ebe98043c962d1a989f31726ad58eca44a",
+  "files": 129,
+  "added_files": {
+   "backgrounds/switch2.webp": {
+    "size": 11182,
+    "sha256": "46e2fb681760a6cc6f2369e985a321dc054310d256cca76a41cece251a83ea2d"
+   }
+  },
+  "changed_files": {
+   "aliases.json": {
+    "previous": {
+     "size": 128614,
+     "sha256": "abc128caf85eff37c3184512ef1e793bc5691faf445991ba767b5e6f2699ed0c"
+    },
+    "size": 129221,
+    "sha256": "133503d8f45971d2938c0aae15f6c52e1921b246a2126c597fa24ae71d790756"
+   },
+   "theme.json": {
+    "previous": {
+     "size": 8436,
+     "sha256": "e4c6653105eb40febcddd1854206dd8747989c01fce0eaa027353333fe173295"
+    },
+    "size": 8451,
+    "sha256": "b4181766f79de9cef149be960dcac99187ce2c38438713d1173b5dd74242fffc"
+   },
+   "CREDITS.md": {
+    "previous": {
+     "size": 1395,
+     "sha256": "77889e2f93b4181ebbf6061743a0912b15b2cfa2742eea929f6452cdc1c41267"
+    },
+    "size": 1762,
+    "sha256": "ea7720fed07fca2533d9de7751253f94efeb3b6a81fc998de20b492f45d9c26c"
+   }
+  },
+  "trademark_notice": "assets/images/logos/TRADEMARKS.md",
+  "license_notice": "assets/legal/RewindBox-Glacier-ATTRIBUTION.md"
+ }
+}

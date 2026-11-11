@@ -110,8 +110,8 @@ void main() {
       )!;
     });
 
-    test('121 plain canonical ids, every key owned by one of them', () {
-      expect(table.canonicalIds, hasLength(121));
+    test('122 plain canonical ids, every key owned by one of them', () {
+      expect(table.canonicalIds, hasLength(122));
       for (final id in table.canonicalIds) {
         expect(
           RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$').hasMatch(id),
@@ -120,6 +120,13 @@ void main() {
         );
         expect(table.resolve(id), id);
       }
+    });
+
+    test('Switch 2 has its own tile, distinct from the Switch', () {
+      expect(table.resolve('switch2'), 'switch2');
+      expect(table.resolve('Nintendo Switch 2'), 'switch2');
+      expect(table.resolve('switch'), 'switch');
+      expect(table.resolve('Nintendo Switch'), 'switch');
     });
 
     test('exact canonical id first: PSP Minis is not PSP', () {
@@ -163,7 +170,7 @@ void main() {
           jsonDecode(await rootBundle.loadString(BundledSystemArt.indexAsset))
               as Map<String, dynamic>;
       final files = (index['files'] as List).cast<Map>();
-      expect(files, hasLength(128));
+      expect(files, hasLength(129));
       for (final file in files) {
         final installed = File(path.join(pack(), file['path'] as String));
         expect(

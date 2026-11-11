@@ -102,6 +102,7 @@
     "snes-hacks",
     "steam",
     "switch",
+    "switch2",
     "tg16",
     "tgcd",
     "tic80",
@@ -3156,6 +3157,17 @@
       "safeArchiveStem": "Nintendo Switch",
       "canonicalWebp": "backgrounds/switch.webp"
     },
+    "nintendo switch 2": {
+      "owner": "switch2",
+      "declaredBy": [
+        "switch2"
+      ],
+      "spellings": [
+        "Nintendo Switch 2"
+      ],
+      "safeArchiveStem": "Nintendo Switch 2",
+      "canonicalWebp": "backgrounds/switch2.webp"
+    },
     "nintendo virtual boy": {
       "owner": "vb",
       "declaredBy": [
@@ -4566,6 +4578,17 @@
       "safeArchiveStem": "switch",
       "canonicalWebp": "backgrounds/switch.webp"
     },
+    "switch2": {
+      "owner": "switch2",
+      "declaredBy": [
+        "switch2"
+      ],
+      "spellings": [
+        "switch2"
+      ],
+      "safeArchiveStem": "switch2",
+      "canonicalWebp": "backgrounds/switch2.webp"
+    },
     "tg-16": {
       "owner": "tg16",
       "declaredBy": [
@@ -5451,6 +5474,7 @@
     "backgrounds/Nintendo Hacks.webp": "nes-hacks",
     "backgrounds/Nintendo Satellaview.webp": "satellaview",
     "backgrounds/Nintendo Switch.webp": "switch",
+    "backgrounds/Nintendo Switch 2.webp": "switch2",
     "backgrounds/Nintendo Virtual Boy.webp": "vb",
     "backgrounds/Nintendo Wii.webp": "wii",
     "backgrounds/nintendo wiiu.webp": "wiiu",
@@ -5579,6 +5603,7 @@
     "backgrounds/supergrafx.webp": "pce",
     "backgrounds/supervision.webp": "wsv",
     "backgrounds/switch.webp": "switch",
+    "backgrounds/switch2.webp": "switch2",
     "backgrounds/TG-16.webp": "tg16",
     "backgrounds/tg-cd.webp": "tgcd",
     "backgrounds/tg16.webp": "tg16",
