@@ -274,7 +274,8 @@ jobs:
         run: bash build-utils/xenia/build_core.sh .native-sources/XeniOS "$MSC_IOS_LIBRARY"
       - name: Keep the converter out of the artifact
         run: test ! -e dist/xenia/libmetalirconverter.dylib && ! find dist/xenia -name 'libmetalirconverter*' | grep -q .
-      - uses: actions/upload-artifact@v4
+      # Reviewed IPA boundary (.github/ipa-protection/check_workflows.py).
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: XeniaCore-${{ github.sha }}
           path: dist/xenia/
@@ -288,7 +289,8 @@ jobs:
           cp build/xenia-core/*.log build/xenia-core/*.json build/xenia-core/*.txt build/xenia-diagnostics/ 2>/dev/null || true
           cp build/xenia-core/ios/CMakeCache.txt build/xenia-diagnostics/ 2>/dev/null || true
           printf 'host=%s\nxenios=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > build/xenia-diagnostics/identity.txt
-      - uses: actions/upload-artifact@v4
+      # Reviewed IPA boundary (.github/ipa-protection/check_workflows.py).
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: XeniaCore-diagnostics-${{ github.sha }}
