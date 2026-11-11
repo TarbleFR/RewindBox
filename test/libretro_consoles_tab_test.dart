@@ -48,6 +48,7 @@ bool Function(ConsoleEntry) _listedIn(Set<String> bundled) => (entry) {
     case ConsoleEngine.armsx2:
     case ConsoleEngine.rpcs3:
     case ConsoleEngine.xenia:
+    case ConsoleEngine.s2arm:
       return true;
   }
 };
@@ -206,7 +207,7 @@ void main() {
     // One section per emulator application (maintainer decision, 10 November
     // 2026, docs/xenios-playlist.md § Consoles tab); MeloNX has no runtime
     // in this test, so its section is absent.
-    for (final application in ['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'XeniOS']) {
+    for (final application in ['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'XeniOS', 'S2Arm']) {
       expect(find.byKey(ValueKey('consoles-application-$application')), findsOneWidget, reason: application);
     }
     expect(find.byKey(const ValueKey('consoles-application-MeloNX')), findsNothing);
@@ -214,8 +215,8 @@ void main() {
     expect(find.byKey(const ValueKey('libretro-library-create-folders')), findsOneWidget);
     expect(find.byKey(const ValueKey('libretro-library-move')), findsOneWidget);
     // 85 until the Ports console left with Dusklight (20 October 2026); 85
-    // again with the Xbox 360 (XeniOS).
-    expect(ConsoleCatalog.entries.length, 85);
+    // again with the Xbox 360 (XeniOS); 86 with the Switch 2 (S2Arm).
+    expect(ConsoleCatalog.entries.length, 86);
     // Not listed: systems only the external RetroArch app runs, libretro
     // consoles whose core is not in this test build (the 3DS, lots 1-2) and
     // Switch (no MeloNX runtime).
@@ -254,6 +255,12 @@ void main() {
     expect(switchOf(tester, engine('xbox360')).value, isFalse);
     expect(switchOf(tester, engine('xbox360')).onChanged, isNull);
     expect(find.byKey(const ValueKey('console-unavailable-xbox360')), findsOneWidget);
+    // Switch 2 stays listed the same way: engine off, not switchable while
+    // S2Arm cannot run here, with the reason on its row.
+    expect(find.descendant(of: find.byKey(const ValueKey('console-switch2')), matching: find.text(c(ConsoleManagerLocale.engineBuiltIn, {'engine': 'S2Arm'}))), findsOneWidget);
+    expect(switchOf(tester, engine('switch2')).value, isFalse);
+    expect(switchOf(tester, engine('switch2')).onChanged, isNull);
+    expect(find.byKey(const ValueKey('console-unavailable-switch2')), findsOneWidget);
     // The page sits below the 46.r header.
     expect(tester.getTopLeft(find.text(c(ConsoleManagerLocale.tabTitle))).dy, greaterThan(46.r));
     // A console whose core is not in the build is not listed.
@@ -361,11 +368,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('consoles-show-all')));
     await tester.pumpAndSettle();
-    // The listed consoles only, Xbox 360 excluded while its engine is off
-    // by default.
+    // The listed consoles only, Xbox 360 and Switch 2 excluded while their
+    // engines are off by default.
     final listed = _listedIn((await tester.runAsync(() async => (await menu.bundledConsoles())!))!);
     final count = ConsoleCatalog.entries
-        .where((entry) => listed(entry) && entry.id != 'xbox360')
+        .where((entry) => listed(entry) && entry.id != 'xbox360' && entry.id != 'switch2')
         .length;
     expect(find.text(c(ConsoleManagerLocale.showAllBody, {'count': count})), findsOneWidget);
     await tester.tap(find.widgetWithText(ElevatedButton, c(ConsoleManagerLocale.showAll)).last);

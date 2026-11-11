@@ -671,6 +671,11 @@ IMPORT_SITES = {
     'lib/services/xenia_internal_service.dart': (
         'static Future<XeniaImportResult?> importGames(',
         'static Future<XeniaImportResult?> importFolder(',),
+    # Switch 2 playlist (docs/s2arm-switch2-library.md § Import): the folder
+    # picker of the S2Arm service. lib/widgets/s2arm_internal_playlist_actions.dart
+    # also wraps the call in StorageImportActivity.run.
+    'lib/services/s2arm_internal_service.dart': (
+        'static Future<S2ArmImportResult?> importFolder(',),
     'lib/services/rpcs3_internal_service.dart': (
         'static Future<bool> importFirmware(',
         'static Future<Rpcs3ImportResult> importGames(',
