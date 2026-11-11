@@ -2099,7 +2099,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           macos-26): "FAILED: macOS: the thread is in the user-interactive class after the call: {... \"value\": false,
           \"requests\": [], \"applePlatform\": true, \"classBefore\": 0, \"classAfter\": 0}" (test line 224); the two gates
           before it passed. Not pinned, not rerun (deterministic); Core 731 fa54e14a stays pinned. Reported to the MeloNX
-          session for a corrected head. Not run on an iPhone.
+          session for a corrected head. Corrected head 150dcac4 merged as 7298c4ba: the gate was wrong (CoreCLR host threads
+          read class 0 and get EPERM; the NativeAOT fixture puts system, Thread and pool threads in 0x21: runs 43008139574,
+          43008463899); macOS acceptance = answer agreeing with the class read back + the required NativeAOT system test.
+          Contract 5769e41d, 91 gates, 483/419, reads 440, arrays 545. Core CI again: run 43009346249. Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
