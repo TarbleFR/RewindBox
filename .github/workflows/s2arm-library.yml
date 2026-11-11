@@ -36,6 +36,7 @@ jobs:
         run: >
           flutter test
           test/s2arm_internal_service_test.dart
+          test/s2arm_playlist_menu_contract_test.dart
           test/switch2_export_content_test.dart
           test/switch2_library_locale_test.dart
           test/console_manager_test.dart
