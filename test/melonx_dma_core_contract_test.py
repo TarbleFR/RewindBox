@@ -177,6 +177,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'array-barrier-epoch': 'delivered',
             # Core 725 (lot 9): every recorded pipeline state replayed at launch.
             'variant-replay-all': 'delivered',
+            # Core 727 (lot 9): the pause checkpoint threshold; the Vulkan allocator's blocks in the journal.
+            'pause-checkpoint-growth': 'delivered', 'vulkan-memory-journal': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -196,6 +198,8 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
            # Core 725: the engine journal (a process starts with room for its whole journal).
            {'src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs'} |
+           # Core 727: the Vulkan allocator's two files (its blocks in the journal).
+           {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs'} |
            # Core 671: the translator and host shader cache files of the NaN scrub.
            set(C671_NAN_SCRUB) |
            # Core 673: the pipeline cache manager and pipeline state (already changed files).
@@ -456,8 +460,8 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 85 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins). Core 727: 87.
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 87 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -529,7 +533,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_gc_pause_journal.py',
                                                      'build-utils/melonx/adapt_extra_array_dirty.py',
                                                      'build-utils/melonx/adapt_array_barrier_epoch.py',
-                                                     'build-utils/melonx/adapt_variant_replay_all.py'} and
+                                                     'build-utils/melonx/adapt_variant_replay_all.py',
+                                                     'build-utils/melonx/adapt_pause_checkpoint_growth.py',
+                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -559,7 +565,7 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 201 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 203 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
