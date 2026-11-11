@@ -102,7 +102,17 @@ size + 512 MiB. Refusals: `folderNoGame`, `executableInvalid`,
 Library on iOS: the `xbox360` scan adds `god` to the system's extensions and
 keeps only `default.xex` among executables and nothing under a `.data`
 folder; the row's title is the title folder's name (`default.xex`) or the
-package name (`.god`), set when the row is first written. A `.god` launches
+package name (`.god`), set when the row is first written. The `filename`
+column is a game's identity (scraped metadata `UNIQUE(app_system_id,
+filename)`, media named after it, favorites and history through
+`getSingleGame`), so each `default.xex` row is stored as `<folder>.xex`, or
+`<folder> [<8 hex of its path>].xex` when that name is already used by
+another entry of the scan or another stored row
+(`XeniaFolderContent.libraryFileNames`). A stored name never changes; rows
+stored before as `default.xex` are renamed once by the next scan (ISO and
+`.god` rows untouched). The metadata row once shared under `default.xex` is
+left as is: those games are scraped again under their own name. Test:
+`test/xenia_library_names_test.dart`. A `.god` launches
 with content kind 4 (`NEO_XENIA_CONTENT_PACKAGE`, accepted by
 `XeniaCore.mm` Boot; ABI unchanged at 2, an older Core refuses it with
 "unsupported content kind"). Existing extension-less GOD headers in the
@@ -367,6 +377,23 @@ layout names and `layoutXbox360` ("Xbox 360", 12 locales) in
 Skins: no Xbox 360 controller skin pack is added; a skin overlay, its
 artwork, hit-testing and orientation rules belong to the Skins session,
 which can layer one over these controls later.
+
+## Legal gate (source/license declarations)
+
+`build-utils/collect_build_source_evidence.py` binds `pubspec.yaml` to the
+last review that declared it. `docs/evidence/xenios-playlist-declarations-2026-11-11.json`
+is the next link: baseline = the Pocket originals review (whose `after` is
+this review's `before`), `pubspec.yaml` moved on by the
+`xenia_internal_bridge` entries, and three local manifests declared from
+nothing (`packages/xenia_internal_bridge/pubspec.yaml`, its podspec, the
+`xenia_jit_helper` podspec). No hosted package added or removed;
+`pubspec.lock` unchanged; no engine binary bundled. Any later change to these
+four files needs a review chained after this one (the Pocket originals block
+accepts a moved `pubspec.yaml` only when this review exists). The Core's and
+the converter's source and notice declarations are due when the Core ships.
+Checked 11 Nov: the chain passes on this branch once the pre-existing
+`libretro_internal_bridge.podspec` mismatch of `Claude` is masked; it refuses
+the branch without this review and refuses a changed declared file.
 
 ## State and limits (10 Nov 2026)
 

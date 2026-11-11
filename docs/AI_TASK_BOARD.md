@@ -3842,6 +3842,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `test/xenia_folder_import_test.dart` 11/11 (synthetic headers). Shared files touched:
   `sqlite_database_service.dart` (iOS xbox360 only), `storage_contract_test.py`
   (+`importFolder` import site), `docs/storage-audit-cleanup.md`.
+- **Library names + legal link (11 Nov, review by 00 requested):** defect found by session 04,
+  confirmed: every folder game was stored as `filename` = `default.xex`, the key of scraped
+  metadata (`UNIQUE(app_system_id, filename)`), media and favorites/history. Fix:
+  `<folder>.xex`, digest only when the name is taken, stored names kept, old `default.xex`
+  rows renamed once (`test/xenia_library_names_test.dart` 4/4). Legal gate: new review
+  `docs/evidence/xenios-playlist-declarations-2026-11-11.json` chained after Pocket originals
+  (pubspec.yaml + 3 new local manifests); collector updated. Chain passes with Claude's
+  pre-existing libretro podspec mismatch masked; refuses without the review / with a changed
+  file; legal Python tests = same failing set as Claude `1a10d4a8b`.
 - **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
   91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
   checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
@@ -3852,7 +3861,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   storage contract 24/24; 41 Dart suites touching changed files
   373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
   refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
-  failure set as HEAD (19, shallow-history/baseline). Analyzer: no new issue.
+  failure set as HEAD (19, baseline; `stikjit_unified_build_test` was a test defect, fixed on Claude by `24a8246f`). Analyzer: no new issue.
 - **Blockers:** first real compile of the facade/plugins/helper/framework (dispatch of
   `xenia-core.yml` by main; Core needs Xcode 27); converter redistribution decision; IPA
   wiring of `XeniaJITHelper` (main). Embedded mode must neutralize XeniOS microphone/voice (RewindBox has

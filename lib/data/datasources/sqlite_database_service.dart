@@ -135,7 +135,8 @@ class SqliteDatabaseService {
     validExtensionsSet.add('steam');
     // The embedded XeniOS playlist also lists the `.god` package headers its
     // folder import writes (docs/xenios-playlist.md § Folder import).
-    if (Platform.isIOS && system.folderName.toLowerCase() == 'xbox360') {
+    if ((Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        system.folderName.toLowerCase() == 'xbox360') {
       validExtensionsSet.addAll(XeniaContent.gameExtensions);
     }
     // The embedded S2Arm playlist lists a Switch 2 export by its base NPDM
@@ -323,11 +324,13 @@ class SqliteDatabaseService {
       ..clear()
       ..addAll(deduplicatedEntries);
     // XeniOS: one entry per title folder (its default.xex), none inside a
-    // Games on Demand `.data` folder.
-    if (Platform.isIOS && system.folderName.toLowerCase() == 'xbox360') {
+    // Games on Demand `.data` folder, each under its own library name.
+    if ((Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        system.folderName.toLowerCase() == 'xbox360') {
       romEntries.retainWhere(
         (entry) => XeniaFolderContent.isLibraryEntry(entry.path),
       );
+      await _assignXeniaLibraryFileNames(system.id!, romEntries);
     }
     // S2Arm: one entry per export folder (base/exefs/main.npdm), none under
     // updates/ or dlc/.
@@ -408,6 +411,74 @@ class SqliteDatabaseService {
       total: finalCount,
       systemName: system.realName,
     );
+  }
+
+  /// The iOS-only XeniOS scan rules on a test host.
+  @visibleForTesting
+  static bool xeniaLibraryRulesForTesting = false;
+
+  /// Gives every XeniOS title folder its own library `filename` (see
+  /// XeniaFolderContent.libraryFileNames) and renames, once, the rows of
+  /// this system still stored as `default.xex`. ISO and `.god` rows are not
+  /// touched; a metadata row stored under `default.xex` is left as it was
+  /// (it was shared, so the games are scraped again under their own name).
+  static Future<void> _assignXeniaLibraryFileNames(
+    String systemId,
+    List<RomEntry> entries,
+  ) async {
+    if (!entries.any(
+      (entry) =>
+          path.basename(entry.path).toLowerCase() ==
+          XeniaFolderContent.executableName,
+    )) {
+      return;
+    }
+    final db = await SqliteService.getDatabase();
+    final rows = await db.rawQuery(
+      'SELECT rom_path, filename FROM user_roms WHERE app_system_id = ?',
+      [systemId],
+    );
+    final stored = <String, String>{
+      for (final row in rows)
+        row['rom_path'].toString(): row['filename'].toString(),
+    };
+    final names = XeniaFolderContent.libraryFileNames(
+      entries.map((entry) => entry.path),
+      stored: stored,
+    );
+    final storedByPath = <String, String>{
+      for (final entry in stored.entries) entry.key.toLowerCase(): entry.value,
+    };
+    final batch = db.batch();
+    var renamed = 0;
+    for (var index = 0; index < entries.length; index++) {
+      final entry = entries[index];
+      final name = names[entry.path];
+      if (name == null) continue;
+      if (name != entry.filename) {
+        entries[index] = RomEntry(
+          path: entry.path,
+          filename: name,
+          size: entry.size,
+        );
+      }
+      final previous = storedByPath[entry.path.toLowerCase()];
+      if (previous != null &&
+          previous.toLowerCase() == XeniaFolderContent.executableName) {
+        batch.rawUpdate(
+          'UPDATE user_roms SET filename = ? '
+          "WHERE app_system_id = ? AND rom_path = ? AND lower(filename) = 'default.xex'",
+          [name, systemId, entry.path],
+        );
+        renamed++;
+      }
+    }
+    if (renamed > 0) {
+      await batch.commit(noResult: true);
+      _log.i(
+        'XeniOS library: $renamed default.xex row(s) given their own name.',
+      );
+    }
   }
 
   /// Toggles the favorite status of a game.
@@ -572,7 +643,9 @@ class SqliteDatabaseService {
     final system = await SqliteService.getSystemByFolderName(systemFolderName);
     final systemId = system.id!;
     final isSwitch = systemId == 'switch' || systemId == 'nintendo-switch';
-    final isXbox360 = Platform.isIOS && systemId == 'xbox360';
+    final isXbox360 =
+        (Platform.isIOS || xeniaLibraryRulesForTesting) &&
+        systemId == 'xbox360';
     final isSwitch2 = Platform.isIOS && systemId == 'switch2';
 
     if (isSwitch) await SwitchTitleExtractor.loadKeys();

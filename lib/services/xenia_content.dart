@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 
 /// What a picked Xbox 360 file is, for the embedded XeniOS engine
@@ -676,6 +678,68 @@ abstract final class XeniaFolderContent {
       return path.basename(filePath).toLowerCase() == executableName;
     }
     return true;
+  }
+
+  /// Library file names of the scanned `default.xex` entries, by path.
+  ///
+  /// The `filename` column is a game's identity in RewindBox's database
+  /// (scraped metadata `UNIQUE(app_system_id, filename)`, media named after
+  /// it, favorites and history by `getSingleGame(system, filename)`), and
+  /// every title folder ends in `default.xex`. Each one gets `<folder>.xex`,
+  /// or `<folder> [<digest>].xex` (8 hex digits of its path) only when that
+  /// name is already taken by another entry of the scan or another stored
+  /// row. A name stored before, other than `default.xex`, is kept, so a
+  /// game never changes identity on a later scan. [stored] maps stored
+  /// `rom_path` to `filename` for the system (paths compared without case,
+  /// like the column).
+  static Map<String, String> libraryFileNames(
+    Iterable<String> scanned, {
+    Map<String, String> stored = const <String, String>{},
+  }) {
+    final storedByPath = <String, String>{
+      for (final entry in stored.entries) entry.key.toLowerCase(): entry.value,
+    };
+    final taken = <String>{
+      for (final name in stored.values)
+        if (name.toLowerCase() != executableName) name.toLowerCase(),
+    };
+    final executables = <String>[];
+    for (final location in scanned) {
+      if (path.basename(location).toLowerCase() == executableName) {
+        executables.add(location);
+      } else {
+        taken.add(path.basename(location).toLowerCase());
+      }
+    }
+    executables.sort();
+    final names = <String, String>{};
+    final unnamed = <String>[];
+    for (final location in executables) {
+      final kept = storedByPath[location.toLowerCase()];
+      if (kept != null && kept.toLowerCase() != executableName) {
+        names[location] = kept;
+        taken.add(kept.toLowerCase());
+      } else {
+        unnamed.add(location);
+      }
+    }
+    for (final location in unnamed) {
+      var folder = path.basename(path.dirname(location)).trim();
+      if (folder.isEmpty || folder == '.' || folder == path.separator) {
+        folder = 'Xbox 360 game';
+      }
+      var name = '$folder.xex';
+      if (taken.contains(name.toLowerCase())) {
+        final digest = sha1
+            .convert(utf8.encode(path.normalize(location).toLowerCase()))
+            .toString()
+            .substring(0, 8);
+        name = '$folder [$digest].xex';
+      }
+      taken.add(name.toLowerCase());
+      names[location] = name;
+    }
+    return names;
   }
 
   /// Name shown for a scanned entry: the title folder of a `default.xex`,
