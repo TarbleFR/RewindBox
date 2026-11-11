@@ -370,7 +370,7 @@
   },
   "compute-switch-bindings": {
    "report": "compute-switch-bindings-checks.json",
-   "sha256": "52cd3c6fae1a56f4b5a2db2344af668dff042c1c991fcdd1645f017a2e07c123",
+   "sha256": "45e41b689884a93e597e9890266294e987c89b9e99e61a8c3e00dc3386358c47",
    "checks": 25
   },
   "bgc-keepalive": {
@@ -521,7 +521,7 @@
  },
  "allGatesLocally": "91 gates: 90 in one local series on the final preparation (89 green; pipeline-checkpoint failed once in it, its fixture's removal of its temporary directory racing a write under three parallel gates, and passed five times run alone), then kernel-timer-allocations added as a rerun gate (the freeze requires it: its historical receipt declares KTimeManager.cs) and run alone",
  "contract": {
-  "sha256": "6a1152cb23c27d813e8edb474b65ea8e7237c31283951f21a85127b0dfa0dff4",
+  "sha256": "4e0ea3eab99cbc70c22a4c3e900ec70b059d33e33ad9f79f48224fa072baf3c3",
   "preparationInputs": 206,
   "preparedMembers": 211,
   "freshAppleGates": 91,
@@ -572,31 +572,24 @@
  "computeSwitchGate": {
   "cause": "the gate compared the milliseconds of two separate processes. Run 42958274015 (one round each, Core 731): control 204.2 ms, candidate 121.5 ms. Run 43009346249 (fastest of five rounds, the 11 November version): control 48.0 ms, candidate 139.8 ms: the control reached optimized code within its rounds and the candidate stayed at the speed of first-tier code (or of a slower processor) for all five; the engine sources of the two sides are those of Core 731, where the candidate is the faster",
   "engineUnchanged": "TextureManager.cs and TextureBindingsManager.cs are not touched by lot 12; preparation and engine are those of contract b2a748e7",
-  "gate": "both probes run without tiered compilation (every round executes the same optimized code); seven rounds of 50 000 pairs, each timed against a fixed arithmetic loop run just before it by the same process; the comparison is the median of round / loop (candidate below control), not milliseconds across processes; the fastest round is still reported",
+  "gate": "both probes run without tiered compilation (every round executes the same optimized code); seven rounds of 50 000 compute/graphics pairs, each timed against a reference round run just before it by the same process (50 000 pairs of graphics commits with no compute between them: the path the adapter leaves as it is, in the same classes); the comparison is the median of round / reference (candidate below control), not milliseconds across processes; the fastest round is still reported",
   "localRuns": [
    {
     "load": "none",
-    "control": 1.443,
-    "candidate": 1.094
-   },
-   {
-    "load": "none",
-    "control": 1.407,
-    "candidate": 1.084
+    "control": 3.956,
+    "candidate": 2.655,
+    "controlMinMs": 52.6,
+    "candidateMinMs": 30.4
    },
    {
     "load": "six busy loops",
-    "control": 1.584,
-    "candidate": 1.14,
-    "controlMinMs": 101.3,
-    "candidateMinMs": 63.8
-   },
-   {
-    "load": "six busy loops",
-    "control": 1.511,
-    "candidate": 0.951
+    "control": 3.959,
+    "candidate": 2.728,
+    "controlMinMs": 104.4,
+    "candidateMinMs": 30.6
    }
   ],
-  "note": "Linux, .NET 10.0.100; under load the milliseconds double and the ratios to the loop stay; not run on macOS yet"
+  "note": "Linux, .NET 10.0.100; under load the milliseconds double and the ratios to the loop stay; not run on macOS yet",
+  "firstReference": "a fixed arithmetic loop was tried first as the reference (four runs: control 1.41 to 1.58, candidate 0.95 to 1.14) and replaced: engine code of the same kind follows the processor the same way as the timed rounds"
  }
 }
