@@ -184,7 +184,7 @@ A step with `begin` and no result is the step that ended the process.
 
 ## Step 3 — first device run (IPA 801, 11 Nov, observed)
 
-Input: IPA 801 (SHA-256 `0b277b25…a6ab`, receipt `docs/evidence/rewind801/`), installed by the
+Input: IPA 801 (SHA-256 `0b277b25…a6ab`, receipt `docs/evidence/s2arm/rewind801/`), installed by the
 maintainer, one Switch game launched first; journal `MeloNX-launch.log` received in this session
 (not committed: raw private journal). Session pid 52831, 09:27:40 UTC; MeloNX's own `jitProbe`
 passed just before the hook, flags 0x0, footprint 480.9 MiB at phase 1.

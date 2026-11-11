@@ -4227,7 +4227,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   flutter and native fresh (incl. legal-review negative controls). IPA 272237184 bytes, SHA-256
   `0b277b25…a6ab`, 90 images, `com.neogamelab.neostation`, version 0.0.8 (801),
   `RewindBoxS2ArmProbe` = true, `RewindBoxS2ArmProbeMapped` absent. Verified offline after
-  download (`docs/evidence/rewind801/`); private key deleted. First request (run 42985983425)
+  download (`docs/evidence/s2arm/rewind801/`); private key deleted. First request (run 42985983425)
   stopped on the common StikJIT cold-cache test; main's fix `24a8246f` is a reviewed change.
 - **Content:** base 724 with the classification of the frozen 725 manifest; effective tree =
   725's plus the probe files, `pubspec.yaml`, the source declaration review and that test fix.
