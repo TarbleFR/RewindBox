@@ -33,7 +33,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-import yaml
+try:
+    import yaml  # PyYAML, where it is installed: the two readings of the canary file are compared
+except ImportError:  # the Apple host runner's Python has no PyYAML (Core 932 request 1, run 43068680664)
+    yaml = None
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ROOT / 'test/rpcs3_lot932/harness.cpp'
@@ -51,6 +54,164 @@ KILLZONE3 = {('PPU-ae204e2198c9a051a44a69913c48f6591b811082', 'Disable MLAA(Post
              ('PPU-4836b8e74c47919f50b030ee6b47d96bc7305387', 'Disable MLAA (Post-processing on SPU)')}
 BO2 = ('BLES01717', 'BLES01718', 'BLES01719', 'BLES01720', 'BLUS31011', 'BLUS31140')
 PATCH_TYPES = {'be32', 'be16', 'byte', 'bef32', 'calloc', 'jump', 'jumpf', 'jumpl'}
+
+
+# The canary file is read without PyYAML by the subset of YAML it is written in (block mappings and sequences, flow
+# sequences of scalars, quoted and plain scalars, comments), giving raw scalars as yaml-cpp's Scalar() does. Where
+# PyYAML is installed the two readings must be identical, so the check is the same on every host.
+class YamlMap(list):
+    """A YAML mapping as (key, value) pairs in file order."""
+
+
+class YamlYamlSubsetError(ValueError):
+    pass
+
+
+def _strip_comment(line: str) -> str:
+    quote = None
+    for i, c in enumerate(line):
+        if quote:
+            if c == '\\' and quote == '"':
+                continue
+            if c == quote:
+                quote = None
+        elif c in '"\'':
+            quote = c
+        elif c == '#' and (i == 0 or line[i - 1] in ' \t'):
+            return line[:i].rstrip()
+    if quote:
+        raise YamlSubsetError('unterminated quote: ' + line)
+    return line.rstrip()
+
+
+def _scalar(text: str) -> str:
+    text = text.strip()
+    if len(text) >= 2 and text[0] == text[-1] == '"':
+        body = text[1:-1]
+        if re.search(r'\\[^"\\]', body):
+            raise YamlSubsetError('escape outside the subset: ' + text)
+        return body.replace('\\"', '"').replace('\\\\', '\\')
+    if len(text) >= 2 and text[0] == text[-1] == "'":
+        return text[1:-1].replace("''", "'")
+    if text[:1] in '[{&*!|>%@`' or text.startswith('- '):
+        raise YamlSubsetError('construct outside the subset: ' + text)
+    return text
+
+
+def _split_key(text: str):
+    """'key: value' or 'key:' outside quotes; None when the line is not a mapping entry."""
+    quote = None
+    for i, c in enumerate(text):
+        if quote:
+            if c == quote:
+                quote = None
+        elif c in '"\'':
+            quote = c
+        elif c == ':' and (i + 1 == len(text) or text[i + 1] == ' '):
+            return _scalar(text[:i]), text[i + 1:].strip()
+    return None
+
+
+def _flow(text: str) -> list:
+    if not (text.startswith('[') and text.endswith(']')):
+        raise YamlSubsetError('flow sequence expected: ' + text)
+    items, quote, current = [], None, ''
+    for c in text[1:-1]:
+        if quote:
+            current += c
+            if c == quote:
+                quote = None
+        elif c in '"\'':
+            quote = c
+            current += c
+        elif c == ',':
+            items.append(_scalar(current))
+            current = ''
+        elif c in '[]{}':
+            raise YamlSubsetError('nested flow collection: ' + text)
+        else:
+            current += c
+    if current.strip():
+        items.append(_scalar(current))
+    return items
+
+
+def yaml_subset_load(text: str):
+    lines = []
+    for raw in text.split('\n'):
+        if '\t' in raw[:len(raw) - len(raw.lstrip())]:
+            raise YamlSubsetError('tab indentation')
+        body = _strip_comment(raw)
+        if body.strip():
+            lines.append((len(body) - len(body.lstrip(' ')), body.strip()))
+    position = 0
+
+    def block(indent: int):
+        nonlocal position
+        first_indent, first = lines[position]
+        if first.startswith('- ') or first == '-':
+            sequence = []
+            while position < len(lines) and lines[position][0] == first_indent and lines[position][1].startswith('-'):
+                item = lines[position][1][1:].strip()
+                position += 1
+                if not item:
+                    raise YamlSubsetError('nested block in a sequence')
+                if _split_key(item) is not None and not item.startswith(('"', "'")):
+                    raise YamlSubsetError('mapping in a sequence: ' + item)
+                sequence.append(_flow(item) if item.startswith('[') else _scalar(item))
+            return sequence
+        mapping = YamlMap()
+        while position < len(lines) and lines[position][0] == first_indent:
+            entry = _split_key(lines[position][1])
+            if entry is None:
+                raise YamlSubsetError('mapping entry expected: ' + lines[position][1])
+            key, value = entry
+            position += 1
+            if value:
+                mapping.append((key, _flow(value) if value.startswith('[') else _scalar(value)))
+            elif position < len(lines) and lines[position][0] > first_indent:
+                mapping.append((key, block(lines[position][0])))
+            elif position < len(lines) and lines[position][0] == first_indent and lines[position][1].startswith('-'):
+                mapping.append((key, block(first_indent)))  # a sequence at the key's own indentation
+            else:
+                mapping.append((key, None))
+        if position < len(lines) and lines[position][0] > first_indent:
+            raise YamlSubsetError('unexpected indentation: ' + lines[position][1])
+        return mapping
+
+    if not lines:
+        return YamlMap()
+    tree = block(lines[0][0])
+    if position != len(lines):
+        raise YamlSubsetError('trailing content: ' + lines[position][1])
+    return tree
+
+
+def yaml_tree_from_pyyaml(node, yaml):
+    if isinstance(node, yaml.MappingNode):
+        return YamlMap((key.value, yaml_tree_from_pyyaml(value, yaml)) for key, value in node.value)
+    if isinstance(node, yaml.SequenceNode):
+        return [yaml_tree_from_pyyaml(value, yaml) for value in node.value]
+    return node.value
+
+
+def canary_tree(text: str) -> YamlMap:
+    tree = yaml_subset_load(text)
+    if yaml is not None and yaml_tree_from_pyyaml(yaml.compose(text), yaml) != tree:
+        raise YamlSubsetError('the subset reader and PyYAML read the canary file differently')
+    return tree
+
+
+def as_plain(node):
+    """Mappings as dicts (their keys are unique in the canary file), for lookups."""
+    if isinstance(node, YamlMap):
+        return {key: as_plain(value) for key, value in node}
+    if isinstance(node, list):
+        return [as_plain(value) for value in node]
+    return node
+
+
+YAML_READERS = ['subset'] + (['pyyaml'] if yaml is not None else [])
 
 
 def read(source: Path, rel: str) -> str:
@@ -76,33 +237,33 @@ def canary_errors(header: str) -> list[str]:
         errors.append('canary: the embedded file is not the recorded ARMSX3 21863 file')
     if f'yaml_sha256 = "{CANARY_SHA256}"' not in header or f'yaml_bytes = {len(raw)};' not in header:
         errors.append('canary: recorded identity constants differ')
-    root = yaml.compose(text)  # raw scalars, as yaml-cpp's Scalar() reads them
+    root = canary_tree(text)  # raw scalars, as yaml-cpp's Scalar() reads them
     entries = []
-    for key, value in root.value:
-        if key.value == 'Version':
-            if value.value != '1.2':
+    for key, value in root:
+        if key == 'Version':
+            if value != '1.2':
                 errors.append('canary: not patch engine 1.2')
             continue
-        if not re.fullmatch(r'(PPU|SPU)-[0-9a-f]{40}', key.value):
-            errors.append('canary: bad hash key ' + key.value)
-        for description, patch in value.value:
-            entries.append((key.value, description.value))
-            fields = {k.value: v for k, v in patch.value}
+        if not re.fullmatch(r'(PPU|SPU)-[0-9a-f]{40}', key):
+            errors.append('canary: bad hash key ' + key)
+        for description, patch in value:
+            entries.append((key, description))
+            fields = dict(patch)
             games = fields.get('Games')
-            if games is None or not isinstance(games, yaml.MappingNode):
-                errors.append(f'canary: {description.value}: no Games map')
+            if games is None or not isinstance(games, YamlMap):
+                errors.append(f'canary: {description}: no Games map')
                 continue
-            for title, serials in games.value:
-                for serial, versions in serials.value:
-                    if not re.fullmatch(r'[A-Z0-9]{9}', serial.value):
-                        errors.append(f'canary: {description.value}: serial {serial.value}')
-                    for version in versions.value:
-                        if version.value != 'All' and not re.fullmatch(r'[0-9]{2}\.[0-9]{2}', version.value):
-                            errors.append(f'canary: {description.value}: version {version.value}')
-            for item in fields['Patch'].value:
-                kind = item.value[0].value
+            for title, serials in games:
+                for serial, versions in serials:
+                    if not re.fullmatch(r'[A-Z0-9]{9}', serial):
+                        errors.append(f'canary: {description}: serial {serial}')
+                    for version in versions:
+                        if version != 'All' and not re.fullmatch(r'[0-9]{2}\.[0-9]{2}', version):
+                            errors.append(f'canary: {description}: version {version}')
+            for item in fields['Patch']:
+                kind = item[0]
                 if kind not in PATCH_TYPES:
-                    errors.append(f'canary: {description.value}: patch type {kind}')
+                    errors.append(f'canary: {description}: patch type {kind}')
     on, left = set(table(header, 'default_on_entries')), set(table(header, 'left_off_entries'))
     expected_left = OFF | {e for e in entries if e[0] == 'PPU-5af0f0d7824157a0aace48f5d0b06f6efe02fe4e'}
     if left != expected_left or len(left) != 7:
@@ -188,7 +349,7 @@ def database_errors(header: str) -> list[str]:
     """The premises of the relief rules and of the variants, read in the database the Core receives."""
     errors = []
     games = json.loads((ROOT / 'assets/data/rpcs3_ios_profiles.json').read_text())['games']
-    root = yaml.safe_load(embedded_yaml(header).replace('\t', '  '))
+    root = as_plain(canary_tree(embedded_yaml(header)))
     gt6_serials = set()
     for hash_, patches in root.items():
         if not isinstance(patches, dict):
