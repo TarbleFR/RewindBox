@@ -179,9 +179,16 @@ void main() {
   });
 
   test('the two systems fixed on this branch resolve to a single default', () {
-    // Regression pins for the pair found on the AYN Thor.
+    // Regression pins for the pair found on the AYN Thor (Android). The seed
+    // resolves one default per OS (the first flagged entry wins the OS), so
+    // the Xbox 360 pins read the entries of each OS: since the XeniOS playlist
+    // the system also has its iOS default, as PS3 and PS2 do.
     final switchSystem = systems.firstWhere((s) => s.name == 'switch.json');
     final xbox360 = systems.firstWhere((s) => s.name == 'xbox360.json');
+    Iterable<String> defaultsOn(_SeedSystem system, String os) => system
+        .emulators
+        .where((e) => e.isDefaultStandalone && e.platforms.containsKey(os))
+        .map((e) => e.uniqueId);
 
     expect(
       switchSystem.emulators
@@ -189,12 +196,8 @@ void main() {
           .map((e) => e.uniqueId),
       ['switch.dev.eden.eden_emulator'],
     );
-    expect(
-      xbox360.emulators
-          .where((e) => e.isDefaultStandalone)
-          .map((e) => e.uniqueId),
-      ['xbox360.aenu.ax360e.free'],
-    );
+    expect(defaultsOn(xbox360, 'android'), ['xbox360.aenu.ax360e.free']);
+    expect(defaultsOn(xbox360, 'ios'), ['xbox360.ios.xenios']);
   });
 }
 

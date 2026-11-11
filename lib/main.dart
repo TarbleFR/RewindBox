@@ -556,9 +556,7 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(
-    initLang.isNotEmpty ? initLang : 'en',
-  );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
   // Where the saved in-game sign-in was found at each read (Keychain, the
   // private copy, or none): codes only, into the app log.
   RetroAchievementsNativeClient.diagnostics = log.i;
@@ -922,9 +920,7 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
-  await AchievementTranslationClient.shared.setLanguage(
-    initLang.isNotEmpty ? initLang : 'en',
-  );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }
