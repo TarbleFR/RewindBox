@@ -68,6 +68,14 @@ jobs:
           set -euo pipefail
           command -v rg > /dev/null || brew install ripgrep
           rg --version | head -1 | tee -a proof/inputs.txt
+          # GNU timeout only (services/nxaot.sh calls it); the BSD tools stay first on PATH.
+          if ! command -v timeout > /dev/null; then
+            brew list coreutils > /dev/null 2>&1 || brew install coreutils
+            mkdir -p "$RUNNER_TEMP/shim"
+            ln -sf "$(command -v gtimeout)" "$RUNNER_TEMP/shim/timeout"
+            echo "$RUNNER_TEMP/shim" >> "$GITHUB_PATH"
+          fi
+          "$RUNNER_TEMP/shim/timeout" --version 2>/dev/null | head -1 | tee -a proof/inputs.txt || timeout --version | head -1 | tee -a proof/inputs.txt
       - name: Build S2Arm's iOS engine with no game (make ios)
         working-directory: ${{ runner.temp }}/s2arm
         env:
