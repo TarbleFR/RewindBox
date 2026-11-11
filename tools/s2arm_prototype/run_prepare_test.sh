@@ -26,10 +26,10 @@ check "five tables per module and main.npdm are present" '[ "$(ls "$work/out" | 
 check "rtld and main.moduleconfig are left alone" '! ls "$work/out" | grep -q "^rtld\|moduleconfig"'
 
 expect() { # label, expected exit, exefs dir, [cancel-after]
-  rm -rf "$work/neg"; mkdir -p "$work/neg"
+  want=$2; rm -rf "$work/neg"; mkdir -p "$work/neg"
   "$cli" rewrite "$3" "$work/neg" ${4:-} > "$work/neg.log" 2>&1; got=$?
   tail -1 "$work/neg.log"
-  check "$1 (exit $got, expected $2)" '[ "$got" = "$2" ]'
+  check "$1 (exit $got, expected $want)" '[ "$got" = "$want" ]'
 }
 cp -R "$work/exefs" "$work/nomain"; rm "$work/nomain/main"
 expect "missing main is refused" 1 "$work/nomain"
