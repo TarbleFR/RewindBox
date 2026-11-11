@@ -190,7 +190,8 @@ check(all(name not in hot for name in ('fps(', 'audio(', 'memory(', 'presentatio
 HOT = {name: float(value) for name, value in re.findall(r'\b(rounds|maxThreads|maxFrames|maxSlow|maxBase|minSecond|gapSeconds|streak|slowBelow|baseFrom|'
                                                          r'selfPlaces|stackPlaces|waitPlaces) = ([\d.]+)', hot)}
 check(HOT == dict(rounds=300, maxThreads=6, maxFrames=6, maxSlow=4, maxBase=2, minSecond=40, gapSeconds=20, streak=3, slowBelow=26, baseFrom=28.5,
-                  selfPlaces=20, stackPlaces=28, waitPlaces=12) and 'static let periodMicroseconds: UInt32 = 10_000' in hot, 'profile bounds: ' + str(HOT))
+                  selfPlaces=32, stackPlaces=48, waitPlaces=12) and 'static let periodMicroseconds: UInt32 = 10_000' in hot and
+      'static let selfBlockBytes: UInt64 = 64' in hot, 'profile bounds: ' + str(HOT))
 check(hot.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:MeloNXPerfJournal.fileLimit)' in hot and 'open(' not in hot and
       'index == 0 ? MeloNXStdioCapture.contextualLine(text, context:context) : text' in hot, 'profiles written through the shared writer, the header with the context')
 check(hot.count('mach_port_deallocate(mach_task_self_, list[index])') == 1 and hot.count('vm_deallocate(mach_task_self_') == 1 and
@@ -511,6 +512,7 @@ exit(0)
         # Hot spots: the spinner is found running, in the program's own code; the waiter waiting, under libdispatch;
         # a thread that does not exist is only missed; every list is bounded.
         hot_lines = [line.removeprefix('HOT ') for line in result.stdout.splitlines() if line.startswith('HOT ')]
+        print('\n'.join(line[:700] for line in hot_lines), flush=True)
         check(len(hot_lines) == 4 and re.fullmatch(r'#1 slow t=42 fps=19\.5 80 samples in \d+ ms, 3 threads', hot_lines[0]), hot_lines[:1])
         rows = {}
         for line in hot_lines[1:]:
@@ -520,17 +522,20 @@ exit(0)
                                       **{key: [] if row.group(index) == '-' else [(entry.rsplit(':', 1)[0], int(entry.rsplit(':', 1)[1])) for entry in row.group(index).split(',')]
                                          for key, index in (('own', 6), ('stack', 7), ('waiting', 8))})
         spinner_row, waiter_row, gone = rows['Stall_Spinner'], rows['Stall_Waiter'], rows['gone']
+        # The spinner (an unoptimised loop that calls into the Swift runtime): found running; its samples are under a
+        # call site of the program (the thread's closure), whatever library the program counter is in (macOS run
+        # 42994146430: 68 of 80 under stall+0xdd4c, the program counters spread over libswiftCore).
         check(spinner_row['run'] >= 60 and spinner_row['missed'] == 0 and spinner_row['run'] + spinner_row['wait'] == 80 and
-              sum(count for place, count in spinner_row['own'] if place.startswith('stall+0x')) >= spinner_row['run'] // 2 and
+              max(count for place, count in spinner_row['stack'] if place.startswith('stall+0x')) >= spinner_row['run'] // 2 and
               sum(count for _, count in spinner_row['own']) <= spinner_row['run'] and
-              all(count <= spinner_row['run'] for _, count in spinner_row['stack']) and any(place.startswith('stall+0x') for place, _ in spinner_row['stack']),
-              'the spinner: running, in the program\'s own code: ' + hot_lines[1])
+              all(count <= spinner_row['run'] for _, count in spinner_row['stack']),
+              'the spinner: running, under the program\'s own call site: ' + hot_lines[1][:600])
         check(waiter_row['wait'] >= 70 and waiter_row['missed'] == 0 and any(place.startswith('libdispatch.dylib+0x') for place, _ in waiter_row['waiting']) and
               not any(place.startswith(('libsystem_kernel.dylib+', 'libsystem_pthread.dylib+')) for place, _ in waiter_row['waiting']) and
-              all(count <= waiter_row['wait'] for _, count in waiter_row['waiting']), 'the waiter: waiting under libdispatch: ' + hot_lines[2])
+              all(count <= waiter_row['wait'] for _, count in waiter_row['waiting']), 'the waiter: waiting under libdispatch: ' + hot_lines[2][:600])
         check(gone == dict(run=0, wait=0, missed=80, own=[], stack=[], waiting=[]), 'a thread that does not exist: ' + hot_lines[3])
-        check(all(len(row['own']) <= 20 and len(row['stack']) <= 28 and len(row['waiting']) <= 12 for row in rows.values()) and
-              all(len(line) < 4096 for line in hot_lines), 'bounded lists')
+        check(all(len(row['own']) <= 32 and len(row['stack']) <= 48 and len(row['waiting']) <= 12 for row in rows.values()) and
+              all(len(line) < 6144 for line in hot_lines), 'bounded lists')
 
         # Memory breakdown: 96 MiB tagged app-specific 3 (64 MiB written) and 32 MiB of shared memory tagged
         # app-specific 4, written and mapped twice more without a tag (mach_vm_remap takes none): one object, counted

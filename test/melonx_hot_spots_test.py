@@ -7,6 +7,7 @@ samples), by image without a map, and the text and JSON reports agree.
 """
 import gzip
 import json
+import struct
 from pathlib import Path
 import subprocess
 import sys
@@ -56,6 +57,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-hot-spots-') as directory:
         out.write('0000000000000040 a CurrentEntry\n0000000000001000 t _CommitBindings\n0000000000002000 t _UpdateState\n'
                   '0000000000003000 t _Dispatch\n0000000000004000 t _WaitForCommands\n0000000000005000 d _data\n')
 
+    # A thin arm64 Mach-O image with one segment at address 0x1000: `bl` to 0x1000 (_CommitBindings) before the return
+    # address 0x3004, an indirect call (blr x8) before 0x3010.
+    code = bytearray(0x4000)
+    struct.pack_into('<I', code, 0x3000 - 0x1000, 0x94000000 | (((0x1000 - 0x3000) // 4) & 0x3FFFFFF))
+    struct.pack_into('<I', code, 0x300C - 0x1000, 0xD63F0100)
+    segment = struct.pack('<II16sQQQQIIII', 0x19, 72, b'__TEXT', 0x1000, len(code), 4096, len(code), 5, 5, 0, 0)
+    binary = Path(directory) / 'Ryujinx.Library.dylib'
+    binary.write_bytes((struct.pack('<IiiIIIII', 0xFEEDFACF, 0x0100000C, 0, 6, 1, len(segment), 0, 0) + segment).ljust(4096, b'\0') + bytes(code))
+
     named = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--symbols', str(symbols), '--json'], capture_output=True, text=True)
     check(named.returncode == 0, named.stderr[-400:])
     report = json.loads(named.stdout)
@@ -71,6 +81,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-hot-spots-') as directory:
     check(gpu['waitingPlaces'] == [['_Dispatch', 60], ['_WaitForCommands', 60]], 'what the thread waits in: ' + json.dumps(gpu['waitingPlaces']))
     check(main['selfByImage'] == [['jit', 120], ['MeloNXCore', 30]] and main['runningPercent'] == 50.0 and main['selfFunctions'] == [['_UpdateState', 30]],
           'a guest thread: translated code and the engine: ' + json.dumps(main))
+    check(gpu['calls'] is None, 'without the binary no callee is named')
+    with_binary = json.loads(subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--symbols', str(symbols), '--binary', str(binary), '--json'],
+                                            capture_output=True, text=True).stdout)
+    check(with_binary['profiles'][0]['threads'][0]['calls'] ==
+          [['_Dispatch', '_CommitBindings', 240], ['_Dispatch', 'an indirect call', 200], ['_CommitBindings', 'an indirect call', 100],
+           ['_UpdateState', 'an indirect call', 50]],
+          'with the binary a direct call names its callee: ' + json.dumps(with_binary['profiles'][0]['threads'][0]['calls']))
     gone = report['profiles'][1]['threads'][1]
     check(gone['run'] == 0 and gone['missed'] == 300 and gone['runningPercent'] is None and gone['selfFunctions'] == [], 'a thread that ended: nothing invented')
 

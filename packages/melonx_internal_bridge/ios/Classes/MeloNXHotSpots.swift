@@ -12,9 +12,12 @@ import Darwin
 // that never calls the engine and suspends nothing (thread_get_state stops a running thread for the read only, in the
 // kernel): the kernel run state, the program counter and up to six frame-pointer return addresses. Then, per thread:
 //   run= wait=  samples found running or runnable / waiting (missed= reads that failed: a thread that ended)
-//   self=       where the program counter was, running samples only: place:samples, the 20 most frequent
-//   stack=      places present anywhere in a running sample (counted once per sample): the 28 most frequent; a
-//               caller's count includes its callees'
+//   self=       where the program counter was, running samples only: place:samples, the 32 most frequent; program
+//               counters within the same 64 bytes of an image are counted together, under the first one read (an
+//               exact address per instruction spreads a hot function over dozens of entries of one sample each)
+//   stack=      the return addresses present in a running sample (each counted once per sample): the 48 most frequent.
+//               A return address is a call site: its count is the time spent in what that site called, callees
+//               included, and it names both the caller (the function it is in) and, for a direct call, the callee
 //   waiting=    the same for the waiting samples (the kernel's and pthread's own frames left out): the 12 most frequent
 // A place is image+offset (the library file's name), "jit" for executable anonymous memory (translated guest code, all
 // addresses together) or "anon". Offsets inside the engine read with the Core artifact's symbol map
@@ -26,7 +29,8 @@ final class MeloNXHotSpots {
     static let maxSlow = 4, maxBase = 2
     static let minSecond = 40, gapSeconds = 20, streak = 3
     static let slowBelow = 26.0, baseFrom = 28.5
-    static let selfPlaces = 20, stackPlaces = 28, waitPlaces = 12
+    static let selfPlaces = 32, stackPlaces = 48, waitPlaces = 12
+    static let selfBlockBytes: UInt64 = 64
 
     struct Target { let id: UInt64; let name: String; let priority: Int32 }
     struct Request { let number: Int; let kind: String; let second: Int; let fps: Double; let targets: [Target] }
@@ -151,6 +155,14 @@ final class MeloNXHotSpots {
             let place = MeloNXStallWatch.place(address, &cache)
             return place.hasPrefix("jit:") ? "jit" : place.hasPrefix("anon:") ? "anon" : place
         }
+        // Program counters of one 64-byte block are named after the first one read in it.
+        var blocks: [UInt64: UInt64] = [:]
+        func block(_ address: UInt64) -> String {
+            let key = address / selfBlockBytes
+            if let first = blocks[key] { return name(first) }
+            blocks[key] = address
+            return name(address)
+        }
         func top(_ counts: [String: Int], _ limit: Int) -> String {
             let ordered = counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.prefix(limit)
             return ordered.isEmpty ? "-" : ordered.map { "\($0.key):\($0.value)" }.joined(separator:",")
@@ -161,14 +173,14 @@ final class MeloNXHotSpots {
             var own: [String: Int] = [:], stack: [String: Int] = [:], waiting: [String: Int] = [:]
             var run = 0, wait = 0
             for sample in samples[index] {
-                let names = sample.addresses.map(name)
+                let callers = Set(sample.addresses.dropFirst().map(name))
                 if sample.running {
                     run += 1
-                    own[names[0], default:0] += 1
-                    for place in Set(names) { stack[place, default:0] += 1 }
+                    own[block(sample.addresses[0]), default:0] += 1
+                    for place in callers { stack[place, default:0] += 1 }
                 } else {
                     wait += 1
-                    for place in Set(names) where !place.hasPrefix("libsystem_kernel.dylib+") && !place.hasPrefix("libsystem_pthread.dylib+") {
+                    for place in callers where !place.hasPrefix("libsystem_kernel.dylib+") && !place.hasPrefix("libsystem_pthread.dylib+") {
                         waiting[place, default:0] += 1
                     }
                 }
