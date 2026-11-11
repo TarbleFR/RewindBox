@@ -13,6 +13,7 @@ name: S2Arm engine (iOS) build check
     paths:
       - .github/workflows/s2arm-engine.yml
       - build-utils/s2arm/engine/**
+      - build-utils/embed_legal_bundle.py
       - tools/s2arm_prototype/pin.json
 permissions:
   contents: read
@@ -215,9 +216,23 @@ jobs:
           shipped=$(cat "$fw/S2ArmDirectChain.txt" 2>/dev/null | tr -d '\n')
           if [ -n "$chain" ] && [ "$shipped" = "$chain" ]; then note "ok   S2ArmDirectChain.txt $shipped"; else note "FAIL S2ArmDirectChain.txt '$shipped', expected DMSH_CHAIN '$chain'"; status=1; fi
           exit $status
+      - name: Collect the engine's licence and notice texts from its pinned sources
+        # For the legal bundle of the test IPA (Legal/S2Arm, docs/s2arm-legal-notices.md): S2Arm's LICENSE, NOTICE and
+        # THIRD_PARTY_LICENSES.md and the licence texts of the third parties that reach the iPhone, read from the pinned
+        # commit (git objects, not the patched tree), from the source archives this build fetched (checked against the
+        # SHA-256 their S2Arm build scripts pin) and from the .NET packs its NativeAOT compilation restored (checked
+        # against NuGet's SHA-512), with RewindBox's notice; license-sources.json lists each with its origin and SHA-256.
+        # Nothing is copied by hand; the result passes the legal gate's own rule (embed_legal_bundle.py).
+        run: |
+          set -euo pipefail
+          python3 -B build-utils/s2arm/engine/collect_licenses.py --s2arm "$RUNNER_TEMP/s2arm" \
+            --sources "$RUNNER_TEMP/s2arm-build-cache/sources" --nuget "$RUNNER_TEMP/nuget" \
+            --out "$RUNNER_TEMP/s2arm-engine-licenses"
+          cp "$RUNNER_TEMP/s2arm-engine-licenses/license-sources.json" proof/engine-license-sources.json
       - name: Package the guest frameworks for RewindBox's delivery (macos-26 only)
         # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
-        # (ditto -c -k --keepParent, symlinks kept) and s2arm-engine-identity.json, uploaded below as s2arm-engine-framework-<sha>.
+        # (ditto -c -k --keepParent, symlinks kept), the collected licences/ (license-sources.json and its texts) and
+        # s2arm-engine-identity.json, which records the licences' manifest, uploaded below as s2arm-engine-framework-<sha>.
         if: success() && matrix.os == 'macos-26'
         working-directory: ${{ runner.temp }}/s2arm
         shell: bash --noprofile --norc {0}
@@ -233,6 +248,7 @@ jobs:
             test -f "build/ios/$fw.framework/$fw"
             ditto -c -k --keepParent "build/ios/$fw.framework" "$out/$fw.framework.zip"
           done
+          cp -R "$RUNNER_TEMP/s2arm-engine-licenses" "$out/licenses"
           xcode=$(xcodebuild -version | sed -n 1p)
           test -n "$xcode"
           grep '^patch ' "$GITHUB_WORKSPACE/proof/inputs.txt" > "$RUNNER_TEMP/applied-patches.txt"   # name and SHA-256, in the order applied
@@ -261,8 +277,12 @@ jobs:
               files[name + '.framework.zip'] = sha256(zpath)
               print(f'{name}.framework.zip: {os.path.getsize(zpath)} bytes, {len(entries)} entries, {links} symlinks, AppleDouble/__MACOSX entries {len(extra)}')
           patches = [{'name': n, 'sha256': h} for _, n, h in (line.split() for line in open(applied) if line.strip())]
+          licenses = os.path.join(out, 'licenses')
+          texts = sum(len(names) for _, _, names in os.walk(licenses))
           identity = {'run': int(os.environ['RUN_ID']), 'attempt': int(os.environ['RUN_ATTEMPT']), 'head_sha': os.environ['HEAD_SHA'],
-                      's2arm_commit': json.load(open(pin_file))['s2arm']['commit'], 'xcode': xcode, 'patches': patches, 'files': files}
+                      's2arm_commit': json.load(open(pin_file))['s2arm']['commit'], 'xcode': xcode, 'patches': patches, 'files': files,
+                      'licenses': {'manifest': 'licenses/license-sources.json',
+                                   'sha256': sha256(os.path.join(licenses, 'license-sources.json')), 'files': texts}}
           with open(os.path.join(out, 's2arm-engine-identity.json'), 'w') as f:
               json.dump(identity, f, indent=2)
               f.write('\n')

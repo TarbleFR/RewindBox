@@ -1,0 +1,25 @@
+RewindBox: notice for the S2Arm engine (Switch 2 private test IPA)
+
+This application embeds the S2Arm engine (S2ArmEngine.framework and NS2Pro.framework), built in continuous
+integration from S2Arm, https://github.com/jhaizhou-ops/S2Arm, at the commit named in license-sources.json beside
+this file. S2Arm is Copyright 2026 S2Arm contributors and is licensed under the Apache License, Version 2.0: the
+licence is S2Arm/LICENSE, and the contents of S2Arm's NOTICE file are in S2Arm/NOTICE.
+
+RewindBox changed S2Arm to host its engine in this application: the patch series build-utils/s2arm/engine/patches of
+the RewindBox repository (https://github.com/TarbleFR/RewindBox), applied to that commit, each change marked
+"RewindBox" in comments. The name and SHA-256 of every patch are recorded in S2Arm-native-identity.json at the root of
+the application. The preparation library linked into the application (S2ArmPrepare.xcframework: S2Arm's rewriter,
+with Capstone and LZ4) and RewindBox's C ports of S2Arm tools are built from the same commit.
+
+The engine also contains third-party code; S2Arm's own table of it is S2Arm/THIRD_PARTY_LICENSES.md. The exact
+licence and notice texts of the components that reach this application are in the folders beside this file. Each is
+listed in license-sources.json with its origin (a file of that S2Arm commit, a source archive the engine build fetched
+and checked by SHA-256, or a .NET package of its ahead-of-time compilation) and its SHA-256.
+
+No Nintendo data ships with the S2Arm engine in this application: no system file, firmware, key, font or game content of a console. Its system data (S2ArmSystemData) is only fonts under the SIL Open Font License, the IANA time zone database and empty system data synthesised by S2Arm's generator.
+
+The fonts are Noto Sans and Noto Sans CJK, converted by S2Arm's generator into the shared-font format and file names
+the engine reads; the time zone data is compiled from an IANA release; the other system data are empty, well-formed
+structures written by S2Arm. Their licence texts and provenance are inside S2ArmSystemData (licenses/, SOURCES.tsv).
+No game, key or other protected content is in this application: games are exported by the player from their own
+console.
