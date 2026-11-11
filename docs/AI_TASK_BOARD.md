@@ -2095,7 +2095,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           b2a748e7, FRESH_GATES 91 in both verifiers; dma contract test 419 checks (current contract verified), reads 440,
           arrays 545, hot spots 14, perf journal 52, frame budget 12; RPCS3 Core 929 source closure unchanged. Liveness, gpu,
           performance and guard contract tests fail identically before the merge (superseded). Core build dispatched:
-          melonx-core.yml run 42999377576 on e747321a; then component verification and pin. Not run on an iPhone.
+          melonx-core.yml run 42999377576 on e747321a. **Failed** at the new gate host-thread-class (job 130451413290,
+          macos-26): "FAILED: macOS: the thread is in the user-interactive class after the call: {... \"value\": false,
+          \"requests\": [], \"applePlatform\": true, \"classBefore\": 0, \"classAfter\": 0}" (test line 224); the two gates
+          before it passed. Not pinned, not rerun (deterministic); Core 731 fa54e14a stays pinned. Reported to the MeloNX
+          session for a corrected head. Not run on an iPhone.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
