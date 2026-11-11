@@ -425,6 +425,19 @@ class ScreenScraperService {
         } catch (_) {}
       }
 
+      // Switch 2 exports are looked up by the NACP title only: the rom name
+      // is `main`, a hash would be of main.npdm, and the title id is not a
+      // ScreenScraper serial (docs/s2arm-switch2-library.md § Scraping).
+      final isSwitch2 = targetAppSystemId == 'switch2';
+      if (isSwitch2 && (gameName?.trim().isEmpty ?? true)) {
+        _log.w('Scraper: Switch 2 row without a title is not looked up');
+        return null;
+      }
+      if (isSwitch2) {
+        serialNumber = null;
+        md5 = null;
+      }
+
       final cleanRomName = await ScreenscraperRomHasher.getCleanRomName(
         gameName ?? romName,
         targetAppSystemId,
@@ -787,7 +800,10 @@ class ScreenScraperService {
           appSystemId: appSystemId,
           maxDailyRequests: 0,
           gameName:
-              (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
+              (systemFolder == 'android' ||
+                  isMeloNxVirtual ||
+                  isRpcs3Virtual ||
+                  systemFolder == 'switch2')
               ? effectiveGameName
               : null,
           serialNumber: isRpcs3Virtual ? serialNumber : null,
@@ -935,7 +951,10 @@ class ScreenScraperService {
           appSystemId: appSystemId,
           maxDailyRequests: 0,
           gameName:
-              (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
+              (systemFolder == 'android' ||
+                  isMeloNxVirtual ||
+                  isRpcs3Virtual ||
+                  systemFolder == 'switch2')
               ? gameName : null,
           serialNumber: isRpcs3Virtual ? serialNumber : null,
         );
@@ -1325,7 +1344,7 @@ class ScreenScraperService {
             effectiveTitleName;
       }
       final displayName =
-          (isMeloNxVirtual || isRpcs3Virtual) &&
+          (isMeloNxVirtual || isRpcs3Virtual || systemFolder == 'switch2') &&
               (effectiveTitleName?.trim().isNotEmpty ?? false)
           ? effectiveTitleName!.trim()
           : filename;
@@ -1434,7 +1453,10 @@ class ScreenScraperService {
         appSystemId: appSystemId,
         maxDailyRequests: maxDailyRequests,
         gameName:
-            (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
+            (systemFolder == 'android' ||
+                  isMeloNxVirtual ||
+                  isRpcs3Virtual ||
+                  systemFolder == 'switch2')
             ? effectiveTitleName
             : null,
         serialNumber: isRpcs3Virtual ? titleId : null,
@@ -1482,7 +1504,12 @@ class ScreenScraperService {
         return {'success': false, 'cancelled': true, 'requests': requestsMade};
       }
       final romFile = File(romPath);
-      if (gameInfo == null && systemFolder != 'android' && romFile.existsSync()) {
+      // Switch 2 rows are `.../base/exefs/main.npdm`: neither the file name
+      // ("main") nor an MD5 of the NPDM identifies the game, only its title.
+      if (gameInfo == null &&
+          systemFolder != 'android' &&
+          systemFolder != 'switch2' &&
+          romFile.existsSync()) {
         final size = romFile.lengthSync();
         if (size <= batchMd5Limit) {
           final hash = await ScreenscraperRomHasher.calculateMd5InIsolate(

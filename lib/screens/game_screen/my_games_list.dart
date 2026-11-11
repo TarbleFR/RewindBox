@@ -31,6 +31,7 @@ import 'package:neostation/widgets/rpcs3_internal_playlist_actions.dart';
 import 'package:neostation/widgets/melonx_internal_playlist_actions.dart';
 import 'package:neostation/widgets/armsx2_internal_playlist_actions.dart';
 import 'package:neostation/widgets/xenia_internal_playlist_actions.dart';
+import 'package:neostation/widgets/s2arm_internal_playlist_actions.dart';
 import 'package:neostation/widgets/libretro_internal_playlist_actions.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 
@@ -130,6 +131,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps2';
   bool get _isXeniaLibrary =>
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'xbox360';
+  bool get _isS2ArmLibrary =>
+      Platform.isIOS && widget.system.folderName.toLowerCase() == 'switch2';
   bool get _isLibretroLibrary =>
       LibretroInternalService.handlesSystemModel(widget.system);
   int _selectedGameIndex = 0;
@@ -879,6 +882,25 @@ class _SystemGamesListState extends State<SystemGamesList> {
                   );
                 },
               ),
+            // Switch 2 (S2Arm): same place and visibility rule as XeniOS.
+            if (!_isGameLaunching && _isS2ArmLibrary)
+              Consumer<SqliteConfigProvider>(
+                builder: (context, config, child) {
+                  final mode = config.config.gameViewMode;
+                  if (!_isLoading &&
+                      _games.isNotEmpty &&
+                      _selectedGame != null &&
+                      mode != 'grid' &&
+                      mode != 'carousel') {
+                    return const SizedBox.shrink();
+                  }
+                  return Positioned(
+                    top: 8.r,
+                    right: 10.r,
+                    child: SafeArea(child: _buildS2ArmImportAction()),
+                  );
+                },
+              ),
             // LIBRETRO_INTERNAL_BEGIN: playlist_actions
             if (!_isGameLaunching && _isLibretroLibrary)
               Consumer<SqliteConfigProvider>(
@@ -981,6 +1003,26 @@ class _SystemGamesListState extends State<SystemGamesList> {
       if (mounted) await _loadGames();
     },
   );
+
+  Widget _buildS2ArmImportAction({bool embedded = false}) =>
+      S2ArmInternalPlaylistActions(
+        embedded: embedded,
+        onInteractionChanged: (active) {
+          if (!mounted) return;
+          if (active) {
+            _gamepadNav.deactivate();
+          } else {
+            _gamepadNav.activate();
+          }
+        },
+        onLibraryChanged: () async {
+          if (!mounted) return;
+          await context
+              .read<SqliteConfigProvider>()
+              .refreshS2ArmInternalLibrary();
+          if (mounted) await _loadGames();
+        },
+      );
 
   Widget _buildMelonxImportAction({bool embedded = false}) =>
       MelonxInternalPlaylistActions(
@@ -1947,6 +1989,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
           ? _buildEmbeddedLibretroImportAction()
           : _isXeniaLibrary
           ? _buildXeniaImportAction(embedded: true)
+          : _isS2ArmLibrary
+          ? _buildS2ArmImportAction(embedded: true)
           : null,
       // DOLPHIN_ISOLATION_END: import_action_in_tabs
       game: _selectedGame!,

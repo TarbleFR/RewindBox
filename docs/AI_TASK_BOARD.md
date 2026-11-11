@@ -277,6 +277,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
     IPA 724/725 (idle game list heat, battery under a game).
+  - **Switch 2 library layer integrated (`99e527c5`, session 04, head `a13a0db8`):** inert in the common app (no plugin,
+    native code, entitlement or extension; `switch2` off by default; the Consoles tab disables the engine switch while
+    S2Arm is unavailable, so only the engine-off route is reachable; startup only creates the empty S2Arm Games folder);
+    checked by main in the code. Merged tree: flutter test 27 files 197/197, libretro/storage contracts, workflow guard,
+    tile controls, legal chain with the RA podspec at its reviewed bytes (227 inputs); session 04 CI run `43091021846`.
+    The next common build (726) carries it; 803 is then a sibling of 726 with the declared S2Arm delta.
+  - **MeloNX:** nothing in progress for 726; Core 735 (`4d391b8d`) ships; its pin note merged (`d769ef7c`).
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
     legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
     tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
@@ -4554,9 +4561,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Not in this lot:** the dispatch's own repeated work (mapped-size scans, the shader lookup forced on the next
       draw: about 2 µs a dispatch on the host) and the exact-length arrays of the delta runs; after the device run.
     - **Not measured on a device; no frame, heat or memory gain is claimed.** Remaining for the verdict: as lot 12.
-    - **Next action:** main runs Core CI on the Core 735 source and ships it with this head's bridge in the next
-      private IPA; the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample
-      against IPA 725's.
+    - **Core 735 pinned by main (11 Nov, checked on `Claude` 4d391b8d):** merged as d2053e98 after main's review (no
+      defect); Core CI run 43044568458 green at the first attempt, all 92 fresh Apple gates (the three corrected for
+      Core 733 and remap-sweep-range included); artifact 13870293486, iPhone binary 264a2f18 (38 472 792 B), contract
+      47b596a9, pin 3939c7a9. Core 733 stays the fallback. Not run on an iPhone.
+    - **Next action:** the next private IPA (main, when every session is ready) with Core 735 and this head's bridge;
+      the device run then gives `arrDeltaChanged`, `gpuWork.arrayDelta` and `gpuDispatch` per sample against IPA 725's,
+      the frame times from t=130, `en=`/`sw=`/`th=`, the `[MeloNX:heap]` lines and the diagnostics queue's `cpu=`.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**

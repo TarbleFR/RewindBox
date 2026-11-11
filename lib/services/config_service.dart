@@ -48,6 +48,10 @@ class ConfigService {
   /// startup by XeniaInternalService.ensureLayout().
   static String? linkedXeniaGameFolderPath;
 
+  /// RewindBox's `Documents/S2Arm/Games` (Switch 2 playlist), set at startup
+  /// from S2ArmInternalService.gamesDirectory().
+  static String? linkedS2ArmGameFolderPath;
+
   /// Determines the base execution path for Windows installations.
   ///
   /// In development mode (`flutter run`), it targets the project root.
