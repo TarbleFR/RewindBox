@@ -1008,6 +1008,10 @@ class _SystemGamesListState extends State<SystemGamesList> {
   Widget _buildS2ArmImportAction({bool embedded = false}) =>
       S2ArmInternalPlaylistActions(
         embedded: embedded,
+        appSystemId: _selectedGame?.systemId ?? widget.system.id,
+        gameName: _selectedGame?.name,
+        romName: _selectedGame?.romname,
+        romPath: _selectedGame?.romPath,
         onInteractionChanged: (active) {
           if (!mounted) return;
           if (active) {

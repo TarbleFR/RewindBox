@@ -2,20 +2,35 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../l10n/melonx_transfer_locale.dart';
 import '../l10n/switch2_library_locale.dart';
+import '../repositories/game_repository.dart';
+import '../services/melonx_embedded_library_service.dart';
 import '../services/s2arm_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
+import 'delete_game_dialog.dart';
 
-/// Import button of the Switch 2 playlist, at the place of the other embedded
-/// playlists' buttons: import a Switch 2 export folder from Files
-/// (docs/s2arm-switch2-library.md § Import).
+/// Menu of the Switch 2 playlist, modelled on MeloNX's: import games (an export
+/// folder from Files, docs/s2arm-switch2-library.md § Import), import prod.keys
+/// (the one store MeloNX owns; not needed for Switch 2 games) and delete the
+/// highlighted game. No firmware item: S2Arm uses none.
 class S2ArmInternalPlaylistActions extends StatefulWidget {
   const S2ArmInternalPlaylistActions({
     super.key,
     required this.onLibraryChanged,
     this.onInteractionChanged,
     this.embedded = false,
+    this.appSystemId,
+    this.gameName,
+    this.romName,
+    this.romPath,
   });
+
+  /// The highlighted game, for the Delete item (hidden without [romPath]).
+  final String? appSystemId;
+  final String? gameName;
+  final String? romName;
+  final String? romPath;
 
   final Future<void> Function() onLibraryChanged;
   final ValueChanged<bool>? onInteractionChanged;
@@ -64,7 +79,7 @@ class _S2ArmInternalPlaylistActionsState
     try {
       result = await StorageImportActivity.run(
         () => S2ArmInternalService.importFolder(
-          dialogTitle: _t('importFolder'),
+          dialogTitle: _t('importGames'),
           control: control,
           onProgress: (value) {
             progress.value = value;
@@ -95,12 +110,89 @@ class _S2ArmInternalPlaylistActionsState
     }
   }
 
+  /// The shared prod.keys import of MeloNX (its picker, validation and storage): the same dialog lines.
+  Future<void> _importKeys() async {
+    final MelonxKeysReport report;
+    try {
+      report = await MelonxEmbeddedLibraryService.importKeys();
+    } catch (error) {
+      _notice('${_t('keysFailed')}\n$error');
+      return;
+    }
+    if (!mounted) return;
+    final lines = <String>[
+      for (final name in report.imported)
+        '${MelonxTransferLocale.text(context, 'imported')}: $name',
+      for (final item in report.refused.entries)
+        '${MelonxTransferLocale.text(context, 'rejected')}: ${item.key} — ${MelonxTransferLocale.text(context, item.value)}',
+      for (final item in report.ignored.entries)
+        '${item.key}: ${MelonxTransferLocale.text(context, 'keyExtras')} (${item.value})',
+      for (final item in report.invalidSizes.entries)
+        '${item.key}: ${MelonxTransferLocale.text(context, 'keyInvalidSizes')} (${item.value})',
+      if (report.prodMissing) MelonxTransferLocale.text(context, 'requiredProd'),
+    ];
+    if (lines.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_t('importKeys')),
+        content: Text(lines.join('\n')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('done')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _delete() async {
+    final romPath = widget.romPath;
+    final appSystemId = widget.appSystemId;
+    if (romPath == null || appSystemId == null) return;
+    final name = widget.gameName ?? widget.romName ?? '';
+    final inside = await S2ArmInternalService.isInsideGames(romPath);
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => DeleteGameDialog(
+        gameName: name,
+        romName: widget.romName ?? name,
+        confirmationBody: _tf(inside ? 'deleteConfirm' : 'deleteConfirmLinked', {
+          'name': name,
+        }),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await GameRepository.deleteGame(
+        appSystemId: appSystemId,
+        filename: widget.romName ?? name,
+        systemFolderName: S2ArmInternalService.systemFolder,
+        romBaseName: widget.romName ?? name,
+        romPath: romPath,
+      );
+    } on S2ArmDeleteException catch (error) {
+      _notice(_t(error.code));
+      return;
+    } catch (error) {
+      _notice('${_t('deleteFailed')}\n$error');
+      return;
+    }
+    await widget.onLibraryChanged();
+    if (mounted) _notice(_tf('deleted', {'name': name}));
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     setState(() => _busy = true);
     _interaction(true);
     try {
       if (action == 'folder') await _import();
+      if (action == 'keys') await _importKeys();
+      if (action == 'delete') await _delete();
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -108,6 +200,15 @@ class _S2ArmInternalPlaylistActionsState
       }
     }
   }
+
+  Widget _item(String title, String subtitle) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(title),
+      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -143,8 +244,19 @@ class _S2ArmInternalPlaylistActionsState
           PopupMenuItem(
             key: const ValueKey('s2arm-import-folder'),
             value: 'folder',
-            child: Text(_t('importFolder')),
+            child: _item(_t('importGames'), _t('importGamesHint')),
           ),
+          PopupMenuItem(
+            key: const ValueKey('s2arm-import-keys'),
+            value: 'keys',
+            child: _item(_t('importKeys'), _t('importKeysHint')),
+          ),
+          if (widget.romPath != null && widget.appSystemId != null)
+            PopupMenuItem(
+              key: const ValueKey('s2arm-delete-game'),
+              value: 'delete',
+              child: Text(_t('deleteGame')),
+            ),
         ],
       ),
     );
