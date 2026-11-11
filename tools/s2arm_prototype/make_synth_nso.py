@@ -53,8 +53,10 @@ SEG = 0x1000
 BRK_OFFSET = CODE_AT + 4 * CODE.index(0xD4202460)
 
 
-def build(code=None, build_id=None):
-    """The synthetic NSO; other code words and build id give the other test modules."""
+def build(code=None, build_id=None, dynamic=False):
+    """The synthetic NSO; other code words and build id give the other test modules.
+    dynamic adds a dynamic section with a string table and a symbol table holding one
+    exported function, which the tools that read a module's symbols require."""
     code = CODE if code is None else code
     text = bytearray(SEG)
     struct.pack_into('<II', text, 0, 0x14000000 | (CODE_AT // 4), SEG)  # b code; MOD0 offset
@@ -70,7 +72,14 @@ def build(code=None, build_id=None):
     fde = SEG + frame + 0x18
     struct.pack_into('<IIii', ro, frame + 0x18, 0x10, (fde + 4) - (SEG + frame),
                      CODE_AT - (fde + 8), 4 * len(code))
-    data = bytes(SEG)
+    data = bytearray(SEG)
+    if dynamic:
+        symbols, strings, name = 0x300, 0x400, b'\0synthetic_export\0'
+        struct.pack_into('<I', ro, 4, 2 * SEG - SEG)                        # MOD0: dynamic section, relative to MOD0
+        struct.pack_into('<IBBHQQ', ro, symbols + 24, 1, 0x12, 0, 1, CODE_AT, 4 * len(code))
+        ro[strings:strings + len(name)] = name
+        struct.pack_into('<qQqQqQ', data, 0, 5, SEG + strings, 6, SEG + symbols, 0, 0)  # DT_STRTAB, DT_SYMTAB, DT_NULL
+    data = bytes(data)
     header = bytearray(0x100)
     header[:4] = b'NSO0'
     for index, segment in enumerate((text, ro, data)):
