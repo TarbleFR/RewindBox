@@ -4353,6 +4353,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   folder import inside `StorageImportActivity.run` (storage contract 24/24), the service test's `Locale` import (first
   CI run `43063255550`: `flutter analyze` stopped on it). `libretro_frontend_ui_contract_test.py` fails at `db277ee` and
   at `Claude` `41c7640` alike (`lib/widgets/header.dart`), so this branch's workflow runs it for information only.
+- **Library CI green (11 Nov):** run `43067412005` on `e7c199d`: `flutter analyze` (no error or warning), 71 Dart tests
+  (service, export reader, library strings, console catalog/policy incl. "Switch 2 starts off", Consoles tab), storage
+  contract. Second run `43065635632` had stopped on the truncated-NPDM case: its test helper threw while building the
+  input; the case now cuts a whole NPDM and still expects null. Nothing run on a device.
 
 ### Codex orchestration — Codex
 
