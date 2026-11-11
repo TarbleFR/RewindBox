@@ -664,7 +664,7 @@ def downloaded_licences(root, record):
     """The engine's licence and notice texts of the download {path: bytes}, checked again against their record."""
     texts = tree_files(Path(root) / ENGINE_DOWNLOAD / ENGINE_LICENSES)
     errors = licence_errors(texts, record['licenses'], record['identity']['s2arm_commit'])
-    require(not errors, f'The engine licence texts changed after their download: ' + '; '.join(errors))
+    require(not errors, 'The engine licence texts changed after their download: ' + '; '.join(errors))
     return texts
 
 
@@ -681,7 +681,8 @@ def check_licences(read, names, identity):
 
 
 def engine_embed(sd, app, root=None):
-    """engine-embed APP: both frameworks into APP/Frameworks (never over an existing one), and the identity."""
+    """engine-embed APP: both frameworks into APP/Frameworks and the engine's notices into APP/Legal/S2Arm (never over
+    existing ones; Legal/ must be there), and the identity."""
     root = Path(root or sd.ROOT)
     app = Path(app)
     manifest = sd.ci_manifest()
