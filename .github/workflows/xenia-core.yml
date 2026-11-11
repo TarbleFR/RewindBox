@@ -182,8 +182,15 @@ jobs:
           sed -i '' -E "s/^# ?platform :ios, '[0-9.]+'/platform :ios, '18.0'/" ios/Podfile
           grep -q "platform :ios, '18.0'" ios/Podfile
           flutter build ios --simulator --debug --no-codesign
-          test -d build/ios/iphonesimulator/Runner.app
-          find build/ios -name 'xenia_internal_bridge*' -maxdepth 6 | head
+          APPDIR=build/ios/iphonesimulator/Runner.app
+          test -d "$APPDIR"
+          # Proof the bridge was compiled and linked into the app, whatever the
+          # pod linkage: its Objective-C class names are in the built binaries.
+          for class in XeniaInternalBridgePlugin XeniaJitBridgePlugin RBXeniaSessionController \
+                       RBXeniaTouchControlsView RBXeniaJitSession NeoTouchLayoutPlugin; do
+            grep -rlaq "$class" "$APPDIR" || { echo "::error::$class is not in the built app"; exit 1; }
+            echo "$class: linked"
+          done
 
   core:
     name: Compile pinned XeniaCore iOS framework
