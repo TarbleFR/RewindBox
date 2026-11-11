@@ -2112,6 +2112,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           third gate, melonx_pipeline_variant_replay_test (job 130508259936): "FAILED: launch 2: one deterministic failure (a strike), two
           temporary (memory short, renderer throw), one built"; the two corrected gates passed. Not pinned, not rerun; reported.
           Not run on an iPhone.
+          - Merge f4f25c9a (11 Nov) brings the corrected head 4e31fa00: lot 13 bridge `en=`/`sw=` fields, plus the variant replay
+            gate with each replay alone in flight. Reviewed: the test scenario only; same outcomes required.
+          - **MeloNX Core 733 pinned (build 4):**
+            - Core CI run 43025166594 on f4f25c9a, job 130537996965 green: all 91 fresh Apple gates pass, the three corrected
+              ones included.
+            - Artifact 13862341640: 100531691 B, `fb81b896`. iPhone binary `31989a90`, 38472792 B. Fingerprint `6c1f18d8`,
+              contract `8a223efc`, pin `49a7087a`.
+            - Verified offline on the downloaded artifact with the component verifier: `engine_evidence` passed, with 91 fresh
+              gates and 17 scoped gates reused. Contract tests passed: 419, reads 440, arrays 545.
+            - Replaces Core 731 (run 42958274015), which stays the fallback with the same five-part MoltenVK.
+            - Not run on an iPhone; no FPS or memory claim.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
@@ -2134,6 +2145,55 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         - **Next (no IPA before the other sessions are ready):** next IPA = Core 930 (with 929) + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
+        - **Core 931, thermal chantier (maintainer, 11 Nov: "Principal amélioration à faire serait au niveau thermique ! ... 10 correctifs
+          cibler sans faire de régression", then "Cherche toute les pistes possibles et fais un vrai chantier d'innovation sur la gestion
+          thermique"):** engine branch core931-thermal `a073925` over Core 930 `e0ab634`; 15 files changed, none of them a codegen input.
+          See the [record](rpcs3-core931-chantier-thermique.md), in French.
+          - Evidence (IPA 725 journals, private): about 80 000 context switches and 68 000 syscalls per second; 265 000 heavy PUTLLC
+            and 340 000 PPU parks per second; serious thermal state from about 35 s, FPS 45 → 30. The last session record showed
+            `app=background` with the game still emulating at 8 FPS.
+          - The ten fixes:
+            1. ENERGY931 line: energy per frame, P-core share, timer wakeups.
+            2. and 3. Per-thread hot counters.
+            4. Writer lock phases published after the release.
+            5. Thermal policy, setting Event Waits When Hot (Automatic from serious).
+            6. Writer park WFE.
+            7. PPU passive WFE (the wait flag is set before sleeping).
+            8. RSX idle WFE (PUT == GET).
+            9. Background pause: decided on the main thread while in the background only; resumes only its own pause.
+            10. Analyzer comparison within one thermal state.
+          - First review found a lost wake (fixed in `276f677`). Second review (`276f677..2eaf39d`):
+            - Background coverage was incomplete: a game still booting when the app left, or a late install. Fixed in `a073925`:
+              the install reads the app state, and the report thread asks again while the game runs in the background.
+            - Deadlock hypothesis refuted. The host does set the main-thread callback (`RPCS3Dispatch`) and calls every
+              `g_api_mutex` export from its own queues, never from main. Main never waits on those queues.
+            - Minor fixes: THERMAL931 now reports refused resumes and late requests; PARKCMP917 now names every lever.
+          - Older tests adapted, no control removed:
+            - 917 accepts the exact 931 loop and deferred record.
+            - 919 and 920 reverse 931 first.
+            - 931 lines moved out of 921's hunk context.
+            - Gate observers of 927/928 are byte-identical.
+            - The sharded fields read like the old atomics.
+          - Package (request 1, source 5cd7ca83): canonical 08348801 (467 postimages), delta 07be0337, build 931, identity
+            rpcs3-ios-core931; increment core931-from-930.patch (cf048393).
+          - **Compile request 1 (fa363abf, run 43030700177) failed at the iOS syntax gate.** `RPCS3IOSPerformance.cpp:259`:
+            `mach_timebase_info_data_t` unknown; `<mach/mach_time.h>` was missing in the Apple-only ENERGY931 code. The host
+            cannot compile that code. These were the only errors among the 47 units. Fixed in engine `605901a` (one
+            include).
+          - The Apple ARM64 host harness job of the same run was green, 15 commands. Core 931 thermal: 71 checks, six controls,
+            with `arm64: 1`, so the LDAXR/WFE/CLREX path ran on Apple silicon (macOS runner VM; its wake latency is not the
+            iPhone's).
+          - Request 2 package: canonical e121254c (467 postimages), delta 29299716. Every local check passed again: closure,
+            feature tests 923-931, codegen, fold, route, analyzer, pin, guards, and the driver (1476 s).
+          - Validation (host Linux, g++), all green:
+            - closure;
+            - feature tests 923 to 931 (931: 71 checks, six controls caught);
+            - 919 and 920 with their reversals;
+            - codegen (no input change);
+            - fold, route, analyzer, pin and guards (13 reruns);
+            - Core 931 driver, 1502 s: increments 901 to 931, the 906 to 931 feature tests (917 and 921 included), and the Core
+              668 driver on the reverted tree.
+          - Not compiled for iOS yet. Nothing has run on an iPhone; no energy, temperature or FPS gain is claimed.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,

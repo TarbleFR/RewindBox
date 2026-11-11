@@ -15,8 +15,9 @@ Source checks on the Core tree (--source) and a harness built from the Core's ow
   unavailable and first-window states, counters that went back;
 - REWINDBOX_BACKGROUND_PAUSE_931: pause only a running emulation, resume only a pause made here, after the GPU gate has
   reopened, from a serial queue (never the main thread).
-Controls, always run: a report that reads one shard only, and three source mutations (wait flag after the sleep,
-phases recorded inside the lock, resume before the gate) must each be caught.
+Controls, always run: a report that reads one shard only, and four source mutations (a monitor wait comparing a fresh
+load, the lost wake found by the review of a47ab68; wait flag after the sleep; phases recorded inside the lock; resume
+before the gate) must each be caught.
 Not an iPhone: energy, heat and frame rate are read from the device journals (COREPROF ENERGY931 and THERMAL931)."""
 from __future__ import annotations
 
@@ -50,8 +51,14 @@ def source_errors(texts: dict[str, str]) -> list[str]:
         errors.append('writer park: event decision missing')
     if 'ios_event_wait ? 1 : rpcs3::ios::writer_park::clock_interval' not in vm:
         errors.append('writer park: budget clock not read every step in event mode')
-    if not re.search(r'const void\* ios_word = &ptr->state\.raw\(\);\s*rpcs3::ios::event_wait::once32\(ios_word, rpcs3::ios::event_wait::load32\(ios_word\)\);', vm):
-        errors.append('writer park: monitor wait on the PPU state word missing')
+    if not re.search(r'const void\* ios_word = &ptr->state\.raw\(\);\s*const u32 ios_seen = rpcs3::ios::event_wait::load32\(ios_word\);'
+                     r'\s*bs_t<cpu_flag> ios_flags\{\};\s*std::memcpy\(&ios_flags, &ios_seen, sizeof\(ios_seen\)\);\s*if \(!\(ios_flags & cpu_flag::wait\)\)\s*\{\s*'
+                     r'rpcs3::ios::event_wait::once32\(ios_word, ios_seen\);', vm):
+        errors.append('writer park: the condition is not tested on the value the monitor wait compares')
+    # Lost wake (review of a47ab68): a wait that compares a fresh load instead of the value its condition was tested on.
+    for rel, text in (('vm.cpp', vm), ('RSXFIFO.cpp', fifo)):
+        if re.search(r'once(32|64)\(ios_word, rpcs3::ios::event_wait::load(32|64)\(ios_word\)\)', text):
+            errors.append(rel + ': a monitor wait compares a fresh load (lost wake)')
 
     # PPU passive spin: cpu_flag::wait set before the sleep, same 6.7 us bound, the timed waits after it.
     passive = re.search(r'if \(ios_event_wait\)\s*\{\s*const u64 ios_now = utils::get_tsc\(\);(.*?)\n\t\t\t\t\t\}\n\t\t\t\t\telse\n', vm, re.S)
@@ -61,6 +68,8 @@ def source_errors(texts: dict[str, str]) -> list[str]:
         body = passive.group(1)
         flag = body.find('cpu.state += cpu_flag::wait;')
         sleep = body.find('rpcs3::ios::event_wait::once64(')
+        if not re.search(r'const u64 ios_seen = rpcs3::ios::event_wait::load64\(ios_word\);\s*if \(ios_seen\)\s*\{\s*rpcs3::ios::event_wait::once64\(ios_word, ios_seen\);', body):
+            errors.append('ppu passive: the bits are not tested on the value the monitor wait compares')
         if flag < 0 or sleep < 0 or flag > sleep:
             errors.append('ppu passive: cpu_flag::wait is not set before the monitor wait')
         if 'i = 99;' not in body or 'ios_spin_until = ios_now + ios_spin_ticks;' not in body:
@@ -81,16 +90,49 @@ def source_errors(texts: dict[str, str]) -> list[str]:
         errors.append('the destructor no longer calls record_writer_lock after the release')
 
     # RSX FIFO idle: monitor wait on PUT, then the yield as before.
-    if not re.search(r'const void\* ios_word = &m_ctrl->put\.raw\(\);\s*rpcs3::ios::event_wait::once32\(ios_word, rpcs3::ios::event_wait::load32\(ios_word\)\);\s*rpcs3::ios::thermal::count\(rpcs3::ios::thermal::rsx_idle\);\s*\}\s*#endif\s*std::this_thread::yield\(\);', fifo):
-        errors.append('rsx fifo: monitor wait on PUT before the kept yield missing')
+    if not re.search(r'const void\* ios_word = &m_ctrl->put\.raw\(\);\s*const u32 ios_seen = rpcs3::ios::event_wait::load32\(ios_word\);\s*be_t<u32> ios_put\{\};'
+                     r'\s*std::memcpy\(&ios_put, &ios_seen, sizeof\(ios_seen\)\);\s*if \(static_cast<u32>\(ios_put\) == m_internal_get && !m_remaining_commands\)\s*\{\s*'
+                     r'rpcs3::ios::event_wait::once32\(ios_word, ios_seen\);\s*rpcs3::ios::thermal::count\(rpcs3::ios::thermal::rsx_idle\);\s*\}\s*\}\s*#endif\s*std::this_thread::yield\(\);', fifo):
+        errors.append('rsx fifo: monitor wait on PUT (PUT equals GET, tested on the compared value) before the kept yield missing')
 
-    # Background pause and thermal state in the lifecycle observers.
-    active = re.search(r'UIApplicationDidBecomeActiveNotification object:nil queue:nil\s*usingBlock:\^\(NSNotification\*\) \{(.*?)\}\];', plat, re.S)
-    if not active or active.group(1).find('gate::instance().app_became_active();') < 0 or \
-            active.group(1).find('rpcs3::ios::background_pause::app_became_active();') < active.group(1).find('gate::instance().app_became_active();'):
-        errors.append('background pause: resume is not after the gate reopens')
-    if 'UIApplicationDidEnterBackgroundNotification object:nil queue:nil\n\t\t\t\tusingBlock:^(NSNotification*) { rpcs3::ios::background_pause::app_entered_background(); }' not in plat:
+    # Background pause and thermal state in the lifecycle observers. The GPU gate's three observers stay as Core 928 has
+    # them (test/rpcs3_gpu_gate928_test.py); the pause has its own observers, installed with the gate's, and the pause and
+    # the resume go through the main queue first, so they run once the posting has returned: after the gate's observer of
+    # the same notification, whatever order the notification center calls them in.
+    gate_install = re.search(r'void install_application_observers\(\) noexcept\n\{(.*?)\n\}\n', plat, re.S)
+    if not gate_install or gate_install.group(1).count('rpcs3::ios::background_pause::install_observers();') != 1 or \
+            gate_install.group(1).rfind('CFBridgingRetain(') > gate_install.group(1).find('rpcs3::ios::background_pause::install_observers();'):
+        errors.append('background pause: its observers are not installed with the gate, after the gate registered its own')
+    own = re.search(r'void install_observers\(\) noexcept\n\{(.*?)\n\}\n', plat, re.S)
+    if not own or 'UIApplicationDidEnterBackgroundNotification object:nil queue:nil\n\t\t\t\tusingBlock:^(NSNotification*) { app_entered_background(); }' not in own.group(1):
         errors.append('background pause: no pause on entering the background')
+    if not own or 'UIApplicationDidBecomeActiveNotification object:nil queue:nil\n\t\t\t\tusingBlock:^(NSNotification*) { app_became_active(); }' not in own.group(1):
+        errors.append('background pause: no resume when active again')
+    def body_of(name: str) -> str:
+        found = re.search(r'void ' + name + r'\(\) noexcept\n\{(.*?)\n\}\n', plat, re.S)
+        return found.group(1) if found else ''
+    # Every pause is decided on the main thread once the posting has returned, only while the application is in the
+    # background there; then it runs on the serial queue.
+    if not re.fullmatch(r'\s*(//[^\n]*\s*)*dispatch_async\(dispatch_get_main_queue\(\), \^\{\s*if \(UIApplication\.sharedApplication\.applicationState != '
+                        r'UIApplicationStateBackground\)\s*\{\s*return;\s*\}\s*dispatch_async\(pause_queue\(\), \^\{\s*state::instance\(\)\.pause_if_running\('
+                        r'\[\] \{ return rpcs3_ios_pause_emulation\(\) == RPCS3_IOS_OK; \}\);\s*\}\);\s*\}\);\s*', body_of('request_pause')):
+        errors.append('background pause: the pause is not decided on the main thread, in the background only, before its serial queue')
+    if not re.fullmatch(r'\s*state::instance\(\)\.set_background\(true\);\s*request_pause\(\);\s*', body_of('app_entered_background')):
+        errors.append('background pause: entering the background does not record it and ask for the pause')
+    if not re.fullmatch(r'\s*state::instance\(\)\.set_background\(false\);\s*dispatch_async\(dispatch_get_main_queue\(\), \^\{\s*dispatch_async\(pause_queue\(\), \^\{\s*'
+                        r'state::instance\(\)\.resume_if_ours\(\[\] \{ return rpcs3_ios_resume_emulation\(\) == RPCS3_IOS_OK; \}\);\s*\}\);\s*\}\);\s*',
+                        body_of('app_became_active')):
+        errors.append('background pause: app_became_active does not wait for the posting (the gate\'s observer) before its serial queue')
+    # Installed while the application is already in the background (a game started just before leaving).
+    if not own or not re.search(r'dispatch_async\(dispatch_get_main_queue\(\), \^\{\s*if \(UIApplication\.sharedApplication\.applicationState == UIApplicationStateBackground\)'
+                                r'\s*\{\s*state::instance\(\)\.set_background\(true\);\s*request_pause\(\);\s*\}\s*\}\);', own.group(1)):
+        errors.append('background pause: an installation in the background does not ask for the pause')
+    # A game still booting when the application left: asked again by the report thread while it runs in the background.
+    if not re.search(r'auto& ios_pause = rpcs3::ios::background_pause::state::instance\(\);\s*if \(state == system_state::running && ios_pause\.background\(\) && '
+                     r'!ios_pause\.ours\(\)\)\s*\{\s*ios_pause\.count_late_request\(\);\s*rpcs3::ios::background_pause::request_pause\(\);\s*\}', perf):
+        errors.append('background pause: the report thread does not ask again for a game running in the background')
+    if 'background_resume_refused=%llu background_late_requests=%llu' not in perf:
+        errors.append('report: the refused resumes and the late requests are not on THERMAL931')
     if 'dispatch_queue_create("rpcs3.background-pause", DISPATCH_QUEUE_SERIAL)' not in plat or 'rpcs3_ios_pause_emulation() == RPCS3_IOS_OK' not in plat \
             or 'rpcs3_ios_resume_emulation() == RPCS3_IOS_OK' not in plat:
         errors.append('background pause: not on its serial queue through the exports')
@@ -106,7 +148,7 @@ def source_errors(texts: dict[str, str]) -> list[str]:
         errors.append('policy line 931 missing')
     for marker in ('energy931::format_line(profile_session, profile_window, comparable, m_energy, energy, guest_window_flips)',
                    'COREPROF THERMAL931 session=%llu window=%llu thermal_state=%s',
-                   'rpcs3::ios::thermal::compare_forced.store(next_step ? (cmp::event_waits_at(next_step) ? 1 : 0) : -1'):
+                   'cmp::event_waits_forced.store(next_step ? (cmp::event_waits_at(next_step) ? 1 : 0) : -1'):
         if marker not in perf:
             errors.append('report: ' + marker[:60] + ' missing')
     return errors
@@ -123,10 +165,22 @@ def mutations(texts: dict[str, str]) -> list[tuple[str, dict[str, str]]]:
 								cpu.state += cpu_flag::wait;
 							}
 
+							// Tested on the value the wait compares: bits already clear means no sleep (the loop returns at its
+							// top), and a release after this load clears the monitor.
 							const void* ios_word = &get_range_lock_bits(true).raw();
-							rpcs3::ios::event_wait::once64(ios_word, rpcs3::ios::event_wait::load64(ios_word));'''
-    flag_after = '''							const void* ios_word = &get_range_lock_bits(true).raw();
-							rpcs3::ios::event_wait::once64(ios_word, rpcs3::ios::event_wait::load64(ios_word));
+							const u64 ios_seen = rpcs3::ios::event_wait::load64(ios_word);
+							if (ios_seen)
+							{
+								rpcs3::ios::event_wait::once64(ios_word, ios_seen);
+							}'''
+    flag_after = '''							// Tested on the value the wait compares: bits already clear means no sleep (the loop returns at its
+							// top), and a release after this load clears the monitor.
+							const void* ios_word = &get_range_lock_bits(true).raw();
+							const u64 ios_seen = rpcs3::ios::event_wait::load64(ios_word);
+							if (ios_seen)
+							{
+								rpcs3::ios::event_wait::once64(ios_word, ios_seen);
+							}
 							if (cpu_flag::wait - cpu.state)
 							{
 								cpu.state += cpu_flag::wait;
@@ -134,14 +188,36 @@ def mutations(texts: dict[str, str]) -> list[tuple[str, dict[str, str]]]:
     inside = vm.replace('rpcs3::ios::writer_lock_record::defer(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,\n\t\t\t\t\tphase_park_end - phase_ranges_end, phase_flagged, slow_threshold, utils::get_tsc_freq(), ios_park.spent);',
                         'rpcs3::ios::writer_lock_phases::record(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,\n\t\t\t\t\tphase_park_end - phase_ranges_end, phase_flagged, slow_threshold);', 1)
     plat = texts['rpcs3/ios/RPCS3IOSPlatform.mm']
-    early = plat.replace('''					gate::instance().app_became_active();
-					rpcs3::ios::background_pause::app_became_active(); // REWINDBOX_BACKGROUND_PAUSE_931''',
-                         '''					rpcs3::ios::background_pause::app_became_active(); // REWINDBOX_BACKGROUND_PAUSE_931
-					gate::instance().app_became_active();''', 1)
-    out = []
+    # The resume sent straight to its queue from its observer: it may then run before the gate's observer reopened the gate.
+    early = plat.replace('''void app_became_active() noexcept
+{
+	state::instance().set_background(false);
+	dispatch_async(dispatch_get_main_queue(), ^{
+		dispatch_async(pause_queue(), ^{
+			state::instance().resume_if_ours([] { return rpcs3_ios_resume_emulation() == RPCS3_IOS_OK; });
+		});
+	});
+}''', '''void app_became_active() noexcept
+{
+	state::instance().set_background(false);
+	dispatch_async(pause_queue(), ^{
+		state::instance().resume_if_ours([] { return rpcs3_ios_resume_emulation() == RPCS3_IOS_OK; });
+	});
+}''', 1)
+    # A late request that does not read the application state on the main thread: a game that came back to the
+    # foreground in between would be paused while visible.
+    blind = plat.replace('''		if (UIApplication.sharedApplication.applicationState != UIApplicationStateBackground)
+		{
+			return;
+		}
+
+''', '', 1)
+    fresh = vm.replace('rpcs3::ios::event_wait::once32(ios_word, ios_seen);', 'rpcs3::ios::event_wait::once32(ios_word, rpcs3::ios::event_wait::load32(ios_word));', 1)
+    out = [('lost wake: fresh load compared', {**texts, 'rpcs3/Emu/Memory/vm.cpp': fresh})]
     for name, rel, changed in (('wait flag after the sleep', 'rpcs3/Emu/Memory/vm.cpp', vm.replace(flag_first, flag_after, 1)),
                                ('phases recorded inside the lock', 'rpcs3/Emu/Memory/vm.cpp', inside),
-                               ('resume before the gate', 'rpcs3/ios/RPCS3IOSPlatform.mm', early)):
+                               ('resume before the gate', 'rpcs3/ios/RPCS3IOSPlatform.mm', early),
+                               ('pause decided without the application state', 'rpcs3/ios/RPCS3IOSPlatform.mm', blind)):
         if changed == texts[rel]:
             raise SystemExit('control could not be built: ' + name)
         out.append((name, {**texts, rel: changed}))
@@ -224,14 +300,15 @@ def main() -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     report = {'result': 'failed' if errors else 'passed', 'checks': result.get('checks'), 'eventWait': waits, 'errors': errors,
-              'controls': ['one shard read', 'wait flag after the sleep', 'phases recorded inside the lock', 'resume before the gate'],
+              'controls': ['one shard read', 'lost wake: fresh load compared', 'wait flag after the sleep', 'phases recorded inside the lock', 'resume before the gate',
+                           'pause decided without the application state'],
               'physicalDeviceTested': False}
     if args.report:
         args.report.write_text(json.dumps(report, indent=1) + '\n')
     if errors:
         print('\n'.join(errors))
         return 1
-    print('PASS: Core 931 thermal chantier (%s); the four controls are caught' % json.dumps({'checks': result['checks'], 'failures': 0, 'event_wait': waits}))
+    print('PASS: Core 931 thermal chantier (%s); the six controls are caught' % json.dumps({'checks': result['checks'], 'failures': 0, 'event_wait': waits}))
     return 0
 
 
