@@ -4370,6 +4370,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `pubspec.yaml` (`xenia_internal_bridge`) with no chained review, and both S2Arm reviews bind `pubspec.yaml`. Proposed
   to main: #172 lands in `Claude` with its review, then this session merges `Claude`, re-chains its two reviews and
   builds 803. Notices for the engine binaries (Apache-2.0 §4 LICENSE/NOTICE, .NET, codecs) still main's decision.
+- **Main's answers (11 Nov 19:01):** 803 base as proposed (#172 into `Claude` with its own chained review, then this session
+  merges `Claude`, re-chains probe + engine reviews after the XeniOS review — `before` = `5112922c…` per session 03 — and
+  builds 803, test line only). Four closed sets: native identity-gated conditionals in the files (Dolphin `verify_ipa.py`
+  as a handoff diff), no launcher in-memory extension. Notices: identity-gated, full texts in the test line (S2Arm
+  LICENSE/NOTICE/THIRD_PARTY_LICENSES, .NET ThirdPartyNotices, exact MIT/BSD texts), `embed_legal_bundle.py
+  --validate-only` requires them with the identity file, "no Nintendo data" explicit. Both delegated (prototype branch).
+- **Glacier red tile ready for main's review (library branch):** `fd82c323` (tile, aliases, theme, credits, attribution,
+  index 129 files) and `eba96103` (`docs/evidence/switch2-glacier-tile-declarations-2026-11-11.json` chained after the
+  Glacier review, `check_switch2_glacier_tile()`, 8 negative controls). CI green: runs 43084472956 and, after merging
+  #172's head `cf1b9425` (session 03's `<folder>.xex` names and XeniOS review; one conflict in `_batchInsertRoms`, both
+  kept), 43085017781.
 
 ### Codex orchestration — Codex
 
