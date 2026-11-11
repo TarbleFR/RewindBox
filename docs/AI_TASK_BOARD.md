@@ -3767,6 +3767,63 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       until measured: no load step, a footprint lower by several hundred MiB (the tables compress well, so the physical
       gain is smaller than the footprint's), pipeline creations several times cheaper; the memory shortage itself
       probably remains and the `vm=` field and the breakdown will size it.
+  - **Lot 11 (11 Nov): the GPU cache trims evict the buffers in use (Core 731; frozen here, not delivered, not run on
+    an iPhone).**
+    - **Input identity:** IPA 724 journals, Hogwarts, pid 49375 (private, not in Git); Core 729 preparation
+      (`.native-sources/MeloNX-dma-candidate-729`); `Claude` `1a9f2167` merged.
+    - **Finding (journal, `tools/melonx/buffer_trim_report.py`):** the device stays at 4-9 % available with 1.3 GiB or
+      more of headroom here; `GpuContext.TrimCaches` runs on every host report and every 10 s: 24 trims in 150 s,
+      about 986 MiB "released" from a buffer cache that every 30 s report finds at 85-133 MiB again. The texture part
+      has been flush-free since `adapt_device_short_trim`; the buffer part is upstream's (`BufferCache.Trim`: the least
+      recently used quarter or half, whatever its last use). The 20 windows of 5 s with a trim create 867 to 7 026
+      buffers each on the render thread (median 3 816; 70 365 in 7.6 s) and dispose 46 747 (0.85 s); the 16 without
+      create 0 to 1 724 (median 223; 6 834 in 0.49 s). GPU thread `bufLoad` allocations: 0.8-11.6 MiB per window with a
+      trim, 4-6 KiB without. The first report after the pause: 2 565 buffers disposed, 805 created in the window of the
+      4.3 s gap. Each cycle frees and allocates again about 50 MiB of Metal buffers and reads their guest memory again
+      while the device has nothing to spare.
+    - **Fix (`adapt_cold_buffer_trim`, BufferCache.cs and one field in Buffer.cs, every title):** with a headroom of
+      768 MiB or more (TrimCaches then runs only because the device is short) a trim evicts, oldest first and down to
+      its unchanged target, only the buffers no lookup returned for 60 s of play (the cold texture release's age).
+      The clock is the cache's own (the host's uptime read once every 256 lookups; of the seconds between two reads
+      one counts), so a pause, a stall or a stretch without lookups ages nothing; under this process's own pressure
+      or an unknown headroom the eviction is upstream's. Bounded `bufferCache coldTrim` journal record.
+    - **Proof:** gate `cold-buffer-trim` (66 checks; real AddBuffer, Touch, Trim, EnforceCapacity and the added
+      members on a buffer double): the IPA 724 shape (100 MiB all in use, 25 trims in 150 s) evicts and recreates 672
+      buffers in the control, none in the candidate; own pressure and unknown headroom identical to the control buffer
+      for buffer; cold buffers leave first and alone; a 300 s pause evicts nothing (31 in the control); with few
+      lookups ages only lag; three sensitivity variants (no stamp, the host's clock, no age test) each fail. The real
+      `Ryujinx.Graphics.Gpu` project builds with it. Independent read-only review (rb-core-review): no defect
+      (GPU-thread confinement of every Touch/AddBuffer/Trim caller chain, list order, parity with EnforceCapacity; the
+      rewritten clock reviewed again: counter wrap, first read, no member of another adapter's file referenced).
+      First version rejected by two earlier gates (`memory-inventory`, `host-warning-trim` build the GPU project with
+      GpuContext.cs at their own stage, where the clock it read, `TextureUseEpoch`, does not exist yet): the clock
+      became the cache's own.
+    - **Core 731 frozen: contract `518ea8dc…` (205 inputs, 207 members, 88 gates, all green in one run; contract test 476 checks;
+      [receipts](evidence/melonx-731-gates/run.json), [device protocol](evidence/melonx-731-gates/device-protocol.md)).**
+      Same five-part MoltenVK as Core 729, which this Core contains.
+    - **Also read in the IPA 724 journal (no change made from it):** thermal state `fair` from t=30 on, never beyond;
+      after 88 s the GPU thread waits for guest commands 1.4-2.7 s and the render thread is idle 1.9-3.3 s of each 5 s
+      window while the FPS halves: no stage is saturated, the chain waits (the sampler itself stalls in the 2.5-4.3 s
+      gaps). Collections are as many per window before and after 88 s (2-4 with gen0, 0-1 of gen2); their pauses grow
+      from 80-380 ms to 0.1-3.1 s per window. In 52-72 s (38.7 ms per frame, median 33.3) the 16-27 frames of 50 ms per
+      window stand beside 6-26 pipeline builds of 4-6 ms on the render thread (the lookups Core 729's cache keys make
+      several times cheaper on macOS) and 2-3 collections of 35-45 ms.
+    - **Bridge, not a Core input (`e2abd4e2`, `137a42e7`; stall watch runs 42954584253 and 42955472082 green, macOS
+      execution and iOS typecheck):** `hw=` on each per-second line (clock of the process's CPU time in GHz,
+      instructions per cycle, per cent on performance cores, per cent ready without a core; `proc_pid_rusage` V6) and
+      `pc=` (per thread listed in `cpu=`, per cent of its CPU time on performance cores; `proc_pidinfo` flavor 34, a
+      private flavor looked up at run time, absent if iOS refuses it). They settle what IPA 724 cannot: whether the
+      CPU time per frame doubles because the threads wait on memory (instructions per cycle), are served by slower
+      cores (clock, share; the guest's own threads run at priority 31, the engine's at 47) or do more work
+      (instructions per frame). `frame_budget.py` prints them per window; `buffer_trim_report.py` the creations per
+      window against trims.
+    - **Not measured on a device:** the size the cache settles at (`bufferCacheBytes`), the creations per window and
+      the frame times; the end-to-end share of these creations in the 56 ms is unknown.
+    - **Next action:** main integrates Core 731 with the five-part MoltenVK and the bridge head; the device run of the
+      [protocol](evidence/melonx-731-gates/device-protocol.md) (two sessions, nothing deleted). Then, by what `hw=`,
+      `pc=`, `vm=` and the memory breakdown say: the guest threads' scheduling class, the memory still held, or the
+      allocation rate outside the graphics threads (40-90 MiB of the 80-147 MiB allocated per 5 s in play, two to
+      three collections of 35-45 ms).
 
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
