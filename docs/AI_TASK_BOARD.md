@@ -2118,7 +2118,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           43004512353. [Record](rpcs3-core930-spu-wait-sites.md) (points 2 and 3: no safe change / interpreter needs approval).
         - **Other sessions (11 Nov):** session 04 delivered IPA 802 on its own line (run 42997316389, 272236941 B,
           fb9f07cd…, Switch 2 probe; not observed on a device); MeloNX lot 12 = Core 733 above.
-        - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
+        - **Core 930 pinned (c34022e2):** run 43004512353 (attempt 1, both jobs green), artifact 13851234130 (559d9439),
+          dylib b5b2df75 80958872 B, fingerprint 28035bb0, PPU a987639e / SPU 477a3fa4, wait site names in the library,
+          Apple host 15 commands; pin_errors clean, bundle complete; pin 12de461d. Replaces Core 928 directly; Core 929
+          kept as the verified fallback. neo_swap_core_pin_test full mode stops on the old pin cfe92344 (also with 928).
+        - **Next (no IPA before the other sessions are ready):** next IPA = Core 930 (with 929) + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
