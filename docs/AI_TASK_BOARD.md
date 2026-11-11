@@ -4298,6 +4298,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   disjoint paths. Agent A: engine guest patches (`build-utils/s2arm/engine/**`, `s2arm-engine.yml`).
   Agent B: `packages/s2arm_jit_helper`, `build-utils/s2arm/configure_s2arm_ios.py`, the validator
   diff (handoff to main), the test line's delivery wiring (`.github/diagnostics/s2arm/**`).
+- **E1 guest patches 0003–0008 compile** (run 43049632316, `2e14cae`, Xcode 26.3 and 26.6): guest
+  configure/start/stop/view controller, launch context setter, window reserved at configure (constructor
+  deferral when hosted), code blocks through the host's `prepare_code` hook, chained signal handlers,
+  session end parks threads instead of `_exit`, strings and game files from the framework/module dir.
+  Nothing run on a device. Follow-up 0009 (no pad recording, logs to the host's docs dir, other screens'
+  resources) and the framework producer upload requested.
 
 ### Codex orchestration — Codex
 
