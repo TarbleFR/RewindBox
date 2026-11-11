@@ -2091,6 +2091,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           its 12 recorded inputs only the bridge differs. Dependency requested again (f52d92ce, run 42998604606); then core-build.json
           links it (library expected byte-identical d19d3a42, checked on the download) and the compile is requested again.
           Core 930 delta regenerated locally (222 files, applies on a pristine upstream clone), not committed until the 929 request is out.
+        - **MeloNX lot 12 merged by main (e747321a, head e96fb37d, no conflict): number MeloNX Core 733.** Contract file
+          b2a748e7, FRESH_GATES 91 in both verifiers; dma contract test 419 checks (current contract verified), reads 440,
+          arrays 545, hot spots 14, perf journal 52, frame budget 12; RPCS3 Core 929 source closure unchanged. Liveness, gpu,
+          performance and guard contract tests fail identically before the merge (superseded). Core build dispatched:
+          melonx-core.yml run 42999377576 on e747321a; then component verification and pin. Not run on an iPhone.
         - **Next:** compile and pin Core 929; next IPA = Core 929 + this menu + the 12 message fixes (68846c65, f3a4180f) +
           the StikJIT test fix 24a8246f; device protocol: resume the same savestate, open and close the pause menu,
           `GOW3MLAA909 ppu=savestate_memory`, menu shows 100 %.
