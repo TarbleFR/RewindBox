@@ -1,0 +1,42 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-11",
+ "scope": "Switch 2 (S2Arm) private test IPA only, never the common IPA: the root pubspec.yaml gains the workspace member and the path dependency of the local plugin packages/s2arm_probe (RewindBox diagnostic code under the repository licence: S2ArmProbe.c/.h, S2ArmProbeGate.S, S2ArmProbePlugin.h/.m, linked statically into Runner; the pod needs Apple's Foundation only). S2ArmSynthModule.h embeds, as data, about 600 bytes of AArch64 produced by the S2Arm rewriter (Apache-2.0, https://github.com/jhaizhou-ops/S2Arm, commit 6b6a571553f7a687af46e03e2cdbf8ef4d77f335) from a synthetic module written for the test; no S2Arm source, Capstone or LZ4 is linked. No hosted package, engine, Core or vendored native source change; pubspec.lock is unchanged (a workspace member is not listed there).",
+ "baseline_inventory": "docs/evidence/pocket-originals-declarations-2026-11-03.json",
+ "baseline_inventory_sha256": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {
+   "packages/s2arm_probe/ios/s2arm_probe.podspec": [
+    "Foundation"
+   ]
+  }
+ },
+ "declarations": {
+  "pubspec.yaml": {
+   "before": "1fd6b643e164e475070ea29d7fc887bec17c70cb6276452d7b0cd50fc81c3d06",
+   "after": "cab44fc551d4e9492472fb198613bb361b1b100817f8bd8912205cb2c89517b0"
+  },
+  "packages/s2arm_probe/pubspec.yaml": {
+   "before": null,
+   "after": "45a16c5b37a05c99288e55f297c7ea4ff33bc4f99e3f00212cbd4a10c6c3d479"
+  },
+  "packages/s2arm_probe/ios/s2arm_probe.podspec": {
+   "before": null,
+   "after": "aa7eb67c4bf6ddaebda08423d78097c63a05314115878d156012d472a008faaf"
+  }
+ },
+ "embedded_generated_data": {
+  "path": "packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h",
+  "sha256": "de6da90b7d7f54203a76db02f79dac01a0c862ae14917c11bd8ae1b54b7b7e15",
+  "generator": "S2Arm rewriter",
+  "source": "https://github.com/jhaizhou-ops/S2Arm",
+  "commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "license": "Apache-2.0",
+  "notice": "Diagnostic data generated with the S2Arm rewriter (Apache License 2.0, Copyright 2026 S2Arm contributors, https://github.com/jhaizhou-ops/S2Arm).",
+  "notice_in": "docs/LEGAL_AND_CREDITS.md"
+ }
+}

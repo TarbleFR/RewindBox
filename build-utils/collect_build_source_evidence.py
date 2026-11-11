@@ -26,6 +26,8 @@ SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-nativ
                          "docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json",
                          "docs/evidence/pocket-skins-pocket-press-declarations-2026-11-11.json")
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
+S2ARM_PROBE_REVIEW = "docs/evidence/s2arm-probe-declarations-2026-11-11.json"
+S2ARM_PROBE_PODSPEC = "packages/s2arm_probe/ios/s2arm_probe.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -213,7 +215,9 @@ def repository_inputs(root: Path) -> dict[str, str]:
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            # A later review overlay may move pubspec.yaml on (S2Arm probe, private test IPA only).
+            if not (root / S2ARM_PROBE_REVIEW).is_file() and \
+                    update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"Pocket originals source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
         bundle = pocket.get("bundled_assets", {})
@@ -445,6 +449,35 @@ def repository_inputs(root: Path) -> dict[str, str]:
             raw = read_input(root, root / skin["archiveAsset"])
             if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
                 raise SystemExit("Pocket skin revision archive differs from the catalog: " + skin["archiveAsset"])
+    # Switch 2 (S2Arm) private test IPA only: the root pubspec.yaml gains the workspace member and the path
+    # dependency of the local diagnostic plugin packages/s2arm_probe (RewindBox code; its S2ArmSynthModule.h embeds
+    # data generated with the S2Arm rewriter, Apache-2.0). No hosted package, engine, Core or vendored source
+    # changes. The review is absent from the common line, where this block does nothing.
+    s2arm_path = root / S2ARM_PROBE_REVIEW
+    if s2arm_path.is_file():
+        s2arm = json.loads(read_input(root, s2arm_path))
+        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        changes = s2arm.get("dependency_changes", {})
+        if (s2arm.get("schema") != 1 or s2arm.get("baseline_inventory") != prior_name or
+                s2arm.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                s2arm.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                s2arm.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [],
+                            "system_frameworks_added": {S2ARM_PROBE_PODSPEC: ["Foundation"]}}):
+            raise SystemExit("S2Arm probe review has a different baseline or dependency scope")
+        updates = s2arm.get("declarations", {})
+        if set(updates) != {"pubspec.yaml", "packages/s2arm_probe/pubspec.yaml", S2ARM_PROBE_PODSPEC}:
+            raise SystemExit("S2Arm probe declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"S2Arm probe source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        generated = s2arm.get("embedded_generated_data", {})
+        if (generated.get("path") != "packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h" or generated.get("license") != "Apache-2.0" or
+                generated.get("sha256") != sha256(read_input(root, root / generated["path"]))):
+            raise SystemExit("S2Arm probe embedded generated data differs from the review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
