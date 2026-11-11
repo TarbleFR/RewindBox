@@ -276,8 +276,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
     legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
     tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
-    red Switch 2 tile, EN/FR credit as a Nintendo trademark, strict chained check after the Glacier review); left: the
-    legal bundle validation on that branch, since the Glacier attribution file outside the pack changed.
+    red Switch 2 tile, EN/FR credit as a Nintendo trademark, strict chained check after the Glacier review). Legal
+    bundle validation: that branch fails exactly as `Claude` (the known RetroAchievements podspec deferred since 611,
+    `b06888a9`), so the collector never reached the Glacier block. Checked by main as the delivery port sees it: trial
+    merge `Claude` + library branch (+ #172 `cf1b9425`), imports conflict resolved, the podspec at its reviewed bytes
+    (`d7992b1f`, `2da2d082`): `repository_inputs` passes, 227 inputs; one byte added to the tile and the XeniOS review
+    removed are each refused by the right check. The 3 red `legal_bundle_preflight` tests have the same cause (fixtures
+    without the 1 Nov RA review), already recorded below.
 
 - **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
   [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
