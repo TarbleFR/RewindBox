@@ -618,6 +618,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
+- **URGENT maintainer instruction, 11 Nov (relayed by Codex) — RPCS3 global optimisation: per-game
+  profiles, behaviour, shared iOS corrections, thermal.** Prompt file received and read in full
+  (243 lines; private upload, not in Git). Added to the current work; owner main
+  `012mUAShv9k6pSCnpW7oAF63`, one writer per path.
+  - **Goal:** one resolution of identity/version, RPCS3 database, iOS corrections and observed
+    behaviour at launch; persisted, validated per game and device decisions; reliable thermal and
+    energy evidence; less speculative work when hot; fewer blocking compiles; memory/reload
+    trade-off. 100 % resolution, fidelity and SPU constraints kept; no 60 FPS promise.
+  - **State (reconciled with the audit snapshot fd3c39ae):** RPCS3 unchanged since (Core 931 pin
+    `83156c06`; only MeloNX Core 735 pinned since, `4d391b8d`). Confirmed in the current source:
+    BO2 levers keyed to BLES01717 only (IOSTitleLevers.h:69); a counter that went back prints
+    0 (IOSEnergy931.h `delta`, asserted by the 931 harness); THERMAL931 classifies a window by the
+    state read at its end; a boot that ends in the background is paused only by the ~5 s report.
+  - **Plan:** Core 932 (engine branch `core932-armsx3` from `605901a`, local): priority 1 (energy
+    validity, thermal transitions and mixed windows, stratified analyzer comparison, WFE harness
+    cases), the late-boot background pause at its transition, thermally aware speculative texture
+    hashing, plus the ARMSX3 lot (bundled game fixes on by default, patch-coupled database relief,
+    disk I/O, JIT 16 MiB steps). Then Core 933: blocking compiles and the unified resolver with
+    local persistence (two read-only investigations running).
+  - **Open:** nothing measured on an iPhone; no IPA before the other sessions are ready.
+
 - **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
   Codex transmitted the full formal context prompt to main
   `012mUAShv9k6pSCnpW7oAF63`; UI shows the submitted user message and
