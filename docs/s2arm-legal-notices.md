@@ -29,6 +29,9 @@ files were changed (they are translations, not copies).
 | `native/s2arm/prepare/s2arm_addr_need.c` | `tools/addr_need.py` |
 | `native/s2arm/prepare/s2arm_modules.c` | `graphics/nvn/games/profile_guess.py` (`gpu_driver_modules`), `graphics/nvn/tools/nso_syms.py` |
 | `native/s2arm/prepare/s2arm_nro.c` | `tools/nro_exports.py`, `runtime/rewriter/nro_to_nso.py`, `graphics/nvn/tools/romfs_list.py` (walk rules) |
+| `native/s2arm/prepare/s2arm_zbic.c` | `pack/nx_unpack/ZbicDecoder.cs`, `pack/nx_unpack/NsoZbic.cs` (BIC header rules credited there to Atmosphère / kinnay zbic as facts, no code taken) |
+| `native/s2arm/prepare/s2arm_ns2_dump.c` | `pack/ns2_dump.py` (including its README.synth note text) |
+| `tools/s2arm_prototype/zbic_batch/Program.cs` | test driver only (CI): compiles S2Arm's two ZBIC files from the pinned checkout; no S2Arm source stored |
 | `packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h` | output of the S2Arm rewriter for a synthetic module written for the test; no S2Arm source |
 
 ## Points for the integration owner
