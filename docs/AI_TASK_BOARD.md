@@ -4321,6 +4321,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   from PR #172's head `db277ee0e` (session 03's branch is never pushed to), for the shared-layer
   Switch 2 hook points (study § 6.5), handed to main after #172. At the maintainer's request main
   was asked to prioritise #172, on which the complete trial depends.
+- **Engine follow-up and host bridge integrated (11 Nov, pushed `b43922e`):** patch 0009 (engine log in `docs`
+  without redirecting the host's stderr, touch-pad recording off in a guest, the engine's own bundle resources,
+  `S2ACommit` in the framework's Info.plist), producer upload `s2arm-engine-framework-<sha>` (macos-26), and
+  `S2ArmDirectChain.txt` (`DMSH_CHAIN` `0be3f28548fd` of the pin) written by `guest.mk` and checked by the workflow.
+  Host bridge: `packages/s2arm_engine_bridge` (preparation chain into `Library/S2Arm/<gid>`, JIT transaction on the
+  RPCS3 model, guest launch, exclusion with MeloNX's Core, launch journal) and `S2ArmInternalService` (Dart, shaped
+  like Xenia's; answers engineMissing without the plugin). Local: bridge test 61 checks green, delivery tests 48
+  green; Dart and Objective-C only in CI. Runs on `b43922e`: engine `43061106903`, preparation Core `43061107011`.
+  Bridge assumptions to prove on device: helper detach once the image pack's boot blocks are served and the hook is
+  idle 2 s; `S2ArmSystemData/` in the app bundle (open fonts, tz data, synthesised empty system data: no Nintendo
+  data); save identity = SHA-256 of `unpack.tsv`. C# `Console.Error` and raw `fprintf(stderr)` stay on the host's stderr.
+- **Library branch (local, not pushed):** `1731fd6` (the same Dart service file as the prototype line), `a9d1478`
+  (logo `assets/images/logos/switch2.webp`, white, made from the official logo the maintainer supplied). Shared-layer
+  hooks delegated: catalog entry, off by default, Consoles tab row, scan of `Documents/S2Arm/Games` export folders
+  (NACP title, title id, icon as box art), launch route, session end, import button, scraping by NACP title.
+- **Maintainer (11 Nov): menu art = his red image** (white official logo on red). The white logo is committed; the red
+  tile needs `backgrounds/switch2.webp` in the Glacier pack, whose index the legal gate binds
+  (`collect_build_source_evidence.py:196`): main asked which route.
+- **Maintainer (11 Nov): scrape Switch 2 games by name or id (covers, descriptions).** Plan: ScreenScraper system 296
+  (from the site's system page, not confirmed through the API) with the NACP title as `romnom` (an export folder has
+  no ROM to hash; no evidence the title id is a ScreenScraper key), the export's own icon as box art before scraping.
 
 ### Codex orchestration — Codex
 
