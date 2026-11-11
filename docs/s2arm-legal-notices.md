@@ -34,6 +34,12 @@ files were changed (they are translations, not copies).
 | `native/s2arm/prepare/s2arm_pack.c` | `ios/embed.py`, `ios/macho_dylib.py`, `pack/ship_ext.py` (container per-game files, `ctx_text`), `pack/save_identity.py` (validation), `pack/pkg_srcs.py` (`srcs`, the `app_tables()` list), `pack/pack.py`, `graphics/tools/direct/runtime_only_lib.sh` (including its texts), `tools/module_order.py`, `runtime/src/pack_apply.c` (bookkeeping file names) |
 | `native/s2arm/prepare/s2arm_caps.c` | `pack/gen_caps.sh` (including its texts), `tools/caps_policy.py` (`decide`, `sources`, `engine_l1`, reason texts), `graphics/nvn/games/profile_guess.py` (`facts_of`, `guess`, `engine`), `graphics/nvn/tools/nso_syms.py`, `graphics/nvn/tools/romfs_list.py` (walk rules) |
 | `tools/s2arm_prototype/run_pack_test.py`, `tools/s2arm_prototype/build_sysdata_bundle.sh` | test and build drivers only (CI): they run S2Arm's tools and generators from the pinned checkout; no S2Arm source stored |
+| `build-utils/s2arm/engine/patches/0003-guest-configure-launch-context-and-window.patch` (engine framework, not in an IPA yet) | modifies `runtime/src/launchctx.c`, `runtime/src/vawin.c`, `runtime/include/s2a_launch_ctx.h`; adds `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h` (written for RewindBox, built inside S2Arm's tree); changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0004-guest-code-pages-through-host-hook.patch` | modifies `runtime/src/imgpack.c`, `runtime/src/vawin.c`; changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0005-guest-signal-handlers-chained.patch` | modifies `runtime/src/crash.c` (chaining modelled on S2Arm's own `runtime/src/crash_android_fatal.inc`); changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0006-guest-session-end-instead-of-exit.patch` | modifies `runtime/src/lifecycle.c`, `runtime/src/native.h`, `runtime/src/host_main.c`, `runtime/src/ap_host.c`, `runtime/src/pack_apply.c`, `ios/app.m`; changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0007-guest-view-controller-and-start.patch` | modifies `ios/app.m`, `ios/vpad.m`, `runtime/src/host_main.c`; changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0008-guest-strings-and-game-files-from-engine-bundle.patch` | modifies `ios/s2a_l10n.h`, `ios/save_transfer.m`; changes marked `RewindBox` in comments |
 
 `native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4).
 
