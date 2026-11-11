@@ -293,12 +293,15 @@ final class MeloNXMetalSessionViewController: UIViewController {
         // process's stderr (MoltenVK's reports) goes to the journal.
         UIApplication.shared.isIdleTimerDisabled = true
         MeloNXStdioCapture.begin()
+        // Lot 13: who allocates the native heap, for the first two minutes of the session ("[MeloNX:heap]" lines).
+        MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)
         do {
             try host.start(game:game,locale:locale,
                 width:Int32(max(1,min(16384,size.width))),height:Int32(max(1,min(16384,size.height))),
                 surface:surface.metalLayer,pointer:Unmanaged.passUnretained(surface.metalLayer).toOpaque(),
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
                     self?.perf?.stop(); self?.perf = nil
+                    MeloNXHeapSample.shared.end()
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
                     self?.skinSession?.close(); self?.skinSession = nil
                     self?.router?.close(); MeloNXTextInput.shared.detach(self); self?.closing = true; self?.updateMemoryGraph()
@@ -307,6 +310,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                     } else { finished(result) }
                 }
         } catch {
+            MeloNXHeapSample.shared.end()
             MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
             let failure = error as? MeloNXHostError ?? .load(String(describing:error))
             dismiss(animated:true) { [finished] in finished(.failure(failure)) }

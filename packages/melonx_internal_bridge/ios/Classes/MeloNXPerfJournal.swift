@@ -938,7 +938,7 @@ final class MeloNXMemoryBreakdown {
 
     // The malloc zones' own counts: bytes in use / bytes held from the system (the difference is free space the
     // allocator keeps), the four largest by bytes held. Each zone is asked once (its locks are taken briefly).
-    private static func zones() -> String {
+    static func zones() -> String {
         var addresses: UnsafeMutablePointer<vm_address_t>? = nil
         var count: UInt32 = 0
         guard malloc_get_all_zones(mach_task_self_, nil, &addresses, &count) == KERN_SUCCESS, let addresses else { return "-" }

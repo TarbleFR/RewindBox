@@ -187,6 +187,39 @@ check('            stalls.start()\n            breakdown.start()\n            ho
       'the profiler starts and stops with the journal and is asked once per line, after the thread shares')
 check(all(name not in hot for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'thread_resume', 'task_suspend',
                                        'DispatchQueue.main', 'MeloNXEngineCallClass')), 'the profiler calls no engine closure and suspends nothing')
+# Heap sample (lot 13): "[MeloNX:heap]" lines. libmalloc's logging hook for a bounded window at the start of a session;
+# the hook allocates nothing, has no thread-local storage, one lock taken for sampled blocks only.
+sampler = (CLASSES / 'MeloNXHeapSampler.m').read_text()
+sampler_header = (CLASSES / 'MeloNXHeapSampler.h').read_text()
+heap = (CLASSES / 'MeloNXHeapSample.swift').read_text()
+controller = (CLASSES / 'MeloNXMetalSessionViewController.swift').read_text()
+check('#define INTERVAL ((uint64_t)256 << 10)' in sampler and '#define SLOTS (1u << 16)' in sampler and '#define PROBES 16u' in sampler and
+      '#define STACKS 4096u' in sampler and '#define MeloNXHeapSamplerFrames 14' in sampler_header, 'sampler bounds')
+hook_code = sampler[sampler.index('static inline uint64_t mix('):sampler.index('int MeloNXHeapSamplerStart(void)')]
+check(all(name not in hook_code for name in ('malloc(', 'calloc(', 'realloc(', 'free(', 'printf', 'NSLog', 'os_log', 'dispatch_', '__thread', '_Thread_local',
+                                             'pthread_getspecific', 'dladdr', '@')) and
+      hook_code.count('os_unfair_lock_lock(&gLock)') == 2 and hook_code.count('os_unfair_lock_unlock(&gLock)') == 2,
+      'between the hook and the tables: no allocation, no logging, no thread-local storage, one lock')
+check('address < low || address + 16 > high || (address & 7) != 0' in hook_code and 'if (next <= address) break;' in hook_code,
+      'frames are read inside the calling thread\'s own stack only')
+check('if (malloc_logger != NULL) { atomic_store(&gActive, 0); return -1; }' in sampler and
+      sampler.count('malloc_logger = hook;') == 1 and '    if (malloc_logger != hook) return 0;\n    malloc_logger = NULL;' in sampler,
+      'the hook is set only when no other logger owns it, and removed only when it is ours')
+HEAP = {name: float(value) for name, value in re.findall(r'static let (windowSeconds|maxStacks|maxPlaces)(?:: \w+)? = ([\d.]+)', heap) +
+        re.findall(r'\b(maxPlaces) = ([\d.]+)', heap)}
+check(HEAP == dict(windowSeconds=120, maxStacks=24, maxPlaces=10) and 'static let totalsWords = 8, stackWords = 19, frames = 14' in heap,
+      'window and report bounds: ' + str(HEAP))
+check(heap.count('MeloNXHeapSamplerLink.start()') == 1 and heap.count('MeloNXHeapSamplerLink.stop()') == 1 and
+      'queue.asyncAfter(deadline:.now() + seconds) { [self] in if open && window == mine { finish("window") } }' in heap and
+      'func end() { queue.async { [self] in if open { finish("sessionEnd") } } }' in heap and
+      heap.index('MeloNXHeapSamplerLink.stop()') < heap.index('Self.write(Self.lines(reason:reason, seconds:seconds)'),
+      'one window: closed by its timer or by the end of the session, the hook removed before the report')
+check(heap.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:MeloNXPerfJournal.fileLimit)' in heap and 'open(' not in heap,
+      'heap lines written through the shared writer')
+check(controller.index('MeloNXStdioCapture.begin()\n') < controller.index('MeloNXHeapSample.shared.begin(path:MeloNXStdioCapture.journalPath,context:MeloNXStdioCapture.sessionContext)')
+      < controller.index('try host.start(game:game,locale:locale,') and controller.count('MeloNXHeapSample.shared.end()') == 2 and
+      controller.count('MeloNXHeapSample.shared.begin(') == 1, 'the window opens before the engine is launched and ends with the session, failed launch included')
+
 HOT = {name: float(value) for name, value in re.findall(r'\b(rounds|maxThreads|maxFrames|maxSlow|maxBase|minSecond|gapSeconds|streak|slowBelow|baseFrom|'
                                                          r'selfPlaces|stackPlaces|waitPlaces) = ([\d.]+)', hot)}
 check(HOT == dict(rounds=300, maxThreads=6, maxFrames=6, maxSlow=4, maxBase=2, minSecond=40, gapSeconds=20, streak=3, slowBelow=26, baseFrom=28.5,
@@ -605,6 +638,130 @@ exit(0)
               'the tagged region is among the largest: ' + str(top))
         written = [l for l in memory_log.read_text().splitlines() if l.startswith('[MeloNX:memory] ')]
         check(len(written) == 3 and all(re.match(r'\[MeloNX:memory\] t=\d+ footprint=', l) for l in written), 'three scheduled lines, then the bound: ' + str(written))
+
+        # Heap sample: the real hook under the system's allocator. 64 blocks of 1 MiB of which 32 are freed and one
+        # grown to 3 MiB, 100 000 blocks of 2 KiB kept, and four threads allocating and freeing.
+        heap_log = work / 'heap.log'
+        (work / 'heap').mkdir()
+        (work / 'heap' / 'main.swift').write_text(r'''import Foundation
+import Darwin
+let path = CommandLine.arguments[1]
+let bigCount = 64, smallCount = 100_000
+let big = UnsafeMutablePointer<UnsafeMutableRawPointer?>.allocate(capacity:bigCount)
+let small = UnsafeMutablePointer<UnsafeMutableRawPointer?>.allocate(capacity:smallCount)
+@inline(never) func keepBig() { for index in 0..<bigCount { big[index] = malloc(1 << 20) } }
+@inline(never) func keepSmall() { for index in 0..<smallCount { small[index] = malloc(2048) } }
+@inline(never) func churn(_ rounds: Int, _ size: Int) {
+    for _ in 0..<rounds { let block = malloc(size)!; block.storeBytes(of:1, as:UInt8.self); free(block) }
+}
+@inline(never) func grow() { big[bigCount - 1] = realloc(big[bigCount - 1], 3 << 20) }
+func logger() -> UnsafeRawPointer? {
+    dlsym(UnsafeMutableRawPointer(bitPattern:-2), "malloc_logger")!.assumingMemoryBound(to:UnsafeRawPointer?.self).pointee
+}
+print("LOGGER before \(logger() == nil)")
+print("START \(MeloNXHeapSamplerLink.start()) \(MeloNXHeapSamplerLink.start())")
+print("LOGGER set \(logger() != nil)")
+keepBig()
+keepSmall()
+let threads = (0..<4).map { index -> Thread in
+    let thread = Thread { churn(200_000, 3000 + index * 512) }
+    thread.name = "Churn_\(index)"; thread.start(); return thread
+}
+churn(200_000, 5000)
+while threads.contains(where: { !$0.isFinished }) { usleep(10_000) }
+for index in 0..<32 { free(big[index]) }
+grow()
+print("STOP \(MeloNXHeapSamplerLink.stop()) \(MeloNXHeapSamplerLink.stop())")
+print("LOGGER after \(logger() == nil)")
+for line in MeloNXHeapSample.lines(reason:"test", seconds:3) { print("HEAP " + line) }
+// The scheduled window, then one ended by the session; a begin while a window is open joins it.
+MeloNXHeapSample.shared.begin(path:path, context:["session":"s1"], seconds:0.5)
+MeloNXHeapSample.shared.begin(path:path, context:["session":"joined"], seconds:0.1)
+print("LOGGER window \(logger() != nil)")
+let held = malloc(8 << 20)
+usleep(1_500_000)
+print("LOGGER closed \(logger() == nil)")
+MeloNXHeapSample.shared.begin(path:path, context:["session":"s2"], seconds:60)
+usleep(200_000)
+MeloNXHeapSample.shared.end()
+MeloNXHeapSample.shared.end()
+usleep(500_000)
+print("LOGGER ended \(logger() == nil)")
+free(held)
+exit(0)
+''')
+        sampler_object = work / 'heap' / 'sampler.o'
+        subprocess.run(['xcrun', 'clang', '-c', '-O1', '-Wall', '-Wextra', '-Werror', str(CLASSES / 'MeloNXHeapSampler.m'), '-o', str(sampler_object)], check=True)
+        heap_executable = work / 'heap' / 'heap'
+        subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(CLASSES / 'MeloNXHeapSample.swift'),
+                        str(work / 'heap' / 'main.swift'), str(sampler_object), '-Xlinker', '-export_dynamic', '-o', str(heap_executable)], check=True)
+        result = subprocess.run([str(heap_executable), str(heap_log)], capture_output=True, text=True, timeout=300)
+        print(result.stdout[-6000:], result.stderr[-2000:], flush=True)
+        check(result.returncode == 0, result)
+        out = result.stdout.splitlines()
+        check('LOGGER before true' in out and 'START 1 0' in out and 'LOGGER set true' in out and 'STOP 1 0' in out and 'LOGGER after true' in out,
+              'the hook is set once and removed: ' + str([l for l in out if not l.startswith('HEAP ')]))
+        heap_lines = [l.removeprefix('HEAP ') for l in out if l.startswith('HEAP ')]
+        head = re.match(r'window 3 s \(test\): live (\d+) MiB in (\d+) samples, allocated (\d+) MiB in (\d+), interval 256 KiB, (\d+) stacks, '
+                        r'(\d+) dropped, (\d+) unwalked; zones=\S+$', heap_lines[0])
+        check(head, heap_lines[0])
+        live, live_samples, total, total_samples, stack_count, dropped, unwalked = map(int, head.groups())
+        # nm: the test's own functions by address, to name the first place of each stack.
+        table = sorted((int(parts[0], 16), parts[2]) for parts in
+                       (l.split(' ', 2) for l in subprocess.run(['xcrun', 'nm', '-n', str(heap_executable)], capture_output=True, text=True, check=True).stdout.splitlines())
+                       if len(parts) == 3 and parts[1] in 'tT')
+        base = next(address for address, name in table if name == '__mh_execute_header') if any(name == '__mh_execute_header' for _, name in table) else 0x100000000
+
+        def function(place):
+            if not place.startswith('heap+0x'):
+                return place.split('+0x')[0]
+            address = base + int(place.split('+0x')[1], 16)
+            name = None
+            for start, symbol in table:
+                if start > address:
+                    break
+                name = symbol
+            return next((short for short in ('keepBig', 'keepSmall', 'churn', 'grow') if name and short in name), name or place)
+
+        stacks = []
+        for l in heap_lines[1:]:
+            m = re.match(r'#(\d+) live=(\d+)/(\d+) total=(\d+)/(\d+) stack=(\S+)$', l)
+            check(m, l)
+            places = m.group(6).split('<')
+            stacks.append(dict(live=int(m.group(2)), liveSamples=int(m.group(3)), total=int(m.group(4)), totalSamples=int(m.group(5)),
+                               first=function(places[0]), places=places))
+        print([(s['first'], s['live'], s['total']) for s in stacks], flush=True)
+        check(1 <= len(stacks) <= 24 and stacks == sorted(stacks, key=lambda s: -s['live']) and
+              all(len(s['places']) <= 10 and not s['places'][0].startswith('libsystem_malloc.dylib+') for s in stacks),
+              'at most 24 stacks, most live bytes first, each starting at the caller of the allocator')
+        bigs = [s for s in stacks if s['first'] == 'keepBig']
+        check(len(bigs) == 1 and bigs[0]['live'] == 31 and bigs[0]['liveSamples'] == 31 and bigs[0]['total'] == 64 and bigs[0]['totalSamples'] == 64,
+              'blocks of the interval or more are counted exactly: 64 allocated, 32 freed, one moved: ' + str(bigs))
+        grown = [s for s in stacks if s['first'] == 'grow']
+        check(len(grown) == 1 and grown[0]['live'] == 3 and grown[0]['liveSamples'] == 1, 'a realloc is a free and an allocation: ' + str(grown))
+        smalls = [s for s in stacks if s['first'] == 'keepSmall']
+        kept = 100_000 * 2048 / (1 << 20)
+        check(len(smalls) == 1 and abs(smalls[0]['live'] - kept) <= 0.15 * kept and smalls[0]['total'] == smalls[0]['live'] and
+              abs(smalls[0]['liveSamples'] * 256 / 1024 - smalls[0]['live']) <= 1,
+              'small blocks are estimated from one sample per 256 KiB: %.1f MiB kept, %s' % (kept, smalls))
+        churned = [s for s in stacks if s['first'] == 'churn']
+        churn_bytes = sum(200_000 * (3000 + index * 512) for index in range(4)) + 200_000 * 5000
+        check(churned and sum(s['live'] for s in churned) <= 2 and
+              abs(sum(s['total'] for s in churned) - churn_bytes / (1 << 20)) <= 0.2 * churn_bytes / (1 << 20),
+              'freed blocks leave the live count and stay in the allocated one: %.0f MiB churned, %s' % (churn_bytes / (1 << 20), churned))
+        check(dropped == 0 and unwalked == 0 and abs(live - (31 + 3 + kept)) <= 0.15 * kept + 8 and stack_count >= 4 and live_samples < total_samples,
+              'totals: ' + heap_lines[0])
+        check('LOGGER window true' in out and 'LOGGER closed true' in out and 'LOGGER ended true' in out, 'windows set and remove the hook')
+        written = [l for l in heap_log.read_text().splitlines() if l.startswith('[MeloNX:heap] ')]
+        headers = [l for l in written if l.startswith('[MeloNX:heap] window ')]
+        check(len(headers) == 2 and re.match(r'\[MeloNX:heap\] window [01] s \(window\): live \d+ MiB', headers[0]) and '"session":"s1"' in headers[0] and
+              '"pid":"' in headers[0] and re.match(r'\[MeloNX:heap\] window 0 s \(sessionEnd\): ', headers[1]) and '"session":"s2"' in headers[1] and
+              not any('joined' in l for l in written) and len(written) <= 50,
+              'a window closed by its timer, one by the end of the session, a begin inside a window joins it: ' + str(headers))
+        first_window = written[written.index(headers[0]) + 1:written.index(headers[1])]
+        check(any(re.match(r'\[MeloNX:heap\] #\d+ live=8/1 total=8/1 stack=heap\+0x', l) for l in first_window),
+              'the 8 MiB block held through the window is in its report: ' + str(first_window[:4]))
     print('Executed the performance journal on macOS.')
 
 print(f'PASS {checks} performance journal checks')

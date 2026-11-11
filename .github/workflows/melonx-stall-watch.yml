@@ -12,6 +12,9 @@ run-name: Stall watch on macOS and iOS typecheck • ${{ github.sha }}
     - .github/workflows/melonx-stall-watch.yml
     - packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift
     - packages/melonx_internal_bridge/ios/Classes/MeloNXHotSpots.swift
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSample.swift
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSampler.m
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSampler.h
     - packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift
     - test/melonx_perf_journal_test.py
     - test/melonx_input_stick_test.py
@@ -43,11 +46,18 @@ jobs:
         xcrun --sdk iphoneos clang -fobjc-arc -Wall -Werror -target arm64-apple-ios18.0 \
           -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c packages/melonx_internal_bridge/ios/Classes/MeloNXS2ArmProbeHook.m -o /tmp/hook.o
         echo "iOS compile passed"
+    - name: Compile the heap sampler for the iOS SDK (arm64, iOS 18.0)
+      run: |
+        xcrun --sdk iphoneos clang -Wall -Wextra -Werror -Os -target arm64-apple-ios18.0 \
+          -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" -c packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSampler.m -o /tmp/heap-sampler.o
+        xcrun nm /tmp/heap-sampler.o | grep -E " T _MeloNXHeapSampler(Start|Stop|Report)$" | wc -l | grep -qx " *3"
+        echo "iOS compile passed"
     - name: Typecheck the journal for the iOS SDK (arm64, iOS 18.0, the bridge's deployment target)
       run: |
         xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -target arm64-apple-ios18.0 \
           -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
           packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift \
           packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift \
-          packages/melonx_internal_bridge/ios/Classes/MeloNXHotSpots.swift
+          packages/melonx_internal_bridge/ios/Classes/MeloNXHotSpots.swift \
+          packages/melonx_internal_bridge/ios/Classes/MeloNXHeapSample.swift
         echo "iOS typecheck passed"
