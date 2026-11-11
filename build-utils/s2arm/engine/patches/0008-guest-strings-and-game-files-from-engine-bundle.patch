@@ -1,22 +1,21 @@
 diff --git a/ios/s2a_l10n.h b/ios/s2a_l10n.h
 --- a/ios/s2a_l10n.h
 +++ b/ios/s2a_l10n.h
-@@ -3,15 +3,29 @@
+@@ -3,15 +3,28 @@
  //   含格式的串写 [NSString stringWithFormat:S2AL(@"…"), …]。两表键集合、占位符一致与代码引用由 tests/ios_l10n_test.sh 核对
  #pragma once
  #import <Foundation/Foundation.h>
-+#include <crt_externs.h>
 +#include <dlfcn.h>
  
 -#define S2AL(key) [NSBundle.mainBundle localizedStringForKey:(key) value:nil table:@"S2ArmHost"]
-+// RewindBox: the bundle that holds these tables is the bundle of the image running this code. In S2Arm.app (engine in the main
-+//   executable) that is the main bundle, as before; when another app loaded the engine as S2ArmEngine.framework it is the framework
-+//   directory, where guest.mk copies the same <lang>.lproj/S2ArmHost.strings (the host app's main bundle does not have them)
++// RewindBox: the bundle that holds these tables. S2Arm.app: the main bundle, as before. A RewindBox guest (runtime/src/rb_guest.c,
++//   looked up by name so that files built without it still link): the bundle of the image running this code, S2ArmEngine.framework,
++//   where guest.mk copies the same <lang>.lproj/S2ArmHost.strings (the host app's main bundle does not have them)
 +static inline NSBundle *s2a_l10n_bundle(void) {
 +    static NSBundle *bundle; static dispatch_once_t once;
 +    dispatch_once(&once, ^{
-+        Dl_info info; bundle = NSBundle.mainBundle;
-+        if (dladdr((const void *)&s2a_l10n_bundle, &info) && info.dli_fname && info.dli_fbase && info.dli_fbase != (const void *)_NSGetMachExecuteHeader())
++        int (*guest)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "s2a_rb_guest_on"); Dl_info info; bundle = NSBundle.mainBundle;
++        if (guest && guest() && dladdr((const void *)&s2a_l10n_bundle, &info) && info.dli_fname)
 +            bundle = [NSBundle bundleWithPath:@(info.dli_fname).stringByDeletingLastPathComponent] ?: NSBundle.mainBundle;
 +    });
 +    return bundle;

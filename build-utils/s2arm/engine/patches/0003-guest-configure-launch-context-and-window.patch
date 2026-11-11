@@ -86,7 +86,7 @@ diff --git a/runtime/src/rb_guest.c b/runtime/src/rb_guest.c
 new file mode 100644
 --- /dev/null
 +++ b/runtime/src/rb_guest.c
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,127 @@
 +// RewindBox: S2Arm's iOS engine as a guest of another app (S2ArmEngine.framework); interface and host sequence in rb_guest.h.
 +//   Everything here waits for s2a_rb_guest_configure. Before it, and always in S2Arm.app where nothing calls it, every query below
 +//   answers "not a guest" and s2a_rb_guest_exit is S2Arm's own _exit, so the app's behaviour is unchanged.
@@ -103,8 +103,8 @@ new file mode 100644
 +#include <stdatomic.h>
 +#include <unistd.h>
 +
-+int s2a_rb_engine_in_main_executable(void);   // vawin.c
-+void s2a_rb_guest_window_boot(void);          // vawin.c: the constructor's window reservation, deferred in a loaded image
++int s2a_rb_guest_window_deferred(void);       // vawin.c: the constructor left the window and the launch context to configure
++void s2a_rb_guest_window_boot(void);          // vawin.c: the constructor's window reservation, deferred
 +void s2a_host_shutdown(const char *why);      // lifecycle.c
 +
 +static _Atomic int g_on;        // 1 once s2a_rb_guest_configure passed its checks (before the launch context and the window)
@@ -132,7 +132,8 @@ new file mode 100644
 +    if (error && error_size) error[0] = 0;
 +    if (atomic_exchange(&called, 1)) return refuse(error, error_size, "s2a_rb_guest_configure was already called in this process (one game per process)");
 +    if (!c || c->size < sizeof *c) return refuse(error, error_size, "config size %u, expected at least %zu", c ? c->size : 0u, sizeof *c);
-+    if (s2a_rb_engine_in_main_executable()) return refuse(error, error_size, "the engine is this process's main executable (S2Arm.app); guest mode is for S2ArmEngine.framework");
++    if (!s2a_rb_guest_window_deferred())   // vawin.c: not loaded by RewindBox (S2Arm.app itself, or the host plugin's rb_s2arm_engine_loaded missing)
++        return refuse(error, error_size, "the engine's constructors ran as in S2Arm.app: guest mode needs S2ArmEngine.framework loaded by a host that exports rb_s2arm_engine_loaded");
 +    if (!c->prepare_code) return refuse(error, error_size, "prepare_code is required: game code reaches execution through pages the host makes executable");
 +    if (!c->images || c->images[0] != '/') return refuse(error, error_size, "images must be an absolute path");
 +    {   // the image pack is opened while the window is sized (loader.c ext_pack stops the process when it cannot): check it here first
@@ -217,7 +218,7 @@ diff --git a/runtime/src/rb_guest.h b/runtime/src/rb_guest.h
 new file mode 100644
 --- /dev/null
 +++ b/runtime/src/rb_guest.h
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,73 @@
 +// RewindBox: S2Arm's iOS engine as a guest of another app (S2ArmEngine.framework). Public interface of runtime/src/rb_guest.c and
 +//   ios/app.m; copied into S2ArmEngine.framework/Headers. Nothing here is called in S2Arm.app itself, so its behaviour is unchanged.
 +//
@@ -225,7 +226,8 @@ new file mode 100644
 +//   1. Before dlopen, set the process environment S2Arm's main sets: setenv("DOTNET_GCSegmentSize", "2000000", 0) and
 +//      setenv("MTL_SHADER_CACHE_SIZE", "67108864", 0).
 +//   2. dlopen(".../S2ArmEngine.framework/S2ArmEngine", RTLD_NOW | RTLD_GLOBAL): the engine looks up its own functions with
-+//      dlsym(RTLD_DEFAULT). Loaded by another app, its constructors leave the address window and the launch context alone.
++//      dlsym(RTLD_DEFAULT). When the process exports rb_s2arm_engine_loaded (RewindBox's host plugin; the engine looks it up,
++//      never defines it), the constructors leave the address window and the launch context to step 3.
 +//   3. s2a_rb_guest_configure(&config, error, sizeof error), right after dlopen, on any thread: freezes the launch context from
 +//      the config, reserves the engine's address window (the algorithm of S2Arm's constructor, now that the game is known) and
 +//      sets the .NET GC limit. 0 = ready; otherwise error holds the reason and the engine must not be used further.
@@ -297,21 +299,24 @@ diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
  #endif
  #include <crt_externs.h>
  #include <mach-o/dyld.h>
-+#include <mach-o/getsect.h>   // RewindBox: s2a_rb_engine_in_main_executable
++#include <mach-o/getsect.h>   // RewindBox: rb_guest_load
  #include <mach-o/loader.h>
  
  static int g_ok;            // 1 = 窗口已占到（首选位置整块 64 GB，或退路：2^39 以下最大空洞里的一块，见 vawin_reserve）
-@@ -655,11 +656,26 @@
+@@ -655,11 +656,30 @@
  //   理由只有一条：解包局用不到客体内存，不占最省（地址、构造期时间）。11-07 曾把测试设备1 解包慢（16 GB 约 300 秒）归因到「匿名窗口在」，
  //   14:39 同进程复测证否：匿名窗口在时 1 GB 写 2833 MB/s、解 16 GB 18.7 秒；上午慢局全在 05:46–06:51、快局全在 07:37 之后，窗口有无与时段完全重合（坑记录 11-07「机上解包约 50 MB/秒」）
  static int apply_only(void) { const char *e = getenv("S2A_PACK_APPLY_ONLY"); return e && *e == '1'; }
 -__attribute__((constructor(101))) static void vawin_boot(void) {
-+// RewindBox: 1 when this code runs from the process's main executable (S2Arm.app, the Mac host, unit tests), 0 when another app loaded
-+//   it (S2ArmEngine.framework). Reads only the main executable's header, no dyld call, so a constructor may ask
-+int s2a_rb_engine_in_main_executable(void) {
++// RewindBox: 1 when RewindBox loaded the engine (S2ArmEngine.framework): this code is not in the main executable (read from its header, no
++//   dyld call) and the process has RewindBox's host plugin, whose rb_s2arm_engine_loaded export the engine only looks up. S2Arm.app,
++//   whether launched directly or inside a container app (LiveContainer), has no such export: 0, nothing deferred
++static int g_rb_deferred;   // the constructor left the window and the launch context to s2a_rb_guest_configure
++static int rb_guest_load(void) {
 +    const struct mach_header_64 *mh = (const struct mach_header_64 *)_NSGetMachExecuteHeader(); unsigned long n = 0;
-+    const uint8_t *t = mh ? (const uint8_t *)getsegmentdata(mh, "__TEXT", &n) : NULL; uintptr_t me = (uintptr_t)&s2a_rb_engine_in_main_executable;
-+    return !t || (me >= (uintptr_t)t && me < (uintptr_t)t + n);
++    const uint8_t *t = mh ? (const uint8_t *)getsegmentdata(mh, "__TEXT", &n) : NULL; uintptr_t me = (uintptr_t)&rb_guest_load;
++    if (!t || (me >= (uintptr_t)t && me < (uintptr_t)t + n)) return 0;
++    return dlsym(RTLD_DEFAULT, "rb_s2arm_engine_loaded") != NULL;
 +}
 +static void vawin_boot_now(void) {
      if (apply_only()) { vaguard_release(); LOG("地址窗口：解包专用局（S2A_PACK_APPLY_ONLY=1）不占客体窗口、不起命令记录区"); return; }   // 不占也要放行 Mac 护栏（同 S2A_VAWIN_NORESERVE）
@@ -319,13 +324,14 @@ diff --git a/runtime/src/vawin.c b/runtime/src/vawin.c
      cmd_arena_reserve();
  }
 +__attribute__((constructor(101))) static void vawin_boot(void) {
-+    // RewindBox: loaded by another app the game is not known at dlopen (the window is sized from its main.npdm and image pack, through
-+    //   the launch context): s2a_rb_guest_configure reserves it once the host gave them (runtime/src/rb_guest.c). S2Arm.app unchanged
-+    if (!s2a_rb_engine_in_main_executable()) { LOG("address window: engine loaded by another app, reserved by s2a_rb_guest_configure"); return; }
++    // RewindBox: as a guest the game is not known at dlopen (the window is sized from its main.npdm and image pack, through the launch
++    //   context): s2a_rb_guest_configure reserves it once the host gave them (runtime/src/rb_guest.c)
++    if (rb_guest_load()) { g_rb_deferred = 1; LOG("address window: engine loaded by RewindBox, reserved by s2a_rb_guest_configure"); return; }
 +    vawin_boot_now();
 +}
-+// RewindBox guest (runtime/src/rb_guest.c): the constructor's reservation, once the host's launch context is frozen
-+void s2a_rb_guest_window_boot(void) { vawin_boot_now(); }
++// RewindBox guest (runtime/src/rb_guest.c): whether the constructor deferred, and its reservation once the host's launch context is frozen
++int s2a_rb_guest_window_deferred(void) { return g_rb_deferred; }
++void s2a_rb_guest_window_boot(void) { if (g_rb_deferred) vawin_boot_now(); }
  
  // 布局只用窗口前 size 字节时，把尾部还给系统（Metal 的大缓冲要用，见 layout.c）
  // ---------- 窗口尾部统一分配（10-24 维护者批：异度神剑3 测试设备2 低区耗尽 OOM）----------
