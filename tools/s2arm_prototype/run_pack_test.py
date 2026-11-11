@@ -59,7 +59,20 @@ def module(code=None, build_id=None, marker=b'', dynamic=True):
     return bytes(data)
 
 
-def exefs(directory, marker=b'', build=0x11, static_module=False):
+def exefs(directory, marker=None, build=0x11, static_module=False):
+    """marker None: make_synth_exefs's ExeFS, the one run_code_stage_test.py rewrites (main and sdk
+    without dynamic section: the engine rule raises and counts as not found). Else every module with
+    a dynamic section, main carrying the marker (b'' for none), and optionally one module without."""
+    if marker is None:
+        saved = sys.argv
+        sys.argv = ['make_synth_exefs.py', str(directory)]
+        try:
+            make_synth_exefs.main()
+        finally:
+            sys.argv = saved
+        w(directory / 'main', synth.build(build_id=bytes([build]) * 16))
+        w(directory / 'main.npdm', make_synth_exefs.npdm(TID))
+        return
     w(directory / 'main', module(marker=marker, build_id=bytes([build]) * 16))
     w(directory / 'main.npdm', make_synth_exefs.npdm(TID))
     w(directory / 'sdk', module(make_synth_exefs.SDK, bytes([0x53, 0x44]) + bytes(14)))
@@ -68,7 +81,7 @@ def exefs(directory, marker=b'', build=0x11, static_module=False):
         w(directory / 'subsdk1', module(make_synth_exefs.SUBSDK0, bytes([0x53, 0x31]) + bytes(14), dynamic=False))
 
 
-def make_export(root, marker=b'', romfs=None, delta=False, static_module=False):
+def make_export(root, marker=None, romfs=None, delta=False, static_module=False):
     """base (+ a delta update when asked), an exported control folder with an icon, one DLC."""
     root = Path(root)
     exefs(root / 'base/exefs', marker, static_module=static_module)
