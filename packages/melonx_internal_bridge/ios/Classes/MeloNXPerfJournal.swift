@@ -52,6 +52,8 @@ import Darwin
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
 // has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
 // "[MeloNX:memory]" lines (MeloNXMemoryBreakdown, below): the footprint's ledgers and regions, every 60 s.
+// "[MeloNX:hot]" lines (MeloNXHotSpots.swift): where the busiest threads are, sampled for 3 s when the game runs slow
+// and when it runs on target.
 
 // A call into the engine from a utility queue (the sampler below, the plugin's diagnostics drain) runs in the
 // user-interactive class for its duration. The engine's collector stops every engine thread and runs on the thread
@@ -100,6 +102,7 @@ final class MeloNXPerfJournal {
     private let memory: () -> String?
     private let stalls: MeloNXStallWatch
     private let breakdown: MeloNXMemoryBreakdown
+    private let hot: MeloNXHotSpots
     private let queue = DispatchQueue(label:"RewindBox.MeloNX.Perf", qos:.utility)
     private let lock = NSLock()
     private var paused = false
@@ -130,6 +133,7 @@ final class MeloNXPerfJournal {
         self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
         self.stalls = MeloNXStallWatch(path:path, context:context)
         self.breakdown = MeloNXMemoryBreakdown(path:path, context:context)
+        self.hot = MeloNXHotSpots(path:path, context:context)
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -160,6 +164,7 @@ final class MeloNXPerfJournal {
             source.resume()
             stalls.start()
             breakdown.start()
+            hot.start()
         }
     }
 
@@ -323,6 +328,7 @@ final class MeloNXPerfJournal {
         queue.async { [self] in
             stalls.stop()
             breakdown.stop()
+            hot.stop()
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
@@ -396,6 +402,10 @@ final class MeloNXPerfJournal {
             cpu += " \(thread.name):\(percent(thread.ns))/\(thread.priority)"
         }
         fields.append(cpu)
+        // "[MeloNX:hot]" profiles (MeloNXHotSpots): asked for here, taken by its own thread.
+        hot.observe(second:Int((now - started).rounded()), fps:engine["gameFps"] as? Double, paused:isPaused,
+                    threads:busy.prefix(MeloNXHotSpots.maxThreads).filter { $0.ns > 0 }.map {
+                        MeloNXHotSpots.Target(id:$0.id, name:$0.name, priority:$0.priority) })
 
         stalls.enter("memory")
         let footprint = memory()
@@ -617,9 +627,9 @@ final class MeloNXStallWatch {
                 }
             }
             if read == KERN_SUCCESS {
-                text += " pc=" + place(state.__pc, &places) + " lr=" + place(state.__lr, &places)
+                text += " pc=" + Self.place(state.__pc, &places) + " lr=" + Self.place(state.__lr, &places)
                 let frames = Self.frames(from:state.__fp)
-                if !frames.isEmpty { text += " bt=" + frames.map { place($0, &places) }.joined(separator:",") }
+                if !frames.isEmpty { text += " bt=" + frames.map { Self.place($0, &places) }.joined(separator:",") }
             }
             #endif
             lines.append(text)
@@ -642,10 +652,10 @@ final class MeloNXStallWatch {
 
     // The frame records from fp: each is {previous fp, return address}; read with vm_read_overwrite, which fails on an
     // unmapped address instead of faulting; stops on a null, misaligned or non-increasing fp.
-    private static func frames(from start: UInt64) -> [UInt64] {
+    static func frames(from start: UInt64, limit: Int = maxFrames) -> [UInt64] {
         var result: [UInt64] = []
         var fp = start & addressMask
-        while result.count < maxFrames, fp != 0, fp & 0xF == 0 {
+        while result.count < limit, fp != 0, fp & 0xF == 0 {
             var record = (UInt64(0), UInt64(0))
             var size = vm_size_t(0)
             let status = withUnsafeMutableBytes(of:&record) { raw in
@@ -660,7 +670,7 @@ final class MeloNXStallWatch {
         return result
     }
 
-    private func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String {
+    static func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String {
         let address = raw & Self.addressMask
         guard address != 0 else { return "0" }
         if let known = cache[address] { return known }
@@ -690,7 +700,7 @@ final class MeloNXStallWatch {
         return status == KERN_SUCCESS && UInt64(region) <= address && info.protection & VM_PROT_EXECUTE != 0
     }
 
-    private static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
+    static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
         var count = mach_msg_type_number_t(MemoryLayout<T>.size / MemoryLayout<natural_t>.size)
         return withUnsafeMutablePointer(to:&value) {
             $0.withMemoryRebound(to:integer_t.self, capacity:Int(count)) {

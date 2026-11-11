@@ -175,6 +175,57 @@ check('let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }'
       'DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)' in plugin and
       'timer.schedule(deadline:.now(),repeating:.milliseconds(300))' in plugin, 'the diagnostics drain calls the engine under the override')
 
+# Hot spots (lot 12): "[MeloNX:hot]" profiles asked for by the sampler and taken by a native thread that calls no engine
+# closure and suspends nothing; bounded in samples, threads, places and profiles; written through the shared writer.
+hot = (CLASSES / 'MeloNXHotSpots.swift').read_text()
+check('            stalls.start()\n            breakdown.start()\n            hot.start()\n' in journal and
+      '            stalls.stop()\n            breakdown.stop()\n            hot.stop()\n' in journal and journal.count('hot.observe(') == 1 and
+      journal.index('fields.append(cpu)') < journal.index('hot.observe(') < journal.index('stalls.enter("memory")'),
+      'the profiler starts and stops with the journal and is asked once per line, after the thread shares')
+check(all(name not in hot for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'thread_resume', 'task_suspend',
+                                       'DispatchQueue.main', 'MeloNXEngineCallClass')), 'the profiler calls no engine closure and suspends nothing')
+HOT = {name: float(value) for name, value in re.findall(r'\b(rounds|maxThreads|maxFrames|maxSlow|maxBase|minSecond|gapSeconds|streak|slowBelow|baseFrom|'
+                                                         r'selfPlaces|stackPlaces|waitPlaces) = ([\d.]+)', hot)}
+check(HOT == dict(rounds=300, maxThreads=6, maxFrames=6, maxSlow=4, maxBase=2, minSecond=40, gapSeconds=20, streak=3, slowBelow=26, baseFrom=28.5,
+                  selfPlaces=20, stackPlaces=28, waitPlaces=12) and 'static let periodMicroseconds: UInt32 = 10_000' in hot, 'profile bounds: ' + str(HOT))
+check(hot.count('MeloNXStdioCapture.appendLine(') == 1 and 'to:path, limit:MeloNXPerfJournal.fileLimit)' in hot and 'open(' not in hot and
+      'index == 0 ? MeloNXStdioCapture.contextualLine(text, context:context) : text' in hot, 'profiles written through the shared writer, the header with the context')
+check(hot.count('mach_port_deallocate(mach_task_self_, list[index])') == 1 and hot.count('vm_deallocate(mach_task_self_') == 1 and
+      'thread_get_state(thread, thread_state_flavor_t(ARM_THREAD_STATE64)' in hot and 'MeloNXStallWatch.frames(from:registers.fp, limit:maxFrames)' in hot and
+      hot.index('let took = ') < hot.index('func name(_ address: UInt64) -> String'),
+      'thread ports released; registers read without suspension; places named after the sampling')
+check('static func frames(from start: UInt64, limit: Int = maxFrames) -> [UInt64]' in journal and
+      'static func place(_ raw: UInt64, _ cache: inout [UInt64: String]) -> String' in journal, 'the stall watch\'s readers are shared with the profiler')
+
+
+def hot_decisions(lines):
+    """The profiler's decision rule, from its constants: [(kind, second)] for (second, fps, paused) lines."""
+    slow = base = slow_done = base_done = 0
+    last, out = -1000, []
+    for second, fps, paused in lines:
+        if paused or fps <= 0 or second < HOT['minSecond']:
+            slow = base = 0
+            continue
+        slow = slow + 1 if fps < HOT['slowBelow'] else 0
+        base = base + 1 if fps >= HOT['baseFrom'] else 0
+        if second - last < HOT['gapSeconds']:
+            continue
+        kind = 'slow' if slow >= HOT['streak'] and slow_done < HOT['maxSlow'] else 'base' if base >= HOT['streak'] and base_done < HOT['maxBase'] else None
+        if kind:
+            out.append(f'{kind}@{second}')
+            slow_done, base_done = slow_done + (kind == 'slow'), base_done + (kind == 'base')
+            last, slow, base = second, 0, 0
+    return out
+
+
+HOT_LINES = ([(second, 20.0, False) for second in range(30, 60)] + [(second, 30.0, False) for second in range(60, 66)] +
+             [(66, 20.0, False), (67, 20.0, True), (68, 20.0, False), (69, 20.0, False)] +
+             [(second, 20.0 if second % 50 < 25 else 30.0, False) for second in range(70, 200)] +
+             [(second, 20.0, False) for second in range(200, 400)] + [(second, 0.0 if second % 7 == 0 else 30.0, False) for second in range(400, 500)])
+expected_decisions = hot_decisions(HOT_LINES)
+check(expected_decisions[:2] == ['slow@42', 'base@62'] and sum(d.startswith('slow') for d in expected_decisions) == 4 and
+      sum(d.startswith('base') for d in expected_decisions) == 2, 'the rule on the scripted session: ' + ','.join(expected_decisions))
+
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
         work = Path(temporary)
@@ -251,6 +302,23 @@ DispatchQueue(label:"Perf.Utility", qos:.utility).async {
 }
 classDone.wait()
 print(classLine)
+// Hot spots: the decision per line, on the scripted session the test also runs through its own copy of the rule.
+var slowStreak = 0, baseStreak = 0, slowDone = 0, baseDone = 0, lastHot = -1_000
+var decisions: [String] = []
+func hotLine(_ second: Int, _ fps: Double, _ paused: Bool = false) {
+    guard let kind = MeloNXHotSpots.decide(second:second, fps:fps, paused:paused, slowStreak:&slowStreak, baseStreak:&baseStreak,
+                                           slowDone:slowDone, baseDone:baseDone, lastSecond:lastHot) else { return }
+    decisions.append("\(kind)@\(second)")
+    if kind == "slow" { slowDone += 1 } else { baseDone += 1 }
+    lastHot = second; slowStreak = 0; baseStreak = 0
+}
+for second in 30..<60 { hotLine(second, 20) }
+for second in 60..<66 { hotLine(second, 30) }
+hotLine(66, 20); hotLine(67, 20, true); hotLine(68, 20); hotLine(69, 20)
+for second in 70..<200 { hotLine(second, second % 50 < 25 ? 20 : 30) }
+for second in 200..<400 { hotLine(second, 20) }
+for second in 400..<500 { hotLine(second, second % 7 == 0 ? 0 : 30) }
+print("hotDecide " + decisions.joined(separator:","))
 let journal = MeloNXPerfJournal(path:path, interval:0.25, lineLimit:6,
     fps:{ ["gameFps":59.5,"gameFrameTimeMs":16.8,"fifoPercent":40.0] },
     presentation:{
@@ -277,7 +345,7 @@ exit(2)
 ''')
         executable = work / 'perf'
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
-                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'main.swift'), '-o', str(executable)], check=True)
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(work / 'main.swift'), '-o', str(executable)], check=True)
         result = subprocess.run([str(executable), str(log)], capture_output=True, text=True, timeout=60)
         check(result.returncode == 0, result)
         lines = log.read_text().splitlines()
@@ -330,6 +398,8 @@ exit(2)
                'hwField nil', 'hwField nil'] and 'timeUnit positive' in result.stdout.splitlines(), result.stdout)
         check([line for line in result.stdout.splitlines() if line.startswith('vmField ')] == ['vmField 32/250/900/0', 'vmField -/-/1000/1'],
               result.stdout)
+        check([line for line in result.stdout.splitlines() if line.startswith('hotDecide ')] == ['hotDecide ' + ','.join(expected_decisions)],
+              'the profiler decides as the rule: ' + result.stdout)
         # Engine-call class (base priorities: 47 user-interactive, 20 utility): the utility queue's thread is at the
         # user-interactive priority inside the call and inside a nested one, and back at its own between and after
         # (after a call that threw as well); the call's value is returned.
@@ -364,6 +434,16 @@ let waiter = Thread { gate.wait() }
 waiter.name = "Stall Waiter"
 waiter.start()
 usleep(100_000)
+// Hot spots: one profile of the spinner, of the waiter and of a thread that does not exist.
+let known = MeloNXPerfJournal.threads()
+func hotTarget(_ name: String) -> MeloNXHotSpots.Target {
+    guard let thread = known.first(where: { $0.name == name }) else { print("no thread", name); exit(7) }
+    return MeloNXHotSpots.Target(id:thread.id, name:thread.name, priority:thread.priority)
+}
+let profile = MeloNXHotSpots.profile(MeloNXHotSpots.Request(number:1, kind:"slow", second:42, fps:19.5,
+    targets:[hotTarget("Stall_Spinner"), hotTarget("Stall_Waiter"), MeloNXHotSpots.Target(id:0xFFFF_FFFF_FFFF, name:"gone", priority:31)]),
+    rounds:80, periodMicroseconds:5_000)
+for line in profile { print("HOT " + line) }
 let lock = NSLock()
 var calls = 0
 let journal = MeloNXPerfJournal(path:path, interval:0.1, lineLimit:100,
@@ -382,7 +462,7 @@ exit(0)
 ''')
         stall_executable = work / 'stall' / 'stall'
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
-                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'stall' / 'main.swift'), '-o', str(stall_executable)], check=True)
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(work / 'stall' / 'main.swift'), '-o', str(stall_executable)], check=True)
         result = subprocess.run([str(stall_executable), str(stall_log)], capture_output=True, text=True, timeout=120)
         check(result.returncode == 0, result)
         stall_lines = [line.removeprefix('[MeloNX:stall] ') for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:stall] ')]
@@ -411,6 +491,29 @@ exit(0)
               'a waiting thread in the kernel')
         perf = [line for line in stall_log.read_text().splitlines() if line.startswith('[MeloNX:perf] t=')]
         check(perf and float(re.search(r' mgd=([\d.]+)', perf[0]).group(1)) >= 1590, perf[:1])
+        # Hot spots: the spinner is found running, in the program's own code; the waiter waiting, under libdispatch;
+        # a thread that does not exist is only missed; every list is bounded.
+        hot_lines = [line.removeprefix('HOT ') for line in result.stdout.splitlines() if line.startswith('HOT ')]
+        check(len(hot_lines) == 4 and re.fullmatch(r'#1 slow t=42 fps=19\.5 80 samples in \d+ ms, 3 threads', hot_lines[0]), hot_lines[:1])
+        rows = {}
+        for line in hot_lines[1:]:
+            row = re.fullmatch(r'#1 (\S+) p(\d+) run=(\d+) wait=(\d+) missed=(\d+) self=(\S+) stack=(\S+) waiting=(\S+)', line)
+            check(row is not None, line)
+            rows[row.group(1)] = dict(run=int(row.group(3)), wait=int(row.group(4)), missed=int(row.group(5)),
+                                      **{key: [] if row.group(index) == '-' else [(entry.rsplit(':', 1)[0], int(entry.rsplit(':', 1)[1])) for entry in row.group(index).split(',')]
+                                         for key, index in (('own', 6), ('stack', 7), ('waiting', 8))})
+        spinner_row, waiter_row, gone = rows['Stall_Spinner'], rows['Stall_Waiter'], rows['gone']
+        check(spinner_row['run'] >= 60 and spinner_row['missed'] == 0 and spinner_row['run'] + spinner_row['wait'] == 80 and
+              sum(count for place, count in spinner_row['own'] if place.startswith('stall+0x')) >= spinner_row['run'] // 2 and
+              sum(count for _, count in spinner_row['own']) <= spinner_row['run'] and
+              all(count <= spinner_row['run'] for _, count in spinner_row['stack']) and any(place.startswith('stall+0x') for place, _ in spinner_row['stack']),
+              'the spinner: running, in the program\'s own code: ' + hot_lines[1])
+        check(waiter_row['wait'] >= 70 and waiter_row['missed'] == 0 and any(place.startswith('libdispatch.dylib+0x') for place, _ in waiter_row['waiting']) and
+              not any(place.startswith(('libsystem_kernel.dylib+', 'libsystem_pthread.dylib+')) for place, _ in waiter_row['waiting']) and
+              all(count <= waiter_row['wait'] for _, count in waiter_row['waiting']), 'the waiter: waiting under libdispatch: ' + hot_lines[2])
+        check(gone == dict(run=0, wait=0, missed=80, own=[], stack=[], waiting=[]), 'a thread that does not exist: ' + hot_lines[3])
+        check(all(len(row['own']) <= 20 and len(row['stack']) <= 28 and len(row['waiting']) <= 12 for row in rows.values()) and
+              all(len(line) < 4096 for line in hot_lines), 'bounded lists')
 
         # Memory breakdown: 96 MiB tagged app-specific 3 (64 MiB written) and 32 MiB of shared memory tagged
         # app-specific 4, written and mapped twice more without a tag (mach_vm_remap takes none): one object, counted
@@ -449,7 +552,7 @@ exit(0)
 ''')
         memory_executable = work / 'memory' / 'memory'
         subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', str(CLASSES / 'MeloNXStandaloneParity.swift'),
-                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(work / 'memory' / 'main.swift'), '-o', str(memory_executable)], check=True)
+                        str(CLASSES / 'MeloNXPerfJournal.swift'), str(CLASSES / 'MeloNXHotSpots.swift'), str(work / 'memory' / 'main.swift'), '-o', str(memory_executable)], check=True)
         result = subprocess.run([str(memory_executable), str(memory_log)], capture_output=True, text=True, timeout=120)
         check(result.returncode == 0, result)
         tagged = next(line for line in result.stdout.splitlines() if line.startswith('TAGGED ')).split(' ')[1]
