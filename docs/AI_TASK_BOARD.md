@@ -277,6 +277,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
     IPA 724/725 (idle game list heat, battery under a game).
+  - **Switch 2 library layer integrated (`99e527c5`, session 04, head `a13a0db8`):** inert in the common app (no plugin,
+    native code, entitlement or extension; `switch2` off by default; the Consoles tab disables the engine switch while
+    S2Arm is unavailable, so only the engine-off route is reachable; startup only creates the empty S2Arm Games folder);
+    checked by main in the code. Merged tree: flutter test 27 files 197/197, libretro/storage contracts, workflow guard,
+    tile controls, legal chain with the RA podspec at its reviewed bytes (227 inputs); session 04 CI run `43091021846`.
+    The next common build (726) carries it; 803 is then a sibling of 726 with the declared S2Arm delta.
+  - **MeloNX:** nothing in progress for 726; Core 735 (`4d391b8d`) ships; its pin note merged (`d769ef7c`).
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
     legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
     tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
