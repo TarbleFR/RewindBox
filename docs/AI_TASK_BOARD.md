@@ -258,8 +258,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Common IPA 726 triggered (11 Nov 20:50 UTC, main).** All sessions ready (queue below). Draft `8a627b46` = freeze
-  commit, trigger `0fbb5ac8`, run `43098367088` (in progress; not delivered yet). Base: the delivered 725 (run
+- **Common IPA 726 triggered (11 Nov, main).** All sessions ready (queue below). First request: draft `8a627b46` =
+  freeze commit, trigger `0fbb5ac8`, run `43098367088` created at 20:50:19 UTC during a GitHub Actions outage
+  (githubstatus.com major outage, incident opened 20:56): it never started, like every run created between 20:41 and
+  20:52, while a run created at 21:37 ran; GitHub refused its cancellation (409, "has not been queued yet"; not
+  retried). Second request (recipe 3.6, only the recipe changes): draft `8fb2ee39` (its note records why), frozen
+  there with the same effective digest, trigger `bd99e8b7`, run `43106533461` in progress. Base: the delivered 725 (run
   `42973548971`, receipt `a84cb29a`, 90 signed images). Replaced: RPCS3 Core 933 (pin `3fdc9f3b`), MeloNX Core 735
   (pin `3939c7a9`, replaces 731). Retained: Dolphin, ARMSX2, libretro, MeloNX dependencies, standalone MoltenVK
   `99605a2b` (inputs unchanged since 725). Added image: `xenia_internal_bridge.framework` (PR 172 plugin; XeniaCore,

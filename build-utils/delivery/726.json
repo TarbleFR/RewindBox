@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 726,
   "status": "frozen",
-  "note": "Private common IPA 726 = the delivered 725 with every change ready on 11 November 2026 (maintainer: no IPA before the other sessions are ready; all were ready). RPCS3 Core 933 (= 928 + 929 to 933): God of War III savestate memory left as saved (929, the corruption of resumed savestates since 724); the SPU region profile names what a waiting SPU thread waits on (930); the thermal chantier, ten fixes (931); the ARMSX3 lot and the first fixes of the 11 November audit (932); the local profile of a game and its first learned decision, the SPU object prefetch (933). Host: the in-game menu shows the applied resolution. MeloNX Core 735 (= 731 + 733 + 735): user-interactive host threads, the reused diagnostics snapshot, a Map or Unmap re-queues the partially mapped textures it can concern; bridge: heap sampler for the first two minutes of a session, en= and sw= journal fields, the host decodes the diagnostics report only when it changed, one NativeAOT engine per process; MoltenVK 99605a2b retained. Xbox 360 / XeniOS playlist (PR 172): Consoles tab by application, imports, settings, touch controls and the xenia_internal_bridge plugin (a new image); XeniaCore, the shader converter and the JIT helper extension are not in this build, so the Xbox 360 engine stays unavailable and off by default. Skins PR 177 (decorative loops stop under a game, capped preview decodes) and PR 176 (System Art update notices). Switch 2 library layer (session 04): inert, off by default, no plugin, native code, entitlement or extension. The 12 message fixes of the 725 review through the port (files that carry the deferred b06888a9 lines). Base: the delivered and verified 725. Nothing of this build was run on an iPhone; no FPS, memory, heat or stability claim.",
+  "note": "Private common IPA 726 = the delivered 725 with every change ready on 11 November 2026 (maintainer: no IPA before the other sessions are ready; all were ready). RPCS3 Core 933 (= 928 + 929 to 933): God of War III savestate memory left as saved (929, the corruption of resumed savestates since 724); the SPU region profile names what a waiting SPU thread waits on (930); the thermal chantier, ten fixes (931); the ARMSX3 lot and the first fixes of the 11 November audit (932); the local profile of a game and its first learned decision, the SPU object prefetch (933). Host: the in-game menu shows the applied resolution. MeloNX Core 735 (= 731 + 733 + 735): user-interactive host threads, the reused diagnostics snapshot, a Map or Unmap re-queues the partially mapped textures it can concern; bridge: heap sampler for the first two minutes of a session, en= and sw= journal fields, the host decodes the diagnostics report only when it changed, one NativeAOT engine per process; MoltenVK 99605a2b retained. Xbox 360 / XeniOS playlist (PR 172): Consoles tab by application, imports, settings, touch controls and the xenia_internal_bridge plugin (a new image); XeniaCore, the shader converter and the JIT helper extension are not in this build, so the Xbox 360 engine stays unavailable and off by default. Skins PR 177 (decorative loops stop under a game, capped preview decodes) and PR 176 (System Art update notices). Switch 2 library layer (session 04): inert, off by default, no plugin, native code, entitlement or extension. The 12 message fixes of the 725 review through the port (files that carry the deferred b06888a9 lines). Base: the delivered and verified 725. Nothing of this build was run on an iPhone; no FPS, memory, heat or stability claim. Second request: the run of the first trigger 0fbb5ac8 (43098367088, created at 20:50:19 UTC during a GitHub Actions outage) never started and GitHub refused to cancel it (409: not queued yet); the product is unchanged (same effective tree), only the freeze point moves past the board notes.",
   "base": {
     "build": 725,
     "source": "e5a82821a07163aecff98bf73704c23438aadda2",
@@ -382,8 +382,8 @@
       }
     ],
     "promotedCommits": [],
-    "freezeCommit": "8a627b46c12e0da5eb7d0b893199b1918b65bb09",
-    "freezeTree": "a8defd59c1ff17b1546812e6bb81270ad2045b26",
+    "freezeCommit": "8fb2ee397dbde99551a353e2d3c8c9cd876ba1a0",
+    "freezeTree": "499809298c0a98b8db34acc25cea983b3588a7f1",
     "baseEffectiveDigest": "2b7d639b11ab072cc6bb22e4a2205bbfd8344a6fbb4fdef7c7ae9c622167aecf",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -918,6 +918,30 @@
       {
         "commit": "8a627b46c12e0da5eb7d0b893199b1918b65bb09",
         "subject": "delivery: IPA 726 draft (the delivered 725 with RPCS3 Core 933, MeloNX Core 735, PRs 172, 176 and 177, the Switch 2 library layer and the 725 message fixes) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "0fbb5ac85e848cd5ec06300ab04dbed824b0b652",
+        "subject": "[ipa-delivery:726] build(delivery): private IPA 726 = the delivered 725 with RPCS3 Core 933, MeloNX Core 735, PRs 172/176/177, the Switch 2 library layer and the 725 message fixes",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "e6e573b7a3598cba0725007beac41a02cbdea262",
+        "subject": "docs(board): IPA 726 triggered (0fbb5ac8, run 43098367088): line restored, port, test findings, startup contract fix [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "aeb5b97f553cc20ef9d2143fe8c19f02ef17c90f",
+        "subject": "docs(board): IPA 726 run queued by a GitHub Actions outage; nothing re-triggered [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "8fb2ee397dbde99551a353e2d3c8c9cd876ba1a0",
+        "subject": "delivery: IPA 726 draft, second request (the run of trigger 0fbb5ac8 was orphaned by a GitHub Actions outage) [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -3496,8 +3520,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-11T20:49:32Z",
-    "commit": "8a627b46c12e0da5eb7d0b893199b1918b65bb09",
+    "at": "2026-11-11T21:49:51Z",
+    "commit": "8fb2ee397dbde99551a353e2d3c8c9cd876ba1a0",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
