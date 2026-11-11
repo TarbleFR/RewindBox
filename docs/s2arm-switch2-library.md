@@ -64,3 +64,21 @@ service answers `engineMissing`: the playlist is listed but unavailable and noth
 - Nothing was run on a device; the launch route, prepare dialog, session end and import are untested against the
   native plugin.
 - `test/libretro_frontend_ui_contract_test.py` could not run locally (it reads a reviewed commit that is absent here).
+
+## Main-menu tile and logo
+
+- `assets/images/logos/switch2.webp`: white on transparency (820×330) like every console logo, because the menu tints
+  logos (`ColorFiltered`, `BlendMode.srcIn`) in the card footer, the no-artwork card and the TV screen.
+- `assets/system_art/rewindbox-glacier/backgrounds/switch2.webp` (512×512): the maintainer's choice, the official Nintendo
+  Switch 2 logo on red, shown as the playlist's artwork in the main menu (`NeoAssetsService.resolveBackgroundPathSync`
+  finds `backgrounds/switch2.webp` directly; the alias table also maps `Nintendo Switch 2`). The pack's `aliases.json`,
+  `theme.json` and `CREDITS.md` declare it; `assets/legal/RewindBox-Glacier-ATTRIBUTION.md` names it as the one tile that is
+  not a portrait (Nintendo trademark, supplied by the maintainer, not BAXY-guided, not CC BY content).
+- The pack index changes (129 files; `contentDigest` = SHA-256 of `json.dumps(files, sort_keys=True)`, the generator's
+  formula; installed copies are replaced once at the next start). The legal gate binds the index through the Glacier
+  review, so the change is declared by a review chained after it,
+  `docs/evidence/switch2-glacier-tile-declarations-2026-11-11.json`, checked by `check_switch2_glacier_tile()` in
+  `build-utils/collect_build_source_evidence.py` (previous and new index digests, the added tile and the three declared
+  files, each against the index and the bytes). Negative controls: `test/switch2_glacier_tile_review_test.py` (8 tests;
+  each check mutation-tested). Main reviews it with the rest of this branch.
+
