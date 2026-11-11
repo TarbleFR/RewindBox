@@ -296,6 +296,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   solved and no Discord post is claimed. The GitHub publication/document/source
   correction is complete; do not repeat it or re-announce later private builds.
 
+- **Common IPA 725 in preparation (11 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** Maintainer requests of 11 Nov: every fix
+  in IPA A (725), then IPA B (726) = A + the S2Arm probe (handoff `1ce1b5d9`, session 04). Ready on `Claude`:
+  - **Cores pinned:** RPCS3 Core 928 `d45b1c80` (run `42960159566`, dylib `2840977c` 80958696 B, fingerprint `b99f76b0`,
+    15 Apple host commands; Core 927 `6669475f` stays the fallback); MeloNX Core 731 `fa54e14a` (run `42958274015`,
+    artifact `13830187578` `d82a8abf`, iPhone `574a5de9` 38456384 B, contract `518ea8dc`, 88 fresh gates) with the
+    five-part MoltenVK `99605a2b` (`576f9fe6`). Core 729 alone (run `42954875678`) stopped at
+    `melonx_worker_library_share_test` (1878/2000 render-thread creations kept): not pinned, not masked, reported.
+  - **Imports and launch prerequisites** (maintainer: every failure says why, which game goes to which playlist,
+    nothing already imported breaks, errors where the user does things wrong): commits `4fd0996a` … `2b8b8ed7`, French
+    note [imports-et-prerequis-2026-11-11.md](imports-et-prerequis-2026-11-11.md). Three delegated lots, each reviewed
+    independently, confirmed findings fixed (one regression caught before delivery: GameCube 'already in the library'
+    compared name and size). Tester's RetroArch crash: no process-ending cause in the journal; real defects fixed;
+    `.ips` needed if it persists. Host checks: melonx-host run `42966944007` green (session host, folder plugin
+    type-check, presentation doubles), rpcs3-host-bridge run `42966947262` green (PS3 picker with the iPhone SDK).
+  - **Delivery blocker found and solved locally:** seven of those commits touch three files that still carry the
+    RetroAchievements work deferred since 611 (`b06888a9`); the freeze refuses them. Port prepared as in 615 (three
+    commits: paths to the 724 bytes, the same reviewed changes from those bytes with `git merge-file` without conflict,
+    the deferred lines put back; final tree identical): dry-run freeze 0 conflicts, legal check passed, delivery contract
+    63/63 on a scratch branch. Applied to `Claude` after the last review of the prerequisite commits.
+  - **Not observed on an iPhone:** nothing of this build. Skins PR 171/173 and the fourth Pocket review (`f36bac74`) go in.
+
 - **Common IPA 724 delivered and verified (10 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** = the delivered 723 with RPCS3 Core 923
   (pin `4398e164`, run `42905444118`, dylib `46520c3d`: Core 922 GOW3 MLAA bypass on savestate resume, RPCS3 database as
   the per-game reference with legacy full `custom_configs` ignored, freeze dump `res=`/`getllar_res=`; Core 923 SPU sampling
