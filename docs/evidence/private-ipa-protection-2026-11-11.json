@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "repository": "TarbleFR/RewindBox",
+  "scope": "Protect published test IPA binaries; public release assets and public source remain available.",
+  "actionPin": "3bd75a37a4056eb9324987c76f32b002a89d58cb",
+  "guardedExistingUploads": 980,
+  "changedExistingWorkflows": 213,
+  "integrations": [
+    {
+      "branch": "Claude",
+      "pullRequest": 174,
+      "commit": "0284bbf4fedbef38845af67bdaa3292173743527",
+      "preservedConcurrentParent": "916b8f19d5a70da4266b570fdf7b15efbf430788"
+    },
+    {
+      "branch": "main",
+      "pullRequest": 175,
+      "commit": "c60bcb5cad02626a85487f6577782784458d2fb9",
+      "base": "48467f5ebab8131781cec7d4f111fccdf485fdc4",
+      "exactIntendedChangedFiles": 224,
+      "unexpectedChangedFiles": [],
+      "deletedFiles": []
+    }
+  ],
+  "validation": {
+    "guardTests": 24,
+    "realBoundary": [
+      "ubuntu-24.04",
+      "macos-15",
+      "windows-latest"
+    ],
+    "greenRuns": [
+      42946234456,
+      42946507180
+    ],
+    "standardDeliveryWorkflowTests": 15,
+    "exactReuseRenderingTests": 1,
+    "encryptionAndRecipientTests": 2,
+    "workflowSemanticAudit": "Uploader substitution only, except intended NeoSwap recipient/encryption boundary."
+  },
+  "unrelatedMainFailures": {
+    "run": 42946507230,
+    "baseline": "48467f5ebab8131781cec7d4f111fccdf485fdc4",
+    "historicalTest": "test/retroarch_baseline_scope_test.py",
+    "reproducedUnchangedOnBaseline": true,
+    "paths": [
+      "lib/main.dart",
+      "lib/providers/sqlite_config_provider.dart",
+      "lib/services/config_service.dart",
+      "native/neoswap-storage/Store.cpp"
+    ],
+    "flutterAnalyzerInformationalFindings": 122,
+    "analyzedDartAndDependencyAndAnalyzerInputsChanged": false,
+    "testsSuppressed": false,
+    "repositoryProtectionChanged": false
+  },
+  "historicalAudit": {
+    "run": 42945740946,
+    "status": "in_progress",
+    "initialInventoryRun": 42944705303,
+    "initialInventoryArtifact": 13821054724,
+    "initialInventoryDigest": "sha256:13718e5bbeee5e0b097e645a6a6d9a125e4f98a5b21ec13cb839b036f31c3792",
+    "initialArtifactCount": 2146,
+    "deletions": 0,
+    "releaseAssetsTouched": false
+  },
+  "limits": [
+    "The guard protects workflow revisions that contain it; older revisions are not rewritten.",
+    "Encrypted envelopes are structurally checked, not decrypted by the audit.",
+    "Authorized recipients can redistribute a decrypted IPA; this is not DRM."
+  ]
+}
