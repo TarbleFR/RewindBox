@@ -91,6 +91,9 @@ static void park_counters()
 	for (std::size_t b = 0; b < wp::buckets; b++) histogram[b] = wl::take(wp::counters.histogram[b]);
 	CHECK(histogram[0] == 1 && histogram[wp::buckets - 1] == 1, "histogram %llu/%llu", (unsigned long long)histogram[0], (unsigned long long)histogram[wp::buckets - 1]);
 	CHECK(wl::take(wp::counters.slow_ticks) == 60'000 && wl::take(wp::counters.over_budget) == 1, "slow ticks and over budget");
+	// Reading a field reads it without clearing it, as reading one of the former atomics did (the Core 917 harness does).
+	CHECK(std::uint64_t(wp::counters.ppu_parks) == 8 && wp::counters.ppu_park_ticks == 800u && std::uint64_t(wp::counters.ppu_parks) == 8,
+		"a read leaves the sum");
 	CHECK(wl::take(wp::counters.ppu_parks) == 8 && wl::take(wp::counters.ppu_park_ticks) == 800, "ppu parks");
 	CHECK(wl::take(wp::counters.main_parks) == 1 && wl::take(wp::counters.main_park_ticks) == 100, "main parks");
 }
@@ -110,6 +113,8 @@ static void deferred_record()
 	CHECK(rec::flush(), "the release publishes");
 	CHECK(!rec::flush(), "published once");
 	CHECK(wl::take(wl::counters.bits_ticks) == 7 && wl::take(wl::counters.ranges_ticks) == 11 && wl::take(wl::counters.park_ticks) == 60'000, "phases");
+	CHECK(std::uint64_t(wl::counters.park_max_ticks) == 60'000 && std::uint64_t(wl::counters.park_max_ticks) == 60'000,
+		"a maximum field reads its largest shard without clearing it");
 	CHECK(wl::take(wl::counters.flagged) == 3 && wl::take(wl::counters.slow_parks) == 1 && wl::take(wl::counters.park_max_ticks) == 60'000, "flagged, slow, max");
 	CHECK(wl::take(wp::counters.histogram[wp::buckets - 1]) == 1 && wl::take(wp::counters.over_budget) == 1 && wl::take(wp::counters.slow_ticks) == 60'000, "park histogram");
 	// Another thread's pending record is its own.
@@ -132,7 +137,7 @@ static void thermal_decision()
 		CHECK(!th::decide(2, state, -1), "disabled at state %d", state);
 		CHECK(th::decide(0, state, 1) && !th::decide(0, state, 0), "a comparison step decides at state %d", state);
 	}
-	th::setting = 0; th::compare_forced = -1;
+	th::setting = 0; rpcs3::ios::writer_park::compare::event_waits_forced = -1;
 	th::set_state(1);
 	const auto changes = th::state_changes.load();
 	CHECK(!th::event_waits(), "fair: previous waits");
@@ -210,6 +215,20 @@ static void background_pause()
 	CHECK(state.pause_if_running(pause), "paused again");
 	paused = false; // the emulation was stopped meanwhile: the resume is refused and nothing stays ours
 	CHECK(!state.resume_if_ours(resume) && !state.ours() && state.resume_refused() == 1, "stopped meanwhile");
+	// A game still booting when the application left: refused then, paused when the report thread asks again while it
+	// runs in the background; resumed when the application is active again.
+	rpcs3::ios::background_pause::state boot;
+	running = false; paused = false;
+	CHECK(!boot.background() && boot.late_requests() == 0, "starts in the foreground");
+	boot.set_background(true);
+	CHECK(!boot.pause_if_running(pause) && boot.refused() == 1 && !boot.ours(), "booting: refused");
+	running = true;
+	const bool ask_again = boot.background() && !boot.ours();
+	if (ask_again) boot.count_late_request();
+	CHECK(ask_again && boot.pause_if_running(pause) && boot.ours() && boot.late_requests() == 1, "running in the background: paused on the late request");
+	CHECK(!(boot.background() && !boot.ours()), "paused: not asked again");
+	boot.set_background(false);
+	CHECK(boot.resume_if_ours(resume) && running && !boot.background(), "active again: resumed");
 }
 
 static void event_wait()
