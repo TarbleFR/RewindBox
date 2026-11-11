@@ -181,6 +181,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'pause-checkpoint-growth': 'delivered', 'vulkan-memory-journal': 'delivered',
             # Core 727: the allocator range-update proof run again on the final allocator (journal methods added).
             'allocator-range-update': 'delivered', 'allocator-blocks': 'delivered',
+            # Core 729 (lot 10): the main pipeline cache file written again once when it is at least twice main's data.
+            'pipeline-cache-compact': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -542,7 +544,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_array_barrier_epoch.py',
                                                      'build-utils/melonx/adapt_variant_replay_all.py',
                                                      'build-utils/melonx/adapt_pause_checkpoint_growth.py',
-                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py'} and
+                                                     'build-utils/melonx/adapt_vulkan_memory_journal.py',
+                                                     'build-utils/melonx/adapt_pipeline_cache_compact.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
