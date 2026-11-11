@@ -14,7 +14,7 @@ def errors(root=ROOT):
     failures = []
     workflows = list((root/'.github/workflows').glob('*.yml')) + list((root/'.github/workflows').glob('*.yaml'))
     for path in workflows:
-        text = path.read_text()
+        text = path.read_text(encoding='utf-8')
         for match in re.finditer(r'\buses\s*:\s*[\'\"]?([^\s\'\"}]+)', text):
             action = match.group(1)
             if 'actions/upload-artifact@' in action:
@@ -22,10 +22,10 @@ def errors(root=ROOT):
             if 'upload-protected-artifact' in action and action != GUARD:
                 if not (path.name == 'private-ipa-policy.yml' and action == LOCAL_GUARD):
                     failures.append(str(path.relative_to(root)) + ': unreviewed artifact guard reference')
-    action = (root/'.github/actions/upload-protected-artifact/action.yml').read_text()
+    action = (root/'.github/actions/upload-protected-artifact/action.yml').read_text(encoding='utf-8')
     if UPLOAD_PIN not in action or "steps.guard.outcome == 'success'" not in action:
         failures.append('Shared action no longer gates the pinned uploader on successful inspection')
-    legacy = (root/'.github/workflows/neoswap-ipa.yml').read_text()
+    legacy = (root/'.github/workflows/neoswap-ipa.yml').read_text(encoding='utf-8')
     if re.search(r'path:\s*build/private-test/', legacy):
         failures.append('Legacy NeoSwap workflow exposes its plaintext staging directory')
     if 'delivery_cipher.py artifact build/private-test build/encrypted-private-test' not in legacy:

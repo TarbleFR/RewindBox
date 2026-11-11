@@ -68,6 +68,7 @@ APP_GATE = ("${{ always() && !cancelled() && needs.preflight.result == 'success'
     "needs.flutter.result == 'success' && needs.native.result == 'success' && "
     "needs.dolphin.result == 'success' && needs.armsx2.result == 'success')) }}")
 require, sha = tree.require, tree.sha
+IPA_UPLOAD_GUARD = 'TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb'
 
 
 def enabled():
@@ -160,7 +161,9 @@ def expected_reuse_workflow(original):
         ('Authenticate actual same-run608 test jobs, receipts and command logs', 'Authenticate original608 test jobs, current recovery guards and command logs'),
     ):
         value = replace_once(value, before, after)
-    return value
+    # The only additional recipe delta is the reviewed upload boundary. Product
+    # commands, producer steps, inputs, conditions and outputs remain exact.
+    return value.replace('uses: actions/upload-artifact@v4', 'uses: ' + IPA_UPLOAD_GUARD)
 
 
 def canonical_ast(value):

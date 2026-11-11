@@ -699,10 +699,12 @@ class Workflow(unittest.TestCase):
         pods = step('application', 'Verify central session pod is in the actual generated host')['run']
         self.assertIn("rpcs3_internal_bridge.podspec.json", pods)
         self.assertIn("{'retro_achievements_session', 'achievement_translation'}", pods)
-        for item in steps('application'):
-            if item.get('uses', '').startswith('actions/upload-artifact'):
-                expected = 90 if item['name'].startswith('Republish ') else 14
-                self.assertEqual(item['with']['retention-days'], expected, item['name'])
+        uploads = [item for item in steps('application') if item.get('uses', '').startswith(
+            'TarbleFR/RewindBox/.github/actions/upload-protected-artifact@')]
+        self.assertTrue(uploads, 'The retention assertion must inspect real guarded uploads')
+        for item in uploads:
+            expected = 90 if item['name'].startswith('Republish ') else 14
+            self.assertEqual(item['with']['retention-days'], expected, item['name'])
 
     def test_republication_steps(self):
         _, manifest = current_manifest()
