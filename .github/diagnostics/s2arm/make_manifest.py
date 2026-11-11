@@ -92,6 +92,7 @@ ENGINE_TESTS = (
     ['s2arm-downloaded-delivery', ['python3', '-B', 'test/s2arm_downloaded_delivery_test.py']],
     ['s2arm-legal-bundle', ['python3', '-B', 'test/s2arm_legal_bundle_test.py']],
     ['s2arm-engine-licenses', ['python3', '-B', 'test/s2arm_engine_licenses_test.py']],
+    ['s2arm-engine-exports', ['python3', '-B', 'test/s2arm_engine_exports_test.py']],
 )
 # The engine's host bridge of a build that carries it (docs/s2arm-engine-bridge.md): the plugin in the root pubspec.yaml,
 # reviewed by the legal gate through its chained declaration review; its preparation library and system data come from

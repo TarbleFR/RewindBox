@@ -35,6 +35,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Test the exported symbol list tool
+        run: python3 -B test/s2arm_engine_exports_test.py
       - name: Fetch S2Arm at the pinned commit
         run: |
           set -euo pipefail
@@ -202,6 +204,22 @@ jobs:
             if grep -qx "$sym" "$RUNNER_TEMP/guest-exports.txt"; then note "ok   exported $sym"; else note "FAIL not exported: $sym"; status=1; fi
           done
           if grep -qx _rb_s2arm_engine_loaded "$RUNNER_TEMP/guest-exports.txt"; then note "FAIL _rb_s2arm_engine_loaded is exported (the host plugin owns it)"; status=1; else note "ok   _rb_s2arm_engine_loaded not exported"; fi
+          # Restricted exports (guest.mk, build-utils/s2arm/engine/export_list.py): nm -gU of the framework is exactly the
+          # list the final link was given, and no glslang symbol is exported (DolphinCore's weak glslang definitions).
+          list=build/ios/S2ArmEngine.exports
+          if [ -s "$list" ] && [ -s "$list.json" ]; then
+            cp "$list" "$list.json" "$GITHUB_WORKSPACE/proof/"
+            if LC_ALL=C sort "$list" | cmp -s - <(LC_ALL=C sort "$RUNNER_TEMP/guest-exports.txt"); then
+              note "ok   nm -gU = the restricted list ($(wc -l < "$list" | tr -d ' ') symbols; $(python3 -c "import json,sys;r=json.load(open(sys.argv[1]));print(r['exportsBefore'],'before,',r['droppedGlslang'],'glslang hidden')" "$list.json"))"
+            else
+              note "FAIL nm -gU differs from the restricted list"; status=1
+              diff <(LC_ALL=C sort "$list") <(LC_ALL=C sort "$RUNNER_TEMP/guest-exports.txt") | head -20 | tee -a "$report"
+            fi
+          else
+            note "FAIL no restricted export list ($list)"; status=1
+          fi
+          glslang=$(grep -ci glslang "$RUNNER_TEMP/guest-exports.txt")
+          if [ "$glslang" = 0 ]; then note "ok   no glslang export"; else note "FAIL $glslang glslang exports"; status=1; fi
           undefined=$(nm -u "$fw/S2ArmEngine" | grep '_s2a_rb_' | tr '\n' ' ')
           if [ -n "$undefined" ]; then note "FAIL undefined guest symbols: $undefined"; status=1; else note "ok   no undefined _s2a_rb_ symbol"; fi
           if cmp -s "$fw/Headers/rb_guest.h" runtime/src/rb_guest.h; then note "ok   Headers/rb_guest.h"; else note "FAIL Headers/rb_guest.h missing or not the patched runtime/src/rb_guest.h"; status=1; fi
