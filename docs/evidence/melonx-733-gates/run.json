@@ -370,7 +370,7 @@
   },
   "compute-switch-bindings": {
    "report": "compute-switch-bindings-checks.json",
-   "sha256": "acf3fa80379d227cbf1645f429c936a0b1110568da70cc969336b40991907568",
+   "sha256": "52cd3c6fae1a56f4b5a2db2344af668dff042c1c991fcdd1645f017a2e07c123",
    "checks": 25
   },
   "bgc-keepalive": {
@@ -521,12 +521,12 @@
  },
  "allGatesLocally": "91 gates: 90 in one local series on the final preparation (89 green; pipeline-checkpoint failed once in it, its fixture's removal of its temporary directory racing a write under three parallel gates, and passed five times run alone), then kernel-timer-allocations added as a rerun gate (the freeze requires it: its historical receipt declares KTimeManager.cs) and run alone",
  "contract": {
-  "sha256": "5769e41da8125e563daf4ddff9930908b2f11e2c314fde1b6a85dfa7fe12e332",
+  "sha256": "6a1152cb23c27d813e8edb474b65ea8e7237c31283951f21a85127b0dfa0dff4",
   "preparationInputs": 206,
   "preparedMembers": 211,
   "freshAppleGates": 91,
   "contractTestChecks": 483,
-  "previous": "b2a748e795764d842143578b3a06e5b64b5d79722276b5ff35f715d26ee5dbc4 (the same preparation and engine; the host-thread-class gate and the plan's fixture inputs differ)"
+  "previous": "b2a748e7\u2026 then 5769e41d\u2026 (the same preparation and engine each time; the host-thread-class gate, then the compute-switch-bindings gate and their fixtures differ)"
  },
  "notInThisLot": "the collector itself still runs at the class of the thread that triggers it (a second patch of the rebuilt workstation GC was drafted and left out: the three changes above remove the known triggers at utility priority; to revisit with the next run's gcPause summary)",
  "physicalDeviceTested": false,
@@ -552,6 +552,13 @@
    "head": "8d323f7e",
    "result": "passed, 11 checks",
    "read": "the same fixture compiled with NativeAOT (runtime 10.0.14): system threads, the runtime's own threads (new Thread) and its pool threads all go from class 0x15 to 0x21, call answer 0, helper true, nothing recorded"
+  },
+  {
+   "run": 43009346249,
+   "workflow": "melonx-core.yml",
+   "head": "7298c4ba",
+   "result": "failed at the gate compute-switch-bindings (every gate before it passed; host-thread-class not reached)",
+   "read": "fastest of five rounds with tiered compilation: control 48.0 ms, candidate 139.8 ms, the same 350 000 backend calls"
   }
  ],
  "review": "independent read-only review (rb-core-review) of the snapshot reuse and of the host thread class: no defect; two hypotheses left to the device (the composer's 2 ms spin now at the engine threads' priority; a priority inversion if a default-class thread holds the guest kernel's critical section while a raised thread waits)",
@@ -561,5 +568,35 @@
   "gate": "on macOS the gate now requires an answer that agrees with the class read back (granted with 0x21, or refused to a thread in class 0) and runs test/melonx_host_thread_class_system_test.py, which must pass: the adapter's real helper on a system thread and, compiled with NativeAOT, on the runtime's own threads, all in 0x21 after the call, no refusal recorded",
   "localGate": "Linux: 99 checks (the system test is skipped off macOS); the macOS part ran in runs 43008139574 and 43008463899",
   "device": "not run on an iPhone: a refusal there is written once in MeloNX-core.log (hostThreadClass refused) and the priorities are read in cpu="
+ },
+ "computeSwitchGate": {
+  "cause": "the gate compared the milliseconds of two separate processes. Run 42958274015 (one round each, Core 731): control 204.2 ms, candidate 121.5 ms. Run 43009346249 (fastest of five rounds, the 11 November version): control 48.0 ms, candidate 139.8 ms: the control reached optimized code within its rounds and the candidate stayed at the speed of first-tier code (or of a slower processor) for all five; the engine sources of the two sides are those of Core 731, where the candidate is the faster",
+  "engineUnchanged": "TextureManager.cs and TextureBindingsManager.cs are not touched by lot 12; preparation and engine are those of contract b2a748e7",
+  "gate": "both probes run without tiered compilation (every round executes the same optimized code); seven rounds of 50 000 pairs, each timed against a fixed arithmetic loop run just before it by the same process; the comparison is the median of round / loop (candidate below control), not milliseconds across processes; the fastest round is still reported",
+  "localRuns": [
+   {
+    "load": "none",
+    "control": 1.443,
+    "candidate": 1.094
+   },
+   {
+    "load": "none",
+    "control": 1.407,
+    "candidate": 1.084
+   },
+   {
+    "load": "six busy loops",
+    "control": 1.584,
+    "candidate": 1.14,
+    "controlMinMs": 101.3,
+    "candidateMinMs": 63.8
+   },
+   {
+    "load": "six busy loops",
+    "control": 1.511,
+    "candidate": 0.951
+   }
+  ],
+  "note": "Linux, .NET 10.0.100; under load the milliseconds double and the ratios to the loop stay; not run on macOS yet"
  }
 }

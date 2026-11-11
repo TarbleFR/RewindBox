@@ -193,6 +193,17 @@ static class Program
     private static int Width(object texture) => texture is RecordingTexture t ? t.Width : 0;
     private static int SamplerId(object sampler) => sampler is RecordingSampler s ? s.Index : 0;
 
+    private static ulong _loopSink;
+
+    // A fixed amount of register arithmetic: what the probe's timed rounds are compared to.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void Calibrate()
+    {
+        ulong x = 88172645463325252UL, sum = 0;
+        for (int i = 0; i < 20_000_000; i++) { x ^= x << 13; x ^= x >> 7; x ^= x << 17; sum += x & 1023; }
+        _loopSink += sum;
+    }
+
     public static int Main()
     {
         var backing = new MemoryBlock(GuestSize);
@@ -298,22 +309,31 @@ static class Program
         Draw("imageNoDispatch"); Dispatch("image"); Draw("image");
         for (int i = 0; i < 3; i++) { Dispatch("after" + i); Draw("after" + i); }
 
-        // Steady commits, timed (host CPU, Release build): five rounds of 50 000 pairs. The fastest round is the measure,
-        // so that a stall of the host during one round does not decide the comparison (one round only until Core 731:
-        // the comparison failed twice in local runs with other gates building beside it). The backend calls are those
-        // of the first round, as before.
+        // Steady commits, timed (host CPU, Release build, run by the gate without tiered compilation so that every
+        // round executes the same optimized code): seven rounds of 50 000 pairs, each just after a fixed arithmetic
+        // loop timed the same way. The measure is the median of round / loop: the two probes are separate processes
+        // and a shared runner does not give both the same speed (Core CI run 43009346249: the control's fastest of five
+        // rounds 48 ms, the candidate's 140 ms, against 204 and 122 ms for one round each in run 42958274015), so the
+        // rounds are compared to work of known size done by the same process at the same moment. The fastest round is
+        // still reported. The backend calls are those of the first round, as before.
         for (int i = 0; i < 2000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
+        Calibrate();
         int timedCallsBefore = TextureCalls + ImageCalls;
         int timedCalls = 0;
-        var roundsMs = new double[5];
+        var roundsMs = new double[7];
+        var loopsMs = new double[roundsMs.Length];
         for (int round = 0; round < roundsMs.Length; round++)
         {
             var watch = Stopwatch.StartNew();
+            Calibrate();
+            loopsMs[round] = watch.Elapsed.TotalMilliseconds;
+            watch.Restart();
             for (int i = 0; i < 50000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
             roundsMs[round] = watch.Elapsed.TotalMilliseconds;
             if (round == 0) { timedCalls = TextureCalls + ImageCalls - timedCallsBefore; }
         }
         double ms = roundsMs.Min();
+        double[] relative = roundsMs.Select((value, index) => value / loopsMs[index]).OrderBy(value => value).ToArray();
 
         Console.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
         {
@@ -323,6 +343,9 @@ static class Program
             ["timedPairs"] = 50000,
             ["timedMs"] = ms,
             ["timedRoundsMs"] = roundsMs,
+            ["loopRoundsMs"] = loopsMs,
+            ["timedRelative"] = relative[relative.Length / 2],
+            ["tieredCompilation"] = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "",
             ["timedBackendCalls"] = timedCalls,
         }));
         return 0;

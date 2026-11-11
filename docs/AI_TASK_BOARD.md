@@ -4133,8 +4133,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Cores: `journal_of_earlier_cores`), `guest-fault-context`, `core667-fixes` (runtime: `core733_native.reverse`
       first). `performance-diagnostics` clears the event queue by reflection: the number of events is part of what
       the kept snapshot is compared on.
-    - **Core 733 frozen: contract `5769e41d…` after the gate correction below (first freeze `b2a748e7…`, the same
-      preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
+    - **Core 733 frozen: contract `6a1152cb…` after the two gate corrections below (first freeze `b2a748e7…`, then
+      `5769e41d…`; the same preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
       [receipts](evidence/melonx-733-gates/run.json), [device protocol](evidence/melonx-733-gates/device-protocol.md)).**
       The five-part MoltenVK is unchanged. Local run: 90 gates in one series, 89 green; `pipeline-checkpoint` failed
       once in it (its fixture removes its temporary directory while a write is still landing, under three parallel
@@ -4155,6 +4155,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       NativeAOT runtime threads in 0x21 after the helper, no refusal). Linux: 99 checks; contract `5769e41d…`
       (two fixture inputs added to the plan), contract test 483/419. Device evidence that agrees: the render and GPU
       threads raised by the same call since Core 609 run at priority 47 in IPA 725. Not run in Core CI yet.
+    - **Core CI red again (run 43009346249 on `7298c4ba`), another gate, diagnosed and corrected (11 Nov):** gate
+      `compute-switch-bindings`: "steady compute/graphics pairs are cheaper" with control 48.0 ms and candidate
+      139.8 ms (fastest of five rounds, the same 350 000 backend calls); every gate before it passed, and
+      `host-thread-class` was not reached. Not the lot: neither file of that adapter is touched, and control and
+      candidate are the Core 731 pair, which run 42958274015 measured at 204.2 and 121.5 ms for one round each.
+      Cause: the gate compares the milliseconds of two separate processes; with the fastest-of-five version of
+      11 November the result also depends on when each process's background recompilation lands (the control got
+      to optimized code, 204 -> 48 ms; the candidate's five rounds stayed at first-tier speed, or on a slower
+      processor). My correction of 11 November removed the sensitivity to a stall and added this one. Corrected
+      gate: both probes run with `DOTNET_TieredCompilation=0`; seven rounds, each timed against a fixed arithmetic
+      loop run just before it by the same process; the comparison is the median of round / loop. Four local runs,
+      two under six busy loops: control 1.41 to 1.58, candidate 0.95 to 1.14 (under load the milliseconds double,
+      the ratios stay). The other gates were read for the same pattern: none compares the speed of two processes
+      (their time bounds are absolute, around sleeps of known length). Contract `6a1152cb…` (the gate and its
+      fixture are inputs; preparation and engine unchanged), contract test 483/419. Not run on macOS yet.
     - **Not in this lot:** the collector still runs at the class of the thread that triggers it; a second patch of
       the rebuilt workstation GC (class raised for the collection) was drafted and left out, the three fixes removing
       the known triggers below the user-interactive class; to revisit with the next `gcPause summary`.
