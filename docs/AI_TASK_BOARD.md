@@ -3821,7 +3821,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Lot 11 (11 Nov): the GPU cache trims evict the buffers in use (Core 731; frozen here, not delivered, not run on
     an iPhone).**
     - **Input identity:** IPA 724 journals, Hogwarts, pid 49375 (private, not in Git); Core 729 preparation
-      (`.native-sources/MeloNX-dma-candidate-729`); `Claude` `1a9f2167` merged.
+      (`.native-sources/MeloNX-dma-candidate-729`); `Claude` `1a9f2167` merged before the freeze, `576f9fe6` after it
+      (Core 727 and the five-part MoltenVK pinned by main; no contract input changed: contract test 476 checks on the
+      merged tree, head `10ecfab7` and its successor).
     - **Finding (journal, `tools/melonx/buffer_trim_report.py`):** the device stays at 4-9 % available with 1.3 GiB or
       more of headroom here; `GpuContext.TrimCaches` runs on every host report and every 10 s: 24 trims in 150 s,
       about 986 MiB "released" from a buffer cache that every 30 s report finds at 85-133 MiB again. The texture part
