@@ -1,0 +1,31 @@
+name: MeloNX host thread class
+run-name: Host thread class against macOS • ${{ github.sha }}
+# Lot 12. The helper of adapt_host_thread_class (pthread_set_qos_class_self_np) executed on a real macOS arm64 runner,
+# on a system thread and on the host runtime's own threads. Nothing is built for delivery, packaged or pinned.
+'on':
+  push:
+    branches:
+    - work/melonx-fps-stability-20261103
+    paths:
+    - .github/workflows/melonx-host-thread-class.yml
+    - build-utils/melonx/adapt_host_thread_class.py
+    - test/melonx_host_thread_class_system_test.py
+    - test/melonx_host_thread_class_system/**
+permissions:
+  contents: read
+concurrency:
+  group: melonx-host-thread-class-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host-thread-class:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.100
+    - name: Execute the helper against the system
+      run: python3 test/melonx_host_thread_class_system_test.py
