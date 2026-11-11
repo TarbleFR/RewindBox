@@ -3737,6 +3737,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   156/156, rebuild byte-identical. Simulator: run `42850730582` (`8bfc9b47`) green: host
   step, MeloNX, ARMSX2 and Dolphin skin overlay harnesses (press confined to the outline
   and clearly visible, released = rest, real touches). [Sheets](evidence/skins-press-precision/). Not observed on an iPhone.
+- **D-pad pressed arm only (11 Nov, maintainer's recording of Wii Pocket - Original upright
+  on IPA 724, then the same on GameCube):** branch `work/skins-wii-portrait-input-20261111`
+  from Claude `db9b8618`, commits `b87c22d1`, `8f69e415`. Finding: the three overlays
+  swapped the whole D-pad sprite for its pressed one, so every direction looked pressed;
+  the commands were already per direction. Change: the pressed sprite is drawn cut to the
+  quarter(s) of the held directions (DOLSkinOverlay, ARMSX2SkinOverlay, MeloNXSkinOverlay);
+  no pack changed. Proof: run `42927445322` green: three iPhone compiles and the three
+  simulator harnesses with `SkinDPadArmCheck` (each direction: its arm changes, the other
+  three do not, released = rest) on the seven packs' D-pads, both orientations. Same
+  recording, not reproduced in code: "stick not working upright" (the knob moves, the
+  Nunchuk axes are sent the same way in both orientations; the screens filmed are driven
+  by the D-pad / pointer) - waiting for the game's name and its behaviour sideways. Dolphin
+  OSD text wider than the upright window: Core side, left out at the maintainer's request
+  (skins only). Not observed on an iPhone.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
