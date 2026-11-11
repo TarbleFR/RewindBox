@@ -3963,7 +3963,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       First version rejected by two earlier gates (`memory-inventory`, `host-warning-trim` build the GPU project with
       GpuContext.cs at their own stage, where the clock it read, `TextureUseEpoch`, does not exist yet): the clock
       became the cache's own.
-    - **Core 731 frozen: contract `518ea8dc…` (205 inputs, 207 members, 88 gates, all green in one run; contract test 476 checks;
+    - **Core 731 frozen: contract `9de16cd8…` (first frozen as `518ea8dc…`; 205 inputs, 207 members, 88 gates, all green in one run; contract test 476 checks;
       [receipts](evidence/melonx-731-gates/run.json), [device protocol](evidence/melonx-731-gates/device-protocol.md)).**
       Same five-part MoltenVK as Core 729, which this Core contains.
     - **Also read in the IPA 724 journal (no change made from it):** thermal state `fair` from t=30 on, never beyond;
@@ -3990,12 +3990,137 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       reviewed later work (`4700d445`, the Switch skin path `8e2f4bd1`, `6ddc96fd`, `65a9e633`). Historical as it
       stands; to re-scope to presence checks or retire with the controller's owner. `65a9e633` (the Swift name of the
       skin interaction call) is in this branch through the merges.
+    - **Core CI red on the Core 729 source (run 42954875678), diagnosed and corrected (11 Nov):** gate
+      `worker-library-share` failed before the compile: candidate `renderCreations` 1 878 for 2 000 expected, every
+      entry on disk. A time hypothesis of the fixture, not a loss: scenario S6 stopped its render thread when the two
+      workers finished, so the count held only while the render thread was the faster. Reproduced by slowing the
+      render thread (1 ms per creation: same failure, control included). The scenario now builds the overlap itself
+      (the render thread starts after both workers' first publication and makes its 2 000 creations; the workers
+      publish until it is done) and passes as is, render slowed, workers slowed. Same class, corrected with it:
+      `compute-switch-bindings` keeps the fastest of five timed rounds (one before). Both pass under six busy loops on
+      four cores. Engine unchanged (preparation inputs and prepared members identical); three contract inputs differ
+      (two gate scripts, one fixture): contract `518ea8dc…` -> `9de16cd8…`. **Seen, not changed:** the receipts of 24
+      gates declare fixture files the contract does not list (among them this gate's `Program.cs` and `Double.cs`);
+      to bind in one reviewed step with main.
+    - **IPA 725 delivered by main (11 Nov 07:55, receipt read on `Claude` `a0eda772`):** source `e5a82821`, run
+      42973548971, 272 226 282 bytes, sha256 `30f98890…e54a`; MeloNX Core 731, five-part MoltenVK, bridge of
+      `840c3fb5` (`vm=`, `hw=`, `pc=`). Not run on an iPhone yet: every device figure of this entry is IPA 724's.
+      **Waiting for:** the two Hogwarts sessions of the [protocol](evidence/melonx-731-gates/device-protocol.md).
+    - **Core 731 pinned by main (11 Nov 06:11, checked on `Claude`):** run 42958274015 green on source `840c3fb5`
+      (the worker-library-share gate included), artifact 13830187578, iPhone binary `574a5de9…` 38 456 384 B, contract
+      `518ea8dc…`, 88 fresh gates; it goes into IPA 725 with the five-part MoltenVK `99605a2b…`. The two gate
+      corrections (`e2978c61`, contract `9de16cd8…`, same engine) are merged by main after the 725 delivery; binding
+      every fixture in the contract is agreed for a later lot reviewed together.
+    - **Integration (main, 11 Nov 04:18):** IPA 725 carries Core 731, not 727 (merge `840c3fb5` of `e3620e88`, compile
+      run 42958274015 queued; fallback Core 729; Core 727 only with the four-part MoltenVK). Reason given to main: with
+      the five-part MoltenVK main's data is a fraction of the 792 MiB file, and Core 727's growth rule counts from the
+      file's size, so nothing would be checkpointed in play or at a pause (only at a normal close). Main's question on
+      `SaveCache` answered from the 731 preparation: the four writes of the main cache hold `_mainCacheLock` (play and
+      pause checkpoints, the compaction at the load, `MergeAndSave`); the data is flushed with `view.Flush()` (msync)
+      before the rename, no fsync of the descriptor or directory: a process kill cannot leave a torn file under the
+      final name, a system crash can at worst lose the rename. Unchanged.
     - **Next action:** main integrates Core 731 with the five-part MoltenVK and the bridge head; the device run of the
       [protocol](evidence/melonx-731-gates/device-protocol.md) (two sessions, nothing deleted). Then, by what `hw=`,
       `pc=`, `vm=` and the memory breakdown say: the guest threads' scheduling class, the memory still held, or the
       allocation rate outside the graphics threads (40-90 MiB of the 80-147 MiB allocated per 5 s in play, two to
       three collections of 35-45 ms).
 
+  - **Lot 12 (11 Nov): first device run of lots 9 to 11 (IPA 725); who runs what (Core 733 and the lot 12 bridge;
+    frozen here, not delivered, not run on an iPhone).**
+    - **Input identity:** IPA 725 journals, Hogwarts Legacy, pid 51986, build 725, `coreSHA256 574a5de9…` (Core 731;
+      private, not in Git: aggregates only). One session; the exported performance journal holds t=103 to 182 (the
+      first 102 s were in a rotated file that was not sent). Core artifact 13830187578 of run 42958274015 (its
+      `Ryujinx.Library.dylib` is the IPA's binary; symbol map and binary used to resolve the stall record).
+    - **Measured on the device (first measurement of lots 9 to 11; `frame_budget.py`, `buffer_trim_report.py`):**
+      t=103-180: 1 713 frames in 78.0 s, mean 45.5 ms (22.0 FPS), median 33.3, p95 83.3, p99 166.7, longest 3 033 ms;
+      excess +12.2 ms = stutters +5.5 (47 gaps over 100 ms, 11.0 s) + slow frames +7.2 - 0.6. IPA 724 after 88 s:
+      89.0 ms, excess +55.6, 220 gaps over 100 ms in 121.9 s (another session, a comparable period, not the same
+      route: the two figures are not a before/after of one scene). Footprint up to 4 795 MiB (724: 5 414); device
+      available 4 % at the lowest. Lot 11's cycle is gone: windows with a buffer cache trim create 0 buffers at the
+      median (724: 3 816), no BufferDispose in the lists, 11 `coldTrim` records (1 894 buffers, 34 MiB in 12 passes).
+      Lot 10: `pipelineCache compact` wrote main's 92.98 MiB from the 793 MiB file at the load (147 ms), no checkpoint
+      in play or at the pause (+265 KiB).
+    - **Finding 1, the 3 s gap is a collection run at a utility priority.** `gcPause summary`: longest gen0
+      2 673.6 ms. The stall record, resolved with the symbol map: thread 5054670, priority 20, in
+      `GCHeap::GarbageCollectGeneration -> gc_heap::garbage_collect -> gc1 -> mark_phase ->
+      mark_through_cards_for_segments` from `GCHeap::Alloc`; 15.6 ms of CPU in the 961 ms between the two records;
+      the other 148 threads in the runtime's wait. That thread is the plugin's diagnostics queue
+      (`DispatchQueue(qos:.utility)`), which calls `neostation_melonx_diagnostics` every 300 ms; the export wrote the
+      whole snapshot anew each time (64 events, a stream grown to its size, a copy). Host measure, a ring of 64 records
+      of 2.6 KiB: 907 KiB allocated per poll, most of it in the large object heap (about 3 MiB/s at the host's rate).
+      16 background collections in 188 s.
+    - **Finding 2, the guest's threads are served last.** `cpu=`/`pc=`: `<MainThread>` (the largest CPU consumer:
+      53.4 s of 290 s at t=120), `<RenderThread_1>`, `<RHIThread>` and every helper .NET starts run at base priority
+      31; the render and GPU threads (HostThreadQos) at 47. In the stretches at 20-22 FPS `<MainThread>` uses 46 to
+      50 % of a core with 33 to 36 % of it on performance cores, the two engine threads 52 to 55 % with 80 to 95 %.
+      `hw=` (corrected: the kernel's runnable time counts the time running, xnu `thread.h`): the process's threads
+      wait for a core 1.4 to 1.8 times as long as they run. .NET's `Thread.Priority` changes nothing here
+      (HLE.TimeManager, SurfaceFlinger.Composer and the sleep pool ask AboveNormal and run at 31).
+    - **Finding 3, the slow stretches are heavier scenes, not a slower machine.** 20 s on target (t=127-146: mean
+      33.8 ms, p95 33.3, one gap over 100 ms) with about 239 million instructions per frame and 277 to 395 draws a
+      frame; the stretches at 20-22 FPS run 456 to 531 million instructions per frame for 995 to 1 488 draws. Engine
+      timers there, per 5.1 s: GPU thread dispatch 3.0-3.8 s (texture binding commits 1.2-1.6 s, of which array delta
+      updates 0.5-0.7 s; compute dispatches 0.8-1.0 s for 4 900 to 6 800 of them, about 150 µs each), render thread
+      2.5-3.4 s. Two performance cores cannot hold both engine threads and the guest's three at 30 FPS with that work
+      per frame: less work per frame on the engine threads is needed there, and the journal's timers name subsystems,
+      not code.
+    - **Fix A (bridge, `MeloNXEngineCallClass`):** the engine calls of the sampler and of the diagnostics drain are
+      made by one thread created in the user-interactive class (`RewindBox.MeloNX.EngineCalls`), which the queue's
+      thread waits for. A QoS override of the queue's own thread was tried first and dropped: the macOS runner clamps
+      the whole process to priority 20, so its runs proved nothing either way; the dedicated thread's class is read
+      back (0x21 inside a call and a call within a call, 0x11 on the queue's thread) and its priority equals a
+      reference user-interactive thread's (stall-watch run 42994734269 on `02a55ff7`: macOS execution and iOS
+      typecheck green; bridge commits `c00d94eb` to `02a55ff7`).
+    - **Fix B (Core 733, native `EmbeddedLaunchDiagnostics.cs` and `EmbeddedRuntime.cs`, pairs in
+      `core733_native.py`):** the snapshot's bytes are kept in one buffer and written again only when a new Sequence,
+      the number of events or one of the four strings differs; the export copies them to the host's memory
+      (`SnapshotTo`). Gate `diagnostics-snapshot-reuse` (43 checks; the side's real journal and its
+      real export through the unmanaged entry point): 192 scripted steps give the control's answers one by one; the
+      capacity edges answer alike; 1 000 polls without a change and 200 polls each after a new record allocate 0 bytes
+      (control: 907 KiB and 929 KiB per poll); four recording threads against a poller: whole, ordered snapshots; three
+      sensitivity variants (strings, buffer reset, sequence) each give stale or broken answers.
+    - **Fix C (Core 733, `adapt_host_thread_class`, eight files):** a helper in Ryujinx.Common asks the
+      user-interactive class (the `pthread_set_qos_class_self_np` call of HostThreadQos, Apple platforms only) and is
+      called first thing by every guest and HLE service thread (`KThread.ThreadStart`), the kernel's timer and
+      preemption threads, the sleep pool, SurfaceFlinger's composer and the three audio workers; a refusal changes
+      nothing and is recorded once. Gate `host-thread-class` (99 checks): the production HLE closure
+      built from control and candidate; each real thread body run on its own thread asks 0x21 once, for itself, in
+      the candidate and nothing in the control, and ends the same way; refusals, missing library and other platforms
+      covered; three sensitivity variants seen. On macOS the gate reads the class back from the system.
+    - **Independent read-only review (rb-core-review) of B and C: no defect** (every writer of what the snapshot holds
+      moves the compared key; buffer and writer only under the journal's gate; a write that throws is started again;
+      the export answers as before; each of the eight bodies is the entry point of its own dedicated thread). Two
+      hypotheses it could not settle from source, to read on the device: the composer's spin before a vertical blank
+      (up to 2 ms, `PreciseSleepHelper`, now at the engine threads' priority; the thread used 0.28 s of CPU in 120 s
+      of IPA 725), and a priority inversion if a default-class thread holds the kernel's critical section or
+      `KScheduler._coreIdleLock` while a raised thread waits (candidate holders: HorizonStatic, TimedAction,
+      TamperMachine, the Account/Nfc tasks; none seen active in play). It also notes that only the first refusal of
+      the class is journaled.
+    - **Measurement added (bridge):** `hw=` six values (time waiting for a core, clocks of the performance cores and
+      of the others); `[MeloNX:hot]` profiles (`MeloNXHotSpots.swift`: the six busiest threads sampled 300 times in
+      3 s after three lines under 26 FPS, and after three on target; call sites and 64-byte program-counter blocks;
+      `tools/melonx/hot_spots.py` names functions and each direct call's callee from the Core artifact). This is what
+      Finding 3 lacks.
+    - **Earlier gates taught the native edits (as for Core 667):** `gc-events`, `gc-fallback` (journal of the earlier
+      Cores: `journal_of_earlier_cores`), `guest-fault-context`, `core667-fixes` (runtime: `core733_native.reverse`
+      first). `performance-diagnostics` clears the event queue by reflection: the number of events is part of what
+      the kept snapshot is compared on.
+    - **Core 733 frozen: contract `b2a748e7…` (206 inputs, 211 members, 91 gates; contract test 483 checks;
+      [receipts](evidence/melonx-733-gates/run.json), [device protocol](evidence/melonx-733-gates/device-protocol.md)).**
+      The five-part MoltenVK is unchanged. Local run: 90 gates in one series, 89 green; `pipeline-checkpoint` failed
+      once in it (its fixture removes its temporary directory while a write is still landing, under three parallel
+      gates) and passed five times alone, unchanged. The freeze then asked for a 91st: the historical
+      `kernel-timer-allocations` receipt declares KTimeManager.cs, so that proof runs again on the final timer manager
+      against the delivered one (same functional digest, no allocation per arm or cancellation, 195 scenarios).
+    - **Not in this lot:** the collector still runs at the class of the thread that triggers it; a second patch of
+      the rebuilt workstation GC (class raised for the collection) was drafted and left out, the three fixes removing
+      the known triggers below the user-interactive class; to revisit with the next `gcPause summary`.
+    - **Not measured on a device:** everything above but the IPA 725 figures. The verdict's criteria are not met by
+      IPA 725 (22.0 FPS over the 78 s exported, one pause over 1 s, footprint over 4 GiB).
+    - **Next action:** main merges this head, runs Core CI on the Core 733 source and ships it with the lot 12 bridge
+      in the next private IPA; the device run then gives the `gcPause summary`, the guest threads' priority and
+      `pc=`, `hw=`, the thermal state and the `[MeloNX:hot]` profiles from which the GPU and render thread work per
+      frame will be cut.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**

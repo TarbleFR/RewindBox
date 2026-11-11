@@ -3,7 +3,9 @@
 
 Ten seconds at 30 FPS, ten at 10 FPS and one line whose host could not tell its ratios, with the vm= and hw= fields of
 the bridge (lots 10 and 11), another PID's lines and a paused second: the budget's classes add up to the excess, each
-gap is counted once, and the memory activity and CPU service of each window are the journal's figures.
+gap is counted once, and the memory activity and CPU service of each window are the journal's figures. The first
+window's hw= has the four values of IPA 725's bridge (the fourth counts the time running: 100 is taken off), the second
+the six values of the later ones (the waiting time itself, then the clocks of the two kinds of cores).
 """
 import json
 from pathlib import Path
@@ -35,10 +37,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     log = Path(directory) / 'MeloNX-performance.log'
     with open(log, 'w') as out:
         for t in range(1, 11):
-            out.write(line(PID, t, [33] * 30, 250, vm='4/1000/5000/2', hw='3.0/2.00/60/10', pc='90,-' if t == 1 else '90,20'))
+            out.write(line(PID, t, [33] * 30, 250, vm='4/1000/5000/2', hw='3.0/2.00/60/110', pc='90,-' if t == 1 else '90,20'))
             out.write(line(PID + 1, t, [500] * 2, 600, vm='900/900000/1/1', hw='9.9/9.99/99/99'))
         for t in range(11, 21):
-            out.write(line(PID, t, [100] * 10, 300, vm='40/30000/90000/5', hw='2.0/1.00/30/50'))
+            out.write(line(PID, t, [100] * 10, 300, vm='40/30000/90000/5', hw='2.0/1.00/30/50/3.1/1.5'))
         out.write(line(PID, 21, [33], 100, vm='-/-/10/0', hw='0.0/-/-/5'))
         out.write(line(PID, 22, [], 5, vm='1/1/1/1', hw='1.0/1.00/1/1', paused=True))
     run = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--window', '1-10', '--window', '11-20', '--window', '21-', '--json'],
@@ -50,8 +52,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
     check(good['memoryActivity'] == dict(lines=10, compressedMiB=40, decompressedMiB=156, decompressedPagesMedian=1000, decompressedPagesMax=1000, pageIns=20),
           'memory activity of the first window: ' + json.dumps(good['memoryActivity']))
     check(good['cpuService'] == dict(lines=10, clockGHzMedian=3.0, instructionsPerCycleMedian=2.0, performanceCoresPercentMedian=60.0,
-                                     readyWithoutACorePercentMedian=10.0, instructionsPerFrameMillions=500),
-          'CPU service of the first window: ' + json.dumps(good['cpuService']))
+                                     waitingForACorePercentMedian=10.0, performanceClockGHzMedian=None, otherClockGHzMedian=None,
+                                     instructionsPerFrameMillions=500),
+          'CPU service of the first window (four values: the time running taken off the fourth): ' + json.dumps(good['cpuService']))
     check(good['threads'] == [dict(name='Render', lines=10, corePercentMedian=40, priorities=[47], performanceCoresPercentMedian=90),
                               dict(name='<MainThread>', lines=10, corePercentMedian=30, priorities=[31], performanceCoresPercentMedian=20)],
           'threads of the first window, with their share on performance cores: ' + json.dumps(good['threads']))
@@ -62,17 +65,23 @@ with tempfile.TemporaryDirectory(prefix='melonx-frame-budget-') as directory:
           'ten seconds at 10 FPS: every gap is a slow frame, the classes add up: ' + json.dumps(slow))
     check(slow['memoryActivity']['compressedMiB'] == 400 and slow['memoryActivity']['decompressedMiB'] == 4688 and
           slow['memoryActivity']['decompressedPagesMedian'] == 30000 and slow['cpuService']['clockGHzMedian'] == 2.0 and
-          slow['cpuService']['performanceCoresPercentMedian'] == 30.0 and slow['cpuService']['instructionsPerFrameMillions'] == 600,
-          'the second window\'s own figures: ' + json.dumps(slow))
+          slow['cpuService']['performanceCoresPercentMedian'] == 30.0 and slow['cpuService']['instructionsPerFrameMillions'] == 600 and
+          slow['cpuService']['waitingForACorePercentMedian'] == 50.0 and slow['cpuService']['performanceClockGHzMedian'] == 3.1 and
+          slow['cpuService']['otherClockGHzMedian'] == 1.5,
+          'the second window\'s own figures (six values: the waiting time as written, both clocks): ' + json.dumps(slow))
     check(odd['frames'] == 1 and odd['memoryActivity'] is None and odd['cpuService'] == dict(
-        lines=1, clockGHzMedian=0.0, instructionsPerCycleMedian=None, performanceCoresPercentMedian=None, readyWithoutACorePercentMedian=5.0,
+        lines=1, clockGHzMedian=0.0, instructionsPerCycleMedian=None, performanceCoresPercentMedian=None, waitingForACorePercentMedian=0.0,
+        performanceClockGHzMedian=None, otherClockGHzMedian=None,
         instructionsPerFrameMillions=None), 'a line whose host could not tell: nothing invented; the paused second left out: ' + json.dumps(odd))
     text = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--window', '1-10'], capture_output=True, text=True)
     check(text.returncode == 0 and 'memory activity (vm=, 10 lines): 40 MiB compressed, 156 MiB decompressed' in text.stdout and
-          'CPU service (hw=, 10 lines, medians): clock 3.0 GHz, 2.0 instructions per cycle, 60.0 % on performance cores, 10.0 % ready without a core; '
+          'CPU service (hw=, 10 lines, medians): clock 3.0 GHz, 2.0 instructions per cycle, 60.0 % on performance cores, 10.0 % waiting for a core; '
           'about 500 million instructions per frame' in text.stdout and
           'threads (cpu=, pc=; medians): Render 40 % of a core at priority 47, 90 % on performance cores; '
           '<MainThread> 30 % of a core at priority 31, 20 % on performance cores' in text.stdout, 'the text report: ' + text.stdout[-900:])
+    later = subprocess.run([sys.executable, str(TOOL), str(log), '--pid', str(PID), '--window', '11-20'], capture_output=True, text=True)
+    check(later.returncode == 0 and 'clock 2.0 GHz (performance cores 3.1 GHz, others 1.5 GHz), 1.0 instructions per cycle, 30.0 % on performance '
+          'cores, 50.0 % waiting for a core' in later.stdout, 'the text report of a six-value window: ' + later.stdout[-500:])
     old = Path(directory) / 'old.log'
     with open(old, 'w') as out:
         for t in range(1, 4):

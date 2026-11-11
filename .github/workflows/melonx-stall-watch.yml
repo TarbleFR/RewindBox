@@ -11,6 +11,7 @@ run-name: Stall watch on macOS and iOS typecheck • ${{ github.sha }}
     paths:
     - .github/workflows/melonx-stall-watch.yml
     - packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXHotSpots.swift
     - packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift
     - test/melonx_perf_journal_test.py
     - test/melonx_input_stick_test.py
@@ -47,5 +48,6 @@ jobs:
         xcrun --sdk iphoneos swiftc -typecheck -swift-version 5 -target arm64-apple-ios18.0 \
           -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
           packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift \
-          packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift
+          packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift \
+          packages/melonx_internal_bridge/ios/Classes/MeloNXHotSpots.swift
         echo "iOS typecheck passed"

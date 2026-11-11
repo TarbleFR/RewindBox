@@ -8,6 +8,14 @@ buffers in use. It ships with the same five-part MoltenVK as Core 729. The proto
 unchanged; this page lists what lot 11 adds. Nothing here was run on an iPhone: every device figure below is IPA 724's,
 for comparison.
 
+## The IPA that carries it: 725 (delivered by main on 11 November, verified offline, not yet run on an iPhone)
+Source `e5a82821`, run 42973548971, `RewindBox-725.ipa` 272 226 282 bytes, sha256 `30f98890…e54a`
+([receipt](../rewind725/delivery.json)). MeloNX Core 731 (pin `fa54e14a`, compiled at `840c3fb5`, contract `518ea8dc…`);
+MoltenVK rebuilt from the five-part patch (`99605a2b…`); bridge of `840c3fb5` (`vm=`, `hw=`, `pc=`).
+To check first in the journals of a session: `"build":"725"` and `"coreSHA256":"574a5de9…"` in the context of the
+`[MeloNX:perf]` lines; the driver's load line with "resource bindings R read K kept" (five-part MoltenVK); `hw=` from
+the second per-second line on.
+
 ## What IPA 724 showed (Hogwarts Legacy, pid 49375), one command
 `python3 tools/melonx/buffer_trim_report.py MeloNX-stderr.log MeloNX-core.log MeloNX-core.log.1 --pid <pid>`
 
