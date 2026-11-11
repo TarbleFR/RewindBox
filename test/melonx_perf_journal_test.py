@@ -285,21 +285,28 @@ print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:100, total:200
 print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:50, total:600)))
 if let levels = MeloNXPerfJournal.levelTimes(thread:worker.id) { print("pcLevels " + (levels.performance <= levels.total && levels.total > 0 ? "plausible" : "implausible")) }
 else { print("pcLevels unavailable") }
-// Engine-call class: from a utility queue's thread the call is made at the user-interactive priority (a call within a
-// call too), on one thread, and the queue's own priority is what it was, between and after the calls.
+// Engine-call class: from a utility queue's thread the call is made by the dedicated thread, whose requested class is
+// user-interactive (a call within a call too), and the queue's thread keeps its own class, between and after the calls.
+// The scheduled priority depends on the host (a build machine may clamp the whole process): the dedicated thread's is
+// compared with that of a reference thread created in the user-interactive class here.
+var referenceBase: Int32 = -1
+let referenceDone = DispatchSemaphore(value:0)
+let reference = Thread { referenceBase = MeloNXPerfJournal.currentPriorities()?.base ?? -1; referenceDone.signal() }
+reference.qualityOfService = .userInteractive
+reference.start()
+referenceDone.wait()
 let classDone = DispatchSemaphore(value:0)
 var classLine = "engineClass unavailable"
 DispatchQueue(label:"Perf.Utility", qos:.utility).async {
-    let before = MeloNXPerfJournal.currentPriorities()
-    let (inside, value, thread) = MeloNXEngineCallClass.interactive { (MeloNXPerfJournal.currentPriorities(), 42, Thread.current.name ?? "") }
-    let nested = MeloNXEngineCallClass.interactive { MeloNXEngineCallClass.interactive { MeloNXPerfJournal.currentPriorities() } }
-    let between = MeloNXPerfJournal.currentPriorities()
+    let before = qos_class_self().rawValue, beforeBase = MeloNXPerfJournal.currentPriorities()?.base ?? -1
+    let (inside, insideBase, value, thread) = MeloNXEngineCallClass.interactive {
+        (qos_class_self().rawValue, MeloNXPerfJournal.currentPriorities()?.base ?? -1, 42, Thread.current.name ?? "") }
+    let nested = MeloNXEngineCallClass.interactive { MeloNXEngineCallClass.interactive { qos_class_self().rawValue } }
+    let between = qos_class_self().rawValue
     var sum = 0
     for index in 0..<200 { sum += MeloNXEngineCallClass.interactive { index } }
-    let after = MeloNXPerfJournal.currentPriorities()
-    if let before, let inside, let nested, let between, let after {
-        classLine = "engineClass \(before.base) \(inside.base) \(nested.base) \(between.base) \(after.base) \(value) \(sum) \(inside.scheduled > before.scheduled) \(thread)"
-    }
+    let after = qos_class_self().rawValue
+    classLine = "engineClass \(before) \(inside) \(nested) \(between) \(after) \(value) \(sum) \(thread) \(beforeBase) \(insideBase) \(referenceBase)"
     classDone.signal()
 }
 classDone.wait()
@@ -402,15 +409,22 @@ exit(2)
               result.stdout)
         check([line for line in result.stdout.splitlines() if line.startswith('hotDecide ')] == ['hotDecide ' + ','.join(expected_decisions)],
               'the profiler decides as the rule: ' + result.stdout)
-        # Engine-call class (base priorities: 47 user-interactive, 20 utility): the call made from a utility queue's
-        # thread runs at the user-interactive priority, a call within a call too, on the dedicated thread; the queue's
-        # thread is at its own priority before, between and after; the calls' values are returned (200 in a row).
+        # Engine-call class (requested classes: 0x21 user-interactive, 0x11 utility): the call made from a utility queue's
+        # thread runs on the dedicated thread, in the user-interactive class, a call within a call too; the queue's thread
+        # is in its own class before, between and after; the calls' values are returned (200 in a row). The dedicated
+        # thread is scheduled as a reference user-interactive thread of the same process is (on a host that clamps the
+        # process both read the clamp: macOS runs 42991898055 and 42993028058 read 20 for every thread), and above the
+        # queue's thread wherever the reference is.
         engine_class = [line.split(' ')[1:] for line in result.stdout.splitlines() if line.startswith('engineClass ')]
-        check(len(engine_class) == 1 and len(engine_class[0]) == 9, result.stdout)
+        check(len(engine_class) == 1 and len(engine_class[0]) == 11, result.stdout)
         before, inside, nested, between, after = map(int, engine_class[0][:5])
-        check(before <= 31 and inside >= 45 and nested == inside and between == before and after == before and
-              engine_class[0][5:] == ['42', str(sum(range(200))), 'true', 'RewindBox.MeloNX.EngineCalls'],
+        before_base, inside_base, reference_base = map(int, engine_class[0][8:])
+        print('engine call priorities (queue thread, dedicated thread, reference user-interactive thread):', before_base, inside_base, reference_base, flush=True)
+        check(before == 0x11 and inside == 0x21 and nested == 0x21 and between == 0x11 and after == 0x11 and
+              engine_class[0][5:8] == ['42', str(sum(range(200))), 'RewindBox.MeloNX.EngineCalls'],
               'engine call class from a utility queue: ' + ' '.join(engine_class[0]))
+        check(inside_base == reference_base and reference_base > 0 and (reference_base <= before_base or inside_base > before_base),
+              'the dedicated thread is scheduled as a user-interactive thread of this process: ' + ' '.join(engine_class[0]))
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
         check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms, {total} over 50 ms, 0 over 100 ms'
