@@ -4245,8 +4245,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `docs/evidence/s2arm/rewind802/`; private key deleted. Against 801: App identical; Runner
   changed (probe); melonx/armsx2/rpcs3 bridges differ only in `__stubs`/`__objc_stubs` (same
   sizes; linker stubs, compared section by section between the two IPAs).
-- **Next:** the maintainer's run of 802 (Switch game first, send `MeloNX-launch.log`); read phase 2
-  (D gates and redirections, E `brk` after detach, F memory).
+- **802 on device (observed, 11 Nov 11:58 UTC): step 3 passed.** After the helper detached, the
+  rewritten synthetic module ran with `checks=16/16 brk=1 svc=1 cntpct=1` in the mapped and arena
+  placements; a writable alias made after detach let new code be written and executed; the game
+  then launched normally. One device, one launch, synthetic module only. Prototype doc, "second
+  device run".
+- **Next:** propose the next batches to the maintainer (real module on device needs the unpack
+  route decision); nothing about a game, the runtime or performance is shown.
 
 ### Codex orchestration — Codex
 

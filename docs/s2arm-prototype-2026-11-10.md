@@ -209,3 +209,36 @@ What this answers (device, iOS 26+, universal helper attached; not yet after det
 
 Fix: commit `7195731` (executes the fixed placement only with the opt-in flag
 `RB_S2ARM_PROBE_FIXED_EXECUTE`; the bridge passes 0). Next: IPA 802 with that fix, same trial.
+
+## Step 3 — second device run (IPA 802, 11 Nov, observed): passed
+
+Input: IPA 802 (SHA-256 `fb9f07cd…c351`, receipt `docs/evidence/s2arm/rewind802/`), one Switch
+game launched first by the maintainer; journal received in this session (not committed). Session
+pid 53079, 11:58:32–11:58:36 UTC. iOS version not in the journal (the hook requires the universal
+helper, so iOS 26 or later).
+
+- **Phase 1 (helper attached):** same results as 801 for `holes` (62.70 GiB largest, nothing above
+  2^39), `window` (32 GiB at `0x7080000000`), `mapped*` and `arena*` (all passed);
+  `fixedExecuteText` skipped as intended; `phase1 passed modes mapped=1 fixed=0 arena=1`.
+- **Phase 2 (helper detached, 2 s later):**
+  - `mappedWrite`/`arenaWrite`: the rewritten synthetic module written through the alias: passed.
+  - `mappedSlots`/`arenaSlots`: `tpidrro_el0` read, four pthread keys (298–301) for the key page.
+  - `mappedRun`/`arenaRun`: `signal=0 checks=16/16 brk=1 svc=1 cntpct=1` in both placements.
+  - `lateAlias`/`lateAliasExecute`: a new writable alias of the prepared text page made after the
+    detach, new code written through it and executed: passed.
+  - `windowRelease` passed; `phase2 passed` (mapped=1, arena=1; fixed not available).
+- **The launch continued normally:** MeloNX's own JIT transaction completed, first frame 2 s after
+  the probe (`launchResult passed`).
+- **Footprint:** 459.9 MiB at phase 1 start, 460.0 MiB at its end; 1471 MiB at phase 2, after
+  MeloNX had mapped its own 4 GiB guest memory in between (not the probe's).
+
+Answers (one device, one launch, a ~600-byte synthetic module, not a game):
+- **D** — redirections and gates of S2Arm-rewritten code work on device: svc gate, counter gate,
+  TSD key slots, 16 of 16 checks, in the process-mapped placement S2Arm's loader needs.
+- **E** — `brk` after detach reaches the process as a catchable SIGTRAP (`brk=1`).
+- **F** — the probe's own memory is negligible; no measurement yet of a real module.
+- **Also shown:** JIT-prepared pages stay writable through a new alias after the helper detached,
+  so code can be (re)written after detach without a new helper transaction.
+
+Not shown: a real game module, S2Arm's runtime (HLE services, graphics), performance. Step 3 of the
+approved prototype is passed; next batches are to be proposed to the maintainer.
