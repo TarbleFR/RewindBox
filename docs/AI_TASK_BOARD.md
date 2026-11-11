@@ -257,6 +257,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
+  - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
+  - **PR #172 (session 03, Xbox 360 / XeniOS, head `db277ee0`):** not mergeable yet. Trial merge: one textual conflict
+    (imports of `sqlite_database_service.dart`, keep all three). Independent native review (verified by main in the code):
+    D1 the JIT transaction stays open after a launch failure on the handshake plan (Dart `unsupported`/`gameUnreadable`
+    after `ensure()`, native early returns), so every later `prepareJit` is refused until restart; D2 `reuseAttachedTool`
+    does not check `handshakeActive` (needs a device to settle); R1 plugin Objective-C class names can collide with
+    upstream once the Core is loaded; R2-R4 and minor items sent to session 03 with the smallest fixes. Dart side read
+    by main: default-off policy, catalogue by application and Consoles tab consistent; startup `ensureLayout` should be
+    non-fatal. Merge conditions: D1, D2, R1, the `default.xex` fix, the chained review of `pubspec.yaml`, and the
+    `checks` job of `xenia-core.yml` green (dispatch-only today, so not runnable: session 03 adds a push trigger on its
+    branch). The JIT helper appex is not wired into the IPA, so the app-extension closed set is unchanged.
+  - **PR #176 / #177 (skins: System Art update notices; decorative loops gated under games, decode caps):** read by
+    main, no defect; each merges cleanly into `Claude` and #176 also merges after #177. Only Dart change on `Claude`
+    since their base is the RPCS3 profile service. Integration after their tests run on the merged tree.
+  - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
+    legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172.
+
 - **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
   [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
   published at 20:41:55 Europe/Paris. Git tag `0.0.11` verified at
