@@ -48,8 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p proof
-          rewriter_lib=$(find "$RUNNER_TEMP/rewriter" -name 'libs2a_rewriter.a' | head -1)
-          capstone_lib=$(find "$RUNNER_TEMP/rewriter" -name 'libcapstone.a' | head -1)
+          rewriter_lib=$(find "$RUNNER_TEMP/rewriter" -name 'libs2a_rewriter.a' -print -quit)
+          capstone_lib=$(find "$RUNNER_TEMP/rewriter" -name 'libcapstone.a' -print -quit)
           test -n "$rewriter_lib" && test -n "$capstone_lib"
           cc -O2 -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/s2arm/runtime/rewriter" \
             -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
