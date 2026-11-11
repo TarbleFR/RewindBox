@@ -74,19 +74,21 @@ identity, the S2Arm case accepted and its incomplete variants refused. The launc
 
 Producer contract (the upload step of `s2arm-engine.yml`): artifact `s2arm-engine-framework-<head sha>`
 of a successful run on this branch, holding exactly `S2ArmEngine.framework.zip`, `NS2Pro.framework.zip`
-(members `<Name>.framework/...`, no symbolic link, e.g. `ditto -c -k --norsrc --keepParent`) and
-`s2arm-engine-identity.json` `{run, attempt, head_sha, s2arm_commit, patches: [{name, sha256}], files}`:
+(members `<Name>.framework/...`, no symbolic link, e.g. `ditto -c -k --norsrc --keepParent`), `licenses/`
+(`license-sources.json` and the engine's licence and notice texts it lists, `docs/s2arm-legal-notices.md`) and
+`s2arm-engine-identity.json` `{run, attempt, head_sha, s2arm_commit, patches: [{name, sha256}], files, licenses}`:
 `files` gives exactly the two archives, `patches` every `build-utils/s2arm/engine/patches/*.patch` at
-`head_sha` (basename, sorted), `s2arm_commit` the pin of `tools/s2arm_prototype/pin.json` there. Each
-framework: one Mach-O, an arm64 iOS dylib with install name `@rpath/<Name>.framework/<Name>`, linking only
-the system and the other engine framework.
+`head_sha` (basename, sorted), `s2arm_commit` the pin of `tools/s2arm_prototype/pin.json` there, `licenses`
+the manifest's path, SHA-256 and the number of files of `licenses/`. Each framework: one Mach-O, an arm64 iOS
+dylib with install name `@rpath/<Name>.framework/<Name>`, linking only the system and the other engine framework.
 
 Manifest: `s2arm.engine = {workflow, run, zips}` (`make_manifest.py ... --engine-run RUN --engine-zip
 S2ArmEngine.framework.zip=SHA --engine-zip NS2Pro.framework.zip=SHA`), plus three added images and the
 S2Arm tests. Steps: `engine-download` (API: run, branch, workflow, success, commit in history, one
 unexpired artifact, digest; files against manifest and producer commit) after the component runs; the
 helper (configure, `pod install`, `check-pods`) after the probe key; `engine-embed` and `engine-check-app`
-after the last embed step; `engine-check-ipa` after the signed-IPA checks; the Dolphin packager and the
+after the last embed step (`engine-embed` also places the engine's notices in `Legal/S2Arm`), then the legal
+gate on the built application; `engine-check-ipa` after the signed-IPA checks; the Dolphin packager and the
 version check are the common steps, unchanged. Every build of this workflow now carries the engine, and its host bridge with the
 preparation library and the system data (`docs/s2arm-engine-bridge.md`, Delivery). `RewindBoxS2ArmProbe` is still
 set: stopping it is not a one-line change (`set_probe_key.py` checks it at host, app and IPA) and the
