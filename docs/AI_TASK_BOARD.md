@@ -3793,9 +3793,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Batch 4 slice 1 done on the host: `native/s2arm/prepare/` rewrite stage, byte-identical to
     S2Arm's command line on a synthetic ExeFS, five refusal cases, iOS arm64 compilation (run
     `42940946139` on `2a7341d`; run `42940786190` was red from a test-harness defect, fixed).
-  - In progress, unverified: port of `tools/addr_need.py` (delegated, isolated worktree);
-    `S2ArmPrepare.xcframework` build (`build-utils/s2arm/`, `.github/workflows/s2arm-core.yml`,
-    first run `42941599637`).
+  - Batch 4 slice 2 done on the host: `s2arm_addr_need.c`, port of `tools/addr_need.py`
+    (delegated, reviewed, `999c8c3`). Run `42942687934`, Linux and macOS: 86 cases, 0 failed
+    (78 tables byte-identical to the original, 7 refused by both, ZBIC refused by the port
+    only), iOS arm64 compilation. ZBIC-compressed NSOs are not supported.
+  - In progress, unverified: `S2ArmPrepare.xcframework` (`build-utils/s2arm/`,
+    `.github/workflows/s2arm-core.yml`). Runs `42941599637`, `42942396095`, `42942688158`
+    failed on build configuration (empty target processor, then a `find | head` pipe under
+    pipefail); `b09e6bd` run `42942912304` pending.
   - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
     playlist files belong to PR #172 until main integrates it; skins stay with session 02.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
