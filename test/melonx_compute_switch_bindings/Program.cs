@@ -298,22 +298,32 @@ static class Program
         Draw("imageNoDispatch"); Dispatch("image"); Draw("image");
         for (int i = 0; i < 3; i++) { Dispatch("after" + i); Draw("after" + i); }
 
-        // Steady commits, timed (host CPU, Release build): five rounds of 50 000 pairs. The fastest round is the measure,
-        // so that a stall of the host during one round does not decide the comparison (one round only until Core 731:
-        // the comparison failed twice in local runs with other gates building beside it). The backend calls are those
-        // of the first round, as before.
+        // Steady commits, timed (host CPU, Release build, run by the gate without tiered compilation so that every
+        // round executes the same optimized code): seven rounds of 50 000 compute/graphics pairs, each just after a
+        // reference round of 50 000 pairs of graphics commits with no compute between them (the path the adapter
+        // leaves as it is, in the same classes). The measure is the median of round / reference: the two probes are
+        // separate processes and a shared runner does not give both the same speed (Core CI run 43009346249: the
+        // control's fastest of five rounds 48 ms, the candidate's 140 ms, against 204 and 122 ms for one round each in
+        // run 42958274015), so each round is compared to the same engine's unchanged work done by the same process at
+        // the same moment. The fastest round is still reported. The backend calls are those of the first round.
         for (int i = 0; i < 2000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
-        int timedCallsBefore = TextureCalls + ImageCalls;
+        for (int i = 0; i < 2000; i++) { gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
+        var roundsMs = new double[7];
+        var referenceMs = new double[roundsMs.Length];
         int timedCalls = 0;
-        var roundsMs = new double[5];
         for (int round = 0; round < roundsMs.Length; round++)
         {
             var watch = Stopwatch.StartNew();
+            for (int i = 0; i < 50000; i++) { gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
+            referenceMs[round] = watch.Elapsed.TotalMilliseconds;
+            int timedCallsBefore = TextureCalls + ImageCalls;
+            watch.Restart();
             for (int i = 0; i < 50000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
             roundsMs[round] = watch.Elapsed.TotalMilliseconds;
             if (round == 0) { timedCalls = TextureCalls + ImageCalls - timedCallsBefore; }
         }
         double ms = roundsMs.Min();
+        double[] relative = roundsMs.Select((value, index) => value / referenceMs[index]).OrderBy(value => value).ToArray();
 
         Console.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
         {
@@ -323,6 +333,9 @@ static class Program
             ["timedPairs"] = 50000,
             ["timedMs"] = ms,
             ["timedRoundsMs"] = roundsMs,
+            ["referenceRoundsMs"] = referenceMs,
+            ["timedRelative"] = relative[relative.Length / 2],
+            ["tieredCompilation"] = Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "",
             ["timedBackendCalls"] = timedCalls,
         }));
         return 0;

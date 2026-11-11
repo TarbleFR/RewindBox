@@ -98,25 +98,39 @@ with tempfile.TemporaryDirectory(prefix='melonx-compute-switch-bindings-') as te
                 shutil.copyfile(work / extra, probe / extra)
         build = dotnet('build', str(probe / 'MeloNXBindingsProbe.csproj'), '-c', 'Release', '-nologo', '-m:1', cwd=probe)
         check(build.returncode == 0, 'probe builds against the ' + variant + ' engine')
+        # Without tiered compilation: every timed round runs the same fully optimized code in both probes (with it, a
+        # probe whose background recompilation comes late spends its rounds in unoptimized code).
         run = subprocess.run([DOTNET, str(probe / 'bin/Release/net10.0/MeloNXBindingsProbe.dll')], capture_output=True, text=True,
-                             timeout=900, env=environment, cwd=probe)
+                             timeout=900, env=dict(environment, DOTNET_TieredCompilation='0'), cwd=probe)
         if run.returncode:
             print(run.stdout[-4000:], run.stderr[-4000:], flush=True)
         check(run.returncode == 0, variant + ' probe runs')
         reports[variant] = json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
 
 control, candidate = reports['control'], reports['candidate']
-print(json.dumps({k: {x: v[x] for x in ('errors', 'steadyCalls', 'timedMs', 'timedBackendCalls')} for k, v in reports.items()}), flush=True)
+print(json.dumps({k: {x: v[x] for x in ('errors', 'steadyCalls', 'timedMs', 'timedRelative', 'timedRoundsMs', 'referenceRoundsMs', 'timedBackendCalls')}
+                  for k, v in reports.items()}), flush=True)
 check(not control['errors'], 'control: every committed slot holds the named texture: ' + '; '.join(control['errors'][:3]))
 check(not candidate['errors'], 'candidate: every committed slot holds the named texture: ' + '; '.join(candidate['errors'][:3]))
 check(candidate['sequence'] == control['sequence'], 'same slot sequence as the control')
 check(len(candidate['sequence']) == 24, 'every step committed')
 check(candidate['steadyCalls'] == control['steadyCalls'], 'same backend calls in the steady phase')
 check(candidate['timedBackendCalls'] == control['timedBackendCalls'], 'same backend calls in the timed phase')
-# timedMs is the fastest of five rounds of 50 000 pairs in each probe (a host stall during one round does not decide).
-check(len(candidate['timedRoundsMs']) == len(control['timedRoundsMs']) == 5 and candidate['timedMs'] == min(candidate['timedRoundsMs']) and
-      control['timedMs'] == min(control['timedRoundsMs']), 'five timed rounds in each probe, the fastest kept')
-check(candidate['timedMs'] < control['timedMs'], 'steady compute/graphics pairs are cheaper')
+# Seven rounds of 50 000 compute/graphics pairs in each probe, each timed against a reference round run just before it
+# by the same process (50 000 pairs of graphics commits with no compute between them: the path the adapter leaves as it
+# is); timedRelative is the median of round / reference. The two probes are separate processes and a shared runner does
+# not give both the same speed, so their milliseconds are not compared (Core CI run 43009346249 failed on that:
+# control 48 ms, candidate 140 ms, fastest of five rounds with tiered compilation).
+def median_relative(report):
+    ratios = sorted(r / l for r, l in zip(report['timedRoundsMs'], report['referenceRoundsMs']))
+    return ratios[len(ratios) // 2]
+
+
+check(all(len(r['timedRoundsMs']) == len(r['referenceRoundsMs']) == 7 and min(r['referenceRoundsMs']) > 1 and r['timedMs'] == min(r['timedRoundsMs']) and
+          abs(r['timedRelative'] - median_relative(r)) < 1e-9 and r['tieredCompilation'] == '0' for r in (control, candidate)),
+      'seven rounds in each probe, each against its reference round, without tiered compilation')
+check(candidate['timedRelative'] < control['timedRelative'],
+      'steady compute/graphics pairs are cheaper: %.3f against %.3f of the reference round' % (candidate['timedRelative'], control['timedRelative']))
 
 mc, mk = texts['control'][adapter.MANAGER], texts['candidate'][adapter.MANAGER]
 bc, bk = texts['control'][adapter.BINDINGS], texts['candidate'][adapter.BINDINGS]
@@ -137,8 +151,8 @@ sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, chec
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core691Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in adapter.BASELINE} if FINAL_PREPARATION else {},
-               control={k: control[k] for k in ('steadyCalls', 'timedMs', 'timedBackendCalls', 'timedPairs')},
-               candidate={k: candidate[k] for k in ('steadyCalls', 'timedMs', 'timedBackendCalls', 'timedPairs')},
+               control={k: control[k] for k in ('steadyCalls', 'timedMs', 'timedRelative', 'timedRoundsMs', 'referenceRoundsMs', 'timedBackendCalls', 'timedPairs')},
+               candidate={k: candidate[k] for k in ('steadyCalls', 'timedMs', 'timedRelative', 'timedRoundsMs', 'referenceRoundsMs', 'timedBackendCalls', 'timedPairs')},
                sequence=candidate['sequence'], sdk=sdk, physicalDeviceTested=False, productionGpuAssemblyBuilt=True,
                sourceBaseline=adapter.BASELINE, inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs})
 out = ROOT / 'dist/melonx/compute-switch-bindings-checks.json'
