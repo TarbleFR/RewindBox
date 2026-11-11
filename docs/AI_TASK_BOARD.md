@@ -3872,6 +3872,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       window against trims.
     - **Not measured on a device:** the size the cache settles at (`bufferCacheBytes`), the creations per window and
       the frame times; the end-to-end share of these creations in the 56 ms is unknown.
+    - **Classified, not changed:** `test/melonx_capture_journal_test.py` (IPA 650 follow-up, capture state in the host
+      journals) is run by no workflow and is not a Core gate; at this head it fails its "only the expected control
+      lines are replaced" comparison with its pinned control `72eae347`, stale since the controller was edited by
+      reviewed later work (`4700d445`, the Switch skin path `8e2f4bd1`, `6ddc96fd`, `65a9e633`). Historical as it
+      stands; to re-scope to presence checks or retire with the controller's owner. `65a9e633` (the Swift name of the
+      skin interaction call) is in this branch through the merges.
     - **Next action:** main integrates Core 731 with the five-part MoltenVK and the bridge head; the device run of the
       [protocol](evidence/melonx-731-gates/device-protocol.md) (two sessions, nothing deleted). Then, by what `hw=`,
       `pc=`, `vm=` and the memory breakdown say: the guest threads' scheduling class, the memory still held, or the
