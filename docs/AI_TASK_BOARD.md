@@ -3851,7 +3851,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       First version rejected by two earlier gates (`memory-inventory`, `host-warning-trim` build the GPU project with
       GpuContext.cs at their own stage, where the clock it read, `TextureUseEpoch`, does not exist yet): the clock
       became the cache's own.
-    - **Core 731 frozen: contract `518ea8dc…` (205 inputs, 207 members, 88 gates, all green in one run; contract test 476 checks;
+    - **Core 731 frozen: contract `9de16cd8…` (first frozen as `518ea8dc…`; 205 inputs, 207 members, 88 gates, all green in one run; contract test 476 checks;
       [receipts](evidence/melonx-731-gates/run.json), [device protocol](evidence/melonx-731-gates/device-protocol.md)).**
       Same five-part MoltenVK as Core 729, which this Core contains.
     - **Also read in the IPA 724 journal (no change made from it):** thermal state `fair` from t=30 on, never beyond;
@@ -3878,6 +3878,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       reviewed later work (`4700d445`, the Switch skin path `8e2f4bd1`, `6ddc96fd`, `65a9e633`). Historical as it
       stands; to re-scope to presence checks or retire with the controller's owner. `65a9e633` (the Swift name of the
       skin interaction call) is in this branch through the merges.
+    - **Core CI red on the Core 729 source (run 42954875678), diagnosed and corrected (11 Nov):** gate
+      `worker-library-share` failed before the compile: candidate `renderCreations` 1 878 for 2 000 expected, every
+      entry on disk. A time hypothesis of the fixture, not a loss: scenario S6 stopped its render thread when the two
+      workers finished, so the count held only while the render thread was the faster. Reproduced by slowing the
+      render thread (1 ms per creation: same failure, control included). The scenario now builds the overlap itself
+      (the render thread starts after both workers' first publication and makes its 2 000 creations; the workers
+      publish until it is done) and passes as is, render slowed, workers slowed. Same class, corrected with it:
+      `compute-switch-bindings` keeps the fastest of five timed rounds (one before). Both pass under six busy loops on
+      four cores. Engine unchanged (preparation inputs and prepared members identical); three contract inputs differ
+      (two gate scripts, one fixture): contract `518ea8dc…` -> `9de16cd8…`. **Seen, not changed:** the receipts of 24
+      gates declare fixture files the contract does not list (among them this gate's `Program.cs` and `Double.cs`);
+      to bind in one reviewed step with main.
     - **Integration (main, 11 Nov 04:18):** IPA 725 carries Core 731, not 727 (merge `840c3fb5` of `e3620e88`, compile
       run 42958274015 queued; fallback Core 729; Core 727 only with the four-part MoltenVK). Reason given to main: with
       the five-part MoltenVK main's data is a fraction of the 792 MiB file, and Core 727's growth rule counts from the

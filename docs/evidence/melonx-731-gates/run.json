@@ -327,8 +327,8 @@
   },
   "compute-switch-bindings": {
    "report": "compute-switch-bindings-checks.json",
-   "sha256": "eac345173dfaf43aeba996053857ef463547f7361c8e6a7c2631227843c2b731",
-   "checks": 24
+   "sha256": "33c92389ed26bbcdc5cb26b0223ffa6c1a2a152a6fde9a78067c200be3126782",
+   "checks": 25
   },
   "bgc-keepalive": {
    "report": "bgc-keepalive-checks.json",
@@ -392,7 +392,7 @@
   },
   "worker-library-share": {
    "report": "worker-library-share-checks.json",
-   "sha256": "3b44e0ae5c8cd74cfc2bedb6ef025ac0760dec6ba475ba953bea0d0986c6eca1",
+   "sha256": "9cd72b89475c99cb5ee240d6926051bf283d410cb32129986da920454a76c90b",
    "checks": 62
   },
   "bgc-fragmentation-guard": {
@@ -463,11 +463,13 @@
  },
  "allGatesLocally": "88 of 88 passed on the final preparation (11 Nov), in one run. A first version of the adapter read GpuContext.TextureUseEpoch and was refused by two earlier gates that build the GPU project with GpuContext.cs at their own stage (memory-inventory, host-warning-trim: the field is added later, by adapt_cold_texture_release); the clock became the buffer cache's own and the run was started again. Two earlier gates were taught the later adapter: evicted-buffer-recreate (static comparison on its own postimage, the final members executed; two doubles) and single-virtual-dependency (the one added field of Buffer.cs).",
  "contract": {
-  "sha256": "518ea8dc5e1568f0000455bd96c1e6a059cfe4de1ee691c560aad28ac2e4fe4f",
+  "sha256": "9de16cd88c6c8b7e71963ed9f32cacdb8ca5acb120d46590f63bd79653fd9105",
   "preparationInputs": 205,
   "preparedMembers": 207,
   "freshAppleGates": 88,
-  "contractTestChecks": 476
+  "contractTestChecks": 476,
+  "frozenFirst": "518ea8dc5e1568f0000455bd96c1e6a059cfe4de1ee691c560aad28ac2e4fe4f",
+  "refreeze": "Core CI of the Core 729 source (run 42954875678, macos-26) failed before compiling on gate worker-library-share: \"render-thread creations during publications are all kept\", candidate renderCreations 1 878 for 2 000 expected, every entry on disk. Cause: a time hypothesis in the fixture (the render thread of scenario S6 was stopped when the two workers finished, so the count held only if it was the faster). Reproduced here by slowing the render thread (1 ms per creation): same failure, control included. The scenario now builds the overlap itself (the render thread starts after both workers' first publication and makes its 2 000 creations; the workers publish until it is done, 120 s at most): passes as is, with the render thread slowed and with the workers slowed. Same class, corrected with it: the timed comparison of gate compute-switch-bindings keeps the fastest of five rounds of 50 000 pairs (one round before; it had failed twice in local runs beside other builds). Both gates pass under six busy loops on four cores and idle. Only three contract inputs differ from 518ea8dc (the two gate scripts and the compute-switch fixture); preparation inputs and prepared members are identical: the engine built is the same. The 86 other receipts are those of the full run. The published file is the first frozen one with those three entries (three lines); freeze_dma_core.py run again gives the same contract as JSON (52878e4c... that time: the key order of baselineUnadaptedMembers varies from run to run)."
  },
  "physicalDeviceTested": false,
  "ipa": null,
@@ -490,5 +492,6 @@
  "tools": [
   "tools/melonx/buffer_trim_report.py",
   "tools/melonx/frame_budget.py (vm=, hw=, pc= sections)"
- ]
+ ],
+ "contractCoverageNote": "The receipts of 24 gates declare fixture files the contract does not list among its inputs (for example test/melonx_worker_library_share/Program.cs and Double.cs, changed here): the contract binds the gate scripts and a part of the fixtures. Unchanged in this refreeze; to bind them all in one reviewed step with main."
 }

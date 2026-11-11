@@ -1,0 +1,277 @@
+{
+  "result": "passed",
+  "checks": 62,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "45ee8376556d63c9f026f12e9ce75d5f69658242b2f5f225a82222dd394415af",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "21d559841f0a72c73cf2e48b0425a855159889e65aef811af889390dd0534fe0"
+  },
+  "comparison": {
+    "librariesCompiledControl": 27,
+    "librariesCompiledCandidate": 15,
+    "distinctLibraries": 14,
+    "mainHitsCandidate": 47,
+    "shares": 13,
+    "entriesIteratedByMerges": 92,
+    "simultaneousStillDuplicated": true,
+    "sameContentOnDisk": true,
+    "renderRoutedToSideCacheDuringOverlap": true,
+    "sensitivityVariantFailed": true,
+    "budgetRecheckedUnderLock": true,
+    "budgetIsEstimate": true
+  },
+  "reports": {
+    "control": {
+      "variant": "control",
+      "alternating": {
+        "requests": 60,
+        "librariesCompiled": 27,
+        "distinctLibraries": 14,
+        "mainHits": 0,
+        "mainEntriesBeforeClose": 0,
+        "shares": 0,
+        "shareMs": 0,
+        "entriesIteratedByMerges": 0,
+        "onDisk": 14,
+        "onDiskAll": true,
+        "nextLaunchCompiled": 0,
+        "nextLaunchMainHits": 60
+      },
+      "concurrent": {
+        "simultaneousCompiled": 4,
+        "laterCompiled": 0,
+        "laterMainHits": 0
+      },
+      "busy": {
+        "inMainWhileBusy": false,
+        "busyCount": 0,
+        "bothInMainAfter": false,
+        "compiled": 2
+      },
+      "frozen": {
+        "addedToMainDuringPlay": 0,
+        "compiled": 2,
+        "mainFileKept": true
+      },
+      "recycle": {
+        "compiled": 4300,
+        "allInMainBeforeClose": false,
+        "allOnDisk": true,
+        "workerEntriesAfter": 0
+      },
+      "threads": {
+        "renderCreations": 2000,
+        "allRenderOnDisk": true,
+        "allWorkerOnDisk": true,
+        "renderFinished": true,
+        "workerRequests": [
+          300,
+          300
+        ]
+      },
+      "overlap": {
+        "compiled": 1,
+        "announcementKept": true,
+        "renderReturnedWhileHeld": true,
+        "renderToSideCache": true,
+        "renderRouteMs": 2.16,
+        "announcementWithdrawnAfter": true
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+      ],
+      "shareLines": []
+    },
+    "candidate": {
+      "variant": "candidate",
+      "alternating": {
+        "requests": 60,
+        "librariesCompiled": 15,
+        "distinctLibraries": 14,
+        "mainHits": 47,
+        "mainEntriesBeforeClose": 14,
+        "shares": 13,
+        "shareMs": 1.101,
+        "entriesIteratedByMerges": 92,
+        "onDisk": 14,
+        "onDiskAll": true,
+        "nextLaunchCompiled": 0,
+        "nextLaunchMainHits": 60
+      },
+      "concurrent": {
+        "simultaneousCompiled": 4,
+        "laterCompiled": 0,
+        "laterMainHits": 2
+      },
+      "busy": {
+        "inMainWhileBusy": false,
+        "busyCount": 1,
+        "bothInMainAfter": true,
+        "compiled": 2
+      },
+      "frozen": {
+        "addedToMainDuringPlay": 0,
+        "compiled": 2,
+        "mainFileKept": true
+      },
+      "recycle": {
+        "compiled": 4300,
+        "allInMainBeforeClose": true,
+        "allOnDisk": true,
+        "workerEntriesAfter": 0
+      },
+      "threads": {
+        "renderCreations": 2000,
+        "allRenderOnDisk": true,
+        "allWorkerOnDisk": true,
+        "renderFinished": true,
+        "workerRequests": [
+          300,
+          300
+        ]
+      },
+      "overlap": {
+        "compiled": 1,
+        "announcementKept": true,
+        "renderReturnedWhileHeld": true,
+        "renderToSideCache": true,
+        "renderRouteMs": 2.13,
+        "announcementWithdrawnAfter": true
+      },
+      "budget": {
+        "refusedKeptOut": true,
+        "overBudget": 1,
+        "sharedAfterRoom": true,
+        "estimateBefore": 1048576,
+        "estimateAfter": 1310720,
+        "credited": 262144
+      },
+      "estimate": {
+        "perPipelineBefore": 131072,
+        "perPipelineAfter": 131072,
+        "creditedEstimate": 78118912,
+        "actual": 12582912,
+        "laterEstimate": 14680064
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+      ],
+      "shareLines": [
+        "Worker libraries shared with the main cache (session, at close): 13 merges in 1.1 ms (longest 0.9 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 2 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 1 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 1, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 64 merges in 0.1 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 128 merges in 0.5 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 192 merges in 1.3 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 256 merges in 2.2 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share)."
+      ]
+    },
+    "clearsOthers": {
+      "variant": "candidate",
+      "alternating": {
+        "requests": 60,
+        "librariesCompiled": 15,
+        "distinctLibraries": 14,
+        "mainHits": 47,
+        "mainEntriesBeforeClose": 14,
+        "shares": 13,
+        "shareMs": 2.083,
+        "entriesIteratedByMerges": 92,
+        "onDisk": 14,
+        "onDiskAll": true,
+        "nextLaunchCompiled": 0,
+        "nextLaunchMainHits": 60
+      },
+      "concurrent": {
+        "simultaneousCompiled": 4,
+        "laterCompiled": 0,
+        "laterMainHits": 2
+      },
+      "busy": {
+        "inMainWhileBusy": false,
+        "busyCount": 1,
+        "bothInMainAfter": true,
+        "compiled": 2
+      },
+      "frozen": {
+        "addedToMainDuringPlay": 0,
+        "compiled": 2,
+        "mainFileKept": true
+      },
+      "recycle": {
+        "compiled": 4300,
+        "allInMainBeforeClose": true,
+        "allOnDisk": true,
+        "workerEntriesAfter": 0
+      },
+      "threads": {
+        "renderCreations": 2000,
+        "allRenderOnDisk": true,
+        "allWorkerOnDisk": true,
+        "renderFinished": true,
+        "workerRequests": [
+          300,
+          300
+        ]
+      },
+      "overlap": {
+        "compiled": 1,
+        "announcementKept": false,
+        "renderReturnedWhileHeld": false,
+        "renderToSideCache": false,
+        "renderRouteMs": 500.07,
+        "announcementWithdrawnAfter": false
+      },
+      "budget": {
+        "refusedKeptOut": true,
+        "overBudget": 1,
+        "sharedAfterRoom": true,
+        "estimateBefore": 1048576,
+        "estimateAfter": 1310720,
+        "credited": 262144
+      },
+      "estimate": {
+        "perPipelineBefore": 131072,
+        "perPipelineAfter": 131072,
+        "creditedEstimate": 78118912,
+        "actual": 12582912,
+        "laterEstimate": 14680064
+      },
+      "warnings": [
+        "Vulkan main pipeline cache data was rejected (ErrorInitializationFailed); starting it empty."
+      ],
+      "shareLines": [
+        "Worker libraries shared with the main cache (session, at close): 13 merges in 2.1 ms (longest 1.7 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 2 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 1 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 1, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (session, at close): 0 merges in 0.0 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 64 merges in 0.1 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 128 merges in 0.5 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 192 merges in 1.2 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share).",
+        "Worker libraries shared with the main cache (during play): 256 merges in 2.1 ms (longest 0.0 ms), not shared: main busy 0, memory low 0, over budget 0 (adapt_worker_library_share)."
+      ]
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionVulkanSourceExecuted": true,
+  "driverModel": "MoltenVK v1.4.2 per-cache library and merge rules on a content double; the real-backend counts are in the melonx-library-share run; no device",
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "3721ea7d7a67ea0ce71e5609ff8b959f94a625aa2b2a4b070915360ad04ca25d",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "a8877cbf67f77fc981eb10f8214d3ec742a82764137af9e02972be7d676f18f6"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_worker_library_share.py": "2263e5fc380ce2cc2f9e681853eb267fadb5d2732f9e042cf7096acd2a8ef1c3",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_worker_library_share_test.py": "4357337ed074e38c8ea671bf72ef0dbdbbf9dea2fdc561dc8e4ee68205ed1b7c",
+    "test/melonx_worker_library_share/Program.cs": "67cb98f0a49dbd97dd6ad7f617b815c6676886c1043aed6a368bcff94c9a83fd",
+    "test/melonx_worker_library_share/Double.cs": "923ea5d2caa9f6e7e8118446e7704d84f6780fdd5afc95b8e5d0fcf847eaa503",
+    "test/melonx_adapter_control.py": "b3c7949c1bf4aab40e1504a11ec64257ae5c990a854f19ee78bae32ad027264e"
+  }
+}
