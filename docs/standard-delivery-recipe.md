@@ -87,6 +87,15 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   réinstallé depuis son pin. Son image est déclarée sous `images.retained.<clé>` et non sous
   `images.replaced`. Le gel exige que l'empreinte du pin soit celle de l'image de la base et que le
   fichier pin soit celui du manifeste de base ; `expected()` exige l'égalité au lieu de la différence.
+- **Entrées conservées modifiées et déclarées** : un composant conservé (`retain`, `retain-archive`,
+  `pinned-source` avec `inputs`) peut déclarer `changedInputs: [{path, baseBlob, newBlob, commit}]`
+  pour un fichier de ses entrées qu'un commit revu de la ligne first-parent a changé sans toucher au
+  Core compilé (ex. le conditionnel d'identité de `verify_ipa.py` de Dolphin). Le gel et le contrat
+  source acceptent exactement les octets `newBlob` de ce chemin. Restent refusés : tout autre
+  changement d'octets, un changement non déclaré, un `baseBlob` qui n'est pas celui de la base, une
+  entrée dont le fichier n'a pas changé, un chemin hors des entrées du composant, un commit absent de
+  `product.reviewedCommits`, hors de la ligne first-parent ou dont l'arbre ne contient pas `newBlob`.
+  Sans le champ, la règle est inchangée octet pour octet.
 - **Chemins de recette** (jamais compilés) : `.github/**`, `docs/**`, `*.md` à la racine,
   `.claude/**`, `build-utils/delivery/**`, `build-utils/delivery-*-recipient.pem`, les deux pins de
   Core, le contrat et le vérificateur. Exception liée par le gel : les fichiers de ce type que l'IPA

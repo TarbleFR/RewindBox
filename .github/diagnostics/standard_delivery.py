@@ -439,6 +439,24 @@ def manifest_errors(value):
         check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
     for key in ('libretro', 'melonx-dependencies'):
         check(value['components'].get(key, {}).get('mode') == 'retain-archive', f'components.{key} must be a retained archive')
+    seen = set()
+    for key, spec in value['components'].items():
+        if 'changedInputs' not in spec:
+            continue
+        entries = spec['changedInputs']
+        check(spec.get('mode') in RETAINED_RULE_MODES and spec.get('inputs'),
+              f'components.{key}.changedInputs only on a component with checked inputs')
+        check(isinstance(entries, list), f'components.{key}.changedInputs must be a list')
+        for entry in entries if isinstance(entries, list) else ():
+            ok = (isinstance(entry, dict) and set(entry) == CHANGED_INPUT_KEYS and
+                  isinstance(entry['path'], str) and entry['path'] and
+                  all(HEX40.fullmatch(str(entry[name])) for name in ('baseBlob', 'newBlob', 'commit')) and
+                  entry['baseBlob'] != entry['newBlob'])
+            check(ok, f'components.{key}.changedInputs entries need exactly path, baseBlob, newBlob (different, '
+                      'lowercase hex) and commit')
+            if ok:
+                check(entry['path'] not in seen, f'changed input listed twice: {entry["path"]}')
+                seen.add(entry['path'])
     product = value['product']
     check(isinstance(product.get('reviewedCommits'), list) and isinstance(product.get('sourceOnly'), list),
           'product.reviewedCommits and product.sourceOnly lists')
@@ -1343,15 +1361,55 @@ def retained_inputs(manifest, listing, read):
     return result
 
 
+RETAINED_RULE_MODES = ('retain', 'retain-archive', 'pinned-source')
+CHANGED_INPUT_KEYS = {'path', 'baseBlob', 'newBlob', 'commit'}
+
+
+def git_blob_id(data):
+    """The git object id of file bytes."""
+    return hashlib.sha1(b'blob %d\0' % len(data) + data).hexdigest()
+
+
+def declared_input_changes(manifest):
+    """[(component, entry)] of every components.<kind>.changedInputs entry."""
+    return [(kind, entry) for kind, spec in manifest['components'].items()
+            for entry in spec.get('changedInputs') or ()]
+
+
 def retained_inputs_unchanged(manifest, repo, listing, read):
-    """Retained components' inputs in the effective tree equal the base tree (no rebuild was needed)."""
+    """Retained components' inputs in the effective tree equal the base tree (no rebuild was needed).
+
+    A component may declare `changedInputs` [{path, baseBlob, newBlob, commit}]: a reviewed first-parent commit
+    changed that input, and exactly those bytes are accepted. Every other byte change stays refused."""
+    import retained_components as retained
     base = repo.entries(manifest['base']['source'])
     base_reader = EffectiveReader(repo, base)
     current = retained_inputs(manifest, listing, read)
     before = retained_inputs(manifest, base_reader.listing, base_reader.read)
+    declared = {entry['path'] for _, entry in declared_input_changes(manifest)}
     changed = sorted(path for path in set(current) | set(before)
-                     if is_product(path) and current.get(path) != before.get(path))
+                     if is_product(path) and current.get(path) != before.get(path) and path not in declared)
     require(not changed, 'A retained component input changed since the base: ' + repr(changed[:20]))
+    if declared:
+        reviewed = {item['commit'] for item in manifest['product']['reviewedCommits']}
+        first_parent = set(repo.first_parent_commits(manifest['base']['source'], repo.commit('HEAD')))
+    for kind, entry in declared_input_changes(manifest):
+        path, commit = entry['path'], entry['commit']
+        label = f'Declared changed input {path} of {kind}: '
+        spec = manifest['components'][kind]
+        require(spec['mode'] in RETAINED_RULE_MODES and spec.get('inputs') and
+                path in retained.input_paths(kind, spec, listing), label + 'not an input of that component')
+        old, new = before.get(path), current.get(path)
+        require(old != new, label + 'its bytes did not change since the base')
+        require(old is not None and git_blob_id(old) == entry['baseBlob'],
+                label + 'the base bytes are not baseBlob ' + entry['baseBlob'])
+        require(new is not None and git_blob_id(new) == entry['newBlob'],
+                label + 'the current bytes are not newBlob ' + entry['newBlob'])
+        require(commit in reviewed, label + f'commit {commit} is not in product.reviewedCommits')
+        require(commit in first_parent, label + f'commit {commit} is not on the first-parent line since the base')
+        held = repo.entries(commit).get(path)
+        require(held is not None and held[1] == entry['newBlob'],
+                label + f'commit {commit} does not hold newBlob at that path')
     return len(current)
 
 

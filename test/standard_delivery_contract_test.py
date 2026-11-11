@@ -483,6 +483,146 @@ class Components(unittest.TestCase):
             sd.retained_inputs_unchanged(manifest, REPO, sd.worktree_listing, sd.read_worktree)
 
 
+VERIFY_IPA = 'packages/dolphin_internal_bridge/ci/verify_ipa.py'
+DOLPHIN_CORE = 'packages/dolphin_internal_bridge/core/dolphin_core.cpp'
+BASE_CONTRACT_COMMIT = 'db2464eb0ecca8f39137f10d1926af75ea448788'
+
+
+def git_blob(data: bytes) -> str:
+    return hashlib.sha1(b'blob %d\0' % len(data) + data).hexdigest()
+
+
+class DeclaredInputChanges(unittest.TestCase):
+    """components.<retained>.changedInputs: one reviewed first-parent change of an input is accepted, exactly."""
+    V1, V2 = b'verify v1\n', b'verify v2\n'
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.git = g = Git(self.directory.name)
+        g.write(VERIFY_IPA, self.V1)
+        g.write(DOLPHIN_CORE, 'core\n')
+        g.write('packages/dolphin_internal_bridge/ci/build_support.py', 'support\n')
+        self.base = g.commit('base')
+        g.write('NOTES', 'unrelated\n')
+        self.unrelated = g.commit('unrelated')
+        g.write(VERIFY_IPA, self.V2)
+        self.change = g.commit('verify')
+        self.repo = sd.Repo(self.directory.name)
+
+    def manifest(self, commit=None, reviewed=None, **entry):
+        item = dict(path=VERIFY_IPA, baseBlob=git_blob(self.V1), newBlob=git_blob(self.V2),
+                    commit=commit or self.change)
+        item.update(entry)
+        return dict(base=dict(source=self.base), product=dict(reviewedCommits=[
+            dict(commit=c) for c in (reviewed if reviewed is not None else [self.unrelated, self.change])]),
+            components=dict(dolphin=dict(mode='retain', inputs='rewind608_producers.input_paths',
+                                         changedInputs=[item])))
+
+    def run_rule(self, manifest, module=sd):
+        reader = sd.EffectiveReader(self.repo, self.repo.entries('HEAD'))
+        return module.retained_inputs_unchanged(manifest, self.repo, reader.listing, reader.read)
+
+    def inputs(self):
+        return len(retained.input_paths('dolphin', {'inputs': 'rewind608_producers.input_paths'},
+                                        sd.EffectiveReader(self.repo, self.repo.entries('HEAD')).listing))
+
+    def unchanged_verifier(self):
+        self.git.run('reset', '-q', '--hard', self.unrelated)
+
+    def refused(self, manifest, text):
+        with self.assertRaises(ValueError) as caught:
+            self.run_rule(manifest)
+        self.assertIn(text, str(caught.exception))
+
+    def test_the_declared_change_is_accepted(self):
+        self.assertEqual(self.run_rule(self.manifest()), self.inputs())
+
+    def test_an_undeclared_change_next_to_a_declaration_is_refused(self):
+        self.git.write(DOLPHIN_CORE, 'core changed\n')
+        self.git.commit('core')
+        self.refused(self.manifest(), 'A retained component input changed since the base: ' + repr([DOLPHIN_CORE]))
+
+    def test_other_bytes_for_the_declared_path_are_refused(self):
+        self.git.write(VERIFY_IPA, 'verify v3\n')
+        self.git.commit('again')
+        self.refused(self.manifest(), 'the current bytes are not newBlob')
+
+    def test_a_wrong_base_blob_is_refused(self):
+        self.refused(self.manifest(baseBlob='1' * 40), 'the base bytes are not baseBlob')
+
+    def test_a_declared_file_that_did_not_change_is_refused(self):
+        self.unchanged_verifier()
+        self.refused(self.manifest(path=DOLPHIN_CORE, baseBlob=git_blob(b'core\n'), newBlob=git_blob(b'x')),
+                     'its bytes did not change since the base')
+
+    def test_a_path_outside_the_component_inputs_is_refused(self):
+        self.unchanged_verifier()
+        self.refused(self.manifest(path='NOTES', baseBlob=git_blob(b'x'), newBlob=git_blob(b'unrelated\n')),
+                     'not an input of that component')
+
+    def test_an_unreviewed_commit_is_refused(self):
+        self.refused(self.manifest(reviewed=[self.unrelated]), 'is not in product.reviewedCommits')
+
+    def test_a_commit_off_the_first_parent_line_is_refused(self):
+        g = self.git
+        g.run('checkout', '-q', '-b', 'side', self.base)
+        g.write(VERIFY_IPA, self.V2)
+        side = g.commit('side verify')
+        g.run('checkout', '-q', 'Claude')
+        g.run('reset', '-q', '--hard', self.base)
+        g.run('merge', '--no-ff', '-q', '-m', 'merge side', 'side')
+        merge = g.run('rev-parse', 'HEAD')
+        self.assertEqual(self.run_rule(self.manifest(commit=merge, reviewed=[merge])), self.inputs())
+        self.refused(self.manifest(commit=side, reviewed=[side]), 'not on the first-parent line')
+
+    def test_a_commit_whose_tree_lacks_the_new_blob_is_refused(self):
+        self.refused(self.manifest(commit=self.unrelated), 'does not hold newBlob')
+
+    def test_manifest_shape_refusals(self):
+        _, manifest = current_manifest()
+        good = copy.deepcopy(manifest)
+        good['components']['dolphin']['changedInputs'] = [
+            dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40)]
+        self.assertEqual(sd.manifest_errors(good), [])
+
+        def errors(change):
+            value = copy.deepcopy(good)
+            change(value['components'])
+            return sd.manifest_errors(value)
+        entry = lambda c: c['dolphin']['changedInputs'][0]
+        self.assertTrue(errors(lambda c: entry(c).update(extra=1)))
+        self.assertTrue(errors(lambda c: entry(c).pop('commit')))
+        self.assertTrue(errors(lambda c: entry(c).update(newBlob='A' * 40)))
+        self.assertTrue(errors(lambda c: entry(c).update(baseBlob=entry(c)['newBlob'])))
+        self.assertTrue(errors(lambda c: entry(c).update(commit='abc')))
+        self.assertTrue(errors(lambda c: c['dolphin'].update(changedInputs={})))
+        self.assertTrue(errors(lambda c: c['dolphin']['changedInputs'].append(dict(entry(c)))))
+        self.assertTrue(errors(lambda c: c['rpcs3'].update(changedInputs=[dict(entry(c))])))
+
+    def test_without_the_field_the_rule_is_what_it_was(self):
+        import importlib.util
+        source = subprocess.run(['git', 'show', BASE_CONTRACT_COMMIT + ':.github/diagnostics/standard_delivery.py'],
+                                cwd=ROOT, check=True, capture_output=True).stdout
+        folder = Path(self.directory.name) / 'old'
+        folder.mkdir()
+        (folder / 'old_standard_delivery.py').write_bytes(source)
+        spec = importlib.util.spec_from_file_location('old_standard_delivery', folder / 'old_standard_delivery.py')
+        old = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(old)
+        plain = self.manifest()
+        del plain['components']['dolphin']['changedInputs']
+        with self.assertRaises(ValueError) as before:
+            self.run_rule(plain, old)
+        with self.assertRaises(ValueError) as after:
+            self.run_rule(plain)
+        self.assertEqual(str(before.exception), str(after.exception))
+        self.assertIn(repr([VERIFY_IPA]), str(after.exception))
+        # Without the verify change both return the same count.
+        self.unchanged_verifier()
+        self.assertEqual(self.run_rule(plain, old), self.run_rule(plain))
+
+
 class Workflow(unittest.TestCase):
     def test_subset_parser_agrees_with_pyyaml(self):
         if yaml is None:
