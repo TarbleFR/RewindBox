@@ -54,12 +54,21 @@ set and `S2ArmEngine.framework` and `NS2Pro.framework` are required. `test/s2arm
 identical report bytes and refusals without the file (common line blob `c7d46cbb` and the syntax tree
 without the S2Arm statements), and the helper contract with it.
 
-Four other closed sets would refuse the S2Arm IPA; this line handles them in memory, test line only, and
-main may prefer the same conditional in the files: `verify_ipa.validate` (Dolphin packager, seal) and
-`validate_rpcs3_ipa.validate_helper_bundles` (structure), extended while they run on an application that
-carries the identity (`EXTENSION_SETS`, refused if their shape changes, skipped once they name S2Arm);
-the version count `len(bundles) == 8` of the workflow (declared step edit) and of
-`build-utils/verify_downloaded_delivery.py` (`VERIFIER_EDITS`).
+The four other closed sets the S2Arm IPA meets carry the same identity-gated conditional in the files
+(main's decision, 11 Nov; each diff its own commit "handoff to main"), so nothing is extended in memory
+any more and their steps run unchanged:
+
+| Closed set | Where it runs | With `S2Arm-native-identity.json` | Proof |
+| --- | --- | --- | --- |
+| `packages/dolphin_internal_bridge/ci/verify_ipa.py` `validate` | Dolphin packager, seal | helper joins the set (contract of the single-IPA validator), both frameworks required | `test/s2arm_dolphin_verify_ipa_test.py` |
+| `build-utils/validate_rpcs3_ipa.py` `validate_helper_bundles` | structure | the same; every per-extension check applies to the helper | `test/s2arm_rpcs3_helpers_test.py` |
+| `standard-delivery.yml` version check (`len(bundles) == 8`) | signed IPA | nine bundles, `S2ArmJITHelper.appex` among them; else the original assert | `test/s2arm_version_check_test.py` (the step's here-document executed) |
+| `build-utils/verify_downloaded_delivery.py` bundle count | offline verification | nine bundles with the S2Arm extensions; else the original check | `test/s2arm_downloaded_delivery_test.py` (`verify()` run end to end) |
+
+Each test shows, on a matrix of common cases, the same result as the common line's file (its git blob) and
+as the current file with its S2Arm statements removed from the syntax tree (which is that blob); with the
+identity, the S2Arm case accepted and its incomplete variants refused. The launcher lists them in
+`NATIVE_CONDITIONALS` (inventory) and its tests check that none is patched in memory.
 
 ## Test line wiring (`.github/diagnostics/s2arm/`, generated `s2arm-delivery.yml`)
 
@@ -77,8 +86,8 @@ S2ArmEngine.framework.zip=SHA --engine-zip NS2Pro.framework.zip=SHA`), plus thre
 S2Arm tests. Steps: `engine-download` (API: run, branch, workflow, success, commit in history, one
 unexpired artifact, digest; files against manifest and producer commit) after the component runs; the
 helper (configure, `pod install`, `check-pods`) after the probe key; `engine-embed` and `engine-check-app`
-after the last embed step; `dolphin-package` instead of the packager call; `engine-check-ipa` after the
-signed-IPA checks. Every build of this workflow now carries the engine, and its host bridge with the
+after the last embed step; `engine-check-ipa` after the signed-IPA checks; the Dolphin packager and the
+version check are the common steps, unchanged. Every build of this workflow now carries the engine, and its host bridge with the
 preparation library and the system data (`docs/s2arm-engine-bridge.md`, Delivery). `RewindBoxS2ArmProbe` is still
 set: stopping it is not a one-line change (`set_probe_key.py` checks it at host, app and IPA) and the
 MeloNX hook is still in this branch's tree.

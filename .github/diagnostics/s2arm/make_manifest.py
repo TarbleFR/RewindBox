@@ -16,7 +16,7 @@ delivered), and then lets the recipe's own checker validate the result (manifest
 
 A build that carries the S2Arm engine names its producer run and the SHA-256 of its two archives; the
 draft then also declares the engine delta (ENGINE_DELTA: the JIT helper package, its configure script, the
-validator diff, three added images) and runs the S2Arm tests in the flutter group:
+conditionals of the common closed sets, three added images) and runs the S2Arm tests in the flutter group:
 
     ... --engine-run <run id> --engine-zip S2ArmEngine.framework.zip=<sha256> \\
         --engine-zip NS2Pro.framework.zip=<sha256>
@@ -58,13 +58,17 @@ DELTA = dict(
     runnerMustDefine=['_OBJC_CLASS_$_S2ArmProbePlugin', '_rb_s2arm_probe_attached', '_rb_s2arm_probe_detached'],
 )
 # The engine delta of a build that carries the S2Arm engine (docs/s2arm-jit-helper.md). The frameworks are not
-# product paths: they come from their producer run, named by s2arm.engine and authenticated by the launcher.
+# product paths: they come from their producer run, named by s2arm.engine and authenticated by the launcher. The
+# S2Arm conditionals of the common closed sets are listed whole (two of them are recipe paths, the version check of
+# the workflow and the offline verifier); the product ones are reviewed paths of the delta.
 ENGINE_DELTA = dict(
     package='packages/s2arm_jit_helper',
     configure='build-utils/s2arm/configure_s2arm_ios.py',
     validator='build-utils/validate_single_ipa_distribution.py',
+    conditionals=[path for path, _ in line.NATIVE_CONDITIONALS],
     reviewedProductPaths=['packages/s2arm_jit_helper/', 'build-utils/s2arm/configure_s2arm_ios.py',
-                          'build-utils/validate_single_ipa_distribution.py'],
+                          'build-utils/validate_single_ipa_distribution.py',
+                          'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py'],
     images=dict(added=list(line.ENGINE_IMAGES)),
     packagedIdentity=line.PACKAGED_IDENTITY,
     helper=line.HELPER,
@@ -75,6 +79,10 @@ ENGINE_TESTS = (
     ['s2arm-jit-helper', ['python3', '-B', 'test/s2arm_jit_helper_test.py']],
     ['s2arm-validator', ['python3', '-B', 'test/s2arm_validator_test.py']],
     ['s2arm-configure', ['python3', '-B', 'test/s2arm_configure_test.py']],
+    ['s2arm-dolphin-verify-ipa', ['python3', '-B', 'test/s2arm_dolphin_verify_ipa_test.py']],
+    ['s2arm-rpcs3-helpers', ['python3', '-B', 'test/s2arm_rpcs3_helpers_test.py']],
+    ['s2arm-version-check', ['python3', '-B', 'test/s2arm_version_check_test.py']],
+    ['s2arm-downloaded-delivery', ['python3', '-B', 'test/s2arm_downloaded_delivery_test.py']],
 )
 # The engine's host bridge of a build that carries it (docs/s2arm-engine-bridge.md): the plugin in the root pubspec.yaml,
 # reviewed by the legal gate through its chained declaration review; its preparation library and system data come from
@@ -244,8 +252,8 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
     carried = ('' if not engine else
                f' With the S2Arm engine: S2ArmEngine.framework and NS2Pro.framework of run {engine["run"]} of '
                f'{line.ENGINE_WORKFLOW}, their identity {line.PACKAGED_IDENTITY} and the {line.HELPER} extension '
-               '(packages/s2arm_jit_helper, build-utils/s2arm/configure_s2arm_ios.py, the S2Arm conditional of '
-               'build-utils/validate_single_ipa_distribution.py).')
+               '(packages/s2arm_jit_helper, build-utils/s2arm/configure_s2arm_ios.py, the S2Arm conditionals of the '
+               'common closed extension sets and counts: ' + ', '.join(ENGINE_DELTA['conditionals']) + ').')
     if bridge:
         carried += (f' Its host bridge {line.BRIDGE_PACKAGE} (a plugin of the root pubspec.yaml, linked into Runner) with '
                     f'{line.PREPARE_XCFRAMEWORK} of run {prepare["run"]} of {line.PREPARE_WORKFLOW} and the system data '

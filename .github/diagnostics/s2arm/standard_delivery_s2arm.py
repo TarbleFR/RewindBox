@@ -19,10 +19,12 @@ inventory below (RECIPE_INVENTORY), so a change of the recipe cannot be silently
 The S2Arm engine and its JIT helper (every build of this line from the first one that declares
 s2arm.engine in its manifest): the engine frameworks come from a successful run of
 .github/workflows/s2arm-engine.yml on this branch, authenticated through the API like the recipe's
-component producers (rpcs3_core_component.py, melonx_*_core_component.py), and the closed extension
-sets of the two common validators that have no S2Arm conditional of their own (verify_ipa.validate,
-validate_rpcs3_ipa.validate_helper_bundles) gain S2ArmJITHelper.appex in memory, only for an application
-that carries S2Arm-native-identity.json, and only while they run (EXTENSION_SETS, reviewed inventory).
+component producers (rpcs3_core_component.py, melonx_*_core_component.py). Nothing of a common validator
+is changed in memory: every closed extension set or count the application meets has its own S2Arm
+conditional, active only when the application carries S2Arm-native-identity.json
+(validate_single_ipa_distribution.validate, verify_ipa.validate, validate_rpcs3_ipa.validate_helper_bundles,
+the version check of the workflow, verify_downloaded_delivery.py), so the recipe's steps and the Dolphin
+packager run unchanged.
 
 Operations: every operation of the recipe (same arguments), plus
   request-guard     preflight: the run is on the line's branch and requests a build of this line
@@ -50,9 +52,6 @@ engine-check-ipa, and recorded by engine-embed in S2Arm-native-identity.json: S2
 (SHA256SUMS) with its licences, S2ArmEngine.framework/S2ArmDirectChain.txt, the plugin registered by the
 generated registrant, the Runner executable defining the bridge and preparation entry points (nm -gU),
 leaving no rb_s2arm_* undefined (nm -u) and exporting rb_s2arm_engine_loaded (dyld export trie).
-  dolphin-package   packages/dolphin_internal_bridge/ci/build_support.py package, unchanged, with the
-                    S2Arm-aware extension set of its verify_ipa.validate
-The recipe operations structure and seal run with the same S2Arm-aware extension sets.
 """
 from __future__ import annotations
 
@@ -350,18 +349,15 @@ HEX40 = re.compile(r'[0-9a-f]{40}')
 HEX64 = re.compile(r'[0-9a-f]{64}')
 MACHO_MAGICS = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xce',
                 b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf', b'\xbe\xba\xfe\xca', b'\xbf\xba\xfe\xca'}
-# Common validators with a closed extension set and no S2Arm conditional of their own: {path: (module,
-# function that copies EXPECTED_HELPERS once, function that must call it by name or None)}. Reviewed at
-# 37c650b (both files identical on Claude 4142792). A file that names S2Arm handles it itself: not extended.
-EXTENSION_SETS = {
-    'packages/dolphin_internal_bridge/ci/verify_ipa.py': ('verify_ipa', 'validate', None),
-    'build-utils/validate_rpcs3_ipa.py': ('validate_rpcs3_ipa', 'validate_helper_bundles', 'validate_ipa'),
-}
-# The reviewed in-memory edit of the downloaded-delivery verifier (verify_downloaded_delivery_s2arm.py):
-# the application has one more extension when it carries the S2Arm identity. (old, new, occurrences)
-VERIFIER_EDITS = (
-    ('        require(len(bundles) == 8 and all(',
-     "        require(len(bundles) == 8 + (root + 'S2Arm-native-identity.json' in names) and all(", 1),
+# The closed extension sets and counts of the common line that this line's application meets: each one has its own
+# S2Arm conditional, active only when the application carries PACKAGED_IDENTITY (diffs handed to main; their tests
+# under test/s2arm_*_test.py). Nothing here edits them: listed for the inventory and the tests. (file, where)
+NATIVE_CONDITIONALS = (
+    ('build-utils/validate_single_ipa_distribution.py', 'validate'),
+    ('packages/dolphin_internal_bridge/ci/verify_ipa.py', 'validate'),
+    ('build-utils/validate_rpcs3_ipa.py', 'validate_helper_bundles'),
+    ('.github/workflows/standard-delivery.yml', 'Verify final signed legal bundle and application and extension versions'),
+    ('build-utils/verify_downloaded_delivery.py', 'verify'),
 )
 
 
@@ -1240,129 +1236,6 @@ def check_bridge(read, names, identity, prepare, sysdata, host, registrant=None)
                 registrant=recorded_registrant)
 
 
-# --- Closed extension sets of the common validators -----------------------------------------------------
-
-def extension_set_readers(source):
-    """{function: (reads of EXPECTED_HELPERS, dict(EXPECTED_HELPERS) copies)} of a validator's top-level functions."""
-    readers = {}
-    for node in ast.parse(source).body:
-        if not isinstance(node, ast.FunctionDef):
-            continue
-        reads = sum(isinstance(child, ast.Name) and child.id == 'EXPECTED_HELPERS' for child in ast.walk(node))
-        copies = sum(isinstance(child, ast.Call) and isinstance(child.func, ast.Name) and child.func.id == 'dict' and
-                     len(child.args) == 1 and isinstance(child.args[0], ast.Name) and
-                     child.args[0].id == 'EXPECTED_HELPERS' for child in ast.walk(node))
-        if reads:
-            readers[node.name] = (reads, copies)
-    return readers
-
-
-def calls_by_name(source, caller, callee):
-    node = next(item for item in ast.parse(source).body if isinstance(item, ast.FunctionDef) and item.name == caller)
-    return any(isinstance(child, ast.Call) and isinstance(child.func, ast.Name) and child.func.id == callee
-               for child in ast.walk(node))
-
-
-def extension_set_review(path, root=ROOT):
-    """'extend' when the validator is the reviewed shape, 'native' when it names S2Arm itself; refused otherwise."""
-    module, function, caller = EXTENSION_SETS[path]
-    source = (Path(root) / path).read_text()
-    if 's2arm' in source.lower():
-        return 'native'
-    require(extension_set_readers(source) == {function: (1, 1)} and
-            (caller is None or calls_by_name(source, caller, function)),
-            f'{path} no longer reads its closed extension set as reviewed ({extension_set_readers(source)}): review '
-            'EXTENSION_SETS before any delivery of this line')
-    return 'extend'
-
-
-def s2arm_aware(module, function, carries_identity):
-    """Wrap module.function: while it runs on an application that carries the S2Arm identity, the module's
-    EXPECTED_HELPERS also holds S2ArmJITHelper.appex and the engine frameworks are required."""
-    original = getattr(module, function)
-    if getattr(original, 's2armExtended', False):
-        return original
-    contracts = distribution().S2ARM_EXTENSIONS
-
-    @functools.wraps(original)
-    def wrapper(*arguments, **keywords):
-        frameworks = carries_identity(*arguments, **keywords)
-        if frameworks is None:
-            return original(*arguments, **keywords)
-        for name in ENGINE_FRAMEWORKS:
-            module.demand(f'Frameworks/{name}.framework/{name}' in frameworks,
-                          'S2Arm identity requires the engine frameworks: ' + name)
-        saved = module.EXPECTED_HELPERS
-        module.EXPECTED_HELPERS = {**saved, **contracts}
-        try:
-            return original(*arguments, **keywords)
-        finally:
-            module.EXPECTED_HELPERS = saved
-    wrapper.s2armExtended = True
-    setattr(module, function, wrapper)
-    return wrapper
-
-
-def ipa_identity(ipa, *arguments, **keywords):
-    """verify_ipa.validate(ipa): the framework files of an IPA that carries the identity, else None."""
-    try:
-        with zipfile.ZipFile(ipa) as archive:
-            names = set(archive.namelist())
-    except (OSError, zipfile.BadZipFile):
-        return None
-    prefix = 'Payload/NeoStation.app/'
-    if prefix + PACKAGED_IDENTITY not in names:
-        return None
-    return {name[len(prefix):] for name in names if name.startswith(prefix + 'Frameworks/')}
-
-
-def app_identity(app, *arguments, **keywords):
-    """validate_rpcs3_ipa.validate_helper_bundles(app, info, root): the same, for an extracted application."""
-    app = Path(app)
-    if not (app / PACKAGED_IDENTITY).is_file():
-        return None
-    return {path.relative_to(app).as_posix() for path in (app / 'Frameworks').rglob('*') if path.is_file()}
-
-
-def extend_validators(modules=None, root=ROOT):
-    """Make the closed extension sets of the reviewed common validators S2Arm-aware (in memory, this process)."""
-    on_path('build-utils', 'packages/dolphin_internal_bridge/ci')
-    result = {}
-    for path, (name, function, _) in EXTENSION_SETS.items():
-        result[path] = extension_set_review(path, root)
-        if result[path] == 'extend':
-            module = (modules or {}).get(name) or importlib.import_module(name)
-            s2arm_aware(module, function, ipa_identity if name == 'verify_ipa' else app_identity)
-    return result
-
-
-def dolphin_package(sd):
-    """dolphin-package: build_support.py package, unchanged, after its verify_ipa.validate became S2Arm-aware."""
-    extended = extend_validators()
-    verify_ipa = importlib.import_module('verify_ipa')
-    support = importlib.import_module('build_support')
-    require(support.validate is verify_ipa.validate and getattr(support.validate, 's2armExtended', False) ==
-            (extended['packages/dolphin_internal_bridge/ci/verify_ipa.py'] == 'extend'),
-            'build_support did not bind the S2Arm-aware validator')
-    saved = sys.argv
-    sys.argv = [str(ROOT / 'packages/dolphin_internal_bridge/ci/build_support.py'), 'package']
-    try:
-        support.main()
-    finally:
-        sys.argv = saved
-    return dict(result='packaged', extensionSets=extended)
-
-
-def edited_verifier_source(root=ROOT):
-    """The downloaded-delivery verifier with the reviewed VERIFIER_EDITS applied (each occurs exactly as declared)."""
-    text = (Path(root) / VERIFIER).read_text()
-    for old, new, count in VERIFIER_EDITS:
-        require(text.count(old) == count, f'{VERIFIER} no longer holds the reviewed text {old.strip()!r}: review '
-                'VERIFIER_EDITS')
-        text = text.replace(old, new)
-    return text
-
-
 def describe():
     actual = inventory((ROOT / RECIPE).read_text())
     return dict(recipe=RECIPE, recipeSHA256=sha_file(ROOT / RECIPE), line=dict(
@@ -1370,20 +1243,19 @@ def describe():
         recipient=RECIPIENT, baseLines=BASE_LINES), reviewed=RECIPE_INVENTORY, current=actual,
         drift=inventory_drift(actual, RECIPE_INVENTORY), handling=HANDLING,
         verifier=dict(path=VERIFIER, reviewed=VERIFIER_INVENTORY,
-                      current=inventory((ROOT / VERIFIER).read_text(), prefix='sd')))
+                      current=inventory((ROOT / VERIFIER).read_text(), prefix='sd')),
+        nativeConditionals=[dict(path=path, where=where) for path, where in NATIVE_CONDITIONALS])
 
 
 LINE_OPERATIONS = ('request-guard', 'recipient-guard', 'inventory', 'engine-download', 'engine-embed',
-                   'engine-check-app', 'engine-check-ipa', 'dolphin-package', 'prepare-download', 'prepare-install',
+                   'engine-check-app', 'engine-check-ipa', 'prepare-download', 'prepare-install',
                    'sysdata-download', 'sysdata-embed')
 PATH_OPERATIONS = {'engine-embed': engine_embed, 'engine-check-app': engine_check_app,
                    'engine-check-ipa': engine_check_ipa, 'sysdata-embed': sysdata_embed}
 PLAIN_OPERATIONS = {'request-guard': request_guard, 'recipient-guard': recipient_guard,
-                    'engine-download': engine_download, 'dolphin-package': dolphin_package,
+                    'engine-download': engine_download,
                     'prepare-download': prepare_download, 'prepare-install': prepare_install,
                     'sysdata-download': sysdata_download}
-# Recipe operations that run a closed-set validator on the application: they run S2Arm-aware.
-EXTENDED_OPERATIONS = ('structure', 'seal')
 
 
 def main(argv=None):
@@ -1403,8 +1275,6 @@ def main(argv=None):
             result = PLAIN_OPERATIONS[operation](sd)
         print(json.dumps(result, indent=2, default=str))
         return 0
-    if argv and argv[0] in EXTENDED_OPERATIONS:
-        extend_validators()
     return sd.main(argv)
 
 

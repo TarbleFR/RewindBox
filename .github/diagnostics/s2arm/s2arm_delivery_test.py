@@ -9,9 +9,10 @@ delivered it; the generated workflow is the committed one, triggers only on this
 every common step and uploads only through the protected action; the Info.plist key is set once, in
 order, and the built application is checked; the draft manifests are accepted by the recipe's own checker.
 The S2Arm engine: its producer run and artifact authenticated (mocked API, synthetic producer archives),
-frameworks and identity embedded and checked in a synthetic built application and signed IPA, the in-memory
-S2Arm-aware extension sets of the two common validators (same outcome as the originals without the identity),
-the engine steps and the two declared edits of common steps, a draft carrying the engine, the verifier edit.
+frameworks and identity embedded and checked in a synthetic built application and signed IPA, the common
+validators accepting the S2Arm application through their own conditionals (same outcome as the common line's files
+without the identity; nothing extended in memory), the engine steps with no edit of a common step, a draft carrying
+the engine, the common downloaded-delivery verifier run unchanged.
 The engine bridge (packages/s2arm_engine_bridge): its preparation library and system data producers authenticated
 (mocked API, synthetic xcframework and system data tree), the library installed where the podspec vendors it, the
 tree placed as S2ArmSystemData, both recorded in the engine identity and checked in the built application, the
@@ -370,18 +371,21 @@ class Workflow(unittest.TestCase):
         calls = re.findall(r'python3 -B (\S+) (\S+)', self.text)
         recipe_calls = [script for script, _ in calls if 'standard_delivery' in script]
         self.assertEqual(set(recipe_calls), {'.github/diagnostics/s2arm/standard_delivery_s2arm.py'})
-        # The common calls, the three guards, the four engine steps and the routed Dolphin packager, and the four
-        # steps of the engine bridge (preparation library download and install, system data download and placement).
-        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3 + 5 + 4)
+        # The common calls, the three guards, the four engine steps, and the four steps of the engine bridge
+        # (preparation library download and install, system data download and placement). The Dolphin packager is
+        # the common call: its validator has its own S2Arm conditional.
+        self.assertEqual(len(recipe_calls), self.common_text.count('.github/diagnostics/standard_delivery.py') + 3 + 4 + 4)
         self.assertNotIn('diagnostics/standard_delivery.py', self.text)
         operations = {operation for script, operation in calls if 'standard_delivery' in script}
         self.assertLessEqual(operations, set(self.sd.OPERATIONS) | set(line.LINE_OPERATIONS))
         self.assertLessEqual({'request-guard', 'recipient-guard', 'engine-download', 'engine-embed', 'engine-check-app',
-                              'engine-check-ipa', 'dolphin-package', 'prepare-download', 'prepare-install',
+                              'engine-check-ipa', 'prepare-download', 'prepare-install',
                               'sysdata-download', 'sysdata-embed'}, operations)
         self.assertEqual(set(line.LINE_OPERATIONS) - {'inventory'},
                          set(line.PATH_OPERATIONS) | set(line.PLAIN_OPERATIONS))
-        self.assertLessEqual(set(line.EXTENDED_OPERATIONS), operations)
+        # The recipe steps that run a closed-set validator on the application go through the launcher, unchanged.
+        self.assertLessEqual({'structure', 'seal', 'validate'}, operations)
+        self.assertNotIn('dolphin-package', operations)
 
     def test_validators_encryption_and_split_are_the_common_ones(self):
         def lines(text, *needles):
@@ -1808,8 +1812,28 @@ def private_module(name, path):
     return module
 
 
-class ExtensionSets(unittest.TestCase):
-    """The S2Arm-aware closed extension sets of verify_ipa.validate and validate_rpcs3_ipa.validate_helper_bundles."""
+# The two common validators of the Dolphin packager and seal and of the structure step, before their S2Arm conditionals
+# (origin/Claude 41c76404): (module, path, blob).
+COMMON_VALIDATORS = (('verify_ipa', 'packages/dolphin_internal_bridge/ci/verify_ipa.py',
+                      '6032458096236bcf75fc007d208d4ba177dd3216'),
+                     ('validate_rpcs3_ipa', 'build-utils/validate_rpcs3_ipa.py', '1a1028277da3309572e22f45c9c1ee3949dff085'))
+
+
+def common_line_module(name, path, blob):
+    """The common line's validator file before its S2Arm conditional (None when this clone lacks the blob)."""
+    result = subprocess.run(['git', 'cat-file', 'blob', blob], cwd=ROOT, capture_output=True)
+    if result.returncode:
+        return None
+    module = types.ModuleType(name + '_common_line')
+    module.__file__ = str(ROOT / path)
+    exec(compile(result.stdout.decode(), str(ROOT / path), 'exec'), module.__dict__)
+    return module
+
+
+class NativeConditionals(unittest.TestCase):
+    """The closed extension sets of verify_ipa.validate (Dolphin packager, seal) and of
+    validate_rpcs3_ipa.validate_helper_bundles (structure) accept the S2Arm application through their own conditionals;
+    the launcher extends nothing in memory any more."""
     def members(self, identity=True, frameworks=line.ENGINE_FRAMEWORKS, helper=True):
         members = fixtures.complete_dolphin_packaging_members()
         app = fixtures.APP
@@ -1850,104 +1874,98 @@ class ExtensionSets(unittest.TestCase):
         except Exception as error:   # noqa: BLE001 - the exact refusal is compared
             return 'refused', type(error).__name__ + ': ' + str(error)
 
-    def wrapped(self):
-        modules = {'verify_ipa': private_module('verify_ipa', 'packages/dolphin_internal_bridge/ci/verify_ipa.py'),
-                   'validate_rpcs3_ipa': private_module('validate_rpcs3_ipa', 'build-utils/validate_rpcs3_ipa.py')}
-        originals = {name: private_module(name, path) for name, path in
-                     (('verify_ipa', 'packages/dolphin_internal_bridge/ci/verify_ipa.py'),
-                      ('validate_rpcs3_ipa', 'build-utils/validate_rpcs3_ipa.py'))}
-        self.assertEqual(line.extend_validators(modules), {path: 'extend' for path in line.EXTENSION_SETS})
-        self.assertTrue(modules['verify_ipa'].validate.s2armExtended)
-        self.assertIs(line.extend_validators(modules)['build-utils/validate_rpcs3_ipa.py'], 'extend')
-        return modules, originals
+    def validators(self):
+        """The validators the recipe runs (the shared modules) and the common line's files before their conditionals."""
+        current = {name: importlib.import_module(name) for name, _, _ in COMMON_VALIDATORS}
+        common = {name: module for name, path, blob in COMMON_VALIDATORS
+                  if (module := common_line_module(name, path, blob)) is not None}
+        return current, common
 
-    def test_the_s2arm_ipa_passes_only_the_extended_sets(self):
-        modules, originals = self.wrapped()
+    def helpers(self, module, members):
+        root, app = self.extracted(members)
+        return self.outcome(module.validate_helper_bundles, app, plistlib.loads((app / 'Info.plist').read_bytes()), root)
+
+    def test_the_s2arm_ipa_passes_the_common_validators_themselves(self):
+        current, common = self.validators()
         ipa = self.ipa(self.members())
-        kind, text = self.outcome(modules['verify_ipa'].validate, ipa)
+        kind, text = self.outcome(current['verify_ipa'].validate, ipa)
         self.assertEqual(kind, 'report', text)
         self.assertIn(line.HELPER, json.loads(text)['embeddedExtensions'])
-        self.assertIn('Unexpected app-extension set', self.outcome(originals['verify_ipa'].validate, ipa)[1])
-        root, app = self.extracted(self.members())
-        info = plistlib.loads((app / 'Info.plist').read_bytes())
-        kind, text = self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root)
+        kind, text = self.helpers(current['validate_rpcs3_ipa'], self.members())
         self.assertEqual(kind, 'report', text)
         self.assertEqual(json.loads(text)[line.HELPER], 'com.neogamelab.neostation.s2armjithelper')
-        self.assertIn('Unexpected app-extension set',
-                      self.outcome(originals['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root)[1])
-        self.assertNotIn(line.HELPER, modules['verify_ipa'].EXPECTED_HELPERS, 'the set is extended only while it runs')
-        self.assertNotIn(line.HELPER, modules['validate_rpcs3_ipa'].EXPECTED_HELPERS)
+        if 'verify_ipa' in common:
+            self.assertIn('Unexpected app-extension set', self.outcome(common['verify_ipa'].validate, ipa)[1])
+        if 'validate_rpcs3_ipa' in common:
+            self.assertIn('Unexpected app-extension set', self.helpers(common['validate_rpcs3_ipa'], self.members())[1])
+        self.assertNotIn(line.HELPER, current['verify_ipa'].EXPECTED_HELPERS, 'the common sets stay closed')
+        self.assertNotIn(line.HELPER, current['validate_rpcs3_ipa'].EXPECTED_HELPERS)
 
-    def test_without_the_identity_the_validators_are_unchanged(self):
-        modules, originals = self.wrapped()
+    def test_without_the_identity_the_validators_are_the_common_ones(self):
+        current, common = self.validators()
         for members in (fixtures.complete_dolphin_packaging_members(), self.members(identity=False),
                         self.members(identity=False, helper=False)):
             ipa = self.ipa(members)
-            self.assertEqual(self.outcome(modules['verify_ipa'].validate, ipa),
-                             self.outcome(originals['verify_ipa'].validate, ipa))
-            root, app = self.extracted(members)
-            info = plistlib.loads((app / 'Info.plist').read_bytes())
-            self.assertEqual(self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root),
-                             self.outcome(originals['validate_rpcs3_ipa'].validate_helper_bundles, app, info, root))
+            result = self.outcome(current['verify_ipa'].validate, ipa)
+            helpers = self.helpers(current['validate_rpcs3_ipa'], members)
+            if 'verify_ipa' in common:
+                self.assertEqual(result, self.outcome(common['verify_ipa'].validate, ipa))
+            if 'validate_rpcs3_ipa' in common:
+                self.assertEqual(helpers, self.helpers(common['validate_rpcs3_ipa'], members))
+        self.assertIn('Unexpected app-extension set', self.outcome(current['verify_ipa'].validate,
+                                                                   self.ipa(self.members(identity=False)))[1])
+        self.assertIn('Unexpected app-extension set', self.helpers(current['validate_rpcs3_ipa'],
+                                                                   self.members(identity=False))[1])
         bad = Path(tempfile.mkdtemp(prefix='s2arm-sets-')) / 'not.ipa'
         self.addCleanup(shutil.rmtree, bad.parent)
         bad.write_bytes(b'not a zip')
-        self.assertEqual(self.outcome(modules['verify_ipa'].validate, bad), self.outcome(originals['verify_ipa'].validate, bad))
+        if 'verify_ipa' in common:
+            self.assertEqual(self.outcome(current['verify_ipa'].validate, bad), self.outcome(common['verify_ipa'].validate, bad))
+        self.assertEqual(self.outcome(current['verify_ipa'].validate, bad)[0], 'refused')
 
     def test_the_identity_requires_the_frameworks_and_the_helper(self):
-        modules, _ = self.wrapped()
+        current, _ = self.validators()
         for frameworks in (('S2ArmEngine',), ('NS2Pro',)):
             members = self.members(frameworks=frameworks)
-            self.assertIn('engine frameworks', self.outcome(modules['verify_ipa'].validate, self.ipa(members))[1])
-            root, app = self.extracted(members)
-            self.assertIn('engine frameworks', self.outcome(modules['validate_rpcs3_ipa'].validate_helper_bundles, app,
-                                                            plistlib.loads((app / 'Info.plist').read_bytes()), root)[1])
+            self.assertIn('engine frameworks', self.outcome(current['verify_ipa'].validate, self.ipa(members))[1])
+            self.assertIn('engine frameworks', self.helpers(current['validate_rpcs3_ipa'], members)[1])
         members = self.members(helper=False)
-        self.assertIn('Unexpected app-extension set', self.outcome(modules['verify_ipa'].validate, self.ipa(members))[1])
+        self.assertIn('Unexpected app-extension set', self.outcome(current['verify_ipa'].validate, self.ipa(members))[1])
+        self.assertIn('Unexpected app-extension set', self.helpers(current['validate_rpcs3_ipa'], members)[1])
 
-    def test_the_reviewed_shape_is_required(self):
-        with tempfile.TemporaryDirectory(prefix='s2arm-review-') as directory:
-            root = Path(directory)
-            for path in line.EXTENSION_SETS:
-                (root / path).parent.mkdir(parents=True, exist_ok=True)
-                (root / path).write_text((ROOT / path).read_text())
-                self.assertEqual(line.extension_set_review(path, root), 'extend')
-            path = 'build-utils/validate_rpcs3_ipa.py'
-            source = (ROOT / path).read_text()
-            for changed in (source.replace('expected_helpers = dict(EXPECTED_HELPERS)', 'expected_helpers = EXPECTED_HELPERS'),
-                            source + '\n\ndef other():\n    return EXPECTED_HELPERS\n',
-                            source.replace('helper_identifiers = validate_helper_bundles(app, info, root)',
-                                           'helper_identifiers = globals()["validate_helper_bundles"](app, info, root)')):
-                self.assertNotEqual(changed, source)
-                (root / path).write_text(changed)
-                with self.assertRaisesRegex(line.LineError, 'review'):
-                    line.extension_set_review(path, root)
-            (root / path).write_text(source + '\n# S2Arm handled here\n')
-            self.assertEqual(line.extension_set_review(path, root), 'native')
+    def test_every_closed_set_carries_its_own_conditional(self):
+        tests = {'build-utils/validate_single_ipa_distribution.py': 'test/s2arm_validator_test.py',
+                 'packages/dolphin_internal_bridge/ci/verify_ipa.py': 'test/s2arm_dolphin_verify_ipa_test.py',
+                 'build-utils/validate_rpcs3_ipa.py': 'test/s2arm_rpcs3_helpers_test.py',
+                 '.github/workflows/standard-delivery.yml': 'test/s2arm_version_check_test.py',
+                 'build-utils/verify_downloaded_delivery.py': 'test/s2arm_downloaded_delivery_test.py'}
+        self.assertEqual([path for path, _ in line.NATIVE_CONDITIONALS], list(tests))
+        for path, where in line.NATIVE_CONDITIONALS:
+            text = (ROOT / path).read_text()
+            self.assertTrue(line.PACKAGED_IDENTITY in text or 'S2ARM_IDENTITY' in text, path)
+            self.assertIn(where, text, path)
+            self.assertTrue((ROOT / tests[path]).is_file(), tests[path])
+        self.assertEqual(distribution_module().S2ARM_IDENTITY, line.PACKAGED_IDENTITY)
+        self.assertEqual([item['path'] for item in line.describe()['nativeConditionals']], list(tests))
 
-    def test_the_dolphin_packager_binds_the_extended_validator(self):
+    def test_nothing_is_extended_in_memory(self):
+        for name in ('EXTENSION_SETS', 'VERIFIER_EDITS', 'EXTENDED_OPERATIONS', 'extend_validators', 's2arm_aware',
+                     'extension_set_review', 'dolphin_package', 'edited_verifier_source'):
+            self.assertFalse(hasattr(line, name), name)
+        source = (HERE / 'standard_delivery_s2arm.py').read_text()
+        for text in ('EXPECTED_HELPERS', 'exec(', 'setattr(', 'dolphin-package'):
+            self.assertNotIn(text, source)
+        self.assertNotIn('dolphin-package', line.LINE_OPERATIONS)
+        line.configure()
         verify_ipa = importlib.import_module('verify_ipa')
         rpcs3 = importlib.import_module('validate_rpcs3_ipa')
-        saved = verify_ipa.validate, rpcs3.validate_helper_bundles, sys.modules.get('build_support')
-        calls = []
-        fake = types.ModuleType('build_support')
-        try:
-            line.extend_validators()
-            fake.validate = verify_ipa.validate
-            fake.main = lambda: calls.append(list(sys.argv))
-            sys.modules['build_support'] = fake
-            result = line.dolphin_package(None)
-            self.assertEqual(result['result'], 'packaged')
-            self.assertEqual(calls, [[str(ROOT / 'packages/dolphin_internal_bridge/ci/build_support.py'), 'package']])
-            fake.validate = saved[0]
-            with self.assertRaisesRegex(line.LineError, 'did not bind'):
-                line.dolphin_package(None)
-        finally:
-            verify_ipa.validate, rpcs3.validate_helper_bundles = saved[0], saved[1]
-            if saved[2] is None:
-                sys.modules.pop('build_support', None)
-            else:
-                sys.modules['build_support'] = saved[2]
+        support = importlib.import_module('build_support')
+        for function in (verify_ipa.validate, rpcs3.validate_helper_bundles):
+            self.assertFalse(hasattr(function, '__wrapped__') or hasattr(function, 's2armExtended'), function)
+            self.assertEqual(function.__code__.co_filename, str(Path(sys.modules[function.__module__].__file__)))
+        self.assertIs(support.validate, verify_ipa.validate, 'the Dolphin packager runs the common validator itself')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            line.main(['dolphin-package'])
 
 
 class EngineWorkflow(unittest.TestCase):
@@ -1994,25 +2012,40 @@ class EngineWorkflow(unittest.TestCase):
         self.assertEqual(self.steps[download]['run'], make_workflow.LINE_CALL + 'engine-download')
         self.assertEqual(self.text.count('configure_s2arm_ios.py'), 2)
 
-    def test_the_two_declared_edits_of_common_steps(self):
+    def test_no_declared_edit_of_common_steps(self):
+        """The Dolphin packager and the version check run as in the common workflow: their closed extension set and
+        count carry their own S2Arm conditional, and the version check of this workflow, executed, counts the
+        application and eight extensions only beside the S2Arm identity."""
+        import s2arm_version_check_test as version_check
         report = make_workflow.explain(self.common_text, self.text, self.sd.load_yaml_subset)
-        self.assertEqual([(item['step'], item['new']) for item in report['editedSteps']], [
-            ('Package the rebuilt application and retain current component identities',
-             make_workflow.LINE_CALL + 'dolphin-package'),
-            ('Verify final signed legal bundle and application and extension versions',
-             'assert len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"')])
+        self.assertEqual(report['editedSteps'], [])
+        self.assertEqual(make_workflow.STEP_EDITS, ())
+        common = {step['name']: step for step in self.sd.load_yaml_subset(self.common_text)['jobs']['application']['steps']}
+        for name in ('Package the rebuilt application and retain current component identities',
+                     'Verify final signed legal bundle and application and extension versions'):
+            expected = json.loads(json.dumps(common[name]).replace(make_workflow.COMMON_CALL, make_workflow.LINE_CALL))
+            self.assertEqual(self.step(name), expected, name)
         package = self.step('Package the rebuilt application and retain current component identities')['run']
-        self.assertNotIn('build_support.py package', package)
-        self.assertLess(package.index('dolphin-package'), package.index('structure "dist/$IPA_NAME.ipa"'))
-        self.assertNotIn('== 8', self.step('Verify final signed legal bundle and application and extension versions')['run'])
-        self.assertEqual(self.text.count('build_support.py package'), 0)
+        self.assertLess(package.index('python3 packages/dolphin_internal_bridge/ci/build_support.py package'),
+                        package.index('structure "dist/$IPA_NAME.ipa"'))
+        self.assertEqual(self.text.count('build_support.py package'), 1)
         self.assertEqual(self.common_text.count('build_support.py package'), 1)
-        # A common step that no longer holds the edited text stops the generation.
-        for job, name, old, new, count in make_workflow.STEP_EDITS:
-            for changed in (self.common_text.replace(old, old[:-1] + '#'), self.common_text.replace(old, old + '\n' + old)):
-                with self.subTest(step=name):
-                    with self.assertRaisesRegex(make_workflow.GenerationError, 'occurrence'):
-                        make_workflow.generate(changed)
+        self.assertNotIn('dolphin-package', self.text)
+        script = version_check.step_script(self.text)
+        self.assertEqual(script, version_check.step_script(self.common_text))
+        self.assertEqual(version_check.run_step(script, version_check.s2arm_ipa())[:2], (0, ''))
+        self.assertEqual(version_check.run_step(script, version_check.common_ipa())[:2], (0, ''))
+        self.assertEqual(version_check.run_step(script, version_check.with_helper(version_check.common_ipa()))[:2],
+                         (1, version_check.SEVEN))
+        self.assertEqual(version_check.run_step(script, version_check.with_identity(version_check.common_ipa()))[:2],
+                         (1, version_check.EIGHT))
+        # A common workflow that no longer holds a step this one inserts after stops the generation.
+        anchors = [after for _, after, _ in make_workflow.INSERTIONS if f'    - name: {after}\n' in self.common_text]
+        self.assertGreaterEqual(len(anchors), 7)
+        for after in anchors:
+            with self.subTest(after=after):
+                with self.assertRaisesRegex(make_workflow.GenerationError, 'not found exactly once'):
+                    make_workflow.generate(self.common_text.replace(f'    - name: {after}\n', f'    - name: {after} (moved)\n'))
         # The count: the application, the common closed set, MeloNX's helper and RAM donor, the S2Arm helper.
         validator = distribution_module()
         self.assertEqual(1 + len(validator.EXPECTED_EXTENSIONS) + 2 + len(validator.S2ARM_EXTENSIONS), 9)
@@ -2071,11 +2104,20 @@ class EngineManifest(unittest.TestCase):
         self.assertEqual(value['images']['removed'], [])
         paths = value['s2arm']['deltaPaths']
         for path in ('packages/s2arm_jit_helper/ios/Resources/s2arm-universal.js', 'build-utils/s2arm/configure_s2arm_ios.py',
-                     'build-utils/validate_single_ipa_distribution.py', 'packages/s2arm_probe/ios/s2arm_probe.podspec'):
+                     'build-utils/validate_single_ipa_distribution.py', 'packages/s2arm_probe/ios/s2arm_probe.podspec',
+                     'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py'):
             self.assertIn(path, paths)
         self.assertTrue(all(self.sd.is_product(path) for path in paths))
+        self.assertEqual(value['s2arm']['engineDelta']['conditionals'], [path for path, _ in line.NATIVE_CONDITIONALS])
+        self.assertNotIn('Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge', value['images']['mustChange'],
+                         'the Dolphin verifier is CI code, not a source of the bridge image')
         names = [name for name, _ in value['tests']['flutter']['additions']['commands']]
-        self.assertLessEqual({'s2arm-jit-helper', 's2arm-validator', 's2arm-configure'}, set(names))
+        self.assertLessEqual({'s2arm-jit-helper', 's2arm-validator', 's2arm-configure', 's2arm-dolphin-verify-ipa',
+                              's2arm-rpcs3-helpers', 's2arm-version-check', 's2arm-downloaded-delivery'}, set(names))
+        commands = dict(value['tests']['flutter']['additions']['commands'])
+        for name, argv in make_manifest.ENGINE_TESTS:
+            self.assertEqual(commands[name], argv)
+            self.assertTrue((ROOT / argv[-1]).is_file(), argv[-1])
         self.assertEqual(len(names), len(set(names)))
         self.assertIn('S2ArmEngine.framework and NS2Pro.framework of run', value['note'])
         self.assertEqual(value['s2arm']['engineDelta']['images']['added'], list(line.ENGINE_IMAGES))
@@ -2160,25 +2202,33 @@ class EngineManifest(unittest.TestCase):
 
 
 class Verifier(unittest.TestCase):
-    def test_the_in_memory_edit_is_the_declared_one(self):
-        original = (ROOT / line.VERIFIER).read_text().splitlines()
-        edited = line.edited_verifier_source().splitlines()
-        changed = [(a, b) for a, b in zip(original, edited) if a != b]
-        self.assertEqual(len(original), len(edited))
-        self.assertEqual(len(changed), len(line.VERIFIER_EDITS))
-        for (before, after), (old, new, _) in zip(changed, line.VERIFIER_EDITS):
-            self.assertTrue(before.startswith(old) and after == new + before[len(old):], (before, after))
-        self.assertIn("8 + (root + 'S2Arm-native-identity.json' in names)", line.edited_verifier_source())
+    def test_the_common_verifier_runs_unchanged(self):
+        """The common verifier is imported as it is (its count of the extensions carries its own S2Arm conditional),
+        bound to the recipe configured for this line; a verifier that reads the recipe otherwise than reviewed is
+        refused before it runs."""
         import verify_downloaded_delivery_s2arm as launcher
         verifier = launcher.load_verifier()
-        self.assertTrue(verifier.S2ARM_EDITED)
+        self.assertIs(sys.modules['verify_downloaded_delivery'], verifier)
+        self.assertEqual(Path(verifier.__file__).resolve(), (ROOT / line.VERIFIER).resolve())
+        self.assertEqual(Path(verifier.verify.__code__.co_filename).resolve(), (ROOT / line.VERIFIER).resolve())
+        self.assertFalse(hasattr(verifier, 'S2ARM_EDITED'))
         self.assertIs(launcher.load_verifier(), verifier)
+        self.assertIs(verifier.sd, line.configure())
+        source = (ROOT / line.VERIFIER).read_text()
+        self.assertEqual(source.count('if root + S2ARM_IDENTITY in names:'), 1)
+        self.assertEqual(verifier.S2ARM_EXTENSIONS, distribution_module().S2ARM_EXTENSIONS)
+        wrapper = (HERE / 'verify_downloaded_delivery_s2arm.py').read_text()
+        for text in ('S2ARM_EDITED', 'exec(', 'VERIFIER_EDITS', 'edited_verifier_source'):
+            self.assertNotIn(text, wrapper)
         with tempfile.TemporaryDirectory(prefix='s2arm-verifier-') as directory:
             target = Path(directory) / line.VERIFIER
             target.parent.mkdir(parents=True)
-            target.write_text((ROOT / line.VERIFIER).read_text().replace('len(bundles) == 8', 'len(bundles) == 7'))
-            with self.assertRaisesRegex(line.LineError, 'review'):
-                line.edited_verifier_source(directory)
+            self.assertEqual(source.count('sd.subject_build('), 1)
+            target.write_text(source.replace('sd.subject_build(', 'sd.authenticate_base('))
+            with self.assertRaisesRegex(line.LineError, 'no longer reads the recipe'):
+                line.check_verifier_inventory(directory)
+            target.write_text(source)
+            line.check_verifier_inventory(directory)
 
 
 class NewFiles(unittest.TestCase):
@@ -2193,7 +2243,10 @@ class NewFiles(unittest.TestCase):
                         'the key setter changes the application: it is product, reviewed with the probe')
         product = ['build-utils/s2arm/set_probe_key.py', 'build-utils/s2arm/configure_s2arm_ios.py',
                    'build-utils/validate_single_ipa_distribution.py', 'test/s2arm_jit_helper_test.py',
-                   'test/s2arm_validator_test.py', 'test/s2arm_configure_test.py'] + [
+                   'test/s2arm_validator_test.py', 'test/s2arm_configure_test.py',
+                   'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py',
+                   'test/s2arm_dolphin_verify_ipa_test.py', 'test/s2arm_rpcs3_helpers_test.py',
+                   'test/s2arm_version_check_test.py', 'test/s2arm_downloaded_delivery_test.py'] + [
             path.relative_to(ROOT).as_posix() for path in sorted((ROOT / 'packages/s2arm_jit_helper').rglob('*'))
             if path.is_file()]
         for path in product:

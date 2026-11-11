@@ -12,10 +12,10 @@
 # identity and checked in it and in the signed IPA; its host bridge (packages/s2arm_engine_bridge): the
 # preparation library downloaded from its authenticated producer run and installed in the bridge
 # package before CocoaPods, the system data downloaded from its authenticated producer run and placed
-# in the built application before the engine, both recorded in the engine identity and checked with it;
-# two declared edits of common steps (the Dolphin packager run through the launcher with the S2Arm-aware
-# extension set, one extension more in the version check). A push whose subject has no delivery tag
-# runs nothing (every job is skipped).
+# in the built application before the engine, both recorded in the engine identity and checked with it.
+# No common step is edited: the closed extension sets and counts the S2Arm application meets (the Dolphin
+# packager, the structure and seal validators, the version check) carry their own S2Arm conditionals. A
+# push whose subject has no delivery tag runs nothing (every job is skipped).
 name: RewindBox Switch 2 test IPA delivery
 run-name: RewindBox Switch 2 test delivery - ${{ github.sha }}
 'on':
@@ -685,7 +685,7 @@ jobs:
       run: |
         set -euo pipefail
         python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py diff-check
-        python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py dolphin-package
+        python3 packages/dolphin_internal_bridge/ci/build_support.py package
         python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py structure "dist/$IPA_NAME.ipa"
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
@@ -766,7 +766,11 @@ jobs:
             root = roots[0]
             bundles = [name for name in names if name == root + 'Info.plist' or
                        (name.startswith(root + 'PlugIns/') and name.endswith('.appex/Info.plist'))]
-            assert len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"
+            if root + 'S2Arm-native-identity.json' in names:
+                # Switch 2 (S2Arm) private test IPA only, never the common IPA: S2ArmJITHelper.appex, eighth extension.
+                assert root + 'PlugIns/S2ArmJITHelper.appex/Info.plist' in bundles and len(bundles) == 9, "Expected the application and its eight extensions (S2ArmJITHelper included)"
+            else:
+                assert len(bundles) == 8, "Expected the application and its seven extensions"
             for name in bundles:
                 info = plistlib.loads(archive.read(name))
                 assert str(info['CFBundleVersion']) == os.environ['BUILD_NUMBER'], name
