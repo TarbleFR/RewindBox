@@ -56,6 +56,9 @@ MELONX_PIN = dict(source='b' * 40, binaries={'ios-arm64': dict(sha256='c' * 64)}
 RPCS3_PIN = dict(exports=dict(added=['rpcs3_ios_fixture_export']))
 SCRIPT = b'// melonx-universal.js fixture\n'
 RECIPIENT = b'-----BEGIN PUBLIC KEY-----\nfixture\n-----END PUBLIC KEY-----\n'
+# One date for every IPA entry: the report holds the IPA's SHA-256, so two builds of the same members must give the
+# same bytes (ZipFile.writestr would date each entry with the clock, two seconds per step).
+ENTRY_TIME = (2026, 11, 11, 0, 0, 0)
 
 
 def sha(data):
@@ -184,7 +187,9 @@ def outcome(module, members, receipt=None):
         staging.mkdir()
         with zipfile.ZipFile(staging / ipa_name, 'w') as archive:
             for path, data in members.items():
-                archive.writestr(path, data)
+                entry = zipfile.ZipInfo(path, date_time=ENTRY_TIME)
+                entry.external_attr = 0o600 << 16   # as writestr gives a file entry named by a string
+                archive.writestr(entry, data)
         raw = (staging / ipa_name).read_bytes()
         images = {name: record['fingerprint'] for name, record in zip_payloads(staging / ipa_name).items()}
         signed = dict(ipaSha256=sha(raw), ipaBytes=len(raw), build=BUILD, images=images)
