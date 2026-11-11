@@ -364,7 +364,15 @@ The Xbox 360 playlist embeds XeniaCore, built from XeniOS (Xenia for iOS,
 https://github.com/xenios-jp/XeniOS) at `cf7c7ee452314913124d205e41e325b33891aacb`
 with RewindBox's guarded adaptation patch (`build-utils/xenia/`). XeniOS is
 BSD-3-Clause (`XeniOS-BSD-3-Clause.txt`); its third-party notices are in
-`xenios/XeniOS-Acknowledgements.json` and inside `XeniaCore.framework`.
+`xenios/XeniOS-Acknowledgements.json` and inside `XeniaCore.framework`. Its
+DXBC checksum entry has an empty text there: `XeniOS-DXBC-notices.txt`
+completes it with AMD's MIT licence (GPUOpen-Archive/common-src-ShaderUtils
+at 545195d7) and the RSA Data Security, Inc. 1990 MD5 notice; the code is
+derived from the RSA Data Security, Inc. MD5 Message Digest Algorithm, and
+XeniOS's DXBCChecksum.cpp is adapted from AMD's, not identical to it.
+Boost.Context (BSL-1.0, text in the acknowledgements) reaches the Core through
+`make_`, `jump_` and `ontop_arm64_aapcs_macho_gas.S` of boostorg/context at
+d2142b69 (Edward Nevill and Oliver Kowalke, 2015).
 
 XeniaCore uses Apple's Metal Shader Converter runtime
 (`Frameworks/libmetalirconverter.dylib`) only to convert Xbox 360 shaders.

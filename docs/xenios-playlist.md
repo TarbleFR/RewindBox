@@ -426,6 +426,28 @@ which can layer one over these controls later.
   workflow compiles the whole app for the simulator; `ios-ci.yml` builds the
   IPA and stays with the main session.
 
+## Core built with an iOS 26 SDK (12 Nov 2026)
+
+GitHub's macOS runners have Xcode 26.x only, so XeniaCore is built with the
+newest iOS 26 SDK there (`rewindbox-core.patch` guards the two iOS 27 SDK uses).
+Consequence, stated plainly: **StateReporting and the external-display scene
+accessory (UISceneAccessory) are absent from this Core, including on iOS 27
+devices such as the maintainer's iPhone** — compiled out, not merely unused.
+XeniaCore logs it once at start (`RewindBox XeniaCore: iOS SDK …; StateReporting
+and the external-display scene accessory are compiled out`). A Core built with
+Xcode 27 would have both, unchanged from upstream.
+
+The converter's signature is checked by signing requirements in
+`build_core.sh`: `codesign --verify --strict -R '=anchor apple'`, then the
+identity observed on the pinned mirror asset (identifier
+`libmetalirconverter`, leaf « Software Signing », Apple Code Signing
+Certification Authority, Apple Root CA, no Team ID; read from the asset's
+signature on 12 Nov 2026 and recorded in `source.json`). The former
+`grep -q "Authority=Apple"` check was too weak (a third-party chain ending at
+Apple Root CA passes it) and, under `pipefail`, failed run 43119228652 by
+itself (grep closing the pipe made `tee` fail). An Apple signature does not
+name the Apple package or agreement behind the bytes (dossier open point 1).
+
 ## Legal gate (source/license declarations)
 
 `build-utils/collect_build_source_evidence.py` binds `pubspec.yaml` to the

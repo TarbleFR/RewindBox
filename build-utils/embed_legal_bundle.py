@@ -43,6 +43,7 @@ REQUIRED_LEGAL_FILES = (
     # Xbox 360: XeniOS, and Apple's Metal Shader Converter notices (the
     # maintainer's dossier text), shown in Settings > Legal and credits.
     "XeniOS-BSD-3-Clause.txt",
+    "XeniOS-DXBC-notices.txt",
     "Apple-Metal-Shader-Converter-NOTICES.txt",
 )
 # The Khronos SDK tag both shader compilers are vendored at

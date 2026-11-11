@@ -162,6 +162,14 @@ bool InitializeOnMain(std::string* failure) {
     g_app = NeoXeniaCreateEmulatorApp(*g_context);
     if (g_app) {
       xe::InitializeLogging(g_app->GetName());
+#if __IPHONE_OS_VERSION_MAX_ALLOWED < 270000
+      // Built with an iOS 26 SDK (GitHub's runners have no Xcode 27):
+      // rewindbox-core.patch compiles StateReporting and the external-display
+      // scene accessory out of this Core, so they are absent even on iOS 27.
+      XELOGI("RewindBox XeniaCore: iOS SDK {}; StateReporting and the external-display "
+             "scene accessory are compiled out (absent on iOS 27 too)",
+             __IPHONE_OS_VERSION_MAX_ALLOWED);
+#endif
       ok = g_app->OnInitialize();
     }
     if (!ok) reason = "EmulatorAppIOS::OnInitialize failed";

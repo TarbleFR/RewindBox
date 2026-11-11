@@ -85,7 +85,22 @@
       "upstream_license_statement": "Apple software under \u00ab Software License Agreement for Metal Shader Converter \u00bb EA1844 (assets/legal/metal-shader-converter/, maintainer's dossier docs/evidence/xenia-metal-shader-converter/); the headers alone are Apache-2.0. Redistribution allowed by the maintainer (12 Nov 2026); open points (1) EA1844 vs this ios-4.0.3 runtime, (2) provenance, (3) re-signing under 2.E are not resolved.",
       "relation_to_reference": "Downloaded and compared on 2026-11-10: identical bytes from offset 4096 to LC_CODE_SIGNATURE dataoff 29936976 (same Apple build, source version 33.39); only the Mach-O header page and the code signature differ (Apple's signature here, XeniOS's re-signing in the IPA).",
       "signature_free_sha256": "b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e",
-      "signature_free_note": "validate_shader_converter.signature_free_digest: the image before its code signature, LC_CODE_SIGNATURE dataoff/datasize and __LINKEDIT vmsize/filesize zeroed. Equal (checked 12 Nov 2026) for this Apple-signed mirror asset and for the copy XeniOS 2.3.1 ships re-signed (923caf5d...). The IPA copy must match it (agreement EA1844 clause 2.E: unmodified apart from the signature iOS requires)."
+      "signature_free_note": "validate_shader_converter.signature_free_digest: the image before its code signature, LC_CODE_SIGNATURE dataoff/datasize and __LINKEDIT vmsize/filesize zeroed. Equal (checked 12 Nov 2026) for this Apple-signed mirror asset and for the copy XeniOS 2.3.1 ships re-signed (923caf5d...). The IPA copy must match it (agreement EA1844 clause 2.E: unmodified apart from the signature iOS requires).",
+      "signer": {
+        "requirement": "=identifier \"libmetalirconverter\" and anchor apple and certificate leaf[subject.CN] = \"Software Signing\"",
+        "observed": {
+          "method": "read from the asset's code signature on 12 Nov 2026 (code directory and CMS certificates, with openssl), not by codesign",
+          "identifier": "libmetalirconverter",
+          "team_identifier": null,
+          "chain": [
+            "Software Signing (OU Apple Software, O Apple Inc.)",
+            "Apple Code Signing Certification Authority",
+            "Apple Root CA"
+          ]
+        },
+        "ci_confirmation": "build_core.sh logs codesign -dvvv, then requires codesign --verify --strict -R '=anchor apple' and the requirement above",
+        "note": "An Apple signature shows Apple signed these bytes; it does not name the Apple package or the agreement that governs them (dossier open point 1)."
+      }
     }
   }
 }

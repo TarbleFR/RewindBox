@@ -19,9 +19,17 @@ mkdir -p "$BUILD" "$DIST"
 # Apple's own signature (the mirror) or an ad-hoc/third-party one (refused).
 python3 "$ROOT/build-utils/xenia/validate_shader_converter.py" "$MSC" --require-pinned-digest \
   | tee "$BUILD/shader-converter.json"
-codesign --verify --strict "$MSC"
-codesign -dv --verbose=2 "$MSC" 2>&1 | tee "$BUILD/shader-converter-signature.txt" \
-  | grep -q "Authority=Apple" || { echo "libmetalirconverter.dylib is not signed by Apple"; exit 1; }
+# Apple's own signature, as signing requirements: `anchor apple` is code Apple
+# signs as Apple (not `anchor apple generic`, any identity Apple issued, which a
+# third-party chain ending at Apple Root CA also satisfies); then the identity
+# observed on the pinned mirror asset (source.json shader_converter.upstream_mirror.signer).
+# A failure stops the build; the requirement is never loosened.
+codesign -dvvv "$MSC" 2>&1 | tee "$BUILD/shader-converter-signature.txt"
+codesign --verify --strict -R '=anchor apple' "$MSC" \
+  || { echo "libmetalirconverter.dylib is not signed by Apple as Apple code (anchor apple)"; exit 1; }
+codesign --verify --strict \
+  -R '=identifier "libmetalirconverter" and anchor apple and certificate leaf[subject.CN] = "Software Signing"' "$MSC" \
+  || { echo "libmetalirconverter.dylib is not signed with the pinned Apple identity"; exit 1; }
 
 python3 "$ROOT/build-utils/xenia/prepare_source.py" "$SOURCE"
 

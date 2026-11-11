@@ -29,6 +29,22 @@ void main() {
     expect(text.toLowerCase(), contains('acknowledgements'));
   });
 
+  test('the DXBC checksum notices (AMD MIT, RSA MD5) are bundled', () async {
+    final text = await rootBundle.loadString(
+      'assets/legal/XeniOS-DXBC-notices.txt',
+    );
+    expect(
+      text,
+      contains('Copyright (c) 2016-2018 Advanced Micro Devices, Inc.'),
+    );
+    expect(text, contains('Copyright (C) 1990, RSA Data Security, Inc.'));
+    expect(
+      text,
+      contains('derived from the RSA Data Security, Inc. MD5 Message Digest'),
+    );
+    expect(text, contains('not identical'));
+  });
+
   test('the legal screen lists both, each with its bundled text', () {
     final source = File(
       'lib/screens/settings_screen/legal_credits_dialog.dart',
@@ -36,6 +52,7 @@ void main() {
     for (final asset in const [
       "'assets/legal/XeniOS-BSD-3-Clause.txt'",
       "'assets/legal/Apple-Metal-Shader-Converter-NOTICES.txt'",
+      "'assets/legal/XeniOS-DXBC-notices.txt'",
     ]) {
       expect(source, contains(asset));
     }
