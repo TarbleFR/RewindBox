@@ -19,6 +19,9 @@ enum ConsoleEngine {
   /// The embedded MeloNX engine (Nintendo Switch).
   melonx,
 
+  /// XeniOS, the Xenia Xbox 360 engine, embedded (docs/xenios-playlist.md).
+  xenia,
+
   /// The RetroArch app, external.
   retroarch,
 }
@@ -66,6 +69,11 @@ class ConsoleEntry {
 
   /// Logo of the console in `assets/images/logos`.
   String get logoAsset => 'assets/images/logos/$importSystem.webp';
+
+  /// Emulator application the console belongs to in the Consoles tab
+  /// (product name, never translated): the built-in libretro cores are
+  /// RetroArch's cores, every other engine is its own application.
+  String get application => ConsoleCatalog.applicationFor(engine);
 }
 
 /// Every console of the iOS app, built from the engines it ships and from
@@ -142,6 +150,44 @@ abstract final class ConsoleCatalog {
 
   static ConsoleEntry? byId(String id) => _byId[id];
 
+  /// Order of the applications in the Consoles tab.
+  static const List<ConsoleEngine> applicationOrder = <ConsoleEngine>[
+    ConsoleEngine.libretro,
+    ConsoleEngine.dolphin,
+    ConsoleEngine.armsx2,
+    ConsoleEngine.rpcs3,
+    ConsoleEngine.melonx,
+    ConsoleEngine.xenia,
+  ];
+
+  static String applicationFor(ConsoleEngine engine) => switch (engine) {
+    ConsoleEngine.libretro => 'RetroArch',
+    ConsoleEngine.dolphin => 'Dolphin',
+    ConsoleEngine.armsx2 => 'ARMSX2',
+    ConsoleEngine.rpcs3 => 'RPCS3',
+    ConsoleEngine.melonx => 'MeloNX',
+    ConsoleEngine.xenia => 'XeniOS',
+    ConsoleEngine.retroarch => 'RetroArch',
+  };
+
+  /// Consoles the Consoles tab lists, grouped by application in
+  /// [applicationOrder]: only consoles an engine of this build runs.
+  /// Systems run only by the external RetroArch app and consoles whose
+  /// engine is missing ([isMissing]) are not listed; their entries stay in
+  /// [entries] so routing, stored switches and libraries are unchanged.
+  /// Xbox 360 stays listed while its engine is missing or the device is
+  /// below iOS 26: its row states why it cannot run (maintainer decision,
+  /// docs/xenios-playlist.md § Consoles tab).
+  static List<ConsoleEntry> listed({
+    required bool Function(ConsoleEntry entry) isMissing,
+  }) => <ConsoleEntry>[
+    for (final engine in applicationOrder)
+      for (final entry in entries)
+        if (entry.engine == engine &&
+            (engine == ConsoleEngine.xenia || !isMissing(entry)))
+          entry,
+  ];
+
   static List<ConsoleEntry> _build() {
     final libretroSystems = <String, Set<String>>{};
     for (final binding in LibretroCoreCatalog.systems.entries) {
@@ -204,6 +250,16 @@ abstract final class ConsoleCatalog {
         engine: ConsoleEngine.melonx,
         importSystem: 'switch',
         systems: <String>{'switch'},
+      ),
+      // The stable system id of the existing `assets/systems/xbox360.json`
+      // (folders, ScreenScraper 33, box profile), so existing libraries,
+      // media and stored choices keep their key.
+      const ConsoleEntry(
+        id: 'xbox360',
+        name: 'Microsoft Xbox 360',
+        engine: ConsoleEngine.xenia,
+        importSystem: 'xbox360',
+        systems: <String>{'xbox360'},
       ),
       for (final system in retroArchSystems.entries)
         ConsoleEntry(

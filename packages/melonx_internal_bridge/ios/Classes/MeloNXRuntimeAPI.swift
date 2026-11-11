@@ -147,12 +147,10 @@ final class MeloNXRuntimeAPI {
 
     // This snapshot has its own native lock and may be polled while the library
     // worker is opening content or waiting for the JIT helper.
-    func diagnostics() -> [String: Any] {
-        var output = [CChar](repeating:0,count:524288)
-        guard diagnosticsFunction(&output,Int32(output.count)) == 0 else { return [:] }
-        let data = Data(bytes:output,count:output.prefix { $0 != 0 }.count)
-        return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]
-    }
+    // The host polls this every 300 ms (MeloNXInternalBridgePlugin.drainDiagnostics): MeloNXDiagnosticsReader below.
+    private lazy var diagnosticsReader = MeloNXDiagnosticsReader { [diagnosticsFunction] buffer, capacity in diagnosticsFunction(buffer,capacity) }
+    var diagnosticsDecodes: Int { diagnosticsReader.decodes }
+    func diagnostics() -> [String: Any] { diagnosticsReader.read() }
 
     func offerMemory(_ address: UnsafeMutableRawPointer, bytes: UInt64) -> Bool { memoryOffer(address,bytes) == 0 }
     func withdrawMemory() -> Bool { memoryWithdraw() == 0 }
@@ -240,3 +238,36 @@ final class MeloNXRuntimeAPI {
         stickFunction(id, pad, stick, max(-1, min(1, x)), max(-1, min(1, y)))
     }
 }
+
+// BEGIN MeloNXDiagnosticsReader (test/melonx_perf_journal_test.py compiles this block alone)
+// The engine's diagnostics report, read into one kept buffer and decoded only when its bytes differ from the previous
+// read's; for identical bytes the previous dictionary is returned (callers compare sequence numbers, so seeing it again
+// changes nothing). Until lot 14 every 300 ms poll allocated and zeroed 512 KiB, scanned it and decoded the whole report:
+// 4 % of a core for the poll's thread in IPA 725. The engine ends its report with a zero byte. Bytes that do not decode
+// are not kept: the next read decodes again. Reads are serialised.
+final class MeloNXDiagnosticsReader {
+    static let capacity = 524288
+    private let source: (UnsafeMutablePointer<CChar>, Int32) -> Int32
+    private let lock = NSLock()
+    private var buffer = [CChar](repeating:0,count:MeloNXDiagnosticsReader.capacity)
+    private var bytes = [CChar]()
+    private var report: [String:Any] = [:]
+    private(set) var decodes = 0
+
+    init(_ source: @escaping (UnsafeMutablePointer<CChar>, Int32) -> Int32) { self.source = source }
+
+    func read() -> [String:Any] {
+        lock.lock(); defer { lock.unlock() }
+        let capacity = buffer.count
+        let status = buffer.withUnsafeMutableBufferPointer { source($0.baseAddress!, Int32(capacity)) }
+        guard status == 0 else { return [:] }
+        let length = strnlen(buffer,capacity)
+        if length == bytes.count, memcmp(buffer,bytes,length) == 0 { return report }
+        decodes += 1
+        let decoded = (try? JSONSerialization.jsonObject(with:Data(bytes:buffer,count:length))) as? [String:Any]
+        bytes = decoded == nil ? [] : Array(buffer[0..<length])
+        report = decoded ?? [:]
+        return report
+    }
+}
+// END MeloNXDiagnosticsReader

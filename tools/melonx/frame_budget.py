@@ -21,8 +21,11 @@ the pause itself is not a gap):
 - where the journal has them (bridge of lot 10 and 11): the memory activity of the process (vm=: MiB newly compressed
   and pages decompressed, 16 KiB each, over the window; decompressed pages per line, median and maximum; page-ins) and
   how its CPU time was served (hw=: medians of the clock in GHz, of the instructions per cycle, of the share on
-  performance cores and of the time ready without a core, both per cent of the CPU time used), with the instructions
-  executed per presented frame (clock x instructions per cycle x CPU time of each line, summed, over the frames);
+  performance cores and of the time its threads waited for a core, both per cent of the CPU time used, and, where the
+  journal has them, of the clocks of the performance cores and of the others), with the instructions executed per
+  presented frame (clock x instructions per cycle x CPU time of each line, summed, over the frames). The kernel's
+  runnable time counts the time running too: the bridge of IPA 725 wrote that ratio as it was (four values), and 100
+  is taken off it here; later bridges write the waiting time itself (six values);
   and, for the threads cpu= lists in at least a quarter of the window's lines, their median share of a core and (pc=)
   the median per cent of their CPU time spent on performance cores.
 
@@ -104,8 +107,35 @@ def budget(seconds, first, last, target, excluded=()):
                 executed += float(fields[0]) * 1e9 * float(fields[1]) * s['cpu'] / 100
             except (TypeError, ValueError, IndexError):
                 pass
+        # Waiting for a core: the fourth value of a six-value field; of a four-value one, what exceeds the time running.
+        waits = []
+        for s in chosen:
+            fields = s.get('hw') or []
+            try:
+                waits.append(float(fields[3]) if len(fields) >= 6 else max(0.0, float(fields[3]) - 100))
+            except (ValueError, IndexError):
+                pass
         service = dict(lines=len(clock), clockGHzMedian=median(0), instructionsPerCycleMedian=median(1), performanceCoresPercentMedian=median(2),
-                       readyWithoutACorePercentMedian=median(3), instructionsPerFrameMillions=round(executed / frames / 1e6) if executed else None)
+                       waitingForACorePercentMedian=round(statistics.median(waits), 2) if waits else None,
+                       performanceClockGHzMedian=median(4), otherClockGHzMedian=median(5),
+                       instructionsPerFrameMillions=round(executed / frames / 1e6) if executed else None)
+    # Power (en=: watts of the process's CPU work, all cores / performance cores) and wake rates (sw=: context switches,
+    # system calls and interrupt wakeups per second). A line stands for one second: its watts are its joules.
+    power = None
+    watts = parts('en', 0)
+    switches = parts('sw', 0)
+    if watts or switches:
+        def middle(key, index, digits):
+            values = parts(key, index)
+            return round(statistics.median(values), digits) if values else None
+
+        with_frames = [(float(s['en'][0]), len(s['gaps'])) for s in chosen if s.get('en') and s['gaps']]
+        joules, counted = sum(w for w, _ in with_frames), sum(n for _, n in with_frames)
+        power = dict(lines=max(len(watts), len(switches)), cpuWattsMedian=middle('en', 0, 2), cpuWattsMax=round(max(watts), 2) if watts else None,
+                     performanceCoresWattsMedian=middle('en', 1, 2),
+                     millijoulesPerFrame=round(1000 * joules / counted, 1) if counted else None,
+                     contextSwitchesPerSecondMedian=middle('sw', 0, 0), systemCallsPerSecondMedian=middle('sw', 1, 0),
+                     interruptWakeupsPerSecondMedian=middle('sw', 2, 0))
     listed = {}
     for s in chosen:
         shares = s.get('pc') or []
@@ -120,7 +150,7 @@ def budget(seconds, first, last, target, excluded=()):
                     performanceCoresPercentMedian=statistics.median(entry['performance']) if entry['performance'] else None)
                for name, entry in listed.items() if len(entry['core']) * 4 >= len(chosen)]
     threads.sort(key=lambda entry: -entry['corePercentMedian'] * entry['lines'])
-    return dict(threads=threads or None, memoryActivity=memory, cpuService=service, window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
+    return dict(threads=threads or None, memoryActivity=memory, cpuService=service, power=power, window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
                 seconds=round(total / 1000, 1), meanMs=round(mean, 1), medianMs=round(statistics.median(gaps), 1),
                 p95Ms=round(percentile(gaps, 95), 1), p99Ms=round(percentile(gaps, 99), 1), maxMs=round(max(gaps)),
                 presentedFps=round(1000 / mean, 1),
@@ -183,9 +213,16 @@ def main():
                 for entry in r['threads']))
         if r['cpuService']:
             c = r['cpuService']
-            print(f'    CPU service (hw=, {c["lines"]} lines, medians): clock {c["clockGHzMedian"]} GHz, {c["instructionsPerCycleMedian"]} instructions '
-                  f'per cycle, {c["performanceCoresPercentMedian"]} % on performance cores, {c["readyWithoutACorePercentMedian"]} % ready without '
+            clocks = ('' if c['performanceClockGHzMedian'] is None and c['otherClockGHzMedian'] is None else
+                      f' (performance cores {c["performanceClockGHzMedian"]} GHz, others {c["otherClockGHzMedian"]} GHz)')
+            print(f'    CPU service (hw=, {c["lines"]} lines, medians): clock {c["clockGHzMedian"]} GHz{clocks}, {c["instructionsPerCycleMedian"]} instructions '
+                  f'per cycle, {c["performanceCoresPercentMedian"]} % on performance cores, {c["waitingForACorePercentMedian"]} % waiting for '
                   f'a core; about {c["instructionsPerFrameMillions"]} million instructions per frame')
+        if r['power']:
+            w = r['power']
+            print(f'    power (en=, sw=, {w["lines"]} lines, medians): CPU {w["cpuWattsMedian"]} W (highest {w["cpuWattsMax"]}), {w["performanceCoresWattsMedian"]} W of it on '
+                  f'performance cores, {w["millijoulesPerFrame"]} mJ per frame; {w["contextSwitchesPerSecondMedian"]} context switches, '
+                  f'{w["systemCallsPerSecondMedian"]} system calls and {w["interruptWakeupsPerSecondMedian"]} interrupt wakeups per second')
 
 
 if __name__ == '__main__':

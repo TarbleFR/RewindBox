@@ -1,0 +1,609 @@
+{
+ "schema": 1,
+ "date": "2026-11-11",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "733 (number assigned by main at e747321a)",
+ "lot": 12,
+ "base": {
+  "core": 731,
+  "contract": "9de16cd88c6c8b7e71963ed9f32cacdb8ca5acb120d46590f63bd79653fd9105",
+  "note": "the contract of the branch before this lot (Core 731 with the two gate corrections of 11 November; the engine is the one main pinned from contract 518ea8dc)"
+ },
+ "change": "One adapter after adapt_cold_buffer_trim: adapt_host_thread_class (the helper Ryujinx.Common.HostThreadClass in NanosleepPool.cs and its call as the first statement of eight thread bodies: guest and HLE service threads, the kernel's timer and preemption threads, the sleep pool, SurfaceFlinger's composer, the three audio workers). Two native sources (core733_native.py): the engine journal keeps its snapshot's bytes and the neostation_melonx_diagnostics export copies them without a managed copy.",
+ "preparation": "differs from the Core 731 preparation by the eight files of the adapter, EmbeddedLaunchDiagnostics.cs and EmbeddedRuntime.cs",
+ "device725": {
+  "source": "IPA 725, Hogwarts Legacy, pid 51986, Core 731 (private journals, not in Git); tools/melonx/frame_budget.py, the stall record resolved with the Core artifact's symbol map",
+  "exported": "t=103 to 182 of one session (the first 102 s were in a rotated file that was not sent)",
+  "frames": "t=103-180: 1 713 frames in 78.0 s, mean 45.5 ms (22.0 FPS), median 33.3, p95 83.3, p99 166.7, longest 3 033 ms; excess +12.2 ms = stutters +5.5 (47 gaps over 100 ms, 11.0 s) + slow frames +7.2 - 0.6",
+  "onTarget": "t=127-146: mean 33.8 ms (29.6 FPS), p95 33.3, one gap over 100 ms; about 239 million instructions per frame",
+  "slow": "t=149-158 and 103-118: 22.3 and 20.8 FPS; 456 and 531 million instructions per frame; <MainThread> 46 to 50 % of a core at priority 31 with 33 to 36 % of it on performance cores; render and GPU threads 52 to 55 % at priority 47 with 80 to 95 %; the process's threads wait for a core 1.4 to 1.8 times as long as they run",
+  "longestGap": "3 033 ms: a gen0 collection of 2 673.6 ms run by the thread of the host's diagnostics queue (priority 20) in gc_heap::garbage_collect (mark_through_cards_for_segments, from GCHeap::Alloc); 15.6 ms of CPU in 961 ms; 148 threads waiting",
+  "collections": "4 619 ms of pause in the 83.5 s of 5 s samples (2 788 ms in the window of that gap, 20 to 208 ms in the others); 16 background collections in 188 s",
+  "engineTimers": "slow stretches: GPU thread dispatch 3.0 to 3.8 s of 5.1 s for 995 to 1 488 draws a frame (texture binding commits 1.2 to 1.6 s, compute dispatches 0.8 to 1.0 s), render thread 2.5 to 3.4 s; on target: 277 to 395 draws a frame, dispatch 1.9 to 2.2 s",
+  "lot11": "windows with a buffer cache trim create 0 buffers at the median (IPA 724: 3 816); 11 coldTrim records"
+ },
+ "hostMeasures": {
+  "snapshotBytes": 157054,
+  "controlBytesPerQuietPoll": 907317,
+  "candidateBytesPerQuietPoll": 0,
+  "controlBytesPerChangingPoll": 929452,
+  "candidateBytesPerChangingPoll": 0,
+  "note": "host .NET runtime, a ring of 64 records of about 2.6 KiB; the host polls every 300 ms",
+  "threadBodiesRaised": 8,
+  "threadBodyEnds": {
+   "Common.Nanosleep.N": "NullReferenceException",
+   "guest and HLE service threads": "NullReferenceException",
+   "HLE.TimeManager": "returned",
+   "HLE.PreemptionThread": "returned",
+   "SurfaceFlinger.Composer": "NullReferenceException",
+   "AudioProcessor.Worker": "NullReferenceException",
+   "AudioRendererManager.Worker": "NullReferenceException",
+   "AudioManager.Worker": "returned"
+  },
+  "systemClassReadBack": false
+ },
+ "bridge": {
+  "commits": [
+   "c00d94eb",
+   "cacaf83b",
+   "779b3d19",
+   "df135358",
+   "88d0040e",
+   "02a55ff7"
+  ],
+  "engineCalls": "MeloNXEngineCallClass: the sampler's and the diagnostics drain's engine calls are made by one thread created in the user-interactive class (RewindBox.MeloNX.EngineCalls)",
+  "journal": "hw= six values (the time waiting for a core is the kernel's runnable time less the CPU time; clocks of the performance cores and of the others); [MeloNX:hot] profiles (MeloNXHotSpots.swift)",
+  "tools": "tools/melonx/frame_budget.py (both forms of hw=), tools/melonx/hot_spots.py",
+  "macosRun": {
+   "workflow": "melonx-stall-watch.yml",
+   "run": 42994734269,
+   "head": "02a55ff7",
+   "conclusion": "success",
+   "read": "engine-call class 0x21 on the dedicated thread and 0x11 on the queue's; priority 20 for the queue's thread, the dedicated thread and a reference user-interactive thread alike (the runner clamps the process: no priority above 20 can be observed there); the decision rule and one profile of a spinning and of a waiting thread; iOS typecheck"
+  }
+ },
+ "gatesRun": {
+  "bindless-array-deltas": {
+   "report": "bindless-array-delta-checks.json",
+   "sha256": "34c908365d6c10b6ac87179e54b4f0f23a6980a11917653fdf423b1a3a850cdf",
+   "checks": 303
+  },
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "1333617a7c5a0078766844de7dbb12c9daa30624b4c5f26e33f337769c441d7b",
+   "checks": 66
+  },
+  "performance-diagnostics": {
+   "report": "performance-diagnostics-checks.json",
+   "sha256": "9069b9738943bc56da8c19ea71dcdc693345a5fbd51aad1a8ab219d034edd469",
+   "checks": null
+  },
+  "binding-data-snapshots": {
+   "report": "binding-data-snapshot-checks.json",
+   "sha256": "255bc0f3296af2208f2006ddc05f54d9b2317fa78921487a32457807bd0f94f4",
+   "checks": null
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "2669e47a16ff9d6caaa133645a16e8fdfe6acf9d5379be2a7991670487e5f7f7",
+   "checks": 172
+  },
+  "pipeline-checkpoint": {
+   "report": "pipeline-checkpoint-checks.json",
+   "sha256": "fc7109590fdc0551c7ddbb981252fc7b9c1f4642819c499d2ba063320ce27589",
+   "checks": null
+  },
+  "scalar-texture-descriptors": {
+   "report": "scalar-texture-descriptor-checks.json",
+   "sha256": "320bc17cee6c1284d06958e1f63bb96638a253abc22ae45b404fd73e8f8f3f83",
+   "checks": null
+  },
+  "fallback-descriptor-scratch": {
+   "report": "fallback-descriptor-scratch-checks.json",
+   "sha256": "800693ec826cf5dc9e26191ccd08ab2e1d1e170dc47d504f83bbd2067440dd2d",
+   "checks": null
+  },
+  "single-resource-bindings": {
+   "report": "single-resource-binding-checks.json",
+   "sha256": "a60e31790041a158962eaf87656bac5ae4b5e91abe11709e6b0bb16cda984cee",
+   "checks": null
+  },
+  "bounded-binding-snapshots": {
+   "report": "bounded-binding-snapshot-checks.json",
+   "sha256": "ce40adbf2d3df14bc869538e7096ee3ee7ce8b3515126f957d7912eb6885ca46",
+   "checks": null
+  },
+  "counter-report-compaction": {
+   "report": "counter-report-compaction-final-checks.json",
+   "sha256": "a3d74ae20783377b7b1918bc8e587eed418f3a3784bce58f1ba988f7426641fe",
+   "checks": null
+  },
+  "single-virtual-dependency": {
+   "report": "single-virtual-dependency-final-checks.json",
+   "sha256": "ae309fd9c529d9390060ef375e984fbd4c9991f58e1463bc39bd33a7b8d6d092",
+   "checks": null
+  },
+  "pipeline-warmup-parity": {
+   "report": "pipeline-warmup-parity-checks.json",
+   "sha256": "768b52a38f85a504bafdf75de48a34f10b068fcf0d99643f3b371f7a6e4587c9",
+   "checks": 10
+  },
+  "device-short-trim": {
+   "report": "device-short-trim-checks.json",
+   "sha256": "343d54a669454cbfb9a49a8790c1fe8a9494a77a60b0edf00905ac3190e778ac",
+   "checks": 7
+  },
+  "moltenvk-barrier-ordering": {
+   "report": "moltenvk-barrier-ordering-checks.json",
+   "sha256": "f3c6e3c1ade561221c2961b8f4607aa4d1a77a1e70e271361df8eb16b8f43463",
+   "checks": 14
+  },
+  "descriptor-scratch-all-titles": {
+   "report": "descriptor-scratch-all-titles-checks.json",
+   "sha256": "d0fbea0a6b05f1fb08803d9d4c2db6787466dc18ec7ce60bbf6d917ac35ca869",
+   "checks": 9
+  },
+  "readback-occupied-attribution": {
+   "report": "readback-occupied-attribution-checks.json",
+   "sha256": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+   "checks": 10
+  },
+  "pipeline-miss-context": {
+   "report": "pipeline-miss-context-checks.json",
+   "sha256": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+   "checks": 4
+  },
+  "barrier-compaction": {
+   "report": "barrier-compaction-checks.json",
+   "sha256": "96717f8e4d092e8ad6188a098ace572dee0c0d6439a0ad0ca2af0a4cab478d9c",
+   "checks": 7
+  },
+  "readback-receivers": {
+   "report": "readback-receivers-checks.json",
+   "sha256": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+   "checks": 53
+  },
+  "present-source-attribution": {
+   "report": "present-source-attribution-checks.json",
+   "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+   "checks": 20
+  },
+  "teardown-compile-cancel": {
+   "report": "teardown-compile-cancel-checks.json",
+   "sha256": "196f2f84683dfd7515ac1bb30846088416e4f4232953ef396e8c0dac88d39c15",
+   "checks": 25
+  },
+  "pause-guest-threads": {
+   "report": "pause-guest-threads-checks.json",
+   "sha256": "90c0ec41dbde40d9d7a0adfd128476cc041c06ac494cab4930b24a0d9db76224",
+   "checks": 18
+  },
+  "teardown-phase-marks": {
+   "report": "teardown-phase-marks-checks.json",
+   "sha256": "f8ba6f267557dacd719e588faafddf379a47b39af6af357966684a4fb7de4106",
+   "checks": 10
+  },
+  "binder-teardown": {
+   "report": "binder-teardown-checks.json",
+   "sha256": "694b6c04e28bf10d46f991034231f50e105b27ad70e49792e305304561e75003",
+   "checks": 39
+  },
+  "gc-events": {
+   "report": "gc-events-checks.json",
+   "sha256": "3035045db1411ba72f0c222d7a3339ec506f712806405dddba6c734b45690423",
+   "checks": 47
+  },
+  "artifact-counters": {
+   "report": "artifact-counters-checks.json",
+   "sha256": "a891b0a21e521c662fb6c2a5abddbf5fcb3d1f34494020191e63e78834251c9f",
+   "checks": 118
+  },
+  "array-rebuild-allocations": {
+   "report": "array-rebuild-allocations-checks.json",
+   "sha256": "06b843889c168fc1e928dc995dfeccce21f647c092ba354ac8959cc6f9250d13",
+   "checks": 322
+  },
+  "present-pacing": {
+   "report": "present-pacing-checks.json",
+   "sha256": "fd353315ae086b7245750645f3938d2c872615d9d60e0597a03dcbb5001968f8",
+   "checks": 783
+  },
+  "present-drawable-residency": {
+   "report": "present-drawable-residency-checks.json",
+   "sha256": "91e1f3df86a5cfee0d2bc37dfcb753b14d7808ba568ccc47a3497d0c7dab03b7",
+   "checks": 26
+  },
+  "present-pacer-fixes": {
+   "report": "present-pacer-fixes-checks.json",
+   "sha256": "1e8747617088627769ee2a911a8d4444649962529a14b69099d615dd488f5761",
+   "checks": 784
+  },
+  "shader-save-poll": {
+   "report": "shader-save-poll-checks.json",
+   "sha256": "31310be23fb42f7b518a121fc9f842c8ecaa702fd8cdd12a46d96e8f8143cf09",
+   "checks": 78
+  },
+  "warmup-key-parity": {
+   "report": "warmup-key-parity-checks.json",
+   "sha256": "7d8ea5aaa52cb30ec84b23b39c9b8a6abcb270c550550ce450ea72c77b021d9e",
+   "checks": 1371
+  },
+  "setprogram-warmup": {
+   "report": "setprogram-warmup-checks.json",
+   "sha256": "5b2f96a013ee6313784dc267c2cf90c123f8eb9f2e5bc627d0a84db552c27c3d",
+   "checks": 103
+  },
+  "teardown-cache": {
+   "report": "teardown-cache-checks.json",
+   "sha256": "f28b49adb299d543c037c9f5091f27f379259ff6f78c42935695a26a82814c88",
+   "checks": 53
+  },
+  "forced-syncpoint-wait": {
+   "report": "forced-syncpoint-wait-checks.json",
+   "sha256": "38484c05617938123d456c315003f7b1a5c0f5c86a1dc80fc37144313fd8ad9c",
+   "checks": 84
+  },
+  "session-retention": {
+   "report": "session-retention-checks.json",
+   "sha256": "aa0ce8dea818e538f702cd351837e34c8f6c3471c6cb861d861a4a1569aed033",
+   "checks": 121
+  },
+  "memory-inventory": {
+   "report": "memory-inventory-checks.json",
+   "sha256": "b351acea8918cf7a24e07cef59e0daa82caaac3c1e9870a8e3318dd837586aa7",
+   "checks": 26
+  },
+  "guest-fault-context": {
+   "report": "guest-fault-context-checks.json",
+   "sha256": "ab81e54468666d15d606d4dc21798b7eda4eec7b0c397530d01640a3cc76cab9",
+   "checks": 53
+  },
+  "gc-fallback": {
+   "report": "gc-fallback-checks.json",
+   "sha256": "0b26aac33dbdd7773149a1941788fb2e594e1f15ef2642ee0d07a86b8278d5a0",
+   "checks": 60
+  },
+  "host-warning-trim": {
+   "report": "host-warning-trim-checks.json",
+   "sha256": "d62ecabdbebe162e94c701b54d244d880412843d3636e4705780e664ad3aaa02",
+   "checks": 21
+  },
+  "safe-point-compaction": {
+   "report": "safe-point-compaction-checks.json",
+   "sha256": "8ec7bb65350d162c1cda30e012c90c40e3235ada1960a8836edce920b96006a8",
+   "checks": 59
+  },
+  "cold-texture-release": {
+   "report": "cold-texture-release-checks.json",
+   "sha256": "be48ec16206e1ee81ca3324eb307b2e5dc1c0790c140d69a43fedd155342556a",
+   "checks": 131
+  },
+  "bindless-retention": {
+   "report": "bindless-retention-checks.json",
+   "sha256": "2edf7ab84afd207ab8ba9f859dba05a391b74bb2d17bb7b6a2d756a6c591ce6e",
+   "checks": 312
+  },
+  "moltenvk-stage-ordering": {
+   "report": "moltenvk-stage-ordering-checks.json",
+   "sha256": "10f80a0c62b09d5d261c275c5cabc041728a3eb8ee9d2e76b51328e0d4bdf486",
+   "checks": 75
+  },
+  "display-native": {
+   "report": "display-checks.json",
+   "sha256": "ece1538fcdb59c350f34925235f4a14a2c75aaaf1b5ecdbb041be52dd0b3d1c4",
+   "checks": null
+  },
+  "core667-fixes": {
+   "report": "core667-fixes-checks.json",
+   "sha256": "8aca24696eaa7fb5b869aac56aef1748b14c53199ace54edbed6b12c8acc9c9a",
+   "checks": 56
+  },
+  "nan-scrub": {
+   "report": "nan-scrub-checks.json",
+   "sha256": "db155ca56683ba183fd81e46d9ca57e6cf84a22a3eda4cf561028fe7183339b4",
+   "checks": 57
+  },
+  "main-cache-checkpoint": {
+   "report": "main-cache-checkpoint-checks.json",
+   "sha256": "743b957f81e708113a09056438669abd3e8bfa6eb3efe9a132188de53c838dfa",
+   "checks": 29
+  },
+  "checkpoint-side-cache": {
+   "report": "checkpoint-side-cache-checks.json",
+   "sha256": "300e13f496eb9d82984aea9d7fab44405c6b4c902dbfe1fa063dcb18cdb04db4",
+   "checks": 24
+  },
+  "evicted-buffer-recreate": {
+   "report": "evicted-buffer-recreate-checks.json",
+   "sha256": "7695a4abe6441cfdbce63fffc626e64d4f4ad377b8522bc332c8171aa729e88c",
+   "checks": 28
+  },
+  "audio-start-deferred": {
+   "report": "audio-start-deferred-checks.json",
+   "sha256": "45a67f797c15cbb5aae80346407f32d189f73dfaf13d53d1f6cfee396da1294c",
+   "checks": 16
+  },
+  "pipeline-cache-room": {
+   "report": "pipeline-cache-room-checks.json",
+   "sha256": "aa4673c4fb240abd48290b4a908ed824dd7aa4bf604d4b91bf597ae0a8220aa8",
+   "checks": 23
+  },
+  "pipeline-cache-persist": {
+   "report": "pipeline-cache-persist-checks.json",
+   "sha256": "a684182d84e6ced858bf875c0b307a32c25722a53b22f38d8b4133e564662c7c",
+   "checks": 30
+  },
+  "pipeline-build-journal": {
+   "report": "pipeline-build-journal-checks.json",
+   "sha256": "af51f64d5cfba5f1a3ff7d64486c9ffe1b91ced3978d6eecd994085d52c3b7a6",
+   "checks": 30
+  },
+  "pipeline-cache-growth": {
+   "report": "pipeline-cache-growth-checks.json",
+   "sha256": "faf8137349d37bfecad2cc99457723de79f016e7a2867ff686ddcb737ed8e345",
+   "checks": 37
+  },
+  "occupied-readback-buffers": {
+   "report": "occupied-readback-buffers-checks.json",
+   "sha256": "49a9bc8c6adfe7532d7ce9bcc9681b7d1e3aa55bf363a365394bcc9e62b4ca5e",
+   "checks": 44
+  },
+  "async-regenerated-targets": {
+   "report": "async-regenerated-targets-checks.json",
+   "sha256": "78b7ade390c7cb12e8e1a5bb56d40d2f126d37c5a7a6cf4f633b23fdcd90c45d",
+   "checks": 37
+  },
+  "released-texture-flush": {
+   "report": "released-texture-flush-checks.json",
+   "sha256": "ec3f420e8ca69aa97317021e1358e68ea483f6e2572e9ef8e20cc2ed459e3ba9",
+   "checks": 26
+  },
+  "pipeline-failure-identity": {
+   "report": "pipeline-failure-identity-checks.json",
+   "sha256": "d3bbb5347ac9a6f57cb3a6b70ea2a55734fb446326a9889f5537722cf7b2dc07",
+   "checks": 16
+  },
+  "worker-main-cache-lookup": {
+   "report": "worker-main-cache-lookup-checks.json",
+   "sha256": "f4e1ed962b828be6d806d24e56d2150480bb23dceee7b147a7db133d4171fd1b",
+   "checks": 19
+  },
+  "compute-switch-bindings": {
+   "report": "compute-switch-bindings-checks.json",
+   "sha256": "45e41b689884a93e597e9890266294e987c89b9e99e61a8c3e00dc3386358c47",
+   "checks": 25
+  },
+  "bgc-keepalive": {
+   "report": "bgc-keepalive-checks.json",
+   "sha256": "64fd1ef7adf25633bcd3fc2e497dd9ac2b30cfe09637529411f7336acf8a21c1",
+   "checks": 25
+  },
+  "pipeline-cache-background": {
+   "report": "pipeline-cache-background-checks.json",
+   "sha256": "b0e6076923cf96ed6d171d0fda27c458039d011e71ba3c7b90313d649d74c162",
+   "checks": 33
+  },
+  "sync-wait-attribution": {
+   "report": "sync-wait-attribution-checks.json",
+   "sha256": "8afa3573f8556083140c153ad2f210a2174bcaa118f0957683329ac3a020fdae",
+   "checks": 57
+  },
+  "synced-buffer-reads": {
+   "report": "synced-buffer-reads-checks.json",
+   "sha256": "c69029d41cf5428da905d680df9d16c3f9c6166f30ef49ed623a87c0ba0d7a4e",
+   "checks": 59
+  },
+  "layout-used-types": {
+   "report": "layout-used-types-checks.json",
+   "sha256": "2e0ce5ffb96264eef124a6fabf63dbb148d5257e6f25c8242f3006157ba3ae26",
+   "checks": 590
+  },
+  "same-program-descriptors": {
+   "report": "same-program-descriptors-checks.json",
+   "sha256": "6882abae2a1e6badb4ffed2cd3c0585695162d102f31a3b6bc39f4055ad13a91",
+   "checks": 79
+  },
+  "retention-chain": {
+   "report": "retention-chain-checks.json",
+   "sha256": "9cbe91a377020a7c941583db8849dd2c3671cc578fa9f7dcb78ce993b125cbdb",
+   "checks": 45
+  },
+  "texture-pool-allocations": {
+   "report": "texture-pool-allocations-checks.json",
+   "sha256": "437fd5c45951e2f3e3152c4fa6b7d3d41ab13a40a5e07cc0a5f42bf3227b4f9a",
+   "checks": 95
+  },
+  "pipeline-variant-replay": {
+   "report": "pipeline-variant-replay-checks.json",
+   "sha256": "5a0ef5b0dd910ed201d278c1c49136e31908f51022b75b10a387ac394d6892eb",
+   "checks": 107
+  },
+  "pipeline-snapshot-retire": {
+   "report": "pipeline-snapshot-retire-checks.json",
+   "sha256": "b021e173085594d48e0d36334b4199fbffa01c3c4dfb20143f203f48dcdd869e",
+   "checks": 105
+  },
+  "extra-set-binds": {
+   "report": "extra-set-binds-checks.json",
+   "sha256": "4472145b5de83da323d03fc5ce98c2a737adffc3f95d13a236eacf41945f0546",
+   "checks": 153
+  },
+  "array-reference-deltas": {
+   "report": "array-reference-deltas-checks.json",
+   "sha256": "f69bbe350c8d4cae3ba7e5968742546363e2ed37424af87e5bc595e64c4012f2",
+   "checks": 45
+  },
+  "worker-library-share": {
+   "report": "worker-library-share-checks.json",
+   "sha256": "025bcacf660919831344192ab1f5d8a1f8ed43b497808362e18f6a613b820fe2",
+   "checks": 62
+  },
+  "bgc-fragmentation-guard": {
+   "report": "bgc-fragmentation-guard-checks.json",
+   "sha256": "7e213daff0de090d3e4f4b324db5c9aa26069dfee942f6114cda1cb09e462cdc",
+   "checks": 20
+  },
+  "pipeline-cache-mapped-data": {
+   "report": "pipeline-cache-mapped-data-checks.json",
+   "sha256": "f3df11b2de0b16d44e2cc1be69ff7422ab94333febae77adbb0641f669fd9949",
+   "checks": 54
+  },
+  "gc-keepalive-dormant": {
+   "report": "gc-keepalive-dormant-checks.json",
+   "sha256": "8bce77453ca069c6424c38652b46da5d03b5cc132961b297407355db1bd32d32",
+   "checks": 50
+  },
+  "gc-pause-journal": {
+   "report": "gc-pause-journal-checks.json",
+   "sha256": "8f67d80875bb0797fcb73a725e559b70b352812cd2f362ee545c1621bc17fad9",
+   "checks": 33
+  },
+  "extra-array-dirty": {
+   "report": "extra-array-dirty-checks.json",
+   "sha256": "cf4b1b28b504d62d7885dd81acda2aceac69df75d1febc44f9c062cde4320c22",
+   "checks": 72
+  },
+  "array-barrier-epoch": {
+   "report": "array-barrier-epoch-checks.json",
+   "sha256": "791ee91d75358e6c006d7cb7daa1306304313f3dff4e40948b67c799fa80eecf",
+   "checks": 119
+  },
+  "variant-replay-all": {
+   "report": "variant-replay-all-checks.json",
+   "sha256": "9fb2020621a9f95d8a1efa2ac31df6d5217692742db3bb1bf941da27430f3a4e",
+   "checks": 40
+  },
+  "pause-checkpoint-growth": {
+   "report": "pause-checkpoint-growth-checks.json",
+   "sha256": "48833764498b4a30c261fb5a952b797604c74783a055f08cdc8945eade53f06a",
+   "checks": 16
+  },
+  "vulkan-memory-journal": {
+   "report": "vulkan-memory-journal-checks.json",
+   "sha256": "5cfa5b404acdb09c205ab8a10bc9e3f7a1be5d3cab9924a79c177b5b8c1a0c0e",
+   "checks": 26
+  },
+  "allocator-range-update": {
+   "report": "allocator-range-update-checks.json",
+   "sha256": "328fae2001327ff22bfe40d920433a3edca8b2a9ab8f8a788cf66f30689ac414",
+   "checks": null
+  },
+  "allocator-blocks": {
+   "report": "allocator-blocks-checks.json",
+   "sha256": "09e282367aa33814383ac0953fb0a5777afcae78675f30a84e67a6324cc52a0d",
+   "checks": null
+  },
+  "pipeline-cache-compact": {
+   "report": "pipeline-cache-compact-checks.json",
+   "sha256": "5d03041ab68781e94f82ef2f5199ef7f00f1876857661e24bc49a61e7976b3a7",
+   "checks": 51
+  },
+  "cold-buffer-trim": {
+   "report": "cold-buffer-trim-checks.json",
+   "sha256": "1c975eaeb404200a11fd30a86e995c81051d8aa0deed5a52f5a64d95ed89ee31",
+   "checks": 66
+  },
+  "host-thread-class": {
+   "report": "host-thread-class-checks.json",
+   "sha256": "ad598b86330c35bd0676cae3c010dde3ce508e0f82830ba6dfd05110829b596c",
+   "checks": 99
+  },
+  "diagnostics-snapshot-reuse": {
+   "report": "diagnostics-snapshot-reuse-checks.json",
+   "sha256": "a1ef0fd5d536335661de3939c118d850316641342c7663f0b00ce9c178183287",
+   "checks": 43
+  },
+  "kernel-timer-allocations": {
+   "report": "kernel-timer-allocations-checks.json",
+   "sha256": "61fe0231258a55afe2232b3100861dd7dfe2d485b16d4e63686fb5afb3a7eb3b",
+   "checks": 103769
+  }
+ },
+ "allGatesLocally": "91 gates: 90 in one local series on the final preparation (89 green; pipeline-checkpoint failed once in it, its fixture's removal of its temporary directory racing a write under three parallel gates, and passed five times run alone), then kernel-timer-allocations added as a rerun gate (the freeze requires it: its historical receipt declares KTimeManager.cs) and run alone",
+ "contract": {
+  "sha256": "8a223efc169ec6d86e87e523a1457412b63ba5b4a10c138b4f8d36fae67a29f2",
+  "preparationInputs": 206,
+  "preparedMembers": 211,
+  "freshAppleGates": 91,
+  "contractTestChecks": 483,
+  "previous": "b2a748e7\u2026, 5769e41d\u2026, 4e0ea3ea\u2026 (the same preparation and engine each time; three gates and their fixtures differ)"
+ },
+ "notInThisLot": "the collector itself still runs at the class of the thread that triggers it (a second patch of the rebuilt workstation GC was drafted and left out: the three changes above remove the known triggers at utility priority; to revisit with the next run's gcPause summary)",
+ "physicalDeviceTested": false,
+ "ipa": null,
+ "ciRuns": [
+  {
+   "run": 42999377576,
+   "workflow": "melonx-core.yml",
+   "head": "e747321a",
+   "result": "failed at the gate host-thread-class (the two gates before it passed, both production Ryujinx.HLE builds succeeded)",
+   "read": "on macOS the engine's own call answered false on a thread of the gate's host runtime: value false, classBefore 0, classAfter 0"
+  },
+  {
+   "run": 43008139574,
+   "workflow": "melonx-host-thread-class.yml",
+   "head": "18054d1b",
+   "result": "passed, 4 checks",
+   "read": "macOS 26.7.2, host runtime .NET 10.0.15: a system thread (pthread_create) goes from class 0x15 to 0x21, call answer 0, helper true; the host runtime's own threads and pool threads are in class 0 and the call answers 1 (EPERM), helper false, one record"
+  },
+  {
+   "run": 43008463899,
+   "workflow": "melonx-host-thread-class.yml",
+   "head": "8d323f7e",
+   "result": "passed, 11 checks",
+   "read": "the same fixture compiled with NativeAOT (runtime 10.0.14): system threads, the runtime's own threads (new Thread) and its pool threads all go from class 0x15 to 0x21, call answer 0, helper true, nothing recorded"
+  },
+  {
+   "run": 43009346249,
+   "workflow": "melonx-core.yml",
+   "head": "7298c4ba",
+   "result": "failed at the gate compute-switch-bindings (every gate before it passed; host-thread-class not reached)",
+   "read": "fastest of five rounds with tiered compilation: control 48.0 ms, candidate 139.8 ms, the same 350 000 backend calls"
+  },
+  {
+   "run": 43016327008,
+   "workflow": "melonx-core.yml",
+   "head": "f974efac",
+   "result": "failed at the gate pipeline-variant-replay (71st of 91 in the plan); compute-switch-bindings, before it, passed on macOS for the first time in its corrected form; host-thread-class (89th) was not reached",
+   "read": "launch2 [4, 0, 1, 2], launch3 [4, 0, 1, 2], launch4 [3, 0, 0, 2] where [4, 1, 1, 2], [4, 1, 1, 2], [3, 1, 0, 2] are expected"
+  }
+ ],
+ "review": "independent read-only review (rb-core-review) of the snapshot reuse and of the host thread class: no defect; two hypotheses left to the device (the composer's 2 ms spin now at the engine threads' priority; a priority inversion if a default-class thread holds the guest kernel's critical section while a raised thread waits)",
+ "systemClass": {
+  "cause": "the gate's fixture runs under CoreCLR, whose threads are outside the system's QoS classes (qos_class_self() reads 0), and pthread_set_qos_class_self_np then answers EPERM; the gate asserted on that thread what holds only for threads inside the classes",
+  "engineUnchanged": "the helper and the preparation are those of contract b2a748e7: the Core ships with NativeAOT, whose threads accept the class on macOS (run 43008463899); on the device the render and GPU threads raised by the same call since Core 609 run at priority 47 (IPA 725)",
+  "gate": "on macOS the gate now requires an answer that agrees with the class read back (granted with 0x21, or refused to a thread in class 0) and runs test/melonx_host_thread_class_system_test.py, which must pass: the adapter's real helper on a system thread and, compiled with NativeAOT, on the runtime's own threads, all in 0x21 after the call, no refusal recorded",
+  "localGate": "Linux: 99 checks (the system test is skipped off macOS); the macOS part ran in runs 43008139574 and 43008463899",
+  "device": "not run on an iPhone: a refusal there is written once in MeloNX-core.log (hostThreadClass refused) and the priorities are read in cpu="
+ },
+ "computeSwitchGate": {
+  "cause": "the gate compared the milliseconds of two separate processes. Run 42958274015 (one round each, Core 731): control 204.2 ms, candidate 121.5 ms. Run 43009346249 (fastest of five rounds, the 11 November version): control 48.0 ms, candidate 139.8 ms: the control reached optimized code within its rounds and the candidate stayed at the speed of first-tier code (or of a slower processor) for all five; the engine sources of the two sides are those of Core 731, where the candidate is the faster",
+  "engineUnchanged": "TextureManager.cs and TextureBindingsManager.cs are not touched by lot 12; preparation and engine are those of contract b2a748e7",
+  "gate": "both probes run without tiered compilation (every round executes the same optimized code); seven rounds of 50 000 compute/graphics pairs, each timed against a reference round run just before it by the same process (50 000 pairs of graphics commits with no compute between them: the path the adapter leaves as it is, in the same classes); the comparison is the median of round / reference (candidate below control), not milliseconds across processes; the fastest round is still reported",
+  "localRuns": [
+   {
+    "load": "none",
+    "control": 3.956,
+    "candidate": 2.655,
+    "controlMinMs": 52.6,
+    "candidateMinMs": 30.4
+   },
+   {
+    "load": "six busy loops",
+    "control": 3.959,
+    "candidate": 2.728,
+    "controlMinMs": 104.4,
+    "candidateMinMs": 30.6
+   }
+  ],
+  "note": "Linux, .NET 10.0.100; under load the milliseconds double and the ratios to the loop stay; not run on macOS yet",
+  "firstReference": "a fixed arithmetic loop was tried first as the reference (four runs: control 1.41 to 1.58, candidate 0.95 to 1.14) and replaced: engine code of the same kind follows the processor the same way as the timed rounds"
+ },
+ "variantReplayGate": {
+  "cause": "a race in the fixture, not the lot: four variants are noted under one program; their replay order is by the millisecond each was noted in (all in one: by id; otherwise as noted). On a host with one compile worker (fewer than 8 processors: the runner and this sandbox) and the order \"as noted\", the replay of the variant that must fail under memory pressure runs second and waits, on the only worker, for outcomes that worker has still to produce; it gives up after 3 s, memory then reads short for good and the variant that builds is held",
+  "reproduced": "locally with 3 ms between the four notes: the same three figures as the runner, exactly",
+  "engineUnchanged": "PipelineCacheManager.cs and BackgroundCompilationScheduler.cs are not touched by lot 12",
+  "gate": "one program per variant, offered one after the other: each replay is alone in flight and its outcome is classified with the memory reading meant for it, whatever the number of workers and the order; the expected figures are unchanged",
+  "stress": "with 3 ms after each of the 29 notes of the fixture the gate passes (107 checks); variant-replay-all, which shares the fixture, passes (40 checks)"
+ }
+}

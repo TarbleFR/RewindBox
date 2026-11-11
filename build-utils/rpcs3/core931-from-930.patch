@@ -1,0 +1,1302 @@
+diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
+index e7c1b4f..8f228e1 100644
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -16,9 +16,13 @@
+ #include "ios/IOSReservationLockPolicy.h"
+ #include "ios/IOSWriterLockPhases.h"
+ #include "ios/IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
++#include "ios/IOSWriterLockRecord931.h" // REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931
++#include "ios/IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
++#include "ios/IOSEventWait931.h"
+ #include "ios/RPCS3IOSPerformance.h"
+ // NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
+ #endif
++#include <cstring>
+ #include <deque>
+ #include <span>
+ 
+@@ -470,6 +474,9 @@ namespace vm
+ 					if (ppu) rpcs3::ios::writer_park::record_ppu_park(cpu.id == 0x01000000u, utils::get_tsc() - begin);
+ 				}
+ 			} ppu_park{cpu};
++			const bool ios_event_wait = rpcs3::ios::thermal::event_waits();
++			static const u64 ios_spin_ticks = utils::get_tsc_freq() * 67 * 100 / 1'000'000'000;
++			u64 ios_spin_until = 0;
+ #endif
+ 			for (u64 i = 0;; i++)
+ 			{
+@@ -488,8 +495,47 @@ namespace vm
+ 				if (i < 100)
+ 				{
+ #ifdef RPCS3_IOS
+-					// CELL579_SPIN_NS: busy_wait(200) is 67 ns at 3 GHz, 6.7 us before the first timed wait.
+-					utils::spin_ns(67);
++					// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): when hot, the 100 spins of 67 ns become one
++					// bound of the same clock time (6.7 us), spent waiting on the range-lock bits' line: the writer's
++					// release of its bit ends the wait. The loop tests the pause flags and the bits again after each turn.
++					if (ios_event_wait)
++					{
++						const u64 ios_now = utils::get_tsc();
++						if (!ios_spin_until)
++						{
++							ios_spin_until = ios_now + ios_spin_ticks;
++						}
++
++						if (ios_now < ios_spin_until)
++						{
++							// This thread shows cpu_flag::wait BEFORE it sleeps: the writer that holds the bit waits for
++							// that flag, so the two can never wait for each other.
++							if (cpu_flag::wait - cpu.state)
++							{
++								cpu.state += cpu_flag::wait;
++							}
++
++							// Tested on the value the wait compares: bits already clear means no sleep (the loop returns at its
++							// top), and a release after this load clears the monitor.
++							const void* ios_word = &get_range_lock_bits(true).raw();
++							const u64 ios_seen = rpcs3::ios::event_wait::load64(ios_word);
++							if (ios_seen)
++							{
++								rpcs3::ios::event_wait::once64(ios_word, ios_seen);
++							}
++							rpcs3::ios::thermal::count(rpcs3::ios::thermal::ppu_passive);
++							i = 0; // still within the bound
++						}
++						else
++						{
++							i = 99; // the timed waits follow, as after the 100th spin
++						}
++					}
++					else
++					{
++						// CELL579_SPIN_NS: busy_wait(200) is 67 ns at 3 GHz, 6.7 us before the first timed wait.
++						utils::spin_ns(67);
++					}
+ #else
+ 					busy_wait(200);
+ #endif
+@@ -720,6 +766,9 @@ namespace vm
+ 			rpcs3::ios::writer_park::waiter ios_park;
+ 			const bool ios_park_spin = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
+ 			static const u64 ios_park_budget = utils::get_tsc_freq() / (1'000'000'000 / rpcs3::ios::writer_park::spin_budget_ns);
++			// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): when hot, the same budgeted spin waits on the
++			// PPU thread's state line (the write that parks it ends the wait) instead of issuing yield hints.
++			const bool ios_event_wait = ios_park_spin && rpcs3::ios::thermal::event_waits();
+ #endif
+ 
+ 			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
+@@ -727,9 +776,29 @@ namespace vm
+ 				if (auto ptr = +*lock)
+ 				{
+ #ifdef RPCS3_IOS
+-					while (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); }))
++					static_assert(sizeof(ptr->state.raw()) == sizeof(u32) && sizeof(bs_t<cpu_flag>) == sizeof(u32));
++					while (!(ptr->state & cpu_flag::wait) && ios_park.spin(ios_park_spin, ios_park_budget, [] { return utils::get_tsc(); },
++						ios_event_wait ? 1 : rpcs3::ios::writer_park::clock_interval))
+ 					{
+-						rpcs3::ios::passive_gate::relax();
++						if (ios_event_wait)
++						{
++							// The condition is tested on the very value the wait compares (no lost wake: a PPU thread that
++							// parked between the loop's test and this load is seen here, and one that parks after it
++							// clears the monitor). XNU's event stream ends a WFE within about 1 us in any case.
++							const void* ios_word = &ptr->state.raw();
++							const u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);
++							bs_t<cpu_flag> ios_flags{};
++							std::memcpy(&ios_flags, &ios_seen, sizeof(ios_seen));
++							if (!(ios_flags & cpu_flag::wait))
++							{
++								rpcs3::ios::event_wait::once32(ios_word, ios_seen);
++							}
++							rpcs3::ios::thermal::count(rpcs3::ios::thermal::writer_park);
++						}
++						else
++						{
++							rpcs3::ios::passive_gate::relax();
++						}
+ 					}
+ #endif
+ 					for (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)
+@@ -743,9 +812,9 @@ namespace vm
+ 			{
+ 				const u64 phase_park_end = utils::get_tsc();
+ 				static const u64 slow_threshold = utils::get_tsc_freq() / 20000; // 50 us
+-				rpcs3::ios::writer_lock_phases::record(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,
+-					phase_park_end - phase_ranges_end, phase_flagged, slow_threshold);
+-				rpcs3::ios::writer_park::record_park(phase_park_end - phase_ranges_end, utils::get_tsc_freq(), ios_park.spent);
++				// REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931 (ios/IOSWriterLockRecord931.h): published after the release.
++				rpcs3::ios::writer_lock_record::defer(phase_bits_end - acquire_begin, phase_ranges_end - phase_bits_end,
++					phase_park_end - phase_ranges_end, phase_flagged, slow_threshold, utils::get_tsc_freq(), ios_park.spent);
+ 			}
+ #endif
+ 		}
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 8063bdd..2d87142 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -1,4 +1,5 @@
+ #include "stdafx.h"
++#include <cstring>
+ 
+ #include "Emu/System.h"
+ #include "RSXFIFO.h"
+@@ -12,6 +13,8 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "ios/IOSRsxSyncProfile.h"
++#include "ios/IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
++#include "ios/IOSEventWait931.h"
+ #include "ios/IOSTextureValidationProfile.h"
+ #include "ios/IOSRsxIdlePark.h"
+ #endif
+@@ -117,6 +120,28 @@ namespace rsx
+ #endif
+ 			else
+ 			{
++#ifdef RPCS3_IOS
++				// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): when hot, the time between two yields of an
++				// empty FIFO is spent waiting on the PUT register's line (the guest's next PUT ends it) instead of in
++				// back-to-back scheduler calls. The yield stays, so other threads get the core as before.
++				if (rpcs3::ios::thermal::event_waits())
++				{
++					// Only for a FIFO that is empty because PUT equals the internal GET, tested on the very value the
++					// wait compares (a PUT written after this load clears the monitor). Other empty states (a block
++					// waiting for the rest of its commands, a memory watch spinning in place) keep the yield alone.
++					// XNU's event stream ends a WFE within about 1 us, so a flush request posted by another thread is
++					// still seen at the next turn.
++					const void* ios_word = &m_ctrl->put.raw();
++					const u32 ios_seen = rpcs3::ios::event_wait::load32(ios_word);
++					be_t<u32> ios_put{};
++					std::memcpy(&ios_put, &ios_seen, sizeof(ios_seen));
++					if (static_cast<u32>(ios_put) == m_internal_get && !m_remaining_commands)
++					{
++						rpcs3::ios::event_wait::once32(ios_word, ios_seen);
++						rpcs3::ios::thermal::count(rpcs3::ios::thermal::rsx_idle);
++					}
++				}
++#endif
+ 				std::this_thread::yield();
+ 			}
+ 		}
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 718577e..25b29eb 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -164,6 +164,9 @@ struct cfg_root : cfg::node
+ 		// REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920 (ios/IOSWriterParkSpin917.h): diagnostics. Only Enabled lets the
+ 		// report alternate the park spin and the busy wait scale between its windows; Automatic and Disabled never do.
+ 		cfg::_enum<ios_experimental_mode> lever_comparison{ this, "Lever Comparison Between Report Windows", ios_experimental_mode::automatic };
++		// REWINDBOX_THERMAL_POLICY_931 (rpcs3/ios/IOSThermalPolicy931.h): Automatic waits with the ARM exclusive monitor in
++		// three short spins once the iPhone reports a serious thermal state; Enabled always; Disabled never.
++		cfg::_enum<ios_experimental_mode> event_waits_when_hot{ this, "Event Waits When Hot", ios_experimental_mode::automatic };
+ 		// CELL581_TEXTURE_PREHASH: Automatic follows Texture Validation Per FIFO Batch.
+ 		cfg::_enum<ios_experimental_mode> texture_prehash{ this, "Texture Pre-Validation", ios_experimental_mode::automatic };
+ 		// REWINDBOX_PUT_HORIZON_910: Automatic enables it for God of War III (needs Texture Validation Per FIFO Batch).
+diff --git a/rpcs3/ios/IOSBackgroundPause931.h b/rpcs3/ios/IOSBackgroundPause931.h
+new file mode 100644
+index 0000000..40b606f
+--- /dev/null
++++ b/rpcs3/ios/IOSBackgroundPause931.h
+@@ -0,0 +1,105 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_BACKGROUND_PAUSE_931: the emulation is paused while the application is in the background.
++//
++// Until Core 930 only the GPU stopped there (REWINDBOX_GPU_DEACTIVATION_GATE_928): the PPU, SPU and RSX threads kept
++// running, without any picture, as long as iOS let the process run. Build 725 (PID 52378) wrote its last session record
++// with app=background and the game still emulating at 8 frames per second, 2.8 GB in use: CPU heat and battery spent
++// on a game nobody sees. Now, after the background notification (once the gate has settled), the Core pauses the
++// emulation with its own rpcs3_ios_pause_emulation, which refuses unless the emulation is running; when the
++// application is active again (after the gate has reopened) it resumes it, only if it is the one that paused it. A pause
++// it did not make (a stopped, loading or already paused emulation) is never resumed by it. Guest time does not jump:
++// Emu.Resume adds the paused span to the pause amend time. The in-game menu still does not pause (a product decision
++// that stays the maintainer's).
++//
++// A game that was still booting when the application left (its first PPU compilation, say) was not running then, so
++// that pause was refused; it starts running in the background later. And the observers are installed with the first
++// Vulkan device, so a game started just before leaving can find the application already in the background. Both are
++// covered: the installation reads the application state once, and while the application is in the background and
++// the emulation runs, the report thread (one window every 5 s) asks for the pause again. Every pause is decided on the
++// main thread, where the notifications are posted, and only while the application is in the background there.
++//
++// Emu.Pause and Emu.Resume each wait once for the main thread (BlockingCallFromMainThread through the host's main
++// thread callback, which the host sets: RPCS3Dispatch) and run under g_api_mutex. The host calls every export that
++// takes that mutex from its own queues, never from the main thread, and the main thread never waits for those queues,
++// so the serial queue's wait for the main thread always ends.
++namespace rpcs3::ios::background_pause
++{
++// RPCS3IOSPlatform.mm: called from the notification blocks; the work runs on a serial queue of its own.
++void app_entered_background() noexcept;
++void app_became_active() noexcept;
++// Any thread: asks for the pause; the main thread decides, only while the application is in the background.
++void request_pause() noexcept;
++// Registers the two notifications above and the thermal state notification (REWINDBOX_THERMAL_POLICY_931). The pause
++// and the resume run after the posting has returned, so after the GPU gate's observers of the same notification.
++void install_observers() noexcept;
++
++class state
++{
++public:
++	static state& instance() noexcept
++	{
++		static state value;
++		return value;
++	}
++
++	// Background: pause if the emulation runs (the pause call itself refuses otherwise). True when paused here.
++	template <typename Pause>
++	bool pause_if_running(Pause&& pause) noexcept
++	{
++		if (m_ours.load(std::memory_order_relaxed))
++		{
++			return false;
++		}
++
++		if (!pause())
++		{
++			m_refused.fetch_add(1, std::memory_order_relaxed);
++			return false;
++		}
++
++		m_ours.store(true, std::memory_order_relaxed);
++		m_pauses.fetch_add(1, std::memory_order_relaxed);
++		return true;
++	}
++
++	// Active again: resume only a pause made here. True when resumed.
++	template <typename Resume>
++	bool resume_if_ours(Resume&& resume) noexcept
++	{
++		if (!m_ours.exchange(false, std::memory_order_relaxed))
++		{
++			return false;
++		}
++
++		if (!resume())
++		{
++			m_resume_refused.fetch_add(1, std::memory_order_relaxed);
++			return false;
++		}
++
++		m_resumes.fetch_add(1, std::memory_order_relaxed);
++		return true;
++	}
++
++	bool ours() const noexcept { return m_ours.load(std::memory_order_relaxed); }
++	// Set on the main thread (the observers and the installation), read by the report thread: only a hint for asking
++	// again, the pause itself is decided on the main thread.
++	void set_background(bool value) noexcept { m_background.store(value, std::memory_order_relaxed); }
++	bool background() const noexcept { return m_background.load(std::memory_order_relaxed); }
++	void count_late_request() noexcept { m_late_requests.fetch_add(1, std::memory_order_relaxed); }
++	std::uint64_t late_requests() const noexcept { return m_late_requests.load(std::memory_order_relaxed); }
++	std::uint64_t pauses() const noexcept { return m_pauses.load(std::memory_order_relaxed); }
++	std::uint64_t resumes() const noexcept { return m_resumes.load(std::memory_order_relaxed); }
++	std::uint64_t refused() const noexcept { return m_refused.load(std::memory_order_relaxed); }
++	std::uint64_t resume_refused() const noexcept { return m_resume_refused.load(std::memory_order_relaxed); }
++
++private:
++	std::atomic<bool> m_ours{false}, m_background{false};
++	std::atomic<std::uint64_t> m_pauses{0}, m_resumes{0}, m_refused{0}, m_resume_refused{0}, m_late_requests{0};
++};
++} // namespace rpcs3::ios::background_pause
+diff --git a/rpcs3/ios/IOSEnergy931.h b/rpcs3/ios/IOSEnergy931.h
+new file mode 100644
+index 0000000..c2a6dee
+--- /dev/null
++++ b/rpcs3/ios/IOSEnergy931.h
+@@ -0,0 +1,102 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cinttypes>
++#include <cstdint>
++#include <cstdio>
++#include <string>
++
++// REWINDBOX_ENERGY_931: what the system bills this process for, per 5 s report window, so that a thermal change is
++// judged on the iPhone by energy per frame and not by a host bench ("aucun gain iPhone inventé depuis un banc hôte").
++// Sources, read once per window by the report thread (RPCS3IOSPerformance.cpp, sample_energy):
++// - proc_pid_rusage(RUSAGE_INFO_V6) on the process itself: ri_energy_nj and ri_penergy_nj (energy the system
++//   attributes to its CPU work, all cores and the performance cores, in nanojoules), ri_user/system_time and their
++//   _ptime parts (Mach time units, converted with mach_timebase_info), cycles and instructions, interrupt and package
++//   idle wakeups, CPU time by QoS class;
++// - task_info TASK_POWER_INFO: timer wakeups whose deadline was at most 2 ms away (bin 1) and 2 to 5 ms (bin 2)
++//   (osfmk/kern/sched_prim.c, thread_unblock);
++// - task_info TASK_POWER_INFO_V2: the GPU utilisation counter and the switches between core clusters, printed raw.
++// COREPROF ENERGY931 prints differences between two consecutive windows of the same boot only; a source the system
++// refuses is printed as unavailable, never as 0.
++namespace energy931
++{
++struct sample
++{
++	bool rusage_valid = false, power_valid = false, power_v2_valid = false;
++	std::uint32_t timebase_numer = 1, timebase_denom = 1;
++	std::uint64_t energy_nj = 0, p_energy_nj = 0;
++	std::uint64_t user_ticks = 0, system_ticks = 0, p_user_ticks = 0, p_system_ticks = 0;
++	std::uint64_t cycles = 0, instructions = 0, p_cycles = 0;
++	std::uint64_t interrupt_wakeups = 0, idle_wakeups = 0;
++	std::uint64_t qos_user_interactive_ticks = 0, qos_user_initiated_ticks = 0, qos_default_ticks = 0, qos_utility_ticks = 0;
++	std::uint64_t timer_wakeups_2ms = 0, timer_wakeups_5ms = 0;
++	std::uint64_t gpu_time = 0, pset_switches = 0;
++
++	bool any_valid() const noexcept
++	{
++		return rusage_valid || power_valid || power_v2_valid;
++	}
++};
++
++constexpr std::uint64_t delta(std::uint64_t now, std::uint64_t before) noexcept
++{
++	return now >= before ? now - before : 0;
++}
++
++inline double ticks_to_ms(std::uint64_t ticks, std::uint32_t numer, std::uint32_t denom) noexcept
++{
++	return denom ? static_cast<double>(ticks) * static_cast<double>(numer) / static_cast<double>(denom) / 1e6 : 0.0;
++}
++
++inline std::string format_line(std::uint64_t session, std::uint64_t window, bool comparable, const sample& before, const sample& now,
++	std::uint64_t frames)
++{
++	char text[1024];
++	const char* status = comparable ? "available" : now.any_valid() ? "first_window" : "unavailable";
++	const bool rusage = comparable && before.rusage_valid && now.rusage_valid;
++	const bool power = comparable && before.power_valid && now.power_valid;
++	const bool power2 = comparable && before.power_v2_valid && now.power_v2_valid;
++
++	std::string rusage_part = "rusage=unavailable";
++	if (rusage)
++	{
++		const double mj = static_cast<double>(delta(now.energy_nj, before.energy_nj)) / 1e6;
++		const double p_mj = static_cast<double>(delta(now.p_energy_nj, before.p_energy_nj)) / 1e6;
++		const auto ms = [&](std::uint64_t a, std::uint64_t b) { return ticks_to_ms(delta(a, b), now.timebase_numer, now.timebase_denom); };
++		const double cpu_ms = ms(now.user_ticks + now.system_ticks, before.user_ticks + before.system_ticks);
++		const double p_cpu_ms = ms(now.p_user_ticks + now.p_system_ticks, before.p_user_ticks + before.p_system_ticks);
++		const std::uint64_t cycles = delta(now.cycles, before.cycles), instructions = delta(now.instructions, before.instructions);
++		char part[640];
++		std::snprintf(part, sizeof(part),
++			"cpu_energy_mj=%.1f p_energy_mj=%.1f mj_per_frame=%.3f cpu_ms=%.1f p_cpu_ms=%.1f p_share=%.3f mcycles=%.1f p_mcycles=%.1f "
++			"minstructions=%.1f ipc=%.3f interrupt_wakeups=%" PRIu64 " idle_wakeups=%" PRIu64 " qos_ms=%.1f:%.1f:%.1f:%.1f",
++			mj, p_mj, frames ? mj / static_cast<double>(frames) : 0.0, cpu_ms, p_cpu_ms, cpu_ms > 0.0 ? p_cpu_ms / cpu_ms : 0.0,
++			static_cast<double>(cycles) / 1e6, static_cast<double>(delta(now.p_cycles, before.p_cycles)) / 1e6,
++			static_cast<double>(instructions) / 1e6, cycles ? static_cast<double>(instructions) / static_cast<double>(cycles) : 0.0,
++			delta(now.interrupt_wakeups, before.interrupt_wakeups), delta(now.idle_wakeups, before.idle_wakeups),
++			ms(now.qos_user_interactive_ticks, before.qos_user_interactive_ticks), ms(now.qos_user_initiated_ticks, before.qos_user_initiated_ticks),
++			ms(now.qos_default_ticks, before.qos_default_ticks), ms(now.qos_utility_ticks, before.qos_utility_ticks));
++		rusage_part = part;
++	}
++
++	char power_part[160] = "timer_wakeups=unavailable";
++	if (power)
++	{
++		std::snprintf(power_part, sizeof(power_part), "timer_wakeups_2ms=%" PRIu64 " timer_wakeups_5ms=%" PRIu64,
++			delta(now.timer_wakeups_2ms, before.timer_wakeups_2ms), delta(now.timer_wakeups_5ms, before.timer_wakeups_5ms));
++	}
++
++	char power2_part[160] = "gpu_utilisation_delta=unavailable";
++	if (power2)
++	{
++		std::snprintf(power2_part, sizeof(power2_part), "gpu_utilisation_delta=%" PRIu64 " pset_switches=%" PRIu64,
++			delta(now.gpu_time, before.gpu_time), delta(now.pset_switches, before.pset_switches));
++	}
++
++	std::snprintf(text, sizeof(text),
++		"COREPROF ENERGY931 session=%" PRIu64 " window=%" PRIu64 " energy=%s frames=%" PRIu64 " %s %s %s "
++		"units=energy_nj_billed_by_system,times_mach_timebase,gpu_raw scope=process_window",
++		session, window, status, frames, rusage_part.c_str(), power_part, power2_part);
++	return text;
++}
++} // namespace energy931
+diff --git a/rpcs3/ios/IOSEventWait931.h b/rpcs3/ios/IOSEventWait931.h
+new file mode 100644
+index 0000000..dfb08bb
+--- /dev/null
++++ b/rpcs3/ios/IOSEventWait931.h
+@@ -0,0 +1,67 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_THERMAL_POLICY_931 (IOSThermalPolicy931.h): one exclusive-monitor wait. LDAXR arms the monitor on the
++// watched word's line; if the word still holds `seen`, WFE halts the core (clock-gated) until a write by another
++// core to that line clears the monitor, an interrupt arrives, or the event stream XNU enables as the WFE timeout
++// fires; CLREX then drops the monitor. A word that changed since `seen` was read returns at once. The caller keeps its
++// loop: it tests its condition again after every call, so a spurious wake (another field of the same line written)
++// costs one more turn. Apple's libplatform spin locks wait the same way (src/os/lock.c, OS_LOCK_SPIN_PAUSE). Other
++// architectures (host builds) keep the CPU's pause hint.
++namespace rpcs3::ios::event_wait
++{
++inline std::uint32_t load32(const void* word) noexcept
++{
++	return __atomic_load_n(static_cast<const std::uint32_t*>(word), __ATOMIC_ACQUIRE);
++}
++
++inline std::uint64_t load64(const void* word) noexcept
++{
++	return __atomic_load_n(static_cast<const std::uint64_t*>(word), __ATOMIC_ACQUIRE);
++}
++
++inline void hint() noexcept
++{
++#if defined(__aarch64__)
++	__asm__ volatile("yield" ::: "memory");
++#elif defined(__x86_64__) || defined(__i386__)
++	__builtin_ia32_pause();
++#endif
++}
++
++inline void once32(const void* word, std::uint32_t seen) noexcept
++{
++#if defined(__aarch64__)
++	std::uint32_t value;
++	__asm__ volatile("ldaxr %w0, [%1]" : "=&r"(value) : "r"(word) : "memory");
++	if (value == seen)
++	{
++		__asm__ volatile("wfe" ::: "memory");
++	}
++	__asm__ volatile("clrex" ::: "memory");
++#else
++	(void)word;
++	(void)seen;
++	hint();
++#endif
++}
++
++inline void once64(const void* word, std::uint64_t seen) noexcept
++{
++#if defined(__aarch64__)
++	std::uint64_t value;
++	__asm__ volatile("ldaxr %x0, [%1]" : "=&r"(value) : "r"(word) : "memory");
++	if (value == seen)
++	{
++		__asm__ volatile("wfe" ::: "memory");
++	}
++	__asm__ volatile("clrex" ::: "memory");
++#else
++	(void)word;
++	(void)seen;
++	hint();
++#endif
++}
++} // namespace rpcs3::ios::event_wait
+diff --git a/rpcs3/ios/IOSShardedCounter931.h b/rpcs3/ios/IOSShardedCounter931.h
+new file mode 100644
+index 0000000..829c13e
+--- /dev/null
++++ b/rpcs3/ios/IOSShardedCounter931.h
+@@ -0,0 +1,114 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++
++// REWINDBOX_HOT_COUNTERS_931: counters written on the hottest paths of the Core (about 265 000 heavy SPU PUTLLC
++// writer locks and 340 000 PPU parks per second in Black Ops II, IPA 725) were single process-wide atomics: every
++// event was several read-modify-writes on cache lines that the writing threads took from each other, and the writer
++// lock's ones ran while every PPU thread was parked. Each thread now adds to its own shard (one 128-byte line, the
++// cache line of the A-series cores); a report sums and clears the shards. The sums a report prints are the same:
++// an add that lands while a report clears a shard is counted in the next window, as with one atomic.
++namespace rpcs3::ios::sharded
++{
++inline constexpr std::size_t shards = 32; // threads that share a shard still count exactly (atomic adds)
++
++inline std::size_t shard_index() noexcept
++{
++	static std::atomic<std::uint32_t> next{0};
++	thread_local std::size_t index = shards; // constant-initialized: no guard on the hot path
++	if (index == shards) [[unlikely]]
++	{
++		index = next.fetch_add(1, std::memory_order_relaxed) % shards;
++	}
++	return index;
++}
++
++// N counters that are written together by one event share one line per shard.
++template <std::size_t N>
++struct alignas(128) line
++{
++	std::atomic<std::uint64_t> value[N]{};
++};
++
++template <std::size_t N>
++struct block
++{
++	line<N> per_shard[shards]{};
++
++	void add(std::size_t field, std::uint64_t amount) noexcept
++	{
++		per_shard[shard_index()].value[field].fetch_add(amount, std::memory_order_relaxed);
++	}
++
++	void add_at(std::size_t shard, std::size_t field, std::uint64_t amount) noexcept
++	{
++		per_shard[shard].value[field].fetch_add(amount, std::memory_order_relaxed);
++	}
++
++	// Largest value seen (a maximum field): compare-and-swap on the writer's own shard only.
++	void raise_at(std::size_t shard, std::size_t field, std::uint64_t candidate) noexcept
++	{
++		std::atomic<std::uint64_t>& slot = per_shard[shard].value[field];
++		std::uint64_t seen = slot.load(std::memory_order_relaxed);
++		while (candidate > seen && !slot.compare_exchange_weak(seen, candidate, std::memory_order_relaxed))
++		{
++		}
++	}
++
++	std::uint64_t take_sum(std::size_t field) noexcept
++	{
++		std::uint64_t sum = 0;
++		for (auto& shard : per_shard)
++		{
++			sum += shard.value[field].exchange(0, std::memory_order_relaxed);
++		}
++		return sum;
++	}
++
++	std::uint64_t take_max(std::size_t field) noexcept
++	{
++		std::uint64_t maximum = 0;
++		for (auto& shard : per_shard)
++		{
++			maximum = std::max(maximum, shard.value[field].exchange(0, std::memory_order_relaxed));
++		}
++		return maximum;
++	}
++
++	// The current value without clearing it, as reading one of the former atomics did.
++	std::uint64_t read(std::size_t field, bool maximum) const noexcept
++	{
++		std::uint64_t value = 0;
++		for (const auto& shard : per_shard)
++		{
++			const std::uint64_t part = shard.value[field].load(std::memory_order_relaxed);
++			value = maximum ? std::max(value, part) : value + part;
++		}
++		return value;
++	}
++};
++
++// A view of one field, so a report keeps calling take(counters.<name>) as it did on the single atomics.
++template <std::size_t N, bool Maximum = false>
++struct field
++{
++	block<N>* owner;
++	std::size_t index;
++
++	// Reading a field reads it, as reading the atomic did (`counters.ppu_parks == 2`); only take() clears it.
++	operator std::uint64_t() const noexcept
++	{
++		return owner->read(index, Maximum);
++	}
++};
++
++template <std::size_t N, bool Maximum>
++inline std::uint64_t take(field<N, Maximum> view) noexcept
++{
++	return Maximum ? view.owner->take_max(view.index) : view.owner->take_sum(view.index);
++}
++} // namespace rpcs3::ios::sharded
+diff --git a/rpcs3/ios/IOSThermalPolicy931.h b/rpcs3/ios/IOSThermalPolicy931.h
+new file mode 100644
+index 0000000..1af8465
+--- /dev/null
++++ b/rpcs3/ios/IOSThermalPolicy931.h
+@@ -0,0 +1,76 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++
++#include "IOSShardedCounter931.h"
++#include "IOSWriterParkSpin917.h" // compare::event_waits_forced, set by the report thread inside a comparison step
++
++// REWINDBOX_THERMAL_POLICY_931: the Core follows the iPhone's thermal state (ProcessInfo.thermalState, posted by
++// the system: 0 nominal, 1 fair, 2 serious, 3 critical) and, once the device is hot, changes HOW some short waits
++// wait, never WHAT they wait for. Black Ops II (IPA 725) reaches state 2 after about 35 s of play and stays there;
++// its frame rate falls from about 45 to about 30 while the work per frame stays the same.
++//
++// "Event waits when hot" (Automatic: from state 2): three waits that spin on a core for a few microseconds (the
++// writer's park spin of REWINDBOX_WRITER_PARK_SPIN_917, the PPU passive-lock spin before its timed wait, the RSX FIFO
++// idle wait before its park) wait instead with the ARM exclusive monitor (LDAXR then WFE): the core is clock-gated
++// until another core writes the watched line (the very write the wait is for) or the system's event stream ends the
++// WFE, which XNU enables as the WFE timeout (osfmk/arm64/machine_routines.c, _enable_timebase_event_stream). Each wait
++// keeps its condition, its time bound and its fallback. Below state 2, and with the setting Disabled, every wait is
++// exactly the previous one. With Lever Comparison Between Report Windows Enabled, the setting Automatic alternates by
++// window with the two levers of Cores 917 and 918 (IOSWriterParkSpin917.h, compare::event_waits_at).
++namespace rpcs3::ios::thermal
++{
++inline std::atomic<int> state{-1};                // thermalState, -1 until the platform has read it
++inline std::atomic<std::uint8_t> setting{0};      // 0 Automatic, 1 Enabled, 2 Disabled (boot policy)
++inline std::atomic<std::uint64_t> state_changes{0};
++inline constexpr int automatic_from = 2;          // serious
++
++constexpr bool decide(std::uint8_t mode, int thermal_state, int forced) noexcept
++{
++	if (forced >= 0)
++	{
++		return forced != 0;
++	}
++
++	return mode == 1 ? true : mode == 2 ? false : thermal_state >= automatic_from;
++}
++
++inline bool event_waits() noexcept
++{
++	return decide(setting.load(std::memory_order_relaxed), state.load(std::memory_order_relaxed),
++		writer_park::compare::event_waits_forced.load(std::memory_order_relaxed));
++}
++
++// Platform observer (RPCS3IOSPlatform.mm): the state the system posted.
++inline void set_state(int thermal_state) noexcept
++{
++	if (state.exchange(thermal_state, std::memory_order_relaxed) != thermal_state)
++	{
++		state_changes.fetch_add(1, std::memory_order_relaxed);
++	}
++}
++
++// Waits that took the event path, by site, for COREPROF THERMAL931 (per thread shards: no shared line on hot paths).
++enum site : std::size_t { writer_park, ppu_passive, rsx_idle, site_count };
++inline sharded::block<site_count> event_wait_counts{};
++
++inline void count(site where) noexcept
++{
++	event_wait_counts.add(where, 1);
++}
++
++inline const char* state_name(int thermal_state) noexcept
++{
++	switch (thermal_state)
++	{
++	case 0: return "nominal";
++	case 1: return "fair";
++	case 2: return "serious";
++	case 3: return "critical";
++	default: return "unknown";
++	}
++}
++} // namespace rpcs3::ios::thermal
+diff --git a/rpcs3/ios/IOSWriterLockPhases.h b/rpcs3/ios/IOSWriterLockPhases.h
+index 9206aec..f9df30e 100644
+--- a/rpcs3/ios/IOSWriterLockPhases.h
++++ b/rpcs3/ios/IOSWriterLockPhases.h
+@@ -2,8 +2,11 @@
+ #pragma once
+ 
+ #include <atomic>
++#include <cstddef>
+ #include <cstdint>
+ 
++#include "IOSShardedCounter931.h"
++
+ // REWINDBOX_WRITER_LOCK_PHASES_908: Black Ops II (BLES01717), IPA 694 device log, RANGELOCKPROF
+ // wl_putllc=38814:229.833:0.956 (count:acquire_ms:hold_ms): an SPU PUTLLC that takes the heavyweight writer
+ // lock waits about 5.9 us to acquire it and holds it 0.025 us. The acquisition has three phases (vm.cpp,
+@@ -14,30 +17,35 @@
+ // wl_putllc_park_max_us. Measurement only: the lock protocol is unchanged.
+ namespace rpcs3::ios::writer_lock_phases
+ {
++// REWINDBOX_HOT_COUNTERS_931 (IOSShardedCounter931.h): one line per thread instead of six shared atomics.
++enum field_index : std::size_t { bits_field, ranges_field, park_field, flagged_field, slow_field, park_max_field, field_count };
++
+ struct counters_t
+ {
+-	std::atomic<std::uint64_t> bits_ticks{0}, ranges_ticks{0}, park_ticks{0};
+-	std::atomic<std::uint64_t> flagged{0}, slow_parks{0}, park_max_ticks{0};
++	sharded::block<field_count> data{};
++	sharded::field<field_count> bits_ticks{&data, bits_field}, ranges_ticks{&data, ranges_field}, park_ticks{&data, park_field};
++	sharded::field<field_count> flagged{&data, flagged_field}, slow_parks{&data, slow_field};
++	sharded::field<field_count, true> park_max_ticks{&data, park_max_field};
+ };
+ 
+ inline counters_t counters;
+ 
+ inline void record(std::uint64_t bits, std::uint64_t ranges, std::uint64_t park, std::uint64_t flagged, std::uint64_t slow_threshold) noexcept
+ {
+-	counters.bits_ticks.fetch_add(bits, std::memory_order_relaxed);
+-	counters.ranges_ticks.fetch_add(ranges, std::memory_order_relaxed);
+-	counters.park_ticks.fetch_add(park, std::memory_order_relaxed);
+-	counters.flagged.fetch_add(flagged, std::memory_order_relaxed);
++	const std::size_t shard = sharded::shard_index();
++	counters.data.add_at(shard, bits_field, bits);
++	counters.data.add_at(shard, ranges_field, ranges);
++	counters.data.add_at(shard, park_field, park);
++	counters.data.add_at(shard, flagged_field, flagged);
+ 	if (park > slow_threshold)
+ 	{
+-		counters.slow_parks.fetch_add(1, std::memory_order_relaxed);
+-	}
+-	std::uint64_t seen = counters.park_max_ticks.load(std::memory_order_relaxed);
+-	while (park > seen && !counters.park_max_ticks.compare_exchange_weak(seen, park, std::memory_order_relaxed))
+-	{
++		counters.data.add_at(shard, slow_field, 1);
+ 	}
++	counters.data.raise_at(shard, park_max_field, park);
+ }
+ 
++using sharded::take;
++
+ inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
+ {
+ 	return counter.exchange(0, std::memory_order_relaxed);
+diff --git a/rpcs3/ios/IOSWriterLockRecord931.h b/rpcs3/ios/IOSWriterLockRecord931.h
+new file mode 100644
+index 0000000..320abba
+--- /dev/null
++++ b/rpcs3/ios/IOSWriterLockRecord931.h
+@@ -0,0 +1,56 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++#include "IOSWriterLockPhases.h"
++#include "IOSWriterParkSpin917.h"
++
++// REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931: vm::writer_lock's constructor recorded the phases of an SPU PUTLLC lock
++// (REWINDBOX_WRITER_LOCK_PHASES_908, REWINDBOX_WRITER_PARK_SPIN_917) after its park loop, so while every PPU thread
++// was still parked behind the lock; CELL536 already publishes the lock's own counters after the release for that
++// reason ("Profiling must not keep guest PPU threads parked"). The constructor now keeps the measured phases in a
++// thread-local slot, and rpcs3::ios::record_writer_lock, which the destructor calls after releasing the lock on the
++// same thread, publishes them. Same values, same counters, same report; only the moment of the adds moves.
++namespace rpcs3::ios::writer_lock_record
++{
++struct pending_t
++{
++	std::uint64_t bits = 0, ranges = 0, park = 0, flagged = 0, slow_threshold = 0, ticks_per_second = 0;
++	bool budget_spent = false;
++	bool valid = false;
++};
++
++inline thread_local pending_t pending{};
++
++// Constructor of an SPU PUTLLC writer lock, after its park loop: keep the measured phases.
++inline void defer(std::uint64_t bits, std::uint64_t ranges, std::uint64_t park, std::uint64_t flagged, std::uint64_t slow_threshold,
++	std::uint64_t ticks_per_second, bool budget_spent) noexcept
++{
++	pending_t& slot = pending;
++	slot.bits = bits;
++	slot.ranges = ranges;
++	slot.park = park;
++	slot.flagged = flagged;
++	slot.slow_threshold = slow_threshold;
++	slot.ticks_per_second = ticks_per_second;
++	slot.budget_spent = budget_spent;
++	slot.valid = true;
++}
++
++// After the release, on the thread that held the lock: publish what the constructor kept, if anything.
++inline bool flush() noexcept
++{
++	pending_t& slot = pending;
++
++	if (!slot.valid)
++	{
++		return false;
++	}
++
++	slot.valid = false;
++	writer_lock_phases::record(slot.bits, slot.ranges, slot.park, slot.flagged, slot.slow_threshold);
++	writer_park::record_park(slot.park, slot.ticks_per_second, slot.budget_spent);
++	return true;
++}
++} // namespace rpcs3::ios::writer_lock_record
+diff --git a/rpcs3/ios/IOSWriterParkSpin917.h b/rpcs3/ios/IOSWriterParkSpin917.h
+index eac63d0..c440d2c 100644
+--- a/rpcs3/ios/IOSWriterParkSpin917.h
++++ b/rpcs3/ios/IOSWriterParkSpin917.h
+@@ -1,8 +1,13 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #pragma once
+ 
++#include <array>
+ #include <atomic>
++#include <cstddef>
+ #include <cstdint>
++#include <utility>
++
++#include "IOSShardedCounter931.h"
+ 
+ // REWINDBOX_WRITER_PARK_SPIN_917: how a writer waits for the PPU threads to park, and what the park costs.
+ //
+@@ -41,8 +46,10 @@ struct waiter
+ 	// One wait iteration. True: spin (the caller gives the CPU its hint and tests its condition again). False: the
+ 	// lever is off or the budget is over; the caller waits as before. `now()` is a monotonic clock in the unit of
+ 	// `budget`; it is not read by a wait that never happens.
++	// `interval`: REWINDBOX_THERMAL_POLICY_931 passes 1 when each iteration is an exclusive-monitor wait, whose length
++	// is not a few nanoseconds, so the budget is kept to the same clock time.
+ 	template <typename Clock>
+-	bool spin(bool enabled, std::uint64_t budget, Clock&& now) noexcept
++	bool spin(bool enabled, std::uint64_t budget, Clock&& now, std::uint64_t interval = clock_interval) noexcept
+ 	{
+ 		if (!enabled || spent)
+ 		{
+@@ -53,7 +60,7 @@ struct waiter
+ 		{
+ 			begin = now();
+ 		}
+-		else if ((steps % clock_interval) == 0 && now() - begin >= budget)
++		else if ((steps % interval) == 0 && now() - begin >= budget)
+ 		{
+ 			spent = true;
+ 			return false;
+@@ -81,13 +88,27 @@ constexpr std::size_t bucket_of(std::uint64_t park_ns) noexcept
+ 	return index;
+ }
+ 
++// REWINDBOX_HOT_COUNTERS_931 (IOSShardedCounter931.h): the writer's fields and the PPU threads' fields each keep one
++// line per thread instead of shared atomics (27 PPU threads leave a park together at the end of each writer lock).
++enum writer_field : std::size_t { slow_field = buckets, over_budget_field, writer_field_count };
++enum ppu_field : std::size_t { ppu_parks_field, ppu_park_ticks_field, main_parks_field, main_park_ticks_field, ppu_field_count };
++
++template <std::size_t... I>
++constexpr std::array<sharded::field<writer_field_count>, buckets> histogram_fields(sharded::block<writer_field_count>* owner, std::index_sequence<I...>) noexcept
++{
++	return {sharded::field<writer_field_count>{owner, I}...};
++}
++
+ struct counters_t
+ {
+-	std::atomic<std::uint64_t> histogram[buckets]{};
+-	std::atomic<std::uint64_t> slow_ticks{0};  // the time of the parks of the last bucket (50 us and more)
+-	std::atomic<std::uint64_t> over_budget{0}; // locks whose wait outlasted the spin budget (lever on)
++	sharded::block<writer_field_count> writer{};
++	sharded::block<ppu_field_count> ppu{};
++	std::array<sharded::field<writer_field_count>, buckets> histogram = histogram_fields(&writer, std::make_index_sequence<buckets>{});
++	sharded::field<writer_field_count> slow_ticks{&writer, slow_field};   // the time of the parks of the last bucket (50 us and more)
++	sharded::field<writer_field_count> over_budget{&writer, over_budget_field}; // locks whose wait outlasted the spin budget (lever on)
+ 	// A PPU thread inside vm::passive_lock's wait (spin and timed waits): every PPU thread, and the first one.
+-	std::atomic<std::uint64_t> ppu_parks{0}, ppu_park_ticks{0}, main_parks{0}, main_park_ticks{0};
++	sharded::field<ppu_field_count> ppu_parks{&ppu, ppu_parks_field}, ppu_park_ticks{&ppu, ppu_park_ticks_field};
++	sharded::field<ppu_field_count> main_parks{&ppu, main_parks_field}, main_park_ticks{&ppu, main_park_ticks_field};
+ };
+ 
+ inline counters_t counters;
+@@ -97,28 +118,30 @@ inline void record_park(std::uint64_t park_ticks, std::uint64_t ticks_per_second
+ 	const std::uint64_t park_ns = ticks_per_second == 1'000'000'000 ? park_ticks :
+ 		ticks_per_second ? static_cast<std::uint64_t>(static_cast<double>(park_ticks) * 1e9 / static_cast<double>(ticks_per_second)) : 0;
+ 	const std::size_t bucket = bucket_of(park_ns);
+-	counters.histogram[bucket].fetch_add(1, std::memory_order_relaxed);
++	const std::size_t shard = sharded::shard_index();
++	counters.writer.add_at(shard, bucket, 1);
+ 
+ 	if (bucket == buckets - 1)
+ 	{
+-		counters.slow_ticks.fetch_add(park_ticks, std::memory_order_relaxed);
++		counters.writer.add_at(shard, slow_field, park_ticks);
+ 	}
+ 
+ 	if (budget_spent)
+ 	{
+-		counters.over_budget.fetch_add(1, std::memory_order_relaxed);
++		counters.writer.add_at(shard, over_budget_field, 1);
+ 	}
+ }
+ 
+ inline void record_ppu_park(bool first_ppu_thread, std::uint64_t ticks) noexcept
+ {
+-	counters.ppu_parks.fetch_add(1, std::memory_order_relaxed);
+-	counters.ppu_park_ticks.fetch_add(ticks, std::memory_order_relaxed);
++	const std::size_t shard = sharded::shard_index();
++	counters.ppu.add_at(shard, ppu_parks_field, 1);
++	counters.ppu.add_at(shard, ppu_park_ticks_field, ticks);
+ 
+ 	if (first_ppu_thread)
+ 	{
+-		counters.main_parks.fetch_add(1, std::memory_order_relaxed);
+-		counters.main_park_ticks.fetch_add(ticks, std::memory_order_relaxed);
++		counters.ppu.add_at(shard, main_parks_field, 1);
++		counters.ppu.add_at(shard, main_park_ticks_field, ticks);
+ 	}
+ }
+ 
+@@ -144,6 +167,16 @@ namespace compare
+ inline std::atomic<bool> allowed{false};           // the park spin setting is Automatic
+ inline std::atomic<bool> busy_wait_allowed{false}; // the busy wait setting is Automatic, SPU Spin Timing is Reference
+ inline std::atomic<std::uint64_t> busy_wait_scale_on{1}; // the scale the boot policy installed; 1 is the previous one
++inline std::atomic<bool> event_waits_allowed{false}; // REWINDBOX_THERMAL_POLICY_931: Event Waits When Hot is Automatic
++inline std::atomic<int> event_waits_forced{-1};      // REWINDBOX_THERMAL_POLICY_931: inside a step 0 off, 1 on; otherwise -1
++
++// The levers a PARKCMP917 line compares (REWINDBOX_THERMAL_POLICY_931 adds the event waits).
++constexpr const char* compared_name(bool spin, bool busy, bool events) noexcept
++{
++	return spin && busy && events ? "park_spin+busy_wait+event_waits" : spin && busy ? "park_spin+busy_wait" :
++		spin && events ? "park_spin+event_waits" : busy && events ? "busy_wait+event_waits" : spin ? "park_spin" : busy ? "busy_wait" :
++		events ? "event_waits" : "none";
++}
+ 
+ inline constexpr std::uint64_t bound_heavy = 100'000; // heavy PUTLLC per report window: the bound of IOSAutoStorm917.h
+ inline constexpr std::uint32_t lead = 6;
+@@ -164,6 +197,13 @@ constexpr bool busy_wait_at(std::uint32_t step) noexcept
+ 	return pair == 0 || pair == 3;
+ }
+ 
++// REWINDBOX_THERMAL_POLICY_931: the event waits are off for the first half of a pass and on for the second half, so with
++// the two levers above a pass of `compared` windows holds each of the eight combinations for `period` windows.
++constexpr bool event_waits_at(std::uint32_t step) noexcept
++{
++	return !step || ((step - 1) / (period * 4)) % 2 != 0;
++}
++
+ struct tracker
+ {
+ 	std::uint64_t session = ~0ull;
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 816a766..0a8017b 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -27,6 +27,7 @@
+ #include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #include "IOSGpuMemoryPacking.h" // REWINDBOX_GPU_MEMORY_PACKING_925
++#include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -233,6 +234,16 @@ void resolve_experimental_policy() noexcept
+ 	resolved.writer_park_compare = g_cfg.ios_experimental.writer_park_spin.get() == ios_experimental_mode::automatic &&
+ 		g_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled;
+ 	rpcs3::ios::writer_park::compare::allowed.store(resolved.writer_park_compare, std::memory_order_relaxed);
++	// REWINDBOX_THERMAL_POLICY_931: the mode of the event waits; on Automatic they also alternate between report windows
++	// when the comparison was asked for (REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920).
++	{
++		const ios_experimental_mode event_mode = g_cfg.ios_experimental.event_waits_when_hot.get();
++		rpcs3::ios::thermal::setting.store(event_mode == ios_experimental_mode::enabled ? 1 : event_mode == ios_experimental_mode::disabled ? 2 : 0,
++			std::memory_order_relaxed);
++		rpcs3::ios::writer_park::compare::event_waits_forced.store(-1, std::memory_order_relaxed);
++		rpcs3::ios::writer_park::compare::event_waits_allowed.store(event_mode == ios_experimental_mode::automatic &&
++			g_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled, std::memory_order_relaxed);
++	}
+ 	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
+ 	// whose texture pool keeps textures of reused memory and whose RSX writes back a
+ 	// render target for the CPU every frame.
+@@ -512,6 +523,10 @@ void resolve_experimental_policy() noexcept
+ 		static_cast<u32>(resolved.spu_spin_cntfrq),
+ 		static_cast<u32>(levers::arm64_busy_wait_nanoseconds(300, resolved.spu_spin_cntfrq ? resolved.spu_spin_cntfrq : 1, resolved.spu_spin_timer_scale)),
+ 		resolved.busy_wait_compare);
++	// REWINDBOX_THERMAL_POLICY_931: its own line.
++	ios_experimental_log.notice("Resolved title policy 931: event_waits_when_hot=%s from_thermal_state=%d compare_between_windows=%d",
++		rpcs3::ios::thermal::setting.load(std::memory_order_relaxed) == 1 ? "enabled" : rpcs3::ios::thermal::setting.load(std::memory_order_relaxed) == 2 ? "disabled" : "automatic",
++		rpcs3::ios::thermal::automatic_from, rpcs3::ios::writer_park::compare::event_waits_allowed.load(std::memory_order_relaxed) ? 1 : 0);
+ 	// REWINDBOX_LEVER_COMPARISON_ON_REQUEST_920: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 920: lever_comparison=%s park_spin_alternates=%d busy_wait_alternates=%d",
+ 		g_cfg.ios_experimental.lever_comparison.get() == ios_experimental_mode::enabled ? "requested" : "off",
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 6471755..4f25ccf 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -49,6 +49,10 @@
+ #include "IOSAutoSpuProfile923.h" // REWINDBOX_SPU_PROFILE_923
+ #include "IOSAutoStorm917.h" // REWINDBOX_AUTO_STORM_CAPTURE_917
+ #include "IOSWriterParkSpin917.h" // REWINDBOX_WRITER_PARK_SPIN_917
++#include "IOSWriterLockRecord931.h" // REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931
++#include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
++#include "IOSEnergy931.h" // REWINDBOX_ENERGY_931
++#include "IOSBackgroundPause931.h" // REWINDBOX_BACKGROUND_PAUSE_931
+ #include "util/asm.hpp" // REWINDBOX_BUSY_WAIT_REFERENCE_918: utils::arm_timer_scale
+ #include "IOSCapture912.h"
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+@@ -91,6 +95,10 @@
+ 
+ #ifdef __APPLE__
+ #include <mach/mach.h>
++#include <mach/mach_time.h> // REWINDBOX_ENERGY_931: mach_timebase_info
++#include <dlfcn.h>
++#include <sys/resource.h>
++#include <unistd.h>
+ #endif
+ 
+ #ifdef RPCS3_IOS
+@@ -244,6 +252,64 @@ task_events_sample sample_task_events()
+ 	return sample;
+ }
+ 
++// REWINDBOX_ENERGY_931 (ios/IOSEnergy931.h): what the system bills this process for, read once per report window.
++energy931::sample sample_energy() noexcept
++{
++	energy931::sample sample;
++#ifdef __APPLE__
++	mach_timebase_info_data_t timebase{};
++	if (mach_timebase_info(&timebase) == KERN_SUCCESS && timebase.denom)
++	{
++		sample.timebase_numer = timebase.numer;
++		sample.timebase_denom = timebase.denom;
++	}
++#if defined(RUSAGE_INFO_V6)
++	// proc_pid_rusage is looked up at run time: no link dependency on libproc, which the iOS SDK does not declare.
++	using rusage_fn = int (*)(int, int, rusage_info_t*);
++	static const rusage_fn read_rusage = reinterpret_cast<rusage_fn>(dlsym(RTLD_DEFAULT, "proc_pid_rusage"));
++	rusage_info_v6 usage{};
++	if (read_rusage && read_rusage(getpid(), RUSAGE_INFO_V6, reinterpret_cast<rusage_info_t*>(&usage)) == 0)
++	{
++		sample.rusage_valid = true;
++		sample.energy_nj = usage.ri_energy_nj;
++		sample.p_energy_nj = usage.ri_penergy_nj;
++		sample.user_ticks = usage.ri_user_time;
++		sample.system_ticks = usage.ri_system_time;
++		sample.p_user_ticks = usage.ri_user_ptime;
++		sample.p_system_ticks = usage.ri_system_ptime;
++		sample.cycles = usage.ri_cycles;
++		sample.instructions = usage.ri_instructions;
++		sample.p_cycles = usage.ri_pcycles;
++		sample.interrupt_wakeups = usage.ri_interrupt_wkups;
++		sample.idle_wakeups = usage.ri_pkg_idle_wkups;
++		sample.qos_user_interactive_ticks = usage.ri_cpu_time_qos_user_interactive;
++		sample.qos_user_initiated_ticks = usage.ri_cpu_time_qos_user_initiated;
++		sample.qos_default_ticks = usage.ri_cpu_time_qos_default + usage.ri_cpu_time_qos_legacy;
++		sample.qos_utility_ticks = usage.ri_cpu_time_qos_utility + usage.ri_cpu_time_qos_background + usage.ri_cpu_time_qos_maintenance;
++	}
++#endif
++	task_power_info_data_t power{};
++	mach_msg_type_number_t power_count = TASK_POWER_INFO_COUNT;
++	if (task_info(mach_task_self(), TASK_POWER_INFO, reinterpret_cast<task_info_t>(&power), &power_count) == KERN_SUCCESS)
++	{
++		sample.power_valid = true;
++		sample.timer_wakeups_2ms = power.task_timer_wakeups_bin_1;
++		sample.timer_wakeups_5ms = power.task_timer_wakeups_bin_2;
++	}
++#if defined(TASK_POWER_INFO_V2)
++	task_power_info_v2_data_t power2{};
++	mach_msg_type_number_t power2_count = TASK_POWER_INFO_V2_COUNT;
++	if (task_info(mach_task_self(), TASK_POWER_INFO_V2, reinterpret_cast<task_info_t>(&power2), &power2_count) == KERN_SUCCESS)
++	{
++		sample.power_v2_valid = true;
++		sample.gpu_time = power2.gpu_energy.task_gpu_utilisation;
++		sample.pset_switches = power2.task_pset_switches;
++	}
++#endif
++#endif
++	return sample;
++}
++
+ u64 process_memory_footprint()
+ {
+ #ifdef __APPLE__
+@@ -2519,6 +2585,41 @@ private:
+ 			m_task_events_window = profile_window;
+ 		}
+ 
++		// REWINDBOX_ENERGY_931 (ios/IOSEnergy931.h): the energy, the cores and the wakeups the system billed in this window.
++		// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): the thermal state and the waits that took the event path.
++		{
++			const energy931::sample energy = sample_energy();
++			const bool comparable = m_energy.any_valid() && energy.any_valid() && m_energy_session == profile_session && m_energy_window + 1 == profile_window;
++			ios_core_profiler.notice("%s", energy931::format_line(profile_session, profile_window, comparable, m_energy, energy, guest_window_flips).c_str());
++			m_energy = energy;
++			m_energy_session = profile_session;
++			m_energy_window = profile_window;
++
++			namespace thermal = rpcs3::ios::thermal;
++			const int forced = rpcs3::ios::writer_park::compare::event_waits_forced.load(std::memory_order_relaxed);
++			const std::uint8_t mode = thermal::setting.load(std::memory_order_relaxed);
++			ios_core_profiler.notice("COREPROF THERMAL931 session=%llu window=%llu thermal_state=%s state_changes=%llu event_waits=%s mode=%s compared=%s "
++				"writer_park_waits=%llu ppu_passive_waits=%llu rsx_idle_waits=%llu from_state=serious background_pauses=%llu background_resumes=%llu "
++				"background_pause_refused=%llu background_resume_refused=%llu background_late_requests=%llu scope=process_window",
++				profile_session, profile_window, thermal::state_name(thermal::state.load(std::memory_order_relaxed)),
++				thermal::state_changes.load(std::memory_order_relaxed), thermal::event_waits() ? "on" : "off",
++				mode == 1 ? "enabled" : mode == 2 ? "disabled" : "automatic", forced < 0 ? "no" : forced ? "on" : "off",
++				thermal::event_wait_counts.take_sum(thermal::writer_park), thermal::event_wait_counts.take_sum(thermal::ppu_passive),
++				thermal::event_wait_counts.take_sum(thermal::rsx_idle), rpcs3::ios::background_pause::state::instance().pauses(),
++				rpcs3::ios::background_pause::state::instance().resumes(), rpcs3::ios::background_pause::state::instance().refused(),
++				rpcs3::ios::background_pause::state::instance().resume_refused(), rpcs3::ios::background_pause::state::instance().late_requests());
++
++			// REWINDBOX_BACKGROUND_PAUSE_931 (ios/IOSBackgroundPause931.h): a game still booting when the application left
++			// was not running then, so that pause was refused, and it runs in the background now: asked again, once per
++			// window while it runs there. The main thread decides (only while the application is in the background).
++			auto& ios_pause = rpcs3::ios::background_pause::state::instance();
++			if (state == system_state::running && ios_pause.background() && !ios_pause.ours())
++			{
++				ios_pause.count_late_request();
++				rpcs3::ios::background_pause::request_pause();
++			}
++		}
++
+ 		// REWINDBOX_PARK_SPIN_COMPARE_917 and REWINDBOX_BUSY_WAIT_REFERENCE_918 (ios/IOSWriterParkSpin917.h): this
+ 		// window was reported above with the levers it ran with (RANGELOCKPROF park_spin=, SCHED918 busy_wait_scale=);
+ 		// now the levers of the next one. Each lever alternates only when its own setting is Automatic.
+@@ -2526,13 +2627,19 @@ private:
+ 			namespace cmp = rpcs3::ios::writer_park::compare;
+ 			const bool spin_allowed = cmp::allowed.load(std::memory_order_relaxed);
+ 			const bool busy_allowed = cmp::busy_wait_allowed.load(std::memory_order_relaxed);
++			const bool event_allowed = cmp::event_waits_allowed.load(std::memory_order_relaxed); // REWINDBOX_THERMAL_POLICY_931
+ 
+-			if (spin_allowed || busy_allowed)
++			if (spin_allowed || busy_allowed || event_allowed)
+ 			{
+ 				const bool spin_this_window = rpcs3::ios::writer_park::spin_enabled.load(std::memory_order_relaxed);
+ 				const bool spin_stepped = m_park_compare.next(profile_session, state == system_state::running, guest_window_flips, ios_putllc_heavy_window);
+ 				const bool spin_next_window = spin_allowed ? spin_stepped : spin_this_window;
+ 				const u32 next_step = m_park_compare.decided_step;
++				if (event_allowed)
++				{
++					// REWINDBOX_THERMAL_POLICY_931: inside a pass the event waits follow the step, whatever the temperature.
++					cmp::event_waits_forced.store(next_step ? (cmp::event_waits_at(next_step) ? 1 : 0) : -1, std::memory_order_relaxed);
++				}
+ #ifdef ARCH_ARM64
+ 				const u64 scale_this_window = utils::arm_timer_scale.load(std::memory_order_relaxed);
+ 				const u64 scale_next_window = !busy_allowed ? scale_this_window : cmp::busy_wait_at(next_step) ? cmp::busy_wait_scale_on.load(std::memory_order_relaxed) : 1;
+@@ -2556,7 +2663,7 @@ private:
+ 						"this_window_busy_wait_scale=%u next_window_busy_wait_scale=%u compared=%s storm=%u lead=%u period=%u rest=%u bound=%llu",
+ 						profile_session, profile_window, ios_putllc_heavy_window, m_park_compare.windows, m_park_compare.decided_cycle, cmp::cycles, next_step, cmp::compared,
+ 						spin_this_window ? 1u : 0u, spin_next_window ? 1u : 0u, static_cast<u32>(scale_this_window), static_cast<u32>(scale_next_window),
+-						spin_allowed && busy_allowed ? "park_spin+busy_wait" : spin_allowed ? "park_spin" : "busy_wait", m_park_compare.decided_storm ? 1u : 0u,
++						cmp::compared_name(spin_allowed, busy_allowed, event_allowed), m_park_compare.decided_storm ? 1u : 0u,
+ 						cmp::lead, cmp::period, cmp::rest, cmp::bound_heavy);
+ 				}
+ 			}
+@@ -2580,6 +2687,9 @@ private:
+     task_events_sample m_task_events; // REWINDBOX_BUSY_WAIT_REFERENCE_918: the counts at the previous report, report thread only
+     u64 m_task_events_session = ~0ull;
+     u64 m_task_events_window = 0;
++    energy931::sample m_energy; // REWINDBOX_ENERGY_931: the sample of the previous report, report thread only
++    u64 m_energy_session = ~0ull;
++    u64 m_energy_window = 0;
+     // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
+     rpcs3::ios::freeze_episode::tracker m_freeze_episode;
+     u64 m_freeze_session = 0;
+@@ -2827,6 +2937,9 @@ void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
+ 
+ void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
+ {
++	// REWINDBOX_WRITER_RECORD_AFTER_RELEASE_931: vm::writer_lock's destructor calls this after the release; the phases
++	// its constructor measured are published here, with no PPU thread parked behind the lock any more.
++	rpcs3::ios::writer_lock_record::flush();
+ 	g_performance_registry.record_writer_lock(source, acquire_ticks, hold_ticks);
+ }
+ 
+diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
+index 591cbc5..db79dfe 100644
+--- a/rpcs3/ios/RPCS3IOSPlatform.mm
++++ b/rpcs3/ios/RPCS3IOSPlatform.mm
+@@ -19,6 +19,9 @@
+ #include "IOSMoltenVKExecQueue.h"
+ #include "IOSReservationLockPolicy.h"
+ #include "IOSRsxSyncProfile.h"
++#include "IOSThermalPolicy931.h" // REWINDBOX_THERMAL_POLICY_931
++#include "IOSBackgroundPause931.h" // REWINDBOX_BACKGROUND_PAUSE_931
++#include "RPCS3IOS.h"
+ 
+ // REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK 1.4.2 builds every Metal library
+ // and pipeline with dispatch_async(dispatch_get_global_queue(
+@@ -129,6 +132,9 @@ void install_application_observers() noexcept
+ 			static_cast<void>(CFBridgingRetain(resign));
+ 			static_cast<void>(CFBridgingRetain(background));
+ 			static_cast<void>(CFBridgingRetain(active));
++			// REWINDBOX_BACKGROUND_PAUSE_931, REWINDBOX_THERMAL_POLICY_931: their own observers; the pause and the resume
++			// wait for the posting to return, so for the gate's settle and reopening above (RPCS3IOSPlatform.mm, below).
++			rpcs3::ios::background_pause::install_observers();
+ 
+ 			// The first renderer of the process may be created while the application is already inactive or in the
+ 			// background (a game started just before leaving): no notification will say so. The state is read on
+@@ -246,3 +252,88 @@ std::string localized_application_string(
+ 	}
+ }
+ }
++
++// REWINDBOX_BACKGROUND_PAUSE_931 (ios/IOSBackgroundPause931.h): the pause and the resume run on their own serial queue,
++// never on the main thread that posts the notifications (Emu.Pause may wait for the main thread), one after the other.
++// Each is first sent through the main queue: the notification center calls a notification's observers one after the
++// other on the main thread, in an order it does not document, and a block on the main queue runs only once the
++// posting has returned, so after the GPU gate's observer of the same notification has settled the queues
++// (background) or reopened the gate (active). The gate's observers wait with bounded fence waits, never a run loop.
++namespace rpcs3::ios::background_pause
++{
++namespace
++{
++dispatch_queue_t pause_queue() noexcept
++{
++	static dispatch_queue_t queue = dispatch_queue_create("rpcs3.background-pause", DISPATCH_QUEUE_SERIAL);
++	return queue;
++}
++}
++
++void request_pause() noexcept
++{
++	// Decided on the main thread, once a posting in progress has returned: only while the application is in the
++	// background there (a request that arrives once it is active again is dropped), then on the serial queue.
++	dispatch_async(dispatch_get_main_queue(), ^{
++		if (UIApplication.sharedApplication.applicationState != UIApplicationStateBackground)
++		{
++			return;
++		}
++
++		dispatch_async(pause_queue(), ^{
++			state::instance().pause_if_running([] { return rpcs3_ios_pause_emulation() == RPCS3_IOS_OK; });
++		});
++	});
++}
++
++void app_entered_background() noexcept
++{
++	state::instance().set_background(true);
++	request_pause();
++}
++
++void app_became_active() noexcept
++{
++	state::instance().set_background(false);
++	dispatch_async(dispatch_get_main_queue(), ^{
++		dispatch_async(pause_queue(), ^{
++			state::instance().resume_if_ours([] { return rpcs3_ios_resume_emulation() == RPCS3_IOS_OK; });
++		});
++	});
++}
++
++// Called from gpu_gate::install_application_observers (the first Vulkan device of the process, on the thread that creates
++// it), once; the blocks run on the thread that posts the notification.
++void install_observers() noexcept
++{
++	static dispatch_once_t once;
++	dispatch_once(&once, ^{
++		@autoreleasepool
++		{
++			NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
++			id paused = [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { app_entered_background(); }];
++			id resumed = [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { app_became_active(); }];
++			// REWINDBOX_THERMAL_POLICY_931 (ios/IOSThermalPolicy931.h): the state the system posts, read once now.
++			id thermal = [center addObserverForName:NSProcessInfoThermalStateDidChangeNotification object:nil queue:nil
++				usingBlock:^(NSNotification*) { rpcs3::ios::thermal::set_state(static_cast<int>(NSProcessInfo.processInfo.thermalState)); }];
++			rpcs3::ios::thermal::set_state(static_cast<int>(NSProcessInfo.processInfo.thermalState));
++			// Registered for the life of the process.
++			static_cast<void>(CFBridgingRetain(paused));
++			static_cast<void>(CFBridgingRetain(resumed));
++			static_cast<void>(CFBridgingRetain(thermal));
++
++			// Installed with the first Vulkan device: a game started just before leaving finds the application already in
++			// the background, and no notification will say so. Read on the main thread, where they are posted.
++			dispatch_async(dispatch_get_main_queue(), ^{
++				if (UIApplication.sharedApplication.applicationState == UIApplicationStateBackground)
++				{
++					state::instance().set_background(true);
++					request_pause();
++				}
++			});
++		}
++	});
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index d0824e3..7828813 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -161,6 +161,7 @@ const std::array catalog{
+ 	SETTING("experimental.writer_park_spin", "Experimental", "FPS Experiments", "Writer lock park spin", "When an SPU or PPU atomic write takes the reservation write lock, it waits for every PPU thread to stop at its next check. It used to hand its CPU core off with a system call after a fraction of a microsecond, although the PPU thread it waits for is usually running and stops within about two microseconds; it now spins for 8 microseconds before the first hand-off. Every write lock is still taken and stops every PPU thread before the write. Automatic enables it for every title; Disabled hands off as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_park_spin, 0, 0, 0),
+ 	SETTING("experimental.busy_wait_reference", "Experimental", "FPS Experiments", "Busy wait reference duration", "The emulator's short active waits (before a thread yields its core or sleeps) are written in ticks of the system counter. On a device whose counter runs faster than the 24 MHz of the reference iPhones they lasted proportionally less (42 times less on a 1 GHz counter). Automatic keeps the reference duration on every device. Disabled restores the previous duration. No effect with SPU Spin Timing = Calibrated. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.busy_wait_reference, 0, 0, 0),
+ 	SETTING("experimental.lever_comparison", "Experimental", "FPS Experiments", "Lever comparison between report windows", "Diagnostic, for a measurement asked for on purpose. Enabled: during the first minutes of a game the performance report turns Writer lock park spin and Busy wait reference duration (each only while its own setting is Automatic) off and on again between its 5 second windows, in three passes of 80 seconds, then leaves both on; every switch is written to the performance journal, and the frame rate can vary between windows during a pass. Automatic and Disabled never alternate: both levers stay as their own settings say. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.lever_comparison, 0, 0, 0),
++	SETTING("experimental.event_waits_when_hot", "Experimental", "FPS Experiments", "Event waits when hot", "Once the iPhone reports a serious thermal state, three short waits of the emulator (a write lock waiting for the PPU threads to stop, a PPU thread waiting for that lock, the RSX waiting for new commands) sleep the CPU core until the awaited write instead of spinning on it. They wait for the same thing, for the same time at most. Automatic: from the serious thermal state. Enabled: always. Disabled: never, the previous waits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.event_waits_when_hot, 0, 0, 0),
+ 	GAME_SETTING("experimental.put_epoch_horizon", "Experimental", "FPS Experiments", "Texture epoch at the PUT horizon", "With Texture Validation Per FIFO Batch, every new batch of guest commands the RSX noticed made every texture check its contents again, even while the RSX was still executing commands published earlier. The recheck now starts when the RSX reaches the first command that was not yet published at the previous one; semaphores, RSX writes and the end of a frame recheck as before. Every texture is still checked before any command published after its last check uses it. Automatic enables it for God of War III; Disabled rechecks at every batch noticed, as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.put_epoch_horizon, 0, 0, 0),
+ 	GAME_SETTING("experimental.heavy_putllc_trace", "Experimental", "FPS Experiments", "Heavy PUTLLC trace on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), records for each SPU thread up to 512 consecutive PUTLLC that change data (address, changed part, values read, asked and found) and writes them to the performance journal; two captures per boot at most. Nothing in the reservation protocol changes. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.heavy_putllc_trace, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_region_profile", "Experimental", "FPS Experiments", "PPU region profile on resume", "Diagnostic. When the game leaves a pause (in-game menu closed), samples the PPU threads about once per millisecond for at most 5 seconds and writes the busiest code regions of the running ones to the performance journal; three captures per boot at most. The position sampled is the last return, indirect call, system call or reservation instruction, not the exact instruction. Automatic and Disabled leave it off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_region_profile, 0, 0, 0),

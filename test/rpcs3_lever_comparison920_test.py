@@ -39,8 +39,9 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 INCREMENT = ROOT / 'build-utils/rpcs3/core920-from-919.patch'
 # Later increments over the same files, newest first: reversed before this one when they apply in reverse.
-# Newest first: Core 925 inserts next to the Core 921 policy lines, so 921 only reverses once 925 has.
-LATER = (ROOT / 'build-utils/rpcs3/core925-from-924.patch', ROOT / 'build-utils/rpcs3/core921-from-920.patch')
+# Newest first: Core 925 inserts next to the Core 921 policy lines, so 921 only reverses once 925 has; Core 931 inserts next
+# to the Core 920 setting lines (Event Waits When Hot), so 920 only reverses once 931 has.
+LATER = (ROOT / 'build-utils/rpcs3/core933-from-932.patch', ROOT / 'build-utils/rpcs3/core932-from-931.patch', ROOT / 'build-utils/rpcs3/core931-from-930.patch', ROOT / 'build-utils/rpcs3/core925-from-924.patch', ROOT / 'build-utils/rpcs3/core921-from-920.patch')
 HEADER = 'rpcs3/ios/IOSWriterParkSpin917.h'
 REPORT = 'rpcs3/ios/RPCS3IOSPerformance.cpp'
 POLICY = 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp'
@@ -183,6 +184,11 @@ def control_tree(source: Path, work: Path) -> Path:
     require(INCREMENT.is_file(), 'the Core 920 increment ' + str(INCREMENT.relative_to(ROOT)))
     tree = work / 'tree919'
     shutil.copytree(source / 'rpcs3', tree / 'rpcs3', symlinks=True)
+    # Core 932's increment also holds Utilities files (the patch engine, the JIT arena): without them it cannot be reversed,
+    # and Core 931, then Core 920, would not reverse after it.
+    for extra in ('Utilities', 'util'):
+        if (source / extra).is_dir():
+            shutil.copytree(source / extra, tree / extra, symlinks=True)
     for later in LATER:
         if later.is_file() and subprocess.run(['git', 'apply', '-R', '--check', '--whitespace=nowarn', str(later)], cwd=tree,
                                               capture_output=True).returncode == 0:

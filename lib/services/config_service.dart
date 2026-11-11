@@ -44,6 +44,10 @@ class ConfigService {
   /// Physical PS2 library derived from the one ARMSX2 root bookmark.
   static String? linkedArmsx2GameFolderPath;
 
+  /// RewindBox's `Documents/XeniOS/Games` (Xbox 360 playlist), set at
+  /// startup by XeniaInternalService.ensureLayout().
+  static String? linkedXeniaGameFolderPath;
+
   /// Determines the base execution path for Windows installations.
   ///
   /// In development mode (`flutter run`), it targets the project root.

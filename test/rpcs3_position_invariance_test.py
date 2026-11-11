@@ -46,8 +46,13 @@ IOS_BRANCH = re.compile(
     r'\t\trpcs3::ios::get_experimental_policy\(\)\.position_invariance\) &&\n'
     r'\t\tg_cfg\.video\.shader_precision != gpu_preset_level::low;\n'
     r'#else\n\t' + re.escape(UPSTREAM_LINE) + r'\n#endif\n')
-SCOPED = ['BLES01717', 'BLES00158', 'BLUS30089']
-UNSCOPED = ['BCES00510', 'BCUS98111', 'BLES01658', 'BLES00113', 'BLUS30070', 'BLUS31011', 'NPEB00000', '']
+# Core 932 (REWINDBOX_TITLE_VARIANTS_932): the six serials the RPCS3 compatibility list gives Black Ops II share the
+# levers of BLES01717 (BLUS31011 was an unscoped control until Core 931). The serials next to them stay out: the
+# predicate is an exact match.
+BLACK_OPS_II = ['BLES01717', 'BLES01718', 'BLES01719', 'BLES01720', 'BLUS31011', 'BLUS31140']
+SCOPED = [*BLACK_OPS_II, 'BLES00158', 'BLUS30089']
+UNSCOPED = ['BCES00510', 'BCUS98111', 'BLES01658', 'BLES00113', 'BLUS30070', 'BLES01716', 'BLES01721', 'BLUS31010',
+            'BLUS31141', 'BLES0171', 'BLES017170', 'NPEB00000', '']
 PIN = dict(glslang='f0bd0257c308b9a26562c1a30c4748a0219cc951',
            moltenvk='db66022459ffb663aa2b50f6b018bc2e124f5edf',
            spirv_cross='6c09849fe88c48eaed08413aa022aaa136a3a057')

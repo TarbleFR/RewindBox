@@ -26,6 +26,14 @@ SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-nativ
                          "docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json",
                          "docs/evidence/pocket-skins-pocket-press-declarations-2026-11-11.json")
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
+# Xbox 360 playlist (PR #172): moves pubspec.yaml on from the Pocket originals review.
+XENIOS_PLAYLIST_REVIEW = "docs/evidence/xenios-playlist-declarations-2026-11-11.json"
+XENIOS_DECLARATIONS = (
+    "pubspec.yaml",
+    "packages/xenia_internal_bridge/pubspec.yaml",
+    "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec",
+    "packages/xenia_jit_helper/ios/xenia_jit_helper.podspec",
+)
 S2ARM_PROBE_REVIEW = "docs/evidence/s2arm-probe-declarations-2026-11-11.json"
 S2ARM_PROBE_PODSPEC = "packages/s2arm_probe/ios/s2arm_probe.podspec"
 S2ARM_ENGINE_REVIEW = "docs/evidence/s2arm-engine-declarations-2026-11-11.json"
@@ -214,12 +222,12 @@ def repository_inputs(root: Path) -> dict[str, str]:
         updates = pocket.get("declarations", {})
         if set(updates) != {"pubspec.yaml"}:
             raise SystemExit("Pocket originals declaration review scope changed")
+        # A later review overlay may move pubspec.yaml on (XeniOS playlist); it binds this digest as its "before".
+        later_pocket_pubspec = (root / XENIOS_PLAYLIST_REVIEW).is_file()
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            # A later review overlay may move pubspec.yaml on (S2Arm probe, private test IPA only).
-            if not (root / S2ARM_PROBE_REVIEW).is_file() and \
-                    update.get("after") != sha256(read_input(root, root / name)):
+            if not later_pocket_pubspec and update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"Pocket originals source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
         bundle = pocket.get("bundled_assets", {})
@@ -451,14 +459,43 @@ def repository_inputs(root: Path) -> dict[str, str]:
             raw = read_input(root, root / skin["archiveAsset"])
             if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
                 raise SystemExit("Pocket skin revision archive differs from the catalog: " + skin["archiveAsset"])
+    # RewindBox Xbox 360 playlist (PR #172): pubspec.yaml adds the local workspace plugin xenia_internal_bridge; the
+    # plugin and the dedicated XeniOS JIT helper pod are new local sources, declared from nothing. No hosted package is
+    # added or removed and pubspec.lock is unchanged. The XeniOS engine (XeniaCore.framework) and Apple's Metal Shader
+    # Converter are not built from this tree: nothing of either is committed, retained or bundled by this review.
+    xenios_path = root / XENIOS_PLAYLIST_REVIEW
+    if xenios_path.is_file():
+        xenios = json.loads(read_input(root, xenios_path))
+        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        changes = xenios.get("dependency_changes", {})
+        if (xenios.get("schema") != 1 or xenios.get("baseline_inventory") != prior_name or
+                xenios.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                xenios.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                xenios.get("complete_corresponding_source_attested") is not False or
+                changes.get("external_packages_added") != [] or changes.get("external_packages_removed") != [] or
+                changes.get("local_plugins_added") != ["xenia_internal_bridge"] or
+                changes.get("engine_binaries_bundled") != []):
+            raise SystemExit("XeniOS playlist review has a different baseline or dependency scope")
+        updates = xenios.get("declarations", {})
+        if set(updates) != set(XENIOS_DECLARATIONS):
+            raise SystemExit("XeniOS playlist declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            # A later review overlay may move pubspec.yaml on (S2Arm probe, private test IPA only).
+            if not (name == "pubspec.yaml" and (root / S2ARM_PROBE_REVIEW).is_file()) and \
+                    update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
     # Switch 2 (S2Arm) private test IPA only: the root pubspec.yaml gains the workspace member and the path
     # dependency of the local diagnostic plugin packages/s2arm_probe (RewindBox code; its S2ArmSynthModule.h embeds
     # data generated with the S2Arm rewriter, Apache-2.0). No hosted package, engine, Core or vendored source
-    # changes. The review is absent from the common line, where this block does nothing.
+    # changes. Chained after the XeniOS playlist review. The review is absent from the common line, where this block
+    # does nothing.
     s2arm_path = root / S2ARM_PROBE_REVIEW
     if s2arm_path.is_file():
         s2arm = json.loads(read_input(root, s2arm_path))
-        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        prior_name = XENIOS_PLAYLIST_REVIEW
         changes = s2arm.get("dependency_changes", {})
         if (s2arm.get("schema") != 1 or s2arm.get("baseline_inventory") != prior_name or
                 s2arm.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or

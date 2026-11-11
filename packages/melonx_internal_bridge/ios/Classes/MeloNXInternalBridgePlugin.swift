@@ -73,7 +73,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
 
     private func drainDiagnostics(_ runtime: MeloNXRuntimeAPI) {
-        let report = runtime.diagnostics()
+        // The engine builds this report in managed memory, every 300 ms, on this utility queue: in the
+        // user-interactive class for the call (MeloNXEngineCallClass).
+        let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }
         for event in report["events"] as? [[String:Any]] ?? [] {
             let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
             guard sequence > nativeSequence else { continue }
@@ -109,6 +111,13 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         // or this build does not carry it.
         var moltenVk = MeloNXMoltenVKChoice.preferred
         if !MeloNXMoltenVKChoice.available(moltenVk,frameworks:frameworks) { moltenVk = 0 }
+        // One NativeAOT engine per process. The Switch 2 engine exports rb_s2arm_engine_loaded (same contract as
+        // rb_melonx_core_loaded, MeloNXCoreLoaded.h): once it has begun loading, MeloNXCore is not loaded after it.
+        if let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "rb_s2arm_engine_loaded"),
+           unsafeBitCast(symbol, to:(@convention(c) () -> Int32).self)() != 0 {
+            throw MeloNXHostError.load("A Switch 2 game already ran in this session of the app: restart RewindBox before starting a Switch game.")
+        }
+        rb_melonx_core_mark_loading()
         let runtime: MeloNXRuntimeAPI
         do { runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root,moltenVk:moltenVk) }
         catch {
@@ -334,13 +343,6 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     guard authorized else { throw MeloNXHostError.prepare(-1,"The selected method did not authorize executable mappings for the RewindBox PID.") }
                     MeloNXLaunchJournal.record("jitProbe", "passed")
                 }
-                // S2Arm diagnostic hook (MeloNXS2ArmProbeHook.m), test IPAs only: phase 1 while the universal helper
-                // is attached, phase 2 after its detach. Its results never change this launch.
-                var s2armProbe: Int32 = -2
-                if !reuseArena, universal, Bundle.main.object(forInfoDictionaryKey:"RewindBoxS2ArmProbe") as? Bool == true {
-                    let flags: UInt32 = Bundle.main.object(forInfoDictionaryKey:"RewindBoxS2ArmProbeMapped") as? Bool == true ? 1 : 0
-                    s2armProbe = MeloNXS2ArmProbeAttached(MeloNXLaunchJournal.path ?? "", flags)
-                }
                 // Prepare both the shared cache and native signal mapping before
                 // creating guest threads. This is the standalone MeloNX order.
                 try runtime.prepareJit()
@@ -350,7 +352,6 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                         throw MeloNXHostError.prepare(-1,message as String? ?? "The JIT helper did not confirm detach.")
                     }
                 }
-                if s2armProbe >= 0 { _ = MeloNXS2ArmProbeDetached() }
                 MeloNXLaunchJournal.record("jit", "passed", detail:"Actual engine mapping verified; selected helper transaction completed.")
                 // Cache actual one-time JIT success even if donor setup or UIKit fails.
                 DispatchQueue.main.async { [self] in arenaReady = true }

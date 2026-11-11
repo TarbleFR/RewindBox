@@ -19,6 +19,7 @@ workspace:
   - packages/neoplay_bridge
   - packages/libretro_internal_bridge
   - packages/melonx_internal_bridge
+  - packages/xenia_internal_bridge
   - packages/ui_refresh_rate
   - packages/external_display
   - packages/neo_shader_kit
@@ -63,6 +64,8 @@ dependencies:
     path: packages/neoplay_bridge
   melonx_internal_bridge:
     path: packages/melonx_internal_bridge
+  xenia_internal_bridge:
+    path: packages/xenia_internal_bridge
   s2arm_probe:
     path: packages/s2arm_probe
   s2arm_engine_bridge:

@@ -5,7 +5,7 @@
 
 The private Switch 2 (S2Arm) test IPA adds packages/s2arm_probe, then packages/s2arm_engine_bridge, to the root
 pubspec.yaml. The legal gate (build-utils/collect_build_source_evidence.py) accepts each only through a chained
-review: docs/evidence/s2arm-probe-declarations-2026-11-11.json after the Pocket originals review, then
+review: docs/evidence/s2arm-probe-declarations-2026-11-11.json after the XeniOS playlist review, then
 docs/evidence/s2arm-engine-declarations-2026-11-11.json after the probe review. These tests show that each chain
 link is closed in both directions and that every identity a review binds is really checked: each tampered input
 is refused with the message of its own check. The probe review's own controls (LegalReview) also run in the tree as
@@ -30,7 +30,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[3]
 COLLECTOR = 'build-utils/collect_build_source_evidence.py'
 REVIEW = 'docs/evidence/s2arm-probe-declarations-2026-11-11.json'
-PRIOR = 'docs/evidence/pocket-originals-declarations-2026-11-03.json'
+PRIOR = 'docs/evidence/xenios-playlist-declarations-2026-11-11.json'
 DATA = 'packages/s2arm_probe/ios/Classes/S2ArmSynthModule.h'
 PACKAGE = ('packages/s2arm_probe/pubspec.yaml', 'packages/s2arm_probe/ios/s2arm_probe.podspec')
 ENGINE_REVIEW = 'docs/evidence/s2arm-engine-declarations-2026-11-11.json'
@@ -138,9 +138,12 @@ class LegalReview(Gate, unittest.TestCase):
         body = text[:final]
         earlier = [body.rfind(name) for name in ('SKIN_REVISION_REVIEWS', 'SWITCH_POCKET_REVIEW', 'PS2_ORIGINAL_REVIEW',
                                                  'BOARD_ORIGINALS_REVIEW', 'PS2_POCKET_REVIEW')]
+        # The XeniOS playlist review's own block (the probe block names that review as its baseline).
+        earlier.append(body.find('    xenios_path = root / XENIOS_PLAYLIST_REVIEW'))
         self.assertTrue(min(earlier) > 0 and max(earlier) < block, 'the block runs after every earlier review overlay')
-        # Pocket originals is the last earlier review that declares pubspec.yaml: nothing between it and the block does.
-        between = text[text.index('Pocket originals source/license declaration changed since review'):block]
+        # The XeniOS playlist review is the last earlier review that declares pubspec.yaml: nothing between it and the
+        # block does.
+        between = text[text.index('XeniOS playlist source/license declaration changed since review'):block]
         self.assertNotIn('"pubspec.yaml"', between)
 
     def test_pubspec_changed_after_the_review_is_refused(self):
@@ -181,7 +184,7 @@ class LegalReview(Gate, unittest.TestCase):
             return False if path.resolve() == (ROOT / REVIEW).resolve() else real_is_file(path)
         with mock.patch.object(Path, 'is_file', is_file), self.assertRaises(SystemExit) as caught:
             self.collector.repository_inputs(ROOT)
-        self.assertIn('Pocket originals source/license declaration changed since review: pubspec.yaml',
+        self.assertIn('XeniOS playlist source/license declaration changed since review: pubspec.yaml',
                       str(caught.exception))
 
 

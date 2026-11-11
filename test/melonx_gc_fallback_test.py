@@ -42,7 +42,7 @@ FINAL = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_session import once  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import journal_without_start_room  # noqa: E402
+from melonx_adapter_control import journal_of_earlier_cores  # noqa: E402
 from adapt_bindless_array_deltas import DIAGNOSTIC_EDITS  # noqa: E402
 
 COLLECTOR = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
@@ -114,10 +114,10 @@ if FINAL is not None and sha((SOURCE / COLLECTOR).read_bytes()) != BASELINE[COLL
     (control_tree / COLLECTOR).write_bytes(native.encode('utf-8'))
     for old, new in DIAGNOSTIC_EDITS:
         once(control_tree / COLLECTOR, old, new)
-    # Core 725: the control keeps the journal of the earlier Cores (the final one without its room at the start of a
-    # process; checked against BASELINE below).
+    # Core 725, Core 733: the control keeps the journal of the earlier Cores (the final one without its room at the start
+    # of a process and with the snapshot written anew at every call; checked against BASELINE below).
     journal_bytes = (control_tree / JOURNAL).read_bytes()
-    (control_tree / JOURNAL).write_bytes(journal_without_start_room(journal_bytes.decode('utf-8')).encode('utf-8'))
+    (control_tree / JOURNAL).write_bytes(journal_of_earlier_cores(journal_bytes.decode('utf-8')).encode('utf-8'))
     SOURCE = control_tree.resolve()
 
 for name, expected in BASELINE.items():
@@ -136,10 +136,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-fallback-') as temporary:
         once(candidate_file, old, new)
     if FINAL:
         check((FINAL / COLLECTOR).read_bytes() == candidate_file.read_bytes(), 'final preparation holds this collector')
-        # Core 725 gives the journal room at the start of a process (ConfigureJournal, MeloNX-core.log only); nothing
-        # else differs from the journal of the control, and the candidate probe compiles the final one.
-        check(journal_without_start_room((FINAL / JOURNAL).read_text(encoding='utf-8-sig')) ==
-              (SOURCE / JOURNAL).read_text(encoding='utf-8-sig'), 'final preparation keeps the journal, but for its room at the start of a process')
+        # Core 725 gives the journal room at the start of a process (ConfigureJournal, MeloNX-core.log only) and Core 733
+        # keeps the snapshot's bytes (core733_native); nothing else differs from the journal of the control, and the
+        # candidate probe compiles the final one.
+        check(journal_of_earlier_cores((FINAL / JOURNAL).read_text(encoding='utf-8-sig')) ==
+              (SOURCE / JOURNAL).read_text(encoding='utf-8-sig'), 'final preparation keeps the journal, but for its room at the start of a process and its kept snapshot')
     control_text = (SOURCE / COLLECTOR).read_text(encoding='utf-8-sig')
     candidate_text = candidate_file.read_text(encoding='utf-8-sig')
 

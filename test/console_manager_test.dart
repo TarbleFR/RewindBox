@@ -43,8 +43,9 @@ void main() {
 
     test('every iOS-runnable system belongs to exactly one console', () {
       final systems = iosSystems();
-      // 107 until assets/systems/ports.json left with Dusklight (20 October 2026).
-      expect(systems.length, 106);
+      // 107 until assets/systems/ports.json left with Dusklight (20 October
+      // 2026); 107 again since xbox360.json names the embedded XeniOS.
+      expect(systems.length, 107);
       for (final id in systems.keys) {
         final entry = ConsoleCatalog.entryForKey(id);
         expect(entry, isNotNull, reason: '$id has no console');
@@ -74,6 +75,7 @@ void main() {
           case ConsoleEngine.dolphin:
           case ConsoleEngine.armsx2:
           case ConsoleEngine.rpcs3:
+          case ConsoleEngine.xenia:
             expect(definitions, everyElement(containsPair('embedded', true)), reason: entry.id);
           case ConsoleEngine.libretro:
             expect(LibretroCoreCatalog.handles(entry.importSystem), isTrue, reason: entry.id);
@@ -85,6 +87,7 @@ void main() {
         ConsoleEngine.armsx2: 1,
         ConsoleEngine.rpcs3: 1,
         ConsoleEngine.melonx: 1,
+        ConsoleEngine.xenia: 1,
         // 61 before lot 1, whose 21 consoles moved to the libretro engine
         // with their ids (docs/libretro-consoles-lot1.md), then 4 more with
         // lot 2 (docs/libretro-consoles-lot2.md).
@@ -124,6 +127,33 @@ void main() {
       // Lot 2: the same for the Intellivision.
       expect(ConsoleCatalog.byId('intv')!.engine, ConsoleEngine.libretro);
       expect(ConsoleCatalog.byId('intv')!.name, 'Intellivision');
+      // XeniOS (docs/xenios-playlist.md): the existing xbox360 system id.
+      expect(ConsoleCatalog.byId('xbox360')!.engine, ConsoleEngine.xenia);
+      expect(ConsoleCatalog.byId('xbox360')!.retroArchFallback, isFalse);
+    });
+
+    test('the Consoles tab lists engines of this build, grouped by application', () {
+      final listed = ConsoleCatalog.listed(isMissing: (_) => false);
+      // No system run only by the external RetroArch app (maintainer
+      // decision, 10 November 2026); their entries stay in the catalog.
+      expect(listed.where((entry) => entry.engine == ConsoleEngine.retroarch), isEmpty);
+      expect(ConsoleCatalog.byId('c64'), isNotNull);
+      expect(listed.length, ConsoleCatalog.entries.length - 36);
+      // Applications in order, each contiguous.
+      final applications = <String>[];
+      for (final entry in listed) {
+        if (applications.isEmpty || applications.last != entry.application) {
+          applications.add(entry.application);
+        }
+      }
+      expect(applications, <String>['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'MeloNX', 'XeniOS']);
+      // A missing engine is not listed, except Xbox 360, whose row says why.
+      final missing = ConsoleCatalog.listed(
+        isMissing: (entry) => entry.id == 'switch' || entry.id == 'nes' || entry.id == 'xbox360',
+      );
+      expect(missing.map((entry) => entry.id), isNot(contains('switch')));
+      expect(missing.map((entry) => entry.id), isNot(contains('nes')));
+      expect(missing.map((entry) => entry.id), contains('xbox360'));
     });
   });
 
@@ -169,10 +199,31 @@ void main() {
       final policy = EmbeddedEnginePolicy();
       await policy.load();
       expect(policy.useEmbedded, isFalse);
-      expect(policy.disabledConsoles, {'psx'});
+      // Xbox 360 is off by default (docs/xenios-playlist.md § Consoles tab).
+      expect(policy.disabledConsoles, {'psx', 'xbox360'});
       expect(await policy.enableAllConsoles(), isTrue);
-      expect(policy.disabledConsoles, isEmpty);
+      expect(policy.disabledConsoles, {'xbox360'});
       expect(policy.useEmbedded, isFalse, reason: 'Restore defaults leaves the global switch');
+    });
+
+    test('Xbox 360 starts off, its choice survives a restart and restore turns it off again', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      var policy = EmbeddedEnginePolicy();
+      await policy.load();
+      expect(policy.isConsoleEnabled('xbox360'), isFalse);
+      expect(policy.allows('xbox360'), isFalse);
+      expect(policy.isConsoleEnabled('ps3'), isTrue);
+      expect(await policy.setConsoleEnabled('xbox360', true), isTrue);
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getStringList(EmbeddedEnginePolicy.enabledPreferenceKey), ['xbox360']);
+      // The existing key is untouched by the default-off console.
+      expect(preferences.getStringList(EmbeddedEnginePolicy.disabledPreferenceKey), isNull);
+      policy = EmbeddedEnginePolicy();
+      await policy.load();
+      expect(policy.allows('xbox360'), isTrue);
+      expect(await policy.enableAllConsoles(), isTrue);
+      expect(policy.isConsoleEnabled('xbox360'), isFalse);
+      expect(preferences.getStringList(EmbeddedEnginePolicy.enabledPreferenceKey), isEmpty);
     });
 
     test('a system of no listed console follows the global switch only', () async {

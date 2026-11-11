@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
+import 'package:xenia_internal_bridge/xenia_internal_bridge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gamepads/gamepads.dart';
 import 'package:neostation/services/logger_service.dart';
@@ -75,6 +76,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     'ios_armsx2_internal',
     'ios_dolphin_internal',
     'ios_rpcs3_internal',
+    'ios_xenia_internal',
     'ios_libretro_internal',
   };
   String? _activeEmulatorExe;
@@ -319,6 +321,23 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
         }
       });
       _log.i('[GameLaunchManager] ARMSX2 uses native session-end monitoring.');
+      return;
+    }
+
+    if (Platform.isIOS && emulatorExe == 'ios_xenia_internal') {
+      _embeddedSessionSubscription = XeniaInternalBridge.sessionEvents.listen((
+        event,
+      ) {
+        if (event['event'] != 'ended') return;
+        if (_phase == GameLaunchPhase.playing && !_isClosing) {
+          _log.i(
+            '[GameLaunchManager] XeniOS native session ended: '
+            '${event['reason'] ?? 'unknown'}',
+          );
+          _triggerClose();
+        }
+      });
+      _log.i('[GameLaunchManager] XeniOS uses native session-end monitoring.');
       return;
     }
 

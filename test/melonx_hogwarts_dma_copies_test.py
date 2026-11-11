@@ -182,6 +182,10 @@ LOT_FILES = {
     'adapt_pipeline_cache_compact': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
     # Core 731 (lot 11): the buffer cache's trim while only the device is short (Buffer.cs is outside this composition).
     'adapt_cold_buffer_trim': ['src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs'],
+    # Core 733 (lot 12): the host thread class (Common, HLE and Audio files: none is held in this composition).
+    'adapt_host_thread_class': [],
+    # Core 735 (lot 14): the remap sweep of the partially mapped textures.
+    'adapt_remap_sweep_range': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
 }
 
 checks = 0

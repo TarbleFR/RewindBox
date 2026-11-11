@@ -10,8 +10,8 @@
 #endif
 // The Switch controller skin overlay (MeloNXSkinSession, docs/dolphin-skins.md).
 #import "MeloNXSkinOverlay.h"
-// The S2Arm diagnostic hook of the JIT transaction (test IPAs only).
-#import "MeloNXS2ArmProbeHook.h"
+// Whether this process has begun loading MeloNXCore (read by another engine through dlsym).
+#import "MeloNXCoreLoaded.h"
 
 @interface MeloNXJitBridgePlugin : NSObject <FlutterPlugin>
 @end

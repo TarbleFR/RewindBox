@@ -2,8 +2,8 @@
  "schema": 1,
  "review_date": "2026-11-11",
  "scope": "Switch 2 (S2Arm) private test IPA only, never the common IPA: the root pubspec.yaml gains the workspace member and the path dependency of the local plugin packages/s2arm_probe (RewindBox diagnostic code under the repository licence: S2ArmProbe.c/.h, S2ArmProbeGate.S, S2ArmProbePlugin.h/.m, linked statically into Runner; the pod needs Apple's Foundation only). S2ArmSynthModule.h embeds, as data, about 600 bytes of AArch64 produced by the S2Arm rewriter (Apache-2.0, https://github.com/jhaizhou-ops/S2Arm, commit 6b6a571553f7a687af46e03e2cdbf8ef4d77f335) from a synthetic module written for the test; no S2Arm source, Capstone or LZ4 is linked. No hosted package, engine, Core or vendored native source change; pubspec.lock is unchanged (a workspace member is not listed there).",
- "baseline_inventory": "docs/evidence/pocket-originals-declarations-2026-11-03.json",
- "baseline_inventory_sha256": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+ "baseline_inventory": "docs/evidence/xenios-playlist-declarations-2026-11-11.json",
+ "baseline_inventory_sha256": "0e90ab79d4cd76762137babb3933dde42fc24c0e1f475a46b9ce4d5001f2742b",
  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
  "complete_corresponding_source_attested": false,
  "dependency_changes": {
@@ -17,8 +17,8 @@
  },
  "declarations": {
   "pubspec.yaml": {
-   "before": "1fd6b643e164e475070ea29d7fc887bec17c70cb6276452d7b0cd50fc81c3d06",
-   "after": "cab44fc551d4e9492472fb198613bb361b1b100817f8bd8912205cb2c89517b0"
+   "before": "5112922c8b0956aaccfd5c14529aeabe73f7a2f8aa3198d1c2065cc631e8d9ac",
+   "after": "a0add018897c6df81cc79c340aede2e0189396f426ec7260f43a67d8aa2b4d0f"
   },
   "packages/s2arm_probe/pubspec.yaml": {
    "before": null,

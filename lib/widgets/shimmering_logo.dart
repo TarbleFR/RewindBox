@@ -1,5 +1,6 @@
 import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'package:flutter/material.dart';
+import 'package:neostation/widgets/ambient_motion.dart';
 
 /// The RewindBox wordmark with a soft light band sweeping across it.
 ///
@@ -26,21 +27,27 @@ class ShimmeringLogo extends StatefulWidget {
 }
 
 class _ShimmeringLogoState extends State<ShimmeringLogo>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with SingleTickerProviderStateMixin, AmbientMotion {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  );
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    );
     final progress = widget.progress;
-    if (progress == null) {
-      _controller.repeat();
+    if (progress != null) _controller.value = progress.clamp(0.0, 1.0);
+  }
+
+  /// Only the ambient sweep is decorative; a tracked progress always moves.
+  @override
+  void onAmbientMotionChanged(bool allowed) {
+    if (widget.progress != null) return;
+    if (allowed) {
+      if (!_controller.isAnimating) _controller.repeat();
     } else {
-      _controller.value = progress.clamp(0.0, 1.0);
+      _controller.stop();
     }
   }
 
@@ -60,7 +67,7 @@ class _ShimmeringLogoState extends State<ShimmeringLogo>
     } else if (oldWidget.progress != null) {
       // Scan finished: resume the ambient sweep from wherever the band is,
       // so the handoff is seamless.
-      _controller.repeat();
+      if (ambientMotionAllowed) _controller.repeat();
     }
   }
 

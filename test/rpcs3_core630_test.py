@@ -114,9 +114,9 @@ MOCKS = (
      '\t\t}\n'
      '\t\tm_pending_writes.erase(m_pending_writes.begin(), m_pending_writes.begin() + static_cast<std::ptrdiff_t>(done));\n'
      '\t}\n'),
-    ('\t\t\t\t\tentry.second.refs = 0;\n\t\t}\n\t\tforced_passes++;\n',
+    ('\t\t\t\t\tentry.second.refs = 0;\n\t\t}\n\t}\n',
      '\t\t\t\t{\n\t\t\t\t\tentry.second.refs = 0;\n\t\t\t\t\tentry.second.ios_slots = {};\n\t\t\t\t}\n\t\t}\n'
-     '\t\tm_pending_writes.clear();\n\t\tforced_passes++;\n'),
+     '\t\tm_pending_writes.clear();\n\t}\n'),
     ('#include "definitions.inc"\n',
      '#include "definitions.inc"\n\n'
      'static ZCULL_control* g_control = nullptr;\n'

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import 'package:neostation/widgets/ambient_motion.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/services/sfx_service.dart';
 import '../../../models/game_model.dart';
@@ -345,17 +346,27 @@ class _PulsatingIndicator extends StatefulWidget {
 }
 
 class _PulsatingIndicatorState extends State<_PulsatingIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with SingleTickerProviderStateMixin, AmbientMotion {
+  late final AnimationController _controller = AnimationController(
+    duration: const Duration(milliseconds: 1000),
+    vsync: this,
+  );
   late Animation<double> _animation;
+
+  /// Still and fully visible when decorative motion is not allowed.
+  @override
+  void onAmbientMotionChanged(bool allowed) {
+    if (allowed) {
+      if (!_controller.isAnimating) _controller.repeat(reverse: true);
+    } else {
+      _controller.stop();
+      _controller.value = 1;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    )..repeat(reverse: true);
     _animation = Tween<double>(
       begin: 0.6,
       end: 1.0,

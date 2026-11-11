@@ -173,6 +173,8 @@ from adapt_pause_checkpoint_growth import apply as adapt_pause_checkpoint_growth
 from adapt_vulkan_memory_journal import apply as adapt_vulkan_memory_journal
 from adapt_pipeline_cache_compact import apply as adapt_pipeline_cache_compact
 from adapt_cold_buffer_trim import apply as adapt_cold_buffer_trim
+from adapt_host_thread_class import apply as adapt_host_thread_class
+from adapt_remap_sweep_range import apply as adapt_remap_sweep_range
 
 
 def replace_once(path, old, new):
@@ -499,6 +501,14 @@ def main():
     # the buffers in use, recreated at once: 1 400 to 7 026 buffers per 5 s window): while only the device is short the
     # buffer cache gives back what nothing used for a minute of play.
     adapted += [source / name for name in adapt_cold_buffer_trim(source)]
+    # Core 733 (lot 12, IPA 725 Hogwarts: the guest's threads at priority 31 spend 20 to 35 % of their time on performance
+    # cores in the stretches at 20 FPS, the render and GPU threads at 47 spend 80 to 97 %): the threads a frame or the
+    # sound waits for ask the user-interactive class.
+    adapted += [source / name for name in adapt_host_thread_class(source)]
+    # Core 735 (lot 14, IPA 725 Hogwarts: pool-array delta updates 0.43 to 0.68 s per 5.1 s on the GPU thread, 53 to 160 ids
+    # per call of which 88 % changed, in steady scenes too): a Map or Unmap re-queues the partially mapped textures it can
+    # concern, not all of them.
+    adapted += adapt_remap_sweep_range(source)
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -635,7 +645,9 @@ def main():
                  'adapt_pause_checkpoint_growth.py',
                  'adapt_vulkan_memory_journal.py',
                  'adapt_pipeline_cache_compact.py',
-                 'adapt_cold_buffer_trim.py']:
+                 'adapt_cold_buffer_trim.py',
+                 'adapt_host_thread_class.py',
+                 'adapt_remap_sweep_range.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -707,6 +707,8 @@ class _CustomBackgroundCard extends StatelessWidget {
                     Image.file(
                       File(backgroundPath),
                       fit: BoxFit.cover,
+                      // A 4:3 settings card: never decode the full image.
+                      cacheWidth: 512,
                       errorBuilder: (_, _, _) => Center(
                         child: Icon(
                           Symbols.broken_image_rounded,

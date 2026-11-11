@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "840c3fb5ee984523e19da398975dfc91ed0fcf3c",
-  "run": 42958274015,
-  "job": 130320109731,
+  "source": "d2053e980a9364a3fe994ebd127a15f3fe0eafb5",
+  "run": 43044568458,
+  "job": 130604996031,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13830187578,
-  "name": "MeloNX-engine-840c3fb5ee984523e19da398975dfc91ed0fcf3c",
-  "bytes": 100508839,
-  "sha256": "d82a8abf748fea1f2f4cf3afaae45ac1368b1ea66160b16dbda4892e90fedfe9",
-  "expiresAt": "2026-11-25T05:12:06Z",
+  "artifact": 13870293486,
+  "name": "MeloNX-engine-d2053e980a9364a3fe994ebd127a15f3fe0eafb5",
+  "bytes": 100535666,
+  "sha256": "f940778e15a68e25a59d8723659d907285432c161d7d6d2159c13869b7cf31bd",
+  "expiresAt": "2026-11-25T16:06:12Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "574a5de906bcdb3f3bb0b8fe4ce05c7bd299fca95b7fde654e7ffec68e33b465",
-      "bytes": 38456384
+      "sha256": "264a2f18fcdcd6068ae638f6e60c6495e5596483dafa23552de6dc1f1814f744",
+      "bytes": 38472792
     },
     "iossimulator-arm64": {
-      "sha256": "e7039445fb85b89f1eebe74d79674927f31f5bd479643f3053a9953e0c3700fa",
-      "bytes": 38789944
+      "sha256": "1b5832908c5389ab0ae143daf361ae4c4677ee8bddf9114c6345ab84789f55dc",
+      "bytes": 38789976
     }
   },
   "identities": {
-    "ios-arm64": "834320e37abd84c8a5151457d82b8a7d0d3ced5412c2eb5b2547b88272c65968",
-    "iossimulator-arm64": "c305c729b3c4721cc71d33b2c319f02c2dc9e6b58b0d9794c329cb3704eb5390"
+    "ios-arm64": "036d3f3b4cfa21b5def0df15b22c4db408889d10c7c9d087279132277e398ab3",
+    "iossimulator-arm64": "88ae0d31f350c3b07024b721fdf1847e9949e8e299fea9f39d166d0e8f89b82f"
   },
-  "contractSha256": "518ea8dc5e1568f0000455bd96c1e6a059cfe4de1ee691c560aad28ac2e4fe4f",
-  "resultSha256": "04e9032adcbe38800e8a68d2b3f663a72dac1291429cce168d864f2cf0264e12",
-  "packagedFingerprint": "919c0ec35f95bb1d7e4f50f7e21b58e82e27ecc1b56dcc99b3a9bc4f61904e4f",
+  "contractSha256": "47b596a9697db6e86f99208b0d1a956c6b6600d350768d689e612b2bca28de9e",
+  "resultSha256": "e7719e2e049015d39b4e42a9ae494e79e94d0a7adeea1a0cef218040e80dd63a",
+  "packagedFingerprint": "a60542da6a6cd4643fb8796ab7daf27016ce78204ac84af6086ac7da02791b40",
   "replaces": {
-    "source": "1a9f21677f19f79ffcd1dfd0e354122cfbdc102f",
-    "run": 42948046731,
-    "artifact": 13826421242,
-    "packagedFingerprint": "bbae6fc352bbbbe0d8bfcd073119754038193ff6c2dca900c577cb2f44ce9b16",
-    "reason": "MeloNX lots 10 and 11 (branch work/melonx-fps-stability-20261103, heads 71f9983f and e3620e88, merged as b0ab6744 and 840c3fb5; engine built at 840c3fb5): Core 731 = Core 727 + adapt_pipeline_cache_compact (Core 729, PipelineCacheManager.cs: at the end of the background load a main pipeline cache file at least twice the data of the driver, 8 MiB or more, is written again once by the existing SaveCache) + adapt_cold_buffer_trim (BufferCache.cs, one field in Buffer.cs: with 768 MiB of margin or more a GPU cache purge evicts only the buffers unused for 60 s of play; below, or with an unknown margin, the upstream behaviour). Contract 518ea8dc, 88 fresh Apple gates. The contract binds the five-part MoltenVK patch (a cached shader library is kept under the bindings a lookup reads): Core 731 and the five-part MoltenVK go together, never Core 727 with it. Core 729 itself was built by run 42954875678, which stopped at the gate melonx_worker_library_share_test (1878 of 2000 render-thread creations kept in one candidate scenario): not pinned, not masked, reported to the MeloNX session; run 42958274015 passed that gate with the others. Replaces Core 727 (run 42948046731), which stays the fallback with the four-part MoltenVK. Not run on an iPhone; no FPS or memory claim."
+    "source": "f4f25c9a6c3bf81aa1444040347c925fb5777673",
+    "run": 43025166594,
+    "artifact": 13862341640,
+    "packagedFingerprint": "6c1f18d8fe65ef8023b295b506066d0a5817fed7a2d794a9daa96989681fd44a",
+    "reason": "MeloNX lot 14 (branch work/melonx-fps-stability-20261103, head 1db5e54d, merged as d2053e98; engine built at d2053e98): Core 735 = Core 733 + adapt_remap_sweep_range (TextureCache.cs, Texture.cs, TexturePool.cs: a guest Map or Unmap re-queues only the partially mapped textures it can concern: those it overlaps, those never swept, those no pool references, and those a pool of its address space references over a range it intersects; IPA 725 Hogwarts: pool-array delta updates 0.43 to 0.68 s of the GPU thread per 5.1 s); the host diagnostics reader decodes only changed bytes (MeloNXRuntimeAPI.swift); one NativeAOT engine per process (rb_melonx_core_loaded). Contract 47b596a9, 92 fresh Apple gates (the new differential gate remap-sweep-range compares control and candidate engines at every step). Same five-part MoltenVK as Core 733. Replaces Core 733 (run 43025166594), which stays the fallback. Not run on an iPhone; no FPS or memory claim."
   }
 }
