@@ -76,7 +76,8 @@ jobs:
             -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
             -o proof/s2arm_prepare_cli native/s2arm/prepare/s2arm_prepare.c native/s2arm/prepare/s2arm_addr_need.c \
             native/s2arm/prepare/s2arm_modules.c native/s2arm/prepare/s2arm_nro.c native/s2arm/prepare/s2arm_zbic.c \
-            native/s2arm/prepare/s2arm_ns2_dump.c native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
+            native/s2arm/prepare/s2arm_ns2_dump.c native/s2arm/prepare/s2arm_sha256.c native/s2arm/prepare/s2arm_pack.c \
+            native/s2arm/prepare/s2arm_caps.c native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
           bash tools/s2arm_prototype/run_prepare_test.sh proof/s2arm_prepare_cli "$RUNNER_TEMP/rewriter/s2a-rewrite" \
             "$RUNNER_TEMP/prepare-work" proof/prepare-report.txt
       - name: Compare the address-need table with S2Arm's addr_need.py
@@ -107,6 +108,28 @@ jobs:
           set -euo pipefail
           python3 tools/s2arm_prototype/run_code_stage_test.py "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/rewriter/s2a-rewrite" \
             proof/s2arm_prepare_cli "$RUNNER_TEMP/code-stage-work" "$RUNNER_TEMP/bin/nx_unpack" | tee proof/code-stage-report.txt
+      - name: Compare the per-game files (caps, direct skeleton, module directory, image pack, resource pack) with S2Arm's chain
+        run: |
+          set -euo pipefail
+          python3 tools/s2arm_prototype/run_pack_test.py "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/rewriter/s2a-rewrite" \
+            proof/s2arm_prepare_cli "$RUNNER_TEMP/pack-work" "$RUNNER_TEMP/bin/nx_unpack" | tee proof/pack-report.txt
+      # The game-independent system data (open fonts, time zone data, synthesised system data) made by
+      # S2Arm's own generators; uploaded as an artifact, never stored in the repository.
+      - name: Build the system data tree with S2Arm's generators
+        id: sysdata
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          mkdir -p proof
+          bash tools/s2arm_prototype/build_sysdata_bundle.sh "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/sysdata" | tee proof/sysdata-report.txt
+          cp "$RUNNER_TEMP/sysdata/SHA256SUMS" proof/sysdata-SHA256SUMS.txt
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        if: ${{ !cancelled() && steps.sysdata.outcome == 'success' }}
+        with:
+          name: s2arm-sysdata-${{ runner.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/sysdata
+          if-no-files-found: error
+          retention-days: 30
       - name: The library compiles for iOS arm64
         if: runner.os == 'macOS'
         run: |
@@ -117,7 +140,7 @@ jobs:
           xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
             -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
             -c native/s2arm/prepare/s2arm_addr_need.c -o proof/ios-s2arm_addr_need.o
-          for unit in s2arm_modules s2arm_nro s2arm_zbic s2arm_ns2_dump; do
+          for unit in s2arm_modules s2arm_nro s2arm_zbic s2arm_ns2_dump s2arm_sha256 s2arm_pack s2arm_caps; do
             xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
               -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
               -c native/s2arm/prepare/$unit.c -o proof/ios-$unit.o
@@ -134,4 +157,7 @@ jobs:
             proof/code-stage-report.txt
             proof/zbic-report.txt
             proof/ns2-dump-report.txt
+            proof/pack-report.txt
+            proof/sysdata-report.txt
+            proof/sysdata-SHA256SUMS.txt
           retention-days: 30
