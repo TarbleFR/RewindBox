@@ -1,0 +1,71 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-11",
+ "scope": "Switch 2 (S2Arm) private test IPA only, never the common IPA, chained after the S2Arm probe review: the root pubspec.yaml gains the workspace member and the path dependency of the local plugin packages/s2arm_engine_bridge (RewindBox host code of the embedded engine under the repository licence: method channel, game preparation, JIT helper session, code pages, launch journal and pack plan, Objective-C and C, linked statically into Runner; the pod needs Apple's Foundation, UIKit and Security). Its podspec vendors Frameworks/S2ArmPrepare.xcframework, which is never committed (the package .gitignore ignores ios/Frameworks/): the test line delivery downloads it from its authenticated producer run of .github/workflows/s2arm-core.yml and unzips it there before CocoaPods. It is built by build-utils/s2arm/build_prepare_xcframework.sh from native/s2arm/prepare (RewindBox ports of S2Arm tools, repository licence, Apache-2.0 notice of S2Arm kept) with the S2Arm rewriter (Apache-2.0), Capstone 5.0.7 (BSD-3-Clause, LLVM-derived parts under the LLVM Release License) and LZ4 1.9.4 as bundled by python-lz4 4.4.5 (BSD-2-Clause), at the pins of tools/s2arm_prototype/pin.json. No hosted package, engine, Core or vendored native source of this tree changes; pubspec.lock is unchanged (a workspace member is not listed there). The engine frameworks and the system data the test IPA also ships are delivery components authenticated by the launcher (docs/s2arm-engine-bridge.md), not declarations of this tree; their notices are drafted in docs/s2arm-legal-notices.md for the integration owner.",
+ "baseline_inventory": "docs/evidence/s2arm-probe-declarations-2026-11-11.json",
+ "baseline_inventory_sha256": "2a61cb8d91d3e781665ab07ecf14781e5485dcf0f4f7783bb3fde773997b7184",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {
+   "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec": [
+    "Foundation",
+    "UIKit",
+    "Security"
+   ]
+  },
+  "vendored_frameworks_added": {
+   "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec": [
+    "Frameworks/S2ArmPrepare.xcframework"
+   ]
+  }
+ },
+ "declarations": {
+  "pubspec.yaml": {
+   "before": "cab44fc551d4e9492472fb198613bb361b1b100817f8bd8912205cb2c89517b0",
+   "after": "4457c12513478d6a3a875dc2541616d919cfc0431563c4a6176cc1830f892274"
+  },
+  "packages/s2arm_engine_bridge/pubspec.yaml": {
+   "before": null,
+   "after": "05e96d74715da74311fc09161d1a000a11803030603ac4a259e33dca776f5563"
+  },
+  "packages/s2arm_engine_bridge/ios/s2arm_engine_bridge.podspec": {
+   "before": null,
+   "after": "5821c518689d17e3933d975acfac6b9a6dd1631a58662a2f77d08fe4a3e58429"
+  }
+ },
+ "vendored_library": {
+  "path": "packages/s2arm_engine_bridge/ios/Frameworks/S2ArmPrepare.xcframework",
+  "in_repository": false,
+  "ignored_by": "packages/s2arm_engine_bridge/.gitignore",
+  "producer": ".github/workflows/s2arm-core.yml",
+  "artifact": "S2ArmPrepare-<producer commit>",
+  "build_script": "build-utils/s2arm/build_prepare_xcframework.sh",
+  "installed_by": ".github/diagnostics/s2arm/standard_delivery_s2arm.py prepare-download, prepare-install",
+  "linked_into": "Runner (static library, only rb_s2arm_* symbols visible)",
+  "sources": "native/s2arm/prepare",
+  "components": [
+   {
+    "name": "S2Arm rewriter (runtime/rewriter)",
+    "source": "https://github.com/jhaizhou-ops/S2Arm",
+    "commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+    "license": "Apache-2.0"
+   },
+   {
+    "name": "Capstone",
+    "version": "5.0.7",
+    "sha256": "796bdd69b05fa124fc2aa2e74b9a0b3d4c4e7f3e02add5e583cf2f3bca282ede",
+    "license": "BSD-3-Clause; LLVM Release License (LLVM-derived parts)"
+   },
+   {
+    "name": "LZ4 (as bundled by python-lz4)",
+    "version": "1.9.4 (python-lz4 4.4.5)",
+    "sha256": "5f0b9e53c1e82e88c10d7c180069363980136b9d7a8306c4dca4f760d60c39f0",
+    "license": "BSD-2-Clause"
+   }
+  ],
+  "notices": "docs/s2arm-legal-notices.md"
+ }
+}
