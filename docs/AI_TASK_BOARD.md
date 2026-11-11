@@ -282,7 +282,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   7309/7309 page hashes, validator `028a0fdf2` exit 0, signature-free digest = pin, CMS chain reaches the separately
   downloaded Apple Root CA. New limit: leaf and intermediate expired 2026-10-24, no CMS timestamp; OpenSSL fails with
   its time check (passes only as a no-time diagnostic, never in delivery). Keep strict codesign; record its real macOS
-  result. LGPL delivery review still incomplete at `028a0fdf2`. Points 1-3 stay open; Apple access is being requested.
+  result. LGPL delivery review still incomplete at `028a0fdf2`.
+  Apple package check (12 Nov, Codex, Verification_Paquet_Apple_XeniOS_2026-11-12.txt `cd5e43d0…b121`), replacing the
+  "Apple access needed" blocker: official 4.0 beta 3 pkg `44983321…e622` (XAR chain verified, OpenSSL only) carries
+  EA1844 byte-identical (`20108dfe…`). Its iOS dylib `3040a91e…` (33.40) is NOT the pin `bd6b…` (33.39): same size,
+  code/data bytes identical, 430 bytes differ (UUID, source version, rpath, signature). Point 1 partly answered (contract
+  provenance for this package), points 2-3 open. Pin, binary and checks unchanged.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
