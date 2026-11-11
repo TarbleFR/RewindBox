@@ -4357,6 +4357,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (service, export reader, library strings, console catalog/policy incl. "Switch 2 starts off", Consoles tab), storage
   contract. Second run `43065635632` had stopped on the truncated-NPDM case: its test helper threw while building the
   input; the case now cuts a whole NPDM and still expects null. Nothing run on a device.
+- **Delivery wiring for the bridge integrated (11 Nov, `f434284d`..`7bbe25af`):** root `pubspec.yaml` gains the bridge
+  (second chained review `docs/evidence/s2arm-engine-declarations-2026-11-11.json`, after the probe review; two probe
+  controls now run in the tree as that review left it, `EngineReview` holds the new chain end), the bridge pod vendors
+  `S2ArmPrepare.xcframework` supplied by `prepare-download/install`, `sysdata-download/embed` put the open system data
+  tree in `Runner.app/S2ArmSystemData`, app/IPA checks extended (registrant, exported `rb_s2arm_engine_loaded`, no
+  undefined `rb_s2arm_*`, system data against `SHA256SUMS`, `S2ArmDirectChain.txt`). Fixes: the engine gets
+  `S2ArmSystemData/systemdata`; prepared games copy the system data (~20 MB each) instead of linking the app bundle,
+  whose path changes with each app update. Local: delivery tests 62, legal controls 17/17 on an effective tree,
+  bridge 61 checks, `make_workflow --check` green. The next manifest must declare `s2arm.prepare` and `s2arm.sysdata`.
+- **Trial base blocked (11 Nov):** dry-run merge of prototype + library: textual conflicts only, but #172 changes
+  `pubspec.yaml` (`xenia_internal_bridge`) with no chained review, and both S2Arm reviews bind `pubspec.yaml`. Proposed
+  to main: #172 lands in `Claude` with its review, then this session merges `Claude`, re-chains its two reviews and
+  builds 803. Notices for the engine binaries (Apache-2.0 §4 LICENSE/NOTICE, .NET, codecs) still main's decision.
 
 ### Codex orchestration — Codex
 
