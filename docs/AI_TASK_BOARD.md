@@ -4256,7 +4256,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   batch 4, the Switch 2 path only (`pack/ns2_dump.py`, `pack/ns2_nup.py`, ZBIC decoder and NSO
   normalisation of `pack/nx_unpack`, ~1,350 lines), ExeFS first, each stage byte-compared in CI
   with S2Arm; RomFS read in place later; Switch 1 left to the MeloNX playlist.
-- **Next:** the maintainer's answer; nothing coded for it yet.
+- **Maintainer's choice (11 Nov):** export folder, Switch 2 only, games on the iPhone. In progress
+  (delegated, isolated worktree): C ports of the ZBIC decoder + NSO normalisation and of
+  `ns2_dump.py`, CI byte comparisons with S2Arm. Nothing merged yet.
 
 ### Codex orchestration — Codex
 
