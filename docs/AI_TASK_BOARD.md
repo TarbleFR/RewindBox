@@ -138,20 +138,24 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
-**Switch 2 (S2Arm) test IPA: compiled by main, after the common one (maintainer, 11 Nov, principal session).**
-Three messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux
-fois l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; then, correcting main's reading of the
-first two: "Il y a un malentendu je veux que ça soit toi qui compile une deuxième IPA après les corrections des cores
-et autres correctifs que tu m'aura donner puis tu compile pareillement une IPA mais cette fois avec ceux de la sessions
-Switch 2."
-- **Main compiles both, with the same recipe:** (A) the common IPA with the fixes; then (B) a second IPA = the same
-  base plus the work of session 04 (012mUASj3EQnvC86WC56AePw, branch `work/s2arm-switch2-prototype-20261110`).
-- Session 04 builds no IPA. It hands main a frozen commit of its branch (origin/Claude merged in), the list of what
-  the IPA must contain and activate (packages, Info.plist keys, native libraries), its proofs, the legal entries of
-  what enters the binary, and the device protocol. The earlier reading (session 04 builds its own IPA, build numbers
-  from 801) is withdrawn.
+**Switch 2 (S2Arm) test IPA (B): compiled by session 04 (maintainer, 11 Nov, principal session, latest message).**
+Messages, in order: "Autorise la session Switch 2 à compiler sa propre IPA"; "Fini les correctifs et créé deux fois
+l'IPA, une avec les correctifs et une autre avec le test pour la Switch 2"; "Il y a un malentendu je veux que ça soit toi
+qui compile une deuxième IPA …"; then, latest: "Autorise l'autre session à compiler" (read by main as session 04,
+012mUASj3EQnvC86WC56AePw; the maintainer can correct this reading).
+- **Main compiles (A)**, the common IPA 725 with every fix (Core 928, MeloNX 731 + five-part MoltenVK, imports, launch
+  prerequisites, skins PR 171/173), with the standard recipe on `Claude`.
+- **Session 04 compiles (B)** = the same content plus its probe (`packages/s2arm_probe`, the root `pubspec.yaml` workspace
+  and dependency lines, Info.plist `RewindBoxS2ArmProbe` = true, never `RewindBoxS2ArmProbeMapped`, the legal line of its
+  handoff `1ce1b5d9`), from its branch `work/s2arm-switch2-prototype-20261110` with `origin/Claude` merged at the 725
+  source commit once 725 is delivered (so B is A plus the probe, nothing else). It builds, follows the run to its end,
+  verifies the downloaded IPA (bytes, SHA-256, component and signing identities, receipt) before giving it, keeps
+  recipient keys out of Git and deletes private keys after the verified delivery, uploads only through the protected
+  action (#174); no public release, tag or post, no raw private log in Git.
+- It triggers on its own branch only; it does not push to `Claude` or `main` and changes no pin, contract or manifest
+  of the common line. Build numbers of its line from 801, never a number of the shared sequence.
 - The common line stays without a Switch 2 engine: (A) carries only the inert bridge hook `d32738b5`; what (B) adds is
-  not kept in the common line after it. The delivery rules of this section apply to both.
+  not kept in the common line.
 
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
