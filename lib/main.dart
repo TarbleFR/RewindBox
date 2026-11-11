@@ -57,6 +57,7 @@ import 'package:neostation/services/ios_library_root_relocation.dart';
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/xenia_internal_service.dart';
+import 'package:neostation/services/s2arm_internal_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
@@ -407,6 +408,15 @@ void main() async {
     await RetroArchLibraryService.loadCachedLibrary();
     // Xbox 360 playlist storage (folders only; nothing is scanned here).
     await XeniaInternalService.ensureLayout();
+    // Switch 2 playlist storage (folders only; nothing is scanned here). Not
+    // reaching the layout never blocks start-up: the playlist just stays empty.
+    if (Platform.isIOS) {
+      try {
+        await S2ArmInternalService.ensureLayout();
+        ConfigService.linkedS2ArmGameFolderPath =
+            (await S2ArmInternalService.gamesDirectory()).path;
+      } catch (_) {}
+    }
     await Rpcs3LibraryService.initialize();
     await Rpcs3LaunchService.initialize();
 
