@@ -18,7 +18,12 @@ its own thread (on an uninitialized object: the first statements run, then the b
   thread; the control asks nothing and ends the same way;
 - the helper: nothing asked when the platform is not Apple's; a refusal leaves the thread as it is and is recorded once
   in the engine journal for any number of refusals; a missing library or entry point is not an error;
-- on macOS (the Core gates' host) the engine's own call is made and the thread's class read back from the system.
+- on macOS (the Core gates' host) the engine's own call is made and the thread's class read back from the system:
+  the answer must agree with the class. The fixture's host runtime (CoreCLR) keeps its own threads outside the
+  system's classes (class 0) and the system then refuses them (EPERM; Core CI run 42999377576, run 43008139574), so
+  the acceptance is established where the Core's threads are: test/melonx_host_thread_class_system_test.py is run
+  here, and must pass (the adapter's helper on a system thread, and on the threads of the same fixture compiled with
+  NativeAOT, the kind of runtime the Core is delivered with: all in class 0x21 after the call, nothing recorded).
 Sensitivity: with another class in the helper, without the platform test, and with the control's Ryujinx.HLE beside the
 candidate's other assemblies, the fixture must report it.
 Not an iPhone: which cores then serve the threads, and what the frame gains, are read in the next session's cpu=, pc=
@@ -220,9 +225,21 @@ for name in ('libraryMissing', 'entryMissing'):
     check(k[name]['value'] is False and k[name]['end'] == 'returned' and k[name]['requests'] == INTERACTIVE, name + ': not an error')
 own = k['ownSeams']
 check(own['end'] == 'returned' and own['requests'] == [], 'the engine\'s own seams make the system call themselves')
+system = None
 if own['applePlatform']:
-    check(own['value'] is True and own['classAfter'] == 0x21 and own['classBefore'] != 0x21,
-          'macOS: the thread is in the user-interactive class after the call: ' + json.dumps(own))
+    check((own['value'] is True and own['classAfter'] == 0x21 and own['classBefore'] != 0x21) or
+          (own['value'] is False and own['classAfter'] == own['classBefore'] == 0),
+          'macOS: granted with the class read back, or refused to a thread the host runtime keeps outside the classes: ' + json.dumps(own))
+    run = subprocess.run([sys.executable, str(ROOT / 'test/melonx_host_thread_class_system_test.py')], capture_output=True, text=True,
+                         timeout=3600, env=dict(os.environ, DOTNET=DOTNET))
+    print(run.stdout[-4000:], run.stderr[-2000:], flush=True)
+    check(run.returncode == 0, 'macOS: the helper against the system (melonx_host_thread_class_system_test.py) passes')
+    system = json.loads((ROOT / 'dist/melonx/host-thread-class-system-checks.json').read_text())
+    ahead = system['aheadOfTime']
+    check(system['result'] == 'passed' and ahead['aheadOfTime'] is True and
+          all(ahead[kind]['answer'] is True and ahead[kind]['classAfter'] == 0x21 for kind in ('systemThreadHelper', 'runtimeThreadHelper')) and
+          ahead['records'] == [] and system['report']['systemThreadHelper']['classAfter'] == 0x21,
+          'macOS: system threads and the ahead-of-time runtime\'s threads are in the user-interactive class after the helper: ' + json.dumps(ahead))
 else:
     check(own['value'] is False and own['classAfter'] == 0, 'this host is not an Apple platform: nothing asked: ' + json.dumps(own))
 
@@ -235,7 +252,8 @@ check(len(kernel) == 4 and all(mixed['sites'][thread]['requests'] == ([] if thre
       'sensitivity: the control\'s Ryujinx.HLE beside the candidate\'s other assemblies: its four bodies ask nothing')
 
 inputs = ['build-utils/melonx/adapt_host_thread_class.py', 'build-utils/melonx/adapt_session.py',
-          'test/melonx_host_thread_class_test.py', 'test/melonx_host_thread_class/Program.cs', 'test/melonx_adapter_control.py']
+          'test/melonx_host_thread_class_test.py', 'test/melonx_host_thread_class/Program.cs', 'test/melonx_adapter_control.py',
+          'test/melonx_host_thread_class_system_test.py', 'test/melonx_host_thread_class_system/Program.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core731Preparation',
@@ -244,7 +262,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                comparison=dict(threadBodies=len(threads), raisedControl=sum(1 for t in threads if c['sites'][t]['requests']),
                                raisedCandidate=sum(1 for t in threads if k['sites'][t]['requests'] == INTERACTIVE),
                                journalRecordsForThreeRefusals=k['recordsAfterRefusals'], sensitivityVariantsFailed=3),
-               bodyEnds=ends, systemClassReadBack=bool(own['applePlatform']),
+               bodyEnds=ends, systemClassReadBack=bool(own['applePlatform']), system=system,
                reports=reports, sdk=sdk, host=platform.system(), physicalDeviceTested=False,
                deviceEvidence='IPA 725, Hogwarts Legacy, pid 51986 (private journals): <MainThread> at priority 31, 20 to 35 % of its CPU time on '
                               'performance cores in the stretches at 20 FPS and 61 % in the 20 s at 30 FPS; render and GPU threads at 47, 80 to '

@@ -4105,7 +4105,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       nothing and is recorded once. Gate `host-thread-class` (99 checks): the production HLE closure
       built from control and candidate; each real thread body run on its own thread asks 0x21 once, for itself, in
       the candidate and nothing in the control, and ends the same way; refusals, missing library and other platforms
-      covered; three sensitivity variants seen. On macOS the gate reads the class back from the system.
+      covered; three sensitivity variants seen. On macOS the gate reads the class back from the system and runs the
+      system test below.
     - **Independent read-only review (rb-core-review) of B and C: no defect** (every writer of what the snapshot holds
       moves the compared key; buffer and writer only under the journal's gate; a write that throws is started again;
       the export answers as before; each of the eight bodies is the entry point of its own dedicated thread). Two
@@ -4124,19 +4125,34 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Cores: `journal_of_earlier_cores`), `guest-fault-context`, `core667-fixes` (runtime: `core733_native.reverse`
       first). `performance-diagnostics` clears the event queue by reflection: the number of events is part of what
       the kept snapshot is compared on.
-    - **Core 733 frozen: contract `b2a748e7…` (206 inputs, 211 members, 91 gates; contract test 483 checks;
+    - **Core 733 frozen: contract `5769e41d…` after the gate correction below (first freeze `b2a748e7…`, the same
+      preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
       [receipts](evidence/melonx-733-gates/run.json), [device protocol](evidence/melonx-733-gates/device-protocol.md)).**
       The five-part MoltenVK is unchanged. Local run: 90 gates in one series, 89 green; `pipeline-checkpoint` failed
       once in it (its fixture removes its temporary directory while a write is still landing, under three parallel
       gates) and passed five times alone, unchanged. The freeze then asked for a 91st: the historical
       `kernel-timer-allocations` receipt declares KTimeManager.cs, so that proof runs again on the final timer manager
       against the delivered one (same functional digest, no allocation per arm or cancellation, 195 scenarios).
+    - **Core CI red on the first freeze (run 42999377576 on `e747321a`), diagnosed and corrected (11 Nov):** gate
+      `host-thread-class`, macOS only: the engine's own call answered false on the fixture's thread (class 0 before
+      and after). Rejected hypothesis: a defect of the helper. Measured on macos-26 (`melonx-host-thread-class.yml`,
+      `test/melonx_host_thread_class_system_test.py`: the adapter's real helper and the raw call per kind of thread):
+      run 43008139574, host runtime (CoreCLR, .NET 10.0.15): a system thread (pthread_create) goes from class 0x15
+      to 0x21 and the helper answers true; the runtime's own threads and pool threads read class 0 (outside the
+      system's classes) and the call answers 1 (EPERM). Run 43008463899, the same fixture compiled with NativeAOT
+      (the kind of runtime the Core ships with): system threads, `new Thread` threads and pool threads all go from
+      0x15 to 0x21, nothing recorded. The gate asserted on a CoreCLR thread what holds for the Core's threads; the
+      engine is unchanged. Corrected gate: on macOS the answer must agree with the class read back (granted with
+      0x21, or refused to a thread in class 0) and the system test must pass in the gate (system thread and
+      NativeAOT runtime threads in 0x21 after the helper, no refusal). Linux: 99 checks; contract `5769e41d…`
+      (two fixture inputs added to the plan), contract test 483/419. Device evidence that agrees: the render and GPU
+      threads raised by the same call since Core 609 run at priority 47 in IPA 725. Not run in Core CI yet.
     - **Not in this lot:** the collector still runs at the class of the thread that triggers it; a second patch of
       the rebuilt workstation GC (class raised for the collection) was drafted and left out, the three fixes removing
       the known triggers below the user-interactive class; to revisit with the next `gcPause summary`.
     - **Not measured on a device:** everything above but the IPA 725 figures. The verdict's criteria are not met by
       IPA 725 (22.0 FPS over the 78 s exported, one pause over 1 s, footprint over 4 GiB).
-    - **Next action:** main merges this head, runs Core CI on the Core 733 source and ships it with the lot 12 bridge
+    - **Next action:** main merges the corrected head, runs Core CI on the Core 733 source and ships it with the lot 12 bridge
       in the next private IPA; the device run then gives the `gcPause summary`, the guest threads' priority and
       `pc=`, `hw=`, the thermal state and the `[MeloNX:hot]` profiles from which the GPU and render thread work per
       frame will be cut.

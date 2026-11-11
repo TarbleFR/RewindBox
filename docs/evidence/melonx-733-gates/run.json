@@ -2,7 +2,7 @@
  "schema": 1,
  "date": "2026-11-11",
  "session": "012mUASkkFGHaPcEUx9dsp8q",
- "core": "733 (provisional number, to confirm by main)",
+ "core": "733 (number assigned by main at e747321a)",
  "lot": 12,
  "base": {
   "core": 731,
@@ -505,7 +505,7 @@
   },
   "host-thread-class": {
    "report": "host-thread-class-checks.json",
-   "sha256": "9b1cbfd8e76f473236d074f2093666fbe07beae25887a01a6c52eb8000db83a5",
+   "sha256": "ad598b86330c35bd0676cae3c010dde3ce508e0f82830ba6dfd05110829b596c",
    "checks": 99
   },
   "diagnostics-snapshot-reuse": {
@@ -521,15 +521,45 @@
  },
  "allGatesLocally": "91 gates: 90 in one local series on the final preparation (89 green; pipeline-checkpoint failed once in it, its fixture's removal of its temporary directory racing a write under three parallel gates, and passed five times run alone), then kernel-timer-allocations added as a rerun gate (the freeze requires it: its historical receipt declares KTimeManager.cs) and run alone",
  "contract": {
-  "sha256": "b2a748e795764d842143578b3a06e5b64b5d79722276b5ff35f715d26ee5dbc4",
+  "sha256": "5769e41da8125e563daf4ddff9930908b2f11e2c314fde1b6a85dfa7fe12e332",
   "preparationInputs": 206,
   "preparedMembers": 211,
   "freshAppleGates": 91,
-  "contractTestChecks": 483
+  "contractTestChecks": 483,
+  "previous": "b2a748e795764d842143578b3a06e5b64b5d79722276b5ff35f715d26ee5dbc4 (the same preparation and engine; the host-thread-class gate and the plan's fixture inputs differ)"
  },
  "notInThisLot": "the collector itself still runs at the class of the thread that triggers it (a second patch of the rebuilt workstation GC was drafted and left out: the three changes above remove the known triggers at utility priority; to revisit with the next run's gcPause summary)",
  "physicalDeviceTested": false,
  "ipa": null,
- "ciRuns": [],
- "review": "independent read-only review (rb-core-review) of the snapshot reuse and of the host thread class: no defect; two hypotheses left to the device (the composer's 2 ms spin now at the engine threads' priority; a priority inversion if a default-class thread holds the guest kernel's critical section while a raised thread waits)"
+ "ciRuns": [
+  {
+   "run": 42999377576,
+   "workflow": "melonx-core.yml",
+   "head": "e747321a",
+   "result": "failed at the gate host-thread-class (the two gates before it passed, both production Ryujinx.HLE builds succeeded)",
+   "read": "on macOS the engine's own call answered false on a thread of the gate's host runtime: value false, classBefore 0, classAfter 0"
+  },
+  {
+   "run": 43008139574,
+   "workflow": "melonx-host-thread-class.yml",
+   "head": "18054d1b",
+   "result": "passed, 4 checks",
+   "read": "macOS 26.7.2, host runtime .NET 10.0.15: a system thread (pthread_create) goes from class 0x15 to 0x21, call answer 0, helper true; the host runtime's own threads and pool threads are in class 0 and the call answers 1 (EPERM), helper false, one record"
+  },
+  {
+   "run": 43008463899,
+   "workflow": "melonx-host-thread-class.yml",
+   "head": "8d323f7e",
+   "result": "passed, 11 checks",
+   "read": "the same fixture compiled with NativeAOT (runtime 10.0.14): system threads, the runtime's own threads (new Thread) and its pool threads all go from class 0x15 to 0x21, call answer 0, helper true, nothing recorded"
+  }
+ ],
+ "review": "independent read-only review (rb-core-review) of the snapshot reuse and of the host thread class: no defect; two hypotheses left to the device (the composer's 2 ms spin now at the engine threads' priority; a priority inversion if a default-class thread holds the guest kernel's critical section while a raised thread waits)",
+ "systemClass": {
+  "cause": "the gate's fixture runs under CoreCLR, whose threads are outside the system's QoS classes (qos_class_self() reads 0), and pthread_set_qos_class_self_np then answers EPERM; the gate asserted on that thread what holds only for threads inside the classes",
+  "engineUnchanged": "the helper and the preparation are those of contract b2a748e7: the Core ships with NativeAOT, whose threads accept the class on macOS (run 43008463899); on the device the render and GPU threads raised by the same call since Core 609 run at priority 47 (IPA 725)",
+  "gate": "on macOS the gate now requires an answer that agrees with the class read back (granted with 0x21, or refused to a thread in class 0) and runs test/melonx_host_thread_class_system_test.py, which must pass: the adapter's real helper on a system thread and, compiled with NativeAOT, on the runtime's own threads, all in 0x21 after the call, no refusal recorded",
+  "localGate": "Linux: 99 checks (the system test is skipped off macOS); the macOS part ran in runs 43008139574 and 43008463899",
+  "device": "not run on an iPhone: a refusal there is written once in MeloNX-core.log (hostThreadClass refused) and the priorities are read in cpu="
+ }
 }
