@@ -664,3 +664,24 @@ images). Contenu de la 721 avec RPCS3 Core 920 (pin `f9f2b478`), MeloNX Core 721
 - **Hors CI.** Métadonnées par l'API REST publique, pièces par les URL signées du serveur GitHub MCP, IPA vérifiée hors
   ligne, huit reçus copiés avant la suppression de la clé, clé supprimée. Aucun test sur iPhone.
 
+
+## 24. État de la 726 (11 novembre 2026)
+
+IPA commune privée livrée sur la 725 : run `43106533461` (tentative 2), déclencheur `bd99e8b7`, gel `8fb2ee39`, cinq jobs
+verts, IPA `ac9612b4…d618`, 272927734 octets, 91 images ([reçu](evidence/rewind726/delivery.json), douze fichiers de
+preuve dont l'inventaire signé). RPCS3 Core 933, MeloNX Core 735, PR 172 (plugin `xenia_internal_bridge`, nouvelle image
+déclarée sous `images.added`), PR 176 et 177, couche bibliothèque Switch 2, corrections de messages de la revue 725.
+- **Ligne de livraison rétablie** (§ 3.9) : la fusion `d769ef7c` de la session MeloNX mettait son propre commit en premier
+  parent ; `c8f39557` (arbre de `eb7a88c4`, premier parent `594e1d31`) rend à chaque commit de `Claude` sa classification.
+- **Portage** des deux corrections de messages qui touchent des fichiers portant les lignes différées de `b06888a9`
+  (`2293b563`, `ecf6ace6`, `86970b20`), comme en 725.
+- **Groupe Flutter rejoué sur l'arbre effectif avant le gel** : la commande de base `translation-source` échouait (appels
+  `setLanguage` reformatés par la PR 172) ; corrigé dans `a5acf378`. Les commandes qui lisent l'historique git se jouent dans
+  le checkout avec l'arbre effectif appliqué, pas dans un export.
+- **Panne GitHub Actions** : le run du premier déclencheur `0fbb5ac8` (`43098367088`, créé à 20:50 UTC pendant la panne) n'a
+  jamais démarré et son annulation a été refusée (409) ; second déclencheur après un nouveau gel (même arbre effectif).
+  Tentative 1 : `republish` en échec sur `gh: HTTP 503` (archive Dolphin retenue) ; run annulé puis rejoué en entier.
+- **Image non déclarée** : `armsx2_internal_bridge`, sources inchangées, ne diffère de la 725 que par les bouchons de
+  l'éditeur de liens (`__stubs`, `__objc_stubs`) ; rien à classer (§ 3.10).
+- **Hors CI.** Métadonnées par l'API REST publique, pièces par les URL signées du serveur GitHub MCP, IPA vérifiée hors
+  ligne, huit reçus copiés avant la suppression de la clé, clé supprimée. Aucun test sur iPhone.
