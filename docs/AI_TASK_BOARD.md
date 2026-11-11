@@ -4342,6 +4342,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Maintainer (11 Nov): scrape Switch 2 games by name or id (covers, descriptions).** Plan: ScreenScraper system 296
   (from the site's system page, not confirmed through the API) with the NACP title as `romnom` (an export folder has
   no ROM to hash; no evidence the title id is a ScreenScraper key), the export's own icon as box art before scraping.
+- **E1 compiled (11 Nov):** run `43061106903` on `b43922e`, both jobs success (Xcode 26.3 and 26.6): patches
+  0001–0009 apply and link, guest entry points and `S2ACommit` checked, `S2ArmDirectChain.txt` = `DMSH_CHAIN`;
+  `s2arm-engine-framework-b43922e…` uploaded (macos-26). Preparation Core run `43061107011` green
+  (`S2ArmPrepare-b43922e…`). Nothing run on a device.
+- **Library branch pushed (`work/s2arm-switch2-library-20261111`):** the shared-layer hooks (10 commits from the
+  delegated agent, on PR #172's model) plus coordinator fixes: one stored file name per game (`<title id>.npdm`;
+  scraped metadata is `UNIQUE(app_system_id, filename)` and media are named after the filename, so `main.npdm` for
+  every row would have merged the games; the same holds for #172's `default.xex` rows, reported to session 03), the
+  folder import inside `StorageImportActivity.run` (storage contract 24/24), the service test's `Locale` import (first
+  CI run `43063255550`: `flutter analyze` stopped on it). `libretro_frontend_ui_contract_test.py` fails at `db277ee` and
+  at `Claude` `41c7640` alike (`lib/widgets/header.dart`), so this branch's workflow runs it for information only.
 
 ### Codex orchestration — Codex
 
