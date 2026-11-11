@@ -334,6 +334,13 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     guard authorized else { throw MeloNXHostError.prepare(-1,"The selected method did not authorize executable mappings for the RewindBox PID.") }
                     MeloNXLaunchJournal.record("jitProbe", "passed")
                 }
+                // S2Arm diagnostic hook (MeloNXS2ArmProbeHook.m), test IPAs only: phase 1 while the universal helper
+                // is attached, phase 2 after its detach. Its results never change this launch.
+                var s2armProbe: Int32 = -2
+                if !reuseArena, universal, Bundle.main.object(forInfoDictionaryKey:"RewindBoxS2ArmProbe") as? Bool == true {
+                    let flags: UInt32 = Bundle.main.object(forInfoDictionaryKey:"RewindBoxS2ArmProbeMapped") as? Bool == true ? 1 : 0
+                    s2armProbe = MeloNXS2ArmProbeAttached(MeloNXLaunchJournal.path ?? "", flags)
+                }
                 // Prepare both the shared cache and native signal mapping before
                 // creating guest threads. This is the standalone MeloNX order.
                 try runtime.prepareJit()
@@ -343,6 +350,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                         throw MeloNXHostError.prepare(-1,message as String? ?? "The JIT helper did not confirm detach.")
                     }
                 }
+                if s2armProbe >= 0 { _ = MeloNXS2ArmProbeDetached() }
                 MeloNXLaunchJournal.record("jit", "passed", detail:"Actual engine mapping verified; selected helper transaction completed.")
                 // Cache actual one-time JIT success even if donor setup or UIKit fails.
                 DispatchQueue.main.async { [self] in arenaReady = true }
