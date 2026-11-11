@@ -21,8 +21,9 @@ manifest and the JIT helper against the effective source ("s2armEngine"), with t
 against the manifest's s2arm.prepare and s2arm.sysdata: the preparation library the identity records (run,
 archive digest) and its entry points linked into the Runner executable (defined, none left undefined,
 rb_s2arm_engine_loaded exported), S2ArmSystemData complete against the SHA256SUMS the manifest names, with
-its licences, and S2ArmEngine.framework/S2ArmDirectChain.txt. An IPA and a manifest that disagree on the
-engine or on its bridge are refused.
+its licences, and S2ArmEngine.framework/S2ArmDirectChain.txt; and the engine's licence and notice texts in
+Legal/S2Arm against the packaged identity and the legal gate's rule. An IPA and a manifest that disagree on the
+engine or on its bridge are refused, and so is an IPA without the engine that carries its bridge or its notices.
 """
 from __future__ import annotations
 
@@ -69,6 +70,8 @@ def engine_check(ipa, report, work, repo=None):
                                             for name in names),
                      'An IPA without the S2Arm engine carries its bridge: S2ArmSystemData in the IPA, or s2arm.prepare '
                      f'or s2arm.sysdata in its manifest {bridge}')
+        line.require(not any(name.startswith('Payload/NeoStation.app/' + line.LEGAL_NOTICES + '/') for name in names),
+                     f'An IPA without the S2Arm engine carries its notices ({line.LEGAL_NOTICES})')
         return None
     script = (Path(work) / 'effective-tree' / line.HELPER_SCRIPT).read_bytes()
     return line.check_engine_ipa(ipa, line.engine_spec(manifest), script, prepare=line.prepare_spec(manifest),

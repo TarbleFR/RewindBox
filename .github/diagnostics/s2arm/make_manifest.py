@@ -68,12 +68,17 @@ ENGINE_DELTA = dict(
     conditionals=[path for path, _ in line.NATIVE_CONDITIONALS],
     reviewedProductPaths=['packages/s2arm_jit_helper/', 'build-utils/s2arm/configure_s2arm_ios.py',
                           'build-utils/validate_single_ipa_distribution.py',
-                          'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py'],
+                          'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py',
+                          'build-utils/embed_legal_bundle.py'],
     images=dict(added=list(line.ENGINE_IMAGES)),
     packagedIdentity=line.PACKAGED_IDENTITY,
     helper=line.HELPER,
     producer=dict(workflow=line.ENGINE_WORKFLOW, branch=line.DELIVERY_BRANCH, artifact=line.ENGINE_ARTIFACT,
-                  members=list(line.ENGINE_ZIPS) + [line.ENGINE_IDENTITY]),
+                  members=list(line.ENGINE_ZIPS) + [line.ENGINE_IDENTITY, line.ENGINE_LICENSES]),
+    # The engine's licence and notice texts: collected by the producer from its pinned sources, placed in the legal
+    # bundle, required there by the legal gate's S2Arm conditional.
+    notices=dict(collector='build-utils/s2arm/engine/collect_licenses.py', notice=line.ENGINE_NOTICE,
+                 placedAt='Runner.app/' + line.LEGAL_NOTICES, gate='build-utils/embed_legal_bundle.py --validate-only --app'),
 )
 ENGINE_TESTS = (
     ['s2arm-jit-helper', ['python3', '-B', 'test/s2arm_jit_helper_test.py']],
@@ -83,6 +88,8 @@ ENGINE_TESTS = (
     ['s2arm-rpcs3-helpers', ['python3', '-B', 'test/s2arm_rpcs3_helpers_test.py']],
     ['s2arm-version-check', ['python3', '-B', 'test/s2arm_version_check_test.py']],
     ['s2arm-downloaded-delivery', ['python3', '-B', 'test/s2arm_downloaded_delivery_test.py']],
+    ['s2arm-legal-bundle', ['python3', '-B', 'test/s2arm_legal_bundle_test.py']],
+    ['s2arm-engine-licenses', ['python3', '-B', 'test/s2arm_engine_licenses_test.py']],
 )
 # The engine's host bridge of a build that carries it (docs/s2arm-engine-bridge.md): the plugin in the root pubspec.yaml,
 # reviewed by the legal gate through its chained declaration review; its preparation library and system data come from
@@ -253,7 +260,8 @@ def draft(sd, mode, model_build, build, reviewed=(), source_only=(), note=None, 
                f' With the S2Arm engine: S2ArmEngine.framework and NS2Pro.framework of run {engine["run"]} of '
                f'{line.ENGINE_WORKFLOW}, their identity {line.PACKAGED_IDENTITY} and the {line.HELPER} extension '
                '(packages/s2arm_jit_helper, build-utils/s2arm/configure_s2arm_ios.py, the S2Arm conditionals of the '
-               'common closed extension sets and counts: ' + ', '.join(ENGINE_DELTA['conditionals']) + ').')
+               'common closed extension sets and counts: ' + ', '.join(ENGINE_DELTA['conditionals']) + '), and the '
+               f'engine\'s licence and notice texts in {line.LEGAL_NOTICES}, required by the legal gate.')
     if bridge:
         carried += (f' Its host bridge {line.BRIDGE_PACKAGE} (a plugin of the root pubspec.yaml, linked into Runner) with '
                     f'{line.PREPARE_XCFRAMEWORK} of run {prepare["run"]} of {line.PREPARE_WORKFLOW} and the system data '

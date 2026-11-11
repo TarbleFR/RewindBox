@@ -9,7 +9,8 @@
 # the generated host and the version stamp, and the probe checks on the built and on the signed
 # application; the S2Arm engine: its JIT helper extension added to the generated host, its frameworks
 # downloaded from their authenticated producer run, placed in the built application with their
-# identity and checked in it and in the signed IPA; its host bridge (packages/s2arm_engine_bridge): the
+# identity and checked in it and in the signed IPA, its licence and notice texts placed in the application's
+# legal bundle (Legal/S2Arm) and required there by the legal gate; its host bridge (packages/s2arm_engine_bridge): the
 # preparation library downloaded from its authenticated producer run and installed in the bridge
 # package before CocoaPods, the system data downloaded from its authenticated producer run and placed
 # in the built application before the engine, both recorded in the engine identity and checked with it.
@@ -676,6 +677,8 @@ jobs:
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Check the S2Arm engine frameworks, identity and JIT helper in the built application
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py engine-check-app build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Check the legal gate with the S2Arm engine notices of the built application
+      run: python3 build-utils/embed_legal_bundle.py --validate-only --app build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app --dolphin-sha "$DOLPHIN_SHA"
     - name: Wait for and authenticate the test jobs and the fresh delivery contract
       run: python3 -B .github/diagnostics/s2arm/standard_delivery_s2arm.py await-tests
     - name: Embed the build identity, the replaced Core proofs and exact retained provenance

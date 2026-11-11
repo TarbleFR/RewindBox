@@ -12,7 +12,10 @@ The S2Arm engine: its producer run and artifact authenticated (mocked API, synth
 frameworks and identity embedded and checked in a synthetic built application and signed IPA, the common
 validators accepting the S2Arm application through their own conditionals (same outcome as the common line's files
 without the identity; nothing extended in memory), the engine steps with no edit of a common step, a draft carrying
-the engine, the common downloaded-delivery verifier run unchanged.
+the engine, the common downloaded-delivery verifier run unchanged. The engine's licence and notice texts: listed
+by the producer (synthetic), checked at download against their record, the legal gate's rule, the pin and the producer
+commit's RewindBox notice, placed in Legal/S2Arm and checked there in the application (also by the gate's own S2Arm
+conditional), in the signed IPA and offline, with the legal gate run again on the built application by the workflow.
 The engine bridge (packages/s2arm_engine_bridge): its preparation library and system data producers authenticated
 (mocked API, synthetic xcframework and system data tree), the library installed where the podspec vendors it, the
 tree placed as S2ArmSystemData, both recorded in the engine identity and checked in the built application, the
@@ -357,6 +360,7 @@ class Workflow(unittest.TestCase):
                             'Place the S2Arm system data and its licences in the built application',
                             'Embed the S2Arm engine frameworks and their identity in the built application',
                             'Check the S2Arm engine frameworks, identity and JIT helper in the built application',
+                            'Check the legal gate with the S2Arm engine notices of the built application',
                             'Check the S2Arm probe key and code in the signed IPA',
                             'Check the S2Arm engine frameworks, identity and JIT helper in the signed IPA']})
         for job, steps in self.sd.REQUIRED_STEPS.items():
@@ -393,10 +397,15 @@ class Workflow(unittest.TestCase):
         needles = ('delivery_cipher.py', 'split_encrypted_delivery.py', 'build-utils/validate_', 'retention-days',
                    'compression-level', 'if-no-files-found', 'shasum', 'DELIVERY_RECIPIENT', 'embed_legal_bundle.py')
         generated, common = lines(self.text, *needles), lines(self.common_text, *needles)
-        # One line more than the common workflow: the environment of the preflight recipient guard.
+        # Two lines more than the common workflow: the environment of the preflight recipient guard, and the legal gate
+        # run again on the built application once it carries the engine's notices.
         extra = 'DELIVERY_RECIPIENT: ${{ steps.manifest.outputs.recipient }}'
         self.assertEqual((generated.count(extra), common.count(extra)), (2, 1))
         generated.remove(extra)
+        gate = ('run: python3 build-utils/embed_legal_bundle.py --validate-only --app '
+                'build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app --dolphin-sha "$DOLPHIN_SHA"')
+        self.assertEqual((generated.count(gate), common.count(gate)), (1, 0))
+        generated.remove(gate)
         self.assertEqual(generated, common)
         application = {step['name']: step for step in self.spec['jobs']['application']['steps']}
         self.assertEqual(self.spec['jobs']['application']['env']['DELIVERY_RECIPIENT'],
@@ -756,11 +765,15 @@ PIN = json.dumps({'s2arm': {'commit': '6b6a571553f7a687af46e03e2cdbf8ef4d77f335'
                   'dependencies': json.loads((ROOT / line.ENGINE_PIN).read_bytes())['dependencies']}).encode()
 
 
+NOTICE = (ROOT / line.ENGINE_NOTICE).read_bytes()
+
+
 class FakeRepo:
-    """The git queries the engine checks make, on a producer commit with the pin and two patches."""
+    """The git queries the engine checks make, on a producer commit with the pin, two patches and the notice."""
     def __init__(self, ancestor=True, files=None):
         self.ancestor = ancestor
-        self.files = dict(PATCHES, **{'tools/s2arm_prototype/pin.json': PIN}) if files is None else files
+        self.files = dict(PATCHES, **{'tools/s2arm_prototype/pin.json': PIN, line.ENGINE_NOTICE: NOTICE}) \
+            if files is None else files
 
     def is_ancestor(self, ancestor, descendant):
         return self.ancestor
@@ -774,14 +787,37 @@ class FakeRepo:
         return self.files[path]
 
 
-def producer_artifact(zips=None, identity=None, extra=None):
+def licence_texts(commit='6b6a571553f7a687af46e03e2cdbf8ef4d77f335', notice=NOTICE, drop=(), change=None):
+    """The engine's licence and notice texts as its producer collects them (collect_licenses.py): every text the legal
+    gate requires, RewindBox's notice and the manifest that lists them with their origin and SHA-256."""
+    gate = line.legal()
+    texts = {path: f'licence text fixture: {path}\n'.encode() for path in gate.S2ARM_REQUIRED_NOTICES if path not in drop}
+    texts['MacNativeGames/LICENSE'] = b'an optional licence text fixture\n'
+    if gate.S2ARM_REWINDBOX_NOTICE in texts:
+        texts[gate.S2ARM_REWINDBOX_NOTICE] = notice
+    if change:
+        change(texts)
+    manifest = dict(schema=1, engine='S2Arm', s2arm=dict(repository='https://github.com/jhaizhou-ops/S2Arm', commit=commit),
+                    collector='build-utils/s2arm/engine/collect_licenses.py', components=[
+                        dict(component=path.split('/')[0], license='fixture', files=[dict(
+                            path=path, sha256=sha(data), bytes=len(data),
+                            source=dict(kind='rewindbox' if path == gate.S2ARM_REWINDBOX_NOTICE else 's2arm', path=path))])
+                        for path, data in texts.items()])
+    return dict(texts, **{gate.S2ARM_NOTICE_MANIFEST: (json.dumps(manifest, indent=1) + '\n').encode()})
+
+
+def producer_artifact(zips=None, identity=None, extra=None, licences=None):
     zips = zips or {name: zipped(framework_files(name)) for name in line.ENGINE_FRAMEWORKS}
     archives = {f'{name}.framework.zip': data for name, data in zips.items()}
+    licences = licence_texts() if licences is None else licences
     value = dict(run=ENGINE_RUN, attempt=1, head_sha=PRODUCER, s2arm_commit='6b6a571553f7a687af46e03e2cdbf8ef4d77f335',
                  patches=[dict(name=path.rsplit('/', 1)[1], sha256=sha(data)) for path, data in sorted(PATCHES.items())],
-                 files={name: sha(data) for name, data in archives.items()})
+                 files={name: sha(data) for name, data in archives.items()},
+                 licenses=dict(manifest=line.ENGINE_LICENSE_MANIFEST, files=len(licences),
+                               sha256=sha(licences.get(line.legal().S2ARM_NOTICE_MANIFEST, b''))))
     value.update(identity or {})
-    members = dict(archives, **{line.ENGINE_IDENTITY: json.dumps(value).encode()}, **(extra or {}))
+    members = dict(archives, **{line.ENGINE_LICENSES + path: data for path, data in licences.items()},
+                   **{line.ENGINE_IDENTITY: json.dumps(value).encode()}, **(extra or {}))
     return zipped(members), {name: sha(data) for name, data in archives.items()}
 
 
@@ -1017,6 +1053,8 @@ class EngineLine(unittest.TestCase):
                 'CFBundleShortVersionString': versions[1], 'CFBundleExecutable': 'Runner'}
         (app / 'Info.plist').write_bytes(plistlib.dumps(host))
         (app / 'Runner').write_bytes(runner_image() if runner is None else runner)
+        (app / 'Legal').mkdir()   # the legal bundle, as embed_legal_bundle.py writes it before the engine is embedded
+        (app / 'Legal/NeoStation-NOTICE.md').write_text('UPSTREAM NEOSTATION ATTRIBUTION fixture\n')
         (helper / 'Info.plist').write_bytes(plistlib.dumps(helper_info(*versions)))
         (helper / line.HELPER_EXECUTABLE).write_bytes(helper_image(signed=False))
         (helper / 's2arm-universal.js').write_bytes(self.script)
@@ -1172,10 +1210,12 @@ class EngineLine(unittest.TestCase):
             for path, data in framework_files(name, signed=True).items():
                 members[fixtures.APP + 'Frameworks/' + path] = data
         members[fixtures.APP + line.PACKAGED_IDENTITY] = (app / line.PACKAGED_IDENTITY).read_bytes()
-        # The engine bridge: the system data as placed, and the signed Runner that links the bridge and S2ArmPrepare.
-        for path in sorted((app / line.SYSTEM_DATA).rglob('*')):
-            if path.is_file():
-                members[fixtures.APP + path.relative_to(app).as_posix()] = path.read_bytes()
+        # The engine bridge: the system data as placed, and the signed Runner that links the bridge and S2ArmPrepare;
+        # the legal bundle with the engine's notices.
+        for folder in (line.SYSTEM_DATA, 'Legal'):
+            for path in sorted((app / folder).rglob('*')):
+                if path.is_file():
+                    members[fixtures.APP + path.relative_to(app).as_posix()] = path.read_bytes()
         members[fixtures.APP + 'Runner'] = signed_runner(members[fixtures.APP + 'Runner'])
         if change:
             change(members)
@@ -1250,6 +1290,123 @@ class EngineLine(unittest.TestCase):
         self.assertIsNone(launcher.engine_check(common, report, work, Repo(dict(self.manifest, s2arm={}))))
         with self.assertRaisesRegex(line.LineError, 'lacks'):
             launcher.engine_check(common, report, work, Repo(self.manifest))
+
+    # --- The engine's licence and notice texts ---------------------------------------------------------------------
+
+    def test_the_engine_notices_are_downloaded_with_the_engine(self):
+        result = self.download()
+        texts = licence_texts()
+        self.assertEqual(result['licenses'], dict(manifest=line.ENGINE_LICENSE_MANIFEST, files=len(texts),
+                                                  sha256=sha(texts[line.legal().S2ARM_NOTICE_MANIFEST])))
+        self.assertEqual(line.tree_files(self.root / line.ENGINE_DOWNLOAD / line.ENGINE_LICENSES), texts)
+
+    def test_the_engine_notices_of_the_producer_are_checked(self):
+        gate = line.legal()
+        texts = licence_texts()
+        manifest_sha = sha(texts[gate.S2ARM_NOTICE_MANIFEST])
+        changed = dict(texts, **{'Ryujinx/LICENSE.txt': b'another text\n'})
+        cases = {
+            'no notices': (dict(licences={}), 'license-sources.json with its texts'),
+            'a text changed after its listing': (dict(licences=changed, identity=dict(licenses=dict(
+                manifest=line.ENGINE_LICENSE_MANIFEST, sha256=manifest_sha, files=len(texts)))), 'differs from'),
+            'a required text missing': (dict(licences=licence_texts(drop=('dav1d/COPYING',))), 'required texts missing'),
+            'a text the manifest does not list': (dict(extra={line.ENGINE_LICENSES + 'Other/LICENSE': b'x\n'}),
+                                                  'not in license-sources.json'),
+            'the identity records another manifest': (dict(identity=dict(licenses=dict(
+                manifest=line.ENGINE_LICENSE_MANIFEST, sha256='0' * 64, files=len(texts)))), 'not the recorded one'),
+            'the identity records another count': (dict(identity=dict(licenses=dict(
+                manifest=line.ENGINE_LICENSE_MANIFEST, sha256=manifest_sha, files=1))), 'not the recorded one'),
+            'the identity records no notices': (dict(identity=dict(licenses=None)), 'does not record'),
+            'texts of another S2Arm commit': (dict(licences=licence_texts(commit='1' * 40)), 'the engine of'),
+            'a notice that is not the producer commit\'s': (dict(licences=licence_texts(
+                notice=NOTICE.replace(b'RewindBox changed S2Arm', b'RewindBox kept S2Arm'))), 'of the producer commit'),
+            'a notice without the statement': (dict(licences=licence_texts(notice=b'RewindBox notice.\n')),
+                                               'does not state that no Nintendo data ships'),
+        }
+        for name, (keywords, message) in cases.items():
+            with self.subTest(case=name):
+                artifact, _ = producer_artifact(**keywords)
+                with self.assertRaisesRegex(line.LineError, re.escape(message)):
+                    self.download(artifact)
+        identity = dict(licenses=dict(manifest='licenses/other.json', sha256=manifest_sha, files=len(texts)))
+        with self.assertRaisesRegex(line.LineError, 'does not record'):
+            self.download(producer_artifact(identity=identity)[0])
+        self.download()   # and the artifact of the fixture itself is accepted
+
+    def test_the_engine_notices_go_into_the_legal_bundle(self):
+        self.download()
+        app = self.application()
+        line.engine_embed(self.sd, app, self.root)
+        texts = licence_texts()
+        self.assertEqual(line.tree_files(app / line.LEGAL_NOTICES), texts)
+        self.assertEqual((app / 'Legal/NeoStation-NOTICE.md').read_text(), 'UPSTREAM NEOSTATION ATTRIBUTION fixture\n')
+        identity = json.loads((app / line.PACKAGED_IDENTITY).read_bytes())
+        self.assertEqual(identity['licenses'], dict(path=line.LEGAL_NOTICES, manifest='license-sources.json',
+                                                    sha256=sha(texts['license-sources.json']), files=len(texts)))
+        result = line.engine_check_app(self.sd, app, self.root)
+        self.assertEqual(result['licenses'], dict(path=line.LEGAL_NOTICES, sha256=identity['licenses']['sha256'],
+                                                  files=len(texts)))
+        # The legal gate's own S2Arm conditional accepts the application the launcher made.
+        self.assertEqual(line.legal().validate_s2arm_notices(app)['s2arm']['commit'], identity['sourceIdentity']['s2arm_commit'])
+        tampering = {
+            'a text changed': lambda app: (app / line.LEGAL_NOTICES / 'bcdec/LICENSE').write_bytes(b'changed\n'),
+            'a text added': lambda app: (app / line.LEGAL_NOTICES / 'Other.txt').write_bytes(b'extra\n'),
+            'a text removed': lambda app: (app / line.LEGAL_NOTICES / 'glslang/LICENSE.txt').unlink(),
+            'the notices removed': lambda app: shutil.rmtree(app / line.LEGAL_NOTICES),
+            'the record removed': lambda app: (app / line.PACKAGED_IDENTITY).write_text(json.dumps(dict(
+                json.loads((app / line.PACKAGED_IDENTITY).read_bytes()), licenses=None))),
+        }
+        for name, tamper in tampering.items():
+            with self.subTest(case=name):
+                app = self.application()
+                line.engine_embed(self.sd, app, self.root)
+                tamper(app)
+                with self.assertRaises(line.LineError):
+                    line.engine_check_app(self.sd, app, self.root)
+
+    def test_embed_refuses_without_the_legal_bundle_or_with_changed_notices(self):
+        self.download()
+        app = self.application()
+        shutil.rmtree(app / 'Legal')
+        with self.assertRaisesRegex(line.LineError, 'Legal/ is not in the application'):
+            line.engine_embed(self.sd, app, self.root)
+        self.assertFalse((app / line.PACKAGED_IDENTITY).exists())
+        app = self.application()
+        (app / line.LEGAL_NOTICES).mkdir()
+        with self.assertRaisesRegex(line.LineError, 'Legal/S2Arm is already in the application'):
+            line.engine_embed(self.sd, app, self.root)
+        (self.root / line.ENGINE_DOWNLOAD / line.ENGINE_LICENSES / 'SPIRV-Cross/LICENSE').write_bytes(b'changed\n')
+        with self.assertRaisesRegex(line.LineError, 'changed after their download'):
+            line.engine_embed(self.sd, self.application(), self.root)
+
+    def test_the_engine_notices_of_the_signed_ipa(self):
+        result = line.engine_check_ipa(self.sd, self.signed_ipa(), self.root)
+        self.assertEqual(result['licenses']['files'], len(licence_texts()))
+        app = fixtures.APP + line.LEGAL_NOTICES + '/'
+        changes = {
+            'a text changed': lambda m: m.update({app + 'Ryujinx/LICENSE.txt': b'changed\n'}),
+            'a text added': lambda m: m.update({app + 'Other/LICENSE': b'extra\n'}),
+            'the notices removed': lambda m: [m.pop(name) for name in list(m) if name.startswith(app)],
+        }
+        for name, change in changes.items():
+            with self.subTest(case=name):
+                with self.assertRaisesRegex(line.LineError, line.LEGAL_NOTICES):
+                    line.engine_check_ipa(self.sd, self.signed_ipa(change), self.root)
+
+    def test_offline_an_ipa_without_the_engine_carries_no_engine_notices(self):
+        import verify_downloaded_delivery_s2arm as launcher
+        work = self.root / 'work'
+        report = dict(execution=dict(source='a' * 40), manifest=dict(path='build-utils/delivery/803.json'))
+
+        class Repo:
+            def show(self, ref, path):
+                return json.dumps(dict(build=803, s2arm={})).encode()
+        common = self.root / 'common.ipa'
+        with zipfile.ZipFile(common, 'w') as archive:
+            archive.writestr(fixtures.APP + 'Info.plist', b'x')
+            archive.writestr(fixtures.APP + 'Legal/S2Arm/S2Arm/LICENSE', b'x')
+        with self.assertRaisesRegex(line.LineError, 'carries its notices'):
+            launcher.engine_check(common, report, work, Repo())
 
     # --- The engine bridge: its preparation library and system data ---------------------------------------------
 
@@ -2050,6 +2207,23 @@ class EngineWorkflow(unittest.TestCase):
         validator = distribution_module()
         self.assertEqual(1 + len(validator.EXPECTED_EXTENSIONS) + 2 + len(validator.S2ARM_EXTENSIONS), 9)
 
+    def test_the_legal_gate_runs_on_the_application_with_the_engine_notices(self):
+        names = self.names
+        gate = names.index('Check the legal gate with the S2Arm engine notices of the built application')
+        built = 'build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'
+        self.assertEqual(self.steps[gate]['run'], 'python3 build-utils/embed_legal_bundle.py --validate-only --app '
+                                                  f'{built} --dolphin-sha "$DOLPHIN_SHA"')
+        self.assertEqual(names[gate - 1], 'Check the S2Arm engine frameworks, identity and JIT helper in the built application')
+        self.assertLess(names.index('Embed legal, license and source notices'),
+                        names.index('Embed the S2Arm engine frameworks and their identity in the built application'))
+        self.assertLess(gate, names.index('Package the rebuilt application and retain current component identities'))
+        self.assertLess(gate, names.index('Seal every executable, framework and extension for SideStore'))
+        common = {step['name']: step for step in self.sd.load_yaml_subset(self.common_text)['jobs']['application']['steps']}
+        self.assertEqual(self.step('Embed legal, license and source notices'), common['Embed legal, license and source notices'])
+        self.assertLess(names.index('Embed legal, license and source notices'), gate)
+        self.assertEqual(self.text.count('embed_legal_bundle.py --validate-only'), 1)
+        self.assertEqual(self.common_text.count('embed_legal_bundle.py --validate-only'), 0)
+
     def test_the_bridge_steps_and_their_order(self):
         names = self.names
         engine = names.index('Download and authenticate the S2Arm engine frameworks of the pinned producer run')
@@ -2109,11 +2283,17 @@ class EngineManifest(unittest.TestCase):
             self.assertIn(path, paths)
         self.assertTrue(all(self.sd.is_product(path) for path in paths))
         self.assertEqual(value['s2arm']['engineDelta']['conditionals'], [path for path, _ in line.NATIVE_CONDITIONALS])
+        self.assertIn('build-utils/embed_legal_bundle.py', paths)
+        self.assertEqual(value['s2arm']['engineDelta']['notices'], make_manifest.ENGINE_DELTA['notices'])
+        self.assertEqual(value['s2arm']['engineDelta']['producer']['members'],
+                         list(line.ENGINE_ZIPS) + [line.ENGINE_IDENTITY, line.ENGINE_LICENSES])
+        self.assertIn('licence and notice texts in Legal/S2Arm', value['note'])
         self.assertNotIn('Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge', value['images']['mustChange'],
                          'the Dolphin verifier is CI code, not a source of the bridge image')
         names = [name for name, _ in value['tests']['flutter']['additions']['commands']]
         self.assertLessEqual({'s2arm-jit-helper', 's2arm-validator', 's2arm-configure', 's2arm-dolphin-verify-ipa',
-                              's2arm-rpcs3-helpers', 's2arm-version-check', 's2arm-downloaded-delivery'}, set(names))
+                              's2arm-rpcs3-helpers', 's2arm-version-check', 's2arm-downloaded-delivery',
+                              's2arm-legal-bundle', 's2arm-engine-licenses'}, set(names))
         commands = dict(value['tests']['flutter']['additions']['commands'])
         for name, argv in make_manifest.ENGINE_TESTS:
             self.assertEqual(commands[name], argv)
@@ -2246,7 +2426,8 @@ class NewFiles(unittest.TestCase):
                    'test/s2arm_validator_test.py', 'test/s2arm_configure_test.py',
                    'packages/dolphin_internal_bridge/ci/verify_ipa.py', 'build-utils/validate_rpcs3_ipa.py',
                    'test/s2arm_dolphin_verify_ipa_test.py', 'test/s2arm_rpcs3_helpers_test.py',
-                   'test/s2arm_version_check_test.py', 'test/s2arm_downloaded_delivery_test.py'] + [
+                   'test/s2arm_version_check_test.py', 'test/s2arm_downloaded_delivery_test.py',
+                   'build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt', 'test/s2arm_legal_bundle_test.py'] + [
             path.relative_to(ROOT).as_posix() for path in sorted((ROOT / 'packages/s2arm_jit_helper').rglob('*'))
             if path.is_file()]
         for path in product:
@@ -2257,6 +2438,12 @@ class NewFiles(unittest.TestCase):
             text = (ROOT / path).read_text()
             self.assertIsNone(banned.search(text), path + ' names a model')
             self.assertNotIn('PRIVATE' + ' KEY', text, path)
+        # The engine's licence collector, its test and the legal gate name the audio codec by its own name (its S2Arm
+        # build script and licence folder): product paths, checked for keys only.
+        for path in ('build-utils/s2arm/engine/collect_licenses.py', 'test/s2arm_engine_licenses_test.py',
+                     'build-utils/embed_legal_bundle.py'):
+            self.assertTrue(sd.is_product(path), path)
+            self.assertNotIn('PRIVATE' + ' KEY', (ROOT / path).read_text(), path)
 
     def test_the_engine_bridge_files(self):
         sd = line.configure()

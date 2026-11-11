@@ -33,12 +33,14 @@ Operations: every operation of the recipe (same arguments), plus
                     back to an old key when the variable is unset)
   inventory         print the recipe inventory this launcher was reviewed against, and the current one
   engine-download   authenticate the engine producer run and its artifact, download it, check its
-                    files against the manifest (s2arm.engine) and the producer commit
-  engine-embed APP  place S2ArmEngine.framework and NS2Pro.framework in APP/Frameworks, write
-                    APP/S2Arm-native-identity.json
-  engine-check-app APP   the built application: identity, frameworks byte for byte, JIT helper, engine bridge
+                    files against the manifest (s2arm.engine) and the producer commit, and its licence and
+                    notice texts against their record and the legal gate's rule (embed_legal_bundle.py)
+  engine-embed APP  place S2ArmEngine.framework and NS2Pro.framework in APP/Frameworks and the engine's licence
+                    and notice texts in APP/Legal/S2Arm, write APP/S2Arm-native-identity.json
+  engine-check-app APP   the built application: identity, frameworks byte for byte, JIT helper, engine bridge,
+                    engine notices
   engine-check-ipa IPA   the signed IPA: distribution validator, identity, frameworks (payload
-                    fingerprints, signed), JIT helper, signer receipt, engine bridge
+                    fingerprints, signed), JIT helper, signer receipt, engine bridge, engine notices
   prepare-download  authenticate the producer run of the engine bridge's preparation library (s2arm-core.yml)
                     and its artifact, download it, check it against the manifest (s2arm.prepare), the
                     producer commit's pin and its sha256.txt
@@ -323,12 +325,17 @@ def recipient_guard(sd, environment=None, manifest=None):
 # --- The S2Arm engine and its JIT helper --------------------------------------------------------------
 # The producer: a successful run of the engine workflow on this branch. Its artifact (the contract the
 # producer step of s2arm-engine.yml follows) is named after the run's commit and holds the two framework
-# archives and their identity:
+# archives, the engine's licence and notice texts and their identity:
 #   S2ArmEngine.framework.zip, NS2Pro.framework.zip   members <Name>.framework/..., no symbolic link
+#   licenses/license-sources.json and the texts it lists (build-utils/s2arm/engine/collect_licenses.py), complete by
+#                                 the legal gate's rule (embed_legal_bundle.s2arm_notice_errors)
 #   s2arm-engine-identity.json   {run, attempt, head_sha, s2arm_commit, patches: [{name, sha256}],
-#                                 files: {<zip name>: sha256} for exactly the two archives}
+#                                 files: {<zip name>: sha256} for exactly the two archives,
+#                                 licenses: {manifest: licenses/license-sources.json, sha256, files (with the manifest)}}
 # The manifest of a build that carries the engine names the run and the archive digests:
 #   s2arm.engine = {workflow: .github/workflows/s2arm-engine.yml, run: <id>, zips: {<zip name>: sha256}}
+# The texts go into the application's legal bundle, Legal/S2Arm (engine-embed, after embed_legal_bundle.py wrote
+# Legal/), where engine-check-app, engine-check-ipa and the legal gate (--validate-only --app) check them.
 ENGINE_WORKFLOW = '.github/workflows/s2arm-engine.yml'
 ENGINE_ARTIFACT = 's2arm-engine-framework-{source}'
 ENGINE_IDENTITY = 's2arm-engine-identity.json'
@@ -337,6 +344,10 @@ ENGINE_ZIPS = tuple(f'{name}.framework.zip' for name in ENGINE_FRAMEWORKS)
 ENGINE_DOWNLOAD = 'dist/s2arm-engine'
 ENGINE_PATCHES = 'build-utils/s2arm/engine/patches/'
 ENGINE_PIN = 'tools/s2arm_prototype/pin.json'
+ENGINE_LICENSES = 'licenses/'
+ENGINE_LICENSE_MANIFEST = ENGINE_LICENSES + 'license-sources.json'
+ENGINE_NOTICE = 'build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt'
+LEGAL_NOTICES = 'Legal/S2Arm'
 PACKAGED_IDENTITY = 'S2Arm-native-identity.json'
 HELPER = 'S2ArmJITHelper.appex'
 HELPER_EXECUTABLE = 'S2ArmJITHelper'
@@ -374,6 +385,28 @@ def on_path(*parts):
 def distribution():
     on_path('build-utils')
     return importlib.import_module('validate_single_ipa_distribution')
+
+
+def legal():
+    on_path('build-utils')
+    return importlib.import_module('embed_legal_bundle')
+
+
+def licence_errors(texts, record, commit, notice=None):
+    """Problems of the engine's licence and notice texts {path: bytes} (an empty list when sound): complete by the legal
+    gate's rule, the manifest and file count `record` names, of the S2Arm `commit`, with RewindBox's `notice` (bytes)."""
+    gate = legal()
+    errors = gate.s2arm_notice_errors(texts)
+    if errors:
+        return errors
+    raw = texts[gate.S2ARM_NOTICE_MANIFEST]
+    if not (isinstance(record, dict) and record.get('sha256') == sha(raw) and record.get('files') == len(texts)):
+        errors.append(f'{gate.S2ARM_NOTICE_MANIFEST} or the number of texts is not the recorded one')
+    if json.loads(raw)['s2arm']['commit'] != commit:
+        errors.append(f'the texts are of S2Arm {json.loads(raw)["s2arm"]["commit"]}, the engine of {commit}')
+    if notice is not None and texts.get(gate.S2ARM_REWINDBOX_NOTICE) != notice:
+        errors.append(f'{gate.S2ARM_REWINDBOX_NOTICE} is not {ENGINE_NOTICE} of the producer commit')
+    return errors
 
 
 def engine_errors(spec):
@@ -455,19 +488,24 @@ def producer_patches(repo, source):
 
 
 def engine_artifact(spec, origin, raw, repo):
-    """The producer archive's members, checked against the API, the manifest and the producer commit."""
+    """The producer archive's members, checked against the API, the manifest and the producer commit; the engine's
+    licence and notice texts against their identity record, the legal gate's rule, the pin and the producer commit's
+    RewindBox notice."""
     require(len(raw) == origin['artifact']['bytes'] and sha(raw) == origin['artifact']['sha256'],
             'The downloaded engine artifact differs from the API record')
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         names = [name for name in safe_archive(archive, origin['artifact']['name']) if not name.endswith('/')]
-        require(sorted(names) == sorted(ENGINE_ZIPS + (ENGINE_IDENTITY,)),
-                f'The engine artifact must hold exactly {", ".join(ENGINE_ZIPS)} and {ENGINE_IDENTITY}: {sorted(names)}')
+        texts = sorted(name for name in names if name.startswith(ENGINE_LICENSES))
+        require(sorted(set(names) - set(texts)) == sorted(ENGINE_ZIPS + (ENGINE_IDENTITY,)) and
+                ENGINE_LICENSE_MANIFEST in texts,
+                f'The engine artifact must hold exactly {", ".join(ENGINE_ZIPS)}, {ENGINE_IDENTITY} and '
+                f'{ENGINE_LICENSE_MANIFEST} with its texts: {sorted(names)[:12]}')
         files = {name: archive.read(name) for name in names}
     digests = {name: sha(files[name]) for name in ENGINE_ZIPS}
     require(digests == spec['zips'], f'The engine archives differ from the manifest: {digests}')
     identity = json.loads(files[ENGINE_IDENTITY])
     require(isinstance(identity, dict) and set(identity) >= {'run', 'attempt', 'head_sha', 's2arm_commit', 'patches',
-                                                               'files'}, 'Incomplete ' + ENGINE_IDENTITY)
+                                                               'files', 'licenses'}, 'Incomplete ' + ENGINE_IDENTITY)
     require(identity['run'] == origin['run'] and identity['head_sha'] == origin['source'] and
             type(identity['attempt']) is int and 1 <= identity['attempt'] <= origin['attempt'],
             f'{ENGINE_IDENTITY} names another run, attempt or commit than its producer')
@@ -478,6 +516,12 @@ def engine_artifact(spec, origin, raw, repo):
     patches = producer_patches(repo, origin['source'])
     require(identity['patches'] == patches, f'{ENGINE_IDENTITY} patches differ from {ENGINE_PATCHES} at the producer '
             f'commit: {identity["patches"]} != {patches}')
+    record = identity['licenses']
+    require(isinstance(record, dict) and record.get('manifest') == ENGINE_LICENSE_MANIFEST,
+            f'{ENGINE_IDENTITY} does not record {ENGINE_LICENSE_MANIFEST}')
+    errors = licence_errors({name[len(ENGINE_LICENSES):]: files[name] for name in texts}, record, pin,
+                            repo.show(origin['source'], ENGINE_NOTICE))
+    require(not errors, f'The engine licence texts ({ENGINE_LICENSES}) are refused: ' + '; '.join(errors))
     return files, identity
 
 
@@ -597,21 +641,43 @@ def engine_download(sd, get=None, download=None, repo=None, root=None):
     (download or sd.download_artifact)(origin['artifact']['id'], archive)
     files, identity = engine_artifact(spec, origin, archive.read_bytes(), repo)
     for name, data in files.items():
+        (target / name).parent.mkdir(parents=True, exist_ok=True)
         (target / name).write_bytes(data)
     for name in ENGINE_FRAMEWORKS:
         framework_inventory(name, files[f'{name}.framework.zip'])
     return sd.save('s2arm-engine-download.json', dict(result='authenticated', build=manifest['build'], producer=origin,
                                                       zips=spec['zips'], identity=identity,
                                                       identitySHA256=sha(files[ENGINE_IDENTITY]),
-                                                      directory=ENGINE_DOWNLOAD))
+                                                      licenses=identity['licenses'], directory=ENGINE_DOWNLOAD))
 
 
-def packaged_identity(manifest, record, inventories, script, bridge=None):
-    """S2Arm-native-identity.json; `bridge` adds the engine bridge pieces (prepare, systemData, bridge)."""
+def packaged_identity(manifest, record, inventories, script, bridge=None, licences=None):
+    """S2Arm-native-identity.json; `bridge` adds the engine bridge pieces (prepare, systemData, bridge), `licences` the
+    record of the engine's notices in Legal/S2Arm (licenses)."""
     return dict(schema=1, engine='S2Arm', build=manifest['build'], producer=record['producer'],
                 sourceIdentity=record['identity'], sourceIdentitySHA256=record['identitySHA256'], zips=record['zips'],
                 frameworks=inventories, jitHelper=dict(helper_contract(), scriptSHA256=sha(script)),
-                **(bridge or {}), physicalDeviceTested=False)
+                **(bridge or {}), **({'licenses': licences} if licences else {}), physicalDeviceTested=False)
+
+
+def downloaded_licences(root, record):
+    """The engine's licence and notice texts of the download {path: bytes}, checked again against their record."""
+    texts = tree_files(Path(root) / ENGINE_DOWNLOAD / ENGINE_LICENSES)
+    errors = licence_errors(texts, record['licenses'], record['identity']['s2arm_commit'])
+    require(not errors, f'The engine licence texts changed after their download: ' + '; '.join(errors))
+    return texts
+
+
+def check_licences(read, names, identity):
+    """The engine's notices in the application's Legal/S2Arm against the packaged identity and the legal gate's rule."""
+    record = identity.get('licenses')
+    require(isinstance(record, dict) and record.get('path') == LEGAL_NOTICES,
+            f'{PACKAGED_IDENTITY} records no engine notices in {LEGAL_NOTICES}')
+    prefix = LEGAL_NOTICES + '/'
+    texts = {name[len(prefix):]: read(name) for name in names if name.startswith(prefix) and not name.endswith('/')}
+    errors = licence_errors(texts, record, identity['sourceIdentity']['s2arm_commit'])
+    require(not errors, f'{LEGAL_NOTICES}: ' + '; '.join(errors))
+    return dict(path=LEGAL_NOTICES, sha256=record['sha256'], files=len(texts))
 
 
 def engine_embed(sd, app, root=None):
@@ -637,6 +703,11 @@ def engine_embed(sd, app, root=None):
                 'prepared game with that direct shader chain version')
         chain = direct_chain(archive.read(member), member)
     bridge = bridge_pieces(sd, manifest, app, root, chain)
+    texts = downloaded_licences(root, record)
+    notices = app / LEGAL_NOTICES
+    require(notices.parent.is_dir(), f'{notices.parent.name}/ is not in the application: the legal bundle '
+            '(embed_legal_bundle.py) is embedded before the engine, whose notices go into it')
+    require(not notices.exists(), f'{LEGAL_NOTICES} is already in the application')
     for name in ENGINE_FRAMEWORKS:
         with zipfile.ZipFile(root / ENGINE_DOWNLOAD / f'{name}.framework.zip') as archive:
             for member in archive.infolist():
@@ -646,8 +717,16 @@ def engine_embed(sd, app, root=None):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(archive.read(member))
                 target.chmod(0o755 if member.filename == f'{name}.framework/{name}' else 0o644)
+    for name, data in texts.items():
+        target = notices / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        target.chmod(0o644)
+    licences = dict(path=LEGAL_NOTICES, manifest=legal().S2ARM_NOTICE_MANIFEST, sha256=record['licenses']['sha256'],
+                    files=len(texts))
     script = (root / HELPER_SCRIPT).read_bytes()
-    text = json.dumps(packaged_identity(manifest, record, inventories, script, bridge), indent=2, sort_keys=True) + '\n'
+    text = json.dumps(packaged_identity(manifest, record, inventories, script, bridge, licences), indent=2,
+                      sort_keys=True) + '\n'
     (app / PACKAGED_IDENTITY).write_text(text)
     return sd.save('s2arm-engine-embed.json', dict(result='embedded', build=manifest['build'], app=str(app),
                                                    identity=PACKAGED_IDENTITY, identitySHA256=sha(text.encode()),
@@ -676,9 +755,11 @@ def engine_check_app(sd, app, root=None):
     helper = check_helper(read, names, host, (root / HELPER_SCRIPT).read_bytes(), signed=False)
     frameworks = check_frameworks(read, names, identity, signed=False)
     bridge = check_bridge(read, names, identity, prepare_spec(manifest), sysdata_spec(manifest), host, registrant=root)
+    licences = check_licences(read, names, identity)
     return sd.save('s2arm-engine-app.json', dict(result='passed', build=manifest['build'], app=str(app),
                                                  identitySHA256=record['identitySHA256'], helper=helper,
-                                                 frameworks=frameworks, bridge=bridge, physicalDeviceTested=False))
+                                                 frameworks=frameworks, bridge=bridge, licenses=licences,
+                                                 physicalDeviceTested=False))
 
 
 def check_engine_ipa(ipa, spec, script, identity_sha=None, signed_images=None, *, prepare, sysdata):
@@ -708,12 +789,13 @@ def check_engine_ipa(ipa, spec, script, identity_sha=None, signed_images=None, *
         require(helper['scriptSHA256'] == identity['jitHelper']['scriptSHA256'], 'The helper script is not the embedded one')
         frameworks = check_frameworks(read, names, identity, signed=True)
         bridge = check_bridge(read, names, identity, prepare, sysdata, host)
+        licences = check_licences(read, names, identity)
     for image in ENGINE_IMAGES:
         require(image in payloads, f'{image} is not in the signed inventory')
         require(signed_images is None or signed_images.get(image) == payloads[image],
                 f'{image} differs from the signer receipt')
     return dict(result='passed', ipaSHA256=sha_file(ipa), distributionBundles=sorted(bundles),
-                distributionHelper=bundles[HELPER], helper=helper, frameworks=frameworks, bridge=bridge,
+                distributionHelper=bundles[HELPER], helper=helper, frameworks=frameworks, bridge=bridge, licenses=licences,
                 identitySHA256=sha(raw), producer=identity['producer'],
                 images={image: payloads[image] for image in ENGINE_IMAGES}, physicalDeviceTested=False)
 
