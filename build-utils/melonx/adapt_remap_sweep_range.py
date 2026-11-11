@@ -67,7 +67,7 @@ USING_OLD = '''using Ryujinx.Common;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Memory;
 '''
-USING_NEW = '''using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;
+USING_NEW = '''using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics; // RewindBox (adapt_remap_sweep_range)
 using Ryujinx.Common;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Memory;
