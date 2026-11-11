@@ -54,9 +54,28 @@ destruction différée. Les points qui dépendent de l'instant d'encodage sont l
 | 4 | Journal du build 650 (Assassin's Creed, PID 8767, asynchrone) : `Device lost` levé à 1793814730,525, `HOST_STATE app=background` à ,555. iOS refuse tout tampon Metal soumis en arrière-plan ; MoltenVK déclare alors le périphérique perdu, même avec `RESUME_LOST_DEVICE` (`MVKQueue::handleMTLCommandBufferError`). C'est **la seule perte de périphérique de tous les journaux**. | Le jeu meurt quand on quitte l'application un instant. L'asynchrone élargit la fenêtre : le travail en file est soumis après la bascule. | Le Core écoute lui-même l'application : à l'entrée en arrière-plan il ferme un verrou (soumissions, présentations, acquisitions et attentes du périphérique patientent), attend les appels en cours (500 ms au plus) puis la fin du travail en file (1 s au plus), et rouvre quand l'application redevient active. Rien n'est supprimé ni réordonné. |
 | 5 | Le « streaming asynchrone des textures » ordonne deux files par des événements et sémaphores dont MoltenVK avance les compteurs à l'encodage ; en asynchrone chaque file encode sur son fil. | Ordre entre files non garanti si les deux leviers sont actifs. | Les deux ne sont pas combinés : en Automatic, une configuration qui active ce streaming garde des soumissions synchrones ; avec « Enabled », les textures sont envoyées par le fil RSX (ligne de journal). Le streaming est désactivé par défaut sur iOS et n'est plus repris de la base RPCS3 (c2519a25). |
 
-Points vérifiés et sains : destruction différée après barrière, attente du périphérique avant toute reconstruction ou
-destruction de la chaîne d'images (MoltenVK y attend sa file), transfert MetalFX déjà ordonné par un vidage de file,
-sémaphores par image protégés par l'attente du point 1, réserves de requêtes non réutilisées.
+Points vérifiés et sains (première passe) : destruction différée après barrière, attente du périphérique avant toute
+reconstruction ou destruction de la chaîne d'images (MoltenVK y attend sa file), transfert MetalFX déjà ordonné par un
+vidage de file, sémaphores par image protégés par l'attente du point 1, réserves de requêtes non réutilisées.
+
+Seconde passe (zones non couvertes par la première), **aucun nouveau défaut** :
+
+- RPCS3 : un jeu de descripteurs n'est écrit qu'à sa création et sa réserve n'est recyclée qu'après la barrière
+  (`descriptors.cpp`) ; les ressources des surimpressions et des cibles de rendu passent par la destruction différée ; la
+  capture d'écran attend la barrière avant de lire ; les objets MetalFX ne sont détruits qu'après l'attente du point 1 ;
+  aucun fil ne se met en attente au verrou d'arrière-plan en tenant le verrou de soumission.
+- MoltenVK : création paresseuse des textures et tampons Metal sous double vérification verrouillée ; tampons d'arguments
+  par jeu de descripteurs (régions disjointes) ; caches d'encodage sûrs tant qu'une réserve de commandes ne sert qu'une
+  file (c'est le cas) ; copies différées de requêtes sous verrou ; **aucun appel synchrone vers le fil principal depuis
+  le fil d'encodage sur iOS** (le vidage au passage en arrière-plan ne peut donc pas se bloquer) ; l'hypothèse restante
+  (vue d'image de la chaîne d'images placée dans un descripteur) ne concerne pas RPCS3, qui ne s'en sert que comme
+  destination.
+- MoltenVK ne lit aucune mémoire de l'application au moment de l'encodage pour ce que RPCS3 lui envoie (constantes et
+  mises à jour copiées à l'enregistrement, le reste lu par le GPU) : les tas de données ne dépendent pas de l'instant
+  d'encodage.
+
+Non relu en détail : tampons d'images de la chaîne d'images, `AsyncTaskScheduler::destroy` (levier désactivé ici),
+étiquettes GPU hôte (désactivées par défaut).
 
 ## 4. Règle définitive
 
