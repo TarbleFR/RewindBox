@@ -269,9 +269,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     non-fatal. Merge conditions: D1, D2, R1, the `default.xex` fix, the chained review of `pubspec.yaml`, and the
     `checks` job of `xenia-core.yml` green (dispatch-only today, so not runnable: session 03 adds a push trigger on its
     branch). The JIT helper appex is not wired into the IPA, so the app-extension closed set is unchanged.
-  - **PR #176 / #177 (skins: System Art update notices; decorative loops gated under games, decode caps):** read by
-    main, no defect; each merges cleanly into `Claude` and #176 also merges after #177. Only Dart change on `Claude`
-    since their base is the RPCS3 profile service. Integration after their tests run on the merged tree.
+  - **PR #177 then #176 integrated (`c06bdfd9`, `4dff0d80`; skins: decorative loops gated under games and decode caps;
+    System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
+    files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
+    IPA 724/725 (idle game list heat, battery under a game).
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
     legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172.
 
