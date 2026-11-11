@@ -558,3 +558,10 @@ Full terms and modification details are in `assets/legal/Lottie-Simple-License.t
 and `assets/legal/Mau-Ali-Tab-Motion.txt`, available in the app credits.
 The original five-tab scene is adapted to RewindBox's variable real tabs with
 the existing Flutter renderer; no dotLottie runtime dependency is introduced.
+
+## Switch 2 (S2Arm) device probe — private test IPA only
+
+The private test IPA of the Switch 2 line links a diagnostic probe, `packages/s2arm_probe` (RewindBox code,
+repository licence; no player-facing feature). Its `S2ArmSynthModule.h` embeds, as data, about 600 bytes of AArch64
+produced by the S2Arm rewriter (commit `6b6a571553f7a687af46e03e2cdbf8ef4d77f335`) from a synthetic module written for the test. No S2Arm
+source, Capstone or LZ4 is linked. Diagnostic data generated with the S2Arm rewriter (Apache License 2.0, Copyright 2026 S2Arm contributors, https://github.com/jhaizhou-ops/S2Arm).

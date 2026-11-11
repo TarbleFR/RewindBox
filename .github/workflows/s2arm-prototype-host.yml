@@ -1,0 +1,151 @@
+name: S2Arm prototype host proof
+# Feasibility prototype only (docs/s2arm-prototype-2026-11-10.md). Builds S2Arm's
+# rewriter at the pinned commit, rewrites a synthetic module written for this
+# test, and on macOS arm64 runs it to its gates. No game content, no IPA.
+'on':
+  workflow_dispatch:
+  push:
+    branches: [work/s2arm-switch2-prototype-20261110]
+    paths:
+      - .github/workflows/s2arm-prototype-host.yml
+      - tools/s2arm_prototype/**
+      - packages/s2arm_probe/**
+permissions:
+  contents: read
+concurrency:
+  group: s2arm-prototype-host-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rewrite:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch S2Arm at the pinned commit
+        run: |
+          set -euo pipefail
+          commit=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['commit'])")
+          repository=$(python3 -c "import json;print(json.load(open('tools/s2arm_prototype/pin.json'))['s2arm']['repository'])")
+          git init -q "$RUNNER_TEMP/s2arm"
+          git -C "$RUNNER_TEMP/s2arm" fetch -q --depth 1 "$repository" "$commit"
+          git -C "$RUNNER_TEMP/s2arm" checkout -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/s2arm" rev-parse HEAD)" = "$commit"
+          python3 - <<'PY'
+          import json, os, re
+          pin = json.load(open('tools/s2arm_prototype/pin.json'))['dependencies']
+          text = open(os.environ['RUNNER_TEMP'] + '/s2arm/runtime/rewriter/prepare_deps.py').read()
+          for name, entry in pin.items():
+              assert re.search(r"'%s': \('%s', '%s'\)" % (name, re.escape(entry['version']), entry['sha256']), text), name
+          print('dependency pins match the fetched prepare_deps.py')
+          PY
+      - name: Build the rewriter
+        run: |
+          set -euo pipefail
+          python3 "$RUNNER_TEMP/s2arm/runtime/rewriter/prepare_deps.py" "$RUNNER_TEMP/deps"
+          cmake -S "$RUNNER_TEMP/s2arm/runtime/rewriter" -B "$RUNNER_TEMP/rewriter" \
+            -DS2A_REWRITER_DEPS="$RUNNER_TEMP/deps" -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/rewriter" --parallel 4
+          "$RUNNER_TEMP/rewriter/s2a-rewrite" --version
+      - name: Rewrite the synthetic module
+        run: |
+          set -uo pipefail
+          mkdir -p proof/out
+          python3 tools/s2arm_prototype/make_synth_nso.py proof/synth.nso
+          env -u S2A_TARGET "$RUNNER_TEMP/rewriter/s2a-rewrite" proof/synth.nso proof/out main > proof/rewrite.log 2>&1
+          status=$?
+          cat proof/rewrite.log
+          echo "rewriter exit=$status"
+          ls -l proof/out
+          for f in proof/out/*.tsv; do echo "== $f"; cat "$f"; done
+          test "$status" = 0
+          python3 tools/s2arm_prototype/check_rewrite.py proof/out proof/rewrite.log --digest proof/digest.json
+      - name: Run the module to its gates (macOS arm64)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          clang -O1 -Wall -Wextra -o proof/host_loader tools/s2arm_prototype/host_loader.c \
+            "$RUNNER_TEMP/s2arm/runtime/src/entry.S"
+          bash tools/s2arm_prototype/run_host_proof.sh proof/host_loader proof/out proof/host-proof.txt
+      - name: Device probe, module header, host run and iOS compilation
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          classes=packages/s2arm_probe/ios/Classes
+          python3 tools/s2arm_prototype/emit_module_header.py proof/out proof/S2ArmSynthModule.h
+          if [ -f "$classes/S2ArmSynthModule.h" ]; then
+            cmp proof/S2ArmSynthModule.h "$classes/S2ArmSynthModule.h"
+          else
+            echo "::warning::S2ArmSynthModule.h is not committed yet; using the generated one"
+            cp proof/S2ArmSynthModule.h "$classes/S2ArmSynthModule.h"
+            echo '----- BEGIN S2ArmSynthModule.h -----'; cat proof/S2ArmSynthModule.h; echo '----- END S2ArmSynthModule.h -----'
+          fi
+          clang -O1 -Wall -Wextra -I "$classes" -o proof/device_probe_host_test \
+            tools/s2arm_prototype/device_probe_host_test.c "$classes/S2ArmProbe.c" "$classes/S2ArmProbeGate.S"
+          # Flags 0x2: every placement executed, as before build 801.
+          set +e
+          proof/device_probe_host_test 0x2 > proof/device-probe-host.txt 2>&1; status=$?
+          set -e
+          cat proof/device-probe-host.txt
+          test "$status" = 0
+          for mode in mapped fixed arena; do
+            grep -q "${mode}Run passed signal=0 checks=16/16" proof/device-probe-host.txt
+          done
+          # Flags 0, what the bridge passes on device: the fixed placement is set up but never
+          # executed (build 801 hung at its first execution); mapped and arena still run in full.
+          set +e
+          proof/device_probe_host_test 0 > proof/device-probe-host-default.txt 2>&1; status=$?
+          set -e
+          cat proof/device-probe-host-default.txt
+          test "$status" = 0
+          for mode in mapped arena; do
+            grep -q "${mode}Run passed signal=0 checks=16/16" proof/device-probe-host-default.txt
+          done
+          grep -q "fixedAlias passed" proof/device-probe-host-default.txt
+          grep -q "fixedExecuteText skipped" proof/device-probe-host-default.txt
+          if grep -Eq "fixedExecute(Text|Patch) (begin|passed)|fixedRun" proof/device-probe-host-default.txt; then
+            echo "::error::the fixed placement executed with flags 0"; exit 1
+          fi
+          grep -q "modes mapped=1 fixed=0 arena=1" proof/device-probe-host-default.txt
+          sdk=$(xcrun --sdk iphoneos --show-sdk-path)
+          for source in S2ArmProbe.c S2ArmProbeGate.S S2ArmProbePlugin.m; do
+            xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$sdk" -fobjc-arc -Wall -Wextra -Werror \
+              -I "$classes" -c "$classes/$source" -o "proof/ios-${source%.*}.o"
+          done
+          echo "iOS arm64 objects compiled"
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        if: always()
+        with:
+          name: s2arm-prototype-${{ runner.os }}-${{ github.sha }}
+          path: |
+            proof/out
+            proof/rewrite.log
+            proof/digest.json
+            proof/host-proof.txt*
+            proof/device-probe-host*.txt
+            proof/S2ArmSynthModule.h
+          retention-days: 30
+  compare:
+    needs: rewrite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Linux and macOS rewriter outputs are byte-identical
+        run: |
+          set -euo pipefail
+          cat artifacts/*Linux*/digest.json artifacts/*macOS*/digest.json
+          cmp artifacts/*Linux*/digest.json artifacts/*macOS*/digest.json
+          grep -c '^ok ' artifacts/*macOS*/host-proof.txt
+          ! grep '^FAIL' artifacts/*macOS*/host-proof.txt

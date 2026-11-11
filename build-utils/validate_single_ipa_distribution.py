@@ -44,6 +44,17 @@ EXPECTED_EXTENSIONS = {
     **DONOR_CONTRACTS,
     **RELAY_CONTRACTS,
 }
+# Switch 2 (S2Arm) private test IPA only, on the MeloNX model below: these join the closed set only when the
+# application carries S2Arm-native-identity.json, which the common IPA never does.
+S2ARM_IDENTITY = 'S2Arm-native-identity.json'
+S2ARM_EXTENSIONS = {
+    'S2ArmJITHelper.appex': {
+        'bundleSuffix': '.s2armjithelper',
+        'principalClass': 'S2ArmJITRequestHandler',
+        'marker': 'NeoStationS2ArmJITHelper',
+    },
+}
+S2ARM_FRAMEWORKS = ('S2ArmEngine', 'NS2Pro')
 PACKET_TUNNEL_EXTENSION_POINT = 'com.apple.networkextension.packet-tunnel'
 SHARE_EXTENSION_POINT = 'com.apple.share-services'
 DONOR_EXTENSION_POINT = 'com.apple.ar.viewer'
@@ -167,6 +178,11 @@ def validate(ipa: Path) -> dict:
             for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
                 demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
                        'MeloNX identity requires the complete private runtime: ' + component)
+        if (app / S2ARM_IDENTITY).is_file():
+            expected_extensions.update(S2ARM_EXTENSIONS)
+            for component in S2ARM_FRAMEWORKS:
+                demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
+                       'S2Arm identity requires the engine frameworks: ' + component)
         demand(
             actual_extension_names == set(expected_extensions),
             'Unexpected app-extension set: expected '

@@ -36,6 +36,7 @@ for _part in ('.github/diagnostics', 'build-utils', 'packages/dolphin_internal_b
         sys.path.insert(0, str(ROOT / _part))
 
 import standard_delivery as sd  # noqa: E402
+from validate_single_ipa_distribution import S2ARM_EXTENSIONS, S2ARM_IDENTITY  # noqa: E402
 
 PART_MEMBERS = {'data.bin', 'format.json', 'password.rsa', 'manifest.json'}
 FORMAT = {'cipher': 'AES-256-CBC PBKDF2 200000', 'keyEnvelope': 'RSA OAEP SHA256', 'content': 'tar',
@@ -249,8 +250,16 @@ def verify(args):
             bundles[name[len(root):]] = dict(CFBundleIdentifier=info['CFBundleIdentifier'],
                 CFBundleVersion=str(info['CFBundleVersion']), CFBundleShortVersionString=info['CFBundleShortVersionString'],
                 MinimumOSVersion=info.get('MinimumOSVersion'))
-        require(len(bundles) == 8 and all(b['CFBundleVersion'] == str(args.build) and
-                b['CFBundleShortVersionString'] == version for b in bundles.values()), 'Wrong bundle versions')
+        if root + S2ARM_IDENTITY in names:
+            # Switch 2 (S2Arm) private test IPA only, never the common IPA: S2ArmJITHelper.appex is the eighth extension.
+            s2arm = {f'PlugIns/{name}/Info.plist' for name in S2ARM_EXTENSIONS}
+            require(s2arm <= set(bundles) and len(bundles) == 8 + len(s2arm) and all(
+                b['CFBundleVersion'] == str(args.build) and b['CFBundleShortVersionString'] == version
+                for b in bundles.values()), 'Wrong bundle versions (S2Arm identity: the application and its eight '
+                'extensions, S2ArmJITHelper.appex included)')
+        else:
+            require(len(bundles) == 8 and all(b['CFBundleVersion'] == str(args.build) and
+                    b['CFBundleShortVersionString'] == version for b in bundles.values()), 'Wrong bundle versions')
         identity_raw = archive.read(root + sd.IDENTITY)
         identity = json.loads(identity_raw)
         require(identity == validation['identity'] and identity['build'] == args.build and
