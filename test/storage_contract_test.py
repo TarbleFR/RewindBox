@@ -196,8 +196,9 @@ LOOP_SITES = (
      'if (length == 0 || length != sourceLength) {',
      'verifiedCopies[source] = length;',
      'for (final file in selection.files) {',
-     # A cue sheet reads its tracks from the picker's folder first.
-     ('_copyReferencedTracks(File(source), destination);',)),
+     # A cue sheet reads its tracks from the picker's folder first (the helper answers the tracks it did not find
+     # since 11 November 2026; the order is unchanged).
+     ('copyReferencedTracks(File(source), destination);',)),
     ('lib/services/dolphin_internal_v2_service.dart',
      'static Future<DolphinImportResult> importGames(',
      'if (sourceLength <= 0 || sourceLength != outputLength) {',

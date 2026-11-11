@@ -18,6 +18,7 @@ import '../../services/libretro_main_menu.dart';
 import '../../services/logger_service.dart';
 import '../../services/melonx_internal_service.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/library_folder_report_dialog.dart';
 import '../../widgets/horizontal_swipe.dart';
 import '../../widgets/libretro_engine_panel.dart';
 import 'libretro_library_actions.dart';
@@ -311,10 +312,13 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       if (result.alreadyPresent > 0) {
         _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
       }
-      if (result.rejected > 0) _notice(_t('gamesRejected'));
+      if (!mounted) return;
+      for (final notice in LibretroImportMessages.forImport(Localizations.localeOf(context), result)) {
+        _notice(notice);
+      }
     } catch (error) {
       _log.w('Libretro import failed for ${console.id}: $error');
-      _notice(_f('importFailed', {'error': error}));
+      if (mounted) _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error));
     } finally {
       resumePageNavigation();
       if (mounted) setState(() => _importing = null);
@@ -348,16 +352,24 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     try {
       final outcome = await moveLibraryIntoNeoStation(
         provider,
-        confirm: (folder) async {
+        confirm: (plan) async {
           resumePageNavigation();
-          if (!mounted) return false;
-          return ConfirmActionDialog.show(
+          if (!mounted) return LibraryMoveChoice.cancel;
+          // What the folder holds, before anything moves: each console
+          // folder and its playlist, and what stays behind with the reason.
+          final confirmed = await LibraryFolderReportDialog.show(
             context,
-            title: _t('libraryMoveConfirmTitle'),
-            body: _f('libraryMoveConfirmBody', {'folder': folder}),
-            confirmLabel: _t('libraryMoveConfirm'),
-            icon: Icons.drive_file_move_outline,
+            inspection: plan.inspection,
+            location: plan.location,
+            exampleFolders: plan.exampleFolders,
+            confirmKey: 'actionChooseAnother',
+            confirmLabel: plan.movable ? _t('libraryMoveConfirm') : null,
+            positive: plan.movable,
           );
+          if (!confirmed) return LibraryMoveChoice.cancel;
+          if (!plan.movable) return LibraryMoveChoice.another;
+          pausePageNavigation();
+          return LibraryMoveChoice.move;
         },
         onProgress: (done, total) {
           if (mounted) {
@@ -370,18 +382,13 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       );
       if (outcome == null) return;
       final move = outcome.move;
-      _notice(
-        move.total == 0
-            ? _f('libraryMoveNothing', {'folder': outcome.source})
-            : _f('libraryMoved', {
-                'moved': move.moved + move.notRemoved,
-                'kept': move.alreadyPresent,
-                'failed': move.failed,
-              }),
-      );
+      if (!mounted) return;
+      _notice(LibretroImportMessages.forMove(Localizations.localeOf(context), move, outcome.source));
     } catch (error) {
       _log.w('Library move failed: $error');
-      _notice(_f('libraryActionFailed', {'error': error}));
+      if (mounted) {
+        _notice(LibretroImportMessages.failure(Localizations.localeOf(context), error, fallbackKey: 'libraryActionFailed'));
+      }
     } finally {
       resumePageNavigation();
       if (mounted) setState(() => _libraryAction = null);

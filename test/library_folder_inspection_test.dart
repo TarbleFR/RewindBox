@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/models/system_model.dart';
+import 'package:neostation/screens/libretro/libretro_library_actions.dart';
+import 'package:neostation/services/neostation_rom_library.dart';
 import 'package:neostation/services/library_folder_inspection.dart';
 import 'package:neostation/services/library_folder_linker.dart';
 import 'package:neostation/widgets/library_folder_report_dialog.dart';
@@ -232,6 +234,57 @@ void main() {
         LibraryFolderLinker.ensureReadable(path.join(root.path, 'missing')),
         throwsA(isA<FileSystemException>()),
       );
+    });
+  });
+
+  group('moving a library into RewindBox', () {
+    test('a move of nothing replaces nothing: the folders registered in the picked folder stay', () {
+      expect(libraryMoveReplacesSource(const RomLibraryMove()), isFalse,
+          reason: 'no console folder was recognised: an empty move used to count as complete');
+      expect(libraryMoveReplacesSource(const RomLibraryMove(ownLibrary: true)), isFalse,
+          reason: 'RewindBox\'s own folder was picked');
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 3)), isTrue);
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 1, alreadyPresent: 2, notRemoved: 1)), isTrue);
+      expect(libraryMoveReplacesSource(const RomLibraryMove(moved: 3, failed: 1)), isFalse,
+          reason: 'a game is still only in the source');
+    });
+
+    test('a plan is movable when it holds a game the move takes', () async {
+      await file('gc/Melee.iso');
+      final onlyKept = LibraryMovePlan(
+        location: 'Roms',
+        inspection: await LibraryFolderInspector.inspect(root.path, systems),
+        exampleFolders: const <String>['snes'],
+      );
+      expect(onlyKept.movable, isFalse, reason: 'GameCube keeps its games in RewindBox: its folder is not moved');
+      await file('snes/Zelda.sfc');
+      final withGames = LibraryMovePlan(
+        location: 'Roms',
+        inspection: await LibraryFolderInspector.inspect(root.path, systems),
+        exampleFolders: const <String>['snes'],
+      );
+      expect(withGames.movable, isTrue);
+    });
+
+    test('the folders of consoles that keep their games in RewindBox are left in the source', () async {
+      await file('source/snes/Zelda.sfc');
+      await file('source/gc/Melee.iso');
+      final roms = Directory(path.join(root.path, 'roms'));
+      await roms.create();
+      final moved = <String>{
+        for (final console in systems)
+          if (!console.importOnly) ...console.folderNames,
+      };
+      final move = await NeoStationRomLibrary.moveLibrary(
+        sourceRoot: path.join(root.path, 'source'),
+        romsRoot: roms.path,
+        consoleFolderNames: moved,
+      );
+      expect(move.moved, 1);
+      expect(File(path.join(roms.path, 'snes', 'Zelda.sfc')).existsSync(), isTrue);
+      expect(File(path.join(root.path, 'source', 'gc', 'Melee.iso')).existsSync(), isTrue,
+          reason: 'moved into roms it would show in no playlist');
+      expect(Directory(path.join(roms.path, 'gc')).existsSync(), isFalse);
     });
   });
 }

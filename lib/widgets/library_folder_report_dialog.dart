@@ -118,13 +118,15 @@ class LibraryFolderReportDialog extends StatefulWidget {
   /// another choice (neutral colour).
   final bool positive;
 
-  /// [confirmKey] is the `LibraryLinkLocale` key of the confirm button.
+  /// [confirmKey] is the `LibraryLinkLocale` key of the confirm button;
+  /// [confirmLabel], when given, is shown instead.
   static Future<bool> show(
     BuildContext context, {
     required LibraryFolderInspection inspection,
     required String location,
     required List<String> exampleFolders,
     required String confirmKey,
+    String? confirmLabel,
     bool positive = true,
   }) async {
     final language = LibraryLinkLocale.languageOf(Localizations.localeOf(context));
@@ -138,7 +140,7 @@ class LibraryFolderReportDialog extends StatefulWidget {
           location: location,
           exampleFolders: exampleFolders,
         ),
-        confirmLabel: LibraryLinkLocale.textFor(language, confirmKey),
+        confirmLabel: confirmLabel ?? LibraryLinkLocale.textFor(language, confirmKey),
         positive: positive,
       ),
     );
