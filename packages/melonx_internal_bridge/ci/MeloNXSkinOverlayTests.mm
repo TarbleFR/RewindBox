@@ -903,6 +903,24 @@ static NSDictionary<NSString*, NSNumber*>* MLXTestPad(void) {
   [self pressOn:overlay portrait:YES what:@"after turning back"];
 }
 
+/// A D-pad shows the arm under the finger pressed, not the whole cross.
+- (void)testTheDPadShowsThePressedArmOnly {
+  for (NSNumber* portraitValue in @[ @YES, @NO ]) {
+    const BOOL portrait = portraitValue.boolValue;
+    MeloNXSkinOverlay* overlay = [self overlayPortrait:portrait];
+    NSDictionary* f = [self itemNamed:@"up" portrait:portrait][@"frame"];
+    XCTAssertNotNil(f);
+    const CGRect frame = CGRectMake([f[@"x"] doubleValue], [f[@"y"] doubleValue], [f[@"width"] doubleValue], [f[@"height"] doubleValue]);
+    __block MLXFakeTouch* finger = nil;
+    SkinDPadArmCheck(self, overlay, frame, ^(CGPoint point) {
+      finger = [self touchAt:point];
+      [self begin:finger on:overlay];
+    }, ^{
+      [self end:finger on:overlay];
+    }, [NSString stringWithFormat:@"%@ %@", [self skinId], portrait ? @"portrait" : @"landscape"]);
+  }
+}
+
 /// The skin turned off, then chosen again, then the session launched again (a new overlay
 /// reads the files): no overlay without a skin, the same game place with it.
 - (void)testTheGameScreenFollowsASkinChangeAndARelaunch {
