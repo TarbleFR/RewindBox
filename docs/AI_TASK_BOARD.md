@@ -4282,6 +4282,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Session 01 delivered `rb_melonx_core_loaded()` + probe-hook removal (`a18490cb`, its branch).
   **P1 integrated** (`76e7a14`: image pack, module dir, caps, resource pack writers, system-data
   bundle, review F1 fix), CI comparison running.
+- **Scope (maintainer, 11 Nov):** Switch 2 only until the final test; Switch 1 games through S2Arm
+  (player-provided `prod.keys`, as for MeloNX) are deferred, not started. E1 guest patches delegated.
 
 ### Codex orchestration — Codex
 
