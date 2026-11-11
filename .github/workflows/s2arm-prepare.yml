@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install the LZ4 module the original addr_need.py imports
+        run: python3 -m pip install lz4==4.4.5
       - name: Fetch S2Arm at the pinned commit and build its rewriter
         run: |
           set -euo pipefail
@@ -50,10 +52,16 @@ jobs:
           capstone_lib=$(find "$RUNNER_TEMP/rewriter" -name 'libcapstone.a' | head -1)
           test -n "$rewriter_lib" && test -n "$capstone_lib"
           cc -O2 -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/s2arm/runtime/rewriter" \
-            -o proof/s2arm_prepare_cli native/s2arm/prepare/s2arm_prepare.c native/s2arm/prepare/s2arm_prepare_cli.c \
-            "$rewriter_lib" "$capstone_lib"
+            -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
+            -o proof/s2arm_prepare_cli native/s2arm/prepare/s2arm_prepare.c native/s2arm/prepare/s2arm_addr_need.c \
+            native/s2arm/prepare/s2arm_prepare_cli.c "$rewriter_lib" "$capstone_lib"
           bash tools/s2arm_prototype/run_prepare_test.sh proof/s2arm_prepare_cli "$RUNNER_TEMP/rewriter/s2a-rewrite" \
             "$RUNNER_TEMP/prepare-work" proof/prepare-report.txt
+      - name: Compare the address-need table with S2Arm's addr_need.py
+        run: |
+          set -euo pipefail
+          python3 tools/s2arm_prototype/run_addr_need_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli \
+            "$RUNNER_TEMP/addr-need-work" | tee proof/addr-need-report.txt
       - name: The library compiles for iOS arm64
         if: runner.os == 'macOS'
         run: |
@@ -61,10 +69,15 @@ jobs:
           xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
             -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/s2arm/runtime/rewriter" \
             -c native/s2arm/prepare/s2arm_prepare.c -o proof/ios-s2arm_prepare.o
+          xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=17.4 -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -Wall -Wextra -Werror -I native/s2arm/prepare -I "$RUNNER_TEMP/deps/lz4-4.4.5/lz4libs" \
+            -c native/s2arm/prepare/s2arm_addr_need.c -o proof/ios-s2arm_addr_need.o
           echo "iOS arm64 object compiled"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: s2arm-prepare-${{ runner.os }}-${{ github.sha }}
-          path: proof/prepare-report.txt
+          path: |
+            proof/prepare-report.txt
+            proof/addr-need-report.txt
           retention-days: 30
