@@ -52,7 +52,10 @@ NSString *_Nullable S2ArmShippedDirectChain(void) {
 }
 
 NSString *_Nullable S2ArmShippedSystemData(void) {
-  NSString *path = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"S2ArmSystemData"];
+  // The delivery ships the whole system data tree as <app>/S2ArmSystemData (systemdata/, licenses/, SOURCES.tsv,
+  // SHA256SUMS: docs/s2arm-engine-bridge.md). The engine reads a resource pack's systemdata/ folder (fonts/,
+  // 010000000000080E/, <id>/), so that subfolder is the one linked into each game's pack.
+  NSString *path = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"S2ArmSystemData/systemdata"];
   BOOL directory = NO;
   return [NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&directory] && directory ? path : nil;
 }

@@ -28,7 +28,8 @@ NSString *S2ArmLibraryRoot(void);
 NSString *S2ArmGameDirectory(NSString *gid);
 /// The direct library chain version of the shipped engine: S2ArmEngine.framework/S2ArmDirectChain.txt, or nil.
 NSString *_Nullable S2ArmShippedDirectChain(void);
-/// The game-independent system data tree shipped with the app (<app>/S2ArmSystemData), or nil when absent.
+/// The game-independent system data shipped with the app: the systemdata/ folder of <app>/S2ArmSystemData (the tree the
+/// delivery places there with its licences), linked as each game's resource pack systemdata; nil when absent.
 NSString *_Nullable S2ArmShippedSystemData(void);
 /// rb_s2arm_ns2_detect: {success, exportDir, programId, gid} or {success: NO, code, diagnostic}.
 NSDictionary *S2ArmDetectExport(NSString *folder);
