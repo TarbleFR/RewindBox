@@ -54,3 +54,27 @@ The technical controls stay:
 - the dylib's bytes are unchanged except `LC_CODE_SIGNATURE` (digest checked at delivery);
 - the RTFs are pinned by digest in the legal chain;
 - the dylib is used only for shader conversion by XeniaCore.
+
+## Complement of 12 Nov 2026 (`Complement_Mentions_XeniOS_2026-11-12.txt`, 19,391 B, SHA-256 `f2cfd2ae…43cd`)
+
+Research requested by the maintainer; read in full by main. No licence was accepted.
+
+Gaps it shows, with sources and texts in the file:
+1. **Missing DXBC notices.** The « DXBC checksum (AMD) » entry of XeniOS's `Acknowledgements.json` (cf7c7ee45) has an
+   empty text, yet the linked `third_party/dxbc/DXBCChecksum.cpp` carries the RSA Data Security MD5 notice (lines
+   50–72). Its primary source, GPUOpen-Archive/common-src-ShaderUtils@545195d7, has an AMD MIT `LICENSE` (1,116 B, SHA-256
+   `f7367ebb…ef86`). Both texts must ship, as a pinned complement next to the unchanged upstream JSON.
+2. **The signer check is too weak.** `build_core.sh` checks `grep -q "Authority=Apple"`, which a third-party chain
+   ending at Apple Root CA also passes. Use a signing requirement (`codesign --verify --strict -R '=anchor apple'`),
+   record the identity actually observed, and never relax the check if it fails.
+3. **The source-evidence review is out of date.** It still covers the playlist without an engine
+   (`engine_binaries_bundled=[]`). The delivery that ships XeniaCore needs its own review: real binaries, plus the
+   sources, configuration and relinking means of the statically linked FFmpeg and libmspack (LGPL-2.1 §6). Their
+   licence texts are already there.
+4. **Boost.Context provenance.** The BSL-1.0 text exists; only the provenance reference needs to be more precise.
+
+Still without proof (not resolved by this research):
+- which Apple package and contract govern the `ios-4.0.3` hash;
+- a direct link between the mirror's bytes and an Apple package;
+- re-signing under clause 2.E.
+The maintainer's delivery decision is not an authorisation from the rights holder.

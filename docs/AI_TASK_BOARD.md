@@ -263,6 +263,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   panel. Fixed in `79979d07`, with a source-contract test. Asked of session 04: the Switch 2 import menu gets the same
   entries as Switch (games, prod.keys, firmware if needed), and the engine row says "not included in this version"
   instead of "reinstall".
+  Legal research complement (12 Nov, docs/evidence/xenia-metal-shader-converter/): DXBC AMD MIT + RSA/MD5 notices to add;
+  Apple signer check to harden (`=anchor apple`); delivery source review to update for XeniaCore and static FFmpeg /
+  libmspack (LGPL relinking means). Apple package/contract match, mirror provenance and re-signing stay without proof.
 - **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
   frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
   validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
