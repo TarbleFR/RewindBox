@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-heap-report-') as directory:
     plain = run()
     check(plain.returncode == 0, plain.stderr)
     data = json.loads(run('--json', '--symbols', str(symbols)).stdout)
-    check(data['pid'] == str(PID) and data['named'] is True and len(data['windows']) == 2, 'two windows of this PID, the other PID\'s left out')
+    check(data['pid'] == str(PID) and data['named'] == ['MeloNXCore'] and len(data['windows']) == 2, 'two windows of this PID, the other PID\'s left out')
     first, second = data['windows']
     check(first['seconds'] == 120 and first['reason'] == 'window' and first['liveMiB'] == 600 and first['liveSamples'] == 2400 and
           first['allocatedMiB'] == 5000 and first['intervalKiB'] == 256 and first['stacksRecorded'] == 870 and first['unwalked'] == 3 and
@@ -69,8 +69,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-heap-report-') as directory:
     check(second['reason'] == 'sessionEnd' and second['seconds'] == 35 and second['liveByOwner'] == [['Flutter', 50]] and second['liveByEngineEntry'] == [],
           'a window ended by the session; a Swift allocation wrapper is passed over')
     unnamed = json.loads(run('--json').stdout)
-    check(unnamed['named'] is False and unnamed['windows'][0]['stacks'][1]['names'] == ['MeloNXCore+0x2008', 'MeloNXCore+0x3010', 'jit'] and
+    check(unnamed['named'] == [] and unnamed['windows'][0]['stacks'][1]['names'] == ['MeloNXCore+0x2008', 'MeloNXCore+0x3010', 'jit'] and
           unnamed['windows'][0]['liveByEngineEntry'] == [['MeloNXCore+0x1010', 300], ['MeloNXCore+0x3010', 200]], 'without a map the places stand')
+    other = Path(directory) / 'moltenvk.nm.txt'
+    other.write_text('0000000000002000 t __ZN15MVKPipelineCache8readDataEv\n0000000000002300 t __ZN9MVKDevice5allocEv\n')
+    both = json.loads(run('--json', '--symbols', str(symbols), '--map', 'MeloNXMoltenVKStandalone=' + str(other)).stdout)
+    check(both['named'] == ['MeloNXCore', 'MeloNXMoltenVKStandalone'] and both['windows'][0]['stacks'][0]['names'] ==
+          ['libc++abi.dylib+0x10', '__ZN15MVKPipelineCache8readDataEv', '__ZN9MVKDevice5allocEv', '_CreatePipeline', '_RunLoop'] and
+          both['windows'][0]['liveByOwner'] == first['liveByOwner'], 'another image is named from its own map')
+    check(run('--map', 'nothing').returncode != 0, 'a map without an image name is refused')
     text = run('--symbols', str(symbols)).stdout
     check('window of 120 s (window): live 600 MiB in 2400 samples' in text and '#1 live 300 MiB (50.0 %) in 1200 samples; allocated 320 MiB in 1280' in text and
           'MeloNXMoltenVKStandalone 300, MeloNXCore 200' in text and '_CreatePipeline' in text and 'window of 35 s (sessionEnd)' in text, text)

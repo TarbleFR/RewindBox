@@ -4156,6 +4156,57 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       in the next private IPA; the device run then gives the `gcPause summary`, the guest threads' priority and
       `pc=`, `hw=`, the thermal state and the `[MeloNX:hot]` profiles from which the GPU and render thread work per
       frame will be cut.
+  - **Lot 13 (11 Nov): what the IPA 725 footprint is made of; who allocated the native heap (bridge only, measurement;
+    not delivered, not run on an iPhone).**
+    - **Input identity:** the same IPA 725 journals as lot 12 (pid 51986; private, aggregates only): one
+      `[MeloNX:memory]` line (t=150), six `memoryInventory` and six `vulkanMemory` samples.
+    - **Finding (answers what lot 10 left open, in part):** footprint 4 640 MiB at t=150 (peak 4 805; 3 026 MiB at
+      the first inventory sample, when Vulkan held 52 MiB; 2 667 MiB after the first-frame compaction): graphics
+      ledger 1 010 + 128 compressed; default malloc zone 907 MiB in use of 1 004 held (236 regions tagged
+      malloc.small, 179 resident + 697 compressed: the 4 MiB segments of the system's current allocator, not a size
+      class); private untagged 335 + 664 compressed, of which the managed heap commits 893 MiB (LOH 532 MiB with 234
+      to 300 MiB free in all six samples, 30 s after the compaction had brought it to 266 MiB; gen2 315 MiB); shared
+      memory of 1 MiB or more 370 resident (ten 256 MiB objects 256 MiB apart: the guest's memory, whose compressed
+      part the walk does not read; by difference about 1.0 to 1.1 GiB more). Vulkan device memory 661 to 720 MiB in
+      play (images 399-469 MiB in 6 000-9 250 blocks, buffers 188-262 MiB in 4 300-5 850, all dedicated): about
+      0.45 GiB of the graphics ledger is outside the Vulkan allocator's count.
+    - **Reading:** to be under 4 GiB about 0.65 GiB must go. The two candidates the journals name are the native
+      heap (907 MiB, owner unknown, 77 % of it compressed: written once and left) and the free space of the large
+      object heap (about 250 MiB; the diagnostics snapshot of lot 12 allocated 0.9 MiB there at every 300 ms poll
+      until Core 733, which is one known cause of that churn: expected lower with Core 733, not measured). The
+      mapped 793 MiB pipeline cache file is not in the footprint (group `file`: 48 MiB resident).
+    - **Rejected for now:** a census of the heap's blocks by size and content at a pause (libmalloc's enumerator).
+      The process uses the system's newer allocator, whose enumerator is written for a suspended task; run in the
+      process it needs every other thread suspended or it can read a chunk being changed. A sampler of the calls
+      answers the question directly (who, not what size) with less risk.
+    - **Added (bridge, commits `d1bc475c`, `57de181e`, `9a659778`):** `MeloNXHeapSampler.m` (C) is libmalloc's logging hook
+      (`malloc_logger`, looked up with dlsym: nothing links against it) from the start of a session, before the
+      engine is launched, and for 120 s: one block per 256 KiB allocated on average (a block of 256 KiB or more
+      always, at its own size), with up to 14 return addresses read inside the calling thread's own stack, forgotten
+      when freed (a lock-free lookup on every free; one lock for sampled blocks only; no allocation, no
+      thread-local storage, fixed tables of 65 536 live samples and 4 096 stacks). `MeloNXHeapSample.swift` opens
+      the window in `MeloNXMetalSessionViewController` before `host.start`, closes it after 120 s or at the end of
+      the session, removes the hook and writes at most 25 `[MeloNX:heap]` lines (the 24 stacks with the most live
+      bytes, the sampler's and libmalloc's frames left out). `tools/melonx/heap_report.py` names the engine's
+      places with the Core's symbol map (another image's with `--map IMAGE=nm-output`: the IPA's MoltenVK has no local
+      symbols) and sums the live bytes by owner image (`test/melonx_heap_report_test.py`, 13 checks). The first 120 s of a session are therefore observed (a few
+      tens of nanoseconds on every malloc and free): frame-time windows start at t=130
+      ([device protocol](evidence/melonx-733-gates/device-protocol.md), section 5).
+    - **Validation:** stall-watch run 43012477213 on `9a659778` green (macOS 26 execution, iOS 18 compile and link of
+      the sampler, iOS typecheck; `test/melonx_perf_journal_test.py` 198 checks, 60 of them static). The real hook
+      under the system's allocator, five threads: 196 MiB reported for 195.3 MiB of 2 KiB blocks kept (787 samples);
+      64 blocks of 1 MiB counted exactly (31 live after 32 frees and one move, the moved block 3 MiB in its own
+      stack); 3 800 MiB allocated and freed with nothing left live; no sample dropped or unwalked; each stack starts
+      at the caller of the allocator; a window closed by its timer and one by the end of the session remove the
+      hook. Cost on the runner: 357 ns against 273 ns for a malloc and a free of 64 bytes in an unoptimised loop
+      (about 40 ns per call). A Linux simulation of the tables agrees (scratchpad). Independent read-only review
+      (rb-core-review) of the hook requested; its result is recorded below when it returns.
+    - **Not measured on a device; no memory or frame gain is claimed.** Remaining to gain for the verdict: the same
+      as lot 12 (IPA 725: 22.0 FPS over the 78 s exported, footprint over 4 GiB).
+    - **Next action:** main ships the bridge of this head with Core 733 in the next private IPA. From the device
+      run: `heap_report.py` on the `[MeloNX:heap]` lines, the `zones=` values over time, `lohAfterBytes` and
+      `lohFreeAfterBytes`; then the correction of the largest owner. The sampler is to be removed once the owner is
+      known.
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
   10 Nov head, Apache-2.0; nothing built or run):**
