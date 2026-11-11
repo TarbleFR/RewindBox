@@ -2016,6 +2016,44 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         packs); IPA (A) = Core 928 + MeloNX Core 727 + skins + database rule; then IPA (B) = (A) + session 04's frozen
         commit. Device protocol: `mvk_async=1` at first boot of BO2/GOW3/AC; Control Centre and a short leave in play
         (`GPUGATE928`, no `Device lost`, no freeze episode while closed); `RSXSYNC551 submit` per frame.
+      - **Device results, IPA 725 (build 725 = Core 928, PID 52378; private journals and a screen recording, not in
+        Git; 11 Nov).** Maintainer: BO2 "FPS à 50 et plus puis ça descend ... Pas de gel"; GOW3 "même problème que lors de
+        la dernière IPA"; then "depuis deux ipa plus rien ne fonctionne ! Les diagnostics et les réglages fournis doivent
+        démontrer ce qui as changer et ce qu'il as était tester". [Record](rpcs3-ipa725-constat-appareil.md) (settings
+        actually applied per build from `CONFIG_LAYERS`/boot policy, measured FPS per build and thermal state, each
+        change with its host proof and its device observation).
+        - **BO2 (session 2, 127 s of match):** settings identical from build 694 to 724, only `mvk_async` 0 -> 1 in 725.
+          FPS 53.7, 47.2, 44.8, 38.3, 37.7 (thermal 1) then 40-30 and 32-18 (thermal 2 from 35 s of match). Work per
+          frame constant (12-15 k `putllc_ok`, 1.7-3.3 k draws, about 5 of 6 cores busy) while RSX per-draw setup/vertex
+          cost rises 30-60 % and GPU time per frame 10 -> 12-14.5 ms: consistent with thermal throttling, **inferred**
+          (no CPU frequency in the journals). Same curve in builds 721, 723, 724; in-match medians at thermal 2: 723
+          30.3, 724 28.8, 725 30.1; at thermal 1: 721 30.9, 723 41.0 (7 windows), 725 44.8 (5 windows). **Confirmed on
+          the device:** no freeze episode (Core 924; 724 froze at window 41, so a match over 4 minutes is still needed);
+          `RSXSYNC551 submit` 3.2-5.6 -> 0.06-0.08 ms/frame, `OPT587 acquire_timeouts=0 encode_wait_timeouts=0` (Core
+          927); footprint 2.6 -> 3.0 GB (724: 3.4 -> 4.1), `vma_unused` 32-106 MiB (724: 45 -> 360) (Core 925);
+          `TEXMEMO660` 35-104 k hits per window, 600-1700 verified, 0 mismatches (Core 926); `GPUGATE928` 2
+          deactivations, no device loss. Remaining: 12 blocking pipeline builds in 2 minutes (frames of 0.5-1.7 s); the
+          frame is still bound by PPU/SPU work (SPUPROF923: each SPURS kernel 59 % running over 360-380 regions).
+        - **GOW3 (sessions 3 fresh, 4 savestate; the video is session 4):** `async_tex=false` (c2519a25 applied) and the
+          corruption persists: **the 724 attribution to Asynchronous Texture Streaming is refuted.** Builds 674-723 ran
+          the legacy full custom file (75 %, MT RSX on, relaxed reservations, FIFO cache 4 KiB, GETLLAR backoff on);
+          724/725 run the database entry (100 %, MT RSX off, accurate reservations, FIFO 1 KiB, backoff off) and write
+          the MLAA bypass into restored savestate memory: six settings and one behaviour changed in build 724, the build
+          the corruption starts with; no file under `rpcs3/Emu/RSX` changed between Cores 921 and 923. Video: correct
+          picture after the restore; at the pause menu the menu textures have red and blue exchanged with correct shapes
+          (one probably compressed texture is right); back in play the opaque geometry is flat olive, sky and fog right,
+          and it stays wrong. Menu window: `blit_cpu=22189`, sweep released 234 sections (254 MiB, bytes changed),
+          `flushes=152 flush_misses=31`, `dma_flush_skips=0 rt_reload_skips=0` (the iOS full-overwrite shortcuts did not
+          fire), texture memo off. Every frame of this title flushes one render target to guest memory and uploads it
+          again (`flushes` = frames, `invalidate` = frames); at 100 % `copy_texture` reads the render target image
+          directly, at 75 % through a scaled helper image: a path never run on the iPhone before build 724.
+          **Cause not identified.** Gameplay FPS unchanged between 723 and 724 at thermal 1 (median 14.4 and 13.4);
+          8.0 in 725 at thermal 2 during the recording (5 windows).
+        - **Rejected/closed:** Asynchronous Texture Streaming as the cause of the GOW3 corruption; a BO2 regression in
+          724/725 (not supported by the measurements). **In progress:** two read-only audits of the engine paths selected
+          by 100 % scale and by MT RSX off (blit engine, render-target flush, component order, FIFO epochs).
+          **Next:** device check on IPA 725 with GOW3 per-game settings (Resolution 75 % alone, then MT RSX on) to name
+          the path; engine correction with a host proof; the database rule and 100 % default stay.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
