@@ -19,6 +19,17 @@ void main() {
   const languages = <String>['en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh', 'zh_Hant'];
 
   group('what a failure points to', () {
+    test('RPCS3 maps a native busy text to the helper sentence; PS2 resets its last error', () {
+      final rpcs3 = File('lib/services/rpcs3_internal_service.dart').readAsStringSync();
+      expect(rpcs3, contains('known == LaunchPrerequisite.jitBusy) known = LaunchPrerequisite.jitHelper'));
+      final library = File('lib/services/armsx2_library_service.dart').readAsStringSync();
+      final launch = library.indexOf('launchGameByRomPath(');
+      expect(launch, greaterThan(0));
+      expect(library.indexOf('StikJitArmsx2Service.resetLastError();', launch), greaterThan(launch));
+      expect(library.indexOf('isVirtualLibraryPath(romPath)', launch),
+          greaterThan(library.indexOf('StikJitArmsx2Service.resetLastError();', launch)));
+    });
+
     test('the route probe, whatever its code', () {
       for (final code in <String>[
         'localdevvpn_route_unavailable',
@@ -115,6 +126,23 @@ void main() {
   });
 
   group('the sentences', () {
+    test('the two sentences shared with imports do not say to start the game', () {
+      const old = <String>[
+        'start the game again', 'relancez le jeu', 'starte das Spiel erneut',
+        'inicia el juego de nuevo', 'avvia di nuovo il gioco', 'inicie o jogo novamente',
+        'запустите игру снова', 'jalankan game lagi', 'ゲームを起動', '게임을 다시 실행',
+        '重新启动游戏', '重新啟動遊戲',
+      ];
+      for (final language in LaunchPrerequisiteLocale.values.keys) {
+        for (final key in <String>['localDevVpn', 'pairingFile']) {
+          final text = LaunchPrerequisiteLocale.values[language]![key]!;
+          for (final phrase in old) {
+            expect(text.contains(phrase), isFalse, reason: '$language $key $phrase');
+          }
+        }
+      }
+    });
+
     const keys = <String>[
       'localDevVpn',
       'pairingFile',

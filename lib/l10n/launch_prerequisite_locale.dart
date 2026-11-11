@@ -11,8 +11,8 @@ import 'package:flutter_localization/flutter_localization.dart';
 abstract final class LaunchPrerequisiteLocale {
   static const Map<String, Map<String, String>> values = <String, Map<String, String>>{
     'en': {
-      'localDevVpn': 'LocalDevVPN is not connected. Open the LocalDevVPN app, connect the VPN and wait until it is connected, then come back to RewindBox and start the game again.',
-      'pairingFile': 'The Pairing File of this iPhone is missing or cannot be read. Import it in Settings → Tools → Pairing File (a .mobiledevicepairing file made for this device), then start the game again.',
+      'localDevVpn': 'LocalDevVPN is not connected. Open the LocalDevVPN app, connect the VPN and wait until it is connected, then come back to RewindBox and try again.',
+      'pairingFile': 'The Pairing File of this iPhone is missing or cannot be read. Import it in Settings → Tools → Pairing File (a .mobiledevicepairing file made for this device), then try again.',
       'developmentSignature': 'This installation of RewindBox cannot enable JIT: it was signed without the get-task-allow entitlement. Install RewindBox with a development signature (for example with iLoader, SideStore or AltStore and your Apple ID); a distribution or enterprise certificate removes it. This cannot be changed inside the app.',
       'iosVersion': 'JIT needs iOS 17.4 or later. Update this device in Settings → General → Software Update.',
       'jitBusy': 'Another game is still starting. Wait a few seconds, then try again.',
@@ -23,8 +23,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'This game is not in RewindBox’s PlayStation 2 folder (Files → On My iPhone → RewindBox → ARMSX2 → Games). Import it from the PlayStation 2 list.',
     },
     'fr': {
-      'localDevVpn': 'LocalDevVPN n’est pas connecté. Ouvrez l’app LocalDevVPN, connectez le VPN et attendez que la connexion soit établie, puis revenez dans RewindBox et relancez le jeu.',
-      'pairingFile': 'Le Pairing File de cet iPhone est absent ou illisible. Importez-le dans Paramètres → Outils → Pairing File (un fichier .mobiledevicepairing créé pour cet appareil), puis relancez le jeu.',
+      'localDevVpn': 'LocalDevVPN n’est pas connecté. Ouvrez l’app LocalDevVPN, connectez le VPN et attendez que la connexion soit établie, puis revenez dans RewindBox et réessayez.',
+      'pairingFile': 'Le Pairing File de cet iPhone est absent ou illisible. Importez-le dans Paramètres → Outils → Pairing File (un fichier .mobiledevicepairing créé pour cet appareil), puis réessayez.',
       'developmentSignature': 'Cette installation de RewindBox ne peut pas activer le JIT : elle a été signée sans l’entitlement get-task-allow. Installez RewindBox avec une signature de développement (par exemple avec iLoader, SideStore ou AltStore et votre identifiant Apple) ; un certificat de distribution ou d’entreprise le retire. Ce droit ne peut pas être activé depuis l’application.',
       'iosVersion': 'Le JIT nécessite iOS 17.4 ou une version ultérieure. Mettez cet appareil à jour dans Réglages → Général → Mise à jour logicielle.',
       'jitBusy': 'Un autre jeu est encore en cours de démarrage. Patientez quelques secondes, puis réessayez.',
@@ -35,8 +35,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Ce jeu n’est pas dans le dossier PlayStation 2 de RewindBox (Fichiers → Sur mon iPhone → RewindBox → ARMSX2 → Games). Importez-le depuis la liste PlayStation 2.',
     },
     'de': {
-      'localDevVpn': 'LocalDevVPN ist nicht verbunden. Öffne die App LocalDevVPN, verbinde das VPN und warte, bis die Verbindung steht. Kehre dann zu RewindBox zurück und starte das Spiel erneut.',
-      'pairingFile': 'Die Pairing-Datei dieses iPhones fehlt oder ist nicht lesbar. Importiere sie unter Einstellungen → Werkzeuge → Pairing-Datei (eine für dieses Gerät erstellte .mobiledevicepairing-Datei) und starte das Spiel erneut.',
+      'localDevVpn': 'LocalDevVPN ist nicht verbunden. Öffne die App LocalDevVPN, verbinde das VPN und warte, bis die Verbindung steht. Kehre dann zu RewindBox zurück und versuche es erneut.',
+      'pairingFile': 'Die Pairing-Datei dieses iPhones fehlt oder ist nicht lesbar. Importiere sie unter Einstellungen → Werkzeuge → Pairing-Datei (eine für dieses Gerät erstellte .mobiledevicepairing-Datei) und versuche es erneut.',
       'developmentSignature': 'Diese Installation von RewindBox kann JIT nicht aktivieren: Sie wurde ohne das Entitlement get-task-allow signiert. Installiere RewindBox mit einer Entwicklungssignatur (zum Beispiel mit iLoader, SideStore oder AltStore und deiner Apple-ID); ein Distributions- oder Enterprise-Zertifikat entfernt es. In der App lässt sich das nicht ändern.',
       'iosVersion': 'JIT benötigt iOS 17.4 oder neuer. Aktualisiere dieses Gerät unter Einstellungen → Allgemein → Softwareupdate.',
       'jitBusy': 'Ein anderes Spiel startet noch. Warte einige Sekunden und versuche es erneut.',
@@ -47,8 +47,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Dieses Spiel liegt nicht im PlayStation-2-Ordner von RewindBox (Dateien → Auf meinem iPhone → RewindBox → ARMSX2 → Games). Importiere es über die PlayStation-2-Liste.',
     },
     'es': {
-      'localDevVpn': 'LocalDevVPN no está conectado. Abre la app LocalDevVPN, conecta la VPN y espera a que se conecte; después vuelve a RewindBox e inicia el juego de nuevo.',
-      'pairingFile': 'Falta el archivo de emparejamiento de este iPhone o no se puede leer. Impórtalo en Ajustes → Herramientas → Archivo de emparejamiento (un archivo .mobiledevicepairing creado para este dispositivo) e inicia el juego de nuevo.',
+      'localDevVpn': 'LocalDevVPN no está conectado. Abre la app LocalDevVPN, conecta la VPN y espera a que se conecte; después vuelve a RewindBox e inténtalo de nuevo.',
+      'pairingFile': 'Falta el archivo de emparejamiento de este iPhone o no se puede leer. Impórtalo en Ajustes → Herramientas → Archivo de emparejamiento (un archivo .mobiledevicepairing creado para este dispositivo) e inténtalo de nuevo.',
       'developmentSignature': 'Esta instalación de RewindBox no puede activar JIT: se firmó sin el entitlement get-task-allow. Instala RewindBox con una firma de desarrollo (por ejemplo con iLoader, SideStore o AltStore y tu Apple ID); un certificado de distribución o de empresa lo elimina. No se puede cambiar desde la app.',
       'iosVersion': 'JIT requiere iOS 17.4 o posterior. Actualiza este dispositivo en Ajustes → General → Actualización de software.',
       'jitBusy': 'Otro juego todavía se está iniciando. Espera unos segundos e inténtalo de nuevo.',
@@ -59,8 +59,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Este juego no está en la carpeta de PlayStation 2 de RewindBox (Archivos → En mi iPhone → RewindBox → ARMSX2 → Games). Impórtalo desde la lista de PlayStation 2.',
     },
     'it': {
-      'localDevVpn': 'LocalDevVPN non è connesso. Apri l’app LocalDevVPN, connetti la VPN e attendi la connessione, poi torna a RewindBox e avvia di nuovo il gioco.',
-      'pairingFile': 'Il file di abbinamento di questo iPhone manca o non è leggibile. Importalo in Impostazioni → Strumenti → File di abbinamento (un file .mobiledevicepairing creato per questo dispositivo), poi avvia di nuovo il gioco.',
+      'localDevVpn': 'LocalDevVPN non è connesso. Apri l’app LocalDevVPN, connetti la VPN e attendi la connessione, poi torna a RewindBox e riprova.',
+      'pairingFile': 'Il file di abbinamento di questo iPhone manca o non è leggibile. Importalo in Impostazioni → Strumenti → File di abbinamento (un file .mobiledevicepairing creato per questo dispositivo), poi riprova.',
       'developmentSignature': 'Questa installazione di RewindBox non può attivare il JIT: è stata firmata senza l’entitlement get-task-allow. Installa RewindBox con una firma di sviluppo (ad esempio con iLoader, SideStore o AltStore e il tuo ID Apple); un certificato di distribuzione o aziendale lo rimuove. Non si può cambiare dall’app.',
       'iosVersion': 'Il JIT richiede iOS 17.4 o successivo. Aggiorna questo dispositivo in Impostazioni → Generali → Aggiornamento software.',
       'jitBusy': 'Un altro gioco è ancora in avvio. Attendi qualche secondo e riprova.',
@@ -71,8 +71,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Questo gioco non è nella cartella PlayStation 2 di RewindBox (File → iPhone → RewindBox → ARMSX2 → Games). Importalo dall’elenco PlayStation 2.',
     },
     'pt': {
-      'localDevVpn': 'O LocalDevVPN não está ligado. Abra a app LocalDevVPN, ligue a VPN e aguarde a ligação; depois volte ao RewindBox e inicie o jogo novamente.',
-      'pairingFile': 'O arquivo de emparelhamento deste iPhone está em falta ou não pode ser lido. Importe-o em Configurações → Ferramentas → Arquivo de emparelhamento (um ficheiro .mobiledevicepairing criado para este dispositivo) e inicie o jogo novamente.',
+      'localDevVpn': 'O LocalDevVPN não está ligado. Abra a app LocalDevVPN, ligue a VPN e aguarde a ligação; depois volte ao RewindBox e tente novamente.',
+      'pairingFile': 'O arquivo de emparelhamento deste iPhone está em falta ou não pode ser lido. Importe-o em Configurações → Ferramentas → Arquivo de emparelhamento (um ficheiro .mobiledevicepairing criado para este dispositivo) e tente novamente.',
       'developmentSignature': 'Esta instalação do RewindBox não pode ativar o JIT: foi assinada sem o entitlement get-task-allow. Instale o RewindBox com uma assinatura de desenvolvimento (por exemplo com iLoader, SideStore ou AltStore e o seu ID Apple); um certificado de distribuição ou empresarial remove-o. Não é possível alterar isto dentro da app.',
       'iosVersion': 'O JIT requer o iOS 17.4 ou posterior. Atualize este dispositivo em Definições → Geral → Atualização de software.',
       'jitBusy': 'Outro jogo ainda está a iniciar. Aguarde alguns segundos e tente novamente.',
@@ -83,8 +83,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Este jogo não está na pasta PlayStation 2 do RewindBox (Ficheiros → No meu iPhone → RewindBox → ARMSX2 → Games). Importe-o a partir da lista PlayStation 2.',
     },
     'ru': {
-      'localDevVpn': 'LocalDevVPN не подключён. Откройте приложение LocalDevVPN, подключите VPN и дождитесь подключения, затем вернитесь в RewindBox и запустите игру снова.',
-      'pairingFile': 'Файл сопряжения этого iPhone отсутствует или не читается. Импортируйте его в разделе Настройки → Инструменты → Файл сопряжения (файл .mobiledevicepairing, созданный для этого устройства) и запустите игру снова.',
+      'localDevVpn': 'LocalDevVPN не подключён. Откройте приложение LocalDevVPN, подключите VPN и дождитесь подключения, затем вернитесь в RewindBox и повторите попытку.',
+      'pairingFile': 'Файл сопряжения этого iPhone отсутствует или не читается. Импортируйте его в разделе Настройки → Инструменты → Файл сопряжения (файл .mobiledevicepairing, созданный для этого устройства) и повторите попытку.',
       'developmentSignature': 'Эта установка RewindBox не может включить JIT: она подписана без права get-task-allow. Установите RewindBox с подписью разработчика (например, через iLoader, SideStore или AltStore с вашим Apple ID); сертификат распространения или корпоративный сертификат убирает это право. В приложении это изменить нельзя.',
       'iosVersion': 'Для JIT требуется iOS 17.4 или новее. Обновите устройство в разделе Настройки → Основные → Обновление ПО.',
       'jitBusy': 'Другая игра ещё запускается. Подождите несколько секунд и повторите попытку.',
@@ -95,8 +95,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Этой игры нет в папке PlayStation 2 приложения RewindBox (Файлы → На iPhone → RewindBox → ARMSX2 → Games). Импортируйте её из списка PlayStation 2.',
     },
     'id': {
-      'localDevVpn': 'LocalDevVPN tidak terhubung. Buka aplikasi LocalDevVPN, hubungkan VPN dan tunggu hingga terhubung, lalu kembali ke RewindBox dan jalankan game lagi.',
-      'pairingFile': 'File Pairing iPhone ini tidak ada atau tidak dapat dibaca. Impor di Pengaturan → Alat → File Pairing (file .mobiledevicepairing yang dibuat untuk perangkat ini), lalu jalankan game lagi.',
+      'localDevVpn': 'LocalDevVPN tidak terhubung. Buka aplikasi LocalDevVPN, hubungkan VPN dan tunggu hingga terhubung, lalu kembali ke RewindBox dan coba lagi.',
+      'pairingFile': 'File Pairing iPhone ini tidak ada atau tidak dapat dibaca. Impor di Pengaturan → Alat → File Pairing (file .mobiledevicepairing yang dibuat untuk perangkat ini), lalu coba lagi.',
       'developmentSignature': 'Instalasi RewindBox ini tidak dapat mengaktifkan JIT: ditandatangani tanpa entitlement get-task-allow. Pasang RewindBox dengan tanda tangan pengembangan (misalnya dengan iLoader, SideStore, atau AltStore dan Apple ID Anda); sertifikat distribusi atau perusahaan menghapusnya. Ini tidak dapat diubah dari dalam aplikasi.',
       'iosVersion': 'JIT memerlukan iOS 17.4 atau lebih baru. Perbarui perangkat ini di Pengaturan → Umum → Pembaruan Perangkat Lunak.',
       'jitBusy': 'Game lain masih dimulai. Tunggu beberapa detik, lalu coba lagi.',
@@ -107,8 +107,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'Game ini tidak berada di folder PlayStation 2 RewindBox (File → Di iPhone Saya → RewindBox → ARMSX2 → Games). Impor dari daftar PlayStation 2.',
     },
     'ja': {
-      'localDevVpn': 'LocalDevVPN が接続されていません。LocalDevVPN アプリを開いて VPN を接続し、接続が完了するまで待ってから RewindBox に戻り、もう一度ゲームを起動してください。',
-      'pairingFile': 'この iPhone のペアリングファイルがないか、読み込めません。「設定 → ツール → ペアリングファイル」で読み込み（このデバイス用に作成した .mobiledevicepairing ファイル）、もう一度ゲームを起動してください。',
+      'localDevVpn': 'LocalDevVPN が接続されていません。LocalDevVPN アプリを開いて VPN を接続し、接続が完了するまで待ってから RewindBox に戻り、もう一度お試しください。',
+      'pairingFile': 'この iPhone のペアリングファイルがないか、読み込めません。「設定 → ツール → ペアリングファイル」で読み込み（このデバイス用に作成した .mobiledevicepairing ファイル）、もう一度お試しください。',
       'developmentSignature': 'この RewindBox のインストールでは JIT を有効にできません。get-task-allow エンタイトルメントなしで署名されています。開発用署名（Apple ID を使った iLoader、SideStore、AltStore など）で RewindBox をインストールしてください。配布用またはエンタープライズ証明書ではこの権限が外れます。アプリ内では変更できません。',
       'iosVersion': 'JIT には iOS 17.4 以降が必要です。「設定 → 一般 → ソフトウェアアップデート」でこのデバイスをアップデートしてください。',
       'jitBusy': '別のゲームがまだ起動中です。数秒待ってからもう一度お試しください。',
@@ -119,8 +119,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': 'このゲームは RewindBox の PlayStation 2 フォルダ（ファイル → この iPhone 内 → RewindBox → ARMSX2 → Games）にありません。PlayStation 2 の一覧からインポートしてください。',
     },
     'ko': {
-      'localDevVpn': 'LocalDevVPN이 연결되어 있지 않습니다. LocalDevVPN 앱을 열어 VPN을 연결하고 연결될 때까지 기다린 다음, RewindBox로 돌아와 게임을 다시 실행하세요.',
-      'pairingFile': '이 iPhone의 페어링 파일이 없거나 읽을 수 없습니다. 설정 → 도구 → 페어링 파일에서 가져온 뒤(이 기기용으로 만든 .mobiledevicepairing 파일) 게임을 다시 실행하세요.',
+      'localDevVpn': 'LocalDevVPN이 연결되어 있지 않습니다. LocalDevVPN 앱을 열어 VPN을 연결하고 연결될 때까지 기다린 다음, RewindBox로 돌아와 다시 시도하세요.',
+      'pairingFile': '이 iPhone의 페어링 파일이 없거나 읽을 수 없습니다. 설정 → 도구 → 페어링 파일에서 가져온 뒤(이 기기용으로 만든 .mobiledevicepairing 파일) 다시 시도하세요.',
       'developmentSignature': '이 RewindBox 설치본은 JIT를 켤 수 없습니다. get-task-allow 권한 없이 서명되었습니다. 개발용 서명(예: Apple ID를 사용하는 iLoader, SideStore 또는 AltStore)으로 RewindBox를 설치하세요. 배포용 또는 엔터프라이즈 인증서는 이 권한을 제거합니다. 앱 안에서는 변경할 수 없습니다.',
       'iosVersion': 'JIT에는 iOS 17.4 이상이 필요합니다. 설정 → 일반 → 소프트웨어 업데이트에서 이 기기를 업데이트하세요.',
       'jitBusy': '다른 게임이 아직 시작 중입니다. 몇 초 기다린 뒤 다시 시도하세요.',
@@ -131,8 +131,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': '이 게임은 RewindBox의 PlayStation 2 폴더(파일 → 나의 iPhone → RewindBox → ARMSX2 → Games)에 없습니다. PlayStation 2 목록에서 가져오세요.',
     },
     'zh': {
-      'localDevVpn': 'LocalDevVPN 未连接。请打开 LocalDevVPN App，连接 VPN 并等待连接完成，然后返回 RewindBox 重新启动游戏。',
-      'pairingFile': '缺少此 iPhone 的配对文件，或文件无法读取。请在“设置 → 工具 → 配对文件”中导入（为此设备创建的 .mobiledevicepairing 文件），然后重新启动游戏。',
+      'localDevVpn': 'LocalDevVPN 未连接。请打开 LocalDevVPN App，连接 VPN 并等待连接完成，然后返回 RewindBox 重试。',
+      'pairingFile': '缺少此 iPhone 的配对文件，或文件无法读取。请在“设置 → 工具 → 配对文件”中导入（为此设备创建的 .mobiledevicepairing 文件），然后重试。',
       'developmentSignature': '此 RewindBox 安装无法启用 JIT：签名时没有 get-task-allow 权限。请使用开发签名（例如通过 Apple ID 使用 iLoader、SideStore 或 AltStore）安装 RewindBox；分发证书或企业证书会移除该权限。无法在 App 内更改。',
       'iosVersion': 'JIT 需要 iOS 17.4 或更高版本。请在“设置 → 通用 → 软件更新”中更新此设备。',
       'jitBusy': '另一个游戏仍在启动。请等待几秒后重试。',
@@ -143,8 +143,8 @@ abstract final class LaunchPrerequisiteLocale {
       'ps2GameOutside': '此游戏不在 RewindBox 的 PlayStation 2 文件夹中（文件 → 我的 iPhone → RewindBox → ARMSX2 → Games）。请从 PlayStation 2 列表导入。',
     },
     'zh_Hant': {
-      'localDevVpn': 'LocalDevVPN 未連線。請打開 LocalDevVPN App，連接 VPN 並等待連線完成，然後返回 RewindBox 重新啟動遊戲。',
-      'pairingFile': '缺少此 iPhone 的配對檔案，或檔案無法讀取。請在「設定 → 工具 → 配對檔案」中匯入（為此裝置建立的 .mobiledevicepairing 檔案），然後重新啟動遊戲。',
+      'localDevVpn': 'LocalDevVPN 未連線。請打開 LocalDevVPN App，連接 VPN 並等待連線完成，然後返回 RewindBox 再試一次。',
+      'pairingFile': '缺少此 iPhone 的配對檔案，或檔案無法讀取。請在「設定 → 工具 → 配對檔案」中匯入（為此裝置建立的 .mobiledevicepairing 檔案），然後再試一次。',
       'developmentSignature': '此 RewindBox 安裝無法啟用 JIT：簽署時沒有 get-task-allow 權限。請使用開發簽署（例如透過 Apple ID 使用 iLoader、SideStore 或 AltStore）安裝 RewindBox；發佈憑證或企業憑證會移除該權限。無法在 App 內更改。',
       'iosVersion': 'JIT 需要 iOS 17.4 或以上版本。請在「設定 → 一般 → 軟體更新」中更新此裝置。',
       'jitBusy': '另一個遊戲仍在啟動。請等待數秒後再試一次。',

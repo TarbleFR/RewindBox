@@ -50,6 +50,12 @@ class StikJitArmsx2Service {
     });
   }
 
+  /// Forgets the outcome of an earlier launch.
+  static void resetLastError() {
+    _lastError = null;
+    _lastErrorKey = null;
+  }
+
   static Future<bool> launch({
     required String gamePath,
     String uiLocale = 'en',
