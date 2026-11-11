@@ -78,9 +78,34 @@ and render threads will be chosen from: nothing is to be interpreted on the devi
 journal.
 
 ## 4. Frame times
-`python3 tools/melonx/frame_budget.py MeloNX-performance.log --pid <pid> --window 60- --window <slow stretch> --window <stretch on target>`
+`python3 tools/melonx/frame_budget.py MeloNX-performance.log --pid <pid> --window 130- --window <slow stretch> --window <stretch on target>`
+(the first 120 s carry the heap sampler of section 5)
 The verdict's criteria are unchanged (mean and median at 29.5 FPS or more, p95 40 ms, p99 50 ms, no pause over 1 s,
 20 minutes, a normal end, footprint 4 GiB, slope 5 MiB a minute). IPA 725 does not meet them (22.0 FPS over the 78 s
 exported, one pause over 1 s, footprint up to 4 795 MiB); what this lot gains is not known until the run.
 To send: the whole `MeloNX-performance.log` **and its rotated file** if the export offers one (IPA 725's export began
 at t=103: the first 102 s were in a file that was not sent), `MeloNX-core.log`, `MeloNX-stderr.log`.
+
+## 5. Memory: who holds the native heap (lot 13 bridge, new `[MeloNX:heap]` lines)
+What IPA 725 showed (one `[MeloNX:memory]` line at t=150, six `memoryInventory` and `vulkanMemory` samples):
+- footprint 4 640 MiB (peak 4 805; 3 026 MiB at the first inventory sample, when Vulkan held 52 MiB): the graphics
+  ledger 1 010 + 128 compressed; the default malloc zone 907 MiB in use, 1 004 held (236 regions, 697 MiB of them
+  compressed); private untagged memory 335 + 664 compressed (the managed heap commits 893 MiB of it); shared memory
+  of 1 MiB or more 370 resident (the guest's memory, whose compressed part the walk does not read);
+- Vulkan device memory 661 to 720 MiB in play (images 399 to 469 MiB in 6 000 to 9 250 blocks, buffers 188 to
+  262 MiB in 4 300 to 5 850 blocks, all dedicated);
+- the managed large object heap is 532 MiB in all six samples with 234 to 300 MiB of it free, 30 s after the
+  compaction at the first frame had brought it to 266 MiB.
+Nothing says whose the 907 MiB of native heap are. For the first 120 s of a session the bridge now samples the
+process's allocations (one block per 256 KiB allocated on average, with the return addresses of its call) and
+writes the 24 call stacks with the most bytes still allocated:
+`python3 tools/melonx/heap_report.py MeloNX-performance.log --pid <pid> --symbols Ryujinx.Library.symbols.txt.gz`
+- **the first 120 s are observed**: every malloc and free pays the hook there, so frame-time windows start at t=130;
+- the `zones=` field of the `[MeloNX:memory]` lines (t=30, 90, 150, ...) says how much of the heap exists at the end
+  of the window and how much comes later (IPA 725 has the t=150 line only);
+- a first line `[MeloNX:heap] not started: ...` means the system refused the hook: to report as it is.
+- `memoryInventory` (MeloNX-core.log, every 30 s): `lohAfterBytes` and `lohFreeAfterBytes`. The diagnostics snapshot
+  allocated about 0.9 MiB there at every poll until Core 733; expected: a smaller heap with less free space. Would
+  refute the link: 532 MiB with 230 MiB free again.
+Nothing is to be interpreted on the device: the lines are to be sent with the journal. No memory gain is claimed for
+this lot: it measures.

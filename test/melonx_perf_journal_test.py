@@ -711,7 +711,7 @@ exit(0)
         # nm: the test's own functions by address, to name the first place of each stack.
         table = sorted((int(parts[0], 16), parts[2]) for parts in
                        (l.split(' ', 2) for l in subprocess.run(['xcrun', 'nm', '-n', str(heap_executable)], capture_output=True, text=True, check=True).stdout.splitlines())
-                       if len(parts) == 3 and parts[1] in 'tT')
+                       if len(parts) == 3 and parts[0] and parts[1] in ('t', 'T'))
         base = next(address for address, name in table if name == '__mh_execute_header') if any(name == '__mh_execute_header' for _, name in table) else 0x100000000
 
         def function(place):
