@@ -257,6 +257,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Device report on 726 (11 Nov): after a Switch game, a PS3 launch (BO2) is refused with the MeloNX 'quarantined'
+  message.** Main's code reading, not yet confirmed by a journal. Two triggers reach the same block:
+  - engine state 4: `Load()` threw, possibly during teardown after Stop;
+  - donor only: live donated allocations at the single `retire` right after the outcome, never retried.
+  Either way, Dart's `nativeQuarantined` is never cleared, and `GameLaunchService.launchGame` blocks every system
+  (5445f9bb). Routed to the MeloNX owner (01): find the trigger from the attempt's journal; fix a teardown exception
+  at its cause; retry the donor release and clear the flag only on native proof; review the cross-engine scope with
+  evidence; give non-Switch launches a plain restart message. No control removed. Waiting for the maintainer's
+  journal and 01's handoff.
 - **Maintainer decision (11 Nov): libmetalirconverter.dylib may ship in the IPA; the XeniOS engine goes into the next IPA.** Relayed to session 03:
   XeniaCore, the converter (pinned, licence text in the legal chain) and the JIT helper appex come as a handoff for the
   next common build. Device report on 726: an empty Xbox 360 / Switch 2 library opened the generic recursive-scan
