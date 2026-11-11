@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:neostation/widgets/liquid_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:neostation/l10n/glacier_locale.dart';
+import 'package:neostation/l10n/system_art_update_locale.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -142,7 +143,11 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
       targetName = themes[themeIndex].name;
     }
 
-    if (neoAssets.activeThemeFolder == targetFolder) return;
+    // The active pack is tapped again only to install its update.
+    if (neoAssets.activeThemeFolder == targetFolder &&
+        !neoAssets.hasUpdate(targetFolder)) {
+      return;
+    }
 
     final confirmed = await _showConfirmDialog(
       targetName,
@@ -249,6 +254,7 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
                     item: item,
                     isSelected: isSelected,
                     isFocused: isFocused,
+                    hasUpdate: neoAssets.hasUpdate(item.folder),
                     onTap: () {
                       SfxService().playNavSound();
                       _onItemTapped(index);
@@ -362,11 +368,19 @@ class _NeoThemeCard extends StatelessWidget {
   final bool isFocused;
   final VoidCallback onTap;
 
+  /// The installed pack has a newer catalogue version: the card is
+  /// highlighted until it is updated.
+  final bool hasUpdate;
+
+  /// Highlight colour of a pack that can be updated.
+  static const Color updateColor = Color(0xFFFFC14D);
+
   const _NeoThemeCard({
     required this.item,
     required this.isSelected,
     required this.isFocused,
     required this.onTap,
+    this.hasUpdate = false,
   });
 
   @override
@@ -382,17 +396,25 @@ class _NeoThemeCard extends StatelessWidget {
           AspectRatio(
             aspectRatio: 4 / 3,
             child: Container(
+              key: hasUpdate
+                  ? ValueKey('system-art-update-highlight-${item.folder}')
+                  : null,
               margin: EdgeInsets.symmetric(vertical: 4.h),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
-                  color: isFocused ? primary : Colors.transparent,
+                  color: isFocused
+                      ? primary
+                      : hasUpdate
+                      ? updateColor
+                      : Colors.transparent,
                   width: 2.r,
                 ),
-                boxShadow: isFocused
+                boxShadow: isFocused || hasUpdate
                     ? [
                         BoxShadow(
-                          color: primary.withValues(alpha: 0.3),
+                          color: (isFocused ? primary : updateColor)
+                              .withValues(alpha: hasUpdate ? 0.45 : 0.3),
                           blurRadius: 8.r,
                           spreadRadius: 1.r,
                         ),
@@ -480,6 +502,42 @@ class _NeoThemeCard extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                          ),
+                        ),
+                      ),
+
+                    if (hasUpdate)
+                      Positioned(
+                        top: 8.r,
+                        right: 8.r,
+                        child: Container(
+                          key: const ValueKey('system-art-update-badge'),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 6.r,
+                            vertical: 2.r,
+                          ),
+                          decoration: BoxDecoration(
+                            color: updateColor,
+                            borderRadius: BorderRadius.circular(999.r),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Symbols.system_update_alt_rounded,
+                                color: Colors.black,
+                                size: 10.r,
+                              ),
+                              SizedBox(width: 3.r),
+                              Text(
+                                SystemArtUpdateLocale.badge(context),
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 8.r,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -594,6 +652,8 @@ class _NeoThemeCard extends StatelessWidget {
       return Image.network(
         normalizedPreviewUrl,
         fit: BoxFit.cover,
+        // Same decode cap as the local previews: a card, not a full screen.
+        cacheWidth: 384,
         errorBuilder: (_, error, stackTrace) {
           _log.w(
             'Theme preview failed for "${item.folder}" '

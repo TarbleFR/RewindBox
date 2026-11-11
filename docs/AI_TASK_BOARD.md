@@ -257,6 +257,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
+  - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
+  - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
+    fixed by session 03 and checked by main in the code (D1 JIT transaction ended on every launch failure, D2 reuse only
+    with a live handshake, R1 plugin classes prefixed `RB`, R2-R4, non-fatal startup layout, distinct `default.xex`
+    names, chained `pubspec.yaml` review). macOS run `43088312254` green: patch on the pinned XeniOS checkout,
+    Objective-C namespace against 194 XeniOS declarations, launch transaction, facade C++, bridge compile, StikJIT
+    build and helper type-check, plugin compiled and linked in a simulator app with its classes present (two earlier
+    runs failed on CI setup only: a quoted `CXX`, then a shallow checkout for the StikJIT baseline). On the merged tree:
+    flutter test 20 files 168/168, libretro frontend and storage contracts, Xenia Python checks, legal chain with the
+    RetroAchievements podspec at its reviewed bytes (227 inputs). Conflict: imports of `sqlite_database_service.dart`,
+    all kept. Not in the IPA yet: XeniaCore, the shader converter and the JIT helper appex; nothing run on a device.
+    Found after the merge by session 04: `.github/ipa-protection/check_workflows.py` failed on `Claude` (`xenia-core.yml`
+    uploaded with `actions/upload-artifact@v4` twice, bypassing the IPA guard). Main's merge checks had not run that
+    guard, and the `[skip ci]` merge did not trigger it. Fixed on `Claude`: both uploads use the pinned
+    `upload-protected-artifact@3bd75a37`; guard exit 0. The guard is now part of main's merge checks.
+  - **PR #177 then #176 integrated (`c06bdfd9`, `4dff0d80`; skins: decorative loops gated under games and decode caps;
+    System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
+    files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
+    IPA 724/725 (idle game list heat, battery under a game).
+  - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
+    legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
+    tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
+    red Switch 2 tile, EN/FR credit as a Nintendo trademark, strict chained check after the Glacier review). Legal
+    bundle validation: that branch fails exactly as `Claude` (the known RetroAchievements podspec deferred since 611,
+    `b06888a9`), so the collector never reached the Glacier block. Checked by main as the delivery port sees it: trial
+    merge `Claude` + library branch (+ #172 `cf1b9425`), imports conflict resolved, the podspec at its reviewed bytes
+    (`d7992b1f`, `2da2d082`): `repository_inputs` passes, 227 inputs; one byte added to the tile and the XeniOS review
+    removed are each refused by the right check. The 3 red `legal_bundle_preflight` tests have the same cause (fixtures
+    without the 1 Nov RA review), already recorded below.
+
 - **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
   [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
   published at 20:41:55 Europe/Paris. Git tag `0.0.11` verified at
@@ -617,6 +648,79 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   no receipt yet. Next: authorized Codex browser re-attachment, then main verifies.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
+
+- **URGENT maintainer instruction, 11 Nov (relayed by Codex) — RPCS3 global optimisation: per-game
+  profiles, behaviour, shared iOS corrections, thermal.** Prompt file received and read in full
+  (243 lines; private upload, not in Git). Added to the current work; owner main
+  `012mUAShv9k6pSCnpW7oAF63`, one writer per path.
+  - **Goal:** one resolution of identity/version, RPCS3 database, iOS corrections and observed
+    behaviour at launch; persisted, validated per game and device decisions; reliable thermal and
+    energy evidence; less speculative work when hot; fewer blocking compiles; memory/reload
+    trade-off. 100 % resolution, fidelity and SPU constraints kept; no 60 FPS promise.
+  - **State:** Core 932 written and host-tested ([record](rpcs3-core932-lot-armsx3-audit.md)); engine `core932-armsx3`
+    `94354ea` (base Core 931 `605901a`); canonical `9a113440` (472 postimages), delta `702d293a`, build 932. Audit points
+    reconciled with the current source (RPCS3 unchanged since `fd3c39ae`). In the Core: energy counters that go back are
+    `invalid` (never 0), storage traffic; time per thermal state, transitions and mixed windows per THERMAL931 window;
+    measured WFE durations (latency no longer stated as a fact); analyzer compares event waits only at equal levers and flags
+    an order that is not counterbalanced; background pause asked at the boot-to-running transition; speculative texture
+    hashing shrinks from the fair state when unused; Metal concurrent compilation for the boot restore; Black Ops II levers
+    for its six compatibility-list serials (host correction too); 42 ARMSX3 game fixes on by default (each repairs a
+    documented failure; Tales of Graces f and Killzone 3 MLAA left off), the user's choice saved; relief rules GT6
+    (database color buffers) and GTA IV (XFloat), never against the user, fresh boots only; JIT 16 MiB step.
+  - **Evidence:** lot932 harness 3,055 checks and 8 controls caught; thermal931, 917, 919 and 920 pass on the 932 tree (919/920
+    reverse 932 first; 920 now copies `Utilities`); codegen identities unchanged; BO2 IPA 725 blocking builds classified:
+    8 new programs compiled by Metal (435-581 ms each), 4 state-only (1.5-2.5 ms), no in-flight wait, no re-creation,
+    records durable. One independent review (areas patch engine, relief, pause): no defect, one risk fixed (boot backup).
+    Guard found by the full local run: the position invariance test (Apple host rerun list) kept BLUS31011 as an unscoped
+    control; it now expects the six Black Ops II serials, with neighbouring serials as exact-match negatives (passes on 932,
+    fails on 931). Legacy `cell575`/`cell589` already fail on 931 (not run).
+  - **Core 932 CI:** source `673fb6cd`, request `24f09446`, run `43068680664`: the iPhone Core job is **green** (compile,
+    link, binary verified; artifact `13877983017`, zip `f1f524b9` 30,560,827 B, dylib `f95ff436` 81,078,696 B, identity
+    `rpcs3-ios-core932`, codegen PPU `a987639e` / SPU `477a3fa4` unchanged; the library holds the 932 fields, both
+    PATCHRELIEF932 lines, the MoltenVK setting and the whole canary file). Its Apple host job passed 14/15 and failed in the
+    core932 driver on `import yaml` (no PyYAML in the runner's Python): the lot test now reads the canary file with a reader
+    of its YAML subset, compared with PyYAML wherever installed, every check kept (`c54a09ef`); Apple-only rerun requested
+    (`dba7158e`, run `43073197832`). Attempt 1 failed on the mock ZCULL race below; attempt 2 on the same commit:
+    **15/15 green** (job `130722521703`, report `13884722914` `a5470c58`). **Core 932 pinned:** `core-pin.json`
+    `71b26a0b`, verified (core job `130690402755`, artifact `13877983017`, payload fingerprint `d405ca4d`; replaces Core
+    931, fingerprint `17802f8e`).
+  - **Core 933 (source `cab3606b`, request `bbef3768`, run `43077626247`):** iPhone Core job **green** (artifact
+    `13884331357`, zip `98a5f3a8` 30,567,592 B, dylib `fb1d3f0f` 81,096,000 B, identity `rpcs3-ios-core933`, ABI 30; the
+    library holds `Resolved title policy 933`, `COREPROF LOCALPROFILE933`, the profile header and path). Apple host job
+    **15/15 green** first try (job `130721506390`, report `13883758959` `eb6f5d29`). **Core 933 pinned:** `core-pin.json`
+    `3fdc9f3b`, verified (payload fingerprint `9d5fb7e5`, codegen PPU `a987639e` / SPU `477a3fa4` unchanged; replaces
+    Core 932). Engine `core933-resolver` `c9432d3` (`c798c82`, `42869e2`, `c9432d3`), canonical
+    `03b63d88`, delta `bb99b13f` ([record](rpcs3-core933-profil-local.md)): a bounded local profile per serial and game
+    version (`config/local_profiles/<serial>.txt`, atomic write, invalidated by a game update) and its first learned
+    decision, the Core 616 SPU object prefetch for any title whose play spends ≥ 500 ms of a window reading ≥ 200 cached SPU
+    objects (not the boot warm-up), validated by its hits, withdrawn when unused; Automatic only, the user's setting wins,
+    effective at the next boot. Private journals: such windows exist (e.g. 1,674 reads in 628 ms of play); GOW3's 1.85 s
+    are boot warm-up and do not count. First full driver run caught the 933 boot line inside the Core 921 hunk (fixed; the 933
+    test now checks the direct reverts); independent review: no race or crash, F1-F3 fixed (windows of the previous boot,
+    rewrite on each validation, "Unknown" version), F4 documented; 511 checks, 17 controls; full driver 1,713 s green.
+  - **Apple host flake explained (test-only fix):** the Apple-only rerun of 932 (run `43073197832`, attempt 1)
+    failed one check of the Core 630 ZCULL harness (ASan): `forced_passes >= 1` read 0. The test's mock RSX `sync()`
+    released the pages and counted the forced pass afterwards; the guest's wait ends on `released`, so an RSX thread
+    preempted between the two let the check run first. Harness race, not a product race. Reproduced on the rebuilt Core
+    630 tree: 20 ms of preemption at that point fails the six `forced_passes >= 1` checks (the Apple line among them);
+    counted before the release, the same preemption passes. Fix in `test/rpcs3_core619_test.py` (base mock) and
+    `test/rpcs3_core630_test.py` (its replacement), no check removed or relaxed; the 619, 621, 627 and 630 fault harnesses
+    pass on their trees in plain, TSan and ASan, and the full Core 933 driver with the change passes (28 min 51 s, the
+    whole reverted-tree chain). Published `31684e4d`.
+  - **Core 934 candidate rejected with evidence:** the stale texture sweep costs 14-29 ms per 5 s window on average (max
+    46 ms), about 1 % of the RSX thread, in the IPA 723/724 BO2 journals, and released 1,151 MiB over 106 windows; cutting
+    it when hot would save almost nothing and keep that memory.
+  - **Libretro frontend contract test repaired:** `test/libretro_frontend_ui_contract_test.py` was red on `Claude` on three
+    stale checks (reported by session 03): `import notifications` and the folders page identity (my reviewed import lot
+    of 11 Nov, `1fbd5ed6`/`4fd0996a`: each refused game is now named with its cause) and the header (maintainer's
+    icons-only bar, `00a83e69`: the name is the accessibility label). Checks rewritten to the delivered behaviour, at
+    least as strict; 5 mutations caught by the intended check.
+  - **Open / next:** review #172 first (maintainer priority, relayed by session 04; session 03 pushes its `default.xex`
+    fix and the missing chained review first), then #176/#177; the next common IPA waits for the other sessions.
+    Nothing of 931-933 is measured on an iPhone yet.
+    IPA 725 BO2: Core 925 packing observed (vma_unused 32-106 MiB vs 45-360 on 724; footprint 2.60-2.97 GB vs 3.40-4.06);
+    FPS 53.7 → 18.3 in 127 s with constant work per frame and doubled unit costs as the device heats (SPU waits sleep, not
+    spin). Nothing measured on an iPhone for 932/933; no IPA before the other sessions are ready.
 
 - **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
   Codex transmitted the full formal context prompt to main
@@ -4735,6 +4839,117 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Effort observed:** `rb-effort-high` loaded as a native Skill at each 9 Nov phase
   (Switch geometry/hit test/orientation; the menu change done under it); loaded earlier in
   the 10 Nov session, not invoked again after its context compaction.
+
+### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
+
+- **Owner/branch:** session 03, `work/playlists-xenios-20261110` (fast-forwarded to
+  `5738e4ff` before its first commit). Effort `/rb-effort-high`, reported high.
+- **Input:** owner IPA reconstructed outside Git, 49156698 B, SHA-256 `8ba4c18b…600b`,
+  CRCs valid (receipt confirmed by owner); XeniOS 2.3.1 (11662), minos 26.0/SDK 27.2.
+  Upstream `xenios-jp/XeniOS` `cf7c7ee45231…` = IPA attestation `commitShort` = upstream
+  HEAD. Contract: [xenios-playlist.md](xenios-playlist.md).
+- **Shader converter:** no separate `XeniOS.framework`, but `Frameworks/libmetalirconverter.dylib`
+  (Apple Metal Shader Converter, 30171152 B, SHA-256 `923caf5d…90ff`, arm64 iPhoneOS,
+  minos 13.0, SDK 26.4, cryptid 0, system deps only, 188 exports in `IR*`/`DXIL*` only) is a
+  hard dependency: Metal init fails without it on both shader paths. Apple terms
+  (Apache-2.0 = headers only): never committed/rehosted/extracted; supplied out of band,
+  authenticated by `build-utils/xenia/validate_shader_converter.py` against
+  `build-utils/xenia/source.json`. CI source: XeniOS's pinned mirror
+  `xenios-jp/metal-shader-converter` `ios-4.0.3` (`bd6b729d…`), downloaded 10 Nov: same
+  code as the IPA copy (bytes 4096..signature identical), Apple-signed; fetched at build
+  time, never in artifacts. Shipping it in a published IPA: maintainer/legal decision (main).
+- **XeniaCore (written, not compiled):** upstream patch `build-utils/xenia/rewindbox-core.patch`
+  (47 guarded lines, applies to the pin), facade `packages/xenia_internal_bridge/core/`
+  (`XeniaCore.mm` over `EmulatorAppIOS` via `IOSWindowedAppContext`, `XeniaCoreInput.h`,
+  `target.cmake`, exports = `_NeoXenia_GetAPI`), `build-utils/xenia/{prepare_source.py,
+  build_core.sh,verify_core.py}`, dispatch-only `.github/workflows/xenia-core.yml`
+  (`checks` on macos-26; `core` opt-in, needs an Xcode 27 runner). Executed here: patch
+  test on the pinned checkout, facade C++ `-Werror` check against pinned headers, validator.
+- **JIT helper (written, not compiled; IPA wiring = main):** XeniOS needs a tool only on
+  TXM + iOS 26+, once per process (`brk #0xf00d`, x16=1 prepare x0/x1→x0, x16=0 detach,
+  issued by the Core). Helper derived from the ARMSX2 reference by
+  `tools/xenia/derive_jit_helper.py` (`--check` = no drift; script byte-equal to
+  ARMSX2/RPCS3): `native/xenia_internal_helper`, `packages/xenia_jit_helper`,
+  `XeniaJitBridgePlugin` (`neostation/xenia_jit`, bundle `…xeniajithelper`, marker
+  `NeoStationXeniaJITHelper`), `build-utils/configure_xenia_ios.py`. ABI 2 `jit_state` from
+  `IOSJitMemory`; `lib/services/xenia_jit_service.dart` plans none/reuse/handshake/classic;
+  bridge: nonce probe before prepare, detach confirmed after boot. Validator rows and
+  `ios-ci.yml` call listed for main in the contract.
+- **Touch controls (written, not compiled):** `XeniaTouchControls.{h,mm}` on the shared
+  Build 484 layer (layout `xbox360`, Xbox diamond, LB/LT RT/RB, sticks + L3/R3, BACK/START,
+  Y up, triggers 0..1); session: shared hide rule, RPCS3 merge, in-game editor (paused,
+  neutral pad), localized menu (fixes the earlier English-only labels). Shared additions:
+  `xbox360` in `NeoTouchLayoutPlugin.m`, `NeoTouchLayout.consoles`, panel name,
+  `layoutXbox360` ×12 (`generate_strings.py --check` OK), system settings identity. No skin
+  pack (Skins session).
+- **Done (host-tested, not compiled for iOS, not on device):** `ConsoleEngine.xenia` +
+  `xbox360` entry (existing system id); Consoles tab grouped by application, external-
+  RetroArch-only and missing-engine consoles removed from the tab only (maintainer
+  decision 10 Nov), Xbox 360 listed **off by default** (`console_engines_enabled_v1`);
+  playlist import button → Files → validated copy into `Documents/XeniOS/Games`
+  (duplicates, cancel, space, profiles/layouts/XEX refused) → targeted `xbox360` rescan;
+  global + per-game settings (10 cvars with verified core consumers, inherit/reset,
+  title-ID identity) incl. guest language/region; 12 locales; isolated launch route,
+  session-end monitoring; bridge `packages/xenia_internal_bridge` (ABI v1, dlopen on
+  iOS ≥ 26 only, `shaderConverterMissing`/`coreLoadFailed` states, transaction-guarded
+  callbacks, shutdown quarantine). Commits `74f668c2`, `66b09048`; draft PR #172.
+- **Shared-layer edits for main review:** `console_catalog.dart`,
+  `embedded_engine_policy.dart`, `libretro_consoles_screen.dart`,
+  `console_manager_locale.dart` (2 unused section keys removed),
+  `game_launch_service.dart`, `game_launch_manager.dart`, `scanning.dart`,
+  `sqlite_database_service.dart`, `config_service.dart`, `main.dart`, `my_games_list.dart`,
+  `game_settings_emulator_tab.dart`, `assets/systems/xbox360.json`, `pubspec.yaml`,
+  `storage_contract_test.py`/`libretro_frontend_ui_contract_test.py` (new call site, new
+  tab rule), `docs/storage-audit-cleanup.md`.
+- **Folder import XEX/GOD (11 Nov, host-tested, no device):** menu "Import a game folder"
+  → `XeniaFolderContent.scan` (title folder with `default.xex`; XContent header
+  CON/LIVE/PIRS: SVOD + `<header>.data` with exactly `data_file_count` files, or STFS
+  single file; launchable content types only) → stage `XeniOS/.importing/<n>` → rename
+  to `Games/<title>`; package renamed `<title>.god` + `.god.data` (LaunchPath reads the
+  magic, emulator.cc:761-844, svod_container_device.cc:36-83). Scan on iOS: `god` added,
+  only `default.xex`, nothing under `.data`, title from folder/package. Content kind 4
+  `NEO_XENIA_CONTENT_PACKAGE` accepted by `XeniaCore.mm` (ABI stays 2). Proof:
+  `test/xenia_folder_import_test.dart` 11/11 (synthetic headers). Shared files touched:
+  `sqlite_database_service.dart` (iOS xbox360 only), `storage_contract_test.py`
+  (+`importFolder` import site), `docs/storage-audit-cleanup.md`.
+- **Library names + legal link (11 Nov, review by 00 requested):** defect found by session 04,
+  confirmed: every folder game was stored as `filename` = `default.xex`, the key of scraped
+  metadata (`UNIQUE(app_system_id, filename)`), media and favorites/history. Fix:
+  `<folder>.xex`, digest only when the name is taken, stored names kept, old `default.xex`
+  rows renamed once (`test/xenia_library_names_test.dart` 4/4). Legal gate: new review
+  `docs/evidence/xenios-playlist-declarations-2026-11-11.json` chained after Pocket originals
+  (pubspec.yaml + 3 new local manifests); collector updated. Chain passes with Claude's
+  pre-existing libretro podspec mismatch masked; refuses without the review / with a changed
+  file; legal Python tests = same failing set as Claude `1a10d4a8b`.
+- **Review of #172 by 00 (11 Nov), fixed, host-tested, not compiled:** D1 launch failures end
+  the JIT transaction (Dart checks before `ensure`, `abortJit`; native `failLaunch` + abort on
+  every stage, as ARMSX2); D2 reuse only with `handshakeActive`, else `restartRequired`; R1
+  classes `RBXenia…` + namespace test vs pinned sources + `verify_core.py` `nm -m` check; R2/R3/R4
+  (`sessionRunning`, held events, 30 s detach); cached `abiMismatch`/`coreLoadFailed`; guarded
+  startup layout. CI: push trigger on this branch (checks + `plugin_app` simulator link job),
+  `build_core` dispatch only. Proof: `xenia_launch_test.dart`, `xenia_jit_service_test.dart`,
+  `xenia_launch_transaction_test.py`, `xenia_objc_namespace_test.py --upstream`; Dart 107/107;
+  legal chain still passes. Open: façade `g_host_controller` (first compile).
+- **Validation (Flutter 3.47.2 host):** 11 Nov: XeniOS + catalog/Consoles/touch suites
+  91/91, scanner suites 41/41 (1 skip), storage contract 24/24, patch/validator/touch/C++
+  checks OK, analyzer 111 = baseline. Earlier: new XeniOS + catalog/Consoles tests 65/65;
+  XeniOS, JIT, touch panel and settings suites 92/92; `xenia_touch_controls_test.py`,
+  touch catalogues and host checks PASS; shader-converter validator 7/7;
+  `xenia_core_patch_test.py` (incl. helper drift and bridge order) and
+  `xenia_core_cpp_test.sh` OK; workflow-scanning Python tests = same set as Claude;
+  storage contract 24/24; 41 Dart suites touching changed files
+  373 pass / 1 fail = `melonx_presentation_widgets_test` "import completes when playlist
+  refresh disposes its menu", baseline-flaky (HEAD 1/6 pass); Python contracts: same
+  failure set as HEAD (19, baseline; `stikjit_unified_build_test` was a test defect, fixed on Claude by `24a8246f`). Analyzer: no new issue.
+- **Blockers:** first real compile of the facade/plugins/helper/framework (dispatch of
+  `xenia-core.yml` by main; Core needs Xcode 27); converter redistribution decision; IPA
+  wiring of `XeniaJITHelper` (main). Embedded mode must neutralize XeniOS microphone/voice (RewindBox has
+  no `NSMicrophoneUsageDescription`), online/diagnostics and its audio session.
+  Until then launches return `engineMissing`/`requiresIOS26`, never a fake success.
+- **Next:** main dispatches `xenia-core.yml` (`checks`, then `build_core`) and wires the
+  helper; component fixes what the compile reports, then the first TXM-iPhone session
+  (helper attach, touch/controller play, editor, quit, second launch without attach;
+  one ISO, one title folder, one GOD import and launch).
 
 ### Codex orchestration — Codex
 

@@ -15,6 +15,7 @@ import 'package:neostation/repositories/system_repository.dart';
 import 'package:neostation/screens/libretro/libretro_consoles_screen.dart';
 import 'package:neostation/screens/libretro/libretro_skin_manager_screen.dart';
 import 'package:neostation/services/console_catalog.dart';
+import 'package:neostation/services/libretro_core_catalog.dart';
 import 'package:neostation/services/embedded_engine_policy.dart';
 import 'package:neostation/services/libretro_main_menu.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -30,6 +31,26 @@ const _coresWithout3ds = <String>[
   'nestopia', 'snes9x', 'gambatte', 'mgba', 'genesis_plus_gx', 'picodrive',
   'fbneo', 'desmume', 'mupen64plus_next', 'mednafen_psx_hw', 'ppsspp',
 ];
+
+/// Consoles the tab lists in this test build: [bundled] libretro consoles,
+/// Dolphin, ARMSX2, RPCS3 and Xbox 360 (Switch has no MeloNX runtime here;
+/// RetroArch-only systems are never listed).
+bool Function(ConsoleEntry) _listedIn(Set<String> bundled) => (entry) {
+  switch (entry.engine) {
+    case ConsoleEngine.retroarch:
+    case ConsoleEngine.melonx:
+      return false;
+    case ConsoleEngine.libretro:
+      final console = entry.libretro?.id ??
+          LibretroCoreCatalog.bindingFor(entry.importSystem)?.console;
+      return console != null && bundled.contains(console);
+    case ConsoleEngine.dolphin:
+    case ConsoleEngine.armsx2:
+    case ConsoleEngine.rpcs3:
+    case ConsoleEngine.xenia:
+      return true;
+  }
+};
 
 /// A store whose changes wait for [release], to hold the page busy.
 class _SlowMenu extends LibretroMainMenu {
@@ -176,20 +197,35 @@ void main() {
     }
   }
 
-  testWidgets('the tab lists every console under the header, by engine, without an app bar', (tester) async {
+  testWidgets('the tab lists the consoles of this build under the header, by application, without an app bar', (tester) async {
     await pumpTab(tester);
 
     expect(find.byType(AppBar), findsNothing);
     expect(find.text(c(ConsoleManagerLocale.tabTitle)), findsOneWidget);
     expect(find.text(c(ConsoleManagerLocale.tabIntro)), findsOneWidget);
-    expect(find.text(c(ConsoleManagerLocale.sectionEmbedded)), findsOneWidget);
-    expect(find.text(c(ConsoleManagerLocale.sectionExternal)), findsOneWidget);
+    // One section per emulator application (maintainer decision, 10 November
+    // 2026, docs/xenios-playlist.md § Consoles tab); MeloNX has no runtime
+    // in this test, so its section is absent.
+    for (final application in ['RetroArch', 'Dolphin', 'ARMSX2', 'RPCS3', 'XeniOS']) {
+      expect(find.byKey(ValueKey('consoles-application-$application')), findsOneWidget, reason: application);
+    }
+    expect(find.byKey(const ValueKey('consoles-application-MeloNX')), findsNothing);
     // NeoStation's library actions stay in the tab.
     expect(find.byKey(const ValueKey('libretro-library-create-folders')), findsOneWidget);
     expect(find.byKey(const ValueKey('libretro-library-move')), findsOneWidget);
-    // 85 until the Ports console left with Dusklight (20 October 2026).
-    expect(ConsoleCatalog.entries.length, 84);
-    for (final entry in ConsoleCatalog.entries) {
+    // 85 until the Ports console left with Dusklight (20 October 2026); 85
+    // again with the Xbox 360 (XeniOS).
+    expect(ConsoleCatalog.entries.length, 85);
+    // Not listed: systems only the external RetroArch app runs, libretro
+    // consoles whose core is not in this test build (the 3DS, lots 1-2) and
+    // Switch (no MeloNX runtime).
+    final bundled = (await tester.runAsync(() async => (await menu.bundledConsoles())!))!;
+    final listed = _listedIn(bundled);
+    expect(listed(ConsoleCatalog.byId('3ds')!), isFalse);
+    for (final entry in ConsoleCatalog.entries.where((entry) => !listed(entry))) {
+      expect(find.byKey(ValueKey('console-${entry.id}')), findsNothing, reason: entry.id);
+    }
+    for (final entry in ConsoleCatalog.entries.where(listed)) {
       final card = find.byKey(ValueKey('console-${entry.id}'));
       expect(card, findsOneWidget, reason: entry.id);
       expect(find.descendant(of: card, matching: find.text(entry.name)), findsOneWidget, reason: entry.id);
@@ -209,21 +245,19 @@ void main() {
     }
     // No Ports console since Dusklight and KartPad were removed.
     expect(find.byKey(const ValueKey('console-ports')), findsNothing);
-    // Switch is embedded; the remaining external entries belong to RetroArch.
-    expect(find.descendant(of: find.byKey(const ValueKey('console-switch')), matching: find.text(c(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'}))), findsOneWidget);
-    // A declared route is insufficient: until a runtime is packaged and reports
-    // availability, Switch's engine must be visibly unavailable.
-    expect(switchOf(tester, engine('switch')).value, isFalse);
-    expect(switchOf(tester, engine('switch')).onChanged, isNull);
-    expect(find.descendant(of: find.byKey(const ValueKey('console-c64')), matching: find.text('External app: RetroArch')), findsOneWidget);
+    // A declared route is insufficient: Switch without a packaged MeloNX
+    // runtime is not offered at all.
+    expect(find.byKey(const ValueKey('console-switch')), findsNothing);
+    // Xbox 360 stays listed, engine off and not switchable while XeniOS
+    // cannot run here, with the reason on its row.
+    expect(find.descendant(of: find.byKey(const ValueKey('console-xbox360')), matching: find.text(c(ConsoleManagerLocale.engineBuiltIn, {'engine': 'XeniOS'}))), findsOneWidget);
+    expect(switchOf(tester, engine('xbox360')).value, isFalse);
+    expect(switchOf(tester, engine('xbox360')).onChanged, isNull);
+    expect(find.byKey(const ValueKey('console-unavailable-xbox360')), findsOneWidget);
     // The page sits below the 46.r header.
     expect(tester.getTopLeft(find.text(c(ConsoleManagerLocale.tabTitle))).dy, greaterThan(46.r));
-    // A console whose core is not in the build is shown unavailable: no
-    // engine to switch, while RetroArch can still take its games.
-    expect(find.byKey(const ValueKey('console-unavailable-3ds')), findsOneWidget);
-    expect(switchOf(tester, engine('3ds')).onChanged, isNull);
-    expect(switchOf(tester, visible('3ds')).onChanged, isNotNull);
-    expect(find.byKey(const ValueKey('libretro-console-system-3ds')), findsOneWidget);
+    // A console whose core is not in the build is not listed.
+    expect(find.byKey(const ValueKey('libretro-console-system-3ds')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -238,13 +272,13 @@ void main() {
     expect(switchOf(tester, visible('nes')).value, isTrue);
     expect(find.text(c(ConsoleManagerLocale.stateShown, {'systems': 'Nintendo Entertainment System'})), findsOneWidget);
 
-    // Not only libretro consoles: GameCube (Dolphin) and an external app.
+    // Not only libretro consoles: GameCube (Dolphin). RetroArch-only
+    // systems such as the C64 are no longer listed in the tab.
     await tester.tap(visible('gc'));
     await settle(tester);
-    await tester.tap(visible('c64'));
-    await settle(tester);
-    expect(provider.detectedSystems.map((s) => s.folderName), containsAll(<String>['gc', 'c64']));
-    expect(menu.pinned, ['nes', 'gc', 'c64']);
+    expect(find.byKey(const ValueKey('console-c64')), findsNothing);
+    expect(provider.detectedSystems.map((s) => s.folderName), contains('gc'));
+    expect(menu.pinned, ['nes', 'gc']);
   });
 
   testWidgets('a console present through another system is not added twice', (tester) async {
@@ -327,19 +361,24 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('consoles-show-all')));
     await tester.pumpAndSettle();
-    final count = ConsoleCatalog.entries.length;
+    // The listed consoles only, Xbox 360 excluded while its engine is off
+    // by default.
+    final listed = _listedIn((await tester.runAsync(() async => (await menu.bundledConsoles())!))!);
+    final count = ConsoleCatalog.entries
+        .where((entry) => listed(entry) && entry.id != 'xbox360')
+        .length;
     expect(find.text(c(ConsoleManagerLocale.showAllBody, {'count': count})), findsOneWidget);
     await tester.tap(find.widgetWithText(ElevatedButton, c(ConsoleManagerLocale.showAll)).last);
     await settle(tester);
     await tester.pumpAndSettle();
 
     expect(provider.hiddenSystemFolders, isNot(contains('nes')));
-    for (final id in ['nes', 'md', 'gc', 'c64', 'switch']) {
+    for (final id in ['nes', 'md', 'gc']) {
       expect(switchOf(tester, visible(id)).value, isTrue, reason: id);
     }
-    // Only systems known to this test database could be added.
+    // Only listed systems known to this test database could be added.
     expect(provider.detectedSystems.map((s) => s.folderName).toSet(),
-        <String>{'nes', 'md', '3ds', 'gc', 'c64', 'switch'});
+        <String>{'nes', 'md', 'gc'});
   });
 
   testWidgets('Restore defaults shows the hidden, removes the empty additions and turns the engines back on',
@@ -509,10 +548,7 @@ void main() {
       await pumpTab(tester, locale: locale);
       for (final key in [
         ConsoleManagerLocale.tabIntro,
-        ConsoleManagerLocale.sectionEmbedded,
-        ConsoleManagerLocale.sectionExternal,
         ConsoleManagerLocale.showAll,
-        ConsoleManagerLocale.unavailable,
       ]) {
         expect(find.text(texts[key]!), findsWidgets, reason: '$language:$key');
       }

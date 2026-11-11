@@ -39,7 +39,8 @@
     ],
     "extensions": [
       "xex",
-      "iso"
+      "iso",
+      "zar"
     ]
   },
   "emulators": [
@@ -102,6 +103,18 @@
           "executable": "Xenia.AppImage",
           "emudeck_launcher": "xenia.sh",
           "args": "\"{file.path}\""
+        }
+      }
+    },
+    {
+      "name": "XeniOS",
+      "default_standalone": true,
+      "unique_id": "xbox360.ios.xenios",
+      "description": "XeniOS (Xenia) Xbox 360 engine embedded in RewindBox iOS. Supported files: iso, zar.",
+      "is_retroachievements_compatible": false,
+      "platforms": {
+        "ios": {
+          "embedded": true
         }
       }
     }

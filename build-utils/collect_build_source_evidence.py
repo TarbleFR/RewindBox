@@ -26,6 +26,14 @@ SKIN_REVISION_REVIEWS = (SKIN_REVISION_REVIEW, "docs/evidence/pocket-skins-nativ
                          "docs/evidence/pocket-skins-press-precision-declarations-2026-11-10.json",
                          "docs/evidence/pocket-skins-pocket-press-declarations-2026-11-11.json")
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
+# Xbox 360 playlist (PR #172): moves pubspec.yaml on from the Pocket originals review.
+XENIOS_PLAYLIST_REVIEW = "docs/evidence/xenios-playlist-declarations-2026-11-11.json"
+XENIOS_DECLARATIONS = (
+    "pubspec.yaml",
+    "packages/xenia_internal_bridge/pubspec.yaml",
+    "packages/xenia_internal_bridge/ios/xenia_internal_bridge.podspec",
+    "packages/xenia_jit_helper/ios/xenia_jit_helper.podspec",
+)
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -210,10 +218,12 @@ def repository_inputs(root: Path) -> dict[str, str]:
         updates = pocket.get("declarations", {})
         if set(updates) != {"pubspec.yaml"}:
             raise SystemExit("Pocket originals declaration review scope changed")
+        # A later review overlay may move pubspec.yaml on (XeniOS playlist); it binds this digest as its "before".
+        later_pocket_pubspec = (root / XENIOS_PLAYLIST_REVIEW).is_file()
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            if not later_pocket_pubspec and update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"Pocket originals source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
         bundle = pocket.get("bundled_assets", {})
@@ -445,6 +455,32 @@ def repository_inputs(root: Path) -> dict[str, str]:
             raw = read_input(root, root / skin["archiveAsset"])
             if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
                 raise SystemExit("Pocket skin revision archive differs from the catalog: " + skin["archiveAsset"])
+    # RewindBox Xbox 360 playlist (PR #172): pubspec.yaml adds the local workspace plugin xenia_internal_bridge; the
+    # plugin and the dedicated XeniOS JIT helper pod are new local sources, declared from nothing. No hosted package is
+    # added or removed and pubspec.lock is unchanged. The XeniOS engine (XeniaCore.framework) and Apple's Metal Shader
+    # Converter are not built from this tree: nothing of either is committed, retained or bundled by this review.
+    xenios_path = root / XENIOS_PLAYLIST_REVIEW
+    if xenios_path.is_file():
+        xenios = json.loads(read_input(root, xenios_path))
+        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        changes = xenios.get("dependency_changes", {})
+        if (xenios.get("schema") != 1 or xenios.get("baseline_inventory") != prior_name or
+                xenios.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                xenios.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                xenios.get("complete_corresponding_source_attested") is not False or
+                changes.get("external_packages_added") != [] or changes.get("external_packages_removed") != [] or
+                changes.get("local_plugins_added") != ["xenia_internal_bridge"] or
+                changes.get("engine_binaries_bundled") != []):
+            raise SystemExit("XeniOS playlist review has a different baseline or dependency scope")
+        updates = xenios.get("declarations", {})
+        if set(updates) != set(XENIOS_DECLARATIONS):
+            raise SystemExit("XeniOS playlist declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"XeniOS playlist source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

@@ -355,7 +355,14 @@ def static_checks(source: Path) -> None:
                '\t\t\t\t\t\treservation_lock_wait(wait_iteration);\n'
                '\t\t\t\t\t}\n'
                '\t\t\t\t}\n')
-    require(ctor.count(loop) + ctor.count(loop931) == 1, 'the park wait: same condition, the budget in front of the previous wait, which is untouched')
+    # REWINDBOX_EVENT_WAIT_LATENCY_932: from Core 932 the comment of that wait no longer states a WFE latency as a fact; the
+    # code is the same, character for character.
+    loop932 = loop931.replace("\t\t\t\t\t\t\t// clears the monitor). XNU's event stream ends a WFE within about 1 us in any case.\n",
+                              "\t\t\t\t\t\t\t// clears the monitor). The spin budget bounds the loop; how long each WFE lasts on the device is\n"
+                              "\t\t\t\t\t\t\t// measured (REWINDBOX_EVENT_WAIT_LATENCY_932, THERMAL931 wfe_latency_us), not assumed.\n")
+    require(loop932 != loop931, 'the Core 932 alternative differs from the Core 931 text')
+    require(ctor.count(loop) + ctor.count(loop931) + ctor.count(loop932) == 1,
+            'the park wait: same condition, the budget in front of the previous wait, which is untouched')
     require('\twait_iteration = 0;' not in ctor and 'continue;' not in ctor[ctor.index('rpcs3::ios::writer_park::waiter ios_park;'):],
             'the previous wait starts at its first iteration: nothing rewinds or skips its counter')
     require(ctor.count('ios_park.spin(') == 1 and ctor.count('reservation_lock_wait(wait_iteration);') == 2, 'the range-lock wait is untouched')
