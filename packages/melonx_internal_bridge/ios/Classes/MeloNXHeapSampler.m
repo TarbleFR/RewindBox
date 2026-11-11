@@ -12,6 +12,9 @@ typedef void(malloc_logger_t)(uint32_t type, uintptr_t arg1, uintptr_t arg2, uin
 // libmalloc's malloc_logger variable, looked up at the first Start: nothing here links against it.
 static malloc_logger_t **gLogger;
 
+// Swift reaches these functions through dlsym (MeloNXHeapSamplerLink): kept and exported from the pod's framework.
+#define MELONX_HEAP_SAMPLER_EXPORT __attribute__((visibility("default"), used))
+
 // stack_logging.h
 #define LOG_ALLOCATE 2u
 #define LOG_DEALLOCATE 4u
@@ -173,6 +176,8 @@ static void hook(uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, 
     (void)skip;
     if (!(type & LOG_HAS_ZONE)) { arg3 = arg2; arg2 = arg1; }
     if ((type & LOG_ALLOCATE) && (type & LOG_DEALLOCATE)) {   // a block moved: arg2 the old pointer, arg3 the new size
+        // libmalloc reports the move once it is done: in between another thread may have been given the old address
+        // and been sampled there, and that record is then the one removed (one sample of the estimate, no more).
         if (result == 0) return;
         released(arg2);
         allocated(result, arg3);
@@ -183,7 +188,7 @@ static void hook(uint32_t type, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, 
     }
 }
 
-int MeloNXHeapSamplerStart(void) {
+MELONX_HEAP_SAMPLER_EXPORT int MeloNXHeapSamplerStart(void) {
     if (atomic_exchange(&gActive, 1)) return 0;
     if (gLogger == NULL) gLogger = (malloc_logger_t **)dlsym(RTLD_DEFAULT, "malloc_logger");
     if (gLogger == NULL) { atomic_store(&gActive, 0); return -3; }
@@ -204,11 +209,11 @@ int MeloNXHeapSamplerStart(void) {
     return 1;
 }
 
-int MeloNXHeapSamplerStop(void) {
-    if (gLogger == NULL || *gLogger != hook) return 0;
-    *gLogger = NULL;
-    atomic_store(&gActive, 0);
-    return 1;
+MELONX_HEAP_SAMPLER_EXPORT int MeloNXHeapSamplerStop(void) {
+    // A logger another component set during the window is left as it is; the window is over either way.
+    int ours = gLogger != NULL && *gLogger == hook;
+    if (ours) *gLogger = NULL;
+    return atomic_exchange(&gActive, 0) && ours ? 1 : 0;
 }
 
 static int byLiveBytes(const void *left, const void *right) {
@@ -217,7 +222,7 @@ static int byLiveBytes(const void *left, const void *right) {
     return a->totalBytes > b->totalBytes ? -1 : a->totalBytes < b->totalBytes ? 1 : 0;
 }
 
-int MeloNXHeapSamplerReport(MeloNXHeapSamplerTotals *totals, MeloNXHeapSamplerStack *stacks, int capacity) {
+MELONX_HEAP_SAMPLER_EXPORT int MeloNXHeapSamplerReport(MeloNXHeapSamplerTotals *totals, MeloNXHeapSamplerStack *stacks, int capacity) {
     // Not from the hook: this may allocate.
     MeloNXHeapSamplerStack *copy = malloc(sizeof(gStacks));
     if (copy == NULL) return 0;

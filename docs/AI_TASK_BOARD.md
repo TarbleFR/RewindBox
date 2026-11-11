@@ -4199,8 +4199,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       stack); 3 800 MiB allocated and freed with nothing left live; no sample dropped or unwalked; each stack starts
       at the caller of the allocator; a window closed by its timer and one by the end of the session remove the
       hook. Cost on the runner: 357 ns against 273 ns for a malloc and a free of 64 bytes in an unoptimised loop
-      (about 40 ns per call). A Linux simulation of the tables agrees (scratchpad). Independent read-only review
-      (rb-core-review) of the hook requested; its result is recorded below when it returns.
+      (about 40 ns per call). A Linux simulation of the tables agrees (scratchpad).
+    - **Independent read-only review (rb-core-review) of the hook: nothing that can crash or hang.** Sound: every
+      slot change under the lock and re-checked there; a live pointer always reachable within its probes; no
+      allocation, other lock or re-entry on the hook's path; frames read only inside the thread's stack; the Swift
+      mirror of the C layout; the window cannot close twice or leave the hook set. Two defects without a crash,
+      corrected in the next commit: `Stop` left the sampler marked active when another logger had replaced the hook
+      during the window (every later window refused); the three functions Swift looks up carried no export
+      attribute (a dead-stripped link would have answered "no sampler in this build"). One estimation error kept
+      and stated in the source: libmalloc reports a moved block after the move, so a sample another thread took at
+      the old address in between is the one removed. Residual assumption, not verified from source: no signal
+      handler that interrupts a thread inside the sampler's lock allocates (the bridge's own handlers do not; the
+      runtime's activation handler returns without work when the interrupted code is not managed, by the runtime's
+      design).
     - **Not measured on a device; no memory or frame gain is claimed.** Remaining to gain for the verdict: the same
       as lot 12 (IPA 725: 22.0 FPS over the 78 s exported, footprint over 4 GiB).
     - **Next action:** main ships the bridge of this head with Core 733 in the next private IPA. From the device

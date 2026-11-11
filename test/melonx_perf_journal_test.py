@@ -195,7 +195,7 @@ heap = (CLASSES / 'MeloNXHeapSample.swift').read_text()
 controller = (CLASSES / 'MeloNXMetalSessionViewController.swift').read_text()
 check('#define INTERVAL ((uint64_t)256 << 10)' in sampler and '#define SLOTS (1u << 16)' in sampler and '#define PROBES 16u' in sampler and
       '#define STACKS 4096u' in sampler and '#define MeloNXHeapSamplerFrames 14' in sampler_header, 'sampler bounds')
-hook_code = sampler[sampler.index('static inline uint64_t mix('):sampler.index('int MeloNXHeapSamplerStart(void)')]
+hook_code = sampler[sampler.index('static inline uint64_t mix('):sampler.index('MELONX_HEAP_SAMPLER_EXPORT int MeloNXHeapSamplerStart(void)')]
 check(all(name not in hook_code for name in ('malloc(', 'calloc(', 'realloc(', 'free(', 'printf', 'NSLog', 'os_log', 'dispatch_', '__thread', '_Thread_local',
                                              'pthread_getspecific', 'dladdr', '@')) and
       hook_code.count('os_unfair_lock_lock(&gLock)') == 2 and hook_code.count('os_unfair_lock_unlock(&gLock)') == 2,
@@ -204,8 +204,12 @@ check('address < low || address + 16 > high || (address & 7) != 0' in hook_code 
       'frames are read inside the calling thread\'s own stack only')
 check('if (*gLogger != NULL) { atomic_store(&gActive, 0); return -1; }' in sampler and 'extern' not in sampler and
       'gLogger = (malloc_logger_t **)dlsym(RTLD_DEFAULT, "malloc_logger");' in sampler and
-      sampler.count('*gLogger = hook;') == 1 and '    if (gLogger == NULL || *gLogger != hook) return 0;\n    *gLogger = NULL;' in sampler,
-      'the hook is looked up, set only when no other logger owns it, and removed only when it is ours')
+      sampler.count('*gLogger = hook;') == 1 and '    int ours = gLogger != NULL && *gLogger == hook;\n    if (ours) *gLogger = NULL;\n'
+      '    return atomic_exchange(&gActive, 0) && ours ? 1 : 0;' in sampler,
+      'the hook is looked up, set only when no other logger owns it, and removed only when it is ours; a window always ends')
+check('#define MELONX_HEAP_SAMPLER_EXPORT __attribute__((visibility("default"), used))' in sampler and
+      all(('MELONX_HEAP_SAMPLER_EXPORT int MeloNXHeapSampler' + name + '(') in sampler for name in ('Start', 'Stop', 'Report')),
+      'the three functions Swift looks up are kept and exported')
 HEAP = {name: float(value) for name, value in re.findall(r'static let (windowSeconds|maxStacks|maxPlaces)(?:: \w+)? = ([\d.]+)', heap) +
         re.findall(r'\b(maxPlaces) = ([\d.]+)', heap)}
 check(HEAP == dict(windowSeconds=120, maxStacks=24, maxPlaces=10) and 'static let totalsWords = 8, stackWords = 19, frames = 14' in heap,
