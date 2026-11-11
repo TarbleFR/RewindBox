@@ -183,9 +183,10 @@ jobs:
           cat "$out/inventory.txt" | head -150
         env:
           S2A_RUN_ROOT: ${{ runner.temp }}/s2arm-run
-      - name: Check the guest entry points of the framework (patches 0003-0008)
+      - name: Check the guest entry points of the framework (patches 0003-0009)
         # RewindBox dlopens the framework and looks these up with dlsym; die() finds s2a_rb_guest_fatal by name.
         # rb_s2arm_engine_loaded belongs to RewindBox's host plugin and must not come from the framework.
+        # In a guest the engine reads its own Info.plist (patch 0009): S2ACommit is its build identity (diagnostics, dguard.c).
         working-directory: ${{ runner.temp }}/s2arm
         shell: bash --noprofile --norc {0}
         run: |
@@ -206,7 +207,72 @@ jobs:
           for lang in en zh-Hans; do
             if [ -f "$fw/$lang.lproj/S2ArmHost.strings" ]; then note "ok   $lang.lproj/S2ArmHost.strings"; else note "FAIL $lang.lproj/S2ArmHost.strings missing"; status=1; fi
           done
+          pin=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['s2arm']['commit'])" "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json")
+          commit=$(plutil -extract S2ACommit raw -o - "$fw/Info.plist" 2>/dev/null)
+          if [ -n "$pin" ] && [ "$commit" = "$pin" ]; then note "ok   Info.plist S2ACommit $commit"; else note "FAIL Info.plist S2ACommit '$commit', expected the S2Arm commit $pin"; status=1; fi
           exit $status
+      - name: Package the guest frameworks for RewindBox's delivery (macos-26 only)
+        # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
+        # (ditto -c -k --keepParent, symlinks kept) and s2arm-engine-identity.json, uploaded below as s2arm-engine-framework-<sha>.
+        if: success() && matrix.os == 'macos-26'
+        working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/s2arm-engine-framework"
+          rm -rf "$out"; mkdir -p "$out"
+          for fw in S2ArmEngine NS2Pro; do
+            test -f "build/ios/$fw.framework/$fw"
+            ditto -c -k --keepParent "build/ios/$fw.framework" "$out/$fw.framework.zip"
+          done
+          xcode=$(xcodebuild -version | sed -n 1p)
+          test -n "$xcode"
+          grep '^patch ' "$GITHUB_WORKSPACE/proof/inputs.txt" > "$RUNNER_TEMP/applied-patches.txt"   # name and SHA-256, in the order applied
+          python3 - "$out" build/ios "$GITHUB_WORKSPACE/tools/s2arm_prototype/pin.json" "$xcode" "$RUNNER_TEMP/applied-patches.txt" <<'PY'
+          import hashlib, json, os, stat, sys, zipfile
+          out, build, pin_file, xcode, applied = sys.argv[1:6]
+          def sha256(path):
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for block in iter(lambda: f.read(1 << 20), b''):
+                      h.update(block)
+              return h.hexdigest()
+          files = {}
+          for name in ('S2ArmEngine', 'NS2Pro'):
+              zpath, top = os.path.join(out, name + '.framework.zip'), name + '.framework'
+              with zipfile.ZipFile(zpath) as z:
+                  entries = z.infolist()
+                  extra = {e.filename for e in entries if e.filename.startswith(('__MACOSX', '._')) or '/._' in e.filename}   # ditto's AppleDouble metadata
+                  roots = {e.filename.split('/', 1)[0] for e in entries if e.filename not in extra}
+                  links = sum(1 for e in entries if stat.S_ISLNK(e.external_attr >> 16))
+                  if roots != {top} or top + '/' + name not in z.namelist():
+                      raise SystemExit(f'{zpath}: expected one {top}/ root holding {top}/{name}, got {sorted(roots)}')
+              on_disk = sum(1 for d, dirs, fs in os.walk(os.path.join(build, top)) for n in dirs + fs if os.path.islink(os.path.join(d, n)))
+              if links != on_disk:
+                  raise SystemExit(f'{zpath}: {links} symlink entries, {on_disk} symlinks in {top}')
+              files[name + '.framework.zip'] = sha256(zpath)
+              print(f'{name}.framework.zip: {os.path.getsize(zpath)} bytes, {len(entries)} entries, {links} symlinks, AppleDouble/__MACOSX entries {len(extra)}')
+          patches = [{'name': n, 'sha256': h} for _, n, h in (line.split() for line in open(applied) if line.strip())]
+          identity = {'run': int(os.environ['RUN_ID']), 'attempt': int(os.environ['RUN_ATTEMPT']), 'head_sha': os.environ['HEAD_SHA'],
+                      's2arm_commit': json.load(open(pin_file))['s2arm']['commit'], 'xcode': xcode, 'patches': patches, 'files': files}
+          with open(os.path.join(out, 's2arm-engine-identity.json'), 'w') as f:
+              json.dump(identity, f, indent=2)
+              f.write('\n')
+          PY
+          cat "$out/s2arm-engine-identity.json"
+          cp "$out/s2arm-engine-identity.json" "$GITHUB_WORKSPACE/proof/"
+      - name: Upload the guest frameworks for RewindBox's delivery (macos-26 only)
+        if: success() && matrix.os == 'macos-26'
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
+        with:
+          name: s2arm-engine-framework-${{ github.sha }}
+          path: ${{ runner.temp }}/s2arm-engine-framework/
+          if-no-files-found: error
+          retention-days: 30
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
