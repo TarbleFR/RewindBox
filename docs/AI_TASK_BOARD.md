@@ -4222,6 +4222,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       runtime's suspension handler (dotnet/runtime v10.0.0, nativeaot `Thread::HijackCallback`, thread.cpp 655-673:
       it neither blocks nor allocates before it knows the interrupted code is managed, and returns otherwise); not
       checked for the engine's guest fault handler, which runs on faults of guest code, not inside the sampler.
+    - **GPU thread budget in the slow stretches (same journals, the engine's 5.1 s `performance` samples; sizes the
+      work lot 12's Finding 3 names, no code chosen yet):** in the samples at 20-22 FPS the GPU thread's dispatch is
+      3.0 to 3.8 s of 5.1 s, 27 to 34 ms per frame: at or over the 33.3 ms of a frame by itself. Inside it
+      (inclusive, overlapping timers): compute dispatches 0.79 to 1.03 s for 4 900 to 7 700 of them (130 to 150 µs
+      each, 50 to 60 a frame, 7 to 9 ms a frame); texture binding commits 1.2 to 1.6 s, of which pool-array delta
+      updates (`UpdateFromPoolDelta`) 0.43 to 0.68 s in 390 to 570 calls: 70 to 80 elements visited per call, 88 %
+      of them changed, 14 to 20 µs per changed element, about 290 changed elements and 5 ms a frame; buffer loads
+      0.26 to 0.36 s. In the 20 s on target: dispatch 1.9 to 2.2 s, compute 0.63 to 0.72 s, deltas 0.43 to 0.49 s for
+      47 000 to 50 000 draws. Hypotheses to settle with the `[MeloNX:hot]` profiles of the next run, not acted on:
+      the changed elements are pool entries the guest rewrites every frame and each is resolved again through the
+      texture cache (`GetForBinding`); a compute dispatch pays its shader lookup, storage buffer sizing and both
+      binding commits each time. Target for the next engine lot: the GPU thread under about 25 ms a frame in those
+      scenes (compute and deltas are 12 to 14 ms of it).
     - **Not measured on a device; no memory or frame gain is claimed.** Remaining to gain for the verdict: the same
       as lot 12 (IPA 725: 22.0 FPS over the 78 s exported, footprint over 4 GiB).
     - **Next action:** main ships the bridge of this head with Core 733 in the next private IPA. From the device
