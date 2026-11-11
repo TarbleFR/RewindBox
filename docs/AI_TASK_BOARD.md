@@ -258,12 +258,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
+- **Common IPA 726 delivered and verified (11 Nov 22:37 UTC, main).** Run `43106533461` attempt 2 (trigger `bd99e8b7`,
+  frozen on `8fb2ee39`), five jobs green. Four parts of 68,467,054 B = API digests; offline verification passed (six
+  validators 0); IPA 272,927,734 B, SHA-256 `ac9612b4…d618`, 91 images (90 + `xenia_internal_bridge`), changed as
+  declared plus `armsx2_internal_bridge`, whose only differences from 725 are the linker stubs (`__stubs`,
+  `__objc_stubs`, same sizes; 30 of 32 sections identical; nothing to classify, recipe 3.10). Binary markers: Core 933
+  (`Resolved title policy 933`, `COREPROF LOCALPROFILE933`, `THERMAL931`), MeloNX bridge heap sampler and hot spots.
+  Eight receipts copied, key deleted, receipt [rewind726](evidence/rewind726/delivery.json) (12 proofs). Sent privately
+  as a file. **Nothing of this build observed on an iPhone yet.** Device protocols: RPCS3 932 (§ 4 of
+  `docs/rpcs3-core932-lot-armsx3-audit.md`), 933 (§ 6 of `docs/rpcs3-core933-profil-local.md`), MeloNX 735
+  (`docs/evidence/melonx-733-gates/device-protocol.md`: Hogwarts Legacy, 20 min, pause after 5, frame windows from t=130,
+  send the performance log with its rotated file, the core and stderr logs). The orphaned run `43098367088` of the
+  first trigger is still listed as queued; cancel it if it ever starts.
 - **Common IPA 726 triggered (11 Nov, main).** All sessions ready (queue below). First request: draft `8a627b46` =
   freeze commit, trigger `0fbb5ac8`, run `43098367088` created at 20:50:19 UTC during a GitHub Actions outage
   (githubstatus.com major outage, incident opened 20:56): it never started, like every run created between 20:41 and
   20:52, while a run created at 21:37 ran; GitHub refused its cancellation (409, "has not been queued yet"; not
   retried). Second request (recipe 3.6, only the recipe changes): draft `8fb2ee39` (its note records why), frozen
-  there with the same effective digest, trigger `bd99e8b7`, run `43106533461` in progress. Base: the delivered 725 (run
+  there with the same effective digest, trigger `bd99e8b7`, run `43106533461`. Attempt 1: preflight and flutter green,
+  republish failed on `gh: HTTP 503` downloading the retained Dolphin archive `13410284965` (21:54, after the outage;
+  the application job had passed the same downloads); a verified delivery needs one successful attempt, so attempt 1
+  was cancelled and the whole run re-run: attempt 2 started 22:02:49, in progress. Base: the delivered 725 (run
   `42973548971`, receipt `a84cb29a`, 90 signed images). Replaced: RPCS3 Core 933 (pin `3fdc9f3b`), MeloNX Core 735
   (pin `3939c7a9`, replaces 731). Retained: Dolphin, ARMSX2, libretro, MeloNX dependencies, standalone MoltenVK
   `99605a2b` (inputs unchanged since 725). Added image: `xenia_internal_bridge.framework` (PR 172 plugin; XeniaCore,
