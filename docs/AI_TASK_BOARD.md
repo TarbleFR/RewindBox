@@ -4144,8 +4144,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       Cores: `journal_of_earlier_cores`), `guest-fault-context`, `core667-fixes` (runtime: `core733_native.reverse`
       first). `performance-diagnostics` clears the event queue by reflection: the number of events is part of what
       the kept snapshot is compared on.
-    - **Core 733 frozen: contract `4e0ea3ea…` after the two gate corrections below (first freeze `b2a748e7…`, then
-      `5769e41d…`; the same preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
+    - **Core 733 frozen: contract `8a223efc…` after the three gate corrections below (first freeze `b2a748e7…`, then
+      `5769e41d…` and `4e0ea3ea…`; the same preparation and engine; 206 inputs, 211 members, 91 gates; contract test 483 checks;
       [receipts](evidence/melonx-733-gates/run.json), [device protocol](evidence/melonx-733-gates/device-protocol.md)).**
       The five-part MoltenVK is unchanged. Local run: 90 gates in one series, 89 green; `pipeline-checkpoint` failed
       once in it (its fixture removes its temporary directory while a write is still landing, under three parallel
@@ -4184,6 +4184,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       same kind. The other gates were read for the same pattern: none compares the speed of two processes (their
       time bounds are absolute, around sleeps of known length). Contract `4e0ea3ea…` (the gate and its fixture are
       inputs; preparation and engine unchanged), contract test 483/419. Not run on macOS yet.
+    - **Core CI red a third time (run 43016327008 on `f974efac`), a third gate, diagnosed and corrected (11 Nov):**
+      `host-thread-class` and `compute-switch-bindings` passed on macOS; `pipeline-variant-replay` then read
+      launch2 `[4, 0, 1, 2]`, launch3 `[4, 0, 1, 2]`, launch4 `[3, 0, 0, 2]` (the variant that builds never
+      replayed). Not the lot (neither `PipelineCacheManager.cs` nor the compile scheduler is touched). Cause: a race
+      in the fixture. Its four variants are noted under one program and replayed in the order of the millisecond
+      each was noted in (all in one: by id; otherwise as noted); the scheduler has one compile worker on a host with
+      fewer than 8 processors (the runner, this sandbox). With the order "as noted" the replay that must fail under
+      memory pressure runs second and waits, on the only worker, for outcomes that worker has still to produce; it
+      gives up after 3 s, memory then reads short for good and the last variant is held. Reproduced locally with
+      3 ms between the four notes: the runner's three figures exactly. Corrected fixture: one program per variant,
+      offered one after the other, so that each outcome is classified with the memory reading meant for it whatever
+      the workers and the order; the expected figures are unchanged. With 3 ms after each of the fixture's 29 notes
+      the gate passes (107 checks); `variant-replay-all`, which shares the fixture, passes (40). Contract
+      `8a223efc…`, contract test 483/419. Three gates of mine failed three Core builds in a row on conditions of the
+      runner, none on the engine: the remaining gates are being run here under load before the next dispatch is
+      relied on.
     - **Not in this lot:** the collector still runs at the class of the thread that triggers it; a second patch of
       the rebuilt workstation GC (class raised for the collection) was drafted and left out, the three fixes removing
       the known triggers below the user-interactive class; to revisit with the next `gcPause summary`.
