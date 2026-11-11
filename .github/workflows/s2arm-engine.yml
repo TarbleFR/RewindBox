@@ -122,6 +122,12 @@ jobs:
           status=0
           make ios > "$out/make-ios.log" 2>&1 || status=$?
           echo "make ios exit=$status seconds=$(( $(date +%s) - start ))" | tee "$out/result.txt"
+          if [ "$status" = 0 ]; then
+            start=$(date +%s)
+            make -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/guest.mk" ios-guest > "$out/make-ios-guest.log" 2>&1 || status=$?
+            echo "make ios-guest exit=$status seconds=$(( $(date +%s) - start ))" | tee -a "$out/result.txt"
+            tail -15 "$out/make-ios-guest.log"
+          fi
           tail -60 "$out/make-ios.log"
           for f in build/cs/*.err; do [ -s "$f" ] && { echo "== $f"; tail -60 "$f"; cp "$f" "$out/"; }; done
           find "$S2A_RUN_ROOT" -name publish.log -print 2>/dev/null | while read -r f; do
@@ -148,6 +154,22 @@ jobs:
             echo "== executable: defined external symbols"; nm -gU "$app/S2Arm" | wc -l
             echo "== executable: undefined symbols (count, then non-system)"; nm -u "$app/S2Arm" | wc -l
           } > "$out/inventory.txt" 2>&1
+          fw=build/ios/S2ArmEngine.framework
+          if [ -f "$fw/S2ArmEngine" ]; then
+            {
+              echo "== guest framework"; du -sh "$fw"; ls -l "$fw"
+              xcrun size -m "$fw/S2ArmEngine" | grep -E 'Segment|total' | head -12
+              otool -L "$fw/S2ArmEngine" | tail -n +2
+              echo "exports: $(nm -gU "$fw/S2ArmEngine" | wc -l)"
+              echo "undefined: $(nm -u "$fw/S2ArmEngine" | wc -l)"
+              echo "ObjC classes: $(nm -gU "$fw/S2ArmEngine" | grep -c '_OBJC_CLASS_\$_')"
+              echo "has _main: $(nm -gU "$fw/S2ArmEngine" | grep -c ' _main$')"
+              echo "S2A_Init: $(nm -gU "$fw/S2ArmEngine" | grep -c ' _S2A_Init$')"
+              echo "constructors (mod_init_func): $(otool -l "$fw/S2ArmEngine" | grep -A3 __mod_init_func | grep size | head -1)"
+            } >> "$out/inventory.txt" 2>&1
+            nm -gU "$fw/S2ArmEngine" | awk '{print $3}' | sort > "$out/framework-exports.txt"
+            nm -gU "$fw/S2ArmEngine" | grep '_OBJC_CLASS_\$_' | awk '{print $3}' | sort > "$out/framework-objc-classes.txt"
+          fi
           nm -gU "$app/S2Arm" | awk '{print $3}' | sort > "$out/executable-exports.txt"
           nm -u "$app/S2Arm" | sort > "$out/executable-undefined.txt"
           lib=$(find "$S2A_RUN_ROOT" -name libs2a_cs.a 2>/dev/null | head -1)
