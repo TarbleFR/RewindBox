@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds XeniaCore.framework from the pinned XeniOS checkout.
 # Usage: build_core.sh <xenios-checkout> <iphoneos-libmetalirconverter.dylib>
-# Expects: Xcode with the iOS 27 SDK selected, the Metal toolchain, CMake,
+# Expects: Xcode with an iOS 26 or 27 SDK selected (rewindbox-core.patch guards
+# the two iOS 27 SDK uses of xenia-ui-ios), the Metal toolchain, CMake,
 # Ninja, Python with meson/mako/pyyaml/packaging, the checkout's submodules
 # (DirectXShaderCompiler excluded) and `./xenia-build.py slang msc fetchdata`
 # already run in it — the steps of XeniOS's own apple-publish.yml.

@@ -224,17 +224,25 @@ jobs:
               print('msc_tag=' + mirror['release_tag'], file=output)
               print('msc_sha256=' + mirror['sha256'], file=output)
           PY
-      - name: Select Xcode 27 (the pinned sources need the iOS 27 SDK)
+      # The pinned sources target the iOS 27 SDK; GitHub's macos-26 images have
+      # Xcode 26.x only. rewindbox-core.patch compiles the two iOS 27 SDK uses of
+      # xenia-ui-ios (StateReporting, scene accessories) only when the SDK has
+      # them, so the newest Xcode 26 builds the Core; Xcode 27 is taken when present.
+      - name: Select Xcode (27 when present, else the newest 26.x)
         run: |
           set -euo pipefail
           xcode="$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n 1 || true)"
           if [ -z "$xcode" ]; then
-            echo "::error::No Xcode 27 on this runner (StateReporting needs the iOS 27 SDK). Dispatch with a runner that has it."
+            xcode="$(ls -d /Applications/Xcode_26.*.app 2>/dev/null | sort -V | tail -n 1 || true)"
+          fi
+          if [ -z "$xcode" ]; then
+            echo "::error::No Xcode 26 or 27 on this runner."
             ls -d /Applications/Xcode*.app || true
             exit 1
           fi
           sudo xcode-select -s "$xcode"
           xcodebuild -version
+          echo "iPhoneOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
       - name: Install the Metal toolchain
         run: |
           for attempt in 1 2 3 4 5; do
