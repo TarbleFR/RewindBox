@@ -298,13 +298,22 @@ static class Program
         Draw("imageNoDispatch"); Dispatch("image"); Draw("image");
         for (int i = 0; i < 3; i++) { Dispatch("after" + i); Draw("after" + i); }
 
-        // Steady commits, timed (host CPU, Release build).
+        // Steady commits, timed (host CPU, Release build): five rounds of 50 000 pairs. The fastest round is the measure,
+        // so that a stall of the host during one round does not decide the comparison (one round only until Core 731:
+        // the comparison failed twice in local runs with other gates building beside it). The backend calls are those
+        // of the first round, as before.
         for (int i = 0; i < 2000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
-        var watch = Stopwatch.StartNew();
         int timedCallsBefore = TextureCalls + ImageCalls;
-        for (int i = 0; i < 50000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
-        double ms = watch.Elapsed.TotalMilliseconds;
-        int timedCalls = TextureCalls + ImageCalls - timedCallsBefore;
+        int timedCalls = 0;
+        var roundsMs = new double[5];
+        for (int round = 0; round < roundsMs.Length; round++)
+        {
+            var watch = Stopwatch.StartNew();
+            for (int i = 0; i < 50000; i++) { gpu.AdvanceSequence(); textures.CommitComputeBindings(specCompute); gpu.AdvanceSequence(); textures.CommitGraphicsBindings(specGraphics, out _); }
+            roundsMs[round] = watch.Elapsed.TotalMilliseconds;
+            if (round == 0) { timedCalls = TextureCalls + ImageCalls - timedCallsBefore; }
+        }
+        double ms = roundsMs.Min();
 
         Console.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
         {
@@ -313,6 +322,7 @@ static class Program
             ["steadyCalls"] = steadyCalls,
             ["timedPairs"] = 50000,
             ["timedMs"] = ms,
+            ["timedRoundsMs"] = roundsMs,
             ["timedBackendCalls"] = timedCalls,
         }));
         return 0;

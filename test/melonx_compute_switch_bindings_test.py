@@ -113,6 +113,9 @@ check(candidate['sequence'] == control['sequence'], 'same slot sequence as the c
 check(len(candidate['sequence']) == 24, 'every step committed')
 check(candidate['steadyCalls'] == control['steadyCalls'], 'same backend calls in the steady phase')
 check(candidate['timedBackendCalls'] == control['timedBackendCalls'], 'same backend calls in the timed phase')
+# timedMs is the fastest of five rounds of 50 000 pairs in each probe (a host stall during one round does not decide).
+check(len(candidate['timedRoundsMs']) == len(control['timedRoundsMs']) == 5 and candidate['timedMs'] == min(candidate['timedRoundsMs']) and
+      control['timedMs'] == min(control['timedRoundsMs']), 'five timed rounds in each probe, the fastest kept')
 check(candidate['timedMs'] < control['timedMs'], 'steady compute/graphics pairs are cheaper')
 
 mc, mk = texts['control'][adapter.MANAGER], texts['candidate'][adapter.MANAGER]

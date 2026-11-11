@@ -194,7 +194,10 @@ check(not k['busy']['inMainWhileBusy'] and k['busy']['busyCount'] == 1 and k['bu
 for name, r in (('control', c), ('candidate', k)):
     check(r['frozen']['addedToMainDuringPlay'] == 0 and r['frozen']['mainFileKept'], name + ': a Frozen main receives nothing during play; its file is kept')
     check(r['recycle']['compiled'] == 4300 and r['recycle']['allOnDisk'], name + ': a recycled worker cache loses nothing')
-    check(r['threads']['renderCreations'] == 2000 and r['threads']['allRenderOnDisk'] and r['threads']['allWorkerOnDisk'],
+    # The scenario builds the overlap itself (the render thread starts after both workers' first publication; the workers
+    # publish until it is done), so the counts hold whatever the threads' speeds.
+    check(r['threads']['renderCreations'] == 2000 and r['threads']['renderFinished'] and r['threads']['allRenderOnDisk'] and
+          r['threads']['allWorkerOnDisk'] and min(r['threads']['workerRequests']) >= 300,
           name + ': render-thread creations during publications are all kept')
 check(k['recycle']['allInMainBeforeClose'] and not c['recycle']['allInMainBeforeClose'], 'candidate: published before and after the recycle')
 check(any('Worker libraries shared with the main cache (session, at close): 13 merges' in line for line in k['shareLines']),
