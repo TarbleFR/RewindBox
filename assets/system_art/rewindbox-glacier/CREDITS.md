@@ -8,3 +8,4 @@ Pour les références indiquées dans credits-silhouettes.json, des vues Systema
 - [Libretro retroarch-assets – rendus Systematic](https://github.com/libretro/retroarch-assets/tree/d9f969054dc7fbb6fa89519036d2b971e0855b51/xmb/systematic).
 - [Licence du dépôt de rendus, CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Le texte fourni par ce dépôt accompagne le pack.
 - Les noms de consoles, services et produits servent à identifier les systèmes. Les marques appartiennent à leurs titulaires.
+- `backgrounds/switch2.webp` (Nintendo Switch 2) n'est pas un portrait du pack : c'est le logo officiel Nintendo Switch 2 sur fond rouge, image fournie par le mainteneur de RewindBox pour identifier le système. Ce n'est ni une illustration dérivée de BAXY ni un contenu sous CC BY 4.0 ; la marque appartient à Nintendo (voir `assets/images/logos/TRADEMARKS.md`).
