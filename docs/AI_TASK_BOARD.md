@@ -3797,10 +3797,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     (delegated, reviewed, `999c8c3`). Run `42942687934`, Linux and macOS: 86 cases, 0 failed
     (78 tables byte-identical to the original, 7 refused by both, ZBIC refused by the port
     only), iOS arm64 compilation. ZBIC-compressed NSOs are not supported.
-  - In progress, unverified: `S2ArmPrepare.xcframework` (`build-utils/s2arm/`,
-    `.github/workflows/s2arm-core.yml`). Runs `42941599637`, `42942396095`, `42942688158`
-    failed on build configuration (empty target processor, then a `find | head` pipe under
-    pipefail); `b09e6bd` run `42942912304` pending.
+  - `S2ArmPrepare.xcframework` built for iOS arm64: run `42944199721` on `dd6466a` (Xcode 16.4),
+    zip SHA-256 `08bc14d2…8c40`, library `b83d16c7…4e1b`; the build script checks that only
+    `rb_s2arm_*` symbols are visible. Five earlier runs failed on the build script (target
+    processor, library lookup, Capstone linked twice), none on the library code. Not linked
+    into any app; how main wants to receive it is asked.
+  - In progress, unverified: port of the GPU driver list and of the NRO tools (delegated).
   - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
     playlist files belong to PR #172 until main integrates it; skins stay with session 02.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
