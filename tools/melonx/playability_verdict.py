@@ -60,7 +60,8 @@ def read(path, pid):
             if not match:
                 continue
             fields = body.split(' ')
-            second = dict(t=int(match.group(1)), paused='paused' in fields, fps=None, gaps=[], footprint=None, device=None, thermal=None)
+            second = dict(t=int(match.group(1)), paused='paused' in fields, fps=None, gaps=[], footprint=None, device=None, thermal=None,
+                          cpu=None, vm=None, hw=None)
             for field in fields:
                 if field.startswith('fps=') and field != 'fps=-':
                     second['fps'] = float(field[4:].split('/')[0])
@@ -74,6 +75,12 @@ def read(path, pid):
                         second['device'] = int(parts[2])
                 elif field.startswith('th='):
                     second['thermal'] = field[3:]
+                elif field.startswith('cpu=') and field[4:].isdigit():
+                    second['cpu'] = int(field[4:])
+                elif field.startswith('vm=') or field.startswith('hw='):
+                    # Raw parts: vm= MiB compressed/pages decompressed/faults/page-ins, hw= GHz/instructions per
+                    # cycle/% on performance cores/% ready without a core; "-" where the journal could not tell.
+                    second[field[:2]] = field[3:].split('/')
             seconds.append(second)
     return seconds, ended
 

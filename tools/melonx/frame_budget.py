@@ -17,7 +17,12 @@ the pause itself is not a gap):
       fast frames  the same over the gaps at or below the target (zero or negative);
   the three add up to the excess exactly;
 - the engine's game FPS (distinct game frames, fps= first value): mean and median over the seconds of the window;
-- the footprint (max) and the device memory available (min), from mem=.
+- the footprint (max) and the device memory available (min), from mem=;
+- where the journal has them (bridge of lot 10 and 11): the memory activity of the process (vm=: MiB newly compressed
+  and pages decompressed, 16 KiB each, over the window; decompressed pages per line, median and maximum; page-ins) and
+  how its CPU time was served (hw=: medians of the clock in GHz, of the instructions per cycle, of the share on
+  performance cores and of the time ready without a core, both per cent of the CPU time used), with the instructions
+  executed per presented frame (clock x instructions per cycle x CPU time of each line, summed, over the frames).
 
 The journal rounds a gap to the millisecond and the display shows a frame on a refresh: a gap within 1 ms of a multiple
 of 1000/60 ms is taken as that multiple (33 -> 33.33), so a frame on target contributes zero, not -0.33. A journal line
@@ -64,7 +69,42 @@ def budget(seconds, first, last, target, excluded=()):
     footprints = [s['footprint'] for s in chosen if s['footprint'] is not None]
     devices = [s['device'] for s in chosen if s['device'] is not None and s['device'] >= 0]
     minutes = total / 60000
-    return dict(window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
+
+    def parts(key, index):
+        values = []
+        for s in chosen:
+            fields = s.get(key)
+            if fields and index < len(fields):
+                try:
+                    values.append(float(fields[index]))
+                except ValueError:
+                    pass  # "-": the journal could not tell
+        return values
+
+    memory = service = None
+    decompressed = parts('vm', 1)
+    if decompressed:
+        memory = dict(lines=len(decompressed), compressedMiB=round(sum(parts('vm', 0))), decompressedMiB=round(sum(decompressed) * 16 / 1024),
+                      decompressedPagesMedian=round(statistics.median(decompressed)), decompressedPagesMax=round(max(decompressed)),
+                      pageIns=round(sum(parts('vm', 3))))
+    clock = parts('hw', 0)
+    if clock:
+        def median(index):
+            values = parts('hw', index)
+            return round(statistics.median(values), 2) if values else None
+
+        # Instructions of a line: clock (cycles per ns of CPU time) x instructions per cycle x CPU time (cpu= is per cent of
+        # one core over the line, taken as one second).
+        executed = 0.0
+        for s in chosen:
+            fields = s.get('hw')
+            try:
+                executed += float(fields[0]) * 1e9 * float(fields[1]) * s['cpu'] / 100
+            except (TypeError, ValueError, IndexError):
+                pass
+        service = dict(lines=len(clock), clockGHzMedian=median(0), instructionsPerCycleMedian=median(1), performanceCoresPercentMedian=median(2),
+                       readyWithoutACorePercentMedian=median(3), instructionsPerFrameMillions=round(executed / frames / 1e6) if executed else None)
+    return dict(memoryActivity=memory, cpuService=service, window=[first, last if last is not None else chosen[-1]['t']], lines=len(chosen), frames=frames,
                 seconds=round(total / 1000, 1), meanMs=round(mean, 1), medianMs=round(statistics.median(gaps), 1),
                 p95Ms=round(percentile(gaps, 95), 1), p99Ms=round(percentile(gaps, 99), 1), maxMs=round(max(gaps)),
                 presentedFps=round(1000 / mean, 1),
@@ -116,6 +156,15 @@ def main():
         print(f'    gaps over 50/100/500/1000 ms: {r["over50"]}/{r["over100"]}/{r["over500"]}/{r["over1000"]}; '
               f'{r["over100PerMinute"]} over 100 ms per minute; game FPS mean {r["gameFpsMean"]}, median {r["gameFpsMedian"]}; '
               f'footprint max {r["footprintMaxMiB"]} MiB, device available min {r["deviceAvailableMinPercent"]} %')
+        if r['memoryActivity']:
+            m = r['memoryActivity']
+            print(f'    memory activity (vm=, {m["lines"]} lines): {m["compressedMiB"]} MiB compressed, {m["decompressedMiB"]} MiB decompressed; '
+                  f'pages decompressed per line median {m["decompressedPagesMedian"]}, max {m["decompressedPagesMax"]}; {m["pageIns"]} page-ins')
+        if r['cpuService']:
+            c = r['cpuService']
+            print(f'    CPU service (hw=, {c["lines"]} lines, medians): clock {c["clockGHzMedian"]} GHz, {c["instructionsPerCycleMedian"]} instructions '
+                  f'per cycle, {c["performanceCoresPercentMedian"]} % on performance cores, {c["readyWithoutACorePercentMedian"]} % ready without '
+                  f'a core; about {c["instructionsPerFrameMillions"]} million instructions per frame')
 
 
 if __name__ == '__main__':

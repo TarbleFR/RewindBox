@@ -62,6 +62,7 @@ final class MeloNXPerfJournal {
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
     struct VmCounters { let compressedBytes: UInt64; let decompressions: Int64; let faults: Int64; let pageins: Int64 }
+    struct HwCounters { let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64 }
     static let topThreads = 6
     // The classified journal rotates at 8 MiB, retaining one previous file.
     // Host samples are also bounded to lineLimit lines per game. Native
@@ -177,6 +178,43 @@ final class MeloNXPerfJournal {
         return Self.vmField(from:before, to:now)
     }
 
+    // hw= field: how the process's CPU time was served since the previous line, from proc_pid_rusage (RUSAGE_INFO_V6):
+    // the clock of that time (cycles per nanosecond of CPU time: GHz), instructions per cycle, the per cent of it spent
+    // on performance cores, and the time its threads were ready to run without a core, per cent of the CPU time used.
+    // The three ratios need no unit; the clock divides by the CPU time of the thread samples of the same line. One call
+    // on the sampler queue, nothing is changed; absent on the first line and where the call or the flavor is missing.
+    private var previousHw: HwCounters?
+    private static let processUsage: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32)? = {
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage") else { return nil }
+        return unsafeBitCast(symbol, to:(@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32).self)
+    }()
+
+    static func hwCounters() -> HwCounters? {
+        guard let usage = processUsage else { return nil }
+        var info = rusage_info_v6()
+        let result = withUnsafeMutablePointer(to:&info) { usage(getpid(), RUSAGE_INFO_V6, UnsafeMutableRawPointer($0)) }
+        guard result == 0 else { return nil }
+        return HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
+                          performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time)
+    }
+
+    static func hwField(from before: HwCounters, to now: HwCounters, cpuNs: UInt64) -> String? {
+        guard now.cycles >= before.cycles, now.instructions >= before.instructions, now.time > before.time, cpuNs > 0 else { return nil }
+        let cycles = Double(now.cycles - before.cycles), time = Double(now.time - before.time)
+        // A counter that went backwards is written "-", as is the ratio to cycles where the host counts none (a virtual machine).
+        func percent(_ now: UInt64, _ before: UInt64) -> String { now >= before ? String(Int((Double(now - before) / time * 100).rounded())) : "-" }
+        let clock = String(format:"%.1f", cycles / Double(cpuNs))
+        let perCycle = cycles > 0 ? String(format:"%.2f", Double(now.instructions - before.instructions) / cycles) : "-"
+        return "\(clock)/\(perCycle)/\(percent(now.performanceTime, before.performanceTime))/\(percent(now.runnable, before.runnable))"
+    }
+
+    private func hwActivity(cpuNs: UInt64) -> String? {
+        guard let now = Self.hwCounters() else { return nil }
+        defer { previousHw = now }
+        guard let before = previousHw else { return nil }
+        return Self.hwField(from:before, to:now, cpuNs:cpuNs)
+    }
+
     func stop() {
         queue.async { [self] in
             stalls.stop()
@@ -260,6 +298,7 @@ final class MeloNXPerfJournal {
         stalls.exit()
         if let text = footprint { fields.append("mem=" + text) }
         if let text = vmActivity() { fields.append("vm=" + text) }
+        if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }
         if let text = Self.input() { fields.append("in=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
