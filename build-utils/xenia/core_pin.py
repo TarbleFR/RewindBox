@@ -10,7 +10,9 @@ delivery's re-signing keeps it). The converter (libmetalirconverter.dylib) is
 never in the artifact: it is pinned by build-utils/xenia/source.json.
 
   core_pin.py pin <artifact.zip> --run R --job J --attempt N --artifact ID --name NAME
-                  --expires ISO8601 [--replaces-reason TEXT]   writes core-pin.json
+                  --expires ISO8601 [--replaces-reason TEXT]
+                  [--converter-signature <codesign -dvvv output saved from the run's log>]
+                  writes core-pin.json
   core_pin.py verify <artifact.zip | extracted dir> [--pin core-pin.json]
                   exits 0 only when the artifact is the pinned one (the delivery calls this)
 """
@@ -95,6 +97,32 @@ def facts(files: dict[str, bytes]) -> dict:
     return {'binary': binary, 'report': report, 'revision': revision}
 
 
+def converter_signature(text: str) -> dict:
+    """What codesign itself reported in CI on the converter (build_core.sh logs codesign -dvvv,
+    then requires '=anchor apple' and the pinned identity; the build stops if either fails)."""
+    fields = {}
+    authorities = []
+    for line in text.splitlines():
+        key, sep, value = line.strip().partition('=')
+        if not sep:
+            continue
+        if key == 'Authority':
+            authorities.append(value)
+        elif key in ('Identifier', 'TeamIdentifier', 'Format', 'Signed Time', 'Timestamp'):
+            fields[key] = value
+    expected = ['Software Signing', 'Apple Code Signing Certification Authority', 'Apple Root CA']
+    if (fields.get('Identifier') != 'libmetalirconverter' or authorities != expected or
+            fields.get('TeamIdentifier', 'not set') != 'not set'):
+        raise SystemExit('converter signature report: not the pinned Apple identity: '
+                         f"{fields.get('Identifier')} {authorities} team {fields.get('TeamIdentifier')}")
+    return {'reported_by': 'codesign -dvvv in the build run (build_core.sh)',
+            'identifier': fields['Identifier'], 'team_identifier': fields.get('TeamIdentifier'),
+            'authorities': authorities, 'leaf_cn': authorities[0],
+            'requirements_satisfied': ["=anchor apple",
+                                       '=identifier "libmetalirconverter" and anchor apple and '
+                                       'certificate leaf[subject.CN] = "Software Signing"']}
+
+
 def pin(arguments) -> int:
     files, digest = read_artifact(Path(arguments.artifact_zip))
     if digest is None:
@@ -121,7 +149,11 @@ def pin(arguments) -> int:
         'sdk': checked['report'].get('sdk'),
         'dependencies': checked['report'].get('dependencies'),
         'shaderConverter': json.loads(SOURCE.read_text())['shader_converter']['upstream_mirror'],
+        'sdkNote': ('Built with an iOS 26 SDK unless sdk says 27: StateReporting and the external-display scene '
+                    'accessory are then compiled out, absent on iOS 27 devices too (docs/xenios-playlist.md).'),
     }
+    if arguments.converter_signature:
+        record['shaderConverterSignature'] = converter_signature(Path(arguments.converter_signature).read_text())
     if previous and previous.get('run') != arguments.run:
         record['replaces'] = {key: previous.get(key) for key in ('source', 'run', 'artifact', 'packagedFingerprint')}
         record['replaces']['reason'] = arguments.replaces_reason or ''
@@ -165,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--name', required=True)
     p.add_argument('--expires', required=True)
     p.add_argument('--replaces-reason')
+    p.add_argument('--converter-signature')
     v = sub.add_parser('verify')
     v.add_argument('artifact')
     v.add_argument('--pin', default=str(PIN))

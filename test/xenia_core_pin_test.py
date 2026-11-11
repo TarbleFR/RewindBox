@@ -86,6 +86,24 @@ class CorePin(unittest.TestCase):
             archive.extractall(extracted)
         self.assertEqual(self.verify(extracted), 0)
 
+    def test_the_ci_codesign_report_is_recorded(self) -> None:
+        report = self.directory / 'codesign.txt'
+        report.write_text('Executable=/x/libmetalirconverter.dylib\nIdentifier=libmetalirconverter\n'
+                          'Format=Mach-O thin (arm64)\nAuthority=Software Signing\n'
+                          'Authority=Apple Code Signing Certification Authority\nAuthority=Apple Root CA\n'
+                          'TeamIdentifier=not set\n')
+        code = core_pin.main(['pin', str(artifact(self.directory, core_binary())), '--run', '1', '--job', '2',
+                              '--attempt', '1', '--artifact', '3', '--name', 'n', '--expires', 'e',
+                              '--converter-signature', str(report)])
+        self.assertEqual(code, 0)
+        signature = json.loads(self.pin.read_text())['shaderConverterSignature']
+        self.assertEqual(signature['leaf_cn'], 'Software Signing')
+        self.assertEqual(signature['team_identifier'], 'not set')
+        report.write_text('Identifier=libmetalirconverter\nAuthority=Developer ID Application: Someone\n'
+                          'Authority=Developer ID Certification Authority\nAuthority=Apple Root CA\n')
+        with self.assertRaises(SystemExit, msg='a third-party chain to Apple Root CA is not Apple code'):
+            core_pin.converter_signature(report.read_text())
+
     def test_another_binary_or_artifact_is_refused(self) -> None:
         self.make_pin(artifact(self.directory, core_binary()))
         other = self.directory / 'other'
