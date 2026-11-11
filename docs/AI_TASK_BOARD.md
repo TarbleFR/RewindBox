@@ -643,14 +643,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     Guard found by the full local run: the position invariance test (Apple host rerun list) kept BLUS31011 as an unscoped
     control; it now expects the six Black Ops II serials, with neighbouring serials as exact-match negatives (passes on 932,
     fails on 931). Legacy `cell575`/`cell589` already fail on 931 (not run).
-  - **Open / next:** compile request and pin of Core 932. Core 933 started on engine branch `core933-resolver` (from
-    `94354ea`): a bounded local profile per serial and game version (`config/local_profiles/<serial>.txt`, atomic write,
-    invalidated by a game update) and its first learned decision, the Core 616 SPU object prefetch for any title whose play
-    spends ≥ 500 ms of a window reading ≥ 200 cached SPU objects (not the boot warm-up), validated by its hits, withdrawn when
-    unused; Automatic only, the user's setting wins, effective at the next boot. Private journals: such windows exist (e.g.
-    1,674 reads in 628 ms of play); GOW3's 1.85 s are boot warm-up and do not count. Compile attribution warmup/play and
-    cached/compiled already exists (SPUPROF, SHADERPIPE543). Nothing measured on an iPhone; no IPA before the other sessions
-    are ready.
+  - **Core 932 CI:** source `673fb6cd`, request `24f09446`, run `43068680664`: the iPhone Core job is **green** (compile,
+    link, binary verified; artifact `13877983017`, zip `f1f524b9` 30,560,827 B, dylib `f95ff436` 81,078,696 B, identity
+    `rpcs3-ios-core932`, codegen PPU `a987639e` / SPU `477a3fa4` unchanged; the library holds the 932 fields, both
+    PATCHRELIEF932 lines, the MoltenVK setting and the whole canary file). Its Apple host job passed 14/15 and failed in the
+    core932 driver on `import yaml` (no PyYAML in the runner's Python): the lot test now reads the canary file with a reader
+    of its YAML subset, compared with PyYAML wherever installed, every check kept (`c54a09ef`); Apple-only rerun requested
+    (`dba7158e`, run `43073197832`). Pin after that rerun.
+  - **Core 933 (local, not committed yet):** engine `core933-resolver` `c9432d3` (`c798c82`, `42869e2`, `c9432d3`), canonical
+    `03b63d88`, delta `bb99b13f` ([record](rpcs3-core933-profil-local.md)): a bounded local profile per serial and game
+    version (`config/local_profiles/<serial>.txt`, atomic write, invalidated by a game update) and its first learned
+    decision, the Core 616 SPU object prefetch for any title whose play spends ≥ 500 ms of a window reading ≥ 200 cached SPU
+    objects (not the boot warm-up), validated by its hits, withdrawn when unused; Automatic only, the user's setting wins,
+    effective at the next boot. Private journals: such windows exist (e.g. 1,674 reads in 628 ms of play); GOW3's 1.85 s
+    are boot warm-up and do not count. First full driver run caught the 933 boot line inside the Core 921 hunk (fixed; the 933
+    test now checks the direct reverts); independent review: no race or crash, F1-F3 fixed (windows of the previous boot,
+    rewrite on each validation, "Unknown" version), F4 documented; 511 checks, 17 controls. Final driver run pending.
+  - **Open / next:** pin Core 932; commit and request Core 933. Core 934 candidate (P5/P4): stale texture sweep budget from
+    memory pressure and heat, not started until a journal shows the pressure states in play (none in the journals at hand).
+    IPA 725 BO2: Core 925 packing observed (vma_unused 32-106 MiB vs 45-360 on 724; footprint 2.60-2.97 GB vs 3.40-4.06);
+    FPS 53.7 → 18.3 in 127 s with constant work per frame and doubled unit costs as the device heats (SPU waits sleep, not
+    spin). Nothing measured on an iPhone for 932/933; no IPA before the other sessions are ready.
 
 - **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
   Codex transmitted the full formal context prompt to main

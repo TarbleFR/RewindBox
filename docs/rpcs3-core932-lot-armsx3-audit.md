@@ -4,8 +4,15 @@ Demandes du mainteneur (11 novembre 2026) : « intègre tout ce qui peut être u
 penses qu'il n'a pas optimisé », « Je ne veux pas de plafonds de FPS ! », puis le chantier urgent transmis par Codex
 (*RPCS3 — optimisation globale, profils, thermique*, 243 lignes, fichier privé, hors Git).
 
-**Niveau de preuve.** Écrit et testé sur hôte (Linux, g++). Pas encore compilé pour iOS au moment de ce dossier ; rien n'a été
-exécuté sur un iPhone ; aucun gain d'images par seconde, d'énergie ou de mémoire n'est annoncé.
+**Niveau de preuve.** Écrit et testé sur hôte (Linux, g++). **Compilé pour iOS** par la CI : source `673fb6cd`, demande
+`24f09446`, run `43068680664`, travail iPhone vert. Bibliothèque `f95ff436`, 81 078 696 octets, identité `rpcs3-ios-core932`.
+Elle contient les nouveaux champs, les deux lignes PATCHRELIEF932, le réglage MoltenVK et le fichier canari entier. Rien n'a
+été exécuté sur un iPhone ; aucun gain d'images par seconde, d'énergie ou de mémoire n'est annoncé.
+
+Harnais Apple ARM64 de la demande 1 : 14 commandes sur 15 vertes. Le pilote `core932` s'est arrêté sur `import yaml` (PyYAML
+absent du Python du runner). Depuis `c54a09ef`, le test du lot lit le fichier canari avec un lecteur du sous-ensemble YAML où
+il est écrit. Partout où PyYAML est installé, les deux lectures sont comparées : aucun contrôle n'est sauté. Les seuls
+harnais Apple ont été relancés (`dba7158e`, run `43073197832`).
 
 Moteur : branche `core932-armsx3` (base Core 931 `605901a`), commits `f361e35`, `025a03a` (correctif de revue) puis
 `94354ea` (les entrées MLAA de Killzone 3 gardent leur défaut de la base, § 2.9). Canonique `9a113440` (472 fichiers), delta
