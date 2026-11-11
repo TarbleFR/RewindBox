@@ -678,9 +678,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Core 934 candidate rejected with evidence:** the stale texture sweep costs 14-29 ms per 5 s window on average (max
     46 ms), about 1 % of the RSX thread, in the IPA 723/724 BO2 journals, and released 1,151 MiB over 106 windows; cutting
     it when hot would save almost nothing and keep that memory.
-  - **Open / next:** commit the corrected contract test of the libretro frontend (three checks stale since the 11 Nov
-    import lot, the first being `import notifications`); review #172 first (maintainer priority, relayed by session 04),
-    then #176/#177; the next common IPA waits for the other sessions. Nothing of 931-933 is measured on an iPhone yet.
+  - **Libretro frontend contract test repaired:** `test/libretro_frontend_ui_contract_test.py` was red on `Claude` on three
+    stale checks (reported by session 03): `import notifications` and the folders page identity (my reviewed import lot
+    of 11 Nov, `1fbd5ed6`/`4fd0996a`: each refused game is now named with its cause) and the header (maintainer's
+    icons-only bar, `00a83e69`: the name is the accessibility label). Checks rewritten to the delivered behaviour, at
+    least as strict; 5 mutations caught by the intended check.
+  - **Open / next:** review #172 first (maintainer priority, relayed by session 04; session 03 pushes its `default.xex`
+    fix and the missing chained review first), then #176/#177; the next common IPA waits for the other sessions.
+    Nothing of 931-933 is measured on an iPhone yet.
     IPA 725 BO2: Core 925 packing observed (vma_unused 32-106 MiB vs 45-360 on 724; footprint 2.60-2.97 GB vs 3.40-4.06);
     FPS 53.7 → 18.3 in 127 s with constant work per frame and doubled unit costs as the device heats (SPU waits sleep, not
     spin). Nothing measured on an iPhone for 932/933; no IPA before the other sessions are ready.

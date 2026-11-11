@@ -32,9 +32,11 @@ DIRECTORIES = 'lib/screens/settings_screen/new_settings_options/directories_sett
 ORIGINAL_REVIEWED = 'a5650b9bddefbed76f941fb53735545bebcbbd39'
 REVIEWED = '29b24945b2e7041f08e02d7d70e8c90ffe8a1c24'
 # Latest reviewed version of the directories page: 127b527f retired the
-# external MeloNX folder, 9cd71fe5 renamed the app RewindBox and 598d35d5
-# (Liquid Glass, delivered in 549) migrated its chrome.
-CURRENT_REVIEWED = '598d35d5da79b2638356e8e212dad9fd945725e6'
+# external MeloNX folder, 9cd71fe5 renamed the app RewindBox, 598d35d5
+# (Liquid Glass, delivered in 549) migrated its chrome and 4fd0996a (reviewed
+# import lot of 11 November, delivered in 725) keeps the games of a library
+# folder iOS does not give back and shows which console folder feeds which playlist.
+CURRENT_REVIEWED = '4fd0996a6a3e37bec9e1750008ae3f8f5d72f379'
 MARKER = 'LIBRETRO_INTERNAL_BEGIN: embedded_consoles'
 
 
@@ -156,8 +158,18 @@ require("'importLibraryUnavailable'" in consoles and "'importAlreadyPresent'" in
 require('createNeoStationConsoleFolders(' in consoles and 'moveLibraryIntoNeoStation(' in consoles,
         'console folders and library move')
 require('rescanSystemSilent(' in consoles and 'result.systemFolder' in consoles, 'the receiving system is rescanned')
-require("'gamesImported'" in consoles and "'gamesRejected'" in consoles and "'importFailed'" in consoles,
+require("'gamesImported'" in consoles and "'importFailed'" in consoles
+        and 'LibretroImportMessages.forImport(_locale, result)' in consoles
+        and 'LibretroImportMessages.failure(_locale, error)' in consoles,
         'import notifications')
+# Contract replaced (11 November 2026, 1fbd5ed6, reviewed import lot): a refused
+# game is named with its cause instead of the generic 'gamesRejected' notice,
+# which stays for a refusal without details.
+messages = read('lib/services/libretro_internal_service.dart')
+require("'gamesRejected'" in messages and "'importRejectedHeader'" in messages
+        and 'for (final file in result.rejectedFiles)' in messages
+        and '_reasonText(locale, file.reason, result.acceptedExtensions)' in messages,
+        'each refused game is named with its cause')
 
 # 2. Entry points. Settings › Folders lost its Embedded consoles item (Build
 # 440): preserve the full reviewed file. The earlier e4f6c735 UI audit added
@@ -219,7 +231,13 @@ require('LibretroMainMenu.instance.attach(' in app and 'LibretroMainMenu.instanc
         'the app screen keeps the added consoles in the main menu')
 require('UiRefreshRateService.instance.startProbe()' in app, 'Build 440 refresh-rate hook kept')
 header = read('lib/widgets/header.dart')
-require('NavTabIcon(spec: navTabSpec(tab), tint: tint)' in header and 'navTabLabel(context, tab)' in header,
+# Contract replaced (00a83e69, maintainer, 9 November 2026): no visible tab
+# names; every tab keeps the same icon box and tint, and its translated name is
+# the button's accessibility label.
+require(re.search(r'SizedBox\.square\(\s*dimension: 16\.r,\s*child: NavTabIcon\(\s*tab: tab,\s*'
+                  r'spec: navTabSpec\(tab\),\s*tint: tint,\s*\)', header) is not None
+        and re.search(r'Semantics\(\s*button: true,\s*selected: isSelected,\s*label: navTabLabel\(context, tab\),', header)
+        is not None,
         'the header draws every tab, consoles included, with the same icon box, tint and label')
 
 # The consoles page changes the main menu through LibretroMainMenu.
