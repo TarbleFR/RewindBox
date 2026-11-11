@@ -76,7 +76,10 @@ class ExportList(unittest.TestCase):
         make = (ROOT / 'build-utils/s2arm/engine/guest.mk').read_text()
         self.assertIn('$(S2ARM_GUEST_LINK) -o $(S2ARM_GUEST_OPEN)\n', make)
         self.assertIn('export_list.py $(S2ARM_GUEST_OPEN) $(S2ARM_GUEST_OPEN).nm $(S2ARM_GUEST_EXPORTS) $(S2ARM_GUEST_EXPORTS).json', make)
-        self.assertIn('$(S2ARM_GUEST_LINK) -Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS) -o $(S2ARM_GUEST_FW)/S2ArmEngine', make)
+        final = [line for line in make.splitlines() if line.strip().startswith('$(S2ARM_GUEST_LINK)') and
+                 line.rstrip().endswith('-o $(S2ARM_GUEST_FW)/S2ArmEngine')]
+        self.assertEqual(len(final), 1, 'one final link writes the framework binary')
+        self.assertIn('-Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS)', final[0])
         bridge = (ROOT / 'packages/s2arm_engine_bridge/ios/Classes/S2ArmGuestABI.h').read_text()
         for name in tool.GUEST_ENTRY_POINTS[:4]:
             self.assertIn(f'"{name}"', bridge, 'the host bridge looks it up by this name')

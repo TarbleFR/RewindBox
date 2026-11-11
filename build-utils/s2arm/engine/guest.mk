@@ -23,7 +23,7 @@ ios-guest: ios
 	$(S2ARM_GUEST_LINK) -o $(S2ARM_GUEST_OPEN)
 	nm -gU $(S2ARM_GUEST_OPEN) > $(S2ARM_GUEST_OPEN).nm
 	python3 $(S2ARM_GUEST_TOOLS)export_list.py $(S2ARM_GUEST_OPEN) $(S2ARM_GUEST_OPEN).nm $(S2ARM_GUEST_EXPORTS) $(S2ARM_GUEST_EXPORTS).json
-	$(S2ARM_GUEST_LINK) -Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS) -o $(S2ARM_GUEST_FW)/S2ArmEngine
+	$(S2ARM_GUEST_LINK) -Wl,-exported_symbols_list,$(S2ARM_GUEST_EXPORTS) -Wl,-map,$(BUILD)/ios/S2ArmEngine.map -o $(S2ARM_GUEST_FW)/S2ArmEngine
 	@rm -f $(S2ARM_GUEST_OPEN)
 	@cp -R ios/l10n/*.lproj "$(S2ARM_GUEST_FW)/"
 	@mkdir -p "$(S2ARM_GUEST_FW)/Headers" && cp runtime/src/rb_guest.h "$(S2ARM_GUEST_FW)/Headers/"   # guest interface for the host (patch 0003)
