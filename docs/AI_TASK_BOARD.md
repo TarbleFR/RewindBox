@@ -4234,8 +4234,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Signed inventory against 725: App and 87 other images identical; Runner differs (probe
   linked, symbols and class found); `dolphin_internal_bridge` differs with no Dolphin source
   change (the linker-stub variation seen in 720 and 725; not compared section by section here).
-- **Next:** the maintainer's device run (iOS 26+, launch a Switch game first, send
-  `MeloNX-launch.log`); analyse the `s2armProbe.*` lines. Nothing about the probe is observed yet.
+- **801 on device (observed, 11 Nov 09:27 UTC, maintainer's journal, not committed):** phase 1
+  under the attached helper: process-mapped placement (RPCS3 path) and arena placement executed
+  correctly; fixed placement (helper pages `vm_remap`-ed to the chosen address) hung at its first
+  execution, so the launch hung and phase 2 never ran. Details: prototype doc, "first device run".
+- **802 requested:** probe fix `7195731` (fixed placement executed only on an opt-in flag; host
+  proof run 42996359351 green), effective tree = 801's except the probe `.c`/`.h`. Source
+  `281e0737`, run 42997316389. Line receipts moved to `docs/evidence/s2arm/`.
+- **Next:** follow 802, verify, give it to the maintainer, same trial; read phase 2 (D, E, F).
 
 ### Codex orchestration — Codex
 
