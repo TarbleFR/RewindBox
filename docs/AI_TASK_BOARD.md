@@ -5096,6 +5096,22 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Engine run with licences `43097515562` started. Open for main: texts not located (deko3d zlib, Ryujinx NuGet refs,
   ZstdSharp.Port, LibHac), glslang kept as required, `RTLD_GLOBAL` interposition risk with DolphinCore's weak glslang
   symbols (803: launch the Switch 2 game from a fresh app start).
+- **803 preparation (11 Nov, evening):**
+  - GitHub Actions incident (20:48–21:21 UTC). Every run of the repo created 20:41–20:52 stays "queued" with no jobs,
+    and cancelling one answers 409 "not been queued yet". This includes engine run `43097515562` and main's 726 runs;
+    main and session 03 were told. Engine dispatched again: run `43104715134` on `b7b03844`; its engine sources equal
+    `0c864039`'s. Preparation (`43061107011`) and system data (`43038032448`) runs still match their sources.
+  - `b7b03844`: `make_manifest.py` refused a model that adds an image. 726 is the first such model: it adds the XeniOS
+    bridge over 725. A sibling now carries the model's added and removed images; a successor starts with empty lists.
+    Two tests fail on the previous tool and pass now; delivery tests 71 OK.
+  - Freeze dry run of the 803 draft: sibling of 726, placeholder engine digests, pending `[]`. Legal check passed
+    (7856 product files), no unclassified commit, no conflict. **Blocker:** `packages/dolphin_internal_bridge/ci/verify_ipa.py`
+    is an input of the retained Dolphin component, and `retained_inputs_unchanged()` refuses its change (`ff8ca164`,
+    blob `60324580` → `99ef551e`). The conditional is still needed: `build_support.py package` calls
+    `verify_ipa.validate`, whose closed set refuses the S2Arm helper. Main asked to choose (its files): a declared input
+    change, a verifier-only set, or a Dolphin rebuild. The common line meets the same rule when it integrates `ff8ca164`.
+  - Shallow clone: the freeze needs the five blobs of 725's `restore` records. They were fetched by id
+    (`git fetch origin <blob>`).
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
