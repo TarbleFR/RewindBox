@@ -1923,7 +1923,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - **MeloNX Core 725 pinned (`b83349ea`):** run `42933016136` on `e47b18d2`, artifact `13819773531` (`1ff1aa56…`),
         iPhone `d9b8a837…` 38,439,896 B, fingerprint `9e1e2ae5…`, contract `45441585`, 82 fresh gates; MoltenVK rebuild
         `90bd98a4…` pinned `e47b18d2`. `standard_delivery_contract_test` compares the frozen 724 manifest until the next draft.
-      - **Next:** compile Core 927, pin it; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
+      - **Core 927 published state:** source `36e29a84` (+ doc `3589b6fe`), compile request `916b8f19`, run `42946503173`
+        (pin pending). Second read-only pass over the areas the first did not reach (descriptor sets, lazy Metal objects,
+        argument buffers, encoding-pool caches, query copies, queue teardown, main-thread calls from the queue thread,
+        MetalFX releases, overlay lock): no new defect; MoltenVK's queue thread never calls the main thread synchronously
+        on iOS, so the settle of the background transition cannot deadlock.
+      - **Next:** pin Core 927 when run `42946503173` is green; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
         rule; skins PR 171/173 to review). Device protocol for 927: `mvk_async=1` at first boot of BO2/GOW3/AC, leave the
         app a few seconds in play and come back (no `Device lost`, `GPUGATE927 closes>=1`), `RSXSYNC551 submit` per frame.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
