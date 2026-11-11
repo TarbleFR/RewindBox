@@ -73,13 +73,19 @@ check('if let text = vmActivity() { fields.append("vm=" + text) }' in journal an
       journal.count('task_flavor_t(TASK_EVENTS_INFO)') == 1 and 'vm.compressed_lifetime' in journal and 'vm.decompressions' in journal,
       'vm= field: compression, decompression, faults and page-ins over the interval, read only')
 # hw= field (lot 11): how the CPU time of the interval was served (clock, instructions per cycle, share on performance
-# cores, time ready without a core), from one proc_pid_rusage call looked up at run time; after vm=, before th=.
+# cores, time waiting for a core, then the clocks of the performance cores and of the others), from one
+# proc_pid_rusage call looked up at run time; after vm=, before th=. The kernel's runnable time counts the time running
+# too (xnu thread.h: "time the thread is runnable (including running)"): the CPU time is taken off it.
 check('if let text = hwActivity(cpuNs:total) { fields.append("hw=" + text) }' in journal and
       journal.index('fields.append("vm=" + text)') < journal.index('fields.append("hw=" + text)') < journal.index('fields.append("th=" + ') and
       journal.count('dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage")') == 1 and journal.count('RUSAGE_INFO_V6') == 2 and
       'info.ri_user_ptime &+ info.ri_system_ptime' in journal and 'info.ri_runnable_time' in journal and
       'guard let before = previousHw else { return nil }' in journal,
       'hw= field: one read-only call, optional, absent on the first line')
+check('waiting = String(Int((max(0, Double(now.runnable - before.runnable) - time) / time * 100).rounded()))' in journal and
+      'performanceCycles:info.ri_pcycles' in journal and 'mach_timebase_info(&base) == KERN_SUCCESS' in journal and
+      'return "\\(clock)/\\(perCycle)/\\(performance)/\\(waiting)/\\(performanceClock)/\\(otherClock)"' in journal,
+      'hw= field: six values, the time running taken off the runnable time, both clocks from the kernel\'s own times')
 # pc= field (lot 11): the share of each listed thread's CPU time on performance cores, in the order of cpu=, from
 # proc_pidinfo's per-thread counts by performance level (flavor 34), looked up at run time; bounded, optional.
 check('if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }, listed:listed) { fields.append("pc=" + text) }' in journal and
@@ -90,7 +96,7 @@ check('if let text = performanceShares(threads:busy.map { (id:$0.id, ns:$0.ns) }
       'return shares.contains { $0 != "-" } ? shares.joined(separator:",") : nil' in journal,
       'pc= field: per-thread share on performance cores, bounded calls, absent when nothing is known')
 # Lot 9: the engine call's own duration (a GC suspension in progress blocks it), timed around fps() only.
-check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n        let callMs = ' in journal and
+check('let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = MeloNXEngineCallClass.interactive { fps() }\n        let callMs = ' in journal and
       'fields.append("mgd=" + Self.decimal(callMs))' in journal, 'journal mgd field around the engine call')
 check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
 # Lot 9: the stall watch writes its two kinds of lines, and the memory breakdown its one, through the same writer under
@@ -104,10 +110,10 @@ check('mach_port_deallocate(mach_task_self_, list[index])' in journal and 'vm_de
 
 # Stall watch (lot 9): the three engine calls of a sample are announced; the watch never calls the engine, never
 # suspends a thread, and is bounded.
-check('stalls.enter("fps")\n        let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = fps()\n'
+check('stalls.enter("fps")\n        let callStart = ProcessInfo.processInfo.systemUptime\n        let engine = MeloNXEngineCallClass.interactive { fps() }\n'
       '        let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000\n        stalls.exit()\n' in journal,
       'the fps() call is announced around the mgd= measure')
-check('stalls.enter("audio")\n        let pacing = audio()\n        stalls.exit()\n' in journal and
+check('stalls.enter("audio")\n        let pacing = MeloNXEngineCallClass.interactive { audio() }\n        stalls.exit()\n' in journal and
       'stalls.enter("memory")\n        let footprint = memory()\n        stalls.exit()\n' in journal, 'audio() and memory() announced')
 watch = journal[journal.index('final class MeloNXStallWatch {'):]
 check(all(name not in watch for name in ('fps(', 'audio(', 'memory(', 'presentation(', 'thread_suspend', 'thread_resume',
@@ -152,6 +158,23 @@ check(breakdown.count('vm_region_submap_info_data_64_t()') == 1 and
       'compressed = UInt64(full.pages_swapped_out) * page' in walk and 'resident = UInt64(full.pages_resident) * page' in walk,
       'page walk for private anonymous regions under the bound only')
 
+# Engine calls made from the utility queues (the sampler's two, the plugin's diagnostics drain every 300 ms) run in
+# the user-interactive class for their duration: an override on the calling thread, ended when the call returns.
+plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
+helper = journal[journal.index('enum MeloNXEngineCallClass {'):journal.index('final class MeloNXPerfJournal {')]
+check('let override = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)' in helper and
+      'defer { if let override { pthread_override_qos_class_end_np(override) } }' in helper and
+      helper.index('pthread_override_qos_class_start_np') < helper.index('defer {') < helper.index('return try call()'),
+      'the override starts before the call and ends when it returns or throws')
+check('pthread_set_qos_class_self_np' not in helper, 'the queue thread\'s requested class is not changed')
+check(journal.count('MeloNXEngineCallClass.interactive { fps() }') == 1 and journal.count('MeloNXEngineCallClass.interactive { audio() }') == 2 and
+      not re.search(r'(?<!interactive \{ )\b(fps|audio)\(\)(?! \})', journal[journal.index('final class MeloNXPerfJournal {'):journal.index('static func threads()')]),
+      'every engine call of the sampler runs under the override')
+drain = plugin[plugin.index('private func drainDiagnostics'):plugin.index('// Accessed only on libraryQueue. Success includes')]
+check('let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }' in drain and drain.count('runtime.diagnostics()') == 1 and
+      'DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)' in plugin and
+      'timer.schedule(deadline:.now(),repeating:.milliseconds(300))' in plugin, 'the diagnostics drain calls the engine under the override')
+
 if shutil.which('xcrun'):
     with tempfile.TemporaryDirectory(prefix='melonx-perf-') as temporary:
         work = Path(temporary)
@@ -186,12 +209,20 @@ print("vmField " + MeloNXPerfJournal.vmField(from:vmBefore, to:MeloNXPerfJournal
 print("vmField " + MeloNXPerfJournal.vmField(from:vmBefore, to:MeloNXPerfJournal.VmCounters(compressedBytes:5 << 20, decompressions:99, faults:2_000, pageins:6)))
 // hw= field: the call exists and answers; ratios formatted; a counter that went backwards written "-"; no line without CPU time.
 guard let hwNow = MeloNXPerfJournal.hwCounters(), hwNow.time > 0 else { print("hw counters"); exit(7) }
-let hwBefore = MeloNXPerfJournal.HwCounters(cycles:1_000, instructions:2_000, time:100, performanceTime:40, runnable:10)
-func hw(_ now: MeloNXPerfJournal.HwCounters, _ cpuNs: UInt64) -> String { MeloNXPerfJournal.hwField(from:hwBefore, to:now, cpuNs:cpuNs) ?? "nil" }
-print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:3_201_000, instructions:6_402_000, time:1_100, performanceTime:790, runnable:260), 1_000_000))
-print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:1_000, instructions:2_000, time:1_100, performanceTime:20, runnable:1_010), 2_000_000))
-print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:100, performanceTime:40, runnable:10), 1_000_000))
-print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:1_100, performanceTime:40, runnable:10), 0))
+// A time unit of 1 000 ns here: 1 000 units of CPU time are the millisecond given as cpuNs.
+let hwBefore = MeloNXPerfJournal.HwCounters(cycles:1_000, instructions:2_000, time:100, performanceTime:40, runnable:110, performanceCycles:400)
+func hw(_ now: MeloNXPerfJournal.HwCounters, _ cpuNs: UInt64) -> String { MeloNXPerfJournal.hwField(from:hwBefore, to:now, cpuNs:cpuNs, timeUnitNs:1_000) ?? "nil" }
+// Three quarters of the time on performance cores with 3 000 000 of the 3 200 000 cycles; runnable a quarter longer than running.
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:3_201_000, instructions:6_402_000, time:1_100, performanceTime:790, runnable:1_360, performanceCycles:3_000_400), 1_000_000))
+// No cycle counted, the performance time went backwards, runnable shorter than the CPU time (threads that ended).
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:1_000, instructions:2_000, time:1_100, performanceTime:20, runnable:1_010, performanceCycles:400), 2_000_000))
+// All the time on performance cores: no other clock; waiting twice the CPU time.
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:2_001_000, instructions:2_002_000, time:1_100, performanceTime:1_040, runnable:3_110, performanceCycles:2_000_400), 1_000_000))
+// The runnable time and the performance cycles went backwards.
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:3_201_000, instructions:6_402_000, time:1_100, performanceTime:790, runnable:5, performanceCycles:300), 1_000_000))
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:100, performanceTime:40, runnable:110, performanceCycles:400), 1_000_000))
+print("hwField " + hw(MeloNXPerfJournal.HwCounters(cycles:9_000, instructions:9_000, time:1_100, performanceTime:40, runnable:110, performanceCycles:400), 0))
+print("timeUnit " + (MeloNXPerfJournal.timeUnitNs > 0 ? "positive" : "zero"))
 // pc= field: the share is formatted from two samples; no CPU time or a counter that went backwards gives "-". The
 // per-level counts of the busy thread are read when the host has them (a virtual machine may not).
 func share(_ now: MeloNXPerfJournal.LevelTimes) -> String { MeloNXPerfJournal.performanceShare(from:MeloNXPerfJournal.LevelTimes(performance:100, total:200), to:now) }
@@ -200,6 +231,26 @@ print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:100, total:200
 print("pcShare " + share(MeloNXPerfJournal.LevelTimes(performance:50, total:600)))
 if let levels = MeloNXPerfJournal.levelTimes(thread:worker.id) { print("pcLevels " + (levels.performance <= levels.total && levels.total > 0 ? "plausible" : "implausible")) }
 else { print("pcLevels unavailable") }
+// Engine-call class: on a utility queue's thread the call runs at the user-interactive priority, nested calls too,
+// and the queue's priority is back when the call returns or throws.
+struct EngineCallFailure: Error {}
+let classDone = DispatchSemaphore(value:0)
+var classLine = "engineClass unavailable"
+DispatchQueue(label:"Perf.Utility", qos:.utility).async {
+    let before = MeloNXPerfJournal.currentPriorities()
+    let (inside, value) = MeloNXEngineCallClass.interactive { (MeloNXPerfJournal.currentPriorities(), 42) }
+    let nested = MeloNXEngineCallClass.interactive { MeloNXEngineCallClass.interactive { MeloNXPerfJournal.currentPriorities() } }
+    let between = MeloNXPerfJournal.currentPriorities()
+    var thrown = false
+    do { try MeloNXEngineCallClass.interactive { throw EngineCallFailure() } } catch { thrown = true }
+    let after = MeloNXPerfJournal.currentPriorities()
+    if let before, let inside, let nested, let between, let after {
+        classLine = "engineClass \(before.base) \(inside.base) \(nested.base) \(between.base) \(after.base) \(value) \(thrown) \(inside.scheduled > before.scheduled)"
+    }
+    classDone.signal()
+}
+classDone.wait()
+print(classLine)
 let journal = MeloNXPerfJournal(path:path, interval:0.25, lineLimit:6,
     fps:{ ["gameFps":59.5,"gameFrameTimeMs":16.8,"fifoPercent":40.0] },
     presentation:{
@@ -269,13 +320,24 @@ exit(2)
                 check(all(re.fullmatch(r'\d+|-', value) and (value == '-' or int(value) <= 100) for value in values) and
                       len(values) == len(re.findall(r' \S+:\d+/-?\d+', line)), line)
         check([line for line in result.stdout.splitlines() if line.startswith('pcShare ')] == ['pcShare 75', 'pcShare -', 'pcShare -'], result.stdout)
-        # hw= (clock in GHz, instructions per cycle, per cent on performance cores, per cent ready without a core):
+        # hw= (clock in GHz, instructions per cycle, per cent on performance cores, per cent waiting for a core, the clocks
+        # of the performance cores and of the others):
         # absent on the first line; on the others four values, "-" where the host counts no cycles (a virtual machine).
-        check(' hw=' not in samples[0] and all(re.search(r' hw=\d+\.\d/(\d+\.\d\d|-)/(\d+|-)/(\d+|-) ', line) for line in samples[1:]), samples)
+        check(' hw=' not in samples[0] and
+              all(re.search(r' hw=\d+\.\d/(\d+\.\d\d|-)/(\d+|-)/(\d+|-)/(\d+\.\d|-)/(\d+\.\d|-) ', line) for line in samples[1:]), samples)
         check([line for line in result.stdout.splitlines() if line.startswith('hwField ')] ==
-              ['hwField 3.2/2.00/75/25', 'hwField 0.0/-/-/100', 'hwField nil', 'hwField nil'], result.stdout)
+              ['hwField 3.2/2.00/75/25/4.0/0.8', 'hwField 0.0/-/-/0/-/-', 'hwField 2.0/1.00/100/200/2.0/-', 'hwField 3.2/2.00/75/-/-/-',
+               'hwField nil', 'hwField nil'] and 'timeUnit positive' in result.stdout.splitlines(), result.stdout)
         check([line for line in result.stdout.splitlines() if line.startswith('vmField ')] == ['vmField 32/250/900/0', 'vmField -/-/1000/1'],
               result.stdout)
+        # Engine-call class (base priorities: 47 user-interactive, 20 utility): the utility queue's thread is at the
+        # user-interactive priority inside the call and inside a nested one, and back at its own between and after
+        # (after a call that threw as well); the call's value is returned.
+        engine_class = [line.split(' ')[1:] for line in result.stdout.splitlines() if line.startswith('engineClass ')]
+        check(len(engine_class) == 1 and len(engine_class[0]) == 8, result.stdout)
+        before, inside, nested, between, after = map(int, engine_class[0][:5])
+        check(before <= 31 and inside >= 45 and nested == inside and between == before and after == before and
+              engine_class[0][5:] == ['42', 'true', 'true'], 'engine call class on a utility queue: ' + ' '.join(engine_class[0]))
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
         check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms, {total} over 50 ms, 0 over 100 ms'

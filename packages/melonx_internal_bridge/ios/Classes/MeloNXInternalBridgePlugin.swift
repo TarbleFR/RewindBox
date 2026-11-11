@@ -73,7 +73,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
 
     private func drainDiagnostics(_ runtime: MeloNXRuntimeAPI) {
-        let report = runtime.diagnostics()
+        // The engine builds this report in managed memory, every 300 ms, on this utility queue: in the
+        // user-interactive class for the call (MeloNXEngineCallClass).
+        let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }
         for event in report["events"] as? [[String:Any]] ?? [] {
             let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
             guard sequence > nativeSequence else { continue }

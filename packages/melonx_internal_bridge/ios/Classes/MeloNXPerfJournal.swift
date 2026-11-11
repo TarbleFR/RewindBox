@@ -52,6 +52,21 @@ import Darwin
 // "[MeloNX:stall]" lines (MeloNXStallWatch, below): every thread of the process while one of these engine calls
 // has been in flight 300 ms, 1.3 s and 3.3 s, then the call's duration.
 // "[MeloNX:memory]" lines (MeloNXMemoryBreakdown, below): the footprint's ledgers and regions, every 60 s.
+
+// A call into the engine from a utility queue (the sampler below, the plugin's diagnostics drain) runs in the
+// user-interactive class for its duration. The engine's collector stops every engine thread and runs on the thread
+// whose allocation triggered it, and a thread inside the engine must reach a safe point before a collection can start:
+// served at a utility queue's class, either leaves the game stopped meanwhile (IPA 725, pid 51986: a collection run by
+// the diagnostics queue's thread at priority 20 received 15.6 ms of CPU in 961 ms; the frame gap was 3 034 ms). The
+// override ends with the call: the queue's own work keeps its class, and the thread's requested class is unchanged.
+enum MeloNXEngineCallClass {
+    static func interactive<T>(_ call: () throws -> T) rethrows -> T {
+        let override = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)
+        defer { if let override { pthread_override_qos_class_end_np(override) } }
+        return try call()
+    }
+}
+
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
@@ -62,7 +77,10 @@ final class MeloNXPerfJournal {
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
     struct VmCounters { let compressedBytes: UInt64; let decompressions: Int64; let faults: Int64; let pageins: Int64 }
-    struct HwCounters { let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64 }
+    struct HwCounters {
+        let cycles: UInt64; let instructions: UInt64; let time: UInt64; let performanceTime: UInt64; let runnable: UInt64
+        var performanceCycles: UInt64 = 0
+    }
     struct LevelTimes { let performance: UInt64; let total: UInt64 }
     static let topThreads = 6
     // The classified journal rotates at 8 MiB, retaining one previous file.
@@ -131,7 +149,7 @@ final class MeloNXPerfJournal {
             started = ProcessInfo.processInfo.systemUptime; last = started
             // Baselines; this read also clears the engine's audio maxima.
             previousShown = presentation()
-            previousAudio = audio()
+            previousAudio = MeloNXEngineCallClass.interactive { audio() }
             for thread in Self.threads() { previousThreads[thread.id] = thread.cpuNs }
             MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] begin: every \(interval) s, \(ProcessInfo.processInfo.activeProcessorCount) cores, audio counters \(previousAudio == nil ? "unavailable" : "available")",context:context), to:path, limit:Self.fileLimit)
             let source = DispatchSource.makeTimerSource(queue:queue)
@@ -179,11 +197,15 @@ final class MeloNXPerfJournal {
         return Self.vmField(from:before, to:now)
     }
 
-    // hw= field: how the process's CPU time was served since the previous line, from proc_pid_rusage (RUSAGE_INFO_V6):
-    // the clock of that time (cycles per nanosecond of CPU time: GHz), instructions per cycle, the per cent of it spent
-    // on performance cores, and the time its threads were ready to run without a core, per cent of the CPU time used.
-    // The three ratios need no unit; the clock divides by the CPU time of the thread samples of the same line. One call
-    // on the sampler queue, nothing is changed; absent on the first line and where the call or the flavor is missing.
+    // hw= field: how the process's CPU time was served since the previous line, from proc_pid_rusage (RUSAGE_INFO_V6),
+    // six values: the clock of that time (cycles per nanosecond of CPU time: GHz), instructions per cycle, the per cent
+    // of it spent on performance cores, the time its threads waited for a core, per cent of the CPU time used (the
+    // kernel's runnable time counts the time running as well: it is taken off), then the clock of the time spent on
+    // performance cores and the clock of the rest, GHz. The bridge of IPA 725 wrote four values, the fourth with the
+    // time running left in (100 more). The ratios need no unit; the first clock divides by the CPU time of the thread
+    // samples of the same line, the two others by the kernel's own times (its time unit, in nanoseconds, is the
+    // host's timebase). One call on the sampler queue, nothing is changed; absent on the first line and where the call
+    // or the flavor is missing.
     private var previousHw: HwCounters?
     private static let processUsage: (@convention(c) (Int32, Int32, UnsafeMutableRawPointer) -> Int32)? = {
         guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern:-2), "proc_pid_rusage") else { return nil }
@@ -196,17 +218,37 @@ final class MeloNXPerfJournal {
         let result = withUnsafeMutablePointer(to:&info) { usage(getpid(), RUSAGE_INFO_V6, UnsafeMutableRawPointer($0)) }
         guard result == 0 else { return nil }
         return HwCounters(cycles:info.ri_cycles, instructions:info.ri_instructions, time:info.ri_user_time &+ info.ri_system_time,
-                          performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time)
+                          performanceTime:info.ri_user_ptime &+ info.ri_system_ptime, runnable:info.ri_runnable_time,
+                          performanceCycles:info.ri_pcycles)
     }
 
-    static func hwField(from before: HwCounters, to now: HwCounters, cpuNs: UInt64) -> String? {
+    /// Nanoseconds in one of the kernel's time units (125/3 on an iPhone).
+    static let timeUnitNs: Double = {
+        var base = mach_timebase_info_data_t()
+        return mach_timebase_info(&base) == KERN_SUCCESS && base.denom != 0 ? Double(base.numer) / Double(base.denom) : 1
+    }()
+
+    static func hwField(from before: HwCounters, to now: HwCounters, cpuNs: UInt64, timeUnitNs: Double = MeloNXPerfJournal.timeUnitNs) -> String? {
         guard now.cycles >= before.cycles, now.instructions >= before.instructions, now.time > before.time, cpuNs > 0 else { return nil }
         let cycles = Double(now.cycles - before.cycles), time = Double(now.time - before.time)
         // A counter that went backwards is written "-", as is the ratio to cycles where the host counts none (a virtual machine).
-        func percent(_ now: UInt64, _ before: UInt64) -> String { now >= before ? String(Int((Double(now - before) / time * 100).rounded())) : "-" }
         let clock = String(format:"%.1f", cycles / Double(cpuNs))
         let perCycle = cycles > 0 ? String(format:"%.2f", Double(now.instructions - before.instructions) / cycles) : "-"
-        return "\(clock)/\(perCycle)/\(percent(now.performanceTime, before.performanceTime))/\(percent(now.runnable, before.runnable))"
+        var performance = "-", waiting = "-", performanceClock = "-", otherClock = "-"
+        if now.runnable >= before.runnable {
+            // Runnable is running or waiting for a core: the time running is the CPU time.
+            waiting = String(Int((max(0, Double(now.runnable - before.runnable) - time) / time * 100).rounded()))
+        }
+        if now.performanceTime >= before.performanceTime {
+            let performanceTime = Double(now.performanceTime - before.performanceTime)
+            performance = String(Int((performanceTime / time * 100).rounded()))
+            if now.performanceCycles >= before.performanceCycles, cycles > 0, timeUnitNs > 0 {
+                let performanceCycles = Double(now.performanceCycles - before.performanceCycles)
+                if performanceTime > 0, performanceCycles > 0 { performanceClock = String(format:"%.1f", performanceCycles / (performanceTime * timeUnitNs)) }
+                if time > performanceTime, cycles > performanceCycles { otherClock = String(format:"%.1f", (cycles - performanceCycles) / ((time - performanceTime) * timeUnitNs)) }
+            }
+        }
+        return "\(clock)/\(perCycle)/\(performance)/\(waiting)/\(performanceClock)/\(otherClock)"
     }
 
     private func hwActivity(cpuNs: UInt64) -> String? {
@@ -296,7 +338,7 @@ final class MeloNXPerfJournal {
 
         stalls.enter("fps")
         let callStart = ProcessInfo.processInfo.systemUptime
-        let engine = fps()
+        let engine = MeloNXEngineCallClass.interactive { fps() }
         let callMs = (ProcessInfo.processInfo.systemUptime - callStart) * 1000
         stalls.exit()
         if let rate = engine["gameFps"] as? Double {
@@ -321,7 +363,7 @@ final class MeloNXPerfJournal {
         if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
 
         stalls.enter("audio")
-        let pacing = audio()
+        let pacing = MeloNXEngineCallClass.interactive { audio() }
         stalls.exit()
         if let values = pacing, values.count == 9 {
             let before = previousAudio ?? values
@@ -407,6 +449,16 @@ final class MeloNXPerfJournal {
                                        priority:extended.pth_priority))
         }
         return result
+    }
+
+    /// The calling thread's base and scheduled priorities now (47 user-interactive, 20 utility): what
+    /// MeloNXEngineCallClass raises for the duration of an engine call.
+    static func currentPriorities() -> (base: Int32, scheduled: Int32)? {
+        let thread = mach_thread_self()
+        defer { mach_port_deallocate(mach_task_self_, thread) }
+        var extended = thread_extended_info_data_t()
+        guard info(thread, THREAD_EXTENDED_INFO, &extended) else { return nil }
+        return (extended.pth_priority, extended.pth_curpri)
     }
 
     private static func info<T>(_ thread: thread_act_t, _ flavor: Int32, _ value: inout T) -> Bool {
