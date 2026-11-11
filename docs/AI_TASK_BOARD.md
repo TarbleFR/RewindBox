@@ -3547,10 +3547,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - **Pipeline variants:** "ready before their first draw 506 ... late creations left 869 (4955 ms): new 160, planned
       not built yet 701, built but missed 8 ... Replays: built 512 (compile 2273 ms, queue wait 30149 ms) ... held for
       memory 0 ... still planned 843 of 1357": the replay stopped at its 512-per-session cap.
-    - Also seen: `pipelineCache written: main 793,10 MiB in 10909 ms` at the pause for +1.06 MiB of growth (MoltenVK
-      "Write MSL to pipeline cache" 1.85 ms x 4 673); heap compaction at the pause 1 350 ms; the memory breakdown's
-      walk stopped at its 400 ms bound in the guest lease's 65 536 shared regions (`regions=74606/407.1ms/partial`).
-  - **Core 725 candidate and bridge (11 Nov, this branch; not delivered, not run on an iPhone):**
+    - **Freeze after a pause (open, next lot):** paused at t=192-196 s, resumed at t=197; the pause checkpoint wrote
+      `pipelineCache written: main 793,10 MiB in 10909 ms` for +1.06 MiB of growth (MoltenVK "Write MSL to pipeline
+      cache" 1.85 ms x 4 673) and went on after the resume: FPS 0-0.3 from t=197 to 205 (gaps 6 461 and 3 880 ms,
+      per-second journal lines missing), footprint flat (5 152-5 233 MiB). To decide: a pause checkpoint that waits
+      and is dropped when the game resumes, or a growth threshold; the write at the close and in background stays.
+    - Also seen: heap compaction at the pause 1 350 ms; the memory breakdown's walk stopped at its 400 ms bound in the
+      guest lease's 65 536 shared regions (`regions=74606/407.1ms/partial`). Load, second by second (performance
+      journal): 2 060 MiB at t=1, +1 078 over the 4 s the `RewindBox.PipelineCacheL...` thread reads the cache, +913 in
+      the second it ends (the merge into main), -640 by t=11 (staging destroyed) while `Vulkan_Pipeline_Compile_` runs
+      at 75-88 % from t=6 to 12; first game frame at t=27.
+  - **Core 725 frozen (11 Nov, this branch, on main's Core 723 pin; not delivered, not run on an iPhone):** contract
+    `45441585…` (201 inputs, 206 members, 82 gates; contract test 462 checks); only PipelineCacheManager.cs and
+    EmbeddedLaunchDiagnostics.cs differ from the Core 723 preparation. All 82 gates green on the final preparation
+    (78 on the first pass; hogwarts-dma-copies, gc-events and gc-fallback taught the change, compute-switch-bindings
+    green alone). MoltenVK iOS rebuild of the four-part patch: run 42929394881, artifact 13815049243, binary
+    `90bd98a4…` (4 838 864 B, markers 4/4, 428/428 exports). Bridge `0b7339ce`: macOS execution and iOS typecheck run
+    42928467031 green. [Receipts](evidence/melonx-725-gates/run.json),
+    [device protocol](evidence/melonx-725-gates/device-protocol.md). **Next (main):** Core CI, number and pin; move the
+    MoltenVK pin to that rebuild (`test/melonx_standalone_parity_test.py` refuses the tree until then); include
+    `MeloNX-core.log.1` in the diagnostics export; IPA. Content:
     - `adapt_variant_replay_all` (`1b2c9a45`, PipelineCacheManager.cs): the replay cap is the journal's own bound
       (2048 records); compile budget, two in flight, low priority and the 8 % memory hold unchanged. Gate
       variant-replay-all, 39 checks on the production Vulkan assembly of both sides: control 512 of 600 and 512 of IPA
@@ -3563,10 +3579,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Bridge memory breakdown v2 (`5cb6b545`, MeloNXPerfJournal.swift): one O(1) query per region, shared regions
       under 1 MiB only counted, private anonymous regions up to 256 MiB page-walked for resident and compressed pages
       (`private=`, `groups=name:resident+compressed/regions`, `top=`), walk bound 1.2 s, malloc zones apart.
-    - MoltenVK candidate, measured only (`2cd604b4`, `test/melonx_library_share/candidate-deferred-libraries.patch`,
-      not in the recipe): 'RBX2' makes libraries read from cache data keep no MTLLibrary (compiled per function
-      retrieval, released after), and one info line per loaded cache says copied/referenced and compiled/deferred.
-      Bench extended with mapload-deferred and mergeload-* (staging -> merge into main -> destroy, RewindBox's flow).
+    - **Rejected by measurement: Metal libraries compiled on demand in MoltenVK** (`2cd604b4`,
+      `test/melonx_library_share/candidate-deferred-libraries.patch`, never in the recipe; 'RBX2' made libraries read
+      from cache data keep no MTLLibrary, compiled per function retrieval and released after). macOS real Metal, run
+      42925818096 (44 MB cache, 962 libraries, 2 400 pipelines, every mode 0 missing / 0 SPIR-V conversion / same bytes
+      written back): footprint at the load +1.3 MiB deferred against +32.4 referenced and +77.7 copied, but once the
+      pipelines exist +243.5 MiB deferred against +188.8 referenced (+236.0 copied), and pipeline creation 985 ms
+      against 431: each function retrieval compiles its own MTLLibrary (4 825 compilations) and the pipeline states keep
+      them. No Core change, recipe patch untouched. The same run, in RewindBox's flow (staging cache from the mapping,
+      merged into main, destroyed): copied +123.9 MiB at the load (the compressed MSL held twice on macOS) against
+      +33.6 referenced. Per pipeline on macOS: about 65 KiB kept (156 MiB for 2 400).
+    - **MoltenVK recipe patch, fourth part (`a91feea5`, patch `bfd4cd9b…`, diagnostic only, no behaviour change):** one
+      info line per pipeline cache loaded from data, "RewindBox pipeline cache load: N shader libraries from B bytes;
+      compressed MSL copied|referenced in the caller's data; pNext types 0x…|none", and its marker (four markers). The
+      bench requires the line of each mode in both flows. The iOS rebuild runs on that push; **the delivered MoltenVK
+      pin is main's to move** (a tree whose patch and pin disagree is refused by the packaging).
+    - **Open, decided by the next device journals (protocol: evidence/melonx-725-gates/device-protocol.md):** why the
+      mapped main cache saved nothing on the device (Core side: `pipelineCache mainDataMapped` at the start of
+      `MeloNX-core.log`, now kept in the exported file; driver side: the load line above in `MeloNX-stderr.log`), and
+      where the 2.3 GiB of unattributed native memory is (breakdown v2: `private=`, `zones=`, `malloc.large`,
+      `untagged`, `file`, `unwalked`). No footprint change is claimed for Core 725.
 
 - **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
   recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its

@@ -191,6 +191,26 @@ def reverse_present(target: Path, module_name: str, only=None) -> list:
     return present
 
 
+JOURNAL_START_CALL = '''        if (Path.GetFileName(path) == "MeloNX-core.log")
+        {
+            try { MakeRoomAtStart(path); } catch { }
+        }
+'''
+
+
+def journal_without_start_room(text: str) -> str:
+    """The engine journal (EmbeddedLaunchDiagnostics.cs) without Core 725's room at the start of a process: the call in
+    ConfigureJournal and the block that follows it (two constants and MakeRoomAtStart). What is left must be the journal
+    the earlier Cores were prepared with; a journal without the addition is returned as it is."""
+    if 'MakeRoomAtStart' not in text:
+        return text
+    assert text.count(JOURNAL_START_CALL) == 1 and text.count('MakeRoomAtStart') == 2, 'unexpected journal start-room edit'
+    start = text.index('    // A process starts with room for its whole journal.')
+    end = text.index('    // Engine warnings and errors repeat:')
+    assert start < end and text.index(JOURNAL_START_CALL) < start
+    return (text[:start] + text[end:]).replace(JOURNAL_START_CALL, '')
+
+
 def use_authenticated_libhac_feed(tree: Path, root: Path) -> bool:
     """A copied MeloNX tree that still declares the unreachable upstream LibHac feed (a prepared source build_libhac.py did
     not configure) uses the authenticated local package instead: dist/melonx/libhac-feed holding the pinned package whose

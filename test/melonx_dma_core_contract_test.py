@@ -175,6 +175,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # texture array barrier epoch.
             'gc-keepalive-dormant': 'delivered', 'gc-pause-journal': 'delivered', 'extra-array-dirty': 'delivered',
             'array-barrier-epoch': 'delivered',
+            # Core 725 (lot 9): every recorded pipeline state replayed at launch.
+            'variant-replay-all': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -192,6 +194,8 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            # Core 667: its adapters' files and the native launch preflight (the arena choice and the launch title).
            set(C667_BUFFER_ARRAY_BARRIERS) | set(C667_HOGWARTS_PRECISE_MATH) | set(C667_SHADER_SAVE_JOURNAL) |
            {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
+           # Core 725: the engine journal (a process starts with room for its whole journal).
+           {'src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs'} |
            # Core 671: the translator and host shader cache files of the NaN scrub.
            set(C671_NAN_SCRUB) |
            # Core 673: the pipeline cache manager and pipeline state (already changed files).
@@ -452,8 +456,8 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins).
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 84 and not frozen["productionAdditions"], "Unexpected production scope")
+    # Core 703: 84 changed production files (ShaderInfoBuilder.cs joins). Core 725: 85 (the engine journal joins).
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 85 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -524,14 +528,17 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_gc_keepalive_dormant.py',
                                                      'build-utils/melonx/adapt_gc_pause_journal.py',
                                                      'build-utils/melonx/adapt_extra_array_dirty.py',
-                                                     'build-utils/melonx/adapt_array_barrier_epoch.py'} and
+                                                     'build-utils/melonx/adapt_array_barrier_epoch.py',
+                                                     'build-utils/melonx/adapt_variant_replay_all.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
                                                        # Core 661: the guest fault context handler.
                                                        'native/melonx/EmbeddedRuntime.cs',
                                                        # Core 667: the launch title's note (arena choice, math mode).
-                                                       'native/melonx/EmbeddedLaunchPreflight.cs'},
+                                                       'native/melonx/EmbeddedLaunchPreflight.cs',
+                                                       # Core 725: a process starts with room for its whole journal.
+                                                       'native/melonx/EmbeddedLaunchDiagnostics.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
@@ -552,7 +559,7 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 200 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 201 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -574,6 +581,13 @@ if not args.helpers_only:
     OUTSIDE_GPU |= set(C679_AUDIO_START_DEFERRED)
     # Core 693: the session file (Library assembly) is bound by the bgc-keepalive gate.
     OUTSIDE_GPU |= set(C693_BGC_KEEPALIVE)
+    # Core 725: the engine journal (Ryujinx.Common) is bound by the performance-diagnostics gate, which requires its final
+    # postimage and the digest of the journal its fixture compiled.
+    JOURNAL_FILE = 'src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs'
+    check(JOURNAL_FILE in gate['performance-diagnostics']['requiredPostimages'] and
+          JOURNAL_FILE in {b['productionPath'] for b in gate['performance-diagnostics']['compiledBindings']},
+          'The engine journal is not bound by the performance-diagnostics gate')
+    OUTSIDE_GPU |= {JOURNAL_FILE}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
