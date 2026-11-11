@@ -3819,12 +3819,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **RPCS3 precedent (main's report, its private logs, iOS 27 beta only):** the RPCS3 Core maps
   read-execute pages itself at a chosen address and has the helper prepare them, up to about
   482 GiB, with a 64 GiB hole at `0x7000000000` and a 2^39 task maximum. Questions A and B thus
-  have a favourable precedent; the probe now runs that placement first (`mapped*`). D, E, F and
-  iOS 26 remain unobserved. [Detail](s2arm-prototype-2026-11-10.md).
+  have a favourable precedent; the probe now runs that placement first (`mapped*`; host check
+  run `42948708967` on `831c0c2`, three placements 16/16, iOS compilation). D, E, F and iOS 26
+  remain unobserved. [Detail](s2arm-prototype-2026-11-10.md).
 - **Integration inputs from main (11 Nov):** hook `d32738b5` is in `Claude` (inert without the
   key); Core delivery = pinned run artifact verified by the IPA job (models:
-  `build-utils/rpcs3/core-pin.json`); workflows use the protected artifact upload (done on this
-  branch); notices prepared in [s2arm-legal-notices.md](s2arm-legal-notices.md), delivery
+  `build-utils/rpcs3/core-pin.json`; pin file not written yet); workflows use the protected
+  artifact upload (runs `42948709020`, `42948709021` on `831c0c2`); notices prepared in [s2arm-legal-notices.md](s2arm-legal-notices.md), delivery
   notice files untouched.
 - **Open or limit:** nothing of this prototype measured on an iPhone. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
