@@ -4270,9 +4270,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   input (controller, touch), playlist entry; each milestone proved on device before the next.
 - **Engine plan written** (study doc § 6): engine = one dynamic framework loaded by `dlopen`
   only when MeloNX's Core is not loaded; game code through the device-proved JIT placement;
-  S2Arm changed by a patch series. Milestones P0, E0, P1, E1–E5. **E0 running:** `make ios` of
-  S2Arm unmodified in CI (`s2arm-engine.yml`, run 43019888547). Session 01 asked about the JIT
-  transaction, MeloNX exclusivity and removing the probe hook.
+  S2Arm changed by a patch series. Milestones P0, E0, P1, E1–E5. **E0 passed** (run 43028338889,
+  `s2arm-engine.yml`): S2Arm's whole iOS engine builds on GitHub's macOS images (Xcode 26.3 and
+  26.6, .NET 10.0.404, NativeAOT ios-arm64 runtime pack 10.0.15) with one patch
+  (`build-utils/s2arm/engine/patches/0001…`: iOS 27-only external display API guarded). S2Arm.app
+  103 MB, executable 107.5 MB, NativeAOT library 223 MB before link. Toolchain fixes: ripgrep,
+  GNU timeout shim, meson/ninja, prefetched codec sources. Session 01 agreed: it removes the probe
+  hook and adds `rb_melonx_core_loaded()`; S2Arm side exports `rb_s2arm_engine_loaded()`.
 
 ### Codex orchestration — Codex
 
