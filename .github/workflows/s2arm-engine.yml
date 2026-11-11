@@ -132,8 +132,9 @@ jobs:
       - name: Inventory the engine (images, sizes, symbols)
         if: always()
         working-directory: ${{ runner.temp }}/s2arm
+        shell: bash --noprofile --norc {0}
         run: |
-          set -uo pipefail
+          set -u
           out="$GITHUB_WORKSPACE/proof"
           app=build/ios/S2Arm.app
           [ -d "$app" ] || { echo "no $app" | tee "$out/inventory.txt"; exit 0; }
@@ -141,7 +142,9 @@ jobs:
             echo "== bundle"; du -sh "$app"
             echo "== files"; find "$app" -type f -exec ls -l {} + | awk '{print $5, $9}' | sort -k2
             echo "== Mach-O images"
-            find "$app" -type f | while read -r f; do file "$f" | grep -q Mach-O && { echo "-- $f"; xcrun size -m "$f" | grep -E 'Segment|total' | head -12; otool -L "$f" | tail -n +2; }; done
+            find "$app" -type f | while read -r f; do
+              if file "$f" | grep -q Mach-O; then echo "-- $f"; xcrun size -m "$f" | grep -E 'Segment|total' | head -12; otool -L "$f" | tail -n +2; fi
+            done
             echo "== executable: defined external symbols"; nm -gU "$app/S2Arm" | wc -l
             echo "== executable: undefined symbols (count, then non-system)"; nm -u "$app/S2Arm" | wc -l
           } > "$out/inventory.txt" 2>&1
