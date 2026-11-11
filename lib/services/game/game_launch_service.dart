@@ -27,6 +27,11 @@ import 'package:neostation/widgets/rpcs3_library_file_install_dialog.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 import '../xenia_internal_service.dart';
 import '../../l10n/xenia_locale.dart';
+import '../s2arm_internal_service.dart';
+import '../pairing_file_service.dart';
+import '../switch2_export_content.dart';
+import '../../l10n/switch2_library_locale.dart';
+import '../../widgets/s2arm_internal_playlist_actions.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
@@ -376,6 +381,84 @@ class GameLaunchService {
         return GameLaunchResult.success();
       }
       // XENIA_INTERNAL_END: explicit_xbox360_route
+
+      // S2ARM_INTERNAL_BEGIN: explicit_switch2_route
+      // Switch 2 games run only in the embedded S2Arm engine. This block
+      // returns on success and failure alike: a Switch 2 export never falls
+      // through to MeloNX, RetroArch, a deep link or the share sheet; a
+      // missing engine is said as such (docs/s2arm-switch2-library.md).
+      if (Platform.isIOS &&
+          system.folderName.toLowerCase() ==
+              S2ArmInternalService.systemFolder) {
+        final s2armAllowed = await EmbeddedEnginePolicy.instance.allowsSystem(
+          system,
+        );
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!s2armAllowed) return _embeddedEngineOff(context, system);
+        final locale = Localizations.localeOf(context);
+        final romPath = game.romPath;
+        final exportFolder = romPath != null &&
+                Switch2ExportContent.isLibraryEntry(romPath)
+            ? Switch2ExportContent.exportFolder(romPath)
+            : null;
+        if (exportFolder == null) {
+          return GameLaunchResult.failure(
+            S2ArmInternalService.localizedError(locale, 'notExportFolder'),
+            'S2Arm: notExportFolder\n${romPath ?? ''}',
+          );
+        }
+        // The JIT pairing file the other JIT engines use (StikJIT store).
+        final String pairingFilePath;
+        if (await PairingFileService.hasStoredPairingFile()) {
+          pairingFilePath = (await PairingFileService.storedFile()).path;
+        } else {
+          if (!context.mounted) return GameLaunchResult.failure('', '');
+          return GameLaunchResult.failure(
+            Switch2LibraryLocale.forLocale(locale, 'pairingRequired'),
+            'S2Arm: pairingRequired\n',
+          );
+        }
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        final prepareProgress = ValueNotifier<S2ArmImportProgress?>(null);
+        var prepareDialogShown = false;
+        S2ArmLaunchOutcome outcome;
+        try {
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => S2ArmPrepareDialog(
+              progress: prepareProgress,
+              title: game.name,
+            ),
+          );
+          prepareDialogShown = true;
+          outcome = await S2ArmInternalService.launch(
+            exportFolder,
+            pairingFilePath: pairingFilePath,
+            onPrepareProgress: (value) => prepareProgress.value = value,
+          );
+        } finally {
+          if (prepareDialogShown && context.mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+          prepareProgress.dispose();
+        }
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!outcome.success) {
+          return GameLaunchResult.failure(
+            s2armLaunchMessage(locale, outcome.error),
+            'S2Arm: ${outcome.error}\n${outcome.detail ?? ''}',
+          );
+        }
+        GameSessionManager.registerGameLaunch(
+          system,
+          game,
+          S2ArmInternalService.sessionExecutable,
+        );
+        await FavoritesService.recordGamePlayed(game);
+        return GameLaunchResult.success();
+      }
+      // S2ARM_INTERNAL_END: explicit_switch2_route
 
       // The Ports playlist and its engines left NeoStation
       // (docs/ports-removal-2026-10-20.md). A game row kept while its
