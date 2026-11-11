@@ -32,6 +32,7 @@
     "AudioManager.Worker": "returned"
   },
   "systemClassReadBack": false,
+  "system": null,
   "reports": {
     "control": {
       "variant": "control",
@@ -849,9 +850,11 @@
   "inputs": {
     "build-utils/melonx/adapt_host_thread_class.py": "4f84ae4a735033504c39ca2e8c50c136a9972d0e4da4aa4adead5b896d523ead",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
-    "test/melonx_host_thread_class_test.py": "2b14eae33e17b95054bef00d46ecae4949e006d2f982c380dc892e5b1f3d9a6d",
+    "test/melonx_host_thread_class_test.py": "143f3e7c18a8743456e0827b9b780312dca81bc5eeeebc754a7d842d9c7d12c5",
     "test/melonx_host_thread_class/Program.cs": "4dd08f754965a6761632f04344b4a920b44c9e15dd58fcd8fd87117c9d9ea137",
-    "test/melonx_adapter_control.py": "b5da425f28800d520669b338898f3f9ffa3799fb420404a2547e76abf98d6536"
+    "test/melonx_adapter_control.py": "b5da425f28800d520669b338898f3f9ffa3799fb420404a2547e76abf98d6536",
+    "test/melonx_host_thread_class_system_test.py": "266d66ff92cb465bb4654cc817cfbbbf791838a8cdd632389050cc03cee5a4f8",
+    "test/melonx_host_thread_class_system/Program.cs": "86b3f9cf64caf70111ecde4c3e680b4aa9e355d157fea30454d707d6516ab518"
   },
   "limitation": "The request is observed (and, on macOS, the class read back from the system); which cores then serve the threads, the frame time and the heat are an iPhone's to show: cpu= priorities, pc=, hw=, dsp= and th= of the next session."
 }

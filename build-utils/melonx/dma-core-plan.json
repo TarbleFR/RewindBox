@@ -306,6 +306,8 @@
   "test/melonx_pipeline_cache_compact/Double.cs",
   "test/melonx_cold_buffer_trim/Program.cs",
   "test/melonx_host_thread_class/Program.cs",
+  "test/melonx_host_thread_class_system_test.py",
+  "test/melonx_host_thread_class_system/Program.cs",
   "test/melonx_diagnostics_snapshot_reuse/Program.cs",
   "build-utils/melonx/core733_native.py",
   "test/melonx_kernel_timer_allocations/Program.cs"

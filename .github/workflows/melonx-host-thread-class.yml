@@ -1,7 +1,8 @@
 name: MeloNX host thread class
 run-name: Host thread class against macOS • ${{ github.sha }}
-# Lot 12. The helper of adapt_host_thread_class (pthread_set_qos_class_self_np) executed on a real macOS arm64 runner,
-# on a system thread and on the host runtime's own threads. Nothing is built for delivery, packaged or pinned.
+# Lot 12. The helper of adapt_host_thread_class (pthread_set_qos_class_self_np) executed on a real macOS arm64 runner:
+# on a system thread, on the host runtime's own threads and, compiled with NativeAOT, on that runtime's threads. The
+# Core gate host-thread-class runs the same test on macOS. Nothing is built for delivery, packaged or pinned.
 'on':
   push:
     branches:
