@@ -162,7 +162,7 @@ check(breakdown.count('vm_region_submap_info_data_64_t()') == 1 and
 # the user-interactive class for their duration: an override on the calling thread, ended when the call returns.
 plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
 helper = journal[journal.index('enum MeloNXEngineCallClass {'):journal.index('final class MeloNXPerfJournal {')]
-check('let override = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)' in helper and
+check('let override: pthread_override_t? = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)' in helper and
       'defer { if let override { pthread_override_qos_class_end_np(override) } }' in helper and
       helper.index('pthread_override_qos_class_start_np') < helper.index('defer {') < helper.index('return try call()'),
       'the override starts before the call and ends when it returns or throws')

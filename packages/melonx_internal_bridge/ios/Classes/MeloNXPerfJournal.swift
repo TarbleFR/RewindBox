@@ -61,7 +61,8 @@ import Darwin
 // override ends with the call: the queue's own work keeps its class, and the thread's requested class is unchanged.
 enum MeloNXEngineCallClass {
     static func interactive<T>(_ call: () throws -> T) rethrows -> T {
-        let override = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)
+        // The call is declared non-null and returns null when it cannot start the override: kept as an optional.
+        let override: pthread_override_t? = pthread_override_qos_class_start_np(pthread_self(), QOS_CLASS_USER_INTERACTIVE, 0)
         defer { if let override { pthread_override_qos_class_end_np(override) } }
         return try call()
     }
