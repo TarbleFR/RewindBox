@@ -259,16 +259,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 - **Integration queue for the next common IPA (11 Nov evening, main).** No IPA before the other sessions are ready.
   - **RPCS3:** Cores 932 (`fa94f636`) and 933 (`b055869b`) pinned; nothing of 931-933 observed on an iPhone yet.
-  - **PR #172 (session 03, Xbox 360 / XeniOS, head `db277ee0`):** not mergeable yet. Trial merge: one textual conflict
-    (imports of `sqlite_database_service.dart`, keep all three). Independent native review (verified by main in the code):
-    D1 the JIT transaction stays open after a launch failure on the handshake plan (Dart `unsupported`/`gameUnreadable`
-    after `ensure()`, native early returns), so every later `prepareJit` is refused until restart; D2 `reuseAttachedTool`
-    does not check `handshakeActive` (needs a device to settle); R1 plugin Objective-C class names can collide with
-    upstream once the Core is loaded; R2-R4 and minor items sent to session 03 with the smallest fixes. Dart side read
-    by main: default-off policy, catalogue by application and Consoles tab consistent; startup `ensureLayout` should be
-    non-fatal. Merge conditions: D1, D2, R1, the `default.xex` fix, the chained review of `pubspec.yaml`, and the
-    `checks` job of `xenia-core.yml` green (dispatch-only today, so not runnable: session 03 adds a push trigger on its
-    branch). The JIT helper appex is not wired into the IPA, so the app-extension closed set is unchanged.
+  - **PR #172 integrated (`945bec13`, session 03, Xbox 360 / XeniOS, head `7be66a89`):** the review findings were
+    fixed by session 03 and checked by main in the code (D1 JIT transaction ended on every launch failure, D2 reuse only
+    with a live handshake, R1 plugin classes prefixed `RB`, R2-R4, non-fatal startup layout, distinct `default.xex`
+    names, chained `pubspec.yaml` review). macOS run `43088312254` green: patch on the pinned XeniOS checkout,
+    Objective-C namespace against 194 XeniOS declarations, launch transaction, facade C++, bridge compile, StikJIT
+    build and helper type-check, plugin compiled and linked in a simulator app with its classes present (two earlier
+    runs failed on CI setup only: a quoted `CXX`, then a shallow checkout for the StikJIT baseline). On the merged tree:
+    flutter test 20 files 168/168, libretro frontend and storage contracts, Xenia Python checks, legal chain with the
+    RetroAchievements podspec at its reviewed bytes (227 inputs). Conflict: imports of `sqlite_database_service.dart`,
+    all kept. Not in the IPA yet: XeniaCore, the shader converter and the JIT helper appex; nothing run on a device.
   - **PR #177 then #176 integrated (`c06bdfd9`, `4dff0d80`; skins: decorative loops gated under games and decode caps;
     System Art update notices):** read by main, no defect; merged tree identical to the tested one: flutter test, 8
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
