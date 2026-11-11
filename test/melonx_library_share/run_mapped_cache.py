@@ -22,13 +22,13 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
 CANDIDATE = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'
-# Lot 9, 11 Nov: MTLLibraries deferred to their first use ('RBX2'), on top of the pinned recipe patch. Not in the recipe,
-# and REJECTED by this bench (run 42925818096, 962 libraries, 2 400 pipelines): +1.3 MiB at the load instead of +32.4
-# (referenced), but +243.5 MiB once the pipelines exist against +188.8, and pipeline creation 985 ms against 431: every
-# function retrieval compiles its own MTLLibrary and the pipeline states keep them (4 825 instances instead of 963).
-# Kept so the measurement can be repeated; the same run shows RewindBox's flow in copy mode holding the compressed MSL
-# twice (mergeload-copy +123.9 MiB at the load against +77.7 for a direct load, +33.6 referenced).
-DEFERRED = HERE / 'candidate-deferred-libraries.patch'
+# Lot 9, 11 Nov. Measured here and rejected (run 42925818096, commit 2cd604b4, 962 libraries, 2 400 pipelines): MTLLibraries
+# deferred to their first use by a second private structure. +1.3 MiB at the load instead of +32.4 (referenced), but
+# +243.5 MiB once the pipelines exist against +188.8, and pipeline creation 985 ms against 431: every function retrieval
+# compiled its own MTLLibrary and the pipeline states kept them (4 825 instances instead of 963). The candidate is gone
+# from the tree. What stays: mergeload-* (RewindBox's flow: a staging cache from the mapping, merged into an empty main,
+# destroyed), where a copied load held the compressed MSL twice (+123.9 MiB at the load against +77.7 direct, +33.6
+# referenced), and the recipe's fourth part, one info line per loaded cache, checked for every mode.
 OUT = ROOT / 'dist/melonx-mapped-cache'
 WORK = ROOT / '.mapped-cache'
 SHADERS = ROOT / 'test/melonx_metal_binary_archive/shaders.spvz'
@@ -60,7 +60,6 @@ def main():
     sh(['git', '-C', target, 'fetch', '-q', '--depth', '1', 'origin', PIN['revision']])
     sh(['git', '-C', target, 'checkout', '-q', '--force', '--detach', 'FETCH_HEAD'])
     sh(['git', '-C', target, 'apply', CANDIDATE])
-    sh(['git', '-C', target, 'apply', DEFERRED])
     sh([target / 'fetchDependencies', '--macos'], cwd=target, log='fetchDependencies.log')
     sh(['make', 'macos'], cwd=target, log='make-macos.log')
     library = target / 'Package/Latest/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib'
@@ -71,11 +70,10 @@ def main():
     # Log level 3 (info): the candidate's one line per loaded cache says how the data was taken.
     environment = dict(os.environ, MVK_CONFIG_PERFORMANCE_TRACKING='1', MVK_CONFIG_LOG_LEVEL='3', MVK_BENCH_ROUNDS=ROUNDS)
     results = {}
-    expected_line = {'copy': 'compressed MSL copied; MTLLibraries compiled now.',
-                     'reference': "compressed MSL referenced in the caller's data; MTLLibraries compiled now.",
-                     'deferred': "compressed MSL referenced in the caller's data; MTLLibraries deferred to their first use."}
-    for strategy in ('mapsave', 'mapload-copy', 'mapload-reference', 'mapload-deferred', 'mergeload-copy', 'mergeload-reference',
-                     'mergeload-deferred', 'mapload-reference', 'mapload-deferred', 'mergeload-reference', 'mergeload-deferred'):
+    expected_line = {'copy': 'compressed MSL copied; pNext types none.',
+                     'reference': "compressed MSL referenced in the caller's data; pNext types 0x52425831."}
+    for strategy in ('mapsave', 'mapload-copy', 'mapload-reference', 'mergeload-copy', 'mergeload-reference',
+                     'mapload-copy', 'mapload-reference', 'mergeload-copy', 'mergeload-reference'):
         output = OUT / (strategy + '.json' if strategy == 'mapsave' else f'{strategy}-{len([k for k in results if k.startswith(strategy)])}.json')
         run = subprocess.run([str(binary), str(SHADERS), str(salt), str(output), strategy],
                              capture_output=True, text=True, timeout=3600, env=environment)
@@ -100,12 +98,9 @@ def main():
         if k != 'mapsave':
             # Same bytes as the copied load of the same flow (a merged cache may order its entries differently).
             assert r['dataHash'] == results[k.split('-')[0] + '-copy-0']['dataHash'], f'{k}: every mode loading the same file writes the same bytes'
-        # MoltenVK compiles one library of its own when the device is created (run 42925818096: 963 compilations for the
-        # 962 libraries of a copied or referenced load, 1 for a deferred one).
-        if k.split('-')[1:2] == ['deferred']:
-            # A deferred library compiles when a pipeline needs it: none at the load, at least one per pipeline after.
-            assert r['mvkMslCompileAtLoad'] <= 1 and r['mvkMslCompile']['count'] >= r['pipelines'], f'{k}: compiled on demand only'
-        elif k != 'mapsave':
+        # MoltenVK compiles one library of its own when the device is created (run 42925818096: 963 compilations for
+        # the 962 libraries of a load).
+        if k != 'mapsave':
             assert r['mvkMslCompileAtLoad'] >= 962 and r['mvkMslCompile']['count'] == r['mvkMslCompileAtLoad'], f'{k}: compiled at the load only'
     modes = sorted({k.rsplit('-', 1)[0] for k in results if k != 'mapsave'})
     summary = {mode: {'atLoad': [round(r['footprintAfterCreateMiB'] - r['footprintBeforeMiB'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
@@ -115,7 +110,6 @@ def main():
                for mode in modes}
     report = {'identity': {'moltenvk': {k: PIN[k] for k in ('repository', 'tag', 'revision')},
                            'candidatePatch': {'path': CANDIDATE.relative_to(ROOT).as_posix(), 'sha256': sha(CANDIDATE)},
-                           'deferredPatch': {'path': DEFERRED.relative_to(ROOT).as_posix(), 'sha256': sha(DEFERRED)},
                            'library': {'sha256': sha(library), 'bytes': library.stat().st_size},
                            'test': sha(HERE / 'mvk_library_share_test.cpp'), 'shaders': sha(SHADERS), 'rounds': int(ROUNDS),
                            'xcode': sh(['xcodebuild', '-version']).splitlines()[:2], 'os': sh(['sw_vers']).split()},
