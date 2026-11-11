@@ -4263,6 +4263,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   game with the S2Arm engine inside RewindBox. Mapping the engine (runtime ~44k lines C, services
   ~30k C# NativeAOT, graphics ~264k, Ryujinx tree ~525k) before any code; main asked how a new
   engine component enters the test line's recipe. The MeloNX probe leaves the next test IPA.
+- **Maintainer (11 Nov): "tu peux tout finir"; final test = import of a game and its launch with
+  a controller or touch.** Scope: on-device import (export folder), engine as a guest, graphics,
+  input (controller, touch), playlist entry; each milestone proved on device before the next.
 
 ### Codex orchestration — Codex
 
