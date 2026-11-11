@@ -443,7 +443,8 @@ static class Program
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())), 0, 8);
     }
 
-    // The production counters (PD.Count), read without the native diagnostics session: an epoch is installed by reflection.
+    // The collector's existing array counters (arrDeltaElems, arrDeltaChanged, arrFullElems: PD.Count in the delta pass), read
+    // without the native diagnostics session: an epoch is installed by reflection. Reported, and compared as totals only.
     private static object _epoch;
     private static long CounterValue(string name)
     {
@@ -833,11 +834,8 @@ static class Program
 
                 var itemsBefore = new[] { Enumerable.Range(0, Slots).Select(id => pool1.GetCachedItem(id)).ToArray(),
                                           Enumerable.Range(0, Slots2).Select(id => pool2.GetCachedItem(id)).ToArray() };
-                long skippedBefore = CounterValue("RemapSweepSkipped"), queuedCounterBefore = CounterValue("RemapSweepQueued");
                 if (isMap) eventManager.Map(pa, va, size, PteKind.Pitch); else eventManager.Unmap(va, size);
                 record["setAfter"] = partialSet.Count;
-                record["counterSkipped"] = skippedBefore < 0 ? -1 : CounterValue("RemapSweepSkipped") - skippedBefore;
-                record["counterQueued"] = queuedCounterBefore < 0 ? -1 : CounterValue("RemapSweepQueued") - queuedCounterBefore;
 
                 // The pool references the event took away (QueueUpdateMapping and ForceRemove both empty the pool item; a
                 // removal request does not carry its id), and the requests it left in the dereference queues.
@@ -946,7 +944,6 @@ static class Program
             ["hostTexturesCreated"] = HostTexture.Created,
             ["uploads"] = HostTexture.Uploads,
             ["uploadBytes"] = HostTexture.UploadBytes,
-            ["countersAvailable"] = CounterValue("RemapSweepSkipped") >= 0,
         }));
         return 0;
     }

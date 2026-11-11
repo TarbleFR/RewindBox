@@ -10,9 +10,9 @@ and allocates 18 to 34 KiB per call, in steady scenes too. Upstream re-queues ev
 partially mapped set at every guest Map and Unmap, wherever the event is; the adapter re-queues only the members the
 event can concern.
 
-Static: the control is the Core 733 set of four files; the candidate differs by the adapter's six replacements;
-UpdatePoolMappings is unchanged; the new check is declared once and called once (from the remap action); the two
-counters are the last two of the collector's table; a drifted file is refused.
+Static: the control is the Core 733 set of three files; the candidate differs by the adapter's three replacements;
+UpdatePoolMappings is unchanged; the new check is declared once and called once (from the remap action); no counter is
+added and the performance collector is not edited; a drifted file is refused.
 Executed: the production Ryujinx.Graphics.Gpu builds from the control and from the candidate; then (test-only
 InternalsVisibleTo) test/melonx_remap_sweep_range/Program.cs runs the same seeded script on each engine's real
 TextureManager, TextureBindingsManager, TextureBindingsArrayCache, TexturePool, TextureCache, Texture and GPU
@@ -33,8 +33,7 @@ commit of both channels. Required:
     queues every pool reference of every member of the set and the candidate none, except the single first sweep of a
     texture created partially mapped (ChangedMapping still false);
  3. at every other step with an event the candidate queues exactly the control's references restricted to the textures
-    the event can concern (computed by the fixture from the state before the event), and the two counters are the
-    members swept and the members left alone;
+    the event can concern (computed by the fixture from the state before the event);
  4. sensitivity: wrong variants of the check, built from the adapter's own text, are caught: by the digests (the
     intersection test ignored; the check without its "never swept" and "no pool owner" rules; each rule removed alone;
     the address space comparison inverted) or by requirements 2 and 3 (the address space comparison dropped, which only
@@ -42,10 +41,10 @@ commit of both channels. Required:
 Nothing here depends on time or on thread scheduling: the fixture does everything on one thread, waits for nothing and
 reads no clock; no duration is measured or compared.
 Not an iPhone: whether the device's Map and Unmap events are what re-queues its textures is read in the next session's
-remapSweepSkipped, remapSweepQueued and arrDeltaChanged. Writes dist/melonx/remap-sweep-range-checks.json.
+arrDeltaElems, arrDeltaChanged and gpuWork.arrayDelta. Writes dist/melonx/remap-sweep-range-checks.json.
 """
 from pathlib import Path
-import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
+import hashlib, json, os, platform, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
@@ -106,9 +105,9 @@ for name, expected in adapter.BASELINE.items():
             check(MARKER in new, 'the replacement carries the adapter\'s marker: ' + name)
             rebuilt = rebuilt.replace(old, new)
     candidate_text[name] = rebuilt
-check(len(adapter.PAIRS) == 6 and [pair[0] for pair in adapter.PAIRS] ==
-      [adapter.CACHE, adapter.CACHE, adapter.TEXTURE, adapter.POOL, adapter.DIAGNOSTICS, adapter.DIAGNOSTICS],
-      'six replacements: two in TextureCache.cs, one in Texture.cs, one in TexturePool.cs, two in the collector')
+check(len(adapter.PAIRS) == 3 and [pair[0] for pair in adapter.PAIRS] == [adapter.CACHE, adapter.TEXTURE, adapter.POOL] and
+      sorted(adapter.BASELINE) == sorted([adapter.CACHE, adapter.TEXTURE, adapter.POOL]),
+      'three replacements: one in TextureCache.cs, one in Texture.cs, one in TexturePool.cs, and no other file')
 if FINAL_PREPARATION:
     from melonx_adapter_control import files_edited_later  # noqa: E402
     check(not files_edited_later('adapt_remap_sweep_range'), 'no later adapter edits these files')
@@ -126,14 +125,8 @@ check(control[adapter.CACHE].count('texture.UpdatePoolMappings();') == cache.cou
 check(cache.count('overlaps[i].RemapSweepOverlapped = true;') == 1 and cache.count('overlaps[i].Unmapped(unmapped);') == 1 and
       candidate_text[adapter.TEXTURE].count('RemapSweepOverlapped = false;') == 1,
       'the overlapped textures are marked in the remap action and the mark is consumed by the check')
-check(cache.count('PD.Count(PD.Counter.RemapSweepSkipped, skipped);') == 1 and cache.count('PD.Count(PD.Counter.RemapSweepQueued, queued);') == 1,
-      'the two counters are counted once per event')
-collector = candidate_text[adapter.DIAGNOSTICS]
-counter_enum = [name.strip() for name in re.search(r'public enum Counter \{([^}]*)\}', collector, re.S).group(1).split(',')]
-counter_names = re.findall(r'"([^"]+)"', re.search(r'CounterNames = \{([^}]*)\}', collector, re.S).group(1))
-check(counter_enum[-3:] == ['RemapSweepSkipped', 'RemapSweepQueued', 'Count'] and counter_names[-2:] == ['remapSweepSkipped', 'remapSweepQueued'] and
-      len(counter_enum) - 1 == len(counter_names) and counter_names[-6:-2] == ['arrFullElems', 'arrDeltaElems', 'arrDeltaChanged', 'arrBufElems'],
-      'the two counters are the last two of the collector\'s table, after the array counters')
+check(all('PD.' not in new and 'EmbeddedPerformanceDiagnostics' not in new for _, _, new in adapter.PAIRS),
+      'the adapter adds no counter and does not use the performance collector')
 drift = Path(tempfile.mkdtemp(prefix='melonx-remap-sweep-range-drift-'))
 for name in adapter.BASELINE:
     (drift / name).parent.mkdir(parents=True, exist_ok=True)
@@ -182,15 +175,14 @@ for side in ('control', 'candidate'):
     shutil.copytree(CONTROL_SOURCE, tree, ignore=shutil.ignore_patterns('.git', 'bin', 'obj', 'MeloNX'), symlinks=True)
     if side == 'candidate':
         changed = adapter.apply(tree)
-        check(sorted(str(p.relative_to(tree)) for p in changed) == sorted(adapter.BASELINE), 'the adapter changed its four files')
+        check(sorted(str(p.relative_to(tree)) for p in changed) == sorted(adapter.BASELINE), 'the adapter changed its three files')
         for name in adapter.BASELINE:
             check(text(tree, name) == candidate_text[name], 'candidate is the control plus the adapter\'s replacements: ' + name)
             if FINAL_PREPARATION:
                 check((tree / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         sources = [path.read_text(encoding='utf-8-sig', errors='replace') for path in (tree / 'src').rglob('*.cs')]
         check(sum(s.count('PoolMappingsTouch(') for s in sources) == 2 and sum(s.count('.ChannelMemoryManager') for s in sources) == 1 and
-              sum(s.count('ChannelMemoryManager =>') for s in sources) == 1 and sum(s.count('RemapSweepOverlapped') for s in sources) == 4 and
-              sum(s.count('PD.Counter.RemapSweep') for s in sources) == 2,
+              sum(s.count('ChannelMemoryManager =>') for s in sources) == 1 and sum(s.count('RemapSweepOverlapped') for s in sources) == 4,
               'the tree declares the check, the pool\'s address space and the mark once, and uses them from the remap action only')
     use_authenticated_libhac_feed(tree, ROOT)
     build = dotnet('build', str(tree / GPU), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false', cwd=tree)
@@ -308,7 +300,6 @@ check(first_difference(c, reports['controlAgain']) is None and
       'the control is deterministic: ' + json.dumps(first_difference(c, reports['controlAgain'])))
 check(all(step.get('pending', 0) == 0 and step['leftInQueues'] == 0 for report in (c, k) for step in report['steps']),
       'every queued reference is resolved by the commit that follows its event')
-check(c['countersAvailable'] is False and k['countersAvailable'] is True, 'only the candidate has the two counters')
 
 # --- 1. the same observable state at every step ---
 difference = first_difference(c, k)
@@ -358,15 +349,6 @@ check(queue_violations(c, k) == [], 'requirements 2 and 3 hold for the candidate
 check(concerning['steps'] >= 80 and 0 < concerning['candidateQueued'] < concerning['controlQueued'], 'concerning events exercised: ' + json.dumps(concerning))
 for kind in ('holeFill', 'partialUnmap', 'remap', 'mm2HoleFill', 'mm2PartialUnmap'):
     check(by_kind(k, 'queued').get(kind, 0) > 0, 'the candidate queues at ' + kind + ' steps')
-for step in k['steps']:
-    if 'ev' in step:
-        # Every member is swept or left alone; those left alone are the members the fixture sees as not concerned. (The
-        # engine can also overlap and sweep a texture no pool references and the set did not hold: it is only counted.)
-        check(step['counterQueued'] + step['counterSkipped'] == step['setAfter'] and step['counterSkipped'] == step['considered'] - step['touched'],
-              f"step {step['i']}: the counters are the members swept and left alone: {step['counterQueued']}/{step['counterSkipped']}, "
-              f"fixture {step['touched']}/{step['considered']}, set {step['setAfter']}")
-counters = dict(skipped=sum(step.get('counterSkipped', 0) for step in k['steps']), queued=sum(step.get('counterQueued', 0) for step in k['steps']))
-check(counters['skipped'] > 0 and counters['queued'] > 0, 'both counters count: ' + json.dumps(counters))
 check(total(k, 'deltaChanged') < total(c, 'deltaChanged') and total(k, 'setTexturesElements') < total(c, 'setTexturesElements') and
       total(k, 'queued') < total(c, 'queued'), 'the candidate resolves and sends fewer array elements')
 
@@ -408,7 +390,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                                controlDeltaChanged=total(c, 'deltaChanged'), candidateDeltaChanged=total(k, 'deltaChanged'),
                                controlSetTexturesElements=total(c, 'setTexturesElements'), candidateSetTexturesElements=total(k, 'setTexturesElements'),
                                sensitivityVariantsFailed=len(VARIANTS)),
-               scene=scene, stepKinds=kinds, unrelated=unrelated, concerning=concerning, candidateCounters=counters,
+               scene=scene, stepKinds=kinds, unrelated=unrelated, concerning=concerning,
                dependenciesScene=dict(steps=STEPS, digestsEqual=sum(x['d'] == y['d'] for x, y in zip(dc['steps'], dk['steps'], strict=True)),
                                       hostTexturesCreated=dict(control=total(dc, 'hostTexturesCreated'), candidate=total(dk, 'hostTexturesCreated')),
                                       uploads=dict(control=total(dc, 'uploads'), candidate=total(dk, 'uploads')),
@@ -421,7 +403,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPA
                               'sample of 5.1 s, 53 to 160 ids visited per call of which 88 % changed, 0.43 to 0.68 s, 18 to 34 KiB per call',
                inputs={name: sha(ROOT / name) for name in inputs},
                limitation='One thread, a backend double and a scripted guest: whether the device\'s Map and Unmap events are what re-queues '
-                          'its textures is not shown here; remapSweepSkipped, remapSweepQueued and arrDeltaChanged of the next session decide it. '
+                          'its textures is not shown here; arrDeltaElems, arrDeltaChanged and gpuWork.arrayDelta of the next session decide it. '
                           'Views and textures with views, descriptors with a base level, and events concurrent with the GPU thread are not in the script.')
 out = ROOT / 'dist/melonx/remap-sweep-range-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
