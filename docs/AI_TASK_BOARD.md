@@ -5016,6 +5016,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Glacier review, `check_switch2_glacier_tile()`, 8 negative controls). CI green: runs 43084472956 and, after merging
   #172's head `cf1b9425` (session 03's `<folder>.xex` names and XeniOS review; one conflict in `_batchInsertRoms`, both
   kept), 43085017781.
+- **Base merged (11 Nov, after main integrated #172 as `945bec13`):** library branch `3c8fb875` (Claude `cd6ba174`
+  merged; `main.dart`: Claude's XeniOS startup rule kept, Switch 2 layout on the same rule). Prototype branch `bb11f418`
+  (Claude merged; S2Arm reviews re-chained after the XeniOS review: `pubspec.yaml` `5112922c` → probe `a0add018` →
+  engine `1abdf6eb`; XeniOS block lets the probe review move `pubspec.yaml` on) and `4803137b` (library branch merged in
+  for 803). With the libretro podspec at its reviewed bytes (`d7992b1f`): `repository_inputs` passes (232 inputs),
+  S2Arm legal controls 17/17, tile controls 8/8, storage contract OK, delivery tests 61/62. The 62nd fails on `Claude`
+  itself: `check_workflows.py` flags `xenia-core.yml`'s two direct `actions/upload-artifact` uploads (reported to main
+  and session 03; not run by the test-line manifest).
+- **803 manifest question to main (11 Nov):** sibling of the next common build once the library branch is in `Claude`
+  (proposed), or sibling with the library as an extra declared delta.
 
 ### Playlists/XeniOS (Xbox 360) — session 03 `012mUASiVyxdnhNTUKesGGm7`
 
