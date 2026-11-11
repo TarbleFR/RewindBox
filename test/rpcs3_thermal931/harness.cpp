@@ -195,7 +195,20 @@ static void energy_line()
 		unavailable.find("timer_wakeups=unavailable") != std::string::npos, "%s", unavailable.c_str());
 	CHECK(energy931::format_line(2, 1, false, none, now, 10).find("energy=first_window") != std::string::npos, "first window");
 	energy931::sample wrapped = now; wrapped.energy_nj = 5;
-	CHECK(energy931::format_line(2, 22, true, now, wrapped, 10).find("cpu_energy_mj=0.0") != std::string::npos, "a counter that went back is 0, not huge");
+	const std::string wrapped_line = energy931::format_line(2, 22, true, now, wrapped, 10);
+	if (wrapped_line.find(" discontinuities=") != std::string::npos)
+	{
+		// Core 932 (REWINDBOX_ENERGY_VALIDITY_932) replaces Core 931's "a counter that went back is 0, not huge": a
+		// discontinuity printed as 0 reads as an energy saving (maintainer audit, 11 Nov 2026). The metric and those
+		// derived from it are invalid, never 0, and counted; the metrics of the other counters stay numbers.
+		CHECK(wrapped_line.find("cpu_energy_mj=invalid") != std::string::npos && wrapped_line.find("mj_per_frame=invalid") != std::string::npos &&
+			wrapped_line.find("cpu_energy_mj=0.0") == std::string::npos && wrapped_line.find(" discontinuities=2") != std::string::npos &&
+			wrapped_line.find("p_energy_mj=0.0") != std::string::npos, "%s", wrapped_line.c_str());
+	}
+	else
+	{
+		CHECK(wrapped_line.find("cpu_energy_mj=0.0") != std::string::npos, "a counter that went back is 0, not huge");
+	}
 }
 
 static void background_pause()

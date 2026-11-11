@@ -218,11 +218,18 @@ abstract final class Rpcs3GameProfileService {
     // ready. Measured on the next run: FREEZE_EPISODE, SPUWAIT551 putllc_heavy,
     // RANGELOCKPROF wl_putllc, the frame rate of the same scenes, the boot time
     // (SPUWARMUP) and the spu_blocks gameplay_attempts of the transition.
-    'BLES01717': {
-      'advanced.accurate_spu_reservations': 'true',
-      'advanced.llvm_precompilation': 'true',
-      'experimental.spu_warmup_scope': 'All titles with metadata',
-    },
+    //
+    // Core 932 (audit of 11 November 2026, "étends les corrections aux
+    // variantes réellement identifiées et compatibles"): the six disc serials
+    // the RPCS3 compatibility list groups as Call of Duty: Black Ops 2, which
+    // the RPCS3 configuration database also gives one identical entry; the
+    // Core's Black Ops II levers cover the same six (IOSTitleLevers.h).
+    'BLES01717': _blackOpsII,
+    'BLES01718': _blackOpsII,
+    'BLES01719': _blackOpsII,
+    'BLES01720': _blackOpsII,
+    'BLUS31011': _blackOpsII,
+    'BLUS31140': _blackOpsII,
 
     // Assassin's Creed (BLES00158, BLUS30089), first build 585 run: in the
     // steady game scene (12-29 fps) its SPUs store 0.87-1.03 million
@@ -292,6 +299,12 @@ abstract final class Rpcs3GameProfileService {
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
     'BLES01935': {'gpu.frame_limit': 'PS3 Native'},
+  };
+
+  static const Map<String, String> _blackOpsII = {
+    'advanced.accurate_spu_reservations': 'true',
+    'advanced.llvm_precompilation': 'true',
+    'experimental.spu_warmup_scope': 'All titles with metadata',
   };
 
   static const Map<String, String> _assassinsCreed = {

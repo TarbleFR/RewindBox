@@ -195,10 +195,22 @@ void main() {
         expect(yaml, contains('Accurate ZCULL stats: false'));
         expect(yaml, contains('Relaxed ZCULL Sync: false'));
         expect(yaml, isNot(contains('MoltenVK Asynchronous Submits')));
-        expect(
-          Rpcs3GameProfileService.profileForSerial('BLUS31011')!.settings,
-          isEmpty,
-        );
+        // Core 932: the six serials of the RPCS3 compatibility list share the
+        // database entry and receive the same correction (BLUS31011 used to
+        // be left without it).
+        for (final serial in <String>[
+          'BLES01718',
+          'BLES01719',
+          'BLES01720',
+          'BLUS31011',
+          'BLUS31140',
+        ]) {
+          expect(
+            Rpcs3GameProfileService.profileForSerial(serial)!.settings,
+            profile.settings,
+            reason: serial,
+          );
+        }
       },
     );
 

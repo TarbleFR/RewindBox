@@ -626,18 +626,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     behaviour at launch; persisted, validated per game and device decisions; reliable thermal and
     energy evidence; less speculative work when hot; fewer blocking compiles; memory/reload
     trade-off. 100 % resolution, fidelity and SPU constraints kept; no 60 FPS promise.
-  - **State (reconciled with the audit snapshot fd3c39ae):** RPCS3 unchanged since (Core 931 pin
-    `83156c06`; only MeloNX Core 735 pinned since, `4d391b8d`). Confirmed in the current source:
-    BO2 levers keyed to BLES01717 only (IOSTitleLevers.h:69); a counter that went back prints
-    0 (IOSEnergy931.h `delta`, asserted by the 931 harness); THERMAL931 classifies a window by the
-    state read at its end; a boot that ends in the background is paused only by the ~5 s report.
-  - **Plan:** Core 932 (engine branch `core932-armsx3` from `605901a`, local): priority 1 (energy
-    validity, thermal transitions and mixed windows, stratified analyzer comparison, WFE harness
-    cases), the late-boot background pause at its transition, thermally aware speculative texture
-    hashing, plus the ARMSX3 lot (bundled game fixes on by default, patch-coupled database relief,
-    disk I/O, JIT 16 MiB steps). Then Core 933: blocking compiles and the unified resolver with
-    local persistence (two read-only investigations running).
-  - **Open:** nothing measured on an iPhone; no IPA before the other sessions are ready.
+  - **State:** Core 932 written and host-tested ([record](rpcs3-core932-lot-armsx3-audit.md)); engine `core932-armsx3`
+    `94354ea` (base Core 931 `605901a`); canonical `9a113440` (472 postimages), delta `702d293a`, build 932. Audit points
+    reconciled with the current source (RPCS3 unchanged since `fd3c39ae`). In the Core: energy counters that go back are
+    `invalid` (never 0), storage traffic; time per thermal state, transitions and mixed windows per THERMAL931 window;
+    measured WFE durations (latency no longer stated as a fact); analyzer compares event waits only at equal levers and flags
+    an order that is not counterbalanced; background pause asked at the boot-to-running transition; speculative texture
+    hashing shrinks from the fair state when unused; Metal concurrent compilation for the boot restore; Black Ops II levers
+    for its six compatibility-list serials (host correction too); 42 ARMSX3 game fixes on by default (each repairs a
+    documented failure; Tales of Graces f and Killzone 3 MLAA left off), the user's choice saved; relief rules GT6
+    (database color buffers) and GTA IV (XFloat), never against the user, fresh boots only; JIT 16 MiB step.
+  - **Evidence:** lot932 harness 3,055 checks and 8 controls caught; thermal931, 917, 919 and 920 pass on the 932 tree (919/920
+    reverse 932 first; 920 now copies `Utilities`); codegen identities unchanged; BO2 IPA 725 blocking builds classified:
+    8 new programs compiled by Metal (435-581 ms each), 4 state-only (1.5-2.5 ms), no in-flight wait, no re-creation,
+    records durable. One independent review (areas patch engine, relief, pause): no defect, one risk fixed (boot backup).
+    Guard found by the full local run: the position invariance test (Apple host rerun list) kept BLUS31011 as an unscoped
+    control; it now expects the six Black Ops II serials, with neighbouring serials as exact-match negatives (passes on 932,
+    fails on 931). Legacy `cell575`/`cell589` already fail on 931 (not run).
+  - **Open / next:** compile request and pin of Core 932. Core 933 started on engine branch `core933-resolver` (from
+    `94354ea`): a bounded local profile per serial and game version (`config/local_profiles/<serial>.txt`, atomic write,
+    invalidated by a game update) and its first learned decision, the Core 616 SPU object prefetch for any title whose play
+    spends ≥ 500 ms of a window reading ≥ 200 cached SPU objects (not the boot warm-up), validated by its hits, withdrawn when
+    unused; Automatic only, the user's setting wins, effective at the next boot. Private journals: such windows exist (e.g.
+    1,674 reads in 628 ms of play); GOW3's 1.85 s are boot warm-up and do not count. Compile attribution warmup/play and
+    cached/compiled already exists (SPUPROF, SHADERPIPE543). Nothing measured on an iPhone; no IPA before the other sessions
+    are ready.
 
 - **Active maintainer instruction, 10 Nov — autonomous Black Ops II playability and RAM work.**
   Codex transmitted the full formal context prompt to main
