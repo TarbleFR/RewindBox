@@ -22,7 +22,12 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 PIN = json.loads((ROOT / 'build-utils/melonx/moltenvk-rebuild.json').read_text())
 CANDIDATE = ROOT / 'build-utils/melonx/moltenvk/rewindbox-moltenvk.patch'
-# Lot 9, 11 Nov: MTLLibraries deferred to their first use ('RBX2'), on top of the pinned recipe patch. Not in the recipe.
+# Lot 9, 11 Nov: MTLLibraries deferred to their first use ('RBX2'), on top of the pinned recipe patch. Not in the recipe,
+# and REJECTED by this bench (run 42925818096, 962 libraries, 2 400 pipelines): +1.3 MiB at the load instead of +32.4
+# (referenced), but +243.5 MiB once the pipelines exist against +188.8, and pipeline creation 985 ms against 431: every
+# function retrieval compiles its own MTLLibrary and the pipeline states keep them (4 825 instances instead of 963).
+# Kept so the measurement can be repeated; the same run shows RewindBox's flow in copy mode holding the compressed MSL
+# twice (mergeload-copy +123.9 MiB at the load against +77.7 for a direct load, +33.6 referenced).
 DEFERRED = HERE / 'candidate-deferred-libraries.patch'
 OUT = ROOT / 'dist/melonx-mapped-cache'
 WORK = ROOT / '.mapped-cache'
@@ -95,11 +100,13 @@ def main():
         if k != 'mapsave':
             # Same bytes as the copied load of the same flow (a merged cache may order its entries differently).
             assert r['dataHash'] == results[k.split('-')[0] + '-copy-0']['dataHash'], f'{k}: every mode loading the same file writes the same bytes'
+        # MoltenVK compiles one library of its own when the device is created (run 42925818096: 963 compilations for the
+        # 962 libraries of a copied or referenced load, 1 for a deferred one).
         if k.split('-')[1:2] == ['deferred']:
             # A deferred library compiles when a pipeline needs it: none at the load, at least one per pipeline after.
-            assert r['mvkMslCompileAtLoad'] == 0 and r['mvkMslCompile']['count'] >= r['pipelines'], f'{k}: compiled on demand only'
+            assert r['mvkMslCompileAtLoad'] <= 1 and r['mvkMslCompile']['count'] >= r['pipelines'], f'{k}: compiled on demand only'
         elif k != 'mapsave':
-            assert r['mvkMslCompileAtLoad'] > 0 and r['mvkMslCompile']['count'] == r['mvkMslCompileAtLoad'], f'{k}: compiled at the load only'
+            assert r['mvkMslCompileAtLoad'] >= 962 and r['mvkMslCompile']['count'] == r['mvkMslCompileAtLoad'], f'{k}: compiled at the load only'
     modes = sorted({k.rsplit('-', 1)[0] for k in results if k != 'mapsave'})
     summary = {mode: {'atLoad': [round(r['footprintAfterCreateMiB'] - r['footprintBeforeMiB'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
                       'afterPipelines': [round(r['footprintAfterPipelinesMiB'] - r['footprintBeforeMiB'], 1) for k, r in results.items() if k.rsplit('-', 1)[0] == mode],
