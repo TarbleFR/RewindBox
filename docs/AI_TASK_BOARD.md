@@ -655,8 +655,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     931, fingerprint `17802f8e`).
   - **Core 933 (source `cab3606b`, request `bbef3768`, run `43077626247`):** iPhone Core job **green** (artifact
     `13884331357`, zip `98a5f3a8` 30,567,592 B, dylib `fb1d3f0f` 81,096,000 B, identity `rpcs3-ios-core933`, ABI 30; the
-    library holds `Resolved title policy 933`, `COREPROF LOCALPROFILE933`, the profile header and path). Apple host job:
-    see below. Engine `core933-resolver` `c9432d3` (`c798c82`, `42869e2`, `c9432d3`), canonical
+    library holds `Resolved title policy 933`, `COREPROF LOCALPROFILE933`, the profile header and path). Apple host job
+    **15/15 green** first try (job `130721506390`, report `13883758959` `eb6f5d29`). **Core 933 pinned:** `core-pin.json`
+    `3fdc9f3b`, verified (payload fingerprint `9d5fb7e5`, codegen PPU `a987639e` / SPU `477a3fa4` unchanged; replaces
+    Core 932). Engine `core933-resolver` `c9432d3` (`c798c82`, `42869e2`, `c9432d3`), canonical
     `03b63d88`, delta `bb99b13f` ([record](rpcs3-core933-profil-local.md)): a bounded local profile per serial and game
     version (`config/local_profiles/<serial>.txt`, atomic write, invalidated by a game update) and its first learned
     decision, the Core 616 SPU object prefetch for any title whose play spends ≥ 500 ms of a window reading ≥ 200 cached SPU
@@ -676,7 +678,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - **Core 934 candidate rejected with evidence:** the stale texture sweep costs 14-29 ms per 5 s window on average (max
     46 ms), about 1 % of the RSX thread, in the IPA 723/724 BO2 journals, and released 1,151 MiB over 106 windows; cutting
     it when hot would save almost nothing and keep that memory.
-  - **Open / next:** pin Core 933 (its Apple host job passed, 18:57).
+  - **Open / next:** commit the corrected contract test of the libretro frontend (three checks stale since the 11 Nov
+    import lot, the first being `import notifications`); review #172 first (maintainer priority, relayed by session 04),
+    then #176/#177; the next common IPA waits for the other sessions. Nothing of 931-933 is measured on an iPhone yet.
     IPA 725 BO2: Core 925 packing observed (vma_unused 32-106 MiB vs 45-360 on 724; footprint 2.60-2.97 GB vs 3.40-4.06);
     FPS 53.7 → 18.3 in 127 s with constant work per frame and doubled unit costs as the device heats (SPU waits sleep, not
     spin). Nothing measured on an iPhone for 932/933; no IPA before the other sessions are ready.

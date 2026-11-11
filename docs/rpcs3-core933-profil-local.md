@@ -8,6 +8,9 @@ jeu sur cet appareil**, en partageant une correction par mécanisme plutôt que 
 demande `bbef3768`, run `43077626247`, travail iPhone vert. Artefact `13884331357` (zip `98a5f3a8…`, 30 567 592 octets),
 bibliothèque `fb1d3f0f…`, 81 096 000 octets, identité `rpcs3-ios-core933`, ABI 30. Le binaire contient
 `Resolved title policy 933`, `COREPROF LOCALPROFILE933`, l'en-tête `rewindbox-local-profile 1` et le chemin `local_profiles/`.
+Harnais Apple ARM64 du même run : **15 commandes sur 15 vertes** dès la première tentative, dont le pilote `core933` (travail
+`130721506390`, rapport `13883758959`, `eb6f5d29…`). **Épinglé** : `core-pin.json` `3fdc9f3b…`, statut `verified`, empreinte
+de charge `9d5fb7e5…`, codegen PPU `a987639e` et SPU `477a3fa4` inchangés ; remplace le Core 932 (empreinte `d405ca4d…`).
 Rien n'a été exécuté sur un iPhone ; aucun gain d'images par seconde, d'énergie ou de mémoire n'est annoncé.
 
 Moteur : branche `core933-resolver` (base Core 932 `94354ea`), commits :
