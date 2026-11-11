@@ -188,6 +188,16 @@ check('let report = MeloNXEngineCallClass.interactive { runtime.diagnostics() }'
       'DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)' in plugin and
       'timer.schedule(deadline:.now(),repeating:.milliseconds(300))' in plugin, 'the diagnostics drain calls the engine under the override')
 
+# The diagnostics poll (lot 14): the report is read into one kept buffer and decoded only when its bytes differ from the
+# previous call's; identical bytes return the previous dictionary; the calls are serialised.
+api = (CLASSES / 'MeloNXRuntimeAPI.swift').read_text()
+poll = api[api.index('    private let diagnosticsLock = NSLock()'):api.index('    func offerMemory(')]
+check('private var diagnosticsBuffer = [CChar](repeating:0,count:524288)' in poll and poll.count('[CChar](repeating:0') == 1 and
+      'diagnosticsLock.lock(); defer { diagnosticsLock.unlock() }' in poll and
+      'if length == diagnosticsBytes.count, memcmp(diagnosticsBuffer,diagnosticsBytes,length) == 0 { return diagnosticsReport }' in poll and
+      poll.index('memcmp(diagnosticsBuffer,diagnosticsBytes,length)') < poll.index('JSONSerialization.jsonObject(') and poll.count('JSONSerialization.jsonObject(') == 1 and
+      'diagnosticsBytes = report == nil ? [] : Array(diagnosticsBuffer[0..<length])' in poll,
+      'the diagnostics report is decoded only when its bytes changed, in a kept buffer, under a lock')
 # Hot spots (lot 12): "[MeloNX:hot]" profiles asked for by the sampler and taken by a native thread that calls no engine
 # closure and suspends nothing; bounded in samples, threads, places and profiles; written through the shared writer.
 hot = (CLASSES / 'MeloNXHotSpots.swift').read_text()

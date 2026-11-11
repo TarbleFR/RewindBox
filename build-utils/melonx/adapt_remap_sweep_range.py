@@ -19,7 +19,7 @@ event touched. Host measurement (Linux, 75 such textures, four array entries ove
 entry and 89 us for each following one per event, 31 KiB and 4.5 KiB allocated; with this change an unrelated event
 does not reach the delta pass at all (the pool is not modified: the entries take their cache hit).
 
-Change (every title; TextureCache.cs, Texture.cs, TexturePool.cs): the remap action still sweeps, exactly as before,
+Change (every title; TextureCache.cs, Texture.cs, TexturePool.cs; no other file): the remap action still sweeps, exactly as before,
 the textures the event physically overlaps (they are marked, under the lock of the set). Every other member is swept
 only if the event can concern it (Texture.PoolMappingsTouch): one of its pool owners belongs to a pool of the event's
 address space (TexturePool.ChannelMemoryManager: the one ProcessDereferenceQueue translates with) and the pages of
@@ -39,15 +39,12 @@ pool owners' lock inside the set's lock, as UpdatePoolMappings does, and allocat
 Behaviour that changes with it: a member that cannot be restored in place (view, views, copy dependency) and that only
 the pool references was destroyed and created again at every unrelated event; it is now kept.
 
-Two counters (EmbeddedPerformanceDiagnostics, in the "counts" of the performance samples like arrDeltaElems): per
-event, remapSweepSkipped (members left alone) and remapSweepQueued (members swept). They are counted on the thread
-that maps (a guest service thread: one of the 16 counter slots of the session, as readCopies already takes from the
-guest's CPU threads).
+No counter is added (the performance sample is bounded, and the collector is left as it is).
 
-Not measured on an iPhone: the device has not shown that its Map and Unmap events are the cause; the two counters
-decide it (remapSweepSkipped large and arrDeltaChanged falling with it: this was the cause; remapSweepQueued staying
-at the level of arrDeltaChanged: the events do concern these textures and the cost is elsewhere). Fail closed on drift:
-the four files must be the Core 733 preparation's.
+Not measured on an iPhone: the device has not shown that its Map and Unmap events are the cause; arrDeltaElems,
+arrDeltaChanged and gpuWork.arrayDelta (calls and milliseconds) of the next session decide it: if they do not fall, the
+events do concern these textures, or the ids change for another reason, and the hypothesis is refuted. Fail closed on
+drift: the three files must be the Core 733 preparation's.
 """
 import hashlib
 from adapt_session import once
@@ -55,23 +52,11 @@ from adapt_session import once
 CACHE = 'src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 POOL = 'src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs'
-DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
 BASELINE = {
     CACHE: 'aab7df8766375daeebc17cfad2e9253a4cc97c9c5490dae767ce074d3968a897',
     TEXTURE: '185177cf3d69b78a5b59a7d886daee8b1645e8346149ae162e6034d9a783ac90',
     POOL: '01a50bf34d5eb49ead967ccd58f49a1d061b97aad624678411cfd162d79ce153',
-    DIAGNOSTICS: 'cb4d8df1db93dfb663c2c384a73fa77416ba5de0afcfcd972c28890084b65882',
 }
-
-USING_OLD = '''using Ryujinx.Common;
-using Ryujinx.Graphics.GAL;
-using Ryujinx.Memory;
-'''
-USING_NEW = '''using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics; // RewindBox (adapt_remap_sweep_range)
-using Ryujinx.Common;
-using Ryujinx.Graphics.GAL;
-using Ryujinx.Memory;
-'''
 
 SWEEP_OLD = '''                    e.AddRemapAction(() =>
                     {
@@ -117,24 +102,14 @@ SWEEP_NEW = '''                    e.AddRemapAction(() =>
                             // event intersects); the rest keep their pool references, sequence and mapping state.
 
                             MemoryManager memoryManager = (MemoryManager)sender;
-                            int skipped = 0;
-                            int queued = 0;
 
                             foreach (Texture texture in _partiallyMappedTextures)
                             {
                                 if (texture.PoolMappingsTouch(memoryManager, e.Address, e.Size))
                                 {
                                     texture.UpdatePoolMappings();
-                                    queued++;
-                                }
-                                else
-                                {
-                                    skipped++;
                                 }
                             }
-
-                            PD.Count(PD.Counter.RemapSweepSkipped, skipped);
-                            PD.Count(PD.Counter.RemapSweepQueued, queued);
                         }
                     });
 '''
@@ -224,25 +199,11 @@ MANAGER_NEW = '''        /// <summary>
         public LinkedListNode<TexturePool> CacheNode { get; set; }
 '''
 
-ENUM_OLD = '''        ArrayFullElements, ArrayDeltaElements, ArrayDeltaChanged, ArrayBufferElements, Count }
-'''
-ENUM_NEW = '''        ArrayFullElements, ArrayDeltaElements, ArrayDeltaChanged, ArrayBufferElements,
-        RemapSweepSkipped, RemapSweepQueued, Count } // RewindBox (adapt_remap_sweep_range)
-'''
-NAMES_OLD = '''        "arrFullElems", "arrDeltaElems", "arrDeltaChanged", "arrBufElems" };
-'''
-NAMES_NEW = '''        "arrFullElems", "arrDeltaElems", "arrDeltaChanged", "arrBufElems",
-        "remapSweepSkipped", "remapSweepQueued" }; // RewindBox (adapt_remap_sweep_range)
-'''
-
 # (file, old, new) in application order; every old text is the Core 733 preparation's (no pair needs another's result).
 PAIRS = (
-    (CACHE, USING_OLD, USING_NEW),
     (CACHE, SWEEP_OLD, SWEEP_NEW),
     (TEXTURE, TOUCH_OLD, TOUCH_NEW),
     (POOL, MANAGER_OLD, MANAGER_NEW),
-    (DIAGNOSTICS, ENUM_OLD, ENUM_NEW),
-    (DIAGNOSTICS, NAMES_OLD, NAMES_NEW),
 )
 
 

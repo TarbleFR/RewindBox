@@ -147,11 +147,28 @@ final class MeloNXRuntimeAPI {
 
     // This snapshot has its own native lock and may be polled while the library
     // worker is opening content or waiting for the JIT helper.
+    // The host polls this every 300 ms (MeloNXInternalBridgePlugin.drainDiagnostics) and the engine's journal is quiet
+    // most of the time. The report is read into one kept buffer and decoded only when its bytes differ from the
+    // previous call's; for identical bytes the previous dictionary is returned (callers compare sequence numbers, so
+    // seeing it again changes nothing). Until lot 14 every call allocated and zeroed 512 KiB, scanned it and decoded
+    // the whole report: 4 % of a core for that queue's thread in IPA 725. The engine ends its report with a zero byte.
+    private let diagnosticsLock = NSLock()
+    private var diagnosticsBuffer = [CChar](repeating:0,count:524288)
+    private var diagnosticsBytes = [CChar]()
+    private var diagnosticsReport: [String:Any] = [:]
+    private(set) var diagnosticsDecodes = 0
     func diagnostics() -> [String: Any] {
-        var output = [CChar](repeating:0,count:524288)
-        guard diagnosticsFunction(&output,Int32(output.count)) == 0 else { return [:] }
-        let data = Data(bytes:output,count:output.prefix { $0 != 0 }.count)
-        return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]
+        diagnosticsLock.lock(); defer { diagnosticsLock.unlock() }
+        let capacity = diagnosticsBuffer.count
+        guard diagnosticsFunction(&diagnosticsBuffer,Int32(capacity)) == 0 else { return [:] }
+        let length = strnlen(diagnosticsBuffer,capacity)
+        if length == diagnosticsBytes.count, memcmp(diagnosticsBuffer,diagnosticsBytes,length) == 0 { return diagnosticsReport }
+        diagnosticsDecodes += 1
+        let report = (try? JSONSerialization.jsonObject(with:Data(bytes:diagnosticsBuffer,count:length))) as? [String:Any]
+        // Bytes that do not decode are not kept: the next call decodes again.
+        diagnosticsBytes = report == nil ? [] : Array(diagnosticsBuffer[0..<length])
+        diagnosticsReport = report ?? [:]
+        return diagnosticsReport
     }
 
     func offerMemory(_ address: UnsafeMutableRawPointer, bytes: UInt64) -> Bool { memoryOffer(address,bytes) == 0 }
