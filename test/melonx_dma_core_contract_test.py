@@ -179,6 +179,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'variant-replay-all': 'delivered',
             # Core 727 (lot 9): the pause checkpoint threshold; the Vulkan allocator's blocks in the journal.
             'pause-checkpoint-growth': 'delivered', 'vulkan-memory-journal': 'delivered',
+            # Core 727: the allocator range-update proof run again on the final allocator (journal methods added).
+            'allocator-range-update': 'delivered', 'allocator-blocks': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -248,7 +250,10 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json')),
          # Core 661: adapt_safe_point_compaction changes EmbeddedMemory.cs, which the native display fixture declares.
-         CORE87[:-len('historical-core87/')] + 'display-checks.json'}
+         CORE87[:-len('historical-core87/')] + 'display-checks.json',
+         # Core 727: adapt_vulkan_memory_journal adds read-only methods to the allocator's two files, which these two
+         # core87 receipts declare; both are run again on the final allocator against the delivered one.
+         CORE87 + 'allocator-range-update-checks.json', CORE87 + 'allocator-blocks-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
@@ -291,6 +296,8 @@ JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsManager.cs'}
 JOINED = JOINED | {'src/Ryujinx.Graphics.GAL/IRenderer.cs'}
 # Core 703 (adapt_layout_used_types): ShaderInfoBuilder.cs joins the prepared source.
 JOINED = JOINED | {'src/Ryujinx.Graphics.Gpu/Shader/ShaderInfoBuilder.cs'}
+# Core 727 (adapt_vulkan_memory_journal): MemoryAllocator.cs joins the prepared source.
+JOINED = JOINED | {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs'}
 REUSED_FRESH = set()
 
 
@@ -565,7 +572,7 @@ if not args.helpers_only:
     # Core 719: 195 preparation inputs (adapt_bgc_fragmentation_guard.py added), the same 206 prepared members.
     # Core 721: 196 (adapt_pipeline_cache_mapped_data.py added), the same 206 prepared members.
     # Core 723: 200 (the four lot 9 adapters added), the same 206 prepared members.
-    check(len(frozen['preparationInputs']) == 203 and len(frozen['preparedMembers']) == 206, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 203 and len(frozen['preparedMembers']) == 207, 'Wrong final composition')  # Core 727: MemoryAllocator.cs joins
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -594,6 +601,12 @@ if not args.helpers_only:
           JOURNAL_FILE in {b['productionPath'] for b in gate['performance-diagnostics']['compiledBindings']},
           'The engine journal is not bound by the performance-diagnostics gate')
     OUTSIDE_GPU |= {JOURNAL_FILE}
+    # Core 727: the allocator's two files are bound by vulkan-memory-journal (both) and the allocator gates (block list).
+    ALLOCATOR_FILES = {'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs', 'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs'}
+    check(ALLOCATOR_FILES <= set(gate['vulkan-memory-journal']['requiredPostimages']) and
+          'src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs' in set(gate['allocator-blocks']['requiredPostimages']) &
+          set(gate['allocator-range-update']['requiredPostimages']), 'The allocator files are not bound by their gates')
+    OUTSIDE_GPU |= ALLOCATOR_FILES
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
@@ -628,13 +641,21 @@ if not args.helpers_only:
     c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
     delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED and path not in C671_JOINED}
     delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
+    # Core 727: the allocator gates, run again on the final allocator against the delivered one, also read the upstream
+    # MemoryAllocation.cs from the delivered control (unchanged upstream file, its pinned digest).
+    ALLOCATION = 'src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs'
+    check(unadapted['delivered'].get(ALLOCATION) == '8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2',
+          'MemoryAllocation.cs is the upstream file')
+    delivered_graphics[ALLOCATION] = unadapted['delivered'][ALLOCATION]
     check(unadapted == {'delivered': delivered_graphics,
                         'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},
                         # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
                         # gates read them, from the final preparation.
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
                                          **{path: digest for path, digest in graphics.items()
-                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle}},
+                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle and
+                                            # Core 727: MemoryAllocator.cs joins, read only by its own gates (delivered control).
+                                            path != 'src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs'}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

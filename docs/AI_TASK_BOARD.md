@@ -3605,7 +3605,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     question ("Decompress MSL" 0.062 ms and "Read MSL" 0.605 ms per library in 724, 0.055 and 0.561 in 718: file
     read-ahead can make both modes look alike); the equal load curves of 718 (copy by construction) and 724 remain the
     evidence that 724 copied too.
-  - **Core 727 candidate (this branch, on Core 725; not frozen yet when written):** `adapt_pause_checkpoint_growth`
+  - **Core 727 frozen (11 Nov, this branch, on Core 725; not delivered, not run on an iPhone): contract `1aa56e30…`
+    (203 inputs, 207 members, 86 gates; contract test 472 checks; [receipts](evidence/melonx-727-gates/run.json)).** `adapt_pause_checkpoint_growth`
     (a pause rewrites the main cache from 8 MiB of new content only; gate 15 checks) and `adapt_vulkan_memory_journal`
     ("vulkanMemory sample" about every 30 s: the Vulkan allocator's blocks, dedicated, mapped and pooled free bytes by
     memory type; gate 26 checks), commit `1b0c13ea`. S2Arm diagnostic hook in the bridge for session 04

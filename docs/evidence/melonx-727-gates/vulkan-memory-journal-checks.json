@@ -1,0 +1,25 @@
+{
+  "result": "passed",
+  "checks": 26,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "productionVulkanAssemblyBuilt": true,
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "bdd8e37aa7b337afd7c3f99974c9a80d9b98d6e01b07759a94f231251d64315b",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs": "708c5c349c72c8005f7c1ac4a872c06c9da324727fb4b564d53c2463a6853711",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "a801fc74c66fb54de5ffc1902069476b9ffcad0f025720e01c7af40820e250a4",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "27f89c04260ce82bf3ff8468eda36785516b081567e260e534a7074bbf2eb2d8"
+  },
+  "usage": "Vulkan device memory: 4 blocks 20 MiB (dedicated 8 MiB, mapped 4 MiB, pooled free 8 MiB) in 2 lists; type 3 buffers: 3 blocks 16 MiB (dedicated 8 MiB, mapped 4 MiB, pooled free 6 MiB); type 1 images: 1 blocks 4 MiB (dedicated 0 MiB, mapped 0 MiB, pooled free 2 MiB) (adapt_vulkan_memory_journal)",
+  "linesAfter13Windows": 3,
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_vulkan_memory_journal.py": "8e3765132f3ef517e4171dc37452a29b9c9e0b03a85aa219d4fb47f1d0efa185",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_vulkan_memory_journal_test.py": "bc2f0b4bdf47dbdc2dc7ee0d566f35e9cd68b79a723cd201cca85d8d66bd9c83",
+    "test/melonx_adapter_control.py": "10d7b1e16b7dba2423beeb4a0d2d602e245fd31ddc8ff31595e744eb095b94d5"
+  },
+  "limitation": "Real block and allocator objects without a Vulkan device (no device memory is allocated); the figures on an iPhone are what this line will show."
+}

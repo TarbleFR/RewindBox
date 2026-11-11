@@ -104,8 +104,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Core 723 (lot 9: the keep-alive's dormant line, the ephemeral pause journal, no main texture set write on a separate
 # array change, texture array barrier passes skipped when nothing changed); 82 with Core 725 (lot 9: every recorded
 # pipeline state replayed at launch, the 512-replay session cap gone); 84 with Core 727 (lot 9: a pause rewrites the
-# main pipeline cache only for 8 MiB of new content; the Vulkan allocator's blocks in the journal).
-FRESH_GATES = 84
+# main pipeline cache only for 8 MiB of new content; the Vulkan allocator's blocks in the journal, and the allocator
+# range-update and block gates run again on the final allocator).
+FRESH_GATES = 86
 HISTORICAL_RECEIPTS = 61
 
 
