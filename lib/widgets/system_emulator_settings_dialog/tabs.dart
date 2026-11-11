@@ -444,6 +444,8 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
       return Image.file(
         File(path),
         fit: BoxFit.cover,
+        // 36-point thumbnail: decode a small copy only.
+        cacheWidth: 192,
         errorBuilder: (context, error, stackTrace) => Icon(
           Symbols.broken_image_rounded,
           size: 16.r,
@@ -464,6 +466,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
       return Image.network(
         path,
         fit: BoxFit.cover,
+        cacheWidth: 192,
         errorBuilder: (context, error, stackTrace) => Icon(
           Symbols.broken_image_rounded,
           size: 16.r,
