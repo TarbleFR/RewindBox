@@ -1,0 +1,47 @@
+name: S2Arm library layer
+
+# Flutter tests and analysis of the Switch 2 playlist (docs/s2arm-switch2-library.md).
+# No build, no upload, no secret.
+on:
+  push:
+    branches:
+      - work/s2arm-switch2-library-20261111
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  library:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Flutter tests
+        run: >
+          flutter test
+          test/s2arm_internal_service_test.dart
+          test/switch2_export_content_test.dart
+          test/switch2_library_locale_test.dart
+          test/console_manager_test.dart
+          test/libretro_consoles_tab_test.dart
+
+      - name: Python contract tests
+        run: |
+          python3 test/storage_contract_test.py
+          python3 test/libretro_frontend_ui_contract_test.py
