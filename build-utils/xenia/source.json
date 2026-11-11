@@ -83,7 +83,9 @@
       "sha256": "bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa",
       "pinned_by": "XeniOS .github/workflows/apple-publish.yml:93-95 at cf7c7ee45 (MSC_IOS_REPO, MSC_IOS_RELEASE_TAG, MSC_IOS_SHA256)",
       "upstream_license_statement": "The XeniOS workflow states 'Apache 2.0 permits it'; the XeniOS IPA's Acknowledgements.json states the library is Apple software under Apple's own terms. Not resolved here.",
-      "relation_to_reference": "Downloaded and compared on 2026-11-10: identical bytes from offset 4096 to LC_CODE_SIGNATURE dataoff 29936976 (same Apple build, source version 33.39); only the Mach-O header page and the code signature differ (Apple's signature here, XeniOS's re-signing in the IPA)."
+      "relation_to_reference": "Downloaded and compared on 2026-11-10: identical bytes from offset 4096 to LC_CODE_SIGNATURE dataoff 29936976 (same Apple build, source version 33.39); only the Mach-O header page and the code signature differ (Apple's signature here, XeniOS's re-signing in the IPA).",
+      "signature_free_sha256": "b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e",
+      "signature_free_note": "validate_shader_converter.signature_free_digest: the image before its code signature, LC_CODE_SIGNATURE dataoff/datasize and __LINKEDIT vmsize/filesize zeroed. Equal (checked 12 Nov 2026) for this Apple-signed mirror asset and for the copy XeniOS 2.3.1 ships re-signed (923caf5d...). The IPA copy must match it (agreement EA1844 clause 2.E: unmodified apart from the signature iOS requires)."
     }
   }
 }
