@@ -3776,10 +3776,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   a helper-script defect (a debugserver error code returned as an address). The probe now rejects
   such a reply (`d14e7f5`, run `42932102875` passed). Session 01 reports the maintainer told it
   to write the hook now.
-- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Waiting for
-  session 01's hook commit; then main adds the package and builds a test IPA.
-- **Next:** review the hook against the probe, hand main the package line and the Info.plist key,
-  give the maintainer the test steps.
+- **Hook written by session 01 (11 Nov):** `d32738b5` on `work/melonx-fps-stability-20261103`
+  (its run `42933024817`), reviewed here against the probe: signatures, phase order, journal match.
+  It runs only with `RewindBoxS2ArmProbe`, on the first JIT transaction, with the universal helper
+  (iOS 26).
+- **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
+  to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
+  IPA are main's to add.
+- **Next:** when main delivers the test IPA, give the maintainer the steps (one Switch game launch
+  after opening the app, send `MeloNX-launch.log`) and read the `s2armProbe.*` lines.
 
 ### Codex orchestration — Codex
 
