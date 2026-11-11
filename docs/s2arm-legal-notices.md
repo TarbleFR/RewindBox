@@ -40,6 +40,7 @@ files were changed (they are translations, not copies).
 | `build-utils/s2arm/engine/patches/0006-guest-session-end-instead-of-exit.patch` | modifies `runtime/src/lifecycle.c`, `runtime/src/native.h`, `runtime/src/host_main.c`, `runtime/src/ap_host.c`, `runtime/src/pack_apply.c`, `ios/app.m`; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0007-guest-view-controller-and-start.patch` | modifies `ios/app.m`, `ios/vpad.m`, `runtime/src/host_main.c`; changes marked `RewindBox` in comments |
 | `build-utils/s2arm/engine/patches/0008-guest-strings-and-game-files-from-engine-bundle.patch` | modifies `ios/s2a_l10n.h`, `ios/save_transfer.m`; changes marked `RewindBox` in comments |
+| `build-utils/s2arm/engine/patches/0009-guest-log-in-docs-pad-recording-off-engine-resources.patch` | modifies `runtime/src/os.c`, `runtime/src/logcap.c`, `runtime/src/native.h`, `runtime/src/launchctx.c`, `runtime/src/sesdiag.c`, `runtime/include/s2a_launch_ctx.h`, `ios/diag.m`, `ios/loadpage.m`, `ios/hud.m`, `ios/cpatch_settings.m`, `ios/controller.m`, `ios/vpad.m`, `ios/s2a_l10n.h`, and the RewindBox files `runtime/src/rb_guest.c`, `runtime/src/rb_guest.h` of 0003; changes marked `RewindBox` in comments |
 
 `native/s2arm/prepare/s2arm_sha256.c` is not derived from S2Arm (SHA-256 written from FIPS 180-4).
 
