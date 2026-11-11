@@ -4317,6 +4317,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   engine and the library (PR #172's model). Session 03 asked how to split the shared playlist files;
   main asked about the base of the test line (needs PR #172's Consoles tab). Host bridge delegated
   (new files only: `packages/s2arm_engine_bridge`, `lib/services/s2arm_internal_service.dart`).
+- **Library branch authorized by the maintainer (11 Nov):** `work/s2arm-switch2-library-20261111`
+  from PR #172's head `db277ee0e` (session 03's branch is never pushed to), for the shared-layer
+  Switch 2 hook points (study § 6.5), handed to main after #172. At the maintainer's request main
+  was asked to prioritise #172, on which the complete trial depends.
 
 ### Codex orchestration — Codex
 
