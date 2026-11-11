@@ -6,16 +6,21 @@ import 'package:path_provider/path_provider.dart';
 
 import 'armsx2_folder_service.dart';
 import 'config_service.dart';
+import 'logger_service.dart';
+import 'storage/file_content_compare.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
 /// Why one picked file was not imported; [code] is one of the
 /// `Armsx2InternalService.reason*` codes.
 class Armsx2ImportFailure {
-  const Armsx2ImportFailure(this.name, this.code);
+  const Armsx2ImportFailure(this.name, this.code, {this.detail});
 
   final String name;
   final String code;
+
+  /// OS text of a failed copy (never a path), shown after the reason.
+  final String? detail;
 }
 
 class Armsx2ImportResult {
@@ -33,7 +38,7 @@ class Armsx2ImportResult {
   final List<String> errors;
   final List<Armsx2ImportFailure> failures;
 
-  /// Picked files whose name and size already match a file of the folder.
+  /// Picked files whose name and content already match a file of the folder.
   final int alreadyPresent;
 
   /// Extensions named by the "wrong file type" reason (games only).
@@ -52,6 +57,15 @@ class Armsx2ImportResult {
       return value;
     }
 
+    String withDetail(Armsx2ImportFailure failure, String reason) {
+      final detail = failure.detail;
+      return failure.code == Armsx2InternalService.reasonCopyFailed &&
+              detail != null &&
+              detail.isNotEmpty
+          ? '$reason ($detail)'
+          : reason;
+    }
+
     final lines = <String>[];
     if (alreadyPresent > 0) {
       lines.add(fill('importAlready', {'count': alreadyPresent}));
@@ -62,9 +76,12 @@ class Armsx2ImportResult {
         lines.add(
           fill('importLine', {
             'name': failure.name,
-            'reason': fill(Armsx2InternalService.reasonKey(failure.code), {
-              'extensions': acceptedExtensions.join(', '),
-            }),
+            'reason': withDetail(
+              failure,
+              fill(Armsx2InternalService.reasonKey(failure.code), {
+                'extensions': acceptedExtensions.join(', '),
+              }),
+            ),
           }),
         );
       }
@@ -79,21 +96,31 @@ class Armsx2ImportResult {
 class Armsx2CopyOutcome {
   const Armsx2CopyOutcome.copied(this.length)
     : failureCode = null,
+      errorText = null,
       alreadyPresent = false;
   const Armsx2CopyOutcome.already(this.length)
     : failureCode = null,
+      errorText = null,
       alreadyPresent = true;
-  const Armsx2CopyOutcome.failed(this.failureCode)
+  const Armsx2CopyOutcome.failed(this.failureCode, {this.errorText})
     : length = 0,
       alreadyPresent = false;
 
   final int length;
   final String? failureCode;
   final bool alreadyPresent;
+  final String? errorText;
 }
 
 class _LengthMismatch implements Exception {
   const _LengthMismatch();
+}
+
+class _Claim {
+  const _Claim(this.file, {this.alreadyPresent = false});
+
+  final File? file;
+  final bool alreadyPresent;
 }
 
 /// Files-app-visible storage and import surface for NeoStation's embedded
@@ -235,10 +262,10 @@ class Armsx2InternalService {
     var alreadyPresent = 0;
     final errors = <String>[];
     final failures = <Armsx2ImportFailure>[];
-    void refuse(String name, String code) {
+    void refuse(String name, String code, {String? detail}) {
       rejected++;
       errors.add('$name: $code');
-      failures.add(Armsx2ImportFailure(name, code));
+      failures.add(Armsx2ImportFailure(name, code, detail: detail));
     }
 
     // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
@@ -275,11 +302,21 @@ class Armsx2InternalService {
         );
         final code = outcome.failureCode;
         if (code != null) {
-          refuse(picked.name, code);
+          final text = outcome.errorText;
+          if (text != null) {
+            LoggerService.instance.e(
+              'ARMSX2 import of ${picked.name} failed: $text',
+            );
+          }
+          refuse(
+            picked.name,
+            code,
+            detail: code == reasonCopyFailed ? text : null,
+          );
           continue;
         }
         // Copied and verified, or already in the library under the same
-        // name and size: either way the picker's copy (often several GiB)
+        // name and bytes: either way the picker's copy (often several GiB)
         // is not read again.
         verifiedCopies[sourcePath] = outcome.length;
         if (outcome.alreadyPresent) {
@@ -288,7 +325,15 @@ class Armsx2InternalService {
           imported++;
         }
       } catch (error) {
-        refuse(picked.name, reasonForCopyError(error));
+        LoggerService.instance.e(
+          'ARMSX2 import of ${picked.name} failed: $error',
+        );
+        final code = reasonForCopyError(error);
+        refuse(
+          picked.name,
+          code,
+          detail: code == reasonCopyFailed ? copyErrorText(error) : null,
+        );
       }
     }
     // Games and BIOS alike: once every pick is handled, the picker's copies
@@ -313,8 +358,8 @@ class Armsx2InternalService {
   }
 
   /// Copies [source] into [destination] under [name], keeping today's
-  /// "name (2).ext" rule when the name is taken by a file of another size.
-  /// A file of the same name AND byte size is left alone ("already
+  /// "name (2).ext" rule when the name is taken by a file with other bytes.
+  /// A file of the same name AND the same content is left alone ("already
   /// imported"). With [maxBytes], a larger source is refused before any copy.
   /// A copy that fails midway removes the file this copy created, and only
   /// that one. [copier] exists for tests.
@@ -334,14 +379,22 @@ class Armsx2InternalService {
     if (maxBytes != null && sourceLength > maxBytes) {
       return const Armsx2CopyOutcome.failed(reasonBiosTooLarge);
     }
-    final existing = File(path.join(destination.path, path.basename(name)));
-    if (sourceLength > 0 &&
-        await existing.exists() &&
-        await existing.length() == sourceLength) {
-      return Armsx2CopyOutcome.already(sourceLength);
+    if (sourceLength <= 0) {
+      return const Armsx2CopyOutcome.failed(reasonUnreadable);
     }
+    final _Claim claim;
+    try {
+      claim = await _claimDestination(source, destination, name, sourceLength);
+    } catch (error) {
+      return Armsx2CopyOutcome.failed(
+        reasonForCopyError(error),
+        errorText: copyErrorText(error),
+      );
+    }
+    if (claim.alreadyPresent) return Armsx2CopyOutcome.already(sourceLength);
 
-    final output = await _uniqueDestination(destination, name);
+    // Created by this call (exclusive create): the only file it may delete.
+    final output = claim.file!;
     try {
       if (copier != null) {
         await copier(source, output.path);
@@ -353,30 +406,61 @@ class Armsx2InternalService {
         throw const _LengthMismatch();
       }
     } catch (error) {
-      // `output` did not exist before this copy (_uniqueDestination).
       try {
         if (await output.exists()) await output.delete();
       } catch (_) {}
       return Armsx2CopyOutcome.failed(
-        sourceLength <= 0 ? reasonUnreadable : reasonForCopyError(error),
+        reasonForCopyError(error),
+        errorText: copyErrorText(error),
       );
     }
     return Armsx2CopyOutcome.copied(sourceLength);
   }
 
-  static Future<File> _uniqueDestination(
-    Directory directory,
-    String originalName,
-  ) async {
-    final safeName = path.basename(originalName);
-    var candidate = File(path.join(directory.path, safeName));
-    if (!await candidate.exists()) return candidate;
+  /// Text of a copy error for the log and the refusal line: the OS message
+  /// only, never the path.
+  static String copyErrorText(Object error) {
+    if (error is FileSystemException) {
+      final os = error.osError?.message ?? '';
+      return os.isNotEmpty ? os : error.message;
+    }
+    return error.runtimeType.toString();
+  }
 
+  /// Creates the destination file without ever replacing another one:
+  /// `create(exclusive: true)` fails when the name is taken, so the next
+  /// free "name (N)" is tried. A taken name that holds the same bytes as
+  /// [source] means "already in the library".
+  static Future<_Claim> _claimDestination(
+    File source,
+    Directory destination,
+    String name,
+    int sourceLength,
+  ) async {
+    final safeName = path.basename(name);
     final stem = path.basenameWithoutExtension(safeName);
     final extension = path.extension(safeName);
-    for (var index = 2; index < 10000; index++) {
-      candidate = File(path.join(directory.path, '$stem ($index)$extension'));
-      if (!await candidate.exists()) return candidate;
+    for (var index = 1; index < 10000; index++) {
+      final candidate = File(
+        path.join(
+          destination.path,
+          index == 1 ? safeName : '$stem ($index)$extension',
+        ),
+      );
+      try {
+        await candidate.create(exclusive: true);
+        return _Claim(candidate);
+      } on FileSystemException {
+        if (await FileSystemEntity.type(candidate.path) ==
+            FileSystemEntityType.notFound) {
+          rethrow;
+        }
+        if (!await FileSystemEntity.isFile(candidate.path)) continue;
+        if (await candidate.length() == sourceLength &&
+            await filesHaveSameContent(source, candidate)) {
+          return const _Claim(null, alreadyPresent: true);
+        }
+      }
     }
     throw FileSystemException('No free destination name for $safeName');
   }

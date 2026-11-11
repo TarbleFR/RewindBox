@@ -212,8 +212,13 @@ class _DolphinInternalPlaylistActionsState
         final result = await DolphinSmartImportService.importGames(
           requestedSystem: widget.systemFolder,
         );
-        if (result.imported > 0) {
-          await _refreshChangedSystems(result.changedSystems);
+        // A file already on disk but missing from the list is shown too.
+        if (result.imported > 0 || result.alreadyPresent > 0) {
+          await _refreshChangedSystems(
+            result.changedSystems.isEmpty
+                ? <String>{widget.systemFolder.toLowerCase()}
+                : result.changedSystems,
+          );
         }
         if (!mounted) return;
         _notice(result.summary(_text), long: true);

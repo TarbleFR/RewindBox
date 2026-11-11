@@ -10,6 +10,7 @@ import '../l10n/armsx2_texture_locale.dart';
 import '../services/armsx2_texture_service.dart';
 import '../services/gamepad/gamepad_navigation_manager.dart';
 import '../services/rpcs3_save_exchange_service.dart';
+import '../services/logger_service.dart';
 import '../utils/gamepad_nav.dart';
 import 'confirm_action_dialog.dart';
 import 'settings_rows.dart';
@@ -264,8 +265,9 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
     }
     _setBusy(true);
     setState(() => _message = null);
+    var reload = false;
     try {
-      await _importFlow(folder: folder);
+      reload = await _importFlow(folder: folder);
     } catch (error) {
       _showBridgeError(error);
     } finally {
@@ -283,14 +285,28 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
         if (_busy) _setBusy(false);
       }
     }
+    // Outside the try: a failing reload must not replace the success text,
+    // and the busy state is already released (a new import owns its token).
+    if (reload && mounted) {
+      try {
+        await _reload();
+      } catch (error) {
+        // The pack is installed and its result is shown; only the rows of
+        // the panel are stale until it is opened again.
+        LoggerService.instance.w(
+          'ARMSX2 textures: the panel could not reload after an install: $error',
+        );
+      }
+    }
   }
 
-  Future<void> _importFlow({required bool folder}) async {
+  /// True when a pack was installed and the panel must reload.
+  Future<bool> _importFlow({required bool folder}) async {
     final inspection = await widget.client.pick(
       widget.gamePath,
       folder: folder,
     );
-    if (!mounted) return;
+    if (!mounted) return false;
     final token = inspection['token'] as String?;
     if (inspection['success'] != true || token == null) {
       if (token != null) await widget.client.discard(token);
@@ -299,8 +315,7 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
             ? null
             : _errorText(inspection);
       });
-      _setBusy(false);
-      return;
+      return false;
     }
     _token = token;
     final needsConfirmation = inspection['needsConfirmation'] == true;
@@ -318,13 +333,12 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
         icon: Symbols.texture_rounded,
         accentColor: Theme.of(context).colorScheme.secondary,
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       setState(() => _confirming = false);
       if (!confirmed) {
         await widget.client.discard(token);
         _token = null;
-        _setBusy(false);
-        return;
+        return false;
       }
     }
     final result = await widget.client.install(
@@ -333,10 +347,9 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
     );
     await widget.client.discard(token);
     _token = null;
-    if (!mounted) return;
+    if (!mounted) return false;
     setState(() => _message = _installText(result));
-    _setBusy(false);
-    await _reload();
+    return true;
   }
 
   String _installText(Map<String, dynamic> result) {

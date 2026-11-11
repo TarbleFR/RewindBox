@@ -5,6 +5,7 @@ import 'package:neostation/l10n/armsx2_ui_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/dolphin_smart_import_service.dart';
+import 'package:neostation/services/storage/file_content_compare.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -266,6 +267,146 @@ void main() {
       expect(outcome.failureCode, 'biosTooLarge');
       expect(copied, isFalse);
       expect(library.listSync(), isEmpty);
+    });
+  });
+
+  Future<File> writeBytes(Directory dir, String name, List<int> bytes) async {
+    final file = File(p.join(dir.path, name));
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  group('same name and size, different content', () {
+    test('Dolphin imports both images, the second as "(2)"', () async {
+      final other = await Directory(p.join(temp.path, 'src2')).create();
+      final a = await writeBytes(source, 'game.iso', List<int>.filled(64, 1));
+      final b = await writeBytes(other, 'game.iso', List<int>.filled(64, 2));
+      final first =
+          await DolphinSmartImportService.copyImage(a, library, 'game.iso');
+      final second =
+          await DolphinSmartImportService.copyImage(b, library, 'game.iso');
+      expect(first.alreadyPresent, isFalse);
+      expect(second.alreadyPresent, isFalse);
+      expect(second.failureCode, isNull);
+      expect(File(p.join(library.path, 'game.iso')).readAsBytesSync().first, 1);
+      expect(
+        File(p.join(library.path, 'game (2).iso')).readAsBytesSync().first,
+        2,
+      );
+      // Importing B again finds it under "(2)": no "(3)".
+      final again =
+          await DolphinSmartImportService.copyImage(b, library, 'game.iso');
+      expect(again.alreadyPresent, isTrue);
+      expect(library.listSync(), hasLength(2));
+    });
+
+    test('PS2 imports both files, identical content is copied once', () async {
+      final other = await Directory(p.join(temp.path, 'src2')).create();
+      final a = await writeBytes(source, 'game.iso', List<int>.filled(64, 1));
+      final b = await writeBytes(other, 'game.iso', List<int>.filled(64, 2));
+      expect(
+        (await Armsx2InternalService.copyFile(a, library, 'game.iso'))
+            .alreadyPresent,
+        isFalse,
+      );
+      final second =
+          await Armsx2InternalService.copyFile(b, library, 'game.iso');
+      expect(second.alreadyPresent, isFalse);
+      expect(File(p.join(library.path, 'game (2).iso')).existsSync(), isTrue);
+      expect(
+        (await Armsx2InternalService.copyFile(a, library, 'game.iso'))
+            .alreadyPresent,
+        isTrue,
+      );
+      expect(library.listSync(), hasLength(2));
+    });
+
+    test('a copy never replaces a file that is already there', () async {
+      final image = await write(source, 'game.iso', 64);
+      final taken = await writeBytes(library, 'game.iso', [9, 9, 9]);
+      final outcome = await DolphinSmartImportService.copyImage(
+        image,
+        library,
+        'game.iso',
+        copier: (from, to) async => throw const FileSystemException('boom'),
+      );
+      expect(outcome.failureCode, 'copyFailed');
+      expect(outcome.errorText, isNotEmpty);
+      expect(taken.readAsBytesSync(), [9, 9, 9]);
+      expect(library.listSync(), hasLength(1));
+    });
+  });
+
+  group('filesHaveSameContent', () {
+    Future<bool> same(List<int> x, List<int> y, {int chunk = 4}) async {
+      final a = await writeBytes(temp, 'a.bin', x);
+      final b = await writeBytes(temp, 'b.bin', y);
+      return filesHaveSameContent(a, b, chunkBytes: chunk);
+    }
+
+    test('equal, empty and differing files', () async {
+      expect(await same(List<int>.generate(10, (i) => i),
+          List<int>.generate(10, (i) => i)), isTrue);
+      expect(await same(<int>[], <int>[]), isTrue);
+      expect(await same([1, 2, 3, 4, 5, 6, 7, 8, 9], [0, 2, 3, 4, 5, 6, 7, 8, 9]),
+          isFalse);
+      expect(await same([1, 2, 3, 4, 5, 6, 7, 8, 9], [1, 2, 3, 4, 5, 6, 7, 8, 0]),
+          isFalse);
+      expect(await same([1, 2, 3], [1, 2, 3, 4]), isFalse);
+    });
+  });
+
+  group('the BIOS limit does not apply to games', () {
+    test('a sparse 65 MiB file is a game but not a BIOS', () async {
+      final big = File(p.join(source.path, 'big.iso'));
+      final raf = await big.open(mode: FileMode.write);
+      await raf.truncate(64 * 1024 * 1024 + 1);
+      await raf.close();
+      final bios = await Armsx2InternalService.copyFile(
+        big,
+        library,
+        'big.iso',
+        maxBytes: Armsx2InternalService.biosMaxBytes,
+      );
+      expect(bios.failureCode, 'biosTooLarge');
+      expect(library.listSync(), isEmpty);
+      final game = await Armsx2InternalService.copyFile(big, library, 'big.iso');
+      expect(game.failureCode, isNull);
+      expect(game.length, 64 * 1024 * 1024 + 1);
+    });
+  });
+
+  group('raw translations of the new keys', () {
+    const langs = [
+      'en', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'id', 'ja', 'ko', 'zh',
+      'zh_Hant',
+    ];
+    void check(Map<String, Map<String, String>> table, List<String> keys) {
+      for (final key in keys) {
+        final english = table['en']![key];
+        for (final lang in langs) {
+          final text = table[lang]?[key];
+          expect(text, isNotNull, reason: '$lang.$key');
+          expect(text, isNotEmpty, reason: '$lang.$key');
+          if (lang != 'en') expect(text, isNot(english), reason: '$lang.$key');
+        }
+      }
+    }
+
+    test('Dolphin', () {
+      check(DolphinImportLocale.values, const [
+        'reasonWrongType', 'reasonUnreadable', 'reasonNotDisc',
+        'reasonNoSpace', 'reasonCopyFailed', 'importAlready',
+        'importNotImported', 'importMore', 'copyFailedSystem',
+      ]);
+    });
+
+    test('ARMSX2', () {
+      check(Armsx2UiLocale.rawValues, const [
+        'reasonWrongType', 'reasonUnreadable', 'reasonNoSpace',
+        'reasonBiosTooLarge', 'reasonCopyFailed', 'importAlready',
+        'importNotImported', 'importMore',
+      ]);
     });
   });
 }

@@ -91,7 +91,11 @@ class _Armsx2InternalPlaylistActionsState
     try {
       if (action == 'games') {
         final result = await Armsx2InternalService.importGames();
-        if (result.imported > 0) await widget.onLibraryChanged();
+        // A file already on disk but missing from the list is shown too.
+        if (result.imported > 0 || result.alreadyPresent > 0) {
+          await widget.onLibraryChanged();
+        }
+        if (!mounted) return;
         final problems = result.problemSummary(_t);
         _notice(
           [
@@ -140,6 +144,7 @@ class _Armsx2InternalPlaylistActionsState
         }
       } else if (action == 'bios') {
         final result = await Armsx2InternalService.importBios();
+        if (!mounted) return;
         final problems = result.problemSummary(_t);
         if (result.imported > 0) {
           _notice(
@@ -158,6 +163,7 @@ class _Armsx2InternalPlaylistActionsState
         }
       }
     } catch (error) {
+      if (!mounted) return;
       _notice(_tf('importFailed', {'error': error}));
     } finally {
       if (mounted) {

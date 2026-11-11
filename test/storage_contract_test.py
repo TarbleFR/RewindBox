@@ -364,8 +364,8 @@ class PickerCopiesAfterAVerifiedImport(unittest.TestCase):
                 self.assertLess(check, removed, 'a copy of another length is removed')
                 self.assertLess(removed, answer, 'removed before any answer of success')
                 self.assertEqual(span.count(copied), 1)
-                # The file removed is the one this copy created: it comes from the unique-name helper.
-                self.assertLess(span.find('final output = await _uniqueDestination(destination, name);'), check)
+                # The file removed is the one this copy created: an exclusive create (_claimDestination).
+                self.assertLess(span.find('final output = claim.file!;'), check)
 
     def test_armsx2_games_and_bios_share_the_verified_copy(self) -> None:
         source = Source('lib/services/armsx2_internal_service.dart')

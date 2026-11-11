@@ -88,6 +88,10 @@ abstract final class Armsx2UiLocale {
     },
   };
 
+  /// The raw per-language tables, without the English fallback of [textFor].
+  @visibleForTesting
+  static Map<String, Map<String, String>> get rawValues => _v;
+
   /// The text of [key] in the language [code] (English when missing).
   @visibleForTesting
   static String textFor(String code, String key) =>

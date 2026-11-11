@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 
 import 'dolphin_internal_v2_service.dart';
 import 'logger_service.dart';
+import 'storage/file_content_compare.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
@@ -13,10 +14,13 @@ import 'storage/storage_picker_copies.dart';
 /// `DolphinSmartImportService.reason*` codes; the widget shows the localised
 /// sentence of that code.
 class DolphinImportFailure {
-  const DolphinImportFailure(this.name, this.code);
+  const DolphinImportFailure(this.name, this.code, {this.detail});
 
   final String name;
   final String code;
+
+  /// OS text of a failed copy (never a path), shown after the reason.
+  final String? detail;
 }
 
 class DolphinSmartImportResult {
@@ -52,6 +56,15 @@ class DolphinSmartImportResult {
       return value;
     }
 
+    String withDetail(DolphinImportFailure failure, String reason) {
+      final detail = failure.detail;
+      return failure.code == DolphinSmartImportService.reasonCopyFailed &&
+              detail != null &&
+              detail.isNotEmpty
+          ? '$reason ($detail)'
+          : reason;
+    }
+
     final extensions = (DolphinSmartImportService.supportedExtensions.toList()
           ..sort())
         .join(', ');
@@ -67,9 +80,12 @@ class DolphinSmartImportResult {
         lines.add(
           fill('importLine', {
             'name': failure.name,
-            'reason': fill(
-              DolphinSmartImportService.reasonKey(failure.code),
-              {'extensions': extensions},
+            'reason': withDetail(
+              failure,
+              fill(
+                DolphinSmartImportService.reasonKey(failure.code),
+                {'extensions': extensions},
+              ),
             ),
           }),
         );
@@ -87,21 +103,31 @@ class DolphinSmartImportResult {
 class DolphinCopyOutcome {
   const DolphinCopyOutcome.copied(this.length)
     : failureCode = null,
+      errorText = null,
       alreadyPresent = false;
   const DolphinCopyOutcome.already(this.length)
     : failureCode = null,
+      errorText = null,
       alreadyPresent = true;
-  const DolphinCopyOutcome.failed(this.failureCode)
+  const DolphinCopyOutcome.failed(this.failureCode, {this.errorText})
     : length = 0,
       alreadyPresent = false;
 
   final int length;
   final String? failureCode;
   final bool alreadyPresent;
+  final String? errorText;
 }
 
 class _LengthMismatch implements Exception {
   const _LengthMismatch();
+}
+
+class _Claim {
+  const _Claim(this.file, {this.alreadyPresent = false});
+
+  final File? file;
+  final bool alreadyPresent;
 }
 
 /// Routes every selected Dolphin image by the platform reported by DiscIO,
@@ -201,10 +227,10 @@ class DolphinSmartImportService {
     var alreadyPresent = 0;
     final errors = <String>[];
     final failures = <DolphinImportFailure>[];
-    void refuse(String name, String code) {
+    void refuse(String name, String code, {String? detail}) {
       rejected++;
       errors.add('$name: $code');
-      failures.add(DolphinImportFailure(name, code));
+      failures.add(DolphinImportFailure(name, code, detail: detail));
     }
 
     // Picked path -> length its import verified (docs/storage-audit-cleanup.md § 4).
@@ -245,11 +271,19 @@ class DolphinSmartImportService {
         final outcome = await copyImage(source, destination, picked.name);
         final code = outcome.failureCode;
         if (code != null) {
-          refuse(picked.name, code);
+          final text = outcome.errorText;
+          if (text != null) {
+            _log.e('Dolphin import of ${picked.name} failed: $text');
+          }
+          refuse(
+            picked.name,
+            code,
+            detail: code == reasonCopyFailed ? text : null,
+          );
           continue;
         }
         // Copied and verified, or already in the library under the same
-        // name and size: either way the picker's copy (often several GiB)
+        // name and bytes: either way the picker's copy (often several GiB)
         // is not read again.
         verifiedCopies[sourcePath] = outcome.length;
         if (outcome.alreadyPresent) {
@@ -265,8 +299,13 @@ class DolphinSmartImportService {
               : 'Dolphin auto-routed ${picked.name} from $requested to $actualSystem.',
         );
       } catch (error) {
-        _log.w('Dolphin import of ${picked.name} failed: $error');
-        refuse(picked.name, reasonForCopyError(error));
+        _log.e('Dolphin import of ${picked.name} failed: $error');
+        final code = reasonForCopyError(error);
+        refuse(
+          picked.name,
+          code,
+          detail: code == reasonCopyFailed ? copyErrorText(error) : null,
+        );
       }
     }
 
@@ -289,9 +328,9 @@ class DolphinSmartImportService {
   });
 
   /// Copies [source] into [destination] under [name], keeping today's
-  /// "name (2).ext" rule when the name is taken by a file of another size.
-  /// A destination file with the same name AND byte size is left alone
-  /// ("already imported"). A copy that fails midway removes the file this
+  /// "name (2).ext" rule when the name is taken by a file with other bytes.
+  /// A destination file with the same name AND the same content is left
+  /// alone ("already imported"). A copy that fails midway removes the file this
   /// copy created, and only that one. [copier] exists for tests.
   static Future<DolphinCopyOutcome> copyImage(
     File source,
@@ -305,14 +344,22 @@ class DolphinSmartImportService {
     } on FileSystemException {
       return const DolphinCopyOutcome.failed(reasonUnreadable);
     }
-    final existing = File(path.join(destination.path, path.basename(name)));
-    if (sourceLength > 0 &&
-        await existing.exists() &&
-        await existing.length() == sourceLength) {
-      return DolphinCopyOutcome.already(sourceLength);
+    if (sourceLength <= 0) {
+      return const DolphinCopyOutcome.failed(reasonUnreadable);
     }
+    final _Claim claim;
+    try {
+      claim = await _claimDestination(source, destination, name, sourceLength);
+    } catch (error) {
+      return DolphinCopyOutcome.failed(
+        reasonForCopyError(error),
+        errorText: copyErrorText(error),
+      );
+    }
+    if (claim.alreadyPresent) return DolphinCopyOutcome.already(sourceLength);
 
-    final output = await _uniqueDestination(destination, name);
+    // Created by this call (exclusive create): the only file it may delete.
+    final output = claim.file!;
     try {
       if (copier != null) {
         await copier(source, output.path);
@@ -324,10 +371,10 @@ class DolphinSmartImportService {
         throw const _LengthMismatch();
       }
     } catch (error) {
-      // `output` did not exist before this copy (_uniqueDestination).
       await _deleteIfExists(output);
       return DolphinCopyOutcome.failed(
-        sourceLength <= 0 ? reasonUnreadable : reasonForCopyError(error),
+        reasonForCopyError(error),
+        errorText: copyErrorText(error),
       );
     }
     return DolphinCopyOutcome.copied(sourceLength);
@@ -390,6 +437,54 @@ class DolphinSmartImportService {
     }
 
     return changedSystems;
+  }
+
+  /// Text of a copy error for the log and the refusal line: the OS message
+  /// only, never the path.
+  static String copyErrorText(Object error) {
+    if (error is FileSystemException) {
+      final os = error.osError?.message ?? '';
+      return os.isNotEmpty ? os : error.message;
+    }
+    return error.runtimeType.toString();
+  }
+
+  /// Creates the destination file without ever replacing another one:
+  /// `create(exclusive: true)` fails when the name is taken, so the next
+  /// free "name (N)" is tried. A taken name that holds the same bytes as
+  /// [source] means "already in the library".
+  static Future<_Claim> _claimDestination(
+    File source,
+    Directory destination,
+    String name,
+    int sourceLength,
+  ) async {
+    final safeName = path.basename(name);
+    final stem = path.basenameWithoutExtension(safeName);
+    final extension = path.extension(safeName);
+    for (var index = 1; index < 10000; index++) {
+      final candidate = File(
+        path.join(
+          destination.path,
+          index == 1 ? safeName : '$stem ($index)$extension',
+        ),
+      );
+      try {
+        await candidate.create(exclusive: true);
+        return _Claim(candidate);
+      } on FileSystemException {
+        if (await FileSystemEntity.type(candidate.path) ==
+            FileSystemEntityType.notFound) {
+          rethrow;
+        }
+        if (!await FileSystemEntity.isFile(candidate.path)) continue;
+        if (await candidate.length() == sourceLength &&
+            await filesHaveSameContent(source, candidate)) {
+          return const _Claim(null, alreadyPresent: true);
+        }
+      }
+    }
+    throw FileSystemException('No free destination name for $safeName');
   }
 
   static Future<File> _uniqueDestination(
