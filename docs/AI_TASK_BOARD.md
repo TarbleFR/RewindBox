@@ -3802,7 +3802,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     `rb_s2arm_*` symbols are visible. Five earlier runs failed on the build script (target
     processor, library lookup, Capstone linked twice), none on the library code. Not linked
     into any app; how main wants to receive it is asked.
-  - In progress, unverified: port of the GPU driver list and of the NRO tools (delegated).
+  - Batch 4 slice 3 done on the host: GPU driver list, NRO exports, NRO conversion
+    (`s2arm_modules.c`, `s2arm_nro.c`, delegated, `ee62f31`). Run `42945032631`: 32 cases,
+    0 failed (17 identical outputs, 12 refused by both, 2 refused by the port only). NROs
+    hidden inside other RomFS files (zstd upstream) are refused, not converted.
+  - Batch 4 slice 4 done on the host: `rb_s2arm_prepare_code` chains the code stage in the
+    packer's order. Run `42946936286` on `d8c4e2b`, Linux and macOS: 5 cases against the same
+    steps run by S2Arm's tools (2 successes required identical, 3 refusals matched). Run
+    `42945922401` was red from the fixture (no dynamic symbols in the synthetic subsdk0),
+    fixed. The synthetic NRO is rejected by the rewriter on both sides: rewriting a converted
+    NRO is not yet shown end to end.
+  - Left in batch 4: unpack (C# on LibHac upstream), system data, RomFS index, package
+    layout; optional tables (widescreen, frame rate, patches) left out on purpose.
   - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
     playlist files belong to PR #172 until main integrates it; skins stay with session 02.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
