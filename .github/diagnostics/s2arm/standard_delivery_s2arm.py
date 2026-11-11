@@ -246,8 +246,8 @@ def configure(sd=None):
 # --- Operations of this line ---------------------------------------------------------------------------
 
 def request_guard(sd, environment=None, repo=None):
-    """Preflight, before anything else: the run is on the line branch and its head commit requests one build
-    of this line; a manual run must name that same build."""
+    """Preflight, right after the effective tree is restored: the run is on the line branch and its head commit
+    requests one build of this line; a manual run must name that same build."""
     environment = os.environ if environment is None else environment
     require(environment.get('GITHUB_REF_NAME') == DELIVERY_BRANCH and
             environment.get('GITHUB_REF', 'refs/heads/' + DELIVERY_BRANCH) == 'refs/heads/' + DELIVERY_BRANCH,
