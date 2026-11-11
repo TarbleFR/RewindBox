@@ -96,7 +96,7 @@ jobs:
     - name: Exercise RAM measurement, graph bounds and timer lifetime in UIKit
       if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
       run: python3 test/melonx_memory_graph_test.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-host-${{ github.sha }}

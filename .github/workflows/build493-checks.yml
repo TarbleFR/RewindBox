@@ -32,7 +32,7 @@ jobs:
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - name: Changed inputs since Build 492, analysis, Dart and Python checks
         run: python3 test/build493_targeted_test.py --part host
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: build493-host-${{ github.sha }}

@@ -50,7 +50,7 @@ jobs:
             -scheme AchievementTranslation -destination "platform=iOS Simulator,id=$DEVICE,arch=$(uname -m)" \
             -parallel-testing-enabled NO -resultBundlePath build/AchievementTranslation.xcresult \
             test CODE_SIGNING_ALLOWED=NO 2>&1 | tee achievement-translation-xcodebuild.log
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: achievement-translation-xcode16-${{ github.sha }}

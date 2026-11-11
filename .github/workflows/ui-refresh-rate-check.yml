@@ -52,7 +52,7 @@ jobs:
           grep -E 'Testing on|syntax check|range|Executed|OK' /tmp/ui-refresh-rate.log | tail -n 40
       - name: Upload simulator diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: UI-Refresh-Rate-Diagnostics-${{ github.run_id }}
           path: |

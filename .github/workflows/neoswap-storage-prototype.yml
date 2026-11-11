@@ -55,7 +55,7 @@ jobs:
         run: python3 native/neoswap-storage/run_source_validation.py --output "$RUNNER_TEMP/storage-proof"
       - name: Preserve exact-source evidence, including failures
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: NeoSwap-storage-prototype-${{ runner.os }}-${{ github.sha }}
           path: ${{ runner.temp }}/storage-proof

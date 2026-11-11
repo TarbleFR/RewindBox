@@ -44,7 +44,7 @@ jobs:
       - name: Bind fresh executed host results
         run: python3 .github/diagnostics/hogwarts606_host.py finalize
       - name: Preserve exact host checks and failures
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: Hogwarts606-host-${{ github.sha }}

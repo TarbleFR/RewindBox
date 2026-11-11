@@ -87,7 +87,7 @@ jobs:
             shutil.copy2(item,Path('evidence')/item.name)
         PY
         python3 build-utils/delivery_cipher.py artifact evidence encrypted-relaunch-evidence
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: RetroArch-relaunch-proof-${{ github.sha }}

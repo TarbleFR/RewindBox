@@ -59,7 +59,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/armsx2-host-source"
           git archive HEAD | gzip > "$RUNNER_TEMP/armsx2-host-source/neostation.tar.gz"
           printf 'host=%s\narmsx2=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > "$RUNNER_TEMP/armsx2-host-source/identity.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ARMSX2-host-source-${{ github.sha }}
           path: ${{ runner.temp }}/armsx2-host-source/
@@ -118,7 +118,7 @@ jobs:
           rustc --version
       - name: Compile native core and verify binary ABI
         run: bash build-utils/armsx2/build_core.sh .native-sources/ARMSX2
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: ARMSX2Core-${{ github.sha }}
           path: dist/armsx2/
@@ -134,7 +134,7 @@ jobs:
           cp build/armsx2-core/CMakeCache.txt build/armsx2-diagnostics/ 2>/dev/null || true
           cp build/armsx2-core/binary-path-leaks.txt build/armsx2-diagnostics/ 2>/dev/null || true
           printf 'host=%s\narmsx2=%s\n' "$GITHUB_SHA" '${{ steps.source.outputs.revision }}' > build/armsx2-diagnostics/identity.txt
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: ARMSX2Core-diagnostics-${{ github.sha }}

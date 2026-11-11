@@ -61,7 +61,7 @@ jobs:
         run: |
           python3 test/liquid_motion_reuse.py
           flutter test --no-pub --reporter expanded test/liquid_motion_test.dart --name 'console perspective'
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RewindBox-Motion507-Flutter-${{ github.sha }}
@@ -85,7 +85,7 @@ jobs:
       - run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
       - name: Type-check both real catalogue pages and execute UIKit material and power notifications
         run: python3 test/liquid_native_probe.py
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RewindBox-Motion507-UIKit-${{ github.sha }}

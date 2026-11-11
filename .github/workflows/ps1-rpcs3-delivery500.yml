@@ -43,7 +43,7 @@ jobs:
         persist-credentials: false
     - name: Verify closed product inputs, exact PS1 catalogue and successful Core evidence
       run: python3 .github/diagnostics/ps1rpcs3500_delivery.py --output build/delivery/rpcs3-audit-source.json
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ps1-rpcs3-500-validation-${{ github.sha }}
         path: build/delivery/
@@ -859,7 +859,7 @@ jobs:
 
         python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
     - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build/encrypted-delivery/
@@ -876,7 +876,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-diagnostics
         path: build/encrypted-diagnostics/
