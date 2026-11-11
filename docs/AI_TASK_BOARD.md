@@ -3787,12 +3787,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   whether device-observed); S2Arm installs signal handlers without chaining and links its
   NativeAOT services statically; no complete on-device preparation exists upstream. No batch
   is started or committed to.
-- **Batches 4–6 authorised by the maintainer (11 Nov) before the device result**, the whole to be
-  buildable as an IPA separate from the common one. Batch 4 slice 1: `native/s2arm/prepare/`
-  (rewrite stage as a C library, no bash/Python), compared with S2Arm's command line in
-  `.github/workflows/s2arm-prepare.yml` (`d96d206`, first run `42940786190` not finished). Not
-  linked into the app. Batches 5–6: questions sent to sessions 03 (playlist files) and 02 (skins);
-  none of their paths touched.
+- **Batches 4–6 authorised by the maintainer (11 Nov) before the device result. Two IPA lines
+  (his words relayed to main for confirmation):** a Switch 2 test IPA carrying this branch, and
+  the usual IPA without Switch 2. This branch therefore stays out of the common IPA.
+  - Batch 4 slice 1 done on the host: `native/s2arm/prepare/` rewrite stage, byte-identical to
+    S2Arm's command line on a synthetic ExeFS, five refusal cases, iOS arm64 compilation (run
+    `42940946139` on `2a7341d`; run `42940786190` was red from a test-harness defect, fixed).
+  - In progress, unverified: port of `tools/addr_need.py` (delegated, isolated worktree);
+    `S2ArmPrepare.xcframework` build (`build-utils/s2arm/`, `.github/workflows/s2arm-core.yml`,
+    first run `42941599637`).
+  - Batches 5–6: owners' inputs in [the study](s2arm-study-2026-11-11.md) section 5. Shared
+    playlist files belong to PR #172 until main integrates it; skins stay with session 02.
 - **Open or limit:** nothing measured on an iPhone; device questions A–F all open. Batch handed
   to main (11 Nov): both branches, the root `pubspec.yaml` lines and the Info.plist key of a test
   IPA are main's to add.
