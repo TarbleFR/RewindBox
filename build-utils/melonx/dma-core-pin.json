@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "790664dabecf00279456657bb854b6de229ab715",
-  "run": 42883532005,
-  "job": 130065784537,
+  "source": "e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
+  "run": 42933016136,
+  "job": 130236164433,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13799060992,
-  "name": "MeloNX-engine-790664dabecf00279456657bb854b6de229ab715",
-  "bytes": 100452266,
-  "sha256": "f90a7a9389b13d594fbb9c32ab8a52951e96789f3b3452b51821780093fefa4b",
-  "expiresAt": "2026-11-24T20:03:42Z",
+  "artifact": 13819773531,
+  "name": "MeloNX-engine-e47b18d2aedb3b0403ae4fafba711fd044a0a9fc",
+  "bytes": 100461522,
+  "sha256": "1ff1aa565703dd4b2d213c1ad87c1eba9d80167a21ad357a24bc6d1784b94ddf",
+  "expiresAt": "2026-11-25T01:32:37Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "f8ffafe54f25712284ad968438e197561c766ae216b88b43c2504c4c77306838",
-      "bytes": 38439888
+      "sha256": "d9b8a8375a142c35219f7c7259e7f8e3ece2e5d9f2d6d44b8437e5288de937ec",
+      "bytes": 38439896
     },
     "iossimulator-arm64": {
-      "sha256": "3ba1ec0da46048a7a958f3d8f629f54011c6842450fd1a806cda80fa9841e747",
-      "bytes": 38756808
+      "sha256": "9909fa8b586cfa59237fcc1baa65339e26acb8d12196903b916288de2fb63807",
+      "bytes": 38756824
     }
   },
   "identities": {
-    "ios-arm64": "b29beb00597c1ff01272128f19c13885a07ec850e8d5586b21266ee6eeb18c52",
-    "iossimulator-arm64": "506358abbe0632dba71c6f313d6c27a248080ae32579ab5244f9ab059f187cc2"
+    "ios-arm64": "5e446852f4a36ff11ebffb7616bbe5c3d1d93e4c8370cd840ea6ffeca3360730",
+    "iossimulator-arm64": "2e860517f3ddd9ad873b85e7089c3faca7c0cfdb8cf4257d96a92c73107c3423"
   },
-  "contractSha256": "091195dacb1b0e567b6c5e5885ffa27bb739201e8116480abb894e65aa66d981",
-  "resultSha256": "3ef2e01b55b3399ed4fbbfdb18e5610c354908ae9c46c259cbb070bba9c1e167",
-  "packagedFingerprint": "3bccab5472d09963d97ebbd70ef4927385396737c60692ca9d3010660e5fc18b",
+  "contractSha256": "45441585a2730a75d6c1353032d67d2167c95bb2ecd7e352c1d3c91c99ee14fa",
+  "resultSha256": "9872a3f672c6c08719330c7c856f6eb1669efb4cb7d230ecda6645fba327eb68",
+  "packagedFingerprint": "9e1e2ae5930bddbe8b09b4ee55751d6f8f80c72cd2d897b301e82d2e64705b41",
   "replaces": {
-    "source": "9d81daa26d6dcee32c2357a87f20be7a1fd2b3c1",
-    "run": 42839257625,
-    "artifact": 13779212424,
-    "packagedFingerprint": "b1584100bca4a960f44a25640b00177c3f04c2a38f7a4e46cf87df88ee0db37c",
-    "reason": "MeloNX lot for IPA 724 (handoff of session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov, branch head 253cafd3, merged as 790664da): Core 723 = Core 721 + four adapters: GC keep-alive dormant line (F1), GC pause journal, separate-array dirty bit (extra_array_dirty), texture array barrier epoch (array_barrier_epoch); the mirror pending pages gate stays parked; contract 091195da. MoltenVK 6f65b2a6 unchanged. Replaces Core 721 of IPAs 722 and 723. 81 fresh Apple gates; not run on an iPhone; no FPS claim."
+    "source": "790664dabecf00279456657bb854b6de229ab715",
+    "run": 42883532005,
+    "artifact": 13799060992,
+    "packagedFingerprint": "3bccab5472d09963d97ebbd70ef4927385396737c60692ca9d3010660e5fc18b",
+    "reason": "MeloNX lot for the next IPA (branch work/melonx-fps-stability-20261103 head 58a982d2, merged as 46e8486c; engine built at e47b18d2): Core 725 = Core 723 + every recorded pipeline state replayed at launch (adapt_variant_replay_all.py) and the engine journal room made at process start (rotation of MeloNX-core.log); contract 45441585, 82 fresh Apple gates. MoltenVK v1.4.2 with the four-part recipe patch (binary 90bd98a4, pipeline cache load diagnostic line) pinned separately. Replaces Core 723 of IPA 724. Not run on an iPhone; no FPS claim."
   }
 }

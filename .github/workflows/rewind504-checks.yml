@@ -55,7 +55,7 @@ jobs:
       - name: Exercise real readiness, fast and slow startup, retry, lifecycle and Reduce Motion
         if: ${{ !cancelled() }}
         run: flutter test --no-pub --reporter expanded test/rewind_startup_test.dart test/startup_locale_test.dart
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RewindBox-startup-review-${{ github.sha }}

@@ -41,7 +41,9 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_pipeline_variant_replay', 'adapt_pipeline_snapshot_retire',
          'adapt_extra_set_binds', 'adapt_array_reference_deltas', 'adapt_worker_library_share',
          'adapt_bgc_fragmentation_guard', 'adapt_pipeline_cache_mapped_data',
-         'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch')
+         'adapt_gc_keepalive_dormant', 'adapt_gc_pause_journal', 'adapt_extra_array_dirty', 'adapt_array_barrier_epoch',
+         'adapt_variant_replay_all', 'adapt_pause_checkpoint_growth',
+         'adapt_vulkan_memory_journal')
 
 
 def sha(path: Path) -> str:
@@ -188,6 +190,26 @@ def reverse_present(target: Path, module_name: str, only=None) -> list:
     finally:
         module.once, module.BASELINE = original, baseline
     return present
+
+
+JOURNAL_START_CALL = '''        if (Path.GetFileName(path) == "MeloNX-core.log")
+        {
+            try { MakeRoomAtStart(path); } catch { }
+        }
+'''
+
+
+def journal_without_start_room(text: str) -> str:
+    """The engine journal (EmbeddedLaunchDiagnostics.cs) without Core 725's room at the start of a process: the call in
+    ConfigureJournal and the block that follows it (two constants and MakeRoomAtStart). What is left must be the journal
+    the earlier Cores were prepared with; a journal without the addition is returned as it is."""
+    if 'MakeRoomAtStart' not in text:
+        return text
+    assert text.count(JOURNAL_START_CALL) == 1 and text.count('MakeRoomAtStart') == 2, 'unexpected journal start-room edit'
+    start = text.index('    // A process starts with room for its whole journal.')
+    end = text.index('    // Engine warnings and errors repeat:')
+    assert start < end and text.index(JOURNAL_START_CALL) < start
+    return (text[:start] + text[end:]).replace(JOURNAL_START_CALL, '')
 
 
 def use_authenticated_libhac_feed(tree: Path, root: Path) -> bool:

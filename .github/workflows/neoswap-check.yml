@@ -150,7 +150,7 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > build/neoswap/source.txt
       - name: Upload exact native test evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: NeoSwap-checks-${{ github.sha }}
           path: |
@@ -187,7 +187,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: halt_on_error=1
         run: python3 build-utils/validate_neoswap_donation_metrics.py apple
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-metrics-apple-${{ github.sha }}
@@ -211,7 +211,7 @@ jobs:
           cache: true
       - name: Check NeoSwap settings, channels and twelve catalogues with locked dependencies
         run: python3 build-utils/validate_neoswap_donation_metrics.py flutter
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-metrics-flutter-${{ github.sha }}

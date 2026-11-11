@@ -138,6 +138,29 @@ again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
 `origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
 only owned unpushed commits after inspecting remote advances/conflicts.
 
+**Switch 2 (S2Arm) test IPA, session 04 (maintainer, 11 Nov, in the principal session:
+"Autorise la session Switch 2 à compiler sa propre IPA"):** session 012mUASj3EQnvC86WC56AePw
+may build, verify and privately deliver **its own** Switch 2 test IPA from its branch
+`work/s2arm-switch2-prototype-20261110`, without waiting for main and without asking again.
+- It is a separate IPA line. The common IPA stays main's (Cores, pins, manifests under
+  `build-utils/delivery/`, `[ipa-delivery:N]` on `Claude`) and carries no Switch 2 engine; the
+  bridge's diagnostic hook `d32738b5` is inert there (no file sets `RewindBoxS2ArmProbe`).
+- Session 04 works and triggers on its own branch only (its own workflow and delivery tag;
+  `standard-delivery.yml` runs for `Claude` alone). It does not push to `Claude` or `main`, and
+  changes no pin, contract or manifest of the common line; what should later enter the common
+  IPA still comes to main as a handoff.
+- The rest of this section applies to that IPA unchanged: follow the run to its terminal
+  state, verify the downloaded plaintext IPA (bytes, SHA-256, component and signing
+  identities, receipt) before giving it, keep recipient keys out of Git and delete private
+  keys after the verified delivery, upload artifacts through the protected action only
+  (#174), no public release, tag or post, no raw private log in Git.
+- Build numbers: the Switch 2 line uses its own range from 801 (801, 802, ...), never a
+  number of the shared sequence (common IPAs and MeloNX Cores, 725 onward), so the two lines
+  cannot collide. Default set by main; the maintainer may change it.
+- Open, for the maintainer to settle in session 04: same application identifier as the
+  common IPA (installing one replaces the other, data kept) or a distinct one (both
+  installed, separate data).
+
 **Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
 already integrated are accepted; preserve shared history, source/component/package/
 signature checks and the ban on post-freeze merges. Do not reopen that approval.
@@ -1845,6 +1868,93 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       locally (no Flutter). Source `e6510aeb`, request `367b8980`, run `42899482941` in progress. Risk: the database turns
       Asynchronous Texture Streaming on for GOW3, never run on the device. MeloNX Core 723 pinned `249d287d` (run `42883532005`).
       **Next:** pin Core 922, IPA 724 (Core 922 + MeloNX 723 + skins PR 170 + performance retention + profile removal).
+    - **Device results, IPA 724 (build 724 = Core 923, one process PID 50194; private journals, not in Git) and Core 924.**
+      - **BO2 (BLES01717, session 8, database entry + 1 per-game override, accurate reservations):** play windows 10-40 at
+        20-35 fps, four stops of 0.6-1.1 s (windows 25, 31, 32, 39: **synchronous Metal shader compiles, not the freeze**,
+        `SHADERSTALL538_EVENT` 535-946 ms each with 474-814 ms in the fragment library and 4-9 ms of RSX thread CPU; 13 such
+        compiles in build 723's BO2 session, no costly fingerprint common to both sessions; shader mode Legacy, the iOS
+        default), then no frame from window 41 on. Frozen windows:
+        `SPUWAIT551 putllc_ok` 7.6 and 8.5 M per 5 s (2.0 M in play), `putllc_heavy` 6.0 and 6.7 M, `getllar_sleep` 0;
+        `PPUGRACE664` 6010 and 6155 windows opened, 8671 and 8768 writer locks deferred 994 and 1012 ms. `FREEZE_DUMP`: main on a
+        semaphore 3.2 s; PPU Secondary (0.97 core) holds a reservation on 0x2e208d8 at time 0x83d1ee800 while the line word
+        reads 0x83d1ee840 (another thread's lock) on two reads 27 us apart; six SPUs on GETLLAR/PUTLLC of 0x2e20880/0x2e20c00.
+        **Rejected hypothesis:** the reservation word does not go backwards; the dump reads its line records before its thread
+        records (`ts=`), which explains the build 723 reading. **Cause (source):** `do_putllc` locks its line
+        (`rsrv_unique_lock`), then `vm::writer_lock` defers to the starving PPU and its grace window with the line locked, and
+        `ppu_store_reservation` fails on a locked line. **Core 924 (`REWINDBOX_GATE_BEFORE_LINE_924`):** the deferral is made
+        before the line lock (`passive_gate::ahead_scope`), the writer lock does not defer again; same waits and bound, same
+        validation after; `do_putllc` only (PPU full-line store and 128-byte store unchanged: not on the observed path,
+        PPUThread.cpp is a PPU identity input); one exact SPUThread.cpp alias, identities unchanged. Host model
+        (`test/rpcs3_gate_line924_test.py`, g++/clang++/ASan+UBSan): line word 64 before, 0 after while a writer defers; PPU
+        stores on the polled line x3 to x13 in the storm model (writer stores drop there; not a device figure). Engine `72e79fb`,
+        source `2fdda673`, request `db9b8618`, run `42926781861`. [Doc](rpcs3-core924-bo2-gate-before-line.md). **Remaining
+        BO2 cost:** every data-changing accurate PUTLLC still parks every PPU (273 k/s in play): the 20-35 fps ceiling and its
+        oscillation. **New measurement:** MEMPARTS923 graphics ledger 0.91 -> 1.39 GB and footprint 3.40 -> 4.06 GB in 2 min
+        of play while `texture_mib` stays 100-110. **Attributed (11 Nov):** JITMEM `vma_allocated` plateaus at 777-813 MiB
+        while `vma_block_bytes` goes 648 -> 1136 MiB in 64 MiB steps (`vma_unused` 45 -> 360); the ledger follows the blocks
+        (each a placement MTLHeap). iOS only ever used VMA's fastest strategy (load < 50 % of a 7.4 GiB unified heap).
+        **Core 925 in preparation (`REWINDBOX_GPU_MEMORY_PACKING_925`, engine `ecbc453`):** allocations >= 1 MiB get dedicated
+        memory, the others the minimum-memory strategy; setting GPU Memory Packing (Automatic = on), `COREPROF GPUPACK925`.
+        Host model on the pinned VMA 3.3.0 behind a mock device, BO2-shaped load: unused 169-210 -> 31-50 MiB
+        (`test/rpcs3_gpu_memory_packing925_test.py`). Not modelled: the time Metal takes to create a heap per allocation.
+      - **GOW3 (BCES00510, database entry as is: async_tex=true, 100 %, mt_rsx=false):** maintainer reports unplayable graphics
+        errors on fresh boots (sessions 1-3) and savestates (4, 6); no journal line names the setting. By elimination against
+        build 723 (async_tex=false, 75 %, mt_rsx=true) and the Build 552/610 withdrawals, `sanitiseForIOS` no longer applies
+        `Asynchronous Texture Streaming: true` from the database (179 of 2187 entries; `c2519a25`; Dart tests run in the
+        delivery's Flutter group). **Hypothesis, to confirm on the device.** Confirmed: `GOW3MLAA909 ppu=savestate_applied`,
+        no 1280x720 read-back after the second window. `SPUPROF923` (sessions 4, 6, 11-17 fps): three Big SPURS kernels running
+        91-93 %, the Little one 86-92 %, samples spread over many regions (real work, not one polling pc); 180-360 k heavy
+        PUTLLC per window also park the PPU main thread (0.90-0.96 core). Next GOW3 lever not chosen yet.
+      - **Cores 925 and 926 compiled, not pinned (11 Nov).** 925: run `42930926849` (iPhone Core green; Apple harness red on
+        the 919/921 tests because the 925 insertions sat next to the 921/923 lines; fixed by moving them in 926). 926
+        (engine `12e787c`, source `b4c70a37`, run `42935666936` green, both jobs): Black Ops II texture lookup memo served
+        (4,676,476 verified reuses on builds 662-724, 0 differences) and a retry of the MoltenVK boot record, superseded by 927.
+      - **Maintainer (11 Nov):** "il faut atteindre les 3ms de gains de travail" (Black Ops II stays at 60 Hz; 52 % of its
+        frames take two vblanks, 11 % one), then "Pas de protection et le but c'est de faire fonctionner les soumissions
+        asynchrones", applied "a chaque jeu le necessitant", "ne t'arrete pas avec deux defauts trouves"; **no new IPA before
+        all the fixes** ("attends tous les autres correctifs avant toute nouvelle IPA").
+      - **Core 927 (`REWINDBOX_MVK_ASYNC_DEFINITIVE_927`, `REWINDBOX_GPU_BACKGROUND_GATE_927`; engine `477180d`).**
+        [Doc](rpcs3-core927-mvk-async-definitive.md).
+        **Input identity:** private journals of builds 640-724 (not in Git); MoltenVK tree `db660224` (the Core's);
+        engine `12e787c` + this commit. **Findings (journals):** 16 asynchronous sessions (9 AC, 7 BO2; 9 processes,
+        76,148 presents), 0 acquire timeouts, encoding queue recorded each time; BO2 `submit` 0.05 ms/frame asynchronous vs
+        3.5-4.8 ms synchronous; every `failed_before` came from a boot ended before 900 guest flips. The only device loss
+        of the journals (IPA 650, AC, PID 8767, asynchronous) is raised 30 ms before `HOST_STATE app=background`: iOS refuses
+        background commits and MoltenVK marks the device lost (`MVKQueue::handleMTLCommandBufferError`, whatever
+        RESUME_LOST_DEVICE). **Findings (source, two read-only reviews + one review of the diff):** (1) the present barrier
+        gave up after 2 s while `MVKSemaphoreMTLEvent` counts at encode time and the acquisition reads the counter on the
+        calling thread; (2) the blocking ZCULL gather and (3) `vk::wait_for_fence` spun until MoltenVK had encoded the
+        submission (`MVKQueryPool::endQuery` runs at encode; query pools are never reused, so no stale result);
+        (4) nothing stopped GPU work in the background; (5) asynchronous texture streaming orders two queues with the same
+        encode-time counters. Rejected as defects after reading: object lifetime (all disposal waits for the fence), device
+        waits before swapchain rebuild/teardown, MetalFX handoff (already drained). **Change:** boot record removed (the
+        header stays as a comment-only file: the canonical delta drops no file); Automatic = every title, synchronous only
+        when the configuration turns asynchronous texture streaming on (Enabled keeps uploads on the RSX thread); barrier
+        never abandoned; a marker behind every submission of the presenting queue, the fence keeps the ticket, fence waits
+        and the gather sleep until encoded; background gate (passes around submit, present, acquire, MetalFX, device waits;
+        closed on `UIApplicationDidEnterBackground` with bounded waits 500 ms + 1 s settle, open on `DidBecomeActive`,
+        bypass while the emulator stops). `COREPROF OPT587` new fields, `COREPROF GPUGATE927`, `Resolved title policy 927`.
+        **Proof (host):** `test/rpcs3_mvk_async927_test.py` runs the real registry, tickets and gate against models of
+        MoltenVK's semaphore counter and query availability and of iOS background refusal, old rule as control: 4 -> 0
+        never-signalled waits, ~270,000 -> 0 `VK_NOT_READY` spins (same result), ~200 -> 0 and 30 -> 0 refused commits;
+        plain, ASan/UBSan, TSan (g++), plain (clang); real libdispatch on the macOS harness. **Validation:** closure,
+        codegen identities unchanged (PPU a987639e / SPU 477a3fa4), fold chain, 919-926 tests on the 927 tree, rerun list;
+        delivery checker `rpcs3_core_component.check_runtime_markers` now requires the record markers up to Core 926 and
+        refuses them from 927 (`test/rpcs3_core_marker_rule927_test.py`). **Not done:** no iPhone run; no FPS claim.
+        **Risks:** a title never run asynchronous may expose a MoltenVK defect (per-game Disabled restores synchronous);
+        the settle relies on iOS accepting GPU work until the background transition returns (Apple's documented rule):
+        confirm with `GPUGATE927` and the absence of `Device lost`.
+      - **MeloNX Core 725 pinned (`b83349ea`):** run `42933016136` on `e47b18d2`, artifact `13819773531` (`1ff1aa56…`),
+        iPhone `d9b8a837…` 38,439,896 B, fingerprint `9e1e2ae5…`, contract `45441585`, 82 fresh gates; MoltenVK rebuild
+        `90bd98a4…` pinned `e47b18d2`. `standard_delivery_contract_test` compares the frozen 724 manifest until the next draft.
+      - **Core 927 published state:** source `36e29a84` (+ doc `3589b6fe`), compile request `916b8f19`, run `42946503173`
+        (pin pending). Second read-only pass over the areas the first did not reach (descriptor sets, lazy Metal objects,
+        argument buffers, encoding-pool caches, query copies, queue teardown, main-thread calls from the queue thread,
+        MetalFX releases, overlay lock): no new defect; MoltenVK's queue thread never calls the main thread synchronously
+        on iOS, so the settle of the background transition cannot deadlock.
+      - **Next:** pin Core 927 when run `42946503173` is green; IPA 725 only on the maintainer's request (Core 927 + MeloNX Core 725 + database
+        rule; skins PR 171/173 to review). Device protocol for 927: `mvk_async=1` at first boot of BO2/GOW3/AC, leave the
+        app a few seconds in play and come back (no `Device lost`, `GPUGATE927 closes>=1`), `RSXSYNC551 submit` per frame.
   - **IPA 690 delivered and verified (7 Nov, maintainer: "Lance une compilation avec les derniers correctifs ... MeloNX")**: = 688 +
     MeloNX Core 689 (pin `0fe471f1`, produced by MeloNX session 01JA5QgK…; occupied read-backs into a GPU buffer, async shaders skip only
     into regenerated targets); RPCS3 Core 907 unchanged. Trigger `2c807a36`, run `42399940068`, five jobs green first try; IPA 249905367 B,
@@ -3522,6 +3632,132 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     32 MiB buffer in pages, 400 random buffers about 81 % of their full copies, and a buffer under 16 KiB would hold a
     whole page. In 718 the buffer cache held 107-119 MiB in play, which bounds what full copies can hold; the device
     share (memory lines, then a count of the copies) decides whether the settle step is worth its risk.
+  - **IPA 724, Hogwarts 1x on the iPhone 16 Pro Max (pid 49375, 22:58:44-23:02 UTC 10 Nov, Core 723 `f8ffafe5…`, bridge
+    `b713354b`, private journals and video, not in Git).** Verdict NOT PLAYABLE: median 13.4 FPS, gaps p95 183 / p99
+    500 ms, longest 4 284 ms, footprint up to 5 414 MiB, 49 memory warnings, device 4-10 % available, thermal `fair`.
+    Three phases: 30 FPS held at t=28-72 s (footprint about 4.45 GB, device 8 %); degraded at t=73-106 s (windows with
+    1.3-3.7 s of graphics pipeline builds); collapsed from t=107 s (memory). Rendering looks correct in the video.
+    - **Memory is the first obstacle.** App footprint 5.2-5.4 GB plus 2.86 GB of guest memory in use in the donors on an
+      8 GB phone. Memory lines: t=30 `footprint=4496 graphics=542+91 internal=2238 compressed=3358`; t=150
+      `footprint=5377 graphics=1053+159 internal=988 compressed=6327`. Managed heap 0.66-0.8 GiB (inventory at the
+      pause: committed 662 MiB, gen2 267, LOH 267), texture cache 150 MiB, buffer cache 127 MiB, MoltenVK "GPU memory
+      allocated" 1 269 MB, JIT arena 1 GiB: about 2.3 GiB of native memory is not attributed. GC pauses per 5 s window
+      41-63 ms while 30 FPS holds, then 100-380 ms with windows of 1 951, 2 725 and 3 129 ms; the stall snapshots
+      resolved with the Core's symbol map show an ephemeral GC in `gc_heap::mark_through_cards_for_segments` (580 ms)
+      and a GC suspension in progress (417 ms): the heap is small, its pages are compressed. Audio DSP stalled 1.75 and
+      2.7 s (whole-process freezes).
+    - **The mapped pipeline cache of Core 721 gave no footprint change on the device.** Load curve 724 vs 718 (copy
+      mode): 2 060 -> 4 149 (t=6) -> 3 596 MiB (t=18) against 2 090 -> 4 256 (t=5) -> 3 678 MiB; MoltenVK's own
+      timings are the same in both ("Read MSL from pipeline cache" 0.605 ms x 4 669 against 0.561 ms x 4 799;
+      "Decompress MSL" 0.062 against 0.055 ms). The packaged MoltenVK is the three-part build (signed
+      `MeloNXMoltenVKStandalone` identical in IPA 722-724, changed from 721). Whether the Core's snapshot was
+      referenced is **not decided**: the journal line `pipelineCache mainDataMapped` is among this process's first 415
+      records, which a mid-session rotation moved to `MeloNX-core.log.1`; the export carries `MeloNX-core.log` only
+      (sequences 416-543). MoltenVK compiled 4 827 MTLLibraries in the session (4 669 at the load, "Compile MSL into a
+      MTLLibrary" avg 1.04 ms: Metal's own cache) and keeps them; 3 526 pipelines created.
+    - **Pipeline variants:** "ready before their first draw 506 ... late creations left 869 (4955 ms): new 160, planned
+      not built yet 701, built but missed 8 ... Replays: built 512 (compile 2273 ms, queue wait 30149 ms) ... held for
+      memory 0 ... still planned 843 of 1357": the replay stopped at its 512-per-session cap.
+    - **Freeze after a pause (open, next lot):** paused at t=192-196 s, resumed at t=197; the pause checkpoint wrote
+      `pipelineCache written: main 793,10 MiB in 10909 ms` for +1.06 MiB of growth (MoltenVK "Write MSL to pipeline
+      cache" 1.85 ms x 4 673) and went on after the resume: FPS 0-0.3 from t=197 to 205 (gaps 6 461 and 3 880 ms,
+      per-second journal lines missing), footprint flat (5 152-5 233 MiB). To decide: a pause checkpoint that waits
+      and is dropped when the game resumes, or a growth threshold; the write at the close and in background stays.
+    - Also seen: heap compaction at the pause 1 350 ms; the memory breakdown's walk stopped at its 400 ms bound in the
+      guest lease's 65 536 shared regions (`regions=74606/407.1ms/partial`). Load, second by second (performance
+      journal): 2 060 MiB at t=1, +1 078 over the 4 s the `RewindBox.PipelineCacheL...` thread reads the cache, +913 in
+      the second it ends (the merge into main), -640 by t=11 (staging destroyed) while `Vulkan_Pipeline_Compile_` runs
+      at 75-88 % from t=6 to 12; first game frame at t=27.
+  - **Core 725 frozen (11 Nov, this branch, on main's Core 723 pin; not delivered, not run on an iPhone):** contract
+    `45441585…` (201 inputs, 206 members, 82 gates; contract test 462 checks); only PipelineCacheManager.cs and
+    EmbeddedLaunchDiagnostics.cs differ from the Core 723 preparation. All 82 gates green on the final preparation
+    (78 on the first pass; hogwarts-dma-copies, gc-events and gc-fallback taught the change, compute-switch-bindings
+    green alone). MoltenVK iOS rebuild of the four-part patch: run 42929394881, artifact 13815049243, binary
+    `90bd98a4…` (4 838 864 B, markers 4/4, 428/428 exports). Bridge `0b7339ce`: macOS execution and iOS typecheck run
+    42928467031 green. [Receipts](evidence/melonx-725-gates/run.json),
+    [device protocol](evidence/melonx-725-gates/device-protocol.md). **Next (main):** Core CI, number and pin; move the
+    MoltenVK pin to that rebuild (`test/melonx_standalone_parity_test.py` refuses the tree until then); include
+    `MeloNX-core.log.1` in the diagnostics export; IPA. Content:
+    - `adapt_variant_replay_all` (`1b2c9a45`, PipelineCacheManager.cs): the replay cap is the journal's own bound
+      (2048 records); compile budget, two in flight, low priority and the 8 % memory hold unchanged. Gate
+      variant-replay-all, 39 checks on the production Vulkan assembly of both sides: control 512 of 600 and 512 of IPA
+      724's 1 357 states, candidate 600 and 1 357, each once; nothing starts at 5 % of device memory. The Core 711 gate
+      expects the 600 planned states once the later adapter is in the chain (107 checks).
+    - Engine journal (`0af21f4f`, EmbeddedLaunchDiagnostics.cs): when the Core journal already holds 3 MiB at
+      ConfigureJournal it becomes `.1` and the new file starts with its last whole lines (at most 1 MiB), so a process's
+      records stay in the exported file (test: 3.5 MiB journal rotated byte for byte, 1 048 468 bytes kept; 2.9 MiB
+      left as it is; Core 723 journal as control).
+    - Bridge memory breakdown v2 (`5cb6b545`, MeloNXPerfJournal.swift): one O(1) query per region, shared regions
+      under 1 MiB only counted, private anonymous regions up to 256 MiB page-walked for resident and compressed pages
+      (`private=`, `groups=name:resident+compressed/regions`, `top=`), walk bound 1.2 s, malloc zones apart.
+    - **Rejected by measurement: Metal libraries compiled on demand in MoltenVK** (`2cd604b4`,
+      `test/melonx_library_share/candidate-deferred-libraries.patch`, never in the recipe; 'RBX2' made libraries read
+      from cache data keep no MTLLibrary, compiled per function retrieval and released after). macOS real Metal, run
+      42925818096 (44 MB cache, 962 libraries, 2 400 pipelines, every mode 0 missing / 0 SPIR-V conversion / same bytes
+      written back): footprint at the load +1.3 MiB deferred against +32.4 referenced and +77.7 copied, but once the
+      pipelines exist +243.5 MiB deferred against +188.8 referenced (+236.0 copied), and pipeline creation 985 ms
+      against 431: each function retrieval compiles its own MTLLibrary (4 825 compilations) and the pipeline states keep
+      them. No Core change, recipe patch untouched. The same run, in RewindBox's flow (staging cache from the mapping,
+      merged into main, destroyed): copied +123.9 MiB at the load (the compressed MSL held twice on macOS) against
+      +33.6 referenced. Per pipeline on macOS: about 65 KiB kept (156 MiB for 2 400).
+    - **MoltenVK recipe patch, fourth part (`a91feea5`, patch `bfd4cd9b…`, diagnostic only, no behaviour change):** one
+      info line per pipeline cache loaded from data, "RewindBox pipeline cache load: N shader libraries from B bytes;
+      compressed MSL copied|referenced in the caller's data; pNext types 0x…|none", and its marker (four markers). The
+      bench requires the line of each mode in both flows. The iOS rebuild runs on that push; **the delivered MoltenVK
+      pin is main's to move** (a tree whose patch and pin disagree is refused by the packaging).
+  - **Maintainer goal restated (11 Nov): gain 56 ms per frame.** IPA 724 warm pass (t >= 88 s): 88.9 ms per frame
+    against the 33.3 ms of 30 FPS; 36.2 ms of the excess come from the 220 gaps over 100 ms (56.9 s of 121.8 s), 20.0 ms
+    from frames of 34-100 ms; at t=28-72 s (30 FPS held) the excess was 5.9 ms. Per-thread CPU per frame (performance
+    journal, top threads), t=28-72 s against t >= 107 s: guest `<MainThread>` 12.5 -> 27.6 ms, `GPU.MainThread` 7.4 ->
+    34.5 ms, `NeoStation.MeloNX.Render` 9.3 -> 31.9 ms, `<RenderThread_1>` 5.4 -> 15.1 ms, `.NET_BGC` 1.0 -> 5.8 ms, the
+    device at 5-8 % available throughout; the render thread's own busy time stays 20-27 ms per frame (engine windows
+    after 23:01:58). Reading: the slow frames are the same work made slower (page faults on compressed memory), not more
+    work; memory is the lever for both the stalls and the slow frames. MoltenVK's read timings do not decide the cache
+    question ("Decompress MSL" 0.062 ms and "Read MSL" 0.605 ms per library in 724, 0.055 and 0.561 in 718: file
+    read-ahead can make both modes look alike); the equal load curves of 718 (copy by construction) and 724 remain the
+    evidence that 724 copied too.
+  - **Core 727 frozen (11 Nov, this branch, on Core 725; not delivered, not run on an iPhone): contract `1aa56e30…`
+    (203 inputs, 207 members, 86 gates; contract test 472 checks; [receipts](evidence/melonx-727-gates/run.json)).** `adapt_pause_checkpoint_growth`
+    (a pause rewrites the main cache from 8 MiB of new content only; gate 15 checks) and `adapt_vulkan_memory_journal`
+    ("vulkanMemory sample" about every 30 s: the Vulkan allocator's blocks, dedicated, mapped and pooled free bytes by
+    memory type; gate 26 checks), commit `1b0c13ea`. S2Arm diagnostic hook in the bridge for session 04
+    (`d32738b5`, test IPAs only, macOS run 42933024817 green).
+    - **Open, decided by the next device journals (protocol: evidence/melonx-725-gates/device-protocol.md):** why the
+      mapped main cache saved nothing on the device (Core side: `pipelineCache mainDataMapped` at the start of
+      `MeloNX-core.log`, now kept in the exported file; driver side: the load line above in `MeloNX-stderr.log`), and
+      where the 2.3 GiB of unattributed native memory is (breakdown v2: `private=`, `zones=`, `malloc.large`,
+      `untagged`, `file`, `unwalked`). No footprint change is claimed for Core 725.
+
+- **S2Arm as a Switch 2 playlist engine, feasibility study (session 012mUASkkFGHaPcEUx9dsp8q, 10 Nov; maintainer request:
+  recompilation and installation on the device, from the playlist; read-only study of jhaizhou-ops/S2Arm at its
+  10 Nov head, Apache-2.0; nothing built or run):**
+  - S2Arm rewrites a game's AArch64 code statically and runs it natively (no CPU emulator); graphics go from NVN to
+    Metal; services are a Ryujinx-derived NativeAOT library. On iOS the rewritten code ships as a team-signed dylib
+    mapped MAP_FIXED after `F_ADDFILESIGS_RETURN` + `F_CHECK_LV` (`runtime/src/imgpack.c`): that signature is the only
+    reason a computer is needed per game.
+  - Portable to the device: the rewriter is a C library with no subprocess or Python (`runtime/rewriter`, already run
+    unchanged on an Android phone, about 30 s per large game on a Mac); unpacking is C# on LibHac (RewindBox ships both);
+    shaders missing from the prebuilt library are already translated and compiled on the phone (`newLibraryWithSource`,
+    "runtime-only" packages exist). The Mac/Android loader path (anonymous memory, copy, seal R|X) is the template for a
+    JIT-memory loader; RewindBox has the JIT helper and signs with increased-memory-limit and extended-virtual-addressing.
+  - To port or replace: the bash + Python orchestration and helpers (capstone, lz4, numpy, zstandard: widescreen/fps
+    tables, profile, capabilities, shader extraction), a build-time C compiler step (yaz0), the offline Metal compiler
+    (skipped by the runtime-only path, at the price of first-use hitches).
+  - Hard points, unproven: (1) executing the rewritten code from JIT memory at fixed addresses inside a 32-64 GB guest
+    window under RewindBox's JIT method, iOS 26 included, with the runtime's SIGTRAP/SIGSEGV traps while the JIT helper
+    is attached; (2) the runtime owns its process (constructor window reservation before any other allocator, `main`,
+    UIApplicationMain, process-wide signal handlers, one game per process, `_exit`) and statically links its own
+    NativeAOT runtime beside MeloNX's; (3) copied code is dirty memory (file-backed signed pages were clean).
+  - **Maintainer decision (10 Nov): prepare the bounded prototype, in its own discussion.** Handed to session
+    012mUASj3EQnvC86WC56AePw ("04 — RewindBox — Playlists émulateurs : S2Arm (Switch 2)", branch
+    `work/s2arm-switch2-prototype-20261110` from Claude): one module rewritten by S2Arm's own rewriter, loaded from a
+    data file into JIT memory and run to its first svc, host proof first (Linux rewriter, macOS arm64 run), then a
+    diagnostic entry for an iPhone trial IPA built by main. Owner of this topic from now on: that session; this one
+    keeps MeloNX only.
+  - **Maintainer decision (11 Nov, principal session): "Autorise la session Switch 2 à compiler sa propre IPA".**
+    The trial IPA is no longer built by main: session 04 builds and delivers its own Switch 2 IPA from its branch
+    (rules in "Standing IPA compilation authorization"). The hook `d32738b5` reached `Claude` with the MeloNX Core
+    727 merge `c53ad180` and is inert in the common IPA.
 
 - **Hogwarts, third player (IPA 621/658/672 journals, 3-6 Nov, private):** the five aborts at 36-120 s on 658 and 672 are
   the same guest fault: RenderThread 1 reads guest address 0x18 at Phoenix-Switch-Shipping.nss:0x5df7a2c (page-table guard
@@ -3865,6 +4101,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Docs:** successive consolidations preserve immutable evidence and current
   requirements without product/pin/CI/permission changes. Keep only current state
   here. Verified 640 watch is complete; do not recreate it from an old status.
+
+### Private test IPA protection — Codex
+
+- **11 Nov — integrated and audited:** [Claude #174](https://github.com/TarbleFR/RewindBox/pull/174)
+  (`0284bbf4`) and [main #175](https://github.com/TarbleFR/RewindBox/pull/175)
+  (`c60bcb5c`). All **980** artifact uploads across **213** existing workflows
+  use the immutable plaintext-IPA guard. Legacy NeoSwap requires a public recipient
+  key and encrypts its staging directory before upload. Keep the guard on future
+  uploads. Public releases/public source remain available; no product/Core/pin edit.
+- **Verified:** 24 boundary tests and real rejected/allowed uploads on Ubuntu,
+  macOS and Windows (runs `42946234456`, `42946507180`); delivery workflow,
+  exact reuse rendering and recipient/encryption checks pass. Main's merge tree
+  contains exactly the 224 intended recipe/doc/test files, no deletion. Concurrent
+  Claude work is preserved; its owner recorded the reviewed input drift.
+- **Historical audit complete:** job `130277987195`, run `42945740946`,
+  inspected all **2,155** artifacts in its snapshot. **No plaintext IPA detected;
+  no deletions.** Final classes: 70 encrypted envelopes, 568 encrypted transport
+  pieces, 1,517 other artifacts. Two parser findings were manually resolved with
+  verified digests: a random ZIP end-marker in ciphertext and a 212-byte XML
+  ServerBusy response named `ios.zip`. The upload guard was not relaxed.
+  Encrypted contents were not decrypted. Public 0.0.11 IPA asset/hash unchanged.
+- **Unrelated main failures remain visible:** run `42946507230` fails the old
+  branding baseline (same four failures reproduced on original `48467f5`) and
+  Flutter analysis (122 informational findings). They were not suppressed;
+  no repository protection, Dart source, analyzer setting or lockfile was changed.
+  [Scope, audited IDs and evidence](evidence/private-ipa-protection-2026-11-11.json).
 
 ### Actions history cleanup — Codex
 

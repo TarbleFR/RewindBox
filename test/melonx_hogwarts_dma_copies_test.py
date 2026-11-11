@@ -174,6 +174,11 @@ LOT_FILES = {
     'adapt_gc_pause_journal': [],
     'adapt_extra_array_dirty': ['src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs'],
     'adapt_array_barrier_epoch': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # Core 725 (lot 9): every recorded pipeline state replayed at launch (the session cap is the journal's bound).
+    'adapt_variant_replay_all': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    # Core 727 (lot 9): the pause checkpoint threshold; the Vulkan allocator's blocks in the journal.
+    'adapt_pause_checkpoint_growth': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_vulkan_memory_journal': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
 }
 
 checks = 0

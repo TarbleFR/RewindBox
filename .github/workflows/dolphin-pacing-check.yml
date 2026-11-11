@@ -55,7 +55,7 @@ jobs:
           tail -n 38 /tmp/pacing.log
       - name: Upload simulator diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: Dolphin-Pacing-Tests-Diagnostics-${{ github.run_id }}
           path: /tmp/pacing.log

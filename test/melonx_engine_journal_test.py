@@ -14,6 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '9b40129fa188f8e2aa6a35c94abea005406062d3'
+# The journal as delivered in IPA 724 (Core 723), control of the start-of-process scenario: the 562 journal only knew app.log.
+START_BASELINE = '2cd604b4fc7e83ab761cd0f7fb777e164c630091'
 JOURNAL = 'native/melonx/EmbeddedLaunchDiagnostics.cs'
 RUNTIME = 'native/melonx/EmbeddedRuntime.cs'
 SECRET = 'a' * 64
@@ -63,6 +65,10 @@ switch (args[0])
         Forward(true, "Gpu GetInfo: Invalid texture format 0x25A5A (sRGB: True).");
         var tracked = typeof(EmbeddedLaunchDiagnostics).GetField("EngineRepeats", BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null);
         Console.WriteLine("{\"tracked\": " + ((tracked as System.Collections.ICollection)?.Count ?? -1) + "}");
+        break;
+    case "start":
+        // ConfigureJournal above is the start of the process; one record follows.
+        EmbeddedLaunchDiagnostics.Record("probe", "afterStart", detail: "first record of the process");
         break;
     case "crash":
         if (crash != null) AppDomain.CurrentDomain.UnhandledException += (_, e) => crash(e.ExceptionObject);
@@ -126,6 +132,32 @@ def crash(work: Path, probe: list):
                 secretWritten=SECRET.encode() in text, stderr=child.stderr[-600:])
 
 
+def start(work: Path, probe: list):
+    """The Core journal at the start of a process: 3.5 MiB of earlier sessions, then 2.9 MiB (under the limit)."""
+    result = {}
+    for name, megabytes in (('full', 3.5), ('under', 2.9)):
+        path = work / f'start-{name}/MeloNX-core.log'
+        path.parent.mkdir()
+        lines, size, n = [], 0, 0
+        while size < megabytes * 1024 * 1024:
+            line = b'[MeloNX:core] ' + json.dumps(dict(timestamp='t', pid=1, sequence=n, stage='old', status='line', nativeStatus=0,
+                                                         diagnostic='x' * (40 + n % 300))).encode() + b'\n'
+            lines.append(line)
+            size += len(line)
+            n += 1
+        original = b''.join(lines)
+        path.write_bytes(original)
+        subprocess.run([*probe, 'start', str(path)], check=True, capture_output=True, text=True, timeout=120)
+        now, rotated = path.read_bytes(), Path(str(path) + '.1')
+        added = [r for r in records(path) if r['stage'] == 'probe']
+        kept = now[:now.rindex(b'[MeloNX:core] ')] if added else now
+        result[name] = dict(original=len(original), rotated=rotated.read_bytes() == original if rotated.exists() else None,
+                            keptBytes=len(kept), keptIsTail=original.endswith(kept), keptWholeLines=kept == b'' or kept.startswith(b'[MeloNX:core] {'),
+                            keptLines=len(kept.splitlines()), longestLine=max(map(len, lines)), added=len(added), size=len(now),
+                            sequences=[r['sequence'] for r in records(path) if r['stage'] == 'old'][:1])
+    return result
+
+
 def check(old, new, aot):
     failures = []
 
@@ -144,6 +176,18 @@ def check(old, new, aot):
     expect(sorted(n['concurrent']) == sorted(concurrent), f'fixed: concurrent counts exact: {n["concurrent"]}')
     expect(n['distinct'] == 1100 and 0 <= n['tracked'] <= 1024, f'fixed: every new text kept, tracking bounded: {n["distinct"]}, {n["tracked"]}')
     expect(n['statuses'] == ['engineError', 'engineWarning'], n['statuses'])
+
+    # The start of a process (Core journal only): the Core 723 journal appends to whatever the file holds.
+    o, n = old['start'], new['start']
+    expect(o['full']['rotated'] is None and o['full']['keptBytes'] == o['full']['original'] and o['full']['added'] == 1,
+           f'Core 723: a 3.5 MiB journal is appended to as it is: {o["full"]}')
+    full, under = n['full'], n['under']
+    expect(full['rotated'] is True, f'fixed: at 3 MiB or more the old journal becomes .1, byte for byte: {full}')
+    expect(full['keptIsTail'] and full['keptWholeLines'] and 1024 * 1024 - full['longestLine'] <= full['keptBytes'] <= 1024 * 1024,
+           f'fixed: the new journal starts with the last complete lines, at most 1 MiB: {full}')
+    expect(full['added'] == 1 and full['size'] < 1024 * 1024 + 400, f'fixed: the process writes after them, with 4 MiB of room: {full}')
+    expect(under['rotated'] is None and under['keptBytes'] == under['original'] and under['added'] == 1,
+           f'fixed: under 3 MiB nothing moves: {under}')
 
     o, n = old['crash'], new['crash']
     expect(o['exitCode'] != 0 and not o['crashRecords'] and o['grew'] == 0, f'562: the crash leaves nothing in app.log: {o}')
@@ -167,8 +211,10 @@ if __name__ == '__main__':
         baseline = subprocess.check_output(['git', 'show', f'{BASELINE}:{JOURNAL}'], cwd=ROOT, text=True)
         old_probe = build(work / 'old', baseline, False)
         new_probe = build(work / 'new', (ROOT / JOURNAL).read_text(), False)
-        old = dict(repeat=repeat(work / 'old', old_probe), crash=crash(work / 'old', old_probe))
-        new = dict(repeat=repeat(work / 'new', new_probe), crash=crash(work / 'new', new_probe))
+        before = subprocess.check_output(['git', 'show', f'{START_BASELINE}:{JOURNAL}'], cwd=ROOT, text=True)
+        before_probe = build(work / 'before', before, False)
+        old = dict(repeat=repeat(work / 'old', old_probe), crash=crash(work / 'old', old_probe), start=start(work / 'before', before_probe))
+        new = dict(repeat=repeat(work / 'new', new_probe), crash=crash(work / 'new', new_probe), start=start(work / 'new', new_probe))
         aot = None
         if not options.no_aot:
             aot_probe = build(work / 'aot', (ROOT / JOURNAL).read_text(), True)
@@ -179,7 +225,8 @@ if __name__ == '__main__':
                    old=dict(textureLines=len(old['repeat']['texture']), concurrentLines=len(old['repeat']['concurrent']),
                             crashRecords=len(old['crash']['crashRecords'])),
                    new=dict(textureLines=len(new['repeat']['texture']), concurrentLines=len(new['repeat']['concurrent']),
-                            crash=new['crash']['crashRecords'][:1], aotCrash=(aot or {}).get('crashRecords', [])[:1]),
+                            crash=new['crash']['crashRecords'][:1], aotCrash=(aot or {}).get('crashRecords', [])[:1],
+                            start=new['start']),
                    inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
                            for p in (JOURNAL, RUNTIME, 'test/melonx_engine_journal_test.py')})
     out = ROOT / 'dist/melonx/engine-journal-checks.json'

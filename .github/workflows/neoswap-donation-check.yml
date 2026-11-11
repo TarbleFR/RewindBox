@@ -46,7 +46,7 @@ jobs:
           assert 'PASS real shared NONVOLATILE pages' in (root/'probe.txt').read_text()
           (root/'report.json').write_text(json.dumps({'passed':True,'platform':'macOS-kernel-two-process','source':os.environ['GITHUB_SHA'],'realIPhoneValidated':False,'ledgers':rows},indent=2)+'\n')
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-kernel-${{ github.sha }}
@@ -87,7 +87,7 @@ jobs:
           assert report['machHandleCleanupRetried'] is True,report
           assert report['rejectedArchive'] is True and len(report['rejectedScenarios'])==4,report
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-ipc-${{ github.sha }}
@@ -145,7 +145,7 @@ jobs:
               assert report['passed'] is False and report.get('technicalError'),report
               assert report.get('stage')=='final_resident_ledger' and report.get('donorCompressedBytes',0)>0,report
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-stress-${{ github.sha }}
@@ -184,7 +184,7 @@ jobs:
             2>&1 | tee build/neoswap-donation/simulator/arm64-syntax.txt
       - name: Prove canonical helper launch and actual donated allocations on iOS 18 Simulator
         run: python3 test/neoswap_donor_simulator_test.py --output build/neoswap-donation/simulator
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: NeoSwap-donation-simulator-${{ github.sha }}

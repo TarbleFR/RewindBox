@@ -34,6 +34,19 @@ abstract final class Rpcs3ConfigAdapter {
       if (key == 'Frame limit' && (value == 'Off' || value == 'Infinite')) {
         continue;
       }
+      // Asynchronous texture streaming is a desktop recommendation (179 of
+      // 2187 entries): a second transfer queue, synchronized with the graphics
+      // queue by semaphores. On MoltenVK it has only ever produced defects on
+      // the iPhone: God of War III was unplayable with it on IPA 724 (first
+      // run of its database entry as is, 10 November 2026: graphics errors on
+      // a fresh boot and on a savestate, against none on IPA 723 with it off),
+      // after the Build 552 and Build 610 withdrawals for the same title and
+      // for Assassin's Creed. The database entry keeps every other value; the
+      // engine default (off) applies, and the per-game setting
+      // "Asynchronous texture streaming" still turns it on for a title.
+      if (key == 'Asynchronous Texture Streaming' && value == 'true') {
+        continue;
+      }
       if (indent == 2 && unsupportedUpstreamKeys[key] == section) continue;
       output.add(line);
     }

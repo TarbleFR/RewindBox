@@ -168,6 +168,9 @@ from adapt_gc_keepalive_dormant import apply as adapt_gc_keepalive_dormant
 from adapt_gc_pause_journal import apply as adapt_gc_pause_journal
 from adapt_extra_array_dirty import apply as adapt_extra_array_dirty
 from adapt_array_barrier_epoch import apply as adapt_array_barrier_epoch
+from adapt_variant_replay_all import apply as adapt_variant_replay_all
+from adapt_pause_checkpoint_growth import apply as adapt_pause_checkpoint_growth
+from adapt_vulkan_memory_journal import apply as adapt_vulkan_memory_journal
 
 
 def replace_once(path, old, new):
@@ -478,6 +481,15 @@ def main():
     # same storages covering the same stages.
     adapted += [source / name for name in adapt_extra_array_dirty(source)]
     adapted += [source / name for name in adapt_array_barrier_epoch(source)]
+    # Core 725 (lot 9, IPA 724 Hogwarts: "replays built 512 ... still planned 843 of 1357", 701 of them created late by the
+    # render thread): every recorded pipeline state is replayed at launch; the session cap is the journal's own bound.
+    adapted += [source / name for name in adapt_variant_replay_all(source)]
+    # Core 727 (lot 9, IPA 724 Hogwarts: a pause rewrote the 793 MiB main cache for +1.06 MiB, 10.9 s, and the game resumed
+    # into it at 0-0.3 FPS for 8 s): a pause rewrites the file only for 8 MiB of new content, as play does.
+    adapted += [source / name for name in adapt_pause_checkpoint_growth(source)]
+    # Core 727 (lot 9, RAM diagnosis): what the Vulkan memory allocator holds, by memory type, every ~30 s (IPA 724: MoltenVK
+    # 1 269 MB allocated, the texture and buffer caches 290 MiB of it).
+    adapted += [source / name for name in adapt_vulkan_memory_journal(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -609,7 +621,10 @@ def main():
                  'adapt_gc_keepalive_dormant.py',
                  'adapt_gc_pause_journal.py',
                  'adapt_extra_array_dirty.py',
-                 'adapt_array_barrier_epoch.py']:
+                 'adapt_array_barrier_epoch.py',
+                 'adapt_variant_replay_all.py',
+                 'adapt_pause_checkpoint_growth.py',
+                 'adapt_vulkan_memory_journal.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

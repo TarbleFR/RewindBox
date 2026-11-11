@@ -1,0 +1,38 @@
+{
+  "result": "passed",
+  "checks": 15,
+  "finalPreparationBound": true,
+  "sourceKind": "finalPreparationWithReversedControl",
+  "productionVulkanAssemblyBuilt": true,
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "9a74ebe45dcbbbbb73fcc61a22dcba0eacad4249058434a4c50636df6130cd7d"
+  },
+  "control": {
+    "pauseIpa724": true,
+    "pauseNothing": false,
+    "pause8MiB": true,
+    "pause1MiBAfter11Min": true,
+    "play1MiB": false,
+    "play8MiB": true,
+    "play1MiBAfter11Min": true
+  },
+  "candidate": {
+    "pauseIpa724": false,
+    "pauseNothing": false,
+    "pause8MiB": true,
+    "pause1MiBAfter11Min": false,
+    "play1MiB": false,
+    "play8MiB": true,
+    "play1MiBAfter11Min": true
+  },
+  "sdk": "10.0.100",
+  "host": "Linux",
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_pause_checkpoint_growth.py": "a09e9cc71de5ce0ac1366dd699b18ec6113115dfad12ee6a86b5bc513d4683a4",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_pause_checkpoint_growth_test.py": "e9cb078da93a77e9fc09afe4f7677c49bf15484ac5db3bb7aa1e257ffa52b1fc",
+    "test/melonx_adapter_control.py": "10d7b1e16b7dba2423beeb4a0d2d602e245fd31ddc8ff31595e744eb095b94d5"
+  },
+  "limitation": "The decision only, on the production method; the write itself, the lock hold after a resume and the freeze it caused are shown only by a device run (pipelineCache checkpoint / checkpointSkipped lines)."
+}

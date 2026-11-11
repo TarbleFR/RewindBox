@@ -90,8 +90,13 @@ def source_contract(source: Path) -> dict:
                 'Position Invariance setting missing or not Automatic by default')
     require(policy.count('position_invariance') >= 3 and 'position_invariance=%d mvk_async=%d"' in policy,
             'boot policy log field missing')
-    require('is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));'
-            in policy, 'Assassin\'s Creed is not in the asynchronous submit Automatic list')
+    # Core 927 (REWINDBOX_MVK_ASYNC_DEFINITIVE_927): Automatic is every title, Assassin's Creed with the others
+    # (test/rpcs3_mvk_async927_test.py); until Core 926 it was a title list.
+    require('is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));' in policy or
+            ('REWINDBOX_MVK_ASYNC_DEFINITIVE_927' in policy and
+             'resolved.moltenvk_async_submits = resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,\n'
+             '\t\t!g_cfg.video.vk.asynchronous_texture_streaming);' in policy),
+            'Assassin\'s Creed is not in the asynchronous submit Automatic list')
     return {'vertex_sha256': sha((source / VERTEX).read_bytes()), 'policy_h_sha256': sha(header.encode()),
             'policy_cpp_sha256': sha(policy.encode()), 'levers_sha256': sha((source / LEVERS).read_bytes()),
             'non_ios_line_unchanged': True}

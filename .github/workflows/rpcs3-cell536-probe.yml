@@ -28,7 +28,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_reservation536_probe.py "$SOURCE" --output build/reservation536-probe
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RPCS3-reservation536-probe-${{ github.sha }}

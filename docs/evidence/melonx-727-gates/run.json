@@ -1,0 +1,461 @@
+{
+ "schema": 1,
+ "date": "2026-11-11",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "727 (provisional number, to confirm by main)",
+ "lot": 9,
+ "base": {
+  "core": 725,
+  "contract": "45441585a2730a75d6c1353032d67d2167c95bb2ecd7e352c1d3c91c99ee14fa"
+ },
+ "change": "Two adapters after adapt_variant_replay_all: adapt_pause_checkpoint_growth (PipelineCacheManager.cs: a pause rewrites the main pipeline cache from 8 MiB of new content, the play threshold, instead of any growth) and adapt_vulkan_memory_journal (MemoryAllocatorBlockList.cs, MemoryAllocator.cs, PipelineBase.cs, VulkanRenderer.cs: one \"vulkanMemory sample\" line about every 30 s with the allocator's blocks, dedicated, mapped and pooled free bytes; diagnostic only).",
+ "preparation": "only those five files differ from the Core 725 preparation",
+ "device724": {
+  "pause": "paused t=192-196 s, \"pipelineCache written: main 793,10 MiB in 10909 ms\" for +1,06 MiB; 0-0.3 FPS from t=197 to 205",
+  "gpuMemory": "MoltenVK \"GPU memory allocated\" 1269 MB; texture cache 157 MiB, buffer cache 133 MiB",
+  "perFrame": "warm pass 88.9 ms per frame (33.3 for 30 FPS): 36.2 ms from gaps over 100 ms, 20.0 ms from frames of 34-100 ms"
+ },
+ "gatesRun": {
+  "bindless-array-deltas": {
+   "report": "bindless-array-delta-checks.json",
+   "sha256": "77f3fe19f30068260b7fb022da6b896721c31ce3f6e7838a28564d8680f837d3",
+   "checks": 303
+  },
+  "fragmented-reads": {
+   "report": "fragmented-reads-checks.json",
+   "sha256": "f56b4d7f897a49699901d980156d81948775e498b24f35b43b0e9f725c480da4",
+   "checks": 66
+  },
+  "performance-diagnostics": {
+   "report": "performance-diagnostics-checks.json",
+   "sha256": "9e8aa32c14b0f97346f4718488a1ad4af927473f4b607f2a66bde1fec23af3e5",
+   "checks": null
+  },
+  "binding-data-snapshots": {
+   "report": "binding-data-snapshot-checks.json",
+   "sha256": "36b6418230299fab15a4038bf8e12c9dd5fc91c7181c6ff6b3084642c50c2e59",
+   "checks": null
+  },
+  "hogwarts-dma-copies": {
+   "report": "hogwarts-dma-copies-checks.json",
+   "sha256": "2f78b576184f26ffd23bf7e31377bd7d6dde762c1ecb1b73bc9e241f497d68f8",
+   "checks": 172
+  },
+  "pipeline-checkpoint": {
+   "report": "pipeline-checkpoint-checks.json",
+   "sha256": "fb624733f1146c3946601932ad78fa338b8329c563709d5fa50b469d0bad567d",
+   "checks": null
+  },
+  "scalar-texture-descriptors": {
+   "report": "scalar-texture-descriptor-checks.json",
+   "sha256": "5b7795ca0d992ae38962cdb1a6b8b19ab8537502a75b2b2fe63fc6b1d438ccf4",
+   "checks": null
+  },
+  "fallback-descriptor-scratch": {
+   "report": "fallback-descriptor-scratch-checks.json",
+   "sha256": "800693ec826cf5dc9e26191ccd08ab2e1d1e170dc47d504f83bbd2067440dd2d",
+   "checks": null
+  },
+  "single-resource-bindings": {
+   "report": "single-resource-binding-checks.json",
+   "sha256": "a60e31790041a158962eaf87656bac5ae4b5e91abe11709e6b0bb16cda984cee",
+   "checks": null
+  },
+  "bounded-binding-snapshots": {
+   "report": "bounded-binding-snapshot-checks.json",
+   "sha256": "ce40adbf2d3df14bc869538e7096ee3ee7ce8b3515126f957d7912eb6885ca46",
+   "checks": null
+  },
+  "counter-report-compaction": {
+   "report": "counter-report-compaction-final-checks.json",
+   "sha256": "b2a7868cd61fe494506a8367e9576f8d4aecebdaff3bbf94bb2e78266e7e07d6",
+   "checks": null
+  },
+  "single-virtual-dependency": {
+   "report": "single-virtual-dependency-final-checks.json",
+   "sha256": "74afae7de29c85b6228dbd088a521b4c31f640ddeb57e9aee1900b47aa9db5c0",
+   "checks": null
+  },
+  "pipeline-warmup-parity": {
+   "report": "pipeline-warmup-parity-checks.json",
+   "sha256": "1d0cd00073c302c920a6a00cf2f8496cf8179e95f38f0c1cb80cb6c1faf03943",
+   "checks": 10
+  },
+  "device-short-trim": {
+   "report": "device-short-trim-checks.json",
+   "sha256": "7dd6aaec1e8a6251f2e53e4341ed9bb727cb436069484a3fa65d0662c4f80ee7",
+   "checks": 7
+  },
+  "moltenvk-barrier-ordering": {
+   "report": "moltenvk-barrier-ordering-checks.json",
+   "sha256": "f3c6e3c1ade561221c2961b8f4607aa4d1a77a1e70e271361df8eb16b8f43463",
+   "checks": 14
+  },
+  "descriptor-scratch-all-titles": {
+   "report": "descriptor-scratch-all-titles-checks.json",
+   "sha256": "d0fbea0a6b05f1fb08803d9d4c2db6787466dc18ec7ce60bbf6d917ac35ca869",
+   "checks": 9
+  },
+  "readback-occupied-attribution": {
+   "report": "readback-occupied-attribution-checks.json",
+   "sha256": "65a0255ca433af368ceb70764d6719c6d58fbba74c85b5171d4a676491890387",
+   "checks": 10
+  },
+  "pipeline-miss-context": {
+   "report": "pipeline-miss-context-checks.json",
+   "sha256": "1c8d56a2ae7773e7b7ba4793ca29cfba549744b0130fc3f16eb6123cfec59b41",
+   "checks": 4
+  },
+  "barrier-compaction": {
+   "report": "barrier-compaction-checks.json",
+   "sha256": "3f72b28531447cbd89ab7ea58edd70b688ede9395ee2d6d2f1fea54e1895ed45",
+   "checks": 7
+  },
+  "readback-receivers": {
+   "report": "readback-receivers-checks.json",
+   "sha256": "f86e62ee500175ae4a7f8cddd9c3af7e585c0fac0c0b675b1d6effec4751de8f",
+   "checks": 53
+  },
+  "present-source-attribution": {
+   "report": "present-source-attribution-checks.json",
+   "sha256": "76fb9c7c749bb835c8e13e2d71d07ce5d586c252b8fb2041a0e994ed5127566c",
+   "checks": 20
+  },
+  "teardown-compile-cancel": {
+   "report": "teardown-compile-cancel-checks.json",
+   "sha256": "4bf596f04a020fa7c095a31f5567fa5824273ffc4b5bacc1118f08ed10226d4a",
+   "checks": 25
+  },
+  "pause-guest-threads": {
+   "report": "pause-guest-threads-checks.json",
+   "sha256": "90c0ec41dbde40d9d7a0adfd128476cc041c06ac494cab4930b24a0d9db76224",
+   "checks": 18
+  },
+  "teardown-phase-marks": {
+   "report": "teardown-phase-marks-checks.json",
+   "sha256": "f8ba6f267557dacd719e588faafddf379a47b39af6af357966684a4fb7de4106",
+   "checks": 10
+  },
+  "binder-teardown": {
+   "report": "binder-teardown-checks.json",
+   "sha256": "c00f4334c3f48af385138d2f7633c6e9cb841f9df2d383fead9c0a0e6130d3df",
+   "checks": 40
+  },
+  "gc-events": {
+   "report": "gc-events-checks.json",
+   "sha256": "c302892752489b34762a51bdea23e7704d80d861be194c261e39dafd325fd9ca",
+   "checks": 49
+  },
+  "artifact-counters": {
+   "report": "artifact-counters-checks.json",
+   "sha256": "eb48ed5c78ccdc23800ebf6522b8cbd53a1f5484b3b7c97ee52c15d51c333368",
+   "checks": 118
+  },
+  "array-rebuild-allocations": {
+   "report": "array-rebuild-allocations-checks.json",
+   "sha256": "8f0547f0d3cbf9bda14604f737157b21b9876715fb533c709116ddb18a465f96",
+   "checks": 322
+  },
+  "present-pacing": {
+   "report": "present-pacing-checks.json",
+   "sha256": "dbf20bccdac3484828b505b2397bea605e8bed4bd92280e5999bc786687ef23b",
+   "checks": 783
+  },
+  "present-drawable-residency": {
+   "report": "present-drawable-residency-checks.json",
+   "sha256": "91e1f3df86a5cfee0d2bc37dfcb753b14d7808ba568ccc47a3497d0c7dab03b7",
+   "checks": 26
+  },
+  "present-pacer-fixes": {
+   "report": "present-pacer-fixes-checks.json",
+   "sha256": "da859163b0aaf5328427470b8292ecc5b70b7e0b21b78327ace53cd539a2cd53",
+   "checks": 784
+  },
+  "shader-save-poll": {
+   "report": "shader-save-poll-checks.json",
+   "sha256": "9269191754d8d7220728647e6119ca9585618d81e819db36cfc3f9e16543fac5",
+   "checks": 78
+  },
+  "warmup-key-parity": {
+   "report": "warmup-key-parity-checks.json",
+   "sha256": "497a86593cc95ffb07bc8df49cb1aebeccfe38bf52f7dfee03870559a601cd28",
+   "checks": 1371
+  },
+  "setprogram-warmup": {
+   "report": "setprogram-warmup-checks.json",
+   "sha256": "4ee0ebc65e1a1fb2141e2049f330d422672b159f978737bc3a7edd5ccbb36e61",
+   "checks": 103
+  },
+  "teardown-cache": {
+   "report": "teardown-cache-checks.json",
+   "sha256": "7a1e54bac50285d6f951eb32571936015a6a0d1a2149791db5b466e87f1d1c0c",
+   "checks": 53
+  },
+  "forced-syncpoint-wait": {
+   "report": "forced-syncpoint-wait-checks.json",
+   "sha256": "a9b50b86b4c4f160d686359dcdf315f49b3714e51a74f6dc4108b95fe3ceefa7",
+   "checks": 84
+  },
+  "session-retention": {
+   "report": "session-retention-checks.json",
+   "sha256": "04c6cc1d9d93c48f80690c4cb006aae28820d2e84a53e5e3a416dd06474f5c49",
+   "checks": 121
+  },
+  "memory-inventory": {
+   "report": "memory-inventory-checks.json",
+   "sha256": "ba00c6a2c88ef9b1c6a3363d907d356b5b41ece89bd580124bea6ba49a55f032",
+   "checks": 26
+  },
+  "guest-fault-context": {
+   "report": "guest-fault-context-checks.json",
+   "sha256": "632b20c9019fbc1b15f7dfe1bbf2d64af52048a89f1cf94d25ad6dd664483c79",
+   "checks": 53
+  },
+  "gc-fallback": {
+   "report": "gc-fallback-checks.json",
+   "sha256": "0d20ee6834251002fbfce4a9879cbae807898972060b68b23d883a1ba63f9ced",
+   "checks": 60
+  },
+  "host-warning-trim": {
+   "report": "host-warning-trim-checks.json",
+   "sha256": "13d30b006bdf49732311770e7244ec096b0420659402d7aac8ee1ca0d23f66b0",
+   "checks": 21
+  },
+  "safe-point-compaction": {
+   "report": "safe-point-compaction-checks.json",
+   "sha256": "197d5befeca414ed5a9d4ce96a2bb329afd653a3d27930bd903724bf03121448",
+   "checks": 59
+  },
+  "cold-texture-release": {
+   "report": "cold-texture-release-checks.json",
+   "sha256": "1845575163f27f5a2091b3bc04893a4e6e82efd1193a7f37d1673e8493308786",
+   "checks": 131
+  },
+  "bindless-retention": {
+   "report": "bindless-retention-checks.json",
+   "sha256": "1a0c7b88867432106811a250b62f60bfc0167bd7fe1bd938d586c72bfff6f4cf",
+   "checks": 312
+  },
+  "moltenvk-stage-ordering": {
+   "report": "moltenvk-stage-ordering-checks.json",
+   "sha256": "cab13cd0f1cf86073909adfa3844f3945a348e51f84529756e8da63c614768a4",
+   "checks": 75
+  },
+  "display-native": {
+   "report": "display-checks.json",
+   "sha256": "ee3eb8e983b5866d9cba16207ee32e81af004489b91a8c37ce5e8bc4cdf21d4d",
+   "checks": null
+  },
+  "core667-fixes": {
+   "report": "core667-fixes-checks.json",
+   "sha256": "0aa2fb4334e9520ea5a0f48a17f40fb7f75e0acee7ed55f20b2b4fb2a9f13daa",
+   "checks": 56
+  },
+  "nan-scrub": {
+   "report": "nan-scrub-checks.json",
+   "sha256": "11735cb6a797599886447d16f527e42bc1cbd0b2dfa07a37ed9f3cdc0bd1871b",
+   "checks": 57
+  },
+  "main-cache-checkpoint": {
+   "report": "main-cache-checkpoint-checks.json",
+   "sha256": "35475373be6ef828b148c734540ba055c98c063b627c9d8e40fcf815d5a85b86",
+   "checks": 29
+  },
+  "checkpoint-side-cache": {
+   "report": "checkpoint-side-cache-checks.json",
+   "sha256": "161658630058b2903543c6b64e51fbe490e384f4f95ffdcf83934fb5eb8cb8cd",
+   "checks": 24
+  },
+  "evicted-buffer-recreate": {
+   "report": "evicted-buffer-recreate-checks.json",
+   "sha256": "0f3726bcf407c6577f4f6994f4d9acb495873b726567aa7384967249c7047b14",
+   "checks": 22
+  },
+  "audio-start-deferred": {
+   "report": "audio-start-deferred-checks.json",
+   "sha256": "52cc1d085389141146830eead7cd8c8cec1073f23ecd0f762c5f7f7fcc63a150",
+   "checks": 16
+  },
+  "pipeline-cache-room": {
+   "report": "pipeline-cache-room-checks.json",
+   "sha256": "7cd7a92a68ab7fcf4401877d1c2ca49e7b3950ade68926344c58bc1a04ef1b48",
+   "checks": 23
+  },
+  "pipeline-cache-persist": {
+   "report": "pipeline-cache-persist-checks.json",
+   "sha256": "b36fe50e6c0b64f6f879884523f04c8ae783b54a46711d71fc05f75660922303",
+   "checks": 30
+  },
+  "pipeline-build-journal": {
+   "report": "pipeline-build-journal-checks.json",
+   "sha256": "5a39434142fa24e055fb9f3c6038943d9834805c68974cf187cf8b291ea636bd",
+   "checks": 30
+  },
+  "pipeline-cache-growth": {
+   "report": "pipeline-cache-growth-checks.json",
+   "sha256": "0298e4fa3725850ef13ce3c182bee3bdb432aeb02615ed065b377b88de70a747",
+   "checks": 37
+  },
+  "occupied-readback-buffers": {
+   "report": "occupied-readback-buffers-checks.json",
+   "sha256": "783ec44758dd4b75f5586ba1e9a9a12a1bf0a4988c3f6ecaee302fd72a49c1cf",
+   "checks": 44
+  },
+  "async-regenerated-targets": {
+   "report": "async-regenerated-targets-checks.json",
+   "sha256": "058d52bade3cd2083e4577df2a1f87f0859150e2851f9e1ca5e9e0805bc614c3",
+   "checks": 37
+  },
+  "released-texture-flush": {
+   "report": "released-texture-flush-checks.json",
+   "sha256": "c7ac28368dd31a0a5f96a742195e63feb8d0cda8790663b52f00f21927ad00da",
+   "checks": 26
+  },
+  "pipeline-failure-identity": {
+   "report": "pipeline-failure-identity-checks.json",
+   "sha256": "38d783861ce7378da1728253e48a17a8d88581f94f1a73060efcd9567f8fe458",
+   "checks": 16
+  },
+  "worker-main-cache-lookup": {
+   "report": "worker-main-cache-lookup-checks.json",
+   "sha256": "b390cc73f298533b55868497aed580b653abff6c81c29427308d180971c0d9e0",
+   "checks": 19
+  },
+  "compute-switch-bindings": {
+   "report": "compute-switch-bindings-checks.json",
+   "sha256": "2c72c4cdef911779ea9fc607fccb901ceecf7287d55ff87ff91147f9cdb1bb7a",
+   "checks": 24
+  },
+  "bgc-keepalive": {
+   "report": "bgc-keepalive-checks.json",
+   "sha256": "6388603441251bf903321342ab38270f320a97f448e6cee8a26e2270a922b613",
+   "checks": 25
+  },
+  "pipeline-cache-background": {
+   "report": "pipeline-cache-background-checks.json",
+   "sha256": "5f8eb6ff63505a9ff9dba6ec645b947e66f0dd6c01bd1410fc7e62ec0d82f7be",
+   "checks": 33
+  },
+  "sync-wait-attribution": {
+   "report": "sync-wait-attribution-checks.json",
+   "sha256": "89573d8c6179901886c9a471be4744d8644cc9c3bc143972487d15ac5975a3db",
+   "checks": 57
+  },
+  "synced-buffer-reads": {
+   "report": "synced-buffer-reads-checks.json",
+   "sha256": "220df1d62e5595dd4b126baea0cafdde44baf7b46617151ab1651e85bffa3382",
+   "checks": 60
+  },
+  "layout-used-types": {
+   "report": "layout-used-types-checks.json",
+   "sha256": "b066a1e740e861bafe237354a3fe3b824e23f2fcba0d773359e27827c227b043",
+   "checks": 590
+  },
+  "same-program-descriptors": {
+   "report": "same-program-descriptors-checks.json",
+   "sha256": "6b2091af0c848d0f93fbacf7f1be664b4bd2c9be0fbb8b7588bdd5e2285e6494",
+   "checks": 79
+  },
+  "retention-chain": {
+   "report": "retention-chain-checks.json",
+   "sha256": "b8b738386c2653804b127dca1334a51cba5b23acae19349f50ef8cb68d602077",
+   "checks": 45
+  },
+  "texture-pool-allocations": {
+   "report": "texture-pool-allocations-checks.json",
+   "sha256": "cc70f5bd6ce12b76566f15e8f55f41180a97c25adba2e8a9c25120c7cc72078b",
+   "checks": 95
+  },
+  "pipeline-variant-replay": {
+   "report": "pipeline-variant-replay-checks.json",
+   "sha256": "25ee40ba2998fdef9de385ff7adccaf083dbfdee978245b84a117472f08446df",
+   "checks": 107
+  },
+  "pipeline-snapshot-retire": {
+   "report": "pipeline-snapshot-retire-checks.json",
+   "sha256": "38e6e1446f87de1eae524bd88c24d6bd2aabc44697b801ca13d8277fb8b1fcf9",
+   "checks": 105
+  },
+  "extra-set-binds": {
+   "report": "extra-set-binds-checks.json",
+   "sha256": "1b06ac0ae35274125c6ccf8b1b3861beaa5c8e197e58c89815eb67200f79e86d",
+   "checks": 153
+  },
+  "array-reference-deltas": {
+   "report": "array-reference-deltas-checks.json",
+   "sha256": "e8f6fd086b182d16b4cbfd0d40ac3eaa127e18e2a0b29507bd55d719b9703ae9",
+   "checks": 45
+  },
+  "worker-library-share": {
+   "report": "worker-library-share-checks.json",
+   "sha256": "f58adb249bee93b97396aaedfb75794b8ef9790910beb470808cd9287054c3ce",
+   "checks": 62
+  },
+  "bgc-fragmentation-guard": {
+   "report": "bgc-fragmentation-guard-checks.json",
+   "sha256": "ec99ff43eedf2662b81fd925d2ad859611a96fa50e254f9693bcfe27afbb5cf5",
+   "checks": 20
+  },
+  "pipeline-cache-mapped-data": {
+   "report": "pipeline-cache-mapped-data-checks.json",
+   "sha256": "e9c8d1258473ba0708eac0e18ecc978981d13a872f22077a52b375edcb1186fa",
+   "checks": 54
+  },
+  "gc-keepalive-dormant": {
+   "report": "gc-keepalive-dormant-checks.json",
+   "sha256": "2e00fb199118cd3a3c34651be2675263aaf6561c9d9e1c875abb177002c3ea6a",
+   "checks": 50
+  },
+  "gc-pause-journal": {
+   "report": "gc-pause-journal-checks.json",
+   "sha256": "075040de0d50a872f88c87b8d0851d946a2aafb9457db491ca361f58a0836119",
+   "checks": 33
+  },
+  "extra-array-dirty": {
+   "report": "extra-array-dirty-checks.json",
+   "sha256": "c4f0eda630d4259bebac42f515c520cceb63a74b84decbc770c67bd58df81e28",
+   "checks": 72
+  },
+  "array-barrier-epoch": {
+   "report": "array-barrier-epoch-checks.json",
+   "sha256": "2b3b7b0c435b441d57be40c8e9e52b4ae376e99650793be0fcdade1983227a0e",
+   "checks": 119
+  },
+  "variant-replay-all": {
+   "report": "variant-replay-all-checks.json",
+   "sha256": "68ddcfaa1240fed1bf799d03048a8114349cc0aaa2990acf43ad736b708aaf1c",
+   "checks": 40
+  },
+  "pause-checkpoint-growth": {
+   "report": "pause-checkpoint-growth-checks.json",
+   "sha256": "6a36108c25c734078f3faec0f6e5cf43854607ffef13a513b4512476247782b4",
+   "checks": 15
+  },
+  "vulkan-memory-journal": {
+   "report": "vulkan-memory-journal-checks.json",
+   "sha256": "a056cae7701f9ab2c87c54d3c7c44be6720a39f40135b84aa5b5c5bab04ea483",
+   "checks": 26
+  },
+  "allocator-range-update": {
+   "report": "allocator-range-update-checks.json",
+   "sha256": "dca93731a0715b587deb646af6e7bfe282f7e03e08d39449c1ab758ac3358abc",
+   "checks": null
+  },
+  "allocator-blocks": {
+   "report": "allocator-blocks-checks.json",
+   "sha256": "c174c9d1d92f627c8309d8a30237f7b1c444bcf269656fa9e9950adad55725b6",
+   "checks": null
+  }
+ },
+ "allGatesLocally": "86 of 86 passed on the final preparation (11 Nov). First pass of 84: 83 green; variant-replay-all taught the later adapter (static part on its postimage). The freeze then required the two core87 allocator proofs to be run again on the final allocator (allocator-range-update, allocator-blocks: delivered control against the final file, identical traces).",
+ "contract": {
+  "sha256": "1aa56e303b31da0983f40ffca706a98d72891b17bae83e6aaec909093e9d36ea",
+  "preparationInputs": 203,
+  "preparedMembers": 207,
+  "freshAppleGates": 86,
+  "contractTestChecks": 472
+ },
+ "physicalDeviceTested": false,
+ "ipa": null,
+ "ciRuns": []
+}

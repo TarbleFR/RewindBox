@@ -47,7 +47,7 @@ jobs:
           path: dist/libretro-base
       - name: Build only the pinned PSP core with the owned-memory ABI
         run: python3 .github/diagnostics/ppsspp497/build.py --base dist/libretro-base --output dist/libretro --work "$RUNNER_TEMP/ppsspp497"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         with:
           name: LibretroCores-${{ github.sha }}
           path: dist/libretro/
@@ -57,7 +57,7 @@ jobs:
         run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/psp497-inputs"
       - name: Seven consecutive production sessions with the PSP address window crowded
         run: python3 test/psp_relaunch497.py simulator run --cores dist/libretro --inputs "$RUNNER_TEMP/psp497-inputs" --evidence build/psp497/simulator --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: psp497-${{ github.sha }}

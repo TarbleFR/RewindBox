@@ -73,7 +73,7 @@ jobs:
         run: |
           git diff --name-only d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9 -- '*.dart' | xargs -r dart format
           git diff -- '*.dart' > build/bubble-review/format-and-integration.patch
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: RewindBox-liquid-airplay-review-${{ github.sha }}

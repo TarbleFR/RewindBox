@@ -117,7 +117,7 @@ jobs:
         git worktree add --detach "$RUNNER_TEMP/build-453" 81efc2109e1052678bd881b8fc7c8dc1c53aa8bc
         python3 test/libretro_channel_codec_test.py --sources "$RUNNER_TEMP/build-453/packages/libretro_internal_bridge/ios" \
           --expect unfixed --evidence evidence/channel-codec/build-453 --label 81efc2109e1052678bd881b8fc7c8dc1c53aa8bc
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-channel-codec-${{ github.sha }}
@@ -208,7 +208,7 @@ jobs:
       run: |
         python3 test/libretro_skin_press_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
           --evidence evidence/skin-press --label "${GITHUB_SHA}"
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: libretro-skin-press-${{ github.sha }}

@@ -53,7 +53,7 @@ jobs:
         python3 test/texture_catalogue_publication_test.py
         python3 test/texture_direct_host_publication_test.py
         python3 test/texture_direct400_preservation_test.py --output build/delivery/hd-native-catalogue-preservation.json
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: hd-native-498-validation-2617d176e091d0bff63820a5c46917b17dd4a943
         path: build/delivery/
@@ -84,7 +84,7 @@ jobs:
     - name: Validate the final bundled catalogue through the production Foundation Store
       run: |
         python3 test/texture_catalog_native_test.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: hd-native-498-foundation-2617d176e091d0bff63820a5c46917b17dd4a943
         path: build/delivery/
@@ -901,7 +901,7 @@ jobs:
 
         python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
     - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build/encrypted-delivery/
@@ -918,7 +918,7 @@ jobs:
         python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
     - name: Upload diagnostics
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       with:
         name: ${{ env.ARTIFACT_NAME }}-diagnostics
         path: build/encrypted-diagnostics/

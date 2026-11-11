@@ -75,7 +75,7 @@ jobs:
           python3 test/libretro_skin_loading_probe.py --cores dist/libretro --inputs "$RUNNER_TEMP/probe-inputs" \
             --legacy-sources "$RUNNER_TEMP/skin-build463/packages/libretro_internal_bridge/ios" \
             --evidence evidence/skin-loading --label "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: libretro-skin-loading-${{ github.sha }}

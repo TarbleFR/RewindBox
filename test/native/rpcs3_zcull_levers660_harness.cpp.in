@@ -304,6 +304,12 @@ namespace rsx
 // ---------------- end of RSXZCULL.cpp ----------------
 
 // ---------------- Vulkan side ----------------
+// The site names of ios/IOSMoltenVKExec.h, for vk::occlusion_data of a Core 927 tree.
+namespace rpcs3::ios::moltenvk_exec
+{
+	enum class wait_site : unsigned char { fence, query, count };
+}
+
 struct gpu_model;
 namespace vk
 {
@@ -335,6 +341,9 @@ namespace vk
 		bool split_first = false;
 		std::vector<u32> host_queries;
 		void flush() {} // the offloader thread hands a submission to the queue at once here
+		// Core 927 (REWINDBOX_MVK_ASYNC_DEFINITIVE_927): the sleep until MoltenVK has encoded the chunk's submission; this
+		// model's queue encodes inside the submission, as synchronous submits do.
+		void ios_wait_encoded(rpcs3::ios::moltenvk_exec::wait_site) {}
 		bool poke() { if (pending && g_now_us >= done_at) pending = false; return !pending; }
 	};
 

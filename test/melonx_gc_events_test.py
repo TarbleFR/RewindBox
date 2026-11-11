@@ -42,6 +42,8 @@ SOURCE = args.source.resolve()
 FINAL = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_session import once  # noqa: E402
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import journal_without_start_room  # noqa: E402
 from adapt_bindless_array_deltas import DIAGNOSTIC_EDITS  # noqa: E402
 
 COLLECTOR = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
@@ -85,7 +87,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
         once(candidate_file, old, new)
     if FINAL:
         check((FINAL / COLLECTOR).read_bytes() == candidate_file.read_bytes(), 'final preparation holds this collector')
-        check((FINAL / JOURNAL).read_bytes() == (SOURCE / JOURNAL).read_bytes(), 'final preparation keeps the journal')
+        # Core 725 gives the journal room at the start of a process (ConfigureJournal, MeloNX-core.log only); nothing
+        # else differs from the journal of the control, and the candidate probe compiles the final one.
+        check(journal_without_start_room((FINAL / JOURNAL).read_text(encoding='utf-8-sig')) ==
+              (SOURCE / JOURNAL).read_text(encoding='utf-8-sig'), 'final preparation keeps the journal, but for its room at the start of a process')
     control_text = (SOURCE / COLLECTOR).read_text(encoding='utf-8-sig')
     candidate_text = candidate_file.read_text(encoding='utf-8-sig')
 
@@ -136,7 +141,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
         shutil.rmtree(project, ignore_errors=True)  # a probe run again after a host-runtime fallback starts clean
         project.mkdir()
         shutil.copyfile(collector, project / 'EmbeddedPerformanceDiagnostics.cs')
-        shutil.copyfile(SOURCE / JOURNAL, project / 'EmbeddedLaunchDiagnostics.cs')
+        shutil.copyfile((FINAL if FINAL and side != 'control' else SOURCE) / JOURNAL, project / 'EmbeddedLaunchDiagnostics.cs')
         shutil.copyfile(ROOT / program, project / Path(program).name)
         (project / 'Probe.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>'
                                               '<TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>'
@@ -226,7 +231,7 @@ sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, chec
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL is not None,
                sourceKind='finalPreparation' if FINAL else 'core649PreparationPlusCheckoutCollector',
                sourceBaseline=BASELINE, nativeBaseline={NATIVE: NATIVE_BASELINE},
-               postimages={COLLECTOR: sha(candidate_text.encode()), JOURNAL: BASELINE[JOURNAL]},
+               postimages={COLLECTOR: sha(candidate_text.encode()), JOURNAL: sha(((FINAL or SOURCE) / JOURNAL).read_bytes())},
                productionCommonBuilt=builds, sdk=sdk, physicalDeviceTested=False,
                backgroundGcObserved=candidate['backgroundObserved'], serverGc=candidate['serverGc'], hostFallbackProbeRuns=probe_runs,
                candidateLines=dict(total=candidate['totalLines'], statuses=candidate['statuses'], maxDetailLength=candidate['maxDetailLength']),

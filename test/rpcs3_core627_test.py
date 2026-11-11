@@ -330,7 +330,9 @@ def check_wiring(source: Path) -> dict:
     require('level.utility ? QOS_CLASS_UTILITY : level.user_initiated ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE' in thread_cpp, 'QoS class')
     cpu = text('rpcs3/Emu/CPU/CPUThread.cpp')
     require('get_class() == thread_class::spu && rpcs3::ios::get_experimental_policy().spu_qos_below_rsx' in cpu, 'SPU QoS at thread start')
-    require('file_name = "rewindbox-mvk-async-627.txt"' in text('rpcs3/ios/IOSMoltenVKAsyncCanary.h'), 'canary record of this Core')
+    # REWINDBOX_MVK_ASYNC_RETRY_926: a later Core names a new record (its second try); the rule is unchanged.
+    canary = text('rpcs3/ios/IOSMoltenVKAsyncCanary.h')
+    require('file_name = "rewindbox-mvk-async-627.txt"' in canary or 'file_name = "rewindbox-mvk-async-926.txt"' in canary, 'canary record of this Core')
     fifo = text('rpcs3/Emu/RSX/RSXFIFO.cpp')
     nop = fifo[fifo.index('case FIFO::FIFO_NOP:'):fifo.index('case FIFO::FIFO_EMPTY:')]
     require('performance_counters.state == FIFO::state::running && !rpcs3::ios::get_experimental_policy().fifo_nop_fast_path' in nop and

@@ -76,7 +76,7 @@ jobs:
         # The token reads the repository-archive verification artifacts (tools/textures/ci-records.json).
         env: {CXX: g++, GH_TOKEN: '${{ github.token }}'}
         run: python3 test/build486_targeted_test.py --part host
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: build486-host-${{ github.sha }}
@@ -96,7 +96,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Foundation store test, iPhone compilation and the affected UIKit suites
         run: python3 test/build486_targeted_test.py --part native
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: build486-native-${{ github.sha }}
@@ -118,7 +118,7 @@ jobs:
       - run: command -v xcodegen >/dev/null || brew install xcodegen
       - name: Unified page in the Simulator
         run: python3 test/build486_targeted_test.py --part uikit
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: build486-uikit-${{ github.sha }}
@@ -155,7 +155,7 @@ jobs:
         env:
           ONLY: '${{ inputs.only }}'
           VERIFY_KIND: '${{ inputs.parts == ''releases'' && ''release'' || ''repository'' }}'
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex486-${{ inputs.parts == 'releases' && 'releases' || 'repositories' }}-${{ matrix.console }}-${{ github.sha }}
@@ -195,7 +195,7 @@ jobs:
             --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
             --out build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
         env: {ONLY: '${{ inputs.only }}'}
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-hosts-${{ matrix.console }}-${{ github.run_id }}
@@ -225,7 +225,7 @@ jobs:
             args+=(--skip-code)
           fi
           python3 tools/textures/discover.py github "${args[@]}" --out build/hdtex/candidates.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-candidates-${{ github.sha }}
@@ -243,7 +243,7 @@ jobs:
       - name: Check every page and download part
         env: {GH_TOKEN: '${{ github.token }}'}
         run: python3 tools/textures/discover.py links --out build/hdtex/links.jsonl
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-links-${{ github.sha }}
@@ -278,7 +278,7 @@ jobs:
       - name: Cores RewindBox does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 tools/textures/probe_cores.py --buildbot mesen --out build/hdtex/buildbot.json
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-cores-${{ github.sha }}
@@ -324,7 +324,7 @@ jobs:
             refs) python3 tools/textures/research.py "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
             *) python3 tools/textures/research.py refs "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
           esac
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-research-${{ github.run_id }}
@@ -346,7 +346,7 @@ jobs:
           python3 test/texture_install_test.py
       - name: Direct download publication and unchanged family grouping
         run: python3 test/texture_direct_host_publication_test.py
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-direct-readers-${{ github.sha }}
@@ -385,7 +385,7 @@ jobs:
       - name: Small real original files through the native download and install path
         if: ${{ success() && (inputs.only == '' || contains(inputs.only, 'network')) }}
         run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json --out build/hd-direct400/native-network-results.json
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-direct-native-${{ github.sha }}
@@ -409,7 +409,7 @@ jobs:
           python3 test/texture_direct_host_publication_test.py
           python3 tools/textures/check_ci_records.py
           python3 tools/textures/check_ps1_expansion.py --output build/hd-ps1/publication.json
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-ps1-publication-${{ github.sha }}
@@ -431,7 +431,7 @@ jobs:
           set -o pipefail
           mkdir -p build/hd-ps1
           python3 test/texture_catalog_native_test.py 2>&1 | tee build/hd-ps1/native.log
-      - uses: actions/upload-artifact@v4
+      - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:
           name: hdtex-ps1-native-${{ github.sha }}

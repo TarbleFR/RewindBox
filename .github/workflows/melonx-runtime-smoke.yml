@@ -36,7 +36,7 @@ jobs:
         path: dist/melonx-native
     - name: Initialize actual NativeAOT with private native libraries in an ARM64 iOS app
       run: python3 test/melonx_runtime_smoke.py
-    - uses: actions/upload-artifact@v4
+    - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
       if: always()
       with:
         name: MeloNX-actual-runtime-${{ github.sha }}
