@@ -53,10 +53,12 @@ SEG = 0x1000
 BRK_OFFSET = CODE_AT + 4 * CODE.index(0xD4202460)
 
 
-def build():
+def build(code=None, build_id=None):
+    """The synthetic NSO; other code words and build id give the other test modules."""
+    code = CODE if code is None else code
     text = bytearray(SEG)
     struct.pack_into('<II', text, 0, 0x14000000 | (CODE_AT // 4), SEG)  # b code; MOD0 offset
-    struct.pack_into('<%dI' % len(CODE), text, CODE_AT, *CODE)
+    struct.pack_into('<%dI' % len(code), text, CODE_AT, *code)
     ro = bytearray(SEG)
     hdr, frame = 0x100, 0x200  # .eh_frame_hdr and .eh_frame, inside ro
     struct.pack_into('<4sIIIii', ro, 0, b'MOD0', 0, 0, 0, hdr, hdr + 0x20)
@@ -67,14 +69,14 @@ def build():
                               bytes([4, 0x78, 30, 1, 0x1B]) + bytes(7))
     fde = SEG + frame + 0x18
     struct.pack_into('<IIii', ro, frame + 0x18, 0x10, (fde + 4) - (SEG + frame),
-                     CODE_AT - (fde + 8), 4 * len(CODE))
+                     CODE_AT - (fde + 8), 4 * len(code))
     data = bytes(SEG)
     header = bytearray(0x100)
     header[:4] = b'NSO0'
     for index, segment in enumerate((text, ro, data)):
         struct.pack_into('<III', header, 0x10 + 0x10 * index, 0x100 + SEG * index, SEG * index, len(segment))
         struct.pack_into('<I', header, 0x60 + 4 * index, len(segment))
-    header[0x40:0x50] = bytes([0x52, 0x42]) + bytes(range(14))  # arbitrary build id
+    header[0x40:0x50] = build_id or bytes([0x52, 0x42]) + bytes(range(14))  # arbitrary build id
     return bytes(header) + bytes(text) + bytes(ro) + data
 
 
