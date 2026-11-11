@@ -2123,6 +2123,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
               gates and 17 scoped gates reused. Contract tests passed: 419, reads 440, arrays 545.
             - Replaces Core 731 (run 42958274015), which stays the fallback with the same five-part MoltenVK.
             - Not run on an iPhone; no FPS or memory claim.
+          - **MeloNX lot 14 = Core 735, merged by main as d2053e98 (head 1db5e54d), after a review on main:**
+            - Engine: adapt_remap_sweep_range. A Map or Unmap now re-queues only the partially mapped textures it can concern.
+              Still swept as before: overlapped, never swept, no pool owner, or a pool owner of the event's address space
+              over an intersected range. The differential gate remap-sweep-range is the 92nd gate.
+            - Host: the diagnostics reader decodes only changed bytes (MeloNXRuntimeAPI.swift); the
+              one-engine-per-process flag; the S2Arm probe hook removed.
+            - Contract 47b596a9, verified locally (421 checks without the archive). The RPCS3 Core 931 source closure is
+              unchanged.
+            - Core CI run 43044568458 dispatched on d2053e98; result and pin pending. Core 733 stays pinned.
         - **Core 929 request 2 (1ea6cf4a, run 43000618405):** core-build.json links the dependency of run 42998604606
           (a277f467; offline: run, jobs, three artifacts, host receipts and every recorded input checked with the repository
           verifier, libMoltenVK.a d19d3a42 byte-identical; the symbol check needs xcrun and passed in the Core job's
