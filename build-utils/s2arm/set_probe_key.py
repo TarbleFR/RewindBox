@@ -32,6 +32,8 @@ HOST_REGISTRANT = 'ios/Runner/GeneratedPluginRegistrant.m'
 PLUGIN_CLASS = 'S2ArmProbePlugin'
 # Symbols the Runner executable must define: the static pod is linked into it (no image is added).
 REQUIRED_SYMBOLS = ('_OBJC_CLASS_$_' + PLUGIN_CLASS, '_rb_s2arm_probe_attached', '_rb_s2arm_probe_detached')
+# What a stripped executable still carries of the plugin: its class name and its two class-method selectors.
+OBJC_METADATA = (PLUGIN_CLASS, 'attachedFunction', 'detachedFunction')
 ARM64 = 0x0100000C
 
 
@@ -137,12 +139,20 @@ def defined_symbols(data):
 
 def check_executable(raw, label):
     """The Runner executable links the probe: its Objective-C class (the symbol the compiler emits for the
-    class object) and its two entry points are defined in it."""
+    class object) and its two entry points are defined in it. A release executable may have had its symbol
+    table stripped: the Objective-C metadata the runtime needs survives that, so the class name and the two
+    selectors of the plugin are then required instead, and the report says which evidence was read."""
     symbols = defined_symbols(raw)
     missing = [name for name in REQUIRED_SYMBOLS if name not in symbols]
-    require(not missing, f'{label} does not define {missing}: the static probe pod is not linked into the '
-            'Runner executable (or its symbols were stripped before this check)')
-    return dict(executable=label, pluginClass=PLUGIN_CLASS, definedSymbols=list(REQUIRED_SYMBOLS))
+    if not missing:
+        return dict(executable=label, pluginClass=PLUGIN_CLASS, evidence='symbols',
+                    definedSymbols=list(REQUIRED_SYMBOLS))
+    image = arm64_slice(raw)
+    absent = [name for name in OBJC_METADATA if b'\0' + name.encode() + b'\0' not in image]
+    require(not absent, f'{label} does not define {missing} and carries no Objective-C metadata {absent}: the '
+            'static probe pod is not linked into the Runner executable')
+    return dict(executable=label, pluginClass=PLUGIN_CLASS, evidence='objc-metadata',
+                strippedSymbols=missing, objcMetadata=list(OBJC_METADATA))
 
 
 def no_probe_image(names, label):

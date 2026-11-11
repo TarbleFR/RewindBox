@@ -507,6 +507,15 @@ class ProbeKey(unittest.TestCase):
 
     def test_executable(self):
         self.assertEqual(probe.check_executable(LINKED, 'Runner')['definedSymbols'], list(probe.REQUIRED_SYMBOLS))
+        self.assertEqual(probe.check_executable(LINKED, 'Runner')['evidence'], 'symbols')
+        # A stripped release executable: no probe symbol left, the Objective-C metadata of the plugin remains.
+        metadata = b''.join(b'\0' + name.encode() for name in probe.OBJC_METADATA) + b'\0'
+        stripped = probe.check_executable(macho([]) + metadata, 'Runner')
+        self.assertEqual((stripped['evidence'], stripped['strippedSymbols']), ('objc-metadata', list(probe.REQUIRED_SYMBOLS)))
+        for absent in probe.OBJC_METADATA:
+            partial = b''.join(b'\0' + name.encode() for name in probe.OBJC_METADATA if name != absent) + b'\0'
+            with self.assertRaisesRegex(probe.ProbeError, absent):
+                probe.check_executable(macho([]) + partial, 'Runner')
         fat = struct.pack('>IIIIIII', 0xCAFEBABE, 1, 0x0100000C, 0, 28, len(LINKED), 14) + LINKED
         self.assertEqual(probe.check_executable(fat, 'Runner')['pluginClass'], 'S2ArmProbePlugin')
         for missing in probe.REQUIRED_SYMBOLS:
