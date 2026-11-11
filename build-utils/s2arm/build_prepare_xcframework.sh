@@ -41,7 +41,9 @@ xcrun --sdk iphoneos clang -arch arm64 -miphoneos-version-min=$minimum -isysroot
 xcrun libtool -static -o "$out/libS2ArmPrepare.a" "$out/objects/S2ArmPrepare.o"
 
 cp "$here"/native/s2arm/prepare/s2arm_prepare.h "$out/headers/"
-[ ! -f "$here/native/s2arm/prepare/s2arm_addr_need.h" ] || cp "$here/native/s2arm/prepare/s2arm_addr_need.h" "$out/headers/"
+for header in s2arm_addr_need.h s2arm_zbic.h s2arm_ns2_dump.h; do
+  [ ! -f "$here/native/s2arm/prepare/$header" ] || cp "$here/native/s2arm/prepare/$header" "$out/headers/"
+done
 xcodebuild -create-xcframework -library "$out/libS2ArmPrepare.a" -headers "$out/headers" -output "$out/S2ArmPrepare.xcframework"
 
 # Checks: architecture, platform, visible symbols, nothing undefined beyond the system.
