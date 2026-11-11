@@ -274,7 +274,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     files, 55/55; analyzer clean on the 12 changed files. No thermal or battery claim before a device comparison against
     IPA 724/725 (idle game list heat, battery under a game).
   - **Session 04 (Switch 2 trial IPA 803):** answered: native conditionals in the four closed sets (handoff), conditional
-    legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172.
+    legal notices with the full texts, chained overlay for the red Glacier tile; base = `Claude` after #172. Glacier
+    tile overlay reviewed and accepted (`fd82c323`, `eba96103` on its library branch: 512x512 WebP of the maintainer's
+    red Switch 2 tile, EN/FR credit as a Nintendo trademark, strict chained check after the Glacier review); left: the
+    legal bundle validation on that branch, since the Glacier attribution file outside the pack changed.
 
 - **Public release 0.0.11 — published, public IPA721 download verified (10 Nov).**
   [Release](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.11), id `440810980`,
