@@ -257,7 +257,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Common IPA — main Claude Code
 
-- **Maintainer decision (11 Nov, verbatim): "Oui embarque : libmetalirconverter.dylib".** Relayed to session 03:
+- **Maintainer decision (11 Nov): libmetalirconverter.dylib may ship in the IPA; the XeniOS engine goes into the next IPA.** Relayed to session 03:
   XeniaCore, the converter (pinned, licence text in the legal chain) and the JIT helper appex come as a handoff for the
   next common build. Device report on 726: an empty Xbox 360 / Switch 2 library opened the generic recursive-scan
   panel. Fixed in `79979d07`, with a source-contract test. Asked of session 04: the Switch 2 import menu gets the same

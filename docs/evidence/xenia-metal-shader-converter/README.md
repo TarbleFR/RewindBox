@@ -46,9 +46,9 @@ Received from the maintainer on 12 November 2026 (Europe/Paris); read in full by
    - Every other byte must stay identical. The delivery must check that, from the asset digest excluding
      `LC_CODE_SIGNATURE`.
 
-## Maintainer decision (11 Nov 2026, verbatim)
+## Maintainer decision (11 Nov 2026)
 
-« Oui embarque : libmetalirconverter.dylib », then « Tu rentre bien le moteur XeniOS dans la prochaine ipa ! ».
+The maintainer allows `libmetalirconverter.dylib` in the IPA and asks for the XeniOS engine in the next common IPA.
 The three open points above are recorded as accepted by the maintainer for the next private common IPA, not as resolved.
 The technical controls stay:
 - the dylib's bytes are unchanged except `LC_CODE_SIGNATURE` (digest checked at delivery);
