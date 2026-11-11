@@ -300,7 +300,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   solved and no Discord post is claimed. The GitHub publication/document/source
   correction is complete; do not repeat it or re-announce later private builds.
 
-- **Common IPA 725 in preparation (11 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** Maintainer requests of 11 Nov: every fix
+- **Common IPA 725 delivered and verified (11 Nov, main `012mUAShv9k6pSCnpW7oAF63`).** Trigger `e5a82821` (frozen on
+  `603ee05d`, effective digest `2b7d639b`, 7629 product files), run `42973548971` green first try (preflight, flutter,
+  native, republish, application; 26 min). Four pieces of 68,284,910 B = API digests; offline verification passed;
+  IPA 272226282 B, SHA-256 `30f98890…e54a`, 90 images, 10 changed exactly as declared, 0 undeclared, 43 retained
+  fingerprints verified; eight receipts copied; key deleted; receipt [rewind725](evidence/rewind725/delivery.json)
+  (12 proofs). Sent privately as a file. Review findings arriving after the trigger (12 message-accuracy defects, no
+  crash or data loss) are fixed in `68846c65` and `f3a4180f` for the next build (a second port is needed for the files
+  carrying the deferred b06888a9 lines). IPA B (Switch 2) is session 04's, on the 725 content plus its probe.
+  **Nothing of this build is observed on the device yet.** Preparation notes:
+ Maintainer requests of 11 Nov: every fix
   in IPA A (725), then IPA B (726) = A + the S2Arm probe (handoff `1ce1b5d9`, session 04). Ready on `Claude`:
   - **Cores pinned:** RPCS3 Core 928 `d45b1c80` (run `42960159566`, dylib `2840977c` 80958696 B, fingerprint `b99f76b0`,
     15 Apple host commands; Core 927 `6669475f` stays the fallback); MeloNX Core 731 `fa54e14a` (run `42958274015`,
