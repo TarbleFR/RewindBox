@@ -599,6 +599,26 @@ static NSString* const kWiiPocket = @"wii-pocket";
   }
 }
 
+/// A D-pad shows the arm under the finger pressed, not the whole cross (maintainer's
+/// recording of Wii Pocket - Original upright).
+- (void)testTheDPadShowsThePressedArmOnly {
+  for (NSString* skin in @[ kWii, kGC, kWiiPocket, kGCPocket ]) {
+    [self choose:skin];
+    for (NSNumber* portraitValue in @[ @YES, @NO ]) {
+      const BOOL portrait = portraitValue.boolValue;
+      DOLSkinOverlay* overlay = [self overlay:skin portrait:portrait size:CGSizeZero];
+      const CGRect frame = [self rect:[self item:@"up" of:[self layout:skin portrait:portrait]][@"frame"]];
+      __block SkinFakeTouch* finger = nil;
+      SkinDPadArmCheck(self, overlay, frame, ^(CGPoint point) {
+        finger = [self touch:point];
+        [self begin:finger on:overlay];
+      }, ^{
+        [self end:finger on:overlay];
+      }, [NSString stringWithFormat:@"%@ %@", skin, portrait ? @"portrait" : @"landscape"]);
+    }
+  }
+}
+
 /// Another skin chosen, then the session launched again (a new overlay reads the files):
 /// each skin gets its own game place and its controls; "default" leaves no overlay.
 - (void)testTheGameScreenFollowsASkinChangeAndARelaunch {

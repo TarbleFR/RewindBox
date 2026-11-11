@@ -574,6 +574,9 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
   NSSet<NSString*>* _pressed;
   NSDictionary<NSString*, NSValue*>* _vectors;
   NSSet<NSNumber*>* _pressedItems;
+  // D-pad items held now: item index -> its pressed directions (up, down, left, right).
+  NSDictionary<NSNumber*, NSSet<NSString*>*>* _pressedArms;
+  NSMutableDictionary<NSNumber*, UIImageView*>* _armViews;
   CGPoint _pointer;
   BOOL _pointerSent;
   UIImpactFeedbackGenerator* _haptics;
@@ -589,6 +592,8 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
   _pressed = [NSSet set];
   _vectors = @{};
   _pressedItems = [NSSet set];
+  _pressedArms = @{};
+  _armViews = [NSMutableDictionary dictionary];
   _skinRect = CGRectNull;
   _screenFrame = CGRectNull;
   _laidOutSize = CGSizeZero;
@@ -671,6 +676,7 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
   for (UIView* view in _itemViews) [view removeFromSuperview];
   for (UIView* view in _knobViews) [view removeFromSuperview];
   [_itemViews removeAllObjects];
+  [_armViews removeAllObjects];
   [_knobViews removeAllObjects];
   _background.image = nil;
   if (_current == nil) return;
@@ -792,6 +798,45 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
   return CGRectMake(x - width / 2, y - height / 2, width, height);
 }
 
+/// The pressed picture of a D-pad, cut to the quarter(s) of its held directions: each
+/// direction is the triangle from the centre to its side (a diagonal shows two).
+- (void)showArms:(NSSet<NSString*>*)arms index:(NSUInteger)index on:(UIImageView*)view {
+  UIImageView* arm = _armViews[@(index)];
+  if (arms.count == 0) {
+    arm.hidden = YES;
+    return;
+  }
+  if (arm == nil || arm.superview != view) {
+    arm = [[UIImageView alloc] initWithFrame:view.bounds];
+    arm.contentMode = view.contentMode;
+    arm.layer.mask = [CAShapeLayer layer];
+    [view addSubview:arm];
+    _armViews[@(index)] = arm;
+  }
+  arm.frame = view.bounds;
+  arm.image = view.highlightedImage;
+  arm.hidden = NO;
+  const CGFloat w = view.bounds.size.width, h = view.bounds.size.height;
+  const CGPoint centre = CGPointMake(w / 2, h / 2);
+  UIBezierPath* path = [UIBezierPath bezierPath];
+  void (^quarter)(CGPoint, CGPoint) = ^(CGPoint a, CGPoint b) {
+    [path moveToPoint:centre];
+    [path addLineToPoint:a];
+    [path addLineToPoint:b];
+    [path closePath];
+  };
+  if ([arms containsObject:@"up"]) quarter(CGPointMake(0, 0), CGPointMake(w, 0));
+  if ([arms containsObject:@"down"]) quarter(CGPointMake(0, h), CGPointMake(w, h));
+  if ([arms containsObject:@"left"]) quarter(CGPointMake(0, 0), CGPointMake(0, h));
+  if ([arms containsObject:@"right"]) quarter(CGPointMake(w, 0), CGPointMake(w, h));
+  CAShapeLayer* mask = (CAShapeLayer*)arm.layer.mask;
+  [CATransaction begin];
+  [CATransaction setDisableActions:YES];
+  mask.frame = arm.bounds;
+  mask.path = path.CGPath;
+  [CATransaction commit];
+}
+
 - (void)refreshPressedViews {
   if (_current == nil) return;
   const CGSize mapping = _current.mappingSize;
@@ -799,6 +844,11 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
     UIImageView* view = self->_itemViews[index];
     const BOOL pressed = [self->_pressedItems containsObject:@(index)];
     view.highlighted = pressed && view.highlightedImage != nil;
+    if (item.kind == DOLSkinItemKindDPad && view.highlightedImage != nil) {
+      // A D-pad shows the arm(s) under the finger pressed, not the whole cross.
+      view.highlighted = NO;
+      [self showArms:(pressed ? self->_pressedArms[@(index)] : nil) index:index on:view];
+    }
     // Without a pressed asset, a held control dims a little.
     const CGFloat opacity = self->_current.translucent ? 0.7 : 1.0;
     view.alpha = pressed && view.highlightedImage == nil ? opacity * 0.6 : opacity;
@@ -900,6 +950,7 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
 - (void)updateInputs {
   NSMutableSet<NSString*>* pressed = [NSMutableSet set];
   NSMutableSet<NSNumber*>* pressedItems = [NSMutableSet set];
+  NSMutableDictionary<NSNumber*, NSSet<NSString*>*>* pressedArms = [NSMutableDictionary dictionary];
   NSMutableDictionary<NSString*, NSValue*>* vectors = [NSMutableDictionary dictionary];
   BOOL pointerTouched = NO;
   CGPoint pointer = _pointer;
@@ -928,7 +979,12 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
           NSString* canonical = item.directions[direction];
           if (canonical != nil) [pressed addObject:canonical];
         }
-        if (directions.count > 0) [pressedItems addObject:@(track.item)];
+        if (directions.count > 0) {
+          [pressedItems addObject:@(track.item)];
+          NSMutableSet<NSString*>* arms = [NSMutableSet setWithArray:directions];
+          if (pressedArms[@(track.item)] != nil) [arms unionSet:pressedArms[@(track.item)]];
+          pressedArms[@(track.item)] = arms;
+        }
         break;
       }
       case DOLSkinItemKindStick: {
@@ -969,6 +1025,7 @@ static CGRect DOLSkinPlace(DOLSkinRepresentation* skin, CGRect bounds, UIEdgeIns
     [self sendPointer:pointer];
   }
   _pressedItems = pressedItems;
+  _pressedArms = pressedArms;
   [self refreshPressedViews];
 }
 
