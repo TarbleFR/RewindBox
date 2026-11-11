@@ -4,7 +4,9 @@
 #include "s2arm_addr_need.h"
 #include "s2arm_modules.h"
 #include "s2arm_nro.h"
+#include "s2arm_zbic.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -147,9 +149,99 @@ static void remove_nroexe(const char *directory, int modules) {
     rmdir(directory);
 }
 
+// ---- ZBIC modules -------------------------------------------------------------
+// S2Arm's packer never sees a ZBIC NSO: its unpack step (nx_unpack, or pack/ns2_dump.py for a
+// Switch 2 export) rewrites them with uncompressed segments first. When the ExeFS given here
+// still holds one, the same normalisation (s2arm_zbic.c) is applied to a copy of its top-level
+// entries in <output>/nsoexe, the stage runs on that copy, and the copy is removed at the end.
+
+// 1 = some top-level NSO has the ZBIC flag, 0 = none, -1 = the directory cannot be listed.
+static int exefs_has_zbic(const char *exefs) {
+    DIR *directory = opendir(exefs);
+    if (!directory) return -1;
+    struct dirent *entry;
+    int found = 0;
+    char path[2048];
+    while (!found && (entry = readdir(directory))) {
+        if (!join(path, sizeof path, exefs, entry->d_name, "")) continue;
+        FILE *file = fopen(path, "rb");
+        if (!file) continue;
+        unsigned char header[16];
+        size_t got = fread(header, 1, sizeof header, file);
+        fclose(file);
+        found = got == sizeof header && !memcmp(header, "NSO0", 4) && (header[12] & 0x80);
+    }
+    closedir(directory);
+    return found;
+}
+
+static void remove_nsoexe(const char *directory) {
+    DIR *d = opendir(directory);
+    if (d) {
+        struct dirent *entry;
+        char path[2048];
+        while ((entry = readdir(d)))
+            if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..") && join(path, sizeof path, directory, entry->d_name, "")) {
+                if (remove(path)) rmdir(path);
+            }
+        closedir(d);
+    }
+    rmdir(directory);
+}
+
+// Copies every top-level entry of exefs into work, NSOs through rb_s2arm_nso_normalize_file
+// (ZBIC ones decoded, others unchanged; unknown flag bits fail). A subdirectory becomes an
+// empty directory so that the later steps see the same entries as in the original ExeFS.
+static int normalise_exefs(const char *exefs, const char *work, char *error, size_t error_size) {
+    if (mkdir(work, 0700) && !exists(work)) return fail(error, error_size, RB_S2ARM_PREPARE_IO, "cannot create the ZBIC work directory");
+    DIR *directory = opendir(exefs);
+    if (!directory) return fail(error, error_size, RB_S2ARM_PREPARE_IO, "cannot list the exefs");
+    struct dirent *entry;
+    int result = RB_S2ARM_PREPARE_OK;
+    char from[2048], to[2048];
+    while (!result && (entry = readdir(directory))) {
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        if (!join(from, sizeof from, exefs, entry->d_name, "") || !join(to, sizeof to, work, entry->d_name, "")) {
+            result = fail(error, error_size, RB_S2ARM_PREPARE_INVALID, "path too long");
+            break;
+        }
+        struct stat status;
+        if (stat(from, &status)) {
+            result = fail(error, error_size, RB_S2ARM_PREPARE_IO, "cannot read %s", entry->d_name);
+            break;
+        }
+        if (S_ISDIR(status.st_mode)) {
+            if (mkdir(to, 0700)) result = fail(error, error_size, RB_S2ARM_PREPARE_IO, "cannot create %s", to);
+            continue;
+        }
+        char why[512] = "";
+        int code = rb_s2arm_nso_normalize_file(from, to, why, sizeof why);
+        if (code == RB_S2ARM_ZBIC_INVALID) result = fail(error, error_size, RB_S2ARM_PREPARE_INVALID, "%s", why);
+        else if (code) result = fail(error, error_size, RB_S2ARM_PREPARE_IO, "%s", why);
+    }
+    closedir(directory);
+    return result;
+}
+
+static int prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size);
+
 int rb_s2arm_prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size) {
     if (!request || !request->exefs_dir || !request->output_dir)
         return fail(error, error_size, RB_S2ARM_PREPARE_INVALID, "incomplete request");
+    if (exefs_has_zbic(request->exefs_dir) != 1) return prepare_code(request, error, error_size);
+    char work[2048];
+    if (!join(work, sizeof work, request->output_dir, "nsoexe", "")) return fail(error, error_size, RB_S2ARM_PREPARE_INVALID, "path too long");
+    int result = normalise_exefs(request->exefs_dir, work, error, error_size);
+    if (!result) {
+        rb_s2arm_code_request normalised = *request;
+        normalised.exefs_dir = work;
+        result = prepare_code(&normalised, error, error_size);
+    }
+    remove_nsoexe(work);
+    return result;
+}
+
+static int prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size) {
     const char *out = request->output_dir;
     char main_path[2048], npdm[2048], table[2048], nroexe[2048], from[2048], to[2048];
     if (!join(main_path, sizeof main_path, request->exefs_dir, "main", "") || !join(npdm, sizeof npdm, request->exefs_dir, "main.npdm", "") ||

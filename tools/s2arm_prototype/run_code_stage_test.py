@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compares rb_s2arm_prepare_code with the same steps run by S2Arm's own tools (CI only).
 
-Usage: run_code_stage_test.py <s2arm_checkout> <s2a-rewrite> <s2arm_prepare_cli> <work_dir>
+Usage: run_code_stage_test.py <s2arm_checkout> <s2a-rewrite> <s2arm_prepare_cli> <work_dir> [<nx_unpack command>]
 
 The reference is the core of pack/stage_rewrite.sh in its order, each step by the
 original tool: addr_need.py, nro_to_nso.py, the rewriter command line per module
@@ -9,6 +9,11 @@ original tool: addr_need.py, nro_to_nso.py, the rewriter command line per module
 --gpu-drivers. Both sides get the same synthetic ExeFS/RomFS (no game content).
 A successful reference needs the same files and bytes (rewriter logs aside);
 a failing reference needs a failing library.
+
+With <nx_unpack command> (an executable running S2Arm's nx_unpack), ZBIC cases are added:
+the library gets an ExeFS whose modules are ZBIC-compressed (make_synth_zbic.py), the
+reference gets the same ExeFS after `nx_unpack --nso-normalize` of every top-level file,
+which is what S2Arm's unpack step hands to its code stage.
 """
 import os
 import shutil
@@ -19,6 +24,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import make_synth_exefs  # noqa: E402
+import make_synth_zbic  # noqa: E402
 import run_modules_test as fixtures  # noqa: E402  (only its synthetic NRO builder is used)
 
 MODULES = ['main'] + [f'subsdk{i}' for i in range(10)] + ['sdk']
@@ -76,11 +82,22 @@ def reference(checkout, rewriter, exefs, romfs, out):
     return failed
 
 
-def case(name, checkout, rewriter, cli, work, exefs, romfs, expect_success=None):
+def normalised(nx_unpack, exefs, target):
+    """S2Arm's unpack step for a ZBIC ExeFS: nx_unpack --nso-normalize on every top-level file."""
+    target.mkdir(parents=True)
+    for path in sorted(exefs.iterdir()):
+        if path.is_file() and subprocess.run([str(nx_unpack), '--nso-normalize', str(path), str(target / path.name)],
+                                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+            return None
+    return target
+
+
+def case(name, checkout, rewriter, cli, work, exefs, romfs, expect_success=None, nx_unpack=None):
     ref, mine = work / name / 'ref', work / name / 'out'
     for directory in (ref, mine):
         directory.mkdir(parents=True)
-    failed = reference(checkout, rewriter, exefs, romfs, ref)
+    ref_exefs = normalised(nx_unpack, exefs, work / name / 'ref-exefs') if nx_unpack else exefs
+    failed = reference(checkout, rewriter, ref_exefs, romfs, ref) if ref_exefs else 'nx_unpack --nso-normalize'
     run = subprocess.run([str(cli), 'code', str(exefs), str(romfs) if romfs else '-', str(mine)], capture_output=True, text=True)
     last = (run.stdout.strip().splitlines() or [''])[-1]
     if expect_success is not None and (failed == 0) != expect_success:
@@ -97,6 +114,7 @@ def case(name, checkout, rewriter, cli, work, exefs, romfs, expect_success=None)
 
 def main():
     checkout, rewriter, cli, work = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]).resolve(), Path(sys.argv[4])
+    nx_unpack = Path(sys.argv[5]).resolve() if len(sys.argv) > 5 else None
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
 
@@ -130,8 +148,32 @@ def main():
     (no_npdm / 'main.npdm').unlink()
     case('missing-npdm', *arguments, no_npdm, None, expect_success=False)
 
+    if nx_unpack:
+        import random
+        import struct
+        zbic_exefs = exefs('exefs-zbic')
+        for module, seed, extra in (('main', 1, 0x40), ('subsdk0', 2, 0), ('sdk', 3, 0)):
+            data = (zbic_exefs / module).read_bytes()
+            (zbic_exefs / module).write_bytes(make_synth_zbic.zbic_nso(data, random.Random(seed), extra_flags=extra))
+        case('zbic-modules', *arguments, zbic_exefs, None, expect_success=True, nx_unpack=nx_unpack)
+        case('zbic-modules-with-nro', *arguments, zbic_exefs, romfs('romfs-nro-zbic', {'pkg/a.nro': fixtures.build_nro(1)}),
+             nx_unpack=nx_unpack)
+        corrupt = exefs('exefs-zbic-corrupt')
+        bad = bytearray(make_synth_zbic.zbic_nso((corrupt / 'main').read_bytes(), random.Random(4)))
+        offset, size = struct.unpack_from('<I', bad, 0x10)[0], struct.unpack_from('<I', bad, 0x60)[0]
+        bad[offset + size // 2:offset + size // 2 + 16] = b'\xAA' * 16
+        (corrupt / 'main').write_bytes(bytes(bad))
+        case('zbic-corrupt', *arguments, corrupt, None, expect_success=False, nx_unpack=nx_unpack)
+        unknown = exefs('exefs-zbic-unknown-flag')
+        data = bytearray(make_synth_zbic.zbic_nso((unknown / 'main').read_bytes(), random.Random(5)))
+        data[0xD] |= 1   # flag bit 0x100: unknown to nx_unpack
+        (unknown / 'sdk').write_bytes(bytes(data))
+        main = make_synth_zbic.zbic_nso((unknown / 'main').read_bytes(), random.Random(6))
+        (unknown / 'main').write_bytes(main)
+        case('zbic-unknown-flag-bit', *arguments, unknown, None, expect_success=False, nx_unpack=nx_unpack)
+
     print(f"{state['ran']} cases, {state['failed']} failed")
-    sys.exit(1 if state['failed'] or state['ran'] < 5 else 0)
+    sys.exit(1 if state['failed'] or state['ran'] < (9 if nx_unpack else 5) else 0)
 
 
 if __name__ == '__main__':

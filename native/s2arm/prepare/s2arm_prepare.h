@@ -3,10 +3,11 @@
 // one; each replaced stage is checked in CI against S2Arm at the pinned commit
 // (tools/s2arm_prototype/pin.json). See docs/s2arm-study-2026-11-11.md, batch 4.
 //
-// Stage covered so far: the code stage (S2Arm pack/stage_rewrite.sh: address-need
+// Stages covered so far: the unpack step for Switch 2 export folders (s2arm_ns2_dump.h,
+// with ZBIC normalisation, s2arm_zbic.h) and the code stage (S2Arm pack/stage_rewrite.sh: address-need
 // table, NRO conversion and exports, module rewriting, main.npdm, GPU driver
 // list). Not covered: its optional widescreen, frame-rate and patch tables, and
-// the other stages (unpack, system data, RomFS index, package layout).
+// the other stages (unpack from NSP/XCI, system data, RomFS index, package layout).
 #pragma once
 #include <stddef.h>
 
@@ -21,7 +22,7 @@ enum {
     RB_S2ARM_PREPARE_GAPS = 3,      // the rewriter found code it cannot rewrite; the game is not supported
     RB_S2ARM_PREPARE_REWRITER = 4,  // the rewriter failed for another reason
     RB_S2ARM_PREPARE_CANCELLED = 5,
-    RB_S2ARM_PREPARE_UNSUPPORTED = 6, // a form this library does not handle yet (ZBIC module, NRO hidden in another file)
+    RB_S2ARM_PREPARE_UNSUPPORTED = 6, // a form this library does not handle yet (NRO hidden in another file)
 };
 
 typedef struct {
@@ -56,7 +57,10 @@ typedef struct {
 // widescreen, frame-rate and community-patch tables), in its order: address-need table,
 // NRO conversion, rewriting of the ExeFS modules and of the converted NROs, main.npdm,
 // NRO exports table, GPU driver list. Outputs land in output_dir as the packer lays them
-// out; the intermediate nroexe directory is removed at the end.
+// out; the intermediate nroexe directory is removed at the end. An ExeFS holding ZBIC NSOs
+// (flag 0x80, Switch 2) is first normalised as S2Arm's unpack step does (s2arm_zbic.h) into
+// <output>/nsoexe, removed at the end; bad ZBIC data or unknown NSO flag bits fail with
+// RB_S2ARM_PREPARE_INVALID. rb_s2arm_prepare_rewrite does not normalise.
 int rb_s2arm_prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size);
 
 #ifdef __cplusplus

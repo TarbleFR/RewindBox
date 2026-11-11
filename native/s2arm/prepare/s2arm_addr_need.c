@@ -166,7 +166,7 @@ static int nso_image(ctx_t *x, const uint8_t *raw, size_t rawlen, nso_t *out) {
     uint32_t flags;
     if (rawlen < 4 || memcmp(raw, "NSO0", 4)) return fail(x, RB_S2ARM_ADDR_INVALID, "not an NSO");
     if (rawlen >= 0x10 && (le32(raw + 0xC) & 0x80))
-        return fail(x, RB_S2ARM_ADDR_UNSUPPORTED, "ZBIC-compressed NSO (flag 0x80) is not supported; normalise it with nx_unpack first");
+        return fail(x, RB_S2ARM_ADDR_UNSUPPORTED, "ZBIC-compressed NSO (flag 0x80): normalise it first (rb_s2arm_nso_normalize; rb_s2arm_prepare_code does)");
     if (!rd32(raw, rawlen, 0xC, &flags)) return fail(x, RB_S2ARM_ADDR_INVALID, "NSO header too short");
     static const int headers[3] = {0x10, 0x20, 0x30}, csizes[3] = {0x60, 0x64, 0x68};
     for (int k = 0; k < 3; k++) {
