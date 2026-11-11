@@ -5115,6 +5115,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   Engine run with licences `43097515562` started. Open for main: texts not located (deko3d zlib, Ryujinx NuGet refs,
   ZstdSharp.Port, LibHac), glslang kept as required, `RTLD_GLOBAL` interposition risk with DolphinCore's weak glslang
   symbols (803: launch the Switch 2 game from a fresh app start).
+- **Maintainer (11 Nov, 23:15 UTC): no separate Switch 2 IPA any more.** This session hands its work to main like the
+  others; main builds every IPA. 803 is cancelled: no freeze, no trigger, scratch draft discarded, its private key
+  deleted (never used; the public key `build-utils/delivery-803-recipient.pem` stays unless main removes it).
+  - Handoffs waiting for main:
+    - `13d34c25`: declared retained-input changes in the recipe.
+    - `ff8ca164..0c864039` and `a14f67c`: identity-gated conditionals and engine notices. Session 03 reuses the design
+      for Xenia.
+    - `6d492d75`: Switch 2 menus from the 726 report (import, shared prod.keys, delete with saves kept, emulator
+      screen, "not included" wording). Library CI run `43117992014`.
+  - Engine with restricted exports: run `43115636852` (`c0717c44`), `nm -gU` = 102 symbols (5328 before, 807 glslang
+    hidden, 0 glslang exported). `S2ArmEngine.framework.zip` `f302baa7…56d7`, `NS2Pro.framework.zip` `e662a255…cb64`.
+  - Tile art: session 02's PR #178 (Glacier fallback for systems missing from a downloaded pack).
+  - Open: licence texts by kept-symbol inventory; the empty-state hint once session 03's `hint` is on Claude; how the
+    engine enters the common recipe (main to decide).
 - **803 preparation (11 Nov, evening):**
   - GitHub Actions incident (20:48–21:21 UTC). Every run of the repo created 20:41–20:52 stays "queued" with no jobs,
     and cancelling one answers 409 "not been queued yet". This includes engine run `43097515562` and main's 726 runs;
