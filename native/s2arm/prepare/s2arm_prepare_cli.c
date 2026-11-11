@@ -64,6 +64,13 @@ int main(int argc, char **argv) {
         printf("result=%d %s\n", result, error);
         return result;
     }
+    if (argc == 5 && !strcmp(argv[1], "code")) { // code <exefs> <romfs or -> <output>
+        char error[256] = "";
+        rb_s2arm_code_request request = {argv[2], strcmp(argv[3], "-") ? argv[3] : NULL, argv[4], progress, NULL, NULL};
+        int result = rb_s2arm_prepare_code(&request, error, sizeof error);
+        printf("result=%d %s\n", result, error);
+        return result;
+    }
     if (argc < 4 || strcmp(argv[1], "rewrite")) {
         fprintf(stderr, "usage: %s rewrite <exefs> <output> [cancel-after]\n", argv[0]);
         return 64;

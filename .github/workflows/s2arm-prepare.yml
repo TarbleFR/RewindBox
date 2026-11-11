@@ -68,6 +68,11 @@ jobs:
           # Originals need only python-lz4 (installed above, pinned in S2Arm's tools/rewriter-requirements.txt); no zstandard, no capstone.
           python3 tools/s2arm_prototype/run_modules_test.py "$RUNNER_TEMP/s2arm" proof/s2arm_prepare_cli \
             "$RUNNER_TEMP/modules-work" | tee proof/modules-report.txt
+      - name: Compare the whole code stage with the same steps run by S2Arm's tools
+        run: |
+          set -euo pipefail
+          python3 tools/s2arm_prototype/run_code_stage_test.py "$RUNNER_TEMP/s2arm" "$RUNNER_TEMP/rewriter/s2a-rewrite" \
+            proof/s2arm_prepare_cli "$RUNNER_TEMP/code-stage-work" | tee proof/code-stage-report.txt
       - name: The library compiles for iOS arm64
         if: runner.os == 'macOS'
         run: |
@@ -92,4 +97,5 @@ jobs:
             proof/prepare-report.txt
             proof/addr-need-report.txt
             proof/modules-report.txt
+            proof/code-stage-report.txt
           retention-days: 30

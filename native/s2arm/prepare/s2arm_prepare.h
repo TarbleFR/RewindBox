@@ -3,9 +3,10 @@
 // one; each replaced stage is checked in CI against S2Arm at the pinned commit
 // (tools/s2arm_prototype/pin.json). See docs/s2arm-study-2026-11-11.md, batch 4.
 //
-// Stage covered so far: rewrite (S2Arm pack/stage_rewrite.sh, the module loop
-// and main.npdm). Not yet covered: address-need table, NRO conversion and
-// exports, GPU driver list, widescreen and frame-rate tables.
+// Stage covered so far: the code stage (S2Arm pack/stage_rewrite.sh: address-need
+// table, NRO conversion and exports, module rewriting, main.npdm, GPU driver
+// list). Not covered: its optional widescreen, frame-rate and patch tables, and
+// the other stages (unpack, system data, RomFS index, package layout).
 #pragma once
 #include <stddef.h>
 
@@ -20,6 +21,7 @@ enum {
     RB_S2ARM_PREPARE_GAPS = 3,      // the rewriter found code it cannot rewrite; the game is not supported
     RB_S2ARM_PREPARE_REWRITER = 4,  // the rewriter failed for another reason
     RB_S2ARM_PREPARE_CANCELLED = 5,
+    RB_S2ARM_PREPARE_UNSUPPORTED = 6, // a form this library does not handle yet (ZBIC module, NRO hidden in another file)
 };
 
 typedef struct {
@@ -39,6 +41,23 @@ typedef struct {
 // On failure `error` (may be NULL) receives one line and the outputs of the
 // failing module are not to be used.
 int rb_s2arm_prepare_rewrite(const rb_s2arm_rewrite_request *request, char *error, size_t error_size);
+
+typedef struct {
+    const char *exefs_dir;   // unpacked ExeFS of the game
+    const char *romfs_dir;   // unpacked RomFS, or NULL: the NRO steps are then skipped
+    const char *output_dir;  // existing, writable
+    // Called before each step ("addr_need", "nro", a module name, "tables") with its index and the step count. May be NULL.
+    void (*progress)(void *context, const char *step, int index, int count);
+    int (*cancelled)(void *context); // polled between steps. May be NULL.
+    void *context;
+} rb_s2arm_code_request;
+
+// The whole code stage of S2Arm's packer (pack/stage_rewrite.sh without its optional
+// widescreen, frame-rate and community-patch tables), in its order: address-need table,
+// NRO conversion, rewriting of the ExeFS modules and of the converted NROs, main.npdm,
+// NRO exports table, GPU driver list. Outputs land in output_dir as the packer lays them
+// out; the intermediate nroexe directory is removed at the end.
+int rb_s2arm_prepare_code(const rb_s2arm_code_request *request, char *error, size_t error_size);
 
 #ifdef __cplusplus
 }
